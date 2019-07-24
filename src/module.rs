@@ -1,5 +1,4 @@
 use crate::fp_vector::FpVector;
-use crate::fp_vector::FpVectorTrait;
 use crate::algebra::Algebra;
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::module_homomorphism::ZeroHomomorphism;

@@ -7,7 +7,6 @@ use crate::combinatorics;
 use crate::combinatorics::MAX_XI_TAU;
 // use crate::memory::CVec;
 use crate::fp_vector::FpVector;
-use crate::fp_vector::FpVectorTrait;
 
 lazy_static!{
     static ref BOCKSTEIN_TABLE : Vec<Vec<u32>> = {

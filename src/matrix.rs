@@ -2,7 +2,6 @@ use crate::memory::CVec;
 use crate::memory::MemoryAllocator;
 use crate::combinatorics;
 use crate::fp_vector::FpVector;
-use crate::fp_vector::FpVectorTrait;
 
 
 use std::fmt;

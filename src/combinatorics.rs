@@ -333,7 +333,7 @@ pub fn get_xi_degrees(p : u32) -> &'static [u32] {
 #[cfg(test)]
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
-    use super::*;
+    // use super::*;
 
     // #[test]
     // fn test_basep_expansion(){

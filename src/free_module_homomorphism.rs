@@ -1,5 +1,4 @@
 use crate::fp_vector::FpVector;
-use crate::fp_vector::FpVectorTrait;
 use crate::matrix::Matrix;
 use crate::matrix::QuasiInverse;
 use crate::matrix::Subspace;
