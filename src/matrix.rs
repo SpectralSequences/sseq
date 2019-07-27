@@ -251,8 +251,8 @@ impl Matrix {
 }
 
 pub struct Subspace {
-    matrix : Matrix,
-    column_to_pivot_row : CVec<isize>
+    pub matrix : Matrix,
+    pub column_to_pivot_row : CVec<isize>
 }
 
 impl Subspace {
@@ -279,7 +279,7 @@ impl Matrix {
     /// matrix -- a row reduced augmented matrix
     /// column_to_pivot_row -- the pivots in matrix (also returned by row_reduce)
     /// first_source_column -- which block of the matrix is the source of the map
-    pub fn compute_kernel(&mut self, column_to_pivot_row : CVec<isize>, first_source_column : usize) -> Subspace {
+    pub fn compute_kernel(&mut self, first_source_column : usize, column_to_pivot_row : &CVec<isize>) -> Subspace {
         let p = self.p;
         let source_dimension = self.columns - first_source_column;
 
@@ -315,6 +315,25 @@ impl Matrix {
         }
         return kernel;
     }
+
+    /// Take an augmented row reduced matrix representation of a map and adds rows to it to hit the complement
+    /// of complement_pivots in desired_image. Does so by walking through the columns and if it finds a target column
+    /// that has a pivot in desired_image but no pivot in current_pivots or complement_pivots, add that the row in desired_image
+    /// to the matrix.
+    ///    self -- An augmented, row reduced matrix to be modified to extend it's image.
+    ///    first_source_column : Where does the source comppstart in the augmented matrix?
+    pub fn get_image(&mut self, image_rows : usize, target_dimension : usize, pivots : &CVec<isize>) -> Subspace {
+        let mut image = Subspace::new(self.p, image_rows, target_dimension);
+        for i in 0 .. image_rows {
+            image.column_to_pivot_row[i] = pivots[i];
+            let vector_to_copy = &mut self.vectors[i];
+            vector_to_copy.set_slice(0, target_dimension);
+            image.matrix.vectors[i].assign(vector_to_copy);
+            vector_to_copy.clear_slice();
+        }
+        return image;
+    }
+
 
     /// Take an augmented row reduced matrix representation of a map and adds rows to it to hit the complement
     /// of complement_pivots in desired_image. Does so by walking through the columns and if it finds a target column

@@ -12,8 +12,9 @@ pub trait ChainComplex {
     fn get_differential(&self, homological_degree : usize) -> &ModuleHomomorphism;
     fn compute_through_bidegree(&self, homological_degree : usize, degree : i32) {}
     fn set_kernel(&self, homological_degree : usize, degree : i32, kernel : Subspace);
-    // fn set_image_pivots(&self, degree : i32, homological_degree : usize, image : CVec<isize>);
+    fn set_image(&self, degree : i32, homological_degree : usize, image : Subspace);
     fn get_kernel(&self, homological_degree : usize, degree : i32) -> &Subspace;
+    fn get_image(&self, homological_degree : usize, degree : i32) -> &Subspace;
     // fn get_quasi_inverse(&self, degree : i32, homological_degree : usize) -> &QuasiInverse;
 
     fn compute_kernel_and_image(&self,  homological_degree : usize, degree : i32){
@@ -36,8 +37,10 @@ pub trait ChainComplex {
         }
         let mut pivots = CVec::new(columns);
         matrix.row_reduce(&mut pivots);
-        let kernel = matrix.compute_kernel(pivots, padded_target_dimension);
+        let kernel = matrix.compute_kernel(padded_target_dimension, &pivots);
+        let image_rows = matrix.rows - kernel.matrix.rows;
         self.set_kernel(homological_degree, degree, kernel);
+        let image = matrix.get_image(image_rows, target_dimension, &pivots);
     }
 }
 
@@ -50,8 +53,8 @@ struct ChainComplexConcentratedInDegreeZero<'a> {
     d1 : ZeroHomomorphism<'a>,
     other_ds : ZeroHomomorphism<'a>,
     kernel_deg_zero : Vec<OnceRefOwned<Subspace>>,
-    kernel_generic : Subspace,
-    // image_generic : Matrix
+    image_deg_zero : Vec<OnceRefOwned<Subspace>>,
+    zero_subspace : Subspace
 }
 
 impl<'a> ChainComplexConcentratedInDegreeZero<'a> {
@@ -72,7 +75,8 @@ impl<'a> ChainComplexConcentratedInDegreeZero<'a> {
             d1,
             other_ds,
             kernel_deg_zero : Vec::new(),
-            kernel_generic : Subspace::new(p, 0, 0),
+            image_deg_zero : Vec::new(),
+            zero_subspace : Subspace::new(p, 0, 0),
             // image_generic : CVec::new(0)
         }
     }
@@ -114,19 +118,30 @@ impl<'a> ChainComplex for ChainComplexConcentratedInDegreeZero<'a> {
 
     fn get_kernel(&self,  homological_degree : usize, degree : i32) -> &Subspace {
         if homological_degree > 0 {
-            return &self.kernel_generic;
+            return &self.zero_subspace;
         }
         assert!(degree >= self.get_min_degree());
         let degree_idx = (degree - self.get_min_degree()) as usize;        
         return self.kernel_deg_zero[degree_idx].get();
     }
 
-    // fn set_image_pivots(&self, degree : i32, homological_degree : usize, image : CVec<isize>){
-    //     if homological_degree > 0 {
-    //         return;
-    //     }
-    //     self.image_deg_zero[degree].set(image);
-    // }
+    fn set_image(&self, degree : i32, homological_degree : usize, image : Subspace){
+        if homological_degree > 0 {
+            return;
+        }
+        assert!(degree >= self.get_min_degree());
+        let degree_idx = (degree - self.get_min_degree()) as usize;
+        self.image_deg_zero[degree_idx].set(image);
+    }
+
+    fn get_image(&self,  homological_degree : usize, degree : i32) -> &Subspace {
+        if homological_degree > 0 {
+            return &self.zero_subspace;
+        }
+        assert!(degree >= self.get_min_degree());
+        let degree_idx = (degree - self.get_min_degree()) as usize;        
+        return self.image_deg_zero[degree_idx].get();
+    }
 
     // fn get_quasi_inverse(&self, degree : i32, homological_degree : usize) -> QuasiInverse {
     //     let qi_pivots = self.image_deg_zero[degree].get();

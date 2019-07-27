@@ -74,7 +74,7 @@ impl<'a,'b,'c, 'd, 'e> Resolution<'a,'b,'c, 'd, 'e> {
     //     current_differential.get_matrix_with_table(&mut matrix, &source_module_table, degree);
 
     //     let pivots = vec![-1; matrix.columns];
-    //     // matrix.compute_kernel(pivots, degree);
+    //     // matrix.compute_kernel(padded_target_dimension, pivots);
     //     let kernel = &current_differential.kernel[degree_idx];
 
     //     // Now add generators to hit kernel of previous differential. 
@@ -88,20 +88,10 @@ impl<'a,'b,'c, 'd, 'e> Resolution<'a,'b,'c, 'd, 'e> {
 
     //     // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
     //     // Allocate a matrix coimage_to_image with these dimensions.
-    //     let coimage_to_image_rows = first_new_row + new_generators;
-    //     let new_source_dimension = source_dimension + new_generators;
-    //     let coimage_to_image = Matrix::new(p, coimage_to_image_rows, new_source_dimension);
-    //     current_differential.coimage_to_image_isomorphism[degree_idx] = coimage_to_image;
+        // let image_rows = first_new_row + new_generators;
 
-    //     let useless_pivots = vec![-1; matrix.columns];
-    //     matrix.row_reduce(&mut useless_pivots);
-
-    //     // Copy matrix contents to coimage_to_image
-    //     for i in 0 .. coimage_to_image_rows {
-    //         let source_vector = &mut matrix.vectors[i];
-    //         source_vector.set_slice(first_source_index, first_source_index + new_source_dimension);
-    //         coimage_to_image.vectors[i].assign(source_vector);
-    //         source_vector.clear_slice();
-    //     }
+        // let new_pivots = vec![-1; matrix.columns];
+        // matrix.row_reduce(&mut new_pivots);
+        // let image = matrix.get_image(image_rows, target_dimension, new_pivots);
     // }
 }
