@@ -29,51 +29,74 @@ extern crate lazy_static;
 // use std::fmt;
 
 // use crate::memory::{CVec, MemoryAllocator};
+use crate::module::Module;
+use resolution::Resolution;
+
+fn resolve_through_degree(res : &Resolution, degree : i32){
+    for int_deg in res.get_min_degree() .. degree {
+        for hom_deg in 0 .. int_deg as u32 + 1 {
+            println!("({}, {})", hom_deg, int_deg);
+            res.step(hom_deg, int_deg);
+        }
+    }
+}
 
 #[allow(unreachable_code)]
 #[allow(non_snake_case)]
 #[allow(unused_mut)]
 fn main() {
     let p = 2;
-    let s = memory::MemoryTable::new();
-    // // s.push_stack_frame();
-    fp_vector::initialize_limb_bit_index_table(p);
-    combinatorics::initialize_prime(p);
+    let max_degree = 20;
+    let mut A = adem_algebra::AdemAlgebra::new(p, p != 2, false);
+    A.generate_basis(max_degree);
+    let M = finite_dimensional_module::FiniteDimensionalModule::new(&A, "k".to_string(), 0, 1, vec![1]);
+    println!("M.min_degree: {}", M.get_min_degree());
+    let CC = chain_complex::ChainComplexConcentratedInDegreeZero::new(&M, max_degree);
+    let res = resolution::Resolution::new(&CC, max_degree);
+    // res.get_module(0);
+    println!("res.min_degree: {}", res.get_min_degree());
+    resolve_through_degree(&res, max_degree);
 
-    // let mut A = adem_algebra::AdemAlgebra::new(p, p != 2, false);
-    // A.generate_basis(20);
-    // for (i, basis) in A.basis_table.iter().enumerate() {
-    //     print!("{}: ", i);
-    //     println!("[{}]", basis.iter().fold(String::new(), |acc, num| acc + &num.to_string() + ", "));
-    // }
-    // println!("\n\n");
-    // let r_deg = 13;
-    // let r_idx = 1;
-    // let s_deg = 4;
-    // let s_idx = 0;
-    // let out_deg = r_deg + s_deg;
-    // let mut result = fp_vector::FpVector::new(p, A.get_dimension(out_deg, -1), 0);
-    // A.multiply(&mut result, 1, r_deg, r_idx, s_deg, s_idx, -1);
-    // println!("{} * {} = {}", A.basis_element_to_string(r_deg, r_idx), A.basis_element_to_string(s_deg, s_idx),  A.element_to_string(out_deg, result));
-    // // return;
-    let mut x = fp_vector::FpVector::new_from_allocator(&s, p, 7, 0);
-    let mut y = fp_vector::FpVector::new_from_allocator(&s, p, 7, 0);
-    let v : [u32 ; 7] = [1,0,1,0,1, 1, 1];
-    let w : [u32 ; 7] = [1,1,1,1,1, 0, 0];
-    x.pack(&v);
-    y.pack(&w);
-    println!("x: {}\n",x);
-    x.set_slice(1, 6);
-    println!("x: {}\n",x);
-    x.clear_slice();
-    println!("x: {}\n",x);
-    // let mut ys = y.slice(1, 6);
-    println!("x: {}\ny: {}", x, y);
-    y.add(&x,1);
-    println!("x: {}\ny: {}", x, y);
-    // println!("ys:   {}", ys);
-    // println!("y: {}", y);
-    return;
+
+    // let s = memory::MemoryTable::new();
+    // // // s.push_stack_frame();
+    // fp_vector::initialize_limb_bit_index_table(p);
+    // combinatorics::initialize_prime(p);
+
+    // // let mut A = adem_algebra::AdemAlgebra::new(p, p != 2, false);
+    // // A.generate_basis(20);
+    // // for (i, basis) in A.basis_table.iter().enumerate() {
+    // //     print!("{}: ", i);
+    // //     println!("[{}]", basis.iter().fold(String::new(), |acc, num| acc + &num.to_string() + ", "));
+    // // }
+    // // println!("\n\n");
+    // // let r_deg = 13;
+    // // let r_idx = 1;
+    // // let s_deg = 4;
+    // // let s_idx = 0;
+    // // let out_deg = r_deg + s_deg;
+    // // let mut result = fp_vector::FpVector::new(p, A.get_dimension(out_deg, -1), 0);
+    // // A.multiply(&mut result, 1, r_deg, r_idx, s_deg, s_idx, -1);
+    // // println!("{} * {} = {}", A.basis_element_to_string(r_deg, r_idx), A.basis_element_to_string(s_deg, s_idx),  A.element_to_string(out_deg, result));
+    // // // return;
+    // let mut x = fp_vector::FpVector::new_from_allocator(&s, p, 7, 0);
+    // let mut y = fp_vector::FpVector::new_from_allocator(&s, p, 7, 0);
+    // let v : [u32 ; 7] = [1,0,1,0,1, 1, 1];
+    // let w : [u32 ; 7] = [1,1,1,1,1, 0, 0];
+    // x.pack(&v);
+    // y.pack(&w);
+    // println!("x: {}\n",x);
+    // x.set_slice(1, 6);
+    // println!("x: {}\n",x);
+    // x.clear_slice();
+    // println!("x: {}\n",x);
+    // // let mut ys = y.slice(1, 6);
+    // println!("x: {}\ny: {}", x, y);
+    // y.add(&x,1);
+    // println!("x: {}\ny: {}", x, y);
+    // // println!("ys:   {}", ys);
+    // // println!("y: {}", y);
+    // return;
 
     // x.unpack(&mut v);
     // println!("{:?}", v);

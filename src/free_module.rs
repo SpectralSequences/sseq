@@ -21,7 +21,6 @@ pub struct FreeModule<'a> {
     pub algebra : &'a Algebra,
     pub name : String,
     pub min_degree : i32,
-    pub computed_degree : i32,
     pub max_degree : i32,
     pub table : Vec<OnceRefOwned<FreeModuleTableEntry>>
 }
@@ -41,10 +40,10 @@ impl<'a> Module for FreeModule<'a> {
     }
 
     fn get_dimension(&self, degree : i32) -> usize {
+        println!("Get dimension of {} in degree {}", self.name, degree);
         if degree < self.min_degree {
             return 0;
         }
-        assert!(degree < self.computed_degree);        
         let degree_idx = (degree - self.min_degree) as usize;
         return self.table[degree_idx].get().basis_element_to_opgen.len();
     }
@@ -97,7 +96,6 @@ impl<'a> FreeModule<'a> {
             algebra,
             name,
             min_degree,
-            computed_degree : min_degree,
             max_degree,
             table
         }
@@ -107,14 +105,12 @@ impl<'a> FreeModule<'a> {
         if degree < self.min_degree {
             return 0;
         }
-        assert!(degree < self.computed_degree);        
         let degree_idx = (degree - self.min_degree) as usize;
         return self.table[degree_idx].get().num_gens;
     }
 
-    pub fn construct_table(&mut self, degree : i32) -> FreeModuleTableEntry {
+    pub fn construct_table(&self, degree : i32) -> FreeModuleTableEntry {
         assert!(degree >= self.min_degree);
-        assert_eq!(self.computed_degree, degree);      
         let degree_idx = (degree - self.min_degree) as usize;
         let mut basis_element_to_opgen : Vec<OperationGeneratorPair> = Vec::with_capacity(degree_idx + 1);
         let mut generator_to_index : Vec<Vec<usize>> = Vec::with_capacity(degree_idx + 1);
@@ -149,13 +145,21 @@ impl<'a> FreeModule<'a> {
             generator_to_index
         }
     }
-    
-    pub fn add_generators(&mut self, degree : i32, mut table : FreeModuleTableEntry,  num_gens : usize){
-        assert!(degree == self.computed_degree);
+
+    pub fn get_dimension_with_table(&self, degree : i32, table : &FreeModuleTableEntry) -> usize {
+        println!("Get dimension of {} in degree {}", self.name, degree);
+        if degree < self.min_degree {
+            return 0;
+        }
+        let degree_idx = (degree - self.min_degree) as usize;
+        return table.basis_element_to_opgen.len();
+    }
+
+    pub fn add_generators(&self, degree : i32, mut table : FreeModuleTableEntry,  num_gens : usize){
+        assert!(degree >= self.min_degree);
         let degree_idx = (degree - self.min_degree) as usize;
         Self::add_generators_to_table(degree, &mut table, num_gens);
         self.table[degree_idx].set(table);
-        self.computed_degree += 1;
     }
 
     fn add_generators_to_table(degree : i32, table : &mut FreeModuleTableEntry, num_gens : usize){

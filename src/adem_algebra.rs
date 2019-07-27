@@ -168,7 +168,7 @@ impl AdemAlgebra {
         Self {
             p,
             max_degree : 0, // TODO
-            name : "".to_string(),
+            name : format!("AdemAlgebra(p={})", p),
             generic,
             unstable,
             even_basis_table : Vec::new(),

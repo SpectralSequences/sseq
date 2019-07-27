@@ -307,7 +307,11 @@ impl FpVector {
         let p = self.get_prime();
         let bit_length = get_bit_length(p);        
         let container = self.get_vector_container();
-        get_limb_bit_index_pair(p, container.offset/bit_length + container.slice_end - 1).limb + 1
+        if container.offset/bit_length + container.slice_end > 0{
+            get_limb_bit_index_pair(p, container.offset/bit_length + container.slice_end - 1).limb + 1
+        } else {
+            0
+        }
     }
 
     // Private
@@ -329,7 +333,7 @@ impl FpVector {
         if limb_idx == 0 {
             mask <<= offset;
         }
-        if limb_idx == number_of_limbs - 1 {
+        if limb_idx + 1 == number_of_limbs {
             let p = self.get_prime();
             let dimension = self.get_dimension();
             let bit_length = get_bit_length(p);
@@ -433,7 +437,7 @@ impl FpVector {
         assert!(self.get_offset() == other.get_offset());
         let target_limbs = self.get_limbs_cvec_mut();
         let source_limbs = other.get_limbs_cvec();
-        for i in 1 .. number_of_limbs-1 {
+        for i in 1 .. number_of_limbs.saturating_sub(1) {
             target_limbs[min_target_limb + i] = source_limbs[min_source_limb + i];
         }        
         let mut i=0; { 

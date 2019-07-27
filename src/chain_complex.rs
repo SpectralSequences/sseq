@@ -2,30 +2,34 @@ use crate::fp_vector::FpVector;
 use crate::once::OnceRefOwned;
 use crate::matrix::{Matrix, Subspace};
 use crate::memory::CVec;
+use crate::algebra::Algebra;
 use crate::module::{Module, ZeroModule};
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 
 pub trait ChainComplex {
-    fn get_prime(&self) -> u32;
+    fn get_prime(&self) -> u32 {
+        self.get_algebra().get_prime()
+    }
+    fn get_algebra(&self) -> &Algebra;
     fn get_min_degree(&self) -> i32;
     fn get_module(&self, homological_degree : usize) -> &Module;
     fn get_differential(&self, homological_degree : usize) -> &ModuleHomomorphism;
     fn compute_through_bidegree(&self, homological_degree : usize, degree : i32) {}
-    fn set_kernel(&self, homological_degree : usize, degree : i32, kernel : Subspace);
-    fn set_image(&self, degree : i32, homological_degree : usize, image : Subspace);
-    fn get_kernel(&self, homological_degree : usize, degree : i32) -> &Subspace;
-    fn get_image(&self, homological_degree : usize, degree : i32) -> &Subspace;
+    // fn set_kernel(&self, homological_degree : usize, degree : i32, kernel : Subspace);
+    // fn set_image(&self, degree : i32, homological_degree : usize, image : Subspace);
+    // fn get_kernel(&self, homological_degree : usize, degree : i32) -> &Subspace;
+    // fn get_image(&self, homological_degree : usize, degree : i32) -> Option<&Subspace>;
     // fn get_quasi_inverse(&self, degree : i32, homological_degree : usize) -> &QuasiInverse;
 
     fn compute_kernel_and_image(&self,  homological_degree : usize, degree : i32){
         let p = self.get_prime();
+        let d = self.get_differential(homological_degree);
         if homological_degree == 0 {
             let module = self.get_module(0);
             let dim = module.get_dimension(degree);
             let kernel = Subspace::entire_space(p, dim);
-            self.set_kernel(homological_degree, degree, kernel);
+            d.set_kernel(degree, kernel);
         }
-        let d = self.get_differential(homological_degree);
         let source_dimension = d.get_source().get_dimension(degree);
         let target_dimension = d.get_target().get_dimension(degree);
         let padded_target_dimension = FpVector::get_padded_dimension(p, target_dimension, 0);
@@ -33,19 +37,19 @@ pub trait ChainComplex {
         let mut matrix = Matrix::new(p, source_dimension, columns);
         d.get_matrix(&mut matrix, degree, 0, 0);
         for i in 0..source_dimension {
-            matrix.vectors[i].set_entry(padded_target_dimension + i, 1);
+            matrix[i].set_entry(padded_target_dimension + i, 1);
         }
         let mut pivots = CVec::new(columns);
         matrix.row_reduce(&mut pivots);
-        let kernel = matrix.compute_kernel(padded_target_dimension, &pivots);
-        let image_rows = matrix.rows - kernel.matrix.rows;
-        self.set_kernel(homological_degree, degree, kernel);
-        let image = matrix.get_image(image_rows, target_dimension, &pivots);
+        let kernel_rows = d.copy_kernel_from_matrix(degree, &mut matrix, &pivots, padded_target_dimension);
+        let image_rows = matrix.get_rows() - kernel_rows;
+        d.copy_image_from_matrix(degree, &mut matrix, &pivots, image_rows, target_dimension);
+        d.copy_quasi_inverse_from_matrix(degree, &mut matrix, image_rows, padded_target_dimension);
     }
 }
 
 
-struct ChainComplexConcentratedInDegreeZero<'a> {
+pub struct ChainComplexConcentratedInDegreeZero<'a> {
     module : &'a Module,
     max_degree : i32,
     zero_module : ZeroModule<'a>,
@@ -53,7 +57,6 @@ struct ChainComplexConcentratedInDegreeZero<'a> {
     d1 : ZeroHomomorphism<'a>,
     other_ds : ZeroHomomorphism<'a>,
     kernel_deg_zero : Vec<OnceRefOwned<Subspace>>,
-    image_deg_zero : Vec<OnceRefOwned<Subspace>>,
     zero_subspace : Subspace
 }
 
@@ -75,16 +78,14 @@ impl<'a> ChainComplexConcentratedInDegreeZero<'a> {
             d1,
             other_ds,
             kernel_deg_zero : Vec::new(),
-            image_deg_zero : Vec::new(),
             zero_subspace : Subspace::new(p, 0, 0),
-            // image_generic : CVec::new(0)
         }
     }
 }
 
 impl<'a> ChainComplex for ChainComplexConcentratedInDegreeZero<'a> {
-    fn get_prime(&self) -> u32 {
-        self.module.get_prime()
+    fn get_algebra(&self) -> &Algebra {
+        self.module.get_algebra()
     }
 
     fn get_module(&self, homological_degree : usize) -> &Module {
@@ -105,42 +106,6 @@ impl<'a> ChainComplex for ChainComplexConcentratedInDegreeZero<'a> {
             1 => &self.d1,
             _ => &self.other_ds
         } 
-    }
-
-    fn set_kernel(&self, homological_degree : usize, degree : i32, kernel : Subspace) {
-        if homological_degree > 0 {
-            return;
-        }
-        assert!(degree >= self.get_min_degree());
-        let degree_idx = (degree - self.get_min_degree()) as usize;
-        self.kernel_deg_zero[degree_idx].set(kernel);
-    }
-
-    fn get_kernel(&self,  homological_degree : usize, degree : i32) -> &Subspace {
-        if homological_degree > 0 {
-            return &self.zero_subspace;
-        }
-        assert!(degree >= self.get_min_degree());
-        let degree_idx = (degree - self.get_min_degree()) as usize;        
-        return self.kernel_deg_zero[degree_idx].get();
-    }
-
-    fn set_image(&self, degree : i32, homological_degree : usize, image : Subspace){
-        if homological_degree > 0 {
-            return;
-        }
-        assert!(degree >= self.get_min_degree());
-        let degree_idx = (degree - self.get_min_degree()) as usize;
-        self.image_deg_zero[degree_idx].set(image);
-    }
-
-    fn get_image(&self,  homological_degree : usize, degree : i32) -> &Subspace {
-        if homological_degree > 0 {
-            return &self.zero_subspace;
-        }
-        assert!(degree >= self.get_min_degree());
-        let degree_idx = (degree - self.get_min_degree()) as usize;        
-        return self.image_deg_zero[degree_idx].get();
     }
 
     // fn get_quasi_inverse(&self, degree : i32, homological_degree : usize) -> QuasiInverse {

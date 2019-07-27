@@ -2,7 +2,7 @@ use crate::fp_vector::FpVector;
 use crate::algebra::Algebra;
 use crate::module::Module;
 
-struct FiniteDimensionalModule<'a> {
+pub struct FiniteDimensionalModule<'a> {
     algebra : &'a Algebra,
     name : String,
     min_degree : i32,

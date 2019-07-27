@@ -1,18 +1,20 @@
+use crate::once::OnceRefOwned;
+use crate::memory::CVec;
 use crate::fp_vector::FpVector;
-use crate::matrix::Matrix;
+use crate::matrix::{Matrix, Subspace};
 use crate::module::Module;
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module::{FreeModule, FreeModuleTableEntry};
 
-pub struct FreeModuleHomomorphism<'a, 'b, 'c> {
-    pub source : &'a FreeModule<'b>,
-    pub target : &'c Module,
-    outputs : Vec<Vec<FpVector>>, // degree --> input_idx --> output
+pub struct FreeModuleHomomorphism<'a> {
+    pub source : &'a FreeModule<'a>,
+    pub target : &'a Module,
+    outputs : Vec<OnceRefOwned<Vec<FpVector>>>, // degree --> input_idx --> output
     min_degree : i32,
     degree_shift : i32
 }
 
-impl<'a> ModuleHomomorphism for FreeModuleHomomorphism<'_, '_, '_> {
+impl ModuleHomomorphism for FreeModuleHomomorphism<'_> {
     fn get_source(&self) -> &Module {
         self.source
     }
@@ -26,6 +28,30 @@ impl<'a> ModuleHomomorphism for FreeModuleHomomorphism<'_, '_, '_> {
         let table = &self.source.table[input_degree_idx].get();
         self.apply_to_basis_element_with_table(result, coeff, input_degree, table, input_index);
     }
+
+    fn set_kernel(&self, degree : i32, kernel : Subspace){
+        
+    }
+    
+    fn get_kernel(&self, degree : i32) -> Option<&Subspace> {
+        None
+    }
+
+    fn set_image(&self, degree : i32, image : Subspace){
+
+    }
+
+    fn get_image(&self, degree : i32) -> Option<&Subspace> {
+        None
+    }
+
+    fn set_quasi_inverse(&self, degree : i32, quasi_inverse : Matrix){
+
+    }
+    
+    fn get_quasi_inverse(&self, degree : i32) -> Option<&Matrix>{
+        None
+    }    
 }
 // // Run FreeModule_ConstructBlockOffsetTable(source, degree) before using this on an input in that degree
 // void FreeModuleHomomorphism_applyToBasisElement(FreeModuleHomomorphism *f, Vector *result, uint coeff, int input_degree, uint input_index){
@@ -33,58 +59,55 @@ impl<'a> ModuleHomomorphism for FreeModuleHomomorphism<'_, '_, '_> {
 // }
 
 
-impl<'a, 'b, 'c> FreeModuleHomomorphism<'a, 'b, 'c> {
-    pub fn new(source : &'a FreeModule<'b>, target : &'c Module, min_degree : i32, degree_shift : i32) -> Self {
+impl<'a> FreeModuleHomomorphism<'a> {
+    pub fn new(source : &'a FreeModule<'a>, target : &'a Module, min_degree : i32, degree_shift : i32, max_degree : i32) -> Self {
+        let num_degrees = max_degree as usize - min_degree as usize;
+        let mut outputs = Vec::with_capacity(num_degrees);
+        for i in 0..num_degrees {
+            outputs.push(OnceRefOwned::new());
+        }
         Self {
             source,
             target,
-            outputs : Vec::new(),
+            outputs,
             min_degree,
             degree_shift
         }
     }
 
     pub fn get_output(&self, generator_degree : i32, generator_index : usize ) -> &FpVector {
+        println!("    get_output: gen_deg = {}, gen_idx = {}", generator_degree, generator_index);
         assert!(generator_degree >= self.source.min_degree);
         assert!(generator_index < self.source.get_number_of_gens_in_degree(generator_degree));        
         let generator_degree_idx = (generator_degree - self.source.min_degree) as usize;
-        return &self.outputs[generator_degree_idx][generator_index];
-    }
-
-    pub fn set_output(&mut self, generator_degree : i32, generator_index : usize, output : &FpVector){
-        assert!(generator_degree >= self.source.min_degree);
-        assert!(generator_index < self.source.get_number_of_gens_in_degree(generator_degree));
-        let generator_degree_idx = (generator_degree - self.source.min_degree) as usize;
-        assert!(output.get_dimension() == self.target.get_dimension(generator_degree + self.degree_shift));
-        assert!(output.get_offset() == 0);
-        self.outputs[generator_degree_idx][generator_index].assign(output);
+        println!("    self.outputs.len: {}", self.outputs[generator_degree_idx].get().len());        
+        return &self.outputs[generator_degree_idx].get()[generator_index];
     }
 
     // We don't actually mutate &mut matrix, we just slice it.
-    pub fn add_generators_from_matrix_rows(&mut self, degree : i32, matrix : &mut Matrix, first_new_row : usize, new_generators : usize){
+    pub fn add_generators_from_matrix_rows(&self, degree : i32, matrix : &mut Matrix, first_new_row : usize, first_target_column : usize, new_generators : usize){
+        println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
         let dimension = self.target.get_dimension(degree);
-        self.allocate_space_for_new_generators(degree, new_generators);
-        for i in 0 .. new_generators {
-            let output_vector = &mut matrix.vectors[first_new_row + i];
-            output_vector.set_slice(0, dimension);
-            self.set_output(degree, i, &output_vector);
-            output_vector.clear_slice();
-        }
-    }
-
-    pub fn allocate_space_for_new_generators(&mut self, degree : i32, new_generators : usize){
-        // assert(degree < selmax_degree);
-        // assert(f->max_computed_degree <= degree);
+        // println!("    dimension : {} target name : {}", dimension, self.target.get_name());
         assert!(degree >= self.source.min_degree);
         let degree_idx = (degree - self.source.min_degree) as usize;
-        assert!(degree_idx == self.outputs.len());
         let p = self.get_prime();
         let dimension = self.target.get_dimension(degree + self.degree_shift);
         let mut new_outputs : Vec<FpVector> = Vec::with_capacity(new_generators);
         for _ in 0 .. new_generators {
             new_outputs.push(FpVector::new(p, dimension, 0));
         }
-        self.outputs.push(new_outputs);
+        if dimension == 0 {
+            self.outputs[degree_idx].set(new_outputs);
+            return;
+        }
+        for i in 0 .. new_generators {
+            let output_vector = &mut matrix[first_new_row + i];
+            output_vector.set_slice(0, dimension);
+            new_outputs[i].assign(&output_vector);
+            output_vector.clear_slice();
+        }
+        self.outputs[degree_idx].set(new_outputs);
     }
 
     pub fn apply_to_basis_element_with_table(&self, result : &mut FpVector, coeff : u32, input_degree : i32, table : &FreeModuleTableEntry, input_index : usize){
@@ -100,16 +123,17 @@ impl<'a, 'b, 'c> FreeModuleHomomorphism<'a, 'b, 'c> {
         self.target.act(result, coeff, operation_degree, operation_index, generator_degree + self.degree_shift, output_on_generator);
     }
 
-    fn get_matrix(&self, matrix : &mut Matrix, table : &FreeModuleTableEntry , degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {
-        let source_dimension = self.get_source().get_dimension(degree);
+    pub fn get_matrix_with_table(&self, matrix : &mut Matrix, table : &FreeModuleTableEntry , degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {
+        let source_dimension = self.source.get_dimension_with_table(degree, table);
         let target_dimension = self.get_target().get_dimension(degree);
-        assert!(source_dimension <= matrix.rows);
-        assert!(target_dimension <= matrix.columns);
+        println!("    get_matrix : source_dim = {}, target_dim = {}", source_dimension, target_dimension);
+        assert!(source_dimension <= matrix.get_rows());
+        assert!(target_dimension <= matrix.get_columns());
         for input_idx in 0 .. source_dimension {
             // Writing into slice.
             // Can we take ownership from matrix and then put back? 
             // If source is smaller than target, just allow add to ignore rest of input would work here.
-            let output_vector = &mut matrix.vectors[start_row + input_idx];
+            let output_vector = &mut matrix[start_row + input_idx];
             output_vector.set_slice(start_column, start_column + target_dimension);
             self.apply_to_basis_element_with_table(output_vector, 1, degree, table, input_idx);
             output_vector.clear_slice();
