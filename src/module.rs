@@ -19,9 +19,11 @@ pub trait Module {
     // int max_degree; // Rename to max_allocated_degree?
     // int max_computed_degree;
 // Methods:
+    fn get_min_degree(&self) -> i32;
     fn compute_basis(&mut self, degree : i32) {}
     fn get_dimension(&self, degree : i32) -> usize;
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize);
+    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String;
 
     fn act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector){
         assert!(input.get_dimension() == self.get_dimension(input_degree));
@@ -33,6 +35,31 @@ pub trait Module {
             self.act_on_basis(result, (coeff * v) % p, op_degree, op_index, input_degree, i);
         }
     }
+
+    fn element_to_string(&self, degree : i32, element : &FpVector) -> String {
+        let mut result = String::new();
+        let mut zero = true;
+        for (idx, value) in element.iter().enumerate() {
+            if value == 0 {
+                continue;
+            }
+            zero = false;
+            if value != 1 {
+                result.push_str(&format!("{} * ", value));
+            }
+            let b = self.basis_element_to_string(degree, idx);
+            result.push_str(&format!("{} + ", b));
+        }
+        if zero {
+            result.push_str("0");
+        } else {
+            // Remove trailing " + "
+            result.pop();
+            result.pop();
+            result.pop();
+        }
+        return result;
+    } 
 }
 
 struct ZeroModule<'a> {algebra : &'a Algebra, name : String }
@@ -60,9 +87,18 @@ impl<'a> Module for ZeroModule<'a> {
         0
     }
 
+    fn get_min_degree(&self) -> i32 {
+        0
+    }
+
     // Since the dimension is 0, the input of this function is an element of the basis which is the empty set.
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize){
         assert!(false);
+    }
+
+    fn basis_element_to_string(&self, degree : i32, index : usize) -> String{
+        assert!(false);
+        "".to_string()
     }
 
 }
@@ -95,12 +131,20 @@ impl<'a> ChainComplexConcentratedInDegreeZero<'a> {
 }
 
 impl<'a> ChainComplex for ChainComplexConcentratedInDegreeZero<'a> {
+    fn get_prime(&self) -> u32 {
+        self.module.get_prime()
+    }
+
     fn get_module(&self, homological_degree : usize) -> &Module {
         if homological_degree == 0 {
             return self.module;
         } else {
             return &self.zero_module;
         }
+    }
+
+    fn get_min_degree(&self) -> i32 {
+        self.module.get_min_degree()
     }
 
     fn get_differential(&self, homological_degree : usize) -> &ModuleHomomorphism {

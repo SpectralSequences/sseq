@@ -2,21 +2,24 @@
 #![allow(unused_variables)]
 
 mod memory;
+mod once;
 mod combinatorics;
 mod fp_vector;
-// mod matrix;
-// mod algebra;
-// mod adem_algebra;
-// mod module;
-// mod module_homomorphism;
-// mod finite_dimensional_module;
-// mod free_module;
-// mod free_module_homomorphism;
-// mod chain_complex;
-// mod resolution;
+mod matrix;
+mod algebra;
+mod adem_algebra;
+mod module;
+mod module_homomorphism;
+mod finite_dimensional_module;
+mod free_module;
+mod free_module_homomorphism;
+mod chain_complex;
+mod resolution;
+// mod test;
 
 #[cfg(test)]
 extern crate rand;
+extern crate spin;
 
 #[macro_use]
 extern crate lazy_static;

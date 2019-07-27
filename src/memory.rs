@@ -63,16 +63,20 @@ impl<T> fmt::Display for CVec<T>
 }
 
 impl<T> CVec<T> {
-    pub fn from_vec(mut vec : Vec<T>) -> CVec<T> {
-        CVec {
+    pub fn new(size : usize) -> Self {
+        Self::from_vec(Vec::new(size))
+    }
+
+    pub fn from_vec(mut vec : Vec<T>) -> Self {
+        Self {
             ptr: vec.as_mut_ptr(),
-            len: vec.len(),
+            len: vec.capacity(),
             backing : Some(vec)
         }
     }
 
-    pub fn from_parts(ptr : *mut T, len : usize, backing : Option<Vec<T>>) -> CVec<T>{
-        CVec { 
+    pub fn from_parts(ptr : *mut T, len : usize, backing : Option<Vec<T>>) -> Self {
+        Self { 
             ptr,
             len,
             backing

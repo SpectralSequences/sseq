@@ -1,6 +1,9 @@
 //
 // Created by Hood on 5/22/2019.
 //
+use std::sync::Once;
+use std::fmt;
+
 use crate::combinatorics::valid_prime_q;
 use crate::combinatorics::PRIME_TO_INDEX_MAP;
 use crate::combinatorics::MAX_PRIME_INDEX;
@@ -8,7 +11,7 @@ use crate::memory;
 use crate::memory::MemoryAllocator;
 use crate::memory::CVec;
 
-use std::fmt;
+
 
 pub const MAX_DIMENSION : usize = 147500;
 
@@ -64,6 +67,20 @@ static mut LIMB_BIT_INDEX_TABLE : [Option<Vec<LimbBitIndexPair>>; MAX_PRIME_INDE
     None,None,None,None,None,None,None,None,None,None,None,None,None,None
 ];
 
+static mut LIMB_BIT_INDEX_ONCE_TABLE : [Once; MAX_PRIME_INDEX] = [
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),                
+    Once::new(),Once::new(), Once::new(), Once::new()
+];
+
 /**
  * Called by initializePrime
  * This table tells us which limb and which bitfield of that limb to look for a given index of
@@ -71,22 +88,19 @@ static mut LIMB_BIT_INDEX_TABLE : [Option<Vec<LimbBitIndexPair>>; MAX_PRIME_INDE
  */
 pub fn initialize_limb_bit_index_table(p : u32){
     unsafe{
-        if let Some(table) = &LIMB_BIT_INDEX_TABLE[PRIME_TO_INDEX_MAP[p as usize]] {
-            return;
-        }
-    }
-    println!("initialize {}", p);
-    let entries_per_limb = get_entries_per_64_bits(p);
-    let bit_length = get_bit_length(p);
-    let mut table : Vec<LimbBitIndexPair> = Vec::with_capacity(MAX_DIMENSION);
-    for i in 0 .. MAX_DIMENSION {
-        table.push(LimbBitIndexPair{
-            limb : i/entries_per_limb,
-            bit_index : (i % entries_per_limb) * bit_length,
-        })
-    }
-    unsafe {
-        LIMB_BIT_INDEX_TABLE[PRIME_TO_INDEX_MAP[p as usize]] = Some(table);
+        LIMB_BIT_INDEX_ONCE_TABLE[PRIME_TO_INDEX_MAP[p as usize]].call_once(||{
+            println!("initialize {}", p);
+            let entries_per_limb = get_entries_per_64_bits(p);
+            let bit_length = get_bit_length(p);
+            let mut table : Vec<LimbBitIndexPair> = Vec::with_capacity(MAX_DIMENSION);
+            for i in 0 .. MAX_DIMENSION {
+                table.push(LimbBitIndexPair{
+                    limb : i/entries_per_limb,
+                    bit_index : (i % entries_per_limb) * bit_length,
+                })
+            }
+            LIMB_BIT_INDEX_TABLE[PRIME_TO_INDEX_MAP[p as usize]] = Some(table);
+        });
     }
 }
 
@@ -875,6 +889,53 @@ mod tests {
             for i in 0 .. v.get_dimension() {
                 if v.get_entry(i) != v_arr[i + slice_start] {
                     diffs.push((i, v_arr[i+slice_start], v.get_entry(i)));
+                }
+            }
+            assert_eq!(diffs, []);
+        }
+    }
+
+    #[rstest_parametrize(p,  case(2), case(3), case(5), case(7))]
+    fn test_set_entry(p : u32) {
+        initialize_limb_bit_index_table(p);
+        let dim_list = [10, 20, 70, 100, 1000];
+        for dim in dim_list.iter() { 
+            let dim = *dim;
+            let mut v = FpVector::new(p, dim, 0);
+            let v_arr = random_vector(p, dim);
+            for i in 0..dim {
+                v.set_entry(i, v_arr[i]);
+            }
+            let mut diffs = Vec::new();
+            for i in 0..dim {
+                if v.get_entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                }
+            }
+            assert_eq!(diffs, []);
+        }
+    }
+
+    #[rstest_parametrize(p,  case(2), case(3), case(5), case(7))]//
+    fn test_set_entry_slice(p : u32) {
+        initialize_limb_bit_index_table(p);
+        let dim_list = [10, 20, 70, 100, 1000];
+        for i in 0..dim_list.len() { 
+            let dim = dim_list[i];
+            let slice_start = [5, 10, 20, 30, 290][i];
+            let slice_end = (dim + slice_start)/2;
+            let mut v = FpVector::new(p, dim, 0);
+            v.set_slice(slice_start, slice_end);
+            let slice_dim  = v.get_dimension();
+            let v_arr = random_vector(p, slice_dim);
+            for i in 0 .. slice_dim {
+                v.set_entry(i, v_arr[i]);
+            }
+            // println!("slice_start: {}, slice_end: {}, slice: {}", slice_start, slice_end, v);
+            let mut diffs = Vec::new();
+            for i in 0 .. slice_dim {
+                if v.get_entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.get_entry(i)));
                 }
             }
             assert_eq!(diffs, []);

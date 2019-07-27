@@ -5,6 +5,7 @@ use std::format;
 
 use crate::combinatorics;
 use crate::combinatorics::MAX_XI_TAU;
+use crate::algebra::Algebra;
 // use crate::memory::CVec;
 use crate::fp_vector::FpVector;
 
@@ -122,10 +123,48 @@ pub struct AdemAlgebra {
     // filtrationOneProduct_basisElements;
 }
 
+impl Algebra for AdemAlgebra {
+    fn get_prime(&self) -> u32 {
+        self.p
+    }
+
+    fn get_max_degree(&self) -> i32 {
+        self.max_degree
+    }
+
+    fn get_name(&self) -> &str {
+        &self.name
+    }
+
+    fn compute_basis(&mut self, degree : i32) {
+        self.generate_basis(degree)
+    }
+
+    fn get_dimension(&self, degree : i32, excess : i32) -> usize {
+        if degree < 0 {
+            return 0;
+        }
+        return self.basis_table[degree as usize].len();
+    }
+
+    fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, 
+        r_degree : i32, r_index : usize, 
+        s_degree : i32, s_index : usize, excess : i32)
+    {
+        self.multiply(result, coeff, r_degree, r_index, s_degree, s_index, excess);
+    }
+
+    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
+        format!("{}", self.basis_element_from_index(degree, idx))
+    }
+}
+
 // static void AdemAlgebra__initializeFields(AdemAlgebraInternal *algebra, uint p, bool generic, bool unstable);
 // uint AdemAlgebra__generateName(AdemAlgebra *algebra); // defined in adem_io
 impl AdemAlgebra {
     pub fn new(p : u32, generic : bool, unstable : bool) -> Self {
+        crate::combinatorics::initialize_prime(p);
+        crate::fp_vector::initialize_limb_bit_index_table(p);
         Self {
             p,
             max_degree : 0, // TODO
@@ -381,13 +420,6 @@ impl AdemAlgebra {
         elt.degree = degree;
         elt.bocksteins = bocksteins;
         return (elt, result);
-    }
-
-    pub fn get_dimension(&self, degree : i32, excess : i32) -> usize {
-        if degree < 0 {
-            return 0;
-        }
-        return self.basis_table[degree as usize].len();
     }
 
     fn generate_multiplication_table(&mut self, old_max_degree : i32, max_degree : i32){
@@ -853,35 +885,6 @@ impl AdemAlgebra {
             self.make_mono_admissible_generic(result, (coeff * it_value) % p, new_monomial, idx - 1, new_leading_degree, excess, stop_early);
         }
     }
-
-    pub fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
-        format!("{}", self.basis_element_from_index(degree, idx))
-    }
-
-    pub fn element_to_string(&self, degree : i32, element : FpVector) -> String {
-        let mut result = String::new();
-        let mut zero = true;
-        for (idx, value) in element.iter().enumerate() {
-            if value == 0 {
-                continue;
-            }
-            zero = false;
-            if value != 1 {
-                result.push_str(&format!("{} * ", value));
-            }
-            let b = self.basis_element_from_index(degree, idx);
-            result.push_str(&format!("{} + ", b));
-        }
-        if zero {
-            result.push_str("0");
-        } else {
-            // Remove trailing " + "
-            result.pop();
-            result.pop();
-            result.pop();
-        }
-        return result;
-    }
 }
 
 
@@ -915,3 +918,46 @@ impl AdemAlgebra {
 //     }
 //     return algebra->excess_table[degree][excess];
 // }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_adem(){
+        let p = 2;
+        let mut A = AdemAlgebra::new(p, p != 2, false);
+        A.generate_basis(10);
+        let r_deg = 4;
+        let r_idx = 0;
+        let s_deg = 5;
+        let s_idx = 0;
+        let out_deg = r_deg + s_deg;
+        let mut result1 = FpVector::new(p, A.get_dimension(out_deg, 0), 0);
+        let mut result2 = FpVector::new(p, A.get_dimension(out_deg, 0), 3);
+        A.multiply_basis_elements(&mut result1, 1, r_deg, r_idx, s_deg, s_idx, 0);
+        A.multiply_basis_elements(&mut result2, 1, r_deg, r_idx, s_deg, s_idx, 0);
+        println!("result : {}", A.element_to_string(out_deg, result1));
+        println!("result : {}", A.element_to_string(out_deg, result2));
+    }
+
+}
+
+// def test_Adem_exhaustive(algebra_type, p, max_deg):
+//     sage_products = sage_products_dict[(algebra_type, p)]
+//     A = cAlgebra.getAlgebra(algebra_type + "Algebra", p=p, max_degree=max_deg)
+//     for degree_d_products in sage_products:
+//         for entry in degree_d_products:
+//             if(len(entry[0]) == 0 or len(entry[1])==0):
+//                 continue
+//             x = A.py_algebra.get_basis_element(basis_elt_to_tuples(entry[0]))
+//             y = A.py_algebra.get_basis_element(basis_elt_to_tuples(entry[1]))
+//             res = A.multiply(x,y)
+//             sage_res_dict = {}
+//             for k,v in entry[2]:
+//                 k = basis_elt_to_tuples(k)
+//                 sage_res_dict[k] = v
+//             sage_res = A.py_algebra.get_element(sage_res_dict)
+//             assert res == sage_res
+//             if res != sage_res:
+//                 return

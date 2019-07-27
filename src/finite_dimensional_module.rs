@@ -21,6 +21,10 @@ impl<'a> Module for FiniteDimensionalModule<'a> {
         self.algebra
     }
     
+    fn get_min_degree(&self) -> i32 {
+        self.min_degree
+    }
+    
     fn compute_basis(&mut self, degree : i32){ }
 
     fn get_dimension(&self, degree : i32) -> usize {
@@ -32,6 +36,10 @@ impl<'a> Module for FiniteDimensionalModule<'a> {
         }
         let degree_idx = (degree - self.min_degree) as usize;
         return self.graded_dimension[degree_idx];
+    }
+
+    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
+        return format!("x_{{{},{}}}", degree, idx);
     }
 
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize){
@@ -148,4 +156,14 @@ impl<'a> FiniteDimensionalModule<'a> {
         let output_degree_idx = (input_degree + operation_degree) as usize;
         return &self.actions[input_degree_idx][output_degree_idx][operation_idx][input_idx];
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_fd_mod(){
+
+    }
+
 }

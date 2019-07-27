@@ -252,14 +252,14 @@ impl Matrix {
 
 pub struct Subspace {
     matrix : Matrix,
-    column_to_pivot_row : Vec<i32>
+    column_to_pivot_row : CVec<isize>
 }
 
 impl Subspace {
     pub fn new(p : u32, rows : usize, columns : usize) -> Self {
         Self {
             matrix : Matrix::new(p, rows, columns),
-            column_to_pivot_row : Vec::with_capacity(columns)
+            column_to_pivot_row : CVec::new(columns)
         }
     }
 }
@@ -297,9 +297,10 @@ impl Matrix {
         // Copy kernel matrix into kernel
         for row in 0 .. kernel_dimension {
             // Reading from slice, alright.
-            let slice = self.vectors[first_kernel_row + row].
-                            slice(first_source_column, first_source_column + source_dimension);
-            kernel.matrix.vectors[row].assign(&slice);
+            let vector = &mut self.vectors[first_kernel_row + row];
+            vector.set_slice(first_source_column, first_source_column + source_dimension);
+            kernel.matrix.vectors[row].assign(&vector);
+            vector.clear_slice();
         }
         return kernel;
     }
@@ -313,7 +314,7 @@ impl Matrix {
     pub fn extend_image(&mut self, 
         mut first_empty_row : usize, current_pivots : Vec<i32>, 
         desired_image : Subspace, complement_pivots : Option<Vec<i32>>
-    ) -> u32 {
+    ) -> usize {
         let p = self.p;
         let mut homology_dimension = 0;
         let desired_pivots = desired_image.column_to_pivot_row;
@@ -330,8 +331,9 @@ impl Matrix {
             let new_image = &desired_image.matrix.vectors[kernel_vector_row];
             let matrix_row = &mut self.vectors[first_empty_row];
             // Writing into slice -- leaving rest of Vector alone would be alright in this case.
-            let mut slice = matrix_row.slice(0, desired_image.matrix.columns);
-            slice.assign(&new_image);
+            matrix_row.set_slice(0, desired_image.matrix.columns);
+            matrix_row.assign(&new_image);
+            matrix_row.clear_slice();
             first_empty_row += 1;
             homology_dimension += 1;
         }
@@ -354,6 +356,62 @@ impl QuasiInverse<'_> {
             let coeff = input.get_entry(i);
             target.add(&self.matrix.vectors[row], coeff);
             row += 1;
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[test]
+    fn test_row_reduce_2(){
+        let p = 2;
+        combinatorics::initialize_prime(p);
+        let tests = [(
+            [
+                [0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1], 
+                [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], 
+                [0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1], 
+                [1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0], 
+                [1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0], 
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], 
+                [0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1]
+            ], [
+                [1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1], 
+                [0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1], 
+                [0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0], 
+                [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], 
+                [0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1], 
+                [0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1], 
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1]
+            ], 
+            [0, 1, 2, 3, 4, 5, -1, -1, -1, -1, -1, -1, 6, -1, -1]
+        )];
+        for test in &tests {
+            let input = test.0;
+            let goal_output = test.1;
+            let goal_pivots = test.2;
+            let rows = input.len();
+            let cols = input[0].len();
+            let mut m = Matrix::new(p, rows, cols);
+            for (i,x) in input.iter().enumerate(){
+                m[i].pack(x);
+            }
+            let mut output_pivots_cvec = CVec::from_vec(Vec::with_capacity(cols));
+            m.row_reduce(&mut output_pivots_cvec);
+            let mut unpacked_row : Vec<u32> = vec![0; cols];
+            for (i,x) in input.iter().enumerate(){
+                m[i].unpack(&mut unpacked_row);
+                assert_eq!(unpacked_row, goal_output[i]);
+            }
+            let mut output_pivots_vec = Vec::with_capacity(cols);
+            for i in 0..cols {
+                output_pivots_vec.push(output_pivots_cvec[i]);
+            }
+            assert_eq!(output_pivots_vec, goal_pivots)
         }
     }
 }
