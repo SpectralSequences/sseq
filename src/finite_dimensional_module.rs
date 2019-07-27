@@ -25,7 +25,7 @@ impl<'a> Module for FiniteDimensionalModule<'a> {
         self.min_degree
     }
     
-    fn compute_basis(&mut self, degree : i32){ }
+    fn compute_basis(&mut self, _degree : i32){ }
 
     fn get_dimension(&self, degree : i32) -> usize {
         if degree < self.min_degree {
@@ -97,9 +97,9 @@ impl<'a> FiniteDimensionalModule<'a> {
                 let number_of_inputs = graded_dimension[input_degree];
                 let number_of_outputs = graded_dimension[output_degree];
                 let mut ops_vec : Vec<Vec<FpVector>> = Vec::with_capacity(number_of_operations);
-                for i in 0 .. number_of_operations {
+                for _ in 0 .. number_of_operations {
                     let mut in_idx_vec : Vec<FpVector> = Vec::with_capacity(number_of_inputs);
-                    for j in 0 .. number_of_inputs {
+                    for _ in 0 .. number_of_inputs {
                         in_idx_vec.push(FpVector::new(algebra.get_prime(), number_of_outputs, 0));
                     }
                     assert!(in_idx_vec.len() == number_of_inputs);

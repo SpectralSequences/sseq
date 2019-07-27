@@ -17,7 +17,7 @@ pub struct Matrix {
 impl Matrix {
     pub fn new(p : u32, rows : usize, columns : usize) -> Matrix {
         let mut vectors : Vec<FpVector> = Vec::with_capacity(columns);
-        for i in 0..rows {
+        for _ in 0..rows {
             vectors.push(FpVector::new(p, columns, 0));
         }
         let mut permutation : Vec<usize> = Vec::with_capacity(columns);
@@ -262,13 +262,24 @@ impl Subspace {
             column_to_pivot_row : CVec::new(columns)
         }
     }
+
+    pub fn entire_space(p : u32, dim : usize) -> Self {
+        let mut result = Self::new(p, dim, dim);
+        for i in 0..dim {
+            result.matrix[i].set_entry(i, 1);
+            result.column_to_pivot_row[i] = i as isize;
+        }
+        return result;
+    }
 }
 
-// matrix -- a row reduced augmented matrix
-// column_to_pivot_row -- the pivots in matrix (also returned by row_reduce)
-// first_source_column -- which block of the matrix is the source of the map
+
 impl Matrix {
-    pub fn compute_kernel(&mut self, column_to_pivot_row : Vec<i32>, first_source_column : usize) -> Subspace {
+
+    /// matrix -- a row reduced augmented matrix
+    /// column_to_pivot_row -- the pivots in matrix (also returned by row_reduce)
+    /// first_source_column -- which block of the matrix is the source of the map
+    pub fn compute_kernel(&mut self, column_to_pivot_row : CVec<isize>, first_source_column : usize) -> Subspace {
         let p = self.p;
         let source_dimension = self.columns - first_source_column;
 
@@ -285,14 +296,14 @@ impl Matrix {
         let mut kernel = Subspace::new(p, kernel_dimension, source_dimension);
         if kernel_dimension == 0 {
             for i in 0..source_dimension {
-                kernel.column_to_pivot_row.push(-1);
+                kernel.column_to_pivot_row[i] = -1;
             }
             return kernel;
         }
         // Write pivots into kernel
         for i in 0 .. source_dimension {
             // Turns -1 into some negative number... make sure to check <0 for no pivot in column...
-            kernel.column_to_pivot_row.push(column_to_pivot_row[i + first_source_column] - first_kernel_row as i32);
+            kernel.column_to_pivot_row[i] = column_to_pivot_row[i + first_source_column] - first_kernel_row as isize;
         }
         // Copy kernel matrix into kernel
         for row in 0 .. kernel_dimension {
@@ -312,10 +323,9 @@ impl Matrix {
     ///    self -- An augmented, row reduced matrix to be modified to extend it's image.
     ///    first_source_column : Where does the source comppstart in the augmented matrix?
     pub fn extend_image(&mut self, 
-        mut first_empty_row : usize, current_pivots : Vec<i32>, 
-        desired_image : Subspace, complement_pivots : Option<Vec<i32>>
+        mut first_empty_row : usize, current_pivots : Vec<isize>, 
+        desired_image : Subspace, complement_pivots : Option<Vec<isize>>
     ) -> usize {
-        let p = self.p;
         let mut homology_dimension = 0;
         let desired_pivots = desired_image.column_to_pivot_row;
         for i in 0 .. desired_image.matrix.columns {
@@ -342,8 +352,8 @@ impl Matrix {
 }
 
 pub struct QuasiInverse<'a> {
-    matrix : Matrix,
-    image : &'a Subspace
+    pub matrix : Matrix,
+    pub image : &'a Subspace
 }
 
 impl QuasiInverse<'_> {

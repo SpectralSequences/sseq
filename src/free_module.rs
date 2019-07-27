@@ -90,7 +90,7 @@ impl<'a> FreeModule<'a> {
     pub fn new(algebra : &'a Algebra, name : String, min_degree : i32, max_degree : i32) -> Self {
         let number_of_degrees = (max_degree - min_degree) as usize;
         let mut table = Vec::with_capacity(number_of_degrees);
-        for i in 0..number_of_degrees {
+        for _ in 0..number_of_degrees {
             table.push(OnceRefOwned::new());
         }
         Self {

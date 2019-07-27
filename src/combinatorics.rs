@@ -62,7 +62,6 @@ pub fn valid_prime_q(p : u32) -> bool {
 }
 
 pub fn initialize_prime(p : u32){
-    let p_idx = p as usize;
     assert!(valid_prime_q(p));    
     initialize_inverse_table(p);
     initialize_binomial_table(p);

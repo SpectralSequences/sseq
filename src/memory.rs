@@ -64,7 +64,7 @@ impl<T> fmt::Display for CVec<T>
 
 impl<T> CVec<T> {
     pub fn new(size : usize) -> Self {
-        Self::from_vec(Vec::new(size))
+        Self::from_vec(Vec::with_capacity(size))
     }
 
     pub fn from_vec(mut vec : Vec<T>) -> Self {

@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
+#[allow(unused_imports)]
+
 mod memory;
 mod once;
 mod combinatorics;
@@ -26,8 +28,7 @@ extern crate lazy_static;
 
 // use std::fmt;
 
-use crate::memory::CVec;
-use crate::memory::MemoryAllocator;
+// use crate::memory::{CVec, MemoryAllocator};
 
 #[allow(unreachable_code)]
 #[allow(non_snake_case)]
@@ -62,9 +63,9 @@ fn main() {
     x.pack(&v);
     y.pack(&w);
     println!("x: {}\n",x);
-    let mut xs = x.set_slice(1, 6);
+    x.set_slice(1, 6);
     println!("x: {}\n",x);
-    let mut xs = x.clear_slice();
+    x.clear_slice();
     println!("x: {}\n",x);
     // let mut ys = y.slice(1, 6);
     println!("x: {}\ny: {}", x, y);

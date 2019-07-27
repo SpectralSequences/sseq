@@ -1,8 +1,5 @@
-use crate::memory::CVec;
 use crate::fp_vector::FpVector;
 use crate::matrix::Matrix;
-use crate::matrix::QuasiInverse;
-use crate::matrix::Subspace;
 use crate::module::Module;
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module::{FreeModule, FreeModuleTableEntry};
@@ -12,9 +9,7 @@ pub struct FreeModuleHomomorphism<'a, 'b, 'c> {
     pub target : &'c Module,
     outputs : Vec<Vec<FpVector>>, // degree --> input_idx --> output
     min_degree : i32,
-    degree_shift : i32,
-    pub image_pivots : Vec<CVec<isize>>,
-    pub kernels : Vec<Subspace>
+    degree_shift : i32
 }
 
 impl<'a> ModuleHomomorphism for FreeModuleHomomorphism<'_, '_, '_> {
@@ -31,21 +26,6 @@ impl<'a> ModuleHomomorphism for FreeModuleHomomorphism<'_, '_, '_> {
         let table = &self.source.table[input_degree_idx].get();
         self.apply_to_basis_element_with_table(result, coeff, input_degree, table, input_index);
     }
-
-    fn set_kernel(&mut self, degree : i32, kernel : Subspace){
-        assert!(degree >= self.get_min_degree());
-        let degree_idx = (degree - self.get_min_degree()) as usize;
-        assert!(self.kernels.len() == degree_idx);
-        self.kernels.push(kernel);
-    }
-
-    // fn get_quasi_inverse(&self, degree : u32) -> &QuasiInverse;
-    fn set_image_pivots(&mut self, degree : i32, pivots : CVec<isize>){
-        assert!(degree >= self.get_min_degree());
-        let degree_idx = (degree - self.get_min_degree()) as usize;
-        assert!(self.image_pivots.len() == degree_idx);
-        self.image_pivots.push(pivots);
-    }
 }
 // // Run FreeModule_ConstructBlockOffsetTable(source, degree) before using this on an input in that degree
 // void FreeModuleHomomorphism_applyToBasisElement(FreeModuleHomomorphism *f, Vector *result, uint coeff, int input_degree, uint input_index){
@@ -60,9 +40,7 @@ impl<'a, 'b, 'c> FreeModuleHomomorphism<'a, 'b, 'c> {
             target,
             outputs : Vec::new(),
             min_degree,
-            degree_shift,
-            image_pivots : Vec::new(),
-            kernels : Vec::new()
+            degree_shift
         }
     }
 
@@ -103,7 +81,7 @@ impl<'a, 'b, 'c> FreeModuleHomomorphism<'a, 'b, 'c> {
         let p = self.get_prime();
         let dimension = self.target.get_dimension(degree + self.degree_shift);
         let mut new_outputs : Vec<FpVector> = Vec::with_capacity(new_generators);
-        for i in 0 .. new_generators {
+        for _ in 0 .. new_generators {
             new_outputs.push(FpVector::new(p, dimension, 0));
         }
         self.outputs.push(new_outputs);
@@ -111,7 +89,6 @@ impl<'a, 'b, 'c> FreeModuleHomomorphism<'a, 'b, 'c> {
 
     pub fn apply_to_basis_element_with_table(&self, result : &mut FpVector, coeff : u32, input_degree : i32, table : &FreeModuleTableEntry, input_index : usize){
         assert!(input_degree >= self.source.min_degree);
-        let input_degree_idx = (input_degree - self.source.min_degree) as usize;
         assert!(input_index < table.basis_element_to_opgen.len());
         assert!(self.target.get_dimension(input_degree + self.degree_shift) == result.get_dimension());
         let operation_generator = &table.basis_element_to_opgen[input_index];

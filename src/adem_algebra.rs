@@ -432,7 +432,6 @@ impl AdemAlgebra {
 
     fn generate_multiplication_table_2(&mut self, mut old_max_degree : i32, max_degree : i32){
         // degree -> first_square -> admissibile sequence idx -> result vector
-        let p = self.p;
         if old_max_degree == 0 {
             self.multiplication_table.push(Vec::new());
             old_max_degree += 1;
@@ -585,7 +584,6 @@ impl AdemAlgebra {
         // If the length is 0 or the sequence is already admissible, we can just write a 1 in the answer
         // and continue.
         let b = cur_basis_elt.bocksteins & 1;
-        let bi32 = b as i32;
         if cur_basis_elt.ps.len() == 0 || x == 0 || x >= (p*cur_basis_elt.ps[0] + b) as i32 {
             let mut out_idx = self.basis_element_to_index(&working_elt);
             result.add_basis_element(out_idx, 1);
@@ -802,7 +800,6 @@ impl AdemAlgebra {
         let x = monomial.ps[idx as usize] as i32;
         let tail_degree = monomial.degree - leading_degree + x;
         let reduced_tail = &self.multiplication_table[tail_degree as usize][x as usize][adm_idx];
-        let dim = self.get_dimension(tail_degree, excess);
         for (it_idx, it_value) in reduced_tail.iter().enumerate() {
             if it_value == 0 {
                 continue;

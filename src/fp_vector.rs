@@ -146,11 +146,11 @@ pub struct VectorContainer5 {
 }
 
 impl VectorContainer2 {
-    fn add_limb(limb_a : u64, limb_b : u64, coeff : u32) -> u64 {
+    fn add_limb(limb_a : u64, limb_b : u64, _coeff : u32) -> u64 {
         return limb_a ^ limb_b;
     }
 
-    fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize){}
+    fn reduce_limbs(&mut self, _start_limb : usize, _end_limb : usize){}
 }
 
 impl VectorContainer3 {
@@ -181,7 +181,6 @@ impl VectorContainer5 {
     fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize ){
         let limbs = &mut self.vector_container.limbs;
         for i in start_limb..end_limb {
-            let top_bit_set_in_each_field = 0x4924924924924924u64;
             let bottom_bit = 0x84210842108421u64;
             let bottom_two_bits = bottom_bit | (bottom_bit << 1);
             let bottom_three_bits = bottom_bit | (bottom_two_bits << 1);
@@ -205,7 +204,7 @@ impl VectorContainerGeneric {
     fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize){
         let entries_per_64_bits = get_entries_per_64_bits(self.p);       
         let mut unpacked_limb = Vec::with_capacity(entries_per_64_bits);
-        for i in 0..entries_per_64_bits {
+        for _ in 0..entries_per_64_bits {
             unpacked_limb.push(0);
         }
         let p = self.p;
@@ -282,7 +281,6 @@ impl FpVector {
     pub fn get_min_index(&self) -> usize {
         let container = self.get_vector_container();
         let bit_length = get_bit_length(self.get_prime());
-        let entries_per_64_bits = get_entries_per_64_bits(self.get_prime());
         return container.offset/bit_length + container.slice_start;
     }
 
@@ -375,7 +373,6 @@ impl FpVector {
         let bit_length = get_bit_length(p);
         assert_eq!(offset % bit_length, 0);    
         let entries_per_64_bits = get_entries_per_64_bits(p);
-        let bit_mask = get_bitmask(p);    
         let mut bit_min = 0usize;
         let mut bit_max = bit_length * entries_per_64_bits;    
         if limb_idx == 0 {
@@ -407,7 +404,6 @@ impl FpVector {
     }    
 
     pub fn set_to_zero(&mut self){ 
-        let offset = self.get_offset();        
         let min_limb = self.get_min_limb();
         let max_limb = self.get_max_limb();
         let number_of_limbs = max_limb - min_limb;
@@ -456,7 +452,6 @@ impl FpVector {
     }    
 
     pub fn zeroq(&self) -> bool{
-        let offset = self.get_offset();        
         let min_limb = self.get_min_limb();
         let max_limb = self.get_max_limb();
         let number_of_limbs = max_limb - min_limb;
@@ -483,7 +478,6 @@ impl FpVector {
     }
 
     pub fn equalq(&self, other : &Self) -> bool{
-        let offset = self.get_offset();        
         let self_min_limb = self.get_min_limb();
         let self_max_limb = self.get_max_limb();
         let other_min_limb = other.get_min_limb();
@@ -519,7 +513,6 @@ impl FpVector {
 
     pub fn get_entry(&self, index : usize) -> u32 {
         let p = self.get_prime();   
-        let bit_length = get_bit_length(p);
         let bit_mask = get_bitmask(p);
         let limb_index = get_limb_bit_index_pair(p, index + self.get_min_index());
         let mut result = self.get_limbs_cvec()[limb_index.limb];
@@ -530,7 +523,6 @@ impl FpVector {
 
     pub fn set_entry(&mut self, index : usize, value : u32){
         let p = self.get_prime();   
-        let bit_length = get_bit_length(p);
         let bit_mask = get_bitmask(p);
         let limb_index = get_limb_bit_index_pair(p, index + self.get_min_index());
         let limbs = self.get_limbs_cvec_mut();
@@ -594,12 +586,6 @@ impl FpVector {
         assert!(self.get_offset() == other.get_offset());          
         assert!(self.get_dimension() == other.get_dimension());
         let p = self.get_prime();
-        let offset = self.get_offset();
-        let dimension = self.get_dimension();
-        let bit_length = get_bit_length(p);
-        let entries_per_64_bits = get_entries_per_64_bits(p);
-        let usable_bits_per_limb = bit_length * entries_per_64_bits;
-        let bits_needed_for_entire_vector = offset + dimension * bit_length;
         let min_target_limb = self.get_min_limb();
         let max_target_limb = self.get_max_limb();
         let min_source_limb = other.get_min_limb();
@@ -627,14 +613,7 @@ impl FpVector {
 
     pub fn scale(&mut self, c : u32){
         let c = c as u64;
-        let p = self.get_prime();
-        let offset = self.get_offset();
-        let dimension = self.get_dimension();
-        let bit_length = get_bit_length(p);
         let number_of_limbs = self.get_limbs_cvec_mut().len();
-        let entries_per_64_bits = get_entries_per_64_bits(p);
-        let usable_bits_per_limb = bit_length * entries_per_64_bits;
-        let bits_needed_for_entire_vector = offset + dimension * bit_length;
         let min_limb = self.get_min_limb();
         let max_limb = self.get_max_limb();
         for i in 1..number_of_limbs-1 {
@@ -681,7 +660,7 @@ impl FpVector {
         let slice_end = dimension;
         let number_of_limbs = Self::get_number_of_limbs(p, dimension, offset);
         let mut limbs_inner : Vec<u64> = Vec::with_capacity(number_of_limbs);
-        for i in 0..number_of_limbs {
+        for _ in 0..number_of_limbs {
             limbs_inner.push(0);
         }
         let limbs = memory::CVec::from_vec(limbs_inner);

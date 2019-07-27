@@ -1,8 +1,5 @@
-use crate::memory::CVec;
 use crate::fp_vector::FpVector;
 use crate::matrix::Matrix;
-use crate::matrix::Subspace;
-use crate::matrix::QuasiInverse;
 use crate::module::Module;
 
 pub trait ModuleHomomorphism {
@@ -46,9 +43,7 @@ impl<'a> ZeroHomomorphism<'a> {
     pub fn new(source : &'a Module, target : &'a Module) -> Self {
         ZeroHomomorphism {
             source,
-            target,
-            kernels : Vec::new(),
-            pivots : Vec::new(),
+            target
         }
     }
 }
@@ -62,6 +57,6 @@ impl<'a> ModuleHomomorphism for ZeroHomomorphism<'a> {
         return self.target;
     }
 
-    fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_idx : usize){}
+    fn apply_to_basis_element(&self, _result : &mut FpVector, _coeff : u32, _input_degree : i32, _input_idx : usize){}
 
 }
