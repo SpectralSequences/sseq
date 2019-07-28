@@ -62,13 +62,13 @@ pub trait ModuleHomomorphism {
     }    
 }
 
-pub struct ZeroHomomorphism<'a> {
+pub struct ZeroHomomorphism<'a, 'b> {
     source : &'a Module,
-    target : &'a Module,
+    target : &'b Module,
 }
 
-impl<'a> ZeroHomomorphism<'a> {
-    pub fn new(source : &'a Module, target : &'a Module) -> Self {
+impl<'a, 'b> ZeroHomomorphism<'a, 'b> {
+    pub fn new(source : &'a Module, target : &'b Module) -> Self {
         ZeroHomomorphism {
             source,
             target
@@ -76,7 +76,7 @@ impl<'a> ZeroHomomorphism<'a> {
     }
 }
 
-impl<'a> ModuleHomomorphism for ZeroHomomorphism<'a> {
+impl ModuleHomomorphism for ZeroHomomorphism<'_, '_> {
     fn get_source(&self) -> &Module {
         return self.source;
     }

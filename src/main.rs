@@ -26,6 +26,9 @@ extern crate spin;
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
+extern crate rental;
+
 // use std::fmt;
 
 // use crate::memory::{CVec, MemoryAllocator};
@@ -46,12 +49,12 @@ fn resolve_through_degree(res : &Resolution, degree : i32){
 #[allow(unused_mut)]
 fn main() {
     let p = 2;
-    let max_degree = 20;
+    let max_degree = 5;//20;
     let mut A = adem_algebra::AdemAlgebra::new(p, p != 2, false);
     A.generate_basis(max_degree);
     let M = finite_dimensional_module::FiniteDimensionalModule::new(&A, "k".to_string(), 0, 1, vec![1]);
     println!("M.min_degree: {}", M.get_min_degree());
-    let CC = chain_complex::ChainComplexConcentratedInDegreeZero::new(&M, max_degree);
+    let CC = chain_complex::ChainComplexConcentratedInDegreeZero::new(&M);
     let res = resolution::Resolution::new(&CC, max_degree);
     // res.get_module(0);
     println!("res.min_degree: {}", res.get_min_degree());

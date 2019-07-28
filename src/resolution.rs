@@ -11,14 +11,31 @@ use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
 use crate::chain_complex::ChainComplex;
 
-
-
-pub struct Resolution<'a> {
+pub struct ResolutionModules<'a> {
     complex : &'a ChainComplex,
     modules : Vec<FreeModule<'a>>,
     zero_module : ZeroModule<'a>,
-    differentials : Vec<FreeModuleHomomorphism<'a>>,
-    chain_maps : Vec<FreeModuleHomomorphism<'a>>,
+}
+
+pub struct ResolutionHomomorphisms<'b> {
+    differentials : Vec<FreeModuleHomomorphism<'b, 'b>>,
+    chain_maps : Vec<FreeModuleHomomorphism<'b, 'b>>,
+}
+
+rental! {
+    pub mod rent_res {
+        use super::*;
+        #[rental]
+        pub struct ResolutionInner<'a> {
+            modules : Box<ResolutionModules<'a>>,
+            homomorphisms : ResolutionHomomorphisms<'modules>
+        }
+    }
+}
+
+
+pub struct Resolution<'a> {
+    res_inner : rent_res::ResolutionInner<'a>,
     add_class : Option<fn(hom_deg : usize, int_deg : i32, name : &str)>,
     add_structline : Option<fn(
         sl_type : &str,
@@ -27,76 +44,85 @@ pub struct Resolution<'a> {
     )>
 }
 
-impl<'a> Resolution<'a> {
+impl<'a> Resolution<'a> {  
     pub fn new(complex : &'a ChainComplex, max_degree : i32) -> Self {
         let algebra = complex.get_algebra();
-        println!("algebra : {}",algebra.get_name());
         let zero_module = ZeroModule::new(algebra);
-        println!("zero_module : {}", zero_module.get_name());
         let min_degree = complex.get_min_degree();
         assert!(max_degree >= min_degree);
         let num_degrees = (max_degree - min_degree) as usize;
         let mut modules = Vec::with_capacity(num_degrees);
-        let mut differentials = Vec::with_capacity(num_degrees);
-        let mut chain_maps = Vec::with_capacity(num_degrees);
         for i in 0..num_degrees {
             modules.push(FreeModule::new(algebra, format!("F{}", i), min_degree, max_degree));
-            let source;
-            unsafe {
-                source = & *(&modules[i] as *const FreeModule);
-            }
-            chain_maps.push(FreeModuleHomomorphism::new(source, complex.get_module(i), min_degree, 0, max_degree));
         }
-        {
-            let source;
-            let target;
-            unsafe {
-                source = & *(&modules[0] as *const FreeModule);
-                target = & *(&zero_module as *const ZeroModule);
-            }
-            println!("zero target: {}", target.get_name());
-            differentials.push(FreeModuleHomomorphism::new(source, target, min_degree, 0, max_degree));
-            println!("zero target: {}", differentials[0].get_target().get_name());
-        }
-        for i in 1..num_degrees {
-            let source;
-            let target;
-            unsafe {
-                source = & *(&modules[i] as *const FreeModule);
-                target = & *(&modules[i-1] as *const FreeModule);
-            }
-            differentials.push(FreeModuleHomomorphism::new(source, target, min_degree, 0, max_degree));
-            chain_maps.push(FreeModuleHomomorphism::new(source, complex.get_module(i), min_degree, 0, max_degree));
-        }
-             
-        Self {
+
+        let res_modules = ResolutionModules {
             complex,
             modules,
-            zero_module,
-            differentials,
-            chain_maps,
+            zero_module
+        };
+
+        let res_modules_box = Box::new(res_modules);
+        
+        let res_inner = rent_res::ResolutionInner::new(
+            res_modules_box,
+            |res_modules| {
+                let mut differentials = Vec::with_capacity(num_degrees);
+                let mut chain_maps = Vec::with_capacity(num_degrees);                
+                for i in 0..num_degrees {
+                    let complex_module;
+                    unsafe {
+                        complex_module = std::mem::transmute::<_,&'static Module>(complex.get_module(i));
+                    }
+                    chain_maps.push(FreeModuleHomomorphism::new(&res_modules.modules[i], complex_module, min_degree, 0, max_degree));
+                }
+                differentials.push(FreeModuleHomomorphism::new(&res_modules.modules[0], &res_modules.zero_module, min_degree, 0, max_degree));                
+                for i in 1..num_degrees {
+                    differentials.push(FreeModuleHomomorphism::new(&res_modules.modules[i], &res_modules.modules[i-1], min_degree, 0, max_degree));
+                }
+                ResolutionHomomorphisms {
+                    differentials,
+                    chain_maps
+                }
+            }
+        );
+        Self {
+            res_inner,
             add_class : None,
             add_structline : None,
         }
     }
     
+    pub fn get_complex(&self) -> &ChainComplex {
+        self.res_inner.head().complex
+    }
+
+    fn get_differential<'b>(&'b self, homological_degree : usize) -> &'b ModuleHomomorphism {
+        self.res_inner.rent(|res_homs| {
+            let result = &res_homs.differentials[homological_degree];
+            unsafe{
+                std::mem::transmute::<_, &'b ZeroHomomorphism<'b, 'b>>(result)
+            }
+        })    
+    }
+
     pub fn get_prime(&self) -> u32 {
-        self.complex.get_prime()
+        self.get_complex().get_prime()
     }
 
     pub fn get_min_degree(&self) -> i32 {
-        self.complex.get_min_degree()
+        self.get_complex().get_min_degree()
     }
 
     pub fn step(&self, homological_degree : u32, degree : i32){
-        if homological_degree == 0 {
-            let dminus1 = &self.differentials[0];
-            let module = self.complex.get_module(0);
-            let module_dim = module.get_dimension(degree);
-            let subspace = Subspace::entire_space(self.get_prime(), module_dim);
-            dminus1.set_kernel(degree, subspace);
-        }
-        self.generate_old_kernel_and_compute_new_kernel(homological_degree, degree);    
+        // if homological_degree == 0 {
+        //     let dminus1 = self.get_differential(0);
+        //     let module = self.complex.get_module(0);
+        //     let module_dim = module.get_dimension(degree);
+        //     let subspace = Subspace::entire_space(self.get_prime(), module_dim);
+        //     dminus1.set_kernel(degree, subspace);
+        // }
+        // self.generate_old_kernel_and_compute_new_kernel(homological_degree, degree);    
     }
 
     pub fn generate_old_kernel_and_compute_new_kernel(&self, homological_degree : u32, degree : i32){

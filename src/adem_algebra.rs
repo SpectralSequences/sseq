@@ -373,9 +373,9 @@ impl AdemAlgebra {
             }
         }
         self.basis_table.push(basis);
-        if let Some(f) = self.sort_order {
+        // if let Some(f) = self.sort_order {
             // qsort(basisElementBuffer, cur_basis_len, sizeof(AdemBasisElement), algebra->public_algebra.sort_order);
-        }
+        // }
     }
 
     fn generate_basis_element_to_index_map(&mut self, old_max_degree : i32, max_degree : i32){

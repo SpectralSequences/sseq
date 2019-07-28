@@ -1,20 +1,20 @@
 use crate::once::OnceRefOwned;
-use crate::memory::CVec;
+// use crate::memory::CVec;
 use crate::fp_vector::FpVector;
 use crate::matrix::{Matrix, Subspace};
 use crate::module::Module;
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module::{FreeModule, FreeModuleTableEntry};
 
-pub struct FreeModuleHomomorphism<'a> {
-    pub source : &'a FreeModule<'a>,
-    pub target : &'a Module,
+pub struct FreeModuleHomomorphism<'a, 'b> {
+    pub source : &'b FreeModule<'a>,
+    pub target : &'b Module,
     outputs : Vec<OnceRefOwned<Vec<FpVector>>>, // degree --> input_idx --> output
     min_degree : i32,
     degree_shift : i32
 }
 
-impl ModuleHomomorphism for FreeModuleHomomorphism<'_> {
+impl ModuleHomomorphism for FreeModuleHomomorphism<'_, '_> {
     fn get_source(&self) -> &Module {
         self.source
     }
@@ -59,8 +59,8 @@ impl ModuleHomomorphism for FreeModuleHomomorphism<'_> {
 // }
 
 
-impl<'a> FreeModuleHomomorphism<'a> {
-    pub fn new(source : &'a FreeModule<'a>, target : &'a Module, min_degree : i32, degree_shift : i32, max_degree : i32) -> Self {
+impl<'a, 'b> FreeModuleHomomorphism<'a, 'b> {
+    pub fn new(source : &'b FreeModule<'a>, target : &'b Module, min_degree : i32, degree_shift : i32, max_degree : i32) -> Self {
         let num_degrees = max_degree as usize - min_degree as usize;
         let mut outputs = Vec::with_capacity(num_degrees);
         for i in 0..num_degrees {

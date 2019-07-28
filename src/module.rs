@@ -17,6 +17,7 @@ pub trait Module {
     // int max_computed_degree;
 // Methods:
     fn get_min_degree(&self) -> i32;
+    // fn get_max_degree(&self) -> i32;
     fn compute_basis(&mut self, _degree : i32) {}
     fn get_dimension(&self, degree : i32) -> usize;
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize);
