@@ -36,6 +36,7 @@ rental! {
 
 pub struct Resolution<'a> {
     res_inner : rent_res::ResolutionInner<'a>,
+    max_degree : i32,
     add_class : Option<fn(hom_deg : usize, int_deg : i32, name : &str)>,
     add_structline : Option<fn(
         sl_type : &str,
@@ -88,6 +89,7 @@ impl<'a> Resolution<'a> {
         );
         Self {
             res_inner,
+            max_degree,
             add_class : None,
             add_structline : None,
         }
@@ -97,14 +99,27 @@ impl<'a> Resolution<'a> {
         self.res_inner.head().complex
     }
 
-    fn get_differential<'b>(&'b self, homological_degree : usize) -> &'b ModuleHomomorphism {
+    pub fn get_module(&self, homological_degree : usize) -> &FreeModule {
+        &self.res_inner.head().modules[homological_degree]
+    }
+
+    fn get_differential<'b>(&'b self, homological_degree : usize) -> &'b FreeModuleHomomorphism {
         self.res_inner.rent(|res_homs| {
             let result = &res_homs.differentials[homological_degree];
-            unsafe{
-                std::mem::transmute::<_, &'b ZeroHomomorphism<'b, 'b>>(result)
+            unsafe {
+                std::mem::transmute::<_, &'b FreeModuleHomomorphism<'b, 'b>>(result)
             }
         })    
     }
+
+    fn get_chain_map<'b>(&'b self, homological_degree : usize) -> &'b FreeModuleHomomorphism {
+        self.res_inner.rent(|res_homs| {
+            let result = &res_homs.chain_maps[homological_degree];
+            unsafe {
+                std::mem::transmute::<_, &'b FreeModuleHomomorphism<'b, 'b>>(result)
+            }
+        })    
+    }    
 
     pub fn get_prime(&self) -> u32 {
         self.get_complex().get_prime()
@@ -117,31 +132,38 @@ impl<'a> Resolution<'a> {
     pub fn step(&self, homological_degree : u32, degree : i32){
         // if homological_degree == 0 {
         //     let dminus1 = self.get_differential(0);
-        //     let module = self.complex.get_module(0);
+        //     let module = self.get_complex().get_module(0);
         //     let module_dim = module.get_dimension(degree);
         //     let subspace = Subspace::entire_space(self.get_prime(), module_dim);
         //     dminus1.set_kernel(degree, subspace);
         // }
-        // self.generate_old_kernel_and_compute_new_kernel(homological_degree, degree);    
+        self.generate_old_kernel_and_compute_new_kernel(homological_degree, degree);    
     }
+
+    // pub fn set_empty(&self, homological_degree : u32, degree : i32){
+    //     let current_differential = self.get_differential(homological_degree);
+    //     let source = current_differential.source;
+    //     let source_module_table = source.construct_table(degree);
+    // }
 
     pub fn generate_old_kernel_and_compute_new_kernel(&self, homological_degree : u32, degree : i32){
         let min_degree = self.get_min_degree();
-        assert!(degree >= homological_degree as i32 + min_degree);
+        // assert!(degree >= homological_degree as i32 + min_degree);
         let homological_degree = homological_degree as usize;
         let degree_idx = (degree - min_degree) as usize;
         let p = self.get_prime();
-        let current_differential = &self.differentials[homological_degree];
-        let current_chain_map = &self.chain_maps[homological_degree];
+        let current_differential = self.get_differential(homological_degree);
+        let current_chain_map = self.get_chain_map(homological_degree);
         let source = current_differential.source;
         let target_cc = current_chain_map.target;
         let target_res = current_differential.target;
-        println!("source name: {}", source.get_name());
+        // println!("source name: {}", source.get_name());
         // println!("target_res name: {}", target_res.get_name());
         let source_module_table = source.construct_table(degree);
         let source_dimension = source.get_dimension_with_table(degree, &source_module_table);
         let target_cc_dimension = target_cc.get_dimension(degree);
         let target_res_dimension = target_res.get_dimension(degree);
+        // println!("target_cc_dim : {}, target_res_dim : {}", target_cc_dimension, target_res_dimension);
         let target_dimension = target_cc_dimension + target_res_dimension;
         // The Homomorphism matrix has size source_dimension x target_dimension, but we are going to augment it with an
         // identity matrix so that gives a matrix with dimensions source_dimension x (target_dimension + source_dimension).
@@ -158,15 +180,12 @@ impl<'a> Resolution<'a> {
         let mut matrix = Matrix::new(p, rows, columns);
         matrix.set_slice(0, source_dimension, 0, padded_target_dimension + source_dimension);
         current_chain_map.get_matrix_with_table(&mut matrix, &source_module_table, degree, 0, 0);
-        println!("    current_differential.target.algebra : {}",current_differential.target.get_algebra().get_name());
-
         current_differential.get_matrix_with_table(&mut matrix, &source_module_table, degree, 0, padded_target_cc_dimension);
-        println!("    hi");
         for i in 0 .. source_dimension {
             matrix[i].set_entry(padded_target_dimension + i, 1);
         }
-        println!("{}", matrix);
-        println!("rows: {}, cols: {}", matrix.get_rows(), matrix.get_columns());
+        // println!("{}", matrix);
+        // println!("     rows: {}, cols: {}", matrix.get_rows(), matrix.get_columns());
 
         let mut pivots = CVec::new(matrix.get_columns());
         matrix.row_reduce(&mut pivots);
@@ -176,15 +195,15 @@ impl<'a> Resolution<'a> {
         let prev_res_cycles;
         let prev_cc_cycles;
         if homological_degree > 0 {
-            prev_cc_cycles = self.complex.get_differential(homological_degree - 1).get_kernel(degree);
-            prev_res_cycles = self.differentials[homological_degree - 1].get_kernel(degree);
+            prev_cc_cycles = self.get_complex().get_differential(homological_degree - 1).get_kernel(degree);
+            prev_res_cycles = self.get_differential(homological_degree - 1).get_kernel(degree);
         } else {
             prev_cc_cycles = None;
             prev_res_cycles = None;
         }
         let first_new_row = source_dimension - kernel_rows;
         
-        let cur_cc_image = self.complex.get_differential(homological_degree).get_image(degree)
+        let cur_cc_image = self.get_complex().get_differential(homological_degree).get_image(degree)
                                 .map(|subspace| &subspace.column_to_pivot_row);
         // We stored the kernel rows somewhere else so we're going to write over them.
         // Add new free module generators to hit basis for previous kernel
@@ -194,7 +213,8 @@ impl<'a> Resolution<'a> {
         current_chain_map.add_generators_from_matrix_rows(degree, &mut matrix, first_new_row, 0, new_generators);
         current_differential.add_generators_from_matrix_rows(degree, &mut matrix, first_new_row, padded_target_cc_dimension, new_generators);
 
-        println!("{}", matrix);
+        // println!("small matrix?");
+        // println!("{}", matrix);
         // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
         // Allocate a matrix coimage_to_image with these dimensions.
         // let image_rows = first_new_row + new_generators;
@@ -204,4 +224,21 @@ impl<'a> Resolution<'a> {
         // current_differential.copy_image_from_matrix(degree, &mut matrix, &new_pivots, image_rows, target_res_dimension);
         // current_differential.copy_quasi_inverse_from_matrix(degree, &mut matrix, image_rows, padded_target_res_dimension);
     }
+
+    pub fn graded_dimension_string(&self) -> String {
+        let mut result = String::new();
+        let max_degree = self.max_degree as usize;
+        result.push_str("[\n");
+        for i in (0 .. max_degree).rev() {
+            result.push_str("[");
+            let module = self.get_module(i);
+            for j in i .. max_degree {
+                result.push_str(&format!("{}, ", module.get_number_of_gens_in_degree(j as i32)));
+            }
+            result.push_str("]\n");
+        }
+        result.push_str("\n]\n");
+        return result;
+    }
+
 }

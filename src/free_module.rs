@@ -40,7 +40,7 @@ impl<'a> Module for FreeModule<'a> {
     }
 
     fn get_dimension(&self, degree : i32) -> usize {
-        println!("Get dimension of {} in degree {}", self.name, degree);
+        // println!("Get dimension of {} in degree {}", self.name, degree);
         if degree < self.min_degree {
             return 0;
         }
@@ -68,17 +68,13 @@ impl<'a> Module for FreeModule<'a> {
         let generator_degree = operation_generator.generator_degree; 
         let generator_index  = operation_generator.generator_index;
 
-        println!("{:?}", operation_generator);
 
         // Now all of the output elements are going to be of the form s * x. Find where such things go in the output vector.
         let num_ops = self.get_algebra().get_dimension(module_operation_degree + op_degree, generator_degree);
-        println!("{}", module_operation_degree + op_degree);
         let output_block_min = self.operation_generator_to_index(module_operation_degree + op_degree, 0, generator_degree, generator_index);
         let output_block_max = output_block_min + num_ops;
-        println!("output_block_min: {}, output_block_max: {}", output_block_min, output_block_max);
         // Writing into slice (can we take ownership? make new vector with 0's outside range and add separately? is it okay?)
         result.set_slice(output_block_min, output_block_max); 
-        println!("offset: {}", result.get_offset());
         // Now we multiply s * r and write the result to the appropriate position.
         self.get_algebra().multiply_basis_elements(result, coeff, op_degree, op_index, module_operation_degree, module_operation_index, generator_degree);
         result.clear_slice();
@@ -147,7 +143,7 @@ impl<'a> FreeModule<'a> {
     }
 
     pub fn get_dimension_with_table(&self, degree : i32, table : &FreeModuleTableEntry) -> usize {
-        println!("Get dimension of {} in degree {}", self.name, degree);
+        // println!("Get dimension of {} in degree {}", self.name, degree);
         if degree < self.min_degree {
             return 0;
         }

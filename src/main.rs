@@ -37,8 +37,8 @@ use resolution::Resolution;
 
 fn resolve_through_degree(res : &Resolution, degree : i32){
     for int_deg in res.get_min_degree() .. degree {
-        for hom_deg in 0 .. int_deg as u32 + 1 {
-            println!("({}, {})", hom_deg, int_deg);
+        for hom_deg in 0 .. degree as u32 { // int_deg as u32 + 1 {
+            println!("(hom_deg : {}, int_deg : {})", hom_deg, int_deg);
             res.step(hom_deg, int_deg);
         }
     }
@@ -49,16 +49,17 @@ fn resolve_through_degree(res : &Resolution, degree : i32){
 #[allow(unused_mut)]
 fn main() {
     let p = 2;
-    let max_degree = 5;//20;
+    let max_degree = 25;
     let mut A = adem_algebra::AdemAlgebra::new(p, p != 2, false);
     A.generate_basis(max_degree);
     let M = finite_dimensional_module::FiniteDimensionalModule::new(&A, "k".to_string(), 0, 1, vec![1]);
-    println!("M.min_degree: {}", M.get_min_degree());
+    // println!("M.min_degree: {}", M.get_min_degree());
     let CC = chain_complex::ChainComplexConcentratedInDegreeZero::new(&M);
     let res = resolution::Resolution::new(&CC, max_degree);
     // res.get_module(0);
-    println!("res.min_degree: {}", res.get_min_degree());
+    // println!("res.min_degree: {}", res.get_min_degree());
     resolve_through_degree(&res, max_degree);
+    println!("{}", res.graded_dimension_string());
 
 
     // let s = memory::MemoryTable::new();

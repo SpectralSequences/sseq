@@ -64,7 +64,7 @@ pub struct ChainComplexConcentratedInDegreeZeroHomomorphisms<'b> {
 rental!{
     pub mod rent_ccdz {
         use super::*;
-        #[rental]//(covariant)
+        #[rental]
         pub struct ChainComplexConcentratedInDegreeZeroInner<'a> {
             modules : Box<ChainComplexConcentratedInDegreeZeroModules<'a>>,
             homomorphisms : ChainComplexConcentratedInDegreeZeroHomomorphisms<'modules>

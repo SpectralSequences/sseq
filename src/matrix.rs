@@ -127,6 +127,23 @@ impl fmt::Display for Matrix {
     }
 }
 
+impl fmt::Debug for Matrix {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let mut it = self.iter();
+        if let Some(x) = it.next(){
+            write!(f,"[\n    {}", x)?;
+        } else {
+            write!(f, "[]")?;
+            return Ok(());
+        }
+        for x in it {
+            write!(f, ",\n    {}", x)?;
+        }
+        write!(f,"\n]")?;
+        Ok(())
+    }
+}
+
 impl std::ops::Index<usize> for Matrix {
     type Output = FpVector;
     fn index(&self, i : usize) -> &Self::Output {
@@ -414,7 +431,8 @@ impl Matrix {
     ) -> usize {
         let mut homology_dimension = 0;
         let desired_pivots = &desired_image.column_to_pivot_row;
-        for i in start_column .. end_column {
+        let early_end_column = std::cmp::min(end_column, desired_pivots.len() + start_column);
+        for i in start_column .. early_end_column {
             assert!(current_pivots[i] < 0 || desired_pivots[i - start_column] >= 0);
             if current_pivots[i] >= 0 || desired_pivots[i - start_column] < 0 {
                 continue;
@@ -448,7 +466,10 @@ impl Matrix {
         current_pivots : &CVec<isize>, desired_image : Option<&Subspace>, 
         complement_pivots : Option<&CVec<isize>>
     ) -> usize {
+        println!("desired_image : {:?} ", desired_image.map(|subspace| &subspace.matrix));
         if let Some(image) = desired_image {
+            println!("desired_image pivots : {:?} ", &*image.column_to_pivot_row);
+            println!("start_col : {}, end_col : {}", start_column, end_column);
             return self.extend_image_to_desired_image(first_empty_row, start_column, end_column, current_pivots, image, complement_pivots);
         } else {
             return self.extend_to_surjection(first_empty_row, start_column, end_column, current_pivots, complement_pivots);

@@ -10,6 +10,7 @@ pub struct FreeModuleHomomorphism<'a, 'b> {
     pub source : &'b FreeModule<'a>,
     pub target : &'b Module,
     outputs : Vec<OnceRefOwned<Vec<FpVector>>>, // degree --> input_idx --> output
+    kernel : Vec<OnceRefOwned<Subspace>>,
     min_degree : i32,
     degree_shift : i32
 }
@@ -30,11 +31,15 @@ impl ModuleHomomorphism for FreeModuleHomomorphism<'_, '_> {
     }
 
     fn set_kernel(&self, degree : i32, kernel : Subspace){
-        
+        println!("Setting kernel degree : {}, name : {}", degree, self.source.get_name());
+        println!("kernel : {}", kernel.matrix);
+        let degree_idx = degree as usize - self.get_min_degree() as usize;
+        self.kernel[degree_idx].set(kernel);
     }
     
     fn get_kernel(&self, degree : i32) -> Option<&Subspace> {
-        None
+        let degree_idx = degree as usize - self.get_min_degree() as usize;
+        return Some(self.kernel[degree_idx].get());
     }
 
     fn set_image(&self, degree : i32, image : Subspace){
@@ -63,24 +68,25 @@ impl<'a, 'b> FreeModuleHomomorphism<'a, 'b> {
     pub fn new(source : &'b FreeModule<'a>, target : &'b Module, min_degree : i32, degree_shift : i32, max_degree : i32) -> Self {
         let num_degrees = max_degree as usize - min_degree as usize;
         let mut outputs = Vec::with_capacity(num_degrees);
+        let mut kernel = Vec::with_capacity(num_degrees);
         for i in 0..num_degrees {
             outputs.push(OnceRefOwned::new());
+            kernel.push(OnceRefOwned::new());
         }
         Self {
             source,
             target,
             outputs,
+            kernel,
             min_degree,
             degree_shift
         }
     }
 
     pub fn get_output(&self, generator_degree : i32, generator_index : usize ) -> &FpVector {
-        println!("    get_output: gen_deg = {}, gen_idx = {}", generator_degree, generator_index);
         assert!(generator_degree >= self.source.min_degree);
         assert!(generator_index < self.source.get_number_of_gens_in_degree(generator_degree));        
         let generator_degree_idx = (generator_degree - self.source.min_degree) as usize;
-        println!("    self.outputs.len: {}", self.outputs[generator_degree_idx].get().len());        
         return &self.outputs[generator_degree_idx].get()[generator_index];
     }
 
@@ -126,7 +132,6 @@ impl<'a, 'b> FreeModuleHomomorphism<'a, 'b> {
     pub fn get_matrix_with_table(&self, matrix : &mut Matrix, table : &FreeModuleTableEntry , degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {
         let source_dimension = self.source.get_dimension_with_table(degree, table);
         let target_dimension = self.get_target().get_dimension(degree);
-        println!("    get_matrix : source_dim = {}, target_dim = {}", source_dimension, target_dimension);
         assert!(source_dimension <= matrix.get_rows());
         assert!(target_dimension <= matrix.get_columns());
         for input_idx in 0 .. source_dimension {
