@@ -1,4 +1,4 @@
-use crate::once::OnceRefOwned;
+use crate::once::Once;
 use crate::fp_vector::FpVector;
 use crate::algebra::Algebra;
 use crate::module::Module;
@@ -22,7 +22,7 @@ pub struct FreeModule<'a> {
     pub name : String,
     pub min_degree : i32,
     pub max_degree : i32,
-    pub table : Vec<OnceRefOwned<FreeModuleTableEntry>>
+    pub table : Vec<Once<FreeModuleTableEntry>>
 }
 
 impl<'a> Module for FreeModule<'a> {
@@ -86,7 +86,7 @@ impl<'a> FreeModule<'a> {
         let number_of_degrees = (max_degree - min_degree) as usize;
         let mut table = Vec::with_capacity(number_of_degrees);
         for _ in 0..number_of_degrees {
-            table.push(OnceRefOwned::new());
+            table.push(Once::new());
         }
         Self {
             algebra,

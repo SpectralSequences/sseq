@@ -403,7 +403,7 @@ impl Matrix {
         start_column : usize, end_column : usize,        
         current_pivots : &CVec<isize>, complement_pivots : Option<&CVec<isize>>
     ) -> usize {
-        println!("extend_to_surjection start_column = {} end_column = {}", start_column, end_column);
+        // println!("extend_to_surjection start_column = {} end_column = {}", start_column, end_column);
         let mut homology_dimension = 0;
         for i in start_column .. end_column {
             if current_pivots[i] >= 0 {
@@ -466,10 +466,10 @@ impl Matrix {
         current_pivots : &CVec<isize>, desired_image : Option<&Subspace>, 
         complement_pivots : Option<&CVec<isize>>
     ) -> usize {
-        println!("desired_image : {:?} ", desired_image.map(|subspace| &subspace.matrix));
+        // println!("desired_image : {:?} ", desired_image.map(|subspace| &subspace.matrix));
         if let Some(image) = desired_image {
-            println!("desired_image pivots : {:?} ", &*image.column_to_pivot_row);
-            println!("start_col : {}, end_col : {}", start_column, end_column);
+            // println!("desired_image pivots : {:?} ", &*image.column_to_pivot_row);
+            // println!("start_col : {}, end_col : {}", start_column, end_column);
             return self.extend_image_to_desired_image(first_empty_row, start_column, end_column, current_pivots, image, complement_pivots);
         } else {
             return self.extend_to_surjection(first_empty_row, start_column, end_column, current_pivots, complement_pivots);

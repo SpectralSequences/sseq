@@ -1,4 +1,4 @@
-use crate::once::OnceRefOwned;
+use crate::once::Once;
 // use crate::memory::CVec;
 use crate::fp_vector::FpVector;
 use crate::matrix::{Matrix, Subspace};
@@ -9,8 +9,8 @@ use crate::free_module::{FreeModule, FreeModuleTableEntry};
 pub struct FreeModuleHomomorphism<'a, 'b> {
     pub source : &'b FreeModule<'a>,
     pub target : &'b Module,
-    outputs : Vec<OnceRefOwned<Vec<FpVector>>>, // degree --> input_idx --> output
-    kernel : Vec<OnceRefOwned<Subspace>>,
+    outputs : Vec<Once<Vec<FpVector>>>, // degree --> input_idx --> output
+    kernel : Vec<Once<Subspace>>,
     min_degree : i32,
     degree_shift : i32
 }
@@ -31,8 +31,8 @@ impl ModuleHomomorphism for FreeModuleHomomorphism<'_, '_> {
     }
 
     fn set_kernel(&self, degree : i32, kernel : Subspace){
-        println!("Setting kernel degree : {}, name : {}", degree, self.source.get_name());
-        println!("kernel : {}", kernel.matrix);
+        // println!("Setting kernel degree : {}, name : {}", degree, self.source.get_name());
+        // println!("kernel : {}", kernel.matrix);
         let degree_idx = degree as usize - self.get_min_degree() as usize;
         self.kernel[degree_idx].set(kernel);
     }
@@ -70,8 +70,8 @@ impl<'a, 'b> FreeModuleHomomorphism<'a, 'b> {
         let mut outputs = Vec::with_capacity(num_degrees);
         let mut kernel = Vec::with_capacity(num_degrees);
         for i in 0..num_degrees {
-            outputs.push(OnceRefOwned::new());
-            kernel.push(OnceRefOwned::new());
+            outputs.push(Once::new());
+            kernel.push(Once::new());
         }
         Self {
             source,
@@ -92,7 +92,7 @@ impl<'a, 'b> FreeModuleHomomorphism<'a, 'b> {
 
     // We don't actually mutate &mut matrix, we just slice it.
     pub fn add_generators_from_matrix_rows(&self, degree : i32, matrix : &mut Matrix, first_new_row : usize, first_target_column : usize, new_generators : usize){
-        println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
+        // println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
         let dimension = self.target.get_dimension(degree);
         // println!("    dimension : {} target name : {}", dimension, self.target.get_name());
         assert!(degree >= self.source.min_degree);
