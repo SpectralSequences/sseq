@@ -46,7 +46,15 @@ pub struct Resolution<'a> {
 }
 
 impl<'a> Resolution<'a> {  
-    pub fn new(complex : &'a ChainComplex, max_degree : i32) -> Self {
+    pub fn new(
+        complex : &'a ChainComplex, max_degree : i32,
+        add_class : Option<fn(hom_deg : usize, int_deg : i32, name : &str)>,
+        add_structline : Option<fn(
+            sl_type : &str,
+            source_hom_deg : usize, source_int_deg : i32, source_idx : usize, 
+            target_hom_deg : usize, target_int_deg : i32, target_idx : usize
+        )>        
+    ) -> Self {
         let algebra = complex.get_algebra();
         let zero_module = ZeroModule::new(algebra);
         let min_degree = complex.get_min_degree();
@@ -90,8 +98,8 @@ impl<'a> Resolution<'a> {
         Self {
             res_inner,
             max_degree,
-            add_class : None,
-            add_structline : None,
+            add_class,
+            add_structline,
         }
     }
     
