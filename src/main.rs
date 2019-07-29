@@ -36,7 +36,8 @@ use crate::algebra::Algebra;
 use crate::module::Module;
 use resolution::Resolution;
 
-use wasm_bindgen_noop::wasm_bindgen;
+// #[cfg(not(target_arch = "wasm32"))]
+// use wasm_bindgen_noop::wasm_bindgen;
 
 #[wasm_bindgen]
 fn resolve_through_degree(res : &Resolution, degree : i32){

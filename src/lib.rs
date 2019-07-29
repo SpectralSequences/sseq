@@ -15,12 +15,13 @@ mod finite_dimensional_module;
 mod free_module;
 mod free_module_homomorphism;
 mod chain_complex;
-// mod resolution;
-// mod test;
+mod resolution;
 
+mod wasm_bindings;
 
-
-
+use crate::algebra::Algebra;
+use crate::module::Module;
+use crate::resolution::Resolution;
 
 #[cfg(test)]
 extern crate rand;
@@ -31,33 +32,85 @@ extern crate lazy_static;
 #[macro_use]
 extern crate rental;
 
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 extern crate wasm_bindgen;
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-// #[cfg(not(target_arch = "wasm32"))]
-#[macro_use]
-use wasm_bindgen_noop::wasm_bindgen;
 
-#[macro_use]
-use wasm_bindgen_noop;
+extern crate web_sys;
+use web_sys::console;
+
+// #[cfg(not(target_arch = "wasm32"))]
+// use wasm_bindgen_noop::wasm_bindgen;
 
 // use std::fmt;
 
-// use crate::memory::{CVec, MemoryAllocator};
+
+
+#[wasm_bindgen(start)]
+pub fn main_js() -> Result<(), JsValue> {
+    // This provides better error messages in debug mode.
+    // It's disabled in release mode so it doesn't bloat up the file size.
+    // #[cfg(debug_assertions)]
+    // console_error_panic_hook::set_once();
+
+
+    // Your code goes here!
+    console::log_1(&JsValue::from_str("Hello world!"));
+    let p = 2;
+    let max_degree = 20;
+    let A = adem_algebra::AdemAlgebra::new(p, p != 2, false, max_degree);
+    A.compute_basis(max_degree);
+    let M = finite_dimensional_module::FiniteDimensionalModule::new(&A, "k".to_string(), 0, 1, vec![1]);
+    // println!("M.min_degree: {}", M.get_min_degree());
+    let CC = chain_complex::ChainComplexConcentratedInDegreeZero::new(&M);
+    let res = resolution::Resolution::new(&CC, max_degree, None, None);
+    // res.get_module(0);
+    // println!("res.min_degree: {}", res.get_min_degree());
+    resolve_through_degree(&res, max_degree);
+    console::log_1(&JsValue::from_str(&res.graded_dimension_string()));
+
+
+
+    Ok(())
+}
+
+#[wasm_bindgen]
+pub fn test(){
+    console::log_1(&JsValue::from_str("hello"));
+}
+
 
 #[allow(unreachable_code)]
 #[allow(non_snake_case)]
 #[allow(unused_mut)]
 #[allow(unused_variables)]
-// #[cfg(target_arch = "wasm32")]
-
-
-
-#[wasm_bindgen]
+#[allow(non_snake_case)]
 pub fn run(){
+    let p = 2;
+    let max_degree = 20;
+    let A = adem_algebra::AdemAlgebra::new(p, p != 2, false, max_degree);
+    A.compute_basis(max_degree);
+    let M = finite_dimensional_module::FiniteDimensionalModule::new(&A, "k".to_string(), 0, 1, vec![1]);
+    // println!("M.min_degree: {}", M.get_min_degree());
+    let CC = chain_complex::ChainComplexConcentratedInDegreeZero::new(&M);
+    let res = resolution::Resolution::new(&CC, max_degree, None, None);
+    // res.get_module(0);
+    // println!("res.min_degree: {}", res.get_min_degree());
+    resolve_through_degree(&res, max_degree);
+    println!("{}", res.graded_dimension_string());
+}
 
+
+// #[wasm_bindgen]
+pub fn resolve_through_degree(res : &Resolution, degree : i32){
+    for int_deg in res.get_min_degree() .. degree {
+        for hom_deg in 0 .. degree as u32 { // int_deg as u32 + 1 {
+            // println!("(hom_deg : {}, int_deg : {})", hom_deg, int_deg);
+            res.step(hom_deg, int_deg);
+        }
+    }
 }
 
 
@@ -85,24 +138,6 @@ fn main() {
     // A.multiply(&mut result, 1, r_deg, r_idx, s_deg, s_idx, -1);
     // println!("{} * {} = {}", A.basis_element_to_string(r_deg, r_idx), A.basis_element_to_string(s_deg, s_idx),  A.element_to_string(out_deg, result));
     // // return;
-    let mut x = fp_vector::FpVector::new_from_allocator(&s, p, 7, 0);
-    let mut y = fp_vector::FpVector::new_from_allocator(&s, p, 7, 0);
-    let v : [u32 ; 7] = [1,0,1,0,1, 1, 1];
-    let w : [u32 ; 7] = [1,1,1,1,1, 0, 0];
-    x.pack(&v);
-    y.pack(&w);
-    println!("x: {}\n",x);
-    let mut xs = x.set_slice(1, 6);
-    println!("x: {}\n",x);
-    let mut xs = x.clear_slice();
-    println!("x: {}\n",x);
-    // let mut ys = y.slice(1, 6);
-    println!("x: {}\ny: {}", x, y);
-    y.add(&x,1);
-    println!("x: {}\ny: {}", x, y);
-    // println!("ys:   {}", ys);
-    // println!("y: {}", y);
-    return;
 
     // x.unpack(&mut v);
     // println!("{:?}", v);

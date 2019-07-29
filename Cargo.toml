@@ -4,6 +4,8 @@ version = "0.1.0"
 authors = ["Hood Chatham <hood@mit.edu>"]
 edition = "2018"
 description = "Compute Ext over the Steenrod algebra"
+repository = "https://github.com/hoodmane/rust_ext/"
+license = "(MIT OR Apache-2.0)"
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -15,15 +17,41 @@ spin = "0.5.0"
 rental = "0.5.4"
 wasm_bindgen_noop = { path = "wasm-bindgen-noop"}
 
+[dependencies.web-sys]
+version = "0.3.22"
+features = ["console"]
+
+
 [dev-dependencies]
 rand = "0.7.0"
 rstest = "0.3.0"
 wasm-bindgen-test = "0.2"
+# These crates are used for running wasm unit tests.
+#wasm-bindgen-test = "0.2.45"
+#futures = "0.1.27"
+#js-sys = "0.3.22"
+#wasm-bindgen-futures = "0.3.22"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-proc-macro = true
 
+[profile.release]
+# This makes the compiled code faster and smaller, but it makes compiling slower,
+# so it's only enabled in release mode.
+lto = true
 
 [workspace]
 members = ["wasm-bindgen-noop"]
+
+# The `web-sys` crate allows you to interact with the various browser APIs,
+# like the DOM.
+#[dependencies.web-sys]
+#version = "0.3.22"
+#features = ["console"]
+
+# The `console_error_panic_hook` crate provides better debugging of panics by
+# logging them with `console.error`. This is great for development, but requires
+# all the `std::fmt` and `std::panicking` infrastructure, so it's only enabled
+# in debug mode.
+#[target."cfg(debug_assertions)".dependencies]
+#console_error_panic_hook = "0.1.5"

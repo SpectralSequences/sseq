@@ -10,6 +10,7 @@ use crate::algebra::Algebra;
 // use crate::memory::CVec;
 use crate::fp_vector::FpVector;
 
+
 lazy_static!{
     static ref BOCKSTEIN_TABLE : Vec<Vec<u32>> = {
         let mut n_choose_k = 1;
@@ -115,7 +116,7 @@ pub struct AdemAlgebra {
     // FiltrationOneProduct_list product_list; // This determines which indecomposibles have lines drawn for them.
     unstable : bool,
     even_basis_table : Vec<Once<Vec<AdemBasisElement>>>,
-    pub basis_table : Vec<Once<Vec<AdemBasisElement>>>, // degree -> index -> AdemBasisElement
+    basis_table : Vec<Once<Vec<AdemBasisElement>>>, // degree -> index -> AdemBasisElement
     basis_element_to_index_map : Vec<Once<HashMap<AdemBasisElement, usize>>>, // degree -> AdemBasisElement -> index
     multiplication_table : Vec<Once<Vec<Vec<FpVector>>>>,// degree -> first square -> admissibile sequence idx -> result vector
     excess_table : Vec<Once<Vec<u32>>>,
