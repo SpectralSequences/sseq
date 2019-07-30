@@ -21,6 +21,11 @@ worker.addEventListener("message", ev => {
         case "addClass":
             sseq.addClass(m.x, m.y)
             break;
+        case "addStructline": 
+            let source = sseq.getClassesInDegree(m.source.x, m.source.y)[m.source.idx];
+            let target = sseq.getClassesInDegree(m.target.x, m.target.y)[m.target.idx];
+            sseq.addStructline(source, target);
+            break;
         case "initialized":
             start();
             break;

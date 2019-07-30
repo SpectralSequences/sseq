@@ -85,7 +85,7 @@ use serde_json::value::Value;
 // }
 
 #[wasm_bindgen]
-pub fn resolve(json_string : String, max_degree : i32, add_class : js_sys::Function, add_structline : js_sys::Function){ //, add_structline : &js_sys::Function
+pub fn resolve(json_string : String, max_degree : i32, add_class : js_sys::Function, add_structline : js_sys::Function){
     let mut json : Value = serde_json::from_str(&json_string).unwrap();
     let p = json["p"].as_u64().unwrap() as u32;  
     let A = adem_algebra::AdemAlgebra::new(p, p != 2, false, max_degree);
@@ -114,7 +114,7 @@ pub fn resolve(json_string : String, max_degree : i32, add_class : js_sys::Funct
         args_array.push(&JsValue::from(target_hom_deg));
         args_array.push(&JsValue::from(target_int_deg));
         args_array.push(&JsValue::from(target_idx as u32));
-        add_structline.apply(&this, &args_array).unwrap();
+        add_structline.apply(&this, &args_array).unwrap_throw();
     };
     let add_stuctline_wrapper_box = Box::new(add_stuctline_wrapper);    
     let res = resolution::Resolution::new(&CC, max_degree, Some(add_class_wrapper_box), Some(add_stuctline_wrapper_box));
