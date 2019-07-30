@@ -30,6 +30,12 @@ extern crate rand;
 extern crate lazy_static;
 
 #[macro_use]
+extern crate serde_derive;
+extern crate serde;
+extern crate serde_json;
+
+
+#[macro_use]
 extern crate rental;
 
 // #[cfg(target_arch = "wasm32")]
@@ -41,6 +47,8 @@ use wasm_bindgen::prelude::*;
 extern crate web_sys;
 use web_sys::console;
 
+use serde_json::value::Value;
+
 // #[cfg(not(target_arch = "wasm32"))]
 // use wasm_bindgen_noop::wasm_bindgen;
 
@@ -48,37 +56,55 @@ use web_sys::console;
 
 
 
-#[wasm_bindgen(start)]
-pub fn main_js() -> Result<(), JsValue> {
-    // This provides better error messages in debug mode.
-    // It's disabled in release mode so it doesn't bloat up the file size.
-    // #[cfg(debug_assertions)]
-    // console_error_panic_hook::set_once();
+// #[wasm_bindgen(start)]
+// pub fn main_js() -> Result<(), JsValue> {
+//     // This provides better error messages in debug mode.
+//     // It's disabled in release mode so it doesn't bloat up the file size.
+//     // #[cfg(debug_assertions)]
+//     // console_error_panic_hook::set_once();
 
 
-    // Your code goes here!
-    console::log_1(&JsValue::from_str("Hello world!"));
-    let p = 2;
-    let max_degree = 20;
+//     // Your code goes here!
+//     console::log_1(&JsValue::from_str("Hello world!"));
+//     let p = 2;
+//     let max_degree = 20;
+//     let A = adem_algebra::AdemAlgebra::new(p, p != 2, false, max_degree);
+//     A.compute_basis(max_degree);
+//     let M = finite_dimensional_module::FiniteDimensionalModule::new(&A, "k".to_string(), 0, 1, vec![1]);
+//     // println!("M.min_degree: {}", M.get_min_degree());
+//     let CC = chain_complex::ChainComplexConcentratedInDegreeZero::new(&M);
+//     let res = resolution::Resolution::new(&CC, max_degree, None, None);
+//     // res.get_module(0);
+//     // println!("res.min_degree: {}", res.get_min_degree());
+//     resolve_through_degree(&res, max_degree);
+//     console::log_1(&JsValue::from_str(&res.graded_dimension_string()));
+
+
+
+//     Ok(())
+// }
+
+#[wasm_bindgen]
+pub fn resolve(json_string : String, max_degree : i32, add_class : js_sys::Function){ //, add_structline : &js_sys::Function
+    let mut json : Value = serde_json::from_str(&json_string).unwrap();
+    let p = json["p"].as_u64().unwrap() as u32;  
     let A = adem_algebra::AdemAlgebra::new(p, p != 2, false, max_degree);
     A.compute_basis(max_degree);
-    let M = finite_dimensional_module::FiniteDimensionalModule::new(&A, "k".to_string(), 0, 1, vec![1]);
-    // println!("M.min_degree: {}", M.get_min_degree());
+    let M = finite_dimensional_module::FiniteDimensionalModule::adem_module_from_json(&A, &mut json);
     let CC = chain_complex::ChainComplexConcentratedInDegreeZero::new(&M);
-    let res = resolution::Resolution::new(&CC, max_degree, None, None);
+    let this = JsValue::NULL;
+    let add_class_wrapper = move |hom_deg : usize, int_deg : i32, name : &str| {
+        let js_hom_deg = JsValue::from(hom_deg as u32);
+        let js_int_deg = JsValue::from(int_deg);
+        let js_name = JsValue::from(name);
+        add_class.call3(&this, &js_hom_deg, &js_int_deg, &js_name).unwrap();
+    };
+    let add_class_wrapper_box = Box::new(add_class_wrapper);
+    let res = resolution::Resolution::new(&CC, max_degree, Some(add_class_wrapper_box), None);
     // res.get_module(0);
     // println!("res.min_degree: {}", res.get_min_degree());
     resolve_through_degree(&res, max_degree);
     console::log_1(&JsValue::from_str(&res.graded_dimension_string()));
-
-
-
-    Ok(())
-}
-
-#[wasm_bindgen]
-pub fn test(){
-    console::log_1(&JsValue::from_str("hello"));
 }
 
 

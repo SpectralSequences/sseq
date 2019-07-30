@@ -8,6 +8,9 @@
     "start": "rimraf dist pkg && webpack-dev-server --open -d",
     "test": "cargo test && wasm-pack test --headless"
   },
+  "dependencies": {
+    "spectral-sequences" : "^0.1.0"
+  },
   "devDependencies": {
     "@wasm-tool/wasm-pack-plugin": "^0.4.2",
     "copy-webpack-plugin": "^5.0.4",

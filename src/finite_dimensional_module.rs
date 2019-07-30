@@ -1,6 +1,10 @@
 use crate::fp_vector::FpVector;
 use crate::algebra::Algebra;
+use crate::adem_algebra::AdemAlgebra;
 use crate::module::Module;
+use serde_json::value::Value;
+use std::collections::HashMap;
+
 
 pub struct FiniteDimensionalModule<'a> {
     algebra : &'a Algebra,
@@ -68,6 +72,56 @@ impl<'a> FiniteDimensionalModule<'a> {
         }
     }
 
+    pub fn adem_module_from_json(algebra : &'a AdemAlgebra, json : &mut Value ) -> Self {
+        let gens = json["gens"].take();
+        let (min_degree, graded_dimension, gen_to_idx) = Self::module_gens_from_json(&gens);
+        let name = json["name"].as_str().unwrap().to_string();
+        let mut actions_value = json["adem_actions"].take();
+        let actions = actions_value.as_array_mut().unwrap();
+        let mut result = Self::new(algebra, name, min_degree, min_degree + graded_dimension.len() as i32, graded_dimension);
+        for action in actions.iter_mut() {
+            let op : Vec<u32> = serde_json::from_value(action["op"].take()).unwrap();
+            let b = algebra.py_op_to_basis_element(op);
+            let idx = algebra.basis_element_to_index(&b);
+            let input_name = action["input"].as_str().unwrap();
+            let (input_degree, input_idx) = gen_to_idx[&input_name.to_string()];
+            let output_vec = result.get_action_mut(b.degree, idx, input_degree, input_idx);
+            let outputs = action["output"].as_array().unwrap();
+            for basis_elt in outputs {
+                let output_name = basis_elt["gen"].as_str().unwrap();
+                let output_idx = gen_to_idx[&output_name.to_string()].1;
+                let output_coeff = basis_elt["coeff"].as_u64().unwrap() as u32;
+                output_vec.set_entry(output_idx, output_coeff);
+            }
+        }   
+        return result;
+    }
+    
+    fn module_gens_from_json(gens : &Value) -> (i32, Vec<usize>, HashMap<&String, (i32, usize)>) {
+        let gens = gens.as_object().unwrap();
+        assert!(gens.len() > 0);
+        let mut min_degree = 10000;
+        let mut max_degree = -10000;
+        for (_name, degree_value) in gens.iter() {
+            let degree = degree_value.as_i64().unwrap();
+            if degree < min_degree {
+                min_degree = degree;
+            }
+            if degree + 1 > max_degree {
+                max_degree = degree + 1;
+            }
+        }
+        let mut gen_to_idx = HashMap::new();
+        let mut graded_dimension = vec!(0; (max_degree - min_degree) as usize);
+        for (name, degree_value) in gens.iter() {
+            let degree = degree_value.as_i64().unwrap();
+            let degree_idx = (degree - min_degree) as usize;
+            gen_to_idx.insert(name, (degree as i32, graded_dimension[degree_idx]));
+            graded_dimension[degree_idx] += 1;
+        }
+        return (min_degree as i32, graded_dimension, gen_to_idx);
+    }
+
     fn allocate_actions(algebra : &Algebra, min_degree : i32, basis_degree_range : usize, graded_dimension : &Vec<usize>) -> Vec<Vec<Vec<Vec<FpVector>>>> {
         let mut result : Vec<Vec<Vec<Vec<FpVector>>>> = Vec::with_capacity(basis_degree_range);
         // Count number of triples (x, y, op) with |x| + |op| = |y|.
@@ -124,9 +178,10 @@ impl<'a> FiniteDimensionalModule<'a> {
         assert!(operation_idx < self.algebra.get_dimension(operation_degree, input_degree));
         assert!(input_idx < self.get_dimension(input_degree));      
         let input_degree_idx = (input_degree - self.min_degree) as usize;
-        let output_degree_idx = (input_degree + operation_degree) as usize;
+        let output_degree_idx = (input_degree + operation_degree - self.min_degree) as usize;
+        let in_out_diff = output_degree_idx - input_degree_idx - 1;
         // (in_deg) -> (out_deg) -> (op_index) -> (in_index) -> Vector
-        let output_vector = &mut self.actions[input_degree_idx][output_degree_idx][operation_idx][input_idx];
+        let output_vector = &mut self.actions[input_degree_idx][in_out_diff][operation_idx][input_idx];
         output_vector.assign(&output);
     }
 
@@ -139,9 +194,10 @@ impl<'a> FiniteDimensionalModule<'a> {
         assert!(operation_idx < self.algebra.get_dimension(operation_degree, input_degree));
         assert!(input_idx < self.get_dimension(input_degree));      
         let input_degree_idx = (input_degree - self.min_degree) as usize;
-        let output_degree_idx = (input_degree + operation_degree) as usize;
+        let output_degree_idx = (input_degree + operation_degree - self.min_degree) as usize;
+        let in_out_diff = output_degree_idx - input_degree_idx - 1;
         // (in_deg) -> (out_deg) -> (op_index) -> (in_index) -> Vector
-        let output_vector = &mut self.actions[input_degree_idx][output_degree_idx][operation_idx][input_idx];
+        let output_vector = &mut self.actions[input_degree_idx][in_out_diff][operation_idx][input_idx];
         output_vector.pack(&output);
     }    
 
@@ -153,9 +209,23 @@ impl<'a> FiniteDimensionalModule<'a> {
         assert!(operation_idx < self.algebra.get_dimension(operation_degree, input_degree));
         assert!(input_idx < self.get_dimension(input_degree));              
         let input_degree_idx = (input_degree - self.min_degree) as usize;
-        let output_degree_idx = (input_degree + operation_degree) as usize;
-        return &self.actions[input_degree_idx][output_degree_idx][operation_idx][input_idx];
+        let output_degree_idx = (input_degree + operation_degree - self.min_degree) as usize;
+        let in_out_diff = output_degree_idx - input_degree_idx - 1;
+        return &self.actions[input_degree_idx][in_out_diff][operation_idx][input_idx];
     }
+
+    fn get_action_mut(
+        &mut self,
+        operation_degree : i32, operation_idx : usize,
+        input_degree : i32, input_idx : usize
+    ) -> &mut FpVector {
+        assert!(operation_idx < self.algebra.get_dimension(operation_degree, input_degree));
+        assert!(input_idx < self.get_dimension(input_degree));              
+        let input_degree_idx = (input_degree - self.min_degree) as usize;
+        let output_degree_idx = (input_degree + operation_degree - self.min_degree) as usize;
+        let in_out_diff = output_degree_idx - input_degree_idx - 1;
+        return &mut self.actions[input_degree_idx][in_out_diff][operation_idx][input_idx];
+    }    
 }
 
 #[cfg(test)]

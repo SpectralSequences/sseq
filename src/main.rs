@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
-
 #[allow(unused_imports)]
 
 mod memory;
@@ -17,7 +16,6 @@ mod free_module;
 mod free_module_homomorphism;
 mod chain_complex;
 mod resolution;
-// mod test;
 
 #[cfg(test)]
 extern crate rand;
@@ -29,9 +27,6 @@ extern crate lazy_static;
 #[macro_use]
 extern crate rental;
 
-// use std::fmt;
-
-// use crate::memory::{CVec, MemoryAllocator};
 use crate::algebra::Algebra;
 use crate::module::Module;
 use resolution::Resolution;
@@ -39,7 +34,6 @@ use resolution::Resolution;
 // #[cfg(not(target_arch = "wasm32"))]
 // use wasm_bindgen_noop::wasm_bindgen;
 
-#[wasm_bindgen]
 fn resolve_through_degree(res : &Resolution, degree : i32){
     for int_deg in res.get_min_degree() .. degree {
         for hom_deg in 0 .. degree as u32 { // int_deg as u32 + 1 {
@@ -53,10 +47,15 @@ fn resolve_through_degree(res : &Resolution, degree : i32){
 #[allow(non_snake_case)]
 #[allow(unused_mut)]
 fn main() {
+
+
     let p = 2;
     let max_degree = 20;
     let A = adem_algebra::AdemAlgebra::new(p, p != 2, false, max_degree);
     A.compute_basis(max_degree);
+    // let data = r#"{"name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
+    // let M = finite_dimensional_module::FiniteDimensionalModule::adem_module_from_json(&A, data);
+
     let M = finite_dimensional_module::FiniteDimensionalModule::new(&A, "k".to_string(), 0, 1, vec![1]);
     // println!("M.min_degree: {}", M.get_min_degree());
     let CC = chain_complex::ChainComplexConcentratedInDegreeZero::new(&M);

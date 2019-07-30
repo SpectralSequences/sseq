@@ -33,10 +33,10 @@ lazy_static!{
 #[derive(Debug)]
 #[derive(Clone)]
 pub struct AdemBasisElement {
-    degree : i32,
-    excess : i32,
-    bocksteins : u32,
-    ps : Vec<u32>
+    pub degree : i32,
+    pub excess : i32,
+    pub bocksteins : u32,
+    pub ps : Vec<u32>
 }
 
 impl std::cmp::PartialEq for AdemBasisElement {
@@ -112,7 +112,7 @@ unsafe fn shift_vec<T>(v : Vec<T> , offset : isize) -> Vec<T> {
 pub struct AdemAlgebra {
     p : u32,
     name : String,
-    generic : bool,
+    pub generic : bool,
     // FiltrationOneProduct_list product_list; // This determines which indecomposibles have lines drawn for them.
     unstable : bool,
     even_basis_table : Vec<Once<Vec<AdemBasisElement>>>,
@@ -888,6 +888,40 @@ impl AdemAlgebra {
             new_monomial.bocksteins |= cur_tail_basis_elt.bocksteins << idx;
             let new_leading_degree = leading_degree - (q*x + b1) as i32;
             self.make_mono_admissible_generic(result, (coeff * it_value) % p, new_monomial, idx - 1, new_leading_degree, excess, stop_early);
+        }
+    }
+
+
+    pub fn py_op_to_basis_element(&self, op : Vec<u32>) -> AdemBasisElement {
+        let mut sqs = Vec::with_capacity(op.len());
+        let p = self.p;
+        let q;
+        let mut degree = 0;
+        let mut bocksteins = 0;
+        if self.generic {
+            q = 2*p-2;
+            for (i, sq) in op.iter().enumerate() {
+                if i % 2 == 0 {
+                    degree += q * sq;
+                    sqs.push(*sq);
+                } else {
+                    degree += sq;
+                    bocksteins <<= 1;
+                    bocksteins |= sq;
+                }
+            }      
+        } else {
+            q = 1;
+            for sq in op {
+                degree += q * sq;
+                sqs.push(sq);
+            }
+        }
+        AdemBasisElement {
+            degree : degree as i32,
+            excess : 0,
+            bocksteins,
+            ps : sqs
         }
     }
 }

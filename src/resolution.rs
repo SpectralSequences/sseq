@@ -37,7 +37,7 @@ rental! {
 pub struct Resolution<'a> {
     res_inner : rent_res::ResolutionInner<'a>,
     max_degree : i32,
-    add_class : Option<fn(hom_deg : usize, int_deg : i32, name : &str)>,
+    add_class : Option<Box<Fn(usize, i32, &str)>>,
     add_structline : Option<fn(
         sl_type : &str,
         source_hom_deg : usize, source_int_deg : i32, source_idx : usize, 
@@ -48,12 +48,12 @@ pub struct Resolution<'a> {
 impl<'a> Resolution<'a> {  
     pub fn new(
         complex : &'a ChainComplex, max_degree : i32,
-        add_class : Option<fn(hom_deg : usize, int_deg : i32, name : &str)>,
+        add_class : Option<Box<Fn(usize, i32, &str)>>,
         add_structline : Option<fn(
             sl_type : &str,
             source_hom_deg : usize, source_int_deg : i32, source_idx : usize, 
             target_hom_deg : usize, target_int_deg : i32, target_idx : usize
-        )>        
+        )>
     ) -> Self {
         let algebra = complex.get_algebra();
         let zero_module = ZeroModule::new(algebra);
@@ -145,7 +145,14 @@ impl<'a> Resolution<'a> {
         //     let subspace = Subspace::entire_space(self.get_prime(), module_dim);
         //     dminus1.set_kernel(degree, subspace);
         // }
-        self.generate_old_kernel_and_compute_new_kernel(homological_degree, degree);    
+        self.generate_old_kernel_and_compute_new_kernel(homological_degree, degree);
+        if let Some(f) = &self.add_class {
+            let module = self.get_module(homological_degree as usize);
+            let num_gens = module.get_number_of_gens_in_degree(degree);
+            for i in 0..num_gens {
+                f(homological_degree as usize, degree, &format!("{}", i));
+            }
+        }        
     }
 
     // pub fn set_empty(&self, homological_degree : u32, degree : i32){
