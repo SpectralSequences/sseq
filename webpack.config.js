@@ -23,6 +23,9 @@ const appConfig = {
     output: {
         path: dist,
         filename: "[name].js"
+    },
+    node: { // see https://github.com/webpack-contrib/css-loader/issues/447
+        fs: 'empty'
     }
 };
 
@@ -41,6 +44,9 @@ const workerConfig = {
     output: {
         path: dist,
         filename: "worker.js"
+    },
+    node: { // see https://github.com/webpack-contrib/css-loader/issues/447
+        fs: 'empty'
     }
 }
 

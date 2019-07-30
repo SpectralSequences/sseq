@@ -7,6 +7,7 @@ display.setSseq(sseq);
 const worker = new Worker("./worker.js");
 
 worker.addEventListener("message", ev => {
+    console.log(ev);
     let m = ev.data;
     switch (m.cmd) {
         case "addClass":
