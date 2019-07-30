@@ -13,16 +13,16 @@ pub trait ChainComplex {
     }
     fn get_algebra(&self) -> &Algebra;
     fn get_min_degree(&self) -> i32;
-    fn get_module(&self, homological_degree : usize) -> &Module;
-    fn get_differential(&self, homological_degree : usize) -> &ModuleHomomorphism;
-    fn compute_through_bidegree(&self, homological_degree : usize, degree : i32) {}
+    fn get_module(&self, homological_degree : u32) -> &Module;
+    fn get_differential(&self, homological_degree : u32) -> &ModuleHomomorphism;
+    fn compute_through_bidegree(&self, homological_degree : u32, degree : i32) {}
     // fn set_kernel(&self, homological_degree : usize, degree : i32, kernel : Subspace);
     // fn set_image(&self, degree : i32, homological_degree : usize, image : Subspace);
     // fn get_kernel(&self, homological_degree : usize, degree : i32) -> &Subspace;
     // fn get_image(&self, homological_degree : usize, degree : i32) -> Option<&Subspace>;
     // fn get_quasi_inverse(&self, degree : i32, homological_degree : usize) -> &QuasiInverse;
 
-    fn compute_kernel_and_image(&self,  homological_degree : usize, degree : i32){
+    fn compute_kernel_and_image(&self,  homological_degree : u32, degree : i32){
         let p = self.get_prime();
         let d = self.get_differential(homological_degree);
         if homological_degree == 0 {
@@ -108,7 +108,7 @@ impl<'a> ChainComplex for ChainComplexConcentratedInDegreeZero<'a> {
         self.ccdz_inner.head().module.get_algebra()
     }
 
-    fn get_module(&self, homological_degree : usize) -> &Module {
+    fn get_module(&self, homological_degree : u32) -> &Module {
         if homological_degree == 0 {
             return self.ccdz_inner.head().module;
         } else {
@@ -124,7 +124,7 @@ impl<'a> ChainComplex for ChainComplexConcentratedInDegreeZero<'a> {
     //     self.ccdz.head().module.get_max_degree()
     // }
 
-    fn get_differential<'b>(&'b self, homological_degree : usize) -> &'b ModuleHomomorphism {
+    fn get_differential<'b>(&'b self, homological_degree : u32) -> &'b ModuleHomomorphism {
         self.ccdz_inner.rent(|ccdzd| {
             let result = match homological_degree {
                 0 => &ccdzd.d0,

@@ -24,6 +24,10 @@ impl<T> Once<T> {
         assert!(ran, "Value was already set.");
     }
 
+    pub fn get_option(&self) -> Option<&T> {
+        self.once.r#try()
+    }
+
     pub fn has(&self) -> bool {
         self.once.r#try().is_some()
     }

@@ -85,22 +85,39 @@ use serde_json::value::Value;
 // }
 
 #[wasm_bindgen]
-pub fn resolve(json_string : String, max_degree : i32, add_class : js_sys::Function){ //, add_structline : &js_sys::Function
+pub fn resolve(json_string : String, max_degree : i32, add_class : js_sys::Function, add_structline : js_sys::Function){ //, add_structline : &js_sys::Function
     let mut json : Value = serde_json::from_str(&json_string).unwrap();
     let p = json["p"].as_u64().unwrap() as u32;  
     let A = adem_algebra::AdemAlgebra::new(p, p != 2, false, max_degree);
     A.compute_basis(max_degree);
     let M = finite_dimensional_module::FiniteDimensionalModule::adem_module_from_json(&A, &mut json);
     let CC = chain_complex::ChainComplexConcentratedInDegreeZero::new(&M);
-    let this = JsValue::NULL;
-    let add_class_wrapper = move |hom_deg : usize, int_deg : i32, name : &str| {
-        let js_hom_deg = JsValue::from(hom_deg as u32);
+    let add_class_wrapper = move |hom_deg : u32, int_deg : i32, name : &str| {
+        let this = JsValue::NULL;
+        let js_hom_deg = JsValue::from(hom_deg);
         let js_int_deg = JsValue::from(int_deg);
         let js_name = JsValue::from(name);
         add_class.call3(&this, &js_hom_deg, &js_int_deg, &js_name).unwrap();
     };
     let add_class_wrapper_box = Box::new(add_class_wrapper);
-    let res = resolution::Resolution::new(&CC, max_degree, Some(add_class_wrapper_box), None);
+    let add_stuctline_wrapper = 
+        move | name : &str, 
+               source_hom_deg : u32, source_int_deg : i32, source_idx : usize,
+               target_hom_deg : u32, target_int_deg : i32, target_idx : usize |
+    {
+        let this = JsValue::NULL;
+        let args_array = js_sys::Array::new();
+        args_array.push(&JsValue::from(name));
+        args_array.push(&JsValue::from(source_hom_deg));
+        args_array.push(&JsValue::from(source_int_deg));
+        args_array.push(&JsValue::from(source_idx as u32));
+        args_array.push(&JsValue::from(target_hom_deg));
+        args_array.push(&JsValue::from(target_int_deg));
+        args_array.push(&JsValue::from(target_idx as u32));
+        add_structline.apply(&this, &args_array).unwrap();
+    };
+    let add_stuctline_wrapper_box = Box::new(add_stuctline_wrapper);    
+    let res = resolution::Resolution::new(&CC, max_degree, Some(add_class_wrapper_box), Some(add_stuctline_wrapper_box));
     // res.get_module(0);
     // println!("res.min_degree: {}", res.get_min_degree());
     resolve_through_degree(&res, max_degree);

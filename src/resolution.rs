@@ -5,6 +5,7 @@ use std::cmp::max;
 use crate::memory::CVec;
 use crate::fp_vector::FpVector;
 use crate::matrix::{Matrix, Subspace};
+use crate::algebra::Algebra;
 use crate::module::{Module, ZeroModule};
 use crate::free_module::FreeModule;
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
@@ -37,23 +38,23 @@ rental! {
 pub struct Resolution<'a> {
     res_inner : rent_res::ResolutionInner<'a>,
     max_degree : i32,
-    add_class : Option<Box<Fn(usize, i32, &str)>>,
-    add_structline : Option<fn(
-        sl_type : &str,
-        source_hom_deg : usize, source_int_deg : i32, source_idx : usize, 
-        target_hom_deg : usize, target_int_deg : i32, target_idx : usize
-    )>
+    add_class : Option<Box<Fn(u32, i32, &str)>>,
+    add_structline : Option<Box<Fn(
+        &str,
+        u32, i32, usize, 
+        u32, i32, usize
+    )>>
 }
 
 impl<'a> Resolution<'a> {  
     pub fn new(
         complex : &'a ChainComplex, max_degree : i32,
-        add_class : Option<Box<Fn(usize, i32, &str)>>,
-        add_structline : Option<fn(
-            sl_type : &str,
-            source_hom_deg : usize, source_int_deg : i32, source_idx : usize, 
-            target_hom_deg : usize, target_int_deg : i32, target_idx : usize
-        )>
+        add_class : Option<Box<Fn(u32, i32, &str)>>,
+        add_structline : Option<Box<Fn(
+            &str,
+            u32, i32, usize, 
+            u32, i32, usize
+        )>>
     ) -> Self {
         let algebra = complex.get_algebra();
         let zero_module = ZeroModule::new(algebra);
@@ -81,7 +82,7 @@ impl<'a> Resolution<'a> {
                 for i in 0..num_degrees {
                     let complex_module;
                     unsafe {
-                        complex_module = std::mem::transmute::<_,&'static Module>(complex.get_module(i));
+                        complex_module = std::mem::transmute::<_,&'static Module>(complex.get_module(i as u32));
                     }
                     chain_maps.push(FreeModuleHomomorphism::new(&res_modules.modules[i], complex_module, min_degree, 0, max_degree));
                 }
@@ -107,22 +108,26 @@ impl<'a> Resolution<'a> {
         self.res_inner.head().complex
     }
 
-    pub fn get_module(&self, homological_degree : usize) -> &FreeModule {
-        &self.res_inner.head().modules[homological_degree]
+    pub fn get_algebra(&self) -> &Algebra {
+        self.get_complex().get_algebra()
     }
 
-    fn get_differential<'b>(&'b self, homological_degree : usize) -> &'b FreeModuleHomomorphism {
+    pub fn get_module(&self, homological_degree : u32) -> &FreeModule {
+        &self.res_inner.head().modules[homological_degree as usize]
+    }
+
+    fn get_differential<'b>(&'b self, homological_degree : u32) -> &'b FreeModuleHomomorphism {
         self.res_inner.rent(|res_homs| {
-            let result = &res_homs.differentials[homological_degree];
+            let result = &res_homs.differentials[homological_degree as usize];
             unsafe {
                 std::mem::transmute::<_, &'b FreeModuleHomomorphism<'b, 'b>>(result)
             }
         })    
     }
 
-    fn get_chain_map<'b>(&'b self, homological_degree : usize) -> &'b FreeModuleHomomorphism {
+    fn get_chain_map<'b>(&'b self, homological_degree : u32) -> &'b FreeModuleHomomorphism {
         self.res_inner.rent(|res_homs| {
-            let result = &res_homs.chain_maps[homological_degree];
+            let result = &res_homs.chain_maps[homological_degree as usize];
             unsafe {
                 std::mem::transmute::<_, &'b FreeModuleHomomorphism<'b, 'b>>(result)
             }
@@ -146,14 +151,52 @@ impl<'a> Resolution<'a> {
         //     dminus1.set_kernel(degree, subspace);
         // }
         self.generate_old_kernel_and_compute_new_kernel(homological_degree, degree);
+        let module = self.get_module(homological_degree);
+        let num_gens = module.get_number_of_gens_in_degree(degree);
         if let Some(f) = &self.add_class {
-            let module = self.get_module(homological_degree as usize);
-            let num_gens = module.get_number_of_gens_in_degree(degree);
             for i in 0..num_gens {
-                f(homological_degree as usize, degree, &format!("{}", i));
+                f(homological_degree, degree, &format!("{}", i));
             }
-        }        
+        }
+        if let Some(_) = &self.add_structline {
+            for i in 0..num_gens {
+                self.compute_filtration_one_products(homological_degree, degree, i);
+            }
+        }
     }
+
+    fn compute_filtration_one_products(&self, homological_degree : u32, degree : i32, source_idx : usize){
+        if homological_degree == 0 {
+            return;
+        }
+        if let Some(add_structline) = &self.add_structline {
+            let d = self.get_differential(homological_degree);
+            let T = self.get_module(homological_degree - 1);
+            let dx = d.get_output(degree, source_idx);
+            for (op_name, op_degree, op_index) in self.get_algebra().get_filtration_one_products() {
+                let gen_degree = degree - op_degree;
+
+                if gen_degree < self.get_min_degree(){
+                    break;
+                }
+
+                let num_target_generators = T.get_number_of_gens_in_degree(gen_degree);
+                for target_idx in 0 .. num_target_generators {
+                    let vector_idx = T.operation_generator_to_index(op_degree, op_index, gen_degree, target_idx);
+                    if vector_idx >= dx.get_dimension() {
+                        // println!("Out of bounds index when computing product:");
+                        // println!("  ==  degree: {}, hom_deg: {}, dim: {}, idx: {}", degree, homological_degree, dx.dimension, vector_idx);
+                    } else {
+                        // printf("hom_deg: %d, deg: %d, source_idx: %d, op_deg: %d, entry: %d\n", homological_degree, degree, source_idx, op_degree, Vector_getEntry(dx, vector_idx));
+                        if dx.get_entry(vector_idx) != 0 {
+                            // There was a product!
+                            add_structline(op_name, homological_degree - 1, gen_degree, target_idx, homological_degree, degree, source_idx);
+                        }
+                    }
+                }
+            }
+        }
+    }    
 
     // pub fn set_empty(&self, homological_degree : u32, degree : i32){
     //     let current_differential = self.get_differential(homological_degree);
@@ -164,7 +207,6 @@ impl<'a> Resolution<'a> {
     pub fn generate_old_kernel_and_compute_new_kernel(&self, homological_degree : u32, degree : i32){
         let min_degree = self.get_min_degree();
         // assert!(degree >= homological_degree as i32 + min_degree);
-        let homological_degree = homological_degree as usize;
         let degree_idx = (degree - min_degree) as usize;
         let p = self.get_prime();
         let current_differential = self.get_differential(homological_degree);
@@ -242,7 +284,7 @@ impl<'a> Resolution<'a> {
 
     pub fn graded_dimension_string(&self) -> String {
         let mut result = String::new();
-        let max_degree = self.max_degree as usize;
+        let max_degree = self.max_degree as u32;
         result.push_str("[\n");
         for i in (0 .. max_degree).rev() {
             result.push_str("[");

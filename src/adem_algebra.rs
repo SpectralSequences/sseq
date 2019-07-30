@@ -121,7 +121,7 @@ pub struct AdemAlgebra {
     multiplication_table : Vec<Once<Vec<Vec<FpVector>>>>,// degree -> first square -> admissibile sequence idx -> result vector
     excess_table : Vec<Once<Vec<u32>>>,
     sort_order : Option<fn(&AdemBasisElement, &AdemBasisElement) -> Ordering>,
-    // filtrationOneProduct_basisElements;
+    filtration_one_products : Vec<(String, AdemBasisElement)> //Vec<Once<(i32, usize)>>
 }
 
 impl Algebra for AdemAlgebra {
@@ -140,6 +140,17 @@ impl Algebra for AdemAlgebra {
 
     fn get_name(&self) -> &str {
         &self.name
+    }
+
+    fn get_filtration_one_products(&self) -> Vec<(&str, i32, usize)>{
+        self.filtration_one_products.iter()
+            .filter(|(_ , b)| self.multiplication_table[b.degree as usize].has())
+            .map(|(name, b)| (&**name, b.degree, self.basis_element_to_index(b)))
+            .collect::<Vec<_>>()
+        // self.filtration_one_products.iter()
+        //     .filter_map(|val| val.get_option())
+        //     .map(|val| val.clone())
+        //     .collect::<Vec<_>>()
     }
 
     fn compute_basis(&self, mut max_degree : i32) {
@@ -174,6 +185,7 @@ impl Algebra for AdemAlgebra {
             }
         }
         self.generate_multiplication_table(old_max_degree, max_degree);
+        // if self.max_degree 
         // println!("self.generate_multiplication_table({}, {})", old_max_degree, max_degree);
         // if self.unstable {
         //     self.generate_excess_table(old_max_degree, max_degree);
@@ -229,6 +241,32 @@ impl AdemAlgebra {
             multiplication_table.push(Once::new());
             excess_table.push(Once::new());
         }
+        let mut filtration_one_products = Vec::with_capacity(4);
+        if generic {
+            filtration_one_products.push(("a0".to_string(), AdemBasisElement {
+                degree : 1,
+                bocksteins : 1,
+                excess : 0,
+                ps : vec![]
+            }));
+            filtration_one_products.push(("h0".to_string(), AdemBasisElement {
+                degree : (2*p-2) as i32,
+                bocksteins : 0,
+                excess : 0,
+                ps : vec![1]
+            }));
+        } else {
+            for i in 0..4 {
+                let degree = 1 << i; // degree is 2^hi 
+                let ps = vec![degree as u32];
+                filtration_one_products.push((format!("h{}", i),AdemBasisElement {
+                    degree,
+                    bocksteins : 0,
+                    excess : 0,
+                    ps
+                }));
+            }
+        }
         Self {
             p,
             name : format!("AdemAlgebra(p={})", p),
@@ -239,7 +277,8 @@ impl AdemAlgebra {
             basis_element_to_index_map,
             multiplication_table,
             excess_table,
-            sort_order : None
+            sort_order : None,
+            filtration_one_products
         }
     }
 
