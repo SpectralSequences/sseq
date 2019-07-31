@@ -1,9 +1,12 @@
 import "spectral-sequences";
+import MyDisplay from "./display.js";
 
 window.sseq = new Sseq();
-window.display = new BasicDisplay("#main");
+window.display = new MyDisplay("#main");
 
 const worker = new Worker("./worker.js");
+
+let structlineTypes = new Set();
 
 function getURLDictionary(){
     let url = new URL(document.location);
@@ -15,19 +18,26 @@ function getURLDictionary(){
 }
 
 worker.addEventListener("message", ev => {
-    console.log(ev);
     let m = ev.data;
     switch (m.cmd) {
         case "addClass":
-            sseq.addClass(m.x, m.y)
+            sseq.addClass(m.x, m.y);
             break;
         case "addStructline": 
             let source = sseq.getClassesInDegree(m.source.x, m.source.y)[m.source.idx];
             let target = sseq.getClassesInDegree(m.target.x, m.target.y)[m.target.idx];
-            sseq.addStructline(source, target);
+            sseq.addStructline(source, target, m.mult);
+            if (!structlineTypes.has(m.mult)) {
+                structlineTypes.add(m.mult);
+                display.sidebar.showPanel();
+            }
             break;
         case "initialized":
             start();
+            break;
+        case "complete":
+            console.log("complete");
+            display.runningSign.style.display = "none";
             break;
         default:
             break;
@@ -53,4 +63,3 @@ function start() {
         maxDegree: maxDegree
     });
 }
-start();

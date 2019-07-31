@@ -8,10 +8,10 @@ function addClass (a, b, name) {
     self.postMessage({cmd: "addClass", "x": b - a, "y": a});
 };
 
-function addStructline(type, source_hom_deg, source_int_deg, source_idx, target_hom_deg, target_int_deg, target_idx){
+function addStructline(mult, source_hom_deg, source_int_deg, source_idx, target_hom_deg, target_int_deg, target_idx){
     self.postMessage({
         cmd : "addStructline", 
-        type : type,
+        mult : mult,
         source : {x : source_int_deg - source_hom_deg, y : source_hom_deg, idx : source_idx},
         target : {x : target_int_deg - target_hom_deg, y : target_hom_deg, idx : target_idx}
     });
@@ -38,5 +38,7 @@ self.onmessage = (ev) => {
             break;
         default:
             break;
+
     }
+    self.postMessage({ cmd: "complete", data: m });
 }
