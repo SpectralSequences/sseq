@@ -108,10 +108,6 @@ impl<'a> Resolution<'a> {
         self.res_inner.head().complex
     }
 
-    pub fn get_algebra(&self) -> &Algebra {
-        self.get_complex().get_algebra()
-    }
-
     pub fn get_module(&self, homological_degree : u32) -> &FreeModule {
         &self.res_inner.head().modules[homological_degree as usize]
     }
@@ -122,7 +118,7 @@ impl<'a> Resolution<'a> {
             unsafe {
                 std::mem::transmute::<_, &'b FreeModuleHomomorphism<'b, 'b>>(result)
             }
-        })    
+        })
     }
 
     fn get_chain_map<'b>(&'b self, homological_degree : u32) -> &'b FreeModuleHomomorphism {
@@ -133,14 +129,6 @@ impl<'a> Resolution<'a> {
             }
         })    
     }    
-
-    pub fn get_prime(&self) -> u32 {
-        self.get_complex().get_prime()
-    }
-
-    pub fn get_min_degree(&self) -> i32 {
-        self.get_complex().get_min_degree()
-    }
 
     pub fn resolve_through_degree(&self, degree : i32){
         for int_deg in self.get_min_degree() .. degree {
@@ -180,7 +168,7 @@ impl<'a> Resolution<'a> {
         }
         if let Some(add_structline) = &self.add_structline {
             let d = self.get_differential(homological_degree);
-            let T = self.get_module(homological_degree - 1);
+            let target = self.get_module(homological_degree - 1);
             let dx = d.get_output(degree, source_idx);
             for (op_name, op_degree, op_index) in self.get_algebra().get_filtration_one_products() {
                 let gen_degree = degree - op_degree;
@@ -189,9 +177,9 @@ impl<'a> Resolution<'a> {
                     break;
                 }
 
-                let num_target_generators = T.get_number_of_gens_in_degree(gen_degree);
+                let num_target_generators = target.get_number_of_gens_in_degree(gen_degree);
                 for target_idx in 0 .. num_target_generators {
-                    let vector_idx = T.operation_generator_to_index(op_degree, op_index, gen_degree, target_idx);
+                    let vector_idx = target.operation_generator_to_index(op_degree, op_index, gen_degree, target_idx);
                     if vector_idx >= dx.get_dimension() {
                         // println!("Out of bounds index when computing product:");
                         // println!("  ==  degree: {}, hom_deg: {}, dim: {}, idx: {}", degree, homological_degree, dx.dimension, vector_idx);
@@ -307,4 +295,38 @@ impl<'a> Resolution<'a> {
         return result;
     }
 
+}
+
+
+impl<'a> ChainComplex for Resolution<'a> {
+    fn get_algebra(&self) -> &Algebra {
+        self.get_complex().get_algebra()
+    }
+
+    fn get_module(&self, homological_degree : u32) -> &Module {
+        self.get_module(homological_degree)
+    }
+
+    fn get_min_degree(&self) -> i32 {
+        self.get_complex().get_min_degree()
+    }
+
+    fn get_differential<'b>(&'b self, homological_degree : u32) -> &'b ModuleHomomorphism {
+        self.get_differential(homological_degree)
+    }
+
+    // fn get_max_degree(&self) -> i32 {
+    //     self.ccdz.head().module.get_max_degree()
+    // }
+
+
+
+    
+
+    // fn get_quasi_inverse(&self, degree : i32, homological_degree : usize) -> QuasiInverse {
+    //     let qi_pivots = self.image_deg_zero[degree].get();
+    //     QuasiInverse {
+            
+    //     }
+    // }
 }

@@ -27,9 +27,12 @@ extern crate lazy_static;
 #[macro_use]
 extern crate rental;
 
+use serde_json::value::Value;
+
 use crate::algebra::Algebra;
 use crate::module::Module;
-use resolution::Resolution;
+use crate::chain_complex::ChainComplex;
+use crate::resolution::Resolution;
 
 // #[cfg(not(target_arch = "wasm32"))]
 // use wasm_bindgen_noop::wasm_bindgen;
@@ -50,18 +53,14 @@ fn main() {
 
 
     let p = 2;
-    let max_degree = 20;
+    let max_degree = 50;
     let A = adem_algebra::AdemAlgebra::new(p, p != 2, false, max_degree);
     A.compute_basis(max_degree);
-    // let data = r#"{"name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
-    // let M = finite_dimensional_module::FiniteDimensionalModule::adem_module_from_json(&A, data);
-
-    let M = finite_dimensional_module::FiniteDimensionalModule::new(&A, "k".to_string(), 0, 1, vec![1]);
-    // println!("M.min_degree: {}", M.get_min_degree());
+    let data = r#"{"name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
+    let mut json : Value = serde_json::from_str(&data).unwrap();
+    let M = finite_dimensional_module::FiniteDimensionalModule::adem_module_from_json(&A, &mut json);
     let CC = chain_complex::ChainComplexConcentratedInDegreeZero::new(&M);
     let res = resolution::Resolution::new(&CC, max_degree, None, None);
-    // res.get_module(0);
-    // println!("res.min_degree: {}", res.get_min_degree());
     resolve_through_degree(&res, max_degree);
     println!("{}", res.graded_dimension_string());
 

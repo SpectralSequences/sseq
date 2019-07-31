@@ -7,7 +7,7 @@ use crate::algebra::Algebra;
 use crate::adem_algebra::AdemAlgebra;
 use crate::module::Module;
 use crate::finite_dimensional_module::FiniteDimensionalModule;
-use crate::free_module::FreeModule;
+// use crate::free_module::FreeModule;
 use crate::chain_complex::{ChainComplex, ChainComplexConcentratedInDegreeZero};
 use crate::resolution::Resolution;
 
@@ -93,7 +93,7 @@ impl WasmChainComplex {
 
 
 #[wasm_bindgen]
-struct WasmResolution {
+pub struct WasmResolution {
    pimpl : *const Resolution<'static>
 }
 

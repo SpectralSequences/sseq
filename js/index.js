@@ -15,7 +15,6 @@ function getURLDictionary(){
 }
 
 worker.addEventListener("message", ev => {
-    console.log(ev);
     let m = ev.data;
     switch (m.cmd) {
         case "addClass":
