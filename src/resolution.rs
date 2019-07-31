@@ -142,6 +142,15 @@ impl<'a> Resolution<'a> {
         self.get_complex().get_min_degree()
     }
 
+    pub fn resolve_through_degree(&self, degree : i32){
+        for int_deg in self.get_min_degree() .. degree {
+            for hom_deg in 0 .. degree as u32 { // int_deg as u32 + 1 {
+                // println!("(hom_deg : {}, int_deg : {})", hom_deg, int_deg);
+                self.step(hom_deg, int_deg);
+            }
+        }
+    }
+
     pub fn step(&self, homological_degree : u32, degree : i32){
         // if homological_degree == 0 {
         //     let dminus1 = self.get_differential(0);
