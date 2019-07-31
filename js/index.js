@@ -1,65 +1,81 @@
 import "spectral-sequences";
 import MyDisplay from "./display.js";
 
-window.sseq = new Sseq();
-window.display = new MyDisplay("#main");
-
-const worker = new Worker("./worker.js");
-
-let structlineTypes = new Set();
-
-function getURLDictionary(){
-    let url = new URL(document.location);
-    let kv = {};
-    for(let [k,v] of url.searchParams.entries()){
-        kv[k] = v;
-    }
-    return kv;
+// Read URL to see if module is specified.
+let url = new URL(document.location);
+let params = {};
+for(let [k,v] of url.searchParams.entries()){
+    params[k] = v;
 }
 
-worker.addEventListener("message", ev => {
-    let m = ev.data;
-    switch (m.cmd) {
-        case "addClass":
-            sseq.addClass(m.x, m.y);
-            break;
-        case "addStructline": 
-            let source = sseq.getClassesInDegree(m.source.x, m.source.y)[m.source.idx];
-            let target = sseq.getClassesInDegree(m.target.x, m.target.y)[m.target.idx];
-            sseq.addStructline(source, target, m.mult);
-            if (!structlineTypes.has(m.mult)) {
-                structlineTypes.add(m.mult);
-                display.sidebar.showPanel();
-            }
-            break;
-        case "initialized":
-            start();
-            break;
-        case "complete":
-            console.log("complete");
-            display.runningSign.style.display = "none";
-            break;
-        default:
-            break;
-    }
-});
+if (!params.module) {
+    console.log("Displaying homepage");
+    console.log(document.querySelector("#home"));
+    document.querySelector("#home").style.removeProperty("display");
 
-function start() {
-    let params = getURLDictionary();
+    HTMLCollection.prototype.forEach = Array.prototype.forEach;
+    let sections = document.querySelector("#home").getElementsByTagName("section");
 
-    let C2json = '{"name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}';
+    sections.forEach(n => {
+        n.children[1].children.forEach(a => {
+            a.innerHTML = Interface.renderLaTeX(a.innerHTML);
+            a.href = `?module=${a.getAttribute("data")}&degree=50`;
+        });
+    });
+} else {
+    window.worker = new Worker("./worker.js");
 
     let maxDegree = parseInt(params.degree ? params.degree : 50);
-    sseq.xRange = [0, maxDegree];
-    sseq.yRange = [0, Math.floor(maxDegree / 2)];
-    sseq.initialxRange = sseq.xRange;
-    sseq.initialyRange = sseq.yRange;
-    sseq.class_scale = 0.5;
-    display.setSseq(sseq);
+    let structlineTypes = new Set();
 
-    worker.postMessage({
-        cmd: "resolve",
-        module: C2json,
-        maxDegree: maxDegree
+    worker.addEventListener("message", ev => {
+        let m = ev.data;
+        switch (m.cmd) {
+            case "addClass":
+                sseq.addClass(m.x, m.y);
+                break;
+            case "addStructline":
+                let source = sseq.getClassesInDegree(m.source.x, m.source.y)[m.source.idx];
+                let target = sseq.getClassesInDegree(m.target.x, m.target.y)[m.target.idx];
+                sseq.addStructline(source, target, m.mult);
+                if (!structlineTypes.has(m.mult)) {
+                    structlineTypes.add(m.mult);
+                    display.sidebar.showPanel();
+                }
+                break;
+            case "initialized":
+                displayFile(params.module, maxDegree);
+                break;
+            case "complete":
+                display.runningSign.style.display = "none";
+                break;
+            default:
+                break;
+        }
     });
+}
+
+async function displayFile(filename, degree=50) {
+    try {
+        let module = await IO.loadFromServer(`modules/${filename}.json`);
+        let min_degree = Math.min(...Object.values(module.gens));
+
+        window.sseq = new Sseq();
+        sseq.xRange = [min_degree, degree];
+        sseq.yRange = [0, (degree - min_degree)/3];
+        sseq.initialxRange = [min_degree, degree];
+        sseq.initialyRange = [0, (degree - min_degree)/3];
+        sseq.offset_size = 0.1;
+
+        window.display = new MyDisplay("#main", sseq);
+
+        worker.postMessage({
+            cmd: "resolve",
+            p: module.p,
+            module: JSON.stringify(module),
+            maxDegree: degree
+        });
+    } catch (e) {
+        alert(`Failed to load file ${filename}.json`);
+    }
 }
