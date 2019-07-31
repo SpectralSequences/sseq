@@ -5,11 +5,12 @@
   "version": "0.1.0",
   "scripts": {
     "build": "rimraf dist pkg && webpack --config webpack.config.js",
+    "serve": "emrun --no_browser --port 8000 --serve_root dist .",
     "start": "rimraf dist pkg && webpack-dev-server --open -d",
     "test": "cargo test && wasm-pack test --headless"
   },
   "dependencies": {
-    "spectral-sequences" : "^0.1.0"
+    "spectral-sequences": "^0.1.0"
   },
   "devDependencies": {
     "@wasm-tool/wasm-pack-plugin": "^0.4.2",

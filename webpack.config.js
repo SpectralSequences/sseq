@@ -6,6 +6,9 @@ const dist = path.resolve(__dirname, "dist");
 
 const appConfig = {
     mode: "production",
+    optimization: {
+        minimize: false
+    },
     entry: {
         index: "./js/index.js"
     },

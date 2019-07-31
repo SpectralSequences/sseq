@@ -243,13 +243,13 @@ impl AdemAlgebra {
         }
         let mut filtration_one_products = Vec::with_capacity(4);
         if generic {
-            filtration_one_products.push(("a0".to_string(), AdemBasisElement {
+            filtration_one_products.push(("a_0".to_string(), AdemBasisElement {
                 degree : 1,
                 bocksteins : 1,
                 excess : 0,
                 ps : vec![]
             }));
-            filtration_one_products.push(("h0".to_string(), AdemBasisElement {
+            filtration_one_products.push(("h_0".to_string(), AdemBasisElement {
                 degree : (2*p-2) as i32,
                 bocksteins : 0,
                 excess : 0,
@@ -259,7 +259,7 @@ impl AdemAlgebra {
             for i in 0..4 {
                 let degree = 1 << i; // degree is 2^hi 
                 let ps = vec![degree as u32];
-                filtration_one_products.push((format!("h{}", i),AdemBasisElement {
+                filtration_one_products.push((format!("h_{}", i),AdemBasisElement {
                     degree,
                     bocksteins : 0,
                     excess : 0,
