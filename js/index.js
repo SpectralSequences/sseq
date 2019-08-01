@@ -24,34 +24,15 @@ if (!params.module) {
     });
 } else {
     window.worker = new Worker("./worker.js");
-
-    let maxDegree = parseInt(params.degree ? params.degree : 50);
-    let structlineTypes = new Set();
-
+    self.maxDegree = parseInt(params.degree ? params.degree : 50);
+    self.structlineTypes = new Set();
     worker.addEventListener("message", ev => {
         let m = ev.data;
-        switch (m.cmd) {
-            case "addClass":
-                sseq.addClass(m.x, m.y);
-                break;
-            case "addStructline":
-                let source = sseq.getClassesInDegree(m.source.x, m.source.y)[m.source.idx];
-                let target = sseq.getClassesInDegree(m.target.x, m.target.y)[m.target.idx];
-                sseq.addStructline(source, target, m.mult);
-                if (!structlineTypes.has(m.mult)) {
-                    structlineTypes.add(m.mult);
-                    display.sidebar.showPanel();
-                }
-                break;
-            case "initialized":
-                displayFile(params.module, maxDegree);
-                break;
-            case "complete":
-                display.runningSign.style.display = "none";
-                break;
-            default:
-                break;
-        }
+        if(!(m.cmd in message_handlers)){
+            console.error(`Unknown command '${m.cmd}'`);
+            return;
+        }        
+        message_handlers[m.cmd](m);
     });
 }
 
@@ -66,9 +47,21 @@ async function displayFile(filename, degree=50) {
         sseq.initialxRange = [min_degree, degree];
         sseq.initialyRange = [0, (degree - min_degree)/3];
         sseq.offset_size = 0.1;
-
         window.display = new MyDisplay("#main", sseq);
-
+        display.on("click", (node) => {
+            if(node === undefined) {
+                return;
+            }
+            let c = node.c;
+            worker.postMessage({
+                "cmd" : "getCocycle",//'get_eta_map',//"get_eta_map",
+                "class" : {
+                    "x" : c.x,
+                    "y" : c.y,
+                    "idx" : c.idx
+                }
+            });
+        })
         worker.postMessage({
             cmd: "resolve",
             p: module.p,
@@ -76,6 +69,35 @@ async function displayFile(filename, degree=50) {
             maxDegree: degree
         });
     } catch (e) {
+        console.error(e);
         alert(`Failed to load file ${filename}.json`);
     }
+}
+
+let message_handlers = {};
+
+message_handlers.addClass = function addClass(m) {
+    sseq.addClass(m.x, m.y);
+}
+
+message_handlers.addStructline = function addStructline(m) {
+    let source = sseq.getClassesInDegree(m.source.x, m.source.y)[m.source.idx];
+    let target = sseq.getClassesInDegree(m.target.x, m.target.y)[m.target.idx];
+    sseq.addStructline(source, target, m.mult);
+    if (!structlineTypes.has(m.mult)) {
+        self.structlineTypes.add(m.mult);
+        display.sidebar.showPanel();
+    }
+}
+    
+message_handlers.initialized = function initialized(m){
+    displayFile(params.module, self.maxDegree);
+}
+
+message_handlers.complete = function complete(m){
+    display.runningSign.style.display = "none";
+}
+
+message_handlers.cocycleResult = function cocycleResult(m){
+    console.log(`class : (${m.class.x}, ${m.class.y}, ${m.class.idx}), cocycle : ${m.cocycle}`);
 }

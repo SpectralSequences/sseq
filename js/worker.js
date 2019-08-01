@@ -1,6 +1,6 @@
 // import { json } from "d3-fetch";
 // import { __esModule } from "copy-webpack-plugin/dist";
-import ("../pkg/index.js").catch(console.error).then(wasm => {
+let wasm_promise = import ("../pkg/index.js").catch(console.error).then(wasm => {
     self.wasm = wasm;
     self.postMessage({cmd: "initialized"});
 });
@@ -43,25 +43,42 @@ function getTotalTime(){
 
 self.onmessage = (ev) => {
     if (!self.wasm) {
-        console.log("Not yet initialized. Message discarded");
+        wasm_promise.then(() => self.onmessage(ev));
         console.log(ev);
         return;
     }
-
     let m = ev.data;
-    switch (m.cmd) {
-        case "resolve":
-            self.algebra = self.wasm.WasmAlgebra.new_adem_algebra(m.p, m.p != 2, m.maxDegree);
-            self.algebra.compute_basis(m.maxDegree);
-            self.fdmodule = self.wasm.WasmModule.new_adem_module(algebra, m.module);
-            self.cc = self.wasm.WasmChainComplex.new_ccdz(fdmodule);
-            self.res = self.wasm.WasmResolution.new(cc, m.maxDegree, addClass, addStructline);
-            self.res.resolve_through_degree(m.maxDegree);
-            console.log(`Total time : ${getTotalTime()}`);
-            break;
-        default:
-            break;
-
+    if(!(m.cmd in message_handlers)){
+        console.error(`Unknown command '${m.cmd}'`);
+        return;
     }
+    message_handlers[m.cmd](m);
     self.postMessage({ cmd: "complete", data: m });
+}
+
+let message_handlers = {};
+
+message_handlers.resolve = function resolve(m){
+    self.algebra = self.wasm.WasmAlgebra.new_adem_algebra(m.p, m.p != 2, m.maxDegree);
+    self.algebra.compute_basis(m.maxDegree);
+    self.fdmodule = self.wasm.WasmModule.new_adem_module(algebra, m.module);
+    self.cc = self.wasm.WasmChainComplex.new_ccdz(fdmodule);
+    self.res = self.wasm.WasmResolution.new(cc, m.maxDegree, addClass, addStructline);
+    self.res.resolve_through_degree(m.maxDegree);
+    console.log(`Total time : ${getTotalTime()}`);
+}
+
+message_handlers.getCocycle = function getCocycle(m){
+    if(!self.res){
+        console.log("No resolution yet, can't get cocycle");
+        return;
+    }
+    let hom_deg = m.class.y;
+    let int_deg = m.class.x + m.class.y;
+    let cocycle_string = self.res.get_cocycle_string(hom_deg, int_deg, m.class.idx);
+    self.postMessage({
+        "cmd" : "cocycleResult",
+        "class" : m.class,
+        "cocycle" : cocycle_string
+    });
 }

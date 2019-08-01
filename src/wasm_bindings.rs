@@ -143,6 +143,19 @@ impl WasmResolution {
         res.resolve_through_degree(degree);
     }
 
+    pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
+        let res = unsafe { &*self.pimpl };
+        let p = res.get_prime();
+        let d = res.get_differential(hom_deg);
+        let source = res.get_module(hom_deg);
+        let target = d.get_target();
+        let dimension = target.get_dimension(int_deg);
+        let basis_idx = source.operation_generator_to_index(0, 0, int_deg, idx);
+        let mut result_vector = crate::fp_vector::FpVector::new(p, dimension, 0);
+        d.apply_to_basis_element(&mut result_vector, 1, int_deg, basis_idx);
+        return target.element_to_string(int_deg, &result_vector);
+    }
+
     pub fn free(self) {
          let _drop_me :  Box<Resolution> = unsafe {
               transmute(self.pimpl)
