@@ -9,6 +9,7 @@ mod fp_vector;
 mod matrix;
 mod algebra;
 mod adem_algebra;
+mod milnor_algebra;
 mod module;
 mod module_homomorphism;
 mod finite_dimensional_module;
@@ -31,6 +32,7 @@ use serde_json::value::Value;
 
 use crate::algebra::Algebra;
 use crate::adem_algebra::AdemAlgebra;
+use crate::module::Module;
 use crate::finite_dimensional_module::FiniteDimensionalModule;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero;
 use crate::resolution::Resolution;
