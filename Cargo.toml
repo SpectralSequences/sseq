@@ -43,7 +43,7 @@ crate-type = ["cdylib", "rlib"]
 # so it's only enabled in release mode.
 lto = true
 opt-level = 3
-#debug = true
+debug = true
 
 [workspace]
 members = ["wasm-bindgen-noop"]

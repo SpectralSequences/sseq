@@ -24,6 +24,10 @@ impl<T> Once<T> {
         assert!(ran, "Value was already set.");
     }
 
+    pub fn call_once(&self, f : Box<FnOnce() -> T>){
+        self.once.call_once(f);
+    }
+
     pub fn get_option(&self) -> Option<&T> {
         self.once.r#try()
     }

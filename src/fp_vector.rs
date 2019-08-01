@@ -107,17 +107,11 @@ pub fn initialize_limb_bit_index_table(p : u32){
 
 fn get_limb_bit_index_pair(p : u32, idx : usize) -> &'static LimbBitIndexPair {
     let prime_idx = PRIME_TO_INDEX_MAP[p as usize];
-    assert!(valid_prime_q(p));
-    assert!(idx < MAX_DIMENSION);
-    unsafe{
-        if let Some(table) = &LIMB_BIT_INDEX_TABLE[prime_idx] {
-            &table[idx]
-        } else {
-            println!("p: {}, idx: {}", p, idx);
-            println!("prime_idx : {}", prime_idx);
-            assert!(false);
-            &LimbBitIndexPair {limb:0,bit_index:0}
-        }
+    debug_assert!(valid_prime_q(p));
+    debug_assert!(idx < MAX_DIMENSION);
+    unsafe {
+        let table = &LIMB_BIT_INDEX_TABLE[prime_idx];
+        return table.as_ref().unwrap().get_unchecked(idx);
     }
 }
 
@@ -587,15 +581,15 @@ impl FpVector {
     }    
 
     pub fn add(&mut self, other : &Self, c : u32){
-        assert!(self.get_prime() == other.get_prime());
-        assert!(self.get_offset() == other.get_offset());          
-        assert!(self.get_dimension() == other.get_dimension());
+        debug_assert!(self.get_prime() == other.get_prime());
+        debug_assert!(self.get_offset() == other.get_offset());          
+        debug_assert!(self.get_dimension() == other.get_dimension());
         let p = self.get_prime();
         let min_target_limb = self.get_min_limb();
         let max_target_limb = self.get_max_limb();
         let min_source_limb = other.get_min_limb();
         let max_source_limb = other.get_max_limb();
-        assert!(max_source_limb - min_source_limb == max_target_limb - min_target_limb);
+        debug_assert!(max_source_limb - min_source_limb == max_target_limb - min_target_limb);
         let number_of_limbs = max_source_limb - min_source_limb;
         let target_limbs = self.get_limbs_cvec_mut();
         let source_limbs = other.get_limbs_cvec();

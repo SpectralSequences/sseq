@@ -66,7 +66,6 @@ fn run(config : Config) -> Result<(), Box<Error>> {
     let res = Resolution::new(&CC, max_degree, None, None);
     res.resolve_through_degree(max_degree);
     println!("{}", res.graded_dimension_string());
-    res.get_cocycle_string(1, 3, 0);
     Ok(())
 }
 
