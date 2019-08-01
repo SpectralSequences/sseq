@@ -12,7 +12,7 @@ use crate::chain_complex::{ChainComplex, ChainComplexConcentratedInDegreeZero};
 use crate::resolution::Resolution;
 
 
-use web_sys::console;
+// use web_sys::console;
 
 #[wasm_bindgen]
 pub struct WasmAlgebra {
@@ -148,7 +148,7 @@ impl WasmResolution {
 
     pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
         let res = unsafe { &*self.pimpl };
-        return res.get_cocycle_string(hom_deg, int_deg, idx)
+        return res.get_cocycle_string(hom_deg, int_deg, idx);
     }
 
     pub fn free(self) {

@@ -3,7 +3,8 @@ use lazy_static;
 use std::collections::HashMap;
 use std::format;
 
-use crate::once::Once;
+// use crate::once::Once;
+use crate::once::OnceVec;
 use crate::combinatorics;
 use crate::combinatorics::MAX_XI_TAU;
 use crate::algebra::Algebra;
@@ -115,11 +116,11 @@ pub struct AdemAlgebra {
     pub generic : bool,
     // FiltrationOneProduct_list product_list; // This determines which indecomposibles have lines drawn for them.
     unstable : bool,
-    even_basis_table : Vec<Once<Vec<AdemBasisElement>>>,
-    basis_table : Vec<Once<Vec<AdemBasisElement>>>, // degree -> index -> AdemBasisElement
-    basis_element_to_index_map : Vec<Once<HashMap<AdemBasisElement, usize>>>, // degree -> AdemBasisElement -> index
-    multiplication_table : Vec<Once<Vec<Vec<FpVector>>>>,// degree -> first square -> admissibile sequence idx -> result vector
-    excess_table : Vec<Once<Vec<u32>>>,
+    even_basis_table : OnceVec<Vec<AdemBasisElement>>,
+    basis_table : OnceVec<Vec<AdemBasisElement>>, // degree -> index -> AdemBasisElement
+    basis_element_to_index_map : OnceVec<HashMap<AdemBasisElement, usize>>, // degree -> AdemBasisElement -> index
+    multiplication_table : OnceVec<Vec<Vec<FpVector>>>,// degree -> first square -> admissibile sequence idx -> result vector
+    excess_table : OnceVec<Vec<u32>>,
     sort_order : Option<fn(&AdemBasisElement, &AdemBasisElement) -> Ordering>,
     filtration_one_products : Vec<(String, AdemBasisElement)> //Vec<Once<(i32, usize)>>
 }
@@ -130,11 +131,11 @@ impl Algebra for AdemAlgebra {
     }
 
     fn get_max_degree(&self) -> i32 {
-        for i in 0..self.basis_table.len() {
-            if !self.basis_table[i].has() {
-                return i as i32;
-            }
-        }
+        // for i in 0..self.basis_table.len() {
+        //     if !self.basis_table[i].has() {
+        //         return i as i32;
+        //     }
+        // }
         return self.basis_table.len() as i32;
     }
 
@@ -144,7 +145,7 @@ impl Algebra for AdemAlgebra {
 
     fn get_filtration_one_products(&self) -> Vec<(&str, i32, usize)>{
         self.filtration_one_products.iter()
-            .filter(|(_ , b)| self.multiplication_table[b.degree as usize].has())
+            .filter(|(_ , b)| b.degree < self.multiplication_table.len() as i32)
             .map(|(name, b)| (&**name, b.degree, self.basis_element_to_index(b)))
             .collect::<Vec<_>>()
         // self.filtration_one_products.iter()
@@ -155,7 +156,7 @@ impl Algebra for AdemAlgebra {
 
     fn compute_basis(&self, mut max_degree : i32) {
         let genericq = if self.generic { 1 } else { 0 };
-        assert!(max_degree + genericq <= self.basis_table.len() as i32);
+        // assert!(max_degree + genericq <= self.basis_table.len() as i32);
         combinatorics::initialize_prime(self.p);
         let mut old_max_degree = self.get_max_degree();
         if max_degree <= old_max_degree {
@@ -203,7 +204,7 @@ impl Algebra for AdemAlgebra {
         if degree < 0 {
             return 0;
         }
-        return self.basis_table[degree as usize].get().len();
+        return self.basis_table[degree as usize].len();
     }
 
     fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, 
@@ -229,18 +230,11 @@ impl AdemAlgebra {
         if generic {
             max_degree += 1;
         }
-        let mut even_basis_table = Vec::with_capacity(max_degree);
-        let mut basis_table = Vec::with_capacity(max_degree);
-        let mut basis_element_to_index_map = Vec::with_capacity(max_degree);
-        let mut multiplication_table = Vec::with_capacity(max_degree);
-        let mut excess_table = Vec::with_capacity(max_degree);
-        for i in 0..max_degree {
-            even_basis_table.push(Once::new());
-            basis_table.push(Once::new());
-            basis_element_to_index_map.push(Once::new());
-            multiplication_table.push(Once::new());
-            excess_table.push(Once::new());
-        }
+        let even_basis_table = OnceVec::with_capacity(max_degree);
+        let basis_table = OnceVec::with_capacity(max_degree);
+        let basis_element_to_index_map = OnceVec::with_capacity(max_degree);
+        let multiplication_table = OnceVec::with_capacity(max_degree);
+        let excess_table = OnceVec::with_capacity(max_degree);
         let mut filtration_one_products = Vec::with_capacity(4);
         if generic {
             filtration_one_products.push(("a_0".to_string(), AdemBasisElement {
@@ -293,7 +287,7 @@ impl AdemAlgebra {
                     ps : vec![]
                 }
             );
-            self.even_basis_table[0].set(table);
+            self.even_basis_table.push(table);
             old_max_degree += 1;
         }
 
@@ -323,7 +317,7 @@ impl AdemAlgebra {
         // order of their last element so that as we walk over the previous basis
         // when we find a square whose end is too small, we can break.
         for last in (1 .. n/(p+1) + 1).rev() {
-            let previous_basis = self.even_basis_table[(n-last) as usize].get();
+            let previous_basis = &self.even_basis_table[(n-last) as usize];
             for prev_elt in previous_basis {
                 let prev_elt_p_len = prev_elt.ps.len();
                 let old_last_sq = prev_elt.ps[prev_elt_p_len - 1] as i32;
@@ -354,15 +348,15 @@ impl AdemAlgebra {
                 });
             }
         }
-        self.even_basis_table[n as usize].set(basis);
+        self.even_basis_table.push(basis);
     }
 
 
     fn generate_basis2(&self, old_max_degree : i32, max_degree : i32){
         self.generate_basis_even(old_max_degree, max_degree);
         for n in old_max_degree as usize .. max_degree as usize {
-            let table = self.even_basis_table[n].get();
-            self.basis_table[n].set(table.clone());
+            let table = &self.even_basis_table[n];
+            self.basis_table.push(table.clone());
         }
         // if let Some(f) = self.sort_order {
         //     for 
@@ -395,7 +389,7 @@ impl AdemAlgebra {
         for num_bs in (residue as usize .. num_bs_bound).step_by(q as usize) {
             let P_deg = (n as usize - num_bs)/ q as usize;
             // AdemBasisElement_list P_list 
-            let even_basis = self.even_basis_table[P_deg].get();
+            let even_basis = &self.even_basis_table[P_deg];
             for i in (0 .. even_basis.len()).rev() {
                 let P = &even_basis[i];
                 // We pick our P first.
@@ -431,7 +425,7 @@ impl AdemAlgebra {
                 }
             }
         }
-        self.basis_table[n as usize].set(basis);
+        self.basis_table.push(basis);
         // if let Some(f) = self.sort_order {
             // qsort(basisElementBuffer, cur_basis_len, sizeof(AdemBasisElement), algebra->public_algebra.sort_order);
         // }
@@ -439,21 +433,21 @@ impl AdemAlgebra {
 
     fn generate_basis_element_to_index_map(&self, old_max_degree : i32, max_degree : i32){
         for n in old_max_degree as usize .. max_degree as usize {
-            let basis = self.basis_table[n].get();
+            let basis = &self.basis_table[n];
             let mut map = HashMap::with_capacity(basis.len());
             for i in 0 .. basis.len() {
                 map.insert(basis[i].clone(), i);
             }
-            self.basis_element_to_index_map[n as usize].set(map);
+            self.basis_element_to_index_map.push(map);
         }
     }
 
     pub fn basis_element_from_index(&self, degree : i32, idx : usize) -> &AdemBasisElement {
-        &self.basis_table[degree as usize].get()[idx]
+        &self.basis_table[degree as usize][idx]
     }
 
     pub fn basis_element_to_index(&self, elt : &AdemBasisElement) -> usize {
-        if let Some(idx) = self.basis_element_to_index_map[elt.degree as usize].get().get(elt) {
+        if let Some(idx) = self.basis_element_to_index_map[elt.degree as usize].get(elt) {
             *idx
         } else {
             println!("Didn't find element: {:?}", elt);
@@ -488,7 +482,7 @@ impl AdemAlgebra {
     fn generate_multiplication_table_2(&self, mut old_max_degree : i32, max_degree : i32){
         // degree -> first_square -> admissibile sequence idx -> result vector
         if old_max_degree == 0 {
-            self.multiplication_table[0].set(Vec::new());
+            self.multiplication_table.push(Vec::new());
             old_max_degree += 1;
         }
         for n in old_max_degree .. max_degree {
@@ -509,7 +503,7 @@ impl AdemAlgebra {
                 let dimension = self.get_dimension(n - x, -1);
                 assert!(table[x as usize].len() == dimension);
             }
-            self.multiplication_table[n as usize].set(table);
+            self.multiplication_table.push(table);
         }
     }
 
@@ -560,7 +554,7 @@ impl AdemAlgebra {
             working_elt = tuple.0;
             let working_elt_idx = tuple.1;
             // total degree -> first sq -> idx of rest of squares
-            let rest_reduced = &self.multiplication_table[(n as i32 - (x + y) + j) as usize].get()[j as usize][working_elt_idx];
+            let rest_reduced = &self.multiplication_table[(n as i32 - (x + y) + j) as usize][j as usize][working_elt_idx];
             for (i, coeff) in rest_reduced.iter().enumerate() {
                 if coeff == 0 {
                     continue;
@@ -581,7 +575,7 @@ impl AdemAlgebra {
         let p = self.p as i32;
         let q = 2*p-2;
         if old_max_degree == 0 {
-            self.multiplication_table[0].set(Vec::new());
+            self.multiplication_table.push(Vec::new());
             old_max_degree += 1;
         }
         let mut tables : Vec<Option<Vec<Vec<FpVector>>>> = Vec::with_capacity((max_degree - old_max_degree + 2) as usize);
@@ -613,7 +607,7 @@ impl AdemAlgebra {
                 }
             }        
             if n >= old_max_degree {
-                self.multiplication_table[n as usize].set(table);
+                self.multiplication_table.push(table);
             }
         }
     }
@@ -727,7 +721,7 @@ impl AdemAlgebra {
                 let bj_degree = q*j + (e2 as i32);
                 let bpj_rest_degree = working_elt.degree + bj_degree;
                 // total degree ==> b^eP^j ==> rest of term idx ==> Vector
-                let rest_of_term = &self.multiplication_table[bpj_rest_degree as usize].get()[bj_idx as usize][working_elt_idx];
+                let rest_of_term = &self.multiplication_table[bpj_rest_degree as usize][bj_idx as usize][working_elt_idx];
                 for (rest_of_term_idx, rest_of_term_coeff) in rest_of_term.iter().enumerate() {
                     if rest_of_term_coeff == 0 {
                         continue;
@@ -747,7 +741,7 @@ impl AdemAlgebra {
                         if z.bocksteins & 1 == 0 {
                             z.bocksteins |= 1;
                             z.degree += 1;
-                            let idx = self.basis_element_to_index_map[z.degree as usize].get()[&z];
+                            let idx = self.basis_element_to_index(&z);
                             beta_result.add_basis_element(idx, (output_value * c * rest_of_term_coeff) % p);
                         }
                     }
@@ -859,7 +853,7 @@ impl AdemAlgebra {
         let adm_idx = tuple.1;
         let x = monomial.ps[idx as usize] as i32;
         let tail_degree = monomial.degree - leading_degree + x;
-        let reduced_tail = &self.multiplication_table[tail_degree as usize].get()[x as usize][adm_idx];
+        let reduced_tail = &self.multiplication_table[tail_degree as usize][x as usize][adm_idx];
         for (it_idx, it_value) in reduced_tail.iter().enumerate() {
             if it_value == 0 {
                 continue;
@@ -914,7 +908,7 @@ impl AdemAlgebra {
         let x = monomial.ps[idx as usize];
         let bx = (x << 1) + b1;
         let tail_degree = monomial.degree - leading_degree + (q*x + b1) as i32;
-        let reduced_tail = &self.multiplication_table[tail_degree as usize].get()[bx as usize][adm_idx];
+        let reduced_tail = &self.multiplication_table[tail_degree as usize][bx as usize][adm_idx];
         let dim = self.get_dimension(tail_degree, excess);    
         for (it_idx, it_value) in reduced_tail.iter().enumerate() {
             if it_value == 0 {
