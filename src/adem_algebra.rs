@@ -1017,8 +1017,8 @@ mod tests {
     #[test]
     fn test_adem(){
         let p = 2;
-        let mut A = AdemAlgebra::new(p, p != 2, false);
-        A.generate_basis(10);
+        let mut A = AdemAlgebra::new(p, p != 2, false, 20);
+        A.compute_basis(10);
         let r_deg = 4;
         let r_idx = 0;
         let s_deg = 5;

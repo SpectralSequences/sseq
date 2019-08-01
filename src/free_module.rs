@@ -204,8 +204,8 @@ mod tests {
     #[test]
     fn test_free_mod(){
         let p = 2;
-        let mut A = AdemAlgebra::new(p, p != 2, false);
-        A.generate_basis(10);
+        let A = AdemAlgebra::new(p, p != 2, false, 10);
+        A.compute_basis(10);
         let mut M = FreeModule::new(&A, "".to_string(), 0, 10);
         let mut table;
         table = M.construct_table(0);
