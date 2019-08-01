@@ -1,3 +1,1 @@
-{"name": "$\\mathit{tmf}_{(2)}", "file_name": "tmf2", "p": 2, "generic": false,
-    "algebra" : {"type" : "Milnor", "profile": {"truncated": true, "p_part": [3, 2, 1]}}, 
-    "gens": {"x0": 0}, "sq_actions": [], "milnor_actions": []}
+{"name": "$\\mathit{tmf}_{(2)}", "file_name": "tmf2", "profile": {"truncated": true, "p_part": [3, 2, 1]}, "p": 2, "generic": false, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}
