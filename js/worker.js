@@ -51,8 +51,7 @@ self.onmessage = (ev) => {
     let m = ev.data;
     switch (m.cmd) {
         case "resolve":
-            let p = JSON.parse(m.module).p;
-            self.algebra = self.wasm.WasmAlgebra.new_adem_algebra(p, p != 2, m.maxDegree);
+            self.algebra = self.wasm.WasmAlgebra.new_adem_algebra(m.p, m.p != 2, m.maxDegree);
             self.algebra.compute_basis(m.maxDegree);
             self.fdmodule = self.wasm.WasmModule.new_adem_module(algebra, m.module);
             self.cc = self.wasm.WasmChainComplex.new_ccdz(fdmodule);

@@ -29,10 +29,14 @@ const appConfig = {
     },
     node: { // see https://github.com/webpack-contrib/css-loader/issues/447
         fs: 'empty'
+    },
+    performance: {
+        hints: false
     }
 };
 
 const workerConfig = {
+    mode: "production",
     entry: "./js/worker.js",
     target: "webworker",
     plugins: [

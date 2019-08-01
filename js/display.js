@@ -3,12 +3,6 @@ import "spectral-sequences";
 class StructlinePanel extends Panel.Panel {
     constructor(parentContainer, display) {
         super(parentContainer, display);
-
-        this.tooltip = new Tooltip(this);
-        this.on("mouseover", (node) => {
-            this.tooltip.setHTML(`(${node.c.x}, ${node.c.y})`);
-            this.tooltip.show(node.x, node.y);
-        });
     }
 
     show() {
@@ -54,6 +48,12 @@ class StructlinePanel extends Panel.Panel {
 export default class MyDisplay extends SidebarDisplay {
     constructor(container, sseq) {
         super(container, sseq);
+
+        this.tooltip = new Tooltip(this);
+        this.on("mouseover", (node) => {
+            this.tooltip.setHTML(`(${node.c.x}, ${node.c.y})`);
+            this.tooltip.show(node.x, node.y);
+        });
 
         this.structlinePanel = new StructlinePanel(this.sidebar.main_div, this);
         this.sidebar.addPanel(this.structlinePanel);
