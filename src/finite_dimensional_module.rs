@@ -142,6 +142,7 @@ impl<'a> FiniteDimensionalModule<'a> {
             }
             let number_of_output_degrees = (basis_degree_range - input_degree - 1) as usize;
             let mut outputs_vec : Vec<Vec<Vec<FpVector>>> = Vec::with_capacity(number_of_output_degrees);
+            println!("input_degree : {}, basis_degree_range : {}", input_degree, basis_degree_range);
             for output_degree in input_degree + 1 .. basis_degree_range {
                 if graded_dimension[output_degree] == 0 {
                     outputs_vec.push(Vec::with_capacity(0));

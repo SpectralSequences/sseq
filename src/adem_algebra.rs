@@ -580,29 +580,41 @@ impl AdemAlgebra {
         // degree -> first_square -> admissibile sequence idx -> result vector
         let p = self.p as i32;
         let q = 2*p-2;
-        if old_max_degree==0 {
+        if old_max_degree == 0 {
             self.multiplication_table[0].set(Vec::new());
             old_max_degree += 1;
         }
-        for n in old_max_degree .. max_degree {
-            let mut table : Vec<Vec<FpVector>> = Vec::with_capacity((2 * (n/q + 1)) as usize);
-            for x in 0 .. n/q + 1 {
+        let mut tables : Vec<Option<Vec<Vec<FpVector>>>> = Vec::with_capacity((max_degree - old_max_degree + 2) as usize);
+        for n in old_max_degree - 1 .. max_degree + 1 {
+            let output_dimension = self.get_dimension(n, -1);
+            let num_entries = 2*(n/q + 1) as usize;
+            let mut table : Vec<Vec<FpVector>> = Vec::with_capacity(num_entries);
+            for i in 0 .. n/q + 1 {
                 for b in 0 .. 2 {
-                    let dimension = self.get_dimension((n - q * x - b) as i32, -1);
-                    table.push(Vec::with_capacity(dimension as usize));
+                    let dimension = self.get_dimension(n - q*i - b, -1);
+                    let entry : Vec<FpVector> = Vec::with_capacity(dimension);                    
+                    table.push(entry);
                 }
             }
-            assert!(table.len() == table.capacity());
+            tables.push(Some(table));
+        }
+        let mut table;
+        let mut next_table = tables[0].take().unwrap();
+        for n in old_max_degree - 1 .. max_degree {
+            table = next_table;
+            next_table = tables[(n - old_max_degree + 2) as usize].take().unwrap();
             for x in (0 .. n/q + 1).rev() {
                 let x_index = x << 1;
                 let beta_x_index = x_index | 1;
                 for idx in 0 .. self.get_dimension(n - q*x, -1) {
                     let (result, beta_result) = self.generate_multiplication_table_generic_step(&table, n, x, idx);
                     table[x_index as usize].push(result);
-                    table[beta_x_index as usize].push(beta_result);
+                    next_table[beta_x_index as usize].push(beta_result);
                 }
-            }            
-            self.multiplication_table[n as usize].set(table);
+            }        
+            if n >= old_max_degree {
+                self.multiplication_table[n as usize].set(table);
+            }
         }
     }
 // self.multiplication_table[n as usize][x_index as usize].push(result);
@@ -689,7 +701,6 @@ impl AdemAlgebra {
                     // Now either the front bit or idx + 1 might need to be set depending on e1 and e2.
                     working_elt.bocksteins |= e1;
                     working_elt.bocksteins |= e2 << 1; 
-
                     // In this case the result is guaranteed to be admissible so we can immediately add it to result
                     let out_idx = self.basis_element_to_index(&working_elt);
                     result.add_basis_element(out_idx, c);
@@ -731,7 +742,7 @@ impl AdemAlgebra {
                         if output_value == 0 {
                             continue;
                         }
-                        let mut z = self.basis_table[n as usize].get()[output_index].clone();
+                        let mut z = self.basis_element_from_index(n, output_index).clone();
                         // let z = self.basis_element_from_index_mut(n, output_index);
                         if z.bocksteins & 1 == 0 {
                             z.bocksteins |= 1;
@@ -741,6 +752,8 @@ impl AdemAlgebra {
                         }
                     }
                 }
+                working_elt.degree = start_working_elt_degree;
+                working_elt.bocksteins = start_working_elt_bocksteins;
             }
         }
         unsafe { working_elt.ps = shift_vec(working_elt.ps, -1); }

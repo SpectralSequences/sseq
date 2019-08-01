@@ -30,21 +30,12 @@ extern crate rental;
 use serde_json::value::Value;
 
 use crate::algebra::Algebra;
+use crate::adem_algebra::AdemAlgebra;
 use crate::module::Module;
-use crate::chain_complex::ChainComplex;
+use crate::finite_dimensional_module::FiniteDimensionalModule;
+use crate::chain_complex::ChainComplexConcentratedInDegreeZero;
 use crate::resolution::Resolution;
 
-// #[cfg(not(target_arch = "wasm32"))]
-// use wasm_bindgen_noop::wasm_bindgen;
-
-fn resolve_through_degree(res : &Resolution, degree : i32){
-    for int_deg in res.get_min_degree() .. degree {
-        for hom_deg in 0 .. degree as u32 { // int_deg as u32 + 1 {
-            // println!("(hom_deg : {}, int_deg : {})", hom_deg, int_deg);
-            res.step(hom_deg, int_deg);
-        }
-    }
-}
 
 #[allow(unreachable_code)]
 #[allow(non_snake_case)]
@@ -52,16 +43,17 @@ fn resolve_through_degree(res : &Resolution, degree : i32){
 fn main() {
 
 
-    let p = 2;
-    let max_degree = 50;
-    let A = adem_algebra::AdemAlgebra::new(p, p != 2, false, max_degree);
+    let p = 3;
+    let max_degree = 20;
+    let A = AdemAlgebra::new(p, p != 2, false, max_degree);
     A.compute_basis(max_degree);
-    let data = r#"{"name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
-    let mut json : Value = serde_json::from_str(&data).unwrap();
-    let M = finite_dimensional_module::FiniteDimensionalModule::adem_module_from_json(&A, &mut json);
-    let CC = chain_complex::ChainComplexConcentratedInDegreeZero::new(&M);
-    let res = resolution::Resolution::new(&CC, max_degree, None, None);
-    resolve_through_degree(&res, max_degree);
+    // let data = r#"{"name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
+    // let mut json : Value = serde_json::from_str(&data).unwrap();
+    // let M = finite_dimensional_module::FiniteDimensionalModule::adem_module_from_json(&A, &mut json);
+    let M = FiniteDimensionalModule::new(&A, "S3".to_string(), 0, 1, vec![1]);
+    let CC = ChainComplexConcentratedInDegreeZero::new(&M);
+    let res = Resolution::new(&CC, max_degree, None, None);
+    res.resolve_through_degree(max_degree);
     println!("{}", res.graded_dimension_string());
 
 

@@ -1,4 +1,3 @@
-// #![feature(plugin_registrar)]
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
@@ -32,8 +31,5 @@ extern crate serde_json;
 #[macro_use]
 extern crate rental;
 
-// #[cfg(target_arch = "wasm32")]
 extern crate wasm_bindgen;
-// #[cfg(target_arch = "wasm32")]
-
 extern crate web_sys;

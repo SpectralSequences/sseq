@@ -8,9 +8,5 @@ edition = "2018"
 
 [dependencies]
 
-[profile.release]
-opt-level = 3
-#debug = true
-
 [lib]
 proc-macro = true

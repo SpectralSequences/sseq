@@ -103,6 +103,10 @@ impl<'a> Resolution<'a> {
             add_structline,
         }
     }
+
+    pub fn get_max_degree(&self) -> i32 {
+        self.max_degree
+    }    
     
     pub fn get_complex(&self) -> &ChainComplex {
         self.res_inner.head().complex
@@ -314,10 +318,6 @@ impl<'a> ChainComplex for Resolution<'a> {
     fn get_differential<'b>(&'b self, homological_degree : u32) -> &'b ModuleHomomorphism {
         self.get_differential(homological_degree)
     }
-
-    // fn get_max_degree(&self) -> i32 {
-    //     self.ccdz.head().module.get_max_degree()
-    // }
 
 
 

@@ -10,7 +10,7 @@
     "test": "cargo test && wasm-pack test --headless"
   },
   "dependencies": {
-    "spectral-sequences": "^0.1.0"
+    "spectral-sequences": "git+https://github.com/hoodmane/js_spectralsequences.git"
   },
   "devDependencies": {
     "@wasm-tool/wasm-pack-plugin": "^0.4.2",
