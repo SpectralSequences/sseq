@@ -954,12 +954,12 @@ impl AdemAlgebra {
             q = 2*p-2;
             for (i, sq) in op.iter().enumerate() {
                 if i % 2 == 0 {
-                    degree += q * sq;
-                    sqs.push(*sq);
-                } else {
                     degree += sq;
                     bocksteins <<= 1;
                     bocksteins |= sq;
+                } else {
+                    degree += q * sq;
+                    sqs.push(*sq);
                 }
             }      
         } else {

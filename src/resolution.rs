@@ -106,7 +106,11 @@ impl<'a> Resolution<'a> {
 
     pub fn get_max_degree(&self) -> i32 {
         self.max_degree
-    }    
+    }
+
+    pub fn get_max_hom_deg(&self) -> u32 {
+        (self.get_max_degree() - self.get_min_degree()) as u32
+    }
     
     pub fn get_complex(&self) -> &ChainComplex {
         self.res_inner.head().complex
@@ -131,12 +135,26 @@ impl<'a> Resolution<'a> {
             unsafe {
                 std::mem::transmute::<_, &'b FreeModuleHomomorphism<'b, 'b>>(result)
             }
-        })    
-    }    
+        }) 
+    }
+
+    pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
+        let p = self.get_prime();
+        let d = self.get_differential(hom_deg);
+        let source = self.get_module(hom_deg);
+        let target = d.get_target();
+        let dimension = target.get_dimension(int_deg);
+        let basis_idx = source.operation_generator_to_index(0, 0, int_deg, idx);
+        let mut result_vector = crate::fp_vector::FpVector::new(p, dimension, 0);
+        d.apply_to_basis_element(&mut result_vector, 1, int_deg, basis_idx);
+        return target.element_to_string(int_deg, &result_vector);
+    }
 
     pub fn resolve_through_degree(&self, degree : i32){
-        for int_deg in self.get_min_degree() .. degree {
-            for hom_deg in 0 .. degree as u32 { // int_deg as u32 + 1 {
+        let min_degree = self.get_min_degree();
+        let max_hom_deg = self.get_max_hom_deg();
+        for int_deg in min_degree .. degree {
+            for hom_deg in 0 .. max_hom_deg { // int_deg as u32 + 1 {
                 // println!("(hom_deg : {}, int_deg : {})", hom_deg, int_deg);
                 self.step(hom_deg, int_deg);
             }
@@ -207,7 +225,7 @@ impl<'a> Resolution<'a> {
 
     pub fn generate_old_kernel_and_compute_new_kernel(&self, homological_degree : u32, degree : i32){
         let min_degree = self.get_min_degree();
-        // assert!(degree >= homological_degree as i32 + min_degree);
+        // println!("hom_deg : {}, int_deg : {}", homological_degree, degree);
         let degree_idx = (degree - min_degree) as usize;
         let p = self.get_prime();
         let current_differential = self.get_differential(homological_degree);
@@ -215,13 +233,10 @@ impl<'a> Resolution<'a> {
         let source = current_differential.source;
         let target_cc = current_chain_map.target;
         let target_res = current_differential.target;
-        // println!("source name: {}", source.get_name());
-        // println!("target_res name: {}", target_res.get_name());
         let source_module_table = source.construct_table(degree);
         let source_dimension = source.get_dimension_with_table(degree, &source_module_table);
         let target_cc_dimension = target_cc.get_dimension(degree);
         let target_res_dimension = target_res.get_dimension(degree);
-        // println!("target_cc_dim : {}, target_res_dim : {}", target_cc_dimension, target_res_dimension);
         let target_dimension = target_cc_dimension + target_res_dimension;
         // The Homomorphism matrix has size source_dimension x target_dimension, but we are going to augment it with an
         // identity matrix so that gives a matrix with dimensions source_dimension x (target_dimension + source_dimension).
@@ -285,13 +300,15 @@ impl<'a> Resolution<'a> {
 
     pub fn graded_dimension_string(&self) -> String {
         let mut result = String::new();
-        let max_degree = self.max_degree as u32;
+        let min_degree = self.get_min_degree();
+        let max_degree = self.get_max_degree();
+        let max_hom_deg = self.get_max_hom_deg();
         result.push_str("[\n");
-        for i in (0 .. max_degree).rev() {
+        for i in (0 .. max_hom_deg).rev() {
             result.push_str("[");
             let module = self.get_module(i);
-            for j in i .. max_degree {
-                result.push_str(&format!("{}, ", module.get_number_of_gens_in_degree(j as i32)));
+            for j in min_degree + i as i32 .. max_degree {
+                result.push_str(&format!("{}, ", module.get_number_of_gens_in_degree(j)));
             }
             result.push_str("]\n");
         }

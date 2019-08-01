@@ -59,6 +59,7 @@ self.onmessage = (ev) => {
 let message_handlers = {};
 
 message_handlers.resolve = function resolve(m){
+    self.p = m.p;
     self.algebra = self.wasm.WasmAlgebra.new_adem_algebra(m.p, m.p != 2, m.maxDegree);
     self.algebra.compute_basis(m.maxDegree);
     self.fdmodule = self.wasm.WasmModule.new_adem_module(algebra, m.module);
@@ -76,6 +77,9 @@ message_handlers.getCocycle = function getCocycle(m){
     let hom_deg = m.class.y;
     let int_deg = m.class.x + m.class.y;
     let cocycle_string = self.res.get_cocycle_string(hom_deg, int_deg, m.class.idx);
+    if(self.p == 2){
+        cocycle_string = cocycle_string.replace(/P/g, "Sq");
+    }
     self.postMessage({
         "cmd" : "cocycleResult",
         "class" : m.class,

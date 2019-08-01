@@ -61,6 +61,7 @@ impl<'a> Module for FiniteDimensionalModule<'a> {
 impl<'a> FiniteDimensionalModule<'a> {
     pub fn new(algebra : &'a Algebra, name : String, min_degree : i32, max_basis_degree : i32, graded_dimension : Vec<usize>) -> Self {
         assert!(max_basis_degree >= min_degree);
+        println!("min_degree : {}, max_degree : {}, graded_dimension : {:?}", min_degree, max_basis_degree, graded_dimension);
         let actions = FiniteDimensionalModule::allocate_actions(algebra, min_degree, (max_basis_degree - min_degree) as usize, &graded_dimension);
         FiniteDimensionalModule {
             algebra,
@@ -81,7 +82,9 @@ impl<'a> FiniteDimensionalModule<'a> {
         let mut result = Self::new(algebra, name, min_degree, min_degree + graded_dimension.len() as i32, graded_dimension);
         for action in actions.iter_mut() {
             let op : Vec<u32> = serde_json::from_value(action["op"].take()).unwrap();
+            println!("{:?}", op);
             let b = algebra.py_op_to_basis_element(op);
+            println!("{:?}", b);
             let idx = algebra.basis_element_to_index(&b);
             let input_name = action["input"].as_str().unwrap();
             let (input_degree, input_idx) = gen_to_idx[&input_name.to_string()];
@@ -142,7 +145,6 @@ impl<'a> FiniteDimensionalModule<'a> {
             }
             let number_of_output_degrees = (basis_degree_range - input_degree - 1) as usize;
             let mut outputs_vec : Vec<Vec<Vec<FpVector>>> = Vec::with_capacity(number_of_output_degrees);
-            println!("input_degree : {}, basis_degree_range : {}", input_degree, basis_degree_range);
             for output_degree in input_degree + 1 .. basis_degree_range {
                 if graded_dimension[output_degree] == 0 {
                     outputs_vec.push(Vec::with_capacity(0));

@@ -49,7 +49,7 @@ async function displayFile(filename, degree=50) {
         sseq.offset_size = 0.1;
         window.display = new MyDisplay("#main", sseq);
         display.on("click", (node) => {
-            if(node === undefined) {
+            if(!node) {
                 return;
             }
             let c = node.c;

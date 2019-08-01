@@ -179,7 +179,7 @@ impl<'a> FreeModule<'a> {
     }
 
     pub fn operation_generator_to_index(&self, op_deg : i32, op_idx : usize, gen_deg : i32, gen_idx : usize) -> usize {
-        assert!(op_deg >= self.min_degree);
+        assert!(op_deg >= 0);
         assert!(gen_deg >= self.min_degree);
         let out_deg_idx = (op_deg + gen_deg - self.min_degree) as usize;
         let gen_deg_idx = (gen_deg - self.min_degree) as usize;

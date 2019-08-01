@@ -36,143 +36,57 @@ use crate::finite_dimensional_module::FiniteDimensionalModule;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero;
 use crate::resolution::Resolution;
 
+use std::error::Error;
 
 #[allow(unreachable_code)]
 #[allow(non_snake_case)]
 #[allow(unused_mut)]
 fn main() {
+    let args : Vec<_> = std::env::args().collect();
+    let config = Config::new(&args).unwrap_or_else(|err| {
+        eprintln!("Problem parsing arguments: {}", err);
+        std::process::exit(1);
+    });
 
+    if let Err(e) = run(config) {
+        eprintln!("Application error: {}", e);
+        std::process::exit(1);
+    }
+}
 
-    let p = 3;
-    let max_degree = 20;
+fn run(config : Config) -> Result<(), Box<Error>> {
+    let contents = std::fs::read_to_string(format!("static/modules/{}.json", config.module_name))?;
+    let mut json : Value = serde_json::from_str(&contents)?;
+    let p = json["p"].as_u64().unwrap() as u32;
+    let max_degree = config.max_degree;
     let A = AdemAlgebra::new(p, p != 2, false, max_degree);
     A.compute_basis(max_degree);
-    // let data = r#"{"name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
-    // let mut json : Value = serde_json::from_str(&data).unwrap();
-    // let M = finite_dimensional_module::FiniteDimensionalModule::adem_module_from_json(&A, &mut json);
-    let M = FiniteDimensionalModule::new(&A, "S3".to_string(), 0, 1, vec![1]);
+    let M = finite_dimensional_module::FiniteDimensionalModule::adem_module_from_json(&A, &mut json);
     let CC = ChainComplexConcentratedInDegreeZero::new(&M);
     let res = Resolution::new(&CC, max_degree, None, None);
     res.resolve_through_degree(max_degree);
     println!("{}", res.graded_dimension_string());
+    res.get_cocycle_string(1, 3, 0);
+    Ok(())
+}
 
+struct Config {
+    module_name : String,
+    max_degree : i32
+}
 
-    // let s = memory::MemoryTable::new();
-    // // // s.push_stack_frame();
-    // fp_vector::initialize_limb_bit_index_table(p);
-    // combinatorics::initialize_prime(p);
-
-    // // let mut A = adem_algebra::AdemAlgebra::new(p, p != 2, false);
-    // // A.generate_basis(20);
-    // // for (i, basis) in A.basis_table.iter().enumerate() {
-    // //     print!("{}: ", i);
-    // //     println!("[{}]", basis.iter().fold(String::new(), |acc, num| acc + &num.to_string() + ", "));
-    // // }
-    // // println!("\n\n");
-    // // let r_deg = 13;
-    // // let r_idx = 1;
-    // // let s_deg = 4;
-    // // let s_idx = 0;
-    // // let out_deg = r_deg + s_deg;
-    // // let mut result = fp_vector::FpVector::new(p, A.get_dimension(out_deg, -1), 0);
-    // // A.multiply(&mut result, 1, r_deg, r_idx, s_deg, s_idx, -1);
-    // // println!("{} * {} = {}", A.basis_element_to_string(r_deg, r_idx), A.basis_element_to_string(s_deg, s_idx),  A.element_to_string(out_deg, result));
-    // // // return;
-    // let mut x = fp_vector::FpVector::new_from_allocator(&s, p, 7, 0);
-    // let mut y = fp_vector::FpVector::new_from_allocator(&s, p, 7, 0);
-    // let v : [u32 ; 7] = [1,0,1,0,1, 1, 1];
-    // let w : [u32 ; 7] = [1,1,1,1,1, 0, 0];
-    // x.pack(&v);
-    // y.pack(&w);
-    // println!("x: {}\n",x);
-    // x.set_slice(1, 6);
-    // println!("x: {}\n",x);
-    // x.clear_slice();
-    // println!("x: {}\n",x);
-    // // let mut ys = y.slice(1, 6);
-    // println!("x: {}\ny: {}", x, y);
-    // y.add(&x,1);
-    // println!("x: {}\ny: {}", x, y);
-    // // println!("ys:   {}", ys);
-    // // println!("y: {}", y);
-    // return;
-
-    // x.unpack(&mut v);
-    // println!("{:?}", v);
-    // println!("x:{}", x);
-    // println!("{}", s);
-
-    // println!("{}", s);
-    // let x = matrix::Matrix::new_from_allocator(&s, p, 200, 100);
-    // println!("{}", s);
-    // let y = matrix::Matrix::new_from_allocator(&s, p, 200, 100);
-    // println!("{}", s);
-    // let z = matrix::Matrix::new_from_allocator(&s, p, 200, 100);
-    // println!("{}", s);
-    // let z1 = matrix::Matrix::new_from_allocator(&s, p, 200, 100);
-    // println!("{}", s);
-    // let z2 = matrix::Matrix::new_from_allocator(&s, p, 200, 100);
-    // println!("{}", s);
-    // let z3 = matrix::Matrix::new_from_allocator(&s, p, 200, 100);
-    // println!("{}", s);
-    // // let mut m = matrix::Matrix::new_from_allocator(&s, p, 1, 1);
-    // // let mut m = matrix::Matrix::new_from_allocator(&s, p, 1, 1);
-    // // let mut m = matrix::Matrix::new_from_allocator(&s, p, 1, 1);
-
-    // let mut m = matrix::Matrix::new_from_allocator(&s, p, 5, 7);
-    // println!("{}", s);
-    // let matrix_initialization = [
-    //     [2,0,1,0,2,1,1],
-    //     [1,1,1,0,2,1,2],
-    //     [1,0,1,0,2,0,1],
-    //     [1,1,2,0,2,0,0],
-    //     [1,2,0,0,2,2,2]
-    // ];
-    // for (i,x) in matrix_initialization.iter().enumerate(){
-    //     m[i].pack(x);
-    // }
-
-    // let mut pivots : CVec<isize> = s.alloc_vec(7);
-    // println!("m: {}", m);
-    // m.row_reduce(&mut pivots);
-    // println!("m: {}", m);
-    // println!("pivots: {}", pivots);
-
-
-    // let x = s.alloc(10, 64/8);
-    // unsafe{
-    //     *(x.offset(1)) = 1;
-    // }
-    // println!("{:p}", x);
-    // println!("{}", s);
-    // let y = &mut s.alloc_vec(10);
-    // y[0] = 11;
-    // y[1] = 13;
-    // println!("   {}", y);
-    // println!("{}", s);
-    // let z = s.alloc(10, 64/8);
-    // println!("{:p}", z);
-    // println!("{}", s);
-    // // s.pop_stack_frame();
-    // println!("{}", s);
-
-
-    // println!("3^3 = {}", combinatorics::integer_power(3,3));
-    // println!("3^3 = {}", combinatorics::power_mod(5, 3,3));
-    // println!("log3(29) = {}", combinatorics::logp(3, 29));
-    // let exp : [u32; 10] = [0; 10];
-    // println!("base 3: {:?}", exp);
-    // combinatorics::intialize_prime(29);
-    // for i in 1..29 {
-    //     println!("{}^{{-1}} = {}", i, combinatorics::inverse(29, i));
-    // }
-
-    // combinatorics::intialize_prime(7);
-    // for n in 0..20 {
-    //     for k in 0..20 {
-    //         print!("{} ", combinatorics::binomial(7, n, k));
-    //     }
-    //     print!("\n");
-    // }
-
+impl Config {
+    fn new(args: &[String]) -> Result<Self, String> {
+        if args.len() < 3 {
+            return Err("Not enough arguments".to_string());
+        }
+        let module_name = args[1].clone();
+        let max_deg_result : Result<i32,_> = args[2].parse();
+        
+        if let Err(error) = max_deg_result {
+            return Err(format!("{} in argument max_degree.", error));
+        }
+        let max_degree = max_deg_result.unwrap();
+        Ok(Self { module_name, max_degree })
+    }
 }
