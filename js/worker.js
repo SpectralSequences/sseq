@@ -1,8 +1,5 @@
-// import { json } from "d3-fetch";
-// import { __esModule } from "copy-webpack-plugin/dist";
 let wasm_promise = import ("../pkg/index.js").catch(console.error).then(wasm => {
     self.wasm = wasm;
-    self.postMessage({cmd: "initialized"});
 });
 
 self.max_int_deg = 0;
@@ -44,7 +41,6 @@ function getTotalTime(){
 self.onmessage = (ev) => {
     if (!self.wasm) {
         wasm_promise.then(() => self.onmessage(ev));
-        console.log(ev);
         return;
     }
     let m = ev.data;
