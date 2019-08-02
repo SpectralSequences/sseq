@@ -456,7 +456,6 @@ impl Matrix {
                 }
             }
         }
-        return block_rows;
     }
 
     /// Take an augmented row reduced matrix representation of a map and adds rows to it to hit the complement
