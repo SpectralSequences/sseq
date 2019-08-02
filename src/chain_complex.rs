@@ -1,6 +1,6 @@
 use crate::fp_vector::FpVector;
 // use crate::once::OnceRefOwned;
-use crate::matrix::{Matrix, QuasiInverseAndKernel};
+use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::memory::CVec;
 use crate::algebra::Algebra;
 use crate::module::{Module, ZeroModule};
@@ -28,8 +28,8 @@ pub trait ChainComplex {
         if homological_degree == 0 {
             let module = self.get_module(0);
             let dim = module.get_dimension(degree);
-            let qi_ker = QuasiInverseAndKernel::of_zero_homomorphism(p, dim);
-            d.set_quasi_inverse_and_kernel(degree, qi_ker);
+            let kernel = Subspace::entire_space(p, dim);
+            d.set_kernel(degree, kernel);
         }
         let source_dimension = d.get_source().get_dimension(degree);
         let target_dimension = d.get_target().get_dimension(degree);
@@ -42,9 +42,9 @@ pub trait ChainComplex {
         }
         let mut pivots = CVec::new(columns);
         matrix.row_reduce(&mut pivots);
-        let quasi_inverse_and_kernel = matrix.compute_quasi_inverse_and_kernel(&pivots, vec![padded_target_dimension]);
-        let kernel_rows = quasi_inverse_and_kernel.kernel.matrix.get_rows();
-        d.set_quasi_inverse_and_kernel(degree, quasi_inverse_and_kernel);        
+        let kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
+        let kernel_rows = kernel.matrix.get_rows();
+        d.set_kernel(degree, kernel);        
         let image_rows = matrix.get_rows() - kernel_rows;
         // d.copy_image_from_matrix(degree, &mut matrix, &pivots, image_rows, target_dimension);
         // d.copy_quasi_inverse_from_matrix(degree, &mut matrix, image_rows, padded_target_dimension);

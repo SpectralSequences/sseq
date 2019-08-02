@@ -334,58 +334,56 @@ impl Subspace {
     }
 }
 
-pub struct QuasiInverseAndKernel {
+pub struct QuasiInverse {
     pub blocks : Matrix,
     pub block_columns : Vec<usize>,
-    pub block_rows : Vec<usize>,
-    pub kernel : Subspace
+    pub block_rows : Vec<usize>
 }
 
-impl QuasiInverseAndKernel {
-    pub fn of_zero_homomorphism(p : u32, dimension : usize) -> Self {
-        let blocks = Matrix::new(p, 0, dimension);
-        let block_columns = Vec::new();
-        let block_rows = Vec::new();
-        Self {
-            blocks,
-            block_columns,
-            block_rows,
-            kernel : Subspace::entire_space(p, dimension)
-        }
-    }
-}
+// impl QuasiInverse {
+//     pub fn of_zero_homomorphism(p : u32, dimension : usize) -> Self {
+//         let blocks = Matrix::new(p, 0, dimension);
+//         let block_columns = Vec::new();
+//         let block_rows = Vec::new();
+//         Self {
+//             blocks,
+//             block_columns,
+//             block_rows,
+//             kernel : Subspace::entire_space(p, dimension)
+//         }
+//     }
+// }
 
 
 impl Matrix {
 
-    /// matrix -- a row reduced augmented matrix
-    /// column_to_pivot_row -- the pivots in matrix (also returned by row_reduce)
-    /// first_source_column -- which block of the matrix is the source of the map
-    pub fn compute_quasi_inverse_and_kernel(&mut self, pivots : &CVec<isize>, block_columns : Vec<usize>) -> QuasiInverseAndKernel {
+    pub fn compute_kernel(&mut self, column_to_pivot_row : &CVec<isize>, first_source_column : usize) -> Subspace {
         let p = self.p;
         let rows = self.get_rows();
         let columns = self.get_columns();
-        assert!(block_columns.len() > 0);
-        let first_source_column = block_columns[block_columns.len() - 1];
         let source_dimension = columns - first_source_column;
 
-        let block_rows = Self::compute_kernel_find_block_rows(pivots, &block_columns, rows, columns);
-        let first_kernel_row = block_rows[block_columns.len() - 1];
-        
+        // Find the first kernel row
+        let mut first_kernel_row = rows;
+        for i in first_source_column .. columns {
+            if column_to_pivot_row[i] >= 0 {
+                first_kernel_row = column_to_pivot_row[i] as usize;
+                break;
+            }
+        }
         // Every row after the first kernel row is also a kernel row, so now we know how big it is and can allocate space.
         let kernel_dimension = rows - first_kernel_row;
         let mut kernel = Subspace::new(p, kernel_dimension, source_dimension);
+        if kernel_dimension == 0 {
+            for i in 0..source_dimension {
+                kernel.column_to_pivot_row[i] = -1;
+            }
+            return kernel;
+        }
         // Write pivots into kernel
         for i in 0 .. source_dimension {
             // Turns -1 into some negative number... make sure to check <0 for no pivot in column...
-            kernel.column_to_pivot_row[i] = pivots[i + first_source_column] - first_kernel_row as isize;
-        }
-        let mut blocks = Matrix::new(p, first_kernel_row, source_dimension);
-        for row in 0..first_kernel_row {
-            let vector = &mut self[row];
-            vector.set_slice(first_source_column, first_source_column + source_dimension);
-            blocks[row].assign(&vector);
-            vector.clear_slice();            
+            kernel.column_to_pivot_row[i] = column_to_pivot_row[i + first_source_column] - first_kernel_row as isize;
         }
         // Copy kernel matrix into kernel
         for row in 0 .. kernel_dimension {
@@ -395,11 +393,35 @@ impl Matrix {
             kernel.matrix[row].assign(&vector);
             vector.clear_slice();
         }
-        return QuasiInverseAndKernel {
+        return kernel;
+    }
+
+    /// matrix -- a row reduced augmented matrix
+    /// column_to_pivot_row -- the pivots in matrix (also returned by row_reduce)
+    /// first_source_column -- which block of the matrix is the source of the map
+    pub fn compute_quasi_inverse(&mut self, pivots : &CVec<isize>, block_columns : Vec<usize>) -> QuasiInverse {
+        let p = self.p;
+        let rows = self.get_rows();
+        let columns = self.get_columns();
+        assert!(block_columns.len() > 0);
+        let first_source_column = block_columns[block_columns.len() - 1];
+        let source_dimension = columns - first_source_column;
+
+        let block_rows = Self::compute_kernel_find_block_rows(pivots, &block_columns, rows, columns);
+        let first_kernel_row = block_rows[block_columns.len() - 1];
+        let kernel_dimension = rows - first_kernel_row;
+        // Write pivots into kernel
+        let mut blocks = Matrix::new(p, first_kernel_row, source_dimension);
+        for row in 0..first_kernel_row {
+            let vector = &mut self[row];
+            vector.set_slice(first_source_column, first_source_column + source_dimension);
+            blocks[row].assign(&vector);
+            vector.clear_slice();            
+        }
+        return QuasiInverse {
             blocks,
             block_rows,            
             block_columns,
-            kernel
         };
     }
 
@@ -531,24 +553,24 @@ impl Matrix {
     }
 }
 
-pub struct QuasiInverse<'a> {
-    pub matrix : Matrix,
-    pub image : &'a Subspace
-}
+// pub struct QuasiInverse<'a> {
+//     pub matrix : Matrix,
+//     pub image : &'a Subspace
+// }
 
-impl QuasiInverse<'_> {
-    pub fn apply(&self, target : &mut FpVector, input : &FpVector){
-        let mut row = 0;
-        for i in 0 .. self.image.matrix.columns {
-            if self.image.column_to_pivot_row[i] < 0 {
-                continue;
-            }
-            let coeff = input.get_entry(i);
-            target.add(&self.matrix[row], coeff);
-            row += 1;
-        }
-    }
-}
+// impl QuasiInverse<'_> {
+//     pub fn apply(&self, target : &mut FpVector, input : &FpVector){
+//         let mut row = 0;
+//         for i in 0 .. self.image.matrix.columns {
+//             if self.image.column_to_pivot_row[i] < 0 {
+//                 continue;
+//             }
+//             let coeff = input.get_entry(i);
+//             target.add(&self.matrix[row], coeff);
+//             row += 1;
+//         }
+//     }
+// }
 
 
 #[cfg(test)]

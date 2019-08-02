@@ -1,6 +1,6 @@
 use crate::memory::CVec;
 use crate::fp_vector::FpVector;
-use crate::matrix::{Matrix, Subspace, QuasiInverseAndKernel};
+use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::Module;
 
 pub trait ModuleHomomorphism {
@@ -17,12 +17,12 @@ pub trait ModuleHomomorphism {
         self.get_source().get_prime()
     }
 
-    fn set_quasi_inverse_and_kernel(&self, degree : i32, quasi_inverse : QuasiInverseAndKernel);
-    fn get_quasi_inverse_and_kernel(&self, degree : i32) -> Option<&QuasiInverseAndKernel>;
+    fn set_kernel(&self, degree : i32, kernel : Subspace);
+    fn get_kernel(&self, degree : i32) -> Option<&Subspace>;
 
-    fn get_kernel(&self, degree : i32) -> Option<&Subspace> {
-        self.get_quasi_inverse_and_kernel(degree).map(|qi_ker| &qi_ker.kernel)
-    }
+    fn set_quasi_inverse(&self, degree : i32, kernel : QuasiInverse);
+    
+    fn get_quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse>;
 
     fn set_image(&self, degree : i32, image : Subspace); 
     fn get_image(&self, degree : i32) -> Option<&Subspace>;    
@@ -74,13 +74,12 @@ impl ModuleHomomorphism for ZeroHomomorphism<'_, '_> {
 
     fn apply_to_basis_element(&self, _result : &mut FpVector, _coeff : u32, _input_degree : i32, _input_idx : usize){}
 
-    fn set_quasi_inverse_and_kernel(&self, degree : i32, kernel : QuasiInverseAndKernel){
-        
-    }
+    fn set_kernel(&self, degree : i32, kernel : Subspace){}
+    fn get_kernel(&self, degree : i32) -> Option<&Subspace> { None }
+
+    fn set_quasi_inverse(&self, degree : i32, kernel : QuasiInverse){}
     
-    fn get_quasi_inverse_and_kernel(&self, degree : i32) -> Option<&QuasiInverseAndKernel>{
-        None
-    }
+    fn get_quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse>{ None }
 
     fn set_image(&self, _degree : i32, _image : Subspace){}
 

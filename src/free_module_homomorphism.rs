@@ -1,7 +1,7 @@
 use crate::once::OnceVec;
 // use crate::memory::CVec;
 use crate::fp_vector::FpVector;
-use crate::matrix::{Matrix, Subspace, QuasiInverseAndKernel};
+use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::Module;
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module::{FreeModule, FreeModuleTableEntry};
@@ -10,7 +10,8 @@ pub struct FreeModuleHomomorphism<'a, 'b> {
     pub source : &'b FreeModule<'a>,
     pub target : &'b Module,
     outputs : OnceVec<Vec<FpVector>>, // degree --> input_idx --> output
-    quasi_inverse_and_kernel : OnceVec<QuasiInverseAndKernel>,
+    kernel : OnceVec<Subspace>,
+    quasi_inverse : OnceVec<QuasiInverse>,
     min_degree : i32,
     degree_shift : i32
 }
@@ -30,17 +31,30 @@ impl ModuleHomomorphism for FreeModuleHomomorphism<'_, '_> {
         self.apply_to_basis_element_with_table(result, coeff, input_degree, table, input_index);
     }
 
-    fn set_quasi_inverse_and_kernel(&self, degree : i32, quasi_inverse_and_kernel : QuasiInverseAndKernel){
+    fn set_kernel(&self, degree : i32, kernel : Subspace){
         assert!(degree >= self.min_degree);
         let degree_idx = (degree - self.min_degree) as usize;
-        assert!(degree_idx == self.quasi_inverse_and_kernel.len());
-        self.quasi_inverse_and_kernel.push(quasi_inverse_and_kernel);
+        assert!(degree_idx == self.kernel.len());
+        self.kernel.push(kernel);
     }
 
-    fn get_quasi_inverse_and_kernel(&self, degree : i32) -> Option<&QuasiInverseAndKernel> {
+    fn get_kernel(&self, degree : i32) -> Option<&Subspace> {
         assert!(degree >= self.min_degree);
         let degree_idx = (degree - self.min_degree) as usize;
-        Some(&self.quasi_inverse_and_kernel[degree_idx])
+        Some(&self.kernel[degree_idx])
+    }
+
+    fn set_quasi_inverse(&self, degree : i32, quasi_inverse : QuasiInverse){
+        assert!(degree >= self.min_degree);
+        let degree_idx = (degree - self.min_degree) as usize;
+        assert!(degree_idx == self.quasi_inverse.len());
+        self.quasi_inverse.push(quasi_inverse);
+    }
+
+    fn get_quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
+        assert!(degree >= self.min_degree);
+        let degree_idx = (degree - self.min_degree) as usize;
+        Some(&self.quasi_inverse[degree_idx])
     }
 
     fn set_image(&self, degree : i32, image : Subspace){
@@ -61,12 +75,14 @@ impl<'a, 'b> FreeModuleHomomorphism<'a, 'b> {
     pub fn new(source : &'b FreeModule<'a>, target : &'b Module, min_degree : i32, degree_shift : i32, max_degree : i32) -> Self {
         let num_degrees = max_degree as usize - min_degree as usize;
         let outputs = OnceVec::with_capacity(num_degrees);
-        let quasi_inverse_and_kernel = OnceVec::with_capacity(num_degrees);
+        let kernel = OnceVec::with_capacity(num_degrees);
+        let quasi_inverse = OnceVec::with_capacity(num_degrees);
         Self {
             source,
             target,
             outputs,
-            quasi_inverse_and_kernel,
+            kernel,
+            quasi_inverse,
             min_degree,
             degree_shift
         }

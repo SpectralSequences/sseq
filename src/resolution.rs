@@ -262,9 +262,11 @@ impl<'a> Resolution<'a> {
 
         let mut pivots = CVec::new(matrix.get_columns());
         matrix.row_reduce(&mut pivots);
-        let quasi_inverse_and_kernel = matrix.compute_quasi_inverse_and_kernel(&pivots, vec![padded_target_cc_dimension, padded_target_dimension]);
-        let kernel_rows = quasi_inverse_and_kernel.kernel.matrix.get_rows();
-        current_differential.set_quasi_inverse_and_kernel(degree, quasi_inverse_and_kernel);
+
+        let kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
+        let kernel_rows = kernel.matrix.get_rows();
+        current_differential.set_kernel(degree, kernel);
+
         matrix.clear_slice();
         // Now add generators to hit kernel of previous differential. 
         let prev_res_cycles;
@@ -297,7 +299,6 @@ impl<'a> Resolution<'a> {
         // let mut new_pivots = CVec::new(matrix.get_columns());
         // matrix.row_reduce(&mut new_pivots);
         // current_differential.copy_image_from_matrix(degree, &mut matrix, &new_pivots, image_rows, target_res_dimension);
-        // current_differential.copy_quasi_inverse_from_matrix(degree, &mut matrix, image_rows, padded_target_res_dimension);
     }
 
     pub fn graded_dimension_string(&self) -> String {
