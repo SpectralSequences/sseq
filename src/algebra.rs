@@ -1,4 +1,5 @@
 use crate::fp_vector::FpVector;
+use serde_json::value::Value;
 
 pub trait Algebra {
     fn get_prime(&self) -> u32;
@@ -10,6 +11,7 @@ pub trait Algebra {
     fn get_dimension(&self, degree : i32, excess : i32) -> usize;
     fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32);
     fn get_filtration_one_products(&self) -> Vec<(&str, i32, usize)>;
+    fn json_to_basis(&self, json : Value) -> (i32, usize);
 
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String;
 

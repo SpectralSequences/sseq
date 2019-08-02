@@ -32,7 +32,6 @@ use serde_json::value::Value;
 
 use crate::algebra::Algebra;
 use crate::adem_algebra::AdemAlgebra;
-use crate::module::Module;
 use crate::finite_dimensional_module::FiniteDimensionalModule;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero;
 use crate::resolution::Resolution;
@@ -61,9 +60,10 @@ fn run(config : Config) -> Result<(), Box<Error>> {
     let mut json : Value = serde_json::from_str(&contents)?;
     let p = json["p"].as_u64().unwrap() as u32;
     let max_degree = config.max_degree;
+
     let A = AdemAlgebra::new(p, p != 2, false, max_degree);
     A.compute_basis(max_degree);
-    let M = FiniteDimensionalModule::adem_module_from_json(&A, &mut json);
+    let M = FiniteDimensionalModule::from_json(&A, "adem", &mut json);
     let CC = ChainComplexConcentratedInDegreeZero::new(&M);
     let res = Resolution::new(&CC, max_degree, None, None);
     res.resolve_through_degree(max_degree);

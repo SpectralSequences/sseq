@@ -10,6 +10,7 @@ use crate::combinatorics::MAX_XI_TAU;
 use crate::algebra::Algebra;
 // use crate::memory::CVec;
 use crate::fp_vector::FpVector;
+use serde_json::value::Value;
 
 
 lazy_static!{
@@ -214,6 +215,40 @@ impl Algebra for AdemAlgebra {
         self.multiply(result, coeff, r_degree, r_index, s_degree, s_index, excess);
     }
 
+    fn json_to_basis(&self, json : Value) -> (i32, usize) {
+        let op : Vec<u32> = serde_json::from_value(json).unwrap();
+        let mut sqs = Vec::with_capacity(op.len());
+        let p = self.p;
+        let q;
+        let mut degree = 0;
+        let mut bocksteins = 0;
+        if self.generic {
+            q = 2*p-2;
+            for (i, sq) in op.iter().enumerate() {
+                if i % 2 == 0 {
+                    degree += sq;
+                    bocksteins <<= 1;
+                    bocksteins |= sq;
+                } else {
+                    degree += q * sq;
+                    sqs.push(*sq);
+                }
+            }
+        } else {
+            q = 1;
+            for sq in op {
+                degree += q * sq;
+                sqs.push(sq);
+            }
+        }
+        let b = AdemBasisElement {
+            degree : degree as i32,
+            excess : 0,
+            bocksteins,
+            ps : sqs
+        };
+        (degree as i32, *self.basis_element_to_index_map[degree as usize].get(&b).unwrap())
+    }
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
         format!("{}", self.basis_element_from_index(degree, idx))
     }
@@ -934,40 +969,6 @@ impl AdemAlgebra {
             new_monomial.bocksteins |= cur_tail_basis_elt.bocksteins << idx;
             let new_leading_degree = leading_degree - (q*x + b1) as i32;
             self.make_mono_admissible_generic(result, (coeff * it_value) % p, new_monomial, idx - 1, new_leading_degree, excess, stop_early);
-        }
-    }
-
-
-    pub fn py_op_to_basis_element(&self, op : Vec<u32>) -> AdemBasisElement {
-        let mut sqs = Vec::with_capacity(op.len());
-        let p = self.p;
-        let q;
-        let mut degree = 0;
-        let mut bocksteins = 0;
-        if self.generic {
-            q = 2*p-2;
-            for (i, sq) in op.iter().enumerate() {
-                if i % 2 == 0 {
-                    degree += sq;
-                    bocksteins <<= 1;
-                    bocksteins |= sq;
-                } else {
-                    degree += q * sq;
-                    sqs.push(*sq);
-                }
-            }      
-        } else {
-            q = 1;
-            for sq in op {
-                degree += q * sq;
-                sqs.push(sq);
-            }
-        }
-        AdemBasisElement {
-            degree : degree as i32,
-            excess : 0,
-            bocksteins,
-            ps : sqs
         }
     }
 }
