@@ -206,7 +206,7 @@ mod tests {
         let p = 2;
         let A = AdemAlgebra::new(p, p != 2, false, 10);
         A.compute_basis(10);
-        let mut M = FreeModule::new(&A, "".to_string(), 0, 10);
+        let M = FreeModule::new(&A, "".to_string(), 0, 10);
         let mut table;
         table = M.construct_table(0);
         M.add_generators(0, table, 1);
