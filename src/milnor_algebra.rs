@@ -173,26 +173,38 @@ impl Algebra for MilnorAlgebra {
         let xi_degrees = crate::combinatorics::get_xi_degrees(self.p);
         let tau_degrees = crate::combinatorics::get_tau_degrees(self.p);
 
-        let p_list = json[1].as_array().unwrap();
-        let q_list = json[0].as_array().unwrap();
-
         let mut p_part = Vec::new();
         let mut q_part = 0;
         let mut degree = 0;
 
-        for i in 0..p_list.len() {
-            let val = p_list[i].as_u64().unwrap();
-            p_part.push(val as u32);
-            degree += (val as i32) * xi_degrees[i];
-        }
+        println!("{:?}", json);
+        if self.profile.generic {
+            let p_list = json[1].as_array().unwrap();
+            let q_list = json[0].as_array().unwrap();
+            let q = (2 * self.p - 2) as i32;
 
-        for i in q_list {
-            let k = i.as_u64().unwrap();
-            q_part |= 1 << k;
-            degree += tau_degrees[k as usize];
+            for i in 0..p_list.len() {
+                let val = p_list[i].as_u64().unwrap();
+                p_part.push(val as u32);
+                degree += (val as i32) * xi_degrees[i] * q;
+            }
+
+            for i in q_list {
+                let k = i.as_u64().unwrap();
+                q_part |= 1 << k;
+                degree += tau_degrees[k as usize];
+            }
+        } else {
+            let p_list = json.as_array().unwrap();
+
+            for i in 0..p_list.len() {
+                let val = p_list[i].as_u64().unwrap();
+                p_part.push(val as u32);
+                degree += (val as i32) * xi_degrees[i];
+                println!("{:?}", p_part);
+            }
         }
         let m = MilnorBasisElement { p_part, q_part, degree };
-
         (degree, *self.basis_element_to_index_map[degree as usize].get(&m).unwrap())
     }
 
@@ -554,3 +566,4 @@ impl<'a> Iterator for PPartMultiplier<'a> {
         Some((coef, new_p))
     }
 }
+
