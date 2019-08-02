@@ -1,6 +1,6 @@
 use crate::memory::CVec;
 use crate::fp_vector::FpVector;
-use crate::matrix::{Matrix, Subspace};
+use crate::matrix::{Matrix, Subspace, QuasiInverseAndKernel};
 use crate::module::Module;
 
 pub trait ModuleHomomorphism {
@@ -17,18 +17,11 @@ pub trait ModuleHomomorphism {
         self.get_source().get_prime()
     }
 
-    fn copy_kernel_from_matrix(&self, degree : i32, matrix : &mut Matrix, pivots : &CVec<isize>, padded_target_dimension : usize) -> usize {
-        let kernel = matrix.compute_kernel(padded_target_dimension, &pivots);
-        let kernel_rows = kernel.matrix.get_rows();
-        self.set_kernel(degree, kernel);
-        return kernel_rows;
-    }
-    fn set_kernel(&self, degree : i32, kernel : Subspace);
-    fn get_kernel(&self, degree : i32) -> Option<&Subspace>;
+    fn set_quasi_inverse_and_kernel(&self, degree : i32, quasi_inverse : QuasiInverseAndKernel);
+    fn get_quasi_inverse_and_kernel(&self, degree : i32) -> Option<&QuasiInverseAndKernel>;
 
-    fn copy_image_from_matrix(&self, degree : i32, matrix : &mut Matrix, pivots : &CVec<isize>, image_rows : usize, target_dimension : usize){
-        let image = matrix.get_image(image_rows, target_dimension, pivots);
-        self.set_image(degree, image);
+    fn get_kernel(&self, degree : i32) -> Option<&Subspace> {
+        self.get_quasi_inverse_and_kernel(degree).map(|qi_ker| &qi_ker.kernel)
     }
 
     fn set_image(&self, degree : i32, image : Subspace); 
@@ -37,12 +30,6 @@ pub trait ModuleHomomorphism {
         let image = self.get_image(degree);
         return image.map(|subspace| &subspace.column_to_pivot_row );
     }
-
-    fn copy_quasi_inverse_from_matrix(&self, degree : i32, matrix : &mut Matrix, image_rows : usize, padded_target_dimension : usize){
-        
-    }
-    fn set_quasi_inverse(&self, degree : i32, quasi_inverse : Matrix);
-    fn get_quasi_inverse(&self, degree : i32) -> Option<&Matrix>;
     
     fn get_matrix(&self, matrix : &mut Matrix, degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {
         let source_dimension = self.get_source().get_dimension(degree);
@@ -87,26 +74,17 @@ impl ModuleHomomorphism for ZeroHomomorphism<'_, '_> {
 
     fn apply_to_basis_element(&self, _result : &mut FpVector, _coeff : u32, _input_degree : i32, _input_idx : usize){}
 
-    fn set_kernel(&self, degree : i32, kernel : Subspace){
+    fn set_quasi_inverse_and_kernel(&self, degree : i32, kernel : QuasiInverseAndKernel){
         
     }
     
-    fn get_kernel(&self, degree : i32) -> Option<&Subspace>{
+    fn get_quasi_inverse_and_kernel(&self, degree : i32) -> Option<&QuasiInverseAndKernel>{
         None
     }
-
-    fn copy_image_from_matrix(&self, _degree : i32, _matrix : &mut Matrix, _pivots : &CVec<isize>, _image_rows : usize, _target_dimension : usize){}
 
     fn set_image(&self, _degree : i32, _image : Subspace){}
 
     fn get_image(&self, _degree : i32) -> Option<&Subspace> { None }
     
     fn get_image_pivots(&self, _degree : i32) -> Option<&CVec<isize>> { None }
-
-    fn set_quasi_inverse(&self, degree : i32, quasi_inverse : Matrix){
-
-    }
-
-    fn get_quasi_inverse(&self, degree : i32) -> Option<&Matrix>{ None }
-
 }

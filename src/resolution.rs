@@ -225,7 +225,7 @@ impl<'a> Resolution<'a> {
 
     pub fn generate_old_kernel_and_compute_new_kernel(&self, homological_degree : u32, degree : i32){
         let min_degree = self.get_min_degree();
-        // println!("hom_deg : {}, int_deg : {}", homological_degree, degree);
+        // println!("====hom_deg : {}, int_deg : {}", homological_degree, degree);
         let degree_idx = (degree - min_degree) as usize;
         let p = self.get_prime();
         let current_differential = self.get_differential(homological_degree);
@@ -262,7 +262,9 @@ impl<'a> Resolution<'a> {
 
         let mut pivots = CVec::new(matrix.get_columns());
         matrix.row_reduce(&mut pivots);
-        let kernel_rows = current_differential.copy_kernel_from_matrix(degree, &mut matrix, &pivots, padded_target_dimension);
+        let quasi_inverse_and_kernel = matrix.compute_quasi_inverse_and_kernel(&pivots, vec![padded_target_cc_dimension, padded_target_dimension]);
+        let kernel_rows = quasi_inverse_and_kernel.kernel.matrix.get_rows();
+        current_differential.set_quasi_inverse_and_kernel(degree, quasi_inverse_and_kernel);
         matrix.clear_slice();
         // Now add generators to hit kernel of previous differential. 
         let prev_res_cycles;
@@ -290,9 +292,9 @@ impl<'a> Resolution<'a> {
         // println!("{}", matrix);
         // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
         // Allocate a matrix coimage_to_image with these dimensions.
-        // let image_rows = first_new_row + new_generators;
+        let image_rows = first_new_row + new_generators;
 
-        // let mut new_pivots = CVec::new(matrix.columns);
+        // let mut new_pivots = CVec::new(matrix.get_columns());
         // matrix.row_reduce(&mut new_pivots);
         // current_differential.copy_image_from_matrix(degree, &mut matrix, &new_pivots, image_rows, target_res_dimension);
         // current_differential.copy_quasi_inverse_from_matrix(degree, &mut matrix, image_rows, padded_target_res_dimension);

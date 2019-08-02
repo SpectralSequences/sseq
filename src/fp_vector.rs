@@ -2,7 +2,7 @@
 // Created by Hood on 5/22/2019.
 //
 
-use std::sync::Once;
+use spin::Once;
 use std::fmt;
 
 use crate::combinatorics::valid_prime_q;
@@ -68,7 +68,7 @@ static mut LIMB_BIT_INDEX_TABLE : [Option<Vec<LimbBitIndexPair>>; MAX_PRIME_INDE
     None,None,None,None,None,None,None,None,None,None,None,None,None,None
 ];
 
-static mut LIMB_BIT_INDEX_ONCE_TABLE : [Once; MAX_PRIME_INDEX] = [
+static mut LIMB_BIT_INDEX_ONCE_TABLE : [Once<()>; MAX_PRIME_INDEX] = [
     Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
     Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
     Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
