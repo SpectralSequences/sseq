@@ -2,3 +2,5 @@
 **/*.rs.bk
 *.lock
 node_modules
+dist
+package-lock.json

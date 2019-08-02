@@ -24,8 +24,8 @@ if (!params.module) {
     });
 } else {
     window.worker = new Worker("./worker.js");
-    self.maxDegree = parseInt(params.degree ? params.degree : 50);
     self.structlineTypes = new Set();
+
     worker.addEventListener("message", ev => {
         let m = ev.data;
         if(!(m.cmd in message_handlers)){
@@ -34,6 +34,9 @@ if (!params.module) {
         }        
         message_handlers[m.cmd](m);
     });
+
+    let maxDegree = parseInt(params.degree ? params.degree : 50);
+    displayFile(params.module, maxDegree);
 }
 
 async function displayFile(filename, degree=50) {
@@ -90,10 +93,6 @@ message_handlers.addStructline = function addStructline(m) {
     }
 }
     
-message_handlers.initialized = function initialized(m){
-    displayFile(params.module, self.maxDegree);
-}
-
 message_handlers.complete = function complete(m){
     display.runningSign.style.display = "none";
 }
@@ -101,3 +100,4 @@ message_handlers.complete = function complete(m){
 message_handlers.cocycleResult = function cocycleResult(m){
     console.log(`class : (${m.class.x}, ${m.class.y}, ${m.class.idx}), cocycle : ${m.cocycle}`);
 }
+
