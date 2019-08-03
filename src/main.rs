@@ -4,8 +4,6 @@ use rust_ext::Config;
 use rust_ext::run;
 
 #[allow(unreachable_code)]
-#[allow(non_snake_case)]
-#[allow(unused_mut)]
 fn main() {
     let args : Vec<_> = std::env::args().collect();
     let config = Config::new(&args).unwrap_or_else(|err| {
