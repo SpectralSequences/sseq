@@ -33,9 +33,8 @@ extern crate web_sys;
 use crate::algebra::Algebra;
 use crate::adem_algebra::AdemAlgebra;
 use crate::milnor_algebra::MilnorAlgebra;
-use crate::module::Module;
 use crate::finite_dimensional_module::FiniteDimensionalModule;
-use crate::chain_complex::{ChainComplex, ChainComplexConcentratedInDegreeZero};
+use crate::chain_complex::ChainComplexConcentratedInDegreeZero;
 use crate::resolution::Resolution;
 
 use std::error::Error;
