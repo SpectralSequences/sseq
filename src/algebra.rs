@@ -3,7 +3,6 @@ use serde_json::value::Value;
 
 pub trait Algebra {
     fn get_prime(&self) -> u32;
-    fn get_max_degree(&self) -> i32; 
     fn get_name(&self) -> &str;
     // FiltrationOneProductList *product_list; // This determines which indecomposibles have lines drawn for them.
 // Methods:
