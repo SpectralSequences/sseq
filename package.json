@@ -11,7 +11,8 @@
     "build": "rimraf dist pkg && webpack --config webpack.config.js",
     "serve": "emrun --no_browser --port 8000 --serve_root dist .",
     "start": "rimraf dist pkg && webpack-dev-server --open -d",
-    "test": "cargo test && wasm-pack test --headless"
+    "test": "rimraf dist pkg && webpack --config webpack.config.js",
+    "test_old": "cargo test && wasm-pack test --headless --node"
   },
   "dependencies": {
     "spectral-sequences": "git+https://github.com/hoodmane/js_spectralsequences.git"

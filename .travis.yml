@@ -1,12 +1,17 @@
-language: rust
-rust:
-    - stable
-    - beta
-    - nightly
-
 cache: cargo
-
+env:
+    - RUST_BACKTRACE=1
 matrix:
+    include:
+        - language: rust
+          rust:
+              - stable
+              - beta
+              - nightly
+        - language: node_js
+          node_js:
+              - "7"
+
     allow_failures:
         - rust: nightly
     fast_finish: true
