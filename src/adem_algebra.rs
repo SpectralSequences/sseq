@@ -3,7 +3,6 @@ use lazy_static;
 use std::collections::HashMap;
 use std::format;
 
-// use crate::once::Once;
 use crate::once::OnceVec;
 use crate::combinatorics;
 use crate::combinatorics::MAX_XI_TAU;
