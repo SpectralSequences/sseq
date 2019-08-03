@@ -1,4 +1,6 @@
 cache: cargo
+env:
+    - RUST_BACKTRACE=1
 matrix:
     include:
         - language: rust
