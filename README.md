@@ -3,6 +3,8 @@
 # Overview
 The project is seperated into two parts --- the Rust backend and the javascript/HTML frontend. The Rust backend is compiled into web assembly for use by the javascript, but can also be run and tested separately.
 
+A live and cutting-edge version of the web interface can be found at [https://hoodmane.github.io/rust_ext/](https://hoodmane.github.io/rust_ext/).
+
 # Javascript/webassembly
 To download javascript dependencies, run
 ```
