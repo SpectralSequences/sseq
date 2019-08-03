@@ -1,18 +1,20 @@
 extern crate rust_ext;
 
 use std::error::Error;
+use rust_ext::Config;
+use rust_ext::run;
 
 #[allow(unreachable_code)]
 #[allow(non_snake_case)]
 #[allow(unused_mut)]
 fn main() {
     let args : Vec<_> = std::env::args().collect();
-    let config = rust_ext::Config::new(&args).unwrap_or_else(|err| {
+    let config = Config::new(&args).unwrap_or_else(|err| {
         eprintln!("Problem parsing arguments: {}", err);
         std::process::exit(1);
     });
 
-    match rust_ext::run(config) {
+    match run(config) {
         Ok(string) => println!("{}", string),
         Err(e) => { eprintln!("Application error: {}", e); std::process::exit(1); }
     }
@@ -36,6 +38,7 @@ mod tests {
     }
 
     fn compare(module_name : &str, max_degree : i32) {
+        println!("module : {}", module_name);
         let a = Config {
             module_name : String::from(module_name),
             max_degree,

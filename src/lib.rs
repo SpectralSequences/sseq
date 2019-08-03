@@ -103,9 +103,9 @@ pub fn construct(config : Config) -> Result<AlgebraicObjectsBundle<'static>, Box
 }
 
 pub struct Config {
-    module_name : String,
-    algebra_name : String,
-    max_degree : i32
+    pub module_name : String,
+    pub algebra_name : String,
+    pub max_degree : i32
 }
 
 impl Config {
