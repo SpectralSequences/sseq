@@ -131,15 +131,6 @@ impl Algebra for AdemAlgebra {
         self.p
     }
 
-    fn get_max_degree(&self) -> i32 {
-        // for i in 0..self.basis_table.len() {
-        //     if !self.basis_table[i].has() {
-        //         return i as i32;
-        //     }
-        // }
-        return self.basis_table.len() as i32;
-    }
-
     fn get_name(&self) -> &str {
         &self.name
     }
@@ -309,6 +300,10 @@ impl AdemAlgebra {
             sort_order : None,
             filtration_one_products
         }
+    }
+
+    fn get_max_degree(&self) -> i32 {
+        return self.basis_table.len() as i32;
     }
 
     fn generate_basis_even(&self, mut old_max_degree : i32, max_degree : i32){

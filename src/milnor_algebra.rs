@@ -85,7 +85,7 @@ impl std::fmt::Display for MilnorBasisElement {
 pub struct MilnorAlgebra {
     pub profile : MilnorProfile,
     name : String,
-    max_degree : Mutex<i32>,
+    next_degree : Mutex<i32>,
     p : u32,
     ppart_table : OnceVec<Vec<PPart>>,
     qpart_table : Vec<OnceVec<QPart>>,
@@ -110,7 +110,7 @@ impl MilnorAlgebra {
             p,
             profile: profile,
             name : format!("MilnorAlgebra(p={})", p),
-            max_degree : Mutex::new(-1),
+            next_degree : Mutex::new(0),
             ppart_table : OnceVec::new(),
             qpart_table,
             basis_table : OnceVec::new(),
@@ -124,33 +124,33 @@ impl Algebra for MilnorAlgebra {
         self.p
     }
 
-    fn get_max_degree(&self) -> i32 {
-        self.basis_table.len() as i32
-    }
-
     fn get_name(&self) -> &str {
         &self.name
     }
 
     fn get_filtration_one_products(&self) -> Vec<(&str, i32, usize)> {Vec::new()} // Implement this
 
-    fn compute_basis(&self, degree : i32) {
-        let mut old_max_degree = self.max_degree.lock().unwrap();
+    fn compute_basis(&self, max_degree : i32) {
+        let mut next_degree = self.next_degree.lock().unwrap();
 
-        self.compute_ppart(degree, *old_max_degree);
-        self.compute_qpart(degree, *old_max_degree);
+        if max_degree < *next_degree {
+            return;
+        }
 
-        self.basis_table.reserve((degree - *old_max_degree) as usize);
-        self.basis_element_to_index_map.reserve((degree - *old_max_degree) as usize);
+        self.compute_ppart(*next_degree, max_degree);
+        self.compute_qpart(*next_degree, max_degree);
+
+        self.basis_table.reserve((max_degree - *next_degree + 1) as usize);
+        self.basis_element_to_index_map.reserve((max_degree - *next_degree + 1) as usize);
 
         if self.profile.generic {
-            self.generate_basis_generic(degree, *old_max_degree);
+            self.generate_basis_generic(*next_degree, max_degree);
         } else {
-            self.generate_basis_2(degree, *old_max_degree);
+            self.generate_basis_2(*next_degree, max_degree);
         }
 
         // Populate hash map
-        for d in (*old_max_degree + 1) as usize..(degree + 1) as usize {
+        for d in *next_degree as usize ..= max_degree as usize {
             let basis = &self.basis_table[d];
             let mut map = HashMap::with_capacity(basis.len());
             for i in 0 .. basis.len() {
@@ -158,7 +158,7 @@ impl Algebra for MilnorAlgebra {
             }
             self.basis_element_to_index_map.push(map);
         }
-        *old_max_degree = degree;
+        *next_degree = max_degree + 1;
     }
 
     fn get_dimension(&self, degree : i32, excess : i32) -> usize {
@@ -177,7 +177,6 @@ impl Algebra for MilnorAlgebra {
         let mut q_part = 0;
         let mut degree = 0;
 
-        println!("{:?}", json);
         if self.profile.generic {
             let p_list = json[1].as_array().unwrap();
             let q_list = json[0].as_array().unwrap();
@@ -201,7 +200,6 @@ impl Algebra for MilnorAlgebra {
                 let val = p_list[i].as_u64().unwrap();
                 p_part.push(val as u32);
                 degree += (val as i32) * xi_degrees[i];
-                println!("{:?}", p_part);
             }
         }
         let m = MilnorBasisElement { p_part, q_part, degree };
@@ -215,23 +213,23 @@ impl Algebra for MilnorAlgebra {
 
 // Compute basis functions
 impl MilnorAlgebra {
-    fn compute_ppart(&self, degree : i32, old_max_degree : i32) {
-        let mut old_max_degree = old_max_degree;
-        if old_max_degree == -1 {
+    fn compute_ppart(&self, next_degree : i32, max_degree : i32) {
+        let mut next_degree = next_degree;
+        if next_degree == 0 {
             self.ppart_table.push(vec![Vec::new()]);
-            old_max_degree = 0;
+            next_degree = 1;
         }
 
         let p = self.p as i32;
         let q = if p == 2 {1} else {2 * p - 2};
-        let new_deg = degree/q;
-        let old_deg = old_max_degree/q;
+        let new_deg = max_degree/q;
+        let old_deg = (next_degree-1)/q;
 
         self.ppart_table.reserve((new_deg - old_deg) as usize);
 
         let xi_degrees = crate::combinatorics::get_xi_degrees(self.p);
 
-        for d in (old_deg + 1)..(new_deg + 1) {
+        for d in (old_deg + 1) ..= new_deg {
             let mut new_row = Vec::new(); // Improve this
 
             for i in 0..xi_degrees.len() {
@@ -261,22 +259,22 @@ impl MilnorAlgebra {
         }
     }
 
-    fn compute_qpart(&self, new_max_degree : i32, old_max_degree : i32) {
+    fn compute_qpart(&self, next_degree : i32, max_degree : i32) {
         let q = (2 * self.p - 2) as i32;
 
         if !self.profile.generic {
             return;
         }
 
-        let mut old_max_degree = old_max_degree;
-        if old_max_degree == -1 {
+        let mut next_degree = next_degree;
+        if next_degree == 0 {
             self.qpart_table[0].push( ZERO_QPART.clone());
-            old_max_degree = 0;
+            next_degree = 1;
         }
 
         let tau_degrees = crate::combinatorics::get_tau_degrees(self.p);
-        let old_max_tau = tau_degrees.iter().position(|d| *d > old_max_degree).unwrap(); // Use expect instead
-        let new_max_tau = tau_degrees.iter().position(|d| *d > new_max_degree).unwrap();
+        let old_max_tau = tau_degrees.iter().position(|d| *d > next_degree - 1).unwrap(); // Use expect instead
+        let new_max_tau = tau_degrees.iter().position(|d| *d > max_degree).unwrap();
 
         let bit_string_min : u32 = 1 << old_max_tau;
         let bit_string_max : u32 = 1 << new_max_tau;
@@ -302,16 +300,16 @@ impl MilnorAlgebra {
                 residue += q;
             }
             self.qpart_table[residue as usize].push(QPart {
-                degree : total, 
+                degree : total,
                 q_part : bit_string
             });
         }
     }
 
-    fn generate_basis_generic(&self, degree : i32, old_max_degree : i32) {
+    fn generate_basis_generic(&self, next_degree : i32, max_degree : i32) {
         let q = (2 * self.p - 2) as usize;
 
-        for d in (old_max_degree + 1) as usize..(degree + 1) as usize {
+        for d in next_degree as usize..= max_degree as usize {
             let mut new_table = Vec::new(); // Initialize size
 
             for q_part in self.qpart_table[d % q].iter() {
@@ -330,8 +328,8 @@ impl MilnorAlgebra {
         }
     }
 
-    fn generate_basis_2(&self, degree:i32, old_max_degree : i32) {
-        for i in ((old_max_degree + 1) as usize)..((degree + 1) as usize) {
+    fn generate_basis_2(&self, next_degree : i32, max_degree : i32) {
+        for i in next_degree as usize ..= max_degree as usize {
             self.basis_table.push(
                 self.ppart_table[i]
                 .iter()
@@ -534,7 +532,7 @@ impl<'a> Iterator for PPartMultiplier<'a> {
             let i_min = if diag_idx + 1 > self.cols { diag_idx + 1 - self.cols } else {0} ;
             let i_max = std::cmp::min(1 + diag_idx, self.rows);
             let mut sum = 0;
-            
+
             diagonal.clear();
 
             for i in i_min..i_max {

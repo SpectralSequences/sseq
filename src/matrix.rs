@@ -614,7 +614,7 @@ mod tests {
             for (i,x) in input.iter().enumerate(){
                 m[i].pack(x);
             }
-            let mut output_pivots_cvec = [-1; cols];
+            let mut output_pivots_cvec = vec![-1; cols];
             m.row_reduce(&mut output_pivots_cvec);
             let mut unpacked_row : Vec<u32> = vec![0; cols];
             for (i,x) in input.iter().enumerate(){
