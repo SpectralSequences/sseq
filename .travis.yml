@@ -10,14 +10,17 @@ env:
 install:
     - npm install
 
-script:
-    - cargo test --verbose
-    - npm run build
-
 matrix:
     allow_failures:
         - rust: nightly
     fast_finish: true
+
+jobs:
+    include:
+        - stage: Rust
+          script: cargo test --verbose
+        - stage: Node.js
+          script: npm run build
 
 deploy:
   provider: pages
