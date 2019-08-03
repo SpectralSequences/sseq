@@ -295,16 +295,26 @@ impl<'a> Resolution<'a> {
         let min_degree = self.get_min_degree();
         let max_degree = self.get_max_degree();
         let max_hom_deg = self.get_max_hom_deg();
-        result.push_str("[\n");
         for i in (0 .. max_hom_deg).rev() {
-            result.push_str("[");
             let module = self.get_module(i);
             for j in min_degree + i as i32 .. max_degree {
-                result.push_str(&format!("{}, ", module.get_number_of_gens_in_degree(j)));
+                let n = module.get_number_of_gens_in_degree(j);
+                match n {
+                    0 => result.push_str("  "),
+                    1 => result.push_str("· "),
+                    2 => result.push_str(": "),
+                    3 => result.push_str("∴ "),
+                    4 => result.push_str("⁘ "),
+                    5 => result.push_str("⁙ "),
+                    _ => result.push_str(&format!("{} ", n))
+                }
             }
-            result.push_str("]\n");
+            result.push_str("\n");
+            // If it is empty so far, don't print anything
+            if result.trim_start().is_empty() {
+                result = String::new();
+            }
         }
-        result.push_str("\n]\n");
         return result;
     }
 
