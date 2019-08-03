@@ -300,7 +300,9 @@ impl<'a> Resolution<'a> {
                     1 => result.push_str("· "),
                     2 => result.push_str(": "),
                     3 => result.push_str("∴ "),
-                    m => result.push_str(&format!("{} ", m))
+                    4 => result.push_str("⁘ "),
+                    5 => result.push_str("⁙ "),
+                    _ => result.push_str(&format!("{} ", n))
                 }
             }
             result.push_str("\n");
