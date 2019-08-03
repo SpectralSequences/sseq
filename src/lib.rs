@@ -41,14 +41,6 @@ use crate::resolution::Resolution;
 use std::error::Error;
 use serde_json::value::Value;
 
-pub struct AlgebraicObjectsBundle<'a> {
-    algebra : Box<Algebra>,
-    module : Option<Box<Module>>,
-    chain_complex : Box<ChainComplex>,
-    resolution : Box<Resolution<'a>>
-}
-
-
 #[derive(Debug)]
 struct InvalidAlgebraError {
     name : String
@@ -66,40 +58,30 @@ impl Error for InvalidAlgebraError {
     }
 }
 
-pub fn run(config : Config) -> Result<String, Box<Error>> {
-    let max_degree = config.max_degree;
-    let bundle = construct(config)?;
-    bundle.resolution.resolve_through_degree(max_degree);
-    Ok(bundle.resolution.graded_dimension_string())
+macro_rules! construct {
+    ($config: expr, $algebra:ident, $module:ident, $cc:ident, $res:ident) => {
+        let contents = std::fs::read_to_string(format!("static/modules/{}.json", $config.module_name))?;
+        let mut json : Value = serde_json::from_str(&contents)?;
+        let p = json["p"].as_u64().unwrap() as u32;
+
+        // You need a box in order to allow for different possible types implementing the same trait
+        let $algebra : Box<Algebra>;
+        match $config.algebra_name.as_ref() {
+            "adem" => $algebra = Box::new(AdemAlgebra::new(p, p != 2, false)),
+            "milnor" => $algebra = Box::new(MilnorAlgebra::new(p)),
+            _ => { return Err(Box::new(InvalidAlgebraError { name : $config.algebra_name })); }
+        };
+        let $module = FiniteDimensionalModule::from_json(&*$algebra, &$config.algebra_name, &mut json);
+        let $cc = ChainComplexConcentratedInDegreeZero::new(&$module);
+        let $res = Box::new(Resolution::new(&$cc, $config.max_degree, None, None));
+    };
 }
 
+pub fn run(config : Config) -> Result<String, Box<Error>> {
+    construct!(config, algebra, module, cc, res);
 
-#[allow(non_snake_case)]
-pub fn construct(config : Config) -> Result<AlgebraicObjectsBundle<'static>, Box<Error>> {
-    let contents = std::fs::read_to_string(format!("static/modules/{}.json", config.module_name))?;
-    let mut json : Value = serde_json::from_str(&contents)?;
-    let p = json["p"].as_u64().unwrap() as u32;
-    let max_degree = config.max_degree;
-
-    // You need a box in order to allow for different possible types implementing the same trait
-    let algebra : Box<Algebra>;
-    match config.algebra_name.as_ref() {
-        "adem" => algebra = Box::new(AdemAlgebra::new(p, p != 2, false)),
-        "milnor" => algebra = Box::new(MilnorAlgebra::new(p)),
-        _ => { println!("Invalid algebra"); return Err(Box::new(InvalidAlgebraError { name : config.algebra_name })); }
-    };
-    let algebra_borrow_cast : &'static Box<Algebra> = unsafe { std::mem::transmute(&algebra) };
-    let module : Box<Module> = Box::new(FiniteDimensionalModule::from_json(&**algebra_borrow_cast, &config.algebra_name, &mut json));
-    let module_borrow_cast : &'static Box<Module> = unsafe { std::mem::transmute(&module) };
-    let cc : Box<ChainComplex> = Box::new(ChainComplexConcentratedInDegreeZero::new(&**module_borrow_cast));
-    let cc_borrow_cast : &'static Box<ChainComplex> = unsafe { std::mem::transmute(&cc) };
-    let res = Box::new(Resolution::new(&**cc_borrow_cast, max_degree, None, None));
-    Ok(AlgebraicObjectsBundle {
-        algebra,
-        module : Some(module),
-        chain_complex : cc,
-        resolution : res
-    })
+    res.resolve_through_degree(config.max_degree);
+    Ok(res.graded_dimension_string())
 }
 
 pub struct Config {
