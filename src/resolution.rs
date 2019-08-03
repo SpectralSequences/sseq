@@ -127,6 +127,7 @@ impl<'a> Resolution<'a> {
     }
 
     pub fn resolve_through_degree(&self, degree : i32){
+        self.get_algebra().compute_basis(degree);
         let min_degree = self.get_min_degree();
         let max_hom_deg = self.get_max_hom_deg();
         for int_deg in min_degree .. degree {
