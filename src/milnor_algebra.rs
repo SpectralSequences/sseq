@@ -229,7 +229,7 @@ impl MilnorAlgebra {
 
         let xi_degrees = crate::combinatorics::get_xi_degrees(self.p);
 
-        for d in (old_deg + 1) ..= new_deg + 1 {
+        for d in (old_deg + 1) ..= new_deg {
             let mut new_row = Vec::new(); // Improve this
 
             for i in 0..xi_degrees.len() {
