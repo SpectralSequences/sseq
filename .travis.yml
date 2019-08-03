@@ -1,7 +1,9 @@
+dist: bionic
 language: rust
 rust:
     - stable
     - beta
+    - nightly
 
 env:
     - RUST_BACKTRACE=1
@@ -9,15 +11,16 @@ env:
 matrix:
     allow_failures:
         - rust: beta
+        - rust: nightly
     fast_finish: true
 
-jobs:
-    include:
-        - stage: Node.js
-          install:
-              - npm install
-              - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-          script: npm run build
+install:
+    - npm install
+    - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+script:
+    - cargo test --verbose
+    - npm run build
 
 deploy:
   provider: pages
@@ -27,4 +30,4 @@ deploy:
   local_dir: dist/
   on:
       branch: master
-      condition: "$TRAVIS_BUILD_STAGE_NAME = Node.js"
+      condition: "$TRAVIS_RUST_VERSION = stable"
