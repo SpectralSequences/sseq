@@ -2,7 +2,6 @@
 #![allow(unused_variables)]
 #[allow(unused_imports)]
 
-mod memory;
 mod once;
 mod combinatorics;
 mod fp_vector;

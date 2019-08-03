@@ -1,5 +1,3 @@
-use crate::memory::CVec;
-use crate::memory::MemoryAllocator;
 use crate::combinatorics;
 use crate::fp_vector::FpVector;
 
@@ -14,8 +12,8 @@ pub struct Matrix {
     slice_row_end : usize,
     slice_col_start : usize,
     slice_col_end : usize,
-    vectors : CVec<FpVector>,
-    row_permutation : CVec<usize>
+    vectors : Vec<FpVector>,
+    row_permutation : Vec<usize>
 }
 
 impl Matrix {
@@ -24,34 +22,16 @@ impl Matrix {
         for _ in 0..rows {
             vectors.push(FpVector::new(p, columns, 0));
         }
-        let mut permutation : Vec<usize> = Vec::with_capacity(columns);
+        let mut row_permutation : Vec<usize> = Vec::with_capacity(columns);
         for i in 0..rows {
-            permutation.push(i);
-        }
-        Matrix { 
-            p, rows, columns, 
-            slice_row_start : 0, slice_row_end : rows,
-            slice_col_start : 0, slice_col_end : columns,
-            vectors : CVec::from_vec(vectors), 
-            row_permutation : CVec::from_vec(permutation) 
-        }
-    }
-
-    pub fn new_from_allocator<T : MemoryAllocator + std::fmt::Display>(allocator: &T, p : u32, rows : usize, columns : usize) -> Matrix {
-        let mut vectors : CVec<FpVector> = allocator.alloc_vec(rows);
-        for v in vectors.iter_mut() {
-            *v = FpVector::new_from_allocator(allocator, p, columns, 0);
-        }
-        let mut row_permutation : CVec<usize> = allocator.alloc_vec(rows);
-        for i in 0..rows {
-            row_permutation[i] = i;
+            row_permutation.push(i);
         }
         Matrix { 
             p, rows, columns, 
             slice_row_start : 0, slice_row_end : rows,
             slice_col_start : 0, slice_col_end : columns,
             vectors, 
-            row_permutation,  
+            row_permutation
         }
     }
 
@@ -233,12 +213,21 @@ impl Matrix {
         self.row_permutation.swap(i + self.slice_row_start, j + self.slice_row_start);
     }
 
-    pub fn apply_permutation(&mut self, permutation : CVec<usize>, scratch_space : CVec<FpVector>){
-        self.vectors.apply_permutation(permutation, scratch_space);
+    pub fn apply_permutation(&mut self, permutation : &Vec<usize>, scratch_space : &mut Vec<FpVector>){
+        assert!(permutation.len() < self.vectors.len());
+        assert!(permutation.len() < scratch_space.len());
+        unsafe {
+            for i in 0..permutation.len(){
+                std::ptr::swap(scratch_space.as_mut_ptr().offset(i as isize), self.vectors.as_mut_ptr().offset(permutation[i] as isize));
+            }
+            for i in 0..permutation.len(){
+                std::ptr::swap(self.vectors.as_mut_ptr().offset(i as isize), scratch_space.as_mut_ptr().offset(i as isize));
+            }            
+        }
     }
 
     pub fn row_op(&mut self, target : usize, source : usize, coeff : u32){
-        unsafe {
+    unsafe {
             // Can't take two mutable loans from one vector, so instead just cast
             // them to their raw pointers to do the swap
             let ptarget: *mut FpVector = &mut self[target];
@@ -247,7 +236,7 @@ impl Matrix {
         }
     }
 
-    pub fn row_reduce(&mut self, column_to_pivot_row: &mut CVec<isize>){
+    pub fn row_reduce(&mut self, column_to_pivot_row: &mut Vec<isize>){
         assert!(self.get_columns() <= column_to_pivot_row.len());
         let p = self.p;
         let columns = self.get_columns();
@@ -313,14 +302,14 @@ impl Matrix {
 
 pub struct Subspace {
     pub matrix : Matrix,
-    pub column_to_pivot_row : CVec<isize>
+    pub column_to_pivot_row : Vec<isize>
 }
 
 impl Subspace {
     pub fn new(p : u32, rows : usize, columns : usize) -> Self {
         Self {
             matrix : Matrix::new(p, rows, columns),
-            column_to_pivot_row : CVec::new(columns)
+            column_to_pivot_row : vec![-1; columns]
         }
     }
 
@@ -335,9 +324,8 @@ impl Subspace {
 }
 
 pub struct QuasiInverse {
-    pub blocks : Matrix,
-    pub block_columns : Vec<usize>,
-    pub block_rows : Vec<usize>
+    pub input_blocks : Vec<Matrix>,
+    pub output_blocks : Vec<Matrix>,
 }
 
 // impl QuasiInverse {
@@ -357,7 +345,7 @@ pub struct QuasiInverse {
 
 impl Matrix {
 
-    pub fn compute_kernel(&mut self, column_to_pivot_row : &CVec<isize>, first_source_column : usize) -> Subspace {
+    pub fn compute_kernel(&mut self, column_to_pivot_row : &Vec<isize>, first_source_column : usize) -> Subspace {
         let p = self.p;
         let rows = self.get_rows();
         let columns = self.get_columns();
@@ -399,33 +387,33 @@ impl Matrix {
     /// matrix -- a row reduced augmented matrix
     /// column_to_pivot_row -- the pivots in matrix (also returned by row_reduce)
     /// first_source_column -- which block of the matrix is the source of the map
-    pub fn compute_quasi_inverse(&mut self, pivots : &CVec<isize>, block_columns : Vec<usize>) -> QuasiInverse {
-        let p = self.p;
-        let rows = self.get_rows();
-        let columns = self.get_columns();
-        assert!(block_columns.len() > 0);
-        let first_source_column = block_columns[block_columns.len() - 1];
-        let source_dimension = columns - first_source_column;
+    // pub fn compute_quasi_inverse(&mut self, pivots : &Vec<isize>, block_columns : Vec<usize>) -> QuasiInverse {
+    //     let p = self.p;
+    //     let rows = self.get_rows();
+    //     let columns = self.get_columns();
+    //     assert!(block_columns.len() > 0);
+    //     let first_source_column = block_columns[block_columns.len() - 1];
+    //     let source_dimension = columns - first_source_column;
 
-        let block_rows = Self::compute_kernel_find_block_rows(pivots, &block_columns, rows, columns);
-        let first_kernel_row = block_rows[block_columns.len() - 1];
-        let kernel_dimension = rows - first_kernel_row;
-        // Write pivots into kernel
-        let mut blocks = Matrix::new(p, first_kernel_row, source_dimension);
-        for row in 0..first_kernel_row {
-            let vector = &mut self[row];
-            vector.set_slice(first_source_column, first_source_column + source_dimension);
-            blocks[row].assign(&vector);
-            vector.clear_slice();            
-        }
-        return QuasiInverse {
-            blocks,
-            block_rows,            
-            block_columns,
-        };
-    }
+    //     let block_rows = Self::compute_kernel_find_block_rows(pivots, &block_columns, rows, columns);
+    //     let first_kernel_row = block_rows[block_columns.len() - 1];
+    //     let kernel_dimension = rows - first_kernel_row;
+    //     // Write pivots into kernel
+    //     let mut blocks = Matrix::new(p, first_kernel_row, source_dimension);
+    //     for row in 0..first_kernel_row {
+    //         let vector = &mut self[row];
+    //         vector.set_slice(first_source_column, first_source_column + source_dimension);
+    //         blocks[row].assign(&vector);
+    //         vector.clear_slice();            
+    //     }
+    //     return QuasiInverse {
+    //         blocks,
+    //         block_rows,            
+    //         block_columns,
+    //     };
+    // }
 
-    fn compute_kernel_find_block_rows(pivots : &CVec<isize>, target_blocks : &Vec<usize>, rows : usize, columns : usize) -> Vec<usize> {
+    fn compute_kernel_find_block_rows(pivots : &Vec<isize>, target_blocks : &Vec<usize>, rows : usize, columns : usize) -> Vec<usize> {
         let mut block_rows : Vec<usize> = Vec::with_capacity(target_blocks.len());
         let mut last_block = 0;
         loop {
@@ -465,7 +453,7 @@ impl Matrix {
     /// to the matrix.
     ///    self -- An augmented, row reduced matrix to be modified to extend it's image.
     ///    first_source_column : Where does the source comppstart in the augmented matrix?
-    pub fn get_image(&mut self, image_rows : usize, target_dimension : usize, pivots : &CVec<isize>) -> Subspace {
+    pub fn get_image(&mut self, image_rows : usize, target_dimension : usize, pivots : &Vec<isize>) -> Subspace {
         let mut image = Subspace::new(self.p, image_rows, target_dimension);
         for i in 0 .. image_rows {
             image.column_to_pivot_row[i] = pivots[i];
@@ -481,7 +469,7 @@ impl Matrix {
     pub fn extend_to_surjection(&mut self, 
         mut first_empty_row : usize, 
         start_column : usize, end_column : usize,        
-        current_pivots : &CVec<isize>, complement_pivots : Option<&CVec<isize>>
+        current_pivots : &Vec<isize>, complement_pivots : Option<&Vec<isize>>
     ) -> usize {
         let mut homology_dimension = 0;
         for i in start_column .. end_column {
@@ -505,8 +493,8 @@ impl Matrix {
     pub fn extend_image_to_desired_image(&mut self, 
         mut first_empty_row : usize,
         start_column : usize, end_column : usize,
-        current_pivots : &CVec<isize>, desired_image : &Subspace, 
-        complement_pivots : Option<&CVec<isize>>
+        current_pivots : &Vec<isize>, desired_image : &Subspace, 
+        complement_pivots : Option<&Vec<isize>>
     ) -> usize {
         let mut homology_dimension = 0;
         let desired_pivots = &desired_image.column_to_pivot_row;
@@ -542,8 +530,8 @@ impl Matrix {
     pub fn extend_image(&mut self, 
         first_empty_row : usize, 
         start_column : usize, end_column : usize, 
-        current_pivots : &CVec<isize>, desired_image : Option<&Subspace>, 
-        complement_pivots : Option<&CVec<isize>>
+        current_pivots : &Vec<isize>, desired_image : Option<&Subspace>, 
+        complement_pivots : Option<&Vec<isize>>
     ) -> usize {
         if let Some(image) = desired_image {
             return self.extend_image_to_desired_image(first_empty_row, start_column, end_column, current_pivots, image, complement_pivots);
@@ -612,7 +600,7 @@ mod tests {
             for (i,x) in input.iter().enumerate(){
                 m[i].pack(x);
             }
-            let mut output_pivots_cvec = CVec::from_vec(Vec::with_capacity(cols));
+            let mut output_pivots_cvec = [-1; cols];
             m.row_reduce(&mut output_pivots_cvec);
             let mut unpacked_row : Vec<u32> = vec![0; cols];
             for (i,x) in input.iter().enumerate(){

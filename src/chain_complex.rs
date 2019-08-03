@@ -1,7 +1,6 @@
 use crate::fp_vector::FpVector;
 // use crate::once::OnceRefOwned;
 use crate::matrix::{Matrix, Subspace, QuasiInverse};
-use crate::memory::CVec;
 use crate::algebra::Algebra;
 use crate::module::{Module, ZeroModule};
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
@@ -16,6 +15,7 @@ pub trait ChainComplex {
     fn get_module(&self, homological_degree : u32) -> &Module;
     fn get_differential(&self, homological_degree : u32) -> &ModuleHomomorphism;
     fn compute_through_bidegree(&self, homological_degree : u32, degree : i32) {}
+    fn computed_through_bidegree_q(&self, homological_degree : u32, degree : i32) -> bool { true }
     // fn set_kernel(&self, homological_degree : usize, degree : i32, kernel : Subspace);
     // fn set_image(&self, degree : i32, homological_degree : usize, image : Subspace);
     // fn get_kernel(&self, homological_degree : usize, degree : i32) -> &Subspace;
@@ -40,7 +40,7 @@ pub trait ChainComplex {
         for i in 0..source_dimension {
             matrix[i].set_entry(padded_target_dimension + i, 1);
         }
-        let mut pivots = CVec::new(columns);
+        let mut pivots = vec![-1;columns];
         matrix.row_reduce(&mut pivots);
         let kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
         let kernel_rows = kernel.matrix.get_rows();

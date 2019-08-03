@@ -141,6 +141,10 @@ impl WasmResolution {
         }
     }
  
+    // pub fn step(&self, hom_deg : u32, int_deg : i32) {
+
+    // }
+
     pub fn resolve_through_degree(&self, degree : i32) {
         let res = unsafe { &*self.pimpl };
         res.resolve_through_degree(degree);

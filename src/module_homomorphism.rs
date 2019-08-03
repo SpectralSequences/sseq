@@ -1,4 +1,3 @@
-use crate::memory::CVec;
 use crate::fp_vector::FpVector;
 use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::Module;
@@ -26,7 +25,7 @@ pub trait ModuleHomomorphism {
 
     fn set_image(&self, degree : i32, image : Subspace); 
     fn get_image(&self, degree : i32) -> Option<&Subspace>;    
-    fn get_image_pivots(&self, degree : i32) -> Option<&CVec<isize>> {
+    fn get_image_pivots(&self, degree : i32) -> Option<&Vec<isize>> {
         let image = self.get_image(degree);
         return image.map(|subspace| &subspace.column_to_pivot_row );
     }
@@ -85,5 +84,5 @@ impl ModuleHomomorphism for ZeroHomomorphism<'_, '_> {
 
     fn get_image(&self, _degree : i32) -> Option<&Subspace> { None }
     
-    fn get_image_pivots(&self, _degree : i32) -> Option<&CVec<isize>> { None }
+    fn get_image_pivots(&self, _degree : i32) -> Option<&Vec<isize>> { None }
 }

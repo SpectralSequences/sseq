@@ -2,7 +2,6 @@
 
 use std::cmp::max;
 
-use crate::memory::CVec;
 use crate::fp_vector::FpVector;
 use crate::matrix::{Matrix, Subspace};
 use crate::algebra::Algebra;
@@ -169,6 +168,8 @@ impl<'a> Resolution<'a> {
         //     let subspace = Subspace::entire_space(self.get_prime(), module_dim);
         //     dminus1.set_kernel(degree, subspace);
         // }
+        
+        self.get_complex().compute_through_bidegree(homological_degree, degree);
         self.generate_old_kernel_and_compute_new_kernel(homological_degree, degree);
         let module = self.get_module(homological_degree);
         let num_gens = module.get_number_of_gens_in_degree(degree);
@@ -260,7 +261,7 @@ impl<'a> Resolution<'a> {
         // println!("{}", matrix);
         // println!("     rows: {}, cols: {}", matrix.get_rows(), matrix.get_columns());
 
-        let mut pivots = CVec::new(matrix.get_columns());
+        let mut pivots = vec![-1;matrix.get_columns()];
         matrix.row_reduce(&mut pivots);
 
         let kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
@@ -289,16 +290,18 @@ impl<'a> Resolution<'a> {
         source.add_generators(degree, source_module_table, new_generators);
         current_chain_map.add_generators_from_matrix_rows(degree, &mut matrix, first_new_row, 0, new_generators);
         current_differential.add_generators_from_matrix_rows(degree, &mut matrix, first_new_row, padded_target_cc_dimension, new_generators);
-
+        
         // println!("small matrix?");
         // println!("{}", matrix);
         // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
         // Allocate a matrix coimage_to_image with these dimensions.
         let image_rows = first_new_row + new_generators;
 
-        // let mut new_pivots = CVec::new(matrix.get_columns());
-        // matrix.row_reduce(&mut new_pivots);
-        // current_differential.copy_image_from_matrix(degree, &mut matrix, &new_pivots, image_rows, target_res_dimension);
+        let mut new_pivots = vec![-1;matrix.get_columns()];
+        matrix.row_reduce(&mut new_pivots);
+
+        // let quasi_inverse = matrix.compute_quasi_inverse(&pivots, vec![padded_target_cc_dimension, padded_target_dimension]);
+        
     }
 
     pub fn graded_dimension_string(&self) -> String {
@@ -338,6 +341,18 @@ impl<'a> ChainComplex for Resolution<'a> {
     fn get_differential<'b>(&'b self, homological_degree : u32) -> &'b ModuleHomomorphism {
         self.get_differential(homological_degree)
     }
+
+    // TODO: implement this.
+    fn compute_through_bidegree(&self, hom_deg : u32, int_deg : i32) {
+
+    }
+
+    // fn computed_through_bidegree_q(&self, hom_deg : u32, int_deg : i32) -> bool {
+    //     self.res_inner.rent(|res_homs| {
+    //         res_homs.differentials.len() > hom_deg 
+    //             && res_homs.differentials[hom_deg as usize].
+    //     })
+    // }
 
 
 

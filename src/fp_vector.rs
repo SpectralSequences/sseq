@@ -8,11 +8,6 @@ use std::fmt;
 use crate::combinatorics::valid_prime_q;
 use crate::combinatorics::PRIME_TO_INDEX_MAP;
 use crate::combinatorics::MAX_PRIME_INDEX;
-use crate::memory;
-use crate::memory::MemoryAllocator;
-use crate::memory::CVec;
-
-
 
 pub const MAX_DIMENSION : usize = 147500;
 
@@ -120,7 +115,7 @@ struct VectorContainer {
     offset : usize,
     slice_start : usize,
     slice_end : usize,
-    limbs : memory::CVec<u64>,
+    limbs : Vec<u64>,
 }
 
 pub struct VectorContainerGeneric {
@@ -311,11 +306,11 @@ impl FpVector {
 
     // Private
 
-    fn get_limbs_cvec(&self) -> &CVec<u64> {
+    fn get_limbs_cvec(&self) -> &Vec<u64> {
         &self.get_vector_container().limbs
     }
 
-    fn get_limbs_cvec_mut(&mut self) -> &mut CVec<u64> {
+    fn get_limbs_cvec_mut(&mut self) -> &mut Vec<u64> {
         &mut self.get_vector_container_mut().limbs
     }
 
@@ -341,7 +336,7 @@ impl FpVector {
         return mask;
     }
 
-    fn unpack_limb(p : u32, dimension : usize, offset : usize, limb_array : &mut [u32], limbs : &CVec<u64>, limb_idx : usize) -> usize {
+    fn unpack_limb(p : u32, dimension : usize, offset : usize, limb_array : &mut [u32], limbs : &Vec<u64>, limb_idx : usize) -> usize {
         let bit_length = get_bit_length(p);
         let entries_per_64_bits = get_entries_per_64_bits(p);
         let bit_mask = get_bitmask(p);    
@@ -368,7 +363,7 @@ impl FpVector {
         return idx;
     }
 
-    fn pack_limb(p : u32, dimension : usize, offset : usize, limb_array : &[u32], limbs : &mut CVec<u64>, limb_idx : usize) -> usize {
+    fn pack_limb(p : u32, dimension : usize, offset : usize, limb_array : &[u32], limbs : &mut Vec<u64>, limb_idx : usize) -> usize {
         let bit_length = get_bit_length(p);
         assert_eq!(offset % bit_length, 0);    
         let entries_per_64_bits = get_entries_per_64_bits(p);
@@ -658,22 +653,8 @@ impl FpVector {
         let slice_start = 0;
         let slice_end = dimension;
         let number_of_limbs = Self::get_number_of_limbs(p, dimension, offset);
-        let mut limbs_inner : Vec<u64> = Vec::with_capacity(number_of_limbs);
-        for _ in 0..number_of_limbs {
-            limbs_inner.push(0);
-        }
-        let limbs = memory::CVec::from_vec(limbs_inner);
+        let limbs = vec![0; number_of_limbs];
         let vector_container = VectorContainer {dimension, offset, limbs, slice_start, slice_end };
-        FpVector::wrap_container(p, vector_container)
-    }
-
-    pub fn new_from_allocator<T : MemoryAllocator>(allocator : &T, p : u32, dimension : usize, offset : usize) -> FpVector {
-        assert!(offset < 64);
-        let number_of_limbs = Self::get_number_of_limbs(p, dimension, offset);
-        let limbs = allocator.alloc_vec(number_of_limbs);
-        let slice_start = 0;
-        let slice_end = dimension;
-        let vector_container = VectorContainer {dimension, offset, limbs, slice_start, slice_end };        
         FpVector::wrap_container(p, vector_container)
     }
 

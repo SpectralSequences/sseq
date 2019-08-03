@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-mod memory;
 mod once;
 mod combinatorics;
 mod fp_vector;
