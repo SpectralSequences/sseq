@@ -267,18 +267,23 @@ impl<'a> Resolution<'a> {
         source.add_generators(degree, source_module_table, new_generators);
         current_chain_map.add_generators_from_matrix_rows(degree, &mut matrix, first_new_row, 0, new_generators);
         current_differential.add_generators_from_matrix_rows(degree, &mut matrix, first_new_row, padded_target_cc_dimension, new_generators);
-        
-        // println!("small matrix?");
-        // println!("{}", matrix);
+    
         // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
-        // Allocate a matrix coimage_to_image with these dimensions.
         let image_rows = first_new_row + new_generators;
+        for i in first_new_row .. image_rows {
+            matrix[i].set_entry(padded_target_dimension + i, 1);
+        }
 
+
+        matrix.set_slice(0, image_rows, 0, padded_target_dimension + image_rows); 
         let mut new_pivots = vec![-1;matrix.get_columns()];
         matrix.row_reduce(&mut new_pivots);
-
-        // let quasi_inverse = matrix.compute_quasi_inverse(&pivots, vec![padded_target_cc_dimension, padded_target_dimension]);
-        
+        println!("{}", matrix);
+        let mut quasi_inverses = matrix.compute_quasi_inverses(&new_pivots, vec![padded_target_cc_dimension, padded_target_dimension]);
+        let cd_qi = quasi_inverses.pop().unwrap();
+        let cc_qi = quasi_inverses.pop().unwrap();
+        current_chain_map.set_quasi_inverse(degree, cc_qi);
+        current_differential.set_quasi_inverse(degree, cd_qi);
     }
 
     pub fn graded_dimension_string(&self) -> String {
@@ -329,16 +334,5 @@ impl<'a> ChainComplex for Resolution<'a> {
     //         res_homs.differentials.len() > hom_deg 
     //             && res_homs.differentials[hom_deg as usize].
     //     })
-    // }
-
-
-
-    
-
-    // fn get_quasi_inverse(&self, degree : i32, homological_degree : usize) -> QuasiInverse {
-    //     let qi_pivots = self.image_deg_zero[degree].get();
-    //     QuasiInverse {
-            
-    //     }
     // }
 }

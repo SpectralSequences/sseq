@@ -228,7 +228,7 @@ impl Matrix {
 
     pub fn row_op(&mut self, target : usize, source : usize, coeff : u32){
     unsafe {
-            // Can't take two mutable loans from one vector, so instead just cast
+            // Can't take two mutable borrows from one vector, so instead just cast
             // them to their raw pointers to do the swap
             let ptarget: *mut FpVector = &mut self[target];
             let psource: *const FpVector = &mut self[source];
@@ -324,8 +324,8 @@ impl Subspace {
 }
 
 pub struct QuasiInverse {
-    pub input_blocks : Vec<Matrix>,
-    pub output_blocks : Vec<Matrix>,
+    pub image : Subspace,
+    pub preimage : Matrix
 }
 
 // impl QuasiInverse {
@@ -387,31 +387,46 @@ impl Matrix {
     /// matrix -- a row reduced augmented matrix
     /// column_to_pivot_row -- the pivots in matrix (also returned by row_reduce)
     /// first_source_column -- which block of the matrix is the source of the map
-    // pub fn compute_quasi_inverse(&mut self, pivots : &Vec<isize>, block_columns : Vec<usize>) -> QuasiInverse {
-    //     let p = self.p;
-    //     let rows = self.get_rows();
-    //     let columns = self.get_columns();
-    //     assert!(block_columns.len() > 0);
-    //     let first_source_column = block_columns[block_columns.len() - 1];
-    //     let source_dimension = columns - first_source_column;
+    pub fn compute_quasi_inverses(&mut self, pivots : &Vec<isize>, block_columns : Vec<usize>) -> Vec<QuasiInverse> {
+        let p = self.p;
+        let rows = self.get_rows();
+        let columns = self.get_columns();
+        assert!(block_columns.len() > 0);
+        let first_source_column = block_columns[block_columns.len() - 1];
+        let source_dimension = columns - first_source_column;
 
-    //     let block_rows = Self::compute_kernel_find_block_rows(pivots, &block_columns, rows, columns);
-    //     let first_kernel_row = block_rows[block_columns.len() - 1];
-    //     let kernel_dimension = rows - first_kernel_row;
-    //     // Write pivots into kernel
-    //     let mut blocks = Matrix::new(p, first_kernel_row, source_dimension);
-    //     for row in 0..first_kernel_row {
-    //         let vector = &mut self[row];
-    //         vector.set_slice(first_source_column, first_source_column + source_dimension);
-    //         blocks[row].assign(&vector);
-    //         vector.clear_slice();            
-    //     }
-    //     return QuasiInverse {
-    //         blocks,
-    //         block_rows,            
-    //         block_columns,
-    //     };
-    // }
+        let block_rows = Self::compute_kernel_find_block_rows(pivots, &block_columns, rows, columns);
+        let first_kernel_row = block_rows[block_columns.len() - 1];
+        let kernel_dimension = rows - first_kernel_row;
+        // Write pivots into kernel
+        let mut result = Vec::new();
+        let mut prev_row = 0;        
+        let mut prev_column = 0;
+        for i in 0..block_columns.len() {
+            let num_rows = block_rows[i] - prev_row;
+            let num_cols = block_columns[i] - prev_column;
+            let mut image = Subspace::new(p, num_rows, num_cols);
+            let mut preimage = Matrix::new(p, num_rows, source_dimension);
+            for row in prev_row..block_rows[i] {
+                let vector = &mut self[row];
+                vector.set_slice(prev_column, block_columns[i]);
+                image.matrix[row - prev_row].assign(&vector);
+                vector.set_slice(first_source_column, columns);
+                preimage[row - prev_row].assign(&vector);
+                vector.clear_slice();            
+            }
+            for col in prev_column..block_columns[i] {
+                image.column_to_pivot_row[col - prev_column] = pivots[col] - prev_row as isize;
+            }
+            result.push(QuasiInverse {
+                image,
+                preimage
+            });
+            prev_row = block_rows[i];
+            prev_column = block_columns[i];
+        }
+        return result;
+    }
 
     fn compute_kernel_find_block_rows(pivots : &Vec<isize>, target_blocks : &Vec<usize>, rows : usize, columns : usize) -> Vec<usize> {
         let mut block_rows : Vec<usize> = Vec::with_capacity(target_blocks.len());
@@ -480,7 +495,7 @@ impl Matrix {
             }
             // Look up the cycle that we're missing and add a generator hitting it.
             let matrix_row = &mut self[first_empty_row];
-            // Writing into slice -- leaving rest of Vector alone would be alright in this case.
+            // We're trying to make a surjection so we just set the output equal to 1
             matrix_row.set_to_zero();
             matrix_row.set_entry(i, 1);
             first_empty_row += 1;
@@ -510,7 +525,7 @@ impl Matrix {
             let kernel_vector_row = desired_pivots[i] as usize;
             let new_image = &desired_image.matrix[kernel_vector_row];
             let matrix_row = &mut self[first_empty_row];
-            // Writing into slice -- leaving rest of Vector alone would be alright in this case.
+            matrix_row.set_to_zero();
             matrix_row.set_slice(0, desired_image.matrix.columns);
             matrix_row.assign(&new_image);
             matrix_row.clear_slice();

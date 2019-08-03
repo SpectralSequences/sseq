@@ -28,6 +28,7 @@ use serde_json::value::Value;
 
 use crate::algebra::Algebra;
 use crate::adem_algebra::AdemAlgebra;
+#[cfg(test)]
 use crate::milnor_algebra::MilnorAlgebra;
 use crate::finite_dimensional_module::FiniteDimensionalModule;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero;

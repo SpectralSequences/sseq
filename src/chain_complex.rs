@@ -1,6 +1,6 @@
 use crate::fp_vector::FpVector;
 // use crate::once::OnceRefOwned;
-use crate::matrix::{Matrix, Subspace, QuasiInverse};
+use crate::matrix::{Matrix, Subspace }; //QuasiInverse
 use crate::algebra::Algebra;
 use crate::module::{Module, ZeroModule};
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
@@ -46,6 +46,7 @@ pub trait ChainComplex {
         let kernel_rows = kernel.matrix.get_rows();
         d.set_kernel(degree, kernel);        
         let image_rows = matrix.get_rows() - kernel_rows;
+        // let quasi_inverse = matrix.compute_quasi_inverses();
         // d.copy_image_from_matrix(degree, &mut matrix, &pivots, image_rows, target_dimension);
         // d.copy_quasi_inverse_from_matrix(degree, &mut matrix, image_rows, padded_target_dimension);
     }

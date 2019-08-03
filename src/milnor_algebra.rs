@@ -487,7 +487,6 @@ impl<'a>  PPartMultiplier<'a> {
                     total += self.M[i][j] * p_to_the_j;
                     continue;
                 }
-
                 // Check if any entry in column j above row i is nonzero. I'm still not sure why tbh.
                 for k in 0..i {
                     if self.M[k][j] != 0 {
