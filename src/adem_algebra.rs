@@ -613,6 +613,16 @@ impl AdemAlgebra {
             self.multiplication_table.push(Vec::new());
             old_max_degree += 1;
         }
+        // Okay so this is really confusing. The way the table is represented, first_square = 2n represents P^n 
+        // and first_square = 2n + 1 represents b P^n
+        // It is very easy to work out the product b P^n * x from the product P^n * x because b multiplication is exact. 
+        // We drop terms starting with a b and add a b to the start of terms that don't start with a b.
+        // b (P^n * x) lands in a degree one higher than the degree of P^n * x. So we fill out the even first_square entries of
+        // the degree n table at the same time as the odd first_square entries of the n + 1 table. At the end we get a half filled
+        // table which we throw away. When we start the next time, we have to start back one degree and reconstruct the odd half
+        // of the table in degree old_max_degree (we also reconstruct the even part of the table in degree old_max_degree - 1 and 
+        // throw it away).
+        // This logic makes the next ~30 lines of code a little confusing.
         let mut tables : Vec<Option<Vec<Vec<FpVector>>>> = Vec::with_capacity((max_degree - old_max_degree + 2) as usize);
         for n in old_max_degree - 1 .. max_degree + 1 {
             let output_dimension = self.get_dimension(n, -1);

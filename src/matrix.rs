@@ -560,19 +560,19 @@ impl Matrix {
 //     pub image : &'a Subspace
 // }
 
-// impl QuasiInverse<'_> {
-//     pub fn apply(&self, target : &mut FpVector, input : &FpVector){
-//         let mut row = 0;
-//         for i in 0 .. self.image.matrix.columns {
-//             if self.image.column_to_pivot_row[i] < 0 {
-//                 continue;
-//             }
-//             let coeff = input.get_entry(i);
-//             target.add(&self.matrix[row], coeff);
-//             row += 1;
-//         }
-//     }
-// }
+impl QuasiInverse {
+    pub fn apply(&self, target : &mut FpVector, input : &FpVector){
+        let mut row = 0;
+        for i in 0 .. self.image.matrix.columns {
+            if self.image.column_to_pivot_row[i] < 0 {
+                continue;
+            }
+            let coeff = input.get_entry(i);
+            target.add(&self.preimage[row], coeff);
+            row += 1;
+        }
+    }
+}
 
 
 #[cfg(test)]

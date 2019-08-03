@@ -1,5 +1,6 @@
+use std::sync::{Mutex, MutexGuard};
+
 use crate::once::OnceVec;
-// use crate::memory::CVec;
 use crate::fp_vector::FpVector;
 use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::Module;
@@ -13,6 +14,7 @@ pub struct FreeModuleHomomorphism<'a, 'b> {
     kernel : OnceVec<Subspace>,
     quasi_inverse : OnceVec<QuasiInverse>,
     min_degree : i32,
+    max_degree : Mutex<i32>,
     degree_shift : i32
 }
 
@@ -27,12 +29,17 @@ impl ModuleHomomorphism for FreeModuleHomomorphism<'_, '_> {
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_index : usize){
         assert!(input_degree >= self.source.min_degree);
         let input_degree_idx = (input_degree - self.source.min_degree) as usize;
-        let table = &self.source.table[input_degree_idx].get();
+        let table = &self.source.table[input_degree_idx];
         self.apply_to_basis_element_with_table(result, coeff, input_degree, table, input_index);
     }
 
-    fn set_kernel(&self, degree : i32, kernel : Subspace){
+    fn get_lock(&self) -> MutexGuard<i32> {
+        self.max_degree.lock().unwrap()
+    }
+
+    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace){
         assert!(degree >= self.min_degree);
+        assert!(degree == **lock + 1);
         let degree_idx = (degree - self.min_degree) as usize;
         assert!(degree_idx == self.kernel.len());
         self.kernel.push(kernel);
@@ -44,8 +51,9 @@ impl ModuleHomomorphism for FreeModuleHomomorphism<'_, '_> {
         Some(&self.kernel[degree_idx])
     }
 
-    fn set_quasi_inverse(&self, degree : i32, quasi_inverse : QuasiInverse){
+    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse){
         assert!(degree >= self.min_degree);
+        assert!(degree == **lock + 1);
         let degree_idx = (degree - self.min_degree) as usize;
         assert!(degree_idx == self.quasi_inverse.len());
         self.quasi_inverse.push(quasi_inverse);
@@ -56,14 +64,6 @@ impl ModuleHomomorphism for FreeModuleHomomorphism<'_, '_> {
         let degree_idx = (degree - self.min_degree) as usize;
         Some(&self.quasi_inverse[degree_idx])
     }
-
-    fn set_image(&self, degree : i32, image : Subspace){
-
-    }
-
-    fn get_image(&self, degree : i32) -> Option<&Subspace> {
-        None
-    }   
 }
 // // Run FreeModule_ConstructBlockOffsetTable(source, degree) before using this on an input in that degree
 // void FreeModuleHomomorphism_applyToBasisElement(FreeModuleHomomorphism *f, Vector *result, uint coeff, int input_degree, uint input_index){
@@ -84,6 +84,7 @@ impl<'a, 'b> FreeModuleHomomorphism<'a, 'b> {
             kernel,
             quasi_inverse,
             min_degree,
+            max_degree : Mutex::new(min_degree - 1),
             degree_shift
         }
     }
@@ -96,13 +97,14 @@ impl<'a, 'b> FreeModuleHomomorphism<'a, 'b> {
     }
 
     // We don't actually mutate &mut matrix, we just slice it.
-    pub fn add_generators_from_matrix_rows(&self, degree : i32, matrix : &mut Matrix, first_new_row : usize, first_target_column : usize, new_generators : usize){
+    pub fn add_generators_from_matrix_rows(&self, lock : &MutexGuard<i32>, degree : i32, matrix : &mut Matrix, first_new_row : usize, first_target_column : usize, new_generators : usize){
         // println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
         let dimension = self.target.get_dimension(degree);
         // println!("    dimension : {} target name : {}", dimension, self.target.get_name());
         assert!(degree >= self.source.min_degree);
         let degree_idx = (degree - self.source.min_degree) as usize;
         assert!(degree_idx == self.outputs.len());
+        assert!(degree == **lock + 1);
         let p = self.get_prime();
         let dimension = self.target.get_dimension(degree + self.degree_shift);
         let mut new_outputs : Vec<FpVector> = Vec::with_capacity(new_generators);

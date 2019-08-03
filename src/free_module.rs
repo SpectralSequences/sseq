@@ -1,4 +1,5 @@
-use crate::once::Once;
+use std::sync::{ Mutex, MutexGuard };
+use crate::once::OnceVec;
 use crate::fp_vector::FpVector;
 use crate::algebra::Algebra;
 use crate::module::Module;
@@ -21,12 +22,11 @@ pub struct FreeModule<'a> {
     pub algebra : &'a Algebra,
     pub name : String,
     pub min_degree : i32,
-    pub max_degree : i32,
-    pub table : Vec<Once<FreeModuleTableEntry>>
+    pub max_degree : Mutex<i32>,
+    pub table : OnceVec<FreeModuleTableEntry>
 }
 
 impl<'a> Module for FreeModule<'a> {
-
     fn get_name(&self) -> &str {
         &self.name
     }
@@ -45,7 +45,7 @@ impl<'a> Module for FreeModule<'a> {
             return 0;
         }
         let degree_idx = (degree - self.min_degree) as usize;
-        return self.table[degree_idx].get().basis_element_to_opgen.len();
+        return self.table[degree_idx].basis_element_to_opgen.len();
     }
 
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
@@ -82,18 +82,13 @@ impl<'a> Module for FreeModule<'a> {
 }
 
 impl<'a> FreeModule<'a> {
-    pub fn new(algebra : &'a Algebra, name : String, min_degree : i32, max_degree : i32) -> Self {
-        let number_of_degrees = (max_degree - min_degree) as usize;
-        let mut table = Vec::with_capacity(number_of_degrees);
-        for _ in 0..number_of_degrees {
-            table.push(Once::new());
-        }
+    pub fn new(algebra : &'a Algebra, name : String, min_degree : i32) -> Self {
         Self {
             algebra,
             name,
             min_degree,
-            max_degree,
-            table
+            max_degree : Mutex::new(min_degree - 1),
+            table : OnceVec::new()
         }
     }
 
@@ -102,11 +97,13 @@ impl<'a> FreeModule<'a> {
             return 0;
         }
         let degree_idx = (degree - self.min_degree) as usize;
-        return self.table[degree_idx].get().num_gens;
+        return self.table[degree_idx].num_gens;
     }
 
-    pub fn construct_table(&self, degree : i32) -> FreeModuleTableEntry {
+    pub fn construct_table(&self, degree : i32) -> (MutexGuard<i32>, FreeModuleTableEntry) {
         assert!(degree >= self.min_degree);
+        let lock = self.max_degree.lock().unwrap();
+        assert!(degree == *lock + 1);
         let degree_idx = (degree - self.min_degree) as usize;
         let mut basis_element_to_opgen : Vec<OperationGeneratorPair> = Vec::with_capacity(degree_idx + 1);
         let mut generator_to_index : Vec<Vec<usize>> = Vec::with_capacity(degree_idx + 1);
@@ -135,11 +132,13 @@ impl<'a> FreeModule<'a> {
             }
             generator_to_index.push(gentoidx_degree);
         }
-        FreeModuleTableEntry {
-            num_gens : 0,
-            basis_element_to_opgen,
-            generator_to_index
-        }
+        return (lock,
+            FreeModuleTableEntry {
+                num_gens : 0,
+                basis_element_to_opgen,
+                generator_to_index
+            }
+        );
     }
 
     pub fn get_dimension_with_table(&self, degree : i32, table : &FreeModuleTableEntry) -> usize {
@@ -151,11 +150,13 @@ impl<'a> FreeModule<'a> {
         return table.basis_element_to_opgen.len();
     }
 
-    pub fn add_generators(&self, degree : i32, mut table : FreeModuleTableEntry,  num_gens : usize){
+    pub fn add_generators(&self, degree : i32, mut lock : MutexGuard<i32>, mut table : FreeModuleTableEntry,  num_gens : usize){
         assert!(degree >= self.min_degree);
+        assert!(degree == *lock + 1);
         let degree_idx = (degree - self.min_degree) as usize;
         Self::add_generators_to_table(degree, &mut table, num_gens);
-        self.table[degree_idx].set(table);
+        self.table.push(table);
+        *lock += 1;
     }
 
     fn add_generators_to_table(degree : i32, table : &mut FreeModuleTableEntry, num_gens : usize){
@@ -183,13 +184,13 @@ impl<'a> FreeModule<'a> {
         assert!(gen_deg >= self.min_degree);
         let out_deg_idx = (op_deg + gen_deg - self.min_degree) as usize;
         let gen_deg_idx = (gen_deg - self.min_degree) as usize;
-        return self.table[out_deg_idx].get().generator_to_index[gen_deg_idx][gen_idx] + op_idx;
+        return self.table[out_deg_idx].generator_to_index[gen_deg_idx][gen_idx] + op_idx;
     }
 
     pub fn index_to_op_gen(&self, degree : i32, index : usize) -> &OperationGeneratorPair {
         assert!(degree >= self.min_degree);
         let degree_idx = (degree - self.min_degree) as usize;
-        return &self.table[degree_idx].get().basis_element_to_opgen[index];
+        return &self.table[degree_idx].basis_element_to_opgen[index];
     }
 }
 

@@ -25,11 +25,12 @@ pub trait ChainComplex {
     fn compute_kernel_and_image(&self,  homological_degree : u32, degree : i32){
         let p = self.get_prime();
         let d = self.get_differential(homological_degree);
+        let lock = d.get_lock();
         if homological_degree == 0 {
             let module = self.get_module(0);
             let dim = module.get_dimension(degree);
             let kernel = Subspace::entire_space(p, dim);
-            d.set_kernel(degree, kernel);
+            d.set_kernel(&lock, degree, kernel);
         }
         let source_dimension = d.get_source().get_dimension(degree);
         let target_dimension = d.get_target().get_dimension(degree);
@@ -44,7 +45,7 @@ pub trait ChainComplex {
         matrix.row_reduce(&mut pivots);
         let kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
         let kernel_rows = kernel.matrix.get_rows();
-        d.set_kernel(degree, kernel);        
+        d.set_kernel(&lock, degree, kernel);        
         let image_rows = matrix.get_rows() - kernel_rows;
         // let quasi_inverse = matrix.compute_quasi_inverses();
         // d.copy_image_from_matrix(degree, &mut matrix, &pivots, image_rows, target_dimension);
@@ -78,7 +79,7 @@ impl<'a> ChainComplexConcentratedInDegreeZero<'a> {
             zero_module
         };
         let ccdzm_box = Box::new(modules);
-        let ccdzm_cast : &'a ChainComplexConcentratedInDegreeZeroModules
+        let ccdzm_cast : &'a Box<ChainComplexConcentratedInDegreeZeroModules>
             = unsafe{ std::mem::transmute(&ccdzm_box) };
         let homomorphisms = ChainComplexConcentratedInDegreeZeroHomomorphisms {
             d0 : ZeroHomomorphism::new(ccdzm_cast.module, &ccdzm_cast.zero_module),

@@ -51,7 +51,7 @@ impl<'a> Resolution<'a> {
         let num_degrees = (max_degree - min_degree) as usize;
         let mut modules = Vec::with_capacity(num_degrees);
         for i in 0..num_degrees {
-            modules.push(FreeModule::new(algebra, format!("F{}", i), min_degree, max_degree));
+            modules.push(FreeModule::new(algebra, format!("F{}", i), min_degree));
         }
 
         let modules = ResolutionModules {
@@ -211,7 +211,9 @@ impl<'a> Resolution<'a> {
         let source = current_differential.source;
         let target_cc = current_chain_map.target;
         let target_res = current_differential.target;
-        let source_module_table = source.construct_table(degree);
+        let (source_lock, source_module_table) = source.construct_table(degree);
+        let mut chain_map_lock = current_chain_map.get_lock();
+        let mut differential_lock = current_differential.get_lock();
         let source_dimension = source.get_dimension_with_table(degree, &source_module_table);
         let target_cc_dimension = target_cc.get_dimension(degree);
         let target_res_dimension = target_res.get_dimension(degree);
@@ -243,7 +245,7 @@ impl<'a> Resolution<'a> {
 
         let kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
         let kernel_rows = kernel.matrix.get_rows();
-        current_differential.set_kernel(degree, kernel);
+        current_differential.set_kernel(&differential_lock, degree, kernel);
 
         matrix.clear_slice();
         // Now add generators to hit kernel of previous differential. 
@@ -259,14 +261,14 @@ impl<'a> Resolution<'a> {
         let first_new_row = source_dimension - kernel_rows;
         
         let cur_cc_image = self.get_complex().get_differential(homological_degree).get_image(degree)
-                                .map(|subspace| &subspace.column_to_pivot_row);
+                               .map(|subspace| &subspace.column_to_pivot_row);
         // We stored the kernel rows somewhere else so we're going to write over them.
         // Add new free module generators to hit basis for previous kernel
         let mut new_generators = matrix.extend_image(first_new_row, 0, target_cc_dimension, &pivots, prev_cc_cycles, cur_cc_image);
         new_generators += matrix.extend_image(first_new_row, padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension, &pivots, prev_res_cycles, None);
-        source.add_generators(degree, source_module_table, new_generators);
-        current_chain_map.add_generators_from_matrix_rows(degree, &mut matrix, first_new_row, 0, new_generators);
-        current_differential.add_generators_from_matrix_rows(degree, &mut matrix, first_new_row, padded_target_cc_dimension, new_generators);
+        source.add_generators(degree, source_lock, source_module_table, new_generators);
+        current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, degree, &mut matrix, first_new_row, 0, new_generators);
+        current_differential.add_generators_from_matrix_rows(&differential_lock, degree, &mut matrix, first_new_row, padded_target_cc_dimension, new_generators);
     
         // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
         let image_rows = first_new_row + new_generators;
@@ -278,12 +280,14 @@ impl<'a> Resolution<'a> {
         matrix.set_slice(0, image_rows, 0, padded_target_dimension + image_rows); 
         let mut new_pivots = vec![-1;matrix.get_columns()];
         matrix.row_reduce(&mut new_pivots);
-        println!("{}", matrix);
+        // println!("{}", matrix);
         let mut quasi_inverses = matrix.compute_quasi_inverses(&new_pivots, vec![padded_target_cc_dimension, padded_target_dimension]);
         let cd_qi = quasi_inverses.pop().unwrap();
         let cc_qi = quasi_inverses.pop().unwrap();
-        current_chain_map.set_quasi_inverse(degree, cc_qi);
-        current_differential.set_quasi_inverse(degree, cd_qi);
+        current_chain_map.set_quasi_inverse(&chain_map_lock, degree, cc_qi);
+        current_differential.set_quasi_inverse(&differential_lock, degree, cd_qi);
+        *chain_map_lock += 1;
+        *differential_lock += 1;
     }
 
     pub fn graded_dimension_string(&self) -> String {

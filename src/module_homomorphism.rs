@@ -1,3 +1,5 @@
+use std::sync::{Mutex, MutexGuard};
+
 use crate::fp_vector::FpVector;
 use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::Module;
@@ -16,19 +18,22 @@ pub trait ModuleHomomorphism {
         self.get_source().get_prime()
     }
 
-    fn set_kernel(&self, degree : i32, kernel : Subspace);
+    fn get_lock(&self) -> MutexGuard<i32>;
+
+    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace);
     fn get_kernel(&self, degree : i32) -> Option<&Subspace>;
 
-    fn set_quasi_inverse(&self, degree : i32, kernel : QuasiInverse);
-    
+    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, kernel : QuasiInverse);    
     fn get_quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse>;
 
-    fn set_image(&self, degree : i32, image : Subspace); 
-    fn get_image(&self, degree : i32) -> Option<&Subspace>;    
-    fn get_image_pivots(&self, degree : i32) -> Option<&Vec<isize>> {
-        let image = self.get_image(degree);
-        return image.map(|subspace| &subspace.column_to_pivot_row );
+    fn get_image(&self, degree : i32) -> Option<&Subspace> {
+        let option_quasi_inverse = self.get_quasi_inverse(degree);
+        return option_quasi_inverse.map(|quasi_inverse| &quasi_inverse.image );    
     }
+    // fn get_image_pivots(&self, degree : i32) -> Option<&Vec<isize>> {
+    //     let image = self.get_image(degree);
+    //     return image.map(|subspace| &subspace.column_to_pivot_row );
+    // }
     
     fn get_matrix(&self, matrix : &mut Matrix, degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {
         let source_dimension = self.get_source().get_dimension(degree);
@@ -51,13 +56,16 @@ pub trait ModuleHomomorphism {
 pub struct ZeroHomomorphism<'a, 'b> {
     source : &'a Module,
     target : &'b Module,
+    max_degree : Mutex<i32>
 }
 
 impl<'a, 'b> ZeroHomomorphism<'a, 'b> {
     pub fn new(source : &'a Module, target : &'b Module) -> Self {
+        let max_degree =  Mutex::new(source.get_min_degree() - 1);
         ZeroHomomorphism {
             source,
-            target
+            target,
+            max_degree
         }
     }
 }
@@ -73,16 +81,13 @@ impl ModuleHomomorphism for ZeroHomomorphism<'_, '_> {
 
     fn apply_to_basis_element(&self, _result : &mut FpVector, _coeff : u32, _input_degree : i32, _input_idx : usize){}
 
-    fn set_kernel(&self, degree : i32, kernel : Subspace){}
+    fn get_lock(&self) -> MutexGuard<i32> {
+        self.max_degree.lock().unwrap()
+    }
+
+    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace){}
     fn get_kernel(&self, degree : i32) -> Option<&Subspace> { None }
 
-    fn set_quasi_inverse(&self, degree : i32, kernel : QuasiInverse){}
-    
+    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, kernel : QuasiInverse){}    
     fn get_quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse>{ None }
-
-    fn set_image(&self, _degree : i32, _image : Subspace){}
-
-    fn get_image(&self, _degree : i32) -> Option<&Subspace> { None }
-    
-    fn get_image_pivots(&self, _degree : i32) -> Option<&Vec<isize>> { None }
 }
