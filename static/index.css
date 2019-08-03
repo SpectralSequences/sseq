@@ -27,6 +27,7 @@ div.tooltip {
     width: 100%;
     height: 100%;
     padding-top: 1rem;
+    overflow: auto;
 }
 
 a.flex-grid {
