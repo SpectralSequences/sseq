@@ -1,4 +1,5 @@
 extern crate rust_ext;
+extern crate ansi_term;
 
 use rust_ext::Config;
 use rust_ext::run;
@@ -12,7 +13,7 @@ fn main() {
     });
 
     match run(config) {
-        Ok(string) => println!("{}", string),
+        Ok(string) => println!("{}", ansi_term::Style::new().bold().paint(string)),
         Err(e) => { eprintln!("Application error: {}", e); std::process::exit(1); }
     }
 }
