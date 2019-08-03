@@ -9,6 +9,7 @@ env:
 
 install:
     - npm install
+    - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
 matrix:
     allow_failures:
