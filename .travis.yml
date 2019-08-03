@@ -22,6 +22,11 @@ script:
     - cargo test --verbose
     - npm run build
 
+cache:
+    cargo: true
+    directories:
+        - node_modules
+
 deploy:
   provider: pages
   skip_cleanup: true
