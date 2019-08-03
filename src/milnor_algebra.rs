@@ -177,7 +177,6 @@ impl Algebra for MilnorAlgebra {
         let mut q_part = 0;
         let mut degree = 0;
 
-        println!("{:?}", json);
         if self.profile.generic {
             let p_list = json[1].as_array().unwrap();
             let q_list = json[0].as_array().unwrap();
@@ -201,7 +200,6 @@ impl Algebra for MilnorAlgebra {
                 let val = p_list[i].as_u64().unwrap();
                 p_part.push(val as u32);
                 degree += (val as i32) * xi_degrees[i];
-                println!("{:?}", p_part);
             }
         }
         let m = MilnorBasisElement { p_part, q_part, degree };
