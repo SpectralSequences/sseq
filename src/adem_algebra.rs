@@ -1010,9 +1010,10 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(non_snake_case)]
     fn test_adem(){
         let p = 2;
-        let mut A = AdemAlgebra::new(p, p != 2, false, 20);
+        let A = AdemAlgebra::new(p, p != 2, false, 20);
         A.compute_basis(10);
         let r_deg = 4;
         let r_idx = 0;
