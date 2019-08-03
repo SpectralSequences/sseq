@@ -231,12 +231,12 @@ impl<'a> FiniteDimensionalModule<'a> {
     }    
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn test_fd_mod(){
-
-    }
-
-}
+//#[cfg(test)]
+//mod tests {
+//    use super::*;
+//
+//    fn test_fd_mod(){
+//
+//    }
+//
+//}
