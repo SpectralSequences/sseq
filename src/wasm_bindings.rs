@@ -53,7 +53,7 @@ impl WasmModule {
         let algebra : &'static WasmAlgebra = unsafe { transmute(algebra) };
         let mut json : Value = serde_json::from_str(&json_string).unwrap();
         let adem_algebra = algebra.to_adem_algebra();
-        let module = FiniteDimensionalModule::adem_module_from_json(&adem_algebra, &mut json);
+        let module = FiniteDimensionalModule::from_json(adem_algebra, "adem", &mut json);
         let boxed_module : Box<Module> = Box::new(module);
         Self {
             pimpl : Box::into_raw(boxed_module)

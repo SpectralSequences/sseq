@@ -8,6 +8,7 @@ mod fp_vector;
 mod matrix;
 mod algebra;
 mod adem_algebra;
+mod milnor_algebra;
 mod module;
 mod module_homomorphism;
 mod finite_dimensional_module;
@@ -30,6 +31,7 @@ use serde_json::value::Value;
 
 use crate::algebra::Algebra;
 use crate::adem_algebra::AdemAlgebra;
+use crate::milnor_algebra::MilnorAlgebra;
 use crate::finite_dimensional_module::FiniteDimensionalModule;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero;
 use crate::resolution::Resolution;
@@ -58,9 +60,10 @@ fn run(config : Config) -> Result<(), Box<Error>> {
     let mut json : Value = serde_json::from_str(&contents)?;
     let p = json["p"].as_u64().unwrap() as u32;
     let max_degree = config.max_degree;
+
     let A = AdemAlgebra::new(p, p != 2, false, max_degree);
     A.compute_basis(max_degree);
-    let M = FiniteDimensionalModule::adem_module_from_json(&A, &mut json);
+    let M = FiniteDimensionalModule::from_json(&A, "adem", &mut json);
     let CC = ChainComplexConcentratedInDegreeZero::new(&M);
     let res = Resolution::new(&CC, max_degree, None, None);
     res.resolve_through_degree(max_degree);
@@ -87,4 +90,57 @@ impl Config {
         let max_degree = max_deg_result.unwrap();
         Ok(Self { module_name, max_degree })
     }
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn milnor_vs_adem() {
+        compare("S_2", 30);
+        compare("C2", 30);
+        compare("Joker", 30);
+        compare("RP4", 30);
+        compare("Csigma", 30);
+        compare("S_3", 30);
+        compare("Calpha", 30);
+        compare("C3", 60);
+    }
+
+    fn compare(filename : &str, max_degree : i32) {
+        let contents = std::fs::read_to_string(format!("static/modules/{}.json", filename)).unwrap();
+
+        assert_eq!(run_adem(&contents, max_degree), run_milnor(&contents, max_degree));
+    }
+
+    fn run_adem(contents : &str, max_degree : i32) -> String {
+        let mut json : Value = serde_json::from_str(contents).unwrap();
+        let p = json["p"].as_u64().unwrap() as u32;
+
+        let A = AdemAlgebra::new(p, p != 2, false, max_degree);
+        A.compute_basis(max_degree);
+        let M = FiniteDimensionalModule::from_json(&A, "adem", &mut json);
+        let CC = ChainComplexConcentratedInDegreeZero::new(&M);
+        let res = Resolution::new(&CC, max_degree, None, None);
+        res.resolve_through_degree(max_degree);
+
+        res.graded_dimension_string()
+    }
+
+    fn run_milnor(contents : &str, max_degree : i32) -> String {
+        let mut json : Value = serde_json::from_str(contents).unwrap();
+        let p = json["p"].as_u64().unwrap() as u32;
+
+        let A = MilnorAlgebra::new(p);
+        A.compute_basis(max_degree);
+        let M = FiniteDimensionalModule::from_json(&A, "milnor", &mut json);
+        let CC = ChainComplexConcentratedInDegreeZero::new(&M);
+        let res = Resolution::new(&CC, max_degree, None, None);
+        res.resolve_through_degree(max_degree);
+
+        res.graded_dimension_string()
+    }
+
 }

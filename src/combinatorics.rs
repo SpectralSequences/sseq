@@ -39,7 +39,7 @@ static mut BINOMIAL_TABLE : [Option<Vec<Vec<u32>>>; MAX_PRIME_INDEX] = [
     None,None,None,None
 ];
 
-static mut XI_DEGREES : [Option<Vec<u32>>; MAX_PRIME_INDEX] = [
+static mut XI_DEGREES : [Option<Vec<i32>>; MAX_PRIME_INDEX] = [
     None,None,None,None,None,None,None,None,None,None,
     None,None,None,None,None,None,None,None,None,None,
     None,None,None,None,None,None,None,None,None,None,
@@ -48,7 +48,7 @@ static mut XI_DEGREES : [Option<Vec<u32>>; MAX_PRIME_INDEX] = [
     None,None,None,None
 ];
 
-static mut TAU_DEGREES : [Option<Vec<u32>>; MAX_PRIME_INDEX] = [
+static mut TAU_DEGREES : [Option<Vec<i32>>; MAX_PRIME_INDEX] = [
     None,None,None,None,None,None,None,None,None,None,
     None,None,None,None,None,None,None,None,None,None,
     None,None,None,None,None,None,None,None,None,None,
@@ -287,10 +287,11 @@ pub fn binomial(p : u32, n : i32, k : i32) -> u32{
 
 pub fn initialize_xi_tau_degrees(p : u32){
     let p_idx = p as usize;
-    let mut xi : Vec<u32>= Vec::with_capacity(p_idx);
-    let mut tau : Vec<u32>= Vec::with_capacity(p_idx);
-    let mut current_xi_degree = 0u32;
-    let mut p_to_the_i = 1u32;
+    let p = p as i32;
+    let mut xi : Vec<i32>= Vec::with_capacity(MAX_XI_TAU);
+    let mut tau : Vec<i32>= Vec::with_capacity(MAX_XI_TAU);
+    let mut current_xi_degree = 0i32;
+    let mut p_to_the_i = 1i32;
     for _ in 0 .. MAX_XI_TAU {
         current_xi_degree += p_to_the_i;
         xi.push(current_xi_degree);
@@ -304,7 +305,7 @@ pub fn initialize_xi_tau_degrees(p : u32){
 }
 
 
-pub fn get_tau_degrees(p : u32) -> &'static [u32] {
+pub fn get_tau_degrees(p : u32) -> &'static [i32] {
     unsafe{
         if let Some(table) = &TAU_DEGREES[PRIME_TO_INDEX_MAP[p as usize]] {
             table
@@ -315,7 +316,7 @@ pub fn get_tau_degrees(p : u32) -> &'static [u32] {
     }
 }
 
-pub fn get_xi_degrees(p : u32) -> &'static [u32] {
+pub fn get_xi_degrees(p : u32) -> &'static [i32] {
     unsafe{
         if let Some(table) = &XI_DEGREES[PRIME_TO_INDEX_MAP[p as usize]] {
             table

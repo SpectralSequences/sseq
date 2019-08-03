@@ -1,6 +1,5 @@
 use crate::fp_vector::FpVector;
 use crate::algebra::Algebra;
-use crate::adem_algebra::AdemAlgebra;
 use crate::module::Module;
 use serde_json::value::Value;
 use std::collections::HashMap;
@@ -73,22 +72,20 @@ impl<'a> FiniteDimensionalModule<'a> {
         }
     }
 
-    pub fn adem_module_from_json(algebra : &'a AdemAlgebra, json : &mut Value ) -> Self {
+    pub fn from_json(algebra : &'a Algebra, algebra_name: &str, json : &mut Value) -> Self {
         let gens = json["gens"].take();
         let (min_degree, graded_dimension, gen_to_idx) = Self::module_gens_from_json(&gens);
         let name = json["name"].as_str().unwrap().to_string();
-        let mut actions_value = json["adem_actions"].take();
+        let mut actions_value = json[algebra_name.to_owned() + "_actions"].take();
         let actions = actions_value.as_array_mut().unwrap();
         let mut result = Self::new(algebra, name, min_degree, min_degree + graded_dimension.len() as i32, graded_dimension);
         for action in actions.iter_mut() {
-            let op : Vec<u32> = serde_json::from_value(action["op"].take()).unwrap();
-            println!("{:?}", op);
-            let b = algebra.py_op_to_basis_element(op);
-            println!("{:?}", b);
-            let idx = algebra.basis_element_to_index(&b);
+            let op = action["op"].take();
+            let (degree, idx) = algebra.json_to_basis(op);
+
             let input_name = action["input"].as_str().unwrap();
             let (input_degree, input_idx) = gen_to_idx[&input_name.to_string()];
-            let output_vec = result.get_action_mut(b.degree, idx, input_degree, input_idx);
+            let output_vec = result.get_action_mut(degree, idx, input_degree, input_idx);
             let outputs = action["output"].as_array().unwrap();
             for basis_elt in outputs {
                 let output_name = basis_elt["gen"].as_str().unwrap();
@@ -96,7 +93,7 @@ impl<'a> FiniteDimensionalModule<'a> {
                 let output_coeff = basis_elt["coeff"].as_u64().unwrap() as u32;
                 output_vec.set_entry(output_idx, output_coeff);
             }
-        }   
+        }
         return result;
     }
     

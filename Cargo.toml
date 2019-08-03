@@ -20,6 +20,7 @@ serde = "*"
 serde_json = "*"
 serde_derive = "*"
 js-sys = "0.3.22"
+itertools = "0.8.0"
 
 [dependencies.web-sys]
 version = "0.3.22"

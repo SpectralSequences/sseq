@@ -1,4 +1,5 @@
 use spin;
+use std::slice::Iter;
 
 pub struct Once<T> {
     once : spin::Once<T>
@@ -85,6 +86,10 @@ impl<T>  OnceVec<T> {
 
     pub fn push(&self, x : T) {
         unsafe { (*self.data.get()).push(x); }
+    }
+
+    pub fn iter(&self) -> Iter<T> {
+        self.get_vec().iter()
     }
 }
 
