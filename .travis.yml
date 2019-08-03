@@ -2,14 +2,13 @@ language: rust
 rust:
     - stable
     - beta
-    - nightly
 
 env:
     - RUST_BACKTRACE=1
 
 matrix:
     allow_failures:
-        - rust: nightly
+        - rust: beta
     fast_finish: true
 
 jobs:
@@ -27,4 +26,5 @@ deploy:
   keep_history: true
   local_dir: dist/
   on:
-    branch: master
+      branch: master
+      condition: "$TRAVIS_BUILD_STAGE_NAME = Node.js"
