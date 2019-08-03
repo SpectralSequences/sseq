@@ -26,9 +26,6 @@ extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 
-#[macro_use]
-extern crate rental;
-
 extern crate wasm_bindgen;
 extern crate web_sys;
 

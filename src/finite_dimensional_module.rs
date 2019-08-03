@@ -228,17 +228,6 @@ impl<'a> FiniteDimensionalModule<'a> {
     }    
 }
 
-<<<<<<< HEAD
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn test_fd_mod(){
-
-    }
-
-}
-=======
 //#[cfg(test)]
 //mod tests {
 //    use super::*;
@@ -248,4 +237,3 @@ mod tests {
 //    }
 //
 //}
->>>>>>> 0f0c5023f0d6f055cd024c977a03e55f001a9bfd

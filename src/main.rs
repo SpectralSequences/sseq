@@ -24,9 +24,6 @@ extern crate spin;
 #[macro_use]
 extern crate lazy_static;
 
-#[macro_use]
-extern crate rental;
-
 use serde_json::value::Value;
 
 use crate::algebra::Algebra;

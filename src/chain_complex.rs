@@ -63,63 +63,49 @@ pub struct ChainComplexConcentratedInDegreeZeroHomomorphisms<'b> {
     other_ds : ZeroHomomorphism<'b, 'b>,
 }
 
-rental!{
-    pub mod rent_ccdz {
-        use super::*;
-        #[rental]
-        pub struct ChainComplexConcentratedInDegreeZeroInner<'a> {
-            modules : Box<ChainComplexConcentratedInDegreeZeroModules<'a>>,
-            homomorphisms : ChainComplexConcentratedInDegreeZeroHomomorphisms<'modules>
-        }
-    }
-}
-
-
-
 pub struct ChainComplexConcentratedInDegreeZero<'a> {
-    ccdz_inner : rent_ccdz::ChainComplexConcentratedInDegreeZeroInner<'a>
+    modules : Box<ChainComplexConcentratedInDegreeZeroModules<'a>>,
+    homomorphisms : ChainComplexConcentratedInDegreeZeroHomomorphisms<'a>
 }
 
 impl<'a> ChainComplexConcentratedInDegreeZero<'a> {
     pub fn new(module : &'a Module) -> Self {
         let p = module.get_prime();
         let zero_module = ZeroModule::new(module.get_algebra());
-        let ccdzm = ChainComplexConcentratedInDegreeZeroModules {
+        let modules = ChainComplexConcentratedInDegreeZeroModules {
             module,
             zero_module
         };
-        let ccdzm_box = Box::new(ccdzm);
-        let ccdz_inner = rent_ccdz::ChainComplexConcentratedInDegreeZeroInner::new(
-            ccdzm_box,
-            |ccdzm| {
-                ChainComplexConcentratedInDegreeZeroHomomorphisms {
-                    d0 : ZeroHomomorphism::new(ccdzm.module, &ccdzm.zero_module),
-                    d1 : ZeroHomomorphism::new(&ccdzm.zero_module, ccdzm.module),
-                    other_ds : ZeroHomomorphism::new(&ccdzm.zero_module, &ccdzm.zero_module)
-                }
-            }
-        );
+        let ccdzm_box = Box::new(modules);
+        let ccdzm_cast : &'a ChainComplexConcentratedInDegreeZeroModules
+            = unsafe{ std::mem::transmute(&ccdzm_box) };
+        let homomorphisms = ChainComplexConcentratedInDegreeZeroHomomorphisms {
+            d0 : ZeroHomomorphism::new(ccdzm_cast.module, &ccdzm_cast.zero_module),
+            d1 : ZeroHomomorphism::new(&ccdzm_cast.zero_module, ccdzm_cast.module),
+            other_ds : ZeroHomomorphism::new(&ccdzm_cast.zero_module, &ccdzm_cast.zero_module)
+        };
         Self {
-            ccdz_inner    
+            modules : ccdzm_box,
+            homomorphisms
         }
     }
 }
 
 impl<'a> ChainComplex for ChainComplexConcentratedInDegreeZero<'a> {
     fn get_algebra(&self) -> &Algebra {
-        self.ccdz_inner.head().module.get_algebra()
+        self.modules.module.get_algebra()
     }
 
     fn get_module(&self, homological_degree : u32) -> &Module {
         if homological_degree == 0 {
-            return self.ccdz_inner.head().module;
+            return self.modules.module;
         } else {
-            return &self.ccdz_inner.head().zero_module;
+            return &self.modules.zero_module;
         }
     }
 
     fn get_min_degree(&self) -> i32 {
-        self.ccdz_inner.head().module.get_min_degree()
+        self.modules.module.get_min_degree()
     }
 
     // fn get_max_degree(&self) -> i32 {
@@ -127,16 +113,11 @@ impl<'a> ChainComplex for ChainComplexConcentratedInDegreeZero<'a> {
     // }
 
     fn get_differential<'b>(&'b self, homological_degree : u32) -> &'b ModuleHomomorphism {
-        self.ccdz_inner.rent(|ccdzd| {
-            let result = match homological_degree {
-                0 => &ccdzd.d0,
-                1 => &ccdzd.d1,
-                _ => &ccdzd.other_ds
-            };
-            unsafe{
-                std::mem::transmute::<_, &'b ZeroHomomorphism<'b, 'b>>(result)
-            }
-        })    
+        match homological_degree {
+            0 => &self.homomorphisms.d0,
+            1 => &self.homomorphisms.d1,
+            _ => &self.homomorphisms.other_ds
+        }
     }
 
     // fn get_quasi_inverse(&self, degree : i32, homological_degree : usize) -> QuasiInverse {

@@ -22,20 +22,9 @@ pub struct ResolutionHomomorphisms<'b> {
     chain_maps : Vec<FreeModuleHomomorphism<'b, 'b>>,
 }
 
-rental! {
-    pub mod rent_res {
-        use super::*;
-        #[rental]
-        pub struct ResolutionInner<'a> {
-            modules : Box<ResolutionModules<'a>>,
-            homomorphisms : ResolutionHomomorphisms<'modules>
-        }
-    }
-}
-
-
 pub struct Resolution<'a> {
-    res_inner : rent_res::ResolutionInner<'a>,
+    modules : Box<ResolutionModules<'a>>,
+    homomorphisms : ResolutionHomomorphisms<'a>,
     max_degree : i32,
     add_class : Option<Box<Fn(u32, i32, &str)>>,
     add_structline : Option<Box<Fn(
@@ -65,38 +54,36 @@ impl<'a> Resolution<'a> {
             modules.push(FreeModule::new(algebra, format!("F{}", i), min_degree, max_degree));
         }
 
-        let res_modules = ResolutionModules {
+        let modules = ResolutionModules {
             complex,
             modules,
             zero_module
         };
 
-        let res_modules_box = Box::new(res_modules);
-        
-        let res_inner = rent_res::ResolutionInner::new(
-            res_modules_box,
-            |res_modules| {
-                let mut differentials = Vec::with_capacity(num_degrees);
-                let mut chain_maps = Vec::with_capacity(num_degrees);                
-                for i in 0..num_degrees {
-                    let complex_module;
-                    unsafe {
-                        complex_module = std::mem::transmute::<_,&'static Module>(complex.get_module(i as u32));
-                    }
-                    chain_maps.push(FreeModuleHomomorphism::new(&res_modules.modules[i], complex_module, min_degree, 0, max_degree));
-                }
-                differentials.push(FreeModuleHomomorphism::new(&res_modules.modules[0], &res_modules.zero_module, min_degree, 0, max_degree));                
-                for i in 1..num_degrees {
-                    differentials.push(FreeModuleHomomorphism::new(&res_modules.modules[i], &res_modules.modules[i-1], min_degree, 0, max_degree));
-                }
-                ResolutionHomomorphisms {
-                    differentials,
-                    chain_maps
-                }
-            }
-        );
+        let modules_box = Box::new(modules);
+        let modules_cast : &'a Box<ResolutionModules<'a>>
+            = unsafe { std::mem::transmute(&modules_box) };
+
+        let mut differentials = Vec::with_capacity(num_degrees);
+        let mut chain_maps = Vec::with_capacity(num_degrees);                
+        for i in 0..num_degrees {
+            let complex_module : &'static Module = unsafe { 
+                std::mem::transmute(complex.get_module(i as u32)) 
+            };
+            chain_maps.push(FreeModuleHomomorphism::new(&modules_cast.modules[i], complex_module, min_degree, 0, max_degree));
+        }
+        differentials.push(FreeModuleHomomorphism::new(&modules_cast.modules[0], &modules_cast.zero_module, min_degree, 0, max_degree));                
+        for i in 1..num_degrees {
+            differentials.push(FreeModuleHomomorphism::new(&modules_cast.modules[i], &modules_cast.modules[i-1], min_degree, 0, max_degree));
+        }
+        let homomorphisms = ResolutionHomomorphisms {
+            differentials,
+            chain_maps
+        };
+
         Self {
-            res_inner,
+            modules : modules_box,
+            homomorphisms,
             max_degree,
             add_class,
             add_structline,
@@ -112,29 +99,19 @@ impl<'a> Resolution<'a> {
     }
     
     pub fn get_complex(&self) -> &ChainComplex {
-        self.res_inner.head().complex
+        self.modules.complex
     }
 
     pub fn get_module(&self, homological_degree : u32) -> &FreeModule {
-        &self.res_inner.head().modules[homological_degree as usize]
+        &self.modules.modules[homological_degree as usize]
     }
 
-    fn get_differential<'b>(&'b self, homological_degree : u32) -> &'b FreeModuleHomomorphism {
-        self.res_inner.rent(|res_homs| {
-            let result = &res_homs.differentials[homological_degree as usize];
-            unsafe {
-                std::mem::transmute::<_, &'b FreeModuleHomomorphism<'b, 'b>>(result)
-            }
-        })
+    fn get_differential(&self, homological_degree : u32) -> &FreeModuleHomomorphism {
+        &self.homomorphisms.differentials[homological_degree as usize]
     }
 
-    fn get_chain_map<'b>(&'b self, homological_degree : u32) -> &'b FreeModuleHomomorphism {
-        self.res_inner.rent(|res_homs| {
-            let result = &res_homs.chain_maps[homological_degree as usize];
-            unsafe {
-                std::mem::transmute::<_, &'b FreeModuleHomomorphism<'b, 'b>>(result)
-            }
-        }) 
+    fn get_chain_map(&self, homological_degree : u32) -> &FreeModuleHomomorphism {
+        &self.homomorphisms.chain_maps[homological_degree as usize]
     }
 
     pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
