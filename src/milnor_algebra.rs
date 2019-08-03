@@ -302,7 +302,7 @@ impl MilnorAlgebra {
                 residue += q;
             }
             self.qpart_table[residue as usize].push(QPart {
-                degree : total, 
+                degree : total,
                 q_part : bit_string
             });
         }
@@ -534,7 +534,7 @@ impl<'a> Iterator for PPartMultiplier<'a> {
             let i_min = if diag_idx + 1 > self.cols { diag_idx + 1 - self.cols } else {0} ;
             let i_max = std::cmp::min(1 + diag_idx, self.rows);
             let mut sum = 0;
-            
+
             diagonal.clear();
 
             for i in i_min..i_max {

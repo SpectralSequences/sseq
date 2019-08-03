@@ -81,7 +81,7 @@ impl Config {
         }
         let module_name = args[1].clone();
         let max_deg_result : Result<i32,_> = args[2].parse();
-        
+
         if let Err(error) = max_deg_result {
             return Err(format!("{} in argument max_degree.", error));
         }
