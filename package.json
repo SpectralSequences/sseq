@@ -1,5 +1,9 @@
 {
   "author": "Hood Chatham <hood@mit.edu>",
+  "contributors": [
+      "Hood Chatham <hood@mit.edu>",
+      "Dexter Chua <dexter@maath.harvard.edu>"
+  ],
   "name": "rust-ext",
   "description": "Compute ext over the Steenrod algebra",
   "version": "0.1.0",
