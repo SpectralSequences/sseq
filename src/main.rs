@@ -1,8 +1,9 @@
 extern crate rust_ext;
-extern crate ansi_term;
 
 use rust_ext::Config;
 use rust_ext::run;
+
+const BOLD_ANSI_CODE : &str = "\x1b[1m";
 
 #[allow(unreachable_code)]
 fn main() {
@@ -13,7 +14,7 @@ fn main() {
     });
 
     match run(config) {
-        Ok(string) => println!("{}", ansi_term::Style::new().bold().paint(string)),
+        Ok(string) => println!("{}{}", BOLD_ANSI_CODE, string),
         Err(e) => { eprintln!("Application error: {}", e); std::process::exit(1); }
     }
 }
