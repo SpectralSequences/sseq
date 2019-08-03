@@ -84,7 +84,7 @@ pub fn construct(config : Config) -> Result<AlgebraicObjectsBundle<'static>, Box
     // You need a box in order to allow for different possible types implementing the same trait
     let algebra : Box<Algebra>;
     match config.algebra_name.as_ref() {
-        "adem" => algebra = Box::new(AdemAlgebra::new(p, p != 2, false, max_degree)),
+        "adem" => algebra = Box::new(AdemAlgebra::new(p, p != 2, false)),
         "milnor" => algebra = Box::new(MilnorAlgebra::new(p)),
         _ => { println!("Invalid algebra"); return Err(Box::new(InvalidAlgebraError { name : config.algebra_name })); }
     };

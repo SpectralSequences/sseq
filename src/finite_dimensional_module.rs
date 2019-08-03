@@ -61,7 +61,6 @@ impl<'a> FiniteDimensionalModule<'a> {
     pub fn new(algebra : &'a Algebra, name : String, min_degree : i32, max_basis_degree : i32, graded_dimension : Vec<usize>) -> Self {
         algebra.compute_basis(max_basis_degree);
         assert!(max_basis_degree >= min_degree);
-        println!("min_degree : {}, max_degree : {}, graded_dimension : {:?}", min_degree, max_basis_degree, graded_dimension);
         let actions = FiniteDimensionalModule::allocate_actions(algebra, min_degree, (max_basis_degree - min_degree) as usize, &graded_dimension);
         FiniteDimensionalModule {
             algebra,

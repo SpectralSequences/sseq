@@ -1,6 +1,5 @@
 extern crate rust_ext;
 
-use std::error::Error;
 use rust_ext::Config;
 use rust_ext::run;
 

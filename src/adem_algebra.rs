@@ -150,7 +150,7 @@ impl Algebra for AdemAlgebra {
         let genericq = if self.generic { 1 } else { 0 };
         // assert!(max_degree + genericq <= self.basis_table.len() as i32);
         combinatorics::initialize_prime(self.p);
-        let mut old_max_degree = self.get_max_degree();
+        let old_max_degree = self.get_max_degree();
         if max_degree <= old_max_degree {
             return;
         }        
@@ -158,9 +158,6 @@ impl Algebra for AdemAlgebra {
             // generateMultiplcationTableGeneric sometimes goes over by one due to its bockstein logic.
             // rather than testing for this, we take the lazy way out and calculate everything else out one extra step.
             max_degree += 1;
-            if old_max_degree > 0 {
-                old_max_degree += 1; // If we've done work before, we also did that one extra step.
-            }
         }
         let mut max_degree = max_degree;
         let mut old_max_degree = old_max_degree;
@@ -248,19 +245,14 @@ impl Algebra for AdemAlgebra {
 // static void AdemAlgebra__initializeFields(AdemAlgebraInternal *algebra, uint p, bool generic, bool unstable);
 // uint AdemAlgebra__generateName(AdemAlgebra *algebra); // defined in adem_io
 impl AdemAlgebra {
-    pub fn new(p : u32, generic : bool, unstable : bool, max_degree : i32) -> Self {
+    pub fn new(p : u32, generic : bool, unstable : bool) -> Self {
         crate::combinatorics::initialize_prime(p);
         crate::fp_vector::initialize_limb_bit_index_table(p);
-        assert!(max_degree >= 0);
-        let mut max_degree = max_degree as usize;
-        if generic {
-            max_degree += 1;
-        }
-        let even_basis_table = OnceVec::with_capacity(max_degree);
-        let basis_table = OnceVec::with_capacity(max_degree);
-        let basis_element_to_index_map = OnceVec::with_capacity(max_degree);
-        let multiplication_table = OnceVec::with_capacity(max_degree);
-        let excess_table = OnceVec::with_capacity(max_degree);
+        let even_basis_table = OnceVec::new();
+        let basis_table = OnceVec::new();
+        let basis_element_to_index_map = OnceVec::new();
+        let multiplication_table = OnceVec::new();
+        let excess_table = OnceVec::new();
         let mut filtration_one_products = Vec::with_capacity(4);
         if generic {
             filtration_one_products.push(("a_0".to_string(), AdemBasisElement {
@@ -1018,7 +1010,7 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_adem(){
         let p = 2;
-        let A = AdemAlgebra::new(p, p != 2, false, 20);
+        let A = AdemAlgebra::new(p, p != 2, false);
         A.compute_basis(10);
         let r_deg = 4;
         let r_idx = 0;

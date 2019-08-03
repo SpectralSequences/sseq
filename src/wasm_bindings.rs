@@ -22,7 +22,7 @@ pub struct WasmAlgebra {
 #[wasm_bindgen]
 impl WasmAlgebra {
     pub fn new_adem_algebra(p : u32, generic : bool, max_degree : i32) -> Self {
-        let algebra = AdemAlgebra::new(p, generic, false, max_degree);
+        let algebra = AdemAlgebra::new(p, generic, false);
         let boxed_algebra = Box::new(algebra);
         Self {
             pimpl : Box::into_raw(boxed_algebra)

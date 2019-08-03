@@ -295,7 +295,7 @@ impl<'a> Resolution<'a> {
         let mut result = String::new();
         let min_degree = self.get_min_degree();
         let max_degree = self.get_max_degree();
-        let max_hom_deg = self.get_max_hom_deg();
+        let max_hom_deg = (max_degree - min_degree) as u32 / (self.get_prime() + 1); //self.get_max_hom_deg();
         for i in (0 .. max_hom_deg).rev() {
             let module = self.get_module(i);
             for j in min_degree + i as i32 .. max_degree {

@@ -205,7 +205,7 @@ mod tests {
     #[test]
     fn test_free_mod(){
         let p = 2;
-        let A = AdemAlgebra::new(p, p != 2, false, 10);
+        let A = AdemAlgebra::new(p, p != 2, false);
         A.compute_basis(10);
         let M = FreeModule::new(&A, "".to_string(), 0);
         let (lock, table) = M.construct_table(0);
