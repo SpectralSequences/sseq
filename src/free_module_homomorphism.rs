@@ -1,7 +1,7 @@
 use std::sync::{Mutex, MutexGuard};
 
 use crate::once::OnceVec;
-use crate::fp_vector::FpVector;
+use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::Module;
 use crate::module_homomorphism::ModuleHomomorphism;

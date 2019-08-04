@@ -22,6 +22,7 @@ extern crate rand;
 
 #[macro_use]
 extern crate lazy_static;
+extern crate enum_dispatch;
 
 extern crate serde_json;
 

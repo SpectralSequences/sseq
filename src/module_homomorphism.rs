@@ -1,6 +1,6 @@
 use std::sync::{Mutex, MutexGuard};
 
-use crate::fp_vector::FpVector;
+use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::Module;
 

@@ -1,5 +1,5 @@
 use crate::combinatorics;
-use crate::fp_vector::FpVector;
+use crate::fp_vector::{FpVector, FpVectorT};
 
 
 use std::fmt;

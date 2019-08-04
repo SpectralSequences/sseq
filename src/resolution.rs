@@ -2,7 +2,7 @@
 
 use std::cmp::max;
 
-use crate::fp_vector::FpVector;
+use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace};
 use crate::algebra::Algebra;
 use crate::module::{Module, ZeroModule};

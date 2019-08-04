@@ -1,4 +1,4 @@
-use crate::fp_vector::FpVector;
+use crate::fp_vector::{FpVector, FpVectorT};
 // use crate::once::OnceRefOwned;
 use crate::matrix::{Matrix, Subspace }; //QuasiInverse
 use crate::algebra::Algebra;

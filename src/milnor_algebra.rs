@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use crate::fp_vector::FpVector;
+use crate::fp_vector::{FpVector, FpVectorT};
 use crate::once::OnceVec;
 use crate::algebra::Algebra;
 use itertools::Itertools;
