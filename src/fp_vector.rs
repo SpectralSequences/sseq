@@ -569,6 +569,7 @@ impl FpVector {
     pub fn iter(&self) -> FpVectorIterator{
         FpVectorIterator {
             vect : &self,
+            dim : self.get_dimension(),
             index : 0
         }
     }
@@ -638,6 +639,7 @@ impl FpVector {
 }
 pub struct FpVectorIterator<'a> {
     vect : &'a FpVector,
+    dim : usize,
     index : usize
 }
 
@@ -645,7 +647,7 @@ pub struct FpVectorIterator<'a> {
 impl<'a> Iterator for FpVectorIterator<'a> {
     type Item = u32;
     fn next(&mut self) -> Option<Self::Item>{
-        if self.index < self.vect.get_dimension() {
+        if self.index < self.dim {
             let result = Some(self.vect.get_entry(self.index));
             self.index += 1;
             result
