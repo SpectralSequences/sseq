@@ -1,12 +1,13 @@
 use std::sync::{Mutex, MutexGuard};
+use std::rc::Rc;
 
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::Module;
 
 pub trait ModuleHomomorphism {
-    fn get_source(&self) -> &Module;
-    fn get_target(&self) -> &Module;
+    fn get_source(&self) -> Rc<dyn Module>;
+    fn get_target(&self) -> Rc<dyn Module>;
 
     fn get_min_degree(&self) -> i32 {
         self.get_source().get_min_degree()
@@ -53,14 +54,15 @@ pub trait ModuleHomomorphism {
     }    
 }
 
-pub struct ZeroHomomorphism<'a, 'b> {
-    source : &'a Module,
-    target : &'b Module,
+// Maybe we should use static dispatch here? This would also get rid of a bunch of casting.
+pub struct ZeroHomomorphism {
+    source : Rc<dyn Module>,
+    target : Rc<dyn Module>,
     max_degree : Mutex<i32>
 }
 
-impl<'a, 'b> ZeroHomomorphism<'a, 'b> {
-    pub fn new(source : &'a Module, target : &'b Module) -> Self {
+impl ZeroHomomorphism {
+    pub fn new(source : Rc<dyn Module>, target : Rc<dyn Module>) -> Self {
         let max_degree =  Mutex::new(source.get_min_degree() - 1);
         ZeroHomomorphism {
             source,
@@ -70,13 +72,13 @@ impl<'a, 'b> ZeroHomomorphism<'a, 'b> {
     }
 }
 
-impl ModuleHomomorphism for ZeroHomomorphism<'_, '_> {
-    fn get_source(&self) -> &Module {
-        return self.source;
+impl ModuleHomomorphism for ZeroHomomorphism {
+    fn get_source(&self) -> Rc<dyn Module> {
+        Rc::clone(&self.source)
     }
 
-    fn get_target(&self) -> &Module {
-        return self.target;
+    fn get_target(&self) -> Rc<dyn Module> {
+        Rc::clone(&self.target)
     }
 
     fn apply_to_basis_element(&self, _result : &mut FpVector, _coeff : u32, _input_degree : i32, _input_idx : usize){}

@@ -1,5 +1,6 @@
 use wasm_bindgen::prelude::*;
 
+use std::rc::Rc;
 use std::mem::transmute;
 use serde_json::value::Value;
 
@@ -7,7 +8,6 @@ use crate::algebra::Algebra;
 use crate::adem_algebra::AdemAlgebra;
 use crate::module::Module;
 use crate::finite_dimensional_module::FiniteDimensionalModule;
-// use crate::free_module::FreeModule;
 use crate::chain_complex::{ChainComplex, ChainComplexConcentratedInDegreeZero};
 use crate::resolution::Resolution;
 
@@ -16,16 +16,16 @@ use crate::resolution::Resolution;
 
 #[wasm_bindgen]
 pub struct WasmAlgebra {
-    pimpl : *mut AdemAlgebra
+    pimpl : *const AdemAlgebra
 }
 
 #[wasm_bindgen]
 impl WasmAlgebra {
     pub fn new_adem_algebra(p : u32, generic : bool, max_degree : i32) -> Self {
         let algebra = AdemAlgebra::new(p, generic, false);
-        let boxed_algebra = Box::new(algebra);
+        let boxed_algebra = Rc::new(algebra);
         Self {
-            pimpl : Box::into_raw(boxed_algebra)
+            pimpl : Rc::into_raw(boxed_algebra)
         }
     }
 
@@ -33,77 +33,76 @@ impl WasmAlgebra {
         self.to_adem_algebra().compute_basis(degree);
     }
 
-    fn to_adem_algebra(&self) -> &AdemAlgebra {
-        unsafe { &*self.pimpl }
+    fn to_adem_algebra(&self) -> Rc<AdemAlgebra> {
+        let raw = unsafe { Rc::from_raw(self.pimpl) };
+        let clone = Rc::clone(&raw);
+        std::mem::forget(raw);
+        clone
     }
 
     pub fn free(self) {
-        let _drop_me = unsafe { Box::from_raw(self.pimpl) };
+        let _drop_me = unsafe { Rc::from_raw(self.pimpl) };
     }
 }
 
 #[wasm_bindgen]
 pub struct WasmModule {
-    pimpl : *mut Module
+    pimpl : *const dyn Module
 }
 
 #[wasm_bindgen]
 impl WasmModule {
     pub fn new_adem_module(algebra : &WasmAlgebra, json_string : String) -> WasmModule {
-        let algebra : &'static WasmAlgebra = unsafe { transmute(algebra) };
         let mut json : Value = serde_json::from_str(&json_string).unwrap();
-        let adem_algebra = algebra.to_adem_algebra();
-        let module = FiniteDimensionalModule::from_json(adem_algebra, "adem", &mut json);
-        let boxed_module : Box<Module> = Box::new(module);
+        let module = FiniteDimensionalModule::from_json(algebra.to_adem_algebra(), "adem", &mut json);
+        let boxed_module : Rc<dyn Module> = Rc::new(module);
         Self {
-            pimpl : Box::into_raw(boxed_module)
-        }        
+            pimpl : Rc::into_raw(boxed_module)
+        }
     }
 
-    fn to_module(&self) -> &Module {
-        unsafe { &*self.pimpl }
+    fn to_module(&self) -> Rc<dyn Module> {
+        unsafe { Rc::clone(&Rc::from_raw(self.pimpl)) }
     }
 
     pub fn free(self) {
-        let _drop_me = unsafe { Box::from_raw(self.pimpl) };
+        let _drop_me = unsafe { Rc::from_raw(self.pimpl) };
     }
 }
 
 #[wasm_bindgen]
 pub struct WasmChainComplex {
-    pimpl : *mut ChainComplex
+    pimpl : *const dyn ChainComplex
 }
 
 #[wasm_bindgen]
 impl WasmChainComplex {
     pub fn new_ccdz(module : &WasmModule) -> Self {
-        let module : &'static WasmModule = unsafe { transmute(module) };
         let cc = ChainComplexConcentratedInDegreeZero::new(module.to_module());
-        let boxed_cc : Box<ChainComplex> = Box::new(cc);
+        let boxed_cc : Rc<dyn ChainComplex> = Rc::new(cc);
         Self {
-            pimpl : Box::into_raw(boxed_cc)
+            pimpl : Rc::into_raw(boxed_cc)
         }
     }
 
-    fn to_chain_complex(&self) -> &ChainComplex {
-        unsafe { &*self.pimpl }
+    fn to_chain_complex(&self) -> Rc<dyn ChainComplex> {
+        unsafe { Rc::clone(&Rc::from_raw(self.pimpl)) }
     }
 
     pub fn free(self) {
-        let _drop_me = unsafe { Box::from_raw(self.pimpl) };
+        let _drop_me = unsafe { Rc::from_raw(self.pimpl) };
     }
 }
 
 
 #[wasm_bindgen]
 pub struct WasmResolution {
-   pimpl : *const Resolution<'static>
+   pimpl : *const Resolution
 }
 
 #[wasm_bindgen]
 impl WasmResolution {
     pub fn new(chain_complex : &WasmChainComplex, max_degree : i32, add_class : js_sys::Function, add_structline : js_sys::Function) -> Self {
-        let chain_complex : &'static WasmChainComplex = unsafe { transmute(chain_complex) };
         let chain_complex = chain_complex.to_chain_complex();
         let algebra = chain_complex.get_algebra();
         algebra.compute_basis(max_degree);
