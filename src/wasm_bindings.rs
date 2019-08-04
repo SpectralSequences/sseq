@@ -6,10 +6,11 @@ use serde_json::value::Value;
 
 use crate::algebra::Algebra;
 use crate::adem_algebra::AdemAlgebra;
-use crate::module::Module;
-use crate::finite_dimensional_module::FiniteDimensionalModule;
-use crate::chain_complex::{ChainComplex, ChainComplexConcentratedInDegreeZero};
-use crate::resolution::Resolution;
+// use crate::module::Module;
+use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
+// use crate::module_homomorphism::ModuleHomomorphism;
+use crate::chain_complex::{ChainComplex, ChainComplexConcentratedInDegreeZero as CCDZ};
+use crate::resolution::{Resolution, FDModuleResolution};
 
 
 // use web_sys::console;
@@ -46,22 +47,22 @@ impl WasmAlgebra {
 }
 
 #[wasm_bindgen]
-pub struct WasmModule {
-    pimpl : *const dyn Module
+pub struct WasmFDModule {
+    pimpl : *const FDModule
 }
 
 #[wasm_bindgen]
-impl WasmModule {
-    pub fn new_adem_module(algebra : &WasmAlgebra, json_string : String) -> WasmModule {
+impl WasmFDModule {
+    pub fn new_adem_module(algebra : &WasmAlgebra, json_string : String) -> WasmFDModule {
         let mut json : Value = serde_json::from_str(&json_string).unwrap();
-        let module = FiniteDimensionalModule::from_json(algebra.to_adem_algebra(), "adem", &mut json);
-        let boxed_module : Rc<dyn Module> = Rc::new(module);
+        let module = FDModule::from_json(algebra.to_adem_algebra(), "adem", &mut json);
+        let boxed_module = Rc::new(module);
         Self {
             pimpl : Rc::into_raw(boxed_module)
         }
     }
 
-    fn to_module(&self) -> Rc<dyn Module> {
+    fn to_module(&self) -> Rc<FDModule> {
         unsafe { Rc::clone(&Rc::from_raw(self.pimpl)) }
     }
 
@@ -70,22 +71,24 @@ impl WasmModule {
     }
 }
 
-#[wasm_bindgen]
-pub struct WasmChainComplex {
-    pimpl : *const dyn ChainComplex
-}
 
 #[wasm_bindgen]
-impl WasmChainComplex {
-    pub fn new_ccdz(module : &WasmModule) -> Self {
-        let cc = ChainComplexConcentratedInDegreeZero::new(module.to_module());
-        let boxed_cc : Rc<dyn ChainComplex> = Rc::new(cc);
+pub struct WasmCCDZ {
+    pimpl : *const CCDZ<FDModule>
+}
+
+
+#[wasm_bindgen]
+impl WasmCCDZ {
+    pub fn new_ccdz(module : &WasmFDModule) -> Self {
+        let cc = CCDZ::new(module.to_module());
+        let boxed_cc : Rc<CCDZ<FDModule>> = Rc::new(cc);
         Self {
             pimpl : Rc::into_raw(boxed_cc)
         }
     }
 
-    fn to_chain_complex(&self) -> Rc<dyn ChainComplex> {
+    fn to_chain_complex(&self) -> Rc<CCDZ<FDModule>> {
         unsafe { Rc::clone(&Rc::from_raw(self.pimpl)) }
     }
 
@@ -97,12 +100,12 @@ impl WasmChainComplex {
 
 #[wasm_bindgen]
 pub struct WasmResolution {
-   pimpl : *const Resolution
+   pimpl : *const FDModuleResolution
 }
 
 #[wasm_bindgen]
 impl WasmResolution {
-    pub fn new(chain_complex : &WasmChainComplex, max_degree : i32, add_class : js_sys::Function, add_structline : js_sys::Function) -> Self {
+    pub fn new(chain_complex : &WasmCCDZ, max_degree : i32, add_class : js_sys::Function, add_structline : js_sys::Function) -> Self {
         let chain_complex = chain_complex.to_chain_complex();
         let algebra = chain_complex.get_algebra();
         algebra.compute_basis(max_degree);
@@ -134,7 +137,7 @@ impl WasmResolution {
         let add_stuctline_wrapper_box = Box::new(add_stuctline_wrapper);
         let res = Resolution::new(chain_complex, max_degree, Some(add_class_wrapper_box), Some(add_stuctline_wrapper_box)); 
         let boxed_res = Box::new(res);
-        let pimpl : *const Resolution = Box::into_raw(boxed_res);
+        let pimpl : *const FDModuleResolution = Box::into_raw(boxed_res);
         Self {
             pimpl
         }
@@ -155,7 +158,7 @@ impl WasmResolution {
     }
 
     pub fn free(self) {
-         let _drop_me :  Box<Resolution> = unsafe {
+         let _drop_me :  Box<FDModuleResolution> = unsafe {
               transmute(self.pimpl)
          };
     }

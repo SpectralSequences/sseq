@@ -32,9 +32,10 @@ extern crate web_sys;
 use crate::algebra::Algebra;
 use crate::adem_algebra::AdemAlgebra;
 use crate::milnor_algebra::MilnorAlgebra;
-use crate::module::Module;
-use crate::finite_dimensional_module::FiniteDimensionalModule;
-use crate::chain_complex::{ChainComplex, ChainComplexConcentratedInDegreeZero};
+// use crate::module::Module;
+use crate::finite_dimensional_module::{FiniteDimensionalModule as FDModule, OptionFDModule};
+use crate::module_homomorphism::{ZeroHomomorphism}; //ModuleHomomorphism
+use crate::chain_complex::{ChainComplexConcentratedInDegreeZero as CCDZ}; // ChainComplex,
 use crate::resolution::Resolution;
 
 use std::rc::Rc;
@@ -60,9 +61,13 @@ impl Error for InvalidAlgebraError {
 
 pub struct AlgebraicObjectsBundle {
     algebra : Rc<dyn Algebra>,
-    module : Option<Rc<dyn Module>>,
-    chain_complex : Rc<dyn ChainComplex>,
-    resolution : Box<Resolution>
+    module : Option<Rc<FDModule>>,
+    chain_complex : Rc<CCDZ<FDModule>>,
+    resolution : Box<Resolution<
+                    OptionFDModule, 
+                    ZeroHomomorphism<OptionFDModule, OptionFDModule>,
+                    CCDZ<FDModule>
+                >>
 }
 
 pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle, Box<dyn Error>> {
@@ -77,8 +82,8 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle, Box<dyn Err
         "milnor" => algebra = Rc::new(MilnorAlgebra::new(p)),
         _ => { return Err(Box::new(InvalidAlgebraError { name : config.algebra_name.clone() })); }
     };
-    let module : Rc<dyn Module> = Rc::new(FiniteDimensionalModule::from_json(Rc::clone(&algebra), &config.algebra_name, &mut json));
-    let cc : Rc<dyn ChainComplex> = Rc::new(ChainComplexConcentratedInDegreeZero::new(Rc::clone(&module)));
+    let module : Rc<FDModule> = Rc::new(FDModule::from_json(Rc::clone(&algebra), &config.algebra_name, &mut json));
+    let cc : Rc<CCDZ<FDModule>> = Rc::new(CCDZ::new(Rc::clone(&module)));
     let res = Box::new(Resolution::new(Rc::clone(&cc), config.max_degree, None, None));
 
     Ok(AlgebraicObjectsBundle {

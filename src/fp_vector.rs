@@ -4,11 +4,11 @@
 
 use std::sync::Once;
 use std::fmt;
+use enum_dispatch::enum_dispatch;
 
 use crate::combinatorics::valid_prime_q;
 use crate::combinatorics::PRIME_TO_INDEX_MAP;
 use crate::combinatorics::MAX_PRIME_INDEX;
-use enum_dispatch::enum_dispatch;
 
 pub const MAX_DIMENSION : usize = 147500;
 

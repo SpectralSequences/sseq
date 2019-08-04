@@ -1,6 +1,8 @@
+use std::rc::Rc;
+// use enum_dispatch::enum_dispatch;
+
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::algebra::Algebra;
-use std::rc::Rc;
 
 // enum Module_Type {
 
@@ -14,12 +16,12 @@ pub trait Module {
     fn get_name(&self) -> &str;
     // fn get_type() -> Module_Type;
     // int min_degree;
-    // int max_degree; // Rename to max_allocated_degree?
+    // int max_degree; // Rename to max_allocated_degree?2
     // int max_computed_degree;
 // Methods:
     fn get_min_degree(&self) -> i32;
     // fn get_max_degree(&self) -> i32;
-    fn compute_basis(&mut self, _degree : i32) {}
+    fn compute_basis(&self, _degree : i32) {}
     fn get_dimension(&self, degree : i32) -> usize;
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize);
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String;
@@ -101,5 +103,119 @@ impl Module for ZeroModule {
     fn basis_element_to_string(&self, _degree : i32, _index : usize) -> String{
         assert!(false);
         "".to_string()
+    }
+}
+
+// #[enum_dispatch(Module)]
+// pub enum ModuleChoice<L : Module, R : Module> {
+//     IntroL(L),
+//     IntroR(R)
+// }
+
+// impl<L : Module, R : Module> Module for ModuleChoice<L, R> {
+//     fn get_algebra(&self) -> Rc<dyn Algebra> {
+//         match self {
+//             ModuleChoice::IntroL(l) => l.get_algebra(),
+//             ModuleChoice::IntroR(r) => r.get_algebra()
+//         }
+//     }
+
+//     fn get_name(&self) -> &str {
+//         match self {
+//             ModuleChoice::IntroL(l) => l.get_name(),
+//             ModuleChoice::IntroR(r) => r.get_name()
+//         }
+//     }
+
+//     fn get_min_degree(&self) -> i32 {
+//         match self {
+//             ModuleChoice::IntroL(l) => l.get_min_degree(),
+//             ModuleChoice::IntroR(r) => r.get_min_degree()
+//         }
+//     }
+
+//     fn compute_basis(&mut self, degree : i32) {
+//         match self {
+//             ModuleChoice::IntroL(l) => l.compute_basis(degree),
+//             ModuleChoice::IntroR(r) => r.compute_basis(degree)
+//         }
+//     }
+
+//     fn get_dimension(&self, degree : i32) -> usize {
+//         match self {
+//             ModuleChoice::IntroL(l) => l.get_dimension(degree),
+//             ModuleChoice::IntroR(r) => r.get_dimension(degree)
+//         }
+//     }
+
+//     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize){
+//         match self {
+//             ModuleChoice::IntroL(l) => l.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index),
+//             ModuleChoice::IntroR(r) => r.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index)
+//         }
+//     }
+
+//     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
+//         match self {
+//             ModuleChoice::IntroL(l) => l.basis_element_to_string(degree, idx),
+//             ModuleChoice::IntroR(r) => r.basis_element_to_string(degree, idx)
+//         }
+//     }
+// }
+
+
+pub enum OptionModule<M : Module> {
+    Some(Rc<M>),
+    Zero(Rc<ZeroModule>)
+}
+
+impl<M : Module> Module for OptionModule<M> {
+    fn get_algebra(&self) -> Rc<dyn Algebra> {
+        match self {
+            OptionModule::Some(l) => l.get_algebra(),
+            OptionModule::Zero(r) => r.get_algebra()
+        }
+    }
+
+    fn get_name(&self) -> &str {
+        match self {
+            OptionModule::Some(l) => l.get_name(),
+            OptionModule::Zero(r) => r.get_name()
+        }
+    }
+
+    fn get_min_degree(&self) -> i32 {
+        match self {
+            OptionModule::Some(l) => l.get_min_degree(),
+            OptionModule::Zero(r) => r.get_min_degree()
+        }
+    }
+
+    fn compute_basis(&self, degree : i32) {
+        match self {
+            OptionModule::Some(l) => l.compute_basis(degree),
+            OptionModule::Zero(r) => r.compute_basis(degree)
+        }
+    }
+
+    fn get_dimension(&self, degree : i32) -> usize {
+        match self {
+            OptionModule::Some(l) => l.get_dimension(degree),
+            OptionModule::Zero(r) => r.get_dimension(degree)
+        }
+    }
+
+    fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize){
+        match self {
+            OptionModule::Some(l) => l.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index),
+            OptionModule::Zero(r) => r.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index)
+        }
+    }
+
+    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
+        match self {
+            OptionModule::Some(l) => l.basis_element_to_string(degree, idx),
+            OptionModule::Zero(r) => r.basis_element_to_string(degree, idx)
+        }
     }
 }

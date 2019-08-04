@@ -8,9 +8,9 @@ use crate::module::Module;
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module::{FreeModule, FreeModuleTableEntry};
 
-pub struct FreeModuleHomomorphism {
+pub struct FreeModuleHomomorphism<M : Module> {
     pub source : Rc<FreeModule>,
-    pub target : Rc<dyn Module>,
+    pub target : Rc<M>,
     outputs : OnceVec<Vec<FpVector>>, // degree --> input_idx --> output
     kernel : OnceVec<Subspace>,
     quasi_inverse : OnceVec<QuasiInverse>,
@@ -19,12 +19,12 @@ pub struct FreeModuleHomomorphism {
     degree_shift : i32
 }
 
-impl ModuleHomomorphism for FreeModuleHomomorphism {
-    fn get_source(&self) -> Rc<dyn Module> {
-        Rc::clone(&self.source) as Rc<dyn Module>
+impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M> {
+    fn get_source(&self) -> Rc<FreeModule> {
+        Rc::clone(&self.source)
     }
 
-    fn get_target(&self) -> Rc<dyn Module> {
+    fn get_target(&self) -> Rc<M> {
         Rc::clone(&self.target)
     }
 
@@ -73,8 +73,8 @@ impl ModuleHomomorphism for FreeModuleHomomorphism {
 // }
 
 
-impl FreeModuleHomomorphism {
-    pub fn new(source : Rc<FreeModule>, target : Rc<dyn Module>, min_degree : i32, degree_shift : i32, max_degree : i32) -> Self {
+impl<M : Module> FreeModuleHomomorphism<M> {
+    pub fn new(source : Rc<FreeModule>, target : Rc<M>, min_degree : i32, degree_shift : i32, max_degree : i32) -> Self {
         let num_degrees = max_degree as usize - min_degree as usize;
         let outputs = OnceVec::with_capacity(num_degrees);
         let kernel = OnceVec::with_capacity(num_degrees);

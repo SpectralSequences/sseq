@@ -5,9 +5,9 @@ use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::Module;
 
-pub trait ModuleHomomorphism {
-    fn get_source(&self) -> Rc<dyn Module>;
-    fn get_target(&self) -> Rc<dyn Module>;
+pub trait ModuleHomomorphism<S : Module, T : Module> {
+    fn get_source(&self) -> Rc<S>;
+    fn get_target(&self) -> Rc<T>;
 
     fn get_min_degree(&self) -> i32 {
         self.get_source().get_min_degree()
@@ -55,14 +55,14 @@ pub trait ModuleHomomorphism {
 }
 
 // Maybe we should use static dispatch here? This would also get rid of a bunch of casting.
-pub struct ZeroHomomorphism {
-    source : Rc<dyn Module>,
-    target : Rc<dyn Module>,
+pub struct ZeroHomomorphism<S : Module, T : Module> {
+    source : Rc<S>,
+    target : Rc<T>,
     max_degree : Mutex<i32>
 }
 
-impl ZeroHomomorphism {
-    pub fn new(source : Rc<dyn Module>, target : Rc<dyn Module>) -> Self {
+impl<S : Module, T : Module> ZeroHomomorphism<S, T> {
+    pub fn new(source : Rc<S>, target : Rc<T>) -> Self {
         let max_degree =  Mutex::new(source.get_min_degree() - 1);
         ZeroHomomorphism {
             source,
@@ -72,12 +72,12 @@ impl ZeroHomomorphism {
     }
 }
 
-impl ModuleHomomorphism for ZeroHomomorphism {
-    fn get_source(&self) -> Rc<dyn Module> {
+impl<S : Module, T : Module> ModuleHomomorphism<S, T> for ZeroHomomorphism<S, T> {
+    fn get_source(&self) -> Rc<S> {
         Rc::clone(&self.source)
     }
 
-    fn get_target(&self) -> Rc<dyn Module> {
+    fn get_target(&self) -> Rc<T> {
         Rc::clone(&self.target)
     }
 

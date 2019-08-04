@@ -1,6 +1,6 @@
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::algebra::Algebra;
-use crate::module::Module;
+use crate::module::{Module, OptionModule};
 use serde_json::value::Value;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -29,7 +29,7 @@ impl Module for FiniteDimensionalModule {
         self.min_degree
     }
     
-    fn compute_basis(&mut self, _degree : i32){ }
+    fn compute_basis(&self, _degree : i32){ }
 
     fn get_dimension(&self, degree : i32) -> usize {
         if degree < self.min_degree {
@@ -228,3 +228,5 @@ impl FiniteDimensionalModule {
         return &mut self.actions[input_degree_idx][in_out_diff][operation_idx][input_idx];
     }    
 }
+
+pub type OptionFDModule = OptionModule<FiniteDimensionalModule>;
