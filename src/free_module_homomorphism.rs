@@ -1,4 +1,5 @@
 use std::sync::{Mutex, MutexGuard};
+use std::rc::Rc;
 
 use crate::once::OnceVec;
 use crate::fp_vector::FpVector;
@@ -7,9 +8,9 @@ use crate::module::Module;
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module::{FreeModule, FreeModuleTableEntry};
 
-pub struct FreeModuleHomomorphism<'a, 'b> {
-    pub source : &'b FreeModule<'a>,
-    pub target : &'b Module,
+pub struct FreeModuleHomomorphism {
+    pub source : Rc<FreeModule>,
+    pub target : Rc<dyn Module>,
     outputs : OnceVec<Vec<FpVector>>, // degree --> input_idx --> output
     kernel : OnceVec<Subspace>,
     quasi_inverse : OnceVec<QuasiInverse>,
@@ -18,12 +19,13 @@ pub struct FreeModuleHomomorphism<'a, 'b> {
     degree_shift : i32
 }
 
-impl ModuleHomomorphism for FreeModuleHomomorphism<'_, '_> {
-    fn get_source(&self) -> &Module {
-        self.source
+impl ModuleHomomorphism for FreeModuleHomomorphism {
+    fn get_source(&self) -> Rc<dyn Module> {
+        Rc::clone(&self.source) as Rc<dyn Module>
     }
-    fn get_target(&self) -> &Module {
-        self.target
+
+    fn get_target(&self) -> Rc<dyn Module> {
+        Rc::clone(&self.target)
     }
 
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_index : usize){
@@ -71,8 +73,8 @@ impl ModuleHomomorphism for FreeModuleHomomorphism<'_, '_> {
 // }
 
 
-impl<'a, 'b> FreeModuleHomomorphism<'a, 'b> {
-    pub fn new(source : &'b FreeModule<'a>, target : &'b Module, min_degree : i32, degree_shift : i32, max_degree : i32) -> Self {
+impl FreeModuleHomomorphism {
+    pub fn new(source : Rc<FreeModule>, target : Rc<dyn Module>, min_degree : i32, degree_shift : i32, max_degree : i32) -> Self {
         let num_degrees = max_degree as usize - min_degree as usize;
         let outputs = OnceVec::with_capacity(num_degrees);
         let kernel = OnceVec::with_capacity(num_degrees);

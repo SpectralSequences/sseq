@@ -13,7 +13,7 @@ fn main() {
         std::process::exit(1);
     });
 
-    match run(config) {
+    match run(&config) {
         Ok(string) => println!("{}{}", BOLD_ANSI_CODE, string),
         Err(e) => { eprintln!("Application error: {}", e); std::process::exit(1); }
     }
@@ -49,7 +49,7 @@ mod tests {
             algebra_name : String::from("milnor")
         };
 
-        match (run(a), run(m)) {
+        match (run(&a), run(&m)) {
             (Err(e), _)    => panic!("Failed to read file: {}", e),
             (_, Err(e))    => panic!("Failed to read file: {}", e),
             (Ok(x), Ok(y)) => assert_eq!(x, y)

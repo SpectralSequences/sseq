@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 
 use std::cmp::max;
+use std::rc::Rc;
 
 use crate::fp_vector::FpVector;
 use crate::matrix::{Matrix, Subspace};
@@ -11,79 +12,60 @@ use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
 use crate::chain_complex::ChainComplex;
 
-pub struct ResolutionModules<'a> {
-    complex : &'a ChainComplex,
-    modules : Vec<FreeModule<'a>>,
-    zero_module : ZeroModule<'a>,
-}
+pub struct Resolution {
+    complex : Rc<dyn ChainComplex>,
+    chain_maps : Vec<FreeModuleHomomorphism>,
 
-pub struct ResolutionHomomorphisms<'b> {
-    differentials : Vec<FreeModuleHomomorphism<'b, 'b>>,
-    chain_maps : Vec<FreeModuleHomomorphism<'b, 'b>>,
-}
+    modules : Vec<Rc<FreeModule>>,
+    differentials : Vec<FreeModuleHomomorphism>,
 
-pub struct Resolution<'a> {
-    modules : Box<ResolutionModules<'a>>,
-    homomorphisms : ResolutionHomomorphisms<'a>,
     max_degree : i32,
-    add_class : Option<Box<Fn(u32, i32, &str)>>,
-    add_structline : Option<Box<Fn(
+    add_class : Option<Box<dyn Fn(u32, i32, &str)>>,
+    add_structline : Option<Box<dyn Fn(
         &str,
         u32, i32, usize, 
         u32, i32, usize
     )>>
 }
 
-impl<'a> Resolution<'a> {  
+impl Resolution {
     pub fn new(
-        complex : &'a ChainComplex, max_degree : i32,
-        add_class : Option<Box<Fn(u32, i32, &str)>>,
-        add_structline : Option<Box<Fn(
+        complex : Rc<dyn ChainComplex>, max_degree : i32,
+        add_class : Option<Box<dyn Fn(u32, i32, &str)>>,
+        add_structline : Option<Box<dyn Fn(
             &str,
             u32, i32, usize, 
             u32, i32, usize
         )>>
     ) -> Self {
         let algebra = complex.get_algebra();
-        let zero_module = ZeroModule::new(algebra);
+        let zero_module = Rc::new(ZeroModule::new(Rc::clone(&algebra)));
         let min_degree = complex.get_min_degree();
         assert!(max_degree >= min_degree);
         let num_degrees = (max_degree - min_degree) as usize;
         let mut modules = Vec::with_capacity(num_degrees);
         for i in 0..num_degrees {
-            modules.push(FreeModule::new(algebra, format!("F{}", i), min_degree));
+            modules.push(Rc::new(FreeModule::new(Rc::clone(&algebra), format!("F{}", i), min_degree)));
         }
-
-        let modules = ResolutionModules {
-            complex,
-            modules,
-            zero_module
-        };
-
-        let modules_box = Box::new(modules);
-        let modules_cast : &'a Box<ResolutionModules<'a>>
-            = unsafe { std::mem::transmute(&modules_box) };
 
         let mut differentials = Vec::with_capacity(num_degrees);
         let mut chain_maps = Vec::with_capacity(num_degrees);                
         for i in 0..num_degrees {
-            let complex_module : &'static Module = unsafe { 
-                std::mem::transmute(complex.get_module(i as u32)) 
-            };
-            chain_maps.push(FreeModuleHomomorphism::new(&modules_cast.modules[i], complex_module, min_degree, 0, max_degree));
+            chain_maps.push(FreeModuleHomomorphism::new(Rc::clone(&modules[i]), Rc::clone(&complex.get_module(i as u32)), min_degree, 0, max_degree));
         }
-        differentials.push(FreeModuleHomomorphism::new(&modules_cast.modules[0], &modules_cast.zero_module, min_degree, 0, max_degree));                
+        differentials.push(FreeModuleHomomorphism::new(Rc::clone(&modules[0]), zero_module as Rc<dyn Module>, min_degree, 0, max_degree));
+
         for i in 1..num_degrees {
-            differentials.push(FreeModuleHomomorphism::new(&modules_cast.modules[i], &modules_cast.modules[i-1], min_degree, 0, max_degree));
+            differentials.push(FreeModuleHomomorphism::new(Rc::clone(&modules[i]), Rc::clone(&modules[i-1]) as Rc<dyn Module>, min_degree, 0, max_degree));
         }
-        let homomorphisms = ResolutionHomomorphisms {
-            differentials,
-            chain_maps
-        };
 
         Self {
-            modules : modules_box,
-            homomorphisms,
+            complex,
+            chain_maps,
+
+            modules,
+            differentials,
+
             max_degree,
             add_class,
             add_structline,
@@ -98,20 +80,20 @@ impl<'a> Resolution<'a> {
         (self.get_max_degree() - self.get_min_degree()) as u32
     }
     
-    pub fn get_complex(&self) -> &ChainComplex {
-        self.modules.complex
+    pub fn get_complex(&self) -> Rc<dyn ChainComplex> {
+        Rc::clone(&self.complex)
     }
 
-    pub fn get_module(&self, homological_degree : u32) -> &FreeModule {
-        &self.modules.modules[homological_degree as usize]
+    pub fn get_module(&self, homological_degree : u32) -> Rc<FreeModule> {
+        Rc::clone(&self.modules[homological_degree as usize])
     }
 
     fn get_differential(&self, homological_degree : u32) -> &FreeModuleHomomorphism {
-        &self.homomorphisms.differentials[homological_degree as usize]
+        &self.differentials[homological_degree as usize]
     }
 
     fn get_chain_map(&self, homological_degree : u32) -> &FreeModuleHomomorphism {
-        &self.homomorphisms.chain_maps[homological_degree as usize]
+        &self.chain_maps[homological_degree as usize]
     }
 
     pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
@@ -146,7 +128,7 @@ impl<'a> Resolution<'a> {
         //     let subspace = Subspace::entire_space(self.get_prime(), module_dim);
         //     dminus1.set_kernel(degree, subspace);
         // }
-        
+
         self.get_complex().compute_through_bidegree(homological_degree, degree);
         self.generate_old_kernel_and_compute_new_kernel(homological_degree, degree);
         let module = self.get_module(homological_degree);
@@ -209,9 +191,9 @@ impl<'a> Resolution<'a> {
         let p = self.get_prime();
         let current_differential = self.get_differential(homological_degree);
         let current_chain_map = self.get_chain_map(homological_degree);
-        let source = current_differential.source;
-        let target_cc = current_chain_map.target;
-        let target_res = current_differential.target;
+        let source = &current_differential.source;
+        let target_cc = &current_chain_map.target;
+        let target_res = &current_differential.target;
         let (source_lock, source_module_table) = source.construct_table(degree);
         let mut chain_map_lock = current_chain_map.get_lock();
         let mut differential_lock = current_differential.get_lock();
@@ -252,8 +234,9 @@ impl<'a> Resolution<'a> {
         // Now add generators to hit kernel of previous differential. 
         let prev_res_cycles;
         let prev_cc_cycles;
+        let complex = self.get_complex();
         if homological_degree > 0 {
-            prev_cc_cycles = self.get_complex().get_differential(homological_degree - 1).get_kernel(degree);
+            prev_cc_cycles = complex.get_differential(homological_degree - 1).get_kernel(degree);
             prev_res_cycles = self.get_differential(homological_degree - 1).get_kernel(degree);
         } else {
             prev_cc_cycles = None;
@@ -261,7 +244,7 @@ impl<'a> Resolution<'a> {
         }
         let first_new_row = source_dimension - kernel_rows;
         
-        let cur_cc_image = self.get_complex().get_differential(homological_degree).get_image(degree)
+        let cur_cc_image = complex.get_differential(homological_degree).get_image(degree)
                                .map(|subspace| &subspace.column_to_pivot_row);
         // We stored the kernel rows somewhere else so we're going to write over them.
         // Add new free module generators to hit basis for previous kernel
@@ -322,12 +305,12 @@ impl<'a> Resolution<'a> {
 }
 
 
-impl<'a> ChainComplex for Resolution<'a> {
-    fn get_algebra(&self) -> &Algebra {
+impl ChainComplex for Resolution {
+    fn get_algebra(&self) -> Rc<dyn Algebra> {
         self.get_complex().get_algebra()
     }
 
-    fn get_module(&self, homological_degree : u32) -> &Module {
+    fn get_module(&self, homological_degree : u32) -> Rc<dyn Module> {
         self.get_module(homological_degree)
     }
 
@@ -335,7 +318,7 @@ impl<'a> ChainComplex for Resolution<'a> {
         self.get_complex().get_min_degree()
     }
 
-    fn get_differential<'b>(&'b self, homological_degree : u32) -> &'b ModuleHomomorphism {
+    fn get_differential(&self, homological_degree : u32) -> &dyn ModuleHomomorphism {
         self.get_differential(homological_degree)
     }
 

@@ -4,16 +4,17 @@ use crate::matrix::{Matrix, Subspace }; //QuasiInverse
 use crate::algebra::Algebra;
 use crate::module::{Module, ZeroModule};
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
+use std::rc::Rc;
 
 
 pub trait ChainComplex {
     fn get_prime(&self) -> u32 {
         self.get_algebra().get_prime()
     }
-    fn get_algebra(&self) -> &Algebra;
+    fn get_algebra(&self) -> Rc<dyn Algebra>;
     fn get_min_degree(&self) -> i32;
-    fn get_module(&self, homological_degree : u32) -> &Module;
-    fn get_differential(&self, homological_degree : u32) -> &ModuleHomomorphism;
+    fn get_module(&self, homological_degree : u32) -> Rc<dyn Module>;
+    fn get_differential(&self, homological_degree : u32) -> &dyn ModuleHomomorphism;
     fn compute_through_bidegree(&self, homological_degree : u32, degree : i32) {}
     fn computed_through_bidegree_q(&self, homological_degree : u32, degree : i32) -> bool { true }
     // fn set_kernel(&self, homological_degree : usize, degree : i32, kernel : Subspace);
@@ -53,72 +54,55 @@ pub trait ChainComplex {
     }
 }
 
-
-pub struct ChainComplexConcentratedInDegreeZeroModules<'a> {
-    module : &'a Module,
-    zero_module : ZeroModule<'a>
+pub struct ChainComplexConcentratedInDegreeZero {
+    module : Rc<dyn Module>,
+    zero_module : Rc<dyn Module>,
+    d0 : ZeroHomomorphism,
+    d1 : ZeroHomomorphism,
+    other_ds : ZeroHomomorphism
 }
 
-pub struct ChainComplexConcentratedInDegreeZeroHomomorphisms<'b> {
-    d0 : ZeroHomomorphism<'b, 'b>,
-    d1 : ZeroHomomorphism<'b, 'b>,
-    other_ds : ZeroHomomorphism<'b, 'b>,
-}
-
-pub struct ChainComplexConcentratedInDegreeZero<'a> {
-    modules : Box<ChainComplexConcentratedInDegreeZeroModules<'a>>,
-    homomorphisms : ChainComplexConcentratedInDegreeZeroHomomorphisms<'a>
-}
-
-impl<'a> ChainComplexConcentratedInDegreeZero<'a> {
-    pub fn new(module : &'a Module) -> Self {
+impl ChainComplexConcentratedInDegreeZero {
+    pub fn new(module : Rc<dyn Module>) -> Self {
         let p = module.get_prime();
-        let zero_module = ZeroModule::new(module.get_algebra());
-        let modules = ChainComplexConcentratedInDegreeZeroModules {
+        let zero_module = Rc::new(ZeroModule::new(Rc::clone(&module.get_algebra()))) as Rc<dyn Module>;
+
+        Self {
+            d0 : ZeroHomomorphism::new(Rc::clone(&module), Rc::clone(&zero_module)),
+            d1 : ZeroHomomorphism::new(Rc::clone(&zero_module), Rc::clone(&module)),
+            other_ds : ZeroHomomorphism::new(Rc::clone(&zero_module), Rc::clone(&zero_module)),
             module,
             zero_module
-        };
-        let ccdzm_box = Box::new(modules);
-        let ccdzm_cast : &'a Box<ChainComplexConcentratedInDegreeZeroModules>
-            = unsafe{ std::mem::transmute(&ccdzm_box) };
-        let homomorphisms = ChainComplexConcentratedInDegreeZeroHomomorphisms {
-            d0 : ZeroHomomorphism::new(ccdzm_cast.module, &ccdzm_cast.zero_module),
-            d1 : ZeroHomomorphism::new(&ccdzm_cast.zero_module, ccdzm_cast.module),
-            other_ds : ZeroHomomorphism::new(&ccdzm_cast.zero_module, &ccdzm_cast.zero_module)
-        };
-        Self {
-            modules : ccdzm_box,
-            homomorphisms
         }
     }
 }
 
-impl<'a> ChainComplex for ChainComplexConcentratedInDegreeZero<'a> {
-    fn get_algebra(&self) -> &Algebra {
-        self.modules.module.get_algebra()
+impl ChainComplex for ChainComplexConcentratedInDegreeZero {
+    fn get_algebra(&self) -> Rc<dyn Algebra> {
+        self.module.get_algebra()
     }
 
-    fn get_module(&self, homological_degree : u32) -> &Module {
+    fn get_module(&self, homological_degree : u32) -> Rc<dyn Module> {
         if homological_degree == 0 {
-            return self.modules.module;
+            Rc::clone(&self.module)
         } else {
-            return &self.modules.zero_module;
+            Rc::clone(&self.zero_module)
         }
     }
 
     fn get_min_degree(&self) -> i32 {
-        self.modules.module.get_min_degree()
+        self.module.get_min_degree()
     }
 
     // fn get_max_degree(&self) -> i32 {
     //     self.ccdz.head().module.get_max_degree()
     // }
 
-    fn get_differential<'b>(&'b self, homological_degree : u32) -> &'b ModuleHomomorphism {
+    fn get_differential(&self, homological_degree : u32) -> &dyn ModuleHomomorphism {
         match homological_degree {
-            0 => &self.homomorphisms.d0,
-            1 => &self.homomorphisms.d1,
-            _ => &self.homomorphisms.other_ds
+            0 => &self.d0,
+            1 => &self.d1,
+            _ => &self.other_ds
         }
     }
 
