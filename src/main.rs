@@ -13,7 +13,7 @@ fn main() {
         std::process::exit(1);
     });
 
-    match run(config) {
+    match run(&config) {
         Ok(string) => println!("{}{}", BOLD_ANSI_CODE, string),
         Err(e) => { eprintln!("Application error: {}", e); std::process::exit(1); }
     }

@@ -1,5 +1,6 @@
 use crate::fp_vector::FpVector;
 use crate::algebra::Algebra;
+use std::rc::Rc;
 
 // enum Module_Type {
 
@@ -9,7 +10,7 @@ pub trait Module {
     fn get_prime(&self) -> u32 {
         self.get_algebra().get_prime()
     }
-    fn get_algebra(&self) -> &Algebra;
+    fn get_algebra(&self) -> Rc<dyn Algebra>;
     fn get_name(&self) -> &str;
     // fn get_type() -> Module_Type;
     // int min_degree;
@@ -60,10 +61,13 @@ pub trait Module {
     } 
 }
 
-pub struct ZeroModule<'a> {algebra : &'a Algebra, name : String }
+pub struct ZeroModule {
+    algebra : Rc<dyn Algebra>,
+    name : String
+}
 
-impl<'a> ZeroModule<'a> {
-    pub fn new(algebra : &'a Algebra) -> Self {
+impl ZeroModule {
+    pub fn new(algebra : Rc<dyn Algebra>) -> Self {
         let name = format!("Zero Module over {}", algebra.get_name());
         ZeroModule {
             algebra,
@@ -72,13 +76,13 @@ impl<'a> ZeroModule<'a> {
     }
 }
 
-impl<'a> Module for ZeroModule<'a> {
-    fn get_algebra(&self) -> &Algebra {
-        self.algebra
+impl Module for ZeroModule {
+    fn get_algebra(&self) -> Rc<dyn Algebra> {
+        Rc::clone(&self.algebra)
     }
     
     fn get_name(&self) -> &str{
-        return &self.name;
+        &self.name
     }
 
     fn get_dimension(&self, _degree : i32) -> usize {
@@ -98,5 +102,4 @@ impl<'a> Module for ZeroModule<'a> {
         assert!(false);
         "".to_string()
     }
-
 }
