@@ -20,8 +20,8 @@ pub struct Resolution {
     differentials : Vec<FreeModuleHomomorphism>,
 
     max_degree : i32,
-    add_class : Option<Box<Fn(u32, i32, &str)>>,
-    add_structline : Option<Box<Fn(
+    add_class : Option<Box<dyn Fn(u32, i32, &str)>>,
+    add_structline : Option<Box<dyn Fn(
         &str,
         u32, i32, usize, 
         u32, i32, usize
@@ -31,8 +31,8 @@ pub struct Resolution {
 impl Resolution {
     pub fn new(
         complex : Rc<dyn ChainComplex>, max_degree : i32,
-        add_class : Option<Box<Fn(u32, i32, &str)>>,
-        add_structline : Option<Box<Fn(
+        add_class : Option<Box<dyn Fn(u32, i32, &str)>>,
+        add_structline : Option<Box<dyn Fn(
             &str,
             u32, i32, usize, 
             u32, i32, usize

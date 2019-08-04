@@ -60,13 +60,13 @@ impl Error for InvalidAlgebraError {
 }
 
 pub struct AlgebraicObjectsBundle {
-    algebra : Rc<Algebra>,
-    module : Option<Rc<Module>>,
-    chain_complex : Rc<ChainComplex>,
+    algebra : Rc<dyn Algebra>,
+    module : Option<Rc<dyn Module>>,
+    chain_complex : Rc<dyn ChainComplex>,
     resolution : Box<Resolution>
 }
 
-pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle, Box<Error>> {
+pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle, Box<dyn Error>> {
     let contents = std::fs::read_to_string(format!("static/modules/{}.json", config.module_name))?;
     let mut json : Value = serde_json::from_str(&contents)?;
     let p = json["p"].as_u64().unwrap() as u32;
@@ -90,7 +90,7 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle, Box<Error>>
     })
 }
 
-pub fn run(config : &Config) -> Result<String, Box<Error>> {
+pub fn run(config : &Config) -> Result<String, Box<dyn Error>> {
     let bundle = construct(&config)?;
     bundle.resolution.resolve_through_degree(config.max_degree);
     Ok(bundle.resolution.graded_dimension_string())

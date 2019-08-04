@@ -98,7 +98,7 @@ impl ChainComplex for ChainComplexConcentratedInDegreeZero {
     //     self.ccdz.head().module.get_max_degree()
     // }
 
-    fn get_differential(&self, homological_degree : u32) -> &ModuleHomomorphism {
+    fn get_differential(&self, homological_degree : u32) -> &dyn ModuleHomomorphism {
         match homological_degree {
             0 => &self.d0,
             1 => &self.d1,

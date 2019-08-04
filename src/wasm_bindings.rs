@@ -47,7 +47,7 @@ impl WasmAlgebra {
 
 #[wasm_bindgen]
 pub struct WasmModule {
-    pimpl : *const Module
+    pimpl : *const dyn Module
 }
 
 #[wasm_bindgen]
@@ -61,7 +61,7 @@ impl WasmModule {
         }
     }
 
-    fn to_module(&self) -> Rc<Module> {
+    fn to_module(&self) -> Rc<dyn Module> {
         unsafe { Rc::clone(&Rc::from_raw(self.pimpl)) }
     }
 
@@ -72,20 +72,20 @@ impl WasmModule {
 
 #[wasm_bindgen]
 pub struct WasmChainComplex {
-    pimpl : *const ChainComplex
+    pimpl : *const dyn ChainComplex
 }
 
 #[wasm_bindgen]
 impl WasmChainComplex {
     pub fn new_ccdz(module : &WasmModule) -> Self {
         let cc = ChainComplexConcentratedInDegreeZero::new(module.to_module());
-        let boxed_cc : Rc<ChainComplex> = Rc::new(cc);
+        let boxed_cc : Rc<dyn ChainComplex> = Rc::new(cc);
         Self {
             pimpl : Rc::into_raw(boxed_cc)
         }
     }
 
-    fn to_chain_complex(&self) -> Rc<ChainComplex> {
+    fn to_chain_complex(&self) -> Rc<dyn ChainComplex> {
         unsafe { Rc::clone(&Rc::from_raw(self.pimpl)) }
     }
 
