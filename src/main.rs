@@ -49,7 +49,7 @@ mod tests {
             algebra_name : String::from("milnor")
         };
 
-        match (run(a), run(m)) {
+        match (run(&a), run(&m)) {
             (Err(e), _)    => panic!("Failed to read file: {}", e),
             (_, Err(e))    => panic!("Failed to read file: {}", e),
             (Ok(x), Ok(y)) => assert_eq!(x, y)
