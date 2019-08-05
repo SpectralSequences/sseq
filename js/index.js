@@ -42,41 +42,42 @@ if (!params.module) {
 async function displayFile(filename, degree=50) {
     try {
         let module = await IO.loadFromServer(`modules/${filename}.json`);
-        let min_degree = Math.min(...Object.values(module.gens));
-
-        window.sseq = new Sseq();
-        sseq.xRange = [min_degree, degree];
-        sseq.yRange = [0, (degree - min_degree)/3];
-        sseq.initialxRange = [min_degree, degree];
-        sseq.initialyRange = [0, (degree - min_degree)/3];
-        sseq.offset_size = 0.1;
-        sseq.class_scale = 0.5;
-        window.display = new MyDisplay("#main", sseq);
-        display.on("click", (node) => {
-            if(!node) {
-                return;
-            }
-            let c = node.c;
-            worker.postMessage({
-                "cmd" : "getCocycle",//'get_eta_map',//"get_eta_map",
-                "class" : {
-                    "x" : c.x,
-                    "y" : c.y,
-                    "idx" : c.idx
-                }
-            });
-        })
-        worker.postMessage({
-            cmd: "resolve",
-            type : module.type,            
-            p: module.p,
-            module: JSON.stringify(module),
-            maxDegree: degree
-        });
     } catch (e) {
         console.error(e);
         alert(`Failed to load file ${filename}.json`);
     }
+    
+    let min_degree = Math.min(...Object.values(module.gens));
+
+    window.sseq = new Sseq();
+    sseq.xRange = [min_degree, degree];
+    sseq.yRange = [0, (degree - min_degree)/3];
+    sseq.initialxRange = [min_degree, degree];
+    sseq.initialyRange = [0, (degree - min_degree)/3];
+    sseq.offset_size = 0.1;
+    sseq.class_scale = 0.5;
+    window.display = new MyDisplay("#main", sseq);
+    display.on("click", (node) => {
+        if(!node) {
+            return;
+        }
+        let c = node.c;
+        worker.postMessage({
+            "cmd" : "getCocycle",//'get_eta_map',//"get_eta_map",
+            "class" : {
+                "x" : c.x,
+                "y" : c.y,
+                "idx" : c.idx
+            }
+        });
+    })
+    worker.postMessage({
+        cmd: "resolve",
+        type : module.type,            
+        p: module.p,
+        module: JSON.stringify(module),
+        maxDegree: degree
+    });
 }
 
 let message_handlers = {};
