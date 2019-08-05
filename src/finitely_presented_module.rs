@@ -99,7 +99,7 @@ impl Module for FinitelyPresentedModule {
         let min_degree = self.get_min_degree();
         for i in self.index_table.len() as i32 + min_degree ..= degree {
             let mut lock = self.map.get_lock();
-            self.map.compute_kernel_and_image(&mut lock, i);
+            self.map.compute_quasi_inverse(&mut lock, i);
             let qi = self.map.get_quasi_inverse(degree).unwrap();
             let image = qi.image.as_ref().unwrap();
             let mut gen_idx_to_fp_idx = Vec::new();
