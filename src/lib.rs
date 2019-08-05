@@ -127,7 +127,8 @@ pub fn construct_helper<M : Module + Sized>(config : &Config, mut json : Value) 
 }
 
 pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundleChoice, Box<dyn Error>> {
-    let contents = std::fs::read_to_string(format!("static/modules/{}.json", config.module_name))?;
+    let contents = std::fs::read_to_string(&config.module_path)?;
+    let json : Value = serde_json::from_str(&contents)?;
     let json : Value = serde_json::from_str(&contents)?;
     let module_type = &json["type"].as_str().unwrap();
     match module_type {
@@ -180,24 +181,7 @@ pub fn run(config : &Config) -> Result<String, Box<dyn Error>> {
 }
 
 pub struct Config {
-    pub module_name : String,
+    pub module_path : String,
     pub algebra_name : String,
     pub max_degree : i32
-}
-
-impl Config {
-    pub fn new(args: &[String]) -> Result<Self, String> {
-        if args.len() < 4 {
-            return Err("Not enough arguments".to_string());
-        }
-        let module_name = args[1].clone();
-        let algebra_name = args[2].clone();
-        let max_deg_result : Result<i32,_> = args[3].parse();
-
-        if let Err(error) = max_deg_result {
-            return Err(format!("{} in argument max_degree.", error));
-        }
-        let max_degree = max_deg_result.unwrap();
-        Ok(Self { module_name, algebra_name, max_degree })
-    }
 }

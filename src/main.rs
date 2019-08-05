@@ -1,18 +1,23 @@
 extern crate rust_ext;
+#[macro_use]
+extern crate clap;
 
 use rust_ext::Config;
 use rust_ext::run;
+use clap::App;
 
 const BOLD_ANSI_CODE : &str = "\x1b[1m";
 
 #[allow(unreachable_code)]
 fn main() {
-    // rust_ext::test();
-    let args : Vec<_> = std::env::args().collect();
-    let config = Config::new(&args).unwrap_or_else(|err| {
-        eprintln!("Problem parsing arguments: {}", err);
-        std::process::exit(1);
-    });
+    let yaml = load_yaml!("cli.yml");
+    let matches = App::from_yaml(yaml).get_matches();
+
+    let config = Config {
+        module_path : format!("{}/{}.json", matches.value_of("directory").unwrap(), matches.value_of("module").unwrap()),
+        algebra_name : matches.value_of("algebra").unwrap().to_string(),
+        max_degree : value_t!(matches, "degree", i32).unwrap_or_else(|e| panic!("Invalid degree: {}", e))
+    };
 
     match run(&config) {
         Ok(string) => println!("{}{}", BOLD_ANSI_CODE, string),
@@ -40,12 +45,12 @@ mod tests {
     fn compare(module_name : &str, max_degree : i32) {
         println!("module : {}", module_name);
         let a = Config {
-            module_name : String::from(module_name),
+            module_path : format!("static/modules/{}.json", module_name),
             max_degree,
             algebra_name : String::from("adem")
         };
         let m = Config {
-            module_name : String::from(module_name),
+            module_path : format!("static/modules/{}.json", module_name),
             max_degree,
             algebra_name : String::from("milnor")
         };
