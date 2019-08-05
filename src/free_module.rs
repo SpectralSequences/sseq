@@ -82,6 +82,11 @@ impl Module for FreeModule {
         self.get_algebra().multiply_basis_elements(result, coeff, op_degree, op_index, module_operation_degree, module_operation_index, generator_degree);
         result.restore_slice(old_slice);
     }
+
+    fn from_json(algebra : Rc<dyn Algebra>, algebra_name: &str, json : &mut serde_json::Value) -> Self {
+        assert!(false, "Not implemented");
+        unreachable!();
+    }
 }
 
 impl FreeModule {
@@ -188,6 +193,15 @@ impl FreeModule {
         let out_deg_idx = (op_deg + gen_deg - self.min_degree) as usize;
         let gen_deg_idx = (gen_deg - self.min_degree) as usize;
         return self.table[out_deg_idx].generator_to_index[gen_deg_idx][gen_idx] + op_idx;
+    }
+
+    pub fn operation_generator_pair_to_idx(&self, op_gen : &OperationGeneratorPair) -> usize {
+        self.operation_generator_to_index(
+            op_gen.operation_degree,
+            op_gen.operation_index,
+            op_gen.generator_degree,
+            op_gen.generator_index
+        )
     }
 
     pub fn index_to_op_gen(&self, degree : i32, index : usize) -> &OperationGeneratorPair {

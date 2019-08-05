@@ -12,6 +12,8 @@ pub trait Module {
     fn get_prime(&self) -> u32 {
         self.get_algebra().get_prime()
     }
+    fn from_json(algebra : Rc<dyn Algebra>, algebra_name: &str, json : &mut serde_json::Value) -> Self;
+
     fn get_algebra(&self) -> Rc<dyn Algebra>;
     fn get_name(&self) -> &str;
     fn get_min_degree(&self) -> i32;
@@ -73,6 +75,10 @@ impl ZeroModule {
 }
 
 impl Module for ZeroModule {
+    fn from_json(algebra : Rc<dyn Algebra>, algebra_name: &str, json : &mut  serde_json::Value) -> Self {
+        Self::new(algebra)
+    }
+
     fn get_algebra(&self) -> Rc<dyn Algebra> {
         Rc::clone(&self.algebra)
     }
@@ -164,6 +170,10 @@ pub enum OptionModule<M : Module> {
 }
 
 impl<M : Module> Module for OptionModule<M> {
+    fn from_json(algebra : Rc<dyn Algebra>, algebra_name: &str, json : &mut serde_json::Value) -> Self {
+        OptionModule::Some(Rc::new(M::from_json(algebra, algebra_name, json)))
+    }
+
     fn get_algebra(&self) -> Rc<dyn Algebra> {
         match self {
             OptionModule::Some(l) => l.get_algebra(),

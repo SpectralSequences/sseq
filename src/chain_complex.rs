@@ -1,6 +1,4 @@
-use crate::fp_vector::{FpVector, FpVectorT};
-// use crate::once::OnceRefOwned;
-use crate::matrix::{Matrix, Subspace }; //QuasiInverse
+use crate::matrix::{ Subspace }; //QuasiInverse
 use crate::algebra::Algebra;
 use crate::module::{Module, ZeroModule, OptionModule};
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};

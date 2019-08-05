@@ -352,11 +352,11 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
     // }
 }
 
-use crate::finite_dimensional_module::{FiniteDimensionalModule, OptionFDModule};
+use crate::module::OptionModule;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero;
-pub type FDModuleResolution 
+pub type ModuleResolution<M>
     = Resolution<
-        OptionFDModule, 
-        ZeroHomomorphism<OptionFDModule, OptionFDModule>, 
-        ChainComplexConcentratedInDegreeZero<FiniteDimensionalModule>
+        OptionModule<M>, 
+        ZeroHomomorphism<OptionModule<M>, OptionModule<M>>, 
+        ChainComplexConcentratedInDegreeZero<M>
     >;
