@@ -45,12 +45,12 @@ mod tests {
     fn compare(module_name : &str, max_degree : i32) {
         println!("module : {}", module_name);
         let a = Config {
-            module_name : format!("static/modules/{}.json", module_name),
+            module_path : format!("static/modules/{}.json", module_name),
             max_degree,
             algebra_name : String::from("adem")
         };
         let m = Config {
-            module_name : format!("static/modules/{}.json", module_name),
+            module_path : format!("static/modules/{}.json", module_name),
             max_degree,
             algebra_name : String::from("milnor")
         };
