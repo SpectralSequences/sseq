@@ -22,8 +22,6 @@ pub trait ModuleHomomorphism<S : Module, T : Module> {
     fn get_lock(&self) -> MutexGuard<i32>;
 
     fn get_max_kernel_degree(&self) -> i32;
-    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace);
-    fn get_kernel(&self, degree : i32) -> Option<&Subspace>;
 
     fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, kernel : QuasiInverse);    
     fn get_quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse>;
@@ -33,7 +31,7 @@ pub trait ModuleHomomorphism<S : Module, T : Module> {
         return option_quasi_inverse.and_then(|quasi_inverse| quasi_inverse.image.as_ref() );
     }
 
-    fn compute_kernel_and_image(&self, lock : &mut MutexGuard<i32>, degree : i32){
+    fn compute_quasi_inverse(&self, lock : &mut MutexGuard<i32>, degree : i32){
         let p = self.get_prime();
         let source_dimension = self.get_source().get_dimension(degree);
         let target_dimension = self.get_target().get_dimension(degree);
@@ -46,10 +44,6 @@ pub trait ModuleHomomorphism<S : Module, T : Module> {
         }
         let mut pivots = vec![-1;columns];
         matrix.row_reduce(&mut pivots);
-        let kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
-        let kernel_rows = kernel.matrix.get_rows();
-        self.set_kernel(&lock, degree, kernel);        
-        let image_rows = matrix.get_rows() - kernel_rows;
         let quasi_inverse = matrix.compute_quasi_inverse(&pivots, target_dimension, padded_target_dimension);
         self.set_quasi_inverse(&lock, degree, quasi_inverse);
     }
@@ -114,8 +108,6 @@ impl<S : Module, T : Module> ModuleHomomorphism<S, T> for ZeroHomomorphism<S, T>
     }
 
     fn get_max_kernel_degree(&self) -> i32 { 1000000 }
-    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace){}
-    fn get_kernel(&self, degree : i32) -> Option<&Subspace> { None }
 
     fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, kernel : QuasiInverse){}    
     fn get_quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse>{ None }

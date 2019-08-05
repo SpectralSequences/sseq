@@ -1,4 +1,3 @@
-use crate::matrix::{ Subspace }; //QuasiInverse
 use crate::algebra::Algebra;
 use crate::module::{Module, ZeroModule, OptionModule};
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
@@ -14,25 +13,6 @@ pub trait ChainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
     fn get_module(&self, homological_degree : u32) -> Rc<M>;
     fn get_differential(&self, homological_degree : u32) -> &F;
     fn compute_through_bidegree(&self, homological_degree : u32, degree : i32);
-    // fn computed_through_bidegree_q(&self, homological_degree : u32, degree : i32) -> bool { true }
-
-    fn compute_kernel_and_image(&self,  homological_degree : u32, degree : i32){
-        let p = self.get_prime();
-        let d = self.get_differential(homological_degree);
-        if d.get_max_kernel_degree() >= degree {
-            return;
-        }
-        let mut lock = d.get_lock();
-        if homological_degree == 0 {
-            let module = self.get_module(0);
-            let dim = module.get_dimension(degree);
-            let kernel = Subspace::entire_space(p, dim);
-            d.set_kernel(&lock, degree, kernel);
-            *lock += 1;
-            return;
-        }
-        d.compute_kernel_and_image(&mut lock, degree);
-    }
 }
 
 

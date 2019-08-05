@@ -116,20 +116,21 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let min_degree = self.get_min_degree();
         let max_hom_deg = degree as u32; //self.get_max_hom_deg();
         for int_deg in min_degree .. degree {
+            let mut new_kernel = None;
             for hom_deg in 0 .. max_hom_deg {
                 // println!("(hom_deg : {}, int_deg : {})", hom_deg, int_deg);
-                self.step(hom_deg, int_deg);
+                new_kernel = Some(self.step(hom_deg, int_deg, new_kernel));
             }
         }
     }
 
-    pub fn step(&self, homological_degree : u32, degree : i32){
+    pub fn step(&self, homological_degree : u32, degree : i32, old_kernel : Option<Subspace>) -> Subspace {
         // println!("step : hom_deg : {}, int_deg : {}", homological_degree, degree);
         if homological_degree == 0 {
             self.zero_module.extend_by_zero(degree);
         }
         self.get_complex().compute_through_bidegree(homological_degree, degree);
-        self.generate_old_kernel_and_compute_new_kernel(homological_degree, degree);
+        let new_kernel = self.generate_old_kernel_and_compute_new_kernel(homological_degree, degree, old_kernel);
         let module = self.get_module(homological_degree);
         let num_gens = module.get_number_of_gens_in_degree(degree);
         if let Some(f) = &self.add_class {
@@ -142,6 +143,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
                 self.compute_filtration_one_products(homological_degree, degree, i);
             }
         }
+        new_kernel
     }
 
     fn compute_filtration_one_products(&self, homological_degree : u32, degree : i32, source_idx : usize){
@@ -183,11 +185,23 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
     //     let source_module_table = source.construct_table(degree);
     // }
 
-    pub fn generate_old_kernel_and_compute_new_kernel(&self, homological_degree : u32, degree : i32){
+    pub fn generate_old_kernel_and_compute_new_kernel(&self, homological_degree : u32, degree : i32, old_kernel : Option<Subspace>) -> Subspace {
         let min_degree = self.get_min_degree();
         // println!("====hom_deg : {}, int_deg : {}", homological_degree, degree);
         let degree_idx = (degree - min_degree) as usize;
         let p = self.get_prime();
+        //                           current_chain_map
+        //                X_{s, t} --------------------> C_{s, t}
+        //                   |                               |
+        //                   | current_differential          |
+        //                   v                               v
+        // old_kernel <= X_{s-1, t} -------------------> C_{s-1, t}
+        //
+        // old_kernel is the kernel of the map X_{s-1, t} -> X_{s-2, t} (+) C_{s-1, t}
+
+        // We first compute the kernel of the map X_{s, t} -> X_{s-2, t} (+) C_{s, t}, which we
+        // will return at the end.
+
         let current_differential = self.get_differential(homological_degree);
         let current_chain_map = self.get_chain_map(homological_degree);
         let complex = self.get_complex();
@@ -224,18 +238,23 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         }
         matrix.row_reduce(&mut pivots);
 
-        let kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
-        let kernel_rows = kernel.matrix.get_rows();
-        current_differential.set_kernel(&differential_lock, degree, kernel);
+        let new_kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
+        let kernel_rows = new_kernel.matrix.get_rows();
         matrix.clear_slice();
-        // Now add generators to hit kernel of previous differential. 
+
+        // What exactly is going on here? I think what we have to do now is to add generators to
+        // hit what we need to hit in X_{s-1, t} and C_{s, t}. The data of the former should come
+        // from old_kernel, and presumably the data of the latter can be found in the computation
+        // above, but I can't quite figure out the details.
+
+        // Now add generators to hit kernel of previous differential.
+
         let first_new_row = source_dimension - kernel_rows;        
         let new_generators = matrix.extend_to_surjection(first_new_row, 0, target_cc_dimension, &pivots);
         let mut num_new_gens = new_generators.len();
-        // We stored the kernel rows somewhere else so we're going to write over them.
+
         // Add new free module generators to hit basis for previous kernel
         if homological_degree > 0 {
-            let prev_differential = self.get_differential(homological_degree - 1);
             let prev_chain_map = self.get_chain_map(homological_degree - 1);
             let maybe_quasi_inverse = prev_chain_map.get_quasi_inverse(degree);
             if let Some(quasi_inverse) = maybe_quasi_inverse {
@@ -255,11 +274,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
                 }
                 matrix.row_reduce(&mut pivots);
             }
-        }
-        if homological_degree > 0 {     
-            let prev_differential = self.get_differential(homological_degree - 1);
-            let prev_res_cycles = prev_differential.get_kernel(degree);
-            num_new_gens += matrix.extend_image(first_new_row, padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension, &pivots, prev_res_cycles).len();
+            num_new_gens += matrix.extend_image(first_new_row, padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension, &pivots, old_kernel).len();
         }
         source.add_generators(degree, source_lock, source_module_table, num_new_gens);
         current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, degree, &mut matrix, first_new_row, 0, num_new_gens);
@@ -270,7 +285,6 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         for i in first_new_row .. image_rows {
             matrix[i].set_entry(padded_target_dimension + i, 1);
         }
-
 
         matrix.set_slice(0, image_rows, 0, padded_target_dimension + image_rows); 
         let mut new_pivots = vec![-1;matrix.get_columns()];
@@ -286,6 +300,8 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         current_differential.set_quasi_inverse(&differential_lock, degree, res_qi);
         *chain_map_lock += 1;
         *differential_lock += 1;
+
+        new_kernel
     }
 
     pub fn graded_dimension_string(&self) -> String {

@@ -43,19 +43,6 @@ impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M>
         self.max_degree.lock().unwrap()
     }
 
-    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace){
-        assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
-        assert_eq!(degree_idx, self.kernel.len());
-        self.kernel.push(kernel);
-    }
-
-    fn get_kernel(&self, degree : i32) -> Option<&Subspace> {
-        assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
-        Some(&self.kernel[degree_idx])
-    }
-
     fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse){
         assert!(degree >= self.min_degree);
         let degree_idx = (degree - self.min_degree) as usize;

@@ -611,10 +611,10 @@ impl Matrix {
         return added_pivots;
     }
 
-    pub fn extend_image_to_desired_image(&mut self, 
+    fn extend_image_to_desired_image(&mut self,
         mut first_empty_row : usize,
         start_column : usize, end_column : usize,
-        current_pivots : &Vec<isize>, desired_image : &Subspace
+        current_pivots : &Vec<isize>, desired_image : Subspace
     ) -> Vec<usize> {
         // println!("Extend_image : cur_pivs : {:?}, desired_image : {:?}", current_pivots, desired_image);
         let mut added_pivots = Vec::new();
@@ -650,7 +650,7 @@ impl Matrix {
     pub fn extend_image(&mut self, 
         first_empty_row : usize, 
         start_column : usize, end_column : usize, 
-        current_pivots : &Vec<isize>, desired_image : Option<&Subspace>
+        current_pivots : &Vec<isize>, desired_image : Option<Subspace>
     ) -> Vec<usize> {
         if let Some(image) = desired_image {
             return self.extend_image_to_desired_image(first_empty_row, start_column, end_column, current_pivots, image);
