@@ -50,6 +50,7 @@ async function displayFile(filename, degree=50) {
         sseq.initialxRange = [min_degree, degree];
         sseq.initialyRange = [0, (degree - min_degree)/3];
         sseq.offset_size = 0.1;
+        sseq.class_scale = 0.5;
         window.display = new MyDisplay("#main", sseq);
         display.on("click", (node) => {
             if(!node) {
