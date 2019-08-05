@@ -1,0 +1,27 @@
+name: "Steenrod Ext resolver"
+about: "This computes the Ext group of various Steenrod modules"
+args:
+    - module:
+        value_name: "module"
+        help: "The filename of the module to resolve (input S_2 to resolve the module defined in S_2.json). By default, the command looks for the file in static/modules/, and this works only if it is run from the root directory of the crate. Alternative directories can be set via the --dir option."
+        default_value: "S_2"
+        required: true
+    - degree:
+        value_name: "degree"
+        help: "The number of degrees to compute."
+        default_value: "30"
+        required: true
+    - algebra:
+        long: "algebra"
+        short: "a"
+        value_name: "algebra"
+        default_value: "adem"
+        help: "The basis for the Steenrod algebra to use."
+        possible_values:
+            - adem
+            - milnor
+    - directory:
+        long: "dir"
+        short: "d"
+        help: "Directory to look for module definition."
+        default_value: "static/modules/"
