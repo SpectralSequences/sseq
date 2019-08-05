@@ -40,8 +40,9 @@ if (!params.module) {
 }
 
 async function displayFile(filename, degree=50) {
+    let module;
     try {
-        let module = await IO.loadFromServer(`modules/${filename}.json`);
+        module = await IO.loadFromServer(`modules/${filename}.json`);
     } catch (e) {
         console.error(e);
         alert(`Failed to load file ${filename}.json`);
