@@ -143,10 +143,21 @@ pub trait FpVectorT {
         return container.offset/bit_length + container.slice_start;
     }
 
+    fn get_slice(&self) -> (usize, usize) {
+        let container = self.get_vector_container();
+        return (container.slice_start, container.slice_end);
+    }
+
     fn set_slice(&mut self, slice_start : usize, slice_end : usize) {
         let container = self.get_vector_container_mut();
-        container.slice_start = slice_start;
-        container.slice_end = slice_end;
+        container.slice_end = container.slice_start + slice_end;
+        container.slice_start += slice_start;
+    }
+
+    fn restore_slice(&mut self, slice : (usize, usize)) {
+        let container = self.get_vector_container_mut();
+        container.slice_start = slice.0;
+        container.slice_end = slice.1;
     }
 
     fn clear_slice(&mut self) {

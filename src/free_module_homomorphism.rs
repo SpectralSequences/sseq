@@ -9,8 +9,8 @@ use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module::{FreeModule, FreeModuleTableEntry};
 
 pub struct FreeModuleHomomorphism<M : Module> {
-    pub source : Rc<FreeModule>,
-    pub target : Rc<M>,
+    source : Rc<FreeModule>,
+    target : Rc<M>,
     outputs : OnceVec<Vec<FpVector>>, // degree --> input_idx --> output
     kernel : OnceVec<Subspace>,
     quasi_inverse : OnceVec<QuasiInverse>,
@@ -28,6 +28,10 @@ impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M>
         Rc::clone(&self.target)
     }
 
+    fn get_max_kernel_degree(&self) -> i32 {
+        self.kernel.len() as i32 + self.min_degree - 1
+    }
+
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_index : usize){
         assert!(input_degree >= self.source.min_degree);
         let input_degree_idx = (input_degree - self.source.min_degree) as usize;
@@ -41,9 +45,8 @@ impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M>
 
     fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace){
         assert!(degree >= self.min_degree);
-        assert!(degree == **lock + 1);
         let degree_idx = (degree - self.min_degree) as usize;
-        assert!(degree_idx == self.kernel.len());
+        assert_eq!(degree_idx, self.kernel.len());
         self.kernel.push(kernel);
     }
 
@@ -55,7 +58,6 @@ impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M>
 
     fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse){
         assert!(degree >= self.min_degree);
-        assert!(degree == **lock + 1);
         let degree_idx = (degree - self.min_degree) as usize;
         assert!(degree_idx == self.quasi_inverse.len());
         self.quasi_inverse.push(quasi_inverse);
@@ -74,11 +76,10 @@ impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M>
 
 
 impl<M : Module> FreeModuleHomomorphism<M> {
-    pub fn new(source : Rc<FreeModule>, target : Rc<M>, min_degree : i32, degree_shift : i32, max_degree : i32) -> Self {
-        let num_degrees = max_degree as usize - min_degree as usize;
-        let outputs = OnceVec::with_capacity(num_degrees);
-        let kernel = OnceVec::with_capacity(num_degrees);
-        let quasi_inverse = OnceVec::with_capacity(num_degrees);
+    pub fn new(source : Rc<FreeModule>, target : Rc<M>, min_degree : i32, degree_shift : i32) -> Self {
+        let outputs = OnceVec::new();
+        let kernel = OnceVec::new();
+        let quasi_inverse = OnceVec::new();
         Self {
             source,
             target,
@@ -119,9 +120,10 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         }
         for i in 0 .. new_generators {
             let output_vector = &mut matrix[first_new_row + i];
-            output_vector.set_slice(0, dimension);
+            let old_slice = output_vector.get_slice();
+            output_vector.set_slice(first_target_column, first_target_column + dimension);
             new_outputs[i].assign(&output_vector);
-            output_vector.clear_slice();
+            output_vector.restore_slice(old_slice);
         }
         self.outputs.push(new_outputs);
     }
@@ -149,9 +151,10 @@ impl<M : Module> FreeModuleHomomorphism<M> {
             // Can we take ownership from matrix and then put back? 
             // If source is smaller than target, just allow add to ignore rest of input would work here.
             let output_vector = &mut matrix[start_row + input_idx];
+            let old_slice = output_vector.get_slice();
             output_vector.set_slice(start_column, start_column + target_dimension);
             self.apply_to_basis_element_with_table(output_vector, 1, degree, table, input_idx);
-            output_vector.clear_slice();
+            output_vector.restore_slice(old_slice);
         }
         return (start_row + source_dimension, start_column + target_dimension);
     } 

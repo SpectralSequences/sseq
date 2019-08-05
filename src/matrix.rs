@@ -304,6 +304,7 @@ impl Matrix {
     }
 }
 
+#[derive(Debug)]
 pub struct Subspace {
     pub matrix : Matrix,
     pub column_to_pivot_row : Vec<isize>
@@ -351,6 +352,23 @@ impl QuasiInverse {
             row += 1;
         }
     }
+
+    pub fn reduce(&self, vector : &mut FpVector){
+        let p = self.get_prime();
+        let mut row = 0;
+        let columns = vector.get_dimension();
+        let image = self.image.as_ref().unwrap();
+        for i in 0 .. columns {
+            if image.column_to_pivot_row[i] < 0 {
+                continue;
+            }
+            let c = vector.get_entry(i);
+            if c != 0 {
+                vector.add(&image.matrix[row], p - c);
+            }
+            row += 1;
+        }
+    }
 }
 
 impl Matrix {
@@ -389,11 +407,39 @@ impl Matrix {
         for row in 0 .. kernel_dimension {
             // Reading from slice, alright.
             let vector = &mut self[first_kernel_row + row];
+            let old_slice = vector.get_slice();
             vector.set_slice(first_source_column, first_source_column + source_dimension);
             kernel.matrix[row].assign(&vector);
-            vector.clear_slice();
+            vector.restore_slice(old_slice);
         }
         return kernel;
+    }
+
+    pub fn compute_quasi_inverse(&mut self, pivots : &Vec<isize>, last_target_col : usize, first_source_col : usize) -> QuasiInverse {
+        let p = self.get_prime();
+        let columns = self.get_columns();
+        let source_columns = columns - first_source_col;
+        let first_kernel_row = self.find_first_row_in_block(&pivots, first_source_col);
+        let mut image_matrix = Matrix::new(p, first_kernel_row, last_target_col);
+        let mut preimage = Matrix::new(p, first_kernel_row, source_columns);
+        for i in 0 .. first_kernel_row {
+            let old_slice = self[i].get_slice();
+            self[i].set_slice(0, last_target_col);
+            image_matrix[i].assign(&self[i]);
+            self[i].restore_slice(old_slice);
+            self[i].set_slice(first_source_col, columns);
+            preimage[i].assign(&self[i]);
+            self[i].restore_slice(old_slice);
+        }
+        let image_pivots = pivots[..last_target_col].to_vec();
+        let image = Subspace {
+            matrix : image_matrix,
+            column_to_pivot_row : image_pivots
+        };
+        return QuasiInverse {
+            image : Some(image),
+            preimage
+        };
     }
 
     pub fn compute_quasi_inverses(&mut self, pivots : &Vec<isize>, first_res_col : usize, last_res_col : usize,  first_source_col : usize) -> (QuasiInverse, QuasiInverse) {
@@ -405,9 +451,10 @@ impl Matrix {
         let first_kernel_row = self.find_first_row_in_block(&pivots, first_source_col);
         let mut cc_preimage = Matrix::new(p, first_res_row, source_columns);
         for i in 0..first_res_row {
+            let old_slice = self[i].get_slice();
             self[i].set_slice(first_source_col, columns);
             cc_preimage[i].assign(&self[i]);
-            self[i].clear_slice();
+            self[i].restore_slice(old_slice);
         }
         let mut new_pivots = vec![-1; columns - first_res_col];
         let res_image_rows;
@@ -425,11 +472,13 @@ impl Matrix {
         let mut res_preimage = Matrix::new(p, res_image_rows, source_columns);
         let mut res_image = Subspace::new(p, res_image_rows, res_columns);            
         for i in 0..res_image_rows {
+            let old_slice = self[i].get_slice();
             self[i].set_slice(first_res_col, last_res_col);
             res_image.matrix[i].assign(&self[i]);
+            self[i].restore_slice(old_slice);
             self[i].set_slice(first_source_col, columns);
             res_preimage[i].assign(&self[i]);
-            self[i].clear_slice();
+            self[i].restore_slice(old_slice);
         }
         let cm_qi = QuasiInverse {
             image : None,
@@ -467,11 +516,13 @@ impl Matrix {
             let mut preimage = Matrix::new(p, num_rows, source_dimension);
             for row in prev_row..block_rows[i] {
                 let vector = &mut self[row];
+                let old_slice = vector.get_slice();
                 vector.set_slice(prev_column, block_columns[i]);
                 image.matrix[row - prev_row].assign(&vector);
+                vector.restore_slice(old_slice);
                 vector.set_slice(first_source_column, columns);
                 preimage[row - prev_row].assign(&vector);
-                vector.clear_slice();            
+                vector.restore_slice(old_slice);
             }
             for col in prev_column..block_columns[i] {
                 image.column_to_pivot_row[col - prev_column] = pivots[col] - prev_row as isize;
@@ -530,9 +581,10 @@ impl Matrix {
         for i in 0 .. image_rows {
             image.column_to_pivot_row[i] = pivots[i];
             let vector_to_copy = &mut self[i];
+            let old_slice = vector_to_copy.get_slice();
             vector_to_copy.set_slice(0, target_dimension);
             image.matrix[i].assign(vector_to_copy);
-            vector_to_copy.clear_slice();
+            vector_to_copy.restore_slice(old_slice);
         }
         return image;
     }
@@ -564,11 +616,13 @@ impl Matrix {
         start_column : usize, end_column : usize,
         current_pivots : &Vec<isize>, desired_image : &Subspace
     ) -> Vec<usize> {
+        // println!("Extend_image : cur_pivs : {:?}, desired_image : {:?}", current_pivots, desired_image);
         let mut added_pivots = Vec::new();
         let desired_pivots = &desired_image.column_to_pivot_row;
         let early_end_column = std::cmp::min(end_column, desired_pivots.len() + start_column);
         for i in start_column .. early_end_column {
-            assert!(current_pivots[i] < 0 || desired_pivots[i - start_column] >= 0);
+            assert!(current_pivots[i] < 0 || desired_pivots[i - start_column] >= 0, 
+                format!("current_pivots : {:?}, desired_pivots : {:?}", current_pivots, desired_pivots));
             if current_pivots[i] >= 0 || desired_pivots[i - start_column] < 0 {
                 continue;
             }
@@ -578,9 +632,10 @@ impl Matrix {
             let matrix_row = &mut self[first_empty_row];
             added_pivots.push(i);
             matrix_row.set_to_zero();
+            let old_slice = matrix_row.get_slice();
             matrix_row.set_slice(0, desired_image.matrix.columns);
             matrix_row.assign(&new_image);
-            matrix_row.clear_slice();
+            matrix_row.restore_slice(old_slice);
             first_empty_row += 1;
         }
         return added_pivots;

@@ -13,6 +13,7 @@ mod module_homomorphism;
 mod finite_dimensional_module;
 mod free_module;
 mod free_module_homomorphism;
+mod finitely_presented_module;
 mod chain_complex;
 mod resolution;
 mod wasm_bindings;
@@ -92,6 +93,43 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle, Box<dyn Err
         chain_complex: cc,
         resolution: res
     })
+}
+
+use crate::fp_vector::FpVectorT;
+use crate::module::Module;
+use crate::free_module::FreeModule;
+use crate::module_homomorphism::ModuleHomomorphism;
+use crate::finitely_presented_module::FinitelyPresentedModule;
+pub fn test(){
+    let p = 2;
+    let algebra : Rc<Algebra> = Rc::new(AdemAlgebra::new(p, p != 2, false));
+    algebra.compute_basis(5);
+    let gens = Rc::new(FreeModule::new(Rc::clone(&algebra), "gens".to_string(), 0));
+    gens.add_generators_immediate(0, 1);
+    gens.extend_by_zero(3);
+    let relns = Rc::new(FreeModule::new(Rc::clone(&algebra), "relns".to_string(), 0));
+    relns.add_generators_immediate(0, 0);
+    relns.add_generators_immediate(1, 1);
+    relns.add_generators_immediate(2, 1);
+    let mut output_matrix = matrix::Matrix::new(2, 1, 1);
+    output_matrix[0].set_entry(0, 1);
+    let map = free_module_homomorphism::FreeModuleHomomorphism::new(Rc::clone(&relns), Rc::clone(&gens), 0, 0);
+    {
+        let mut map_lock = map.get_lock();
+        map.add_generators_from_matrix_rows(&map_lock, 0, &mut output_matrix, 0, 0, 0);
+        *map_lock += 1;
+        map.add_generators_from_matrix_rows(&map_lock, 1, &mut output_matrix, 0, 0, 1);
+        *map_lock += 1;
+        map.add_generators_from_matrix_rows(&map_lock, 2, &mut output_matrix, 0, 0, 1);
+        *map_lock += 1;
+    }
+    let max_degree = 20;
+    let fpmod = Rc::new(finitely_presented_module::FinitelyPresentedModule::new(Rc::clone(&gens), Rc::clone(&relns), map));
+    let cc : Rc<CCDZ<FinitelyPresentedModule>> = Rc::new(CCDZ::new(Rc::clone(&fpmod)));
+    let res = Box::new(Resolution::new(Rc::clone(&cc), max_degree, None, None));
+    res.resolve_through_degree(max_degree);
+    println!("{}", res.graded_dimension_string());
+    std::process::exit(1);
 }
 
 pub fn run(config : &Config) -> Result<String, Box<dyn Error>> {

@@ -46,6 +46,7 @@ impl Module for FreeModule {
             return 0;
         }
         let degree_idx = (degree - self.min_degree) as usize;
+        assert!(degree_idx < self.table.len(), format!("Free Module {} not computed through degree {}", self.get_name(), degree));
         return self.table[degree_idx].basis_element_to_opgen.len();
     }
 
@@ -75,10 +76,11 @@ impl Module for FreeModule {
         let output_block_min = self.operation_generator_to_index(module_operation_degree + op_degree, 0, generator_degree, generator_index);
         let output_block_max = output_block_min + num_ops;
         // Writing into slice (can we take ownership? make new vector with 0's outside range and add separately? is it okay?)
+        let old_slice = result.get_slice();
         result.set_slice(output_block_min, output_block_max); 
         // Now we multiply s * r and write the result to the appropriate position.
         self.get_algebra().multiply_basis_elements(result, coeff, op_degree, op_index, module_operation_degree, module_operation_index, generator_degree);
-        result.clear_slice();
+        result.restore_slice(old_slice);
     }
 }
 
@@ -192,6 +194,18 @@ impl FreeModule {
         assert!(degree >= self.min_degree);
         let degree_idx = (degree - self.min_degree) as usize;
         return &self.table[degree_idx].basis_element_to_opgen[index];
+    }
+
+    pub fn add_generators_immediate(&self, degree : i32, num_gens : usize){
+        let (lock, table) = self.construct_table(degree);
+        self.add_generators(degree, lock, table, num_gens);
+    }
+
+    pub fn extend_by_zero(&self, degree : i32){
+        let old_max_degree = { *self.max_degree.lock().unwrap() };
+        for i in old_max_degree + 1 ..= degree {
+            self.add_generators_immediate(i, 0)
+        }
     }
 }
 

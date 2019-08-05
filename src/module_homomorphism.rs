@@ -21,6 +21,7 @@ pub trait ModuleHomomorphism<S : Module, T : Module> {
 
     fn get_lock(&self) -> MutexGuard<i32>;
 
+    fn get_max_kernel_degree(&self) -> i32;
     fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace);
     fn get_kernel(&self, degree : i32) -> Option<&Subspace>;
 
@@ -31,6 +32,27 @@ pub trait ModuleHomomorphism<S : Module, T : Module> {
         let option_quasi_inverse = self.get_quasi_inverse(degree);
         return option_quasi_inverse.and_then(|quasi_inverse| quasi_inverse.image.as_ref() );
     }
+
+    fn compute_kernel_and_image(&self, lock : &mut MutexGuard<i32>, degree : i32){
+        let p = self.get_prime();
+        let source_dimension = self.get_source().get_dimension(degree);
+        let target_dimension = self.get_target().get_dimension(degree);
+        let padded_target_dimension = FpVector::get_padded_dimension(p, target_dimension, 0);
+        let columns = padded_target_dimension + source_dimension;
+        let mut matrix = Matrix::new(p, source_dimension, columns);
+        self.get_matrix(&mut matrix, degree, 0, 0);
+        for i in 0..source_dimension {
+            matrix[i].set_entry(padded_target_dimension + i, 1);
+        }
+        let mut pivots = vec![-1;columns];
+        matrix.row_reduce(&mut pivots);
+        let kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
+        let kernel_rows = kernel.matrix.get_rows();
+        self.set_kernel(&lock, degree, kernel);        
+        let image_rows = matrix.get_rows() - kernel_rows;
+        let quasi_inverse = matrix.compute_quasi_inverse(&pivots, target_dimension, padded_target_dimension);
+        self.set_quasi_inverse(&lock, degree, quasi_inverse);
+    }
     // fn get_image_pivots(&self, degree : i32) -> Option<&Vec<isize>> {
     //     let image = self.get_image(degree);
     //     return image.map(|subspace| &subspace.column_to_pivot_row );
@@ -39,6 +61,9 @@ pub trait ModuleHomomorphism<S : Module, T : Module> {
     fn get_matrix(&self, matrix : &mut Matrix, degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {
         let source_dimension = self.get_source().get_dimension(degree);
         let target_dimension = self.get_target().get_dimension(degree);
+        if target_dimension == 0 {
+            return (0, 0);
+        }
         assert!(source_dimension <= matrix.get_rows());
         assert!(target_dimension <= matrix.get_columns());
         for input_idx in 0 .. source_dimension {
@@ -46,9 +71,10 @@ pub trait ModuleHomomorphism<S : Module, T : Module> {
             // Can we take ownership from matrix and then put back? 
             // If source is smaller than target, just allow add to ignore rest of input would work here.
             let output_vector = &mut matrix[start_row + input_idx];
+            let old_slice = output_vector.get_slice();
             output_vector.set_slice(start_column, start_column + target_dimension);
             self.apply_to_basis_element(output_vector, 1, degree, input_idx);
-            output_vector.clear_slice();
+            output_vector.restore_slice(old_slice);
         }
         return (start_row + source_dimension, start_column + target_dimension);
     }    
@@ -87,6 +113,7 @@ impl<S : Module, T : Module> ModuleHomomorphism<S, T> for ZeroHomomorphism<S, T>
         self.max_degree.lock().unwrap()
     }
 
+    fn get_max_kernel_degree(&self) -> i32 { 1000000 }
     fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace){}
     fn get_kernel(&self, degree : i32) -> Option<&Subspace> { None }
 

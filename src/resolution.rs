@@ -55,12 +55,12 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let mut differentials = Vec::with_capacity(num_degrees);
         let mut chain_maps = Vec::with_capacity(num_degrees);                
         for i in 0..num_degrees {
-            chain_maps.push(FreeModuleHomomorphism::new(Rc::clone(&modules[i]), Rc::clone(&complex.get_module(i as u32)), min_degree, 0, max_degree));
+            chain_maps.push(FreeModuleHomomorphism::new(Rc::clone(&modules[i]), Rc::clone(&complex.get_module(i as u32)), min_degree, 0));
         }
-        differentials.push(FreeModuleHomomorphism::new(Rc::clone(&modules[0]), Rc::clone(&zero_module), min_degree, 0, max_degree));
+        differentials.push(FreeModuleHomomorphism::new(Rc::clone(&modules[0]), Rc::clone(&zero_module), min_degree, 0));
 
         for i in 1..num_degrees {
-            differentials.push(FreeModuleHomomorphism::new(Rc::clone(&modules[i]), Rc::clone(&modules[i-1]), min_degree, 0, max_degree));
+            differentials.push(FreeModuleHomomorphism::new(Rc::clone(&modules[i]), Rc::clone(&modules[i-1]), min_degree, 0));
         }
 
         Self {
@@ -114,14 +114,9 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
     pub fn resolve_through_degree(&self, degree : i32){
         self.get_algebra().compute_basis(degree);
         let min_degree = self.get_min_degree();
-        let max_hom_deg = self.get_max_hom_deg();
-        let zero_module_max_degree = { *self.zero_module.max_degree.lock().unwrap() };
-        for i in zero_module_max_degree + 1 .. degree {
-            let (lock, table) = self.zero_module.construct_table(i);
-            self.zero_module.add_generators(i, lock, table, 0)
-        }        
+        let max_hom_deg = degree as u32; //self.get_max_hom_deg();
         for int_deg in min_degree .. degree {
-            for hom_deg in 0 .. max_hom_deg { // int_deg as u32 + 1 {
+            for hom_deg in 0 .. max_hom_deg {
                 // println!("(hom_deg : {}, int_deg : {})", hom_deg, int_deg);
                 self.step(hom_deg, int_deg);
             }
@@ -129,14 +124,10 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
     }
 
     pub fn step(&self, homological_degree : u32, degree : i32){
-        // if homological_degree == 0 {
-        //     let dminus1 = self.get_differential(0);
-        //     let module = self.get_complex().get_module(0);
-        //     let module_dim = module.get_dimension(degree);
-        //     let subspace = Subspace::entire_space(self.get_prime(), module_dim);
-        //     dminus1.set_kernel(degree, subspace);
-        // }
-
+        // println!("step : hom_deg : {}, int_deg : {}", homological_degree, degree);
+        if homological_degree == 0 {
+            self.zero_module.extend_by_zero(degree);
+        }
         self.get_complex().compute_through_bidegree(homological_degree, degree);
         self.generate_old_kernel_and_compute_new_kernel(homological_degree, degree);
         let module = self.get_module(homological_degree);
@@ -224,22 +215,18 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let rows = max(source_dimension, target_dimension);
         let columns = padded_target_dimension + source_dimension + rows;
         let mut matrix = Matrix::new(p, rows, columns);
+        let mut pivots = vec![-1;matrix.get_columns()];
         matrix.set_slice(0, source_dimension, 0, padded_target_dimension + source_dimension);
         current_chain_map.get_matrix_with_table(&mut matrix, &source_module_table, degree, 0, 0);
         current_differential.get_matrix_with_table(&mut matrix, &source_module_table, degree, 0, padded_target_cc_dimension);
         for i in 0 .. source_dimension {
             matrix[i].set_entry(padded_target_dimension + i, 1);
         }
-        // println!("{}", matrix);
-        // println!("     rows: {}, cols: {}", matrix.get_rows(), matrix.get_columns());
-
-        let mut pivots = vec![-1;matrix.get_columns()];
         matrix.row_reduce(&mut pivots);
 
         let kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
         let kernel_rows = kernel.matrix.get_rows();
         current_differential.set_kernel(&differential_lock, degree, kernel);
-
         matrix.clear_slice();
         // Now add generators to hit kernel of previous differential. 
         let first_new_row = source_dimension - kernel_rows;        
@@ -259,11 +246,14 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
                     complex_cur_differential.apply_to_basis_element(&mut dfx, 1, degree, *column);
                     quasi_inverse.apply(&mut out_vec, 1, &dfx);
                     let out_row = &mut matrix[first_new_row + i];
+                    let old_slice = out_row.get_slice();
                     out_row.set_slice(padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension);
                     out_row.assign(&out_vec);
+                    out_row.restore_slice(old_slice);
                     dfx.set_to_zero();
                     out_vec.set_to_zero();
                 }
+                matrix.row_reduce(&mut pivots);
             }
         }
         if homological_degree > 0 {     
@@ -302,7 +292,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let mut result = String::new();
         let min_degree = self.get_min_degree();
         let max_degree = self.get_max_degree();
-        let max_hom_deg = (max_degree - min_degree) as u32 / (self.get_prime() + 1); //self.get_max_hom_deg();
+        let max_hom_deg = self.get_max_hom_deg(); //(max_degree - min_degree) as u32 / (self.get_prime() + 1); //self.get_max_hom_deg();
         for i in (0 .. max_hom_deg).rev() {
             let module = self.get_module(i);
             for j in min_degree + i as i32 .. max_degree {

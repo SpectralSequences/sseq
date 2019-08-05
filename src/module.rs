@@ -14,13 +14,7 @@ pub trait Module {
     }
     fn get_algebra(&self) -> Rc<dyn Algebra>;
     fn get_name(&self) -> &str;
-    // fn get_type() -> Module_Type;
-    // int min_degree;
-    // int max_degree; // Rename to max_allocated_degree?2
-    // int max_computed_degree;
-// Methods:
     fn get_min_degree(&self) -> i32;
-    // fn get_max_degree(&self) -> i32;
     fn compute_basis(&self, _degree : i32) {}
     fn get_dimension(&self, degree : i32) -> usize;
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize);
