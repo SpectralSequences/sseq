@@ -10,7 +10,6 @@ pub struct FiniteDimensionalModule {
     algebra : Rc<dyn Algebra>,
     name : String,
     min_degree : i32,
-    max_basis_degree : i32,
     graded_dimension : Vec<usize>,
     // This goes input_degree --> output_degree --> operation --> input_index --> Vector
     actions : Vec<Vec<Vec<Vec<FpVector>>>>,
@@ -35,10 +34,10 @@ impl Module for FiniteDimensionalModule {
         if degree < self.min_degree {
             return 0;
         }
-        if degree >= self.max_basis_degree {
-            return 0;
-        }
         let degree_idx = (degree - self.min_degree) as usize;
+        if degree_idx >= self.graded_dimension.len() {
+            return 0;
+        }        
         return self.graded_dimension[degree_idx];
     }
 
@@ -59,15 +58,13 @@ impl Module for FiniteDimensionalModule {
 }
 
 impl FiniteDimensionalModule {
-    pub fn new(algebra : Rc<dyn Algebra>, name : String, min_degree : i32, max_basis_degree : i32, graded_dimension : Vec<usize>) -> Self {
-        algebra.compute_basis(max_basis_degree);
-        assert!(max_basis_degree >= min_degree);
-        let actions = FiniteDimensionalModule::allocate_actions(&algebra, min_degree, (max_basis_degree - min_degree) as usize, &graded_dimension);
+    pub fn new(algebra : Rc<dyn Algebra>, name : String, min_degree : i32, graded_dimension : Vec<usize>) -> Self {
+        algebra.compute_basis(min_degree + graded_dimension.len() as i32);
+        let actions = FiniteDimensionalModule::allocate_actions(&algebra, min_degree, &graded_dimension);
         FiniteDimensionalModule {
             algebra,
             name,
             min_degree,
-            max_basis_degree,
             graded_dimension,
             actions
         }
@@ -79,7 +76,7 @@ impl FiniteDimensionalModule {
         let name = json["name"].as_str().unwrap().to_string();
         let mut actions_value = json[algebra_name.to_owned() + "_actions"].take();
         let actions = actions_value.as_array_mut().unwrap();
-        let mut result = Self::new(Rc::clone(&algebra), name, min_degree, min_degree + graded_dimension.len() as i32, graded_dimension);
+        let mut result = Self::new(Rc::clone(&algebra), name, min_degree, graded_dimension);
         for action in actions.iter_mut() {
             let op = action["op"].take();
             let (degree, idx) = algebra.json_to_basis(op);
@@ -123,7 +120,8 @@ impl FiniteDimensionalModule {
         return (min_degree as i32, graded_dimension, gen_to_idx);
     }
 
-    fn allocate_actions(algebra : &Rc<dyn Algebra>, min_degree : i32, basis_degree_range : usize, graded_dimension : &Vec<usize>) -> Vec<Vec<Vec<Vec<FpVector>>>> {
+    fn allocate_actions(algebra : &Rc<dyn Algebra>, min_degree : i32, graded_dimension : &Vec<usize>) -> Vec<Vec<Vec<Vec<FpVector>>>> {
+        let basis_degree_range = graded_dimension.len();
         let mut result : Vec<Vec<Vec<Vec<FpVector>>>> = Vec::with_capacity(basis_degree_range);
         // Count number of triples (x, y, op) with |x| + |op| = |y|.
         // The amount of memory we need to allocate is:

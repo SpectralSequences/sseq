@@ -46,20 +46,20 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let zero_module = Rc::new(FreeModule::new(Rc::clone(&algebra), "F_{-1}".to_string(), min_degree));
 
         assert!(max_degree >= min_degree);
-        let num_degrees = (max_degree - min_degree) as usize;
-        let mut modules = Vec::with_capacity(num_degrees);          
-        for i in 0..num_degrees {
+        let max_hom_deg = max_degree as usize; //(max_degree - min_degree) as usize;
+        let mut modules = Vec::with_capacity(max_hom_deg);          
+        for i in 0..max_hom_deg {
             modules.push(Rc::new(FreeModule::new(Rc::clone(&algebra), format!("F{}", i), min_degree)));
         }
 
-        let mut differentials = Vec::with_capacity(num_degrees);
-        let mut chain_maps = Vec::with_capacity(num_degrees);                
-        for i in 0..num_degrees {
+        let mut differentials = Vec::with_capacity(max_hom_deg);
+        let mut chain_maps = Vec::with_capacity(max_hom_deg);
+        for i in 0..max_hom_deg {
             chain_maps.push(FreeModuleHomomorphism::new(Rc::clone(&modules[i]), Rc::clone(&complex.get_module(i as u32)), min_degree, 0));
         }
         differentials.push(FreeModuleHomomorphism::new(Rc::clone(&modules[0]), Rc::clone(&zero_module), min_degree, 0));
 
-        for i in 1..num_degrees {
+        for i in 1..max_hom_deg {
             differentials.push(FreeModuleHomomorphism::new(Rc::clone(&modules[i]), Rc::clone(&modules[i-1]), min_degree, 0));
         }
 

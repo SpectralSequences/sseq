@@ -6,7 +6,7 @@ use serde_json::value::Value;
 
 use crate::algebra::Algebra;
 use crate::adem_algebra::AdemAlgebra;
-// use crate::module::Module;
+use crate::module::Module;
 use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 // use crate::module_homomorphism::ModuleHomomorphism;
 use crate::chain_complex::{ChainComplex, ChainComplexConcentratedInDegreeZero as CCDZ};
@@ -70,7 +70,6 @@ impl WasmFDModule {
         let _drop_me = unsafe { Rc::from_raw(self.pimpl) };
     }
 }
-
 
 #[wasm_bindgen]
 pub struct WasmCCDZ {
