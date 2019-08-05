@@ -86,7 +86,6 @@ static mut LIMB_BIT_INDEX_ONCE_TABLE : [Once; MAX_PRIME_INDEX] = [
 pub fn initialize_limb_bit_index_table(p : u32){
     unsafe{
         LIMB_BIT_INDEX_ONCE_TABLE[PRIME_TO_INDEX_MAP[p as usize]].call_once(||{
-            println!("initialize {}", p);
             let entries_per_limb = get_entries_per_64_bits(p);
             let bit_length = get_bit_length(p);
             let mut table : Vec<LimbBitIndexPair> = Vec::with_capacity(MAX_DIMENSION);
@@ -397,9 +396,9 @@ pub trait FpVectorT {
 
     fn scale(&mut self, c : u32){
         let c = c as u64;
-        let number_of_limbs = self.get_limbs_cvec_mut().len();
         let min_limb = self.get_min_limb();
         let max_limb = self.get_max_limb();
+        let number_of_limbs = max_limb - min_limb;
         for i in 1..number_of_limbs-1 {
             let limbs = self.get_limbs_cvec_mut();
             limbs[i + min_limb] *= c;

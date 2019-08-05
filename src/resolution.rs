@@ -94,9 +94,6 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         Rc::clone(&self.modules[homological_degree as usize])
     }
 
-    fn get_differential(&self, homological_degree : u32) -> &FreeModuleHomomorphism<FreeModule> {
-        &self.differentials[homological_degree as usize]
-    }
 
     fn get_chain_map(&self, homological_degree : u32) -> &FreeModuleHomomorphism<M> {
         &self.chain_maps[homological_degree as usize]
@@ -202,9 +199,11 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let p = self.get_prime();
         let current_differential = self.get_differential(homological_degree);
         let current_chain_map = self.get_chain_map(homological_degree);
-        let source = &current_differential.source;
-        let target_cc = &current_chain_map.target;
-        let target_res = &current_differential.target;
+        let complex = self.get_complex();
+        let complex_cur_differential = complex.get_differential(homological_degree);
+        let source = &current_differential.get_source();
+        let target_cc = &current_chain_map.get_target();
+        let target_res = &current_differential.get_target();
         let (source_lock, source_module_table) = source.construct_table(degree);
         let mut chain_map_lock = current_chain_map.get_lock();
         let mut differential_lock = current_differential.get_lock();
@@ -243,30 +242,41 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 
         matrix.clear_slice();
         // Now add generators to hit kernel of previous differential. 
-        let prev_res_cycles;
-        let prev_cc_cycles;
-        let complex = self.get_complex();
-        if homological_degree > 0 {
-            prev_cc_cycles = complex.get_differential(homological_degree - 1).get_kernel(degree);
-            prev_res_cycles = self.get_differential(homological_degree - 1).get_kernel(degree);
-        } else {
-            prev_cc_cycles = None;
-            prev_res_cycles = None;
-        }
-        let first_new_row = source_dimension - kernel_rows;
-        
-        let cur_cc_image = complex.get_differential(homological_degree).get_image(degree)
-                               .map(|subspace| &subspace.column_to_pivot_row);
+        let first_new_row = source_dimension - kernel_rows;        
+        let new_generators = matrix.extend_to_surjection(first_new_row, 0, target_cc_dimension, &pivots);
+        let mut num_new_gens = new_generators.len();
         // We stored the kernel rows somewhere else so we're going to write over them.
         // Add new free module generators to hit basis for previous kernel
-        let mut new_generators = matrix.extend_image(first_new_row, 0, target_cc_dimension, &pivots, prev_cc_cycles, cur_cc_image);
-        new_generators += matrix.extend_image(first_new_row, padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension, &pivots, prev_res_cycles, None);
-        source.add_generators(degree, source_lock, source_module_table, new_generators);
-        current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, degree, &mut matrix, first_new_row, 0, new_generators);
-        current_differential.add_generators_from_matrix_rows(&differential_lock, degree, &mut matrix, first_new_row, padded_target_cc_dimension, new_generators);
-    
+        if homological_degree > 0 {
+            let prev_differential = self.get_differential(homological_degree - 1);
+            let prev_chain_map = self.get_chain_map(homological_degree - 1);
+            let maybe_quasi_inverse = prev_chain_map.get_quasi_inverse(degree);
+            if let Some(quasi_inverse) = maybe_quasi_inverse {
+                let mut out_vec = FpVector::new(self.get_prime(), target_res_dimension, 0);
+                let dfx_dim = complex_cur_differential.get_target().get_dimension(degree);
+                let mut dfx = FpVector::new(self.get_prime(), target_res_dimension, 0);
+                for (i, column) in new_generators.iter().enumerate() {
+                    complex_cur_differential.apply_to_basis_element(&mut dfx, 1, degree, *column);
+                    quasi_inverse.apply(&mut out_vec, 1, &dfx);
+                    let out_row = &mut matrix[first_new_row + i];
+                    out_row.set_slice(padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension);
+                    out_row.assign(&out_vec);
+                    dfx.set_to_zero();
+                    out_vec.set_to_zero();
+                }
+            }
+        }
+        if homological_degree > 0 {     
+            let prev_differential = self.get_differential(homological_degree - 1);
+            let prev_res_cycles = prev_differential.get_kernel(degree);
+            num_new_gens += matrix.extend_image(first_new_row, padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension, &pivots, prev_res_cycles).len();
+        }
+        source.add_generators(degree, source_lock, source_module_table, num_new_gens);
+        current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, degree, &mut matrix, first_new_row, 0, num_new_gens);
+        current_differential.add_generators_from_matrix_rows(&differential_lock, degree, &mut matrix, first_new_row, padded_target_cc_dimension, num_new_gens);
+
         // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
-        let image_rows = first_new_row + new_generators;
+        let image_rows = first_new_row + num_new_gens;
         for i in first_new_row .. image_rows {
             matrix[i].set_entry(padded_target_dimension + i, 1);
         }
@@ -276,11 +286,14 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let mut new_pivots = vec![-1;matrix.get_columns()];
         matrix.row_reduce(&mut new_pivots);
         // println!("{}", matrix);
-        let mut quasi_inverses = matrix.compute_quasi_inverses(&new_pivots, vec![padded_target_cc_dimension, padded_target_dimension]);
-        let cd_qi = quasi_inverses.pop().unwrap();
-        let cc_qi = quasi_inverses.pop().unwrap();
-        current_chain_map.set_quasi_inverse(&chain_map_lock, degree, cc_qi);
-        current_differential.set_quasi_inverse(&differential_lock, degree, cd_qi);
+        let (cm_qi, res_qi) = matrix.compute_quasi_inverses(
+            &new_pivots, 
+            padded_target_cc_dimension, 
+            padded_target_cc_dimension + target_res_dimension,
+            padded_target_dimension
+        );
+        current_chain_map.set_quasi_inverse(&chain_map_lock, degree, cm_qi);
+        current_differential.set_quasi_inverse(&differential_lock, degree, res_qi);
         *chain_map_lock += 1;
         *differential_lock += 1;
     }
@@ -333,7 +346,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
     }
 
     fn get_differential(&self, homological_degree : u32) -> &FreeModuleHomomorphism<FreeModule> {
-        self.get_differential(homological_degree)
+        &self.differentials[homological_degree as usize]
     }
 
     // TODO: implement this.

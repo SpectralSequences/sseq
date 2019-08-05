@@ -29,7 +29,7 @@ pub trait ModuleHomomorphism<S : Module, T : Module> {
 
     fn get_image(&self, degree : i32) -> Option<&Subspace> {
         let option_quasi_inverse = self.get_quasi_inverse(degree);
-        return option_quasi_inverse.map(|quasi_inverse| &quasi_inverse.image );    
+        return option_quasi_inverse.and_then(|quasi_inverse| quasi_inverse.image.as_ref() );
     }
     // fn get_image_pivots(&self, degree : i32) -> Option<&Vec<isize>> {
     //     let image = self.get_image(degree);
