@@ -395,9 +395,6 @@ impl Matrix {
         let kernel_dimension = rows - first_kernel_row;
         let mut kernel = Subspace::new(p, kernel_dimension, source_dimension);
         if kernel_dimension == 0 {
-            for i in 0..source_dimension {
-                kernel.column_to_pivot_row[i] = -1;
-            }
             return kernel;
         }
         // Write pivots into kernel
