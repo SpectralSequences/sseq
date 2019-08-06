@@ -22,9 +22,11 @@ script:
     - npm run build
 
 cache:
-    cargo: true
     directories:
         - node_modules
+        - /home/travis/.cargo/bin
+        - /home/travis/.cargo/registry/index
+        - /home/travis/.cargo/registry/cache
 
 deploy:
   provider: pages
