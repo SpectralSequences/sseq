@@ -17,7 +17,9 @@ mod finitely_presented_module;
 mod chain_complex;
 mod resolution;
 mod resolution_homomorphism;
+mod resolution_with_chain_maps;
 mod wasm_bindings;
+
 
 #[cfg(test)]
 extern crate rand;

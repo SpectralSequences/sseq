@@ -11,8 +11,8 @@ use crate::chain_complex::ChainComplex;
 use crate::resolution::Resolution;
 
 pub struct ResolutionHomomorphism<
-    S : Module + Sized, F1 : ModuleHomomorphism<S, S> + Sized, CC1 : ChainComplex<S, F1>,
-    T : Module + Sized, F2 : ModuleHomomorphism<T, T> + Sized, CC2 : ChainComplex<T, F2>
+    S : Module, F1 : ModuleHomomorphism<S, S>, CC1 : ChainComplex<S, F1>,
+    T : Module, F2 : ModuleHomomorphism<T, T>, CC2 : ChainComplex<T, F2>
 > {
     source : Rc<Resolution<S, F1, CC1>>,
     target : Rc<Resolution<T, F2, CC2>>,
@@ -22,8 +22,8 @@ pub struct ResolutionHomomorphism<
 }
 
 impl<
-    S : Module + Sized, F1 : ModuleHomomorphism<S, S> + Sized, CC1 : ChainComplex<S, F1>,
-    T : Module + Sized, F2 : ModuleHomomorphism<T, T> + Sized, CC2 : ChainComplex<T, F2>
+    S : Module, F1 : ModuleHomomorphism<S, S>, CC1 : ChainComplex<S, F1>,
+    T : Module, F2 : ModuleHomomorphism<T, T>, CC2 : ChainComplex<T, F2>
 > ResolutionHomomorphism<S, F1, CC1, T, F2, CC2> {
     pub fn new(
         source : Rc<Resolution<S,F1,CC1>>, target : Rc<Resolution<T,F2,CC2>>,
@@ -47,10 +47,9 @@ impl<
     }
 
 
-    fn get_map(&self, output_homological_degree : u32) -> &FreeModuleHomomorphism<FreeModule> {
+    pub fn get_map(&self, output_homological_degree : u32) -> &FreeModuleHomomorphism<FreeModule> {
         &self.maps[output_homological_degree as usize]
     }
-
 
     pub fn extend(&self, source_homological_degree : u32, source_degree : i32){
         for i in self.homological_degree_shift .. source_homological_degree {

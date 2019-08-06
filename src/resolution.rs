@@ -94,6 +94,9 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         Rc::clone(&self.modules[homological_degree as usize])
     }
 
+    pub fn get_number_of_gens_in_bidegree(&self, homological_degree : u32, internal_degree : i32) -> usize {
+        self.get_module(homological_degree).get_number_of_gens_in_degree(internal_degree)
+    }
 
     pub fn get_chain_map(&self, homological_degree : u32) -> &FreeModuleHomomorphism<M> {
         &self.chain_maps[homological_degree as usize]
@@ -177,7 +180,18 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
                 }
             }
         }
-    }    
+    }
+
+    pub fn add_structline(
+            &self, 
+            name : &str,
+            source_hom_deg : u32, source_int_deg : i32, source_idx : usize, 
+            target_hom_deg : u32, target_int_deg : i32, target_idx : usize
+    ){
+        if let Some(add_structline) = &self.add_structline {
+            add_structline(name, source_hom_deg, source_int_deg, source_idx, target_hom_deg, target_int_deg, target_idx);
+        }
+    }
 
     // pub fn set_empty(&self, homological_degree : u32, degree : i32){
     //     let current_differential = self.get_differential(homological_degree);

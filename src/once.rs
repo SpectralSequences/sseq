@@ -61,3 +61,20 @@ impl<T> Index<usize> for OnceVec<T> {
         self.get(key)
     }
 }
+
+pub struct TempStorage<T> {
+    data : UnsafeCell<Option<T>>
+}
+
+impl<T> TempStorage<T> {
+    pub fn new(object : T) -> Self {
+        Self {
+            data : UnsafeCell::new(Some(object))
+        }
+    }
+
+    pub fn take(&self) -> T {
+        let maybe_t = unsafe { &mut *self.data.get() };
+        maybe_t.take().unwrap()
+    }
+}
