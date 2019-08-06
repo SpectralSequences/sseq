@@ -428,8 +428,34 @@ impl Subspace {
         }
         return result;
     }
+
+    /// Projects a vector to a complement of the subspace. The complement is the set of vectors
+    /// whose first r entries are 0, where r is the last column with a pivot in `matrix`.
+    pub fn reduce(&self, vector : &mut FpVector){
+        let p = self.matrix.get_prime();
+        let mut row = 0;
+        let columns = vector.get_dimension();
+        for i in 0 .. columns {
+            if self.column_to_pivot_row[i] < 0 {
+                continue;
+            }
+            let c = vector.get_entry(i);
+            if c != 0 {
+                vector.add(&self.matrix[row], p - c);
+            }
+            row += 1;
+        }
+    }
 }
 
+/// Given a matrix M, a quasi-inverse Q is a map from the co-domain to the domain such that xQM = x
+/// for all x in the image (recall our matrices act on the right).
+///
+/// # Fields
+///  * `image` - The image of the original matrix. If the image is omitted, it is assumed to be
+///  everything (with the standard basis).
+///  * `preimage` - The actual quasi-inverse, where the basis of the image is that given by
+///  `image`.
 pub struct QuasiInverse {
     pub image : Option<Subspace>,
     pub preimage : Matrix
@@ -441,6 +467,13 @@ impl QuasiInverse {
         self.preimage.get_prime()
     }
 
+    /// Apply the quasi-inverse to an in put vector and add a constant multiple of the result
+    /// to an output vector
+    ///
+    /// # Arguments
+    ///  * `target` - The output vector
+    ///  * `coeff` - The constant multiple above
+    ///  * ``input` - The input vector, expressed in the basis of the ambient space.
     pub fn apply(&self, target : &mut FpVector, coeff : u32, input : &FpVector){
         let p = self.get_prime();
         let mut row = 0;
@@ -451,23 +484,6 @@ impl QuasiInverse {
             }}
             let c = input.get_entry(i);
             target.add(&self.preimage[row], (coeff * c) % p);
-            row += 1;
-        }
-    }
-
-    pub fn reduce(&self, vector : &mut FpVector){
-        let p = self.get_prime();
-        let mut row = 0;
-        let columns = vector.get_dimension();
-        let image = self.image.as_ref().unwrap();
-        for i in 0 .. columns {
-            if image.column_to_pivot_row[i] < 0 {
-                continue;
-            }
-            let c = vector.get_entry(i);
-            if c != 0 {
-                vector.add(&image.matrix[row], p - c);
-            }
             row += 1;
         }
     }
@@ -483,7 +499,7 @@ impl Matrix {
         return self.get_rows();
     }
 
-    /// Computes the kernel from an augmented matrix in RREF. To compute the kernel of a matrix
+    /// Computes the kernel from an augmented matrix in rref. To compute the kernel of a matrix
     /// A, produce an augmented matrix of the form
     /// ```text
     /// [A | I]
@@ -562,6 +578,13 @@ impl Matrix {
         return kernel;
     }
 
+    /// Computes the quasi-inverse of a matrix given a rref of [A|0|I], where 0 is the zero padding
+    /// as usual.
+    ///
+    /// # Arguments
+    ///  * `pivots` - Pivots returned by `row_reduce`
+    ///  * `last_target_col` - the last column of A
+    ///  * `first_source_col` - the first column of I
     pub fn compute_quasi_inverse(&mut self, pivots : &Vec<isize>, last_target_col : usize, first_source_col : usize) -> QuasiInverse {
         let p = self.get_prime();
         let columns = self.get_columns();
@@ -589,6 +612,16 @@ impl Matrix {
         };
     }
 
+    /// This function computes quasi-inverses for matrices A, B given a reduced row echelon form of
+    /// [A|0|B|0|I] such that the [A|0] and [B|0] blocks have number of columns a multiple of
+    /// `entries_per_64_bit`, and A is surjective. Moreover, if Q is the quasi-inverse of A, it is
+    /// guaranteed that the image of QB and B|_{ker A} are disjoint.
+    ///
+    /// # Arguments
+    ///  * `pivots` - the pivots produced by `row_reduce`
+    ///  * `first_res_column` - the first column of B
+    ///  * `last_res_col` - the last column of B
+    ///  * `first_source_col` - the first column of I
     pub fn compute_quasi_inverses(&mut self, pivots : &Vec<isize>, first_res_col : usize, last_res_col : usize,  first_source_col : usize) -> (QuasiInverse, QuasiInverse) {
         let p = self.get_prime();
         let columns = self.get_columns();
@@ -638,13 +671,6 @@ impl Matrix {
         return (cm_qi, res_qi);
     }
     
-
-    /// Take an augmented row reduced matrix representation of a map and adds rows to it to hit the complement
-    /// of complement_pivots in desired_image. Does so by walking through the columns and if it finds a target column
-    /// that has a pivot in desired_image but no pivot in current_pivots or complement_pivots, add that the row in desired_image
-    /// to the matrix.
-    ///    self -- An augmented, row reduced matrix to be modified to extend it's image.
-    ///    first_source_column : Where does the source comppstart in the augmented matrix?
     pub fn get_image(&mut self, image_rows : usize, target_dimension : usize, pivots : &Vec<isize>) -> Subspace {
         let mut image = Subspace::new(self.p, image_rows, target_dimension);
         for i in 0 .. image_rows {
@@ -658,7 +684,23 @@ impl Matrix {
         return image;
     }
 
-
+    /// Given a matrix M in rref, add rows to make the matrix surjective when restricted to the
+    /// columns between `start_column` and `end_column`. That is, if M = [*|B|*] where B is between
+    /// columns `start_column` and `end_column`, we want the new B to be surjective. This doesn't
+    /// change the size of the matrix. Rather, it adds the new row to the next empty row in the
+    /// matrix. This will panic if there are not enough empty rows.
+    ///
+    /// The rows added are all zero except in a single column, where it is 1. The function returns
+    /// the list of such columns.
+    ///
+    /// # Arguments
+    ///  * `first_empty_row` - The first row in the matrix that is empty. This is where we will add
+    ///  our new rows. This is a mutable borrow and by the end of the function, `first_empty_row`
+    ///  will be updated to the new first empty row.
+    ///  * `current_pivots` - The current pivots of the matrix.
+    ///
+    /// # Panics
+    /// The function panics if there are not enough empty rows.
     pub fn extend_to_surjection(&mut self, 
         mut first_empty_row : usize, 
         start_column : usize, end_column : usize,        
@@ -673,14 +715,32 @@ impl Matrix {
             let matrix_row = &mut self[first_empty_row];
             // We're trying to make a surjection so we just set the output equal to 1
             added_pivots.push(i);
-            matrix_row.set_to_zero();
+//            matrix_row.set_to_zero();
             matrix_row.set_entry(i, 1);
             first_empty_row += 1;
         }
         return added_pivots;
     }
 
-    fn extend_image_to_desired_image(&mut self,
+    /// Given a matrix in rref, say [A|B|C], where B lies between columns `start_column` and
+    /// `end_columns`, and a subspace of the image of B, add rows to the matrix such that the image
+    /// of B becomes this subspace. This doesn't change the size of the matrix. Rather, it adds the
+    /// new row to the next empty row in the matrix. This will panic if there are not enough empty
+    /// rows.
+    ///
+    /// The rows added are basis vectors of the desired image as specified in the Subspace object.
+    /// The function returns the list of new pivot columns.
+    ///
+    /// # Arguments
+    ///  * `first_empty_row` - The first row in the matrix that is empty. This is where we will add
+    ///  our new rows. This is a mutable borrow and by the end of the function, `first_empty_row`
+    ///  will be updated to the new first empty row.
+    ///  * `current_pivots` - The current pivots of the matrix.
+    ///
+    /// # Panics
+    /// The function panics if there are not enough empty rows. It *may* panic if the current image
+    /// is not contained in `desired_image`, but is not guaranteed to do so.
+    pub fn extend_image_to_desired_image(&mut self,
         mut first_empty_row : usize,
         start_column : usize, end_column : usize,
         current_pivots : &Vec<isize>, desired_image : Subspace
@@ -709,12 +769,10 @@ impl Matrix {
         return added_pivots;
     }
 
-    /// Take an augmented row reduced matrix representation of a map and adds rows to it to hit the complement
-    /// of complement_pivots in desired_image. Does so by walking through the columns and if it finds a target column
-    /// that has a pivot in desired_image but no pivot in current_pivots or complement_pivots, add that the row in desired_image
-    /// to the matrix.
-    ///    self -- An augmented, row reduced matrix to be modified to extend it's image.
-    ///    first_source_column : Where does the source comppstart in the augmented matrix?
+    /// Extends the image of a matrix to either the whole codomain, or the desired image specified
+    /// by `desired_image`. It simply calls `extends_image_to_surjection` or
+    /// `extend_image_to_surjection` depending on the value of `desired_image`. Refer to these
+    /// functions for documentation.
     pub fn extend_image(&mut self, 
         first_empty_row : usize, 
         start_column : usize, end_column : usize, 

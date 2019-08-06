@@ -134,7 +134,7 @@ impl Module for FinitelyPresentedModule {
         let mut temp_vec = FpVector::new(p, gen_dim, 0);
         self.generators.act_on_basis(&mut temp_vec, 1, op_degree, op_index, mod_degree, gen_idx);
         let qi = self.map.get_quasi_inverse(out_deg).unwrap();
-        qi.reduce(&mut temp_vec);
+        qi.image.as_ref().unwrap().reduce(&mut temp_vec);
         for i in 0..result.get_dimension() {
             let value = temp_vec.get_entry(self.fp_idx_to_gen_idx(out_deg, i));
             result.set_entry(i, value);
