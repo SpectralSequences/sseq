@@ -53,6 +53,7 @@ fn get_entries_per_64_bits(p : u32) -> usize {
     return ENTRIES_PER_64_BITS[PRIME_TO_INDEX_MAP[p as usize]];
 }
 
+#[derive(Clone)]
 struct LimbBitIndexPair {
     limb : usize,
     bit_index : usize
@@ -84,6 +85,9 @@ static mut LIMB_BIT_INDEX_ONCE_TABLE : [Once; MAX_PRIME_INDEX] = [
  * the vector in.
  */
 pub fn initialize_limb_bit_index_table(p : u32){
+    if p == 2 {
+        return;
+    }
     unsafe{
         LIMB_BIT_INDEX_ONCE_TABLE[PRIME_TO_INDEX_MAP[p as usize]].call_once(||{
             let entries_per_limb = get_entries_per_64_bits(p);
@@ -100,13 +104,23 @@ pub fn initialize_limb_bit_index_table(p : u32){
     }
 }
 
-fn get_limb_bit_index_pair(p : u32, idx : usize) -> &'static LimbBitIndexPair {
-    let prime_idx = PRIME_TO_INDEX_MAP[p as usize];
-    debug_assert!(valid_prime_q(p));
-    debug_assert!(idx < MAX_DIMENSION);
-    unsafe {
-        let table = &LIMB_BIT_INDEX_TABLE[prime_idx];
-        return table.as_ref().unwrap().get_unchecked(idx);
+fn get_limb_bit_index_pair(p : u32, idx : usize) -> LimbBitIndexPair {
+    match p {
+        2 => { LimbBitIndexPair
+            {
+                limb : idx/64,
+                bit_index : idx % 64,
+            }
+        },
+        _ => {
+            let prime_idx = PRIME_TO_INDEX_MAP[p as usize];
+            debug_assert!(valid_prime_q(p));
+            debug_assert!(idx < MAX_DIMENSION);
+            unsafe {
+                let table = &LIMB_BIT_INDEX_TABLE[prime_idx];
+                (*table.as_ref().unwrap().get_unchecked(idx)).clone()
+            }
+        }
     }
 }
 
