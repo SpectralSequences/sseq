@@ -87,12 +87,13 @@ impl<M : Module> FreeModuleHomomorphism<M> {
     }
 
     pub fn get_output(&self, generator_degree : i32, generator_index : usize ) -> &FpVector {
-        assert!(generator_degree >= self.source.min_degree);
+        assert!(generator_degree >= self.get_min_degree(), 
+            format!("generator_degree {} less than min degree {}", generator_degree, self.get_min_degree()));
         assert!(generator_index < self.source.get_number_of_gens_in_degree(generator_degree),
             format!("generator_index {} greater than number of generators {}", 
                 generator_index, self.source.get_number_of_gens_in_degree(generator_degree)
         ));
-        let generator_degree_idx = (generator_degree - self.source.min_degree) as usize;
+        let generator_degree_idx = (generator_degree - self.get_min_degree()) as usize;
         return &self.outputs[generator_degree_idx][generator_index];
     }
 
@@ -139,8 +140,10 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         let operation_index = operation_generator.operation_index;
         let generator_degree = operation_generator.generator_degree;
         let generator_index = operation_generator.generator_index;
-        let output_on_generator = self.get_output(generator_degree, generator_index);
-        self.target.act(result, coeff, operation_degree, operation_index, generator_degree - self.degree_shift, output_on_generator);
+        if generator_degree >= self.get_min_degree() {
+            let output_on_generator = self.get_output(generator_degree, generator_index);
+            self.target.act(result, coeff, operation_degree, operation_index, generator_degree - self.degree_shift, output_on_generator);            
+        }
     }
 
     pub fn get_matrix_with_table(&self, matrix : &mut Matrix, table : &FreeModuleTableEntry , degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {

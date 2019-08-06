@@ -147,8 +147,13 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundleChoice, Box<d
 use crate::fp_vector::FpVectorT;
 use crate::resolution_homomorphism::ResolutionHomomorphism;
 pub fn test(config : &Config){
-    let max_degree = 25;
-    let contents = std::fs::read_to_string("static/modules/S_3.json").unwrap();
+    test_no_config();
+}
+
+pub fn test_no_config(){
+    let max_degree = 50;
+    // let contents = std::fs::read_to_string("static/modules/S_3.json").unwrap();
+    let contents = r#"{"type" : "finite dimensional module","name": "$S_3$", "file_name": "S_3", "p": 3, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}"#;
     let mut json : Value = serde_json::from_str(&contents).unwrap();
     let p = json["p"].as_u64().unwrap() as u32;
     let algebra : Rc<Algebra> = Rc::new(AdemAlgebra::new(p, p != 2, false));
@@ -160,12 +165,7 @@ pub fn test(config : &Config){
     let mut output_matrix = matrix::Matrix::new(p, 1, 1);
     output_matrix[0].set_entry(0, 1);
     res_map.extend_step(2, 12, Some(&mut output_matrix));
-    // res_map.extend(3, 14);
-    res_map.extend_step(2, 13, None);
-    res_map.extend_step(2, 14, None);
-    res_map.extend_step(2, 15, None);
-    res_map.extend_step(3, 12, None);
-    res_map.extend_step(4, 12, None);
+    res_map.extend(5, 20);
     println!("{}", resolution.graded_dimension_string());
 }
 

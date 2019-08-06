@@ -38,14 +38,23 @@ impl<
         }
     }
 
-    fn get_map(&self, output_homological_degree : u32) -> &FreeModuleHomomorphism<FreeModule>{
+    fn get_map_ensure_length(&self, output_homological_degree : u32) -> &FreeModuleHomomorphism<FreeModule> {
+        if output_homological_degree as usize >= self.maps.len() {
+            let input_homological_degree = output_homological_degree + self.homological_degree_shift;
+            self.maps.push(FreeModuleHomomorphism::new(self.source.get_module(input_homological_degree), self.target.get_module(output_homological_degree), self.internal_degree_shift));
+        }
+        return &self.maps[output_homological_degree as usize];
+    }
+
+
+    fn get_map(&self, output_homological_degree : u32) -> &FreeModuleHomomorphism<FreeModule> {
         &self.maps[output_homological_degree as usize]
     }
 
 
     pub fn extend(&self, source_homological_degree : u32, source_degree : i32){
         for i in self.homological_degree_shift .. source_homological_degree {
-            let f_cur = self.get_map(i - self.homological_degree_shift);
+            let f_cur = self.get_map_ensure_length(i - self.homological_degree_shift);
             let start_degree = *f_cur.get_lock();
             for j in start_degree + 1 .. source_degree {
                 self.extend_step(i, j, None);
@@ -56,10 +65,7 @@ impl<
     pub fn extend_step(&self, input_homological_degree : u32, input_internal_degree : i32, extra_images : Option<&mut Matrix>){
         let output_homological_degree = input_homological_degree - self.homological_degree_shift;
         let output_internal_degree = input_internal_degree - self.internal_degree_shift;
-        if output_internal_degree == 0 {
-            self.maps.push(FreeModuleHomomorphism::new(self.source.get_module(input_homological_degree), self.target.get_module(output_homological_degree), self.internal_degree_shift));
-        }
-        let f_cur = self.get_map(output_homological_degree);
+        let f_cur = self.get_map_ensure_length(output_homological_degree);
         let computed_degree = *f_cur.get_lock();
         if input_internal_degree <= computed_degree {
             assert!(extra_images.is_none());
@@ -70,7 +76,6 @@ impl<
         let mut lock = f_cur.get_lock();
         f_cur.add_generators_from_matrix_rows(&lock, input_internal_degree, &mut outputs, 0, 0, num_gens);
         *lock += 1;
-        println!("ihd : {}, iid : {}, lock : {}", input_homological_degree, input_internal_degree, *lock);
     }
 
     fn extend_step_helper(&self, input_homological_degree : u32, input_internal_degree : i32, mut extra_images : Option<&mut Matrix>) -> Matrix {
@@ -91,8 +96,6 @@ impl<
         if num_gens == 0 || fx_dimension == 0 {
             return outputs_matrix;
         }
-        println!("source : {}, deg : {}, num_gens : {}", f_cur.get_source().get_name(), input_internal_degree, num_gens);
-        println!("target : {}, fx_dim : {}", f_cur.get_target().get_name(), fx_dimension);
         if output_homological_degree == 0 {
             if let Some(extra_images_matrix) = extra_images {
                 assert!(num_gens <= extra_images_matrix.get_rows());
@@ -118,7 +121,6 @@ impl<
         let mut dx_vector = FpVector::new(p, dx_dimension, 0);
         let mut fdx_vector = FpVector::new(p, fdx_dimension, 0);
         let mut extra_image_row = 0;
-        println!("d.source.num_gens : {}",d_source.get_source().get_number_of_gens_in_degree(input_internal_degree));
         for k in 0 .. num_gens {
             d_source.apply_to_generator(&mut dx_vector, 1, input_internal_degree, k);
             if dx_vector.is_zero() {
@@ -132,7 +134,7 @@ impl<
                 f_prev.apply(&mut fdx_vector, 1, input_internal_degree, &dx_vector);
                 d_quasi_inverse.apply(&mut outputs_matrix[k], 1, &fdx_vector);
                 dx_vector.set_to_zero();
-                fdx_vector.set_to_zero();                    
+                fdx_vector.set_to_zero();
             }
         }
         // let num_extra_image_rows = extra_images.map_or(0, |matrix| matrix.get_rows());

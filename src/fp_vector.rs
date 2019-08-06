@@ -234,7 +234,10 @@ pub trait FpVectorT {
         let min_limb = self.get_min_limb();
         let max_limb = self.get_max_limb();
         let number_of_limbs = max_limb - min_limb;
-        for i in 1..number_of_limbs-1 {
+        if number_of_limbs == 0 {
+            return;
+        }
+        for i in 1 .. number_of_limbs - 1 {
             let limbs = self.get_limbs_cvec_mut();
             limbs[min_limb + i] = 0;
         }
