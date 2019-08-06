@@ -4,6 +4,20 @@ use crate::fp_vector::{FpVector, FpVectorT};
 
 use std::fmt;
 
+/// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is
+/// easier to perform row operations than column operations, and the way we use matrices means we
+/// want our matrices to act on the right. Hence we think of vectors as row vectors.
+///
+/// Matrices can be *sliced*, i.e. restricted to a sub-matrix, and a sliced matrix behaves as if
+/// the other rows and columns are not present for many purposes. For example, this affects the
+/// values of `M[i]`, the `get_rows` and `get_columns` functions, as well as more "useful"
+/// functions like `row_reduce` and `compute_kernel`. However, the row slicing is not taken into
+/// account when dereferencing into `&[FpVector]` (even though the FpVectors still remember the
+/// column slicing). This may or may not be a bug.
+///
+/// In general, before one uses a matrix, they must run
+/// `fp_vector::initialize_limb_bit_index_table(p)`. This only has to be done once and will be
+/// omitted from all examples.
 #[derive(PartialEq, Eq)]
 pub struct Matrix {
     p : u32,
@@ -18,6 +32,8 @@ pub struct Matrix {
 }
 
 impl Matrix {
+    /// Produces a new matrix over F_p with the specified number of rows and columns, intiialized
+    /// to the 0 matrix.
     pub fn new(p : u32, rows : usize, columns : usize) -> Matrix {
         let mut vectors : Vec<FpVector> = Vec::with_capacity(rows);
         for _ in 0..rows {
@@ -70,6 +86,30 @@ impl Matrix {
         self.slice_col_end - self.slice_col_start
     }
 
+    /// Sets the slice on the matrix. Restricts to the submatrix consisting of the rows from
+    /// `row_start` up to but not including `row_end`, and the columns from `col_start` up to but
+    /// not including `col_end`.
+    ///
+    /// Slicing modifies the matrix in place.
+    ///
+    /// # Example
+    /// ```
+    /// let p = 3;
+    /// # use rust_ext::matrix::Matrix;
+    /// # use rust_ext::fp_vector::FpVectorT;
+    /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
+    /// # rust_ext::combinatorics::initialize_prime(p);
+    /// let input  = [vec![1, 2, 1, 1, 0],
+    ///               vec![1, 0, 2, 1, 0],
+    ///               vec![0, 1, 0, 2, 0]];
+    ///
+    /// let mut m = Matrix::from_vec(p, &input);
+    /// m.set_slice(1, 4, 1, 3);
+    ///
+    /// assert_eq!(m.get_rows(), 3);
+    /// assert_eq!(m.get_columns(), 2);
+    /// assert_eq!(m[0].get_entry(0), 0);
+    /// ```
     pub fn set_slice(&mut self, row_start : usize, row_end : usize, col_start : usize, col_end : usize) {
         for v in self.vectors.iter_mut() {
             v.set_slice(col_start, col_end);
@@ -80,6 +120,7 @@ impl Matrix {
         self.slice_col_end = col_end;
     }
 
+    /// Un-slice the matrix.
     pub fn clear_slice(&mut self) {
         for v in self.vectors.iter_mut() {
             v.clear_slice();
@@ -263,14 +304,25 @@ impl Matrix {
     }
 
     /// Perform row reduction to reduce it to reduced row echelon form. This modifies the matrix in
-    /// place and records the pivots in `column_to_pivot_row`.
+    /// place and records the pivots in `column_to_pivot_row`. The way the pivots are recorded is
+    /// that `column_to_pivot_row[i]` is the row of the pivot if the `i`th row contains a pivot,
+    /// and `-1` otherwise.
+    ///
+    /// One has to call `combinatorics::initialize_prime(p)` before using this function (in
+    /// addition to `fp_vector::initialize_limb_bit_index_table(p)`. This step will be skipped in
+    /// future examples.
+    ///
+    /// # Arguments
+    ///  * `column_to_pivot_row` - A vector for the function to write the pivots into. The length
+    ///  should be at least as long as the number of columns (and the extra entries are ignored).
     ///
     /// # Example
     /// ```
     /// let p = 7;
     /// # use rust_ext::matrix::Matrix;
     /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
-    /// # rust_ext::combinatorics::initialize_prime(p);
+    /// rust_ext::combinatorics::initialize_prime(p);
+    ///
     /// let input  = [vec![1, 3, 6],
     ///               vec![0, 3, 4]];
     ///
@@ -283,7 +335,6 @@ impl Matrix {
     ///
     /// assert_eq!(m, Matrix::from_vec(p, &result));
     /// ```
-
     pub fn row_reduce(&mut self, column_to_pivot_row: &mut Vec<isize>){
         assert!(self.get_columns() <= column_to_pivot_row.len());
         let p = self.p;
@@ -348,6 +399,13 @@ impl Matrix {
     }
 }
 
+/// A subspace of a vector space.
+/// # Fields
+///  * `matrix` - A matrix in reduced row echelon, whose number of columns is the dimension of the
+///  ambient space and each row is a basis vector of the subspace.
+///  * `column_to_pivot_row` - If the column is a pivot column, the entry is the row the pivot
+///  corresponds to. If the column is not a pivot column, this is some negative number &mdash; not
+///  necessarily -1!
 #[derive(Debug)]
 pub struct Subspace {
     pub matrix : Matrix,
@@ -425,6 +483,54 @@ impl Matrix {
         return self.get_rows();
     }
 
+    /// Computes the kernel from an augmented matrix in RREF. To compute the kernel of a matrix
+    /// A, produce an augmented matrix of the form
+    /// ```text
+    /// [A | I]
+    /// ```
+    /// An important thing to note is that the number of columns of `A` should be a multiple of the
+    /// number of entries per limb in an FpVector, and this is often achieved by padding columns
+    /// with 0. The padded length can be obtained from `FpVector::get_padded_dimension`.
+    ///
+    /// After this matrix is set up, perform row reduction with `Matrix::row_reduce`, and then
+    /// apply `compute_kernel`.
+    ///
+    /// # Arguments
+    ///  * `column_to_pivot_row` - This is the list of pivots `row_reduce` gave you.
+    ///  * `first_source_column` - The column where the `I` part of the augmented matrix starts.
+    ///
+    /// # Example
+    /// ```
+    /// let p = 3;
+    /// # use rust_ext::matrix::Matrix;
+    /// # use rust_ext::fp_vector::FpVectorT;
+    /// # use rust_ext::fp_vector::FpVector;
+    /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
+    /// # rust_ext::combinatorics::initialize_prime(p);
+    /// let input  = [[1, 2, 1, 1, 0],
+    ///               [1, 0, 2, 1, 1],
+    ///               [2, 2, 0, 2, 1]];
+    ///
+    /// let rows = input.len();
+    /// let cols = input[0].len();
+    /// let padded_cols = FpVector::get_padded_dimension(p, cols, 0);
+    /// let mut m = Matrix::new(p, rows, padded_cols + rows);
+    ///
+    /// for i in 0..rows {
+    ///     for j in 0..cols {
+    ///        m[i].set_entry(j, input[i][j]);
+    ///     }
+    ///     m[i].set_entry(padded_cols + i, 1);
+    /// }
+    ///
+    /// let mut pivots = vec![-1; m.get_columns()];
+    /// m.row_reduce(&mut pivots);
+    /// let ker = m.compute_kernel(&pivots, padded_cols);
+    ///
+    /// let mut target = vec![0; 3];
+    /// ker.matrix[0].unpack(&mut target);
+    /// assert_eq!(target, vec![1, 1, 2]);
+    /// ```
     pub fn compute_kernel(&mut self, column_to_pivot_row : &Vec<isize>, first_source_column : usize) -> Subspace {
         let p = self.p;
         let rows = self.get_rows();
