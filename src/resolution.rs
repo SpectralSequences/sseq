@@ -55,12 +55,12 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let mut differentials = Vec::with_capacity(max_hom_deg);
         let mut chain_maps = Vec::with_capacity(max_hom_deg);
         for i in 0..max_hom_deg {
-            chain_maps.push(FreeModuleHomomorphism::new(Rc::clone(&modules[i]), Rc::clone(&complex.get_module(i as u32)), min_degree, 0));
+            chain_maps.push(FreeModuleHomomorphism::new(Rc::clone(&modules[i]), Rc::clone(&complex.get_module(i as u32)), 0));
         }
-        differentials.push(FreeModuleHomomorphism::new(Rc::clone(&modules[0]), Rc::clone(&zero_module), min_degree, 0));
+        differentials.push(FreeModuleHomomorphism::new(Rc::clone(&modules[0]), Rc::clone(&zero_module), 0));
 
         for i in 1..max_hom_deg {
-            differentials.push(FreeModuleHomomorphism::new(Rc::clone(&modules[i]), Rc::clone(&modules[i-1]), min_degree, 0));
+            differentials.push(FreeModuleHomomorphism::new(Rc::clone(&modules[i]), Rc::clone(&modules[i-1]), 0));
         }
 
         Self {

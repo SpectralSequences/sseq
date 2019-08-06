@@ -130,7 +130,6 @@ pub fn construct_helper<M : Module + Sized>(config : &Config, mut json : Value) 
 pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundleChoice, Box<dyn Error>> {
     let contents = std::fs::read_to_string(&config.module_path)?;
     let json : Value = serde_json::from_str(&contents)?;
-    let json : Value = serde_json::from_str(&contents)?;
     let module_type = &json["type"].as_str().unwrap();
     match module_type {
         &"finite dimensional module" => {
@@ -145,35 +144,31 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundleChoice, Box<d
     }
 }
 
-// pub fn test(){
-//     let p = 2;
-//     let algebra : Rc<Algebra> = Rc::new(AdemAlgebra::new(p, p != 2, false));
-//     let mut fpmod = finitely_presented_module::FinitelyPresentedModule::new(Rc::clone(&algebra), "A/(Sq1,Sq2)".to_string(), 0);
-//     algebra.compute_basis(5);
-//     fpmod.generators.add_generators_immediate(0, 1);
-//     fpmod.generators.extend_by_zero(3);
-//     fpmod.relations.add_generators_immediate(0, 0);
-//     fpmod.relations.add_generators_immediate(1, 1);
-//     fpmod.relations.add_generators_immediate(2, 1);
-//     let mut output_matrix = matrix::Matrix::new(2, 1, 1);
-//     output_matrix[0].set_entry(0, 1);
-//     {
-//         let map = &mut fpmod.map;
-//         let mut map_lock = map.get_lock();
-//         map.add_generators_from_matrix_rows(&map_lock, 0, &mut output_matrix, 0, 0, 0);
-//         *map_lock += 1;
-//         map.add_generators_from_matrix_rows(&map_lock, 1, &mut output_matrix, 0, 0, 1);
-//         *map_lock += 1;
-//         map.add_generators_from_matrix_rows(&map_lock, 2, &mut output_matrix, 0, 0, 1);
-//         *map_lock += 1;
-//     }
-//     let max_degree = 20;
-//     let cc : Rc<CCDZ<FinitelyPresentedModule>> = Rc::new(CCDZ::new(Rc::new(fpmod)));
-//     let res = Box::new(Resolution::new(Rc::clone(&cc), max_degree, None, None));
-//     res.resolve_through_degree(max_degree);
-//     println!("{}", res.graded_dimension_string());
-//     std::process::exit(1);
-// }
+use crate::fp_vector::FpVectorT;
+use crate::resolution_homomorphism::ResolutionHomomorphism;
+pub fn test(){
+    let max_degree = 25;
+    let contents = std::fs::read_to_string("static/modules/S_3.json").unwrap();
+    let mut json : Value = serde_json::from_str(&contents).unwrap();
+    let p = json["p"].as_u64().unwrap() as u32;
+    let algebra : Rc<Algebra> = Rc::new(AdemAlgebra::new(p, p != 2, false));
+    let module = Rc::new(FDModule::from_json(Rc::clone(&algebra), "adem", &mut json));
+    let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
+    let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), max_degree, None, None)); 
+    resolution.resolve_through_degree(max_degree);
+    let res_map = ResolutionHomomorphism::new(Rc::clone(&resolution), Rc::clone(&resolution), 2, 12);
+    let mut output_matrix = matrix::Matrix::new(p, 1, 1);
+    output_matrix[0].set_entry(0, 1);
+    res_map.extend_step(2, 12, Some(&mut output_matrix));
+    // res_map.extend(3, 14);
+    res_map.extend_step(2, 13, None);
+    res_map.extend_step(2, 14, None);
+    res_map.extend_step(2, 15, None);
+    res_map.extend_step(3, 12, None);
+    res_map.extend_step(4, 12, None);
+    println!("{}", resolution.graded_dimension_string());
+    std::process::exit(1);
+}
 
 pub fn run(config : &Config) -> Result<String, Box<dyn Error>> {
     let bundle = construct(&config)?;

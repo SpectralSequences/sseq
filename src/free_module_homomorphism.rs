@@ -29,7 +29,7 @@ impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M>
     }
 
     fn get_max_kernel_degree(&self) -> i32 {
-        self.kernel.len() as i32 + self.min_degree - 1
+        self.kernel.len() as i32 + self.get_min_degree() - 1
     }
 
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_index : usize){
@@ -44,15 +44,17 @@ impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M>
     }
 
     fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse){
-        assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
+        let min_degree = self.get_min_degree();
+        assert!(degree >= min_degree);
+        let degree_idx = (degree - min_degree) as usize;
         assert!(degree_idx == self.quasi_inverse.len());
         self.quasi_inverse.push(quasi_inverse);
     }
 
     fn get_quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
-        assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
+        let min_degree = self.get_min_degree();
+        assert!(degree >= min_degree, format!("Degree {} less than min degree {}", degree, min_degree));
+        let degree_idx = (degree - min_degree) as usize;
         Some(&self.quasi_inverse[degree_idx])
     }
 }
@@ -63,10 +65,11 @@ impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M>
 
 
 impl<M : Module> FreeModuleHomomorphism<M> {
-    pub fn new(source : Rc<FreeModule>, target : Rc<M>, min_degree : i32, degree_shift : i32) -> Self {
+    pub fn new(source : Rc<FreeModule>, target : Rc<M>, degree_shift : i32) -> Self {
         let outputs = OnceVec::new();
         let kernel = OnceVec::new();
         let quasi_inverse = OnceVec::new();
+        let min_degree = std::cmp::max(source.get_min_degree(), target.get_min_degree() + degree_shift);
         Self {
             source,
             target,
@@ -79,9 +82,16 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         }
     }
 
+    pub fn get_min_degree(&self) -> i32 {
+        self.min_degree
+    }
+
     pub fn get_output(&self, generator_degree : i32, generator_index : usize ) -> &FpVector {
         assert!(generator_degree >= self.source.min_degree);
-        assert!(generator_index < self.source.get_number_of_gens_in_degree(generator_degree));        
+        assert!(generator_index < self.source.get_number_of_gens_in_degree(generator_degree),
+            format!("generator_index {} greater than number of generators {}", 
+                generator_index, self.source.get_number_of_gens_in_degree(generator_degree)
+        ));
         let generator_degree_idx = (generator_degree - self.source.min_degree) as usize;
         return &self.outputs[generator_degree_idx][generator_index];
     }
@@ -91,12 +101,12 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         // println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
         let dimension = self.target.get_dimension(degree);
         // println!("    dimension : {} target name : {}", dimension, self.target.get_name());
-        assert!(degree >= self.source.min_degree);
-        let degree_idx = (degree - self.source.min_degree) as usize;
-        assert!(degree_idx == self.outputs.len());
+        assert!(degree >= self.min_degree);
+        let degree_idx = (degree - self.min_degree) as usize;
+        assert_eq!(degree_idx, self.outputs.len());
         assert!(degree == **lock + 1);
         let p = self.get_prime();
-        let dimension = self.target.get_dimension(degree + self.degree_shift);
+        let dimension = self.target.get_dimension(degree - self.degree_shift);
         let mut new_outputs : Vec<FpVector> = Vec::with_capacity(new_generators);
         for _ in 0 .. new_generators {
             new_outputs.push(FpVector::new(p, dimension, 0));
@@ -123,14 +133,14 @@ impl<M : Module> FreeModuleHomomorphism<M> {
     pub fn apply_to_basis_element_with_table(&self, result : &mut FpVector, coeff : u32, input_degree : i32, table : &FreeModuleTableEntry, input_index : usize){
         assert!(input_degree >= self.source.min_degree);
         assert!(input_index < table.basis_element_to_opgen.len());
-        assert!(self.target.get_dimension(input_degree + self.degree_shift) == result.get_dimension());
+        assert!(self.target.get_dimension(input_degree - self.degree_shift) == result.get_dimension());
         let operation_generator = &table.basis_element_to_opgen[input_index];
         let operation_degree = operation_generator.operation_degree;
         let operation_index = operation_generator.operation_index;
         let generator_degree = operation_generator.generator_degree;
         let generator_index = operation_generator.generator_index;
         let output_on_generator = self.get_output(generator_degree, generator_index);
-        self.target.act(result, coeff, operation_degree, operation_index, generator_degree + self.degree_shift, output_on_generator);
+        self.target.act(result, coeff, operation_degree, operation_index, generator_degree - self.degree_shift, output_on_generator);
     }
 
     pub fn get_matrix_with_table(&self, matrix : &mut Matrix, table : &FreeModuleTableEntry , degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {

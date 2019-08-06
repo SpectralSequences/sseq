@@ -35,7 +35,7 @@ impl FinitelyPresentedModule {
             min_degree,
             generators : Rc::clone(&generators),
             relations : Rc::clone(&relations),
-            map : FreeModuleHomomorphism::new(Rc::clone(&relations), Rc::clone(&generators), 0, 0),
+            map : FreeModuleHomomorphism::new(Rc::clone(&relations), Rc::clone(&generators), 0),
             index_table : OnceVec::new()
         }
     }

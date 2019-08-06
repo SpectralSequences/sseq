@@ -10,6 +10,7 @@ const BOLD_ANSI_CODE : &str = "\x1b[1m";
 
 #[allow(unreachable_code)]
 fn main() {
+    // rust_ext::test();
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml).get_matches();
 
