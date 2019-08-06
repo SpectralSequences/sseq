@@ -1146,10 +1146,10 @@ mod tests {
             v.set_slice(slice_start, slice_end);
             w.set_slice(slice_start, slice_end);
             v.assign(&w);
-            assert!(v.equalq(&w));
+            assert!(v.is_equal_to(&w));
             v.clear_slice();
             w.clear_slice();
-            assert!(!v.equalq(&w));
+            assert!(!v.is_equal_to(&w));
             let mut diffs = Vec::new();
             for i in 0..slice_start {
                 if v.get_entry(i) != v_arr[i] {
