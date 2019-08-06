@@ -2,9 +2,9 @@
 #![allow(unused_variables)]
 
 mod once;
-mod combinatorics;
-mod fp_vector;
-mod matrix;
+pub mod combinatorics;
+pub mod fp_vector;
+pub mod matrix;
 mod algebra;
 mod adem_algebra;
 mod milnor_algebra;

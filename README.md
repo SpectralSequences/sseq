@@ -54,3 +54,13 @@ To run the tests, do
 ```
 $ cargo test
 ```
+
+To compile the documentation, run
+```
+$ cargo doc --no-deps
+```
+To view the docuemntation, run
+```
+$ cargo doc --no-deps --open
+```
+As usual, the latter command triggers the former if needed.

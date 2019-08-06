@@ -111,6 +111,7 @@ fn get_limb_bit_index_pair(p : u32, idx : usize) -> &'static LimbBitIndexPair {
 }
 
 #[enum_dispatch]
+#[derive(Debug)]
 pub enum FpVector {
     FpVector2,
     FpVector3,
@@ -289,40 +290,6 @@ pub trait FpVectorT {
         return true
     }
 
-    fn is_equal_to(&self, other : &FpVector) -> bool{
-        let self_min_limb = self.get_min_limb();
-        let self_max_limb = self.get_max_limb();
-        let other_min_limb = other.get_min_limb();
-        let other_max_limb = other.get_max_limb();
-        let number_of_limbs = self_max_limb - self_min_limb;
-        assert_eq!(other_max_limb - other_min_limb, number_of_limbs);
-        let self_limbs = self.get_limbs_cvec();
-        let other_limbs = other.get_limbs_cvec();
-        for i in 1 .. number_of_limbs-1 {
-            if self_limbs[self_min_limb + i] != other_limbs[other_min_limb + i] {
-                return false;
-            }
-        }
-        let mut i = 0; {
-            let mask = self.get_limb_mask(i);
-            let self_limb_masked = self_limbs[self_min_limb + i] & mask;
-            let other_limb_masked = other_limbs[other_min_limb + i] & mask;
-            if self_limb_masked != other_limb_masked {
-                return false;
-            }
-        }
-        i = number_of_limbs - 1;
-        if i > 0 {
-            let mask = self.get_limb_mask(i);
-            let self_limb_masked = self_limbs[self_min_limb + i] & mask;
-            let other_limb_masked = other_limbs[other_min_limb + i] & mask;
-            if self_limb_masked != other_limb_masked {
-                return false;
-            }
-        }
-        return true;
-    }
-
     fn get_entry(&self, index : usize) -> u32 {
         let p = self.get_prime();
         let bit_mask = get_bitmask(p);
@@ -351,6 +318,8 @@ pub trait FpVectorT {
         self.set_entry(index, x);
     }
 
+    /// Unpacks an FpVector onto an array slice. note that the array slice has to be long
+    /// enough to hold all the elements in the FpVector.
     fn unpack(&self, target : &mut [u32]){
         assert!(self.get_dimension() <= target.len());
         let p = self.get_prime();
@@ -435,6 +404,49 @@ pub trait FpVectorT {
     }
 }
 
+impl PartialEq for FpVector {
+    fn eq(&self,other : &Self) -> bool {
+        let self_min_limb = self.get_min_limb();
+        let self_max_limb = self.get_max_limb();
+        let other_min_limb = other.get_min_limb();
+        let other_max_limb = other.get_max_limb();
+        let number_of_limbs = self_max_limb - self_min_limb;
+
+        if other_max_limb - other_min_limb != number_of_limbs {
+            return false;
+        }
+
+        let self_limbs = self.get_limbs_cvec();
+        let other_limbs = other.get_limbs_cvec();
+        for i in 1 .. number_of_limbs-1 {
+            if self_limbs[self_min_limb + i] != other_limbs[other_min_limb + i] {
+                return false;
+            }
+        }
+        let mut i = 0; {
+            let mask = self.get_limb_mask(i);
+            let self_limb_masked = self_limbs[self_min_limb + i] & mask;
+            let other_limb_masked = other_limbs[other_min_limb + i] & mask;
+            if self_limb_masked != other_limb_masked {
+                return false;
+            }
+        }
+        i = number_of_limbs - 1;
+        if i > 0 {
+            let mask = self.get_limb_mask(i);
+            let self_limb_masked = self_limbs[self_min_limb + i] & mask;
+            let other_limb_masked = other_limbs[other_min_limb + i] & mask;
+            if self_limb_masked != other_limb_masked {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
+impl Eq for FpVector {}
+
+#[derive(Debug)]
 pub struct VectorContainer {
     dimension : usize,
     offset : usize,
@@ -443,18 +455,22 @@ pub struct VectorContainer {
     limbs : Vec<u64>,
 }
 
+#[derive(Debug)]
 pub struct FpVector2 {
     vector_container : VectorContainer
 }
 
+#[derive(Debug)]
 pub struct FpVector3 {
     vector_container : VectorContainer
 }
 
+#[derive(Debug)]
 pub struct FpVector5 {
     vector_container : VectorContainer
 }
 
+#[derive(Debug)]
 pub struct FpVectorGeneric {
     p : u32,
     vector_container : VectorContainer
@@ -1029,7 +1045,7 @@ mod tests {
         }
     }
 
-    // Tests assign and is_equal_to
+    // Tests assign and Eq
     #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]//
     fn test_assign(p : u32) {
         initialize_limb_bit_index_table(p);
@@ -1046,7 +1062,7 @@ mod tests {
             v.pack(&v_arr);
             w.pack(&w_arr);
             v.assign(&w);
-            assert!(v.is_equal_to(&w));
+            assert_eq!(v, w);
             v.unpack(&mut result);
             let mut diffs = Vec::new();
             for i in 0..*dim {
@@ -1146,10 +1162,10 @@ mod tests {
             v.set_slice(slice_start, slice_end);
             w.set_slice(slice_start, slice_end);
             v.assign(&w);
-            assert!(v.is_equal_to(&w));
+            assert_eq!(v, w);
             v.clear_slice();
             w.clear_slice();
-            assert!(!v.is_equal_to(&w));
+            assert!(v != w);
             let mut diffs = Vec::new();
             for i in 0..slice_start {
                 if v.get_entry(i) != v_arr[i] {
