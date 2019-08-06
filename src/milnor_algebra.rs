@@ -3,7 +3,6 @@ use std::sync::Mutex;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::once::OnceVec;
 use crate::algebra::Algebra;
-use itertools::Itertools;
 use std::collections::HashMap;
 use serde_json::value::Value;
 
@@ -68,7 +67,11 @@ impl std::fmt::Display for MilnorBasisElement {
         }
         if self.p_part.len() > 0 {
             write!(f, "P(")?;
-            write!(f, "{}", self.p_part.iter().join(", "))?;
+            let mut iter = self.p_part.iter();
+            write!(f, "{}", iter.next().unwrap())?;
+            for x in iter {
+                write!(f, ", {}", x)?;
+            }
             write!(f, ")")?;
         }
         Ok(())
@@ -563,4 +566,3 @@ impl<'a> Iterator for PPartMultiplier<'a> {
         Some((coef, new_p))
     }
 }
-
