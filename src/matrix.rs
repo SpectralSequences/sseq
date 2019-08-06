@@ -39,10 +39,12 @@ impl Matrix {
         self.p
     }
 
+    /// Gets the number of rows in the matrix.
     pub fn get_rows(&self) -> usize {
         self.slice_row_end - self.slice_row_start
     }
 
+    /// Gets the number of columns in the matrix.
     pub fn get_columns(&self) -> usize {
         self.slice_col_end - self.slice_col_start
     }
