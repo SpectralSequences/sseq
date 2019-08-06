@@ -63,4 +63,4 @@ To view the docuemntation, run
 ```
 $ cargo doc --no-deps --open
 ```
-As usual, the latter command triggers the former if needed.
+As usual, the latter command triggers the former if needed. This can also be viewed on [https://hoodmane.github.io/rust_ext/doc/rust_ext/](https://hoodmane.github.io/rust_ext/doc/rust_ext/)
