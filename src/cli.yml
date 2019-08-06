@@ -25,3 +25,9 @@ args:
         short: "d"
         help: "Directory to look for module definition."
         default_value: "static/modules/"
+    - test:
+        long: "test"
+        short: "t"
+        help: "Separate entrypoint for devs"
+        
+

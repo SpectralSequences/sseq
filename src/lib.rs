@@ -146,7 +146,7 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundleChoice, Box<d
 
 use crate::fp_vector::FpVectorT;
 use crate::resolution_homomorphism::ResolutionHomomorphism;
-pub fn test(){
+pub fn test(config : &Config){
     let max_degree = 25;
     let contents = std::fs::read_to_string("static/modules/S_3.json").unwrap();
     let mut json : Value = serde_json::from_str(&contents).unwrap();
@@ -167,7 +167,6 @@ pub fn test(){
     res_map.extend_step(3, 12, None);
     res_map.extend_step(4, 12, None);
     println!("{}", resolution.graded_dimension_string());
-    std::process::exit(1);
 }
 
 pub fn run(config : &Config) -> Result<String, Box<dyn Error>> {

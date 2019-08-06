@@ -10,7 +10,6 @@ const BOLD_ANSI_CODE : &str = "\x1b[1m";
 
 #[allow(unreachable_code)]
 fn main() {
-    // rust_ext::test();
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml).get_matches();
 
@@ -19,6 +18,11 @@ fn main() {
         algebra_name : matches.value_of("algebra").unwrap().to_string(),
         max_degree : value_t!(matches, "degree", i32).unwrap_or_else(|e| panic!("Invalid degree: {}", e))
     };
+
+    if matches.is_present("test") {
+        rust_ext::test(&config);
+        std::process::exit(1);
+    }
 
     match run(&config) {
         Ok(string) => println!("{}{}", BOLD_ANSI_CODE, string),
