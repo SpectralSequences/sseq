@@ -473,7 +473,7 @@ impl QuasiInverse {
     /// # Arguments
     ///  * `target` - The output vector
     ///  * `coeff` - The constant multiple above
-    ///  * ``input` - The input vector, expressed in the basis of the ambient space.
+    ///  * `input` - The input vector, expressed in the basis of the ambient space
     pub fn apply(&self, target : &mut FpVector, coeff : u32, input : &FpVector){
         let p = self.get_prime();
         let mut row = 0;
