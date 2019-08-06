@@ -14,6 +14,14 @@ pub trait ModuleHomomorphism<S : Module, T : Module> {
     }
 
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_idx : usize);
+
+    fn apply(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input : &FpVector){
+        let p = self.get_prime();
+        for (i, v) in input.iter().enumerate() {
+            if v==0 { continue; }
+            self.apply_to_basis_element(result, (coeff * v) % p, input_degree, i);
+        }
+    }
     
     fn get_prime(&self) -> u32 {
         self.get_source().get_prime()

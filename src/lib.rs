@@ -16,6 +16,7 @@ mod free_module_homomorphism;
 mod finitely_presented_module;
 mod chain_complex;
 mod resolution;
+mod resolution_homomorphism;
 mod wasm_bindings;
 
 #[cfg(test)]

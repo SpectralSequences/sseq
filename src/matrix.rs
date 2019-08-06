@@ -490,85 +490,7 @@ impl Matrix {
         };
         return (cm_qi, res_qi);
     }
-
-    /// matrix -- a row reduced augmented matrix
-    /// column_to_pivot_row -- the pivots in matrix (also returned by row_reduce)
-    /// first_source_column -- which block of the matrix is the source of the map
-    pub fn compute_quasi_inverses_old(&mut self, pivots : &Vec<isize>, block_columns : Vec<usize>) -> Vec<QuasiInverse> {
-        let p = self.p;
-        let rows = self.get_rows();
-        let columns = self.get_columns();
-        assert!(block_columns.len() > 0);
-        let first_source_column = block_columns[block_columns.len() - 1];
-        let source_dimension = columns - first_source_column;
-
-        let block_rows = Self::compute_kernel_find_block_rows(pivots, &block_columns, rows, columns);
-        let first_kernel_row = block_rows[block_columns.len() - 1];
-        let kernel_dimension = rows - first_kernel_row;
-        // Write pivots into kernel
-        let mut result = Vec::new();
-        let mut prev_row = 0;        
-        let mut prev_column = 0;
-        for i in 0..block_columns.len() {
-            let num_rows = block_rows[i] - prev_row;
-            let num_cols = block_columns[i] - prev_column;
-            let mut image = Subspace::new(p, num_rows, num_cols);
-            let mut preimage = Matrix::new(p, num_rows, source_dimension);
-            for row in prev_row..block_rows[i] {
-                let vector = &mut self[row];
-                let old_slice = vector.get_slice();
-                vector.set_slice(prev_column, block_columns[i]);
-                image.matrix[row - prev_row].assign(&vector);
-                vector.restore_slice(old_slice);
-                vector.set_slice(first_source_column, columns);
-                preimage[row - prev_row].assign(&vector);
-                vector.restore_slice(old_slice);
-            }
-            for col in prev_column..block_columns[i] {
-                image.column_to_pivot_row[col - prev_column] = pivots[col] - prev_row as isize;
-            }
-            result.push(QuasiInverse {
-                image : Some(image),
-                preimage
-            });
-            prev_row = block_rows[i];
-            prev_column = block_columns[i];
-        }
-        return result;
-    }
-
-    fn compute_kernel_find_block_rows(pivots : &Vec<isize>, target_blocks : &Vec<usize>, rows : usize, columns : usize) -> Vec<usize> {
-        let mut block_rows : Vec<usize> = Vec::with_capacity(target_blocks.len());
-        let mut last_block = 0;
-        loop {
-            // Start searching for the end of the last block.
-            // The end of the last block happens in the first row that has a pivot in a column to the right of it.
-            // So look through columns to the right of the last block until we locate a pivot.
-            for i in target_blocks[last_block] .. columns + 1 {
-                // When we find a pivot, 
-                if i == columns || pivots[i] >= 0 {
-                    let row = if i == columns { rows } else { pivots[i] as usize };
-                    // Okay we found a pivot.
-                    // It's possible that there were some entirely empty blocks though.
-                    // We can indicate an empty block by giving it the same start and end row.
-                    let mut done = true;
-                    for j in last_block + 1 .. target_blocks.len() {
-                        block_rows.push(row);
-                        if target_blocks[j] > row {
-                            last_block = j;
-                            done = false;
-                            break;
-                        }
-                    }
-                    if done {
-                        block_rows.push(row);
-                        return block_rows;
-                    }
-                    break;
-                }
-            }
-        }
-    }
+    
 
     /// Take an augmented row reduced matrix representation of a map and adds rows to it to hit the complement
     /// of complement_pivots in desired_image. Does so by walking through the columns and if it finds a target column
@@ -616,7 +538,6 @@ impl Matrix {
         start_column : usize, end_column : usize,
         current_pivots : &Vec<isize>, desired_image : Subspace
     ) -> Vec<usize> {
-        // println!("Extend_image : cur_pivs : {:?}, desired_image : {:?}", current_pivots, desired_image);
         let mut added_pivots = Vec::new();
         let desired_pivots = &desired_image.column_to_pivot_row;
         let early_end_column = std::cmp::min(end_column, desired_pivots.len() + start_column);
@@ -664,7 +585,6 @@ impl Matrix {
 
 #[cfg(test)]
 mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
     #[test]

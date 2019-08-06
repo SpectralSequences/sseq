@@ -95,7 +95,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
     }
 
 
-    fn get_chain_map(&self, homological_degree : u32) -> &FreeModuleHomomorphism<M> {
+    pub fn get_chain_map(&self, homological_degree : u32) -> &FreeModuleHomomorphism<M> {
         &self.chain_maps[homological_degree as usize]
     }
 
@@ -199,7 +199,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         //
         // old_kernel is the kernel of the map X_{s-1, t} -> X_{s-2, t} (+) C_{s-1, t}
 
-        // We first compute the kernel of the map X_{s, t} -> X_{s-2, t} (+) C_{s, t}, which we
+        // We first compute the kernel of the map X_{s, t} -> X_{s-1, t} (+) C_{s, t}, which we
         // will return at the end.
 
         let current_differential = self.get_differential(homological_degree);
@@ -231,8 +231,10 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let mut matrix = Matrix::new(p, rows, columns);
         let mut pivots = vec![-1;matrix.get_columns()];
         matrix.set_slice(0, source_dimension, 0, padded_target_dimension + source_dimension);
+        // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
         current_chain_map.get_matrix_with_table(&mut matrix, &source_module_table, degree, 0, 0);
         current_differential.get_matrix_with_table(&mut matrix, &source_module_table, degree, 0, padded_target_cc_dimension);
+        // Augment with the identity matrix.
         for i in 0 .. source_dimension {
             matrix[i].set_entry(padded_target_dimension + i, 1);
         }
@@ -240,6 +242,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 
         let new_kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
         let kernel_rows = new_kernel.matrix.get_rows();
+        let first_new_row = source_dimension - kernel_rows;
         matrix.clear_slice();
 
         // What exactly is going on here? I think what we have to do now is to add generators to
@@ -247,14 +250,19 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         // from old_kernel, and presumably the data of the latter can be found in the computation
         // above, but I can't quite figure out the details.
 
-        // Now add generators to hit kernel of previous differential.
 
-        let first_new_row = source_dimension - kernel_rows;        
+        // Now add generators to surject onto C_{s, t}.
+        // (For now we are just adding the eventual images of the new generators into matrix, we will update
+        // X_{s,t} and f later).
+        // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
+        // work out what dX should to to each of them.
         let new_generators = matrix.extend_to_surjection(first_new_row, 0, target_cc_dimension, &pivots);
         let mut num_new_gens = new_generators.len();
 
-        // Add new free module generators to hit basis for previous kernel
         if homological_degree > 0 {
+            // Now we need to make sure that we have a chain homomorphism. Each generator x we just added to 
+            // X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).
+            // So we set dX(x) = f^{-1}(dC(f(x)))
             let prev_chain_map = self.get_chain_map(homological_degree - 1);
             let maybe_quasi_inverse = prev_chain_map.get_quasi_inverse(degree);
             if let Some(quasi_inverse) = maybe_quasi_inverse {
@@ -264,17 +272,24 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
                 for (i, column) in new_generators.iter().enumerate() {
                     complex_cur_differential.apply_to_basis_element(&mut dfx, 1, degree, *column);
                     quasi_inverse.apply(&mut out_vec, 1, &dfx);
+                    // Now out_vec contains f^{-1}(dC(f(x))).
                     let out_row = &mut matrix[first_new_row + i];
                     let old_slice = out_row.get_slice();
+                    // dX(x) goes into the column range [padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension] in the matrix
                     out_row.set_slice(padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension);
                     out_row.assign(&out_vec);
                     out_row.restore_slice(old_slice);
                     dfx.set_to_zero();
                     out_vec.set_to_zero();
                 }
-                matrix.row_reduce(&mut pivots);
+                // Row reduce again since our activity may have changed the image of dX.
+                if new_generators.len() > 0 {
+                    matrix.row_reduce(&mut pivots);
+                }
             }
-            num_new_gens += matrix.extend_image(first_new_row, padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension, &pivots, old_kernel).len();
+            // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
+            // Question: how does it know what it is trying to hit. 
+            num_new_gens += matrix.extend_image(first_new_row + num_new_gens, padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension, &pivots, old_kernel).len();
         }
         source.add_generators(degree, source_lock, source_module_table, num_new_gens);
         current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, degree, &mut matrix, first_new_row, 0, num_new_gens);

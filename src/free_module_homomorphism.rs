@@ -115,6 +115,11 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         self.outputs.push(new_outputs);
     }
 
+    pub fn apply_to_generator(&self, result : &mut FpVector, coeff : u32, degree : i32, idx : usize) {
+        let output_on_gen = self.get_output(degree, idx);
+        result.add(output_on_gen, coeff);
+    }
+
     pub fn apply_to_basis_element_with_table(&self, result : &mut FpVector, coeff : u32, input_degree : i32, table : &FreeModuleTableEntry, input_index : usize){
         assert!(input_degree >= self.source.min_degree);
         assert!(input_index < table.basis_element_to_opgen.len());

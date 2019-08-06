@@ -263,7 +263,7 @@ pub trait FpVectorT {
         }
     }
 
-    fn zeroq(&self) -> bool{
+    fn is_zero(&self) -> bool{
         let min_limb = self.get_min_limb();
         let max_limb = self.get_max_limb();
         let number_of_limbs = max_limb - min_limb;
@@ -289,7 +289,7 @@ pub trait FpVectorT {
         return true
     }
 
-    fn equalq(&self, other : &FpVector) -> bool{
+    fn is_equal_to(&self, other : &FpVector) -> bool{
         let self_min_limb = self.get_min_limb();
         let self_max_limb = self.get_max_limb();
         let other_min_limb = other.get_min_limb();
@@ -876,7 +876,7 @@ mod tests {
         }
     }
 
-    // Tests set_to_zero for a slice and also zeroq.
+    // Tests set_to_zero for a slice and also is_zero.
     #[rstest_parametrize(p,  case(2), case(3), case(5), case(7))]
     fn test_set_to_zero_slice(p : u32) {
         initialize_limb_bit_index_table(p);
@@ -892,9 +892,9 @@ mod tests {
             v.pack(&v_arr);
             v.set_slice(slice_start, slice_end);
             v.set_to_zero();
-            assert!(v.zeroq());
+            assert!(v.is_zero());
             v.clear_slice();
-            assert!(!v.zeroq()); // The first entry is 1, so it's not zero.
+            assert!(!v.is_zero()); // The first entry is 1, so it's not zero.
             let mut diffs = Vec::new();
             for i in 0..slice_start {
                 if v.get_entry(i) != v_arr[i] {
@@ -1029,7 +1029,7 @@ mod tests {
         }
     }
 
-    // Tests assign and equalq
+    // Tests assign and is_equal_to
     #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]//
     fn test_assign(p : u32) {
         initialize_limb_bit_index_table(p);
@@ -1046,7 +1046,7 @@ mod tests {
             v.pack(&v_arr);
             w.pack(&w_arr);
             v.assign(&w);
-            assert!(v.equalq(&w));
+            assert!(v.is_equal_to(&w));
             v.unpack(&mut result);
             let mut diffs = Vec::new();
             for i in 0..*dim {
