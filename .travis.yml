@@ -26,6 +26,10 @@ cache:
     directories:
         - node_modules
 
+before_deploy:
+    - cargo doc --no-deps --document-private-items
+    - cp -r target/doc/ dist/
+
 deploy:
   provider: pages
   skip_cleanup: true
