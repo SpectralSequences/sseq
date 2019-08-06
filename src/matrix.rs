@@ -4,6 +4,7 @@ use crate::fp_vector::{FpVector, FpVectorT};
 
 use std::fmt;
 
+#[derive(PartialEq, Eq)]
 pub struct Matrix {
     p : u32,
     rows : usize,
@@ -13,7 +14,7 @@ pub struct Matrix {
     slice_col_start : usize,
     slice_col_end : usize,
     vectors : Vec<FpVector>,
-    row_permutation : Vec<usize>
+//    row_permutation : Vec<usize>
 }
 
 impl Matrix {
@@ -22,17 +23,37 @@ impl Matrix {
         for _ in 0..rows {
             vectors.push(FpVector::new(p, columns, 0));
         }
-        let mut row_permutation : Vec<usize> = Vec::with_capacity(columns);
-        for i in 0..rows {
-            row_permutation.push(i);
-        }
+//        let mut row_permutation : Vec<usize> = Vec::with_capacity(columns);
+//        for i in 0..rows {
+//            row_permutation.push(i);
+//        }
         Matrix { 
             p, rows, columns, 
             slice_row_start : 0, slice_row_end : rows,
             slice_col_start : 0, slice_col_end : columns,
             vectors, 
-            row_permutation
+//            row_permutation
         }
+    }
+
+    /// Produces a Matrix from an `&[Vec<u32>]` object
+    /// # Example
+    /// ```
+    /// let p = 7;
+    /// # use rust_ext::matrix::Matrix;
+    /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
+    /// let input  = [vec![1, 3, 6],
+    ///               vec![0, 3, 4]];
+    ///
+    /// let mut m = Matrix::from_vec(p, &input);
+    pub fn from_vec(p : u32, input : &[Vec<u32>]) -> Matrix {
+        let rows = input.len();
+        let cols = input[0].len();
+        let mut m = Matrix::new(p, rows, cols);
+        for (i,x) in input.iter().enumerate(){
+            m[i].pack(x);
+        }
+        m
     }
 
     pub fn get_prime(&self) -> u32 {
@@ -83,7 +104,6 @@ impl std::ops::DerefMut for Matrix {
         &mut *self.vectors
     }
 }
-
 
 impl Matrix {
     fn iter(&self) -> std::slice::Iter<FpVector> {
@@ -216,21 +236,21 @@ impl std::ops::IndexMut<usize> for Matrix {
 impl Matrix {
     pub fn swap_rows(&mut self, i : usize, j : usize){
         self.vectors.swap(i + self.slice_row_start, j + self.slice_row_start);
-        self.row_permutation.swap(i + self.slice_row_start, j + self.slice_row_start);
+//        self.row_permutation.swap(i + self.slice_row_start, j + self.slice_row_start);
     }
 
-    pub fn apply_permutation(&mut self, permutation : &Vec<usize>, scratch_space : &mut Vec<FpVector>){
-        assert!(permutation.len() < self.vectors.len());
-        assert!(permutation.len() < scratch_space.len());
-        unsafe {
-            for i in 0..permutation.len(){
-                std::ptr::swap(scratch_space.as_mut_ptr().offset(i as isize), self.vectors.as_mut_ptr().offset(permutation[i] as isize));
-            }
-            for i in 0..permutation.len(){
-                std::ptr::swap(self.vectors.as_mut_ptr().offset(i as isize), scratch_space.as_mut_ptr().offset(i as isize));
-            }            
-        }
-    }
+//    pub fn apply_permutation(&mut self, permutation : &Vec<usize>, scratch_space : &mut Vec<FpVector>){
+//        assert!(permutation.len() < self.vectors.len());
+//        assert!(permutation.len() < scratch_space.len());
+//        unsafe {
+//            for i in 0..permutation.len(){
+//                std::ptr::swap(scratch_space.as_mut_ptr().offset(i as isize), self.vectors.as_mut_ptr().offset(permutation[i] as isize));
+//            }
+//            for i in 0..permutation.len(){
+//                std::ptr::swap(self.vectors.as_mut_ptr().offset(i as isize), scratch_space.as_mut_ptr().offset(i as isize));
+//            }
+//        }
+//    }
 
     pub fn row_op(&mut self, target : usize, source : usize, coeff : u32){
     unsafe {
@@ -241,6 +261,28 @@ impl Matrix {
             (*ptarget).add(&*psource, coeff);
         }
     }
+
+    /// Perform row reduction to reduce it to reduced row echelon form. This modifies the matrix in
+    /// place and records the pivots in `column_to_pivot_row`.
+    ///
+    /// # Example
+    /// ```
+    /// let p = 7;
+    /// # use rust_ext::matrix::Matrix;
+    /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
+    /// # rust_ext::combinatorics::initialize_prime(p);
+    /// let input  = [vec![1, 3, 6],
+    ///               vec![0, 3, 4]];
+    ///
+    /// let result = [vec![1, 0, 2],
+    ///               vec![0, 1, 6]];
+    ///
+    /// let mut m = Matrix::from_vec(p, &input);
+    /// let mut output_pivots_cvec = vec![-1; m.get_columns()];
+    /// m.row_reduce(&mut output_pivots_cvec);
+    ///
+    /// assert_eq!(m, Matrix::from_vec(p, &result));
+    /// ```
 
     pub fn row_reduce(&mut self, column_to_pivot_row: &mut Vec<isize>){
         assert!(self.get_columns() <= column_to_pivot_row.len());
