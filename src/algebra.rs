@@ -74,9 +74,9 @@ pub trait Algebra {
     }    
 }
 
-/// An `AlgebraWithGenerators` is an algebra with a specified choice of algebra generators. It
-/// gives us a simpler way of describing finite modules by only specifying the action of the
-/// generators.
+/// An `AlgebraWithGenerators` is an algebra with a specified choice of algebra generators, which
+/// are necessarily basis elements.. It gives us a simpler way of describing finite modules by only
+/// specifying the action of the generators.
 ///
 /// The methods need not be fast, because they will only be performed when constructing the module,
 /// and will often only involve low dimensional elements.
