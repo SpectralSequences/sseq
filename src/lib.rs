@@ -168,6 +168,16 @@ pub fn run_interactive() -> Result<String, Box<dyn Error>>{
     let p = query::<u32>("p");
     let max_degree = query::<i32>("Max degree");
 
+    let algebra : Rc<AlgebraAny>;
+    loop {
+        match query::<String>("Algebra basis (adem/milnor)").as_ref() {
+            "adem" => { algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false))); break },
+            "milnor" => { algebra = Rc::new(AlgebraAny::from(MilnorAlgebra::new(p))); break },
+            _ => ()
+        };
+        println!("Invalid input. Try again");
+    }
+
     // Query for generators
     println!("Input generators. Press return to finish.");
     stdout().flush()?;
@@ -199,8 +209,7 @@ pub fn run_interactive() -> Result<String, Box<dyn Error>>{
 
     let graded_dim = gens.iter().map(Vec::len).collect();
 
-    let algebra = Rc::new(AlgebraAny::from(MilnorAlgebra::new(p)));
-    algebra.compute_basis(max_degree);
+    algebra.compute_basis(std::cmp::max(max_degree, gens.len() as i32));
 
     let generators : Vec<Vec<usize>> = (0..gens.len()+1).map(|d| algebra.get_algebra_generators(d as i32)).collect();
 
@@ -224,6 +233,9 @@ pub fn run_interactive() -> Result<String, Box<dyn Error>>{
                         'outer: loop {
                             let result = query::<String>(&format!("{} {}", algebra.basis_element_to_string(deg_diff, op_idx), gens[input_deg][idx]));
 
+                            if result == "0" {
+                                break;
+                            }
                             for term in result.split("+") {
                                 let term = term.trim();
                                 let parts : Vec<&str> = term.split(" ").collect();
