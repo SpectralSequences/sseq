@@ -27,7 +27,7 @@ cache:
         - node_modules
 
 before_deploy:
-    - cargo doc --no-deps --document-private-items
+    - sh gen_docs.sh
     - cp -r target/doc/ dist/
 
 deploy:
