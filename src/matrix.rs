@@ -61,7 +61,7 @@ impl Matrix {
     /// let input  = [vec![1, 3, 6],
     ///               vec![0, 3, 4]];
     ///
-    /// let mut m = Matrix::from_vec(p, &input);
+    /// let m = Matrix::from_vec(p, &input);
     pub fn from_vec(p : u32, input : &[Vec<u32>]) -> Matrix {
         let rows = input.len();
         let cols = input[0].len();
@@ -70,6 +70,35 @@ impl Matrix {
             m[i].pack(x);
         }
         m
+    }
+
+    /// Produces a padded augmented matrix from an `&[Vec<u32>]` object (produces [A|0|I] from
+    /// A). Returns the matrix and the first column index of I.
+    ///
+    /// # Example
+    /// ```
+    /// let p = 7;
+    /// # use rust_ext::matrix::Matrix;
+    /// # use rust_ext::fp_vector::FpVector;
+    /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
+    /// let input  = [vec![1, 3, 6],
+    ///               vec![0, 3, 4]];
+    ///
+    /// let (n, m) = Matrix::augmented_from_vec(p, &input);
+    /// assert_eq!(n, FpVector::get_padded_dimension(p, input[0].len(), 0));
+    pub fn augmented_from_vec(p : u32, input : &[Vec<u32>]) -> (usize, Matrix) {
+        let rows = input.len();
+        let cols = input[0].len();
+        let padded_cols = FpVector::get_padded_dimension(p, cols, 0);
+        let mut m = Matrix::new(p, rows, padded_cols + rows);
+
+        for i in 0..rows {
+            for j in 0..cols {
+                m[i].set_entry(j, input[i][j]);
+            }
+            m[i].set_entry(padded_cols + i, 1);
+        }
+        (padded_cols, m)
     }
 
     pub fn get_prime(&self) -> u32 {
@@ -524,22 +553,11 @@ impl Matrix {
     /// # use rust_ext::fp_vector::FpVector;
     /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
     /// # rust_ext::combinatorics::initialize_prime(p);
-    /// let input  = [[1, 2, 1, 1, 0],
-    ///               [1, 0, 2, 1, 1],
-    ///               [2, 2, 0, 2, 1]];
+    /// let input  = [vec![1, 2, 1, 1, 0],
+    ///               vec![1, 0, 2, 1, 1],
+    ///               vec![2, 2, 0, 2, 1]];
     ///
-    /// let rows = input.len();
-    /// let cols = input[0].len();
-    /// let padded_cols = FpVector::get_padded_dimension(p, cols, 0);
-    /// let mut m = Matrix::new(p, rows, padded_cols + rows);
-    ///
-    /// for i in 0..rows {
-    ///     for j in 0..cols {
-    ///        m[i].set_entry(j, input[i][j]);
-    ///     }
-    ///     m[i].set_entry(padded_cols + i, 1);
-    /// }
-    ///
+    /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &input);
     /// let mut pivots = vec![-1; m.get_columns()];
     /// m.row_reduce(&mut pivots);
     /// let ker = m.compute_kernel(&pivots, padded_cols);
@@ -586,6 +604,34 @@ impl Matrix {
     ///  * `pivots` - Pivots returned by `row_reduce`
     ///  * `last_target_col` - the last column of A
     ///  * `first_source_col` - the first column of I
+    ///
+    /// # Example
+    /// ```
+    /// let p = 3;
+    /// # use rust_ext::matrix::Matrix;
+    /// # use rust_ext::fp_vector::FpVectorT;
+    /// # use rust_ext::fp_vector::FpVector;
+    /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
+    /// # rust_ext::combinatorics::initialize_prime(p);
+    /// let input  = [vec![1, 2, 1, 1, 0],
+    ///               vec![1, 0, 2, 1, 1],
+    ///               vec![2, 2, 0, 2, 1]];
+    ///
+    /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &input);
+    /// let mut pivots = vec![-1; m.get_columns()];
+    /// m.row_reduce(&mut pivots);
+    /// let qi = m.compute_quasi_inverse(&pivots, input[0].len(), padded_cols);
+    ///
+    /// let image = [vec![1, 0, 2, 1, 1],
+    ///              vec![0, 1, 1, 0, 1]];
+    /// let computed_image = qi.image.unwrap();
+    /// assert_eq!(computed_image.matrix, Matrix::from_vec(p, &image));
+    /// assert_eq!(computed_image.column_to_pivot_row, vec![0, 1, -1, -1, -1]);
+    ///
+    /// let preimage = [vec![0, 1, 0],
+    ///                 vec![0, 2, 2]];
+    /// assert_eq!(qi.preimage, Matrix::from_vec(p, &preimage));
+    /// ```
     pub fn compute_quasi_inverse(&mut self, pivots : &Vec<isize>, last_target_col : usize, first_source_col : usize) -> QuasiInverse {
         let p = self.get_prime();
         let columns = self.get_columns();
