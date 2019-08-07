@@ -14,6 +14,7 @@ pub struct ResolutionHomomorphism<
     S : Module, F1 : ModuleHomomorphism<S, S>, CC1 : ChainComplex<S, F1>,
     T : Module, F2 : ModuleHomomorphism<T, T>, CC2 : ChainComplex<T, F2>
 > {
+    name : String,
     source : Rc<Resolution<S, F1, CC1>>,
     target : Rc<Resolution<T, F2, CC2>>,
     maps : OnceVec<FreeModuleHomomorphism<FreeModule>>,
@@ -26,10 +27,12 @@ impl<
     T : Module, F2 : ModuleHomomorphism<T, T>, CC2 : ChainComplex<T, F2>
 > ResolutionHomomorphism<S, F1, CC1, T, F2, CC2> {
     pub fn new(
+        name : String,
         source : Rc<Resolution<S,F1,CC1>>, target : Rc<Resolution<T,F2,CC2>>,
         homological_degree_shift : u32, internal_degree_shift : i32
     ) -> Self {
         Self {
+            name,
             source,
             target,
             maps : OnceVec::new(),
@@ -52,10 +55,10 @@ impl<
     }
 
     pub fn extend(&self, source_homological_degree : u32, source_degree : i32){
-        for i in self.homological_degree_shift .. source_homological_degree {
+        for i in self.homological_degree_shift ..= source_homological_degree {
             let f_cur = self.get_map_ensure_length(i - self.homological_degree_shift);
             let start_degree = *f_cur.get_lock();
-            for j in start_degree + 1 .. source_degree {
+            for j in start_degree + 1 ..= source_degree {
                 self.extend_step(i, j, None);
             }
         }
@@ -73,6 +76,10 @@ impl<
         let num_gens = f_cur.get_source().get_number_of_gens_in_degree(input_internal_degree);
         let mut outputs = self.extend_step_helper(input_homological_degree, input_internal_degree, extra_images);
         let mut lock = f_cur.get_lock();
+        if outputs.get_rows() > 0 {
+            println!("Extending {} to hom_deg : {}, int_deg : {}", self.name, input_homological_degree, input_internal_degree);
+            println!("outputs : {}", outputs);
+        }
         f_cur.add_generators_from_matrix_rows(&lock, input_internal_degree, &mut outputs, 0, 0, num_gens);
         *lock += 1;
     }
@@ -97,7 +104,9 @@ impl<
         }
         if output_homological_degree == 0 {
             if let Some(extra_images_matrix) = extra_images {
-                assert!(num_gens <= extra_images_matrix.get_rows());
+                assert!(num_gens <= extra_images_matrix.get_rows(), 
+                    format!("num_gens : {} greater than rows : {} hom_deg : {}, int_deg : {}", 
+                    num_gens, extra_images_matrix.get_rows(), input_homological_degree, input_internal_degree));
                 for k in 0 .. num_gens {
                     let old_slice = extra_images_matrix[k].get_slice();
                     extra_images_matrix[k].set_slice(0, target_cc_dimension);
@@ -131,7 +140,10 @@ impl<
                 extra_image_row += 1;
             } else {
                 f_prev.apply(&mut fdx_vector, 1, input_internal_degree, &dx_vector);
+                println!("{:?}", d_quasi_inverse);
+                println!("fx_dimension : {}",fx_dimension);
                 d_quasi_inverse.apply(&mut outputs_matrix[k], 1, &fdx_vector);
+                println!("{}, {}, {}", dx_vector, fdx_vector, outputs_matrix[k]);
                 dx_vector.set_to_zero();
                 fdx_vector.set_to_zero();
             }

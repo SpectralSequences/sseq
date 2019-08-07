@@ -41,6 +41,7 @@ use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 use crate::finitely_presented_module::FinitelyPresentedModule as FPModule;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::resolution::{Resolution, ModuleResolution};
+use crate::resolution_with_chain_maps::ResolutionWithChainMaps;
 
 use std::rc::Rc;
 use std::error::Error;
@@ -153,21 +154,32 @@ pub fn test(config : &Config){
 }
 
 pub fn test_no_config(){
-    let max_degree = 50;
+    let max_degree = 25;
     // let contents = std::fs::read_to_string("static/modules/S_3.json").unwrap();
-    let contents = r#"{"type" : "finite dimensional module","name": "$S_3$", "file_name": "S_3", "p": 3, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}"#;
+    // S_3
+    // let contents = r#"{"type" : "finite dimensional module","name": "$S_3$", "file_name": "S_3", "p": 3, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}"#;
+    // C2:
+    let contents = r#"{"type" : "finite dimensional module", "name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
     let mut json : Value = serde_json::from_str(&contents).unwrap();
     let p = json["p"].as_u64().unwrap() as u32;
     let algebra : Rc<Algebra> = Rc::new(AdemAlgebra::new(p, p != 2, false));
     let module = Rc::new(FDModule::from_json(Rc::clone(&algebra), "adem", &mut json));
     let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
     let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), max_degree, None, None)); 
-    resolution.resolve_through_degree(max_degree);
-    let res_map = ResolutionHomomorphism::new(Rc::clone(&resolution), Rc::clone(&resolution), 2, 12);
-    let mut output_matrix = matrix::Matrix::new(p, 1, 1);
-    output_matrix[0].set_entry(0, 1);
-    res_map.extend_step(2, 12, Some(&mut output_matrix));
-    res_map.extend(5, 20);
+    // resolution.resolve_through_degree(max_degree);
+    // let f = ResolutionHomomorphism::new("test".to_string(), Rc::clone(&resolution), Rc::clone(&resolution), 1, 4);
+    // let mut v = matrix::Matrix::new(p, 1, 1);
+    // v[0].set_entry(0, 1);
+    // f.extend_step(1, 4, Some(&mut v));
+    // f.extend(3, 15);
+    
+    let mut res_with_maps = ResolutionWithChainMaps::new(Rc::clone(&resolution), Rc::clone(&resolution));
+    let mut map_data = crate::matrix::Matrix::new(2, 1, 1);
+    map_data[0].set_entry(0, 1);
+    res_with_maps.add_self_map(4, 12, "v_1".to_string(), map_data);
+    // res_with_maps.add_product(2, 12, 0, "beta".to_string());
+    // res_with_maps.add_product(2, 9, 0, "\\alpha_{2}".to_string());
+    res_with_maps.resolve_through_degree(max_degree);
     println!("{}", resolution.graded_dimension_string());
 }
 

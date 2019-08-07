@@ -372,6 +372,7 @@ impl Subspace {
     }
 }
 
+#[derive(Debug)]
 pub struct QuasiInverse {
     pub image : Option<Subspace>,
     pub preimage : Matrix
@@ -516,6 +517,7 @@ impl Matrix {
             let old_slice = self[i].get_slice();
             self[i].set_slice(first_res_col, last_res_col);
             res_image.matrix[i].assign(&self[i]);
+            res_image.column_to_pivot_row.copy_from_slice(&new_pivots[first_res_col..last_res_col]);
             self[i].restore_slice(old_slice);
             self[i].set_slice(first_source_col, columns);
             res_preimage[i].assign(&self[i]);
@@ -529,6 +531,8 @@ impl Matrix {
             image : Some(res_image),
             preimage : res_preimage
         };
+        // println!("{:?}", self);
+        // println!("{:?}", res_qi);
         return (cm_qi, res_qi);
     }
     

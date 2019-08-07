@@ -1,7 +1,6 @@
 use wasm_bindgen::prelude::*;
 
 use std::rc::Rc;
-use std::mem::transmute;
 use serde_json::value::Value;
 
 use crate::algebra::Algebra;
@@ -12,6 +11,7 @@ use crate::finitely_presented_module::FinitelyPresentedModule as FPModule;
 // use crate::module_homomorphism::ModuleHomomorphism;
 use crate::chain_complex::{ChainComplex, ChainComplexConcentratedInDegreeZero as CCDZ};
 use crate::resolution::{Resolution, ModuleResolution};
+use crate::resolution_with_chain_maps::{ResolutionWithChainMaps, ModuleResolutionWithChainMaps};
 
 
 // use web_sys::console;
@@ -64,7 +64,12 @@ impl WasmFDModule {
     }
 
     fn to_module(&self) -> Rc<FDModule> {
-        unsafe { Rc::clone(&Rc::from_raw(self.pimpl)) }
+        unsafe { 
+            let raw = Rc::from_raw(self.pimpl);
+            let result = Rc::clone(&raw);
+            std::mem::forget(raw);
+            return result;
+        }
     }
 
     pub fn free(self) {
@@ -90,7 +95,12 @@ impl WasmFPModule {
     }
 
     fn to_module(&self) -> Rc<FPModule> {
-        unsafe { Rc::clone(&Rc::from_raw(self.pimpl)) }
+        unsafe { 
+            let raw = Rc::from_raw(self.pimpl);
+            let result = Rc::clone(&raw);
+            std::mem::forget(raw);
+            return result;
+        }
     }
 
     pub fn free(self) {
@@ -115,7 +125,12 @@ impl WasmCCDZFDModule {
     }
 
     fn to_chain_complex(&self) -> Rc<CCDZ<FDModule>> {
-        unsafe { Rc::clone(&Rc::from_raw(self.pimpl)) }
+        unsafe { 
+            let raw = Rc::from_raw(self.pimpl);
+            let result = Rc::clone(&raw);
+            std::mem::forget(raw);
+            return result;
+        }
     }
 
     pub fn free(self) {
@@ -140,7 +155,12 @@ impl WasmCCDZFPModule {
     }
 
     fn to_chain_complex(&self) -> Rc<CCDZ<FPModule>> {
-        unsafe { Rc::clone(&Rc::from_raw(self.pimpl)) }
+        unsafe { 
+            let raw = Rc::from_raw(self.pimpl);
+            let result = Rc::clone(&raw);
+            std::mem::forget(raw);
+            return result;
+        }
     }
 
     pub fn free(self) {
@@ -187,31 +207,37 @@ impl WasmResolutionCCDZFDModule {
         };
         let add_stuctline_wrapper_box = Box::new(add_stuctline_wrapper);
         let res = Resolution::new(chain_complex, max_degree, Some(add_class_wrapper_box), Some(add_stuctline_wrapper_box)); 
-        let boxed_res = Box::new(res);
-        let pimpl : *const ModuleResolution<FDModule> = Box::into_raw(boxed_res);
+        let boxed_res = Rc::new(res);
+        let pimpl : *const ModuleResolution<FDModule> = Rc::into_raw(boxed_res);
         Self {
             pimpl
         }
     }
  
+    fn to_resolution(&self) -> Rc<ModuleResolution<FDModule>> {
+        unsafe { 
+            let raw = Rc::from_raw(self.pimpl);
+            let result = Rc::clone(&raw);
+            std::mem::forget(raw);
+            return result;
+        }
+    }
+
     // pub fn step(&self, hom_deg : u32, int_deg : i32) {
 
     // }
 
     pub fn resolve_through_degree(&self, degree : i32) {
-        let res = unsafe { &*self.pimpl };
-        res.resolve_through_degree(degree);
+        self.to_resolution().resolve_through_degree(degree);
     }
 
     pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
-        let res = unsafe { &*self.pimpl };
-        return res.get_cocycle_string(hom_deg, int_deg, idx);
+        self.to_resolution().get_cocycle_string(hom_deg, int_deg, idx)
     }
 
     pub fn free(self) {
-         let _drop_me :  Box<ModuleResolution<FDModule>> = unsafe {
-              transmute(self.pimpl)
-         };
+         let _drop_me :  Rc<ModuleResolution<FDModule>> 
+            = unsafe { Rc::from_raw(self.pimpl) };
     }
 }
 
@@ -254,10 +280,19 @@ impl WasmResolutionCCDZFPModule {
         };
         let add_stuctline_wrapper_box = Box::new(add_stuctline_wrapper);
         let res = Resolution::new(chain_complex, max_degree, Some(add_class_wrapper_box), Some(add_stuctline_wrapper_box)); 
-        let boxed_res = Box::new(res);
-        let pimpl : *const ModuleResolution<FPModule> = Box::into_raw(boxed_res);
+        let boxed_res = Rc::new(res);
+        let pimpl : *const ModuleResolution<FPModule> = Rc::into_raw(boxed_res);
         Self {
             pimpl
+        }
+    }
+ 
+    fn to_resolution(&self) -> Rc<ModuleResolution<FPModule>> {
+        unsafe { 
+            let raw = Rc::from_raw(self.pimpl);
+            let result = Rc::clone(&raw);
+            std::mem::forget(raw);
+            return result;
         }
     }
  
@@ -266,19 +301,66 @@ impl WasmResolutionCCDZFPModule {
     // }
 
     pub fn resolve_through_degree(&self, degree : i32) {
-        let res = unsafe { &*self.pimpl };
-        res.resolve_through_degree(degree);
+        self.to_resolution().resolve_through_degree(degree);
     }
 
     pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
-        let res = unsafe { &*self.pimpl };
-        return res.get_cocycle_string(hom_deg, int_deg, idx);
+        self.to_resolution().get_cocycle_string(hom_deg, int_deg, idx)
     }
 
     pub fn free(self) {
-         let _drop_me :  Box<ModuleResolution<FPModule>> = unsafe {
-              transmute(self.pimpl)
-         };
+         let _drop_me : Rc<ModuleResolution<FPModule>> 
+            = unsafe { Rc::from_raw(self.pimpl) };
     }
 }
 
+#[wasm_bindgen]
+pub struct WasmResolutionWithChainMapsCCDZFDModule {
+   pimpl : *const ModuleResolutionWithChainMaps<FDModule, FDModule>
+}
+
+use crate::fp_vector::FpVectorT;
+#[wasm_bindgen]
+impl WasmResolutionWithChainMapsCCDZFDModule {
+    pub fn new(source : &WasmResolutionCCDZFDModule, target : &WasmResolutionCCDZFDModule) -> Self {
+        let source_res = source.to_resolution();
+        let target_res = target.to_resolution();
+        let mut res_with_maps = ResolutionWithChainMaps::new(source_res, target_res);
+        // res_with_maps.add_product(2, 9, 0, "\\alpha_{2}".to_string());
+        // res_with_maps.add_product(2, 12, 0, "\\beta".to_string());
+        // let mut map_data = crate::matrix::Matrix::new(2, 1, 1);
+        // map_data[0].set_entry(0, 1);
+        // res_with_maps.add_self_map(4, 12, "v_1".to_string(), map_data);
+        let boxed_res_with_maps = Rc::new(res_with_maps);
+        let pimpl : *const ModuleResolutionWithChainMaps<FDModule, FDModule> = Rc::into_raw(boxed_res_with_maps);
+        Self {
+            pimpl
+        }
+    }
+
+    fn to_res_with_maps(&self) -> Rc<ModuleResolutionWithChainMaps<FDModule, FDModule>> {
+        unsafe { 
+            let raw = Rc::from_raw(self.pimpl);
+            let result = Rc::clone(&raw);
+            std::mem::forget(raw);
+            return result;
+        }
+    }
+
+    // pub fn add_product(&mut self, homological_degree : u32, internal_degree : i32, index : usize, name : String) {
+    //     self.to_res_with_maps().add_product(homological_degree, internal_degree, index, name)
+    // }
+
+    pub fn resolve_through_degree(&self, degree : i32) {
+        self.to_res_with_maps().resolve_through_degree(degree);
+    }
+
+    pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
+        self.to_res_with_maps().resolution.get_cocycle_string(hom_deg, int_deg, idx)
+    }
+
+    pub fn free(self) {
+         let _drop_me :  Rc<ModuleResolutionWithChainMaps<FDModule,FDModule>> 
+            = unsafe{ Rc::from_raw(self.pimpl) };
+    }
+}

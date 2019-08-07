@@ -364,7 +364,8 @@ pub trait FpVectorT {
     fn add(&mut self, other : &FpVector, c : u32){
         debug_assert!(self.get_prime() == other.get_prime());
         debug_assert!(self.get_offset() == other.get_offset());
-        debug_assert!(self.get_dimension() == other.get_dimension());
+        debug_assert!(self.get_dimension() == other.get_dimension(),
+            format!("self.dim {} not equal to other.dim {}", self.get_dimension(), other.get_dimension()));
         let p = self.get_prime();
         let min_target_limb = self.get_min_limb();
         let max_target_limb = self.get_max_limb();

@@ -127,38 +127,38 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         }
     }
 
-    pub fn step(&self, homological_degree : u32, degree : i32, old_kernel : Option<Subspace>) -> Subspace {
+    pub fn step(&self, homological_degree : u32, internal_degree : i32, old_kernel : Option<Subspace>) -> Subspace {
         // println!("step : hom_deg : {}, int_deg : {}", homological_degree, degree);
         if homological_degree == 0 {
-            self.zero_module.extend_by_zero(degree);
+            self.zero_module.extend_by_zero(internal_degree);
         }
-        self.get_complex().compute_through_bidegree(homological_degree, degree);
-        let new_kernel = self.generate_old_kernel_and_compute_new_kernel(homological_degree, degree, old_kernel);
+        self.get_complex().compute_through_bidegree(homological_degree, internal_degree);
+        let new_kernel = self.generate_old_kernel_and_compute_new_kernel(homological_degree, internal_degree, old_kernel);
         let module = self.get_module(homological_degree);
-        let num_gens = module.get_number_of_gens_in_degree(degree);
+        let num_gens = module.get_number_of_gens_in_degree(internal_degree);
         if let Some(f) = &self.add_class {
             for i in 0..num_gens {
-                f(homological_degree, degree, &format!("{}", i));
+                f(homological_degree, internal_degree, &format!("{}", i));
             }
         }
         if let Some(_) = &self.add_structline {
             for i in 0..num_gens {
-                self.compute_filtration_one_products(homological_degree, degree, i);
+                self.compute_filtration_one_products(homological_degree, internal_degree, i);
             }
         }
         new_kernel
     }
 
-    fn compute_filtration_one_products(&self, homological_degree : u32, degree : i32, source_idx : usize){
+    fn compute_filtration_one_products(&self, homological_degree : u32, internal_degree : i32, source_idx : usize){
         if homological_degree == 0 {
             return;
         }
         if let Some(add_structline) = &self.add_structline {
             let d = self.get_differential(homological_degree);
             let target = self.get_module(homological_degree - 1);
-            let dx = d.get_output(degree, source_idx);
+            let dx = d.get_output(internal_degree, source_idx);
             for (op_name, op_degree, op_index) in self.get_algebra().get_filtration_one_products() {
-                let gen_degree = degree - op_degree;
+                let gen_degree = internal_degree - op_degree;
 
                 if gen_degree < self.get_min_degree(){
                     break;
@@ -174,7 +174,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
                         // printf("hom_deg: %d, deg: %d, source_idx: %d, op_deg: %d, entry: %d\n", homological_degree, degree, source_idx, op_degree, Vector_getEntry(dx, vector_idx));
                         if dx.get_entry(vector_idx) != 0 {
                             // There was a product!
-                            add_structline(op_name, homological_degree - 1, gen_degree, target_idx, homological_degree, degree, source_idx);
+                            add_structline(op_name, homological_degree - 1, gen_degree, target_idx, homological_degree, internal_degree, source_idx);
                         }
                     }
                 }
@@ -311,11 +311,12 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 
         // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
         let image_rows = first_new_row + num_new_gens;
+        // println!("{}",matrix);
         for i in first_new_row .. image_rows {
             matrix[i].set_entry(padded_target_dimension + i, 1);
         }
-
-        matrix.set_slice(0, image_rows, 0, padded_target_dimension + image_rows); 
+        // println!("{}",matrix);
+        matrix.set_slice(0, image_rows, 0, padded_target_dimension + source_dimension + num_new_gens); 
         let mut new_pivots = vec![-1;matrix.get_columns()];
         matrix.row_reduce(&mut new_pivots);
         // println!("{}", matrix);
@@ -325,6 +326,8 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             padded_target_cc_dimension + target_res_dimension,
             padded_target_dimension
         );
+        // assert!(res_qi)
+
         current_chain_map.set_quasi_inverse(&chain_map_lock, degree, cm_qi);
         current_differential.set_quasi_inverse(&differential_lock, degree, res_qi);
         *chain_map_lock += 1;
