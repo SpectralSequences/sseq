@@ -2,7 +2,7 @@ use std::sync::Mutex;
 
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::once::OnceVec;
-use crate::algebra::{Algebra, AlgebraWithGenerators};
+use crate::algebra::Algebra;
 use std::collections::HashMap;
 use serde_json::value::Value;
 
@@ -220,10 +220,8 @@ impl Algebra for MilnorAlgebra {
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
         format!("{}", self.basis_table[degree as usize][idx])
     }
-}
 
-/// We pick our generators to be the Q_i and all the P(...). This has room for improvement...
-impl AlgebraWithGenerators for MilnorAlgebra {
+    /// We pick our generators to be Q_0 and all the P(...). This has room for improvement...
     fn get_algebra_generators(&self, degree : i32) -> Vec<usize> {
         let map = &self.basis_element_to_index_map[degree as usize];
 
@@ -241,19 +239,6 @@ impl AlgebraWithGenerators for MilnorAlgebra {
         }
         if self.profile.generic && degree == 1 {
             generators.push(0); // Q_0
-//            let tau_degrees = crate::combinatorics::get_tau_degrees(self.p);
-//            for i in 0..tau_degrees.len() {
-//                if tau_degrees[i] == degree {
-//                    generators.push(map.get(&MilnorBasisElement {
-//                        q_part : 1<<i,
-//                        p_part : Vec::new(),
-//                        degree : degree
-//                    }).unwrap().to_owned())
-//                }
-//                if tau_degrees[i] > degree {
-//                    break;
-//                }
-//            }
         }
         generators
     }
@@ -272,7 +257,7 @@ impl AlgebraWithGenerators for MilnorAlgebra {
             i -= 1
         }
 
-        // If it is Q_{k+1}, we decompose Q_{k+1} = P(p^k) Q_k - Q_k P(p^k)
+        // If the basis element is just Q_{k+1}, we decompose Q_{k+1} = P(p^k) Q_k - Q_k P(p^k).
         if basis.q_part == 1 << i && basis.p_part.len() == 0 {
             let ppow = crate::combinatorics::integer_power(self.p, i - 1);
 
@@ -291,6 +276,7 @@ impl AlgebraWithGenerators for MilnorAlgebra {
             return vec![(1, (p_degree, p_idx), (q_degree, q_idx)), (self.p - 1, (q_degree, q_idx), (p_degree, p_idx))];
         }
 
+        // Otherwise, separate out the first Q_k.
         let first_degree = crate::combinatorics::get_tau_degrees(self.p)[i as usize];
         let second_degree = degree - first_degree;
 

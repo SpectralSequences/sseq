@@ -3,8 +3,9 @@ use wasm_bindgen::prelude::*;
 use std::rc::Rc;
 use serde_json::value::Value;
 
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, AlgebraAny};
 use crate::adem_algebra::AdemAlgebra;
+use crate::milnor_algebra::MilnorAlgebra;
 use crate::module::Module;
 use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 use crate::finitely_presented_module::FinitelyPresentedModule as FPModule;
@@ -18,13 +19,22 @@ use crate::resolution_with_chain_maps::{ResolutionWithChainMaps, ModuleResolutio
 
 #[wasm_bindgen]
 pub struct WasmAlgebra {
-    pimpl : *const AdemAlgebra
+    pimpl : *const AlgebraAny
 }
 
 #[wasm_bindgen]
 impl WasmAlgebra {
-    pub fn new_adem_algebra(p : u32, generic : bool, max_degree : i32) -> Self {
-        let mut algebra = AdemAlgebra::new(p, generic, false);
+    pub fn new_adem_algebra(p : u32, generic : bool) -> Self {
+        let mut algebra = AlgebraAny::from(AdemAlgebra::new(p, generic, false));
+        algebra.set_default_filtration_one_products();
+        let boxed_algebra = Rc::new(algebra);
+        Self {
+            pimpl : Rc::into_raw(boxed_algebra)
+        }
+    }
+
+    pub fn new_milnor_algebra(p : u32) -> Self {
+        let mut algebra = AlgebraAny::from(MilnorAlgebra::new(p));
         algebra.set_default_filtration_one_products();
         let boxed_algebra = Rc::new(algebra);
         Self {
@@ -33,10 +43,10 @@ impl WasmAlgebra {
     }
 
     pub fn compute_basis(&self, degree : i32) {
-        self.to_adem_algebra().compute_basis(degree);
+        self.to_algebra().compute_basis(degree);
     }
 
-    fn to_adem_algebra(&self) -> Rc<AdemAlgebra> {
+    fn to_algebra(&self) -> Rc<AlgebraAny> {
         let raw = unsafe { Rc::from_raw(self.pimpl) };
         let clone = Rc::clone(&raw);
         std::mem::forget(raw);
@@ -57,7 +67,7 @@ pub struct WasmFDModule {
 impl WasmFDModule {
     pub fn new_adem_module(algebra : &WasmAlgebra, json_string : String) -> WasmFDModule {
         let mut json : Value = serde_json::from_str(&json_string).unwrap();
-        let module = FDModule::from_json(algebra.to_adem_algebra(), "adem", &mut json);
+        let module = FDModule::from_json(algebra.to_algebra(), "adem", &mut json);
         let boxed_module = Rc::new(module);
         Self {
             pimpl : Rc::into_raw(boxed_module)
@@ -88,7 +98,7 @@ pub struct WasmFPModule {
 impl WasmFPModule {
     pub fn new_adem_module(algebra : &WasmAlgebra, json_string : String) -> WasmFPModule {
         let mut json : Value = serde_json::from_str(&json_string).unwrap();
-        let module = FPModule::from_json(algebra.to_adem_algebra(), "adem", &mut json);
+        let module = FPModule::from_json(algebra.to_algebra(), "adem", &mut json);
         let boxed_module = Rc::new(module);
         Self {
             pimpl : Rc::into_raw(boxed_module)

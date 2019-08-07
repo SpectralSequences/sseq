@@ -1,7 +1,7 @@
 use std::sync::{ Mutex, MutexGuard };
 use crate::once::OnceVec;
 use crate::fp_vector::{FpVector, FpVectorT};
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::Module;
 use std::rc::Rc;
 
@@ -20,7 +20,7 @@ pub struct FreeModuleTableEntry {
 }
 
 pub struct FreeModule {
-    pub algebra : Rc<dyn Algebra>,
+    pub algebra : Rc<AlgebraAny>,
     pub name : String,
     pub min_degree : i32,
     pub max_degree : Mutex<i32>,
@@ -32,7 +32,7 @@ impl Module for FreeModule {
         &self.name
     }
 
-    fn get_algebra(&self) -> Rc<dyn Algebra> {
+    fn get_algebra(&self) -> Rc<AlgebraAny> {
         Rc::clone(&self.algebra)
     }
 
@@ -83,14 +83,14 @@ impl Module for FreeModule {
         result.restore_slice(old_slice);
     }
 
-    fn from_json(algebra : Rc<dyn Algebra>, algebra_name: &str, json : &mut serde_json::Value) -> Self {
+    fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut serde_json::Value) -> Self {
         assert!(false, "Not implemented");
         unreachable!();
     }
 }
 
 impl FreeModule {
-    pub fn new(algebra : Rc<dyn Algebra>, name : String, min_degree : i32) -> Self {
+    pub fn new(algebra : Rc<AlgebraAny>, name : String, min_degree : i32) -> Self {
         Self {
             algebra,
             name,
@@ -234,9 +234,9 @@ mod tests {
     #[test]
     fn test_free_mod(){
         let p = 2;
-        let A = Rc::new(AdemAlgebra::new(p, p != 2, false));
+        let A = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
         A.compute_basis(10);
-        let M = FreeModule::new(Rc::clone(&A) as Rc<dyn Algebra>, "".to_string(), 0);
+        let M = FreeModule::new(Rc::clone(&A), "".to_string(), 0);
         let (lock, table) = M.construct_table(0);
         M.add_generators(0, lock, table, 1);
         let (lock, table) = M.construct_table(1);

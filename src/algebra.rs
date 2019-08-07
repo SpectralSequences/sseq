@@ -1,5 +1,8 @@
 use crate::fp_vector::FpVector;
+use crate::adem_algebra::AdemAlgebra;
+use crate::milnor_algebra::MilnorAlgebra;
 use serde_json::value::Value;
+use enum_dispatch::enum_dispatch;
 
 /// A graded algebra over F_p, finite dimensional in each degree, equipped with a choice of ordered
 /// basis in each dimension. Basis elements of the algebra are referred to by their degree and
@@ -11,6 +14,11 @@ use serde_json::value::Value;
 /// the algebra should compute relevant data to be able to perform calculations up to degree
 /// `degree`. It is the responsibility of users to ensure `compute_degree(degree)` is called before
 /// calling other functions with the `degree` parameter.
+///
+/// The algebra should also come with a specified choice of algebra generators, which are
+/// necessarily basis elements. It gives us a simpler way of describing finite modules by only
+/// specifying the action of the generators.
+#[enum_dispatch]
 pub trait Algebra {
     /// Returns the prime the algebra is over.
     fn get_prime(&self) -> u32;
@@ -72,18 +80,13 @@ pub trait Algebra {
         }
         return result;
     }    
-}
 
-/// An `AlgebraWithGenerators` is an algebra with a specified choice of algebra generators, which
-/// are necessarily basis elements.. It gives us a simpler way of describing finite modules by only
-/// specifying the action of the generators.
-///
-/// The methods need not be fast, because they will only be performed when constructing the module,
-/// and will often only involve low dimensional elements.
-pub trait AlgebraWithGenerators : Algebra {
     /// Given a degree `degree`, the function returns a list of algebra generators in that degree.
     /// This return value is the list of indices of the basis elements that are generators. The
     /// list need not be in any particular order.
+    ///
+    /// This method need not be fast, because they will only be performed when constructing the module,
+    /// and will often only involve low dimensional elements.
     fn get_algebra_generators(&self, degree : i32) -> Vec<usize>;
 
     /// Given a non-generator basis element of the algebra, decompose it in terms of algebra
@@ -93,5 +96,14 @@ pub trait AlgebraWithGenerators : Algebra {
     /// elements of strictly smaller degree than the original, and
     /// $$ A = \sum_i c_i A_i B_i.$$
     /// This allows us to recursively compute the action of the algebra.
+    ///
+    /// This method need not be fast, because they will only be performed when constructing the module,
+    /// and will often only involve low dimensional elements.
     fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>;
+}
+
+#[enum_dispatch(Algebra)]
+pub enum AlgebraAny {
+    AdemAlgebra,
+    MilnorAlgebra
 }

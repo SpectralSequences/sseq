@@ -4,7 +4,7 @@ use serde_json::Value;
 use crate::once::{OnceVec, TempStorage};
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace};
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::Module;
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::chain_complex::ChainComplex;
@@ -64,7 +64,7 @@ ResolutionWithChainMaps<M1, F1, CC1, M2, F2, CC2> {
         self.resolution.get_prime()
     }
 
-    pub fn get_algebra(&self) -> Rc<dyn Algebra> {
+    pub fn get_algebra(&self) -> Rc<AlgebraAny> {
         self.resolution.get_algebra()
     }
 

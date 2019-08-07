@@ -1,5 +1,5 @@
 use crate::fp_vector::{FpVector, FpVectorT};
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, OptionModule};
 use serde_json::value::Value;
 use std::collections::HashMap;
@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 
 pub struct FiniteDimensionalModule {
-    algebra : Rc<dyn Algebra>,
+    algebra : Rc<AlgebraAny>,
     name : String,
     min_degree : i32,
     graded_dimension : Vec<usize>,
@@ -20,7 +20,7 @@ impl Module for FiniteDimensionalModule {
         &self.name
     }
 
-    fn get_algebra(&self) -> Rc<dyn Algebra> {
+    fn get_algebra(&self) -> Rc<AlgebraAny> {
         Rc::clone(&self.algebra)
     }
 
@@ -56,7 +56,7 @@ impl Module for FiniteDimensionalModule {
         result.add(output, coeff);
     }
 
-    fn from_json(algebra : Rc<dyn Algebra>, algebra_name: &str, json : &mut Value) -> Self {
+    fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut Value) -> Self {
         let gens = json["gens"].take();
         let (min_degree, graded_dimension, gen_to_idx) = Self::module_gens_from_json(&gens);
         let name = json["name"].as_str().unwrap().to_string();
@@ -82,7 +82,7 @@ impl Module for FiniteDimensionalModule {
 }
 
 impl FiniteDimensionalModule {
-    pub fn new(algebra : Rc<dyn Algebra>, name : String, min_degree : i32, graded_dimension : Vec<usize>) -> Self {
+    pub fn new(algebra : Rc<AlgebraAny>, name : String, min_degree : i32, graded_dimension : Vec<usize>) -> Self {
         algebra.compute_basis(min_degree + graded_dimension.len() as i32);
         let actions = FiniteDimensionalModule::allocate_actions(&algebra, min_degree, &graded_dimension);
         FiniteDimensionalModule {
@@ -119,7 +119,7 @@ impl FiniteDimensionalModule {
         return (min_degree as i32, graded_dimension, gen_to_idx);
     }
 
-    fn allocate_actions(algebra : &Rc<dyn Algebra>, min_degree : i32, graded_dimension : &Vec<usize>) -> Vec<Vec<Vec<Vec<FpVector>>>> {
+    fn allocate_actions(algebra : &Rc<AlgebraAny>, min_degree : i32, graded_dimension : &Vec<usize>) -> Vec<Vec<Vec<Vec<FpVector>>>> {
         let basis_degree_range = graded_dimension.len();
         let mut result : Vec<Vec<Vec<Vec<FpVector>>>> = Vec::with_capacity(basis_degree_range);
         // Count number of triples (x, y, op) with |x| + |op| = |y|.

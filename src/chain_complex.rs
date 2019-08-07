@@ -1,4 +1,4 @@
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, ZeroModule, OptionModule};
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use std::rc::Rc;
@@ -8,7 +8,7 @@ pub trait ChainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
     fn get_prime(&self) -> u32 {
         self.get_algebra().get_prime()
     }
-    fn get_algebra(&self) -> Rc<dyn Algebra>;
+    fn get_algebra(&self) -> Rc<AlgebraAny>;
     fn get_min_degree(&self) -> i32;
     fn get_module(&self, homological_degree : u32) -> Rc<M>;
     fn get_differential(&self, homological_degree : u32) -> &F;
@@ -41,7 +41,7 @@ impl<M : Module> ChainComplexConcentratedInDegreeZero<M> {
 }
 
 impl<M : Module> ChainComplex<OptionModule<M>, ZeroHomomorphism<OptionModule<M>, OptionModule<M>>> for ChainComplexConcentratedInDegreeZero<M> {
-    fn get_algebra(&self) -> Rc<dyn Algebra> {
+    fn get_algebra(&self) -> Rc<AlgebraAny> {
         self.module.get_algebra()
     }
 

@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace};
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, ZeroModule};
 use crate::free_module::FreeModule;
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
@@ -428,7 +428,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
     ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>> 
     for Resolution<M, F, CC>
 {
-    fn get_algebra(&self) -> Rc<dyn Algebra> {
+    fn get_algebra(&self) -> Rc<AlgebraAny> {
         self.get_complex().get_algebra()
     }
 

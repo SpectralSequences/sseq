@@ -56,7 +56,7 @@ let message_handlers = {};
 
 message_handlers.resolve = function resolve(m){
     self.p = m.p;
-    self.algebra = self.wasm.WasmAlgebra.new_adem_algebra(m.p, m.p != 2, m.maxDegree);
+    self.algebra = self.wasm.WasmAlgebra.new_adem_algebra(m.p, m.p != 2);
     resolution_constructors[m.type](self.algebra, m);
     self.res.resolve_through_degree(m.maxDegree);
     console.log(`Total time : ${getTotalTime()}`);

@@ -33,7 +33,7 @@ extern crate serde_json;
 extern crate wasm_bindgen;
 extern crate web_sys;
 
-use crate::algebra::{Algebra, AlgebraWithGenerators};
+use crate::algebra::{Algebra, AlgebraAny};
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::adem_algebra::AdemAlgebra;
 use crate::milnor_algebra::MilnorAlgebra;
@@ -85,7 +85,7 @@ impl Error for UnknownModuleType {
 }
 
 pub struct AlgebraicObjectsBundle<M : Module> {
-    algebra : Rc<dyn Algebra>,
+    algebra : Rc<AlgebraAny>,
     module : Rc<M>,
     chain_complex : Rc<CCDZ<M>>,
     resolution : Rc<ModuleResolution<M>>
@@ -116,10 +116,10 @@ pub fn construct_helper<M : Module + Sized>(config : &Config, mut json : Value) 
     let p = json["p"].as_u64().unwrap() as u32;
 
     // You need a box in order to allow for different possible types implementing the same trait
-    let algebra : Rc<dyn Algebra>;
+    let algebra : Rc<AlgebraAny>;
     match config.algebra_name.as_ref() {
-        "adem" => algebra = Rc::new(AdemAlgebra::new(p, p != 2, false)),
-        "milnor" => algebra = Rc::new(MilnorAlgebra::new(p)),
+        "adem" => algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false))),
+        "milnor" => algebra = Rc::new(AlgebraAny::from(MilnorAlgebra::new(p))),
         _ => { return Err(Box::new(InvalidAlgebraError { name : config.algebra_name.clone() })); }
     };    
     let module = Rc::new(M::from_json(Rc::clone(&algebra), &config.algebra_name, &mut json));
@@ -199,12 +199,12 @@ pub fn run_interactive() -> Result<String, Box<dyn Error>>{
 
     let graded_dim = gens.iter().map(Vec::len).collect();
 
-    let algebra = Rc::new(MilnorAlgebra::new(p));
+    let algebra = Rc::new(AlgebraAny::from(MilnorAlgebra::new(p)));
     algebra.compute_basis(max_degree);
 
     let generators : Vec<Vec<usize>> = (0..gens.len()+1).map(|d| algebra.get_algebra_generators(d as i32)).collect();
 
-    let mut module = FDModule::new(Rc::clone(&algebra) as Rc<dyn Algebra>, "".to_string(), 0, graded_dim);
+    let mut module = FDModule::new(Rc::clone(&algebra), "".to_string(), 0, graded_dim);
 
     println!("Input actions. Write the value of the action in the form 'a x0 + b x1 + ...' where a, b are non-negative integers and x0, x1 are names of the generators. The coefficient can be omitted if it is 1");
 
@@ -284,7 +284,7 @@ pub fn test_no_config(){
     let contents = r#"{"type" : "finite dimensional module", "name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
     let mut json : Value = serde_json::from_str(&contents).unwrap();
     let p = json["p"].as_u64().unwrap() as u32;
-    let algebra : Rc<Algebra> = Rc::new(AdemAlgebra::new(p, p != 2, false));
+    let algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
     let module = Rc::new(FDModule::from_json(Rc::clone(&algebra), "adem", &mut json));
     let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
     let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), max_degree, None, None)); 

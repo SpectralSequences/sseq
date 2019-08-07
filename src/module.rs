@@ -2,7 +2,7 @@ use std::rc::Rc;
 // use enum_dispatch::enum_dispatch;
 
 use crate::fp_vector::{FpVector, FpVectorT};
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, AlgebraAny};
 
 // enum Module_Type {
 
@@ -12,9 +12,9 @@ pub trait Module {
     fn get_prime(&self) -> u32 {
         self.get_algebra().get_prime()
     }
-    fn from_json(algebra : Rc<dyn Algebra>, algebra_name: &str, json : &mut serde_json::Value) -> Self;
+    fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut serde_json::Value) -> Self;
 
-    fn get_algebra(&self) -> Rc<dyn Algebra>;
+    fn get_algebra(&self) -> Rc<AlgebraAny>;
     fn get_name(&self) -> &str;
     fn get_min_degree(&self) -> i32;
     fn compute_basis(&self, _degree : i32) {}
@@ -60,12 +60,12 @@ pub trait Module {
 }
 
 pub struct ZeroModule {
-    algebra : Rc<dyn Algebra>,
+    algebra : Rc<AlgebraAny>,
     name : String
 }
 
 impl ZeroModule {
-    pub fn new(algebra : Rc<dyn Algebra>) -> Self {
+    pub fn new(algebra : Rc<AlgebraAny>) -> Self {
         let name = format!("Zero Module over {}", algebra.get_name());
         ZeroModule {
             algebra,
@@ -75,11 +75,11 @@ impl ZeroModule {
 }
 
 impl Module for ZeroModule {
-    fn from_json(algebra : Rc<dyn Algebra>, algebra_name: &str, json : &mut  serde_json::Value) -> Self {
+    fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut  serde_json::Value) -> Self {
         Self::new(algebra)
     }
 
-    fn get_algebra(&self) -> Rc<dyn Algebra> {
+    fn get_algebra(&self) -> Rc<AlgebraAny> {
         Rc::clone(&self.algebra)
     }
     
@@ -113,7 +113,7 @@ impl Module for ZeroModule {
 // }
 
 // impl<L : Module, R : Module> Module for ModuleChoice<L, R> {
-//     fn get_algebra(&self) -> Rc<dyn Algebra> {
+//     fn get_algebra(&self) -> Rc<AlgebraAny> {
 //         match self {
 //             ModuleChoice::IntroL(l) => l.get_algebra(),
 //             ModuleChoice::IntroR(r) => r.get_algebra()
@@ -170,11 +170,11 @@ pub enum OptionModule<M : Module> {
 }
 
 impl<M : Module> Module for OptionModule<M> {
-    fn from_json(algebra : Rc<dyn Algebra>, algebra_name: &str, json : &mut serde_json::Value) -> Self {
+    fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut serde_json::Value) -> Self {
         OptionModule::Some(Rc::new(M::from_json(algebra, algebra_name, json)))
     }
 
-    fn get_algebra(&self) -> Rc<dyn Algebra> {
+    fn get_algebra(&self) -> Rc<AlgebraAny> {
         match self {
             OptionModule::Some(l) => l.get_algebra(),
             OptionModule::Zero(r) => r.get_algebra()

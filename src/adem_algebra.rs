@@ -269,6 +269,16 @@ impl Algebra for AdemAlgebra {
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
         format!("{}", self.basis_element_from_index(degree, idx))
     }
+
+    /// Every basis element is a generator. Surely we can do better than this...
+    fn get_algebra_generators(&self, degree : i32) -> Vec<usize> {
+        (0..self.get_dimension(degree, -1)).collect()
+    }
+
+    /// If every basis element is a generator, we never need to decompose!
+    fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
+        Vec::new()
+    }
 }
 
 // static void AdemAlgebra__initializeFields(AdemAlgebraInternal *algebra, uint p, bool generic, bool unstable);

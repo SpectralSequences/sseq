@@ -5,7 +5,7 @@ use serde_json::Value;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::Matrix;
 use crate::once::OnceVec;
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::Module;
 use crate::free_module::FreeModule;
 use crate::module_homomorphism::ModuleHomomorphism;
@@ -27,7 +27,7 @@ pub struct FinitelyPresentedModule {
 }
 
 impl FinitelyPresentedModule {
-    pub fn new(algebra : Rc<dyn Algebra>, name : String, min_degree : i32) -> Self {
+    pub fn new(algebra : Rc<AlgebraAny>, name : String, min_degree : i32) -> Self {
         let generators = Rc::new(FreeModule::new(Rc::clone(&algebra), format!("{}-gens", name), min_degree));
         let relations = Rc::new(FreeModule::new(Rc::clone(&algebra), format!("{}-gens", name), min_degree));
         Self {
@@ -81,7 +81,7 @@ impl FinitelyPresentedModule {
 }
 
 impl Module for FinitelyPresentedModule {
-    fn get_algebra(&self) -> Rc<dyn Algebra> {
+    fn get_algebra(&self) -> Rc<AlgebraAny> {
         self.generators.get_algebra()
     }
 
@@ -146,7 +146,7 @@ impl Module for FinitelyPresentedModule {
         self.generators.basis_element_to_string(degree, gen_idx)
     }
 
-    fn from_json(algebra : Rc<dyn Algebra>, algebra_name: &str, json : &mut Value) -> Self {
+    fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut Value) -> Self {
         let p = algebra.get_prime();
         let name = json["name"].as_str().unwrap().to_string();        
         let gens = json["gens"].take();
