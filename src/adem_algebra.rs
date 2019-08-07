@@ -272,12 +272,55 @@ impl Algebra for AdemAlgebra {
 
     /// Every basis element is a generator. Surely we can do better than this...
     fn get_algebra_generators(&self, degree : i32) -> Vec<usize> {
-        (0..self.get_dimension(degree, -1)).collect()
+        let p = self.get_prime();
+        if degree == 0 {
+            return vec![];
+        }
+        if self.generic {
+            if degree == 1 {
+                return vec![0];
+            }
+            // Test if degree is q*p^k.
+            let mut temp_degree = degree as u32;
+            if temp_degree % (2*(p-1)) != 0 {
+                return vec![];
+            }
+            temp_degree /= (2*(p - 1));
+            while temp_degree % p == 0 {
+                temp_degree /= p;
+            }
+            if temp_degree != 1 {
+                return vec![];
+            }
+            let idx = self.basis_element_to_index(&AdemBasisElement {
+                degree,
+                excess : 0,
+                bocksteins : 0,
+                ps : vec![degree as u32/(2*p-2)]
+            });
+            return vec![idx];
+        } else {
+            // I guess we're assuming here that not generic ==> p == 2. There's probably tons of places we assume that though.
+            if degree.count_ones() != 1 {
+                return vec![];
+            }
+            let idx = self.basis_element_to_index(&AdemBasisElement {
+                degree,
+                excess : 0,
+                bocksteins : 0,
+                ps : vec![degree as u32]
+            });
+            return vec![idx];
+        }
     }
 
     /// If every basis element is a generator, we never need to decompose!
     fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
-        Vec::new()
+        if self.generic {
+            self.decompose_basis_element_generic(degree, idx)
+        } else {
+            self.decompose_basis_element_2(degree, idx)
+        }
     }
 }
 
@@ -980,6 +1023,139 @@ impl AdemAlgebra {
             let new_leading_degree = leading_degree - (q*x + b1) as i32;
             self.make_mono_admissible_generic(result, (coeff * it_value) % p, new_monomial, idx - 1, new_leading_degree, excess, stop_early);
         }
+    }
+
+
+    fn decompose_basis_element_2(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
+        let b = self.basis_element_from_index(degree, idx); 
+        if b.ps.len() > 1 {
+            let degree_first = b.ps[0] as i32;
+            let degree_rest = b.degree - b.ps[0] as i32;
+            let ps_rest = b.ps[1..].to_vec();
+            let idx_first = self.basis_element_to_index(&AdemBasisElement {
+                degree : degree_first,
+                excess : 0,
+                bocksteins : 0,
+                ps : vec![b.ps[0]]
+            });
+            let idx_rest = self.basis_element_to_index(&AdemBasisElement {
+                degree : degree_rest,
+                excess : 0,
+                bocksteins : 0,
+                ps : ps_rest
+            });
+            return vec![(1,(degree_first, idx_first), (degree_rest, idx_rest))];
+        }
+        let sq = b.ps[0];
+        let tz = sq.trailing_zeros();
+        let first_sq = 1 << tz;
+        let second_sq = sq ^ first_sq;
+        let first_degree = first_sq as i32;
+        let second_degree = second_sq as i32;
+        let first_idx = self.basis_element_to_index(&AdemBasisElement {
+            degree : first_degree,
+            excess : 0,
+            bocksteins : 0,
+            ps : vec![first_sq]
+        });
+        let second_idx = self.basis_element_to_index(&AdemBasisElement {
+            degree : second_degree,
+            excess : 0,
+            bocksteins : 0,
+            ps : vec![second_sq]
+        });
+        let mut out_vec = FpVector::new(2, self.get_dimension(degree, -1), 0);
+        self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, -1);
+        out_vec.set_entry(idx, 0);
+        let mut result = Vec::new();
+        result.push((1, (first_degree, first_idx), (second_degree, second_idx)));
+        for (i, v) in out_vec.iter().enumerate() {
+            if v == 0 {
+                continue;
+            }
+            result.extend(self.decompose_basis_element_2(degree, i));
+        }
+        return result;
+    }
+
+    fn decompose_basis_element_generic(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
+        let p = self.get_prime();
+        let b = self.basis_element_from_index(degree, idx); 
+        let leading_bockstein_idx = 1 << (b.ps.len());
+        if b.bocksteins & leading_bockstein_idx != 0 {
+            let mut b_new = b.clone();
+            b_new.bocksteins ^= leading_bockstein_idx;
+            b_new.degree -= 1;
+            let first_degree = 1;
+            let first_idx = 0;                
+            let rest_degree = b_new.degree;
+            let rest_idx = self.basis_element_to_index(&b_new);
+            return vec![(1, (first_degree, first_idx), (rest_degree, rest_idx))];
+        } 
+        if b.bocksteins != 0 || b.ps.len() != 1 {
+            let first_degree = (b.ps[0] * 2 * (p-1)) as i32;
+            let rest_degree = b.degree - first_degree;
+            let ps_first = vec![b.ps[0]];
+            let ps_rest = b.ps[1..].to_vec();
+            let first = AdemBasisElement {
+                degree : first_degree,
+                bocksteins : 0,
+                excess : 0,
+                ps : ps_first
+            };
+            let rest = AdemBasisElement {
+                degree : rest_degree,
+                bocksteins : b.bocksteins,
+                excess : 0,
+                ps : ps_rest
+            };
+            let first_idx = self.basis_element_to_index(&first);
+            let rest_idx = self.basis_element_to_index(&rest);
+            return vec![(1, (first_degree, first_idx), (rest_degree, rest_idx))];
+        }
+        
+        let sq = b.ps[0];
+        let mut pow = 1;
+        {
+            let mut temp_sq = sq;
+            while temp_sq % p == 0 {
+                temp_sq /= p;
+                pow *= 3;
+            }
+        }
+
+        let first_sq = pow;
+        let second_sq = sq - first_sq;
+        let first_degree = (first_sq * 2*(p-1)) as i32;
+        let second_degree = (second_sq * 2*(p-1)) as i32;
+        let first_idx = self.basis_element_to_index(&AdemBasisElement {
+            degree : first_degree,
+            excess : 0,
+            bocksteins : 0,
+            ps : vec![first_sq]
+        });
+        let second_idx = self.basis_element_to_index(&AdemBasisElement {
+            degree : second_degree,
+            excess : 0,
+            bocksteins : 0,
+            ps : vec![second_sq]
+        });
+        let mut out_vec = FpVector::new(p, self.get_dimension(degree, -1), 0);
+        self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, -1);
+        let mut result = Vec::new();
+        let c = out_vec.get_entry(idx);
+        assert!(c != 0);
+        let c_inv = combinatorics::inverse(p, p - c);        
+        result.push((((p - 1) * c_inv) % p, (first_degree, first_idx), (second_degree, second_idx)));
+        out_vec.set_entry(idx, 0);
+        for (i, v) in out_vec.iter().enumerate() {
+            if v == 0 {
+                continue;
+            }
+            let (_, t1, t2) = self.decompose_basis_element_generic(degree, i)[0];
+            result.push((c_inv, t1, t2));
+        }
+        return result;
     }
 }
 

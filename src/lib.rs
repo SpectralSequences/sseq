@@ -45,6 +45,7 @@ use crate::resolution::{Resolution, ModuleResolution};
 use crate::resolution_with_chain_maps::ResolutionWithChainMaps;
 
 use std::io::{stdin, stdout, Write};
+use std::fmt::Display;
 use std::str::FromStr;
 use std::rc::Rc;
 use std::error::Error;
@@ -163,14 +164,49 @@ fn query<T : FromStr>(prompt : &str) -> T {
     }
 }
 
+fn query_with_default<T : FromStr + Display>(prompt : &str, default : T) -> T {
+    loop {
+        print!("{} (default {}): ", prompt, default);
+        stdout().flush().unwrap();
+        let mut input = String::new();
+        stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
+        let trimmed = input.trim();
+        if trimmed.len() == 0 {
+            return default;
+        }
+        if let Ok(res) = trimmed.parse::<T>() {
+            return res;
+        }
+        println!("Invalid input. Try again");
+    }
+}
+
+fn query_with_default_no_default_indicated<T : FromStr + Display>(prompt : &str, default : T) -> T {
+    loop {
+        print!("{}: ", prompt);
+        stdout().flush().unwrap();
+        let mut input = String::new();
+        stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
+        let trimmed = input.trim();
+        if trimmed.len() == 0 {
+            return default;
+        }
+        if let Ok(res) = trimmed.parse::<T>() {
+            return res;
+        }
+        println!("Invalid input. Try again");
+    }
+}
+
+
 pub fn run_interactive() -> Result<String, Box<dyn Error>>{
     // Query for prime and max_degree
-    let p = query::<u32>("p");
-    let max_degree = query::<i32>("Max degree");
+    let p = query_with_default("p", 2);
+    let max_degree = query_with_default("Max degree", 30);
 
     let algebra : Rc<AlgebraAny>;
     loop {
-        match query::<String>("Algebra basis (adem/milnor)").as_ref() {
+        match query_with_default("Algebra basis (adem/milnor)", "adem".to_string()).as_ref() {
             "adem" => { algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false))); break },
             "milnor" => { algebra = Rc::new(AlgebraAny::from(MilnorAlgebra::new(p))); break },
             _ => ()
@@ -183,28 +219,29 @@ pub fn run_interactive() -> Result<String, Box<dyn Error>>{
     stdout().flush()?;
 
     let mut gens = Vec::new();
+    let finished_degree = usize::max_value();
     loop {
-         let gen_name = query::<String>("Generator name");
-         if gen_name.is_empty() {
-             println!("This is the list of generators and degrees:");
-             for i in 0..gens.len() {
-                 for gen in &gens[i] {
-                     print!("({}, {}) ", i, gen)
-                 }
-             }
-             print!("\n");
-             if query::<String>("Is it okay? (yes/no)") == "yes" {
-                 break;
-             } else {
-                 gens = Vec::new();
-                 continue;
-             }
-         }
-         let gen_deg = query::<usize>("Generator degree");
-         while gens.len() <= gen_deg {
-             gens.push(Vec::new());
-         }
-         gens[gen_deg].push(gen_name);
+        let gen_deg = query_with_default_no_default_indicated::<usize>("Generator degree", finished_degree);
+        if gen_deg == finished_degree {
+            println!("This is the list of generators and degrees:");
+            for i in 0..gens.len() {
+                for gen in &gens[i] {
+                    print!("({}, {}) ", i, gen)
+                }
+            }
+            print!("\n");
+            if query::<String>("Is it okay? (yes/no)").starts_with("y") {
+                break;
+            } else {
+                gens = Vec::new();
+                continue;
+            }
+        }
+        while gens.len() <= gen_deg {
+            gens.push(Vec::new());
+        }
+        let gen_name = query_with_default("Generator name", format!("x{}{}",gen_deg, gens[gen_deg].len()));        
+        gens[gen_deg].push(gen_name);
     }
 
     let graded_dim = gens.iter().map(Vec::len).collect();
@@ -263,11 +300,13 @@ pub fn run_interactive() -> Result<String, Box<dyn Error>>{
                         }
                     } else {
                         let decomposition = algebra.decompose_basis_element(deg_diff, op_idx);
+                        println!("decomposition : {:?}", decomposition);
                         for (coef, (deg_1, idx_1), (deg_2, idx_2)) in decomposition {
                             let mut tmp_output = FpVector::new(p, gens[deg_2 as usize + input_deg].len(), 0);
                             module.act_on_basis(&mut tmp_output, 1, deg_2, idx_2, input_deg as i32, idx);
                             module.act(&mut output_vec, coef, deg_1, idx_1, deg_2 + input_deg as i32, &tmp_output);
                         }
+                        println!("computed {} action on {}: {}", algebra.basis_element_to_string(deg_diff, op_idx), gens[input_deg][idx], output_vec);
                         module.set_action_vector(deg_diff, op_idx, input_deg as i32, idx, output_vec);
                     }
                 }
@@ -288,6 +327,20 @@ pub fn test(config : &Config){
 }
 
 pub fn test_no_config(){
+    let p = 3;
+    let max_degree = 80;
+    let algebra = AdemAlgebra::new(p, p != 2, false);
+    algebra.compute_basis(80);
+    let idx = algebra.basis_element_to_index(&crate::adem_algebra::AdemBasisElement{
+        degree : 60,
+        excess : 0,
+        bocksteins : 0,
+        ps : vec![15]
+    });
+    let decomposition = algebra.decompose_basis_element(60, idx);
+    println!("decomposition : {:?}", decomposition);
+
+    return;
     let max_degree = 25;
     // let contents = std::fs::read_to_string("static/modules/S_3.json").unwrap();
     // S_3
