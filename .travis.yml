@@ -27,7 +27,7 @@ cache:
         - node_modules
 
 before_deploy:
-    - sh gen_docs.sh
+    - sh gen_doc.sh
     - cp -r target/doc/ dist/
 
 deploy:
