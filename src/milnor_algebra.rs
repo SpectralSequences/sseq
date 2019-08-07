@@ -2,7 +2,7 @@ use std::sync::Mutex;
 
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::once::OnceVec;
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, AlgebraWithGenerators};
 use std::collections::HashMap;
 use serde_json::value::Value;
 
@@ -219,6 +219,96 @@ impl Algebra for MilnorAlgebra {
 
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
         format!("{}", self.basis_table[degree as usize][idx])
+    }
+}
+
+/// We pick our generators to be the Q_i and all the P(...). This has room for improvement...
+impl AlgebraWithGenerators for MilnorAlgebra {
+    fn get_algebra_generators(&self, degree : i32) -> Vec<usize> {
+        let map = &self.basis_element_to_index_map[degree as usize];
+
+        let mut generators = Vec::new();
+        if degree == 0 {
+            return generators;
+        }
+
+        let q = if self.p == 2 { 1 } else { 2 * self.p as usize - 2 };
+
+        if degree as usize % q == 0 {
+            for ppart in &self.ppart_table[degree as usize / q] {
+                generators.push(map.get(&from_p(ppart.clone(), degree)).unwrap().to_owned());
+            }
+        }
+        if self.profile.generic && degree == 1 {
+            generators.push(0); // Q_0
+//            let tau_degrees = crate::combinatorics::get_tau_degrees(self.p);
+//            for i in 0..tau_degrees.len() {
+//                if tau_degrees[i] == degree {
+//                    generators.push(map.get(&MilnorBasisElement {
+//                        q_part : 1<<i,
+//                        p_part : Vec::new(),
+//                        degree : degree
+//                    }).unwrap().to_owned())
+//                }
+//                if tau_degrees[i] > degree {
+//                    break;
+//                }
+//            }
+        }
+        generators
+    }
+
+    fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
+        let basis = &self.basis_table[degree as usize][idx];
+
+        // If qpart = 0, return self
+        if basis.q_part == 0 {
+             return vec![(1, (degree, idx), (0, 0))];
+        }
+
+        // Look for left-most non-zero qpart
+        let mut i = 32 - 1;
+        while basis.q_part & 1 << i == 0 {
+            i -= 1
+        }
+
+        // If it is Q_{k+1}, we decompose Q_{k+1} = P(p^k) Q_k - Q_k P(p^k)
+        if basis.q_part == 1 << i && basis.p_part.len() == 0 {
+            let ppow = crate::combinatorics::integer_power(self.p, i - 1);
+
+            let q_degree = (2 * ppow - 1) as i32;
+            let p_degree = (ppow * (2 * self.p - 2)) as i32;
+
+            let p_idx = self.basis_element_to_index_map[p_degree as usize].get(&from_p(vec![ppow], p_degree)).unwrap().to_owned();
+
+            let q_idx =  self.basis_element_to_index_map[q_degree as usize].get(
+                &MilnorBasisElement {
+                    q_part : 1 << (i-1),
+                    p_part : Vec::new(),
+                    degree : q_degree
+                }).unwrap().to_owned();
+
+            return vec![(1, (p_degree, p_idx), (q_degree, q_idx)), (self.p - 1, (q_degree, q_idx), (p_degree, p_idx))];
+        }
+
+        let first_degree = crate::combinatorics::get_tau_degrees(self.p)[i as usize];
+        let second_degree = degree - first_degree;
+
+        let first_idx = self.basis_element_to_index_map[first_degree as usize].get(
+            &MilnorBasisElement {
+                q_part : 1 << i,
+                p_part : Vec::new(),
+                degree : first_degree
+            }).unwrap();
+
+        let second_idx = self.basis_element_to_index_map[second_degree as usize].get(
+            &MilnorBasisElement {
+                q_part : basis.q_part ^ 1 << i,
+                p_part : basis.p_part.clone(),
+                degree : second_degree
+            }).unwrap();
+
+        vec![(1, (first_degree, *first_idx), (second_degree, *second_idx))]
     }
 }
 

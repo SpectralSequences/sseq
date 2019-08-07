@@ -4,14 +4,13 @@ extern crate clap;
 
 use rust_ext::Config;
 use rust_ext::run;
+use rust_ext::run_interactive;
 use clap::App;
 
 const BOLD_ANSI_CODE : &str = "\x1b[1m";
 
 #[allow(unreachable_code)]
 fn main() {
-//        rust_ext::test_no_config();
-//        std::process::exit(1);
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml).get_matches();
 
@@ -23,6 +22,14 @@ fn main() {
 
     if matches.is_present("test") {
         rust_ext::test(&config);
+        std::process::exit(1);
+    }
+
+    if matches.is_present("interactive") {
+        match run_interactive() {
+            Ok(string) => println!("{}{}", BOLD_ANSI_CODE, string),
+            Err(e) => { eprintln!("Application error: {}", e); std::process::exit(1); }
+        }
         std::process::exit(1);
     }
 

@@ -33,7 +33,8 @@ extern crate serde_json;
 extern crate wasm_bindgen;
 extern crate web_sys;
 
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, AlgebraWithGenerators};
+use crate::fp_vector::{FpVector, FpVectorT};
 use crate::adem_algebra::AdemAlgebra;
 use crate::milnor_algebra::MilnorAlgebra;
 use crate::module::Module;
@@ -43,6 +44,8 @@ use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::resolution::{Resolution, ModuleResolution};
 use crate::resolution_with_chain_maps::ResolutionWithChainMaps;
 
+use std::io::{stdin, stdout, Write};
+use std::str::FromStr;
 use std::rc::Rc;
 use std::error::Error;
 use serde_json::value::Value;
@@ -147,7 +150,126 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundleChoice, Box<d
     }
 }
 
-use crate::fp_vector::FpVectorT;
+fn query<T : FromStr>(prompt : &str) -> T {
+    loop {
+        print!("{} : ", prompt);
+        stdout().flush().unwrap();
+        let mut input = String::new();
+        stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
+        if let Ok(res) = input.trim().parse::<T>() {
+            return res;
+        }
+        println!("Invalid input. Try again");
+    }
+}
+
+pub fn run_interactive() -> Result<String, Box<dyn Error>>{
+    // Query for prime and max_degree
+    let p = query::<u32>("p");
+    let max_degree = query::<i32>("Max degree");
+
+    // Query for generators
+    println!("Input generators. Press return to finish.");
+    stdout().flush()?;
+
+    let mut gens = Vec::new();
+    loop {
+         let gen_name = query::<String>("Generator name");
+         if gen_name.is_empty() {
+             println!("This is the list of generators and degrees:");
+             for i in 0..gens.len() {
+                 for gen in &gens[i] {
+                     print!("({}, {}) ", i, gen)
+                 }
+             }
+             print!("\n");
+             if query::<String>("Is it okay? (yes/no)") == "yes" {
+                 break;
+             } else {
+                 gens = Vec::new();
+                 continue;
+             }
+         }
+         let gen_deg = query::<usize>("Generator degree");
+         while gens.len() <= gen_deg {
+             gens.push(Vec::new());
+         }
+         gens[gen_deg].push(gen_name);
+    }
+
+    let graded_dim = gens.iter().map(Vec::len).collect();
+
+    let algebra = Rc::new(MilnorAlgebra::new(p));
+    algebra.compute_basis(max_degree);
+
+    let generators : Vec<Vec<usize>> = (0..gens.len()+1).map(|d| algebra.get_algebra_generators(d as i32)).collect();
+
+    let mut module = FDModule::new(Rc::clone(&algebra) as Rc<dyn Algebra>, "".to_string(), 0, graded_dim);
+
+    println!("Input actions. Write the value of the action in the form 'a x0 + b x1 + ...' where a, b are non-negative integers and x0, x1 are names of the generators. The coefficient can be omitted if it is 1");
+
+    let len = gens.len();
+    for input_deg in (0..len).rev() {
+        for idx in 0..gens[input_deg].len() {
+            for output_deg in (input_deg+1)..len {
+                let deg_diff = (output_deg - input_deg) as i32;
+                if gens[output_deg].len() == 0 {
+                    continue;
+                }
+
+                for op_idx in 0..algebra.get_dimension(deg_diff, -1) {
+                    let mut output_vec = FpVector::new(p, gens[output_deg].len(), 0);
+
+                    if generators[deg_diff as usize].contains(&op_idx) {
+                        'outer: loop {
+                            let result = query::<String>(&format!("{} {}", algebra.basis_element_to_string(deg_diff, op_idx), gens[input_deg][idx]));
+
+                            for term in result.split("+") {
+                                let term = term.trim();
+                                let parts : Vec<&str> = term.split(" ").collect();
+                                if parts.len() == 1 {
+                                    match gens[output_deg].iter().position(|d| d == &parts[0]) {
+                                        Some(i) => output_vec.add_basis_element(i, 1),
+                                        None => { println!("Invalid value. Try again"); continue 'outer }
+                                    };
+                                } else if parts.len() == 2 {
+                                    let gen_idx = match gens[output_deg].iter().position(|d| d == &parts[1]) {
+                                        Some(i) => i,
+                                        None => { println!("Invalid value. Try again"); continue 'outer }
+                                    };
+                                    let coef = match parts[1].parse::<u32>() {
+                                        Ok(c) => c,
+                                        _ => { println!("Invalid value. Try again"); continue 'outer }
+                                    };
+                                    output_vec.add_basis_element(gen_idx, coef);
+                                } else {
+                                    println!("Invalid value. Try again"); continue 'outer;
+                                }
+                            }
+                            module.set_action_vector(deg_diff, op_idx, input_deg as i32, idx, output_vec);
+                            break;
+                        }
+                    } else {
+                        let decomposition = algebra.decompose_basis_element(deg_diff, op_idx);
+                        for (coef, (deg_1, idx_1), (deg_2, idx_2)) in decomposition {
+                            let mut tmp_output = FpVector::new(p, gens[deg_2 as usize + input_deg].len(), 0);
+                            module.act_on_basis(&mut tmp_output, 1, deg_2, idx_2, input_deg as i32, idx);
+                            module.act(&mut output_vec, coef, deg_1, idx_1, deg_2 + input_deg as i32, &tmp_output);
+                        }
+                        module.set_action_vector(deg_diff, op_idx, input_deg as i32, idx, output_vec);
+                    }
+                }
+            }
+        }
+    }
+    let chain_complex = Rc::new(CCDZ::new(Rc::new(module)));
+    let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), max_degree, None, None));
+
+    resolution.resolve_through_degree(max_degree);
+    Ok(resolution.graded_dimension_string())
+}
+
+//use crate::fp_vector::FpVectorT;
 use crate::resolution_homomorphism::ResolutionHomomorphism;
 pub fn test(config : &Config){
     test_no_config();

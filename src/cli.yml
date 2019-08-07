@@ -29,5 +29,7 @@ args:
         long: "test"
         short: "t"
         help: "Separate entrypoint for devs"
-        
-
+    - interactive:
+        long: "interactive"
+        short: "i"
+        help: "Define module interactively"

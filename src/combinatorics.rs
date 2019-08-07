@@ -144,9 +144,10 @@ fn direct_binomial(p : u32, n : u32, k : u32) -> u32{
 }
 
 
-// integer power
-// Oftentimes we actually need all powers in a row, so this doesn't get much use.
-pub fn integer_power(mut b : u32, mut e : u32) -> u32 {
+/// Computes b^e.
+pub fn integer_power(b : u32, e : u32) -> u32 {
+    let mut b = b;
+    let mut e = e;
     let mut result = 1u32;
     while e > 0 {
         if e&1 == 1 {
@@ -158,9 +159,11 @@ pub fn integer_power(mut b : u32, mut e : u32) -> u32 {
     result
 }
 
-// Compute p^b mod e. Same algorithm as above except we reduce mod p after every step.
-// We use this for computing modulo inverses.
-pub fn power_mod(p : u32, mut b : u32, mut e : u32) -> u32{
+/// Compute b^e mod p.
+/// We use this for computing modulo inverses.
+pub fn power_mod(p : u32, b : u32, e : u32) -> u32{
+    let mut b = b;
+    let mut e = e;
     let mut result = 1u32;
 //      b is b^{2^i} mod p
 //      if the current bit of e is odd, mutliply b^{2^i} mod p into r.

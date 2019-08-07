@@ -73,3 +73,25 @@ pub trait Algebra {
         return result;
     }    
 }
+
+/// An `AlgebraWithGenerators` is an algebra with a specified choice of algebra generators. It
+/// gives us a simpler way of describing finite modules by only specifying the action of the
+/// generators.
+///
+/// The methods need not be fast, because they will only be performed when constructing the module,
+/// and will often only involve low dimensional elements.
+pub trait AlgebraWithGenerators : Algebra {
+    /// Given a degree `degree`, the function returns a list of algebra generators in that degree.
+    /// This return value is the list of indices of the basis elements that are generators. The
+    /// list need not be in any particular order.
+    fn get_algebra_generators(&self, degree : i32) -> Vec<usize>;
+
+    /// Given a non-generator basis element of the algebra, decompose it in terms of algebra
+    /// generators. Recall each basis element is given by a pair $(d, i))$, where $d$ is the degree of
+    /// the generator, and $i$ is the index of the basis element. Given a basis element $A$, the
+    /// function returns a list of triples $(c_i, A_i, B_i)$ where each $A_i$ and $B_i$ are basis
+    /// elements of strictly smaller degree than the original, and
+    /// $$ A = \sum_i c_i A_i B_i.$$
+    /// This allows us to recursively compute the action of the algebra.
+    fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>;
+}
