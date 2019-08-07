@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use serde_json::Value;
 
 use crate::once::{OnceVec, TempStorage};
 use crate::fp_vector::{FpVector, FpVectorT};
@@ -259,6 +260,20 @@ ResolutionWithChainMaps<M1, F1, CC1, M2, F2, CC2> {
         }
     }
 
+    pub fn add_from_json(&mut self, json : &mut Value){
+        let products_value = &json["products"];
+        if products_value.is_null() {
+            return;
+        }
+        let products = products_value.as_array().unwrap();
+        for prod in products {
+            let hom_deg = prod["hom_deg"].as_u64().unwrap() as u32;
+            let int_deg = prod["int_deg"].as_i64().unwrap() as i32;
+            let idx = prod["index"].as_u64().unwrap() as usize;
+            let name = prod["name"].as_str().unwrap();
+            self.add_product(hom_deg, int_deg, idx, name.to_string());
+        }
+    }
 }
 
 use crate::module::OptionModule;

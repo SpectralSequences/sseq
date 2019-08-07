@@ -430,7 +430,7 @@ impl Subspace {
     }
 
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
-    /// whose first r entries are 0, where r is the last column with a pivot in `matrix`.
+    /// that have a 0 in every column where there is a pivot in `matrix`
     pub fn reduce(&self, vector : &mut FpVector){
         let p = self.matrix.get_prime();
         let mut row = 0;
@@ -468,7 +468,7 @@ impl QuasiInverse {
         self.preimage.get_prime()
     }
 
-    /// Apply the quasi-inverse to an in put vector and add a constant multiple of the result
+    /// Apply the quasi-inverse to an input vector and add a constant multiple of the result
     /// to an output vector
     ///
     /// # Arguments

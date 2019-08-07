@@ -1,1 +1,6 @@
-{"type" : "finite dimensional module","name": "$S_3$", "file_name": "S_3", "p": 3, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}
+{"type" : "finite dimensional module","name": "$S_3$", "file_name": "S_3", "p": 3, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": [],
+    "products" : [
+        { "hom_deg" : 2, "int_deg" : 12, "index" : 0, "name" : "\\beta" },
+        { "hom_deg" : 2, "int_deg" : 9, "index" : 0, "name" : "\\alpha_{2}" }
+    ]
+}

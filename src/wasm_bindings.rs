@@ -322,10 +322,12 @@ pub struct WasmResolutionWithChainMapsCCDZFDModule {
 use crate::fp_vector::FpVectorT;
 #[wasm_bindgen]
 impl WasmResolutionWithChainMapsCCDZFDModule {
-    pub fn new(source : &WasmResolutionCCDZFDModule, target : &WasmResolutionCCDZFDModule) -> Self {
+    pub fn new(source : &WasmResolutionCCDZFDModule, target : &WasmResolutionCCDZFDModule, json_string : String) -> Self {
         let source_res = source.to_resolution();
         let target_res = target.to_resolution();
         let mut res_with_maps = ResolutionWithChainMaps::new(source_res, target_res);
+        let mut json : Value = serde_json::from_str(&json_string).unwrap();
+        res_with_maps.add_from_json(&mut json);
         // res_with_maps.add_product(2, 9, 0, "\\alpha_{2}".to_string());
         // res_with_maps.add_product(2, 12, 0, "\\beta".to_string());
         // let mut map_data = crate::matrix::Matrix::new(2, 1, 1);

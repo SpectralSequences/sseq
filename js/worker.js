@@ -67,7 +67,7 @@ resolution_constructors["finite dimensional module"] = function constructFDModul
     self.module = self.wasm.WasmFDModule.new_adem_module(algebra, m.module);
     self.cc = self.wasm.WasmCCDZFDModule.new_ccdz(self.module);
     self.res_no_maps = self.wasm.WasmResolutionCCDZFDModule.new(cc, m.maxDegree, addClass, addStructline);
-    self.res = self.wasm.WasmResolutionWithChainMapsCCDZFDModule.new(self.res_no_maps, self.res_no_maps);
+    self.res = self.wasm.WasmResolutionWithChainMapsCCDZFDModule.new(self.res_no_maps, self.res_no_maps, m.module);
 }
 
 resolution_constructors["finitely presented module"] = function constructFPModule(algebra, m){
