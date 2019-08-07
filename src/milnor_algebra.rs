@@ -94,6 +94,7 @@ pub struct MilnorAlgebra {
     qpart_table : Vec<OnceVec<QPart>>,
     basis_table : OnceVec<Vec<MilnorBasisElement>>,
     basis_element_to_index_map : OnceVec<HashMap<MilnorBasisElement, usize>>, // degree -> MilnorBasisElement -> index
+    filtration_one_products : Vec<(String, i32, usize)>
 }
 
 impl MilnorAlgebra {
@@ -117,7 +118,8 @@ impl MilnorAlgebra {
             ppart_table : OnceVec::new(),
             qpart_table,
             basis_table : OnceVec::new(),
-            basis_element_to_index_map : OnceVec::new()
+            basis_element_to_index_map : OnceVec::new(),
+            filtration_one_products : Vec::new()
         }
     }
 }
@@ -131,7 +133,13 @@ impl Algebra for MilnorAlgebra {
         &self.name
     }
 
-    fn get_filtration_one_products(&self) -> Vec<(&str, i32, usize)> {Vec::new()} // Implement this
+    fn get_filtration_one_products(&self) -> &Vec<(String, i32, usize)>{
+        &self.filtration_one_products
+    }
+
+    fn set_default_filtration_one_products(&mut self) {
+
+    }
 
     fn compute_basis(&self, max_degree : i32) {
         let mut next_degree = self.next_degree.lock().unwrap();

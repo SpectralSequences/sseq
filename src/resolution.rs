@@ -158,7 +158,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             let target = self.get_module(homological_degree - 1);
             let dx = d.get_output(internal_degree, source_idx);
             for (op_name, op_degree, op_index) in self.get_algebra().get_filtration_one_products() {
-                let gen_degree = internal_degree - op_degree;
+                let gen_degree = internal_degree - *op_degree;
 
                 if gen_degree < self.get_min_degree(){
                     break;
@@ -166,7 +166,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 
                 let num_target_generators = target.get_number_of_gens_in_degree(gen_degree);
                 for target_idx in 0 .. num_target_generators {
-                    let vector_idx = target.operation_generator_to_index(op_degree, op_index, gen_degree, target_idx);
+                    let vector_idx = target.operation_generator_to_index(*op_degree, *op_index, gen_degree, target_idx);
                     if vector_idx >= dx.get_dimension() {
                         // println!("Out of bounds index when computing product:");
                         // println!("  ==  degree: {}, hom_deg: {}, dim: {}, idx: {}", degree, homological_degree, dx.dimension, vector_idx);

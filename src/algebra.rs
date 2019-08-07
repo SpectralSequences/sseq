@@ -29,7 +29,15 @@ pub trait Algebra {
 
     /// Computes the product `r * s` of the two basis elements, and *adds* the result to `result`.
     fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32);
-    fn get_filtration_one_products(&self) -> Vec<(&str, i32, usize)>;
+
+    /// A filtration one element in Ext(k, k) is the same as an indecomposable element of the
+    /// algebra.  This function returns a list of such elements in the format `(name, degree,
+    /// index)` for whom we want to compute products with in the resolutions.
+    fn get_filtration_one_products(&self) -> &Vec<(String, i32, usize)>;
+
+    /// Each algebra should come with a list of default filtration one products. When called, this
+    /// function sets the list of filtration one products to the default list.
+    fn set_default_filtration_one_products(&mut self);
 
     /// Converts a JSON object into a basis element. The way basis elements are represented by JSON
     /// objects is to be specified by the algebra itself, and will be used by module

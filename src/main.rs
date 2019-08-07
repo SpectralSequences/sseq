@@ -10,8 +10,8 @@ const BOLD_ANSI_CODE : &str = "\x1b[1m";
 
 #[allow(unreachable_code)]
 fn main() {
-        rust_ext::test_no_config();
-        std::process::exit(1);
+//        rust_ext::test_no_config();
+//        std::process::exit(1);
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml).get_matches();
 

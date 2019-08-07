@@ -24,7 +24,8 @@ pub struct WasmAlgebra {
 #[wasm_bindgen]
 impl WasmAlgebra {
     pub fn new_adem_algebra(p : u32, generic : bool, max_degree : i32) -> Self {
-        let algebra = AdemAlgebra::new(p, generic, false);
+        let mut algebra = AdemAlgebra::new(p, generic, false);
+        algebra.set_default_filtration_one_products();
         let boxed_algebra = Rc::new(algebra);
         Self {
             pimpl : Rc::into_raw(boxed_algebra)
