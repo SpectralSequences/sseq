@@ -1,6 +1,26 @@
 //
 // Created by Hood on 5/22/2019.
 //
+//! An `FpVector` is a vector with entries in F<sub>p</sub>. We use this instead of `Vec<u32>`
+//! because we can pack a lot of entries into a single `u64`, especially for p small. This not only
+//! saves memory, but also leads to faster addition, for example (e.g. a single ^ can add 64
+//! elements of F<sub>2</sub> at the same time).
+//!
+//! The organization of this file is a bit funny. There are in fact 4 different implementations of
+//! `FpVector` &mdash; the cases p = 2, 3, 5 are handled separately with some extra documentation.
+//! Hence there are structs `FpVector2`, `FpVector3`, `FpVector5` and `FpVectorGeneric`. `FpVector`
+//! itself is an enum that can be either of these. All of these implement the trait `FpVectorT`,
+//! which is where most functions lie. The implementations for `FpVector` of course just calls the
+//! implementations of the specific instances, and this is automated via `enum_dispatch`.
+//!
+//! To understand the methods of `FpVector`, one should mostly look at the documentation for
+//! `FpVectorT`. However, the static functions for `FpVector` are implemented in `FpVector` itself,
+//! and hence is documented there as well. The documentation of `FpVector2`, `FpVector3`,
+//! `FpVector5`, `FpVectorGeneric` are basically useless (and empty).
+//!
+//! In practice, one only ever needs to work with the enum `FpVector` and the associated functions.
+//! However, the way this structured means one always has to import both `FpVector` and
+//! `FpVectorT`, since you cannot use the functions of a trait unless you have imported the trait.
 
 use std::sync::Once;
 use std::fmt;
@@ -1204,3 +1224,4 @@ mod tests {
         }
     }
 }
+
