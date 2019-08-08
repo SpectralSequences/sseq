@@ -136,7 +136,14 @@ where
 }
 
 pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
-    let output_path = query::<String>("Output file name");
+    let mut output_path;
+    loop {
+        output_path = query::<String>("Output file name");
+        if !output_path.is_empty() {
+            break;
+        }
+        println!("Output file name cannot be empty");
+    }
     let name = query::<String>("Module name (use latex between $'s)");
     // Query for prime and max_degree
     let mut p;
