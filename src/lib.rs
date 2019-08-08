@@ -113,9 +113,10 @@ pub struct AlgebraicObjectsBundle<M : Module> {
     resolution : Rc<ModuleResolution<M>>
 }
 
-pub fn load_module_from_file(config : &mut Config) -> Result<String, Box<dyn Error>> {
+pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {
     let mut result = None;
-    for path in config.module_paths.iter_mut() {
+    for path in config.module_paths.iter() {
+        let mut path = path.clone();
         path.push(&config.module_file_name);
         path.set_extension("json");
         result = std::fs::read_to_string(path).ok();
@@ -128,7 +129,7 @@ pub fn load_module_from_file(config : &mut Config) -> Result<String, Box<dyn Err
     }) as Box<dyn Error>);
 }
 
-pub fn construct(config : &mut Config) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
+pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
     let contents = load_module_from_file(config)?;
     let mut json : Value = serde_json::from_str(&contents)?;
     let p = json["p"].as_u64().unwrap() as u32;
@@ -404,7 +405,7 @@ pub fn test_no_config(){
     println!("{}", resolution.graded_dimension_string());
 }
 
-pub fn run(config : &mut Config) -> Result<String, Box<dyn Error>> {
+pub fn run(config : &Config) -> Result<String, Box<dyn Error>> {
     let bundle = construct(config)?;
     bundle.resolution.resolve_through_degree(config.max_degree);
     Ok(bundle.resolution.graded_dimension_string())

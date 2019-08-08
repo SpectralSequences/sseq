@@ -15,13 +15,16 @@ fn milnor_vs_adem() {
 
 fn compare(module_name : &str, max_degree : i32) {
     println!("module : {}", module_name);
+    let path = std::path::PathBuf::from("static/modules");
     let a = Config {
-        module_path : format!("static/modules/{}.json", module_name),
+        module_paths : vec![path.clone()],
+        module_file_name : module_name.to_string(),
         max_degree,
         algebra_name : String::from("adem")
     };
     let m = Config {
-        module_path : format!("static/modules/{}.json", module_name),
+        module_paths : vec![path.clone()],
+        module_file_name : module_name.to_string(),
         max_degree,
         algebra_name : String::from("milnor")
     };
