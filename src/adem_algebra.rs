@@ -293,7 +293,6 @@ impl Algebra for AdemAlgebra {
         format!("{}", self.basis_element_from_index(degree, idx))
     }
 
-    /// Every basis element is a generator. Surely we can do better than this...
     fn get_generators(&self, degree : i32) -> Vec<usize> {
         let p = self.get_prime();
         if degree == 0 {
