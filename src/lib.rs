@@ -24,6 +24,9 @@ mod wasm_bindings;
 #[cfg(test)]
 extern crate rand;
 
+#[cfg(test)]
+extern crate rstest;
+
 #[macro_use]
 extern crate lazy_static;
 extern crate enum_dispatch;
@@ -321,11 +324,11 @@ pub fn run_interactive() -> Result<String, Box<dyn Error>>{
 }
 
 //use crate::fp_vector::FpVectorT;
-use crate::resolution_homomorphism::ResolutionHomomorphism;
+// use crate::resolution_homomorphism::ResolutionHomomorphism;
 pub fn test(config : &Config){
     test_no_config();
 }
-
+#[allow(unreachable_code)]
 pub fn test_no_config(){
     let p = 3;
     let max_degree = 80;

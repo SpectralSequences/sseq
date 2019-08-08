@@ -738,8 +738,6 @@ impl fmt::Display for FpVector {
     }
 }
 
-#[cfg(test)]
-extern crate rstest;
 
 #[cfg(test)]
 mod tests {
@@ -1142,9 +1140,8 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]//
-    fn test_assign_to_slice(p : u32) {
-        println!("p : {}", p);
+    #[rstest_parametrize(p, max_degree, case(2, 32), case(3, 108))]//
+    fn test_assign_to_slice(p : u32, max_degree : i32) {
         initialize_limb_bit_index_table(p);
         let dim_list = [10, 20, 70, 100, 1000];
         for i in 0..dim_list.len() {

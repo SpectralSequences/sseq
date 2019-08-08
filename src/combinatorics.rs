@@ -1,3 +1,5 @@
+use std::sync::Once;
+
 pub const MAX_PRIME_INDEX : usize = 54;
 const MAX_PRIME : usize = 251;
 const NOT_A_PRIME : usize = !1;
@@ -19,6 +21,20 @@ pub const PRIME_TO_INDEX_MAP : [usize;MAX_PRIME+1] = [
     !1, !1, !1, !1, 46, !1, !1, !1, !1, !1, !1, !1, !1, !1, !1, !1, 47, 
     !1, !1, !1, 48, !1, 49, !1, !1, !1, 50, !1, !1, !1, !1, !1, 51, !1, 
     52, !1, !1, !1, !1, !1, !1, !1, !1, !1, 53 //, !1, !1, !1, !1
+];
+
+static mut PRIME_GUARD_ONCE_TABLE : [Once; MAX_PRIME_INDEX] = [
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
+    Once::new(),Once::new(), Once::new(), Once::new()
 ];
 
 static mut INVERSE_TABLE : [Option<Vec<u32>>; MAX_PRIME_INDEX] = [
@@ -62,9 +78,11 @@ pub fn valid_prime_q(p : u32) -> bool {
 }
 
 pub fn initialize_prime(p : u32){
-    assert!(valid_prime_q(p));    
-    initialize_inverse_table(p);
-    initialize_binomial_table(p);
+    assert!(valid_prime_q(p));
+    unsafe { &PRIME_GUARD_ONCE_TABLE[PRIME_TO_INDEX_MAP[p as usize]] }.call_once(||{
+        initialize_inverse_table(p);
+        initialize_binomial_table(p);
+    })
 }
 
 fn initialize_inverse_table(p : u32){

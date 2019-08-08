@@ -56,7 +56,7 @@ pub trait Algebra {
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String;
 
     /// Converts an element into a string for display.
-    fn element_to_string(&self, degree : i32, element : FpVector) -> String {
+    fn element_to_string(&self, degree : i32, element : &FpVector) -> String {
         let mut result = String::new();
         let mut zero = true;
         for (idx, value) in element.iter().enumerate() {

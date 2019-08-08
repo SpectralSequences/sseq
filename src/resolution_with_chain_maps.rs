@@ -41,9 +41,6 @@ pub struct ResolutionWithChainMaps<
     self_maps : Vec<SelfMap<M1, F1, CC1, M1, F1, CC1>>
 }
 
-use wasm_bindgen::prelude::*;
-use web_sys::console;
-
 impl<
     M1 : Module, F1 : ModuleHomomorphism<M1, M1>, CC1 : ChainComplex<M1, F1>,
     M2 : Module, F2 : ModuleHomomorphism<M2, M2>, CC2 : ChainComplex<M2, F2>

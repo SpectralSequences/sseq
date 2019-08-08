@@ -285,7 +285,7 @@ impl Algebra for AdemAlgebra {
             if temp_degree % (2*(p-1)) != 0 {
                 return vec![];
             }
-            temp_degree /= (2*(p - 1));
+            temp_degree /= 2*(p - 1);
             while temp_degree % p == 0 {
                 temp_degree /= p;
             }
@@ -1081,8 +1081,10 @@ impl AdemAlgebra {
     fn decompose_basis_element_generic(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
         let p = self.get_prime();
         let b = self.basis_element_from_index(degree, idx); 
-        let leading_bockstein_idx = 1 << (b.ps.len());
+        let leading_bockstein_idx = 1;// << (b.ps.len());
+        println!("b : {}, {:?}\nleading_bockstein_idx : {}",self.basis_element_to_string(degree, idx), b, leading_bockstein_idx);
         if b.bocksteins & leading_bockstein_idx != 0 {
+            println!("leading");
             let mut b_new = b.clone();
             b_new.bocksteins ^= leading_bockstein_idx;
             b_new.degree -= 1;
@@ -1105,7 +1107,7 @@ impl AdemAlgebra {
             };
             let rest = AdemBasisElement {
                 degree : rest_degree,
-                bocksteins : b.bocksteins,
+                bocksteins : b.bocksteins >> 1,
                 excess : 0,
                 ps : ps_rest
             };
@@ -1153,7 +1155,7 @@ impl AdemAlgebra {
                 continue;
             }
             let (_, t1, t2) = self.decompose_basis_element_generic(degree, i)[0];
-            result.push((c_inv, t1, t2));
+            result.push(((c_inv * v) % p, t1, t2));
         }
         return result;
     }
@@ -1210,27 +1212,43 @@ mod tests {
         let mut result2 = FpVector::new(p, A.get_dimension(out_deg, 0), 3);
         A.multiply_basis_elements(&mut result1, 1, r_deg, r_idx, s_deg, s_idx, 0);
         A.multiply_basis_elements(&mut result2, 1, r_deg, r_idx, s_deg, s_idx, 0);
-        println!("result : {}", A.element_to_string(out_deg, result1));
-        println!("result : {}", A.element_to_string(out_deg, result2));
+        println!("result : {}", A.element_to_string(out_deg, &result1));
+        println!("result : {}", A.element_to_string(out_deg, &result2));
+    }
+
+    use rstest::rstest_parametrize;
+
+    #[rstest_parametrize(p, max_degree,
+        case(2, 32),
+        case(3, 106)    
+    )]
+    fn test_adem_decompose(p : u32, max_degree : i32){
+        combinatorics::initialize_prime(p);
+        let algebra = AdemAlgebra::new(p, p != 2, false);
+        algebra.compute_basis(max_degree);
+        for i in 1 .. max_degree {
+            let dim = algebra.get_dimension(i, -1);
+            let gens = algebra.get_algebra_generators(i);
+            println!("i : {}, gens : {:?}", i, gens);
+            let mut out_vec = FpVector::new(p, dim, 0);
+            for j in 0 .. dim {
+                if gens.contains(&j){
+                    continue;
+                }
+                for (coeff, (first_degree, first_idx), (second_degree, second_idx)) in algebra.decompose_basis_element(i, j) {
+                    print!("{} * {} * {}  +  ", coeff, algebra.basis_element_to_string(first_degree,first_idx), algebra.basis_element_to_string(second_degree, second_idx));
+                    algebra.multiply_basis_elements(&mut out_vec, coeff, first_degree, first_idx, second_degree, second_idx, -1);
+                }
+                assert!(out_vec.get_entry(j) == 1, 
+                    format!("{} != {}", algebra.basis_element_to_string(i, j), algebra.element_to_string(i, &out_vec)));
+                out_vec.set_entry(j, 0);
+                assert!(out_vec.is_zero(), 
+                    format!("\n{} != {}", 
+                        algebra.basis_element_to_string(i, j), algebra.element_to_string(i, &out_vec)));
+            }
+        }
     }
 
 }
 
-// def test_Adem_exhaustive(algebra_type, p, max_deg):
-//     sage_products = sage_products_dict[(algebra_type, p)]
-//     A = cAlgebra.getAlgebra(algebra_type + "Algebra", p=p, max_degree=max_deg)
-//     for degree_d_products in sage_products:
-//         for entry in degree_d_products:
-//             if(len(entry[0]) == 0 or len(entry[1])==0):
-//                 continue
-//             x = A.py_algebra.get_basis_element(basis_elt_to_tuples(entry[0]))
-//             y = A.py_algebra.get_basis_element(basis_elt_to_tuples(entry[1]))
-//             res = A.multiply(x,y)
-//             sage_res_dict = {}
-//             for k,v in entry[2]:
-//                 k = basis_elt_to_tuples(k)
-//                 sage_res_dict[k] = v
-//             sage_res = A.py_algebra.get_element(sage_res_dict)
-//             assert res == sage_res
-//             if res != sage_res:
-//                 return
+

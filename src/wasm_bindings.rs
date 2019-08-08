@@ -330,7 +330,7 @@ pub struct WasmResolutionWithChainMapsCCDZFDModule {
    pimpl : *const ModuleResolutionWithChainMaps<FDModule, FDModule>
 }
 
-use crate::fp_vector::FpVectorT;
+// use crate::fp_vector::FpVectorT;
 #[wasm_bindgen]
 impl WasmResolutionWithChainMapsCCDZFDModule {
     pub fn new(source : &WasmResolutionCCDZFDModule, target : &WasmResolutionCCDZFDModule, json_string : String) -> Self {
