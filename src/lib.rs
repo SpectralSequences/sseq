@@ -47,6 +47,7 @@ use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::resolution::{Resolution, ModuleResolution};
 use crate::resolution_with_chain_maps::ResolutionWithChainMaps;
 
+ use std::path::PathBuf;
 use std::io::{stdin, stdout, Write};
 use std::fmt::Display;
 use std::str::FromStr;
@@ -70,6 +71,25 @@ impl Error for InvalidAlgebraError {
         "Invalid algebra supplied"
     }
 }
+
+#[derive(Debug)]
+struct ModuleFileNotFoundError {
+    name : String
+}
+
+impl std::fmt::Display for ModuleFileNotFoundError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Module file '{}' not found on path", &self.name)
+    }
+}
+
+impl Error for ModuleFileNotFoundError {
+    fn description(&self) -> &str {
+        "Module file not found"
+    }
+}
+
+
 
 #[derive(Debug)]
 struct UnknownModuleTypeError {
@@ -155,8 +175,23 @@ pub fn construct_helper<M : Module + Sized>(config : &Config, mut json : Value) 
     })
 }
 
-pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundleChoice, Box<dyn Error>> {
-    let contents = std::fs::read_to_string(&config.module_path)?;
+pub fn load_module_from_file(config : &mut Config) -> Result<String, Box<dyn Error>> {
+    let mut result = None;
+    for path in config.module_paths.iter_mut() {
+        path.push(&config.module_file_name);
+        path.set_extension("json");
+        result = std::fs::read_to_string(path).ok();
+        if result.is_some() {
+            break;
+        }
+    }
+    return result.ok_or_else(|| Box::new(ModuleFileNotFoundError {
+        name : config.module_file_name.clone()
+    }) as Box<dyn Error>);
+}
+
+pub fn construct(config : &mut Config) -> Result<AlgebraicObjectsBundleChoice, Box<dyn Error>> {
+    let contents = load_module_from_file(config)?;
     let json : Value = serde_json::from_str(&contents)?;
     let module_type = &json["type"].as_str().unwrap();
     match module_type {
@@ -425,14 +460,15 @@ pub fn test_no_config(){
     println!("{}", resolution.graded_dimension_string());
 }
 
-pub fn run(config : &Config) -> Result<String, Box<dyn Error>> {
-    let bundle = construct(&config)?;
+pub fn run(config : &mut Config) -> Result<String, Box<dyn Error>> {
+    let bundle = construct(config)?;
     bundle.resolve_through_degree(config.max_degree);
     Ok(bundle.graded_dimension_string())
 }
 
 pub struct Config {
-    pub module_path : String,
+    pub module_paths : Vec<PathBuf>,
+    pub module_file_name : String,
     pub algebra_name : String,
     pub max_degree : i32
 }

@@ -13,9 +13,13 @@ const BOLD_ANSI_CODE : &str = "\x1b[1m";
 fn main() {
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml).get_matches();
-
-    let config = Config {
-        module_path : format!("{}/{}.json", matches.value_of("directory").unwrap(), matches.value_of("module").unwrap()),
+    let mut static_modules_path = std::env::current_exe().unwrap();
+    static_modules_path.pop(); static_modules_path.pop(); static_modules_path.pop();
+    static_modules_path.push("static/modules");
+    let current_dir = std::env::current_dir().unwrap();
+    let mut config = Config {
+        module_paths : vec![current_dir, static_modules_path],
+        module_file_name : matches.value_of("module").unwrap().to_string(),
         algebra_name : matches.value_of("algebra").unwrap().to_string(),
         max_degree : value_t!(matches, "degree", i32).unwrap_or_else(|e| panic!("Invalid degree: {}", e))
     };
@@ -33,7 +37,7 @@ fn main() {
         std::process::exit(1);
     }
 
-    match run(&config) {
+    match run(&mut config) {
         Ok(string) => println!("{}{}", BOLD_ANSI_CODE, string),
         Err(e) => { eprintln!("Application error: {}", e); std::process::exit(1); }
     }
