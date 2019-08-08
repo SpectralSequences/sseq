@@ -345,37 +345,47 @@ impl Algebra for AdemAlgebra {
         }
     }
 
+    /// We return Adem relations $P^i b P^j = \cdots$ and $P^i P^j = \cdots$. It suffices to check these because
+    /// they generate all relations.
     fn get_relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
         let p = self.get_prime();
         let q = if self.generic { 2*(p - 1) } else { 1 };
         let degreeu32 = degree as u32;
-        // We want Pi*b*Pj inadmissible so that means i < p * j + epsilon.
-        // degree = i + epsilon +  j so j = degree - i - epsilon
-        // so i < p * (relation_dim - i - b) + epsilon so i < (p * degree - (p - 1) * epsilon) / ( p + 1)
-        // We need to round up so as to include the last integer
-        // if (p * degree - (p-1) * epsilon) / (p + 1) is not an integer
-        // to do this with integer division we do (p * degree - (p-1) * epsilon + p) / (p + 1)
-        let mut inadmissible_pairs = Vec::new();
-        for i in 1 .. (p * degreeu32 + p) / (p+1) {
-            inadmissible_pairs.push((i, 0, degreeu32 - i));
-        }
-        if self.generic {
-            for i in 1 .. (p * degreeu32 + 1) / (p+1) {
-                inadmissible_pairs.push((i, 1, degreeu32 - i - 1));
+
+        // (i, b, j) means P^i P^j if b = 0, or P^i b P^j if b = 1.
+        let mut inadmissible_pairs : Vec<(u32, u32, u32)> = Vec::new();
+
+        // Since |P^i| is always a multiple of q, we have a relation only if degree = 0 or 1 mod q.
+        // If it is 0, then there is no Bockstein. Otherwise, there is.
+        if degreeu32 % q == 0 {
+            let degq = degreeu32/q;
+            // We want P^i P^j to be inadmissible, so i < p * j. This translates to
+            // i < p * degq /(p + 1). Since Rust automatically rounds *down*, but we want to round
+            // up instead, we use i < (p * degq + p)/(p + 1).
+            for i in 1 .. (p * degq + p) / (p+1) {
+                inadmissible_pairs.push((i, 0, degq - i));
+            }
+        } else if degreeu32 % q == 1 {
+            let degq = degreeu32/q; // Since we round down, this is actually (degree - 1)/q
+            // We want P^i b P^j to be inadmissible, so i < p * j + 1. This translates to
+            // i < (p * degq + 1)/(p + 1). Since Rust automatically rounds *down*, but we want to round
+            // up instead, we use i < (p * degq + p + 1)/(p + 1).
+            for i in 1 .. (p * degq + p + 1) / (p+1) {
+                inadmissible_pairs.push((i, 1, degq - i));
             }
         }
         let mut result = Vec::new();
         for (x, b, y) in inadmissible_pairs {
             let mut relation = Vec::new();
             // Adem relation
-            let first_degree = x as i32;
+            let first_degree = (x * q) as i32;
             let first_index = self.basis_element_to_index(&AdemBasisElement {
                 degree : first_degree,
                 excess : 0,
                 bocksteins : 0,
                 ps : vec![x]
             });
-            let second_degree = (y + b) as i32;
+            let second_degree = (y * q + b) as i32;
             let second_index = self.basis_element_to_index(&AdemBasisElement {
                 degree : second_degree,
                 excess : 0,
