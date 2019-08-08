@@ -220,7 +220,6 @@ impl Algebra for MilnorAlgebra {
             }
         } else {
             let p_list = json.as_array().unwrap();
-
             for i in 0..p_list.len() {
                 let val = p_list[i].as_u64().unwrap();
                 p_part.push(val as u32);
@@ -231,12 +230,28 @@ impl Algebra for MilnorAlgebra {
         (degree, self.basis_element_to_index(&m))
     }
 
+    fn json_from_basis(&self, degree : i32, index : usize) -> Value {
+        let b = self.basis_element_from_index(degree, index);
+        if self.profile.generic {
+            let mut q_part = b.q_part;
+            let mut q_list = Vec::with_capacity(q_part.count_ones() as usize);
+            while q_part != 0 {
+                let tz = q_part.trailing_zeros();
+                q_part ^= 1 << tz;
+                q_list.push(tz);
+            }
+            return serde_json::to_value((q_part, &b.p_part)).unwrap();
+        } else {
+            return serde_json::to_value(&b.p_part).unwrap();
+        }
+    }
+
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
         format!("{}", self.basis_table[degree as usize][idx])
     }
 
     /// We pick our generators to be Q_0 and all the P(...). This has room for improvement...
-    fn get_algebra_generators(&self, degree : i32) -> Vec<usize> {
+    fn get_generators(&self, degree : i32) -> Vec<usize> {
         if degree == 0 {
             return vec![];
         }
@@ -247,9 +262,6 @@ impl Algebra for MilnorAlgebra {
         let q = if self.profile.generic { 2 * p - 2 } else { 1 };
         let mut temp_degree = degree as u32;        
         if temp_degree % q != 0 {
-            return vec![];
-        }
-        if temp_degree % (2*(p-1)) != 0 {
             return vec![];
         }
         temp_degree /= q;
@@ -852,7 +864,7 @@ mod tests {
         algebra.compute_basis(max_degree);
         for i in 1 .. max_degree {
             let dim = algebra.get_dimension(i, -1);
-            let gens = algebra.get_algebra_generators(i);
+            let gens = algebra.get_generators(i);
             println!("i : {}, gens : {:?}", i, gens);
             let mut out_vec = FpVector::new(p, dim, 0);
             for j in 0 .. dim {

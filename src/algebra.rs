@@ -52,6 +52,8 @@ pub trait Algebra {
     /// specifications.
     fn json_to_basis(&self, json : Value) -> (i32, usize);
 
+    fn json_from_basis(&self, degree : i32, idx : usize) -> Value;
+
     /// Converts a basis element into a string for display.
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String;
 
@@ -87,7 +89,7 @@ pub trait Algebra {
     ///
     /// This method need not be fast, because they will only be performed when constructing the module,
     /// and will often only involve low dimensional elements.
-    fn get_algebra_generators(&self, degree : i32) -> Vec<usize>;
+    fn get_generators(&self, degree : i32) -> Vec<usize>;
 
     /// Given a non-generator basis element of the algebra, decompose it in terms of algebra
     /// generators. Recall each basis element is given by a pair $(d, i))$, where $d$ is the degree of

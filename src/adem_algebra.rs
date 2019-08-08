@@ -266,12 +266,35 @@ impl Algebra for AdemAlgebra {
         };
         (degree as i32, *self.basis_element_to_index_map[degree as usize].get(&b).unwrap())
     }
+
+
+    fn json_from_basis(&self, degree : i32, index : usize) -> Value {
+        let b = self.basis_element_from_index(degree, index);
+        let mut out_sqs = Vec::with_capacity(2*b.ps.len() + 1);
+        let mut bocksteins = b.bocksteins;
+        if self.generic {
+            out_sqs.push(bocksteins & 1);
+            bocksteins >>= 1;
+            for (i, sq) in b.ps.iter().enumerate() {
+                out_sqs.push(*sq);
+                out_sqs.push(bocksteins & 1);
+                bocksteins >>= 1;
+            }
+        } else {
+            for sq in b.ps.iter() {
+                out_sqs.push(*sq);
+            }
+        }
+        serde_json::to_value(out_sqs).unwrap()
+    }
+
+
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
         format!("{}", self.basis_element_from_index(degree, idx))
     }
 
     /// Every basis element is a generator. Surely we can do better than this...
-    fn get_algebra_generators(&self, degree : i32) -> Vec<usize> {
+    fn get_generators(&self, degree : i32) -> Vec<usize> {
         let p = self.get_prime();
         if degree == 0 {
             return vec![];
@@ -1286,7 +1309,7 @@ mod tests {
         algebra.compute_basis(max_degree);
         for i in 1 .. max_degree {
             let dim = algebra.get_dimension(i, -1);
-            let gens = algebra.get_algebra_generators(i);
+            let gens = algebra.get_generators(i);
             println!("i : {}, gens : {:?}", i, gens);
             let mut out_vec = FpVector::new(p, dim, 0);
             for j in 0 .. dim {

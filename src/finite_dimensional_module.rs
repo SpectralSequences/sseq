@@ -1,8 +1,12 @@
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny};
-use crate::module::{Module, OptionModule};
+use crate::module::{Module, OptionModule, ModuleFailedRelationError};
+
 use serde_json::value::Value;
+use serde_json::json;
+
 use std::collections::HashMap;
+use std::error::Error;
 use std::rc::Rc;
 
 
@@ -11,6 +15,7 @@ pub struct FiniteDimensionalModule {
     name : String,
     min_degree : i32,
     graded_dimension : Vec<usize>,
+    gen_names : Vec<Vec<String>>,
     // This goes input_degree --> output_degree --> operation --> input_index --> Vector
     actions : Vec<Vec<Vec<Vec<FpVector>>>>,
 }
@@ -42,7 +47,9 @@ impl Module for FiniteDimensionalModule {
     }
 
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
-        return format!("x_{{{},{}}}", degree, idx);
+        assert!(degree >= self.min_degree);
+        let degree_idx = (degree - self.min_degree) as usize;
+        return self.gen_names[degree_idx][idx].clone();
     }
 
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize){
@@ -65,14 +72,29 @@ impl Module for FiniteDimensionalModule {
 impl FiniteDimensionalModule {
     pub fn new(algebra : Rc<AlgebraAny>, name : String, min_degree : i32, graded_dimension : Vec<usize>) -> Self {
         algebra.compute_basis(min_degree + graded_dimension.len() as i32);
+        let mut gen_names = Vec::with_capacity(graded_dimension.len());
+        for i in 0..graded_dimension.len() {
+            let mut names = Vec::with_capacity(graded_dimension[i]);
+            for j in 0..graded_dimension[i]{
+                names.push(format!("x{}{}", min_degree + i as i32, j));
+            }
+            gen_names.push(names);
+        }
         let actions = FiniteDimensionalModule::allocate_actions(&algebra, min_degree, &graded_dimension);
         FiniteDimensionalModule {
             algebra,
             name,
             min_degree,
+            gen_names,
             graded_dimension,
             actions
         }
+    }
+
+    pub fn set_basis_element_name(&mut self, degree : i32, idx : usize, name : String) {
+        assert!(degree >= self.min_degree);
+        let degree_idx = (degree - self.min_degree) as usize;
+        self.gen_names[degree_idx][idx] = name;
     }
     
     fn module_gens_from_json(gens : &Value) -> (i32, Vec<usize>, HashMap<&String, (i32, usize)>) {
@@ -180,7 +202,7 @@ impl FiniteDimensionalModule {
         output_vector.pack(&output);
     }    
 
-    fn get_action(
+    pub fn get_action(
         &self,
         operation_degree : i32, operation_idx : usize,
         input_degree : i32, input_idx : usize
@@ -228,6 +250,110 @@ impl FiniteDimensionalModule {
             }
         }
         return result;
+    }
+
+    pub fn check_validity(&self, input_deg : i32, output_deg : i32) -> Result<(),Box<dyn Error>>{
+        assert!(output_deg > input_deg);
+        let p = self.get_prime();
+        let algebra = self.get_algebra();
+        let op_deg = output_deg - input_deg;
+        let mut output_vec = FpVector::new(p, self.get_dimension(output_deg), 0);
+        let mut tmp_output = FpVector::new(p, self.get_dimension(output_deg), 0);  
+        for idx in 0..self.get_dimension(input_deg) {      
+            for op_idx in 0..algebra.get_dimension(op_deg, -1) {
+                let relations = algebra.get_relations_to_check(op_deg);
+                for relation in relations {
+                    for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
+                        let intermediate_dim = self.get_dimension(input_deg + *deg_2);
+                        if intermediate_dim > tmp_output.get_dimension() {
+                            tmp_output = FpVector::new(p, intermediate_dim, 0);
+                        }
+                        tmp_output.set_slice(0, intermediate_dim);
+                        self.act_on_basis(&mut tmp_output, 1, *deg_2, *idx_2, input_deg, idx);
+                        self.act(&mut output_vec, *coef, *deg_1, *idx_1, *deg_2 + input_deg, &tmp_output); 
+                        tmp_output.clear_slice();
+                        tmp_output.set_to_zero();                       
+                    }
+                    if !output_vec.is_zero() {
+                        let mut relation_string = String::new();
+                        for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
+                            relation_string.push_str(&format!("{} * {} * {}  +  ", 
+                                *coef, 
+                                &algebra.basis_element_to_string(*deg_1, *idx_1), 
+                                &algebra.basis_element_to_string(*deg_2, *idx_2))
+                            );
+                        }
+                        relation_string.pop(); relation_string.pop(); relation_string.pop();
+                        relation_string.pop(); relation_string.pop();
+
+                        let value_string = self.element_to_string(output_deg as i32, &output_vec);
+                        return Err(Box::new(ModuleFailedRelationError {relation : relation_string, value : value_string}));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn extend_actions(&mut self, input_deg : i32, output_deg : i32){
+        let p = self.get_prime();
+        let algebra = self.get_algebra();
+        let op_deg = output_deg - input_deg;
+        let mut output_vec = FpVector::new(p, self.get_dimension(output_deg), 0);
+        let mut tmp_output = FpVector::new(p, self.get_dimension(output_deg), 0);
+        let generators = algebra.get_generators(op_deg);  
+        for idx in 0 .. self.get_dimension(input_deg) {      
+            for op_idx in 0 .. algebra.get_dimension(op_deg, -1) {
+                if !generators.contains(&op_idx) {
+                    let decomposition = algebra.decompose_basis_element(op_deg, op_idx);
+                    for (coef, (deg_1, idx_1), (deg_2, idx_2)) in decomposition {
+                        let intermediate_dim = self.get_dimension(input_deg + deg_2);
+                        if intermediate_dim > tmp_output.get_dimension() {
+                            tmp_output = FpVector::new(p, intermediate_dim, 0);
+                        }
+                        tmp_output.set_slice(0, intermediate_dim);                        
+                        self.act_on_basis(&mut tmp_output, 1, deg_2, idx_2, input_deg, idx);
+                        self.act(&mut output_vec, coef, deg_1, idx_1, deg_2 + input_deg, &tmp_output);
+                        tmp_output.clear_slice();
+                        tmp_output.set_to_zero();
+                    }
+                    self.set_action_vector(op_deg, op_idx, input_deg, idx, &output_vec);
+                }
+                output_vec.set_to_zero();
+            }
+        }
+    }
+
+    pub fn actions_to_json(&self) -> Value {
+        let p = self.get_prime();
+        let algebra = self.get_algebra();
+        let min_degree = self.get_min_degree();
+        let max_degree = min_degree + self.graded_dimension.len() as i32;
+        let mut actions = Vec::new();
+        for input_degree in min_degree..max_degree {
+            for output_degree in (input_degree + 1) .. max_degree {
+                let op_degree = output_degree - input_degree;
+                for input_idx in 0..self.get_dimension(input_degree){
+                    for op_idx in 0..algebra.get_dimension(op_degree, -1) {
+                        let vec = self.get_action(op_degree, op_idx, input_degree, input_idx);
+                        let mut current_terms = Vec::new();
+                        for (i, v) in vec.iter().enumerate() {
+                            if v == 0 {
+                                continue;
+                            }
+                            current_terms.push(json!({"gen" : self.basis_element_to_string(output_degree, i), "coeff" : v}));
+                        }
+                        let current_action = json!({
+                            "op" : algebra.json_from_basis(op_degree, op_idx),
+                            "input" : self.basis_element_to_string(input_degree, input_idx),
+                            "output" : current_terms
+                        });
+                        actions.push(current_action);
+                    }
+                }
+            }
+        }
+        json!(actions)
     }
 }
 

@@ -233,8 +233,8 @@ impl<M : Module> Module for OptionModule<M> {
 }
 
 #[derive(Debug)]
-struct UnknownModuleTypeError {
-    module_type : String
+pub struct UnknownModuleTypeError {
+    pub module_type : String
 }
 
 impl std::fmt::Display for UnknownModuleTypeError {
@@ -246,5 +246,24 @@ impl std::fmt::Display for UnknownModuleTypeError {
 impl Error for UnknownModuleTypeError {
     fn description(&self) -> &str {
         "Unknown module type"
+    }
+}
+
+
+#[derive(Debug)]
+pub struct ModuleFailedRelationError {
+    pub relation : String,
+    pub value : String
+}
+
+impl std::fmt::Display for ModuleFailedRelationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Relation failed:\n    {}  !=  0\nInstead it is equal to {}\n", &self.relation, &self.value)
+    }
+}
+
+impl Error for ModuleFailedRelationError {
+    fn description(&self) -> &str {
+        "Module failed a relation"
     }
 }

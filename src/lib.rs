@@ -19,6 +19,7 @@ mod resolution;
 mod resolution_homomorphism;
 mod resolution_with_chain_maps;
 mod wasm_bindings;
+mod cli_module_loaders;
 
 
 #[cfg(test)]
@@ -46,87 +47,24 @@ use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 use crate::resolution::{Resolution, ModuleResolution};
 use crate::resolution_with_chain_maps::ResolutionWithChainMaps;
 
- use std::path::PathBuf;
-use std::io::{stdin, stdout, Write};
-use std::fmt::Display;
-use std::str::FromStr;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::error::Error;
 use serde_json::value::Value;
 
-#[derive(Debug)]
-struct InvalidAlgebraError {
-    name : String
+pub struct Config {
+    pub module_paths : Vec<PathBuf>,
+    pub module_file_name : String,
+    pub algebra_name : String,
+    pub max_degree : i32
 }
 
-impl std::fmt::Display for InvalidAlgebraError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Invalid algebra: {}", &self.name)
-    }
-}
-
-impl Error for InvalidAlgebraError {
-    fn description(&self) -> &str {
-        "Invalid algebra supplied"
-    }
-}
-
-#[derive(Debug)]
-struct ModuleFileNotFoundError {
-    name : String
-}
-
-impl std::fmt::Display for ModuleFileNotFoundError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Module file '{}' not found on path", &self.name)
-    }
-}
-
-impl Error for ModuleFileNotFoundError {
-    fn description(&self) -> &str {
-        "Module file not found"
-    }
-}
-
-#[derive(Debug)]
-struct ModuleFailedRelationError {
-    relation : String,
-    value : String
-}
-
-impl std::fmt::Display for ModuleFailedRelationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Relation failed:\n    {}  !=  0\nInstead it is equal to {}\n", &self.relation, &self.value)
-    }
-}
-
-impl Error for ModuleFailedRelationError {
-    fn description(&self) -> &str {
-        "Module failed a relation"
-    }
-}
 
 pub struct AlgebraicObjectsBundle<M : Module> {
     algebra : Rc<AlgebraAny>,
     module : Rc<M>,
     chain_complex : Rc<CCDZ<M>>,
     resolution : Rc<ModuleResolution<M>>
-}
-
-pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {
-    let mut result = None;
-    for path in config.module_paths.iter() {
-        let mut path = path.clone();
-        path.push(&config.module_file_name);
-        path.set_extension("json");
-        result = std::fs::read_to_string(path).ok();
-        if result.is_some() {
-            break;
-        }
-    }
-    return result.ok_or_else(|| Box::new(ModuleFileNotFoundError {
-        name : config.module_file_name.clone()
-    }) as Box<dyn Error>);
 }
 
 pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
@@ -152,216 +90,21 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule
     })
 }
 
-fn query<T : FromStr>(prompt : &str) -> T {
-    loop {
-        print!("{} : ", prompt);
-        stdout().flush().unwrap();
-        let mut input = String::new();
-        stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
-        if let Ok(res) = input.trim().parse::<T>() {
-            return res;
-        }
-        println!("Invalid input. Try again");
-    }
+pub fn run_define_module() -> Result<String, Box<dyn Error>> {
+    cli_module_loaders::interactive_module_define()
 }
 
-fn query_with_default<T : FromStr + Display>(prompt : &str, default : T) -> T {
-    loop {
-        print!("{} (default {}): ", prompt, default);
-        stdout().flush().unwrap();
-        let mut input = String::new();
-        stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
-        let trimmed = input.trim();
-        if trimmed.len() == 0 {
-            return default;
-        }
-        if let Ok(res) = trimmed.parse::<T>() {
-            return res;
-        }
-        println!("Invalid input. Try again");
-    }
+pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
+    let bundle = construct(config)?;
+    bundle.resolution.resolve_through_degree(config.max_degree);
+    Ok(bundle.resolution.graded_dimension_string())
 }
 
-fn query_with_default_no_default_indicated<T : FromStr + Display>(prompt : &str, default : T) -> T {
-    loop {
-        print!("{}: ", prompt);
-        stdout().flush().unwrap();
-        let mut input = String::new();
-        stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
-        let trimmed = input.trim();
-        if trimmed.len() == 0 {
-            return default;
-        }
-        if let Ok(res) = trimmed.parse::<T>() {
-            return res;
-        }
-        println!("Invalid input. Try again");
-    }
-}
-
-
-pub fn run_interactive() -> Result<String, Box<dyn Error>>{
-    // Query for prime and max_degree
-    let mut p;
-    loop {
-        p = query_with_default("p", 2);
-        if crate::combinatorics::is_valid_prime(p) {
-            break;
-        }
-        println!("Invalid input. Try again");
-    }
-
-    let max_degree = query_with_default("Max degree", 30);
-
-    let algebra : Rc<AlgebraAny>;
-    loop {
-        match query_with_default("Algebra basis (adem/milnor)", "adem".to_string()).as_ref() {
-            "adem" => { algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false))); break },
-            "milnor" => { algebra = Rc::new(AlgebraAny::from(MilnorAlgebra::new(p))); break },
-            _ => ()
-        };
-        println!("Invalid input. Try again");
-    }
-
-    // Query for generators
-    println!("Input generators. Press return to finish.");
-    stdout().flush()?;
-
-    let mut gens = Vec::new();
-    let finished_degree = usize::max_value();
-    loop {
-        let gen_deg = query_with_default_no_default_indicated::<usize>("Generator degree", finished_degree);
-        if gen_deg == finished_degree {
-            println!("This is the list of generators and degrees:");
-            for i in 0..gens.len() {
-                for gen in &gens[i] {
-                    print!("({}, {}) ", i, gen)
-                }
-            }
-            print!("\n");
-            if query::<String>("Is it okay? (yes/no)").starts_with("y") {
-                break;
-            } else {
-                if query::<String>("Reset generator list? (yes/no)").starts_with("y") {
-                    gens = Vec::new();
-                }
-                continue;
-            }
-        }
-        while gens.len() <= gen_deg {
-            gens.push(Vec::new());
-        }
-        let gen_name = query_with_default("Generator name", format!("x{}{}",gen_deg, gens[gen_deg].len()));        
-        gens[gen_deg].push(gen_name);
-    }
-
-    let graded_dim = gens.iter().map(Vec::len).collect();
-
-    algebra.compute_basis(std::cmp::max(max_degree, gens.len() as i32));
-
-    let generators : Vec<Vec<usize>> = (0..gens.len()+1).map(|d| algebra.get_algebra_generators(d as i32)).collect();
-
-    let mut module = FDModule::new(Rc::clone(&algebra), "".to_string(), 0, graded_dim);
-
-    println!("Input actions. Write the value of the action in the form 'a x0 + b x1 + ...' where a, b are non-negative integers and x0, x1 are names of the generators. The coefficient can be omitted if it is 1");
-
-    let len = gens.len();
-    for input_deg in (0..len).rev() {
-        for idx in 0..gens[input_deg].len() {
-            for output_deg in (input_deg+1)..len {
-                let deg_diff = (output_deg - input_deg) as i32;
-                if gens[output_deg].len() == 0 {
-                    continue;
-                }
-                let mut output_vec = FpVector::new(p, gens[output_deg].len(), 0);
-                for op_idx in 0..algebra.get_dimension(deg_diff, -1) {
-                    if generators[deg_diff as usize].contains(&op_idx) {
-                        'outer: loop {
-                            let result = query::<String>(&format!("{} {}", algebra.basis_element_to_string(deg_diff, op_idx), gens[input_deg][idx]));
-
-                            if result == "0" {
-                                break;
-                            }
-                            for term in result.split("+") {
-                                let term = term.trim();
-                                let parts : Vec<&str> = term.split(" ").collect();
-                                if parts.len() == 1 {
-                                    match gens[output_deg].iter().position(|d| d == &parts[0]) {
-                                        Some(i) => output_vec.add_basis_element(i, 1),
-                                        None => { println!("Invalid value. Try again"); continue 'outer }
-                                    };
-                                } else if parts.len() == 2 {
-                                    let gen_idx = match gens[output_deg].iter().position(|d| d == &parts[1]) {
-                                        Some(i) => i,
-                                        None => { println!("Invalid value. Try again"); continue 'outer }
-                                    };
-                                    let coef = match parts[1].parse::<u32>() {
-                                        Ok(c) => c,
-                                        _ => { println!("Invalid value. Try again"); continue 'outer }
-                                    };
-                                    output_vec.add_basis_element(gen_idx, coef);
-                                } else {
-                                    println!("Invalid value. Try again"); continue 'outer;
-                                }
-                            }
-                            module.set_action_vector(deg_diff, op_idx, input_deg as i32, idx, &output_vec);
-                            break;
-                        }
-                    } else {
-                        let decomposition = algebra.decompose_basis_element(deg_diff, op_idx);
-                        println!("decomposition : {:?}", decomposition);
-                        for (coef, (deg_1, idx_1), (deg_2, idx_2)) in decomposition {
-                            let mut tmp_output = FpVector::new(p, gens[deg_2 as usize + input_deg].len(), 0);
-                            module.act_on_basis(&mut tmp_output, 1, deg_2, idx_2, input_deg as i32, idx);
-                            module.act(&mut output_vec, coef, deg_1, idx_1, deg_2 + input_deg as i32, &tmp_output);
-                        }
-                        println!("computed {} action on {}: {}", algebra.basis_element_to_string(deg_diff, op_idx), gens[input_deg][idx], output_vec);
-                        module.set_action_vector(deg_diff, op_idx, input_deg as i32, idx, &output_vec);
-                    }
-                    output_vec.set_to_zero();
-                }
-                for op_idx in 0..algebra.get_dimension(deg_diff, -1) {
-                    let relations = algebra.get_relations_to_check(deg_diff);
-                    for relation in relations {
-                        for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                            let mut tmp_output = FpVector::new(p, gens[*deg_2 as usize + input_deg].len(), 0);
-                            module.act_on_basis(&mut tmp_output, 1, *deg_2, *idx_2, input_deg as i32, idx);
-                            module.act(&mut output_vec, *coef, *deg_1, *idx_1, *deg_2 + input_deg as i32, &tmp_output);                        
-                        }
-                        if !output_vec.is_zero() {
-                            let mut relation_string = String::new();
-                            for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                                relation_string.push_str(&format!("{} * {} * {}  +  ", 
-                                    *coef, 
-                                    &algebra.basis_element_to_string(*deg_1, *idx_1), 
-                                    &algebra.basis_element_to_string(*deg_2, *idx_2))
-                                );
-                            }
-                            relation_string.pop(); relation_string.pop(); relation_string.pop();
-                            relation_string.pop(); relation_string.pop();
-
-                            let value_string = module.element_to_string(output_deg as i32, &output_vec);
-                            return Err(Box::new(ModuleFailedRelationError {relation : relation_string, value : value_string}));
-                        }
-                    }
-                }
-            }
-        }
-    }
-    let chain_complex = Rc::new(CCDZ::new(Rc::new(module)));
-    let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), max_degree, None, None));
-
-    resolution.resolve_through_degree(max_degree);
-    Ok(resolution.graded_dimension_string())
-}
 
 //use crate::fp_vector::FpVectorT;
 // use crate::resolution_homomorphism::ResolutionHomomorphism;
-pub fn test(config : &Config){
-    test_no_config();
-}
 #[allow(unreachable_code)]
-pub fn test_no_config(){
+pub fn run_test() {
     let p = 3;
     let max_degree = 80;
     let algebra = AdemAlgebra::new(p, p != 2, false);
@@ -405,15 +148,55 @@ pub fn test_no_config(){
     println!("{}", resolution.graded_dimension_string());
 }
 
-pub fn run(config : &Config) -> Result<String, Box<dyn Error>> {
-    let bundle = construct(config)?;
-    bundle.resolution.resolve_through_degree(config.max_degree);
-    Ok(bundle.resolution.graded_dimension_string())
+
+
+pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {
+    let mut result = None;
+    for path in config.module_paths.iter() {
+        let mut path = path.clone();
+        path.push(&config.module_file_name);
+        path.set_extension("json");
+        result = std::fs::read_to_string(path).ok();
+        if result.is_some() {
+            break;
+        }
+    }
+    return result.ok_or_else(|| Box::new(ModuleFileNotFoundError {
+        name : config.module_file_name.clone()
+    }) as Box<dyn Error>);
 }
 
-pub struct Config {
-    pub module_paths : Vec<PathBuf>,
-    pub module_file_name : String,
-    pub algebra_name : String,
-    pub max_degree : i32
+#[derive(Debug)]
+struct ModuleFileNotFoundError {
+    name : String
+}
+
+impl std::fmt::Display for ModuleFileNotFoundError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Module file '{}' not found on path", &self.name)
+    }
+}
+
+impl Error for ModuleFileNotFoundError {
+    fn description(&self) -> &str {
+        "Module file not found"
+    }
+}
+
+
+#[derive(Debug)]
+struct InvalidAlgebraError {
+    name : String
+}
+
+impl std::fmt::Display for InvalidAlgebraError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Invalid algebra: {}", &self.name)
+    }
+}
+
+impl Error for InvalidAlgebraError {
+    fn description(&self) -> &str {
+        "Invalid algebra supplied"
+    }
 }

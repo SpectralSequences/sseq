@@ -1,5 +1,5 @@
 use rust_ext::Config;
-use rust_ext::run;
+use rust_ext::run_resolve;
 
 #[test]
 fn milnor_vs_adem() {
@@ -29,7 +29,7 @@ fn compare(module_name : &str, max_degree : i32) {
         algebra_name : String::from("milnor")
     };
 
-    match (run(&a), run(&m)) {
+    match (run_resolve(&a), run_resolve(&m)) {
         (Err(e), _)    => panic!("Failed to read file: {}", e),
         (_, Err(e))    => panic!("Failed to read file: {}", e),
         (Ok(x), Ok(y)) => assert_eq!(x, y)
