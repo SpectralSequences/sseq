@@ -41,9 +41,9 @@ if (!params.module) {
     }
     window.sseq = new Sseq();
     sseq.xRange = [0, maxDegree];
-    sseq.yRange = [0, Math.ceil(maxDegree/3)];
+    sseq.yRange = [0, Math.ceil(maxDegree/3) + 1];
     sseq.initialxRange = [0, maxDegree];
-    sseq.initialyRange = [0, Math.ceil(maxDegree/3)];
+    sseq.initialyRange = [0, Math.ceil(maxDegree/3) + 1];
     sseq.offset_size = 0.1;
     sseq.class_scale = 0.5;
     document.querySelector("#main").style.display = "block";
@@ -55,7 +55,7 @@ messageHandler.resolving = (data) => {
     let minDegree = data.minDegree;
     let maxDegree = data.maxDegree;
     sseq.xRange = [minDegree, maxDegree];
-    sseq.yRange = [0, Math.ceil((maxDegree - minDegree)/3)];
+    sseq.yRange = [0, Math.ceil((maxDegree - minDegree)/3) + 1];
 }
 
 messageHandler.addClass = function addClass(m) {
