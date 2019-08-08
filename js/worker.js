@@ -57,23 +57,12 @@ let message_handlers = {};
 message_handlers.resolve = function resolve(m){
     self.p = m.p;
     self.algebra = self.wasm.WasmAlgebra.new_adem_algebra(m.p, m.p != 2);
-    resolution_constructors[m.type](self.algebra, m);
+    self.module = self.wasm.WasmModule.new_adem_module(self.algebra, m.module);
+    self.cc = self.wasm.WasmCCDZ.new_ccdz(self.module);
+    self.res_no_maps = self.wasm.WasmResolution.new(cc, m.maxDegree, addClass, addStructline);
+    self.res = self.wasm.WasmResolutionWithChainMaps.new(self.res_no_maps, self.res_no_maps, m.module);
     self.res.resolve_through_degree(m.maxDegree);
     console.log(`Total time : ${getTotalTime()}`);
-}
-
-let resolution_constructors = {};
-resolution_constructors["finite dimensional module"] = function constructFDModule(algebra, m){
-    self.module = self.wasm.WasmFDModule.new_adem_module(algebra, m.module);
-    self.cc = self.wasm.WasmCCDZFDModule.new_ccdz(self.module);
-    self.res_no_maps = self.wasm.WasmResolutionCCDZFDModule.new(cc, m.maxDegree, addClass, addStructline);
-    self.res = self.wasm.WasmResolutionWithChainMapsCCDZFDModule.new(self.res_no_maps, self.res_no_maps, m.module);
-}
-
-resolution_constructors["finitely presented module"] = function constructFPModule(algebra, m){
-    self.module = self.wasm.WasmFPModule.new_adem_module(algebra, m.module);
-    self.cc = self.wasm.WasmCCDZFPModule.new_ccdz(self.module);
-    self.res = self.wasm.WasmResolutionCCDZFPModule.new(cc, m.maxDegree, addClass, addStructline);
 }
 
 message_handlers.getCocycle = function getCocycle(m){

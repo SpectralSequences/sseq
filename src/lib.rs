@@ -40,10 +40,9 @@ use crate::algebra::{Algebra, AlgebraAny};
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::adem_algebra::AdemAlgebra;
 use crate::milnor_algebra::MilnorAlgebra;
-use crate::module::Module;
-use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
-use crate::finitely_presented_module::FinitelyPresentedModule as FPModule;
+use crate::module::{FiniteModule, Module};
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
+use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 use crate::resolution::{Resolution, ModuleResolution};
 use crate::resolution_with_chain_maps::ResolutionWithChainMaps;
 
@@ -89,25 +88,6 @@ impl Error for ModuleFileNotFoundError {
     }
 }
 
-
-
-#[derive(Debug)]
-struct UnknownModuleTypeError {
-    module_type : String
-}
-
-impl std::fmt::Display for UnknownModuleTypeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Unknown module type: {}", &self.module_type)
-    }
-}
-
-impl Error for UnknownModuleTypeError {
-    fn description(&self) -> &str {
-        "Unknown module type"
-    }
-}
-
 #[derive(Debug)]
 struct ModuleFailedRelationError {
     relation : String,
@@ -133,48 +113,6 @@ pub struct AlgebraicObjectsBundle<M : Module> {
     resolution : Rc<ModuleResolution<M>>
 }
 
-pub enum AlgebraicObjectsBundleChoice {
-    FinitelyPresented(AlgebraicObjectsBundle<FPModule>),
-    FiniteDimensional(AlgebraicObjectsBundle<FDModule>)
-}
-
-impl AlgebraicObjectsBundleChoice {
-    pub fn resolve_through_degree(&self, max_degree : i32) {
-        match self {
-            AlgebraicObjectsBundleChoice::FinitelyPresented(bundle) => bundle.resolution.resolve_through_degree(max_degree),
-            AlgebraicObjectsBundleChoice::FiniteDimensional(bundle) => bundle.resolution.resolve_through_degree(max_degree),
-        }
-    }
-
-    pub fn graded_dimension_string(&self) -> String {
-        match self {
-            AlgebraicObjectsBundleChoice::FinitelyPresented(bundle) => bundle.resolution.graded_dimension_string(),
-            AlgebraicObjectsBundleChoice::FiniteDimensional(bundle) => bundle.resolution.graded_dimension_string(),
-        }        
-    }
-}
-
-pub fn construct_helper<M : Module + Sized>(config : &Config, mut json : Value) -> Result<AlgebraicObjectsBundle<M>, Box<dyn Error>> {
-    let p = json["p"].as_u64().unwrap() as u32;
-
-    // You need a box in order to allow for different possible types implementing the same trait
-    let algebra : Rc<AlgebraAny>;
-    match config.algebra_name.as_ref() {
-        "adem" => algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false))),
-        "milnor" => algebra = Rc::new(AlgebraAny::from(MilnorAlgebra::new(p))),
-        _ => { return Err(Box::new(InvalidAlgebraError { name : config.algebra_name.clone() })); }
-    };    
-    let module = Rc::new(M::from_json(Rc::clone(&algebra), &config.algebra_name, &mut json));
-    let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
-    let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), config.max_degree, None, None));
-    Ok(AlgebraicObjectsBundle {
-        algebra,
-        module,
-        chain_complex,
-        resolution
-    })
-}
-
 pub fn load_module_from_file(config : &mut Config) -> Result<String, Box<dyn Error>> {
     let mut result = None;
     for path in config.module_paths.iter_mut() {
@@ -190,21 +128,27 @@ pub fn load_module_from_file(config : &mut Config) -> Result<String, Box<dyn Err
     }) as Box<dyn Error>);
 }
 
-pub fn construct(config : &mut Config) -> Result<AlgebraicObjectsBundleChoice, Box<dyn Error>> {
+pub fn construct(config : &mut Config) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
     let contents = load_module_from_file(config)?;
-    let json : Value = serde_json::from_str(&contents)?;
-    let module_type = &json["type"].as_str().unwrap();
-    match module_type {
-        &"finite dimensional module" => {
-            let bundle = construct_helper(config, json)?;
-            Ok(AlgebraicObjectsBundleChoice::FiniteDimensional(bundle))
-        },
-        &"finitely presented module" => {
-            let bundle = construct_helper(config, json)?;
-            Ok(AlgebraicObjectsBundleChoice::FinitelyPresented(bundle))
-        }
-        _ => Err(Box::new(UnknownModuleTypeError { module_type : module_type.to_string() }))
-    }
+    let mut json : Value = serde_json::from_str(&contents)?;
+    let p = json["p"].as_u64().unwrap() as u32;
+
+    // You need a box in order to allow for different possible types implementing the same trait
+    let algebra : Rc<AlgebraAny>;
+    match config.algebra_name.as_ref() {
+        "adem" => algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false))),
+        "milnor" => algebra = Rc::new(AlgebraAny::from(MilnorAlgebra::new(p))),
+        _ => { return Err(Box::new(InvalidAlgebraError { name : config.algebra_name.clone() })); }
+    };    
+    let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &config.algebra_name, &mut json)?);
+    let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
+    let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), config.max_degree, None, None));
+    Ok(AlgebraicObjectsBundle {
+        algebra,
+        module,
+        chain_complex,
+        resolution
+    })
 }
 
 fn query<T : FromStr>(prompt : &str) -> T {
@@ -462,8 +406,8 @@ pub fn test_no_config(){
 
 pub fn run(config : &mut Config) -> Result<String, Box<dyn Error>> {
     let bundle = construct(config)?;
-    bundle.resolve_through_degree(config.max_degree);
-    Ok(bundle.graded_dimension_string())
+    bundle.resolution.resolve_through_degree(config.max_degree);
+    Ok(bundle.resolution.graded_dimension_string())
 }
 
 pub struct Config {

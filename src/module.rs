@@ -1,18 +1,17 @@
 use std::rc::Rc;
-// use enum_dispatch::enum_dispatch;
+use std::error::Error;
+use enum_dispatch::enum_dispatch;
 
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny};
+use crate::finite_dimensional_module::FiniteDimensionalModule;
+use crate::finitely_presented_module::FinitelyPresentedModule;
 
-// enum Module_Type {
-
-// }
-
+#[enum_dispatch(FiniteModule)]
 pub trait Module {
     fn get_prime(&self) -> u32 {
         self.get_algebra().get_prime()
     }
-    fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut serde_json::Value) -> Self;
 
     fn get_algebra(&self) -> Rc<AlgebraAny>;
     fn get_name(&self) -> &str;
@@ -75,10 +74,6 @@ impl ZeroModule {
 }
 
 impl Module for ZeroModule {
-    fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut  serde_json::Value) -> Self {
-        Self::new(algebra)
-    }
-
     fn get_algebra(&self) -> Rc<AlgebraAny> {
         Rc::clone(&self.algebra)
     }
@@ -103,6 +98,23 @@ impl Module for ZeroModule {
     fn basis_element_to_string(&self, _degree : i32, _index : usize) -> String{
         assert!(false);
         "".to_string()
+    }
+}
+
+#[enum_dispatch]
+pub enum FiniteModule {
+    FiniteDimensionalModule,
+    FinitelyPresentedModule
+}
+
+impl FiniteModule {
+    pub fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut serde_json::Value) -> Result<Self, Box<dyn Error>> {
+        let module_type = &json["type"].as_str().unwrap();
+        match module_type {
+            &"finite dimensional module" => Ok(FiniteModule::from(FiniteDimensionalModule::from_json(algebra, algebra_name, json))),
+            &"finitely presented module" => Ok(FiniteModule::from(FinitelyPresentedModule::from_json(algebra, algebra_name, json))),
+            _ => Err(Box::new(UnknownModuleTypeError { module_type : module_type.to_string() }))
+        }
     }
 }
 
@@ -170,10 +182,6 @@ pub enum OptionModule<M : Module> {
 }
 
 impl<M : Module> Module for OptionModule<M> {
-    fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut serde_json::Value) -> Self {
-        OptionModule::Some(Rc::new(M::from_json(algebra, algebra_name, json)))
-    }
-
     fn get_algebra(&self) -> Rc<AlgebraAny> {
         match self {
             OptionModule::Some(l) => l.get_algebra(),
@@ -221,5 +229,22 @@ impl<M : Module> Module for OptionModule<M> {
             OptionModule::Some(l) => l.basis_element_to_string(degree, idx),
             OptionModule::Zero(r) => r.basis_element_to_string(degree, idx)
         }
+    }
+}
+
+#[derive(Debug)]
+struct UnknownModuleTypeError {
+    module_type : String
+}
+
+impl std::fmt::Display for UnknownModuleTypeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Unknown module type: {}", &self.module_type)
+    }
+}
+
+impl Error for UnknownModuleTypeError {
+    fn description(&self) -> &str {
+        "Unknown module type"
     }
 }
