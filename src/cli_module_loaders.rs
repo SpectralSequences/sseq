@@ -170,6 +170,7 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
     for i in 0..gens.len() {
         for (j, gen) in gens[i].iter().enumerate() {
             adem_module.set_basis_element_name(i as i32, j, gen.to_string());
+            milnor_module.set_basis_element_name(i as i32, j, gen.to_string());
         }
     }
 
@@ -207,14 +208,14 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
     }
 
     let adem_actions = adem_module.actions_to_json();
-    let milnor_actions = adem_module.actions_to_json();
+    let milnor_actions = milnor_module.actions_to_json();
     
     let mut output_path_buf = PathBuf::from(output_path);
     output_path_buf.set_extension("json");
     let file_name = output_path_buf.file_stem().unwrap();
     let output_json = json!({
         "type" : "finite dimensional module",
-        "file_name" : file_name,
+        "file_name" : file_name.to_str(),
         "name" : name,
         "p" : p,
         "generic" : generic,
