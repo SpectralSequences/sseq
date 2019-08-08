@@ -56,18 +56,29 @@ impl ResolutionManager {
             let json : Value = serde_json::from_str(&msg).unwrap();// Implement proper error handling.
             match json["command"].as_str() {
                 Some("resolve") => manager.resolve(json)?,
+                Some("resolve_json") => manager.resolve_json(json)?,
                 _ => {println!("Ignoring message: {:#}", json);}
             };
         }
         Ok(())
     }
 
+    /// Resolves a module defined by a json object. The result is stored in `self.bundle`.
+    fn resolve_json(&mut self, json : Value) -> Result<(), Box<dyn Error>> {
+        let algebra_name = json["algebra"].as_str().unwrap().to_string();
+        let max_degree = json["maxDegree"].as_i64().unwrap() as i32;
+        let json_data = serde_json::from_str(json["data"].as_str().unwrap())?;
+
+        self.bundle = rust_ext::construct_from_json(json_data, algebra_name, max_degree).ok();
+
+        self.resolve_bundle(max_degree)
+    }
+
     /// Resolves a module specified by `json`. The result is stored in `self.bundle`.
     fn resolve(&mut self, json : Value) -> Result<(), Box<dyn Error>> {
         let module_name = json["module"].as_str().unwrap(); // Need to handle error
         let algebra_name = json["algebra"].as_str().unwrap();
-        let max_degree = json["maxDegree"].as_i64().unwrap();
-        let max_degree = max_degree as i32;
+        let max_degree = json["maxDegree"].as_i64().unwrap() as i32;
         let mut dir = std::env::current_dir()?;
         dir.push("modules");
 
@@ -78,6 +89,12 @@ impl ResolutionManager {
              max_degree : max_degree
         }).ok();
 
+        self.resolve_bundle(max_degree)
+    }
+
+    /// If `self.bundle` is set, resolve the resolution in the bundle up to degree `max_degree`. If
+    /// `self.bundle` is not set, the function does nothing.
+    fn resolve_bundle(&mut self, max_degree : i32) -> Result<(), Box<dyn Error>> {
         if let Some(bundle) = &self.bundle {
             let data = json!(
                 {
