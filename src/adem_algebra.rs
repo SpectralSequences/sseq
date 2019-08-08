@@ -1354,7 +1354,7 @@ mod tests {
     fn test_adem_relations(p : u32, max_degree : i32){
         combinatorics::initialize_prime(p);
         let algebra = AdemAlgebra::new(p, p != 2, false);
-        algebra.compute_basis(max_degree);
+        algebra.compute_basis(max_degree + 1);
         let mut output_vec = FpVector::new(p, 0, 0);
         for i in 1 .. max_degree {
             output_vec.clear_slice();
