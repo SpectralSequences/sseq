@@ -22,8 +22,8 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
     phantom : PhantomData<ChainComplex<M, F>>,
 
     max_degree : i32,
-    add_class : Option<Box<dyn Fn(u32, i32, &str)>>,
-    add_structline : Option<Box<dyn Fn(
+    pub add_class : Option<Box<dyn Fn(u32, i32, &str)>>,
+    pub add_structline : Option<Box<dyn Fn(
         &str,
         u32, i32, usize, 
         u32, i32, usize
