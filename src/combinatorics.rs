@@ -73,12 +73,12 @@ static mut TAU_DEGREES : [Option<Vec<i32>>; MAX_PRIME_INDEX] = [
     None,None,None,None
 ];
 
-pub fn valid_prime_q(p : u32) -> bool {
+pub fn is_valid_prime(p : u32) -> bool {
     (p as usize) < MAX_PRIME && PRIME_TO_INDEX_MAP[p as usize] != NOT_A_PRIME
 }
 
 pub fn initialize_prime(p : u32){
-    assert!(valid_prime_q(p));
+    assert!(is_valid_prime(p));
     unsafe { &PRIME_GUARD_ONCE_TABLE[PRIME_TO_INDEX_MAP[p as usize]] }.call_once(||{
         initialize_inverse_table(p);
         initialize_binomial_table(p);
@@ -87,7 +87,7 @@ pub fn initialize_prime(p : u32){
 
 fn initialize_inverse_table(p : u32){
     let p_idx = p as usize;
-    assert!(valid_prime_q(p));
+    assert!(is_valid_prime(p));
     let mut table : Vec<u32> = Vec::with_capacity(p_idx);
     for n in 0 .. p {
         table.push(power_mod(p, n, p - 2));
@@ -100,7 +100,7 @@ fn initialize_inverse_table(p : u32){
 // Finds the inverse of k mod p.
 // Uses a the lookup table we initialized.
 pub fn inverse(p : u32, k : u32) -> u32{
-    assert!(valid_prime_q(p));
+    assert!(is_valid_prime(p));
     unsafe { // unsafe for touching mutable static variable
         if let Some(table) = &INVERSE_TABLE[PRIME_TO_INDEX_MAP[p as usize]] {
             table[k as usize]
@@ -120,7 +120,7 @@ pub fn minus_one_to_the_n(p : u32, i : u32) -> u32 {
 // Lucas's theorem reduces general binomial coefficients to this case.
 fn initialize_binomial_table(p : u32){
     let p_idx = p as usize;
-    assert!(valid_prime_q(p));  
+    assert!(is_valid_prime(p));  
     unsafe { // unsafe for touching mutable static variable
         if BINOMIAL_TABLE[PRIME_TO_INDEX_MAP[p_idx]] != None {
             return;
@@ -150,7 +150,7 @@ fn initialize_binomial_table(p : u32){
 
 // This is a table lookup, n, k < p.
 fn direct_binomial(p : u32, n : u32, k : u32) -> u32{
-    assert!(valid_prime_q(p));
+    assert!(is_valid_prime(p));
     unsafe{
         if let Some(table) = &BINOMIAL_TABLE[PRIME_TO_INDEX_MAP[p as usize]]{
             table[n as usize][k as usize]

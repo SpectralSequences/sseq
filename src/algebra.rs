@@ -100,6 +100,9 @@ pub trait Algebra {
     /// This method need not be fast, because they will only be performed when constructing the module,
     /// and will often only involve low dimensional elements.
     fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>;
+
+    /// Get any relations that the algebra wants checked to ensure the consistency of module.
+    fn get_relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>;
 }
 
 #[enum_dispatch(Algebra)]

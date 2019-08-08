@@ -51,7 +51,12 @@ impl Module for FiniteDimensionalModule {
         let output_dimension = self.get_dimension(mod_degree + op_degree);    
         if output_dimension == 0 {
             return;
-        }          
+        }
+        if op_degree == 0 {
+            // We assume our algebras are connected so just add input to output.
+            result.add_basis_element(mod_index, coeff);
+            return;
+        }
         let output = self.get_action(op_degree, op_index, mod_degree, mod_index);
         result.add(output, coeff);
     }
@@ -171,7 +176,7 @@ impl FiniteDimensionalModule {
         &mut self,
         operation_degree : i32, operation_idx : usize,
         input_degree : i32, input_idx : usize,
-        output : FpVector
+        output : &FpVector
     ){
         assert!(operation_idx < self.algebra.get_dimension(operation_degree, input_degree));
         assert!(input_idx < self.get_dimension(input_degree));      
@@ -180,7 +185,7 @@ impl FiniteDimensionalModule {
         let in_out_diff = output_degree_idx - input_degree_idx - 1;
         // (in_deg) -> (out_deg) -> (op_index) -> (in_index) -> Vector
         let output_vector = &mut self.actions[input_degree_idx][in_out_diff][operation_idx][input_idx];
-        output_vector.assign(&output);
+        output_vector.assign(output);
     }
 
     pub fn set_action(
@@ -205,7 +210,7 @@ impl FiniteDimensionalModule {
         input_degree : i32, input_idx : usize
     ) -> &FpVector {
         assert!(operation_idx < self.algebra.get_dimension(operation_degree, input_degree));
-        assert!(input_idx < self.get_dimension(input_degree));              
+        assert!(input_idx < self.get_dimension(input_degree));  
         let input_degree_idx = (input_degree - self.min_degree) as usize;
         let output_degree_idx = (input_degree + operation_degree - self.min_degree) as usize;
         let in_out_diff = output_degree_idx - input_degree_idx - 1;

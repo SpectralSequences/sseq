@@ -26,7 +26,7 @@ use std::sync::Once;
 use std::fmt;
 use enum_dispatch::enum_dispatch;
 
-use crate::combinatorics::valid_prime_q;
+use crate::combinatorics::is_valid_prime;
 use crate::combinatorics::PRIME_TO_INDEX_MAP;
 use crate::combinatorics::MAX_PRIME_INDEX;
 
@@ -134,7 +134,7 @@ fn get_limb_bit_index_pair(p : u32, idx : usize) -> LimbBitIndexPair {
         },
         _ => {
             let prime_idx = PRIME_TO_INDEX_MAP[p as usize];
-            debug_assert!(valid_prime_q(p));
+            debug_assert!(is_valid_prime(p));
             debug_assert!(idx < MAX_DIMENSION);
             unsafe {
                 let table = &LIMB_BIT_INDEX_TABLE[prime_idx];

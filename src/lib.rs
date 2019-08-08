@@ -72,19 +72,37 @@ impl Error for InvalidAlgebraError {
 }
 
 #[derive(Debug)]
-struct UnknownModuleType {
+struct UnknownModuleTypeError {
     module_type : String
 }
 
-impl std::fmt::Display for UnknownModuleType {
+impl std::fmt::Display for UnknownModuleTypeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Unknown module type: {}", &self.module_type)
     }
 }
 
-impl Error for UnknownModuleType {
+impl Error for UnknownModuleTypeError {
     fn description(&self) -> &str {
         "Unknown module type"
+    }
+}
+
+#[derive(Debug)]
+struct ModuleFailedRelationError {
+    relation : String,
+    value : String
+}
+
+impl std::fmt::Display for ModuleFailedRelationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Relation failed:\n    {}  !=  0\nInstead it is equal to {}\n", &self.relation, &self.value)
+    }
+}
+
+impl Error for ModuleFailedRelationError {
+    fn description(&self) -> &str {
+        "Module failed a relation"
     }
 }
 
@@ -150,7 +168,7 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundleChoice, Box<d
             let bundle = construct_helper(config, json)?;
             Ok(AlgebraicObjectsBundleChoice::FinitelyPresented(bundle))
         }
-        _ => Err(Box::new(UnknownModuleType { module_type : module_type.to_string() }))
+        _ => Err(Box::new(UnknownModuleTypeError { module_type : module_type.to_string() }))
     }
 }
 
@@ -204,7 +222,15 @@ fn query_with_default_no_default_indicated<T : FromStr + Display>(prompt : &str,
 
 pub fn run_interactive() -> Result<String, Box<dyn Error>>{
     // Query for prime and max_degree
-    let p = query_with_default("p", 2);
+    let mut p;
+    loop {
+        p = query_with_default("p", 2);
+        if crate::combinatorics::is_valid_prime(p) {
+            break;
+        }
+        println!("Invalid input. Try again");
+    }
+
     let max_degree = query_with_default("Max degree", 30);
 
     let algebra : Rc<AlgebraAny>;
@@ -236,7 +262,9 @@ pub fn run_interactive() -> Result<String, Box<dyn Error>>{
             if query::<String>("Is it okay? (yes/no)").starts_with("y") {
                 break;
             } else {
-                gens = Vec::new();
+                if query::<String>("Reset generator list? (yes/no)").starts_with("y") {
+                    gens = Vec::new();
+                }
                 continue;
             }
         }
@@ -265,10 +293,8 @@ pub fn run_interactive() -> Result<String, Box<dyn Error>>{
                 if gens[output_deg].len() == 0 {
                     continue;
                 }
-
+                let mut output_vec = FpVector::new(p, gens[output_deg].len(), 0);
                 for op_idx in 0..algebra.get_dimension(deg_diff, -1) {
-                    let mut output_vec = FpVector::new(p, gens[output_deg].len(), 0);
-
                     if generators[deg_diff as usize].contains(&op_idx) {
                         'outer: loop {
                             let result = query::<String>(&format!("{} {}", algebra.basis_element_to_string(deg_diff, op_idx), gens[input_deg][idx]));
@@ -298,7 +324,7 @@ pub fn run_interactive() -> Result<String, Box<dyn Error>>{
                                     println!("Invalid value. Try again"); continue 'outer;
                                 }
                             }
-                            module.set_action_vector(deg_diff, op_idx, input_deg as i32, idx, output_vec);
+                            module.set_action_vector(deg_diff, op_idx, input_deg as i32, idx, &output_vec);
                             break;
                         }
                     } else {
@@ -310,7 +336,33 @@ pub fn run_interactive() -> Result<String, Box<dyn Error>>{
                             module.act(&mut output_vec, coef, deg_1, idx_1, deg_2 + input_deg as i32, &tmp_output);
                         }
                         println!("computed {} action on {}: {}", algebra.basis_element_to_string(deg_diff, op_idx), gens[input_deg][idx], output_vec);
-                        module.set_action_vector(deg_diff, op_idx, input_deg as i32, idx, output_vec);
+                        module.set_action_vector(deg_diff, op_idx, input_deg as i32, idx, &output_vec);
+                    }
+                    output_vec.set_to_zero();
+                }
+                for op_idx in 0..algebra.get_dimension(deg_diff, -1) {
+                    let relations = algebra.get_relations_to_check(deg_diff);
+                    for relation in relations {
+                        for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
+                            let mut tmp_output = FpVector::new(p, gens[*deg_2 as usize + input_deg].len(), 0);
+                            module.act_on_basis(&mut tmp_output, 1, *deg_2, *idx_2, input_deg as i32, idx);
+                            module.act(&mut output_vec, *coef, *deg_1, *idx_1, *deg_2 + input_deg as i32, &tmp_output);                        
+                        }
+                        if !output_vec.is_zero() {
+                            let mut relation_string = String::new();
+                            for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
+                                relation_string.push_str(&format!("{} * {} * {}  +  ", 
+                                    *coef, 
+                                    &algebra.basis_element_to_string(*deg_1, *idx_1), 
+                                    &algebra.basis_element_to_string(*deg_2, *idx_2))
+                                );
+                            }
+                            relation_string.pop(); relation_string.pop(); relation_string.pop();
+                            relation_string.pop(); relation_string.pop();
+
+                            let value_string = module.element_to_string(output_deg as i32, &output_vec);
+                            return Err(Box::new(ModuleFailedRelationError {relation : relation_string, value : value_string}));
+                        }
                     }
                 }
             }

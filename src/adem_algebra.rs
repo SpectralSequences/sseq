@@ -314,13 +314,73 @@ impl Algebra for AdemAlgebra {
         }
     }
 
-    /// If every basis element is a generator, we never need to decompose!
     fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
         if self.generic {
             self.decompose_basis_element_generic(degree, idx)
         } else {
             self.decompose_basis_element_2(degree, idx)
         }
+    }
+
+    fn get_relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
+        let p = self.get_prime();
+        let q = if self.generic { 2*(p - 1) } else { 1 };
+        let degreeu32 = degree as u32;
+        // We want Pi*b*Pj inadmissible so that means i < p * j + epsilon.
+        // degree = i + epsilon +  j so j = degree - i - epsilon
+        // so i < p * (relation_dim - i - b) + epsilon so i < (p * degree - (p - 1) * epsilon) / ( p + 1)
+        // We need to round up so as to include the last integer
+        // if (p * degree - (p-1) * epsilon) / (p + 1) is not an integer
+        // to do this with integer division we do (p * degree - (p-1) * epsilon + p) / (p + 1)
+        let mut inadmissible_pairs = Vec::new();
+        for i in 1 .. (p * degreeu32 + p) / (p+1) {
+            inadmissible_pairs.push((i, 0, degreeu32 - i));
+        }
+        if self.generic {
+            for i in 1 .. (p * degreeu32 + 1) / (p+1) {
+                inadmissible_pairs.push((i, 1, degreeu32 - i - 1));
+            }
+        }
+        let mut result = Vec::new();
+        for (x, b, y) in inadmissible_pairs {
+            let mut relation = Vec::new();
+            // Adem relation
+            let first_degree = x as i32;
+            let first_index = self.basis_element_to_index(&AdemBasisElement {
+                degree : first_degree,
+                excess : 0,
+                bocksteins : 0,
+                ps : vec![x]
+            });
+            let second_degree = (y + b) as i32;
+            let second_index = self.basis_element_to_index(&AdemBasisElement {
+                degree : second_degree,
+                excess : 0,
+                bocksteins : b,
+                ps : vec![y]
+            });
+            relation.push((p - 1, (first_degree, first_index), (second_degree, second_index)));
+            for e1 in 0 .. b + 1 {
+                let e2 = b - e1;
+                // e1 and e2 determine where a bockstein shows up.
+                // e1 determines if a bockstein shows up in front 
+                // e2 determines if a bockstein shows up in middle
+                // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
+                for j in 0 .. x/p + 1 {
+                    let c = combinatorics::binomial(p, ((y-j) * (p-1) + e1) as i32 - 1, (x - p*j - e2) as i32);
+                    if c == 0 { continue; }
+                    let idx = self.basis_element_to_index(&AdemBasisElement{
+                        degree,
+                        excess : 0,
+                        ps : if j == 0 { vec![x+y] } else { vec![x + y - j, j] },
+                        bocksteins : e1 | (e2 << 1)
+                    });
+                    relation.push((c, (degree, idx), (0, 0)));
+                }
+            }
+            result.push(relation);
+        }
+        return result;
     }
 }
 
@@ -782,7 +842,7 @@ impl AdemAlgebra {
                     working_elt.bocksteins &= !1;
                     // Now either the front bit or idx + 1 might need to be set depending on e1 and e2.
                     working_elt.bocksteins |= e1;
-                    working_elt.bocksteins |= e2 << 1; 
+                    working_elt.bocksteins |= e2 << 1;
                     // In this case the result is guaranteed to be admissible so we can immediately add it to result
                     let out_idx = self.basis_element_to_index(&working_elt);
                     result.add_basis_element(out_idx, c);
