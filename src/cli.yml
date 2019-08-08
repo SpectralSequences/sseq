@@ -20,15 +20,6 @@ args:
         possible_values:
             - adem
             - milnor
-    # - directory:
-    #     long: "dir"
-    #     short: "d"
-    #     help: "Directory to look for module definition."
-    #     default_value: "static/modules/"
-    - interactive:
-        long: "interactive"
-        short: "i"
-        help: "Define module interactively"
 subcommands:
     - module:
         about: Define module interactively
