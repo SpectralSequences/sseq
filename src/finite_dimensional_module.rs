@@ -202,6 +202,8 @@ impl FiniteDimensionalModule {
         output_vector.pack(&output);
     }    
 
+    /// This function will panic if you call it with input such that `module.get_dimension(input_degree +
+    /// operation_degree) = 0`.
     pub fn get_action(
         &self,
         operation_degree : i32, operation_idx : usize,
@@ -211,10 +213,12 @@ impl FiniteDimensionalModule {
         assert!(input_idx < self.get_dimension(input_degree));  
         let input_degree_idx = (input_degree - self.min_degree) as usize;
         let output_degree_idx = (input_degree + operation_degree - self.min_degree) as usize;
-        let in_out_diff = output_degree_idx - input_degree_idx - 1;
+        let in_out_diff = (operation_degree - 1) as usize;
         return &self.actions[input_degree_idx][in_out_diff][operation_idx][input_idx];
     }
 
+    /// This function will panic if you call it with input such that `module.get_dimension(input_degree +
+    /// operation_degree) = 0`.
     fn get_action_mut(
         &mut self,
         operation_degree : i32, operation_idx : usize,
@@ -332,6 +336,9 @@ impl FiniteDimensionalModule {
         let mut actions = Vec::new();
         for input_degree in min_degree..max_degree {
             for output_degree in (input_degree + 1) .. max_degree {
+                if self.get_dimension(output_degree) == 0 {
+                    continue;
+                }
                 let op_degree = output_degree - input_degree;
                 for input_idx in 0..self.get_dimension(input_degree){
                     for op_idx in 0..algebra.get_dimension(op_degree, -1) {

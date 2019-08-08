@@ -136,7 +136,14 @@ where
 }
 
 pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
-    let output_path = query::<String>("Output file name");
+    let mut output_path;
+    loop {
+        output_path = query::<String>("Output file name");
+        if !output_path.is_empty() {
+            break;
+        }
+        println!("Output file name cannot be empty");
+    }
     let name = query::<String>("Module name (use latex between $'s)");
     // Query for prime and max_degree
     let mut p;
@@ -170,6 +177,7 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
     for i in 0..gens.len() {
         for (j, gen) in gens[i].iter().enumerate() {
             adem_module.set_basis_element_name(i as i32, j, gen.to_string());
+            milnor_module.set_basis_element_name(i as i32, j, gen.to_string());
         }
     }
 
@@ -207,14 +215,18 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
     }
 
     let adem_actions = adem_module.actions_to_json();
-    let milnor_actions = adem_module.actions_to_json();
+    let milnor_actions = milnor_module.actions_to_json();
     
     let mut output_path_buf = PathBuf::from(output_path);
     output_path_buf.set_extension("json");
     let file_name = output_path_buf.file_stem().unwrap();
     let output_json = json!({
         "type" : "finite dimensional module",
+<<<<<<< HEAD
         "file_name" : file_name.to_string_lossy(),
+=======
+        "file_name" : file_name.to_str(),
+>>>>>>> 5ae291ed64538372b46f2794ca2ed88ed1ee0932
         "name" : name,
         "p" : p,
         "generic" : generic,
