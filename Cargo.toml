@@ -44,7 +44,7 @@ opt-level = 3
 debug = true
 
 [workspace]
-members = ["wasm-bindgen-noop"]
+members = ["wasm-bindgen-noop", "ext-websocket"]
 
 # The `web-sys` crate allows you to interact with the various browser APIs,
 # like the DOM.

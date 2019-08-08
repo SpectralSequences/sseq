@@ -1,0 +1,12 @@
+[package]
+name = "ext-websocket"
+version = "0.1.0"
+authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dalcde@yahoo.com.hk>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ws = "*"
+serde_json = "*"
+rust_ext = { path = "../" }

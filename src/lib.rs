@@ -1,24 +1,24 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-mod once;
+pub mod once;
 pub mod combinatorics;
 pub mod fp_vector;
 pub mod matrix;
-mod algebra;
-mod adem_algebra;
-mod milnor_algebra;
-mod module;
-mod module_homomorphism;
-mod finite_dimensional_module;
-mod free_module;
-mod free_module_homomorphism;
-mod finitely_presented_module;
-mod chain_complex;
-mod resolution;
-mod resolution_homomorphism;
-mod resolution_with_chain_maps;
-mod wasm_bindings;
+pub mod algebra;
+pub mod adem_algebra;
+pub mod milnor_algebra;
+pub mod module;
+pub mod module_homomorphism;
+pub mod finite_dimensional_module;
+pub mod free_module;
+pub mod free_module_homomorphism;
+pub mod finitely_presented_module;
+pub mod chain_complex;
+pub mod resolution;
+pub mod resolution_homomorphism;
+pub mod resolution_with_chain_maps;
+pub mod wasm_bindings;
 
 
 #[cfg(test)]
@@ -51,6 +51,7 @@ use std::io::{stdin, stdout, Write};
 use std::fmt::Display;
 use std::str::FromStr;
 use std::rc::Rc;
+use std::cell::RefCell;
 use std::error::Error;
 use serde_json::value::Value;
 
@@ -107,10 +108,10 @@ impl Error for ModuleFailedRelationError {
 }
 
 pub struct AlgebraicObjectsBundle<M : Module> {
-    algebra : Rc<AlgebraAny>,
-    module : Rc<M>,
-    chain_complex : Rc<CCDZ<M>>,
-    resolution : Rc<ModuleResolution<M>>
+    pub algebra : Rc<AlgebraAny>,
+    pub module : Rc<M>,
+    pub chain_complex : Rc<CCDZ<M>>,
+    pub resolution : Rc<RefCell<ModuleResolution<M>>>
 }
 
 pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {
@@ -135,15 +136,17 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule
     let p = json["p"].as_u64().unwrap() as u32;
 
     // You need a box in order to allow for different possible types implementing the same trait
-    let algebra : Rc<AlgebraAny>;
+    let mut algebra : AlgebraAny;
     match config.algebra_name.as_ref() {
-        "adem" => algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false))),
-        "milnor" => algebra = Rc::new(AlgebraAny::from(MilnorAlgebra::new(p))),
+        "adem" => algebra = AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)),
+        "milnor" => algebra = AlgebraAny::from(MilnorAlgebra::new(p)),
         _ => { return Err(Box::new(InvalidAlgebraError { name : config.algebra_name.clone() })); }
-    };    
+    };
+    algebra.set_default_filtration_one_products();
+    let algebra = Rc::new(algebra);
     let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &config.algebra_name, &mut json)?);
     let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
-    let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), config.max_degree, None, None));
+    let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), config.max_degree, None, None)));
     Ok(AlgebraicObjectsBundle {
         algebra,
         module,
@@ -407,8 +410,9 @@ pub fn test_no_config(){
 
 pub fn run(config : &Config) -> Result<String, Box<dyn Error>> {
     let bundle = construct(config)?;
-    bundle.resolution.resolve_through_degree(config.max_degree);
-    Ok(bundle.resolution.graded_dimension_string())
+    let resolution = bundle.resolution.borrow();
+    resolution.resolve_through_degree(config.max_degree);
+    Ok(resolution.graded_dimension_string())
 }
 
 pub struct Config {
