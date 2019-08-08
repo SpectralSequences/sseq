@@ -11,7 +11,7 @@ pub struct MilnorProfile {
 }
 
 #[derive(Default, Clone)]
-struct QPart {
+pub struct QPart {
     degree : i32,
     q_part : u32
 }
@@ -19,7 +19,7 @@ struct QPart {
 type PPart = Vec<u32>;
 
 #[derive(Debug, Clone)]
-struct MilnorBasisElement {
+pub struct MilnorBasisElement {
     q_part : u32,
     p_part : PPart,
     degree : i32
@@ -122,6 +122,20 @@ impl MilnorAlgebra {
             filtration_one_products : Vec::new()
         }
     }
+
+    pub fn basis_element_from_index(&self, degree : i32, idx : usize) -> &MilnorBasisElement {
+        &self.basis_table[degree as usize][idx]
+    }
+
+    pub fn basis_element_to_index(&self, elt : &MilnorBasisElement) -> usize {
+        if let Some(idx) = self.basis_element_to_index_map[elt.degree as usize].get(elt) {
+            *idx
+        } else {
+            println!("Didn't find element: {:?}", elt);
+            assert!(false);
+            0
+        }
+    }
 }
 
 impl Algebra for MilnorAlgebra {
@@ -214,7 +228,7 @@ impl Algebra for MilnorAlgebra {
             }
         }
         let m = MilnorBasisElement { p_part, q_part, degree };
-        (degree, *self.basis_element_to_index_map[degree as usize].get(&m).unwrap())
+        (degree, self.basis_element_to_index(&m))
     }
 
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
@@ -223,78 +237,44 @@ impl Algebra for MilnorAlgebra {
 
     /// We pick our generators to be Q_0 and all the P(...). This has room for improvement...
     fn get_algebra_generators(&self, degree : i32) -> Vec<usize> {
-        let map = &self.basis_element_to_index_map[degree as usize];
-
-        let mut generators = Vec::new();
         if degree == 0 {
-            return generators;
-        }
-
-        let q = if self.p == 2 { 1 } else { 2 * self.p as usize - 2 };
-
-        if degree as usize % q == 0 {
-            for ppart in &self.ppart_table[degree as usize / q] {
-                generators.push(map.get(&from_p(ppart.clone(), degree)).unwrap().to_owned());
-            }
+            return vec![];
         }
         if self.profile.generic && degree == 1 {
-            generators.push(0); // Q_0
+            return vec![0]; // Q_0
         }
-        generators
+        let p = self.p;
+        let q = if self.profile.generic { 2 * p - 2 } else { 1 };
+        let mut temp_degree = degree as u32;        
+        if temp_degree % q != 0 {
+            return vec![];
+        }
+        if temp_degree % (2*(p-1)) != 0 {
+            return vec![];
+        }
+        temp_degree /= q;
+        // while temp_degree % p == 0 {
+        //     temp_degree /= p;
+        // }
+        // if temp_degree != 1 {
+        //     return vec![];
+        // }
+        let idx = self.basis_element_to_index(&MilnorBasisElement {
+            degree,
+            q_part : 0,
+            p_part : vec![degree as u32/q]
+        });
+        return vec![idx];
     }
 
     fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
         let basis = &self.basis_table[degree as usize][idx];
-
         // If qpart = 0, return self
         if basis.q_part == 0 {
-             return vec![(1, (degree, idx), (0, 0))];
+            return self.decompose_basis_element_ppart(degree, idx);
+        } else {
+            return self.decompose_basis_element_qpart(degree, idx);
         }
-
-        // Look for left-most non-zero qpart
-        let mut i = 32 - 1;
-        while basis.q_part & 1 << i == 0 {
-            i -= 1
-        }
-
-        // If the basis element is just Q_{k+1}, we decompose Q_{k+1} = P(p^k) Q_k - Q_k P(p^k).
-        if basis.q_part == 1 << i && basis.p_part.len() == 0 {
-            let ppow = crate::combinatorics::integer_power(self.p, i - 1);
-
-            let q_degree = (2 * ppow - 1) as i32;
-            let p_degree = (ppow * (2 * self.p - 2)) as i32;
-
-            let p_idx = self.basis_element_to_index_map[p_degree as usize].get(&from_p(vec![ppow], p_degree)).unwrap().to_owned();
-
-            let q_idx =  self.basis_element_to_index_map[q_degree as usize].get(
-                &MilnorBasisElement {
-                    q_part : 1 << (i-1),
-                    p_part : Vec::new(),
-                    degree : q_degree
-                }).unwrap().to_owned();
-
-            return vec![(1, (p_degree, p_idx), (q_degree, q_idx)), (self.p - 1, (q_degree, q_idx), (p_degree, p_idx))];
-        }
-
-        // Otherwise, separate out the first Q_k.
-        let first_degree = crate::combinatorics::get_tau_degrees(self.p)[i as usize];
-        let second_degree = degree - first_degree;
-
-        let first_idx = self.basis_element_to_index_map[first_degree as usize].get(
-            &MilnorBasisElement {
-                q_part : 1 << i,
-                p_part : Vec::new(),
-                degree : first_degree
-            }).unwrap();
-
-        let second_idx = self.basis_element_to_index_map[second_degree as usize].get(
-            &MilnorBasisElement {
-                q_part : basis.q_part ^ 1 << i,
-                p_part : basis.p_part.clone(),
-                degree : second_degree
-            }).unwrap();
-
-        vec![(1, (first_degree, *first_idx), (second_degree, *second_idx))]
     }
 }
 
@@ -509,8 +489,8 @@ impl MilnorAlgebra {
 
         if !self.profile.generic {
             for (c, p) in PPartMultiplier::new(self.p, &(m1.p_part), &(m2.p_part)) {
-                let idx = self.basis_element_to_index_map[target_dim as usize].get(&from_p(p, target_dim)).unwrap();
-                res.add_basis_element(*idx, c * coef);
+                let idx = self.basis_element_to_index(&from_p(p, target_dim));
+                res.add_basis_element(idx, c * coef);
             }
         } else {
             let m1f = self.multiply_qpart(m1, m2.q_part);
@@ -522,8 +502,8 @@ impl MilnorAlgebra {
                         q_part : basis.q_part,
                         p_part : p
                     };
-                    let idx = self.basis_element_to_index_map[target_dim as usize].get(&new).unwrap();
-                    res.add_basis_element(*idx, c * cc * coef);
+                    let idx = self.basis_element_to_index(&new);
+                    res.add_basis_element(idx, c * cc * coef);
                 }
             }
         }
@@ -648,5 +628,168 @@ impl<'a> Iterator for PPartMultiplier<'a> {
 
         self.cont = self.update();
         Some((coef, new_p))
+    }
+}
+
+impl MilnorAlgebra {
+    fn decompose_basis_element_qpart(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>{
+        let basis = &self.basis_table[degree as usize][idx];
+        // Look for left-most non-zero qpart
+        let i = basis.q_part.trailing_zeros();
+        // If the basis element is just Q_{k+1}, we decompose Q_{k+1} = P(p^k) Q_k - Q_k P(p^k).
+        if basis.q_part == 1 << i && basis.p_part.len() == 0 {
+            let ppow = crate::combinatorics::integer_power(self.p, i - 1);
+
+            let q_degree = (2 * ppow - 1) as i32;
+            let p_degree = (ppow * (2 * self.p - 2)) as i32;
+
+            let p_idx = self.basis_element_to_index(&from_p(vec![ppow], p_degree)).to_owned();
+
+            let q_idx =  self.basis_element_to_index(
+                &MilnorBasisElement {
+                    q_part : 1 << (i-1),
+                    p_part : Vec::new(),
+                    degree : q_degree
+                }).to_owned();
+
+            return vec![(1, (p_degree, p_idx), (q_degree, q_idx)), (self.p - 1, (q_degree, q_idx), (p_degree, p_idx))];
+        }
+
+        // Otherwise, separate out the first Q_k.
+        let first_degree = crate::combinatorics::get_tau_degrees(self.p)[i as usize];
+        let second_degree = degree - first_degree;
+
+        let first_idx = self.basis_element_to_index(
+            &MilnorBasisElement {
+                q_part : 1 << i,
+                p_part : Vec::new(),
+                degree : first_degree
+            });
+
+        let second_idx = self.basis_element_to_index(
+            &MilnorBasisElement {
+                q_part : basis.q_part ^ 1 << i,
+                p_part : basis.p_part.clone(),
+                degree : second_degree
+            });
+
+        vec![(1, (first_degree, first_idx), (second_degree, second_idx))]        
+    }
+
+    // use https://monks.scranton.edu/files/pubs/bases.pdf page 8
+    fn decompose_basis_element_ppart(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>{
+        let p = self.p;
+        let q = if self.profile.generic { 2*p - 2 } else { 1 };
+        let b = &self.basis_table[degree as usize][idx];
+        let first_degree;
+        let first_idx;
+        let second_degree;
+        let second_idx;
+        if b.p_part.len() > 1 {
+            let mut t1 = 0;
+            let mut pow = 1;
+            for r in &b.p_part {
+                t1 += r * pow;
+                pow *= p;
+            }
+            first_degree = (q * t1) as i32;
+            let first = MilnorBasisElement {
+                q_part : 0,
+                p_part : vec![t1],
+                degree : first_degree
+            };
+            first_idx = self.basis_element_to_index(&first);
+            second_degree = b.degree - first_degree;
+            let second = MilnorBasisElement {
+                q_part : 0,
+                p_part : b.p_part[1..].to_vec(),
+                degree : second_degree
+            };
+            second_idx = self.basis_element_to_index(&second);
+        } else {
+            // return vec![(1, (degree, idx), (0, 0))];
+            let sq = b.p_part[0];
+            let mut pow = 1;
+            {
+                let mut temp_sq = sq;
+                while temp_sq % p == 0 {
+                    temp_sq /= p;
+                    pow *= p;
+                }
+            }
+            if sq == pow {
+                return vec![(1, (degree, idx), (0, 0))];
+            }
+            let first_sq = pow;
+            let second_sq = sq - first_sq;
+            first_degree = (first_sq * q) as i32;
+            second_degree = (second_sq * q) as i32;
+            first_idx = self.basis_element_to_index(&MilnorBasisElement {
+                degree : first_degree,
+                q_part : 0,
+                p_part : vec![first_sq]
+            });
+            second_idx = self.basis_element_to_index(&MilnorBasisElement {
+                degree : second_degree,
+                q_part : 0,
+                p_part : vec![second_sq]
+            });          
+        }
+        let mut out_vec = FpVector::new(p, self.get_dimension(degree, -1), 0);
+        self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, -1);
+        let mut result = Vec::new();
+        let c = out_vec.get_entry(idx);
+        assert!(c != 0);
+        out_vec.set_entry(idx, 0);
+        let c_inv = crate::combinatorics::inverse(p, p - c);
+        result.push((((p - 1) * c_inv) % p, (first_degree, first_idx), (second_degree, second_idx)));
+        for (i, v) in out_vec.iter().enumerate() {
+            if v == 0 {
+                continue;
+            }
+            for (c, t1, t2) in self.decompose_basis_element_ppart(degree, i){
+                result.push(((c_inv * c * v) % p, t1, t2));
+            }
+        }
+        return result;
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use rstest::rstest_parametrize;
+
+    #[rstest_parametrize(p, max_degree,
+        case(2, 32),
+        case(3, 106)    
+    )]
+    fn test_milnor_decompose(p : u32, max_degree : i32){
+        crate::combinatorics::initialize_prime(p);
+        let algebra = MilnorAlgebra::new(p);
+        algebra.compute_basis(max_degree);
+        for i in 1 .. max_degree {
+            let dim = algebra.get_dimension(i, -1);
+            let gens = algebra.get_algebra_generators(i);
+            println!("i : {}, gens : {:?}", i, gens);
+            let mut out_vec = FpVector::new(p, dim, 0);
+            for j in 0 .. dim {
+                if gens.contains(&j){
+                    continue;
+                }
+                for (coeff, (first_degree, first_idx), (second_degree, second_idx)) in algebra.decompose_basis_element(i, j) {
+                    print!("{} * {} * {}  +  ", coeff, algebra.basis_element_to_string(first_degree,first_idx), algebra.basis_element_to_string(second_degree, second_idx));
+                    algebra.multiply_basis_elements(&mut out_vec, coeff, first_degree, first_idx, second_degree, second_idx, -1);
+                }
+                assert!(out_vec.get_entry(j) == 1, 
+                    format!("{} != {}", algebra.basis_element_to_string(i, j), algebra.element_to_string(i, &out_vec)));
+                out_vec.set_entry(j, 0);
+                assert!(out_vec.is_zero(), 
+                    format!("\n{} != {}", 
+                        algebra.basis_element_to_string(i, j), algebra.element_to_string(i, &out_vec)));
+            }
+        }
     }
 }

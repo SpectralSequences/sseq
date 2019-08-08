@@ -1082,9 +1082,7 @@ impl AdemAlgebra {
         let p = self.get_prime();
         let b = self.basis_element_from_index(degree, idx); 
         let leading_bockstein_idx = 1;// << (b.ps.len());
-        println!("b : {}, {:?}\nleading_bockstein_idx : {}",self.basis_element_to_string(degree, idx), b, leading_bockstein_idx);
         if b.bocksteins & leading_bockstein_idx != 0 {
-            println!("leading");
             let mut b_new = b.clone();
             b_new.bocksteins ^= leading_bockstein_idx;
             b_new.degree -= 1;
@@ -1122,7 +1120,7 @@ impl AdemAlgebra {
             let mut temp_sq = sq;
             while temp_sq % p == 0 {
                 temp_sq /= p;
-                pow *= 3;
+                pow *= p;
             }
         }
 
@@ -1154,8 +1152,8 @@ impl AdemAlgebra {
             if v == 0 {
                 continue;
             }
-            let (_, t1, t2) = self.decompose_basis_element_generic(degree, i)[0];
-            result.push(((c_inv * v) % p, t1, t2));
+            let (c, t1, t2) = self.decompose_basis_element_generic(degree, i)[0];
+            result.push(((c_inv * c * v) % p, t1, t2));
         }
         return result;
     }
@@ -1250,5 +1248,3 @@ mod tests {
     }
 
 }
-
-
