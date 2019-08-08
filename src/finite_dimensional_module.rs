@@ -60,30 +60,6 @@ impl Module for FiniteDimensionalModule {
         let output = self.get_action(op_degree, op_index, mod_degree, mod_index);
         result.add(output, coeff);
     }
-
-    fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut Value) -> Self {
-        let gens = json["gens"].take();
-        let (min_degree, graded_dimension, gen_to_idx) = Self::module_gens_from_json(&gens);
-        let name = json["name"].as_str().unwrap().to_string();
-        let mut actions_value = json[algebra_name.to_owned() + "_actions"].take();
-        let actions = actions_value.as_array_mut().unwrap();
-        let mut result = Self::new(Rc::clone(&algebra), name, min_degree, graded_dimension);
-        for action in actions.iter_mut() {
-            let op = action["op"].take();
-            let (degree, idx) = algebra.json_to_basis(op);
-            let input_name = action["input"].as_str().unwrap();
-            let (input_degree, input_idx) = gen_to_idx[&input_name.to_string()];
-            let output_vec = result.get_action_mut(degree, idx, input_degree, input_idx);
-            let outputs = action["output"].as_array().unwrap();
-            for basis_elt in outputs {
-                let output_name = basis_elt["gen"].as_str().unwrap();
-                let output_idx = gen_to_idx[&output_name.to_string()].1;
-                let output_coeff = basis_elt["coeff"].as_u64().unwrap() as u32;
-                output_vec.set_entry(output_idx, output_coeff);
-            }
-        }
-        return result;
-    }    
 }
 
 impl FiniteDimensionalModule {
@@ -228,7 +204,31 @@ impl FiniteDimensionalModule {
         let output_degree_idx = (input_degree + operation_degree - self.min_degree) as usize;
         let in_out_diff = output_degree_idx - input_degree_idx - 1;
         return &mut self.actions[input_degree_idx][in_out_diff][operation_idx][input_idx];
-    }  
+    }
+
+    pub fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut Value) -> Self {
+        let gens = json["gens"].take();
+        let (min_degree, graded_dimension, gen_to_idx) = Self::module_gens_from_json(&gens);
+        let name = json["name"].as_str().unwrap().to_string();
+        let mut actions_value = json[algebra_name.to_owned() + "_actions"].take();
+        let actions = actions_value.as_array_mut().unwrap();
+        let mut result = Self::new(Rc::clone(&algebra), name, min_degree, graded_dimension);
+        for action in actions.iter_mut() {
+            let op = action["op"].take();
+            let (degree, idx) = algebra.json_to_basis(op);
+            let input_name = action["input"].as_str().unwrap();
+            let (input_degree, input_idx) = gen_to_idx[&input_name.to_string()];
+            let output_vec = result.get_action_mut(degree, idx, input_degree, input_idx);
+            let outputs = action["output"].as_array().unwrap();
+            for basis_elt in outputs {
+                let output_name = basis_elt["gen"].as_str().unwrap();
+                let output_idx = gen_to_idx[&output_name.to_string()].1;
+                let output_coeff = basis_elt["coeff"].as_u64().unwrap() as u32;
+                output_vec.set_entry(output_idx, output_coeff);
+            }
+        }
+        return result;
+    }
 }
 
 pub type OptionFDModule = OptionModule<FiniteDimensionalModule>;

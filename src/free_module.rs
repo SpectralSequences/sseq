@@ -82,11 +82,6 @@ impl Module for FreeModule {
         self.get_algebra().multiply_basis_elements(result, coeff, op_degree, op_index, module_operation_degree, module_operation_index, generator_degree);
         result.restore_slice(old_slice);
     }
-
-    fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut serde_json::Value) -> Self {
-        assert!(false, "Not implemented");
-        unreachable!();
-    }
 }
 
 impl FreeModule {
