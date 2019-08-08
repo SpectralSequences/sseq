@@ -222,11 +222,7 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
     let file_name = output_path_buf.file_stem().unwrap();
     let output_json = json!({
         "type" : "finite dimensional module",
-<<<<<<< HEAD
-        "file_name" : file_name.to_string_lossy(),
-=======
         "file_name" : file_name.to_str(),
->>>>>>> 5ae291ed64538372b46f2794ca2ed88ed1ee0932
         "name" : name,
         "p" : p,
         "generic" : generic,
