@@ -70,21 +70,26 @@ pub struct AlgebraicObjectsBundle<M : Module> {
 
 pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
     let contents = load_module_from_file(config)?;
-    let mut json : Value = serde_json::from_str(&contents)?;
+    let json = serde_json::from_str(&contents)?;
+
+    construct_from_json(json, config.algebra_name.clone(), config.max_degree)
+}
+
+pub fn construct_from_json(mut json : Value, algebra_name : String, max_degree : i32) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
     let p = json["p"].as_u64().unwrap() as u32;
 
     // You need a box in order to allow for different possible types implementing the same trait
     let mut algebra : AlgebraAny;
-    match config.algebra_name.as_ref() {
+    match algebra_name.as_ref() {
         "adem" => algebra = AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)),
         "milnor" => algebra = AlgebraAny::from(MilnorAlgebra::new(p)),
-        _ => { return Err(Box::new(InvalidAlgebraError { name : config.algebra_name.clone() })); }
+        _ => { return Err(Box::new(InvalidAlgebraError { name : algebra_name.clone() })); }
     };
     algebra.set_default_filtration_one_products();
     let algebra = Rc::new(algebra);
-    let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &config.algebra_name, &mut json)?);
+    let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &algebra_name, &mut json)?);
     let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
-    let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), config.max_degree, None, None)));
+    let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), max_degree, None, None)));
     Ok(AlgebraicObjectsBundle {
         algebra,
         module,
@@ -92,7 +97,6 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule
         resolution
     })
 }
-
 pub fn run_define_module() -> Result<String, Box<dyn Error>> {
     cli_module_loaders::interactive_module_define()
 }

@@ -10,8 +10,6 @@ for(let [k,v] of url.searchParams.entries()){
 }
 
 if (!params.module) {
-    console.log("Displaying homepage");
-    console.log(document.querySelector("#home"));
     document.querySelector("#home").style.removeProperty("display");
 
     HTMLCollection.prototype.forEach = Array.prototype.forEach;
@@ -24,18 +22,22 @@ if (!params.module) {
         });
     });
 } else {
-    let webSocket = new WebSocket("ws://localhost:8080/ws");
-    let maxDegree = parseInt(params.degree ? params.degree : 50);
-
-    webSocket.onopen = function(e) {
-        let data = {
+    var maxDegree = parseInt(params.degree ? params.degree : 50);
+    openWebSocket(
+        {
             command : "resolve",
             algebra : "adem",
             module : params.module,
             maxDegree : maxDegree
-        };
+        });
+}
 
-        webSocket.send(JSON.stringify(data));
+function openWebSocket(initialData, maxDegree) {
+    window.webSocket = new WebSocket("ws://localhost:8080/ws");
+
+    webSocket.onopen = function(e) {
+
+        webSocket.send(JSON.stringify(initialData));
 
         t0 = performance.now();
         t_last = t0;
@@ -46,16 +48,18 @@ if (!params.module) {
         messageHandler[data.command](data);
     }
     window.sseq = new Sseq();
-    sseq.xRange = [0, maxDegree];
-    sseq.yRange = [0, Math.ceil(maxDegree/3) + 1];
-    sseq.initialxRange = [0, maxDegree];
-    sseq.initialyRange = [0, Math.ceil(maxDegree/3) + 1];
     sseq.offset_size = 0.1;
     sseq.class_scale = 0.5;
-    document.querySelector("#main").style.display = "block";
+
+    var maxDegree = initialData.maxDegree;
+    if (maxDegree) {
+        sseq.xRange = [0, maxDegree];
+        sseq.yRange = [0, Math.ceil(maxDegree/3) + 1];
+        sseq.initialxRange = [0, maxDegree];
+        sseq.initialyRange = [0, Math.ceil(maxDegree/3) + 1];
+    }
     window.display = new MyDisplay("#main", sseq);
 }
-
 let messageHandler = {};
 messageHandler.resolving = (data) => {
     let minDegree = data.minDegree;
@@ -104,3 +108,23 @@ function getTotalTime(){
     let t_cur = performance.now();
     return (t_cur - t0) / 1000;
 }
+
+// Set up upload button
+document.getElementById("json-upload").addEventListener("change", function() {
+    let maxDegree = parseInt(prompt("Maximum degree", 30).trim());
+
+    let file = document.getElementById("json-upload").files[0];
+    let fileReader = new FileReader();
+    fileReader.onload = e => {
+        openWebSocket(
+            {
+                command : "resolve_json",
+                algebra : "adem",
+                data : e.target.result,
+                maxDegree : maxDegree
+            }
+        );
+    };
+    fileReader.readAsText(file, "UTF-8");
+    document.querySelector("#home").style.display = "none";
+});
