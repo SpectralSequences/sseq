@@ -93,8 +93,8 @@ impl ResolutionManager {
                 let data = json!(
                     {
                         "command": "addClass",
-                        "x": t - s as i32,
-                        "y": s
+                        "s": s,
+                        "t": t
                     });
                 match sender.send(data.to_string()) {
                     Ok(_) => (),
@@ -109,13 +109,13 @@ impl ResolutionManager {
                         "command": "addStructline",
                         "mult": name,
                         "source": {
-                            "x": source_t - source_s as i32,
-                            "y": source_s,
+                            "s": source_s,
+                            "t": source_t,
                             "idx": source_idx
                         },
                         "target": {
-                            "x": target_t - target_s as i32,
-                            "y": target_s,
+                            "s": target_s,
+                            "t": target_t,
                             "idx": target_idx
                         }
                     });

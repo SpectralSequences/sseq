@@ -1,5 +1,8 @@
 import MyDisplay from "./display.js";
 
+// For timer
+let t0, t_last;
+
 let url = new URL(document.location);
 let params = {};
 for(let [k,v] of url.searchParams.entries()){
@@ -33,6 +36,9 @@ if (!params.module) {
         };
 
         webSocket.send(JSON.stringify(data));
+
+        t0 = performance.now();
+        t_last = t0;
     };
 
     webSocket.onmessage = function(e) {
@@ -58,14 +64,22 @@ messageHandler.resolving = (data) => {
     sseq.yRange = [0, Math.ceil((maxDegree - minDegree)/3) + 1];
 }
 
+let max_t = 0;
 messageHandler.addClass = function addClass(m) {
-    sseq.addClass(m.x, m.y);
+    if (m.t > max_t) {
+        max_t = m.t;
+        if (max_t % 10 == 0) {
+            console.log(`Time to compute stems ${max_t - 10} to ${max_t} : ${getTime()}`);
+            console.log(`Total time to compute first ${max_t} stems : ${getTotalTime()}`);
+        }
+    }
+    sseq.addClass(m.t - m.s, m.s);
 }
 
 window.structlineTypes = new Set();
 messageHandler.addStructline = function addStructline(m) {
-    let source = sseq.getClassesInDegree(m.source.x, m.source.y)[m.source.idx];
-    let target = sseq.getClassesInDegree(m.target.x, m.target.y)[m.target.idx];
+    let source = sseq.getClassesInDegree(m.source.t - m.source.s, m.source.s)[m.source.idx];
+    let target = sseq.getClassesInDegree(m.target.t - m.target.s, m.target.s)[m.target.idx];
     sseq.addStructline(source, target, m.mult);
     if (!structlineTypes.has(m.mult)) {
         self.structlineTypes.add(m.mult);
@@ -75,4 +89,18 @@ messageHandler.addStructline = function addStructline(m) {
 
 messageHandler.complete = function complete(m) {
     display.runningSign.style.display = "none";
+    console.log(`Total time : ${getTotalTime()}`);
+}
+
+
+function getTime() {
+    let t_cur = performance.now();
+    let duration = (t_cur - t_last) / 1000;
+    t_last = t_cur;
+    return duration;
+}
+
+function getTotalTime(){
+    let t_cur = performance.now();
+    return (t_cur - t0) / 1000;
 }
