@@ -253,12 +253,12 @@ impl Algebra for MilnorAlgebra {
             return vec![];
         }
         temp_degree /= q;
-        // while temp_degree % p == 0 {
-        //     temp_degree /= p;
-        // }
-        // if temp_degree != 1 {
-        //     return vec![];
-        // }
+        while temp_degree % p == 0 {
+            temp_degree /= p;
+        }
+        if temp_degree != 1 {
+            return vec![];
+        }
         let idx = self.basis_element_to_index(&MilnorBasisElement {
             degree,
             q_part : 0,
