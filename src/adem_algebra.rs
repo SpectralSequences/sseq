@@ -244,8 +244,7 @@ impl Algebra for AdemAlgebra {
             for (i, sq) in op.iter().enumerate() {
                 if i % 2 == 0 {
                     degree += sq;
-                    bocksteins <<= 1;
-                    bocksteins |= sq;
+                    bocksteins |= sq << i/2;
                 } else {
                     degree += q * sq;
                     sqs.push(*sq);
@@ -278,14 +277,15 @@ impl Algebra for AdemAlgebra {
             for (i, sq) in b.ps.iter().enumerate() {
                 out_sqs.push(*sq);
                 out_sqs.push(bocksteins & 1);
-                bocksteins >>= 1;
+                bocksteins >>= 1;                
             }
         } else {
             for sq in b.ps.iter() {
                 out_sqs.push(*sq);
             }
         }
-        serde_json::to_value(out_sqs).unwrap()
+        let result = serde_json::to_value(out_sqs).unwrap();
+        result
     }
 
 

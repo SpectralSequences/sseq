@@ -240,7 +240,7 @@ impl Algebra for MilnorAlgebra {
                 q_part ^= 1 << tz;
                 q_list.push(tz);
             }
-            return serde_json::to_value((q_part, &b.p_part)).unwrap();
+            return serde_json::to_value((q_list, &b.p_part)).unwrap();
         } else {
             return serde_json::to_value(&b.p_part).unwrap();
         }
