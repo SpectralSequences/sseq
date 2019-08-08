@@ -1319,6 +1319,26 @@ mod tests {
         case(2, 32),
         case(3, 106)    
     )]
+    fn test_adem_basis(p : u32, max_degree : i32){
+        combinatorics::initialize_prime(p);
+        let algebra = AdemAlgebra::new(p, p != 2, false);
+        algebra.compute_basis(max_degree + 1); // TODO: Why is this +1 needed to pass test?
+        for i in 1 .. max_degree {
+            let dim = algebra.get_dimension(i, -1);
+            for j in 0 .. dim {
+                let b = algebra.basis_element_from_index(i, j);
+                assert_eq!(algebra.basis_element_to_index(&b), j);
+                let json = algebra.json_from_basis(i, j);
+                let new_b = algebra.json_to_basis(json);
+                assert_eq!(new_b, (i, j));
+            }
+        }
+    }
+
+    #[rstest_parametrize(p, max_degree,
+        case(2, 32),
+        case(3, 106)    
+    )]
     fn test_adem_decompose(p : u32, max_degree : i32){
         combinatorics::initialize_prime(p);
         let algebra = AdemAlgebra::new(p, p != 2, false);
