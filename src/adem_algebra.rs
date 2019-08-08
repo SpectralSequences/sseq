@@ -344,32 +344,37 @@ impl Algebra for AdemAlgebra {
         }
     }
 
-    /// We return Adem relations $P^i b P^j = \cdots$ and $P^i P^j = \cdots$. It suffices to check these because
+    /// We return Adem relations $b^2 = 0$, $P^i P^j = \cdots$ for $i < pj$, and $P^i b P^j = \cdots$ for $i < pj + 1$. It suffices to check these because
     /// they generate all relations.
     fn get_relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
         let p = self.get_prime();
-        let q = if self.generic { 2*(p - 1) } else { 1 };
-        let degreeu32 = degree as u32;
+        let pi32 = p as i32;
+        let q = if self.generic { 2*(pi32 - 1) } else { 1 };
+
+        if self.generic && degree == 2 {
+            // beta^2 = 0 is an edge case
+            return vec![vec![(1, (1, 0), (1, 0))]];
+        }
 
         // (i, b, j) means P^i P^j if b = 0, or P^i b P^j if b = 1.
-        let mut inadmissible_pairs : Vec<(u32, u32, u32)> = Vec::new();
+        let mut inadmissible_pairs : Vec<(i32, i32, i32)> = Vec::new();
 
         // Since |P^i| is always a multiple of q, we have a relation only if degree = 0 or 1 mod q.
         // If it is 0, then there is no Bockstein. Otherwise, there is.
-        if degreeu32 % q == 0 {
-            let degq = degreeu32/q;
+        if degree % q == 0 {
+            let degq = degree/q;
             // We want P^i P^j to be inadmissible, so i < p * j. This translates to
             // i < p * degq /(p + 1). Since Rust automatically rounds *down*, but we want to round
             // up instead, we use i < (p * degq + p)/(p + 1).
-            for i in 1 .. (p * degq + p) / (p+1) {
+            for i in 1 .. (pi32 * degq + pi32) / (pi32 + 1) {
                 inadmissible_pairs.push((i, 0, degq - i));
             }
-        } else if degreeu32 % q == 1 {
-            let degq = degreeu32/q; // Since we round down, this is actually (degree - 1)/q
+        } else if degree % q == 1 {
+            let degq = degree/q; // Since we round down, this is actually (degree - 1)/q
             // We want P^i b P^j to be inadmissible, so i < p * j + 1. This translates to
             // i < (p * degq + 1)/(p + 1). Since Rust automatically rounds *down*, but we want to round
             // up instead, we use i < (p * degq + p + 1)/(p + 1).
-            for i in 1 .. (p * degq + p + 1) / (p+1) {
+            for i in 1 .. (pi32 * degq + pi32 + 1) / (pi32 + 1) {
                 inadmissible_pairs.push((i, 1, degq - i));
             }
         }
@@ -377,19 +382,19 @@ impl Algebra for AdemAlgebra {
         for (x, b, y) in inadmissible_pairs {
             let mut relation = Vec::new();
             // Adem relation
-            let first_degree = (x * q) as i32;
+            let first_degree = x * q;
             let first_index = self.basis_element_to_index(&AdemBasisElement {
                 degree : first_degree,
                 excess : 0,
                 bocksteins : 0,
-                ps : vec![x]
+                ps : vec![x as u32]
             });
-            let second_degree = (y * q + b) as i32;
+            let second_degree = y * q + b;
             let second_index = self.basis_element_to_index(&AdemBasisElement {
                 degree : second_degree,
                 excess : 0,
-                bocksteins : b,
-                ps : vec![y]
+                bocksteins : b as u32,
+                ps : vec![y as u32]
             });
             relation.push((p - 1, (first_degree, first_index), (second_degree, second_index)));
             for e1 in 0 .. b + 1 {
@@ -398,16 +403,18 @@ impl Algebra for AdemAlgebra {
                 // e1 determines if a bockstein shows up in front 
                 // e2 determines if a bockstein shows up in middle
                 // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
-                for j in 0 .. x/p + 1 {
-                    let c = combinatorics::binomial(p, ((y-j) * (p-1) + e1) as i32 - 1, (x - p*j - e2) as i32);
+                for j in 0 .. x/pi32 + 1 {
+                    let mut c = combinatorics::binomial(p, (y-j) * (pi32-1) + e1 - 1, x - pi32*j - e2) as u32;
                     if c == 0 { continue; }
+                    c *= combinatorics::minus_one_to_the_n(p, ((x + j) + e2) as u32) as u32;
+                    c = c % p;
                     let idx = self.basis_element_to_index(&AdemBasisElement{
                         degree,
                         excess : 0,
-                        ps : if j == 0 { vec![x+y] } else { vec![x + y - j, j] },
-                        bocksteins : e1 | (e2 << 1)
+                        ps : if j == 0 { vec![(x+y) as u32] } else { vec![(x + y - j) as u32, j as u32] },
+                        bocksteins : e1 as u32 | ((e2 as u32) << 1)
                     });
-                    relation.push((c, (degree, idx), (0, 0)));
+                    relation.push((c as u32, (degree, idx), (0, 0)));
                 }
             }
             result.push(relation);
@@ -1339,4 +1346,45 @@ mod tests {
         }
     }
 
+    use crate::module::ModuleFailedRelationError;
+    #[rstest_parametrize(p, max_degree,
+        case(2, 32),
+        case(3, 106)    
+    )]
+    fn test_adem_relations(p : u32, max_degree : i32){
+        combinatorics::initialize_prime(p);
+        let algebra = AdemAlgebra::new(p, p != 2, false);
+        algebra.compute_basis(max_degree);
+        let mut output_vec = FpVector::new(p, 0, 0);
+        for i in 1 .. max_degree {
+            output_vec.clear_slice();
+            let output_dim = algebra.get_dimension(i, -1);
+            if output_dim > output_vec.get_dimension() {
+                output_vec = FpVector::new(p, output_dim, 0);
+            }
+            output_vec.set_slice(0, output_dim);
+            let relations = algebra.get_relations_to_check(i);
+            for relation in relations {
+                for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
+                    algebra.multiply_basis_elements(&mut output_vec, *coeff, *deg_1, *idx_1, *deg_2, *idx_2, -1);
+                }
+                if !output_vec.is_zero() {
+                    let mut relation_string = String::new();
+                    for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
+                        relation_string.push_str(&format!("{} * {} * {}  +  ", 
+                            *coeff, 
+                            &algebra.basis_element_to_string(*deg_1, *idx_1), 
+                            &algebra.basis_element_to_string(*deg_2, *idx_2))
+                        );
+                    }
+                    relation_string.pop(); relation_string.pop(); relation_string.pop();
+                    relation_string.pop(); relation_string.pop();
+                    let value_string = algebra.element_to_string(i as i32, &output_vec);
+                    assert!(false,
+                        format!("{}", ModuleFailedRelationError {relation : relation_string, value : value_string})
+                    );
+                }
+            }
+        }
+    }
 }

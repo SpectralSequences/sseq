@@ -291,7 +291,8 @@ impl Algebra for MilnorAlgebra {
 
     fn get_relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
         let p = self.get_prime();
-        let q = if self.profile.generic { 2*(p - 1) } else { 1 };
+        let pi32 = p as i32;
+        let q = if self.profile.generic { 2*(pi32 - 1) } else { 1 };
         let degreeu32 = degree as u32;
         // We want Pi*b*Pj inadmissible so that means i < p * j + epsilon.
         // degree = i + epsilon +  j so j = degree - i - epsilon
@@ -300,70 +301,79 @@ impl Algebra for MilnorAlgebra {
         // if (p * degree - (p-1) * epsilon) / (p + 1) is not an integer
         // to do this with integer division we do (p * degree - (p-1) * epsilon + p) / (p + 1)
         let mut inadmissible_pairs = Vec::new();
-        for i in 1 .. (p * degreeu32 + p) / (p+1) {
-            inadmissible_pairs.push((i, 0, degreeu32 - i));
-        }
-        if self.profile.generic {
-            for i in 1 .. (p * degreeu32 + 1) / (p+1) {
-                inadmissible_pairs.push((i, 1, degreeu32 - i - 1));
+        if degree % q == 0 {
+            let degq = degree/q;
+            // We want P^i P^j to be inadmissible, so i < p * j. This translates to
+            // i < p * degq /(p + 1). Since Rust automatically rounds *down*, but we want to round
+            // up instead, we use i < (p * degq + p)/(p + 1).
+            for i in 1 .. (pi32 * degq + pi32) / (pi32 + 1) {
+                inadmissible_pairs.push((i, 0, degq - i));
+            }
+        } else if degree % q == 1 {
+            let degq = degree/q; // Since we round down, this is actually (degree - 1)/q
+            // We want P^i b P^j to be inadmissible, so i < p * j + 1. This translates to
+            // i < (p * degq + 1)/(p + 1). Since Rust automatically rounds *down*, but we want to round
+            // up instead, we use i < (p * degq + p + 1)/(p + 1).
+            for i in 1 .. (pi32 * degq + pi32 + 1) / (pi32 + 1) {
+                inadmissible_pairs.push((i, 1, degq - i));
             }
         }
         let mut result = Vec::new();
         for (x, b, y) in inadmissible_pairs {
             let mut relation = Vec::new();
             // Adem relation
-            let first_degree = x as i32;
+            let first_degree = q * x;
             let first_index = self.basis_element_to_index(&MilnorBasisElement {
                 degree : first_degree,
                 q_part : 0,
-                p_part : vec![x]
+                p_part : vec![x as u32]
             });
-            let second_degree = (y + b) as i32;
+            let second_degree = q * y + b;
             let second_index = self.basis_element_to_index(&MilnorBasisElement {
                 degree : second_degree,
-                q_part : b,
-                p_part : vec![y]
+                q_part : b as u32,
+                p_part : vec![y as u32]
             });
             relation.push((p - 1, (first_degree, first_index), (second_degree, second_index)));
-            let mut out_vec = FpVector::new(p, self.get_dimension(degree, -1), 0);
             for e1 in 0 .. b + 1 {
                 let e2 = b - e1;
                 // e1 and e2 determine where a bockstein shows up.
-                // e1 determines if a bockstein shows up in front 
-                // e2 determines if a bockstein shows up in middle
+                // e1 determines whether a bockstein shows up in front 
+                // e2 determines whether a bockstein shows up in middle
                 // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
-                for j in 0 .. x/p + 1 {
-                    let c = crate::combinatorics::binomial(p, ((y-j) * (p-1) + e1) as i32 - 1, (x - p*j - e2) as i32);
+                for j in 0 .. x/pi32 + 1 {
+                    let mut c = crate::combinatorics::binomial(p, (y - j) * (pi32 - 1) + e1 - 1, x - pi32 * j - e2) as u32;
+                    println!("x : {}, y : {}, j : {}, e1 : {}, e2 : {}, c : {}",x,y,j,e1, e2, c);
                     if c == 0 { continue; }
+                    c *= crate::combinatorics::minus_one_to_the_n(p, (x + j + e2) as u32);
+                    c = c % p;                    
                     if j == 0 {
                         let idx = self.basis_element_to_index(&MilnorBasisElement{
-                            degree,
-                            q_part : e1 | (e2 << 1),                            
-                            p_part : vec![x+y]
+                            degree : degree - e2,
+                            q_part : e1 as u32,
+                            p_part : vec![(x+y) as u32]
                         });
-                        relation.push((c, (degree, idx), (0, 0)));
+                        relation.push((c, (degree - e2, idx), (e2, 0)));
                         continue;
                     }
                     let first_sq = x + y - j;
-                    let first_degree = first_sq as i32;
+                    let first_degree = q*first_sq + e1;
                     let first_index = self.basis_element_to_index(&MilnorBasisElement {
                         degree : first_degree,
-                        q_part : 0,
-                        p_part : vec![first_sq]
+                        q_part : e1 as u32,
+                        p_part : vec![first_sq as u32]
                     });
-                    let second_degree = (y + b) as i32;
+                    let second_degree = q*j + e2;
                     let second_index = self.basis_element_to_index(&MilnorBasisElement {
                         degree : second_degree,
-                        q_part : b,
-                        p_part : vec![y]
+                        q_part : e2 as u32,
+                        p_part : vec![j as u32]
                     });
-                    self.multiply_basis_elements(&mut out_vec, c, first_degree, first_index, second_degree, second_index, -1);
-                    for (i, v) in out_vec.iter().enumerate() {
-                        relation.push((c, (degree, i), (0, 0)));
-                    }
-                    out_vec.set_to_zero();
+                    relation.push((c, (first_degree, first_index), (second_degree, second_index)));
+                    println!("{:?}", (c, (first_degree, first_index), (second_degree, second_index)));
                 }
             }
+            println!("relation : {:?}", relation);
             result.push(relation);
         }
         return result;
@@ -884,4 +894,47 @@ mod tests {
             }
         }
     }
+
+    use crate::module::ModuleFailedRelationError;
+    #[rstest_parametrize(p, max_degree,
+        case(2, 32),
+        case(3, 106)    
+    )]
+    fn test_adem_relations(p : u32, max_degree : i32){
+        crate::combinatorics::initialize_prime(p);
+        let algebra = MilnorAlgebra::new(p); // , p != 2
+        algebra.compute_basis(max_degree);
+        let mut output_vec = FpVector::new(p, 0, 0);
+        for i in 1 .. max_degree {
+            output_vec.clear_slice();
+            let output_dim = algebra.get_dimension(i, -1);
+            if output_dim > output_vec.get_dimension() {
+                output_vec = FpVector::new(p, output_dim, 0);
+            }
+            output_vec.set_slice(0, output_dim);
+            let relations = algebra.get_relations_to_check(i);
+            println!("{:?}", relations);
+            for relation in relations {
+                for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
+                    algebra.multiply_basis_elements(&mut output_vec, *coeff, *deg_1, *idx_1, *deg_2, *idx_2, -1);
+                }
+                if !output_vec.is_zero() {
+                    let mut relation_string = String::new();
+                    for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
+                        relation_string.push_str(&format!("{} * {} * {}  +  ", 
+                            *coeff, 
+                            &algebra.basis_element_to_string(*deg_1, *idx_1), 
+                            &algebra.basis_element_to_string(*deg_2, *idx_2))
+                        );
+                    }
+                    relation_string.pop(); relation_string.pop(); relation_string.pop();
+                    relation_string.pop(); relation_string.pop();
+                    let value_string = algebra.element_to_string(i as i32, &output_vec);
+                    assert!(false,
+                        format!("{}", ModuleFailedRelationError {relation : relation_string, value : value_string})
+                    );
+                }
+            }
+        }
+    }    
 }
