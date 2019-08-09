@@ -72,10 +72,10 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule
     let contents = load_module_from_file(config)?;
     let json = serde_json::from_str(&contents)?;
 
-    construct_from_json(json, config.algebra_name.clone(), config.max_degree)
+    construct_from_json(json, config.algebra_name.clone())
 }
 
-pub fn construct_from_json(mut json : Value, algebra_name : String, max_degree : i32) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
+pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
     let p = json["p"].as_u64().unwrap() as u32;
 
     // You need a box in order to allow for different possible types implementing the same trait

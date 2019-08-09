@@ -125,8 +125,11 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         }
     }
 
-    pub fn resolve_through_degree(&mut self, degree : i32){
+    pub fn resolve_through_degree(&mut self, degree : i32) {
         let min_degree = self.get_min_degree();
+        if degree < self.next_degree {
+            return;
+        }
         self.extend_through_degree(degree);
 
         self.get_algebra().compute_basis(degree + 1);// because Adem has off-by-one
