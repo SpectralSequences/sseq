@@ -38,7 +38,7 @@ extern crate wasm_bindgen;
 extern crate web_sys;
 
 use crate::algebra::{Algebra, AlgebraAny};
-use crate::fp_vector::{FpVector, FpVectorT};
+use crate::fp_vector::FpVectorT;
 use crate::adem_algebra::AdemAlgebra;
 use crate::milnor_algebra::MilnorAlgebra;
 use crate::module::{FiniteModule, Module};
