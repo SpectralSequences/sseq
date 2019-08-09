@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::cell::RefCell;
 use serde_json::Value;
 
 use crate::once::{OnceVec, TempStorage};
@@ -33,8 +34,8 @@ pub struct ResolutionWithChainMaps<
     M1 : Module, F1 : ModuleHomomorphism<M1, M1>, CC1 : ChainComplex<M1, F1>,
     M2 : Module, F2 : ModuleHomomorphism<M2, M2>, CC2 : ChainComplex<M2, F2>
 > {
-    pub resolution : Rc<Resolution<M1, F1, CC1>>,
-    unit_resolution : Rc<Resolution<M2, F2, CC2>>,
+    pub resolution : Rc<RefCell<Resolution<M1, F1, CC1>>>,
+    unit_resolution : Rc<RefCell<Resolution<M2, F2, CC2>>>,
     max_product_homological_degree : u32,
     product_list : Vec<Cocycle>,
     chain_maps_to_trivial_module : OnceVec<OnceVec<OnceVec<ResolutionHomomorphism<M1, F1, CC1, M2, F2, CC2>>>>,
@@ -46,7 +47,7 @@ impl<
     M2 : Module, F2 : ModuleHomomorphism<M2, M2>, CC2 : ChainComplex<M2, F2>
 >
 ResolutionWithChainMaps<M1, F1, CC1, M2, F2, CC2> {
-    pub fn new(resolution : Rc<Resolution<M1, F1, CC1>>, unit_resolution : Rc<Resolution<M2, F2, CC2>>) -> Self {
+    pub fn new(resolution : Rc<RefCell<Resolution<M1, F1, CC1>>>, unit_resolution : Rc<RefCell<Resolution<M2, F2, CC2>>>) -> Self {
         Self {
             resolution,
             unit_resolution,
@@ -58,32 +59,42 @@ ResolutionWithChainMaps<M1, F1, CC1, M2, F2, CC2> {
     }
 
     pub fn get_prime(&self) -> u32 {
-        self.resolution.get_prime()
+        self.resolution.borrow().get_prime()
     }
 
     pub fn get_algebra(&self) -> Rc<AlgebraAny> {
-        self.resolution.get_algebra()
+        self.resolution.borrow().get_algebra()
     }
 
     pub fn get_min_degree(&self) -> i32 {
-        self.resolution.get_min_degree()
+        self.resolution.borrow().get_min_degree()
     }
 
     pub fn resolve_through_degree(&self, degree : i32){
-        self.get_algebra().compute_basis(degree);
         let min_degree = self.get_min_degree();
-        let max_hom_deg = degree as u32; //self.get_max_hom_deg();
-        for int_deg in min_degree .. degree {
-            let mut new_kernel = None;
-            for hom_deg in 0 .. max_hom_deg {
-                // println!("(hom_deg : {}, int_deg : {})", hom_deg, int_deg);
-                new_kernel = Some(self.step(hom_deg, int_deg, new_kernel));
+        let next_degree = self.resolution.borrow().next_degree;
+
+        self.resolution.borrow_mut().extend_through_degree(degree);
+
+        self.get_algebra().compute_basis(degree + 1);// because Adem has off-by-one
+
+        // So far, we have computed everything for t, s < next_degree.
+        for t in min_degree ..=degree {
+            // We cannot mutably borrow self.kernels and then run self.step
+            let mut new_kernel = self.resolution.borrow().kernels[(t - min_degree) as usize].clone();
+
+            let start = if t < next_degree { next_degree } else { 0 };
+            for s in start ..= degree {
+                new_kernel = Some(self.step(s as u32, t, new_kernel));
             }
+            self.resolution.borrow_mut().kernels[(t - min_degree) as usize] = new_kernel;
         }
+
+        self.resolution.borrow_mut().next_degree = degree + 1;
     }
 
     pub fn step(&self, homological_degree : u32, internal_degree : i32, old_kernel : Option<Subspace>) -> Subspace {
-        let new_kernel = self.resolution.step(homological_degree, internal_degree, old_kernel);
+        let new_kernel = self.resolution.borrow().step(homological_degree, internal_degree, old_kernel);
         self.compute_products(homological_degree, internal_degree);
         self.compute_self_maps(homological_degree, internal_degree);  
         return new_kernel;
@@ -105,11 +116,11 @@ ResolutionWithChainMaps<M1, F1, CC1, M2, F2, CC2> {
         if self.max_product_homological_degree == 0 {
             return;
         }
-        let p = self.get_prime();        
+        let p = self.get_prime();
         let hom_deg_idx = homological_degree as usize;
         let int_deg_idx = (internal_degree - self.get_min_degree()) as usize;
         let max_hom_deg = std::cmp::min(homological_degree, self.max_product_homological_degree);
-        let num_gens = self.resolution.get_module(homological_degree).get_number_of_gens_in_degree(internal_degree);
+        let num_gens = self.resolution.borrow().get_module(homological_degree).get_number_of_gens_in_degree(internal_degree);
         if int_deg_idx == 0 {
             assert!(hom_deg_idx == self.chain_maps_to_trivial_module.len());
             self.chain_maps_to_trivial_module.push(OnceVec::new());
@@ -140,7 +151,7 @@ ResolutionWithChainMaps<M1, F1, CC1, M2, F2, CC2> {
             for j in min_degree ..= internal_degree {
                 let j_idx = (j - min_degree) as usize;
                 let hom_deg = homological_degree - i;
-                let num_gens = self.resolution.get_module(hom_deg).get_number_of_gens_in_degree(j);
+                let num_gens = self.resolution.borrow().get_module(hom_deg).get_number_of_gens_in_degree(j);
                 for k in 0 .. num_gens {
                     // printf("      cocyc (%d, %d, %d) to (%d, %d) \n", hom_deg, j, k,  i, internal_degree);
                     // println!("hom_def : {}, j : {}, k : {}", hom_deg, j, k);
@@ -152,7 +163,7 @@ ResolutionWithChainMaps<M1, F1, CC1, M2, F2, CC2> {
     }
 
     pub fn compute_products(&self, homological_degree : u32, internal_degree : i32) {
-        let res = &self.resolution;
+        let res = &self.resolution.borrow();
         self.extend_maps(homological_degree, internal_degree);
         for elt in &self.product_list {
             if homological_degree < elt.homological_degree || internal_degree < elt.internal_degree {
@@ -177,7 +188,7 @@ ResolutionWithChainMaps<M1, F1, CC1, M2, F2, CC2> {
         let p = self.get_prime();
         let source_hom_deg_idx = source_hom_deg as usize;
         let source_deg_idx = source_deg as usize;
-        let res = &self.resolution;
+        let res = &self.resolution.borrow();
         let f = &self.chain_maps_to_trivial_module[source_hom_deg_idx][source_deg_idx][source_idx];
         let target_hom_deg = source_hom_deg + elt_hom_deg;
         let target_deg = source_deg + elt_deg;
@@ -229,8 +240,8 @@ ResolutionWithChainMaps<M1, F1, CC1, M2, F2, CC2> {
             internal_degree -= 1;
             let output_homological_degree = homological_degree - f.homological_degree;
             let output_internal_degree = internal_degree - f.internal_degree;
-            let source_module = self.resolution.get_module(homological_degree);
-            let target_module = self.unit_resolution.get_module(output_homological_degree);
+            let source_module = self.resolution.borrow().get_module(homological_degree);
+            let target_module = self.unit_resolution.borrow().get_module(output_homological_degree);
             let num_source_gens = source_module.get_number_of_gens_in_degree(internal_degree);
             let num_target_gens = target_module.get_number_of_gens_in_degree(output_internal_degree);
             if num_source_gens == 0 || num_target_gens == 0 {
@@ -245,7 +256,7 @@ ResolutionWithChainMaps<M1, F1, CC1, M2, F2, CC2> {
                     let vector_idx = target_module.operation_generator_to_index(0, 0, output_internal_degree, k);
                     let coeff = result.get_entry(vector_idx);
                     if coeff != 0 {
-                        self.resolution.add_structline(
+                        self.resolution.borrow().add_structline(
                             &f.name,
                             output_homological_degree, output_internal_degree, k,
                             homological_degree, internal_degree, j

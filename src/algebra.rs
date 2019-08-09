@@ -20,6 +20,10 @@ use enum_dispatch::enum_dispatch;
 /// specifying the action of the generators.
 #[enum_dispatch]
 pub trait Algebra {
+    /// The "type" of the algebra, which is "adem" or "milnor". When reading module definitions,
+    /// this informs whether we should look at adem_actions or milnor_actions.
+    fn get_algebra_type(&self) -> &str;
+
     /// Returns the prime the algebra is over.
     fn get_prime(&self) -> u32;
     fn get_name(&self) -> &str;

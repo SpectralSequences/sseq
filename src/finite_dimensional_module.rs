@@ -232,11 +232,11 @@ impl FiniteDimensionalModule {
         return &mut self.actions[input_degree_idx][in_out_diff][operation_idx][input_idx];
     }
 
-    pub fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut Value) -> Self {
+    pub fn from_json(algebra : Rc<AlgebraAny>, json : &mut Value) -> Self {
         let gens = json["gens"].take();
         let (min_degree, graded_dimension, gen_to_idx) = Self::module_gens_from_json(&gens);
         let name = json["name"].as_str().unwrap().to_string();
-        let mut actions_value = json[algebra_name.to_owned() + "_actions"].take();
+        let mut actions_value = json[algebra.get_algebra_type().to_owned() + "_actions"].take();
         let actions = actions_value.as_array_mut().unwrap();
         let mut result = Self::new(Rc::clone(&algebra), name, min_degree, graded_dimension);
         for action in actions.iter_mut() {

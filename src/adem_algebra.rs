@@ -126,6 +126,10 @@ pub struct AdemAlgebra {
 }
 
 impl Algebra for AdemAlgebra {
+    fn get_algebra_type(&self) -> &str {
+        "adem"
+    }
+
     fn get_prime(&self) -> u32 {
         self.p
     }

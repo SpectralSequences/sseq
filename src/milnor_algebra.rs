@@ -141,6 +141,10 @@ impl MilnorAlgebra {
 }
 
 impl Algebra for MilnorAlgebra {
+    fn get_algebra_type(&self) -> &str {
+        "milnor"
+    }
+
     fn get_prime(&self) -> u32 {
         self.p
     }

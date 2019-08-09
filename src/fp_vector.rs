@@ -145,7 +145,7 @@ fn get_limb_bit_index_pair(p : u32, idx : usize) -> LimbBitIndexPair {
 }
 
 #[enum_dispatch]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FpVector {
     FpVector2,
     FpVector3,
@@ -487,7 +487,7 @@ impl PartialEq for FpVector {
 
 impl Eq for FpVector {}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VectorContainer {
     dimension : usize,
     offset : usize,
@@ -496,22 +496,22 @@ pub struct VectorContainer {
     limbs : Vec<u64>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FpVector2 {
     vector_container : VectorContainer
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FpVector3 {
     vector_container : VectorContainer
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FpVector5 {
     vector_container : VectorContainer
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FpVectorGeneric {
     p : u32,
     vector_container : VectorContainer

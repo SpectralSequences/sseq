@@ -70,6 +70,4 @@ impl<M : Module> ChainComplex<OptionModule<M>, ZeroHomomorphism<OptionModule<M>,
             self.module.compute_basis(degree);
         }
     }
-
-
 }
