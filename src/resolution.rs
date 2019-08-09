@@ -3,6 +3,7 @@
 use std::cmp::max;
 use std::rc::Rc;
 use std::marker::PhantomData;
+use std::sync::{Mutex, MutexGuard};
 
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace};
@@ -13,6 +14,10 @@ use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
 use crate::chain_complex::ChainComplex;
 
+/// #Fields
+///  * `kernels` - For each *internal* degree, store the kernel of the most recently calculated
+///  chain map as returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
+///  resolve_through_degree again.
 pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> {
     complex : Rc<CC>,
     modules : Vec<Rc<FreeModule>>,
@@ -20,8 +25,9 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
     chain_maps : Vec<FreeModuleHomomorphism<M>>,    
     differentials : Vec<FreeModuleHomomorphism<FreeModule>>,
     phantom : PhantomData<ChainComplex<M, F>>,
+    pub kernels : Vec<Option<Subspace>>,
 
-    max_degree : i32,
+    pub next_degree : i32,
     pub add_class : Option<Box<dyn Fn(u32, i32, &str)>>,
     pub add_structline : Option<Box<dyn Fn(
         &str,
@@ -32,7 +38,7 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
 
 impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resolution<M, F, CC> {
     pub fn new(
-        complex : Rc<CC>, max_degree : i32,
+        complex : Rc<CC>,
         add_class : Option<Box<dyn Fn(u32, i32, &str)>>,
         add_structline : Option<Box<dyn Fn(
             &str,
@@ -45,41 +51,24 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 
         let zero_module = Rc::new(FreeModule::new(Rc::clone(&algebra), "F_{-1}".to_string(), min_degree));
 
-        assert!(max_degree >= min_degree);
-        let max_hom_deg = max_degree as usize; //(max_degree - min_degree) as usize;
-        let mut modules = Vec::with_capacity(max_hom_deg);          
-        for i in 0..max_hom_deg {
-            modules.push(Rc::new(FreeModule::new(Rc::clone(&algebra), format!("F{}", i), min_degree)));
-        }
-
-        let mut differentials = Vec::with_capacity(max_hom_deg);
-        let mut chain_maps = Vec::with_capacity(max_hom_deg);
-        for i in 0..max_hom_deg {
-            chain_maps.push(FreeModuleHomomorphism::new(Rc::clone(&modules[i]), Rc::clone(&complex.get_module(i as u32)), 0));
-        }
-        differentials.push(FreeModuleHomomorphism::new(Rc::clone(&modules[0]), Rc::clone(&zero_module), 0));
-
-        for i in 1..max_hom_deg {
-            differentials.push(FreeModuleHomomorphism::new(Rc::clone(&modules[i]), Rc::clone(&modules[i-1]), 0));
-        }
-
         Self {
             complex,
-            chain_maps,
+            chain_maps : Vec::new(),
 
-            modules,
+            modules : Vec::new(),
             zero_module,
-            differentials,
+            differentials : Vec::new(),
+            kernels : Vec::new(),
             phantom : PhantomData,
 
-            max_degree,
+            next_degree : 0,
             add_class,
             add_structline,
         }
     }
 
     pub fn get_max_degree(&self) -> i32 {
-        self.max_degree
+        self.next_degree - 1
     }
 
     pub fn get_max_hom_deg(&self) -> u32 {
@@ -114,17 +103,47 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         return target.element_to_string(int_deg, &result_vector);
     }
 
-    pub fn resolve_through_degree(&self, degree : i32){
-        self.get_algebra().compute_basis(degree);
+    /// This function prepares the Resolution object to perform computations up to the specified
+    /// degree. It does *not* perform any computations by itself. It simply lengthens the
+    /// `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
+    pub fn extend_through_degree(&mut self, max_degree : i32) {
         let min_degree = self.get_min_degree();
-        let max_hom_deg = degree as u32; //self.get_max_hom_deg();
-        for int_deg in min_degree .. degree {
-            let mut new_kernel = None;
-            for hom_deg in 0 .. max_hom_deg {
-                // println!("(hom_deg : {}, int_deg : {})", hom_deg, int_deg);
-                new_kernel = Some(self.step(hom_deg, int_deg, new_kernel));
-            }
+        let mut next_degree = self.next_degree;
+
+        for i in next_degree ..= max_degree {
+            self.modules.push(Rc::new(FreeModule::new(Rc::clone(&self.get_algebra()), format!("F{}", i), min_degree)));
+            self.chain_maps.push(FreeModuleHomomorphism::new(Rc::clone(&self.modules[i as usize]), Rc::clone(&self.complex.get_module(i as u32)), 0));
+            self.kernels.push(None);
         }
+
+        if next_degree == 0 {
+            self.differentials.push(FreeModuleHomomorphism::new(Rc::clone(&self.modules[0]), Rc::clone(&self.zero_module), 0));
+            next_degree += 1;
+        }
+        for i in next_degree ..= max_degree {
+            self.differentials.push(FreeModuleHomomorphism::new(Rc::clone(&self.modules[i as usize]), Rc::clone(&self.modules[i as usize - 1]), 0));
+        }
+    }
+
+    pub fn resolve_through_degree(&mut self, degree : i32){
+        let min_degree = self.get_min_degree();
+        self.extend_through_degree(degree);
+
+        self.get_algebra().compute_basis(degree + 1);// because Adem has off-by-one
+
+        // So far, we have computed everything for t, s < next_degree.
+        for t in min_degree ..=degree {
+            // We cannot mutably borrow self.kernels and then run self.step
+            let mut new_kernel = self.kernels[(t - min_degree) as usize].clone();
+
+            let start = if t < self.next_degree { self.next_degree } else { 0 };
+            for s in start ..= degree {
+                new_kernel = Some(self.step(s as u32, t, new_kernel));
+            }
+            self.kernels[(t - min_degree) as usize] = new_kernel;
+        }
+
+        self.next_degree = degree + 1;
     }
 
     pub fn step(&self, homological_degree : u32, internal_degree : i32, old_kernel : Option<Subspace>) -> Subspace {
