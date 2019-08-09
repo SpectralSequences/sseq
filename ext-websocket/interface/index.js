@@ -2,6 +2,24 @@ import MyDisplay from "./display.js";
 
 // For timer
 let t0, t_last;
+let t_prev = 0;
+
+let callbacks = {};
+callbacks.resolveFurther = () => {
+    let newmax = parseInt(prompt("New maximum degree", window.maxDegree + 10).trim());
+    if (newmax <= window.maxDegree) {
+        return;
+    }
+    window.maxDegree = newmax;
+    t0 = performance.now();
+    t_last = t0;
+    webSocket.send(JSON.stringify({
+            command : "resolve_further",
+            maxDegree : maxDegree
+        }));
+    sseq.xRange = [window.minDegree, window.maxDegree];
+    sseq.yRange = [0, Math.ceil((window.maxDegree - window.minDegree)/3) + 1];
+};
 
 let url = new URL(document.location);
 let params = {};
@@ -22,7 +40,7 @@ if (!params.module) {
         });
     });
 } else {
-    var maxDegree = parseInt(params.degree ? params.degree : 50);
+    window.maxDegree = parseInt(params.degree ? params.degree : 50);
     openWebSocket(
         {
             command : "resolve",
@@ -36,7 +54,6 @@ function openWebSocket(initialData, maxDegree) {
     window.webSocket = new WebSocket("ws://localhost:8080/ws");
 
     webSocket.onopen = function(e) {
-
         webSocket.send(JSON.stringify(initialData));
 
         t0 = performance.now();
@@ -58,14 +75,14 @@ function openWebSocket(initialData, maxDegree) {
         sseq.initialxRange = [0, maxDegree];
         sseq.initialyRange = [0, Math.ceil(maxDegree/3) + 1];
     }
-    window.display = new MyDisplay("#main", sseq);
+    window.display = new MyDisplay("#main", sseq, callbacks);
 }
 let messageHandler = {};
 messageHandler.resolving = (data) => {
-    let minDegree = data.minDegree;
-    let maxDegree = data.maxDegree;
-    sseq.xRange = [minDegree, maxDegree];
-    sseq.yRange = [0, Math.ceil((maxDegree - minDegree)/3) + 1];
+    window.minDegree = data.minDegree;
+    window.maxDegree = data.maxDegree;
+    sseq.xRange = [window.minDegree, window.maxDegree];
+    sseq.yRange = [0, Math.ceil((window.maxDegree - window.minDegree)/3) + 1];
 }
 
 let max_t = 0;
@@ -94,8 +111,8 @@ messageHandler.addStructline = function addStructline(m) {
 messageHandler.complete = function complete(m) {
     display.runningSign.style.display = "none";
     console.log(`Total time : ${getTotalTime()}`);
+    t_prev = getTotalTime() * 1000;
 }
-
 
 function getTime() {
     let t_cur = performance.now();
@@ -106,7 +123,7 @@ function getTime() {
 
 function getTotalTime(){
     let t_cur = performance.now();
-    return (t_cur - t0) / 1000;
+    return (t_cur - t0 + t_prev) / 1000;
 }
 
 // Set up upload button

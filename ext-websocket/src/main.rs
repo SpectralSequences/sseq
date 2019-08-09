@@ -56,9 +56,23 @@ impl ResolutionManager {
             let json : Value = serde_json::from_str(&msg).unwrap();// Implement proper error handling.
             match json["command"].as_str() {
                 Some("resolve") => manager.resolve(json)?,
+                Some("resolve_further") => manager.resolve_further(json)?,
                 Some("resolve_json") => manager.resolve_json(json)?,
                 _ => {println!("Ignoring message: {:#}", json);}
             };
+        }
+        Ok(())
+    }
+
+    /// Resolve existing resolution to a larger degree
+    fn resolve_further(&mut self, json : Value) -> Result<(), Box<dyn Error>> {
+        let max_degree = json["maxDegree"].as_i64().unwrap() as i32;
+        if let Some(bundle) = &self.bundle {
+            let mut resolution = bundle.resolution.borrow_mut();
+            resolution.resolve_through_degree(max_degree);
+
+            let data = json!({ "command": "complete" });
+            self.sender.send(data.to_string())?;
         }
         Ok(())
     }

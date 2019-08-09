@@ -44,7 +44,7 @@ class StructlinePanel extends Panel.Panel {
 }
 
 export default class MyDisplay extends SidebarDisplay {
-    constructor(container, sseq) {
+    constructor(container, sseq, callbacks) {
         super(container, sseq);
 
         this.tooltip = new Tooltip(this);
@@ -65,6 +65,7 @@ export default class MyDisplay extends SidebarDisplay {
         this.runningSign.innerHTML = "Running...";
         this.sidebar.footer.addObject(this.runningSign);
 
+        this.sidebar.footer.addButton("Resolve further", callbacks["resolveFurther"]);
         this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG("sseq.svg"));
         this.sidebar.footer.addButton("Save", () => this.sseq.download("sseq.json"));
     }
