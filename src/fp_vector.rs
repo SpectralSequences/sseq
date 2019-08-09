@@ -79,6 +79,8 @@ struct LimbBitIndexPair {
     bit_index : usize
 }
 
+/// This table tells us which limb and which bitfield of that limb to look for a given index of
+/// the vector in.
 static mut LIMB_BIT_INDEX_TABLE : [Option<Vec<LimbBitIndexPair>>; MAX_PRIME_INDEX] = [
     None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,
     None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,
@@ -99,11 +101,6 @@ static mut LIMB_BIT_INDEX_ONCE_TABLE : [Once; MAX_PRIME_INDEX] = [
     Once::new(),Once::new(), Once::new(), Once::new()
 ];
 
-/**
- * Called by initializePrime
- * This table tells us which limb and which bitfield of that limb to look for a given index of
- * the vector in.
- */
 pub fn initialize_limb_bit_index_table(p : u32){
     if p == 2 {
         return;
