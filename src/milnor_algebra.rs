@@ -53,7 +53,6 @@ impl std::fmt::Display for MilnorBasisElement {
             write!(f, "0")?;
             return Ok(());
         }
-
         let mut qpart = self.q_part;
         if qpart != 0 {
             let mut i = 0;

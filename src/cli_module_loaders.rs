@@ -111,24 +111,23 @@ where
         }
         for term in result.split("+") {
             let term = term.trim();
-            let parts : Vec<&str> = term.split(" ").collect();
+            let parts : Vec<&str> = term.splitn(2,  " ").collect();
             if parts.len() == 1 {
                 match string_to_basis_element(&parts[0]) {
                     Some(i) => output_vec.add_basis_element(i, 1),
                     None => { println!("Invalid value. Try again"); continue 'outer }
                 };
-            } else if parts.len() == 2 {
-                let gen_idx = match string_to_basis_element(&parts[1]) {
+            } else {
+                let mut rest = &parts[1];
+                let coef = match parts[0].parse::<u32>() {
+                    Ok(c) => c,
+                    _ => { rest = &term; 1 }
+                };
+                let gen_idx = match string_to_basis_element(rest) {
                     Some(i) => i,
                     None => { println!("Invalid value. Try again"); continue 'outer }
                 };
-                let coef = match parts[0].parse::<u32>() {
-                    Ok(c) => c,
-                    _ => { println!("Invalid value. Try again"); continue 'outer }
-                };
                 output_vec.add_basis_element(gen_idx, coef);
-            } else {
-                println!("Invalid value. Try again"); continue 'outer;
             }
         }
         return;        
