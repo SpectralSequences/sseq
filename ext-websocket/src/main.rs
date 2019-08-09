@@ -69,7 +69,7 @@ impl ResolutionManager {
         let max_degree = json["maxDegree"].as_i64().unwrap() as i32;
         let json_data = serde_json::from_str(json["data"].as_str().unwrap())?;
 
-        self.bundle = rust_ext::construct_from_json(json_data, algebra_name, max_degree).ok();
+        self.bundle = rust_ext::construct_from_json(json_data, algebra_name).ok();
 
         self.resolve_bundle(max_degree)
     }
