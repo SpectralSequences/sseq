@@ -43,11 +43,11 @@ impl<T>  OnceVec<T> {
     }
 
     pub fn get(&self, i : usize) -> &T {
-        unsafe { &((*self.data.get())[i]) }
+        &(self.get_vec()[i])
     }
 
     pub fn push(&self, x : T) {
-        unsafe { (*self.data.get()).push(x); }
+        self.get_vec_mut().push(x);
     }
 
     pub fn iter(&self) -> Iter<T> {
