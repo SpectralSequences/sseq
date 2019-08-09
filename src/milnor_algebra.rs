@@ -69,11 +69,10 @@ impl std::fmt::Display for MilnorBasisElement {
         }
         if self.p_part.len() > 0 {
             write!(f, "P(")?;
-            let mut iter = self.p_part.iter();
-            write!(f, "{}", iter.next().unwrap())?;
-            for x in iter {
-                write!(f, ", {}", x)?;
-            }
+            write!(f, "{}", self.p_part.iter()
+                   .map(u32::to_string)
+                   .collect::<Vec<String>>()
+                   .join(", "))?;
             write!(f, ")")?;
         }
         Ok(())
