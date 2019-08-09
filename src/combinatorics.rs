@@ -297,12 +297,56 @@ pub fn multinomial(p : u32, l : &[u32]) -> u32 {
 }
 
 //Dispatch to Binomial2 or BinomialOdd
-pub fn binomial(p : u32, n : i32, k : i32) -> u32{
+pub fn binomial(p : u32, n : i32, k : i32) -> u32 {
     if p == 2{
         return binomial2(n, k);
     } else {
         binomial_odd(p, n, k)
     }
+}
+
+pub fn adem_relation_coefficient(p : u32, x : u32, y : u32, j : u32, e1 : u32, e2 : u32) -> u32{
+    let pi32 = p as i32;
+    let x = x as i32;
+    let y = y as i32;
+    let j = j as i32;
+    let e1 = e1 as i32;
+    let e2 = e2 as i32;
+    let mut c = binomial(p, (y-j) * (pi32-1) + e1 - 1, x - pi32*j - e2);
+    if c == 0 { 
+        return 0; 
+    }
+    c *= minus_one_to_the_n(p, ((x + j) + e2) as u32);
+    return c % p;
+}
+
+
+pub fn get_inadmissible_pairs(p : u32, generic : bool, degree : i32) -> Vec<(u32, u32, u32)> {
+    let degree = degree as u32;
+    let q = if generic { 2*p-2 } else { 1 };
+    // (i, b, j) means P^i P^j if b = 0, or P^i b P^j if b = 1.
+    let mut inadmissible_pairs = Vec::new();
+
+    // Since |P^i| is always a multiple of q, we have a relation only if degree = 0 or 1 mod q.
+    // If it is 0, then there is no Bockstein. Otherwise, there is.
+    if degree % q == 0 {
+        let degq = degree/q;
+        // We want P^i P^j to be inadmissible, so i < p * j. This translates to
+        // i < p * degq /(p + 1). Since Rust automatically rounds *down*, but we want to round
+        // up instead, we use i < (p * degq + p)/(p + 1).
+        for i in 1 .. (p * degq + p) / (p + 1) {
+            inadmissible_pairs.push((i, 0, degq - i));
+        }
+    } else if degree % q == 1 {
+        let degq = degree/q; // Since we round down, this is actually (degree - 1)/q
+        // We want P^i b P^j to be inadmissible, so i < p * j + 1. This translates to
+        // i < (p * degq + 1)/(p + 1). Since Rust automatically rounds *down*, but we want to round
+        // up instead, we use i < (p * degq + p + 1)/(p + 1).
+        for i in 1 .. (p * degq + p + 1) / (p + 1) {
+            inadmissible_pairs.push((i, 1, degq - i));
+        }
+    }
+    return inadmissible_pairs;
 }
 
 

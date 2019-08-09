@@ -38,6 +38,30 @@ pub trait Algebra {
     /// Computes the product `r * s` of the two basis elements, and *adds* the result to `result`.
     fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32);
 
+    fn multiply_basis_element_by_element(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r_idx : usize, s_degree : i32, s : &FpVector, excess : i32){
+        let p = self.get_prime();
+        for (i, v) in s.iter().enumerate() {
+            if v == 0 { continue; }
+            self.multiply_basis_elements(result, (coeff * v) % p, r_degree, r_idx, s_degree, i, excess);
+        }
+    }
+
+    fn multiply_element_by_basis_element(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r : &FpVector, s_degree : i32, s_idx : usize, excess : i32){
+        let p = self.get_prime();
+        for (i, v) in r.iter().enumerate() {
+            if v == 0 { continue; }
+            self.multiply_basis_elements(result, (coeff * v) % p, r_degree, i, s_degree, s_idx, excess);
+        }
+    }
+
+    fn multiply_element_by_element(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r : &FpVector, s_degree : i32, s : &FpVector, excess : i32){
+        let p = self.get_prime();
+        for (i, v) in s.iter().enumerate() {
+            if v == 0 { continue; }
+            self.multiply_element_by_basis_element(result, (coeff * v) % p, r_degree, r, s_degree, i, excess);
+        }
+    }
+
     /// A filtration one element in Ext(k, k) is the same as an indecomposable element of the
     /// algebra.  This function returns a list of such elements in the format `(name, degree,
     /// index)` for whom we want to compute products with in the resolutions.

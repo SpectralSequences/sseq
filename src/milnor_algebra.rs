@@ -1,13 +1,16 @@
+use serde_json::value::Value;
+use std::collections::HashMap;
 use std::sync::Mutex;
 
+use crate::combinatorics;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::once::OnceVec;
 use crate::algebra::Algebra;
-use std::collections::HashMap;
-use serde_json::value::Value;
+
+
 
 pub struct MilnorProfile {
-    pub generic : bool
+
 }
 
 #[derive(Default, Clone)]
@@ -89,6 +92,7 @@ pub struct MilnorAlgebra {
     name : String,
     next_degree : Mutex<i32>,
     p : u32,
+    generic : bool,
     ppart_table : OnceVec<Vec<PPart>>,
     qpart_table : Vec<OnceVec<QPart>>,
     basis_table : OnceVec<Vec<MilnorBasisElement>>,
@@ -98,19 +102,18 @@ pub struct MilnorAlgebra {
 
 impl MilnorAlgebra {
     pub fn new(p : u32) -> Self {
-        crate::combinatorics::initialize_prime(p);
-        crate::combinatorics::initialize_xi_tau_degrees(p);
+        combinatorics::initialize_prime(p);
+        combinatorics::initialize_xi_tau_degrees(p);
         crate::fp_vector::initialize_limb_bit_index_table(p);
 
-        let profile = MilnorProfile {
-            generic : p != 2
-        };
+        let profile = MilnorProfile { };
 
         let mut qpart_table = Vec::new();
         qpart_table.resize_with((2 * p - 2) as usize, OnceVec::new);
 
         Self {
             p,
+            generic : p != 2,
             profile: profile,
             name : format!("MilnorAlgebra(p={})", p),
             next_degree : Mutex::new(0),
@@ -167,7 +170,7 @@ impl Algebra for MilnorAlgebra {
         self.basis_table.reserve((max_degree - *next_degree + 1) as usize);
         self.basis_element_to_index_map.reserve((max_degree - *next_degree + 1) as usize);
 
-        if self.profile.generic {
+        if self.generic {
             self.generate_basis_generic(*next_degree, max_degree);
         } else {
             self.generate_basis_2(*next_degree, max_degree);
@@ -194,14 +197,14 @@ impl Algebra for MilnorAlgebra {
     }
 
     fn json_to_basis(&self, json : Value) -> (i32, usize) {
-        let xi_degrees = crate::combinatorics::get_xi_degrees(self.p);
-        let tau_degrees = crate::combinatorics::get_tau_degrees(self.p);
+        let xi_degrees = combinatorics::get_xi_degrees(self.p);
+        let tau_degrees = combinatorics::get_tau_degrees(self.p);
 
         let mut p_part = Vec::new();
         let mut q_part = 0;
         let mut degree = 0;
 
-        if self.profile.generic {
+        if self.generic {
             let p_list = json[1].as_array().unwrap();
             let q_list = json[0].as_array().unwrap();
             let q = (2 * self.p - 2) as i32;
@@ -231,7 +234,7 @@ impl Algebra for MilnorAlgebra {
 
     fn json_from_basis(&self, degree : i32, index : usize) -> Value {
         let b = self.basis_element_from_index(degree, index);
-        if self.profile.generic {
+        if self.generic {
             let mut q_part = b.q_part;
             let mut q_list = Vec::with_capacity(q_part.count_ones() as usize);
             while q_part != 0 {
@@ -254,11 +257,11 @@ impl Algebra for MilnorAlgebra {
         if degree == 0 {
             return vec![];
         }
-        if self.profile.generic && degree == 1 {
+        if self.generic && degree == 1 {
             return vec![0]; // Q_0
         }
         let p = self.p;
-        let q = if self.profile.generic { 2 * p - 2 } else { 1 };
+        let q = if self.generic { 2 * p - 2 } else { 1 };
         let mut temp_degree = degree as u32;        
         if temp_degree % q != 0 {
             return vec![];
@@ -289,50 +292,21 @@ impl Algebra for MilnorAlgebra {
     }
 
     fn get_relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
-        let p = self.get_prime();
-        let pi32 = p as i32;
-        let q = if self.profile.generic { 2*(pi32 - 1) } else { 1 };
-        let degreeu32 = degree as u32;
-        // We want Pi*b*Pj inadmissible so that means i < p * j + epsilon.
-        // degree = i + epsilon +  j so j = degree - i - epsilon
-        // so i < p * (relation_dim - i - b) + epsilon so i < (p * degree - (p - 1) * epsilon) / ( p + 1)
-        // We need to round up so as to include the last integer
-        // if (p * degree - (p-1) * epsilon) / (p + 1) is not an integer
-        // to do this with integer division we do (p * degree - (p-1) * epsilon + p) / (p + 1)
-        let mut inadmissible_pairs = Vec::new();
-        if degree % q == 0 {
-            let degq = degree/q;
-            // We want P^i P^j to be inadmissible, so i < p * j. This translates to
-            // i < p * degq /(p + 1). Since Rust automatically rounds *down*, but we want to round
-            // up instead, we use i < (p * degq + p)/(p + 1).
-            for i in 1 .. (pi32 * degq + pi32) / (pi32 + 1) {
-                inadmissible_pairs.push((i, 0, degq - i));
-            }
-        } else if degree % q == 1 {
-            let degq = degree/q; // Since we round down, this is actually (degree - 1)/q
-            // We want P^i b P^j to be inadmissible, so i < p * j + 1. This translates to
-            // i < (p * degq + 1)/(p + 1). Since Rust automatically rounds *down*, but we want to round
-            // up instead, we use i < (p * degq + p + 1)/(p + 1).
-            for i in 1 .. (pi32 * degq + pi32 + 1) / (pi32 + 1) {
-                inadmissible_pairs.push((i, 1, degq - i));
-            }
+        if self.generic && degree == 2 {
+            // beta^2 = 0 is an edge case
+            return vec![vec![(1, (1, 0), (1, 0))]];
         }
+        let p = self.get_prime();
+        let q = if self.generic { 2*(p - 1) } else { 1 };
+
+        let inadmissible_pairs = combinatorics::get_inadmissible_pairs(p, self.generic, degree);
+
         let mut result = Vec::new();
         for (x, b, y) in inadmissible_pairs {
             let mut relation = Vec::new();
             // Adem relation
-            let first_degree = q * x;
-            let first_index = self.basis_element_to_index(&MilnorBasisElement {
-                degree : first_degree,
-                q_part : 0,
-                p_part : vec![x as u32]
-            });
-            let second_degree = q * y + b;
-            let second_index = self.basis_element_to_index(&MilnorBasisElement {
-                degree : second_degree,
-                q_part : b as u32,
-                p_part : vec![y as u32]
-            });
+            let (first_degree, first_index) = self.get_beps_pn(0, x);
+            let (second_degree, second_index) = self.get_beps_pn(b, y);
             relation.push((p - 1, (first_degree, first_index), (second_degree, second_index)));
             for e1 in 0 .. b + 1 {
                 let e2 = b - e1;
@@ -340,39 +314,17 @@ impl Algebra for MilnorAlgebra {
                 // e1 determines whether a bockstein shows up in front 
                 // e2 determines whether a bockstein shows up in middle
                 // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
-                for j in 0 .. x/pi32 + 1 {
-                    let mut c = crate::combinatorics::binomial(p, (y - j) * (pi32 - 1) + e1 - 1, x - pi32 * j - e2) as u32;
-                    println!("x : {}, y : {}, j : {}, e1 : {}, e2 : {}, c : {}",x,y,j,e1, e2, c);
-                    if c == 0 { continue; }
-                    c *= crate::combinatorics::minus_one_to_the_n(p, (x + j + e2) as u32);
-                    c = c % p;                    
+                for j in 0 .. x/p + 1 {
+                    let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
                     if j == 0 {
-                        let idx = self.basis_element_to_index(&MilnorBasisElement{
-                            degree : degree - e2,
-                            q_part : e1 as u32,
-                            p_part : vec![(x+y) as u32]
-                        });
-                        relation.push((c, (degree - e2, idx), (e2, 0)));
+                        relation.push((c, self.get_beps_pn(e1, x + y), (e2 as i32, 0)));
                         continue;
                     }
-                    let first_sq = x + y - j;
-                    let first_degree = q*first_sq + e1;
-                    let first_index = self.basis_element_to_index(&MilnorBasisElement {
-                        degree : first_degree,
-                        q_part : e1 as u32,
-                        p_part : vec![first_sq as u32]
-                    });
-                    let second_degree = q*j + e2;
-                    let second_index = self.basis_element_to_index(&MilnorBasisElement {
-                        degree : second_degree,
-                        q_part : e2 as u32,
-                        p_part : vec![j as u32]
-                    });
-                    relation.push((c, (first_degree, first_index), (second_degree, second_index)));
-                    println!("{:?}", (c, (first_degree, first_index), (second_degree, second_index)));
+                    let first_sq = self.get_beps_pn(e1, x + y - j);
+                    let second_sq = self.get_beps_pn(e2, j);
+                    relation.push((c, first_sq, second_sq));
                 }
             }
-            println!("relation : {:?}", relation);
             result.push(relation);
         }
         return result;
@@ -430,7 +382,7 @@ impl MilnorAlgebra {
     fn compute_qpart(&self, next_degree : i32, max_degree : i32) {
         let q = (2 * self.p - 2) as i32;
 
-        if !self.profile.generic {
+        if !self.generic {
             return;
         }
 
@@ -509,6 +461,18 @@ impl MilnorAlgebra {
 
 // Multiplication logic
 impl MilnorAlgebra {
+    fn get_beps_pn(&self, e : u32, x : u32) -> (i32, usize) {
+        let p = self.get_prime();
+        let q = if self.generic { 2*(p - 1) } else { 1 };
+        let degree = (q * x + e) as i32;
+        let index = self.basis_element_to_index(&MilnorBasisElement {
+            degree,
+            q_part : e,
+            p_part : vec![x]
+        });
+        return (degree, index);
+    }
+
     fn multiply_qpart (&self, m1 : &MilnorBasisElement, f : u32) -> Vec<(u32, MilnorBasisElement)>{
         let tau_degrees = crate::combinatorics::get_tau_degrees(self.p);
         let xi_degrees = crate::combinatorics::get_xi_degrees(self.p);
@@ -588,7 +552,7 @@ impl MilnorAlgebra {
     fn multiply(&self, res : &mut FpVector, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement) {
         let target_dim = m1.degree + m2.degree;
 
-        if !self.profile.generic {
+        if !self.generic {
             for (c, p) in PPartMultiplier::new(self.p, &(m1.p_part), &(m2.p_part)) {
                 let idx = self.basis_element_to_index(&from_p(p, target_dim));
                 res.add_basis_element(idx, c * coef);
@@ -780,7 +744,7 @@ impl MilnorAlgebra {
     // use https://monks.scranton.edu/files/pubs/bases.pdf page 8
     fn decompose_basis_element_ppart(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>{
         let p = self.p;
-        let q = if self.profile.generic { 2*p - 2 } else { 1 };
+        let q = if self.generic { 2*p - 2 } else { 1 };
         let b = &self.basis_table[degree as usize][idx];
         let first_degree;
         let first_idx;

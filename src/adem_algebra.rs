@@ -347,67 +347,31 @@ impl Algebra for AdemAlgebra {
     /// We return Adem relations $b^2 = 0$, $P^i P^j = \cdots$ for $i < pj$, and $P^i b P^j = \cdots$ for $i < pj + 1$. It suffices to check these because
     /// they generate all relations.
     fn get_relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
-        let p = self.get_prime();
-        let pi32 = p as i32;
-        let q = if self.generic { 2*(pi32 - 1) } else { 1 };
-
         if self.generic && degree == 2 {
             // beta^2 = 0 is an edge case
             return vec![vec![(1, (1, 0), (1, 0))]];
         }
 
-        // (i, b, j) means P^i P^j if b = 0, or P^i b P^j if b = 1.
-        let mut inadmissible_pairs : Vec<(i32, i32, i32)> = Vec::new();
+        let p = self.get_prime();
+        let q = if self.generic { 2*(p - 1) } else { 1 };
 
-        // Since |P^i| is always a multiple of q, we have a relation only if degree = 0 or 1 mod q.
-        // If it is 0, then there is no Bockstein. Otherwise, there is.
-        if degree % q == 0 {
-            let degq = degree/q;
-            // We want P^i P^j to be inadmissible, so i < p * j. This translates to
-            // i < p * degq /(p + 1). Since Rust automatically rounds *down*, but we want to round
-            // up instead, we use i < (p * degq + p)/(p + 1).
-            for i in 1 .. (pi32 * degq + pi32) / (pi32 + 1) {
-                inadmissible_pairs.push((i, 0, degq - i));
-            }
-        } else if degree % q == 1 {
-            let degq = degree/q; // Since we round down, this is actually (degree - 1)/q
-            // We want P^i b P^j to be inadmissible, so i < p * j + 1. This translates to
-            // i < (p * degq + 1)/(p + 1). Since Rust automatically rounds *down*, but we want to round
-            // up instead, we use i < (p * degq + p + 1)/(p + 1).
-            for i in 1 .. (pi32 * degq + pi32 + 1) / (pi32 + 1) {
-                inadmissible_pairs.push((i, 1, degq - i));
-            }
-        }
+        let inadmissible_pairs = combinatorics::get_inadmissible_pairs(p, self.generic, degree);
+
         let mut result = Vec::new();
         for (x, b, y) in inadmissible_pairs {
             let mut relation = Vec::new();
             // Adem relation
-            let first_degree = x * q;
-            let first_index = self.basis_element_to_index(&AdemBasisElement {
-                degree : first_degree,
-                excess : 0,
-                bocksteins : 0,
-                ps : vec![x as u32]
-            });
-            let second_degree = y * q + b;
-            let second_index = self.basis_element_to_index(&AdemBasisElement {
-                degree : second_degree,
-                excess : 0,
-                bocksteins : b as u32,
-                ps : vec![y as u32]
-            });
-            relation.push((p - 1, (first_degree, first_index), (second_degree, second_index)));
+            let first_sq = self.get_beps_pn(0, x);
+            let second_sq = self.get_beps_pn(b, y);
+            relation.push((p - 1, first_sq, second_sq));
             for e1 in 0 .. b + 1 {
                 let e2 = b - e1;
                 // e1 and e2 determine where a bockstein shows up.
                 // e1 determines if a bockstein shows up in front 
                 // e2 determines if a bockstein shows up in middle
                 // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
-                for j in 0 .. x/pi32 + 1 {
-                    let mut c = combinatorics::binomial(p, (y-j) * (pi32-1) + e1 - 1, x - pi32*j - e2) as u32;
-                    if c == 0 { continue; }
-                    c *= combinatorics::minus_one_to_the_n(p, ((x + j) + e2) as u32) as u32;
-                    c = c % p;
+                for j in 0 .. x/p + 1 {
+                    let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
                     let idx = self.basis_element_to_index(&AdemBasisElement{
                         degree,
                         excess : 0,
@@ -694,7 +658,8 @@ impl AdemAlgebra {
             bocksteins : 0,
             ps : Vec::with_capacity(cur_basis_elt.ps.len() + 1)
         };
-        working_elt.ps.push(x as u32);
+        let x = x as u32;        
+        working_elt.ps.push(x);
         for cur_p in &cur_basis_elt.ps {
             working_elt.ps.push(*cur_p);
         }
@@ -703,23 +668,23 @@ impl AdemAlgebra {
         // Be careful to deal with the case that cur_basis_elt has length 0            
         // If the length is 0 or the sequence is already admissible, we can just write a 1 in the answer
         // and continue.
-        if cur_basis_elt.ps.len() == 0 || x as u32 >= 2*cur_basis_elt.ps[0] {
+        if cur_basis_elt.ps.len() == 0 || x >= 2*cur_basis_elt.ps[0] {
             let out_idx = self.basis_element_to_index(&working_elt);
             result.add_basis_element(out_idx, 1);
             return result;
         }
-        let y = working_elt.ps[1] as i32;
+        let y = working_elt.ps[1];
         // We only needed the extra first entry to perform the lookup if our element
         // happened to be admissible. Otherwise, take the rest of the list and forget about it.
         working_elt.degree -= working_elt.ps[0] as i32;
         unsafe { working_elt.ps = shift_vec(working_elt.ps, 1) };
         for j in 0 .. 1 + x/2 {
-            if combinatorics::binomial(2, y - j - 1, x - 2*j) == 0 {
+            if combinatorics::adem_relation_coefficient(2, x, y, j, 0, 0) == 0 {
                 continue;
             }
             if j==0 {
-                working_elt.ps[0] = (x + y) as u32;
-                working_elt.degree += x;
+                working_elt.ps[0] = x + y;
+                working_elt.degree += x as i32;
                 // In this case the result is guaranteed to be admissible so we can immediately add it to result
                 let out_idx = self.basis_element_to_index(&working_elt);
                 result.add_basis_element(out_idx, 1);
@@ -731,7 +696,7 @@ impl AdemAlgebra {
             working_elt = tuple.0;
             let working_elt_idx = tuple.1;
             // total degree -> first sq -> idx of rest of squares
-            let rest_reduced = &self.multiplication_table[(n as i32 - (x + y) + j) as usize][j as usize][working_elt_idx];
+            let rest_reduced = &self.multiplication_table[(n as u32 - (x + y) + j) as usize][j as usize][working_elt_idx];
             for (i, coeff) in rest_reduced.iter().enumerate() {
                 if coeff == 0 {
                     continue;
@@ -739,7 +704,7 @@ impl AdemAlgebra {
                 // Reduce Sq^{x+y-j} * whatever square using the table in the same degree, larger index
                 // Since we're doing the first squares in decreasing order and x + y - j > x, 
                 // we already calculated this.
-                let source = &table[x as usize + y as usize -j as usize][i as usize];
+                let source = &table[(x + y - j) as usize][i as usize];
                 result.add(source, 1);
             }
         }
@@ -798,18 +763,17 @@ impl AdemAlgebra {
             }
         }
     }
-// self.multiplication_table[n as usize][x_index as usize].push(result);
-// self.multiplication_table[n as usize + 1][beta_x_index as usize].push(beta_result);
 
     fn generate_multiplication_table_generic_step(&self, table : &Vec<Vec<FpVector>>,  n : i32, x : i32, idx : usize) -> (FpVector, FpVector){
+        let x = x as u32;
         let p = self.p;
-        let q = (2*p-2) as i32;
+        let q = 2*p-2;
         let output_dimension = self.get_dimension(n, -1);
         let beta_output_dimension = self.get_dimension(n + 1, -1);
         let mut result = FpVector::new(self.p, output_dimension, 0);
         let mut beta_result = FpVector::new(self.p, beta_output_dimension, 0);
         
-        let cur_basis_elt = self.basis_element_from_index(n - q * x, idx);
+        let cur_basis_elt = self.basis_element_from_index(n - (q * x) as i32, idx);
 
         let x_len = (x>0) as usize;
         let mut working_elt = AdemBasisElement {
@@ -820,7 +784,7 @@ impl AdemAlgebra {
         };
         
         if x > 0 {
-            working_elt.ps.push(x as u32);
+            working_elt.ps.push(x);
         }
         for cur_p in &cur_basis_elt.ps {
             working_elt.ps.push(*cur_p);
@@ -831,7 +795,7 @@ impl AdemAlgebra {
         // If the length is 0 or the sequence is already admissible, we can just write a 1 in the answer
         // and continue.
         let b = cur_basis_elt.bocksteins & 1;
-        if cur_basis_elt.ps.len() == 0 || x == 0 || x >= (p*cur_basis_elt.ps[0] + b) as i32 {
+        if cur_basis_elt.ps.len() == 0 || x == 0 || x >= p*cur_basis_elt.ps[0] + b {
             let mut out_idx = self.basis_element_to_index(&working_elt);
             result.add_basis_element(out_idx, 1);
             if working_elt.bocksteins & 1 == 1 {
@@ -844,11 +808,11 @@ impl AdemAlgebra {
             beta_result.add_basis_element(out_idx, 1);
             return (result, beta_result);
         }
-        let y = cur_basis_elt.ps[0] as i32;     
+        let y = cur_basis_elt.ps[0];     
         // We only needed the extra first entry to perform the lookup if our element
         // happened to be admissible. Otherwise, take the rest of the list and forget about it.
         // (To prevent segfault, we have to reverse this before working_elt goes out of scope!)
-        working_elt.degree -= q*x;
+        working_elt.degree -= (q*x) as i32;
         working_elt.degree -= (working_elt.bocksteins & 1) as i32;
         working_elt.bocksteins >>= 1;
         let start_working_elt_degree = working_elt.degree;
@@ -861,22 +825,16 @@ impl AdemAlgebra {
             // e1 determines if a bockstein shows up in front 
             // e2 determines if a bockstein shows up in middle
             // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
-            let pi32 = p as i32;
-            for j in 0 .. x/pi32 + 1 {
-                let mut c = combinatorics::binomial(p, (y-j) * (pi32-1) + e1 as i32 - 1, x - pi32*j - e2 as i32);
-                if c == 0 {
-                    continue;
-                }
-                c *= combinatorics::minus_one_to_the_n(p, (x + j) as u32 + e2);
-                c = c % p;
+            for j in 0 .. x/p + 1 {
+                let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
                 if j == 0 {
                     if e2 & (working_elt.bocksteins >> 1) == 1 {
                         // Two bocksteins run into each other:
                         // P^x b P^y b --> P^{x+y} b b = 0
                         continue;
                     }
-                    working_elt.ps[0] = (x + y) as u32;
-                    working_elt.degree += q * x;
+                    working_elt.ps[0] = x + y;
+                    working_elt.degree += (q * x) as i32;
                     // Mask out bottom bit of original bocksteins.
                     working_elt.bocksteins &= !1;
                     // Now either the front bit or idx + 1 might need to be set depending on e1 and e2.
@@ -895,17 +853,17 @@ impl AdemAlgebra {
                     working_elt.bocksteins = start_working_elt_bocksteins;
                     continue;
                 }
-                working_elt.degree = n - q*(x + y) - b as i32;
+                working_elt.degree = n - (q*(x + y) + b) as i32;
                 working_elt.bocksteins >>= 1;
                 // Now we need to reduce b^{e2} P^j * (rest of term)
                 // The answer to this is in the table we're currently making.
                 unsafe { working_elt.ps = shift_vec(working_elt.ps, 1); }
                 let working_elt_idx = self.basis_element_to_index(&working_elt);
                 unsafe { working_elt.ps = shift_vec(working_elt.ps, -1); }
-                let bj_idx = (j<<1) as u32 + e2;
+                let bj_idx = (j<<1) + e2;
                 // (rest of term) has degree n - q*(x + y) - b, 
                 // b^{e2} P^j has degree q*j + e2, so the degree of the product is the sum of these two quantities.
-                let bj_degree = q*j + (e2 as i32);
+                let bj_degree = (q*j + e2) as i32;
                 let bpj_rest_degree = working_elt.degree + bj_degree;
                 // total degree ==> b^eP^j ==> rest of term idx ==> Vector
                 let rest_of_term = &self.multiplication_table[bpj_rest_degree as usize][bj_idx as usize][working_elt_idx];
@@ -916,8 +874,8 @@ impl AdemAlgebra {
                     // Reduce P^{x+y-j} * whatever square using the table in the same degree, larger index
                     // Since we're doing the first squares in decreasing order and x + y - j > x, 
                     // we already calculated this.
-                    let bj_idx = ((x+y-j) << 1) + e1 as i32;
-                    let output_vector = &table[bj_idx as usize][rest_of_term_idx];
+                    let bj_idx = (((x+y-j) << 1) + e1) as usize;
+                    let output_vector = &table[bj_idx][rest_of_term_idx];
                     result.add(output_vector, (c*rest_of_term_coeff)%p);
                     for (output_index, output_value) in output_vector.iter().enumerate() {
                         if output_value == 0 {
@@ -1255,6 +1213,19 @@ impl AdemAlgebra {
             result.push(((c_inv * c * v) % p, t1, t2));
         }
         return result;
+    }
+
+    fn get_beps_pn(&self, e : u32, x : u32) -> (i32, usize) {
+        let p = self.get_prime();
+        let q = if self.generic { 2 * p - 2} else { 1 };
+        let degree = (x * q + e) as i32;
+        let index = self.basis_element_to_index(&AdemBasisElement {
+            degree,
+            excess : 0,
+            bocksteins : e,
+            ps : vec![x]
+        });
+        return (degree, index);
     }
 }
 
