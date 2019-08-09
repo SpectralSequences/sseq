@@ -72,10 +72,10 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule
     let contents = load_module_from_file(config)?;
     let json = serde_json::from_str(&contents)?;
 
-    construct_from_json(json, config.algebra_name.clone(), config.max_degree)
+    construct_from_json(json, config.algebra_name.clone())
 }
 
-pub fn construct_from_json(mut json : Value, algebra_name : String, max_degree : i32) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
+pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
     let p = json["p"].as_u64().unwrap() as u32;
 
     // You need a box in order to allow for different possible types implementing the same trait
@@ -89,7 +89,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : String, max_degree :
     let algebra = Rc::new(algebra);
     let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &mut json)?);
     let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
-    let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), max_degree, None, None)));
+    let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), None, None)));
     Ok(AlgebraicObjectsBundle {
         algebra,
         module,
@@ -103,7 +103,7 @@ pub fn run_define_module() -> Result<String, Box<dyn Error>> {
 
 pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
     let bundle = construct(config)?;
-    let resolution = bundle.resolution.borrow();
+    let mut resolution = bundle.resolution.borrow_mut();
     resolution.resolve_through_degree(config.max_degree);
     Ok(resolution.graded_dimension_string())
 }
@@ -126,7 +126,7 @@ pub fn run_test() {
     let decomposition = algebra.decompose_basis_element(60, idx);
     println!("decomposition : {:?}", decomposition);
 
-    return;
+//    return;
     let max_degree = 25;
     // let contents = std::fs::read_to_string("static/modules/S_3.json").unwrap();
     // S_3
@@ -138,8 +138,8 @@ pub fn run_test() {
     let algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
     let module = Rc::new(FDModule::from_json(Rc::clone(&algebra), &mut json));
     let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
-    let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), max_degree, None, None)); 
-    // resolution.resolve_through_degree(max_degree);
+    let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), None, None)));
+    // resolution.borrow_mut().resolve_through_degree(max_degree);
     // let f = ResolutionHomomorphism::new("test".to_string(), Rc::clone(&resolution), Rc::clone(&resolution), 1, 4);
     // let mut v = matrix::Matrix::new(p, 1, 1);
     // v[0].set_entry(0, 1);
@@ -149,11 +149,11 @@ pub fn run_test() {
     let mut res_with_maps = ResolutionWithChainMaps::new(Rc::clone(&resolution), Rc::clone(&resolution));
     let mut map_data = crate::matrix::Matrix::new(2, 1, 1);
     map_data[0].set_entry(0, 1);
-    res_with_maps.add_self_map(4, 12, "v_1".to_string(), map_data);
-    // res_with_maps.add_product(2, 12, 0, "beta".to_string());
-    // res_with_maps.add_product(2, 9, 0, "\\alpha_{2}".to_string());
+    // res_with_maps.add_self_map(4, 12, "v_1".to_string(), map_data);
+    res_with_maps.add_product(2, 12, 0, "beta".to_string());
+    res_with_maps.add_product(2, 9, 0, "\\alpha_{2}".to_string());
     res_with_maps.resolve_through_degree(max_degree);
-    println!("{}", resolution.graded_dimension_string());
+    println!("{}", resolution.borrow().graded_dimension_string());
 }
 
 

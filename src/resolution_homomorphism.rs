@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::cell::RefCell;
 
 use crate::once::OnceVec;
 use crate::fp_vector::{ FpVector, FpVectorT };
@@ -15,8 +16,8 @@ pub struct ResolutionHomomorphism<
     T : Module, F2 : ModuleHomomorphism<T, T>, CC2 : ChainComplex<T, F2>
 > {
     name : String,
-    source : Rc<Resolution<S, F1, CC1>>,
-    target : Rc<Resolution<T, F2, CC2>>,
+    source : Rc<RefCell<Resolution<S, F1, CC1>>>,
+    target : Rc<RefCell<Resolution<T, F2, CC2>>>,
     maps : OnceVec<FreeModuleHomomorphism<FreeModule>>,
     homological_degree_shift : u32,
     internal_degree_shift : i32
@@ -28,7 +29,7 @@ impl<
 > ResolutionHomomorphism<S, F1, CC1, T, F2, CC2> {
     pub fn new(
         name : String,
-        source : Rc<Resolution<S,F1,CC1>>, target : Rc<Resolution<T,F2,CC2>>,
+        source : Rc<RefCell<Resolution<S,F1,CC1>>>, target : Rc<RefCell<Resolution<T,F2,CC2>>>,
         homological_degree_shift : u32, internal_degree_shift : i32
     ) -> Self {
         Self {
@@ -44,7 +45,7 @@ impl<
     fn get_map_ensure_length(&self, output_homological_degree : u32) -> &FreeModuleHomomorphism<FreeModule> {
         if output_homological_degree as usize >= self.maps.len() {
             let input_homological_degree = output_homological_degree + self.homological_degree_shift;
-            self.maps.push(FreeModuleHomomorphism::new(self.source.get_module(input_homological_degree), self.target.get_module(output_homological_degree), self.internal_degree_shift));
+            self.maps.push(FreeModuleHomomorphism::new(self.source.borrow().get_module(input_homological_degree), self.target.borrow().get_module(output_homological_degree), self.internal_degree_shift));
         }
         return &self.maps[output_homological_degree as usize];
     }
@@ -85,11 +86,13 @@ impl<
     }
 
     fn extend_step_helper(&self, input_homological_degree : u32, input_internal_degree : i32, mut extra_images : Option<&mut Matrix>) -> Matrix {
-        let p = self.source.get_prime();
+        let target = self.target.borrow();
+        let source = self.source.borrow();
+        let p = source.get_prime();
         assert!(input_homological_degree >= self.homological_degree_shift);
         let output_homological_degree = input_homological_degree - self.homological_degree_shift;
         let output_internal_degree = input_internal_degree - self.internal_degree_shift;        
-        let target_chain_map = self.target.get_chain_map(output_homological_degree);
+        let target_chain_map = target.get_chain_map(output_homological_degree);
         let target_chain_map_qi = target_chain_map.get_quasi_inverse(output_internal_degree);
         let target_cc_dimension = target_chain_map.get_target().get_dimension(output_internal_degree);
         if let Some(extra_images_matrix) = &extra_images {
@@ -116,8 +119,8 @@ impl<
             }
             return outputs_matrix;            
         }
-        let d_source = self.source.get_differential(input_homological_degree);
-        let d_target = self.target.get_differential(output_homological_degree);        
+        let d_source = source.get_differential(input_homological_degree);
+        let d_target = target.get_differential(output_homological_degree);
         let f_prev = self.get_map(output_homological_degree - 1);
         assert_eq!(d_source.get_source().get_name(), f_cur.get_source().get_name());
         assert_eq!(d_source.get_target().get_name(), f_prev.get_source().get_name());

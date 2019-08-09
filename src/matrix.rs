@@ -18,7 +18,7 @@ use std::fmt;
 /// In general, before one uses a matrix, they must run
 /// `fp_vector::initialize_limb_bit_index_table(p)`. This only has to be done once and will be
 /// omitted from all examples.
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct Matrix {
     p : u32,
     rows : usize,
@@ -435,7 +435,7 @@ impl Matrix {
 ///  * `column_to_pivot_row` - If the column is a pivot column, the entry is the row the pivot
 ///  corresponds to. If the column is not a pivot column, this is some negative number &mdash; not
 ///  necessarily -1!
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Subspace {
     pub matrix : Matrix,
     pub column_to_pivot_row : Vec<isize>

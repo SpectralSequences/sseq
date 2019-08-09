@@ -1,6 +1,7 @@
 use wasm_bindgen::prelude::*;
 
 use std::rc::Rc;
+use std::cell::RefCell;
 use serde_json::value::Value;
 
 use crate::algebra::{Algebra, AlgebraAny};
@@ -118,7 +119,7 @@ impl WasmCCDZ {
 
 #[wasm_bindgen]
 pub struct WasmResolution {
-   pimpl : *const ModuleResolution<FiniteModule>
+   pimpl : *const RefCell<ModuleResolution<FiniteModule>>
 }
 
 #[wasm_bindgen]
@@ -153,15 +154,15 @@ impl WasmResolution {
             add_structline.apply(&this, &args_array).unwrap_throw();
         };
         let add_stuctline_wrapper_box = Box::new(add_stuctline_wrapper);
-        let res = Resolution::new(chain_complex, max_degree, Some(add_class_wrapper_box), Some(add_stuctline_wrapper_box)); 
-        let boxed_res = Rc::new(res);
-        let pimpl : *const ModuleResolution<FiniteModule> = Rc::into_raw(boxed_res);
+        let res = Resolution::new(chain_complex,  Some(add_class_wrapper_box), Some(add_stuctline_wrapper_box));
+        let boxed_res = Rc::new(RefCell::new(res));
+        let pimpl : *const RefCell<ModuleResolution<FiniteModule>> = Rc::into_raw(boxed_res);
         Self {
             pimpl
         }
     }
  
-    fn to_resolution(&self) -> Rc<ModuleResolution<FiniteModule>> {
+    fn to_resolution(&self) -> Rc<RefCell<ModuleResolution<FiniteModule>>> {
         unsafe { 
             let raw = Rc::from_raw(self.pimpl);
             let result = Rc::clone(&raw);
@@ -175,15 +176,15 @@ impl WasmResolution {
     // }
 
     pub fn resolve_through_degree(&self, degree : i32) {
-        self.to_resolution().resolve_through_degree(degree);
+        self.to_resolution().borrow_mut().resolve_through_degree(degree);
     }
 
     pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
-        self.to_resolution().get_cocycle_string(hom_deg, int_deg, idx)
+        self.to_resolution().borrow().get_cocycle_string(hom_deg, int_deg, idx)
     }
 
     pub fn free(self) {
-         let _drop_me :  Rc<ModuleResolution<FiniteModule>> 
+         let _drop_me :  Rc<RefCell<ModuleResolution<FiniteModule>>>
             = unsafe { Rc::from_raw(self.pimpl) };
     }
 }
@@ -232,7 +233,7 @@ impl WasmResolutionWithChainMaps {
     }
 
     pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
-        self.to_res_with_maps().resolution.get_cocycle_string(hom_deg, int_deg, idx)
+        self.to_res_with_maps().resolution.borrow().get_cocycle_string(hom_deg, int_deg, idx)
     }
 
     pub fn free(self) {
