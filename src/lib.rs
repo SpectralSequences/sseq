@@ -87,7 +87,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : String, max_degree :
     };
     algebra.set_default_filtration_one_products();
     let algebra = Rc::new(algebra);
-    let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &algebra_name, &mut json)?);
+    let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &mut json)?);
     let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
     let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), max_degree, None, None)));
     Ok(AlgebraicObjectsBundle {
@@ -136,7 +136,7 @@ pub fn run_test() {
     let mut json : Value = serde_json::from_str(&contents).unwrap();
     let p = json["p"].as_u64().unwrap() as u32;
     let algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
-    let module = Rc::new(FDModule::from_json(Rc::clone(&algebra), "adem", &mut json));
+    let module = Rc::new(FDModule::from_json(Rc::clone(&algebra), &mut json));
     let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
     let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), max_degree, None, None)); 
     // resolution.resolve_through_degree(max_degree);

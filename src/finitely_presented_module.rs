@@ -67,12 +67,12 @@ impl FinitelyPresentedModule {
         return (min_degree as i32, graded_dimension, gen_to_idx);
     }
 
-    pub fn from_json(algebra : Rc<AlgebraAny>, algebra_name: &str, json : &mut Value) -> Self {
+    pub fn from_json(algebra : Rc<AlgebraAny>, json : &mut Value) -> Self {
         let p = algebra.get_prime();
         let name = json["name"].as_str().unwrap().to_string();
         let gens = json["gens"].take();
         let (min_degree, num_gens_in_degree, gen_to_deg_idx) = Self::module_gens_from_json(&gens);
-        let mut relations_value = json[algebra_name.to_owned() + "_relations"].take();
+        let mut relations_value = json[algebra.get_algebra_type().to_owned() + "_relations"].take();
         let relations_values = relations_value.as_array_mut().unwrap();
         let max_gen_degree = num_gens_in_degree.len() as i32 + min_degree;
         algebra.compute_basis(20);

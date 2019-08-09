@@ -64,7 +64,7 @@ pub struct WasmModule {
 impl WasmModule {
     pub fn new_adem_module(algebra : &WasmAlgebra, json_string : String) -> WasmModule {
         let mut json : Value = serde_json::from_str(&json_string).unwrap();
-        let module = FiniteModule::from_json(algebra.to_algebra(), "adem", &mut json).ok().unwrap();
+        let module = FiniteModule::from_json(algebra.to_algebra(), &mut json).ok().unwrap();
         let boxed_module = Rc::new(module);
         Self {
             pimpl : Rc::into_raw(boxed_module)
