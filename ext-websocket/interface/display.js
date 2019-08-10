@@ -53,6 +53,10 @@ export default class MyDisplay extends SidebarDisplay {
             this.tooltip.show(node.x, node.y);
         });
 
+        this.on("mouseout", () => {
+            this.tooltip.hide();
+        });
+
         this.structlinePanel = new StructlinePanel(this.sidebar.main_div, this);
         this.sidebar.addPanel(this.structlinePanel);
         this.sidebar.currentPanel = this.structlinePanel;

@@ -180,7 +180,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         }
 
         self.extend_through_degree(*next_s, max_s, *next_t, max_t);
-        self.get_algebra().compute_basis(max_t + 1);// because Adem has off-by-one
+        self.get_algebra().compute_basis(max_t);// because Adem has off-by-one
 
         if let Some(unit_res) = &self.unit_resolution {
             unit_res.borrow().resolve_through_bidegree(&unit_res, self.max_product_homological_degree, max_t);
