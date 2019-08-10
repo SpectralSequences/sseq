@@ -315,6 +315,7 @@ impl Algebra for MilnorAlgebra {
                 // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
                 for j in 0 .. x/p + 1 {
                     let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
+                    if c == 0 { continue; }
                     if j == 0 {
                         relation.push((c, self.get_beps_pn(e1, x + y), (e2 as i32, 0)));
                         continue;

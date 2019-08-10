@@ -113,6 +113,7 @@ pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
 //use crate::fp_vector::FpVectorT;
 // use crate::resolution_homomorphism::ResolutionHomomorphism;
 #[allow(unreachable_code)]
+#[allow(unused_mut)]
 pub fn run_test() {
     let p = 2;
     let max_degree = 30;
@@ -124,7 +125,7 @@ pub fn run_test() {
     let i = 4;
     let dim = adem.get_dimension(degree, -1);
     let mut adem_result = crate::fp_vector::FpVector::new(p, dim, 0);
-    crate::change_of_basis::milnor_to_adem_on_basis(&adem, &milnor, &mut adem_result, 1, degree, i);
+    // crate::change_of_basis::milnor_to_adem_on_basis(&adem, &milnor, &mut adem_result, 1, degree, i);
     return;
 
     let p = 3;

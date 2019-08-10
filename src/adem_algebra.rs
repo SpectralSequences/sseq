@@ -375,6 +375,7 @@ impl Algebra for AdemAlgebra {
                 // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
                 for j in 0 .. x/p + 1 {
                     let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
+                    if c == 0 { continue; }
                     let idx = self.basis_element_to_index(&AdemBasisElement{
                         degree,
                         excess : 0,
@@ -826,6 +827,9 @@ impl AdemAlgebra {
             // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
             for j in 0 .. x/p + 1 {
                 let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
+                if c == 0 {
+                    continue;
+                }
                 if j == 0 {
                     if e2 & (working_elt.bocksteins >> 1) == 1 {
                         // Two bocksteins run into each other:
@@ -874,8 +878,6 @@ impl AdemAlgebra {
                     // Since we're doing the first squares in decreasing order and x + y - j > x, 
                     // we already calculated this.
                     let bj_idx = (((x+y-j) << 1) + e1) as usize;
-                    println!("n : {}, x: {}, y : {}, j : {}, e1 : {}", n, x, y, j, e1);
-                    println!("table : {:?}", table);
                     let output_vector = &table[bj_idx][rest_of_term_idx];
                     result.add(output_vector, (c*rest_of_term_coeff)%p);
                     for (output_index, output_value) in output_vector.iter().enumerate() {
@@ -883,7 +885,6 @@ impl AdemAlgebra {
                             continue;
                         }
                         let mut z = self.basis_element_from_index(n, output_index).clone();
-                        // let z = self.basis_element_from_index_mut(n, output_index);
                         if z.bocksteins & 1 == 0 {
                             z.bocksteins |= 1;
                             z.degree += 1;
