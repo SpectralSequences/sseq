@@ -51,7 +51,7 @@ if (!params.module) {
 }
 
 function openWebSocket(initialData, maxDegree) {
-    window.webSocket = new WebSocket("ws://localhost:8080/ws");
+    window.webSocket = new WebSocket(`ws://${window.location.host}/ws`);
 
     webSocket.onopen = function(e) {
         webSocket.send(JSON.stringify(initialData));
