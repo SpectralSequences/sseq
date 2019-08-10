@@ -189,7 +189,7 @@ impl WasmResolution {
 
     pub fn resolve_through_degree(&self, degree : i32) {
         let res = self.to_resolution();
-        res.borrow_mut().resolve_through_degree(&res, degree);
+        res.borrow().resolve_through_degree(&res, degree);
     }
 
     pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
