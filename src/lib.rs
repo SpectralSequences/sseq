@@ -37,6 +37,7 @@ extern crate serde_json;
 
 extern crate wasm_bindgen;
 extern crate web_sys;
+extern crate bivec;
 
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::fp_vector::FpVectorT;

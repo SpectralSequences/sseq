@@ -1,7 +1,7 @@
 use std::sync::{Mutex, MutexGuard};
 use std::rc::Rc;
 
-use crate::once::OnceVec;
+use crate::once::OnceBiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::Module;
@@ -11,9 +11,9 @@ use crate::free_module::{FreeModule, FreeModuleTableEntry};
 pub struct FreeModuleHomomorphism<M : Module> {
     source : Rc<FreeModule>,
     target : Rc<M>,
-    outputs : OnceVec<Vec<FpVector>>, // degree --> input_idx --> output
-    kernel : OnceVec<Subspace>,
-    quasi_inverse : OnceVec<QuasiInverse>,
+    outputs : OnceBiVec<Vec<FpVector>>, // degree --> input_idx --> output
+    kernel : OnceBiVec<Subspace>,
+    quasi_inverse : OnceBiVec<QuasiInverse>,
     min_degree : i32,
     max_degree : Mutex<i32>,
     degree_shift : i32
@@ -29,13 +29,12 @@ impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M>
     }
 
     fn get_max_kernel_degree(&self) -> i32 {
-        self.kernel.len() as i32 + self.get_min_degree() - 1
+        self.kernel.len() - 1
     }
 
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_index : usize){
         assert!(input_degree >= self.source.min_degree);
-        let input_degree_idx = (input_degree - self.source.min_degree) as usize;
-        let table = &self.source.table[input_degree_idx];
+        let table = &self.source.table[input_degree];
         self.apply_to_basis_element_with_table(result, coeff, input_degree, table, input_index);
     }
 
@@ -44,18 +43,14 @@ impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M>
     }
 
     fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse){
-        let min_degree = self.get_min_degree();
-        assert!(degree >= min_degree);
-        let degree_idx = (degree - min_degree) as usize;
-        assert!(degree_idx == self.quasi_inverse.len());
+        assert!(degree >= self.min_degree);
+        assert!(degree == self.quasi_inverse.len());
         self.quasi_inverse.push(quasi_inverse);
     }
 
     fn get_quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
-        let min_degree = self.get_min_degree();
-        assert!(degree >= min_degree, format!("Degree {} less than min degree {}", degree, min_degree));
-        let degree_idx = (degree - min_degree) as usize;
-        Some(&self.quasi_inverse[degree_idx])
+        debug_assert!(degree >= self.min_degree, format!("Degree {} less than min degree {}", degree, self.min_degree));
+        Some(&self.quasi_inverse[degree])
     }
 }
 // // Run FreeModule_ConstructBlockOffsetTable(source, degree) before using this on an input in that degree
@@ -66,10 +61,10 @@ impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M>
 
 impl<M : Module> FreeModuleHomomorphism<M> {
     pub fn new(source : Rc<FreeModule>, target : Rc<M>, degree_shift : i32) -> Self {
-        let outputs = OnceVec::new();
-        let kernel = OnceVec::new();
-        let quasi_inverse = OnceVec::new();
         let min_degree = std::cmp::max(source.get_min_degree(), target.get_min_degree() + degree_shift);
+        let outputs = OnceBiVec::new(min_degree);
+        let kernel = OnceBiVec::new(min_degree);
+        let quasi_inverse = OnceBiVec::new(min_degree);
         Self {
             source,
             target,
@@ -93,8 +88,7 @@ impl<M : Module> FreeModuleHomomorphism<M> {
             format!("generator_index {} greater than number of generators {}", 
                 generator_index, self.source.get_number_of_gens_in_degree(generator_degree)
         ));
-        let generator_degree_idx = (generator_degree - self.get_min_degree()) as usize;
-        return &self.outputs[generator_degree_idx][generator_index];
+        return &self.outputs[generator_degree][generator_index];
     }
 
     // We don't actually mutate &mut matrix, we just slice it.
@@ -103,8 +97,7 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         let dimension = self.target.get_dimension(degree);
         // println!("    dimension : {} target name : {}", dimension, self.target.get_name());
         assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
-        assert_eq!(degree_idx, self.outputs.len());
+        assert_eq!(degree, self.outputs.len());
         assert!(degree == **lock + 1);
         let p = self.get_prime();
         let dimension = self.target.get_dimension(degree - self.degree_shift);
@@ -146,8 +139,10 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         }
     }
 
+    /// # Arguments
+    ///  * `degree` - The internal degree of the target of the homomorphism.
     pub fn get_matrix_with_table(&self, matrix : &mut Matrix, table : &FreeModuleTableEntry , degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {
-        let source_dimension = self.source.get_dimension_with_table(degree, table);
+        let source_dimension = FreeModule::get_dimension_with_table(table);
         let target_dimension = self.get_target().get_dimension(degree);
         assert!(source_dimension <= matrix.get_rows());
         assert!(target_dimension <= matrix.get_columns());

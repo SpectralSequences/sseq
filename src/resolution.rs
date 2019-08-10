@@ -291,7 +291,6 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
     pub fn generate_old_kernel_and_compute_new_kernel(&self, homological_degree : u32, degree : i32, old_kernel : Option<Subspace>) -> Subspace {
         let min_degree = self.get_min_degree();
         // println!("====hom_deg : {}, int_deg : {}", homological_degree, degree);
-        let degree_idx = (degree - min_degree) as usize;
         let p = self.get_prime();
         //                           current_chain_map
         //                X_{s, t} --------------------> C_{s, t}
@@ -310,7 +309,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let (source_lock, source_module_table) = source.construct_table(degree);
         let mut chain_map_lock = current_chain_map.get_lock();
         let mut differential_lock = current_differential.get_lock();
-        let source_dimension = source.get_dimension_with_table(degree, &source_module_table);
+        let source_dimension = FreeModule::get_dimension_with_table(&source_module_table);
         let target_cc_dimension = target_cc.get_dimension(degree);
         let target_res_dimension = target_res.get_dimension(degree);
         let target_dimension = target_cc_dimension + target_res_dimension;
