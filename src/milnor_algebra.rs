@@ -53,7 +53,7 @@ impl std::hash::Hash for MilnorBasisElement {
 impl std::fmt::Display for MilnorBasisElement {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         if self.degree == 0 {
-            write!(f, "0")?;
+            write!(f, "1")?;
             return Ok(());
         }
         let mut qpart = self.q_part;

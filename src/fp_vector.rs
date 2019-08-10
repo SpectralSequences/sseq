@@ -184,6 +184,8 @@ pub trait FpVectorT {
         let container = self.get_vector_container_mut();
         container.slice_end = container.slice_start + slice_end;
         container.slice_start += slice_start;
+        debug_assert!(container.slice_start <= container.slice_end);
+        debug_assert!(container.slice_end <= container.dimension);        
     }
 
     fn restore_slice(&mut self, slice : (usize, usize)) {
@@ -640,7 +642,7 @@ impl FpVector {
         let p = self.get_prime();
         self.clear_slice();
         let mut result;
-        if self.get_dimension() < dimension {
+        if dimension <= self.get_dimension() {
             result = self;
         } else {
             result = FpVector::get_scratch_vector(p, dimension);
