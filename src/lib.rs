@@ -9,6 +9,8 @@ pub mod algebra;
 pub mod adem_algebra;
 pub mod milnor_algebra;
 pub mod change_of_basis;
+pub mod steenrod_parser;
+pub mod steenrod_evaluator;
 pub mod module;
 pub mod module_homomorphism;
 pub mod finite_dimensional_module;
@@ -38,6 +40,9 @@ extern crate serde_json;
 extern crate wasm_bindgen;
 extern crate web_sys;
 extern crate bivec;
+
+// Parser
+extern crate nom;
 
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::fp_vector::FpVectorT;
@@ -80,15 +85,19 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule
 pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
     let p = json["p"].as_u64().unwrap() as u32;
 
-    // You need a box in order to allow for different possible types implementing the same trait
     let mut algebra : AlgebraAny;
     match algebra_name.as_ref() {
         "adem" => algebra = AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)),
         "milnor" => algebra = AlgebraAny::from(MilnorAlgebra::new(p)),
         _ => { return Err(Box::new(InvalidAlgebraError { name : algebra_name.clone() })); }
     };
+
     algebra.set_default_filtration_one_products();
     let algebra = Rc::new(algebra);
+    match &*algebra {
+        AlgebraAny::AdemAlgebra(alg) => {},
+        AlgebraAny::MilnorAlgebra(alg) => {},
+    }
     let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &mut json)?);
     let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
     let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), None, None)));
@@ -116,6 +125,28 @@ pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
 #[allow(unreachable_code)]
 #[allow(unused_mut)]
 pub fn run_test() {
+    let p = 2;
+    let max_degree = 16;
+    let adem = AdemAlgebra::new(p, p != 2, false);
+    let milnor = MilnorAlgebra::new(p);//, p != 2
+    adem.compute_basis(max_degree);
+    milnor.compute_basis(max_degree);
+    let idx = adem.basis_element_to_index(&crate::adem_algebra::AdemBasisElement {
+        degree : 7,
+        excess : 0,
+        bocksteins : 0,
+        ps : vec![4, 2, 1]
+    });
+    let mut result = fp_vector::FpVector::new(p, adem.get_dimension(7, -1), 0);
+    change_of_basis::adem_to_milnor_on_basis(&adem, &milnor, &mut result, 1, 7, idx);
+    println!("Sq4 Sq2 Sq1 ==> {}\n\n", milnor.element_to_string(7, &result));
+    for i in 2..3 {
+        let degree = (1 << (i + 1)) - 1;
+        let mut result = crate::fp_vector::FpVector::new(p, adem.get_dimension(degree, -1), 0);
+        crate::change_of_basis::get_adem_q(&adem, &milnor, &mut result, 1, i);
+        println!("Q{} ==> {}", i, adem.element_to_string(degree, &result));
+    }
+    
     let p = 2;
     let max_degree = 30;
     let adem = AdemAlgebra::new(p, p != 2, false);

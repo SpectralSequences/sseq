@@ -3,7 +3,7 @@ use crate::algebra::{Algebra};
 use crate::adem_algebra::{AdemAlgebra, AdemBasisElement};
 use crate::milnor_algebra::{MilnorAlgebra, MilnorBasisElement};
 
-use std::rc::Rc;
+// use std::rc::Rc;
 
 pub fn adem_to_milnor_on_basis(
     adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, 
@@ -45,11 +45,11 @@ pub fn adem_to_milnor_on_basis(
         milnor_algebra.multiply_element_by_basis_element(&mut tmp_vector_b, 1, total_degree, &tmp_vector_a, mbe.degree, idx, -1);
         total_degree += mbe.degree;
         std::mem::swap(&mut tmp_vector_a, &mut tmp_vector_b);
+        tmp_vector_b.set_to_zero();
     }
     if bocksteins & 1 != 0 {
         milnor_algebra.multiply_element_by_basis_element(result, coeff, total_degree, &tmp_vector_a, 1, 0, -1);
     } else {
-        // println!("result : {:?}, tmp : {:?}", result, tmp_vector_a);
         result.add(&mut tmp_vector_a, coeff);
     }
 }
@@ -84,7 +84,6 @@ fn milnor_to_adem_on_basis_2(
     adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra,
     result : &mut FpVector, coeff : u32, degree : i32, idx : usize
 ){
-    println!("input: {}", milnor_algebra.basis_element_to_string(degree, idx));
     let elt = milnor_algebra.basis_element_from_index(degree, idx);
     let p = milnor_algebra.get_prime();
     let dim = milnor_algebra.get_dimension(elt.degree, -1);
@@ -160,11 +159,71 @@ fn milnor_to_adem(
     }
 }
 
+pub fn get_adem_q(
+    adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra,
+    result : &mut FpVector, coeff : u32, qi : u32
+){
+    let p = adem_algebra.get_prime();
+    let degree = crate::combinatorics::get_tau_degrees(p)[qi as usize];
+    let mbe;
+    if adem_algebra.generic {
+        mbe = MilnorBasisElement {
+            degree,
+            q_part : 1 << qi, 
+            p_part : vec![]
+        };
+    } else {
+        let mut p_part = vec![0; qi as usize + 1];
+        p_part[qi as usize] = 1;
+        mbe = MilnorBasisElement {
+            degree,
+            q_part: 0,
+            p_part
+        };
+    }
+    let idx = milnor_algebra.basis_element_to_index(&mbe);
+    milnor_to_adem_on_basis(adem_algebra, milnor_algebra, result, coeff, degree, idx);
+}
+
+pub fn get_adem_plist(
+    adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra,
+    result : &mut FpVector, coeff : u32, degree : i32, p_part : Vec<u32>
+){
+    let mbe = MilnorBasisElement {
+        degree,
+        p_part,
+        q_part : 0
+    };
+    let idx = milnor_algebra.basis_element_to_index(&mbe);
+    milnor_to_adem_on_basis(adem_algebra, milnor_algebra, result, coeff, degree, idx);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use rstest::rstest_parametrize;
     
+    #[test]
+    fn test_cob_milnor_qs_to_adem(){
+        let p = 2;
+        let max_degree = 16;
+        let adem = AdemAlgebra::new(p, p != 2, false);
+        let milnor = MilnorAlgebra::new(p);//, p != 2
+        adem.compute_basis(max_degree);
+        milnor.compute_basis(max_degree);
+        for (qi, output) in vec![
+            (0, "P1"),
+            (1, "P3 + P2 P1"),
+            (2, "P7 + P5 P2 + P6 P1 + P4 P2 P1")
+        ] {
+            let degree = (1 << (qi + 1)) - 1;
+            let mut result = FpVector::new(p, adem.get_dimension(degree, -1), 0);
+            get_adem_q(&adem, &milnor, &mut result, 1, qi);
+            println!("Q{} ==> {}", qi, adem.element_to_string(degree, &result));
+            assert_eq!(adem.element_to_string(degree, &result), output)
+        }
+    }
+
     #[allow(non_snake_case)]
     #[rstest_parametrize(p, max_degree,
         case(2, 32),

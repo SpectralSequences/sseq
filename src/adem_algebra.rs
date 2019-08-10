@@ -1203,7 +1203,7 @@ impl AdemAlgebra {
         return result;
     }
 
-    fn get_beps_pn(&self, e : u32, x : u32) -> (i32, usize) {
+    pub fn get_beps_pn(&self, e : u32, x : u32) -> (i32, usize) {
         let p = self.get_prime();
         let q = if self.generic { 2 * p - 2} else { 1 };
         let degree = (x * q + e) as i32;
