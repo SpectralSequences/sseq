@@ -1,18 +1,40 @@
 #![allow(unused_imports)]
 
-use std::cmp::max;
-use std::rc::Rc;
+use std::cmp::{min, max};
+use std::rc::{Weak, Rc};
+use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::sync::{Mutex, MutexGuard};
 
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace};
 use crate::algebra::{Algebra, AlgebraAny};
-use crate::module::{Module, ZeroModule};
+use crate::module::{Module, ZeroModule, OptionModule};
 use crate::free_module::FreeModule;
+use crate::once::{OnceVec, OnceBiVec, TempStorage};
+use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
 use crate::chain_complex::ChainComplex;
+use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
+use crate::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorphismToUnit};
+
+struct Cocycle {
+    s : u32,
+    t : i32,
+    index : usize,
+    name : String
+}
+
+struct SelfMap<
+    M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>
+> {
+    s : u32,
+    t : i32,
+    name : String,
+    map_data : TempStorage<Matrix>,
+    map : ResolutionHomomorphism<M, F, CC, M, F, CC>
+}
 
 /// #Fields
 ///  * `kernels` - For each *internal* degree, store the kernel of the most recently calculated
@@ -20,20 +42,33 @@ use crate::chain_complex::ChainComplex;
 ///  resolve_through_degree again.
 pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> {
     complex : Rc<CC>,
-    modules : Vec<Rc<FreeModule>>,
+    modules : OnceVec<Rc<FreeModule>>,
     zero_module : Rc<FreeModule>,
-    chain_maps : Vec<FreeModuleHomomorphism<M>>,    
-    differentials : Vec<FreeModuleHomomorphism<FreeModule>>,
+    chain_maps : OnceVec<FreeModuleHomomorphism<M>>,
+    differentials : OnceVec<FreeModuleHomomorphism<FreeModule>>,
     phantom : PhantomData<ChainComplex<M, F>>,
-    pub kernels : Vec<Option<Subspace>>,
 
-    pub next_degree : i32,
+    pub kernels : OnceBiVec<RefCell<Option<Subspace>>>,
+
+    pub next_s : Mutex<u32>,
+    pub next_t : Mutex<i32>,
     pub add_class : Option<Box<dyn Fn(u32, i32, &str)>>,
     pub add_structline : Option<Box<dyn Fn(
         &str,
         u32, i32, usize, 
         u32, i32, usize
-    )>>
+    )>>,
+
+    // Products
+    unit_resolution : Option<Rc<RefCell<ModuleResolution<FDModule>>>>,
+    product_list : Vec<Cocycle>,
+    // s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
+    // until we actually have a unit resolution, of course.
+    chain_maps_to_unit_resolution : OnceVec<OnceBiVec<OnceVec<ResolutionHomomorphismToUnit<M, F, CC>>>>,
+    max_product_homological_degree : u32,
+
+    // Self maps
+    self_maps : Vec<SelfMap<M, F, CC>>
 }
 
 impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resolution<M, F, CC> {
@@ -53,26 +88,34 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 
         Self {
             complex,
-            chain_maps : Vec::new(),
+            chain_maps : OnceVec::new(),
 
-            modules : Vec::new(),
+            modules : OnceVec::new(),
             zero_module,
-            differentials : Vec::new(),
-            kernels : Vec::new(),
+            differentials : OnceVec::new(),
+            kernels : OnceBiVec::new(min_degree),
             phantom : PhantomData,
 
-            next_degree : 0,
+            next_s : Mutex::new(0),
+            next_t : Mutex::new(min_degree),
             add_class,
             add_structline,
+
+            chain_maps_to_unit_resolution : OnceVec::new(),
+            max_product_homological_degree : 0,
+            product_list : Vec::new(),
+            unit_resolution : None,
+
+            self_maps : Vec::new()
         }
     }
 
     pub fn get_max_degree(&self) -> i32 {
-        self.next_degree - 1
+        *self.next_t.lock().unwrap() - 1
     }
 
     pub fn get_max_hom_deg(&self) -> u32 {
-        (self.get_max_degree() - self.get_min_degree()) as u32
+        *self.next_s.lock().unwrap() - 1
     }
     
     pub fn get_complex(&self) -> Rc<CC> {
@@ -104,70 +147,90 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
     }
 
     /// This function prepares the Resolution object to perform computations up to the specified
-    /// degree. It does *not* perform any computations by itself. It simply lengthens the
+    /// s degree. It does *not* perform any computations by itself. It simply lengthens the
     /// `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
-    pub fn extend_through_degree(&mut self, max_degree : i32) {
+    pub fn extend_through_degree(&self, mut next_s : u32, max_s : u32, next_t : i32, max_t : i32) {
         let min_degree = self.get_min_degree();
-        let mut next_degree = self.next_degree;
 
-        for i in next_degree ..= max_degree {
+        for i in next_s ..= max_s {
             self.modules.push(Rc::new(FreeModule::new(Rc::clone(&self.get_algebra()), format!("F{}", i), min_degree)));
-            self.chain_maps.push(FreeModuleHomomorphism::new(Rc::clone(&self.modules[i as usize]), Rc::clone(&self.complex.get_module(i as u32)), 0));
-            self.kernels.push(None);
+            self.chain_maps.push(FreeModuleHomomorphism::new(Rc::clone(&self.modules[i]), Rc::clone(&self.complex.get_module(i)), 0));
         }
 
-        if next_degree == 0 {
-            self.differentials.push(FreeModuleHomomorphism::new(Rc::clone(&self.modules[0]), Rc::clone(&self.zero_module), 0));
-            next_degree += 1;
+        for i in next_t ..= max_t {
+            self.kernels.push(RefCell::new(None));
         }
-        for i in next_degree ..= max_degree {
-            self.differentials.push(FreeModuleHomomorphism::new(Rc::clone(&self.modules[i as usize]), Rc::clone(&self.modules[i as usize - 1]), 0));
+
+        if next_s == 0 {
+            self.differentials.push(FreeModuleHomomorphism::new(Rc::clone(&self.modules[0u32]), Rc::clone(&self.zero_module), 0));
+            next_s += 1;
+        }
+        for i in next_s ..= max_s {
+            self.differentials.push(FreeModuleHomomorphism::new(Rc::clone(&self.modules[i]), Rc::clone(&self.modules[i - 1]), 0));
         }
     }
 
-    pub fn resolve_through_degree(&mut self, degree : i32) {
+    pub fn resolve_through_bidegree(&self, self_: &Rc<RefCell<Self>>, mut max_s : u32, mut max_t : i32) {
         let min_degree = self.get_min_degree();
-        if degree < self.next_degree {
-            return;
+        let mut next_s = self.next_s.lock().unwrap();
+        let mut next_t = self.next_t.lock().unwrap();
+
+        // We want the computed area to always be a square.
+        max_t = max(max_t, *next_t - 1);
+        if max_s < *next_s {
+            max_s = *next_s - 1;
         }
-        self.extend_through_degree(degree);
 
-        self.get_algebra().compute_basis(degree + 1);// because Adem has off-by-one
+        self.extend_through_degree(*next_s, max_s, *next_t, max_t);
+        self.get_algebra().compute_basis(max_t + 1);// because Adem has off-by-one
 
-        // So far, we have computed everything for t, s < next_degree.
-        for t in min_degree ..=degree {
-            // We cannot mutably borrow self.kernels and then run self.step
-            let mut new_kernel = self.kernels[(t - min_degree) as usize].clone();
+        if let Some(unit_res) = &self.unit_resolution {
+            unit_res.borrow().resolve_through_bidegree(&unit_res, self.max_product_homological_degree, max_t);
+        }
 
-            let start = if t < self.next_degree { self.next_degree } else { 0 };
-            for s in start ..= degree {
-                new_kernel = Some(self.step(s as u32, t, new_kernel));
+        for t in min_degree ..= max_t {
+            // TODO: Just use the borrow_mut instead of cloning
+            let mut new_kernel = self.kernels[t].borrow_mut().clone();
+
+            let start = if t < *next_t { *next_s } else { 0 };
+            for s in start ..= max_s {
+                new_kernel = Some(self.step(&self_, s as u32, t, new_kernel));
             }
-            self.kernels[(t - min_degree) as usize] = new_kernel;
+            *self.kernels[t].borrow_mut() = new_kernel;
         }
 
-        self.next_degree = degree + 1;
+        *next_s = max_s + 1;
+        *next_t = max_t + 1;
     }
 
-    pub fn step(&self, homological_degree : u32, internal_degree : i32, old_kernel : Option<Subspace>) -> Subspace {
+    // We cannot do self : Rc<RefCell<Self>>. We should probably check that self_ and &self
+    // indeed refer to the same thing...
+    pub fn resolve_through_degree(&self, self_: &Rc<RefCell<Self>>, degree : i32) {
+        self.resolve_through_bidegree(self_, degree as u32, degree);
+    }
+
+    pub fn step(&self, self_: &Rc<RefCell<Self>>, s : u32, t : i32, old_kernel : Option<Subspace>) -> Subspace {
         // println!("step : hom_deg : {}, int_deg : {}", homological_degree, degree);
-        if homological_degree == 0 {
-            self.zero_module.extend_by_zero(internal_degree);
+        if s == 0 {
+            self.zero_module.extend_by_zero(t);
         }
-        self.get_complex().compute_through_bidegree(homological_degree, internal_degree);
-        let new_kernel = self.generate_old_kernel_and_compute_new_kernel(homological_degree, internal_degree, old_kernel);
-        let module = self.get_module(homological_degree);
-        let num_gens = module.get_number_of_gens_in_degree(internal_degree);
+        self.get_complex().compute_through_bidegree(s, t);
+        let new_kernel = self.generate_old_kernel_and_compute_new_kernel(s, t, old_kernel);
+        let module = self.get_module(s);
+        let num_gens = module.get_number_of_gens_in_degree(t);
         if let Some(f) = &self.add_class {
             for i in 0..num_gens {
-                f(homological_degree, internal_degree, &format!("{}", i));
+                f(s, t, &format!("{}", i));
             }
         }
         if let Some(_) = &self.add_structline {
             for i in 0..num_gens {
-                self.compute_filtration_one_products(homological_degree, internal_degree, i);
+                self.compute_filtration_one_products(s, t, i);
             }
         }
+        self.extend_maps_to_unit(self_, s, t);
+        self.compute_products(s, t);
+        self.compute_self_maps(s, t);
         new_kernel
     }
 
@@ -444,6 +507,189 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 
 }
 
+// Product algorithms
+impl<M, F, CC> Resolution<M, F, CC> where
+    M : Module,
+    F : ModuleHomomorphism<M, M>,
+    CC : ChainComplex<M, F>
+{
+    pub fn add_product(&mut self, s : u32, t : i32, index : usize, name : String) {
+         if self.unit_resolution.is_none() {
+             self.construct_unit_resolution();
+         }
+         if s > self.max_product_homological_degree {
+             self.max_product_homological_degree = s;
+         }
+         self.product_list.push(Cocycle { s, t, index, name });
+    }
+
+    pub fn construct_unit_resolution(&mut self) {
+         let unit_module = Rc::new(FDModule::new(self.get_algebra(), String::from("unit"), 0, vec![1]));
+         let ccdz = Rc::new(CCDZ::new(unit_module));
+         self.unit_resolution = Some(Rc::new(RefCell::new(Resolution::new(ccdz, None, None))));
+    }
+
+    pub fn set_unit_resolution(&mut self, unit_res : Rc<RefCell<ModuleResolution<FDModule>>>) {
+        self.unit_resolution = Some(unit_res);
+    }
+
+    /// Compute products whose result lie in degrees up to (s, t)
+    fn compute_products(&self, s : u32, t : i32) {
+        for elt in &self.product_list {
+            if s < elt.s || t < self.get_min_degree() + elt.t {
+                continue;
+            }
+
+            let source_s = s - elt.s;
+            let source_t = t - elt.t;
+
+            for k in 0.. self.get_number_of_gens_in_bidegree(source_s, source_t) {
+                self.compute_product_step(elt, source_s, source_t, k);
+            }
+        }
+    }
+
+    fn compute_product_step(&self, elt : &Cocycle, s : u32, t : i32, idx : usize)
+    {
+        let f = &self.chain_maps_to_unit_resolution[s][t][idx];
+        let target_s = s + elt.s;
+        let target_t = t + elt.t;
+
+        let unit_res = self.unit_resolution.as_ref().unwrap().borrow();
+        let output_module = unit_res.get_module(elt.s);
+        let output_gens = output_module.get_number_of_gens_in_degree(elt.t);
+
+        let mut result = FpVector::new(self.prime(), output_module.get_dimension(elt.t), 0);
+
+        for l in 0 .. self.get_number_of_gens_in_bidegree(target_s, target_t) {
+            f.get_map(elt.s).apply_to_generator(&mut result, 1, target_t, l);
+
+            let vector_idx = 0; // output_module.operation_generator_to_index(0, 0, elt.t, elt.idx);
+            if result.get_entry(vector_idx) != 0 {
+                self.add_structline(&elt.name, s, t, idx, target_s, target_t, l);
+            }
+            result.set_to_zero();
+        }
+    }
+
+    /// This ensures the chain_maps_to_unit_resolution are defined such that we can compute products up
+    /// to bidegree (s, t)
+    fn extend_maps_to_unit(&self, self_ : &Rc<RefCell<Self>>, s : u32, t : i32) {
+        // If there are no products, we return
+        if self.product_list.len() == 0 {
+            return;
+        }
+
+        let p = self.prime();
+        let s_idx = s as usize;
+
+        // Now we populate the arrays if the ResolutionHomomorphisms have not been defined.
+        let num_gens = self.get_module(s).get_number_of_gens_in_degree(t);
+        if t == self.get_min_degree() {
+            assert!(s_idx == self.chain_maps_to_unit_resolution.len());
+            self.chain_maps_to_unit_resolution.push(OnceBiVec::new(self.get_min_degree()));
+        } else {
+            assert!(s_idx < self.chain_maps_to_unit_resolution.len());
+        }
+        assert!(self.chain_maps_to_unit_resolution[s_idx].len() == t);
+
+        self.chain_maps_to_unit_resolution[s_idx].push(OnceVec::new());
+        if num_gens > 0 {
+            let mut unit_vector = Matrix::new(p, num_gens, 1);
+            for j in 0 .. num_gens {
+                let f = ResolutionHomomorphism::new(
+                    format!("(hom_deg : {}, int_deg : {}, idx : {})", s, t, j),
+                    Rc::downgrade(self_), Rc::downgrade(self.unit_resolution.as_ref().unwrap()),
+                    s, t
+                );
+                unit_vector[j].set_entry(0, 1);
+                f.extend_step(s, t, Some(&mut unit_vector));
+                unit_vector[j].set_to_zero();
+                self.chain_maps_to_unit_resolution[s_idx][t].push(
+                    f
+                )
+            }
+        }
+
+        // Now we actually extend the maps.
+        let max_hom_deg = min(s, self.max_product_homological_degree);
+        let min_degree = self.get_min_degree();
+        for i in 0 ..= max_hom_deg {
+            for j in min_degree ..= t {
+                let hom_deg = s - i;
+                let num_gens = self.get_module(hom_deg).get_number_of_gens_in_degree(j);
+                for k in 0 .. num_gens {
+                    let f = &self.chain_maps_to_unit_resolution[hom_deg as usize][j][k];
+                    f.extend(s, t);
+                }
+            }
+        }
+    }
+}
+
+// Self map algorithms
+impl<M, F, CC> Resolution<M, F, CC> where
+    M : Module,
+    F : ModuleHomomorphism<M, M>,
+    CC : ChainComplex<M, F>
+{
+    pub fn add_self_map(&mut self, self_: &Rc<RefCell<Self>>,  s : u32, t : i32, name : String, map_data : Matrix) {
+        self.self_maps.push(
+            SelfMap {
+                s, t, name, map_data : TempStorage::new(map_data),
+                map : ResolutionHomomorphism::new("".to_string(), Rc::downgrade(self_), Rc::downgrade(self_), s, t)
+            });
+    }
+
+    /// We compute the products by self maps where the result has degree (s, t).
+    fn compute_self_maps(&self, s : u32, t : i32) {
+        let p = self.prime();
+        for f in &self.self_maps {
+            let map_s = f.s;
+            let map_t = f.t;
+            if s < f.s || t < f.t + self.get_min_degree() {
+                continue;
+            }
+            if s == f.s && t == f.t + self.get_min_degree() {
+                let mut map_data = f.map_data.take();
+                f.map.extend_step(s, t, Some(&mut map_data));
+            }
+            f.map.extend(s, t);
+//            t -= 1;
+
+            let target_s = s - f.s;
+            let target_t = t - f.t;
+
+            let source_module = self.get_module(s);
+            let target_module = self.get_module(target_s);
+
+            let num_source_gens = source_module.get_number_of_gens_in_degree(t);
+            let num_target_gens = target_module.get_number_of_gens_in_degree(target_t);
+
+            if num_source_gens == 0 || num_target_gens == 0 {
+                continue;
+            }
+
+            let target_dim = target_module.get_dimension(target_t);
+            let mut result = FpVector::new(p, target_dim, 0);
+
+            for j in 0 .. num_source_gens {
+                f.map.get_map(target_s).apply_to_generator(&mut result, 1, t, j);
+                for k in 0 .. num_target_gens {
+                    let vector_idx = target_module.operation_generator_to_index(0, 0, target_t, k);
+                    if result.get_entry(vector_idx) != 0 {
+                        self.add_structline(
+                            &f.name,
+                            target_s, target_t, k,
+                            s, t, j
+                            );
+                    }
+                }
+                result.set_to_zero();
+            }
+        }
+    }
+}
 
 impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> 
     ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>> 
@@ -478,11 +724,9 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
     // }
 }
 
-use crate::module::OptionModule;
-use crate::chain_complex::ChainComplexConcentratedInDegreeZero;
 pub type ModuleResolution<M>
     = Resolution<
         OptionModule<M>, 
         ZeroHomomorphism<OptionModule<M>, OptionModule<M>>, 
-        ChainComplexConcentratedInDegreeZero<M>
+        CCDZ<M>
     >;

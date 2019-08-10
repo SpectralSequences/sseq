@@ -5,8 +5,11 @@ use std::rc::Rc;
 
 
 pub trait ChainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
-    fn get_prime(&self) -> u32 {
+    fn prime(&self) -> u32 {
         self.get_algebra().get_prime()
+    }
+    fn get_prime(&self) -> u32 {
+        self.prime()
     }
     fn get_algebra(&self) -> Rc<AlgebraAny>;
     fn get_min_degree(&self) -> i32;

@@ -68,8 +68,8 @@ impl ResolutionManager {
     fn resolve_further(&mut self, json : Value) -> Result<(), Box<dyn Error>> {
         let max_degree = json["maxDegree"].as_i64().unwrap() as i32;
         if let Some(bundle) = &self.bundle {
-            let mut resolution = bundle.resolution.borrow_mut();
-            resolution.resolve_through_degree(max_degree);
+            let resolution = bundle.resolution.borrow();
+            resolution.resolve_through_degree(&bundle.resolution, max_degree);
 
             let data = json!({ "command": "complete" });
             self.sender.send(data.to_string())?;
@@ -156,10 +156,12 @@ impl ResolutionManager {
                 };
             };
 
-            let mut resolution = bundle.resolution.borrow_mut();
-            resolution.add_class = Some(Box::new(add_class));
-            resolution.add_structline = Some(Box::new(add_structline));
-            resolution.resolve_through_degree(max_degree);
+            {
+                let mut resolution = bundle.resolution.borrow_mut();
+                resolution.add_class = Some(Box::new(add_class));
+                resolution.add_structline = Some(Box::new(add_structline));
+            }
+            bundle.resolution.borrow().resolve_through_degree(&bundle.resolution, max_degree);
 
             let data = json!({ "command": "complete" });
             self.sender.send(data.to_string())?;

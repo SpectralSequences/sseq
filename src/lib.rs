@@ -8,7 +8,6 @@ pub mod matrix;
 pub mod algebra;
 pub mod adem_algebra;
 pub mod milnor_algebra;
-// pub mod change_of_basis;
 pub mod module;
 pub mod module_homomorphism;
 pub mod finite_dimensional_module;
@@ -18,7 +17,6 @@ pub mod finitely_presented_module;
 pub mod chain_complex;
 pub mod resolution;
 pub mod resolution_homomorphism;
-pub mod resolution_with_chain_maps;
 pub mod wasm_bindings;
 mod cli_module_loaders;
 
@@ -40,14 +38,12 @@ extern crate web_sys;
 extern crate bivec;
 
 use crate::algebra::{Algebra, AlgebraAny};
-use crate::fp_vector::FpVectorT;
 use crate::adem_algebra::AdemAlgebra;
 use crate::milnor_algebra::MilnorAlgebra;
 use crate::module::{FiniteModule, Module};
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 use crate::resolution::{Resolution, ModuleResolution};
-use crate::resolution_with_chain_maps::ResolutionWithChainMaps;
 
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -92,6 +88,19 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
     let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &mut json)?);
     let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
     let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), None, None)));
+
+    let products_value = &json["products"];
+    if !products_value.is_null() {
+        let products = products_value.as_array().unwrap();
+        for prod in products {
+            let hom_deg = prod["hom_deg"].as_u64().unwrap() as u32;
+            let int_deg = prod["int_deg"].as_i64().unwrap() as i32;
+            let idx = prod["index"].as_u64().unwrap() as usize;
+            let name = prod["name"].as_str().unwrap();
+            resolution.borrow_mut().add_product(hom_deg, int_deg, idx, name.to_string());
+        }
+    }
+
     Ok(AlgebraicObjectsBundle {
         algebra,
         module,
@@ -105,9 +114,9 @@ pub fn run_define_module() -> Result<String, Box<dyn Error>> {
 
 pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
     let bundle = construct(config)?;
-    let mut resolution = bundle.resolution.borrow_mut();
-    resolution.resolve_through_degree(config.max_degree);
-    Ok(resolution.graded_dimension_string())
+    let res = bundle.resolution.borrow();
+    res.resolve_through_degree(&bundle.resolution, config.max_degree);
+    Ok(res.graded_dimension_string())
 }
 
 
@@ -161,14 +170,14 @@ pub fn run_test() {
     // f.extend_step(1, 4, Some(&mut v));
     // f.extend(3, 15);
     
-    let mut res_with_maps = ResolutionWithChainMaps::new(Rc::clone(&resolution), Rc::clone(&resolution));
-    let mut map_data = crate::matrix::Matrix::new(2, 1, 1);
-    map_data[0].set_entry(0, 1);
-    // res_with_maps.add_self_map(4, 12, "v_1".to_string(), map_data);
-    res_with_maps.add_product(2, 12, 0, "beta".to_string());
-    res_with_maps.add_product(2, 9, 0, "\\alpha_{2}".to_string());
-    res_with_maps.resolve_through_degree(max_degree);
-    println!("{}", resolution.borrow().graded_dimension_string());
+//    let mut res_with_maps = ResolutionWithChainMaps::new(Rc::clone(&resolution), Rc::clone(&resolution));
+//    let mut map_data = crate::matrix::Matrix::new(2, 1, 1);
+//    map_data[0].set_entry(0, 1);
+//    // res_with_maps.add_self_map(4, 12, "v_1".to_string(), map_data);
+//    res_with_maps.add_product(2, 12, 0, "beta".to_string());
+//    res_with_maps.add_product(2, 9, 0, "\\alpha_{2}".to_string());
+//    res_with_maps.resolve_through_degree(max_degree);
+//    println!("{}", resolution.borrow().graded_dimension_string());
 }
 
 
