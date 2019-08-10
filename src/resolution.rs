@@ -132,7 +132,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         }
         self.extend_through_degree(degree);
 
-        self.get_algebra().compute_basis(degree + 1);// because Adem has off-by-one
+        self.get_algebra().compute_basis(degree);
 
         // So far, we have computed everything for t, s < next_degree.
         for t in min_degree ..=degree {
