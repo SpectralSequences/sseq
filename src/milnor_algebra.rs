@@ -101,7 +101,6 @@ pub struct MilnorAlgebra {
 
 impl MilnorAlgebra {
     pub fn new(p : u32) -> Self {
-        combinatorics::initialize_prime(p);
         crate::fp_vector::initialize_limb_bit_index_table(p);
 
         let profile = MilnorProfile { };
@@ -807,7 +806,6 @@ mod tests {
         case(3, 106)    
     )]
     fn test_milnor_basis(p : u32, max_degree : i32){
-        crate::combinatorics::initialize_prime(p);
         let algebra = MilnorAlgebra::new(p);//p != 2
         algebra.compute_basis(max_degree);
         for i in 1 .. max_degree {
@@ -827,7 +825,6 @@ mod tests {
         case(3, 106)    
     )]
     fn test_milnor_decompose(p : u32, max_degree : i32){
-        crate::combinatorics::initialize_prime(p);
         let algebra = MilnorAlgebra::new(p);
         algebra.compute_basis(max_degree);
         for i in 1 .. max_degree {
@@ -859,7 +856,6 @@ mod tests {
         case(3, 106)    
     )]
     fn test_adem_relations(p : u32, max_degree : i32){
-        crate::combinatorics::initialize_prime(p);
         let algebra = MilnorAlgebra::new(p); // , p != 2
         algebra.compute_basis(max_degree + 2);
         let mut output_vec = FpVector::new(p, 0, 0);

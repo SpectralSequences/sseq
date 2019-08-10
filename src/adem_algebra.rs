@@ -182,7 +182,6 @@ impl Algebra for AdemAlgebra {
     fn compute_basis(&self, mut max_degree : i32) {
         let genericq = if self.generic { 1 } else { 0 };
         // assert!(max_degree + genericq <= self.basis_table.len() as i32);
-        combinatorics::initialize_prime(self.p);
         let old_max_degree = self.get_max_degree();
         if max_degree <= old_max_degree {
             return;
@@ -395,7 +394,6 @@ impl Algebra for AdemAlgebra {
 // uint AdemAlgebra__generateName(AdemAlgebra *algebra); // defined in adem_io
 impl AdemAlgebra {
     pub fn new(p : u32, generic : bool, unstable : bool) -> Self {
-        crate::combinatorics::initialize_prime(p);
         crate::fp_vector::initialize_limb_bit_index_table(p);
         let even_basis_table = OnceVec::new();
         let basis_table = OnceVec::new();

@@ -127,7 +127,6 @@ impl Matrix {
     /// # use rust_ext::matrix::Matrix;
     /// # use rust_ext::fp_vector::FpVectorT;
     /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
-    /// # rust_ext::combinatorics::initialize_prime(p);
     /// let input  = [vec![1, 2, 1, 1, 0],
     ///               vec![1, 0, 2, 1, 0],
     ///               vec![0, 1, 0, 2, 0]];
@@ -337,8 +336,7 @@ impl Matrix {
     /// that `column_to_pivot_row[i]` is the row of the pivot if the `i`th row contains a pivot,
     /// and `-1` otherwise.
     ///
-    /// One has to call `combinatorics::initialize_prime(p)` before using this function (in
-    /// addition to `fp_vector::initialize_limb_bit_index_table(p)`. This step will be skipped in
+    /// One has to call `fp_vector::initialize_limb_bit_index_table(p)`. This step will be skipped in
     /// future examples.
     ///
     /// # Arguments
@@ -350,7 +348,6 @@ impl Matrix {
     /// let p = 7;
     /// # use rust_ext::matrix::Matrix;
     /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
-    /// rust_ext::combinatorics::initialize_prime(p);
     ///
     /// let input  = [vec![1, 3, 6],
     ///               vec![0, 3, 4]];
@@ -552,7 +549,6 @@ impl Matrix {
     /// # use rust_ext::fp_vector::FpVectorT;
     /// # use rust_ext::fp_vector::FpVector;
     /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
-    /// # rust_ext::combinatorics::initialize_prime(p);
     /// let input  = [vec![1, 2, 1, 1, 0],
     ///               vec![1, 0, 2, 1, 1],
     ///               vec![2, 2, 0, 2, 1]];
@@ -612,7 +608,6 @@ impl Matrix {
     /// # use rust_ext::fp_vector::FpVectorT;
     /// # use rust_ext::fp_vector::FpVector;
     /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
-    /// # rust_ext::combinatorics::initialize_prime(p);
     /// let input  = [vec![1, 2, 1, 1, 0],
     ///               vec![1, 0, 2, 1, 1],
     ///               vec![2, 2, 0, 2, 1]];
@@ -845,7 +840,6 @@ mod tests {
     #[test]
     fn test_row_reduce_2(){
         let p = 2;
-        combinatorics::initialize_prime(p);
         let tests = [(
             [
                 [0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1], 
