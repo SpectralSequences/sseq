@@ -639,11 +639,8 @@ impl AdemAlgebra {
             }
             for x in (1 .. n + 1).rev() {
                 for idx in 0 .. self.get_dimension(n - x, -1) {
-                    let entry;
-                    unsafe {
-                        entry = &mut *(&mut table[x as usize] as *mut Vec<FpVector>);
-                    }
-                    entry.push(self.generate_multiplication_table2_step(&table, n, x, idx));
+                    let res = self.generate_multiplication_table2_step(&table, n, x, idx);
+                    table[x as usize].push(res);
                 }
                 let dimension = self.get_dimension(n - x, -1);
                 assert!(table[x as usize].len() == dimension);
