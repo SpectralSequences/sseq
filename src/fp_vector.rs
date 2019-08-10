@@ -630,6 +630,25 @@ impl FpVector {
         return ((dimension + offset/bit_length + entries_per_limb - 1)/entries_per_limb)*entries_per_limb;
     }
 
+    pub fn get_scratch_vector(p : u32, dimension : usize) -> Self {
+        let mut result = FpVector::new(p, FpVector::get_padded_dimension(p, dimension, 0), 0);
+        result.set_slice(0, dimension);
+        return result;
+    }
+
+    pub fn set_scratch_vector_size(mut self, dimension : usize) -> Self {
+        let p = self.get_prime();
+        self.clear_slice();
+        let mut result;
+        if self.get_dimension() < dimension {
+            result = self;
+        } else {
+            result = FpVector::get_scratch_vector(p, dimension);
+        }
+        result.set_slice(0, dimension);
+        return result;
+    }
+
     pub fn iter(&self) -> FpVectorIterator{
         FpVectorIterator {
             vect : &self,

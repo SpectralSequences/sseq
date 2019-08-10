@@ -874,6 +874,8 @@ impl AdemAlgebra {
                     // Since we're doing the first squares in decreasing order and x + y - j > x, 
                     // we already calculated this.
                     let bj_idx = (((x+y-j) << 1) + e1) as usize;
+                    println!("n : {}, x: {}, y : {}, j : {}, e1 : {}", n, x, y, j, e1);
+                    println!("table : {:?}", table);
                     let output_vector = &table[bj_idx][rest_of_term_idx];
                     result.add(output_vector, (c*rest_of_term_coeff)%p);
                     for (output_index, output_value) in output_vector.iter().enumerate() {
@@ -1260,7 +1262,7 @@ impl AdemAlgebra {
 //     return algebra->excess_table[degree][excess];
 // }
 
-#[cfg(testa)]
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -1290,7 +1292,6 @@ mod tests {
         case(3, 106)    
     )]
     fn test_adem_basis(p : u32, max_degree : i32){
-        combinatorics::initialize_prime(p);
         let algebra = AdemAlgebra::new(p, p != 2, false);
         algebra.compute_basis(max_degree + 1); // TODO: Why is this +1 needed to pass test?
         for i in 1 .. max_degree {
@@ -1310,7 +1311,6 @@ mod tests {
         case(3, 106)    
     )]
     fn test_adem_decompose(p : u32, max_degree : i32){
-        combinatorics::initialize_prime(p);
         let algebra = AdemAlgebra::new(p, p != 2, false);
         algebra.compute_basis(max_degree);
         for i in 1 .. max_degree {
@@ -1342,7 +1342,6 @@ mod tests {
         case(3, 106)    
     )]
     fn test_adem_relations(p : u32, max_degree : i32){
-        combinatorics::initialize_prime(p);
         let algebra = AdemAlgebra::new(p, p != 2, false);
         algebra.compute_basis(max_degree + 1);
         let mut output_vec = FpVector::new(p, 0, 0);

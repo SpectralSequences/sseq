@@ -8,6 +8,7 @@ pub mod matrix;
 pub mod algebra;
 pub mod adem_algebra;
 pub mod milnor_algebra;
+// pub mod change_of_basis;
 pub mod module;
 pub mod module_homomorphism;
 pub mod finite_dimensional_module;
@@ -113,6 +114,19 @@ pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
 // use crate::resolution_homomorphism::ResolutionHomomorphism;
 #[allow(unreachable_code)]
 pub fn run_test() {
+    let p = 2;
+    let max_degree = 30;
+    let adem = AdemAlgebra::new(p, p != 2, false);
+    let milnor = MilnorAlgebra::new(p);//, p != 2
+    adem.compute_basis(max_degree);
+    milnor.compute_basis(max_degree);
+    let degree = 9;
+    let i = 4;
+    let dim = adem.get_dimension(degree, -1);
+    let mut adem_result = crate::fp_vector::FpVector::new(p, dim, 0);
+    crate::change_of_basis::milnor_to_adem_on_basis(&adem, &milnor, &mut adem_result, 1, degree, i);
+    return;
+
     let p = 3;
     let max_degree = 80;
     let algebra = AdemAlgebra::new(p, p != 2, false);
@@ -126,7 +140,6 @@ pub fn run_test() {
     let decomposition = algebra.decompose_basis_element(60, idx);
     println!("decomposition : {:?}", decomposition);
 
-//    return;
     let max_degree = 25;
     // let contents = std::fs::read_to_string("static/modules/S_3.json").unwrap();
     // S_3

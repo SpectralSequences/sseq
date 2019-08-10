@@ -23,9 +23,9 @@ type PPart = Vec<u32>;
 
 #[derive(Debug, Clone)]
 pub struct MilnorBasisElement {
-    q_part : u32,
-    p_part : PPart,
-    degree : i32
+    pub q_part : u32,
+    pub p_part : PPart,
+    pub degree : i32
 }
 
 const ZERO_QPART : QPart = QPart { degree : 0, q_part : 0 };
@@ -91,7 +91,7 @@ pub struct MilnorAlgebra {
     name : String,
     next_degree : Mutex<i32>,
     p : u32,
-    generic : bool,
+    pub generic : bool,
     ppart_table : OnceVec<Vec<PPart>>,
     qpart_table : Vec<OnceVec<QPart>>,
     basis_table : OnceVec<Vec<MilnorBasisElement>>,

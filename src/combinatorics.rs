@@ -1,6 +1,3 @@
-use std::sync::Once;
-// use lazy_static::lazy_static;
-
 pub const MAX_PRIME_INDEX : usize = 54;
 const MAX_PRIME : usize = 251;
 const NOT_A_PRIME : usize = !1;
