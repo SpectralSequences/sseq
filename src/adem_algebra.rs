@@ -360,8 +360,8 @@ impl Algebra for AdemAlgebra {
         let q = if self.generic { 2*(p - 1) } else { 1 };
 
         let inadmissible_pairs = combinatorics::get_inadmissible_pairs(p, self.generic, degree);
-
         let mut result = Vec::new();
+
         for (x, b, y) in inadmissible_pairs {
             let mut relation = Vec::new();
             // Adem relation
@@ -1265,7 +1265,7 @@ impl AdemAlgebra {
 //     return algebra->excess_table[degree][excess];
 // }
 
-#[cfg(test)]
+#[cfg(testa)]
 mod tests {
     use super::*;
 

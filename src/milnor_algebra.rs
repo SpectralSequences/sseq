@@ -103,7 +103,6 @@ pub struct MilnorAlgebra {
 impl MilnorAlgebra {
     pub fn new(p : u32) -> Self {
         combinatorics::initialize_prime(p);
-        combinatorics::initialize_xi_tau_degrees(p);
         crate::fp_vector::initialize_limb_bit_index_table(p);
 
         let profile = MilnorProfile { };
@@ -302,9 +301,7 @@ impl Algebra for MilnorAlgebra {
         }
         let p = self.get_prime();
         let q = if self.generic { 2*(p - 1) } else { 1 };
-
         let inadmissible_pairs = combinatorics::get_inadmissible_pairs(p, self.generic, degree);
-
         let mut result = Vec::new();
         for (x, b, y) in inadmissible_pairs {
             let mut relation = Vec::new();
@@ -337,8 +334,7 @@ impl Algebra for MilnorAlgebra {
 
 // Compute basis functions
 impl MilnorAlgebra {
-    fn compute_ppart(&self, next_degree : i32, max_degree : i32) {
-        let mut next_degree = next_degree;
+    fn compute_ppart(&self, mut next_degree : i32, max_degree : i32) {
         if next_degree == 0 {
             self.ppart_table.push(vec![Vec::new()]);
             next_degree = 1;
@@ -351,25 +347,21 @@ impl MilnorAlgebra {
 
         self.ppart_table.reserve((new_deg - old_deg) as usize);
 
-        let xi_degrees = crate::combinatorics::get_xi_degrees(self.p);
-
+        let xi_degrees = combinatorics::get_xi_degrees(self.p);
         for d in (old_deg + 1) ..= new_deg {
             let mut new_row = Vec::new(); // Improve this
-
             for i in 0..xi_degrees.len() {
                 if xi_degrees[i] > d {
                     break;
                 }
 
                 let rem = (d - xi_degrees[i]) as usize;
-
                 for old in self.ppart_table[rem].iter() {
                     // ppart_table[rem] is arranged in increasing order of highest
                     // xi_i. If we get something too large, we may abort;
                     if old.len() > i + 1 {
                         break;
                     }
-
                     let mut new = old.clone();
                     if new.len() < i + 1 {
                         new.resize(i + 1, 0);
@@ -750,10 +742,8 @@ impl MilnorAlgebra {
         let p = self.p;
         let q = if self.generic { 2*p - 2 } else { 1 };
         let b = &self.basis_table[degree as usize][idx];
-        let first_degree;
-        let first_idx;
-        let second_degree;
-        let second_idx;
+        let first;
+        let second;
         if b.p_part.len() > 1 {
             let mut t1 = 0;
             let mut pow = 1;
@@ -761,20 +751,14 @@ impl MilnorAlgebra {
                 t1 += r * pow;
                 pow *= p;
             }
-            first_degree = (q * t1) as i32;
-            let first = MilnorBasisElement {
-                q_part : 0,
-                p_part : vec![t1],
-                degree : first_degree
-            };
-            first_idx = self.basis_element_to_index(&first);
-            second_degree = b.degree - first_degree;
-            let second = MilnorBasisElement {
+            first = self.get_beps_pn(0, t1);
+            let second_degree = degree - first.0;
+            let second_idx = self.basis_element_to_index(&MilnorBasisElement {
                 q_part : 0,
                 p_part : b.p_part[1..].to_vec(),
                 degree : second_degree
-            };
-            second_idx = self.basis_element_to_index(&second);
+            });
+            second = (second_degree, second_idx);
         } else {
             // return vec![(1, (degree, idx), (0, 0))];
             let sq = b.p_part[0];
@@ -789,29 +773,17 @@ impl MilnorAlgebra {
             if sq == pow {
                 return vec![(1, (degree, idx), (0, 0))];
             }
-            let first_sq = pow;
-            let second_sq = sq - first_sq;
-            first_degree = (first_sq * q) as i32;
-            second_degree = (second_sq * q) as i32;
-            first_idx = self.basis_element_to_index(&MilnorBasisElement {
-                degree : first_degree,
-                q_part : 0,
-                p_part : vec![first_sq]
-            });
-            second_idx = self.basis_element_to_index(&MilnorBasisElement {
-                degree : second_degree,
-                q_part : 0,
-                p_part : vec![second_sq]
-            });          
+            first = self.get_beps_pn(0, pow);
+            second = self.get_beps_pn(0, sq - pow);
         }
         let mut out_vec = FpVector::new(p, self.get_dimension(degree, -1), 0);
-        self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, -1);
+        self.multiply_basis_elements(&mut out_vec, 1, first.0, first.1, second.0, second.1, -1);
         let mut result = Vec::new();
         let c = out_vec.get_entry(idx);
         assert!(c != 0);
         out_vec.set_entry(idx, 0);
         let c_inv = crate::combinatorics::inverse(p, p - c);
-        result.push((((p - 1) * c_inv) % p, (first_degree, first_idx), (second_degree, second_idx)));
+        result.push((((p - 1) * c_inv) % p, first, second));
         for (i, v) in out_vec.iter().enumerate() {
             if v == 0 {
                 continue;
@@ -862,14 +834,14 @@ mod tests {
         for i in 1 .. max_degree {
             let dim = algebra.get_dimension(i, -1);
             let gens = algebra.get_generators(i);
-            println!("i : {}, gens : {:?}", i, gens);
+            // println!("i : {}, gens : {:?}", i, gens);
             let mut out_vec = FpVector::new(p, dim, 0);
             for j in 0 .. dim {
                 if gens.contains(&j){
                     continue;
                 }
                 for (coeff, (first_degree, first_idx), (second_degree, second_idx)) in algebra.decompose_basis_element(i, j) {
-                    print!("{} * {} * {}  +  ", coeff, algebra.basis_element_to_string(first_degree,first_idx), algebra.basis_element_to_string(second_degree, second_idx));
+                    // print!("{} * {} * {}  +  ", coeff, algebra.basis_element_to_string(first_degree,first_idx), algebra.basis_element_to_string(second_degree, second_idx));
                     algebra.multiply_basis_elements(&mut out_vec, coeff, first_degree, first_idx, second_degree, second_idx, -1);
                 }
                 assert!(out_vec.get_entry(j) == 1, 
@@ -890,7 +862,7 @@ mod tests {
     fn test_adem_relations(p : u32, max_degree : i32){
         crate::combinatorics::initialize_prime(p);
         let algebra = MilnorAlgebra::new(p); // , p != 2
-        algebra.compute_basis(max_degree);
+        algebra.compute_basis(max_degree + 2);
         let mut output_vec = FpVector::new(p, 0, 0);
         for i in 1 .. max_degree {
             output_vec.clear_slice();

@@ -1,7 +1,7 @@
 use rust_ext::Config;
 use rust_ext::run_resolve;
 
-#[test]
+// #[test]
 fn milnor_vs_adem() {
     compare("S_2", 30);
     compare("C2", 30);
