@@ -527,6 +527,9 @@ impl<M, F, CC> Resolution<M, F, CC> where
     }
 
     pub fn set_unit_resolution(&mut self, unit_res : Rc<RefCell<ModuleResolution<FDModule>>>) {
+        if self.chain_maps_to_unit_resolution.len() > 0 {
+            panic!("Cannot change unit resolution after you start computing products");
+        }
         self.unit_resolution = Some(unit_res);
     }
 
