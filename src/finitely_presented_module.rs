@@ -68,7 +68,7 @@ impl FinitelyPresentedModule {
     }
 
     pub fn from_json(algebra : Rc<AlgebraAny>, json : &mut Value) -> Self {
-        let p = algebra.get_prime();
+        let p = algebra.prime();
         let name = json["name"].as_str().unwrap().to_string();
         let gens = json["gens"].take();
         let (min_degree, num_gens_in_degree, gen_to_deg_idx) = Self::module_gens_from_json(&gens);
@@ -201,7 +201,7 @@ impl Module for FinitelyPresentedModule {
     }
 
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize) {
-        let p = self.get_prime();
+        let p = self.prime();
         let gen_idx = self.fp_idx_to_gen_idx(mod_degree, mod_index);
         let out_deg = mod_degree + op_degree;
         let gen_dim = self.generators.get_dimension(out_deg);

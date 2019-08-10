@@ -135,7 +135,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
     }
 
     pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
-        let p = self.get_prime();
+        let p = self.prime();
         let d = self.get_differential(hom_deg);
         let source = self.get_module(hom_deg);
         let target = d.get_target();
@@ -354,7 +354,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
     pub fn generate_old_kernel_and_compute_new_kernel(&self, homological_degree : u32, degree : i32, old_kernel : Option<Subspace>) -> Subspace {
         let min_degree = self.get_min_degree();
         // println!("====hom_deg : {}, int_deg : {}", homological_degree, degree);
-        let p = self.get_prime();
+        let p = self.prime();
         //                           current_chain_map
         //                X_{s, t} --------------------> C_{s, t}
         //                   |                               |
@@ -420,9 +420,9 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             let prev_chain_map = self.get_chain_map(homological_degree - 1);
             let maybe_quasi_inverse = prev_chain_map.get_quasi_inverse(degree);
             if let Some(quasi_inverse) = maybe_quasi_inverse {
-                let mut out_vec = FpVector::new(self.get_prime(), target_res_dimension, 0);
+                let mut out_vec = FpVector::new(self.prime(), target_res_dimension, 0);
                 let dfx_dim = complex_cur_differential.get_target().get_dimension(degree);
-                let mut dfx = FpVector::new(self.get_prime(), target_res_dimension, 0);
+                let mut dfx = FpVector::new(self.prime(), target_res_dimension, 0);
                 for (i, column) in new_generators.iter().enumerate() {
                     complex_cur_differential.apply_to_basis_element(&mut dfx, 1, degree, *column);
                     quasi_inverse.apply(&mut out_vec, 1, &dfx);
@@ -481,7 +481,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let mut result = String::new();
         let min_degree = self.get_min_degree();
         let max_degree = self.get_max_degree();
-        let max_hom_deg = self.get_max_hom_deg(); //(max_degree - min_degree) as u32 / (self.get_prime() + 1); //self.get_max_hom_deg();
+        let max_hom_deg = self.get_max_hom_deg(); //(max_degree - min_degree) as u32 / (self.prime() + 1); //self.get_max_hom_deg();
         for i in (0 .. max_hom_deg).rev() {
             let module = self.get_module(i);
             for j in min_degree + i as i32 .. max_degree {

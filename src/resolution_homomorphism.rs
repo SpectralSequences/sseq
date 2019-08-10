@@ -96,7 +96,7 @@ impl<
         let source = source_rc.borrow();
         let target_rc = self.target.upgrade().unwrap();
         let target = target_rc.borrow();
-        let p = source.get_prime();
+        let p = source.prime();
         assert!(input_homological_degree >= self.homological_degree_shift);
         let output_homological_degree = input_homological_degree - self.homological_degree_shift;
         let output_internal_degree = input_internal_degree - self.internal_degree_shift;        

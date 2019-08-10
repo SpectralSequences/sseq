@@ -155,7 +155,7 @@ impl FiniteDimensionalModule {
                 for _ in 0 .. number_of_operations {
                     let mut in_idx_vec : Vec<FpVector> = Vec::with_capacity(number_of_inputs);
                     for _ in 0 .. number_of_inputs {
-                        in_idx_vec.push(FpVector::new(algebra.get_prime(), number_of_outputs, 0));
+                        in_idx_vec.push(FpVector::new(algebra.prime(), number_of_outputs, 0));
                     }
                     assert!(in_idx_vec.len() == number_of_inputs);
                     ops_vec.push(in_idx_vec);
@@ -258,7 +258,7 @@ impl FiniteDimensionalModule {
 
     pub fn check_validity(&self, input_deg : i32, output_deg : i32) -> Result<(),Box<dyn Error>>{
         assert!(output_deg > input_deg);
-        let p = self.get_prime();
+        let p = self.prime();
         let algebra = self.get_algebra();
         let op_deg = output_deg - input_deg;
         let mut output_vec = FpVector::new(p, self.get_dimension(output_deg), 0);
@@ -300,7 +300,7 @@ impl FiniteDimensionalModule {
     }
 
     pub fn extend_actions(&mut self, input_deg : i32, output_deg : i32){
-        let p = self.get_prime();
+        let p = self.prime();
         let algebra = self.get_algebra();
         let op_deg = output_deg - input_deg;
         let mut output_vec = FpVector::new(p, self.get_dimension(output_deg), 0);
@@ -329,7 +329,7 @@ impl FiniteDimensionalModule {
     }
 
     pub fn actions_to_json(&self) -> Value {
-        let p = self.get_prime();
+        let p = self.prime();
         let algebra = self.get_algebra();
         let min_degree = self.get_min_degree();
         let max_degree = min_degree + self.graded_dimension.len() as i32;

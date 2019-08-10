@@ -25,7 +25,7 @@ pub trait Algebra {
     fn get_algebra_type(&self) -> &str;
 
     /// Returns the prime the algebra is over.
-    fn get_prime(&self) -> u32;
+    fn prime(&self) -> u32;
     fn get_name(&self) -> &str;
     // FiltrationOneProductList *product_list; // This determines which indecomposibles have lines drawn for them.
 // Methods:
@@ -43,7 +43,7 @@ pub trait Algebra {
     fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32);
 
     fn multiply_basis_element_by_element(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r_idx : usize, s_degree : i32, s : &FpVector, excess : i32){
-        let p = self.get_prime();
+        let p = self.prime();
         for (i, v) in s.iter().enumerate() {
             if v == 0 { continue; }
             self.multiply_basis_elements(result, (coeff * v) % p, r_degree, r_idx, s_degree, i, excess);
@@ -51,7 +51,7 @@ pub trait Algebra {
     }
 
     fn multiply_element_by_basis_element(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r : &FpVector, s_degree : i32, s_idx : usize, excess : i32){
-        let p = self.get_prime();
+        let p = self.prime();
         for (i, v) in r.iter().enumerate() {
             if v == 0 { continue; }
             self.multiply_basis_elements(result, (coeff * v) % p, r_degree, i, s_degree, s_idx, excess);
@@ -59,7 +59,7 @@ pub trait Algebra {
     }
 
     fn multiply_element_by_element(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r : &FpVector, s_degree : i32, s : &FpVector, excess : i32){
-        let p = self.get_prime();
+        let p = self.prime();
         for (i, v) in s.iter().enumerate() {
             if v == 0 { continue; }
             self.multiply_element_by_basis_element(result, (coeff * v) % p, r_degree, r, s_degree, i, excess);

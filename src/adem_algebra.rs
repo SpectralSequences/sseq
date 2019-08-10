@@ -130,7 +130,7 @@ impl Algebra for AdemAlgebra {
         "adem"
     }
 
-    fn get_prime(&self) -> u32 {
+    fn prime(&self) -> u32 {
         self.p
     }
 
@@ -297,7 +297,7 @@ impl Algebra for AdemAlgebra {
     }
 
     fn get_generators(&self, degree : i32) -> Vec<usize> {
-        let p = self.get_prime();
+        let p = self.prime();
         if degree == 0 {
             return vec![];
         }
@@ -355,7 +355,7 @@ impl Algebra for AdemAlgebra {
             return vec![vec![(1, (1, 0), (1, 0))]];
         }
 
-        let p = self.get_prime();
+        let p = self.prime();
         let q = if self.generic { 2*(p - 1) } else { 1 };
 
         let inadmissible_pairs = combinatorics::get_inadmissible_pairs(p, self.generic, degree);
@@ -1138,7 +1138,7 @@ impl AdemAlgebra {
     }
 
     fn decompose_basis_element_generic(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
-        let p = self.get_prime();
+        let p = self.prime();
         let b = self.basis_element_from_index(degree, idx); 
         let leading_bockstein_idx = 1;// << (b.ps.len());
         if b.bocksteins & leading_bockstein_idx != 0 {
@@ -1218,7 +1218,7 @@ impl AdemAlgebra {
     }
 
     fn get_beps_pn(&self, e : u32, x : u32) -> (i32, usize) {
-        let p = self.get_prime();
+        let p = self.prime();
         let q = if self.generic { 2 * p - 2} else { 1 };
         let degree = (x * q + e) as i32;
         let index = self.basis_element_to_index(&AdemBasisElement {
