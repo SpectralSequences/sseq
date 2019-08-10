@@ -1,15 +1,13 @@
-#![allow(unused_imports)]
-
 use std::cmp::{min, max};
-use std::rc::{Weak, Rc};
+use std::rc::Rc;
 use std::cell::RefCell;
 use std::marker::PhantomData;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::Mutex;
 
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace};
 use crate::algebra::{Algebra, AlgebraAny};
-use crate::module::{Module, ZeroModule, OptionModule};
+use crate::module::{Module, OptionModule};
 use crate::free_module::FreeModule;
 use crate::once::{OnceVec, OnceBiVec, TempStorage};
 use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
@@ -157,7 +155,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             self.chain_maps.push(FreeModuleHomomorphism::new(Rc::clone(&self.modules[i]), Rc::clone(&self.complex.get_module(i)), 0));
         }
 
-        for i in next_t ..= max_t {
+        for _ in next_t ..= max_t {
             self.kernels.push(RefCell::new(None));
         }
 
@@ -352,7 +350,6 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
     ///  * `old_kernel` - The kernel of the map $X_{s-1, t} \to X_{s-2, t} \oplus C_{s-1, t}$, computed
     ///  and returned by the previous iteration of this function for $(s-1, t)$. This is `None` when $s = 0$.
     pub fn generate_old_kernel_and_compute_new_kernel(&self, homological_degree : u32, degree : i32, old_kernel : Option<Subspace>) -> Subspace {
-        let min_degree = self.get_min_degree();
         // println!("====hom_deg : {}, int_deg : {}", homological_degree, degree);
         let p = self.prime();
         //                           current_chain_map
@@ -422,7 +419,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             if let Some(quasi_inverse) = maybe_quasi_inverse {
                 let mut out_vec = FpVector::new(self.prime(), target_res_dimension, 0);
                 let dfx_dim = complex_cur_differential.get_target().get_dimension(degree);
-                let mut dfx = FpVector::new(self.prime(), target_res_dimension, 0);
+                let mut dfx = FpVector::new(self.prime(), dfx_dim, 0);
                 for (i, column) in new_generators.iter().enumerate() {
                     complex_cur_differential.apply_to_basis_element(&mut dfx, 1, degree, *column);
                     quasi_inverse.apply(&mut out_vec, 1, &dfx);
@@ -557,7 +554,6 @@ impl<M, F, CC> Resolution<M, F, CC> where
 
         let unit_res = self.unit_resolution.as_ref().unwrap().borrow();
         let output_module = unit_res.get_module(elt.s);
-        let output_gens = output_module.get_number_of_gens_in_degree(elt.t);
 
         let mut result = FpVector::new(self.prime(), output_module.get_dimension(elt.t), 0);
 
@@ -645,8 +641,6 @@ impl<M, F, CC> Resolution<M, F, CC> where
     fn compute_self_maps(&self, s : u32, t : i32) {
         let p = self.prime();
         for f in &self.self_maps {
-            let map_s = f.s;
-            let map_t = f.t;
             if s < f.s || t < f.t + self.get_min_degree() {
                 continue;
             }

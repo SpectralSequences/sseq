@@ -8,7 +8,7 @@ use crate::algebra::{Algebra, AlgebraAny};
 use crate::adem_algebra::AdemAlgebra;
 use crate::milnor_algebra::MilnorAlgebra;
 use crate::module::FiniteModule;
-use crate::chain_complex::{ChainComplex, ChainComplexConcentratedInDegreeZero as CCDZ};
+use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::resolution::{Resolution, ModuleResolution};
 
 
@@ -125,7 +125,6 @@ pub struct WasmResolution {
 impl WasmResolution {
     pub fn new(chain_complex : &WasmCCDZ, json_string : String, add_class : js_sys::Function, add_structline : js_sys::Function) -> Self {
         let chain_complex = chain_complex.to_chain_complex();
-        let algebra = chain_complex.get_algebra();
 
         let add_class_wrapper = move |hom_deg : u32, int_deg : i32, name : &str| {
             let this = JsValue::NULL;
