@@ -8,6 +8,7 @@ pub mod matrix;
 pub mod algebra;
 pub mod adem_algebra;
 pub mod milnor_algebra;
+pub mod change_of_basis;
 pub mod module;
 pub mod module_homomorphism;
 pub mod finite_dimensional_module;
