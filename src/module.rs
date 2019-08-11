@@ -32,6 +32,17 @@ pub trait Module {
         }
     }
 
+    fn act_by_element(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op : &FpVector, input_degree : i32, input : &FpVector){
+        assert_eq!(input.get_dimension(), self.get_dimension(input_degree));
+        let p = self.get_algebra().prime();
+        for (i, v) in op.iter().enumerate() {
+            if v == 0 {
+                continue;
+            }
+            self.act(result, (coeff * v) % p, op_degree, i, input_degree, input);
+        }
+    }
+
     fn element_to_string(&self, degree : i32, element : &FpVector) -> String {
         let mut result = String::new();
         let mut zero = true;

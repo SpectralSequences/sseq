@@ -4,7 +4,9 @@ use std::io::{stdin, stdout, Write};
 use std::rc::Rc;
 use std::path::PathBuf;
 use std::str::FromStr;
-// use serde_json::value::Value;
+use std::collections::HashMap;
+
+use serde_json::Value;
 use serde_json::json;
 
 use bivec::BiVec;
@@ -13,24 +15,46 @@ use crate::algebra::{Algebra, AlgebraAny};
 use crate::milnor_algebra::MilnorAlgebra;
 use crate::adem_algebra::AdemAlgebra;
 use crate::module::Module;
+use crate::free_module::FreeModule;
+use crate::finitely_presented_module::FinitelyPresentedModule as FPModule;
 use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
+use crate::steenrod_evaluator::evaluate_module;
 
-fn query<T : FromStr>(prompt : &str) -> T {
+fn query<S : Display, T : FromStr, F>(prompt : &str, validator : F) -> S 
+    where F: Fn(T) -> Result<S, String>,
+        <T as FromStr>::Err: Display  {
     loop {
         print!("{} : ", prompt);
         stdout().flush().unwrap();
         let mut input = String::new();
         stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
-        if let Ok(res) = input.trim().parse::<T>() {
-            return res;
+        let trimmed = input.trim();
+        let result = 
+            trimmed.parse::<T>()
+                   .map_err(|err| format!("{}", err))
+                   .and_then(|res| validator(res));
+        match result {
+            Ok(res) => {
+                return res;
+            }, 
+            Err(e) => {
+                println!("Invalid input: {}. Try again", e);
+            }
         }
-        println!("Invalid input. Try again");
     }
 }
 
-fn query_with_default<T : FromStr + Display>(prompt : &str, default : T) -> T {
+fn query_with_default<S : Display, T : FromStr + Display, F>(prompt : &str, default : S, validator : F) -> S
+    where F: Fn(T) -> Result<S, String>,
+        <T as std::str::FromStr>::Err: std::fmt::Display {
+    query_with_default_no_default_indicated(&format!("{} (default : {})", prompt, default), default, validator)
+}
+
+fn query_with_default_no_default_indicated<S : Display, T : FromStr, F>(prompt : &str, default : S, validator : F) -> S 
+    where F: Fn(T) -> Result<S, String>,
+        <T as std::str::FromStr>::Err: std::fmt::Display  {
     loop {
-        print!("{} (default {}): ", prompt, default);
+        print!("{} : ", prompt);
         stdout().flush().unwrap();
         let mut input = String::new();
         stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
@@ -38,28 +62,29 @@ fn query_with_default<T : FromStr + Display>(prompt : &str, default : T) -> T {
         if trimmed.len() == 0 {
             return default;
         }
-        if let Ok(res) = trimmed.parse::<T>() {
-            return res;
+        let result = 
+            trimmed.parse::<T>()
+                   .map_err(|err| format!("{}", err))
+                   .and_then(|res| validator(res));
+        match result {
+            Ok(res) => {
+                return res;
+            }, 
+            Err(e) => {
+                println!("Invalid input: {}. Try again", e);
+            }
         }
-        println!("Invalid input. Try again");
     }
 }
 
-fn query_with_default_no_default_indicated<T : FromStr + Display>(prompt : &str, default : T) -> T {
-    loop {
-        print!("{}: ", prompt);
-        stdout().flush().unwrap();
-        let mut input = String::new();
-        stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
-        let trimmed = input.trim();
-        if trimmed.len() == 0 {
-            return default;
+fn query_yes_no(prompt : &str) -> bool {
+    query(prompt, 
+        |response : String| if response.starts_with("y") || response.starts_with("n") {
+            Ok(response.starts_with("y"))
+        } else {
+            Err(format!("unrecognized response '{}'. Should be '(y)es' or '(n)o'", response))
         }
-        if let Ok(res) = trimmed.parse::<T>() {
-            return res;
-        }
-        println!("Invalid input. Try again");
-    }
+    )
 }
 
 pub fn get_gens(min_degree : i32) -> Result<BiVec<Vec<String>>, Box<dyn Error>>{
@@ -70,7 +95,7 @@ pub fn get_gens(min_degree : i32) -> Result<BiVec<Vec<String>>, Box<dyn Error>>{
     let mut gens : BiVec<Vec<_>> = BiVec::new(min_degree);
     let finished_degree = i32::max_value();
     loop {
-        let gen_deg = query_with_default_no_default_indicated::<i32>("Generator degree", finished_degree);
+        let gen_deg = query_with_default_no_default_indicated("Generator degree", finished_degree, |x : i32| Ok(x));
         if gen_deg == finished_degree {
             println!("This is the list of generators and degrees:");
             for (i, deg_i_gens) in gens.iter_enum() {
@@ -79,10 +104,10 @@ pub fn get_gens(min_degree : i32) -> Result<BiVec<Vec<String>>, Box<dyn Error>>{
                 }
             }
             print!("\n");
-            if query::<String>("Is it okay? (yes/no)").starts_with("y") {
+            if query_yes_no("Is it okay?") {
                 break;
             } else {
-                if query::<String>("Reset generator list? (yes/no)").starts_with("y") {
+                if query_yes_no("Start over?") {
                     gens = BiVec::new(min_degree);
                 }
                 continue;
@@ -91,7 +116,22 @@ pub fn get_gens(min_degree : i32) -> Result<BiVec<Vec<String>>, Box<dyn Error>>{
         while gens.len() <= gen_deg {
             gens.push(Vec::new());
         }
-        let gen_name = query_with_default("Generator name", format!("x{}{}",gen_deg, gens[gen_deg].len()));        
+        let gen_name = query_with_default("Generator name", format!("x{}{}",gen_deg, gens[gen_deg].len()), 
+            |x : String| {
+                match x.chars().next() {
+                    Some(a) => if !a.is_alphabetic() {
+                        return Err("variable name must start with a letter".to_string())
+                    },
+                    None => return Err("Variable name cannot be empty".to_string())
+                };
+                for c in x.chars() {
+                    if !c.is_alphanumeric() && c != '_' {
+                        return Err(format!("Variable name cannot contain {}. Should be alphanumeric and '_'", c));
+                    }
+                }
+                return Ok(x);
+            }
+        );
         gens[gen_deg].push(gen_name);
     }
     Ok(gens)
@@ -116,7 +156,7 @@ where
     F: for<'a> Fn(&'a str) -> Option<usize>
 {
     'outer : loop {
-        let result = query::<String>(prompt);
+        let result = query(prompt, |res : String| Ok(res));
         if result == "0" {
             break;
         }
@@ -146,30 +186,52 @@ where
 }
 
 pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
-    let mut output_path;
-    loop {
-        output_path = query::<String>("Output file name");
-        if !output_path.is_empty() {
-            break;
+    let output_path = query("Output file name", |result : String|
+        if result.is_empty() {
+            Err("Output file name cannot be empty".to_string())
+        } else {
+            Ok(result)
         }
-        println!("Output file name cannot be empty");
-    }
-    let name = query::<String>("Module name (use latex between $'s)");
+    );
+
+    let module_type = query_with_default_no_default_indicated(
+        "Input module type (default 'finite dimensional module'):\n (0) - finite dimensional module \n (1) - finitely presented module\n", 
+        0,
+        |x : u32| match x {
+            0 | 1 => Ok(x),
+            _ => Err(format!("Invalid type '{}'. Type must be '0' or '1'", x))
+        }
+    );
+
+    let name = query("Module name (use latex between $'s)", |name : String| Ok(name));
     // Query for prime
-    let mut p;
-    loop {
-        p = query_with_default("p", 2);
-        if crate::combinatorics::is_valid_prime(p) {
-            break;
-        }
-        println!("Invalid input. Try again");
-    }
+    let p = query_with_default("p", 2, 
+        |p : u32| if crate::combinatorics::is_valid_prime(p) {Ok(p)} else {Err("invalid prime".to_string())});
     let generic = p != 2;
-    return interactive_module_define_fdmodule(output_path, name, p, generic);
+    let mut output_path_buf = PathBuf::from(output_path);
+    output_path_buf.set_extension("json");
+    let file_name = output_path_buf.file_stem().unwrap();    
+    let mut output_json = json!({
+        "file_name" : file_name.to_str(),
+        "name" : name,
+        "p" : p,
+        "generic" : generic,
+    });
+
+    println!("module_type : {}", module_type);
+    match module_type {
+        0 => {output_json = interactive_module_define_fdmodule(output_json, p, generic)?},
+        1 => {output_json = interactive_module_define_fpmodule(output_json, p, generic)?},
+        _ => unreachable!()
+    }
+    std::fs::write(&output_path_buf, output_json.to_string())?;
+    println!("Wrote module to file {:?}. Run again with {:?} as argument to resolve.", file_name, file_name);
+    Ok("".to_string())
 }
 
 
-pub fn interactive_module_define_fdmodule(output_path : String, name : String, p : u32, generic : bool) -> Result<String, Box<dyn Error>>{
+pub fn interactive_module_define_fdmodule(mut output_json : Value, p : u32, generic : bool) -> Result<Value, Box<dyn Error>>{
+    output_json["type"] = Value::from("finite dimensional module");
     let adem_algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
     let milnor_algebra = Rc::new(AlgebraAny::from(MilnorAlgebra::new(p)));
     let min_degree = 0i32;
@@ -231,20 +293,89 @@ pub fn interactive_module_define_fdmodule(output_path : String, name : String, p
     let adem_actions = adem_module.actions_to_json();
     let milnor_actions = milnor_module.actions_to_json();
     
-    let mut output_path_buf = PathBuf::from(output_path);
-    output_path_buf.set_extension("json");
-    let file_name = output_path_buf.file_stem().unwrap();
-    let output_json = json!({
-        "type" : "finite dimensional module",
-        "file_name" : file_name.to_str(),
-        "name" : name,
-        "p" : p,
-        "generic" : generic,
-        "gens" : gens_json,
-        "adem_actions" : adem_actions,
-        "milnor_actions" : milnor_actions
-    });
-    std::fs::write(&output_path_buf, output_json.to_string())?;
-    println!("Wrote module to file {:?}. Run again with {:?} as argument to resolve.", file_name, file_name);
-    Ok("".to_string())
+    output_json["gens"] = gens_json;
+    output_json["adem_actions"] = adem_actions;
+    output_json["milnor_actions"] = milnor_actions;
+    Ok(output_json)
+}
+
+fn get_relation(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, module : &FreeModule, basis_elt_lookup : &HashMap<String, (i32, usize)>) -> Result<(i32, FpVector), String> {
+    let relation = query("Relation", |x : String| Ok(x));
+    if relation == "" {
+        return Err("".to_string());
+    }
+    return evaluate_module(adem_algebra, milnor_algebra, module, basis_elt_lookup, &relation).map_err(|err| err.to_string());
+}
+
+pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, generic : bool) -> Result<Value, Box<dyn Error>>{
+    output_json["type"] = Value::from("finitely presented module");
+    let min_degree = 0i32;
+    let gens = get_gens(min_degree)?;
+    let gens_json = gens_to_json(&gens);    
+    let max_degree = (gens.len() + 1) as i32 + min_degree;
+
+
+    let adem_algebra_rc = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
+    let adem_algebra = AdemAlgebra::new(p, generic, false);
+    let milnor_algebra = MilnorAlgebra::new(p);
+    adem_algebra_rc.compute_basis(max_degree);
+    adem_algebra.compute_basis(max_degree);
+    milnor_algebra.compute_basis(max_degree);
+    
+    let mut graded_dim = BiVec::with_capacity(min_degree, max_degree);
+    for i in gens.iter().map(Vec::len) {
+        graded_dim.push(i);
+    }
+
+    let adem_module = FPModule::new(Rc::clone(&adem_algebra_rc), "".to_string(), min_degree);
+
+    for (i, deg_i_gens) in gens.iter_enum() {
+        adem_module.add_generators(i, deg_i_gens.clone());
+    }
+
+    println!("Input relations");
+
+    let mut basis_elt_lookup = HashMap::new();
+    for (i, deg_i_gens) in gens.iter_enum() {
+        for (j, gen) in deg_i_gens.iter().enumerate() {
+            let k = adem_module.generators.operation_generator_to_index(0, 1, i, j);
+            basis_elt_lookup.insert(gen.clone(), (i, k));
+        }
+    }
+
+    let mut relations : BiVec<Vec<FpVector>> = BiVec::new(min_degree);
+    loop {
+        match get_relation(&adem_algebra, &milnor_algebra, &adem_module.generators, &basis_elt_lookup) {
+            Err(x) => {
+                if x == "" {
+                    println!("Invalid relation: {}. Try again.", "");
+                    continue;
+                }
+                println!("This is the list of generators and degrees:");
+                for (i, deg_i_gens) in gens.iter_enum() {
+                    for gen in deg_i_gens.iter(){
+                        print!("({}, {}) ", i, gen);
+                    }
+                }
+                print!("\n");
+                if query_yes_no("Is it okay?") {
+                    break;
+                } else {
+                    if query_yes_no("Start over?") {
+                        relations = BiVec::new(min_degree);
+                    }
+                    continue;
+                }
+            },
+            Ok((degree, vector)) => {
+                while relations.len() <= degree {
+                    relations.push(Vec::new());
+                }
+                relations[degree].push(vector);
+            },
+        }
+    }
+
+
+    Ok(output_json)
 }

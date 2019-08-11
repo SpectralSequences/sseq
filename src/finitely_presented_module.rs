@@ -41,6 +41,18 @@ impl FinitelyPresentedModule {
         }
     }
 
+    pub fn add_generators(&self, degree : i32, gen_names : Vec<String>){
+        let num_gens = gen_names.len();
+        self.generators.add_generators_immediate(degree, num_gens, Some(gen_names));
+    }
+
+    pub fn add_relations(&self, degree : i32, relations_matrix : &mut Matrix){
+        let num_relns = relations_matrix.get_rows();
+        self.relations.add_generators_immediate(degree, num_relns, None);
+        let mut map_lock = self.map.get_lock();
+        self.map.add_generators_from_matrix_rows(&map_lock, degree, relations_matrix, 0, 0, num_relns);
+        *map_lock += 1;        
+    }
 
     // Exact duplicate of function in fdmodule.rs...
     fn module_gens_from_json(gens : &Value) -> (BiVec<usize>, BiVec<Vec<String>>, HashMap<&String, (i32, usize)>) {
@@ -121,12 +133,11 @@ impl FinitelyPresentedModule {
         let result = Self::new(Rc::clone(&algebra), name, min_degree);
         for i in min_degree .. max_gen_degree {
             let idx = (i - min_degree) as usize;
-            result.generators.add_generators_immediate(i, num_gens_in_degree[i], Some(gen_names[i].clone()));
+            result.add_generators(i, gen_names[i].clone());
         }
         result.generators.extend_by_zero(max_degree);
         for i in min_degree ..= max_relation_degree {
             let num_relns = relations_by_degree[i].len();
-            result.relations.add_generators_immediate(i, num_relns, None);
             let gens_dim = result.generators.get_dimension(i);
             let mut relations_matrix = Matrix::new(p, num_relns, gens_dim);
             for (j, relation) in relations_by_degree[i].iter().enumerate() {
@@ -137,9 +148,7 @@ impl FinitelyPresentedModule {
                     relations_matrix[j].set_entry(basis_idx, *coeff);
                 }
             }
-            let mut map_lock = result.map.get_lock();
-            result.map.add_generators_from_matrix_rows(&map_lock, i, &mut relations_matrix, 0, 0, num_relns);
-            *map_lock += 1;
+            result.add_relations(i, &mut relations_matrix);
         }
         return result;
     }
