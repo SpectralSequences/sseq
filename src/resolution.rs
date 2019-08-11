@@ -9,7 +9,7 @@ use bivec::BiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace};
 use crate::algebra::{Algebra, AlgebraAny};
-use crate::module::{Module, OptionModule};
+use crate::module::{Module, OptionModule, FiniteModule};
 use crate::free_module::FreeModule;
 use crate::once::{OnceVec, OnceBiVec, TempStorage};
 use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
@@ -48,10 +48,10 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
     differentials : OnceVec<FreeModuleHomomorphism<FreeModule>>,
     phantom : PhantomData<ChainComplex<M, F>>,
 
-    pub kernels : OnceBiVec<RefCell<Option<Subspace>>>,
+    kernels : OnceBiVec<RefCell<Option<Subspace>>>,
 
-    pub next_s : Mutex<u32>,
-    pub next_t : Mutex<i32>,
+    next_s : Mutex<u32>,
+    next_t : Mutex<i32>,
     pub add_class : Option<Box<dyn Fn(u32, i32, &str)>>,
     pub add_structline : Option<Box<dyn Fn(
         &str,
@@ -60,7 +60,7 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
     )>>,
 
     // Products
-    unit_resolution : Option<Rc<RefCell<ModuleResolution<FDModule>>>>,
+    pub unit_resolution : Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>,
     product_list : Vec<Cocycle>,
     // s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
     // until we actually have a unit resolution, of course.
@@ -522,12 +522,12 @@ impl<M, F, CC> Resolution<M, F, CC> where
     }
 
     pub fn construct_unit_resolution(&mut self) {
-         let unit_module = Rc::new(FDModule::new(self.get_algebra(), String::from("unit"), BiVec::from_vec(0, vec![1])));
+         let unit_module = Rc::new(FiniteModule::from(FDModule::new(self.get_algebra(), String::from("unit"), BiVec::from_vec(0, vec![1]))));
          let ccdz = Rc::new(CCDZ::new(unit_module));
          self.unit_resolution = Some(Rc::new(RefCell::new(Resolution::new(ccdz, None, None))));
     }
 
-    pub fn set_unit_resolution(&mut self, unit_res : Rc<RefCell<ModuleResolution<FDModule>>>) {
+    pub fn set_unit_resolution(&mut self, unit_res : Rc<RefCell<ModuleResolution<FiniteModule>>>) {
         if self.chain_maps_to_unit_resolution.len() > 0 {
             panic!("Cannot change unit resolution after you start computing products");
         }

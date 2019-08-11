@@ -4,10 +4,9 @@ use std::cell::RefCell;
 use crate::once::OnceVec;
 use crate::fp_vector::{ FpVector, FpVectorT };
 use crate::matrix::Matrix;
-use crate::module::{Module, OptionModule};
+use crate::module::{Module, OptionModule, FiniteModule};
 use crate::free_module::FreeModule;
 use crate::module_homomorphism::{ZeroHomomorphism, ModuleHomomorphism};
-use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
 use crate::chain_complex::ChainComplex;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
@@ -159,9 +158,9 @@ impl<
 }
 
 pub type ResolutionHomomorphismToUnit<M, F, CC> = ResolutionHomomorphism<M, F, CC,
-    OptionModule<FDModule>,
-    ZeroHomomorphism<OptionModule<FDModule>, OptionModule<FDModule>>,
-    CCDZ<FDModule>
+    OptionModule<FiniteModule>,
+    ZeroHomomorphism<OptionModule<FiniteModule>, OptionModule<FiniteModule>>,
+    CCDZ<FiniteModule>
 >;
 
 // FreeModuleHomomorphism *ResolutionHomomorphism_getMap(ResolutionHomomorphism *f, uint homological_degree);

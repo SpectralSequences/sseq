@@ -3,10 +3,14 @@ extern crate rust_ext;
 #[macro_use]
 extern crate serde_json;
 
-use rust_ext::{Config, AlgebraicObjectsBundle};
-use rust_ext::module::{Module, FiniteModule};
+use rust_ext::Config;
+use rust_ext::module::FiniteModule;
+use rust_ext::resolution::{ModuleResolution};
+use rust_ext::chain_complex::ChainComplex;
 use std::{fs, thread};
 use std::sync::mpsc;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::error::Error;
 use serde_json::value::Value;
 
@@ -34,7 +38,7 @@ const FILE_LIST : [(&str, &str, &[u8]); 6] = [
 /// and what stays a local variable is simply a matter of convenience.
 struct ResolutionManager {
     sender : mpsc::Sender<String>,
-    bundle : Option<AlgebraicObjectsBundle<FiniteModule>>
+    resolution : Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>
 }
 
 impl ResolutionManager {
@@ -49,124 +53,139 @@ impl ResolutionManager {
     fn new(receiver : mpsc::Receiver<String>, sender : mpsc::Sender<String>) -> Result<(), Box<dyn Error>> {
         let mut manager = ResolutionManager {
              sender : sender,
-             bundle : None,
+             resolution : None,
         };
 
         for msg in receiver {
             let json : Value = serde_json::from_str(&msg).unwrap();// Implement proper error handling.
+            println!("Received message:\n{}", serde_json::to_string_pretty(&json)?);
             match json["command"].as_str() {
-                Some("resolve") => manager.resolve(json)?,
+                Some("resolve") => manager.construct_resolution(json)?,
+                Some("resolve_json") => manager.construct_resolution_json(json)?,
                 Some("resolve_further") => manager.resolve_further(json)?,
-                Some("resolve_json") => manager.resolve_json(json)?,
+                Some("resolve_unit") => manager.resolve_unit(json)?,
                 _ => {println!("Ignoring message: {:#}", json);}
             };
         }
         Ok(())
     }
 
+    fn resolution(&self) -> &Rc<RefCell<ModuleResolution<FiniteModule>>> {
+        &self.resolution.as_ref().unwrap()
+    }
+
     /// Resolve existing resolution to a larger degree
     fn resolve_further(&mut self, json : Value) -> Result<(), Box<dyn Error>> {
         let max_degree = json["maxDegree"].as_i64().unwrap() as i32;
-        if let Some(bundle) = &self.bundle {
-            let resolution = bundle.resolution.borrow();
-            resolution.resolve_through_degree(&bundle.resolution, max_degree);
+        self.resolve(max_degree)
+    }
 
-            let data = json!({ "command": "complete" });
-            self.sender.send(data.to_string())?;
+    fn resolve_unit(&mut self, json : Value) -> Result<(), Box<dyn Error>> {
+        let max_degree = json["maxDegree"].as_i64().unwrap() as i32;
+        let unit_resolution_option = &self.resolution().borrow().unit_resolution;
+        if let Some(unit_resolution) = unit_resolution_option {
+            unit_resolution.borrow().resolve_through_degree(&unit_resolution, max_degree);
         }
         Ok(())
     }
 
     /// Resolves a module defined by a json object. The result is stored in `self.bundle`.
-    fn resolve_json(&mut self, json : Value) -> Result<(), Box<dyn Error>> {
+    fn construct_resolution_json(&mut self, json : Value) -> Result<(), Box<dyn Error>> {
         let algebra_name = json["algebra"].as_str().unwrap().to_string();
         let max_degree = json["maxDegree"].as_i64().unwrap() as i32;
         let json_data = serde_json::from_str(json["data"].as_str().unwrap())?;
 
-        self.bundle = rust_ext::construct_from_json(json_data, algebra_name).ok();
+        let bundle = rust_ext::construct_from_json(json_data, algebra_name).unwrap();
 
-        self.resolve_bundle(max_degree)
+        self.resolution = Some(bundle.resolution);
+
+        self.setup_callback(&self.resolution, "");
+        self.setup_callback(&self.resolution().borrow().unit_resolution, "Unit");
+        self.resolve(max_degree)
     }
 
     /// Resolves a module specified by `json`. The result is stored in `self.bundle`.
-    fn resolve(&mut self, json : Value) -> Result<(), Box<dyn Error>> {
+    fn construct_resolution(&mut self, json : Value) -> Result<(), Box<dyn Error>> {
         let module_name = json["module"].as_str().unwrap(); // Need to handle error
         let algebra_name = json["algebra"].as_str().unwrap();
         let max_degree = json["maxDegree"].as_i64().unwrap() as i32;
         let mut dir = std::env::current_dir()?;
         dir.push("modules");
 
-        self.bundle = rust_ext::construct(&Config {
+        let bundle = rust_ext::construct(&Config {
              module_paths : vec![dir],
              module_file_name : format!("{}.json", module_name),
              algebra_name : algebra_name.to_string(),
              max_degree : max_degree
-        }).ok();
+        }).unwrap();
 
-        self.resolve_bundle(max_degree)
+        self.resolution = Some(bundle.resolution);
+
+        self.setup_callback(&self.resolution, "");
+        self.setup_callback(&self.resolution.as_ref().unwrap().borrow().unit_resolution, "Unit");
+        self.resolve(max_degree)
     }
 
-    /// If `self.bundle` is set, resolve the resolution in the bundle up to degree `max_degree`. If
-    /// `self.bundle` is not set, the function does nothing.
-    fn resolve_bundle(&mut self, max_degree : i32) -> Result<(), Box<dyn Error>> {
-        if let Some(bundle) = &self.bundle {
+    fn resolve(&self, max_degree : i32) -> Result<(), Box<dyn Error>> {
+        let data = json!(
+            {
+                "command" : "resolving",
+                "minDegree" : self.resolution.as_ref().unwrap().borrow().get_min_degree(),
+                "maxDegree" : max_degree
+            });
+        self.sender.send(data.to_string())?;
+
+        if let Some(resolution) = &self.resolution {
+            resolution.borrow().resolve_through_degree(&resolution, max_degree);
+        }
+
+        let data = json!({ "command": "complete" });
+        self.sender.send(data.to_string())?;
+        Ok(())
+    }
+
+    fn setup_callback(&self, resolution : &Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>, postfix : &'static str) {
+
+        let sender = self.sender.clone();
+        let add_class = move |s: u32, t: i32, _name: &str| {
             let data = json!(
                 {
-                    "command" : "resolving",
-                    "minDegree" : (*bundle.module).get_min_degree(),
-                    "maxDegree" : max_degree
+                    "command": format!("addClass{}", postfix),
+                    "s": s,
+                    "t": t
                 });
-
-            self.sender.send(data.to_string())?;
-
-            let sender = self.sender.clone();
-            let add_class = move |s: u32, t: i32, _name: &str| {
-                let data = json!(
-                    {
-                        "command": "addClass",
-                        "s": s,
-                        "t": t
-                    });
-                match sender.send(data.to_string()) {
-                    Ok(_) => (),
-                    Err(e) => eprintln!("Failed to send class: {}", e)
-                };
+            match sender.send(data.to_string()) {
+                Ok(_) => (),
+                Err(e) => eprintln!("Failed to send class: {}", e)
             };
+        };
 
-            let sender = self.sender.clone();
-            let add_structline = move |name : &str, source_s: u32, source_t: i32, source_idx: usize, target_s : u32, target_t : i32, target_idx : usize| {
-                let data = json!(
-                    {
-                        "command": "addStructline",
-                        "mult": name,
-                        "source": {
-                            "s": source_s,
-                            "t": source_t,
-                            "idx": source_idx
-                        },
-                        "target": {
-                            "s": target_s,
-                            "t": target_t,
-                            "idx": target_idx
-                        }
-                    });
-                match sender.send(data.to_string()) {
-                    Ok(_) => (),
-                    Err(e) => eprintln!("Failed to send class: {}", e)
-                };
+        let sender = self.sender.clone();
+        let add_structline = move |name : &str, source_s: u32, source_t: i32, source_idx: usize, target_s : u32, target_t : i32, target_idx : usize| {
+            let data = json!(
+                {
+                    "command": format!("addStructline{}", postfix),
+                    "mult": name,
+                    "source": {
+                        "s": source_s,
+                        "t": source_t,
+                        "idx": source_idx
+                    },
+                    "target": {
+                        "s": target_s,
+                        "t": target_t,
+                        "idx": target_idx
+                    }
+                });
+            match sender.send(data.to_string()) {
+                Ok(_) => (),
+                Err(e) => eprintln!("Failed to send class: {}", e)
             };
+        };
 
-            {
-                let mut resolution = bundle.resolution.borrow_mut();
-                resolution.add_class = Some(Box::new(add_class));
-                resolution.add_structline = Some(Box::new(add_structline));
-            }
-            bundle.resolution.borrow().resolve_through_degree(&bundle.resolution, max_degree);
-
-            let data = json!({ "command": "complete" });
-            self.sender.send(data.to_string())?;
-        }
-        Ok(())
+        let mut resolution = resolution.as_ref().unwrap().borrow_mut();
+        resolution.add_class = Some(Box::new(add_class));
+        resolution.add_structline = Some(Box::new(add_structline));
     }
 }
 
