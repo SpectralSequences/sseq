@@ -4,6 +4,8 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::sync::Mutex;
 
+use bivec::BiVec;
+
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace};
 use crate::algebra::{Algebra, AlgebraAny};
@@ -521,7 +523,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
     }
 
     pub fn construct_unit_resolution(&mut self) {
-         let unit_module = Rc::new(FDModule::new(self.get_algebra(), String::from("unit"), 0, vec![1]));
+         let unit_module = Rc::new(FDModule::new(self.get_algebra(), String::from("unit"), BiVec::from_vec(0, vec![1])));
          let ccdz = Rc::new(CCDZ::new(unit_module));
          self.unit_resolution = Some(Rc::new(RefCell::new(Resolution::new(ccdz, None, None))));
     }

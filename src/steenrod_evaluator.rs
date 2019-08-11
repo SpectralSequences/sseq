@@ -19,7 +19,7 @@ fn evaluate_algebra_tree_helper(
     mut output_degree : Option<i32>, 
     tree : AlgebraParseNode
 ) -> Result<(i32, FpVector), Box<dyn Error>> {
-    let p = adem_algebra.get_prime();
+    let p = adem_algebra.prime();
     match tree {
         AlgebraParseNode::Sum(left, right) => {
             let (degree_left, mut output_left) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, output_degree, *left)?;
@@ -63,7 +63,7 @@ fn evaluate_basis_element(
     milnor_algebra : &MilnorAlgebra, 
     output_degree : Option<i32>, basis_elt : AlgebraBasisElt
 ) -> Result<(i32, FpVector), Box<dyn Error>> {
-    let p = adem_algebra.get_prime();
+    let p = adem_algebra.prime();
     let q = if adem_algebra.generic { 2 * p - 2 } else { 1 };
     let degree : i32;
     let mut result;

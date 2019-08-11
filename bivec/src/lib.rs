@@ -22,6 +22,13 @@ impl<T> BiVec<T> {
         }
     }
 
+    pub fn from_vec(min_degree : i32, data : Vec<T>) -> Self {
+        Self {
+            data,
+            min_degree
+        }
+    }
+
     pub fn with_capacity(min_degree : i32, capacity : i32) -> Self {
         debug_assert!(capacity >= min_degree);
         BiVec {
