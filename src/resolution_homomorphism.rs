@@ -82,10 +82,6 @@ impl<
         let num_gens = f_cur.get_source().get_number_of_gens_in_degree(input_internal_degree);
         let mut outputs = self.extend_step_helper(input_homological_degree, input_internal_degree, extra_images);
         let mut lock = f_cur.get_lock();
-        if outputs.get_rows() > 0 {
-            println!("Extending {} to hom_deg : {}, int_deg : {}", self.name, input_homological_degree, input_internal_degree);
-            println!("outputs : {}", outputs);
-        }
         f_cur.add_generators_from_matrix_rows(&lock, input_internal_degree, &mut outputs, 0, 0, num_gens);
         *lock += 1;
     }
@@ -150,10 +146,7 @@ impl<
                 extra_image_row += 1;
             } else {
                 f_prev.apply(&mut fdx_vector, 1, input_internal_degree, &dx_vector);
-                println!("{:?}", d_quasi_inverse);
-                println!("fx_dimension : {}",fx_dimension);
                 d_quasi_inverse.apply(&mut outputs_matrix[k], 1, &fdx_vector);
-                println!("{}, {}, {}", dx_vector, fdx_vector, outputs_matrix[k]);
                 dx_vector.set_to_zero();
                 fdx_vector.set_to_zero();
             }

@@ -385,7 +385,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let padded_target_cc_dimension = FpVector::get_padded_dimension(p, target_cc_dimension);
         let padded_target_res_dimension = FpVector::get_padded_dimension(p, target_res_dimension);
         let padded_target_dimension = padded_target_res_dimension + padded_target_cc_dimension;
-        let rows = max(source_dimension, target_dimension);
+        let rows = source_dimension + target_dimension;
         let columns = padded_target_dimension + source_dimension + rows;
         let mut matrix = Matrix::new(p, rows, columns);
         let mut pivots = vec![-1;matrix.get_columns()];
@@ -401,7 +401,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 
         let new_kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
         let kernel_rows = new_kernel.matrix.get_rows();
-        let first_new_row = source_dimension - kernel_rows;
+        let first_new_row = source_dimension;
         matrix.clear_slice();
 
         // Now add generators to surject onto C_{s, t}.
@@ -459,7 +459,6 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         matrix.set_slice(0, image_rows, 0, padded_target_dimension + source_dimension + num_new_gens); 
         let mut new_pivots = vec![-1;matrix.get_columns()];
         matrix.row_reduce(&mut new_pivots);
-        // println!("{}", matrix);
         let (cm_qi, res_qi) = matrix.compute_quasi_inverses(
             &new_pivots, 
             padded_target_cc_dimension, 
@@ -565,7 +564,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
         for l in 0 .. self.get_number_of_gens_in_bidegree(target_s, target_t) {
             f.get_map(elt.s).apply_to_generator(&mut result, 1, target_t, l);
 
-            let vector_idx = 0; // output_module.operation_generator_to_index(0, 0, elt.t, elt.idx);
+            let vector_idx = output_module.operation_generator_to_index(0, 0, elt.t, elt.index);
             if result.get_entry(vector_idx) != 0 {
                 self.add_structline(&elt.name, s, t, idx, target_s, target_t, l);
             }

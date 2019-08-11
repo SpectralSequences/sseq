@@ -43,7 +43,6 @@ impl Module for FreeModule {
     }
 
     fn get_dimension(&self, degree : i32) -> usize {
-        // println!("Get dimension of {} in degree {}", self.name, degree);
         if degree < self.min_degree {
             return 0;
         }
