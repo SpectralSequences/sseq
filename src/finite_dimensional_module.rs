@@ -236,9 +236,11 @@ impl FiniteDimensionalModule {
         let name = json["name"].as_str().unwrap().to_string();
         let mut actions_value = json[algebra.get_algebra_type().to_owned() + "_actions"].take();
         let actions = actions_value.as_array_mut().unwrap();
-        let mut result = Self::new(Rc::clone(&algebra), name, graded_dimension);
-        for i in min_degree .. max_degree {
-
+        let mut result = Self::new(Rc::clone(&algebra), name, graded_dimension.clone());
+        for (i, dim) in graded_dimension.iter_enum() {
+            for j in 0..*dim {
+                result.set_basis_element_name(i, j, gen_names[i][j].clone());
+            }
         }
         for action in actions.iter_mut() {
             let op = action["op"].take();

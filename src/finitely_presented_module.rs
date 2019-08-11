@@ -2,6 +2,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use serde_json::Value;
 
+use bivec::BiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::Matrix;
 use crate::once::OnceVec;
@@ -42,11 +43,11 @@ impl FinitelyPresentedModule {
 
 
     // Exact duplicate of function in fdmodule.rs...
-    fn module_gens_from_json(gens : &Value) -> (i32, Vec<usize>, HashMap<&String, (i32, usize)>) {
+    fn module_gens_from_json(gens : &Value) -> (BiVec<usize>, BiVec<Vec<String>>, HashMap<&String, (i32, usize)>) {
         let gens = gens.as_object().unwrap();
         assert!(gens.len() > 0);
-        let mut min_degree : i32 = 10000;
-        let mut max_degree : i32 = -10000;
+        let mut min_degree = 10000;
+        let mut max_degree = -10000;
         for (_name, degree_value) in gens.iter() {
             let degree = degree_value.as_i64().unwrap() as i32;
             if degree < min_degree {
@@ -57,24 +58,32 @@ impl FinitelyPresentedModule {
             }
         }
         let mut gen_to_idx = HashMap::new();
-        let mut graded_dimension = vec!(0; (max_degree - min_degree) as usize);
+        let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree);
+        for _ in min_degree..max_degree {
+            graded_dimension.push(0);
+        }
+        let mut gen_names = BiVec::with_capacity(min_degree, max_degree);
+        for _ in min_degree..max_degree {
+            gen_names.push(vec![]);
+        }        
         for (name, degree_value) in gens.iter() {
             let degree = degree_value.as_i64().unwrap() as i32;
-            let degree_idx = (degree - min_degree) as usize;
-            gen_to_idx.insert(name, (degree as i32, graded_dimension[degree_idx]));
-            graded_dimension[degree_idx] += 1;
+            gen_names[degree].push(name.clone());            
+            gen_to_idx.insert(name, (degree, graded_dimension[degree]));
+            graded_dimension[degree] += 1;
         }
-        return (min_degree as i32, graded_dimension, gen_to_idx);
+        return (graded_dimension, gen_names, gen_to_idx);
     }
 
     pub fn from_json(algebra : Rc<AlgebraAny>, json : &mut Value) -> Self {
         let p = algebra.prime();
         let name = json["name"].as_str().unwrap().to_string();
         let gens = json["gens"].take();
-        let (min_degree, num_gens_in_degree, gen_to_deg_idx) = Self::module_gens_from_json(&gens);
+        let (num_gens_in_degree, gen_names, gen_to_deg_idx) = Self::module_gens_from_json(&gens);
         let mut relations_value = json[algebra.get_algebra_type().to_owned() + "_relations"].take();
         let relations_values = relations_value.as_array_mut().unwrap();
-        let max_gen_degree = num_gens_in_degree.len() as i32 + min_degree;
+        let min_degree = num_gens_in_degree.min_degree();
+        let max_gen_degree = num_gens_in_degree.max_degree();
         algebra.compute_basis(20);
         let relations : Vec<Vec<_>> = relations_values.iter_mut().map(|reln|
             reln.take().as_array_mut().unwrap().iter_mut().map(
@@ -98,34 +107,29 @@ impl FinitelyPresentedModule {
             let op_gen = &reln[0].1;
             op_gen.operation_degree + op_gen.generator_degree
         }).max().unwrap();
-        let num_relation_degrees = (max_relation_degree - min_degree + 1) as usize;
-        let mut relations_by_degree = Vec::with_capacity(num_relation_degrees);
-        for i in 0..num_relation_degrees {
+        let mut relations_by_degree = BiVec::with_capacity(min_degree, max_relation_degree + 1);
+        for i in min_degree ..= max_relation_degree {
             relations_by_degree.push(Vec::new());
         }
         for r in relations {
             let op_gen = &r[0].1;
             let degree = op_gen.operation_degree + op_gen.generator_degree;
-            let degree_idx = (degree - min_degree) as usize;
-            relations_by_degree[degree_idx].push(r);
+            relations_by_degree[degree].push(r);
         }
         let max_degree = std::cmp::max(max_gen_degree, max_relation_degree);
         algebra.compute_basis(max_degree);
         let result = Self::new(Rc::clone(&algebra), name, min_degree);
         for i in min_degree .. max_gen_degree {
             let idx = (i - min_degree) as usize;
-            let gen_names = None;
-            result.generators.add_generators_immediate(i, num_gens_in_degree[idx], gen_names);
+            result.generators.add_generators_immediate(i, num_gens_in_degree[i], Some(gen_names[i].clone()));
         }
         result.generators.extend_by_zero(max_degree);
         for i in min_degree ..= max_relation_degree {
-            let idx = (i - min_degree) as usize;
-            let num_relns = relations_by_degree[idx].len();
+            let num_relns = relations_by_degree[i].len();
             result.relations.add_generators_immediate(i, num_relns, None);
-            println!("degree : {}, num_relns : {}", i, num_relns);
             let gens_dim = result.generators.get_dimension(i);
             let mut relations_matrix = Matrix::new(p, num_relns, gens_dim);
-            for (j, relation) in relations_by_degree[idx].iter().enumerate() {
+            for (j, relation) in relations_by_degree[i].iter().enumerate() {
                 for term in relation {
                     let coeff = &term.0;
                     let op_gen = &term.1;
