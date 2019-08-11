@@ -9,8 +9,8 @@ use crate::finitely_presented_module::FinitelyPresentedModule;
 
 #[enum_dispatch(FiniteModule)]
 pub trait Module {
-    fn get_prime(&self) -> u32 {
-        self.get_algebra().get_prime()
+    fn prime(&self) -> u32 {
+        self.get_algebra().prime()
     }
 
     fn get_algebra(&self) -> Rc<AlgebraAny>;
@@ -23,7 +23,7 @@ pub trait Module {
 
     fn act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector){
         assert!(input.get_dimension() == self.get_dimension(input_degree));
-        let p = self.get_algebra().get_prime();
+        let p = self.get_algebra().prime();
         for (i, v) in input.iter().enumerate() {
             if v == 0 {
                 continue;

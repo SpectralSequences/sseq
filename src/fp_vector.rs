@@ -155,7 +155,7 @@ pub trait FpVectorT {
     fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize );
     fn get_vector_container(&self) -> &VectorContainer;
     fn get_vector_container_mut(&mut self) -> &mut VectorContainer;
-    fn get_prime(&self) -> u32;
+    fn prime(&self) -> u32;
 
     fn get_dimension(&self) -> usize {
         let container = self.get_vector_container();
@@ -164,14 +164,14 @@ pub trait FpVectorT {
 
     fn get_offset(&self) -> usize {
         let container = self.get_vector_container();
-        let bit_length = get_bit_length(self.get_prime());
-        let entries_per_64_bits = get_entries_per_64_bits(self.get_prime());
+        let bit_length = get_bit_length(self.prime());
+        let entries_per_64_bits = get_entries_per_64_bits(self.prime());
         return (container.offset + container.slice_start * bit_length) % (bit_length * entries_per_64_bits);
     }
 
     fn get_min_index(&self) -> usize {
         let container = self.get_vector_container();
-        let bit_length = get_bit_length(self.get_prime());
+        let bit_length = get_bit_length(self.prime());
         return container.offset/bit_length + container.slice_start;
     }
 
@@ -201,14 +201,14 @@ pub trait FpVectorT {
     }
 
     fn get_min_limb(&self) -> usize {
-        let p = self.get_prime();
+        let p = self.prime();
         let bit_length = get_bit_length(p);
         let container = self.get_vector_container();
         get_limb_bit_index_pair(p,container.offset/bit_length + container.slice_start).limb
     }
 
     fn get_max_limb(&self) -> usize {
-        let p = self.get_prime();
+        let p = self.prime();
         let bit_length = get_bit_length(p);
         let container = self.get_vector_container();
         if container.offset/bit_length + container.slice_end > 0{
@@ -238,7 +238,7 @@ pub trait FpVectorT {
             mask <<= offset;
         }
         if limb_idx + 1 == number_of_limbs {
-            let p = self.get_prime();
+            let p = self.prime();
             let dimension = self.get_dimension();
             let bit_length = get_bit_length(p);
             let entries_per_64_bits = get_entries_per_64_bits(p);
@@ -330,7 +330,7 @@ pub trait FpVectorT {
     }
 
     fn get_entry(&self, index : usize) -> u32 {
-        let p = self.get_prime();
+        let p = self.prime();
         let bit_mask = get_bitmask(p);
         let limb_index = get_limb_bit_index_pair(p, index + self.get_min_index());
         let mut result = self.get_limbs_cvec()[limb_index.limb];
@@ -340,7 +340,7 @@ pub trait FpVectorT {
     }
 
     fn set_entry(&mut self, index : usize, value : u32){
-        let p = self.get_prime();
+        let p = self.prime();
         let bit_mask = get_bitmask(p);
         let limb_index = get_limb_bit_index_pair(p, index + self.get_min_index());
         let limbs = self.get_limbs_cvec_mut();
@@ -353,7 +353,7 @@ pub trait FpVectorT {
     fn add_basis_element(&mut self, index : usize, value : u32){
         let mut x = self.get_entry(index);
         x += value;
-        x = x % self.get_prime();
+        x = x % self.prime();
         self.set_entry(index, x);
     }
 
@@ -361,7 +361,7 @@ pub trait FpVectorT {
     /// enough to hold all the elements in the FpVector.
     fn unpack(&self, target : &mut [u32]){
         assert!(self.get_dimension() <= target.len());
-        let p = self.get_prime();
+        let p = self.prime();
         let dimension = self.get_dimension();
         let offset = self.get_offset();
         let limbs = self.get_limbs_cvec();
@@ -373,7 +373,7 @@ pub trait FpVectorT {
 
     fn pack(&mut self, source : &[u32]){
         assert!(self.get_dimension() <= source.len());
-        let p = self.get_prime();
+        let p = self.prime();
         let dimension = self.get_dimension();
         let offset = self.get_offset();
         let limbs = self.get_limbs_cvec_mut();
@@ -384,11 +384,11 @@ pub trait FpVectorT {
     }
 
     fn add(&mut self, other : &FpVector, c : u32){
-        debug_assert!(self.get_prime() == other.get_prime());
+        debug_assert!(self.prime() == other.prime());
         debug_assert!(self.get_offset() == other.get_offset());
         debug_assert!(self.get_dimension() == other.get_dimension(),
             format!("self.dim {} not equal to other.dim {}", self.get_dimension(), other.get_dimension()));
-        let p = self.get_prime();
+        let p = self.prime();
         let min_target_limb = self.get_min_limb();
         let max_target_limb = self.get_max_limb();
         let min_source_limb = other.get_min_limb();
@@ -519,7 +519,7 @@ pub struct FpVectorGeneric {
 impl FpVectorT for FpVector2 {
     fn reduce_limbs(&mut self, _start_limb : usize, _end_limb : usize){}
 
-    fn get_prime(&self) -> u32 { 2 }
+    fn prime(&self) -> u32 { 2 }
     fn get_vector_container (&self) -> &VectorContainer { &self.vector_container }
     fn get_vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
 }
@@ -538,7 +538,7 @@ impl FpVectorT for FpVector3 {
         }
     }
 
-    fn get_prime (&self) -> u32 { 3 }
+    fn prime (&self) -> u32 { 3 }
     fn get_vector_container (&self) -> &VectorContainer { &self.vector_container }
     fn get_vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
 }
@@ -561,7 +561,7 @@ impl FpVectorT for FpVector5 {
         }
     }
 
-    fn get_prime(&self) -> u32 { 5 }
+    fn prime(&self) -> u32 { 5 }
     fn get_vector_container (&self) -> &VectorContainer { &self.vector_container }
     fn get_vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
 }
@@ -587,7 +587,7 @@ impl FpVectorT for FpVectorGeneric {
         }
     }
 
-    fn get_prime (&self) -> u32 { self.p }
+    fn prime (&self) -> u32 { self.p }
     fn get_vector_container (&self) -> &VectorContainer { &self.vector_container }
     fn get_vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
 }
@@ -639,7 +639,7 @@ impl FpVector {
     }
 
     pub fn set_scratch_vector_size(mut self, dimension : usize) -> Self {
-        let p = self.get_prime();
+        let p = self.prime();
         self.clear_slice();
         let mut result;
         if dimension <= self.get_dimension() {

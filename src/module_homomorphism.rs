@@ -16,15 +16,15 @@ pub trait ModuleHomomorphism<S : Module, T : Module> {
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_idx : usize);
 
     fn apply(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input : &FpVector){
-        let p = self.get_prime();
+        let p = self.prime();
         for (i, v) in input.iter().enumerate() {
             if v==0 { continue; }
             self.apply_to_basis_element(result, (coeff * v) % p, input_degree, i);
         }
     }
     
-    fn get_prime(&self) -> u32 {
-        self.get_source().get_prime()
+    fn prime(&self) -> u32 {
+        self.get_source().prime()
     }
 
     fn get_lock(&self) -> MutexGuard<i32>;
@@ -40,7 +40,7 @@ pub trait ModuleHomomorphism<S : Module, T : Module> {
     }
 
     fn compute_quasi_inverse(&self, lock : &mut MutexGuard<i32>, degree : i32){
-        let p = self.get_prime();
+        let p = self.prime();
         let source_dimension = self.get_source().get_dimension(degree);
         let target_dimension = self.get_target().get_dimension(degree);
         let padded_target_dimension = FpVector::get_padded_dimension(p, target_dimension, 0);

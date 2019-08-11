@@ -99,7 +99,7 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         assert!(degree >= self.min_degree);
         assert_eq!(degree, self.outputs.len());
         assert!(degree == **lock + 1);
-        let p = self.get_prime();
+        let p = self.prime();
         let dimension = self.target.get_dimension(degree - self.degree_shift);
         let mut new_outputs : Vec<FpVector> = Vec::with_capacity(new_generators);
         for _ in 0 .. new_generators {

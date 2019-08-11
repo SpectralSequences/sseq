@@ -10,7 +10,7 @@ pub fn adem_to_milnor_on_basis(
     result : &mut FpVector, coeff : u32, degree : i32, idx : usize
 ){
     let elt = adem_algebra.basis_element_from_index(degree, idx);
-    let p = milnor_algebra.get_prime();
+    let p = milnor_algebra.prime();
     let q = if milnor_algebra.generic { 2 * p - 2 } else { 1 };
     let dim = milnor_algebra.get_dimension(elt.degree, -1);
     if dim == 1 {
@@ -58,7 +58,7 @@ fn adem_to_milnor(
     adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra,
     result : &mut FpVector, coeff : u32, degree : i32, input : &FpVector
 ){
-    let p = milnor_algebra.get_prime();
+    let p = milnor_algebra.prime();
     for (i, v) in input.iter().enumerate() {
         if v == 0 {
             continue;
@@ -85,7 +85,7 @@ fn milnor_to_adem_on_basis_2(
     result : &mut FpVector, coeff : u32, degree : i32, idx : usize
 ){
     let elt = milnor_algebra.basis_element_from_index(degree, idx);
-    let p = milnor_algebra.get_prime();
+    let p = milnor_algebra.prime();
     let dim = milnor_algebra.get_dimension(elt.degree, -1);
     if dim == 1 {
         result.set_entry(0, coeff);
@@ -116,7 +116,7 @@ fn milnor_to_adem_on_basis_generic(
     result : &mut FpVector, coeff : u32, degree : i32, idx : usize
 ){
     let elt = milnor_algebra.basis_element_from_index(degree, idx);
-    let p = milnor_algebra.get_prime();
+    let p = milnor_algebra.prime();
     let dim = milnor_algebra.get_dimension(elt.degree, -1);
     if dim == 1 {
         result.set_entry(0, coeff);
@@ -150,7 +150,7 @@ fn milnor_to_adem(
     adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra,
     result : &mut FpVector, coeff : u32, degree : i32, input : &FpVector
 ){
-    let p = milnor_algebra.get_prime();
+    let p = milnor_algebra.prime();
     for (i, v) in input.iter().enumerate() {
         if v == 0 {
             continue;

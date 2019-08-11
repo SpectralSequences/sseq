@@ -34,16 +34,16 @@ fn test_iterate(config: &Config) {
     let first = construct_from_json(json.clone(), config.algebra_name.clone()).unwrap();
     let second = construct_from_json(json, config.algebra_name.clone()).unwrap();
 
-    first.resolution.borrow_mut().resolve_through_degree(20);
+    first.resolution.borrow().resolve_through_degree(&first.resolution, 20);
 
-    second.resolution.borrow_mut().resolve_through_degree(0);
-    second.resolution.borrow_mut().resolve_through_degree(5);
-    second.resolution.borrow_mut().resolve_through_degree(10);
-    second.resolution.borrow_mut().resolve_through_degree(10);
-    second.resolution.borrow_mut().resolve_through_degree(18);
-    second.resolution.borrow_mut().resolve_through_degree(14);
-    second.resolution.borrow_mut().resolve_through_degree(15);
-    second.resolution.borrow_mut().resolve_through_degree(20);
+    second.resolution.borrow().resolve_through_degree(&second.resolution, 0);
+    second.resolution.borrow().resolve_through_degree(&second.resolution, 5);
+    second.resolution.borrow().resolve_through_degree(&second.resolution, 10);
+    second.resolution.borrow().resolve_through_degree(&second.resolution, 10);
+    second.resolution.borrow().resolve_through_degree(&second.resolution, 18);
+    second.resolution.borrow().resolve_through_degree(&second.resolution, 14);
+    second.resolution.borrow().resolve_through_degree(&second.resolution, 15);
+    second.resolution.borrow().resolve_through_degree(&second.resolution, 20);
 
     assert_eq!(first.resolution.borrow().graded_dimension_string(),
                second.resolution.borrow().graded_dimension_string());
