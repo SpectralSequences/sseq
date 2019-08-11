@@ -60,7 +60,7 @@ impl<T> BiVec<T> {
     pub fn iter_enum(&self) -> impl Iterator<Item = (i32, &T)> {
         let min_degree = self.min_degree;
         self.data.iter().enumerate()
-            .map(move |(i, t)| (i as i32 - min_degree, t))
+            .map(move |(i, t)| (i as i32 + min_degree, t))
             // .collect()
     }
 }
