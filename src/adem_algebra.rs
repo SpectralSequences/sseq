@@ -781,7 +781,7 @@ impl AdemAlgebra {
                 let rest_reduced = &self.multiplication_table[(n - q * (i + j - k) as i32) as usize][2 * k as usize][tail_idx];
                 for (id, coeff) in rest_reduced.iter().enumerate() {
                     let source = &table[2 * (i + j - k) as usize][id];
-                    result.add(source, c * coeff);
+                    result.add(source, (c * coeff) % self.p);
                 }
             }
         } else {
@@ -808,7 +808,7 @@ impl AdemAlgebra {
                     let rest_reduced = &self.multiplication_table[(n - q * (i + j - k) as i32 - 1) as usize][2 * k as usize][tail_idx];
                     for (id, coeff) in rest_reduced.iter().enumerate() {
                         let source = &table[1 + 2 * (i + j - k) as usize][id];
-                        result.add(source, c * coeff);
+                        result.add(source, (c * coeff) % self.p);
                     }
                 }
 
@@ -818,7 +818,7 @@ impl AdemAlgebra {
                     let rest_reduced = &self.multiplication_table[(n - q * (i + j - k) as i32) as usize][1 + 2 * k as usize][tail_idx];
                     for (id, coeff) in rest_reduced.iter().enumerate() {
                         let source = &table[2 * (i + j - k) as usize][id];
-                        result.add(source, c * coeff);
+                        result.add(source, (c * coeff) % self.p);
                     }
                 }
             }
