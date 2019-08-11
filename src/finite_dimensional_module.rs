@@ -265,36 +265,34 @@ impl FiniteDimensionalModule {
         let op_deg = output_deg - input_deg;
         let mut output_vec = FpVector::new(p, self.get_dimension(output_deg));
         let mut tmp_output = FpVector::new(p, self.get_dimension(output_deg));
-        for idx in 0..self.get_dimension(input_deg) {      
-            for op_idx in 0..algebra.get_dimension(op_deg, -1) {
-                let relations = algebra.get_relations_to_check(op_deg);
-                for relation in relations {
+        for idx in 0..self.get_dimension(input_deg) {
+            let relations = algebra.get_relations_to_check(op_deg);
+            for relation in relations {
+                for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
+                    let intermediate_dim = self.get_dimension(input_deg + *deg_2);
+                    if intermediate_dim > tmp_output.get_dimension() {
+                        tmp_output = FpVector::new(p, intermediate_dim);
+                    }
+                    tmp_output.set_slice(0, intermediate_dim);
+                    self.act_on_basis(&mut tmp_output, 1, *deg_2, *idx_2, input_deg, idx);
+                    self.act(&mut output_vec, *coef, *deg_1, *idx_1, *deg_2 + input_deg, &tmp_output);
+                    tmp_output.clear_slice();
+                    tmp_output.set_to_zero();
+                }
+                if !output_vec.is_zero() {
+                    let mut relation_string = String::new();
                     for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                        let intermediate_dim = self.get_dimension(input_deg + *deg_2);
-                        if intermediate_dim > tmp_output.get_dimension() {
-                            tmp_output = FpVector::new(p, intermediate_dim);
-                        }
-                        tmp_output.set_slice(0, intermediate_dim);
-                        self.act_on_basis(&mut tmp_output, 1, *deg_2, *idx_2, input_deg, idx);
-                        self.act(&mut output_vec, *coef, *deg_1, *idx_1, *deg_2 + input_deg, &tmp_output); 
-                        tmp_output.clear_slice();
-                        tmp_output.set_to_zero();                       
+                        relation_string.push_str(&format!("{} * {} * {}  +  ",
+                                                          *coef,
+                                                          &algebra.basis_element_to_string(*deg_1, *idx_1),
+                                                          &algebra.basis_element_to_string(*deg_2, *idx_2))
+                                                );
                     }
-                    if !output_vec.is_zero() {
-                        let mut relation_string = String::new();
-                        for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                            relation_string.push_str(&format!("{} * {} * {}  +  ", 
-                                *coef, 
-                                &algebra.basis_element_to_string(*deg_1, *idx_1), 
-                                &algebra.basis_element_to_string(*deg_2, *idx_2))
-                            );
-                        }
-                        relation_string.pop(); relation_string.pop(); relation_string.pop();
-                        relation_string.pop(); relation_string.pop();
+                    relation_string.pop(); relation_string.pop(); relation_string.pop();
+                    relation_string.pop(); relation_string.pop();
 
-                        let value_string = self.element_to_string(output_deg as i32, &output_vec);
-                        return Err(Box::new(ModuleFailedRelationError {relation : relation_string, value : value_string}));
-                    }
+                    let value_string = self.element_to_string(output_deg as i32, &output_vec);
+                    return Err(Box::new(ModuleFailedRelationError {relation : relation_string, value : value_string}));
                 }
             }
         }
