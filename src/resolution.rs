@@ -382,7 +382,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
             num_new_gens += matrix.extend_image(first_new_row + num_new_gens, padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension, &pivots, old_kernel).len();
         }
-        source.add_generators(degree, source_lock, source_module_table, num_new_gens);
+        source.add_generators(degree, source_lock, source_module_table, num_new_gens, None);
         current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, degree, &mut matrix, first_new_row, 0, num_new_gens);
         current_differential.add_generators_from_matrix_rows(&differential_lock, degree, &mut matrix, first_new_row, padded_target_cc_dimension, num_new_gens);
 

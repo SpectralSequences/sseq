@@ -1,3 +1,5 @@
+use bivec::BiVec;
+
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, OptionModule, ModuleFailedRelationError};
@@ -13,11 +15,10 @@ use std::rc::Rc;
 pub struct FiniteDimensionalModule {
     algebra : Rc<AlgebraAny>,
     name : String,
-    min_degree : i32,
-    graded_dimension : Vec<usize>,
-    gen_names : Vec<Vec<String>>,
+    graded_dimension : BiVec<usize>,
+    gen_names : BiVec<Vec<String>>,
     // This goes input_degree --> output_degree --> operation --> input_index --> Vector
-    actions : Vec<Vec<Vec<Vec<FpVector>>>>,
+    actions : BiVec<BiVec<Vec<Vec<FpVector>>>>,
 }
 
 impl Module for FiniteDimensionalModule {
@@ -30,26 +31,23 @@ impl Module for FiniteDimensionalModule {
     }
 
     fn get_min_degree(&self) -> i32 {
-        self.min_degree
+        self.graded_dimension.min_degree()
     }
     
     fn compute_basis(&self, _degree : i32){ }
 
     fn get_dimension(&self, degree : i32) -> usize {
-        if degree < self.min_degree {
+        if degree < self.graded_dimension.min_degree() {
             return 0;
         }
-        let degree_idx = (degree - self.min_degree) as usize;
-        if degree_idx >= self.graded_dimension.len() {
+        if degree >= self.graded_dimension.max_degree() {
             return 0;
         }        
-        return self.graded_dimension[degree_idx];
+        return self.graded_dimension[degree];
     }
 
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
-        assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
-        return self.gen_names[degree_idx][idx].clone();
+        return self.gen_names[degree][idx].clone();
     }
 
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize){
@@ -70,21 +68,23 @@ impl Module for FiniteDimensionalModule {
 }
 
 impl FiniteDimensionalModule {
-    pub fn new(algebra : Rc<AlgebraAny>, name : String, min_degree : i32, graded_dimension : Vec<usize>) -> Self {
-        algebra.compute_basis(min_degree + graded_dimension.len() as i32);
-        let mut gen_names = Vec::with_capacity(graded_dimension.len());
-        for i in 0..graded_dimension.len() {
-            let mut names = Vec::with_capacity(graded_dimension[i]);
-            for j in 0..graded_dimension[i]{
-                names.push(format!("x{}{}", min_degree + i as i32, j));
+    pub fn new(algebra : Rc<AlgebraAny>, name : String, graded_dimension : BiVec<usize>) -> Self {
+        let min_degree = graded_dimension.min_degree();
+        let max_degree = graded_dimension.max_degree();
+        let degree_difference = max_degree - min_degree;
+        algebra.compute_basis(degree_difference);
+        let mut gen_names = BiVec::with_capacity(min_degree, max_degree);
+        for (i, dim) in graded_dimension.iter_enum() {
+            let mut names = Vec::with_capacity(*dim);
+            for j in 0 .. *dim {
+                names.push(format!("x{}{}", min_degree + i, j));
             }
             gen_names.push(names);
         }
-        let actions = FiniteDimensionalModule::allocate_actions(&algebra, min_degree, &graded_dimension);
+        let actions = FiniteDimensionalModule::allocate_actions(&algebra, &graded_dimension);
         FiniteDimensionalModule {
             algebra,
             name,
-            min_degree,
             gen_names,
             graded_dimension,
             actions
@@ -92,18 +92,16 @@ impl FiniteDimensionalModule {
     }
 
     pub fn set_basis_element_name(&mut self, degree : i32, idx : usize, name : String) {
-        assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
-        self.gen_names[degree_idx][idx] = name;
+        self.gen_names[degree][idx] = name;
     }
     
-    fn module_gens_from_json(gens : &Value) -> (i32, Vec<usize>, HashMap<&String, (i32, usize)>) {
+    fn module_gens_from_json(gens : &Value) -> (BiVec<usize>, BiVec<Vec<String>>, HashMap<&String, (i32, usize)>) {
         let gens = gens.as_object().unwrap();
         assert!(gens.len() > 0);
         let mut min_degree = 10000;
         let mut max_degree = -10000;
         for (_name, degree_value) in gens.iter() {
-            let degree = degree_value.as_i64().unwrap();
+            let degree = degree_value.as_i64().unwrap() as i32;
             if degree < min_degree {
                 min_degree = degree;
             }
@@ -112,19 +110,27 @@ impl FiniteDimensionalModule {
             }
         }
         let mut gen_to_idx = HashMap::new();
-        let mut graded_dimension = vec!(0; (max_degree - min_degree) as usize);
-        for (name, degree_value) in gens.iter() {
-            let degree = degree_value.as_i64().unwrap();
-            let degree_idx = (degree - min_degree) as usize;
-            gen_to_idx.insert(name, (degree as i32, graded_dimension[degree_idx]));
-            graded_dimension[degree_idx] += 1;
+        let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree);
+        for _ in min_degree..max_degree {
+            graded_dimension.push(0);
         }
-        return (min_degree as i32, graded_dimension, gen_to_idx);
+        let mut gen_names = BiVec::with_capacity(min_degree, max_degree);
+        for _ in min_degree..max_degree {
+            gen_names.push(vec![]);
+        }        
+        for (name, degree_value) in gens.iter() {
+            let degree = degree_value.as_i64().unwrap() as i32;
+            gen_names[degree].push(name.clone());            
+            gen_to_idx.insert(name, (degree, graded_dimension[degree]));
+            graded_dimension[degree] += 1;
+        }
+        return (graded_dimension, gen_names, gen_to_idx);
     }
 
-    fn allocate_actions(algebra : &Rc<AlgebraAny>, min_degree : i32, graded_dimension : &Vec<usize>) -> Vec<Vec<Vec<Vec<FpVector>>>> {
-        let basis_degree_range = graded_dimension.len();
-        let mut result : Vec<Vec<Vec<Vec<FpVector>>>> = Vec::with_capacity(basis_degree_range);
+    fn allocate_actions(algebra : &Rc<AlgebraAny>, graded_dimension : &BiVec<usize>) -> BiVec<BiVec<Vec<Vec<FpVector>>>> {
+        let min_degree = graded_dimension.min_degree();
+        let max_degree = graded_dimension.max_degree();
+        let mut result : BiVec<BiVec<Vec<Vec<FpVector>>>> = BiVec::with_capacity(min_degree, max_degree);
         // Count number of triples (x, y, op) with |x| + |op| = |y|.
         // The amount of memory we need to allocate is:
         // # of input_degrees  * sizeof(***Vector)
@@ -136,19 +142,19 @@ impl FiniteDimensionalModule {
         // )
         // (in_deg) -> (out_deg) -> (op_index) -> (in_index) -> (out_index) -> value
         //  ****    -> ***       -> **Vector   -> *Vector    -> Vector -> uint
-        for input_degree in 0 .. basis_degree_range {
+        for input_degree in min_degree .. max_degree {
             if graded_dimension[input_degree] == 0 {
-                result.push(Vec::with_capacity(0));
+                result.push(BiVec::with_capacity(input_degree, 0));
                 continue;
             }
-            let number_of_output_degrees = (basis_degree_range - input_degree - 1) as usize;
-            let mut outputs_vec : Vec<Vec<Vec<FpVector>>> = Vec::with_capacity(number_of_output_degrees);
-            for output_degree in input_degree + 1 .. basis_degree_range {
+            let mut outputs_vec : BiVec<Vec<Vec<FpVector>>> = BiVec::with_capacity(input_degree + 1, max_degree);
+            for output_degree in input_degree + 1 .. max_degree {
                 if graded_dimension[output_degree] == 0 {
                     outputs_vec.push(Vec::with_capacity(0));
                     continue;
                 }
-                let number_of_operations = algebra.get_dimension(min_degree + (output_degree - input_degree) as i32, min_degree + input_degree as i32 ) as usize;
+                let op_deg = output_degree - input_degree;
+                let number_of_operations = algebra.get_dimension(min_degree + op_deg, min_degree + input_degree);
                 let number_of_inputs = graded_dimension[input_degree];
                 let number_of_outputs = graded_dimension[output_degree];
                 let mut ops_vec : Vec<Vec<FpVector>> = Vec::with_capacity(number_of_operations);
@@ -163,10 +169,10 @@ impl FiniteDimensionalModule {
                 assert!(ops_vec.len() == number_of_operations);
                 outputs_vec.push(ops_vec);
             }
-            assert!(outputs_vec.len() == number_of_output_degrees);
+            assert!(outputs_vec.len() == max_degree);
             result.push(outputs_vec);
         }
-        assert!(result.len() == basis_degree_range);
+        assert!(result.len() == max_degree);
         return result;
     }
 
@@ -178,11 +184,9 @@ impl FiniteDimensionalModule {
     ){
         assert!(operation_idx < self.algebra.get_dimension(operation_degree, input_degree));
         assert!(input_idx < self.get_dimension(input_degree));      
-        let input_degree_idx = (input_degree - self.min_degree) as usize;
-        let output_degree_idx = (input_degree + operation_degree - self.min_degree) as usize;
-        let in_out_diff = output_degree_idx - input_degree_idx - 1;
+        let output_degree = input_degree + operation_degree;
         // (in_deg) -> (out_deg) -> (op_index) -> (in_index) -> Vector
-        let output_vector = &mut self.actions[input_degree_idx][in_out_diff][operation_idx][input_idx];
+        let output_vector = &mut self.actions[input_degree][output_degree][operation_idx][input_idx];
         output_vector.assign(output);
     }
 
@@ -193,12 +197,10 @@ impl FiniteDimensionalModule {
         output : Vec<u32>
     ){
         assert!(operation_idx < self.algebra.get_dimension(operation_degree, input_degree));
-        assert!(input_idx < self.get_dimension(input_degree));      
-        let input_degree_idx = (input_degree - self.min_degree) as usize;
-        let output_degree_idx = (input_degree + operation_degree - self.min_degree) as usize;
-        let in_out_diff = output_degree_idx - input_degree_idx - 1;
+        assert!(input_idx < self.get_dimension(input_degree));
+        let output_degree = input_degree + operation_degree;
         // (in_deg) -> (out_deg) -> (op_index) -> (in_index) -> Vector
-        let output_vector = &mut self.actions[input_degree_idx][in_out_diff][operation_idx][input_idx];
+        let output_vector = &mut self.actions[input_degree][output_degree][operation_idx][input_idx];
         output_vector.pack(&output);
     }    
 
@@ -211,10 +213,8 @@ impl FiniteDimensionalModule {
     ) -> &FpVector {
         assert!(operation_idx < self.algebra.get_dimension(operation_degree, input_degree));
         assert!(input_idx < self.get_dimension(input_degree));  
-        let input_degree_idx = (input_degree - self.min_degree) as usize;
-        let output_degree_idx = (input_degree + operation_degree - self.min_degree) as usize;
-        let in_out_diff = (operation_degree - 1) as usize;
-        return &self.actions[input_degree_idx][in_out_diff][operation_idx][input_idx];
+        let output_degree = input_degree + operation_degree;
+        return &self.actions[input_degree][output_degree][operation_idx][input_idx];
     }
 
     /// This function will panic if you call it with input such that `module.get_dimension(input_degree +
@@ -224,21 +224,22 @@ impl FiniteDimensionalModule {
         operation_degree : i32, operation_idx : usize,
         input_degree : i32, input_idx : usize
     ) -> &mut FpVector {
-        assert!(operation_idx < self.algebra.get_dimension(operation_degree, input_degree));
-        assert!(input_idx < self.get_dimension(input_degree));              
-        let input_degree_idx = (input_degree - self.min_degree) as usize;
-        let output_degree_idx = (input_degree + operation_degree - self.min_degree) as usize;
-        let in_out_diff = output_degree_idx - input_degree_idx - 1;
-        return &mut self.actions[input_degree_idx][in_out_diff][operation_idx][input_idx];
+        let output_degree = input_degree + operation_degree;
+        return &mut self.actions[input_degree][output_degree][operation_idx][input_idx];
     }
 
     pub fn from_json(algebra : Rc<AlgebraAny>, json : &mut Value) -> Self {
         let gens = json["gens"].take();
-        let (min_degree, graded_dimension, gen_to_idx) = Self::module_gens_from_json(&gens);
+        let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(&gens);
+        let min_degree = graded_dimension.min_degree();
+        let max_degree = graded_dimension.max_degree();
         let name = json["name"].as_str().unwrap().to_string();
         let mut actions_value = json[algebra.get_algebra_type().to_owned() + "_actions"].take();
         let actions = actions_value.as_array_mut().unwrap();
-        let mut result = Self::new(Rc::clone(&algebra), name, min_degree, graded_dimension);
+        let mut result = Self::new(Rc::clone(&algebra), name, graded_dimension);
+        for i in min_degree .. max_degree {
+
+        }
         for action in actions.iter_mut() {
             let op = action["op"].take();
             let (degree, idx) = algebra.json_to_basis(op);

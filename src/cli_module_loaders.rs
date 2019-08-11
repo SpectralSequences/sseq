@@ -7,11 +7,12 @@ use std::str::FromStr;
 // use serde_json::value::Value;
 use serde_json::json;
 
+use bivec::BiVec;
 use crate::fp_vector::{FpVector,FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::milnor_algebra::MilnorAlgebra;
 use crate::adem_algebra::AdemAlgebra;
-// use crate::module::Module;
+use crate::module::Module;
 use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 
 fn query<T : FromStr>(prompt : &str) -> T {
@@ -61,20 +62,20 @@ fn query_with_default_no_default_indicated<T : FromStr + Display>(prompt : &str,
     }
 }
 
-pub fn get_gens() -> Result<Vec<Vec<String>>, Box<dyn Error>>{
+pub fn get_gens(min_degree : i32) -> Result<BiVec<Vec<String>>, Box<dyn Error>>{
     // Query for generators
     println!("Input generators. Press return to finish.");
     stdout().flush()?;
 
-    let mut gens = Vec::new();
-    let finished_degree = usize::max_value();
+    let mut gens : BiVec<Vec<_>> = BiVec::new(min_degree);
+    let finished_degree = i32::max_value();
     loop {
-        let gen_deg = query_with_default_no_default_indicated::<usize>("Generator degree", finished_degree);
+        let gen_deg = query_with_default_no_default_indicated::<i32>("Generator degree", finished_degree);
         if gen_deg == finished_degree {
             println!("This is the list of generators and degrees:");
-            for i in 0..gens.len() {
-                for gen in &gens[i] {
-                    print!("({}, {}) ", i, gen)
+            for (i, deg_i_gens) in gens.iter_enum() {
+                for gen in deg_i_gens.iter(){
+                    print!("({}, {}) ", i, gen);
                 }
             }
             print!("\n");
@@ -82,7 +83,7 @@ pub fn get_gens() -> Result<Vec<Vec<String>>, Box<dyn Error>>{
                 break;
             } else {
                 if query::<String>("Reset generator list? (yes/no)").starts_with("y") {
-                    gens = Vec::new();
+                    gens = BiVec::new(min_degree);
                 }
                 continue;
             }
@@ -94,6 +95,16 @@ pub fn get_gens() -> Result<Vec<Vec<String>>, Box<dyn Error>>{
         gens[gen_deg].push(gen_name);
     }
     Ok(gens)
+}
+
+pub fn gens_to_json(gens : &BiVec<Vec<String>>) -> serde_json::Value {
+    let mut gens_json = json!({});
+    for (i, deg_i_gens) in gens.iter_enum() {
+        for gen in deg_i_gens {
+            gens_json[gen] = json!(i);
+        }
+    }
+    return gens_json;
 }
 
 pub fn get_expression_to_vector<F>(
@@ -144,7 +155,7 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
         println!("Output file name cannot be empty");
     }
     let name = query::<String>("Module name (use latex between $'s)");
-    // Query for prime and max_degree
+    // Query for prime
     let mut p;
     loop {
         p = query_with_default("p", 2);
@@ -154,27 +165,31 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
         println!("Invalid input. Try again");
     }
     let generic = p != 2;
+    return interactive_module_define_fdmodule(output_path, name, p, generic);
+}
 
+
+pub fn interactive_module_define_fdmodule(output_path : String, name : String, p : u32, generic : bool) -> Result<String, Box<dyn Error>>{
     let adem_algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
     let milnor_algebra = Rc::new(AlgebraAny::from(MilnorAlgebra::new(p)));
-    let gens = get_gens()?;
-    let mut gens_json = json!({});
-    for i in 0..gens.len() {
-        for gen in &gens[i] {
-            gens_json[gen] = json!(i);
-        }
-    }
+    let min_degree = 0i32;
+    let gens = get_gens(min_degree)?;
+    let gens_json = gens_to_json(&gens);    
+    let max_degree = (gens.len() + 1) as i32 + min_degree;
     
-    adem_algebra.compute_basis(gens.len() as i32 + 1);
-    milnor_algebra.compute_basis(gens.len() as i32 + 1);
+    adem_algebra.compute_basis(max_degree);
+    milnor_algebra.compute_basis(max_degree);
+    
+    let mut graded_dim = BiVec::with_capacity(min_degree, max_degree);
+    for i in gens.iter().map(Vec::len) {
+        graded_dim.push(i);
+    }
 
-    let graded_dim : Vec<usize> = gens.iter().map(Vec::len).collect();
+    let mut adem_module = FDModule::new(Rc::clone(&adem_algebra), "".to_string(), graded_dim.clone());
+    let mut milnor_module = FDModule::new(Rc::clone(&milnor_algebra), "".to_string(), graded_dim);
 
-    let mut adem_module = FDModule::new(Rc::clone(&adem_algebra), "".to_string(), 0, graded_dim.clone());
-    let mut milnor_module = FDModule::new(Rc::clone(&milnor_algebra), "".to_string(), 0, graded_dim);
-
-    for i in 0..gens.len() {
-        for (j, gen) in gens[i].iter().enumerate() {
+    for (i, deg_i_gens) in gens.iter_enum() {
+        for (j, gen) in deg_i_gens.iter().enumerate() {
             adem_module.set_basis_element_name(i as i32, j, gen.to_string());
             milnor_module.set_basis_element_name(i as i32, j, gen.to_string());
         }
@@ -184,10 +199,10 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
 
     let len = gens.len();
     for input_deg in (0 .. len as i32).rev() {
-        for output_deg in (input_deg + 1) .. len  as i32 {
+        for output_deg in (input_deg + 1) .. len as i32 {
             let op_deg = output_deg - input_deg;
-            let input_deg_idx = input_deg as usize;
-            let output_deg_idx = output_deg as usize;
+            let input_deg_idx = input_deg;
+            let output_deg_idx = output_deg;
             if gens[output_deg_idx].len() == 0 {
                 continue;
             }

@@ -25,6 +25,7 @@ pub struct FreeModule {
     pub name : String,
     pub min_degree : i32,
     pub max_degree : Mutex<i32>,
+    gen_names : OnceBiVec<Vec<String>>,
     pub table : OnceBiVec<FreeModuleTableEntry>
 }
 
@@ -58,7 +59,7 @@ impl Module for FreeModule {
         } else {
             op_str.push(' ');
         }
-        return format!("{}x_{{{},{}}}", op_str, opgen.generator_degree, opgen.generator_index);
+        return format!("{}{}", op_str, self.gen_names[opgen.generator_degree][opgen.generator_index]);
     }
 
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize){
@@ -91,6 +92,7 @@ impl FreeModule {
             name,
             min_degree,
             max_degree : Mutex::new(min_degree - 1),
+            gen_names : OnceBiVec::new(min_degree),
             table : OnceBiVec::new(min_degree)
         }
     }
@@ -146,9 +148,19 @@ impl FreeModule {
         table.basis_element_to_opgen.len()
     }
 
-    pub fn add_generators(&self, degree : i32, mut lock : MutexGuard<i32>, mut table : FreeModuleTableEntry,  num_gens : usize){
+    pub fn add_generators(&self, degree : i32, mut lock : MutexGuard<i32>, mut table : FreeModuleTableEntry, num_gens : usize, names : Option<Vec<String>>){
         assert!(degree >= self.min_degree);
         assert!(degree == *lock + 1);
+        let mut gen_names;
+        if let Some(names_vec) = names {
+            gen_names = names_vec;
+        } else {
+            gen_names = Vec::with_capacity(num_gens);
+            for i in 0 .. num_gens {
+                gen_names.push(format!("x_{{{},{}}}", degree, i));
+            }
+        }
+        self.gen_names.push(gen_names);
         Self::add_generators_to_table(degree, &mut table, num_gens);
         self.table.push(table);
         *lock += 1;
@@ -194,15 +206,15 @@ impl FreeModule {
         return &self.table[degree].basis_element_to_opgen[index];
     }
 
-    pub fn add_generators_immediate(&self, degree : i32, num_gens : usize){
+    pub fn add_generators_immediate(&self, degree : i32, num_gens : usize, gen_names : Option<Vec<String>>){
         let (lock, table) = self.construct_table(degree);
-        self.add_generators(degree, lock, table, num_gens);
+        self.add_generators(degree, lock, table, num_gens, gen_names);
     }
 
     pub fn extend_by_zero(&self, degree : i32){
         let old_max_degree = { *self.max_degree.lock().unwrap() };
         for i in old_max_degree + 1 ..= degree {
-            self.add_generators_immediate(i, 0)
+            self.add_generators_immediate(i, 0, None)
         }
     }
 }

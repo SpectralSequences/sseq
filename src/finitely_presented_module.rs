@@ -107,7 +107,6 @@ impl FinitelyPresentedModule {
             let op_gen = &r[0].1;
             let degree = op_gen.operation_degree + op_gen.generator_degree;
             let degree_idx = (degree - min_degree) as usize;
-            println!("degree : {}", degree);
             relations_by_degree[degree_idx].push(r);
         }
         let max_degree = std::cmp::max(max_gen_degree, max_relation_degree);
@@ -115,13 +114,14 @@ impl FinitelyPresentedModule {
         let result = Self::new(Rc::clone(&algebra), name, min_degree);
         for i in min_degree .. max_gen_degree {
             let idx = (i - min_degree) as usize;
-            result.generators.add_generators_immediate(i, num_gens_in_degree[idx]);
+            let gen_names = None;
+            result.generators.add_generators_immediate(i, num_gens_in_degree[idx], gen_names);
         }
         result.generators.extend_by_zero(max_degree);
         for i in min_degree ..= max_relation_degree {
             let idx = (i - min_degree) as usize;
             let num_relns = relations_by_degree[idx].len();
-            result.relations.add_generators_immediate(i, num_relns);
+            result.relations.add_generators_immediate(i, num_relns, None);
             println!("degree : {}, num_relns : {}", i, num_relns);
             let gens_dim = result.generators.get_dimension(i);
             let mut relations_matrix = Matrix::new(p, num_relns, gens_dim);
