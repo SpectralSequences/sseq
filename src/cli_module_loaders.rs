@@ -12,7 +12,6 @@ use crate::fp_vector::{FpVector,FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::milnor_algebra::MilnorAlgebra;
 use crate::adem_algebra::AdemAlgebra;
-use crate::module::Module;
 use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 
 fn query<T : FromStr>(prompt : &str) -> T {

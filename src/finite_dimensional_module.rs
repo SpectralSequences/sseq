@@ -232,7 +232,6 @@ impl FiniteDimensionalModule {
         let gens = json["gens"].take();
         let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(&gens);
         let min_degree = graded_dimension.min_degree();
-        let max_degree = graded_dimension.max_degree();
         let name = json["name"].as_str().unwrap().to_string();
         let mut actions_value = json[algebra.get_algebra_type().to_owned() + "_actions"].take();
         let actions = actions_value.as_array_mut().unwrap();
@@ -332,7 +331,6 @@ impl FiniteDimensionalModule {
     }
 
     pub fn actions_to_json(&self) -> Value {
-        let p = self.prime();
         let algebra = self.get_algebra();
         let min_degree = self.get_min_degree();
         let max_degree = min_degree + self.graded_dimension.len() as i32;

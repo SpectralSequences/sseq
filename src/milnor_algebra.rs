@@ -469,7 +469,6 @@ impl MilnorAlgebra {
     }
 
     fn multiply_qpart (&self, m1 : &MilnorBasisElement, f : u32) -> Vec<(u32, MilnorBasisElement)>{
-        let tau_degrees = crate::combinatorics::get_tau_degrees(self.p);
         let xi_degrees = crate::combinatorics::get_xi_degrees(self.p);
 
         let mut new_result : Vec<(u32, MilnorBasisElement)> = vec![(1, m1.clone())];
@@ -739,7 +738,6 @@ impl MilnorAlgebra {
     // use https://monks.scranton.edu/files/pubs/bases.pdf page 8
     fn decompose_basis_element_ppart(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>{
         let p = self.p;
-        let q = if self.generic { 2*p - 2 } else { 1 };
         let b = &self.basis_table[degree as usize][idx];
         let first;
         let second;

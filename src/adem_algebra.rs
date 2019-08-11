@@ -342,7 +342,6 @@ impl Algebra for AdemAlgebra {
         }
 
         let p = self.prime();
-        let q = if self.generic { 2*(p - 1) } else { 1 };
 
         let inadmissible_pairs = combinatorics::get_inadmissible_pairs(p, self.generic, degree);
         let mut result = Vec::new();

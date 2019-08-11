@@ -73,7 +73,6 @@ impl<
 
     pub fn extend_step(&self, input_homological_degree : u32, input_internal_degree : i32, extra_images : Option<&mut Matrix>){
         let output_homological_degree = input_homological_degree - self.homological_degree_shift;
-        let output_internal_degree = input_internal_degree - self.internal_degree_shift;
         let f_cur = self.get_map_ensure_length(output_homological_degree);
         let computed_degree = *f_cur.get_lock();
         if input_internal_degree <= computed_degree {

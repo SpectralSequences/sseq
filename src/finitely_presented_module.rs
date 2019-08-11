@@ -108,7 +108,7 @@ impl FinitelyPresentedModule {
             op_gen.operation_degree + op_gen.generator_degree
         }).max().unwrap();
         let mut relations_by_degree = BiVec::with_capacity(min_degree, max_relation_degree + 1);
-        for i in min_degree ..= max_relation_degree {
+        for _ in min_degree ..= max_relation_degree {
             relations_by_degree.push(Vec::new());
         }
         for r in relations {
@@ -120,7 +120,6 @@ impl FinitelyPresentedModule {
         algebra.compute_basis(max_degree);
         let result = Self::new(Rc::clone(&algebra), name, min_degree);
         for i in min_degree .. max_gen_degree {
-            let idx = (i - min_degree) as usize;
             result.generators.add_generators_immediate(i, num_gens_in_degree[i], Some(gen_names[i].clone()));
         }
         result.generators.extend_by_zero(max_degree);
@@ -210,7 +209,7 @@ impl Module for FinitelyPresentedModule {
         let out_deg = mod_degree + op_degree;
         let gen_dim = self.generators.get_dimension(out_deg);
         let mut temp_vec = FpVector::new(p, gen_dim);
-        self.generators.act_on_basis(&mut temp_vec, 1, op_degree, op_index, mod_degree, gen_idx);
+        self.generators.act_on_basis(&mut temp_vec, coeff, op_degree, op_index, mod_degree, gen_idx);
         let qi = self.map.get_quasi_inverse(out_deg).unwrap();
         qi.image.as_ref().unwrap().reduce(&mut temp_vec);
         for i in 0..result.get_dimension() {

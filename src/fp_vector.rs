@@ -207,7 +207,6 @@ pub trait FpVectorT {
 
     fn get_max_limb(&self) -> usize {
         let p = self.prime();
-        let bit_length = get_bit_length(p);
         let container = self.get_vector_container();
         if container.slice_end > 0{
             get_limb_bit_index_pair(p, container.slice_end - 1).limb + 1
@@ -613,7 +612,6 @@ impl FpVector {
 
     pub fn get_number_of_limbs(p : u32, dimension : usize) -> usize {
         assert!(dimension < MAX_DIMENSION);
-        let bit_length = get_bit_length(p);
         if dimension == 0 {
             return 0;
         } else {
@@ -623,7 +621,6 @@ impl FpVector {
 
     pub fn get_padded_dimension(p : u32, dimension : usize) -> usize {
         let entries_per_limb = get_entries_per_64_bits(p);
-        let bit_length = get_bit_length(p);
         return ((dimension + entries_per_limb - 1)/entries_per_limb)*entries_per_limb;
     }
 

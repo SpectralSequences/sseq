@@ -26,7 +26,6 @@ pub struct ChainComplexConcentratedInDegreeZero<M : Module> {
 
 impl<M : Module> ChainComplexConcentratedInDegreeZero<M> {
     pub fn new(module : Rc<M>) -> Self {
-        let p = module.prime();
         let zero_module_inner = Rc::new(ZeroModule::new(Rc::clone(&module.get_algebra())));
         let zero_module = Rc::new(OptionModule::Zero(Rc::clone(&zero_module_inner)));
         let some_module = Rc::new(OptionModule::Some(Rc::clone(&module)));

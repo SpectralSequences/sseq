@@ -94,7 +94,6 @@ impl<M : Module> FreeModuleHomomorphism<M> {
     // We don't actually mutate &mut matrix, we just slice it.
     pub fn add_generators_from_matrix_rows(&self, lock : &MutexGuard<i32>, degree : i32, matrix : &mut Matrix, first_new_row : usize, first_target_column : usize, new_generators : usize){
         // println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
-        let dimension = self.target.get_dimension(degree);
         // println!("    dimension : {} target name : {}", dimension, self.target.get_name());
         assert!(degree >= self.min_degree);
         assert_eq!(degree, self.outputs.len());
