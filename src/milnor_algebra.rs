@@ -775,7 +775,7 @@ impl MilnorAlgebra {
             first = self.get_beps_pn(0, pow);
             second = self.get_beps_pn(0, sq - pow);
         }
-        let mut out_vec = FpVector::new(p, self.get_dimension(degree, -1), 0);
+        let mut out_vec = FpVector::new(p, self.get_dimension(degree, -1));
         self.multiply_basis_elements(&mut out_vec, 1, first.0, first.1, second.0, second.1, -1);
         let mut result = Vec::new();
         let c = out_vec.get_entry(idx);
@@ -832,7 +832,7 @@ mod tests {
             let dim = algebra.get_dimension(i, -1);
             let gens = algebra.get_generators(i);
             // println!("i : {}, gens : {:?}", i, gens);
-            let mut out_vec = FpVector::new(p, dim, 0);
+            let mut out_vec = FpVector::new(p, dim);
             for j in 0 .. dim {
                 if gens.contains(&j){
                     continue;
@@ -859,12 +859,12 @@ mod tests {
     fn test_adem_relations(p : u32, max_degree : i32){
         let algebra = MilnorAlgebra::new(p); // , p != 2
         algebra.compute_basis(max_degree + 2);
-        let mut output_vec = FpVector::new(p, 0, 0);
+        let mut output_vec = FpVector::new(p, 0);
         for i in 1 .. max_degree {
             output_vec.clear_slice();
             let output_dim = algebra.get_dimension(i, -1);
             if output_dim > output_vec.get_dimension() {
-                output_vec = FpVector::new(p, output_dim, 0);
+                output_vec = FpVector::new(p, output_dim);
             }
             output_vec.set_slice(0, output_dim);
             let relations = algebra.get_relations_to_check(i);

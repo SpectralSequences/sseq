@@ -37,7 +37,7 @@ impl Matrix {
     pub fn new(p : u32, rows : usize, columns : usize) -> Matrix {
         let mut vectors : Vec<FpVector> = Vec::with_capacity(rows);
         for _ in 0..rows {
-            vectors.push(FpVector::new(p, columns, 0));
+            vectors.push(FpVector::new(p, columns));
         }
 //        let mut row_permutation : Vec<usize> = Vec::with_capacity(columns);
 //        for i in 0..rows {
@@ -85,11 +85,11 @@ impl Matrix {
     ///               vec![0, 3, 4]];
     ///
     /// let (n, m) = Matrix::augmented_from_vec(p, &input);
-    /// assert_eq!(n, FpVector::get_padded_dimension(p, input[0].len(), 0));
+    /// assert_eq!(n, FpVector::get_padded_dimension(p, input[0].len()));
     pub fn augmented_from_vec(p : u32, input : &[Vec<u32>]) -> (usize, Matrix) {
         let rows = input.len();
         let cols = input[0].len();
-        let padded_cols = FpVector::get_padded_dimension(p, cols, 0);
+        let padded_cols = FpVector::get_padded_dimension(p, cols);
         let mut m = Matrix::new(p, rows, padded_cols + rows);
 
         for i in 0..rows {

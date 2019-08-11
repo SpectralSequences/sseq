@@ -141,7 +141,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let target = d.get_target();
         let dimension = target.get_dimension(int_deg);
         let basis_idx = source.operation_generator_to_index(0, 0, int_deg, idx);
-        let mut result_vector = crate::fp_vector::FpVector::new(p, dimension, 0);
+        let mut result_vector = crate::fp_vector::FpVector::new(p, dimension);
         d.apply_to_basis_element(&mut result_vector, 1, int_deg, basis_idx);
         return target.element_to_string(int_deg, &result_vector);
     }
@@ -382,8 +382,8 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         // This latter matrix may be used to find a preimage of an element under the differential.
 
         // Pad the target dimension so that it ends in an aligned position.
-        let padded_target_cc_dimension = FpVector::get_padded_dimension(p, target_cc_dimension, 0);
-        let padded_target_res_dimension = FpVector::get_padded_dimension(p, target_res_dimension, 0);
+        let padded_target_cc_dimension = FpVector::get_padded_dimension(p, target_cc_dimension);
+        let padded_target_res_dimension = FpVector::get_padded_dimension(p, target_res_dimension);
         let padded_target_dimension = padded_target_res_dimension + padded_target_cc_dimension;
         let rows = max(source_dimension, target_dimension);
         let columns = padded_target_dimension + source_dimension + rows;
@@ -419,9 +419,9 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             let prev_chain_map = self.get_chain_map(homological_degree - 1);
             let maybe_quasi_inverse = prev_chain_map.get_quasi_inverse(degree);
             if let Some(quasi_inverse) = maybe_quasi_inverse {
-                let mut out_vec = FpVector::new(self.prime(), target_res_dimension, 0);
+                let mut out_vec = FpVector::new(self.prime(), target_res_dimension);
                 let dfx_dim = complex_cur_differential.get_target().get_dimension(degree);
-                let mut dfx = FpVector::new(self.prime(), dfx_dim, 0);
+                let mut dfx = FpVector::new(self.prime(), dfx_dim);
                 for (i, column) in new_generators.iter().enumerate() {
                     complex_cur_differential.apply_to_basis_element(&mut dfx, 1, degree, *column);
                     quasi_inverse.apply(&mut out_vec, 1, &dfx);
@@ -560,7 +560,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
         let unit_res = self.unit_resolution.as_ref().unwrap().borrow();
         let output_module = unit_res.get_module(elt.s);
 
-        let mut result = FpVector::new(self.prime(), output_module.get_dimension(elt.t), 0);
+        let mut result = FpVector::new(self.prime(), output_module.get_dimension(elt.t));
 
         for l in 0 .. self.get_number_of_gens_in_bidegree(target_s, target_t) {
             f.get_map(elt.s).apply_to_generator(&mut result, 1, target_t, l);
@@ -670,7 +670,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
             }
 
             let target_dim = target_module.get_dimension(target_t);
-            let mut result = FpVector::new(p, target_dim, 0);
+            let mut result = FpVector::new(p, target_dim);
 
             for j in 0 .. num_source_gens {
                 f.map.get_map(target_s).apply_to_generator(&mut result, 1, t, j);

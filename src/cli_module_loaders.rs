@@ -208,7 +208,7 @@ pub fn interactive_module_define_fdmodule(output_path : String, name : String, p
             }
             let adem_gens = adem_algebra.get_generators(op_deg);
             if adem_gens.len() > 0 {
-                let mut output_vec = FpVector::new(p, gens[output_deg_idx].len(), 0);
+                let mut output_vec = FpVector::new(p, gens[output_deg_idx].len());
                 let adem_op_idx = adem_gens[0];
                 let milnor_op_idx = milnor_algebra.get_generators(op_deg)[0];                
                 let callback = |string : &str| gens[output_deg_idx].iter().position(|d| d == string);

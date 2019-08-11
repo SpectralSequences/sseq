@@ -147,12 +147,12 @@ pub fn run_test() {
         bocksteins : 0,
         ps : vec![4, 2, 1]
     });
-    let mut result = fp_vector::FpVector::new(p, adem.get_dimension(7, -1), 0);
+    let mut result = fp_vector::FpVector::new(p, adem.get_dimension(7, -1));
     change_of_basis::adem_to_milnor_on_basis(&adem, &milnor, &mut result, 1, 7, idx);
     println!("Sq4 Sq2 Sq1 ==> {}\n\n", milnor.element_to_string(7, &result));
     for i in 2..3 {
         let degree = (1 << (i + 1)) - 1;
-        let mut result = crate::fp_vector::FpVector::new(p, adem.get_dimension(degree, -1), 0);
+        let mut result = crate::fp_vector::FpVector::new(p, adem.get_dimension(degree, -1));
         crate::change_of_basis::get_adem_q(&adem, &milnor, &mut result, 1, i);
         println!("Q{} ==> {}", i, adem.element_to_string(degree, &result));
     }
@@ -166,7 +166,7 @@ pub fn run_test() {
     let degree = 9;
     let i = 4;
     let dim = adem.get_dimension(degree, -1);
-    let mut adem_result = crate::fp_vector::FpVector::new(p, dim, 0);
+    let mut adem_result = crate::fp_vector::FpVector::new(p, dim);
     // crate::change_of_basis::milnor_to_adem_on_basis(&adem, &milnor, &mut adem_result, 1, degree, i);
     return;
 

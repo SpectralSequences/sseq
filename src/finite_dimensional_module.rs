@@ -161,7 +161,7 @@ impl FiniteDimensionalModule {
                 for _ in 0 .. number_of_operations {
                     let mut in_idx_vec : Vec<FpVector> = Vec::with_capacity(number_of_inputs);
                     for _ in 0 .. number_of_inputs {
-                        in_idx_vec.push(FpVector::new(algebra.prime(), number_of_outputs, 0));
+                        in_idx_vec.push(FpVector::new(algebra.prime(), number_of_outputs));
                     }
                     assert!(in_idx_vec.len() == number_of_inputs);
                     ops_vec.push(in_idx_vec);
@@ -264,8 +264,8 @@ impl FiniteDimensionalModule {
         let p = self.prime();
         let algebra = self.get_algebra();
         let op_deg = output_deg - input_deg;
-        let mut output_vec = FpVector::new(p, self.get_dimension(output_deg), 0);
-        let mut tmp_output = FpVector::new(p, self.get_dimension(output_deg), 0);  
+        let mut output_vec = FpVector::new(p, self.get_dimension(output_deg));
+        let mut tmp_output = FpVector::new(p, self.get_dimension(output_deg));
         for idx in 0..self.get_dimension(input_deg) {      
             for op_idx in 0..algebra.get_dimension(op_deg, -1) {
                 let relations = algebra.get_relations_to_check(op_deg);
@@ -273,7 +273,7 @@ impl FiniteDimensionalModule {
                     for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
                         let intermediate_dim = self.get_dimension(input_deg + *deg_2);
                         if intermediate_dim > tmp_output.get_dimension() {
-                            tmp_output = FpVector::new(p, intermediate_dim, 0);
+                            tmp_output = FpVector::new(p, intermediate_dim);
                         }
                         tmp_output.set_slice(0, intermediate_dim);
                         self.act_on_basis(&mut tmp_output, 1, *deg_2, *idx_2, input_deg, idx);
@@ -306,8 +306,8 @@ impl FiniteDimensionalModule {
         let p = self.prime();
         let algebra = self.get_algebra();
         let op_deg = output_deg - input_deg;
-        let mut output_vec = FpVector::new(p, self.get_dimension(output_deg), 0);
-        let mut tmp_output = FpVector::new(p, self.get_dimension(output_deg), 0);
+        let mut output_vec = FpVector::new(p, self.get_dimension(output_deg));
+        let mut tmp_output = FpVector::new(p, self.get_dimension(output_deg));
         let generators = algebra.get_generators(op_deg);  
         for idx in 0 .. self.get_dimension(input_deg) {      
             for op_idx in 0 .. algebra.get_dimension(op_deg, -1) {
@@ -316,7 +316,7 @@ impl FiniteDimensionalModule {
                     for (coef, (deg_1, idx_1), (deg_2, idx_2)) in decomposition {
                         let intermediate_dim = self.get_dimension(input_deg + deg_2);
                         if intermediate_dim > tmp_output.get_dimension() {
-                            tmp_output = FpVector::new(p, intermediate_dim, 0);
+                            tmp_output = FpVector::new(p, intermediate_dim);
                         }
                         tmp_output.set_slice(0, intermediate_dim);                        
                         self.act_on_basis(&mut tmp_output, 1, deg_2, idx_2, input_deg, idx);

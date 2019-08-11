@@ -620,7 +620,7 @@ impl AdemAlgebra {
 
     fn generate_multiplication_table_2_step(&self, table : &Vec<Vec<FpVector>>, n : i32, x : i32, idx : usize) -> FpVector {
         let output_dimension = self.get_dimension(n, -1);
-        let mut result = FpVector::new(self.p, output_dimension, 0);
+        let mut result = FpVector::new(self.p, output_dimension);
         let cur_basis_elt = self.basis_element_from_index(n-x, idx);
         let x = x as u32;        
         let mut working_elt = cur_basis_elt.clone();
@@ -719,7 +719,7 @@ impl AdemAlgebra {
         let x : u32 = x as u32;
 
         let output_dimension = self.get_dimension(n, -1);
-        let mut result = FpVector::new(self.p, output_dimension, 0);
+        let mut result = FpVector::new(self.p, output_dimension);
 
         // If x is just \beta, this is super easy.
         if x == 1 {
@@ -1057,7 +1057,7 @@ impl AdemAlgebra {
             bocksteins : 0,
             ps : vec![second_sq]
         });
-        let mut out_vec = FpVector::new(2, self.get_dimension(degree, -1), 0);
+        let mut out_vec = FpVector::new(2, self.get_dimension(degree, -1));
         self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, -1);
         out_vec.set_entry(idx, 0);
         let mut result = Vec::new();
@@ -1133,7 +1133,7 @@ impl AdemAlgebra {
             bocksteins : 0,
             ps : vec![second_sq]
         });
-        let mut out_vec = FpVector::new(p, self.get_dimension(degree, -1), 0);
+        let mut out_vec = FpVector::new(p, self.get_dimension(degree, -1));
         self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, -1);
         let mut result = Vec::new();
         let c = out_vec.get_entry(idx);
@@ -1212,8 +1212,10 @@ mod tests {
         let s_deg = 5;
         let s_idx = 0;
         let out_deg = r_deg + s_deg;
-        let mut result1 = FpVector::new(p, A.get_dimension(out_deg, 0), 0);
-        let mut result2 = FpVector::new(p, A.get_dimension(out_deg, 0), 3);
+        let mut result1 = FpVector::new(p, A.get_dimension(out_deg, 0));
+        let mut result2 = FpVector::new(p, A.get_dimension(out_deg, 0) + 3);
+        result2.set_slice(3, 3 + result1.get_dimension());
+
         A.multiply_basis_elements(&mut result1, 1, r_deg, r_idx, s_deg, s_idx, 0);
         A.multiply_basis_elements(&mut result2, 1, r_deg, r_idx, s_deg, s_idx, 0);
         println!("result : {}", A.element_to_string(out_deg, &result1));
@@ -1252,7 +1254,7 @@ mod tests {
             let dim = algebra.get_dimension(i, -1);
             let gens = algebra.get_generators(i);
             println!("i : {}, gens : {:?}", i, gens);
-            let mut out_vec = FpVector::new(p, dim, 0);
+            let mut out_vec = FpVector::new(p, dim);
             for j in 0 .. dim {
                 if gens.contains(&j){
                     continue;
@@ -1279,12 +1281,12 @@ mod tests {
     fn test_adem_relations(p : u32, max_degree : i32){
         let algebra = AdemAlgebra::new(p, p != 2, false);
         algebra.compute_basis(max_degree);
-        let mut output_vec = FpVector::new(p, 0, 0);
+        let mut output_vec = FpVector::new(p, 0);
         for i in 1 ..= max_degree {
             output_vec.clear_slice();
             let output_dim = algebra.get_dimension(i, -1);
             if output_dim > output_vec.get_dimension() {
-                output_vec = FpVector::new(p, output_dim, 0);
+                output_vec = FpVector::new(p, output_dim);
             }
             output_vec.set_slice(0, output_dim);
             let relations = algebra.get_relations_to_check(i);

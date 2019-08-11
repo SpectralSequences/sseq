@@ -43,7 +43,7 @@ pub trait ModuleHomomorphism<S : Module, T : Module> {
         let p = self.prime();
         let source_dimension = self.get_source().get_dimension(degree);
         let target_dimension = self.get_target().get_dimension(degree);
-        let padded_target_dimension = FpVector::get_padded_dimension(p, target_dimension, 0);
+        let padded_target_dimension = FpVector::get_padded_dimension(p, target_dimension);
         let columns = padded_target_dimension + source_dimension;
         let mut matrix = Matrix::new(p, source_dimension, columns);
         self.get_matrix(&mut matrix, degree, 0, 0);

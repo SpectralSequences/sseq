@@ -137,8 +137,8 @@ impl<
         let d_quasi_inverse = d_target.get_quasi_inverse(output_internal_degree).unwrap();
         let dx_dimension = f_prev.get_source().get_dimension(input_internal_degree);
         let fdx_dimension = f_prev.get_target().get_dimension(output_internal_degree);
-        let mut dx_vector = FpVector::new(p, dx_dimension, 0);
-        let mut fdx_vector = FpVector::new(p, fdx_dimension, 0);
+        let mut dx_vector = FpVector::new(p, dx_dimension);
+        let mut fdx_vector = FpVector::new(p, fdx_dimension);
         let mut extra_image_row = 0;
         for k in 0 .. num_gens {
             d_source.apply_to_generator(&mut dx_vector, 1, input_internal_degree, k);

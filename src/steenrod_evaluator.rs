@@ -37,7 +37,7 @@ fn evaluate_algebra_tree_helper(
             }
             let (degree_right, output_right) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, output_degree, *right)?;
             let degree = degree_left + degree_right;
-            let mut result = FpVector::new(p, adem_algebra.get_dimension(degree, -1), 0);
+            let mut result = FpVector::new(p, adem_algebra.get_dimension(degree, -1));
             adem_algebra.multiply_element_by_element(&mut result, 1, degree_left, &output_left, degree_right, &output_right, -1);
             return Ok((degree, result));
         },
@@ -50,7 +50,7 @@ fn evaluate_algebra_tree_helper(
                     return Err(Box::new(DegreeError{}));
                 }
             }
-            let mut result = FpVector::new(p, 1, 0);
+            let mut result = FpVector::new(p, 1);
             let p = p as i32;
             result.set_entry(0, (((x % p) + p) % p) as u32);
             return Ok((0, result));
@@ -75,20 +75,20 @@ fn evaluate_basis_element(
                 temp_deg += *v * xi_degrees[i] as u32;
             }
             degree = temp_deg as i32;
-            result = FpVector::new(p, adem_algebra.get_dimension(degree, -1), 0);
+            result = FpVector::new(p, adem_algebra.get_dimension(degree, -1));
             change_of_basis::get_adem_plist(adem_algebra, milnor_algebra, &mut result, 1, degree, p_list);
         }
         AlgebraBasisElt::P(x) => {
             let tuple = adem_algebra.get_beps_pn(0, x);
             degree = tuple.0;
             let idx = tuple.1;
-            result = FpVector::new(p, adem_algebra.get_dimension(degree, -1), 0);
+            result = FpVector::new(p, adem_algebra.get_dimension(degree, -1));
             result.set_entry(idx, 1);
         }
         AlgebraBasisElt::Q(x) => {
             let tau_degrees = crate::combinatorics::get_tau_degrees(p);
             degree = tau_degrees[x as usize];
-            result = FpVector::new(p, adem_algebra.get_dimension(degree, -1), 0);
+            result = FpVector::new(p, adem_algebra.get_dimension(degree, -1));
             change_of_basis::get_adem_q(adem_algebra, milnor_algebra, &mut result, 1, x);
         }
     }

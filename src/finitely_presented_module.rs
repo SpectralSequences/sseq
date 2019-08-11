@@ -209,7 +209,7 @@ impl Module for FinitelyPresentedModule {
         let gen_idx = self.fp_idx_to_gen_idx(mod_degree, mod_index);
         let out_deg = mod_degree + op_degree;
         let gen_dim = self.generators.get_dimension(out_deg);
-        let mut temp_vec = FpVector::new(p, gen_dim, 0);
+        let mut temp_vec = FpVector::new(p, gen_dim);
         self.generators.act_on_basis(&mut temp_vec, 1, op_degree, op_index, mod_degree, gen_idx);
         let qi = self.map.get_quasi_inverse(out_deg).unwrap();
         qi.image.as_ref().unwrap().reduce(&mut temp_vec);

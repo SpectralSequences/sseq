@@ -103,7 +103,7 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         let dimension = self.target.get_dimension(degree - self.degree_shift);
         let mut new_outputs : Vec<FpVector> = Vec::with_capacity(new_generators);
         for _ in 0 .. new_generators {
-            new_outputs.push(FpVector::new(p, dimension, 0));
+            new_outputs.push(FpVector::new(p, dimension));
         }
         if dimension == 0 {
             self.outputs.push(new_outputs);
