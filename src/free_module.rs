@@ -234,12 +234,12 @@ mod tests {
         A.compute_basis(10);
         let M = FreeModule::new(Rc::clone(&A), "".to_string(), 0);
         let (lock, table) = M.construct_table(0);
-        M.add_generators(0, lock, table, 1);
+        M.add_generators(0, lock, table, 1, None);
         let (lock, table) = M.construct_table(1);
-        M.add_generators(1, lock, table, 1);
+        M.add_generators(1, lock, table, 1, None);
         for i in 2..10{
             let (lock, table) = M.construct_table(i);
-            M.add_generators(i, lock, table, 0);
+            M.add_generators(i, lock, table, 0, None);
         }
         let op_deg = 2;
         let op_idx = 0;

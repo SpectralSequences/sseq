@@ -383,12 +383,14 @@ pub trait FpVectorT {
         }
     }
 
+    /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
     fn add(&mut self, other : &FpVector, c : u32){
         debug_assert!(self.prime() == other.prime());
         debug_assert!(self.get_offset() == other.get_offset());
         debug_assert!(self.get_dimension() == other.get_dimension(),
             format!("self.dim {} not equal to other.dim {}", self.get_dimension(), other.get_dimension()));
         let p = self.prime();
+        debug_assert!(c < p);
         let min_target_limb = self.get_min_limb();
         let max_target_limb = self.get_max_limb();
         let min_source_limb = other.get_min_limb();

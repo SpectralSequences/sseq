@@ -40,8 +40,7 @@ lazy_static!{
 /// \mathtt{bocksteins} &= 000\cdots0\varepsilon_{n+1} \varepsilon_n \cdots \varepsilon_0
 /// \end{aligned} $$
 // #[derive(RustcDecodable, RustcEncodable)]
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct AdemBasisElement {
     pub degree : i32,
     pub excess : i32,
@@ -190,24 +189,14 @@ impl Algebra for AdemAlgebra {
     }
 
     fn compute_basis(&self, max_degree : i32) {
-
-        // assert!(max_degree + genericq <= self.basis_table.len() as i32);
         let mut next_degree = self.next_degree.lock().unwrap();
         if max_degree < *next_degree {
             return;
         }
 
         if self.generic {
-            // generateMultiplcationTableGeneric sometimes goes over by one due to its bockstein logic.
-            // rather than testing for this, we take the lazy way out and calculate everything else out one extra step.
-            if *next_degree == 0 {
-                *next_degree = -1;
-            }
-            self.generate_basis_generic(*next_degree + 1, max_degree + 1);
-            self.generate_basis_element_to_index_map(*next_degree + 1, max_degree + 1);
-            if *next_degree == -1 {
-                *next_degree = 0;
-            }
+            self.generate_basis_generic(*next_degree, max_degree);
+            self.generate_basis_element_to_index_map(*next_degree, max_degree);
             self.generate_multiplication_table_generic(*next_degree, max_degree);
         } else {
             self.generate_basis2(*next_degree, max_degree);
@@ -216,18 +205,6 @@ impl Algebra for AdemAlgebra {
         }
 
         *next_degree = max_degree + 1;
-        // if self.max_degree 
-        // println!("self.generate_multiplication_table({}, {})", old_max_degree, max_degree);
-        // if self.unstable {
-        //     self.generate_excess_table(old_max_degree, max_degree);
-        // }
-        // Make sure product_list reflects sort order.
-        // for i in 0 .. self.filtrationOneProduct_basisElements.length {
-        //     AdemBasisElement *b = self.filtrationOneProduct_basisElements.list[i];
-        //     if(b->degree < max_degree){
-        //         self->product_list.list[i].index = self.basis_element_to_index(b);
-        //     }
-        // }
     }
 
     fn get_dimension(&self, degree : i32, excess : i32) -> usize {
@@ -286,7 +263,7 @@ impl Algebra for AdemAlgebra {
         if self.generic {
             out_sqs.push(bocksteins & 1);
             bocksteins >>= 1;
-            for (i, sq) in b.ps.iter().enumerate() {
+            for sq in b.ps.iter() {
                 out_sqs.push(*sq);
                 out_sqs.push(bocksteins & 1);
                 bocksteins >>= 1;                
@@ -382,7 +359,7 @@ impl Algebra for AdemAlgebra {
                 // e1 determines if a bockstein shows up in front 
                 // e2 determines if a bockstein shows up in middle
                 // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
-                for j in 0 .. x/p + 1 {
+                for j in 0 ..= x/p {
                     let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
                     if c == 0 { continue; }
                     let idx = self.basis_element_to_index(&AdemBasisElement{
@@ -623,56 +600,50 @@ impl AdemAlgebra {
             self.multiplication_table.push(Vec::new());
             next_degree += 1;
         }
+
         for n in next_degree ..= max_degree {
             let mut table : Vec<Vec<FpVector>> = Vec::with_capacity((n + 1) as usize);
             table.push(Vec::with_capacity(0));
-            for x in 1 .. n + 1 {
+            for x in 1 ..= n {
                 let dimension = self.get_dimension(n - x, -1);
                 table.push(Vec::with_capacity(dimension));
             }
-            for x in (1 .. n + 1).rev() {
+            for x in (1 ..= n).rev() {
                 for idx in 0 .. self.get_dimension(n - x, -1) {
-                    let res = self.generate_multiplication_table2_step(&table, n, x, idx);
+                    let res = self.generate_multiplication_table_2_step(&table, n, x, idx);
                     table[x as usize].push(res);
                 }
-                let dimension = self.get_dimension(n - x, -1);
-                assert!(table[x as usize].len() == dimension);
             }
             self.multiplication_table.push(table);
         }
     }
 
-    fn generate_multiplication_table2_step(&self, table : &Vec<Vec<FpVector>>, n : i32, x : i32, idx : usize) -> FpVector {
+    fn generate_multiplication_table_2_step(&self, table : &Vec<Vec<FpVector>>, n : i32, x : i32, idx : usize) -> FpVector {
         let output_dimension = self.get_dimension(n, -1);
         let mut result = FpVector::new(self.p, output_dimension, 0);
         let cur_basis_elt = self.basis_element_from_index(n-x, idx);
-        let mut working_elt = AdemBasisElement {
-            degree : n,
-            excess : 0,
-            bocksteins : 0,
-            ps : Vec::with_capacity(cur_basis_elt.ps.len() + 1)
-        };
         let x = x as u32;        
-        working_elt.ps.push(x);
-        for cur_p in &cur_basis_elt.ps {
-            working_elt.ps.push(*cur_p);
-        }
-        // println!("working_elt: {:?}", working_elt);
-        assert!(working_elt.ps.len() == working_elt.ps.capacity());
-        // Be careful to deal with the case that cur_basis_elt has length 0            
+        let mut working_elt = cur_basis_elt.clone();
+
+        // Be careful to deal with the case that cur_basis_elt has length 0
         // If the length is 0 or the sequence is already admissible, we can just write a 1 in the answer
         // and continue.
         if cur_basis_elt.ps.len() == 0 || x >= 2*cur_basis_elt.ps[0] {
+            working_elt.ps.insert(0, x);
+            working_elt.degree = n;
             let out_idx = self.basis_element_to_index(&working_elt);
             result.add_basis_element(out_idx, 1);
             return result;
         }
-        let y = working_elt.ps[1];
-        // We only needed the extra first entry to perform the lookup if our element
-        // happened to be admissible. Otherwise, take the rest of the list and forget about it.
-        working_elt.degree -= working_elt.ps[0] as i32;
-        unsafe { working_elt.ps = shift_vec(working_elt.ps, 1) };
-        for j in 0 .. 1 + x/2 {
+
+        // We now want to decompose Sq^x Sq^y = \sum_j *coef* Sq^{x + y - j} Sq^j.
+        let y = working_elt.ps[0];
+
+        let tuple = self.tail_of_basis_element_to_index(working_elt, 1, 1);
+        working_elt = tuple.0;
+        let tail_idx = tuple.1;
+
+        for j in 0 ..= x/2 {
             if combinatorics::adem_relation_coefficient(2, x, y, j, 0, 0) == 0 {
                 continue;
             }
@@ -686,11 +657,8 @@ impl AdemAlgebra {
             }
             // Now we need to reduce Sqj * (rest of Sqs)
             // The answer to this is in the table we're currently making.
-            let tuple = self.tail_of_basis_element_to_index(working_elt, 1, 1);
-            working_elt = tuple.0;
-            let working_elt_idx = tuple.1;
             // total degree -> first sq -> idx of rest of squares
-            let rest_reduced = &self.multiplication_table[(n as u32 - (x + y) + j) as usize][j as usize][working_elt_idx];
+            let rest_reduced = &self.multiplication_table[(n as u32 - (x + y) + j) as usize][j as usize][tail_idx];
             for (i, coeff) in rest_reduced.iter().enumerate() {
                 if coeff == 0 {
                     continue;
@@ -698,201 +666,173 @@ impl AdemAlgebra {
                 // Reduce Sq^{x+y-j} * whatever square using the table in the same degree, larger index
                 // Since we're doing the first squares in decreasing order and x + y - j > x, 
                 // we already calculated this.
-                let source = &table[(x + y - j) as usize][i as usize];
+                let source = &table[(x + y - j) as usize][i];
                 result.add(source, 1);
             }
         }
-        unsafe { working_elt.ps = shift_vec(working_elt.ps, -1) };
-        return result;
+        result
     }
 
     fn generate_multiplication_table_generic(&self, mut next_degree : i32, max_degree : i32){
         // degree -> first_square -> admissibile sequence idx -> result vector
-        let p = self.p as i32;
-        let q = 2*p-2;
         if next_degree == 0 {
             self.multiplication_table.push(Vec::new());
             next_degree += 1;
         }
-        // Okay so this is really confusing. The way the table is represented, first_square = 2n represents P^n 
-        // and first_square = 2n + 1 represents b P^n
-        // It is very easy to work out the product b P^n * x from the product P^n * x because b multiplication is exact. 
-        // We drop terms starting with a b and add a b to the start of terms that don't start with a b.
-        // b (P^n * x) lands in a degree one higher than the degree of P^n * x. So we fill out the even first_square entries of
-        // the degree n table at the same time as the odd first_square entries of the n + 1 table. At the end we get a half filled
-        // table which we throw away. When we start the next time, we have to start back one degree and reconstruct the odd half
-        // of the table in degree old_max_degree (we also reconstruct the even part of the table in degree old_max_degree - 1 and 
-        // throw it away).
-        // This logic makes the next ~30 lines of code a little confusing.
-        let mut tables : Vec<Option<Vec<Vec<FpVector>>>> = Vec::with_capacity((max_degree - next_degree + 3) as usize);
-        for n in next_degree - 1 ..= max_degree + 1 {
-            let output_dimension = self.get_dimension(n, -1);
-            let num_entries = 2*(n/q + 1) as usize;
-            let mut table : Vec<Vec<FpVector>> = Vec::with_capacity(num_entries);
-            for i in 0 .. n/q + 1 {
-                for b in 0 .. 2 {
-                    let dimension = self.get_dimension(n - q*i - b, -1);
-                    let entry : Vec<FpVector> = Vec::with_capacity(dimension);                    
-                    table.push(entry);
+        let q = 2 * self.p as i32 - 2;
+        for n in next_degree ..= max_degree {
+            let mut table : Vec<Vec<FpVector>> = Vec::with_capacity(2*(n/q + 1) as usize);
+            for i in 0 ..= n/q {
+                for b in 0 ..= 1 {
+                    // This corresponds to x = 2i + b
+                    let dimension = self.get_dimension(n - q * i - b, -1);
+                    table.push(Vec::with_capacity(dimension));
                 }
             }
-            tables.push(Some(table));
-        }
-        let mut table;
-        let mut next_table = tables[0].take().unwrap();
-        for n in next_degree - 1 ..= max_degree {
-            table = next_table;
-            next_table = tables[(n - next_degree + 2) as usize].take().unwrap();
-            for x in (0 .. n/q + 1).rev() {
-                let x_index = x << 1;
-                let beta_x_index = x_index | 1;
-                for idx in 0 .. self.get_dimension(n - q*x, -1) {
-                    let (result, beta_result) = self.generate_multiplication_table_generic_step(&table, n, x, idx);
-                    table[x_index as usize].push(result);
-                    next_table[beta_x_index as usize].push(beta_result);
+            for i in (0 ..= n/q).rev() {
+                for idx in 0 .. self.get_dimension(n - q * i - 1, -1) {
+                    let res = self.generate_multiplication_table_generic_step(&table, n, 2 * i + 1, idx);
+                    table[1 + 2 * i as usize].push(res);
                 }
-            }        
-            if n >= next_degree {
-                self.multiplication_table.push(table);
+                if i != 0 {
+                    for idx in 0 .. self.get_dimension(n - q * i, -1) {
+                        let res = self.generate_multiplication_table_generic_step(&table, n, 2 * i, idx);
+                        table[2 * i as usize].push(res);
+                    }
+                }
             }
+            self.multiplication_table.push(table);
         }
     }
 
-    fn generate_multiplication_table_generic_step(&self, table : &Vec<Vec<FpVector>>,  n : i32, x : i32, idx : usize) -> (FpVector, FpVector){
-        let x = x as u32;
-        let p = self.p;
-        let q = 2*p-2;
+    /// This function expresses $Sq^x$ (current) in terms of the admissible basis and returns
+    /// the result as an FpVector, where (current) is the admissible monomial of degree $n - qx$
+    /// (so that $Sq^x)$ (current) has degree $n$) and index `idx`.
+    ///
+    /// Here $Sq^x$ means $P^{x/2}$ if $x$ is even and $\beta P^{(x-1)/2}$ if $x$ is odd.
+    ///
+    /// Note that x is always positive.
+    fn generate_multiplication_table_generic_step(&self, table : &Vec<Vec<FpVector>>,  n : i32, x : i32, idx : usize) -> FpVector {
+        let p : i32 = self.p as i32; // we use p for the i32 version and self.p for the u32 version
+        let q : i32 = 2*p - 2;
+
+        let x : u32 = x as u32;
+
         let output_dimension = self.get_dimension(n, -1);
-        let beta_output_dimension = self.get_dimension(n + 1, -1);
         let mut result = FpVector::new(self.p, output_dimension, 0);
-        let mut beta_result = FpVector::new(self.p, beta_output_dimension, 0);
-        
-        let cur_basis_elt = self.basis_element_from_index(n - (q * x) as i32, idx);
 
-        let x_len = (x>0) as usize;
-        let mut working_elt = AdemBasisElement {
-            degree : n,
-            excess : 0,
-            bocksteins : cur_basis_elt.bocksteins << x_len,
-            ps : Vec::with_capacity(cur_basis_elt.ps.len() + x_len)
-        };
-        
-        if x > 0 {
-            working_elt.ps.push(x);
-        }
-        for cur_p in &cur_basis_elt.ps {
-            working_elt.ps.push(*cur_p);
-        }
-
-        // Enough space to fit Sq^x * (rest of Sqs)
-        // Be careful to deal with the case that cur_basis_elt has length 0            
-        // If the length is 0 or the sequence is already admissible, we can just write a 1 in the answer
-        // and continue.
-        let b = cur_basis_elt.bocksteins & 1;
-        if cur_basis_elt.ps.len() == 0 || x == 0 || x >= p*cur_basis_elt.ps[0] + b {
-            let mut out_idx = self.basis_element_to_index(&working_elt);
-            result.add_basis_element(out_idx, 1);
-            if working_elt.bocksteins & 1 == 1 {
-                // Two bocksteins run into each other (only possible when x=0)
-                return (result, beta_result);
+        // If x is just \beta, this is super easy.
+        if x == 1 {
+            let mut elt = self.basis_element_from_index(n-1, idx).clone();
+            if elt.bocksteins & 1 == 0 {
+                elt.bocksteins |= 1;
+                elt.degree += 1;
+                let index = self.basis_element_to_index(&elt);
+                result.add_basis_element(index, 1);
             }
-            working_elt.bocksteins |= 1;
-            working_elt.degree += 1;
-            out_idx = self.basis_element_to_index(&working_elt);
-            beta_result.add_basis_element(out_idx, 1);
-            return (result, beta_result);
+            return result;
         }
-        let y = cur_basis_elt.ps[0];     
-        // We only needed the extra first entry to perform the lookup if our element
-        // happened to be admissible. Otherwise, take the rest of the list and forget about it.
-        // (To prevent segfault, we have to reverse this before working_elt goes out of scope!)
-        working_elt.degree -= (q*x) as i32;
-        working_elt.degree -= (working_elt.bocksteins & 1) as i32;
-        working_elt.bocksteins >>= 1;
-        let start_working_elt_degree = working_elt.degree;
-        let start_working_elt_bocksteins = working_elt.bocksteins;
-        unsafe { working_elt.ps = shift_vec(working_elt.ps, 1); }
-        // Adem relation
-        for e1 in 0 .. b + 1 {
-            let e2 = b - e1;
-            // e1 and e2 determine where a bockstein shows up.
-            // e1 determines if a bockstein shows up in front 
-            // e2 determines if a bockstein shows up in middle
-            // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
-            for j in 0 .. x/p + 1 {
-                let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
+
+        // If x is \beta P^i, it is also easy.
+        if x & 1 != 0 {
+            let rest_reduced = &self.multiplication_table[n as usize - 1][x as usize -1][idx];
+            for (id, coef) in rest_reduced.iter().enumerate() {
+                let mut elt = self.basis_element_from_index(n-1, id).clone();
+                // We dispose of all terms with a leading Bockstein
+                if elt.bocksteins & 1 == 0 {
+                    elt.bocksteins |= 1;
+                    elt.degree += 1;
+                    let index = self.basis_element_to_index(&elt);
+                    result.add_basis_element(index, coef);
+                }
+            }
+            return result;
+        }
+
+        // Now there is no Bockstein. We first check if the result is already admissible.
+        let i : u32 = x / 2;
+        let mut working_elt = self.basis_element_from_index(n - (q * i as i32), idx).clone();
+
+        let b : u32 = working_elt.bocksteins & 1;
+        if working_elt.ps.len() == 0 || i >= self.p*working_elt.ps[0] + b {
+            working_elt.ps.insert(0, i);
+            working_elt.bocksteins <<= 1;
+            working_elt.degree = n;
+
+            let out_idx = self.basis_element_to_index(&working_elt);
+            result.add_basis_element(out_idx, 1);
+            return result;
+        }
+
+        // In other cases, use the Adem relations.
+        let j : u32 = working_elt.ps[0];
+
+        let tuple = self.tail_of_basis_element_to_index(working_elt, 1, q as u32);
+        working_elt = tuple.0;
+        let tail_idx = tuple.1;
+
+        if b == 0 {
+            // We use P^i P^j = \sum ... P^{i + j - k} P^k
+            for k in 0 ..= i/self.p {
+                let c = combinatorics::adem_relation_coefficient(self.p, i, j, k, 0, 0);
                 if c == 0 {
                     continue;
                 }
-                if j == 0 {
-                    if e2 & (working_elt.bocksteins >> 1) == 1 {
-                        // Two bocksteins run into each other:
-                        // P^x b P^y b --> P^{x+y} b b = 0
-                        continue;
-                    }
-                    working_elt.ps[0] = x + y;
-                    working_elt.degree += (q * x) as i32;
-                    // Mask out bottom bit of original bocksteins.
-                    working_elt.bocksteins &= !1;
-                    // Now either the front bit or idx + 1 might need to be set depending on e1 and e2.
-                    working_elt.bocksteins |= e1;
-                    working_elt.bocksteins |= e2 << 1;
-                    // In this case the result is guaranteed to be admissible so we can immediately add it to result
-                    let out_idx = self.basis_element_to_index(&working_elt);
-                    result.add_basis_element(out_idx, c);
-                    if e1==0 {
-                        working_elt.bocksteins |= 1;
-                        working_elt.degree += 1;
-                        let out_idx = self.basis_element_to_index(&working_elt);
-                        beta_result.add_basis_element(out_idx, c);
-                    }
-                    working_elt.degree = start_working_elt_degree;
-                    working_elt.bocksteins = start_working_elt_bocksteins;
+                if k == 0 {
+                    // We will never need working_elt in the future. We can leave it messed up
+                    working_elt.ps[0] = i + j;
+                    working_elt.degree = n;
+                    let new_index = self.basis_element_to_index(&working_elt);
+                    result.add_basis_element(new_index, c);
                     continue;
                 }
-                working_elt.degree = n - (q*(x + y) + b) as i32;
-                working_elt.bocksteins >>= 1;
-                // Now we need to reduce b^{e2} P^j * (rest of term)
-                // The answer to this is in the table we're currently making.
-                unsafe { working_elt.ps = shift_vec(working_elt.ps, 1); }
-                let working_elt_idx = self.basis_element_to_index(&working_elt);
-                unsafe { working_elt.ps = shift_vec(working_elt.ps, -1); }
-                let bj_idx = (j<<1) + e2;
-                // (rest of term) has degree n - q*(x + y) - b, 
-                // b^{e2} P^j has degree q*j + e2, so the degree of the product is the sum of these two quantities.
-                let bj_degree = (q*j + e2) as i32;
-                let bpj_rest_degree = working_elt.degree + bj_degree;
-                // total degree ==> b^eP^j ==> rest of term idx ==> Vector
-                let rest_of_term = &self.multiplication_table[bpj_rest_degree as usize][bj_idx as usize][working_elt_idx];
-                for (rest_of_term_idx, rest_of_term_coeff) in rest_of_term.iter().enumerate() {
-                    if rest_of_term_coeff == 0 {
-                        continue;
-                    }
-                    // Reduce P^{x+y-j} * whatever square using the table in the same degree, larger index
-                    // Since we're doing the first squares in decreasing order and x + y - j > x, 
-                    // we already calculated this.
-                    let bj_idx = (((x+y-j) << 1) + e1) as usize;
-                    let output_vector = &table[bj_idx][rest_of_term_idx];
-                    result.add(output_vector, (c*rest_of_term_coeff)%p);
-                    for (output_index, output_value) in output_vector.iter().enumerate() {
-                        if output_value == 0 {
-                            continue;
-                        }
-                        let mut z = self.basis_element_from_index(n, output_index).clone();
-                        if z.bocksteins & 1 == 0 {
-                            z.bocksteins |= 1;
-                            z.degree += 1;
-                            let idx = self.basis_element_to_index(&z);
-                            beta_result.add_basis_element(idx, (output_value * c * rest_of_term_coeff) % p);
-                        }
+
+                let rest_reduced = &self.multiplication_table[(n - q * (i + j - k) as i32) as usize][2 * k as usize][tail_idx];
+                for (id, coeff) in rest_reduced.iter().enumerate() {
+                    let source = &table[2 * (i + j - k) as usize][id];
+                    result.add(source, (c * coeff) % self.p);
+                }
+            }
+        } else {
+            // First treat the k = 0 case.
+            // \beta P^{i + j - k} P^i
+            let c = combinatorics::adem_relation_coefficient(self.p, i, j, 0, 1, 0);
+            working_elt.ps[0] = i + j;
+            working_elt.degree = n;
+            let index = self.basis_element_to_index(&working_elt);
+            result.add_basis_element(index, c);
+
+            // P^{i + j - k} \beta P^k. Check if there is \beta following P^k
+            if working_elt.bocksteins & 2 == 0 {
+                let c = combinatorics::adem_relation_coefficient(self.p, i, j, 0, 0, 1);
+                working_elt.bocksteins ^= 3; // flip the first two bits, so that it now ends with 10
+                let index = self.basis_element_to_index(&working_elt);
+                result.add_basis_element(index, c);
+            }
+
+            for k in 1 ..= i/self.p {
+                // \beta P^{i + j - k} P^k
+                let c = combinatorics::adem_relation_coefficient(self.p, i, j, k, 1, 0);
+                if c != 0 {
+                    let rest_reduced = &self.multiplication_table[(n - q * (i + j - k) as i32 - 1) as usize][2 * k as usize][tail_idx];
+                    for (id, coeff) in rest_reduced.iter().enumerate() {
+                        let source = &table[1 + 2 * (i + j - k) as usize][id];
+                        result.add(source, (c * coeff) % self.p);
                     }
                 }
-                working_elt.degree = start_working_elt_degree;
-                working_elt.bocksteins = start_working_elt_bocksteins;
+
+                // P^{i + j - k} \beta P^k
+                let c = combinatorics::adem_relation_coefficient(self.p, i, j, k, 0, 1);
+                if c != 0 {
+                    let rest_reduced = &self.multiplication_table[(n - q * (i + j - k) as i32) as usize][1 + 2 * k as usize][tail_idx];
+                    for (id, coeff) in rest_reduced.iter().enumerate() {
+                        let source = &table[2 * (i + j - k) as usize][id];
+                        result.add(source, (c * coeff) % self.p);
+                    }
+                }
             }
         }
-        unsafe { working_elt.ps = shift_vec(working_elt.ps, -1); }
-        return (result, beta_result)
+        result
     }
 
 
@@ -1284,12 +1224,12 @@ mod tests {
 
     #[rstest_parametrize(p, max_degree,
         case(2, 32),
-        case(3, 106)    
+        case(3, 120)
     )]
     fn test_adem_basis(p : u32, max_degree : i32){
         let algebra = AdemAlgebra::new(p, p != 2, false);
-        algebra.compute_basis(max_degree); // TODO: Why is this +1 needed to pass test?
-        for i in 1 .. max_degree {
+        algebra.compute_basis(max_degree);
+        for i in 1 ..= max_degree {
             let dim = algebra.get_dimension(i, -1);
             for j in 0 .. dim {
                 let b = algebra.basis_element_from_index(i, j);
@@ -1303,12 +1243,12 @@ mod tests {
 
     #[rstest_parametrize(p, max_degree,
         case(2, 32),
-        case(3, 106)    
+        case(3, 120)
     )]
     fn test_adem_decompose(p : u32, max_degree : i32){
         let algebra = AdemAlgebra::new(p, p != 2, false);
         algebra.compute_basis(max_degree);
-        for i in 1 .. max_degree {
+        for i in 1 ..= max_degree {
             let dim = algebra.get_dimension(i, -1);
             let gens = algebra.get_generators(i);
             println!("i : {}, gens : {:?}", i, gens);
@@ -1334,13 +1274,13 @@ mod tests {
     use crate::module::ModuleFailedRelationError;
     #[rstest_parametrize(p, max_degree,
         case(2, 32),
-        case(3, 106)    
+        case(3, 120)
     )]
     fn test_adem_relations(p : u32, max_degree : i32){
         let algebra = AdemAlgebra::new(p, p != 2, false);
         algebra.compute_basis(max_degree);
         let mut output_vec = FpVector::new(p, 0, 0);
-        for i in 1 .. max_degree {
+        for i in 1 ..= max_degree {
             output_vec.clear_slice();
             let output_dim = algebra.get_dimension(i, -1);
             if output_dim > output_vec.get_dimension() {

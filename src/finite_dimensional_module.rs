@@ -144,7 +144,7 @@ impl FiniteDimensionalModule {
         //  ****    -> ***       -> **Vector   -> *Vector    -> Vector -> uint
         for input_degree in min_degree .. max_degree {
             if graded_dimension[input_degree] == 0 {
-                result.push(BiVec::with_capacity(input_degree, 0));
+                result.push(BiVec::new(input_degree));
                 continue;
             }
             let mut outputs_vec : BiVec<Vec<Vec<FpVector>>> = BiVec::with_capacity(input_degree + 1, max_degree);
