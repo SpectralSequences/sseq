@@ -8,9 +8,8 @@ use crate::algebra::{Algebra, AlgebraAny};
 use crate::adem_algebra::AdemAlgebra;
 use crate::milnor_algebra::MilnorAlgebra;
 use crate::module::FiniteModule;
-use crate::chain_complex::{ChainComplex, ChainComplexConcentratedInDegreeZero as CCDZ};
+use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::resolution::{Resolution, ModuleResolution};
-use crate::resolution_with_chain_maps::{ResolutionWithChainMaps, ModuleResolutionWithChainMaps};
 
 
 // use web_sys::console;
@@ -124,11 +123,9 @@ pub struct WasmResolution {
 
 #[wasm_bindgen]
 impl WasmResolution {
-    pub fn new(chain_complex : &WasmCCDZ, max_degree : i32, add_class : js_sys::Function, add_structline : js_sys::Function) -> Self {
+    pub fn new(chain_complex : &WasmCCDZ, json_string : String, add_class : js_sys::Function, add_structline : js_sys::Function) -> Self {
         let chain_complex = chain_complex.to_chain_complex();
-        let algebra = chain_complex.get_algebra();
-        algebra.compute_basis(max_degree);
-        
+
         let add_class_wrapper = move |hom_deg : u32, int_deg : i32, name : &str| {
             let this = JsValue::NULL;
             let js_hom_deg = JsValue::from(hom_deg);
@@ -154,7 +151,21 @@ impl WasmResolution {
             add_structline.apply(&this, &args_array).unwrap_throw();
         };
         let add_stuctline_wrapper_box = Box::new(add_stuctline_wrapper);
-        let res = Resolution::new(chain_complex,  Some(add_class_wrapper_box), Some(add_stuctline_wrapper_box));
+        let mut res = Resolution::new(chain_complex,  Some(add_class_wrapper_box), Some(add_stuctline_wrapper_box));
+
+        let json : Value = serde_json::from_str(&json_string).unwrap();
+        let products_value = &json["products"];
+        if !products_value.is_null() {
+            let products = products_value.as_array().unwrap();
+            for prod in products {
+                let hom_deg = prod["hom_deg"].as_u64().unwrap() as u32;
+                let int_deg = prod["int_deg"].as_i64().unwrap() as i32;
+                let idx = prod["index"].as_u64().unwrap() as usize;
+                let name = prod["name"].as_str().unwrap();
+                res.add_product(hom_deg, int_deg, idx, name.to_string());
+            }
+        }
+
         let boxed_res = Rc::new(RefCell::new(res));
         let pimpl : *const RefCell<ModuleResolution<FiniteModule>> = Rc::into_raw(boxed_res);
         Self {
@@ -176,7 +187,8 @@ impl WasmResolution {
     // }
 
     pub fn resolve_through_degree(&self, degree : i32) {
-        self.to_resolution().borrow_mut().resolve_through_degree(degree);
+        let res = self.to_resolution();
+        res.borrow().resolve_through_degree(&res, degree);
     }
 
     pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
@@ -186,58 +198,5 @@ impl WasmResolution {
     pub fn free(self) {
          let _drop_me :  Rc<RefCell<ModuleResolution<FiniteModule>>>
             = unsafe { Rc::from_raw(self.pimpl) };
-    }
-}
-
-#[wasm_bindgen]
-pub struct WasmResolutionWithChainMaps {
-   pimpl : *const ModuleResolutionWithChainMaps<FiniteModule, FiniteModule>
-}
-
-// use crate::fp_vector::FpVectorT;
-#[wasm_bindgen]
-impl WasmResolutionWithChainMaps {
-    pub fn new(source : &WasmResolution, target : &WasmResolution, json_string : String) -> Self {
-        let source_res = source.to_resolution();
-        let target_res = target.to_resolution();
-        let mut res_with_maps = ResolutionWithChainMaps::new(source_res, target_res);
-        let mut json : Value = serde_json::from_str(&json_string).unwrap();
-        res_with_maps.add_from_json(&mut json);
-        // res_with_maps.add_product(2, 9, 0, "\\alpha_{2}".to_string());
-        // res_with_maps.add_product(2, 12, 0, "\\beta".to_string());
-        // let mut map_data = crate::matrix::Matrix::new(2, 1, 1);
-        // map_data[0].set_entry(0, 1);
-        // res_with_maps.add_self_map(4, 12, "v_1".to_string(), map_data);
-        let boxed_res_with_maps = Rc::new(res_with_maps);
-        let pimpl : *const ModuleResolutionWithChainMaps<FiniteModule, FiniteModule> = Rc::into_raw(boxed_res_with_maps);
-        Self {
-            pimpl
-        }
-    }
-
-    fn to_res_with_maps(&self) -> Rc<ModuleResolutionWithChainMaps<FiniteModule, FiniteModule>> {
-        unsafe { 
-            let raw = Rc::from_raw(self.pimpl);
-            let result = Rc::clone(&raw);
-            std::mem::forget(raw);
-            return result;
-        }
-    }
-
-    // pub fn add_product(&mut self, homological_degree : u32, internal_degree : i32, index : usize, name : String) {
-    //     self.to_res_with_maps().add_product(homological_degree, internal_degree, index, name)
-    // }
-
-    pub fn resolve_through_degree(&self, degree : i32) {
-        self.to_res_with_maps().resolve_through_degree(degree);
-    }
-
-    pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
-        self.to_res_with_maps().resolution.borrow().get_cocycle_string(hom_deg, int_deg, idx)
-    }
-
-    pub fn free(self) {
-         let _drop_me :  Rc<ModuleResolutionWithChainMaps<FiniteModule,FiniteModule>>
-            = unsafe{ Rc::from_raw(self.pimpl) };
     }
 }

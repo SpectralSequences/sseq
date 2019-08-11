@@ -5,8 +5,8 @@ use std::rc::Rc;
 
 
 pub trait ChainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
-    fn get_prime(&self) -> u32 {
-        self.get_algebra().get_prime()
+    fn prime(&self) -> u32 {
+        self.get_algebra().prime()
     }
     fn get_algebra(&self) -> Rc<AlgebraAny>;
     fn get_min_degree(&self) -> i32;
@@ -26,7 +26,7 @@ pub struct ChainComplexConcentratedInDegreeZero<M : Module> {
 
 impl<M : Module> ChainComplexConcentratedInDegreeZero<M> {
     pub fn new(module : Rc<M>) -> Self {
-        let p = module.get_prime();
+        let p = module.prime();
         let zero_module_inner = Rc::new(ZeroModule::new(Rc::clone(&module.get_algebra())));
         let zero_module = Rc::new(OptionModule::Zero(Rc::clone(&zero_module_inner)));
         let some_module = Rc::new(OptionModule::Some(Rc::clone(&module)));

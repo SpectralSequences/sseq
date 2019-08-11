@@ -64,6 +64,13 @@ impl<T> Index<usize> for OnceVec<T> {
     }
 }
 
+impl<T> Index<u32> for OnceVec<T> {
+    type Output = T;
+    fn index(&self, key : u32) -> &T {
+        self.get(key as usize)
+    }
+}
+
 pub struct OnceBiVec<T> {
     data : UnsafeCell<BiVec<T>>
 }

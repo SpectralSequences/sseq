@@ -101,7 +101,7 @@ impl Matrix {
         (padded_cols, m)
     }
 
-    pub fn get_prime(&self) -> u32 {
+    pub fn prime(&self) -> u32 {
         self.p
     }
 
@@ -458,7 +458,7 @@ impl Subspace {
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
     /// that have a 0 in every column where there is a pivot in `matrix`
     pub fn reduce(&self, vector : &mut FpVector){
-        let p = self.matrix.get_prime();
+        let p = self.matrix.prime();
         let mut row = 0;
         let columns = vector.get_dimension();
         for i in 0 .. columns {
@@ -490,8 +490,8 @@ pub struct QuasiInverse {
 
 
 impl QuasiInverse {
-    pub fn get_prime(&self) -> u32 {
-        self.preimage.get_prime()
+    pub fn prime(&self) -> u32 {
+        self.preimage.prime()
     }
 
     /// Apply the quasi-inverse to an input vector and add a constant multiple of the result
@@ -502,7 +502,7 @@ impl QuasiInverse {
     ///  * `coeff` - The constant multiple above
     ///  * `input` - The input vector, expressed in the basis of the ambient space
     pub fn apply(&self, target : &mut FpVector, coeff : u32, input : &FpVector){
-        let p = self.get_prime();
+        let p = self.prime();
         let mut row = 0;
         let columns = input.get_dimension();
         for i in 0 .. columns {
@@ -628,7 +628,7 @@ impl Matrix {
     /// assert_eq!(qi.preimage, Matrix::from_vec(p, &preimage));
     /// ```
     pub fn compute_quasi_inverse(&mut self, pivots : &Vec<isize>, last_target_col : usize, first_source_col : usize) -> QuasiInverse {
-        let p = self.get_prime();
+        let p = self.prime();
         let columns = self.get_columns();
         let source_columns = columns - first_source_col;
         let first_kernel_row = self.find_first_row_in_block(&pivots, first_source_col);
@@ -665,7 +665,7 @@ impl Matrix {
     ///  * `last_res_col` - the last column of B
     ///  * `first_source_col` - the first column of I
     pub fn compute_quasi_inverses(&mut self, pivots : &Vec<isize>, first_res_col : usize, last_res_col : usize,  first_source_col : usize) -> (QuasiInverse, QuasiInverse) {
-        let p = self.get_prime();
+        let p = self.prime();
         let columns = self.get_columns();
         let source_columns = columns - first_source_col;
         let res_columns = last_res_col - first_res_col;

@@ -59,8 +59,7 @@ message_handlers.resolve = function resolve(m){
     self.algebra = self.wasm.WasmAlgebra.new_adem_algebra(m.p, m.p != 2);
     self.module = self.wasm.WasmModule.new_adem_module(self.algebra, m.module);
     self.cc = self.wasm.WasmCCDZ.new_ccdz(self.module);
-    self.res_no_maps = self.wasm.WasmResolution.new(cc, m.maxDegree, addClass, addStructline);
-    self.res = self.wasm.WasmResolutionWithChainMaps.new(self.res_no_maps, self.res_no_maps, m.module);
+    self.res = self.wasm.WasmResolution.new(cc, m.module, addClass, addStructline);
     self.res.resolve_through_degree(m.maxDegree);
     console.log(`Total time : ${getTotalTime()}`);
 }

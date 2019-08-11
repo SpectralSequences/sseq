@@ -142,7 +142,7 @@ impl Algebra for MilnorAlgebra {
         "milnor"
     }
 
-    fn get_prime(&self) -> u32 {
+    fn prime(&self) -> u32 {
         self.p
     }
 
@@ -297,7 +297,7 @@ impl Algebra for MilnorAlgebra {
             // beta^2 = 0 is an edge case
             return vec![vec![(1, (1, 0), (1, 0))]];
         }
-        let p = self.get_prime();
+        let p = self.prime();
         let q = if self.generic { 2*(p - 1) } else { 1 };
         let inadmissible_pairs = combinatorics::get_inadmissible_pairs(p, self.generic, degree);
         let mut result = Vec::new();
@@ -457,7 +457,7 @@ impl MilnorAlgebra {
 // Multiplication logic
 impl MilnorAlgebra {
     fn get_beps_pn(&self, e : u32, x : u32) -> (i32, usize) {
-        let p = self.get_prime();
+        let p = self.prime();
         let q = if self.generic { 2*(p - 1) } else { 1 };
         let degree = (q * x + e) as i32;
         let index = self.basis_element_to_index(&MilnorBasisElement {
