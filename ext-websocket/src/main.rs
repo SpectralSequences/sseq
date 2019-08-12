@@ -7,6 +7,7 @@ use rust_ext::Config;
 use rust_ext::module::FiniteModule;
 use rust_ext::resolution::{ModuleResolution};
 use rust_ext::chain_complex::ChainComplex;
+
 use std::{fs, thread};
 use std::sync::mpsc;
 use std::cell::RefCell;
@@ -110,17 +111,11 @@ impl ResolutionManager {
 
         let bundle = rust_ext::construct_from_json(json_data, algebra_name).unwrap();
 
-        bundle.resolution.borrow_mut().set_self(Rc::downgrade(&bundle.resolution));
-
+        bundle.resolution.borrow_mut().construct_unit_resolution();
         self.resolution = Some(bundle.resolution);
+
         self.setup_callback(&self.resolution, "");
-
-        let unit_resolution = &self.resolution().borrow().unit_resolution;
-        if let Some(unit_res) = unit_resolution {
-            unit_res.borrow_mut().set_self(Rc::downgrade(&unit_res));
-        }
-
-        self.setup_callback(&unit_resolution, "Unit");
+        self.setup_callback(&self.resolution().borrow().unit_resolution, "Unit");
         self.resolve(max_degree)
     }
 
@@ -143,7 +138,7 @@ impl ResolutionManager {
         self.resolution = Some(bundle.resolution);
 
         self.setup_callback(&self.resolution, "");
-        self.setup_callback(&self.resolution.as_ref().unwrap().borrow().unit_resolution, "Unit");
+        self.setup_callback(&self.resolution().borrow().unit_resolution, "Unit");
         self.resolve(max_degree)
     }
 
