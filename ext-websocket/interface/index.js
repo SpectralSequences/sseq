@@ -1,4 +1,4 @@
-import MyDisplay from "./display.js";
+import { MainDisplay, UnitDisplay } from "./display.js";
 
 // For timer
 let t0, t_last;
@@ -15,6 +15,17 @@ callbacks.resolveFurther = () => {
             maxDegree : newmax
         }));
 };
+
+callbacks.addProduct = (x, y, idx) => {
+    let name = prompt("Name for product");
+    webSocket.send(JSON.stringify({
+        command : "add_product",
+        s: y,
+        t: x + y,
+        idx: idx,
+        name: name
+    }));
+}
 
 let url = new URL(document.location);
 let params = {};
@@ -50,6 +61,10 @@ function openWebSocket(initialData, maxDegree) {
 
     webSocket.onopen = function(e) {
         webSocket.send(JSON.stringify(initialData));
+        webSocket.send(JSON.stringify({
+            command : "resolve_unit",
+            maxDegree : 10
+        }));
 
         t0 = performance.now();
         t_last = t0;
@@ -62,6 +77,7 @@ function openWebSocket(initialData, maxDegree) {
         } catch (err) {
             console.log("Unable to process message");
             console.log(data);
+            console.log(`Error: ${err}`);
         }
     }
     window.sseq = new Sseq();
@@ -75,13 +91,15 @@ function openWebSocket(initialData, maxDegree) {
         sseq.initialxRange = [0, maxDegree];
         sseq.initialyRange = [0, Math.ceil(maxDegree/3) + 1];
     }
-    window.display = new MyDisplay("#main", sseq, callbacks);
+    window.display = new MainDisplay("#main", sseq, callbacks);
 
     window.unitSseq = new Sseq();
     unitSseq.xRange = [0, 15];
     unitSseq.yRange = [0, 15];
     unitSseq.initialxRange = [0, 15];
     unitSseq.initialyRange = [0, 15];
+
+    window.unitDisplay = new UnitDisplay("#modal-body", unitSseq, callbacks);
 }
 let messageHandler = {};
 messageHandler.resolving = (data) => {

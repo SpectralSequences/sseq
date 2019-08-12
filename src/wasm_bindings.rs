@@ -167,6 +167,8 @@ impl WasmResolution {
         }
 
         let boxed_res = Rc::new(RefCell::new(res));
+        boxed_res.borrow_mut().set_self(Rc::downgrade(&boxed_res));
+
         let pimpl : *const RefCell<ModuleResolution<FiniteModule>> = Rc::into_raw(boxed_res);
         Self {
             pimpl
@@ -187,8 +189,7 @@ impl WasmResolution {
     // }
 
     pub fn resolve_through_degree(&self, degree : i32) {
-        let res = self.to_resolution();
-        res.borrow().resolve_through_degree(&res, degree);
+        self.to_resolution().borrow().resolve_through_degree(degree);
     }
 
     pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {

@@ -64,7 +64,8 @@ impl ResolutionManager {
                 Some("resolve_json") => manager.construct_resolution_json(json)?,
                 Some("resolve_further") => manager.resolve_further(json)?,
                 Some("resolve_unit") => manager.resolve_unit(json)?,
-                _ => {println!("Ignoring message: {:#}", json);}
+                Some("add_product") => manager.add_product(json)?,
+                _ => {println!("Ignoring message:\n{:#}", json);}
             };
         }
         Ok(())
@@ -72,6 +73,18 @@ impl ResolutionManager {
 
     fn resolution(&self) -> &Rc<RefCell<ModuleResolution<FiniteModule>>> {
         &self.resolution.as_ref().unwrap()
+    }
+
+    /// Resolve existing resolution to a larger degree
+    fn add_product(&mut self, json : Value) -> Result<(), Box<dyn Error>> {
+        let s = json["s"].as_u64().unwrap() as u32;
+        let t = json["t"].as_i64().unwrap() as i32;
+        let idx = json["idx"].as_u64().unwrap() as usize;
+        let name = json["name"].as_str().unwrap().to_string();
+
+        self.resolution().borrow_mut().add_product(s, t, idx, name);
+        self.resolution().borrow().catch_up_products();
+        Ok(())
     }
 
     /// Resolve existing resolution to a larger degree
@@ -84,7 +97,7 @@ impl ResolutionManager {
         let max_degree = json["maxDegree"].as_i64().unwrap() as i32;
         let unit_resolution_option = &self.resolution().borrow().unit_resolution;
         if let Some(unit_resolution) = unit_resolution_option {
-            unit_resolution.borrow().resolve_through_degree(&unit_resolution, max_degree);
+            unit_resolution.borrow().resolve_through_degree(max_degree);
         }
         Ok(())
     }
@@ -97,10 +110,17 @@ impl ResolutionManager {
 
         let bundle = rust_ext::construct_from_json(json_data, algebra_name).unwrap();
 
-        self.resolution = Some(bundle.resolution);
+        bundle.resolution.borrow_mut().set_self(Rc::downgrade(&bundle.resolution));
 
+        self.resolution = Some(bundle.resolution);
         self.setup_callback(&self.resolution, "");
-        self.setup_callback(&self.resolution().borrow().unit_resolution, "Unit");
+
+        let unit_resolution = &self.resolution().borrow().unit_resolution;
+        if let Some(unit_res) = unit_resolution {
+            unit_res.borrow_mut().set_self(Rc::downgrade(&unit_res));
+        }
+
+        self.setup_callback(&unit_resolution, "Unit");
         self.resolve(max_degree)
     }
 
@@ -119,6 +139,7 @@ impl ResolutionManager {
              max_degree : max_degree
         }).unwrap();
 
+        bundle.resolution.borrow_mut().construct_unit_resolution();
         self.resolution = Some(bundle.resolution);
 
         self.setup_callback(&self.resolution, "");
@@ -136,7 +157,7 @@ impl ResolutionManager {
         self.sender.send(data.to_string())?;
 
         if let Some(resolution) = &self.resolution {
-            resolution.borrow().resolve_through_degree(&resolution, max_degree);
+            resolution.borrow().resolve_through_degree(max_degree);
         }
 
         let data = json!({ "command": "complete" });

@@ -40,10 +40,12 @@ class StructlinePanel extends Panel.Panel {
                 this.display.update();
             });
         }
+
+        this.addButton("Add", () => { window.unitDisplay.openModal(); }, { "tooltip": "Add product to display" });
     }
 }
 
-export default class MyDisplay extends SidebarDisplay {
+export class MainDisplay extends SidebarDisplay {
     constructor(container, sseq, callbacks) {
         super(container, sseq);
 
@@ -72,5 +74,68 @@ export default class MyDisplay extends SidebarDisplay {
         this.sidebar.footer.addButton("Resolve further", callbacks["resolveFurther"]);
         this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG("sseq.svg"));
         this.sidebar.footer.addButton("Save", () => this.sseq.download("sseq.json"));
+    }
+}
+
+export class UnitDisplay extends Display {
+    constructor(container, sseq, callbacks) {
+        super(container, sseq);
+
+        this.tooltip = new Tooltip(this);
+        this.on("mouseover", (node) => {
+            this.tooltip.setHTML(`(${node.c.x}, ${node.c.y})`);
+            this.tooltip.show(node.x, node.y);
+        });
+
+        this.on("mouseout", () => {
+            if (this.selected) this.selected.highlight = true;
+            this.tooltip.hide();
+        });
+
+        document.querySelectorAll(".close-modal").forEach((c) => {
+            c.addEventListener("click", this.closeModal.bind(this));
+        });
+
+        document.querySelector("#modal-ok").addEventListener("click", () => {
+            let c = this.selected.c;
+            callbacks["addProduct"](c.x, c.y, c.idx);
+            this.closeModal();
+        });
+
+        this.on("click", this.__onClick.bind(this));
+    }
+
+    openModal() {
+        this._unselect();
+        document.querySelector("#overlay").style.removeProperty("display");
+        document.querySelector("#modal-ok").disabled = true;
+        let dialog = document.querySelector("#modal-dialog");
+        dialog.classList.add("modal-shown");
+    }
+
+    closeModal() {
+        document.querySelector("#overlay").style.display = "none";
+        let dialog = document.querySelector("#modal-dialog");
+        dialog.classList.remove("modal-shown");
+        this._unselect();
+    }
+
+    __onClick(node, e) {
+        if (!node) {
+            this._unselect();
+            return;
+        }
+
+        this._unselect();
+        this.selected = node;
+        document.querySelector("#modal-ok").disabled = false;
+    }
+
+    _unselect() {
+        if (!this.selected) return;
+        this.selected.highlight = false;
+        this.selected = null;
+        this.update();
+        document.querySelector("#modal-ok").disabled = true;
     }
 }

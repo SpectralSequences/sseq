@@ -52,3 +52,35 @@ a.flex-grid {
     margin-top: 2rem;
     margin-bottom: 0.5rem;
 }
+
+#overlay {
+    position: absolute;
+    background: rgba(200, 200, 200, 0.3);
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+#modal-dialog {
+    position: absolute;
+    top: 50px;
+    bottom: 50px;
+    right: 50px;
+    left: 50px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.1s;
+}
+
+#modal-dialog.modal-shown {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    height: 100%;
+}
+#modal-body {
+    flex-grow: 1;
+}

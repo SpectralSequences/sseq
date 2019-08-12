@@ -98,6 +98,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
     let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &mut json)?);
     let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
     let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), None, None)));
+    resolution.borrow_mut().set_self(Rc::downgrade(&resolution));
 
     let products_value = &json["products"];
     if !products_value.is_null() {
@@ -125,7 +126,7 @@ pub fn run_define_module() -> Result<String, Box<dyn Error>> {
 pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
     let bundle = construct(config)?;
     let res = bundle.resolution.borrow();
-    res.resolve_through_degree(&bundle.resolution, config.max_degree);
+    res.resolve_through_degree(config.max_degree);
     Ok(res.graded_dimension_string())
 }
 
