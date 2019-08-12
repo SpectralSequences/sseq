@@ -79,7 +79,6 @@ pub trait Algebra {
     /// objects is to be specified by the algebra itself, and will be used by module
     /// specifications.
     fn json_to_basis(&self, json : Value) -> (i32, usize);
-
     fn json_from_basis(&self, degree : i32, idx : usize) -> Value;
 
     /// Converts a basis element into a string for display.

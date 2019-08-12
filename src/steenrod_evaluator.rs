@@ -169,7 +169,7 @@ fn evaluate_module_basis_element<M : Module>(
     let idx;
     match entry {
         Some(tuple) => {degree = tuple.0; idx = tuple.1;},
-        None => return Err(Box::new(DegreeError{})) // Should be basis element not found error or something.
+        None => return Err(Box::new(UnknownBasisElementError { name : basis_elt })) // Should be basis element not found error or something.
     }
     
     if let Some(requested_degree) = output_degree {
@@ -178,7 +178,9 @@ fn evaluate_module_basis_element<M : Module>(
         }
     }
     let mut result = FpVector::new(p, adem_algebra.get_dimension(degree, -1), 0);
+    println!("idx : {}", idx);
     result.set_entry(idx, 1);
+    println!("result : {}", result);
     return Ok((degree, result))
 }
 
@@ -187,13 +189,30 @@ pub struct DegreeError {}
 
 impl std::fmt::Display for DegreeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Encountered inhomogenous sum.")
+        write!(f, "Encountered inhomogenous sum")
     }
 }
 
 impl Error for DegreeError {
     fn description(&self) -> &str {
         "Encountered inhomogenous sum"
+    }
+}
+
+#[derive(Debug)]
+pub struct UnknownBasisElementError {
+    name : String
+}
+
+impl std::fmt::Display for UnknownBasisElementError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Unknown basis element '{}'", self.name)
+    }
+}
+
+impl Error for UnknownBasisElementError {
+    fn description(&self) -> &str {
+        "Uknown basis element"
     }
 }
 

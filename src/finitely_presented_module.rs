@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use std::collections::HashMap;
 use serde_json::Value;
+use serde_json::json;
 
 use bivec::BiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
@@ -151,6 +152,17 @@ impl FinitelyPresentedModule {
             result.add_relations(i, &mut relations_matrix);
         }
         return result;
+    }
+
+    pub fn relations_to_json(&self) -> Value {
+        let mut relations = Vec::new();
+        for i in self.min_degree .. self.relations.max_computed_degree() {
+            let num_relns = self.relations.get_number_of_gens_in_degree(i);
+            for j in 0 .. num_relns {
+                relations.push(self.generators.element_to_json(i, self.map.get_output(i,j)));
+            }
+        } 
+        Value::from(relations)
     }
 
 

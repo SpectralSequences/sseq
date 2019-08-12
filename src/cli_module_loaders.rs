@@ -313,6 +313,7 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
     let gens = get_gens(min_degree)?;
     let gens_json = gens_to_json(&gens);    
     let max_degree = (gens.len() + 1) as i32 + min_degree;
+    let max_degree = 20;
 
 
     let adem_algebra_rc = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
@@ -329,16 +330,19 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
 
     let adem_module = FPModule::new(Rc::clone(&adem_algebra_rc), "".to_string(), min_degree);
 
+    
     for (i, deg_i_gens) in gens.iter_enum() {
         adem_module.add_generators(i, deg_i_gens.clone());
     }
+    // TODO: make relation parser automatically extend module by zero if necessary...
+    adem_module.generators.extend_by_zero(20);
 
     println!("Input relations");
 
     let mut basis_elt_lookup = HashMap::new();
     for (i, deg_i_gens) in gens.iter_enum() {
         for (j, gen) in deg_i_gens.iter().enumerate() {
-            let k = adem_module.generators.operation_generator_to_index(0, 1, i, j);
+            let k = adem_module.generators.operation_generator_to_index(0, 0, i, j);
             basis_elt_lookup.insert(gen.clone(), (i, k));
         }
     }
@@ -347,14 +351,14 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
     loop {
         match get_relation(&adem_algebra, &milnor_algebra, &adem_module.generators, &basis_elt_lookup) {
             Err(x) => {
-                if x == "" {
-                    println!("Invalid relation: {}. Try again.", "");
+                if x != "" {
+                    println!("Invalid relation: {}. Try again.", x);
                     continue;
                 }
-                println!("This is the list of generators and degrees:");
-                for (i, deg_i_gens) in gens.iter_enum() {
-                    for gen in deg_i_gens.iter(){
-                        print!("({}, {}) ", i, gen);
+                println!("This is the list of relations:");
+                for (i, deg_i_relns) in relations.iter_enum() {
+                    for r in deg_i_relns {
+                        print!("{}, ", adem_module.generators.element_to_string(i, r));
                     }
                 }
                 print!("\n");
@@ -367,15 +371,26 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
                     continue;
                 }
             },
-            Ok((degree, vector)) => {
+            Ok((degree, vector)) => {   
                 while relations.len() <= degree {
                     relations.push(Vec::new());
                 }
+                println!("degree : {}, vector : {}", degree, vector);
                 relations[degree].push(vector);
             },
         }
     }
 
+    for (i, relns) in relations.iter_enum() {
+        let dim = adem_module.generators.get_dimension(i);
+        let mut matrix = crate::matrix::Matrix::new(p, relns.len(), dim);
+        for (j, r) in relns.iter().enumerate() {
+            matrix[j].assign(r);
+        }
+        adem_module.add_relations(i, &mut matrix);
+    }
+    output_json["gens"] = gens_json;
+    output_json["adem_relations"] = adem_module.relations_to_json();
 
     Ok(output_json)
 }

@@ -1,10 +1,14 @@
 use std::sync::{ Mutex, MutexGuard };
-use crate::once::OnceBiVec;
+use std::rc::Rc;
+use serde_json::json;
+use serde_json::Value;
+
+
 use bivec::BiVec;
+use crate::once::OnceBiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::Module;
-use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct OperationGeneratorPair {
@@ -95,6 +99,10 @@ impl FreeModule {
             gen_names : OnceBiVec::new(min_degree),
             table : OnceBiVec::new(min_degree)
         }
+    }
+
+    pub fn max_computed_degree(&self) -> i32 {
+        self.table.max_degree()
     }
 
     pub fn get_number_of_gens_in_degree(&self, degree : i32) -> usize {
@@ -204,6 +212,21 @@ impl FreeModule {
     pub fn index_to_op_gen(&self, degree : i32, index : usize) -> &OperationGeneratorPair {
         assert!(degree >= self.min_degree);
         return &self.table[degree].basis_element_to_opgen[index];
+    }
+
+    pub fn element_to_json(&self, degree : i32, elt : &FpVector) -> Value {
+        let mut result = Vec::new();
+        let algebra = self.get_algebra();
+        for (i, v) in elt.iter().enumerate(){
+            if v == 0 { continue; }
+            let opgen = self.index_to_op_gen(degree, i);
+            result.push(json!({
+                "op" : algebra.json_from_basis(opgen.operation_degree, opgen.operation_index),
+                "gen" : self.gen_names[opgen.generator_degree][opgen.generator_index],
+                "coeff" : v
+            }));
+        }
+        Value::from(result)
     }
 
     pub fn add_generators_immediate(&self, degree : i32, num_gens : usize, gen_names : Option<Vec<String>>){

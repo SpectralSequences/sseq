@@ -330,6 +330,7 @@ pub trait FpVectorT {
     }
 
     fn get_entry(&self, index : usize) -> u32 {
+        assert!(index < self.get_dimension());
         let p = self.prime();
         let bit_mask = get_bitmask(p);
         let limb_index = get_limb_bit_index_pair(p, index + self.get_min_index());
@@ -340,6 +341,7 @@ pub trait FpVectorT {
     }
 
     fn set_entry(&mut self, index : usize, value : u32){
+        assert!(index < self.get_dimension());
         let p = self.prime();
         let bit_mask = get_bitmask(p);
         let limb_index = get_limb_bit_index_pair(p, index + self.get_min_index());
