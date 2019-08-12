@@ -8,7 +8,7 @@ use std::slice::Iter;
 /// Note that properties like length and capacity are defined to be the maximum index allowed. For
 /// example, if `v.min_degree = -2` and `v.len() = 3`, it means we can access `v[-2], v[-1], v[0],
 /// v[1], v[2]` but not `v[3]`.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct BiVec<T> {
     data : Vec<T>,
     min_degree : i32
@@ -60,7 +60,7 @@ impl<T> BiVec<T> {
     pub fn iter_enum(&self) -> impl Iterator<Item = (i32, &T)> {
         let min_degree = self.min_degree;
         self.data.iter().enumerate()
-            .map(move |(i, t)| (i as i32 - min_degree, t))
+            .map(move |(i, t)| (i as i32 + min_degree, t))
             // .collect()
     }
 }

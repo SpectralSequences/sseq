@@ -161,7 +161,7 @@ impl FiniteDimensionalModule {
                 for _ in 0 .. number_of_operations {
                     let mut in_idx_vec : Vec<FpVector> = Vec::with_capacity(number_of_inputs);
                     for _ in 0 .. number_of_inputs {
-                        in_idx_vec.push(FpVector::new(algebra.prime(), number_of_outputs, 0));
+                        in_idx_vec.push(FpVector::new(algebra.prime(), number_of_outputs));
                     }
                     assert!(in_idx_vec.len() == number_of_inputs);
                     ops_vec.push(in_idx_vec);
@@ -232,7 +232,6 @@ impl FiniteDimensionalModule {
         let gens = json["gens"].take();
         let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(&gens);
         let min_degree = graded_dimension.min_degree();
-        let max_degree = graded_dimension.max_degree();
         let name = json["name"].as_str().unwrap().to_string();
         let mut actions_value = json[algebra.get_algebra_type().to_owned() + "_actions"].take();
         let actions = actions_value.as_array_mut().unwrap();
@@ -264,38 +263,36 @@ impl FiniteDimensionalModule {
         let p = self.prime();
         let algebra = self.get_algebra();
         let op_deg = output_deg - input_deg;
-        let mut output_vec = FpVector::new(p, self.get_dimension(output_deg), 0);
-        let mut tmp_output = FpVector::new(p, self.get_dimension(output_deg), 0);  
-        for idx in 0..self.get_dimension(input_deg) {      
-            for op_idx in 0..algebra.get_dimension(op_deg, -1) {
-                let relations = algebra.get_relations_to_check(op_deg);
-                for relation in relations {
+        let mut output_vec = FpVector::new(p, self.get_dimension(output_deg));
+        let mut tmp_output = FpVector::new(p, self.get_dimension(output_deg));
+        for idx in 0..self.get_dimension(input_deg) {
+            let relations = algebra.get_relations_to_check(op_deg);
+            for relation in relations {
+                for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
+                    let intermediate_dim = self.get_dimension(input_deg + *deg_2);
+                    if intermediate_dim > tmp_output.get_dimension() {
+                        tmp_output = FpVector::new(p, intermediate_dim);
+                    }
+                    tmp_output.set_slice(0, intermediate_dim);
+                    self.act_on_basis(&mut tmp_output, 1, *deg_2, *idx_2, input_deg, idx);
+                    self.act(&mut output_vec, *coef, *deg_1, *idx_1, *deg_2 + input_deg, &tmp_output);
+                    tmp_output.clear_slice();
+                    tmp_output.set_to_zero();
+                }
+                if !output_vec.is_zero() {
+                    let mut relation_string = String::new();
                     for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                        let intermediate_dim = self.get_dimension(input_deg + *deg_2);
-                        if intermediate_dim > tmp_output.get_dimension() {
-                            tmp_output = FpVector::new(p, intermediate_dim, 0);
-                        }
-                        tmp_output.set_slice(0, intermediate_dim);
-                        self.act_on_basis(&mut tmp_output, 1, *deg_2, *idx_2, input_deg, idx);
-                        self.act(&mut output_vec, *coef, *deg_1, *idx_1, *deg_2 + input_deg, &tmp_output); 
-                        tmp_output.clear_slice();
-                        tmp_output.set_to_zero();                       
+                        relation_string.push_str(&format!("{} * {} * {}  +  ",
+                                                          *coef,
+                                                          &algebra.basis_element_to_string(*deg_1, *idx_1),
+                                                          &algebra.basis_element_to_string(*deg_2, *idx_2))
+                                                );
                     }
-                    if !output_vec.is_zero() {
-                        let mut relation_string = String::new();
-                        for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                            relation_string.push_str(&format!("{} * {} * {}  +  ", 
-                                *coef, 
-                                &algebra.basis_element_to_string(*deg_1, *idx_1), 
-                                &algebra.basis_element_to_string(*deg_2, *idx_2))
-                            );
-                        }
-                        relation_string.pop(); relation_string.pop(); relation_string.pop();
-                        relation_string.pop(); relation_string.pop();
+                    relation_string.pop(); relation_string.pop(); relation_string.pop();
+                    relation_string.pop(); relation_string.pop();
 
-                        let value_string = self.element_to_string(output_deg as i32, &output_vec);
-                        return Err(Box::new(ModuleFailedRelationError {relation : relation_string, value : value_string}));
-                    }
+                    let value_string = self.element_to_string(output_deg as i32, &output_vec);
+                    return Err(Box::new(ModuleFailedRelationError {relation : relation_string, value : value_string}));
                 }
             }
         }
@@ -306,8 +303,8 @@ impl FiniteDimensionalModule {
         let p = self.prime();
         let algebra = self.get_algebra();
         let op_deg = output_deg - input_deg;
-        let mut output_vec = FpVector::new(p, self.get_dimension(output_deg), 0);
-        let mut tmp_output = FpVector::new(p, self.get_dimension(output_deg), 0);
+        let mut output_vec = FpVector::new(p, self.get_dimension(output_deg));
+        let mut tmp_output = FpVector::new(p, self.get_dimension(output_deg));
         let generators = algebra.get_generators(op_deg);  
         for idx in 0 .. self.get_dimension(input_deg) {      
             for op_idx in 0 .. algebra.get_dimension(op_deg, -1) {
@@ -316,7 +313,7 @@ impl FiniteDimensionalModule {
                     for (coef, (deg_1, idx_1), (deg_2, idx_2)) in decomposition {
                         let intermediate_dim = self.get_dimension(input_deg + deg_2);
                         if intermediate_dim > tmp_output.get_dimension() {
-                            tmp_output = FpVector::new(p, intermediate_dim, 0);
+                            tmp_output = FpVector::new(p, intermediate_dim);
                         }
                         tmp_output.set_slice(0, intermediate_dim);                        
                         self.act_on_basis(&mut tmp_output, 1, deg_2, idx_2, input_deg, idx);
@@ -332,7 +329,6 @@ impl FiniteDimensionalModule {
     }
 
     pub fn actions_to_json(&self) -> Value {
-        let p = self.prime();
         let algebra = self.get_algebra();
         let min_degree = self.get_min_degree();
         let max_degree = min_degree + self.graded_dimension.len() as i32;

@@ -469,7 +469,6 @@ impl MilnorAlgebra {
     }
 
     fn multiply_qpart (&self, m1 : &MilnorBasisElement, f : u32) -> Vec<(u32, MilnorBasisElement)>{
-        let tau_degrees = crate::combinatorics::get_tau_degrees(self.p);
         let xi_degrees = crate::combinatorics::get_xi_degrees(self.p);
 
         let mut new_result : Vec<(u32, MilnorBasisElement)> = vec![(1, m1.clone())];
@@ -739,7 +738,6 @@ impl MilnorAlgebra {
     // use https://monks.scranton.edu/files/pubs/bases.pdf page 8
     fn decompose_basis_element_ppart(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>{
         let p = self.p;
-        let q = if self.generic { 2*p - 2 } else { 1 };
         let b = &self.basis_table[degree as usize][idx];
         let first;
         let second;
@@ -775,7 +773,7 @@ impl MilnorAlgebra {
             first = self.get_beps_pn(0, pow);
             second = self.get_beps_pn(0, sq - pow);
         }
-        let mut out_vec = FpVector::new(p, self.get_dimension(degree, -1), 0);
+        let mut out_vec = FpVector::new(p, self.get_dimension(degree, -1));
         self.multiply_basis_elements(&mut out_vec, 1, first.0, first.1, second.0, second.1, -1);
         let mut result = Vec::new();
         let c = out_vec.get_entry(idx);
@@ -832,7 +830,7 @@ mod tests {
             let dim = algebra.get_dimension(i, -1);
             let gens = algebra.get_generators(i);
             // println!("i : {}, gens : {:?}", i, gens);
-            let mut out_vec = FpVector::new(p, dim, 0);
+            let mut out_vec = FpVector::new(p, dim);
             for j in 0 .. dim {
                 if gens.contains(&j){
                     continue;
@@ -859,12 +857,12 @@ mod tests {
     fn test_adem_relations(p : u32, max_degree : i32){
         let algebra = MilnorAlgebra::new(p); // , p != 2
         algebra.compute_basis(max_degree + 2);
-        let mut output_vec = FpVector::new(p, 0, 0);
+        let mut output_vec = FpVector::new(p, 0);
         for i in 1 .. max_degree {
             output_vec.clear_slice();
             let output_dim = algebra.get_dimension(i, -1);
             if output_dim > output_vec.get_dimension() {
-                output_vec = FpVector::new(p, output_dim, 0);
+                output_vec = FpVector::new(p, output_dim);
             }
             output_vec.set_slice(0, output_dim);
             let relations = algebra.get_relations_to_check(i);

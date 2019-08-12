@@ -47,7 +47,6 @@ impl Module for FreeModule {
     }
 
     fn get_dimension(&self, degree : i32) -> usize {
-        // println!("Get dimension of {} in degree {}", self.name, degree);
         if degree < self.min_degree {
             return 0;
         }
@@ -278,7 +277,7 @@ mod tests {
             let idx = M.operation_generator_to_index(output_deg - *gen_deg, 0, *gen_deg, *gen_idx);
             println!("index : {}", idx);
         }
-        let mut result = FpVector::new(p, output_dim, 0);
+        let mut result = FpVector::new(p, output_dim);
         // M.act_on_basis(&mut result, 1, op_deg, op_idx, input_deg, input_idx);
         M.act_on_basis(&mut result, 1, 5, 0, 1, 0);
         println!("{}", result);

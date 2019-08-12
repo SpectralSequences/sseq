@@ -102,7 +102,7 @@ fn milnor_to_adem_on_basis_2(
         bocksteins : 0,
         ps : t
     });
-    let mut tmp_vector_a = FpVector::new(p, dim, 0);    
+    let mut tmp_vector_a = FpVector::new(p, dim);
     adem_to_milnor_on_basis(adem_algebra, milnor_algebra, &mut tmp_vector_a, 1, degree, t_idx);
     assert!(tmp_vector_a.get_entry(idx) == 1);
     tmp_vector_a.set_entry(idx, 0);
@@ -136,7 +136,7 @@ fn milnor_to_adem_on_basis_generic(
         bocksteins : elt.q_part,
         ps : t
     });
-    let mut tmp_vector_a = FpVector::new(p, dim, 0);    
+    let mut tmp_vector_a = FpVector::new(p, dim);
     adem_to_milnor_on_basis(adem_algebra, milnor_algebra, &mut tmp_vector_a, 1, degree, t_idx);
     assert!(tmp_vector_a.get_entry(idx) == 1);
     tmp_vector_a.set_entry(idx, 0);
@@ -217,7 +217,7 @@ mod tests {
             (2, "P7 + P5 P2 + P6 P1 + P4 P2 P1")
         ] {
             let degree = (1 << (qi + 1)) - 1;
-            let mut result = FpVector::new(p, adem.get_dimension(degree, -1), 0);
+            let mut result = FpVector::new(p, adem.get_dimension(degree, -1));
             get_adem_q(&adem, &milnor, &mut result, 1, qi);
             println!("Q{} ==> {}", qi, adem.element_to_string(degree, &result));
             assert_eq!(adem.element_to_string(degree, &result), output)
@@ -238,8 +238,8 @@ mod tests {
         for degree in 0 .. max_degree {
             println!("degree : {}", degree);
             let dim = adem.get_dimension(degree, -1);
-            let mut milnor_result = FpVector::new(p, dim, 0);
-            let mut adem_result = FpVector::new(p, dim, 0);            
+            let mut milnor_result = FpVector::new(p, dim);
+            let mut adem_result = FpVector::new(p, dim);
             for i in 0 .. dim {
                 // println!("i : {}", i);
                 milnor_to_adem_on_basis(&adem, &milnor, &mut adem_result, 1, degree, i);

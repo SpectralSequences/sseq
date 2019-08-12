@@ -4,10 +4,9 @@ use std::cell::RefCell;
 use crate::once::OnceVec;
 use crate::fp_vector::{ FpVector, FpVectorT };
 use crate::matrix::Matrix;
-use crate::module::{Module, OptionModule};
+use crate::module::{Module, OptionModule, FiniteModule};
 use crate::free_module::FreeModule;
 use crate::module_homomorphism::{ZeroHomomorphism, ModuleHomomorphism};
-use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
 use crate::chain_complex::ChainComplex;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
@@ -73,7 +72,6 @@ impl<
 
     pub fn extend_step(&self, input_homological_degree : u32, input_internal_degree : i32, extra_images : Option<&mut Matrix>){
         let output_homological_degree = input_homological_degree - self.homological_degree_shift;
-        let output_internal_degree = input_internal_degree - self.internal_degree_shift;
         let f_cur = self.get_map_ensure_length(output_homological_degree);
         let computed_degree = *f_cur.get_lock();
         if input_internal_degree <= computed_degree {
@@ -83,10 +81,6 @@ impl<
         let num_gens = f_cur.get_source().get_number_of_gens_in_degree(input_internal_degree);
         let mut outputs = self.extend_step_helper(input_homological_degree, input_internal_degree, extra_images);
         let mut lock = f_cur.get_lock();
-        if outputs.get_rows() > 0 {
-            println!("Extending {} to hom_deg : {}, int_deg : {}", self.name, input_homological_degree, input_internal_degree);
-            println!("outputs : {}", outputs);
-        }
         f_cur.add_generators_from_matrix_rows(&lock, input_internal_degree, &mut outputs, 0, 0, num_gens);
         *lock += 1;
     }
@@ -137,8 +131,8 @@ impl<
         let d_quasi_inverse = d_target.get_quasi_inverse(output_internal_degree).unwrap();
         let dx_dimension = f_prev.get_source().get_dimension(input_internal_degree);
         let fdx_dimension = f_prev.get_target().get_dimension(output_internal_degree);
-        let mut dx_vector = FpVector::new(p, dx_dimension, 0);
-        let mut fdx_vector = FpVector::new(p, fdx_dimension, 0);
+        let mut dx_vector = FpVector::new(p, dx_dimension);
+        let mut fdx_vector = FpVector::new(p, fdx_dimension);
         let mut extra_image_row = 0;
         for k in 0 .. num_gens {
             d_source.apply_to_generator(&mut dx_vector, 1, input_internal_degree, k);
@@ -151,10 +145,7 @@ impl<
                 extra_image_row += 1;
             } else {
                 f_prev.apply(&mut fdx_vector, 1, input_internal_degree, &dx_vector);
-                println!("{:?}", d_quasi_inverse);
-                println!("fx_dimension : {}",fx_dimension);
                 d_quasi_inverse.apply(&mut outputs_matrix[k], 1, &fdx_vector);
-                println!("{}, {}, {}", dx_vector, fdx_vector, outputs_matrix[k]);
                 dx_vector.set_to_zero();
                 fdx_vector.set_to_zero();
             }
@@ -167,9 +158,9 @@ impl<
 }
 
 pub type ResolutionHomomorphismToUnit<M, F, CC> = ResolutionHomomorphism<M, F, CC,
-    OptionModule<FDModule>,
-    ZeroHomomorphism<OptionModule<FDModule>, OptionModule<FDModule>>,
-    CCDZ<FDModule>
+    OptionModule<FiniteModule>,
+    ZeroHomomorphism<OptionModule<FiniteModule>, OptionModule<FiniteModule>>,
+    CCDZ<FiniteModule>
 >;
 
 // FreeModuleHomomorphism *ResolutionHomomorphism_getMap(ResolutionHomomorphism *f, uint homological_degree);

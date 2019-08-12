@@ -10,15 +10,10 @@ callbacks.resolveFurther = () => {
     if (newmax <= window.maxDegree) {
         return;
     }
-    window.maxDegree = newmax;
-    t0 = performance.now();
-    t_last = t0;
     webSocket.send(JSON.stringify({
             command : "resolve_further",
-            maxDegree : maxDegree
+            maxDegree : newmax
         }));
-    sseq.xRange = [window.minDegree, window.maxDegree];
-    sseq.yRange = [0, Math.ceil((window.maxDegree - window.minDegree)/3) + 1];
 };
 
 let url = new URL(document.location);
@@ -62,7 +57,12 @@ function openWebSocket(initialData, maxDegree) {
 
     webSocket.onmessage = function(e) {
         let data = JSON.parse(e.data);
-        messageHandler[data.command](data);
+        try {
+            messageHandler[data.command](data);
+        } catch (err) {
+            console.log("Unable to process message");
+            console.log(data);
+        }
     }
     window.sseq = new Sseq();
     sseq.offset_size = 0.1;
@@ -76,6 +76,12 @@ function openWebSocket(initialData, maxDegree) {
         sseq.initialyRange = [0, Math.ceil(maxDegree/3) + 1];
     }
     window.display = new MyDisplay("#main", sseq, callbacks);
+
+    window.unitSseq = new Sseq();
+    unitSseq.xRange = [0, 15];
+    unitSseq.yRange = [0, 15];
+    unitSseq.initialxRange = [0, 15];
+    unitSseq.initialyRange = [0, 15];
 }
 let messageHandler = {};
 messageHandler.resolving = (data) => {
@@ -83,6 +89,9 @@ messageHandler.resolving = (data) => {
     window.maxDegree = data.maxDegree;
     sseq.xRange = [window.minDegree, window.maxDegree];
     sseq.yRange = [0, Math.ceil((window.maxDegree - window.minDegree)/3) + 1];
+    display.runningSign.style.removeProperty("display");
+    t0 = performance.now();
+    t_last = t0;
 }
 
 let max_t = 0;
@@ -98,7 +107,7 @@ messageHandler.addClass = function addClass(m) {
 }
 
 window.structlineTypes = new Set();
-messageHandler.addStructline = function addStructline(m) {
+messageHandler.addStructline = function (m) {
     let source = sseq.getClassesInDegree(m.source.t - m.source.s, m.source.s)[m.source.idx];
     let target = sseq.getClassesInDegree(m.target.t - m.target.s, m.target.s)[m.target.idx];
     sseq.addStructline(source, target, m.mult);
@@ -108,7 +117,17 @@ messageHandler.addStructline = function addStructline(m) {
     }
 }
 
-messageHandler.complete = function complete(m) {
+messageHandler.addClassUnit = function (m) {
+    unitSseq.addClass(m.t - m.s, m.s);
+}
+
+messageHandler.addStructlineUnit = function (m) {
+    let source = unitSseq.getClassesInDegree(m.source.t - m.source.s, m.source.s)[m.source.idx];
+    let target = unitSseq.getClassesInDegree(m.target.t - m.target.s, m.target.s)[m.target.idx];
+    unitSseq.addStructline(source, target, m.mult);
+}
+
+messageHandler.complete = function (m) {
     display.runningSign.style.display = "none";
     console.log(`Total time : ${getTotalTime()}`);
     t_prev = getTotalTime() * 1000;

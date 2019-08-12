@@ -9,7 +9,7 @@ use bivec::BiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace};
 use crate::algebra::{Algebra, AlgebraAny};
-use crate::module::{Module, OptionModule};
+use crate::module::{Module, OptionModule, FiniteModule};
 use crate::free_module::FreeModule;
 use crate::once::{OnceVec, OnceBiVec, TempStorage};
 use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
@@ -48,10 +48,10 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
     differentials : OnceVec<FreeModuleHomomorphism<FreeModule>>,
     phantom : PhantomData<ChainComplex<M, F>>,
 
-    pub kernels : OnceBiVec<RefCell<Option<Subspace>>>,
+    kernels : OnceBiVec<RefCell<Option<Subspace>>>,
 
-    pub next_s : Mutex<u32>,
-    pub next_t : Mutex<i32>,
+    next_s : Mutex<u32>,
+    next_t : Mutex<i32>,
     pub add_class : Option<Box<dyn Fn(u32, i32, &str)>>,
     pub add_structline : Option<Box<dyn Fn(
         &str,
@@ -60,7 +60,7 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
     )>>,
 
     // Products
-    unit_resolution : Option<Rc<RefCell<ModuleResolution<FDModule>>>>,
+    pub unit_resolution : Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>,
     product_list : Vec<Cocycle>,
     // s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
     // until we actually have a unit resolution, of course.
@@ -141,7 +141,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let target = d.get_target();
         let dimension = target.get_dimension(int_deg);
         let basis_idx = source.operation_generator_to_index(0, 0, int_deg, idx);
-        let mut result_vector = crate::fp_vector::FpVector::new(p, dimension, 0);
+        let mut result_vector = crate::fp_vector::FpVector::new(p, dimension);
         d.apply_to_basis_element(&mut result_vector, 1, int_deg, basis_idx);
         return target.element_to_string(int_deg, &result_vector);
     }
@@ -382,10 +382,10 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         // This latter matrix may be used to find a preimage of an element under the differential.
 
         // Pad the target dimension so that it ends in an aligned position.
-        let padded_target_cc_dimension = FpVector::get_padded_dimension(p, target_cc_dimension, 0);
-        let padded_target_res_dimension = FpVector::get_padded_dimension(p, target_res_dimension, 0);
+        let padded_target_cc_dimension = FpVector::get_padded_dimension(p, target_cc_dimension);
+        let padded_target_res_dimension = FpVector::get_padded_dimension(p, target_res_dimension);
         let padded_target_dimension = padded_target_res_dimension + padded_target_cc_dimension;
-        let rows = max(source_dimension, target_dimension);
+        let rows = source_dimension + target_dimension;
         let columns = padded_target_dimension + source_dimension + rows;
         let mut matrix = Matrix::new(p, rows, columns);
         let mut pivots = vec![-1;matrix.get_columns()];
@@ -401,7 +401,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 
         let new_kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
         let kernel_rows = new_kernel.matrix.get_rows();
-        let first_new_row = source_dimension - kernel_rows;
+        let first_new_row = source_dimension;
         matrix.clear_slice();
 
         // Now add generators to surject onto C_{s, t}.
@@ -419,9 +419,9 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             let prev_chain_map = self.get_chain_map(homological_degree - 1);
             let maybe_quasi_inverse = prev_chain_map.get_quasi_inverse(degree);
             if let Some(quasi_inverse) = maybe_quasi_inverse {
-                let mut out_vec = FpVector::new(self.prime(), target_res_dimension, 0);
+                let mut out_vec = FpVector::new(self.prime(), target_res_dimension);
                 let dfx_dim = complex_cur_differential.get_target().get_dimension(degree);
-                let mut dfx = FpVector::new(self.prime(), dfx_dim, 0);
+                let mut dfx = FpVector::new(self.prime(), dfx_dim);
                 for (i, column) in new_generators.iter().enumerate() {
                     complex_cur_differential.apply_to_basis_element(&mut dfx, 1, degree, *column);
                     quasi_inverse.apply(&mut out_vec, 1, &dfx);
@@ -459,7 +459,6 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         matrix.set_slice(0, image_rows, 0, padded_target_dimension + source_dimension + num_new_gens); 
         let mut new_pivots = vec![-1;matrix.get_columns()];
         matrix.row_reduce(&mut new_pivots);
-        // println!("{}", matrix);
         let (cm_qi, res_qi) = matrix.compute_quasi_inverses(
             &new_pivots, 
             padded_target_cc_dimension, 
@@ -481,9 +480,9 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let min_degree = self.get_min_degree();
         let max_degree = self.get_max_degree();
         let max_hom_deg = self.get_max_hom_deg(); //(max_degree - min_degree) as u32 / (self.prime() + 1); //self.get_max_hom_deg();
-        for i in (0 .. max_hom_deg).rev() {
+        for i in (0 ..= max_hom_deg).rev() {
             let module = self.get_module(i);
-            for j in min_degree + i as i32 .. max_degree {
+            for j in min_degree + i as i32 ..= max_degree {
                 let n = module.get_number_of_gens_in_degree(j);
                 match n {
                     0 => result.push_str("  "),
@@ -523,12 +522,12 @@ impl<M, F, CC> Resolution<M, F, CC> where
     }
 
     pub fn construct_unit_resolution(&mut self) {
-         let unit_module = Rc::new(FDModule::new(self.get_algebra(), String::from("unit"), BiVec::from_vec(0, vec![1])));
+         let unit_module = Rc::new(FiniteModule::from(FDModule::new(self.get_algebra(), String::from("unit"), BiVec::from_vec(0, vec![1]))));
          let ccdz = Rc::new(CCDZ::new(unit_module));
          self.unit_resolution = Some(Rc::new(RefCell::new(Resolution::new(ccdz, None, None))));
     }
 
-    pub fn set_unit_resolution(&mut self, unit_res : Rc<RefCell<ModuleResolution<FDModule>>>) {
+    pub fn set_unit_resolution(&mut self, unit_res : Rc<RefCell<ModuleResolution<FiniteModule>>>) {
         if self.chain_maps_to_unit_resolution.len() > 0 {
             panic!("Cannot change unit resolution after you start computing products");
         }
@@ -560,12 +559,12 @@ impl<M, F, CC> Resolution<M, F, CC> where
         let unit_res = self.unit_resolution.as_ref().unwrap().borrow();
         let output_module = unit_res.get_module(elt.s);
 
-        let mut result = FpVector::new(self.prime(), output_module.get_dimension(elt.t), 0);
+        let mut result = FpVector::new(self.prime(), output_module.get_dimension(elt.t));
 
         for l in 0 .. self.get_number_of_gens_in_bidegree(target_s, target_t) {
             f.get_map(elt.s).apply_to_generator(&mut result, 1, target_t, l);
 
-            let vector_idx = 0; // output_module.operation_generator_to_index(0, 0, elt.t, elt.idx);
+            let vector_idx = output_module.operation_generator_to_index(0, 0, elt.t, elt.index);
             if result.get_entry(vector_idx) != 0 {
                 self.add_structline(&elt.name, s, t, idx, target_s, target_t, l);
             }
@@ -670,7 +669,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
             }
 
             let target_dim = target_module.get_dimension(target_t);
-            let mut result = FpVector::new(p, target_dim, 0);
+            let mut result = FpVector::new(p, target_dim);
 
             for j in 0 .. num_source_gens {
                 f.map.get_map(target_s).apply_to_generator(&mut result, 1, t, j);
