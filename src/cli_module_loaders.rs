@@ -375,7 +375,6 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
                 while relations.len() <= degree {
                     relations.push(Vec::new());
                 }
-                println!("degree : {}, vector : {}", degree, vector);
                 relations[degree].push(vector);
             },
         }

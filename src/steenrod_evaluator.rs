@@ -146,7 +146,7 @@ fn evaluate_module_tree_helper<M : Module>(
             }
             let (degree_right, output_right) = evaluate_module_tree_helper(adem_algebra, milnor_algebra, module, basis_elt_lookup, output_degree, *right)?;
             let degree = degree_left + degree_right;
-            let mut result = FpVector::new(p, adem_algebra.get_dimension(degree, -1));
+            let mut result = FpVector::new(p, module.get_dimension(degree));
             module.act_by_element(&mut result, 1, degree_left, &output_left, degree_right, &output_right);
             return Ok((degree, result));
         },
@@ -177,10 +177,8 @@ fn evaluate_module_basis_element<M : Module>(
             return Err(Box::new(DegreeError{}));
         }
     }
-    let mut result = FpVector::new(p, adem_algebra.get_dimension(degree, -1));
-    println!("idx : {}", idx);
+    let mut result = FpVector::new(p, module.get_dimension(degree));
     result.set_entry(idx, 1);
-    println!("result : {}", result);
     return Ok((degree, result))
 }
 
