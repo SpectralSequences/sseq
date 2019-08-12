@@ -102,6 +102,8 @@ export class UnitDisplay extends Display {
             this.closeModal();
         });
 
+        document.querySelector("#modal-more").addEventListener("click", callbacks["resolveUnitFurther"]);
+
         this.on("click", this.__onClick.bind(this));
     }
 

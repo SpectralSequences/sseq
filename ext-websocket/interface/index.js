@@ -27,6 +27,21 @@ callbacks.addProduct = (x, y, idx) => {
     }));
 }
 
+callbacks.resolveUnitFurther = () => {
+    let newmax = parseInt(prompt("New maximum degree", window.unitMaxDegree + 5).trim());
+    if (newmax <= unitMaxDegree) {
+        return;
+    }
+    window.unitMaxDegree = newmax;
+
+    webSocket.send(JSON.stringify({
+        command : "resolve_unit",
+        maxDegree : newmax
+    }));
+    unitSseq.xRange = [0, Math.max(unitMaxDegree, maxDegree)];
+    unitSseq.yRange = [0, Math.min(unitMaxDegree, Math.ceil(Math.max(unitMaxDegree, maxDegree)/2 + 1))];
+}
+
 let url = new URL(document.location);
 let params = {};
 for(let [k,v] of url.searchParams.entries()){
@@ -59,11 +74,12 @@ if (!params.module) {
 function openWebSocket(initialData, maxDegree) {
     window.webSocket = new WebSocket(`ws://${window.location.host}/ws`);
 
+    window.unitMaxDegree = 10;
     webSocket.onopen = function(e) {
         webSocket.send(JSON.stringify(initialData));
         webSocket.send(JSON.stringify({
             command : "resolve_unit",
-            maxDegree : 10
+            maxDegree : unitMaxDegree
         }));
 
         t0 = performance.now();
@@ -94,10 +110,10 @@ function openWebSocket(initialData, maxDegree) {
     window.display = new MainDisplay("#main", sseq, callbacks);
 
     window.unitSseq = new Sseq();
-    unitSseq.xRange = [0, 15];
-    unitSseq.yRange = [0, 15];
-    unitSseq.initialxRange = [0, 15];
-    unitSseq.initialyRange = [0, 15];
+    unitSseq.xRange = [0, window.unitMaxDegree];
+    unitSseq.yRange = [0, Math.ceil(window.unitMaxDegree/2 + 1)];
+    unitSseq.initialxRange = [0, window.unitMaxDegree];
+    unitSseq.initialyRange = [0, Math.ceil(window.unitMaxDegree/2 + 1)];
 
     window.unitDisplay = new UnitDisplay("#modal-body", unitSseq, callbacks);
 }
@@ -105,8 +121,11 @@ let messageHandler = {};
 messageHandler.resolving = (data) => {
     window.minDegree = data.minDegree;
     window.maxDegree = data.maxDegree;
-    sseq.xRange = [window.minDegree, window.maxDegree];
-    sseq.yRange = [0, Math.ceil((window.maxDegree - window.minDegree)/3) + 1];
+    sseq.xRange = [minDegree, maxDegree];
+    sseq.yRange = [0, Math.ceil((maxDegree - minDegree)/3) + 1];
+    unitSseq.xRange = [0, Math.max(unitMaxDegree, maxDegree)];
+    unitSseq.yRange = [0, Math.min(unitMaxDegree, Math.ceil(Math.max(unitMaxDegree, maxDegree)/2 + 1))];
+
     display.runningSign.style.removeProperty("display");
     t0 = performance.now();
     t_last = t0;
