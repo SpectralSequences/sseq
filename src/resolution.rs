@@ -698,7 +698,6 @@ impl<M, F, CC> Resolution<M, F, CC> where
                 f.map.extend_step(s, t, Some(&mut map_data));
             }
             f.map.extend(s, t);
-//            t -= 1;
 
             let target_s = s - f.s;
             let target_t = t - f.t;
