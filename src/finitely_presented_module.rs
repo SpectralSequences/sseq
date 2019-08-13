@@ -1,7 +1,6 @@
 use std::rc::Rc;
 use std::collections::HashMap;
 use serde_json::Value;
-use serde_json::json;
 
 use bivec::BiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
