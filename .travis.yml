@@ -15,7 +15,6 @@ matrix:
     fast_finish: true
 
 install:
-    - sudo apt install npm
     - npm install
 
 script:
