@@ -49,6 +49,8 @@ use crate::algebra::{Algebra, AlgebraAny};
 use crate::adem_algebra::AdemAlgebra;
 use crate::milnor_algebra::MilnorAlgebra;
 use crate::module::{FiniteModule, Module};
+use crate::matrix::Matrix;
+use crate::fp_vector::FpVectorT;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 use crate::resolution::{Resolution, ModuleResolution};
@@ -97,6 +99,31 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
             let idx = prod["index"].as_u64().unwrap() as usize;
             let name = prod["name"].as_str().unwrap();
             resolution.borrow_mut().add_product(hom_deg, int_deg, idx, name.to_string());
+        }
+    }
+
+    let self_maps = &json["self_maps"];
+    if !self_maps.is_null() {
+        for self_map in self_maps.as_array().unwrap() {
+            let s = self_map["hom_deg"].as_u64().unwrap() as u32;
+            let t = self_map["int_deg"].as_i64().unwrap() as i32;
+            let name = self_map["name"].as_str().unwrap();
+
+            let json_map_data = self_map["map_data"].as_array().unwrap();
+            let json_map_data : Vec<&Vec<Value>> = json_map_data
+                .iter()
+                .map(|x| x.as_array().unwrap())
+                .collect();
+
+            let rows = json_map_data.len();
+            let cols = json_map_data[0].len();
+            let mut map_data = Matrix::new(algebra.prime(), rows, cols);
+            for r in 0..rows {
+                for c in 0..cols {
+                    map_data[r].set_entry(c, json_map_data[r][c].as_u64().unwrap() as u32);
+                }
+            }
+            resolution.borrow_mut().add_self_map(s, t, name.to_string(), map_data);
         }
     }
 
