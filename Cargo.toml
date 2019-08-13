@@ -13,7 +13,6 @@ license = "(MIT OR Apache-2.0)"
 [dependencies]
 lazy_static = "1.2.0"
 wasm-bindgen = "0.2"
-wasm_bindgen_noop = { path = "wasm-bindgen-noop"}
 bivec = { path = "bivec"}
 serde_json = "*"
 js-sys = "0.3.22"
@@ -46,7 +45,7 @@ opt-level = 3
 debug = true
 
 [workspace]
-members = ["wasm-bindgen-noop", "ext-websocket", "bivec"]
+members = ["ext-websocket", "bivec"]
 
 # The `web-sys` crate allows you to interact with the various browser APIs,
 # like the DOM.

@@ -20,6 +20,7 @@ pub mod finitely_presented_module;
 pub mod chain_complex;
 pub mod resolution;
 pub mod resolution_homomorphism;
+#[cfg(target_arch = "wasm32")]
 pub mod wasm_bindings;
 mod cli_module_loaders;
 
@@ -36,6 +37,7 @@ extern crate enum_dispatch;
 
 extern crate serde_json;
 
+#[cfg(target_arch = "wasm32")]
 extern crate wasm_bindgen;
 extern crate web_sys;
 extern crate bivec;
