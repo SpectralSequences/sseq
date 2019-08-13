@@ -59,6 +59,12 @@ export class MainDisplay extends SidebarDisplay {
             this.tooltip.hide();
         });
 
+        this.on("click", (node, e) => {
+            let x = Math.round(this.xScale.invert(e.clientX));
+            let y = Math.round(this.yScale.invert(e.clientY));
+            callbacks["queryTable"](x, y);
+        });
+
         this.structlinePanel = new StructlinePanel(this.sidebar.main_div, this);
         this.sidebar.addPanel(this.structlinePanel);
         this.sidebar.currentPanel = this.structlinePanel;

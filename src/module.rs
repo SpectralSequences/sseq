@@ -43,6 +43,16 @@ pub trait Module {
         }
     }
 
+    fn generator_list_string(&self, degree : i32) -> String {
+        let mut result = String::from("[");
+        result += &(0..self.get_dimension(degree))
+            .map(|idx| self.basis_element_to_string(degree, idx))
+            .collect::<Vec<String>>()
+            .join(", ");
+        result += "]";
+        result
+    }
+
     fn element_to_string(&self, degree : i32, element : &FpVector) -> String {
         let mut result = String::new();
         let mut zero = true;

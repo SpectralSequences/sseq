@@ -11,9 +11,17 @@ callbacks.resolveFurther = () => {
         return;
     }
     webSocket.send(JSON.stringify({
-            command : "resolve_further",
-            maxDegree : newmax
+            command: "resolve_further",
+            maxDegree: newmax
         }));
+};
+
+callbacks.queryTable = (x, y) => {
+    webSocket.send(JSON.stringify({
+        command: "query_table",
+        s: y,
+        t: x + y
+    }));
 };
 
 callbacks.addProduct = (x, y, idx) => {
@@ -168,6 +176,11 @@ messageHandler.complete = function (m) {
     display.runningSign.style.display = "none";
     console.log(`Total time : ${getTotalTime()}`);
     t_prev = getTotalTime() * 1000;
+}
+
+messageHandler.tableResult = function (m) {
+    console.log(`Table for (t - s, s) = (${m.t - m.s}, ${m.s}):`);
+    console.log(m.string);
 }
 
 function getTime() {

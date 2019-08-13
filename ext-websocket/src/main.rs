@@ -4,7 +4,7 @@ extern crate rust_ext;
 extern crate serde_json;
 
 use rust_ext::Config;
-use rust_ext::module::FiniteModule;
+use rust_ext::module::{Module, FiniteModule};
 use rust_ext::resolution::{ModuleResolution};
 use rust_ext::chain_complex::ChainComplex;
 
@@ -31,9 +31,9 @@ const FILE_LIST : [(&str, &str, &[u8]); 6] = [
 /// only understands the "resolve" command which causes it to resolve a module and report back the
 /// results.
 ///
-/// The main function is `ResolutionManager::new`. This function does not return a ResolutionManger
+/// The main function is `ResolutionManager::new`. This function does not return a ResolutionManager
 /// object. Instead, the function produces a ResolutionManager object and waits for commands issued
-/// by the user. The actions of the command will involve manipulating the ResolutionManger.
+/// by the user. The actions of the command will involve manipulating the ResolutionManager.
 /// However, not everything interesting can be found inside the struct itself. Instead, some
 /// variables are simply local to the function `ResolutionManager::new`. What goes into the struct
 /// and what stays a local variable is simply a matter of convenience.
@@ -66,14 +66,11 @@ impl ResolutionManager {
                 Some("resolve_further") => manager.resolve_further(json)?,
                 Some("resolve_unit") => manager.resolve_unit(json)?,
                 Some("add_product") => manager.add_product(json)?,
+                Some("query_table") => manager.query_table(json)?,
                 _ => {println!("Ignoring message:\n{:#}", json);}
             };
         }
         Ok(())
-    }
-
-    fn resolution(&self) -> &Rc<RefCell<ModuleResolution<FiniteModule>>> {
-        &self.resolution.as_ref().unwrap()
     }
 
     /// Resolve existing resolution to a larger degree
@@ -142,22 +139,28 @@ impl ResolutionManager {
         self.resolve(max_degree)
     }
 
-    fn resolve(&self, max_degree : i32) -> Result<(), Box<dyn Error>> {
+    fn query_table(&self, json : Value) -> Result<(), Box<dyn Error>> {
+        let s = json["s"].as_u64().unwrap() as u32;
+        let t = json["t"].as_i64().unwrap() as i32;
+
+        let resolution = self.resolution().borrow();
+        let module = resolution.get_module(s);
+        let string = module.generator_list_string(t);
         let data = json!(
             {
-                "command" : "resolving",
-                "minDegree" : self.resolution.as_ref().unwrap().borrow().get_min_degree(),
-                "maxDegree" : max_degree
+                "command": "tableResult",
+                "s": s,
+                "t": t,
+                "string": string
             });
         self.sender.send(data.to_string())?;
-
-        if let Some(resolution) = &self.resolution {
-            resolution.borrow().resolve_through_degree(max_degree);
-        }
-
-        let data = json!({ "command": "complete" });
-        self.sender.send(data.to_string())?;
         Ok(())
+    }
+}
+
+impl ResolutionManager {
+    fn resolution(&self) -> &Rc<RefCell<ModuleResolution<FiniteModule>>> {
+        &self.resolution.as_ref().unwrap()
     }
 
     fn setup_callback(&self, resolution : &Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>, postfix : &'static str) {
@@ -203,8 +206,25 @@ impl ResolutionManager {
         resolution.add_class = Some(Box::new(add_class));
         resolution.add_structline = Some(Box::new(add_structline));
     }
-}
 
+    fn resolve(&self, max_degree : i32) -> Result<(), Box<dyn Error>> {
+        let data = json!(
+            {
+                "command" : "resolving",
+                "minDegree" : self.resolution.as_ref().unwrap().borrow().get_min_degree(),
+                "maxDegree" : max_degree
+            });
+        self.sender.send(data.to_string())?;
+
+        if let Some(resolution) = &self.resolution {
+            resolution.borrow().resolve_through_degree(max_degree);
+        }
+
+        let data = json!({ "command": "complete" });
+        self.sender.send(data.to_string())?;
+        Ok(())
+    }
+}
 /// The server implements the `ws::Handler` trait. It doesn't really do much. When we receive a
 /// request, it is either looking for some static files, as specified in `FILE_LIST`, or it is
 /// WebSocket message. If it is the former, we return the file. If it is the latter, we parse it
