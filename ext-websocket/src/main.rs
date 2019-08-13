@@ -121,8 +121,9 @@ impl ResolutionManager {
         let module_name = json["module"].as_str().unwrap(); // Need to handle error
         let algebra_name = json["algebra"].as_str().unwrap();
         let max_degree = json["maxDegree"].as_i64().unwrap() as i32;
-        let mut dir = std::env::current_dir()?;
-        dir.push("modules");
+        let mut dir = std::env::current_exe().unwrap();
+        dir.pop(); dir.pop(); dir.pop();
+        dir.push("static/modules");
 
         let bundle = rust_ext::construct(&Config {
              module_paths : vec![dir],
@@ -293,9 +294,14 @@ impl Server {
     fn serve_files(&self, request_path: &str) -> WsResult<(Response)> {
         println!("Request path: {}", request_path);
         let request_path = request_path.split("?").collect::<Vec<&str>>()[0]; // Ignore ?...
+        let mut dir = std::env::current_exe().unwrap();
+        dir.pop(); dir.pop(); dir.pop();
+        dir.push("ext-websocket/interface");
+
         for (path, file, mime) in &FILE_LIST {
             if request_path == *path {
-                let contents = fs::read(format!("interface/{}", file))?;
+                dir.push(file);
+                let contents = fs::read(dir)?;
                 let mut response = Response::new(200, "OK", contents);
                 let headers = response.headers_mut();
                 headers.push(("Content-type".to_string(), (*mime).into()));
