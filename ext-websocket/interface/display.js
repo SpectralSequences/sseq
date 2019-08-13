@@ -87,6 +87,7 @@ export class UnitDisplay extends Display {
     constructor(container, sseq, callbacks) {
         super(container, sseq);
 
+        this.callbacks = callbacks;
         this.tooltip = new Tooltip(this);
         this.on("mouseover", (node) => {
             this.tooltip.setHTML(`(${node.c.x}, ${node.c.y})`);
@@ -115,6 +116,7 @@ export class UnitDisplay extends Display {
 
     openModal() {
         this._unselect();
+        this.callbacks["resolveUnitFurther"](10);
         document.querySelector("#overlay").style.removeProperty("display");
         document.querySelector("#modal-ok").disabled = true;
         let dialog = document.querySelector("#modal-dialog");

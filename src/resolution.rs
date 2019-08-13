@@ -196,11 +196,11 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         self.extend_through_degree(*next_s, max_s, *next_t, max_t);
         self.get_algebra().compute_basis(max_t);// because Adem has off-by-one
 
-        if let Some(unit_res) = &self.unit_resolution {
-            unit_res.borrow().resolve_through_bidegree(self.max_product_homological_degree, max_t);
-        }
-
         for t in min_degree ..= max_t {
+            if let Some(unit_res) = &self.unit_resolution {
+                unit_res.borrow().resolve_through_bidegree(self.max_product_homological_degree, t);
+            }
+
             // TODO: Just use the borrow_mut instead of cloning
             let mut new_kernel = self.kernels[t].borrow_mut().clone();
 
