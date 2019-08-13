@@ -82,21 +82,7 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule
 }
 
 pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
-    let p = json["p"].as_u64().unwrap() as u32;
-
-    let mut algebra : AlgebraAny;
-    match algebra_name.as_ref() {
-        "adem" => algebra = AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)),
-        "milnor" => algebra = AlgebraAny::from(MilnorAlgebra::new(p)),
-        _ => { return Err(Box::new(InvalidAlgebraError { name : algebra_name.clone() })); }
-    };
-
-    algebra.set_default_filtration_one_products();
-    let algebra = Rc::new(algebra);
-    match &*algebra {
-        AlgebraAny::AdemAlgebra(alg) => {},
-        AlgebraAny::MilnorAlgebra(alg) => {},
-    }
+    let algebra = construct_algebra_from_json(&json, algebra_name)?;
     let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &mut json)?);
     let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
     let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), None, None)));
@@ -120,6 +106,43 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
         chain_complex,
         resolution
     })
+}
+pub fn construct_algebra_from_json(json : &Value, mut algebra_name : String) -> Result<Rc<AlgebraAny>, Box<dyn Error>> {
+    let p = json["p"].as_u64().unwrap() as u32;
+    let algebra_list = json["algebra"].as_array();
+    if let Some(list) = algebra_list {
+        let list : Vec<&str> = list.iter().map(|x| x.as_str().unwrap()).collect();
+        if !list.contains(&algebra_name.as_ref()) {
+            println!("Module does not support algebra {}", algebra_name);
+            println!("Using {} instead", list[0]);
+            algebra_name = list[0].to_string();
+        }
+    }
+
+    let mut algebra : AlgebraAny;
+    match algebra_name.as_ref() {
+        "adem" => algebra = AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)),
+        "milnor" => {
+            let mut algebra_inner = MilnorAlgebra::new(p);
+            let profile = &json["profile"];
+            if !profile.is_null() {
+                 if let Some(truncated) = profile["truncated"].as_bool() {
+                     algebra_inner.profile.truncated = truncated;
+                 }
+                 if let Some(q_part) = profile["q_part"].as_u64() {
+                     algebra_inner.profile.q_part = q_part as u32;
+                 }
+                 if let Some(p_part) = profile["p_part"].as_array() {
+                     let p_part = p_part.into_iter().map(|x| x.as_u64().unwrap() as u32).collect();
+                     algebra_inner.profile.p_part = p_part;
+                 }
+            }
+            algebra = AlgebraAny::from(algebra_inner);
+        }
+        _ => { return Err(Box::new(InvalidAlgebraError { name : algebra_name })); }
+    };
+    algebra.set_default_filtration_one_products();
+    Ok(Rc::new(algebra))
 }
 pub fn run_define_module() -> Result<String, Box<dyn Error>> {
     cli_module_loaders::interactive_module_define()

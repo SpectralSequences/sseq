@@ -1,1 +1,1 @@
-{"type" : "finite dimensional module","name": "$\\mathit{ko}$", "file_name": "ko", "profile": {"truncated": true, "p_part": [2, 1]}, "p": 2, "generic": false, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}
+{"type" : "finite dimensional module","name": "$\\mathit{ko}$", "file_name": "ko", "algebra": ["milnor"], "profile": {"truncated": true, "p_part": [2, 1]}, "p": 2, "generic": false, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}
