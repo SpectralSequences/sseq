@@ -517,6 +517,12 @@ impl QuasiInverse {
 }
 
 impl Matrix {
+    pub fn set_to_zero(&mut self) {
+        for row in 0..self.get_rows() {
+            self.vectors[row].set_to_zero();
+        }
+    }
+
     pub fn find_first_row_in_block(&self, pivots : &Vec<isize>, first_column_in_block : usize) -> usize {
         for i in first_column_in_block .. self.get_columns() {
             if pivots[i] >= 0 {

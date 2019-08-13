@@ -138,6 +138,10 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         }
     }
 
+    pub fn get_matrix(&self, matrix : &mut Matrix, degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {
+        self.get_matrix_with_table(matrix, &self.source.table[degree], degree, start_row, start_column)
+    }
+
     /// # Arguments
     ///  * `degree` - The internal degree of the target of the homomorphism.
     pub fn get_matrix_with_table(&self, matrix : &mut Matrix, table : &FreeModuleTableEntry , degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {
