@@ -27,17 +27,17 @@ struct Cocycle {
     name : String
 }
 
-struct SelfMap<
+pub struct SelfMap<
     M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>
 > {
-    s : u32,
-    t : i32,
-    name : String,
-    map_data : TempStorage<Matrix>,
-    map : ResolutionHomomorphism<M, F, CC, M, F, CC>
+    pub s : u32,
+    pub t : i32,
+    pub name : String,
+    pub map_data : TempStorage<Matrix>,
+    pub map : ResolutionHomomorphism<M, F, CC, M, F, CC>
 }
 
-/// #Fields
+/// # Fields
 ///  * `kernels` - For each *internal* degree, store the kernel of the most recently calculated
 ///  chain map as returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
 ///  resolve_through_degree again.
@@ -74,7 +74,7 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
     max_product_homological_degree : u32,
 
     // Self maps
-    self_maps : Vec<SelfMap<M, F, CC>>
+    pub self_maps : Vec<SelfMap<M, F, CC>>
 }
 
 impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resolution<M, F, CC> {
