@@ -850,6 +850,31 @@ impl Matrix {
             return self.extend_to_surjection(first_empty_row, start_column, end_column, current_pivots);
         }
     }
+
+    /// Applies a matrix to a vector.
+    ///
+    /// # Example
+    /// let p = 7;
+    /// # use rust_ext::matrix::Matrix;
+    /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
+    /// let input  = [vec![1, 3, 6],
+    ///               vec![0, 3, 4]];
+    ///
+    /// let m = Matrix::from_vec(p, &input);
+    /// let mut v = FpVector::new(p, 2);
+    /// v.pack(vec![3, 1]);
+    /// let mut result = FpVector::new(p, 3);
+    /// result.pack(vec![3, 5, 1]);
+    /// assert_eq!(m.apply(&v), result);
+    /// ```
+    pub fn apply(&self, input : &FpVector) -> FpVector {
+        assert_eq!(input.get_dimension(), self.get_rows());
+        let mut result = FpVector::new(self.p, self.get_columns());
+        for i in 0 .. input.get_dimension() {
+            result.add(&self.vectors[i], input.get_entry(i));
+        }
+        result
+    }
 }
 
 
