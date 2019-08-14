@@ -168,7 +168,6 @@ pub fn construct_algebra_from_json(json : &Value, mut algebra_name : String) -> 
         }
         _ => { return Err(Box::new(InvalidAlgebraError { name : algebra_name })); }
     };
-    algebra.set_default_filtration_one_products();
     Ok(Rc::new(algebra))
 }
 pub fn run_define_module() -> Result<String, Box<dyn Error>> {

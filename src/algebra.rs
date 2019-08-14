@@ -67,13 +67,9 @@ pub trait Algebra {
     }
 
     /// A filtration one element in Ext(k, k) is the same as an indecomposable element of the
-    /// algebra.  This function returns a list of such elements in the format `(name, degree,
-    /// index)` for whom we want to compute products with in the resolutions.
-    fn get_filtration_one_products(&self) -> &Vec<(String, i32, usize)>;
-
-    /// Each algebra should come with a list of default filtration one products. When called, this
-    /// function sets the list of filtration one products to the default list.
-    fn set_default_filtration_one_products(&mut self);
+    /// algebra.  This function returns a default list of such elements in the format `(name,
+    /// degree, index)` for whom we want to compute products with in the resolutions.
+    fn get_default_filtration_one_products(&self) -> Vec<(String, i32, usize)>;
 
     /// Converts a JSON object into a basis element. The way basis elements are represented by JSON
     /// objects is to be specified by the algebra itself, and will be used by module

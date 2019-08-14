@@ -65,6 +65,8 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
         u32, i32, usize
     )>>,
 
+    filtration_one_products : Vec<(String, i32, usize)>,
+
     // Products
     pub unit_resolution : Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>,
     product_list : Vec<Cocycle>,
@@ -107,6 +109,8 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             next_t : Mutex::new(min_degree),
             add_class,
             add_structline,
+
+            filtration_one_products : algebra.get_default_filtration_one_products(),
 
             chain_maps_to_unit_resolution : OnceVec::new(),
             max_product_homological_degree : 0,
@@ -250,27 +254,27 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         if homological_degree == 0 {
             return;
         }
-        if let Some(add_structline) = &self.add_structline {
-            let d = self.get_differential(homological_degree);
-            let target = self.get_module(homological_degree - 1);
-            let dx = d.get_output(internal_degree, source_idx);
-            for (op_name, op_degree, op_index) in self.get_algebra().get_filtration_one_products() {
-                let gen_degree = internal_degree - *op_degree;
+        let d = self.get_differential(homological_degree);
+        let target = self.get_module(homological_degree - 1);
+        let dx = d.get_output(internal_degree, source_idx);
+        for (op_name, op_degree, op_index) in &self.filtration_one_products {
+            let gen_degree = internal_degree - *op_degree;
 
-                if gen_degree < self.get_min_degree(){
-                    break;
-                }
+            if gen_degree < self.get_min_degree(){
+                break;
+            }
 
-                let num_target_generators = target.get_number_of_gens_in_degree(gen_degree);
-                for target_idx in 0 .. num_target_generators {
-                    let vector_idx = target.operation_generator_to_index(*op_degree, *op_index, gen_degree, target_idx);
-                    if vector_idx >= dx.get_dimension() {
-                        // println!("Out of bounds index when computing product:");
-                        // println!("  ==  degree: {}, hom_deg: {}, dim: {}, idx: {}", degree, homological_degree, dx.dimension, vector_idx);
-                    } else {
-                        // printf("hom_deg: %d, deg: %d, source_idx: %d, op_deg: %d, entry: %d\n", homological_degree, degree, source_idx, op_degree, Vector_getEntry(dx, vector_idx));
-                        if dx.get_entry(vector_idx) != 0 {
-                            // There was a product!
+            let num_target_generators = target.get_number_of_gens_in_degree(gen_degree);
+            for target_idx in 0 .. num_target_generators {
+                let vector_idx = target.operation_generator_to_index(*op_degree, *op_index, gen_degree, target_idx);
+                if vector_idx >= dx.get_dimension() {
+                    // println!("Out of bounds index when computing product:");
+                    // println!("  ==  degree: {}, hom_deg: {}, dim: {}, idx: {}", degree, homological_degree, dx.dimension, vector_idx);
+                } else {
+                    // printf("hom_deg: %d, deg: %d, source_idx: %d, op_deg: %d, entry: %d\n", homological_degree, degree, source_idx, op_degree, Vector_getEntry(dx, vector_idx));
+                    if dx.get_entry(vector_idx) != 0 {
+                        // There was a product!
+                        if let Some(add_structline) = &self.add_structline {
                             add_structline(op_name, homological_degree - 1, gen_degree, target_idx, homological_degree, internal_degree, source_idx);
                         }
                     }

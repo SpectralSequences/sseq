@@ -22,8 +22,7 @@ pub struct WasmAlgebra {
 #[wasm_bindgen]
 impl WasmAlgebra {
     pub fn new_adem_algebra(p : u32, generic : bool) -> Self {
-        let mut algebra = AlgebraAny::from(AdemAlgebra::new(p, generic, false));
-        algebra.set_default_filtration_one_products();
+        let algebra = AlgebraAny::from(AdemAlgebra::new(p, generic, false));
         let boxed_algebra = Rc::new(algebra);
         Self {
             pimpl : Rc::into_raw(boxed_algebra)
@@ -31,8 +30,7 @@ impl WasmAlgebra {
     }
 
     pub fn new_milnor_algebra(p : u32) -> Self {
-        let mut algebra = AlgebraAny::from(MilnorAlgebra::new(p));
-        algebra.set_default_filtration_one_products();
+        let algebra = AlgebraAny::from(MilnorAlgebra::new(p));
         let boxed_algebra = Rc::new(algebra);
         Self {
             pimpl : Rc::into_raw(boxed_algebra)

@@ -97,8 +97,7 @@ pub struct MilnorAlgebra {
     ppart_table : OnceVec<Vec<PPart>>,
     qpart_table : Vec<OnceVec<QPart>>,
     basis_table : OnceVec<Vec<MilnorBasisElement>>,
-    basis_element_to_index_map : OnceVec<HashMap<MilnorBasisElement, usize>>, // degree -> MilnorBasisElement -> index
-    filtration_one_products : Vec<(String, i32, usize)>
+    basis_element_to_index_map : OnceVec<HashMap<MilnorBasisElement, usize>> // degree -> MilnorBasisElement -> index
 }
 
 impl MilnorAlgebra {
@@ -123,8 +122,7 @@ impl MilnorAlgebra {
             ppart_table : OnceVec::new(),
             qpart_table,
             basis_table : OnceVec::new(),
-            basis_element_to_index_map : OnceVec::new(),
-            filtration_one_products : Vec::new()
+            basis_element_to_index_map : OnceVec::new()
         }
     }
 
@@ -156,11 +154,7 @@ impl Algebra for MilnorAlgebra {
         &self.name
     }
 
-    fn get_filtration_one_products(&self) -> &Vec<(String, i32, usize)>{
-        &self.filtration_one_products
-    }
-
-    fn set_default_filtration_one_products(&mut self) {
+    fn get_default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
         let mut products = Vec::with_capacity(4);
         let max_degree;
         if self.generic {
@@ -193,11 +187,11 @@ impl Algebra for MilnorAlgebra {
             }
             max_degree = 1 << 3;
         }
-
         self.compute_basis(max_degree + 1);
-        self.filtration_one_products = products.into_iter()
+
+        products.into_iter()
             .map(|(name, b)| (name, b.degree, self.basis_element_to_index(&b)))
-            .collect();
+            .collect()
     }
 
     fn compute_basis(&self, max_degree : i32) {
