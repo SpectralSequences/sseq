@@ -183,26 +183,32 @@ impl ResolutionManager {
         };
 
         let sender = self.sender.clone();
-        let add_structline = move |name : &str, source_s: u32, source_t: i32, source_idx: usize, target_s : u32, target_t : i32, target_idx : usize| {
-            let data = json!(
-                {
-                    "command": format!("addStructline{}", postfix),
-                    "mult": name,
-                    "source": {
-                        "s": source_s,
-                        "t": source_t,
-                        "idx": source_idx
-                    },
-                    "target": {
-                        "s": target_s,
-                        "t": target_t,
-                        "idx": target_idx
+        let add_structline = move |name : &str, source_s: u32, source_t: i32, target_s : u32, target_t : i32, products : Vec<Vec<u32>>| {
+            for i in 0 .. products.len() {
+                for j in 0 .. products[i].len() {
+                    if products[i][j] != 0 {
+                        let data = json!(
+                            {
+                                "command": format!("addStructline{}", postfix),
+                                "mult": name,
+                                "source": {
+                                    "s": source_s,
+                                    "t": source_t,
+                                    "idx": i
+                                },
+                                "target": {
+                                    "s": target_s,
+                                    "t": target_t,
+                                    "idx": j
+                                }
+                            });
+                        match sender.send(data.to_string()) {
+                            Ok(_) => (),
+                            Err(e) => eprintln!("Failed to send class: {}", e)
+                        };
                     }
-                });
-            match sender.send(data.to_string()) {
-                Ok(_) => (),
-                Err(e) => eprintln!("Failed to send class: {}", e)
-            };
+                }
+            }
         };
 
         let mut resolution = resolution.as_ref().unwrap().borrow_mut();

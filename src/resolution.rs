@@ -61,8 +61,9 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
     pub add_class : Option<Box<dyn Fn(u32, i32, usize)>>,
     pub add_structline : Option<Box<dyn Fn(
         &str,
-        u32, i32, usize, 
-        u32, i32, usize
+        u32, i32,
+        u32, i32,
+        Vec<Vec<u32>>
     )>>,
 
     filtration_one_products : Vec<(String, i32, usize)>,
@@ -85,8 +86,9 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         add_class : Option<Box<dyn Fn(u32, i32, usize)>>,
         add_structline : Option<Box<dyn Fn(
             &str,
-            u32, i32, usize, 
-            u32, i32, usize
+            u32, i32,
+            u32, i32,
+            Vec<Vec<u32>>
         )>>
     ) -> Self {
         let algebra = complex.get_algebra();
@@ -239,53 +241,57 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
                 f(s, t, num_gens);
             }
         }
-        for i in 0..num_gens {
-            self.compute_filtration_one_products(s, t, i);
-        }
+        self.compute_filtration_one_products(s, t);
         self.extend_maps_to_unit(s, t);
         self.compute_products(s, t, &self.product_list);
         self.compute_self_maps(s, t);
         new_kernel
     }
 
-    fn compute_filtration_one_products(&self, homological_degree : u32, internal_degree : i32, source_idx : usize){
-        if homological_degree == 0 {
+    fn compute_filtration_one_products(&self, target_s : u32, target_t : i32){
+        if target_s == 0 {
             return;
         }
-        let d = self.get_differential(homological_degree);
-        let target = self.get_module(homological_degree - 1);
-        let dx = d.get_output(internal_degree, source_idx);
+
+        let source = self.get_module(target_s - 1);
+        let target = self.get_module(target_s);
+
+        let target_dim = target.get_number_of_gens_in_degree(target_t);
+        let source_s = target_s - 1;
+
         for (op_name, op_degree, op_index) in &self.filtration_one_products {
-            let gen_degree = internal_degree - *op_degree;
-
-            if gen_degree < self.get_min_degree(){
-                break;
+            let source_t = target_t - *op_degree;
+            if target_t < self.get_min_degree(){
+                continue;
             }
+            let source_dim = source.get_number_of_gens_in_degree(source_t);
 
-            let num_target_generators = target.get_number_of_gens_in_degree(gen_degree);
-            for target_idx in 0 .. num_target_generators {
-                let vector_idx = target.operation_generator_to_index(*op_degree, *op_index, gen_degree, target_idx);
-                if vector_idx >= dx.get_dimension() {
-                    // println!("Out of bounds index when computing product:");
-                    // println!("  ==  degree: {}, hom_deg: {}, dim: {}, idx: {}", degree, homological_degree, dx.dimension, vector_idx);
-                } else {
-                    // printf("hom_deg: %d, deg: %d, source_idx: %d, op_deg: %d, entry: %d\n", homological_degree, degree, source_idx, op_degree, Vector_getEntry(dx, vector_idx));
-                    if dx.get_entry(vector_idx) != 0 {
-                        self.add_structline(op_name, homological_degree - 1, gen_degree, target_idx, homological_degree, internal_degree, source_idx);
-                    }
+            let d = self.get_differential(target_s);
+
+            let mut products = vec![Vec::with_capacity(target_dim); source_dim];
+
+            for i in 0 .. target_dim {
+                let dx = d.get_output(target_t, i);
+
+                for j in 0 .. source_dim {
+                    let idx = source.operation_generator_to_index(*op_degree, *op_index, source_t, j);
+                    products[j].push(dx.get_entry(idx));
                 }
             }
+
+            self.add_structline(op_name, source_s, source_t, target_s, target_t, products);
         }
     }
 
     pub fn add_structline(
             &self, 
             name : &str,
-            source_hom_deg : u32, source_int_deg : i32, source_idx : usize, 
-            target_hom_deg : u32, target_int_deg : i32, target_idx : usize
+            source_s : u32, source_t : i32,
+            target_s : u32, target_t : i32,
+            products : Vec<Vec<u32>>
     ){
         if let Some(add_structline) = &self.add_structline {
-            add_structline(name, source_hom_deg, source_int_deg, source_idx, target_hom_deg, target_int_deg, target_idx);
+            add_structline(name, source_s, source_t, target_s, target_t, products);
         }
     }
 
@@ -581,35 +587,36 @@ impl<M, F, CC> Resolution<M, F, CC> where
                 continue;
             }
 
-            let source_s = s - elt.s;
-            let source_t = t - elt.t;
-
-            for k in 0.. self.get_number_of_gens_in_bidegree(source_s, source_t) {
-                self.compute_product_step(elt, source_s, source_t, k);
-            }
+            self.compute_product_step(elt, s, t);
         }
     }
 
-    fn compute_product_step(&self, elt : &Cocycle, s : u32, t : i32, idx : usize)
+    /// Target = result of the product
+    /// Source = multiplicand
+    fn compute_product_step(&self, elt : &Cocycle, target_s : u32, target_t : i32)
     {
-        let f = &self.chain_maps_to_unit_resolution[s][t][idx];
-        let target_s = s + elt.s;
-        let target_t = t + elt.t;
+        let source_s = target_s - elt.s;
+        let source_t = target_t - elt.t;
 
-        let unit_res = self.unit_resolution.as_ref().unwrap().borrow();
-        let output_module = unit_res.get_module(elt.s);
+        let source_dim = self.get_number_of_gens_in_bidegree(source_s, source_t);
+        let target_dim = self.get_number_of_gens_in_bidegree(target_s, target_t);
 
-        let mut result = FpVector::new(self.prime(), output_module.get_dimension(elt.t));
+        let mut products = Vec::with_capacity(source_dim);
+        for k in 0 .. source_dim {
+            products.push(Vec::with_capacity(target_dim));
 
-        for l in 0 .. self.get_number_of_gens_in_bidegree(target_s, target_t) {
-            f.get_map(elt.s).apply_to_generator(&mut result, 1, target_t, l);
+            let f = &self.chain_maps_to_unit_resolution[source_s][source_t][k];
 
-            let vector_idx = output_module.operation_generator_to_index(0, 0, elt.t, elt.index);
-            if result.get_entry(vector_idx) != 0 {
-                self.add_structline(&elt.name, s, t, idx, target_s, target_t, l);
+            let unit_res = self.unit_resolution.as_ref().unwrap().borrow();
+            let output_module = unit_res.get_module(elt.s);
+
+            for l in 0 .. target_dim {
+                let result = f.get_map(elt.s).get_output(target_t, l);
+                let idx = output_module.operation_generator_to_index(0, 0, elt.t, elt.index);
+                products[k].push(result.get_entry(idx));
             }
-            result.set_to_zero();
         }
+        self.add_structline(&elt.name, source_s, source_t, target_s, target_t, products);
     }
 
     /// This ensures the chain_maps_to_unit_resolution are defined such that we can compute products up
@@ -686,48 +693,38 @@ impl<M, F, CC> Resolution<M, F, CC> where
     }
 
     /// We compute the products by self maps where the result has degree (s, t).
-    fn compute_self_maps(&self, s : u32, t : i32) {
+    fn compute_self_maps(&self, target_s : u32, target_t : i32) {
         let p = self.prime();
         for f in &self.self_maps {
-            if s < f.s || t < f.t + self.get_min_degree() {
+            if target_s < f.s || target_t < f.t + self.get_min_degree() {
                 continue;
             }
-            if s == f.s && t == f.t + self.get_min_degree() {
+            if target_s == f.s && target_t == f.t + self.get_min_degree() {
                 let mut map_data = f.map_data.take();
-                f.map.extend_step(s, t, Some(&mut map_data));
+                f.map.extend_step(target_s, target_t, Some(&mut map_data));
             }
-            f.map.extend(s, t);
+            f.map.extend(target_s, target_t);
 
-            let target_s = s - f.s;
-            let target_t = t - f.t;
+            let source_s = target_s - f.s;
+            let source_t = target_t - f.t;
 
-            let source_module = self.get_module(s);
-            let target_module = self.get_module(target_s);
+            let source = self.get_module(source_s);
+            let target = self.get_module(target_s);
 
-            let num_source_gens = source_module.get_number_of_gens_in_degree(t);
-            let num_target_gens = target_module.get_number_of_gens_in_degree(target_t);
+            let source_dim = source.get_number_of_gens_in_degree(source_t);
+            let target_dim = target.get_number_of_gens_in_degree(target_t);
 
-            if num_source_gens == 0 || num_target_gens == 0 {
-                continue;
-            }
+            let mut products = vec![Vec::with_capacity(target_dim); source_dim];
 
-            let target_dim = target_module.get_dimension(target_t);
-            let mut result = FpVector::new(p, target_dim);
+            for j in 0 .. target_dim {
+                let result = f.map.get_map(source_s).get_output(target_t, j);
 
-            for j in 0 .. num_source_gens {
-                f.map.get_map(target_s).apply_to_generator(&mut result, 1, t, j);
-                for k in 0 .. num_target_gens {
-                    let vector_idx = target_module.operation_generator_to_index(0, 0, target_t, k);
-                    if result.get_entry(vector_idx) != 0 {
-                        self.add_structline(
-                            &f.name,
-                            target_s, target_t, k,
-                            s, t, j
-                            );
-                    }
+                for k in 0 .. source_dim {
+                    let vector_idx = source.operation_generator_to_index(0, 0, source_t, k);
+                    products[k].push(result.get_entry(vector_idx));
                 }
-                result.set_to_zero();
             }
+            self.add_structline(&f.name, source_s, source_t, target_s, target_t, products);
         }
     }
 }

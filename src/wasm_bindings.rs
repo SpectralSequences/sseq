@@ -136,19 +136,26 @@ impl WasmResolution {
         let add_class_wrapper_box = Box::new(add_class_wrapper);
         let add_stuctline_wrapper = 
             move | name : &str, 
-                source_hom_deg : u32, source_int_deg : i32, source_idx : usize,
-                target_hom_deg : u32, target_int_deg : i32, target_idx : usize |
+                source_hom_deg : u32, source_int_deg : i32,
+                target_hom_deg : u32, target_int_deg : i32,
+                products : Vec<Vec<u32>>|
         {
             let this = JsValue::NULL;
-            let args_array = js_sys::Array::new();
-            args_array.push(&JsValue::from(name));
-            args_array.push(&JsValue::from(source_hom_deg));
-            args_array.push(&JsValue::from(source_int_deg));
-            args_array.push(&JsValue::from(source_idx as u32));
-            args_array.push(&JsValue::from(target_hom_deg));
-            args_array.push(&JsValue::from(target_int_deg));
-            args_array.push(&JsValue::from(target_idx as u32));
-            add_structline.apply(&this, &args_array).unwrap_throw();
+            for i in 0 .. products.len() {
+                for j in 0 .. products[i].len() {
+                    if products[i][j] != 0 {
+                        let args_array = js_sys::Array::new();
+                        args_array.push(&JsValue::from(name));
+                        args_array.push(&JsValue::from(source_hom_deg));
+                        args_array.push(&JsValue::from(source_int_deg));
+                        args_array.push(&JsValue::from(i as u32));
+                        args_array.push(&JsValue::from(target_hom_deg));
+                        args_array.push(&JsValue::from(target_int_deg));
+                        args_array.push(&JsValue::from(j as u32));
+                        add_structline.apply(&this, &args_array).unwrap_throw();
+                    }
+                }
+            }
         };
         let add_stuctline_wrapper_box = Box::new(add_stuctline_wrapper);
         let mut res = Resolution::new(chain_complex,  Some(add_class_wrapper_box), Some(add_stuctline_wrapper_box));
