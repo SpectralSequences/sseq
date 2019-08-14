@@ -487,6 +487,11 @@ impl Subspace {
             row += 1;
         }
     }
+
+    /// Returns a basis of the subspace
+    pub fn get_basis(&self) -> &Vec<FpVector> {
+        &self.matrix.vectors
+    }
 }
 
 /// Given a matrix M, a quasi-inverse Q is a map from the co-domain to the domain such that xQM = x
