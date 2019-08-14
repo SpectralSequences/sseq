@@ -167,17 +167,19 @@ impl ResolutionManager {
     fn setup_callback(&self, resolution : &Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>, postfix : &'static str) {
 
         let sender = self.sender.clone();
-        let add_class = move |s: u32, t: i32, _name: &str| {
+        let add_class = move |s: u32, t: i32, num_gen: usize| {
             let data = json!(
                 {
                     "command": format!("addClass{}", postfix),
                     "s": s,
                     "t": t
                 });
-            match sender.send(data.to_string()) {
-                Ok(_) => (),
-                Err(e) => eprintln!("Failed to send class: {}", e)
-            };
+            for _ in 0 .. num_gen {
+                match sender.send(data.to_string()) {
+                    Ok(_) => (),
+                    Err(e) => eprintln!("Failed to send class: {}", e)
+                };
+            }
         };
 
         let sender = self.sender.clone();

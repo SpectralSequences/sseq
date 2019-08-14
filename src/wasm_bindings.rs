@@ -126,12 +126,14 @@ impl WasmResolution {
     pub fn new(chain_complex : &WasmCCDZ, json_string : String, add_class : js_sys::Function, add_structline : js_sys::Function) -> Self {
         let chain_complex = chain_complex.to_chain_complex();
 
-        let add_class_wrapper = move |hom_deg : u32, int_deg : i32, name : &str| {
+        let add_class_wrapper = move |hom_deg : u32, int_deg : i32, num_gen : usize| {
             let this = JsValue::NULL;
             let js_hom_deg = JsValue::from(hom_deg);
             let js_int_deg = JsValue::from(int_deg);
-            let js_name = JsValue::from(name);
-            add_class.call3(&this, &js_hom_deg, &js_int_deg, &js_name).unwrap();
+
+            for _ in 0 .. num_gen {
+                add_class.call2(&this, &js_hom_deg, &js_int_deg).unwrap();
+            }
         };
         let add_class_wrapper_box = Box::new(add_class_wrapper);
         let add_stuctline_wrapper = 

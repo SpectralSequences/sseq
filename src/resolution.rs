@@ -58,7 +58,7 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
 
     next_s : Mutex<u32>,
     next_t : Mutex<i32>,
-    pub add_class : Option<Box<dyn Fn(u32, i32, &str)>>,
+    pub add_class : Option<Box<dyn Fn(u32, i32, usize)>>,
     pub add_structline : Option<Box<dyn Fn(
         &str,
         u32, i32, usize, 
@@ -80,7 +80,7 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
 impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resolution<M, F, CC> {
     pub fn new(
         complex : Rc<CC>,
-        add_class : Option<Box<dyn Fn(u32, i32, &str)>>,
+        add_class : Option<Box<dyn Fn(u32, i32, usize)>>,
         add_structline : Option<Box<dyn Fn(
             &str,
             u32, i32, usize, 
@@ -231,8 +231,8 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let module = self.get_module(s);
         let num_gens = module.get_number_of_gens_in_degree(t);
         if let Some(f) = &self.add_class {
-            for i in 0..num_gens {
-                f(s, t, &format!("{}", i));
+            if num_gens > 0 {
+                f(s, t, num_gens);
             }
         }
         if let Some(_) = &self.add_structline {

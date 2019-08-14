@@ -3,7 +3,7 @@ let wasm_promise = import ("../pkg/index.js").catch(console.error).then(wasm => 
 });
 
 self.max_int_deg = 0;
-function addClass(hom_deg, int_deg, name) {
+function addClass(hom_deg, int_deg) {
     if(int_deg > self.max_int_deg){
         self.max_int_deg = int_deg;
         if(self.max_int_deg % 10 === 0){
