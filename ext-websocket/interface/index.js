@@ -4,7 +4,7 @@ import { MainDisplay, UnitDisplay } from "./display.js";
 let t0, t_last;
 let t_prev = 0;
 
-let callbacks = {};
+window.callbacks = {};
 callbacks.resolveFurther = () => {
     let newmax = parseInt(prompt("New maximum degree", window.maxDegree + 10).trim());
     if (newmax <= window.maxDegree) {

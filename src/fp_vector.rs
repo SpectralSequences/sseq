@@ -415,6 +415,103 @@ pub trait FpVectorT {
         self.reduce_limbs(min_target_limb, max_target_limb);
     }
 
+    fn shift_add(&mut self, other : &FpVector, c : u32){
+        if self.get_offset() > other.get_offset() {
+            println!("shift_right");
+            self.shift_right_add(other, c);
+        } else if self.get_offset() < other.get_offset() {
+            println!("shift_left");
+            self.shift_left_add(other, c);
+        } else {
+            self.add(other, c);
+        }
+    }
+
+    fn shift_right_add(&mut self, other : &FpVector, c : u32){
+        debug_assert!(self.prime() == other.prime());
+        debug_assert!(self.get_offset() >= other.get_offset());
+        debug_assert!(self.get_dimension() == other.get_dimension(),
+            format!("self.dim {} not equal to other.dim {}", self.get_dimension(), other.get_dimension()));
+        let p = self.prime();
+        debug_assert!(c < p);
+        let offset_shift = self.get_offset() - other.get_offset();
+        let bit_length = get_bit_length(p);
+        let entries_per_64_bits = get_entries_per_64_bits(p);
+        let usable_bits_per_limb = bit_length * entries_per_64_bits;
+        let tail_shift = usable_bits_per_limb - offset_shift;
+        let min_target_limb = self.get_min_limb();
+        let max_target_limb = self.get_max_limb();
+        let min_source_limb = other.get_min_limb();
+        let max_source_limb = other.get_max_limb();
+        let number_of_source_limbs = max_source_limb - min_source_limb;
+        let number_of_target_limbs = max_target_limb - min_target_limb;
+        let target_limbs = self.get_limbs_cvec_mut();
+        let source_limbs = other.get_limbs_cvec();
+        for i in 1..number_of_source_limbs-1 {
+            target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limbs[i + min_source_limb] << offset_shift, c);
+            target_limbs[i + min_target_limb + 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb + 1], source_limbs[i + min_source_limb] >> tail_shift, c);
+        }
+        let mut i = 0; {
+            let mask = other.get_limb_mask(i);
+            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
+            target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limb_masked << offset_shift, c);
+            if number_of_target_limbs > 1 {
+                target_limbs[i + min_target_limb + 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb + 1], source_limb_masked >> tail_shift, c);
+            }
+        }
+        i = number_of_source_limbs - 1;
+        if i > 0 {
+            let mask = other.get_limb_mask(i);
+            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
+            target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limb_masked << offset_shift, c);
+            if number_of_target_limbs > number_of_source_limbs {
+                target_limbs[i + min_target_limb + 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb + 1], source_limb_masked >> tail_shift, c);
+            }            
+        }
+        self.reduce_limbs(min_target_limb, max_target_limb);
+    }
+
+    fn shift_left_add(&mut self, other : &FpVector, c : u32){
+        debug_assert!(self.prime() == other.prime());
+        debug_assert!(self.get_offset() <= other.get_offset());
+        debug_assert!(self.get_dimension() == other.get_dimension(),
+            format!("self.dim {} not equal to other.dim {}", self.get_dimension(), other.get_dimension()));
+        let p = self.prime();
+        debug_assert!(c < p);
+        let offset_shift = other.get_offset() - self.get_offset();
+        let bit_length = get_bit_length(p);
+        let entries_per_64_bits = get_entries_per_64_bits(p);
+        let usable_bits_per_limb = bit_length * entries_per_64_bits;
+        let tail_shift = usable_bits_per_limb - offset_shift;
+        let min_target_limb = self.get_min_limb();
+        let max_target_limb = self.get_max_limb();
+        let min_source_limb = other.get_min_limb();
+        let max_source_limb = other.get_max_limb();
+        let number_of_source_limbs = max_source_limb - min_source_limb;
+        let number_of_target_limbs = max_target_limb - min_target_limb;
+        let target_limbs = self.get_limbs_cvec_mut();
+        let source_limbs = other.get_limbs_cvec();
+        for i in 1..number_of_source_limbs-1 {
+            target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limbs[i + min_source_limb] >> offset_shift, c);
+            target_limbs[i + min_target_limb - 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb - 1], source_limbs[i + min_source_limb] << tail_shift, c);
+        }
+        let mut i = 0; {
+            let mask = other.get_limb_mask(i);
+            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
+            target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limb_masked >> offset_shift, c);
+        }
+        i = number_of_source_limbs - 1;
+        if i > 0 {
+            let mask = other.get_limb_mask(i);
+            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
+            target_limbs[i + min_target_limb - 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb - 1], source_limb_masked << tail_shift, c);
+            if number_of_source_limbs == number_of_target_limbs {
+                target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limb_masked >> offset_shift, c);
+            }
+        }
+        self.reduce_limbs(min_target_limb, max_target_limb);
+    }
+
     fn scale(&mut self, c : u32){
         let c = c as u64;
         let min_limb = self.get_min_limb();
@@ -1100,5 +1197,99 @@ mod tests {
             assert_eq!(diffs, []);
         }
     }
+
+    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]
+    fn test_add_shift_right(p : u32) {
+        println!("p : {}", p);
+        initialize_limb_bit_index_table(p);
+        let dim_list = [10, 20, 70, 100, 1000];
+        for i in 0..dim_list.len() {
+            let dim = dim_list[i];
+            let slice_start = [5, 10, 20, 30, 290][i];
+            let slice_end = (dim + slice_start)/2;
+            let v_arr = random_vector(p, dim);
+            let mut v = FpVector::new(p, dim);
+            v.pack(&v_arr);
+            let w_arr = random_vector(p, dim);
+            let mut w = FpVector::new(p, dim);
+            w.pack(&w_arr);
+            println!("\n\n\n");
+            println!("dim : {}, slice_start : {}, slice_end : {}", dim, slice_start, slice_end);
+            println!("v : {}", v);
+            println!("w : {}", w);
+            v.set_slice(slice_start + 2, slice_end + 2);
+            w.set_slice(slice_start, slice_end);
+            println!("v : {}", v);
+            println!("w : {}", w);
+            v.shift_add(&w, 1);
+            v.clear_slice();
+            println!("v : {}", v);
+            let mut diffs = Vec::new();
+            for i in 0..slice_start + 2 {
+                if v.get_entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                }
+            }
+            for i in slice_start + 2 .. slice_end + 2 {
+                if v.get_entry(i) != (v_arr[i] + w_arr[i - 2]) % p {
+                    diffs.push((i, (v_arr[i] + w_arr[i - 2]) % p, v.get_entry(i)));
+                }
+            }
+            for i in slice_end  + 2 .. dim {
+                if v.get_entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                }
+            }
+            assert_eq!(diffs, []);
+        }
+    }
+
+    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]
+    fn test_add_shift_left(p : u32) {
+        println!("p : {}", p);
+        initialize_limb_bit_index_table(p);
+        let dim_list = [10, 20, 70, 100, 1000];
+        for i in 0..dim_list.len() {
+            let dim = dim_list[i];
+            let slice_start = [5, 10, 20, 30, 290][i];
+            let slice_end = (dim + slice_start)/2;
+            let v_arr = random_vector(p, dim);
+            let mut v = FpVector::new(p, dim);
+            v.pack(&v_arr);
+            let w_arr = random_vector(p, dim);
+            let mut w = FpVector::new(p, dim);
+            w.pack(&w_arr);
+            println!("\n\n\n");
+            println!("p : {}, dim : {}, slice_start : {}, slice_end : {}", p, dim, slice_start, slice_end);
+            println!("entries_per_64 : {}, bits_per_entry : {}", get_entries_per_64_bits(p), get_bit_length(p));
+            println!("v full: {}", v);
+            println!("w full: {}", w);
+            v.set_slice(slice_start - 2, slice_end - 2);
+            w.set_slice(slice_start, slice_end);
+            println!("v slice: {}", v);
+            println!("w slice: {}", w);
+            v.shift_add(&w, 1);
+            println!("v resu: {}", v);
+            v.clear_slice();
+            println!("v resu: {}", v);
+            let mut diffs = Vec::new();
+            for i in 0..slice_start - 2 {
+                if v.get_entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                }
+            }
+            for i in slice_start - 2 .. slice_end - 2 {
+                if v.get_entry(i) != (v_arr[i] + w_arr[i + 2]) % p {
+                    diffs.push((i, (v_arr[i] + w_arr[i + 2]) % p, v.get_entry(i)));
+                }
+            }
+            for i in slice_end - 2 .. dim {
+                if v.get_entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                }
+            }
+            assert_eq!(diffs, []);
+        }
+    }    
 }
 
