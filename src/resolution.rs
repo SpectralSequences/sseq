@@ -239,10 +239,8 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
                 f(s, t, num_gens);
             }
         }
-        if let Some(_) = &self.add_structline {
-            for i in 0..num_gens {
-                self.compute_filtration_one_products(s, t, i);
-            }
+        for i in 0..num_gens {
+            self.compute_filtration_one_products(s, t, i);
         }
         self.extend_maps_to_unit(s, t);
         self.compute_products(s, t, &self.product_list);
@@ -273,10 +271,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
                 } else {
                     // printf("hom_deg: %d, deg: %d, source_idx: %d, op_deg: %d, entry: %d\n", homological_degree, degree, source_idx, op_degree, Vector_getEntry(dx, vector_idx));
                     if dx.get_entry(vector_idx) != 0 {
-                        // There was a product!
-                        if let Some(add_structline) = &self.add_structline {
-                            add_structline(op_name, homological_degree - 1, gen_degree, target_idx, homological_degree, internal_degree, source_idx);
-                        }
+                        self.add_structline(op_name, homological_degree - 1, gen_degree, target_idx, homological_degree, internal_degree, source_idx);
                     }
                 }
             }
