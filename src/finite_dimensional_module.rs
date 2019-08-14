@@ -40,7 +40,7 @@ impl Module for FiniteDimensionalModule {
         if degree < self.graded_dimension.min_degree() {
             return 0;
         }
-        if degree >= self.graded_dimension.max_degree() {
+        if degree > self.graded_dimension.max_degree() {
             return 0;
         }        
         return self.graded_dimension[degree];
@@ -70,7 +70,7 @@ impl Module for FiniteDimensionalModule {
 impl FiniteDimensionalModule {
     pub fn new(algebra : Rc<AlgebraAny>, name : String, graded_dimension : BiVec<usize>) -> Self {
         let min_degree = graded_dimension.min_degree();
-        let max_degree = graded_dimension.max_degree();
+        let max_degree = graded_dimension.len();
         let degree_difference = max_degree - min_degree;
         algebra.compute_basis(degree_difference);
         let mut gen_names = BiVec::with_capacity(min_degree, max_degree);
@@ -129,7 +129,7 @@ impl FiniteDimensionalModule {
 
     fn allocate_actions(algebra : &Rc<AlgebraAny>, graded_dimension : &BiVec<usize>) -> BiVec<BiVec<Vec<Vec<FpVector>>>> {
         let min_degree = graded_dimension.min_degree();
-        let max_degree = graded_dimension.max_degree();
+        let max_degree = graded_dimension.len();
         let mut result : BiVec<BiVec<Vec<Vec<FpVector>>>> = BiVec::with_capacity(min_degree, max_degree);
         // Count number of triples (x, y, op) with |x| + |op| = |y|.
         // The amount of memory we need to allocate is:

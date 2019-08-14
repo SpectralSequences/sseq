@@ -158,6 +158,10 @@ impl Matrix {
         self.slice_col_start = 0;
         self.slice_col_end = self.columns;
     }
+
+    pub fn set_row(&mut self, row_idx : usize, row : &FpVector) {
+        self.vectors[row_idx] = row.clone();
+    }
 }
 
 impl std::ops::Deref for Matrix {

@@ -95,7 +95,7 @@ impl FinitelyPresentedModule {
         let mut relations_value = json[algebra.get_algebra_type().to_owned() + "_relations"].take();
         let relations_values = relations_value.as_array_mut().unwrap();
         let min_degree = num_gens_in_degree.min_degree();
-        let max_gen_degree = num_gens_in_degree.max_degree();
+        let max_gen_degree = num_gens_in_degree.len();
         algebra.compute_basis(20);
         let relations : Vec<Vec<_>> = relations_values.iter_mut().map(|reln|
             reln.take().as_array_mut().unwrap().iter_mut().map(
@@ -154,7 +154,7 @@ impl FinitelyPresentedModule {
 
     pub fn relations_to_json(&self) -> Value {
         let mut relations = Vec::new();
-        for i in self.min_degree .. self.relations.max_computed_degree() {
+        for i in self.min_degree ..= self.relations.max_computed_degree() {
             let num_relns = self.relations.get_number_of_gens_in_degree(i);
             for j in 0 .. num_relns {
                 relations.push(self.generators.element_to_json(i, self.map.get_output(i,j)));

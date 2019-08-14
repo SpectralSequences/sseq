@@ -41,12 +41,30 @@ impl<T> BiVec<T> {
         self.min_degree
     }
 
+    /// This returns the largest degree in the bivector. This is equal to `self.len() - 1`.
+    ///
+    /// # Example
+    /// ```
+    /// # use bivec::BiVec
+    /// let v = BiVec::from_vec(-2, vec![3, 4, 6, 8, 2]);
+    /// assert_eq!(v.max_degree(), 2);
+    /// ```
     pub fn max_degree(&self) -> i32 {
-        self.data.len() as i32 + self.min_degree
+        self.len() - 1
     }
 
+    /// This returns the "length" of the bivector, defined to be the smallest i such that
+    /// `v[i]`
+    /// is not defined.
+    ///
+    /// # Example
+    /// ```
+    /// # use bivec::BiVec
+    /// let v = BiVec::from_vec(-2, vec![3, 4, 6, 8, 2]);
+    /// assert_eq!(v.max_degree(), 3);
+    /// ```
     pub fn len(&self) -> i32 {
-        self.max_degree()
+        self.data.len() as i32 + self.min_degree
     }
 
     pub fn push(&mut self, x : T) {
