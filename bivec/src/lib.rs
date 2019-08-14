@@ -45,7 +45,7 @@ impl<T> BiVec<T> {
     ///
     /// # Example
     /// ```
-    /// # use bivec::BiVec
+    /// # use bivec::BiVec;
     /// let v = BiVec::from_vec(-2, vec![3, 4, 6, 8, 2]);
     /// assert_eq!(v.max_degree(), 2);
     /// ```
@@ -59,9 +59,9 @@ impl<T> BiVec<T> {
     ///
     /// # Example
     /// ```
-    /// # use bivec::BiVec
+    /// # use bivec::BiVec;
     /// let v = BiVec::from_vec(-2, vec![3, 4, 6, 8, 2]);
-    /// assert_eq!(v.max_degree(), 3);
+    /// assert_eq!(v.len(), 3);
     /// ```
     pub fn len(&self) -> i32 {
         self.data.len() as i32 + self.min_degree
@@ -80,6 +80,20 @@ impl<T> BiVec<T> {
         self.data.iter().enumerate()
             .map(move |(i, t)| (i as i32 + min_degree, t))
             // .collect()
+    }
+
+    /// Extends the bivec such that `max_degree()` is at least `max`. If `max_degree()` is
+    /// already at least `max`, the function does nothing. Otherwise, it fills the new entries
+    /// with the return value of `F(i)`, where i is the index of the new entry.
+    pub fn extend_with<F>(&mut self, max : i32, mut f : F)
+        where F : FnMut(i32) -> T
+    {
+        if max > self.max_degree() {
+             self.data.reserve((max - self.max_degree()) as usize);
+             for i in self.len() ..= max {
+                 self.data.push(f(i));
+             }
+        }
     }
 }
 

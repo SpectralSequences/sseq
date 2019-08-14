@@ -459,6 +459,17 @@ impl Subspace {
         return result;
     }
 
+    /// This adds a vector to the subspace. This function assumes that the last row of the
+    /// matrix is zero, i.e. the dimension of the current subspace is strictly less than the number
+    /// of rows. This can be achieved by setting the number of rows to be the dimension plus one
+    /// when creating the subspace.
+    pub fn add_vector(&mut self, row : &FpVector) {
+        self.matrix.set_row(self.matrix.get_rows(), row);
+        let mut pivots = vec![-1; self.column_to_pivot_row.len()];
+        self.matrix.row_reduce(&mut pivots);
+        self.column_to_pivot_row = pivots;
+    }
+
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
     /// that have a 0 in every column where there is a pivot in `matrix`
     pub fn reduce(&self, vector : &mut FpVector){
