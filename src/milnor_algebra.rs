@@ -10,7 +10,9 @@ use crate::algebra::Algebra;
 
 
 pub struct MilnorProfile {
-
+    pub truncated : bool,
+    pub q_part : u32,
+    pub p_part : Vec<u32>
 }
 
 #[derive(Default, Clone)]
@@ -95,15 +97,18 @@ pub struct MilnorAlgebra {
     ppart_table : OnceVec<Vec<PPart>>,
     qpart_table : Vec<OnceVec<QPart>>,
     basis_table : OnceVec<Vec<MilnorBasisElement>>,
-    basis_element_to_index_map : OnceVec<HashMap<MilnorBasisElement, usize>>, // degree -> MilnorBasisElement -> index
-    filtration_one_products : Vec<(String, i32, usize)>
+    basis_element_to_index_map : OnceVec<HashMap<MilnorBasisElement, usize>> // degree -> MilnorBasisElement -> index
 }
 
 impl MilnorAlgebra {
     pub fn new(p : u32) -> Self {
         crate::fp_vector::initialize_limb_bit_index_table(p);
 
-        let profile = MilnorProfile { };
+        let profile = MilnorProfile {
+            truncated: false,
+            q_part : !0,
+            p_part : Vec::new()
+        };
 
         let mut qpart_table = Vec::new();
         qpart_table.resize_with((2 * p - 2) as usize, OnceVec::new);
@@ -117,8 +122,7 @@ impl MilnorAlgebra {
             ppart_table : OnceVec::new(),
             qpart_table,
             basis_table : OnceVec::new(),
-            basis_element_to_index_map : OnceVec::new(),
-            filtration_one_products : Vec::new()
+            basis_element_to_index_map : OnceVec::new()
         }
     }
 
@@ -150,12 +154,44 @@ impl Algebra for MilnorAlgebra {
         &self.name
     }
 
-    fn get_filtration_one_products(&self) -> &Vec<(String, i32, usize)>{
-        &self.filtration_one_products
-    }
+    fn get_default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
+        let mut products = Vec::with_capacity(4);
+        let max_degree;
+        if self.generic {
+            products.push(("a_0".to_string(), MilnorBasisElement {
+                degree : 1,
+                q_part : 1,
+                p_part : vec![]
+            }));
+            products.push(("h_0".to_string(), MilnorBasisElement {
+                degree : (2*self.p-2) as i32,
+                q_part : 0,
+                p_part : vec![1]
+            }));
+            max_degree = (2 * self.p - 2) as i32;
+        } else {
+            let mut max = 4;
+            if self.profile.p_part.len() > 0 {
+                max = self.profile.p_part[0];
+            } else if self.profile.truncated {
+                max = 0;
+            }
+            for i in 0..max {
+                let degree = 1 << i; // degree is 2^hi
+                let ps = vec![degree as u32];
+                products.push((format!("h_{}", i), MilnorBasisElement {
+                    degree,
+                    q_part : 0,
+                    p_part : vec![1 << i],
+                }));
+            }
+            max_degree = 1 << 3;
+        }
+        self.compute_basis(max_degree + 1);
 
-    fn set_default_filtration_one_products(&mut self) {
-
+        products.into_iter()
+            .map(|(name, b)| (name, b.degree, self.basis_element_to_index(&b)))
+            .collect()
     }
 
     fn compute_basis(&self, max_degree : i32) {
@@ -347,11 +383,24 @@ impl MilnorAlgebra {
         self.ppart_table.reserve((new_deg - old_deg) as usize);
 
         let xi_degrees = combinatorics::get_xi_degrees(self.p);
+        let mut profile_list = Vec::with_capacity(xi_degrees.len());
+        for i in 0..xi_degrees.len() {
+            if i < self.profile.p_part.len() {
+                profile_list.push(combinatorics::integer_power(self.p, self.profile.p_part[i]) - 1);
+            } else if self.profile.truncated {
+                profile_list.push(0);
+            } else {
+                profile_list.push(!0); // A super large number.
+            }
+        }
         for d in (old_deg + 1) ..= new_deg {
             let mut new_row = Vec::new(); // Improve this
             for i in 0..xi_degrees.len() {
                 if xi_degrees[i] > d {
                     break;
+                }
+                if profile_list[i] == 0 {
+                    continue;
                 }
 
                 let rem = (d - xi_degrees[i]) as usize;
@@ -360,6 +409,9 @@ impl MilnorAlgebra {
                     // xi_i. If we get something too large, we may abort;
                     if old.len() > i + 1 {
                         break;
+                    }
+                    if old.len() == i + 1 && old[i] == profile_list[i] {
+                        continue;
                     }
                     let mut new = old.clone();
                     if new.len() < i + 1 {
@@ -376,6 +428,7 @@ impl MilnorAlgebra {
 
     fn compute_qpart(&self, next_degree : i32, max_degree : i32) {
         let q = (2 * self.p - 2) as i32;
+        let profile = !self.profile.q_part;
 
         if !self.generic {
             return;
@@ -410,6 +463,9 @@ impl MilnorAlgebra {
             }
             total += tau_degrees[c];
             residue += 1 - c as i32;
+            if bit_string & profile != 0 {
+                continue;
+            }
             residue = residue % q;
             if residue < 0 {
                 residue += q;

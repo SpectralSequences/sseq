@@ -122,7 +122,6 @@ pub struct AdemAlgebra {
     p : u32,
     name : String,
     pub generic : bool,
-    // FiltrationOneProduct_list product_list; // This determines which indecomposibles have lines drawn for them.
     unstable : bool,
     next_degree : Mutex<i32>,
     even_basis_table : OnceVec<Vec<AdemBasisElement>>,
@@ -130,8 +129,7 @@ pub struct AdemAlgebra {
     basis_element_to_index_map : OnceVec<HashMap<AdemBasisElement, usize>>, // degree -> AdemBasisElement -> index
     multiplication_table : OnceVec<Vec<Vec<FpVector>>>,// degree -> first square -> admissibile sequence idx -> result vector
     excess_table : OnceVec<Vec<u32>>,
-    sort_order : Option<fn(&AdemBasisElement, &AdemBasisElement) -> Ordering>,
-    filtration_one_products : Vec<(String, i32, usize)> //Vec<Once<(i32, usize)>>
+    sort_order : Option<fn(&AdemBasisElement, &AdemBasisElement) -> Ordering>
 }
 
 impl Algebra for AdemAlgebra {
@@ -147,11 +145,7 @@ impl Algebra for AdemAlgebra {
         &self.name
     }
 
-    fn get_filtration_one_products(&self) -> &Vec<(String, i32, usize)>{
-        &self.filtration_one_products
-    }
-
-    fn set_default_filtration_one_products(&mut self) {
+    fn get_default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
         let mut products = Vec::with_capacity(4);
         let max_degree;
         if self.generic {
@@ -183,9 +177,9 @@ impl Algebra for AdemAlgebra {
         }
 
         self.compute_basis(max_degree);
-        self.filtration_one_products = products.into_iter()
+        products.into_iter()
             .map(|(name, b)| (name, b.degree, self.basis_element_to_index(&b)))
-            .collect();
+            .collect()
     }
 
     fn compute_basis(&self, max_degree : i32) {
@@ -397,8 +391,7 @@ impl AdemAlgebra {
             basis_element_to_index_map,
             multiplication_table,
             excess_table,
-            sort_order : None,
-            filtration_one_products : Vec::new()
+            sort_order : None
         }
     }
 

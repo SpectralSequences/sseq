@@ -4,7 +4,7 @@ extern crate rust_ext;
 extern crate serde_json;
 
 use rust_ext::Config;
-use rust_ext::module::FiniteModule;
+use rust_ext::module::{Module, FiniteModule};
 use rust_ext::resolution::{ModuleResolution};
 use rust_ext::chain_complex::ChainComplex;
 
@@ -31,9 +31,9 @@ const FILE_LIST : [(&str, &str, &[u8]); 6] = [
 /// only understands the "resolve" command which causes it to resolve a module and report back the
 /// results.
 ///
-/// The main function is `ResolutionManager::new`. This function does not return a ResolutionManger
+/// The main function is `ResolutionManager::new`. This function does not return a ResolutionManager
 /// object. Instead, the function produces a ResolutionManager object and waits for commands issued
-/// by the user. The actions of the command will involve manipulating the ResolutionManger.
+/// by the user. The actions of the command will involve manipulating the ResolutionManager.
 /// However, not everything interesting can be found inside the struct itself. Instead, some
 /// variables are simply local to the function `ResolutionManager::new`. What goes into the struct
 /// and what stays a local variable is simply a matter of convenience.
@@ -66,14 +66,11 @@ impl ResolutionManager {
                 Some("resolve_further") => manager.resolve_further(json)?,
                 Some("resolve_unit") => manager.resolve_unit(json)?,
                 Some("add_product") => manager.add_product(json)?,
+                Some("query_table") => manager.query_table(json)?,
                 _ => {println!("Ignoring message:\n{:#}", json);}
             };
         }
         Ok(())
-    }
-
-    fn resolution(&self) -> &Rc<RefCell<ModuleResolution<FiniteModule>>> {
-        &self.resolution.as_ref().unwrap()
     }
 
     /// Resolve existing resolution to a larger degree
@@ -124,8 +121,9 @@ impl ResolutionManager {
         let module_name = json["module"].as_str().unwrap(); // Need to handle error
         let algebra_name = json["algebra"].as_str().unwrap();
         let max_degree = json["maxDegree"].as_i64().unwrap() as i32;
-        let mut dir = std::env::current_dir()?;
-        dir.push("modules");
+        let mut dir = std::env::current_exe().unwrap();
+        dir.pop(); dir.pop(); dir.pop();
+        dir.push("static/modules");
 
         let bundle = rust_ext::construct(&Config {
              module_paths : vec![dir],
@@ -140,6 +138,82 @@ impl ResolutionManager {
         self.setup_callback(&self.resolution, "");
         self.setup_callback(&self.resolution().borrow().unit_resolution, "Unit");
         self.resolve(max_degree)
+    }
+
+    fn query_table(&self, json : Value) -> Result<(), Box<dyn Error>> {
+        let s = json["s"].as_u64().unwrap() as u32;
+        let t = json["t"].as_i64().unwrap() as i32;
+
+        let resolution = self.resolution().borrow();
+        let module = resolution.get_module(s);
+        let string = module.generator_list_string(t);
+        let data = json!(
+            {
+                "command": "tableResult",
+                "s": s,
+                "t": t,
+                "string": string
+            });
+        self.sender.send(data.to_string())?;
+        Ok(())
+    }
+}
+
+impl ResolutionManager {
+    fn resolution(&self) -> &Rc<RefCell<ModuleResolution<FiniteModule>>> {
+        &self.resolution.as_ref().unwrap()
+    }
+
+    fn setup_callback(&self, resolution : &Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>, postfix : &'static str) {
+
+        let sender = self.sender.clone();
+        let add_class = move |s: u32, t: i32, num_gen: usize| {
+            let data = json!(
+                {
+                    "command": format!("addClass{}", postfix),
+                    "s": s,
+                    "t": t
+                });
+            for _ in 0 .. num_gen {
+                match sender.send(data.to_string()) {
+                    Ok(_) => (),
+                    Err(e) => eprintln!("Failed to send class: {}", e)
+                };
+            }
+        };
+
+        let sender = self.sender.clone();
+        let add_structline = move |name : &str, source_s: u32, source_t: i32, target_s : u32, target_t : i32, products : Vec<Vec<u32>>| {
+            for i in 0 .. products.len() {
+                for j in 0 .. products[i].len() {
+                    if products[i][j] != 0 {
+                        let data = json!(
+                            {
+                                "command": format!("addStructline{}", postfix),
+                                "mult": name,
+                                "source": {
+                                    "s": source_s,
+                                    "t": source_t,
+                                    "idx": i
+                                },
+                                "target": {
+                                    "s": target_s,
+                                    "t": target_t,
+                                    "idx": j
+                                }
+                            });
+                        match sender.send(data.to_string()) {
+                            Ok(_) => (),
+                            Err(e) => eprintln!("Failed to send class: {}", e)
+                        };
+                    }
+                }
+            }
+        };
+
+        let mut resolution = resolution.as_ref().unwrap().borrow_mut();
+        resolution.add_class = Some(Box::new(add_class));
+        resolution.add_structline = Some(Box::new(add_structline));
     }
 
     fn resolve(&self, max_degree : i32) -> Result<(), Box<dyn Error>> {
@@ -159,52 +233,7 @@ impl ResolutionManager {
         self.sender.send(data.to_string())?;
         Ok(())
     }
-
-    fn setup_callback(&self, resolution : &Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>, postfix : &'static str) {
-
-        let sender = self.sender.clone();
-        let add_class = move |s: u32, t: i32, _name: &str| {
-            let data = json!(
-                {
-                    "command": format!("addClass{}", postfix),
-                    "s": s,
-                    "t": t
-                });
-            match sender.send(data.to_string()) {
-                Ok(_) => (),
-                Err(e) => eprintln!("Failed to send class: {}", e)
-            };
-        };
-
-        let sender = self.sender.clone();
-        let add_structline = move |name : &str, source_s: u32, source_t: i32, source_idx: usize, target_s : u32, target_t : i32, target_idx : usize| {
-            let data = json!(
-                {
-                    "command": format!("addStructline{}", postfix),
-                    "mult": name,
-                    "source": {
-                        "s": source_s,
-                        "t": source_t,
-                        "idx": source_idx
-                    },
-                    "target": {
-                        "s": target_s,
-                        "t": target_t,
-                        "idx": target_idx
-                    }
-                });
-            match sender.send(data.to_string()) {
-                Ok(_) => (),
-                Err(e) => eprintln!("Failed to send class: {}", e)
-            };
-        };
-
-        let mut resolution = resolution.as_ref().unwrap().borrow_mut();
-        resolution.add_class = Some(Box::new(add_class));
-        resolution.add_structline = Some(Box::new(add_structline));
-    }
 }
-
 /// The server implements the `ws::Handler` trait. It doesn't really do much. When we receive a
 /// request, it is either looking for some static files, as specified in `FILE_LIST`, or it is
 /// WebSocket message. If it is the former, we return the file. If it is the latter, we parse it
@@ -273,9 +302,14 @@ impl Server {
     fn serve_files(&self, request_path: &str) -> WsResult<(Response)> {
         println!("Request path: {}", request_path);
         let request_path = request_path.split("?").collect::<Vec<&str>>()[0]; // Ignore ?...
+        let mut dir = std::env::current_exe().unwrap();
+        dir.pop(); dir.pop(); dir.pop();
+        dir.push("ext-websocket/interface");
+
         for (path, file, mime) in &FILE_LIST {
             if request_path == *path {
-                let contents = fs::read(format!("interface/{}", file))?;
+                dir.push(file);
+                let contents = fs::read(dir)?;
                 let mut response = Response::new(200, "OK", contents);
                 let headers = response.headers_mut();
                 headers.push(("Content-type".to_string(), (*mime).into()));

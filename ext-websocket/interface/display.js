@@ -59,6 +59,12 @@ export class MainDisplay extends SidebarDisplay {
             this.tooltip.hide();
         });
 
+        this.on("click", (node, e) => {
+            let x = Math.round(this.xScale.invert(e.clientX));
+            let y = Math.round(this.yScale.invert(e.clientY));
+            callbacks["queryTable"](x, y);
+        });
+
         this.structlinePanel = new StructlinePanel(this.sidebar.main_div, this);
         this.sidebar.addPanel(this.structlinePanel);
         this.sidebar.currentPanel = this.structlinePanel;
@@ -81,6 +87,7 @@ export class UnitDisplay extends Display {
     constructor(container, sseq, callbacks) {
         super(container, sseq);
 
+        this.callbacks = callbacks;
         this.tooltip = new Tooltip(this);
         this.on("mouseover", (node) => {
             this.tooltip.setHTML(`(${node.c.x}, ${node.c.y})`);
@@ -109,6 +116,7 @@ export class UnitDisplay extends Display {
 
     openModal() {
         this._unselect();
+        this.callbacks["resolveUnitFurther"](10);
         document.querySelector("#overlay").style.removeProperty("display");
         document.querySelector("#modal-ok").disabled = true;
         let dialog = document.querySelector("#modal-dialog");

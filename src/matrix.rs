@@ -158,6 +158,10 @@ impl Matrix {
         self.slice_col_start = 0;
         self.slice_col_end = self.columns;
     }
+
+    pub fn set_row(&mut self, row_idx : usize, row : &FpVector) {
+        self.vectors[row_idx] = row.clone();
+    }
 }
 
 impl std::ops::Deref for Matrix {
@@ -455,6 +459,17 @@ impl Subspace {
         return result;
     }
 
+    /// This adds a vector to the subspace. This function assumes that the last row of the
+    /// matrix is zero, i.e. the dimension of the current subspace is strictly less than the number
+    /// of rows. This can be achieved by setting the number of rows to be the dimension plus one
+    /// when creating the subspace.
+    pub fn add_vector(&mut self, row : &FpVector) {
+        self.matrix.set_row(self.matrix.get_rows(), row);
+        let mut pivots = vec![-1; self.column_to_pivot_row.len()];
+        self.matrix.row_reduce(&mut pivots);
+        self.column_to_pivot_row = pivots;
+    }
+
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
     /// that have a 0 in every column where there is a pivot in `matrix`
     pub fn reduce(&self, vector : &mut FpVector){
@@ -471,6 +486,11 @@ impl Subspace {
             }
             row += 1;
         }
+    }
+
+    /// Returns a basis of the subspace
+    pub fn get_basis(&self) -> &Vec<FpVector> {
+        &self.matrix.vectors
     }
 }
 
@@ -517,6 +537,12 @@ impl QuasiInverse {
 }
 
 impl Matrix {
+    pub fn set_to_zero(&mut self) {
+        for row in 0..self.get_rows() {
+            self.vectors[row].set_to_zero();
+        }
+    }
+
     pub fn find_first_row_in_block(&self, pivots : &Vec<isize>, first_column_in_block : usize) -> usize {
         for i in first_column_in_block .. self.get_columns() {
             if pivots[i] >= 0 {
@@ -828,6 +854,31 @@ impl Matrix {
         } else {
             return self.extend_to_surjection(first_empty_row, start_column, end_column, current_pivots);
         }
+    }
+
+    /// Applies a matrix to a vector.
+    ///
+    /// # Example
+    /// let p = 7;
+    /// # use rust_ext::matrix::Matrix;
+    /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
+    /// let input  = [vec![1, 3, 6],
+    ///               vec![0, 3, 4]];
+    ///
+    /// let m = Matrix::from_vec(p, &input);
+    /// let mut v = FpVector::new(p, 2);
+    /// v.pack(vec![3, 1]);
+    /// let mut result = FpVector::new(p, 3);
+    /// result.pack(vec![3, 5, 1]);
+    /// assert_eq!(m.apply(&v), result);
+    /// ```
+    pub fn apply(&self, input : &FpVector) -> FpVector {
+        assert_eq!(input.get_dimension(), self.get_rows());
+        let mut result = FpVector::new(self.p, self.get_columns());
+        for i in 0 .. input.get_dimension() {
+            result.add(&self.vectors[i], input.get_entry(i));
+        }
+        result
     }
 }
 

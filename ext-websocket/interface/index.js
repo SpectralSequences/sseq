@@ -11,9 +11,17 @@ callbacks.resolveFurther = () => {
         return;
     }
     webSocket.send(JSON.stringify({
-            command : "resolve_further",
-            maxDegree : newmax
+            command: "resolve_further",
+            maxDegree: newmax
         }));
+};
+
+callbacks.queryTable = (x, y) => {
+    webSocket.send(JSON.stringify({
+        command: "query_table",
+        s: y,
+        t: x + y
+    }));
 };
 
 callbacks.addProduct = (x, y, idx) => {
@@ -27,8 +35,9 @@ callbacks.addProduct = (x, y, idx) => {
     }));
 }
 
-callbacks.resolveUnitFurther = () => {
-    let newmax = parseInt(prompt("New maximum degree", window.unitMaxDegree + 5).trim());
+callbacks.resolveUnitFurther = (newmax) => {
+    if (!newmax)
+        newmax = parseInt(prompt("New maximum degree", window.unitMaxDegree + 5).trim());
     if (newmax <= unitMaxDegree) {
         return;
     }
@@ -74,13 +83,9 @@ if (!params.module) {
 function openWebSocket(initialData, maxDegree) {
     window.webSocket = new WebSocket(`ws://${window.location.host}/ws`);
 
-    window.unitMaxDegree = 10;
+    window.unitMaxDegree = 9;
     webSocket.onopen = function(e) {
         webSocket.send(JSON.stringify(initialData));
-        webSocket.send(JSON.stringify({
-            command : "resolve_unit",
-            maxDegree : unitMaxDegree
-        }));
 
         t0 = performance.now();
         t_last = t0;
@@ -168,6 +173,11 @@ messageHandler.complete = function (m) {
     display.runningSign.style.display = "none";
     console.log(`Total time : ${getTotalTime()}`);
     t_prev = getTotalTime() * 1000;
+}
+
+messageHandler.tableResult = function (m) {
+    console.log(`Table for (t - s, s) = (${m.t - m.s}, ${m.s}):`);
+    console.log(m.string);
 }
 
 function getTime() {

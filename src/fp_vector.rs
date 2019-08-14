@@ -704,7 +704,7 @@ impl FpVector {
     }
     fn add_limb(p : u32, limb_a : u64, limb_b : u64, coeff : u32) -> u64 {
         match p {
-           2 => limb_a ^ limb_b,
+           2 => limb_a ^ (coeff as u64 * limb_b),
            _ => limb_a + (coeff as u64) * limb_b
         }
     }
