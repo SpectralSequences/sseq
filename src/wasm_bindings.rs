@@ -9,7 +9,10 @@ use crate::adem_algebra::AdemAlgebra;
 use crate::milnor_algebra::MilnorAlgebra;
 use crate::module::FiniteModule;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
+use crate::chain_complex::ChainComplex;
 use crate::resolution::{Resolution, ModuleResolution};
+use crate::matrix::Matrix;
+use crate::fp_vector::FpVectorT;
 
 
 // use web_sys::console;
@@ -123,6 +126,7 @@ pub struct WasmResolution {
 impl WasmResolution {
     pub fn new(chain_complex : &WasmCCDZ, json_string : String, add_class : js_sys::Function, add_structline : js_sys::Function) -> Self {
         let chain_complex = chain_complex.to_chain_complex();
+        let p = chain_complex.prime();
 
         let add_class_wrapper = move |hom_deg : u32, int_deg : i32, num_gen : usize| {
             let this = JsValue::NULL;
@@ -175,6 +179,31 @@ impl WasmResolution {
 
         let boxed_res = Rc::new(RefCell::new(res));
         boxed_res.borrow_mut().set_self(Rc::downgrade(&boxed_res));
+
+        let self_maps = &json["self_maps"];
+        if !self_maps.is_null() {
+            for self_map in self_maps.as_array().unwrap() {
+                let s = self_map["hom_deg"].as_u64().unwrap() as u32;
+                let t = self_map["int_deg"].as_i64().unwrap() as i32;
+                let name = self_map["name"].as_str().unwrap();
+
+                let json_map_data = self_map["map_data"].as_array().unwrap();
+                let json_map_data : Vec<&Vec<Value>> = json_map_data
+                    .iter()
+                    .map(|x| x.as_array().unwrap())
+                    .collect();
+
+                let rows = json_map_data.len();
+                let cols = json_map_data[0].len();
+                let mut map_data = Matrix::new(p, rows, cols);
+                for r in 0..rows {
+                    for c in 0..cols {
+                        map_data[r].set_entry(c, json_map_data[r][c].as_u64().unwrap() as u32);
+                    }
+                }
+                boxed_res.borrow_mut().add_self_map(s, t, name.to_string(), map_data);
+            }
+        }
 
         let pimpl : *const RefCell<ModuleResolution<FiniteModule>> = Rc::into_raw(boxed_res);
         Self {
