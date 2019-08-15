@@ -11,6 +11,9 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::rc::Rc;
 
+trait FiniteDimensionalModuleT : Module {
+    fn max_degree(&self) -> i32;
+}
 
 pub struct FiniteDimensionalModule {
     algebra : Rc<AlgebraAny>,
@@ -64,6 +67,12 @@ impl Module for FiniteDimensionalModule {
         }
         let output = self.get_action(op_degree, op_index, mod_degree, mod_index);
         result.add(output, coeff);
+    }
+}
+
+impl FiniteDimensionalModuleT for FiniteDimensionalModule {
+    fn max_degree(&self) -> i32 {
+        self.graded_dimension.max_degree()
     }
 }
 

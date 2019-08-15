@@ -1,7 +1,8 @@
 use crate::fp_vector::FpVector;
 use crate::adem_algebra::AdemAlgebra;
 use crate::milnor_algebra::MilnorAlgebra;
-use serde_json::value::Value;
+use crate::field::Field;
+use serde_json::Value;
 use enum_dispatch::enum_dispatch;
 
 /// A graded algebra over F_p, finite dimensional in each degree, equipped with a choice of ordered
@@ -133,5 +134,6 @@ pub trait Algebra {
 #[enum_dispatch(Algebra)]
 pub enum AlgebraAny {
     AdemAlgebra,
-    MilnorAlgebra
+    MilnorAlgebra,
+    Field
 }

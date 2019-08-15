@@ -15,7 +15,6 @@ pub trait ChainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
     fn compute_through_bidegree(&self, homological_degree : u32, degree : i32);
 }
 
-
 pub struct ChainComplexConcentratedInDegreeZero<M : Module> {
     module : Rc<OptionModule<M>>,
     zero_module : Rc<OptionModule<M>>,

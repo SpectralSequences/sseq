@@ -9,10 +9,6 @@ use crate::finitely_presented_module::FinitelyPresentedModule;
 
 #[enum_dispatch(FiniteModule)]
 pub trait Module {
-    fn prime(&self) -> u32 {
-        self.get_algebra().prime()
-    }
-
     fn get_algebra(&self) -> Rc<AlgebraAny>;
     fn get_name(&self) -> &str;
     fn get_min_degree(&self) -> i32;
@@ -20,6 +16,10 @@ pub trait Module {
     fn get_dimension(&self, degree : i32) -> usize;
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize);
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String;
+
+    fn prime(&self) -> u32 {
+        self.get_algebra().prime()
+    }
 
     fn act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector){
         assert!(input.get_dimension() == self.get_dimension(input_degree));
