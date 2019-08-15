@@ -9,7 +9,7 @@ pub struct GeneratorBasisEltPair {
 }
 
 pub struct BlockStructure {
-    total_dimension : usize,
+    pub total_dimension : usize,
     basis_element_to_block_idx : Vec<GeneratorBasisEltPair>,
     block_starts : BiVec<Vec<(usize, usize)>>, // generator_degree --> generator_index --> (index, size)
 }
@@ -41,6 +41,10 @@ impl BlockStructure {
             basis_element_to_block_idx,
             block_starts
         }
+    }
+
+    pub fn generator_to_block(&self, gen_deg : i32, gen_idx : usize) -> (usize, usize) {
+        self.block_starts[gen_deg][gen_idx]
     }
 
     pub fn generator_basis_elt_to_index(&self, gen_deg : i32, gen_idx : usize, basis_elt : usize) -> usize {

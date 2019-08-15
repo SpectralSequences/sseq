@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::rc::Rc;
 
-trait FiniteDimensionalModuleT : Module {
+pub trait FiniteDimensionalModuleT : Module {
     fn max_degree(&self) -> i32;
 }
 

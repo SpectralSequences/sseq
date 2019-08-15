@@ -31,7 +31,7 @@ pub trait Algebra {
     // FiltrationOneProductList *product_list; // This determines which indecomposibles have lines drawn for them.
 // Methods:
 
-    /// Computes the list of basis elements up to degree `degree`. This should include any
+    /// Computes the list of basis elements up to and including degree `degree`. This should include any
     /// other preparation needed to evaluate all the other functions that involve a degree
     /// parameter. One should be able to call compute_basis multiple times, and there should be
     /// little overhead when calling `compute_basis(degree)` multiple times with the same `degree`.

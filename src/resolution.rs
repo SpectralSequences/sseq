@@ -51,9 +51,8 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
     modules : OnceVec<Rc<FreeModule>>,
     zero_module : Rc<FreeModule>,
     chain_maps : OnceVec<FreeModuleHomomorphism<M>>,
-    differentials : OnceVec<FreeModuleHomomorphism<FreeModule>>,
+    differentials : OnceVec<Rc<FreeModuleHomomorphism<FreeModule>>>,
     phantom : PhantomData<ChainComplex<M, F>>,
-
     kernels : OnceBiVec<RefCell<Option<Subspace>>>,
 
     next_s : Mutex<u32>,
@@ -180,11 +179,11 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         }
 
         if next_s == 0 {
-            self.differentials.push(FreeModuleHomomorphism::new(Rc::clone(&self.modules[0u32]), Rc::clone(&self.zero_module), 0));
+            self.differentials.push(Rc::new(FreeModuleHomomorphism::new(Rc::clone(&self.modules[0u32]), Rc::clone(&self.zero_module), 0)));
             next_s += 1;
         }
         for i in next_s ..= max_s {
-            self.differentials.push(FreeModuleHomomorphism::new(Rc::clone(&self.modules[i]), Rc::clone(&self.modules[i - 1]), 0));
+            self.differentials.push(Rc::new(FreeModuleHomomorphism::new(Rc::clone(&self.modules[i]), Rc::clone(&self.modules[i - 1]), 0)));
         }
     }
 
@@ -745,8 +744,8 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
         self.get_complex().get_min_degree()
     }
 
-    fn get_differential(&self, homological_degree : u32) -> &FreeModuleHomomorphism<FreeModule> {
-        &self.differentials[homological_degree as usize]
+    fn get_differential(&self, homological_degree : u32) -> Rc<FreeModuleHomomorphism<FreeModule>> {
+        Rc::clone(&self.differentials[homological_degree as usize])
     }
 
     // TODO: implement this.

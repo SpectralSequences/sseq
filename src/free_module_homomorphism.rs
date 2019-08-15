@@ -81,7 +81,7 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         self.min_degree
     }
 
-    pub fn get_output(&self, generator_degree : i32, generator_index : usize ) -> &FpVector {
+    pub fn get_output(&self, generator_degree : i32, generator_index : usize) -> &FpVector {
         assert!(generator_degree >= self.get_min_degree(), 
             format!("generator_degree {} less than min degree {}", generator_degree, self.get_min_degree()));
         assert!(generator_index < self.source.get_number_of_gens_in_degree(generator_degree),

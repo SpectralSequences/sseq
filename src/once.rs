@@ -90,6 +90,10 @@ impl<T> OnceBiVec<T> {
         Self::from_bivec(BiVec::with_capacity(min_degree, capacity))
     }
 
+    pub fn min_degree(&self) -> i32 {
+        unsafe { self.get_bivec().min_degree() }
+    }
+
     pub fn max_degree(&self) -> i32 {
         unsafe { self.get_bivec().max_degree() }
     }
