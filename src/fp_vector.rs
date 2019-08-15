@@ -417,10 +417,8 @@ pub trait FpVectorT {
 
     fn shift_add(&mut self, other : &FpVector, c : u32){
         if self.get_offset() > other.get_offset() {
-            println!("shift_right");
             self.shift_right_add(other, c);
         } else if self.get_offset() < other.get_offset() {
-            println!("shift_left");
             self.shift_left_add(other, c);
         } else {
             self.add(other, c);
@@ -702,6 +700,13 @@ impl FpVector {
             _ => FpVector::from(FpVectorGeneric { p, vector_container })
         }
     }
+
+    pub fn from_vec(p : u32, vec : &[u32]) -> FpVector {
+        let mut result = FpVector::new(p, vec.len());
+        result.pack(&vec);
+        result
+    }
+
     fn add_limb(p : u32, limb_a : u64, limb_b : u64, coeff : u32) -> u64 {
         match p {
            2 => limb_a ^ (coeff as u64 * limb_b),
