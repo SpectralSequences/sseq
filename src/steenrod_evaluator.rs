@@ -217,7 +217,7 @@ impl Error for UnknownBasisElementError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rstest::rstest_parametrize;
+    // use rstest::rstest_parametrize;
 
     #[test]
     fn test_evaluate(){

@@ -869,16 +869,16 @@ impl Matrix {
     /// let mut v = FpVector::new(p, 2);
     /// v.pack(vec![3, 1]);
     /// let mut result = FpVector::new(p, 3);
+    /// let mut desired_result = FpVector::new(p, 3);
     /// result.pack(vec![3, 5, 1]);
-    /// assert_eq!(m.apply(&v), result);
+    /// m.apply(&mut result, 1, &v);
+    /// assert_eq!(result, desired_result);
     /// ```
-    pub fn apply(&self, input : &FpVector) -> FpVector {
+    pub fn apply(&self, result : &mut FpVector, coeff : u32, input : &FpVector) {
         assert_eq!(input.get_dimension(), self.get_rows());
-        let mut result = FpVector::new(self.p, self.get_columns());
         for i in 0 .. input.get_dimension() {
-            result.add(&self.vectors[i], input.get_entry(i));
+            result.add(&self.vectors[i], (coeff * input.get_entry(i)) % self.p);
         }
-        result
     }
 }
 
