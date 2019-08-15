@@ -52,6 +52,21 @@ impl Matrix {
         }
     }
 
+    /// Produces a matrix from a list of rows. This panics if `vectors.len() == 0`, since there is
+    /// no way to determine the number of columns. The function does not check if the rows have
+    /// the same length, but please only input rows that do have the same length.
+    pub fn from_rows(p : u32, vectors : Vec<FpVector>) -> Self {
+        let rows = vectors.len();
+        let columns = vectors[0].get_dimension();
+        Matrix {
+            p,
+            rows, columns,
+            slice_row_start : 0, slice_row_end : rows,
+            slice_col_start : 0, slice_col_end : columns,
+            vectors
+        }
+    }
+
     /// Produces a Matrix from an `&[Vec<u32>]` object
     /// # Example
     /// ```
@@ -365,7 +380,11 @@ impl Matrix {
     ///
     /// assert_eq!(m, Matrix::from_vec(p, &result));
     /// ```
-    pub fn row_reduce(&mut self, column_to_pivot_row: &mut Vec<isize>){
+    pub fn row_reduce(&mut self, column_to_pivot_row: &mut Vec<isize>) {
+        self.row_reduce_offset(column_to_pivot_row, 0);
+    }
+
+    pub fn row_reduce_offset(&mut self, column_to_pivot_row: &mut Vec<isize>, offset : usize) {
         assert!(self.get_columns() <= column_to_pivot_row.len());
         let p = self.p;
         let columns = self.get_columns();
@@ -377,7 +396,7 @@ impl Matrix {
             return;
         }
         let mut pivot : usize = 0;
-        for pivot_column in 0 .. columns {
+        for pivot_column in offset .. columns {
             // Search down column for a nonzero entry.
             let mut pivot_row = rows;
             for i in pivot..rows {
@@ -464,10 +483,8 @@ impl Subspace {
     /// of rows. This can be achieved by setting the number of rows to be the dimension plus one
     /// when creating the subspace.
     pub fn add_vector(&mut self, row : &FpVector) {
-        self.matrix.set_row(self.matrix.get_rows(), row);
-        let mut pivots = vec![-1; self.column_to_pivot_row.len()];
-        self.matrix.row_reduce(&mut pivots);
-        self.column_to_pivot_row = pivots;
+        self.matrix.set_row(self.matrix.get_rows() - 1, row);
+        self.matrix.row_reduce(&mut self.column_to_pivot_row);
     }
 
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
