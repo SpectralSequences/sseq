@@ -162,10 +162,3 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         return (start_row + source_dimension, start_column + target_dimension);
     } 
 }
-
-// // Primarily for Javascript (so we can avoid indexing struct fields).
-// void FreeModuleHomomorphism_applyToGenerator(FreeModuleHomomorphism *f, Vector *result, uint coeff, int generator_degree, uint generator_index){
-//     Vector *output_on_generator = FreeModuleHomomorphism_getOutput(f, generator_degree, generator_index);
-//     Vector_add(result, output_on_generator, coeff);
-// }
-

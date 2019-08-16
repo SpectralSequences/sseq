@@ -11,31 +11,23 @@ use crate::module::Module;
 use crate::free_module::FreeModule;
 use crate::finite_dimensional_module::FiniteDimensionalModuleT;
 
-struct HomModule<M : FiniteDimensionalModuleT> {
+pub struct HomSpace<M : FiniteDimensionalModuleT> {
     algebra : Rc<AlgebraAny>,
     source : Rc<FreeModule>,
     target : Rc<M>,
     pub block_structures : OnceBiVec<BlockStructure>,
-    pub output_block_structures : BlockStructure
 }
 
-impl<M : FiniteDimensionalModuleT> HomModule<M> {
+impl<M : FiniteDimensionalModuleT> HomSpace<M> {
     pub fn new(source : Rc<FreeModule>, target : Rc<M>) -> Self {
         let p = source.prime();
         let algebra = Rc::new(AlgebraAny::from(Field::new(p)));
         let min_degree = source.get_min_degree() - target.max_degree();
-        let mut block_sizes = BiVec::with_capacity(target.get_min_degree(), target.max_degree() + 1);
-        for i in target.get_min_degree() ..= target.max_degree() {
-            println!("i : {}, target_dim : {}", i, target.get_dimension(i));
-            block_sizes.push(vec![target.get_dimension(i)]);
-        }
-        let output_block_structures = BlockStructure::new(&block_sizes);
         Self {
             algebra,
             source,
             target,
-            block_structures : OnceBiVec::new(min_degree),
-            output_block_structures
+            block_structures : OnceBiVec::new(min_degree), // fn_degree -> blocks
         }
     }
 
@@ -48,18 +40,32 @@ impl<M : FiniteDimensionalModuleT> HomModule<M> {
         let gen_basis_elt = self.block_structures[f_degree].index_to_generator_basis_elt(f_idx);
         let gen_deg = gen_basis_elt.generator_degree;
         let gen_idx = gen_basis_elt.generator_index;
-        let op_deg = out_degree - gen_deg;
+        let op_deg = x_degree - gen_deg;
         let mod_deg = gen_deg - f_degree;
         let mod_idx = gen_basis_elt.basis_index;
+        if op_deg < 0 {
+            return;
+        }
         let input_block_start = self.source.operation_generator_to_index(op_deg, 0, gen_deg, gen_idx);
         let input_block_dim = self.source.get_algebra().get_dimension(op_deg, gen_deg);
         let input_block_end = input_block_start + input_block_dim;
         let p = self.source.prime();
         for i in input_block_start .. input_block_end {
             let v = x.get_entry(i);
+            if v == 0 {
+                continue;
+            }
             let op_idx = i - input_block_start;
             self.target.act_on_basis(result, (coeff * v) % p, op_deg, op_idx, mod_deg, mod_idx);
         }
+    }
+
+    pub fn source(&self) -> Rc<FreeModule> {
+        Rc::clone(&self.source)
+    }
+
+    pub fn target(&self) -> Rc<M> {
+        Rc::clone(&self.target)
     }
 
     // pub fn evaluate_on_basis(&self, result : &mut FpVector, coeff : u32, degree : i32, f : &FpVector, x_idx : usize) {
@@ -91,7 +97,7 @@ impl<M : FiniteDimensionalModuleT> HomModule<M> {
     // }
 }
 
-impl<M : FiniteDimensionalModuleT> Module for HomModule<M> {
+impl<M : FiniteDimensionalModuleT> Module for HomSpace<M> {
     fn get_algebra(&self) -> Rc<AlgebraAny> {
         Rc::clone(&self.algebra)
     }
@@ -147,6 +153,7 @@ impl<M : FiniteDimensionalModuleT> Module for HomModule<M> {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::finite_dimensional_module::FiniteDimensionalModule;
@@ -167,11 +174,11 @@ mod tests {
         let joker_json_string = r#"{"type" : "finite dimensional module","name": "Joker", "file_name": "Joker", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1, "x2": 2, "x3": 3, "x4": 4}, "sq_actions": [{"op": 2, "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": 2, "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": 2, "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": 1, "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": 3, "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": [1], "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": [2], "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [2], "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [3], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2, 1], "input": "x0", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [3, 1], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": [1], "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": [2], "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [2], "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [0, 1], "input": "x0", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [0, 1], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [3], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [1, 1], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}]}"#;
         let mut joker_json = serde_json::from_str(&joker_json_string).unwrap();
         let M = Rc::new(FiniteDimensionalModule::from_json(Rc::clone(&A), &mut joker_json));
-        println!("M min_deg : {}, max_deg : {}", M.get_min_degree(), M.max_degree());
-        let hom = HomModule::new(Rc::clone(&F), Rc::clone(&M));
+        let hom = HomSpace::new(Rc::clone(&F), Rc::clone(&M));
         hom.compute_basis(10);
-        for i in -4 .. 10 {
-            println!("deg {} : {}", i, hom.get_dimension(i));
+        let dimensions = [1,2,3,3,3,2,1,0];
+        for i in -4 ..= 3 {
+            assert_eq!(hom.get_dimension(i), dimensions[(i + 4) as usize]);
         }
         let f_degree = 0;
         let x_degree = 4;

@@ -66,7 +66,7 @@ impl Module for FiniteDimensionalModule {
             return;
         }
         let output = self.get_action(op_degree, op_index, mod_degree, mod_index);
-        result.add(output, coeff);
+        result.shift_add(output, coeff);
     }
 }
 
