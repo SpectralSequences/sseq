@@ -19,7 +19,7 @@ pub mod finite_dimensional_module;
 pub mod free_module;
 pub mod free_module_homomorphism;
 pub mod finitely_presented_module;
-// pub mod hom_space;
+pub mod hom_space;
 pub mod chain_complex;
 pub mod resolution;
 pub mod resolution_homomorphism;

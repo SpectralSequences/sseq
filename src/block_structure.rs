@@ -8,6 +8,7 @@ pub struct GeneratorBasisEltPair {
     pub basis_index : usize,    
 }
 
+#[derive(Debug)]
 pub struct BlockStructure {
     pub total_dimension : usize,
     basis_element_to_block_idx : Vec<GeneratorBasisEltPair>,

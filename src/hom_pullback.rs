@@ -47,13 +47,14 @@ impl<M : FiniteDimensionalModuleT> ModuleHomomorphism<HomSpace<M>, HomSpace<M>> 
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_idx : usize) {
         let p = self.prime();
         let num_gens = self.map.get_source().get_number_of_gens_in_degree(input_degree);
-        let intermediate_module = self.map.get_target();
-        let intermediate_dim = intermediate_module.get_dimension(input_degree);
-        let mut scratch_vector = FpVector::get_scratch_vector(p, intermediate_dim);
-        self.map.apply_to_basis_element(&mut scratch_vector, 1, input_degree, i);
-
-        scratch_vector.slice()
-        self.target.evaluate_basis_map_on_element()
+        let old_slice = result.get_slice();
+        for i in 0 .. num_gens {
+            let output = self.map.get_output(input_degree, num_gens);
+            let (block_start, block_size) = self.target.block_structures.generator_to_block(input_degree, input_idx);
+            result.set_slice(block_start, block_start + block_size);
+            self.target.evaluate_basis_map_on_element(result, coeff, input_degree, input_idx, output);
+            result.restore_slice(old_slice);
+        }
     }
 
     fn get_lock(&self) -> MutexGuard<i32> {

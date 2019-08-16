@@ -5,6 +5,7 @@ use core::ops::Index;
 
 use bivec::BiVec;
 
+#[derive(Debug)]
 pub struct OnceVec<T> {
     data : UnsafeCell<Vec<T>>
 }
@@ -71,6 +72,7 @@ impl<T> Index<u32> for OnceVec<T> {
     }
 }
 
+#[derive(Debug)]
 pub struct OnceBiVec<T> {
     data : UnsafeCell<BiVec<T>>
 }
