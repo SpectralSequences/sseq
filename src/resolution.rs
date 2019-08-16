@@ -251,19 +251,25 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         if target_s == 0 {
             return;
         }
+        let source_s = target_s - 1;
 
-        let source = self.get_module(target_s - 1);
+        let source = self.get_module(source_s);
         let target = self.get_module(target_s);
 
         let target_dim = target.get_number_of_gens_in_degree(target_t);
-        let source_s = target_s - 1;
+        if target_dim == 0 {
+            return;
+        }
 
         for (op_name, op_degree, op_index) in &self.filtration_one_products {
             let source_t = target_t - *op_degree;
-            if target_t < self.get_min_degree(){
+            if source_t < self.get_min_degree(){
                 continue;
             }
             let source_dim = source.get_number_of_gens_in_degree(source_t);
+            if source_dim == 0 {
+                continue;
+            }
 
             let d = self.get_differential(target_s);
 

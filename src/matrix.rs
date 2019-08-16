@@ -52,11 +52,14 @@ impl Matrix {
         }
     }
 
-    /// Produces a matrix from a list of rows. This panics if `vectors.len() == 0`, since there is
-    /// no way to determine the number of columns. The function does not check if the rows have
-    /// the same length, but please only input rows that do have the same length.
+    /// Produces a matrix from a list of rows. If `vectors.len() == 0`, this returns a matrix
+    /// with 0 rows and columns.  The function does not check if the rows have the same length,
+    /// but please only input rows that do have the same length.
     pub fn from_rows(p : u32, vectors : Vec<FpVector>) -> Self {
         let rows = vectors.len();
+        if rows == 0 {
+            return Matrix::new(p, 0, 0);
+        }
         let columns = vectors[0].get_dimension();
         Matrix {
             p,
@@ -79,12 +82,23 @@ impl Matrix {
     /// let m = Matrix::from_vec(p, &input);
     pub fn from_vec(p : u32, input : &[Vec<u32>]) -> Matrix {
         let rows = input.len();
+        if rows == 0 {
+            return Matrix::new(p, 0, 0);
+        }
         let cols = input[0].len();
         let mut m = Matrix::new(p, rows, cols);
         for (i,x) in input.iter().enumerate(){
             m[i].pack(x);
         }
         m
+    }
+
+    pub fn to_vec(&self) -> Vec<Vec<u32>> {
+        let mut result = Vec::with_capacity(self.get_columns());
+        for i in 0 .. self.get_rows() {
+            result.push(self[i].to_vector());
+        }
+        result
     }
 
     /// Produces a padded augmented matrix from an `&[Vec<u32>]` object (produces [A|0|I] from

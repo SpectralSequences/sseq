@@ -10,7 +10,7 @@ use std::slice::Iter;
 /// v[1], v[2]` but not `v[3]`.
 #[derive(Debug, Clone)]
 pub struct BiVec<T> {
-    data : Vec<T>,
+    pub data : Vec<T>,
     min_degree : i32
 }
 
