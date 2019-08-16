@@ -39,6 +39,7 @@ extern crate lazy_static;
 extern crate enum_dispatch;
 
 extern crate serde_json;
+extern crate serde;
 
 #[cfg(target_arch = "wasm32")]
 extern crate wasm_bindgen;

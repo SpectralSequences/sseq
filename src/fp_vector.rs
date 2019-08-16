@@ -24,6 +24,7 @@
 
 use std::sync::Once;
 use std::fmt;
+use serde::{Serialize, Serializer};
 use enum_dispatch::enum_dispatch;
 
 use crate::combinatorics::is_valid_prime;
@@ -368,6 +369,12 @@ pub trait FpVectorT {
         for i in 0..limbs.len() {
             target_idx += FpVector::unpack_limb(p, dimension, offset, &mut target[target_idx ..], limbs, i);
         }
+    }
+
+    fn to_vector(&self) -> Vec<u32> {
+        let mut vec = vec![0; self.get_dimension()];
+        self.unpack(&mut vec);
+        vec
     }
 
     fn pack(&mut self, source : &[u32]){
@@ -815,9 +822,8 @@ impl FpVector {
         }
         return idx;
     }
-
-
 }
+
 pub struct FpVectorIterator<'a> {
     vect : &'a FpVector,
     dim : usize,
@@ -855,6 +861,13 @@ impl fmt::Display for FpVector {
     }
 }
 
+impl Serialize for FpVector {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S : Serializer,
+    {
+        self.to_vector().serialize(serializer)
+    }
+}
 
 #[cfg(test)]
 mod tests {
