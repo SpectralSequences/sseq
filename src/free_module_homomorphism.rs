@@ -91,14 +91,61 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         return &self.outputs[generator_degree][generator_index];
     }
 
-    // We don't actually mutate &mut matrix, we just slice it.
-    pub fn add_generators_from_matrix_rows(&self, lock : &MutexGuard<i32>, degree : i32, matrix : &mut Matrix, first_new_row : usize, first_target_column : usize, new_generators : usize){
+    pub fn extend_by_zero(&self, lock : &MutexGuard<i32>, degree : i32){
+        // println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
+        // println!("    dimension : {} target name : {}", dimension, self.target.get_name());
+        if degree < self.min_degree {
+            return;
+        }
+        assert!(degree >= **lock + 1);
+        let p = self.prime();
+        for i in **lock + 1 ..= degree{
+            let num_gens = self.source.get_number_of_gens_in_degree(i);
+            let dimension = self.target.get_dimension(i - self.degree_shift);
+            let mut new_outputs : Vec<FpVector> = Vec::with_capacity(num_gens);
+            for _ in 0 .. num_gens {
+                new_outputs.push(FpVector::new(p, dimension));
+            }
+            self.outputs.push(new_outputs);
+        }
+    }
+
+    // We don't actually mutate vector, we just slice it.
+    pub fn add_generators_from_big_vector(&self, lock : &MutexGuard<i32>, degree : i32, outputs_vectors : &mut FpVector){
         // println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
         // println!("    dimension : {} target name : {}", dimension, self.target.get_name());
         assert!(degree >= self.min_degree);
         assert_eq!(degree, self.outputs.len());
         assert!(degree == **lock + 1);
         let p = self.prime();
+        let new_generators = self.source.get_number_of_gens_in_degree(degree);
+        let target_dimension = self.target.get_dimension(degree - self.degree_shift);
+        let mut new_outputs : Vec<FpVector> = Vec::with_capacity(new_generators);
+        for _ in 0 .. new_generators {
+            new_outputs.push(FpVector::new(p, target_dimension));
+        }
+        if target_dimension == 0 {
+            self.outputs.push(new_outputs);
+            return;
+        }
+        for i in 0 .. new_generators {
+            let old_slice = outputs_vectors.get_slice();
+            outputs_vectors.set_slice(target_dimension * i, target_dimension * (i + 1));
+            new_outputs[i].shift_add(&outputs_vectors, 1);
+            outputs_vectors.restore_slice(old_slice);
+        }
+        self.outputs.push(new_outputs);
+    }    
+
+    // We don't actually mutate &mut matrix, we just slice it.
+    pub fn add_generators_from_matrix_rows(&self, lock : &MutexGuard<i32>, degree : i32, matrix : &mut Matrix, first_new_row : usize, first_target_column : usize){
+        // println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
+        // println!("    dimension : {} target name : {}", dimension, self.target.get_name());
+        assert!(degree >= self.min_degree);
+        assert_eq!(degree, self.outputs.len());
+        assert!(degree == **lock + 1);
+        let p = self.prime();
+        let new_generators = self.source.get_number_of_gens_in_degree(degree);
         let dimension = self.target.get_dimension(degree - self.degree_shift);
         let mut new_outputs : Vec<FpVector> = Vec::with_capacity(new_generators);
         for _ in 0 .. new_generators {
@@ -126,7 +173,8 @@ impl<M : Module> FreeModuleHomomorphism<M> {
     pub fn apply_to_basis_element_with_table(&self, result : &mut FpVector, coeff : u32, input_degree : i32, table : &FreeModuleTableEntry, input_index : usize){
         assert!(input_degree >= self.source.min_degree);
         assert!(input_index < table.basis_element_to_opgen.len());
-        assert!(self.target.get_dimension(input_degree - self.degree_shift) == result.get_dimension());
+        let output_degree = input_degree - self.degree_shift;
+        assert!(self.target.get_dimension(output_degree) == result.get_dimension());
         let operation_generator = &table.basis_element_to_opgen[input_index];
         let operation_degree = operation_generator.operation_degree;
         let operation_index = operation_generator.operation_index;

@@ -3,6 +3,10 @@ use crate::module::{Module, ZeroModule, OptionModule};
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use std::rc::Rc;
 
+pub enum ChainComplexGrading {
+    Homological,
+    Cohomological
+}
 
 pub trait ChainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
     fn prime(&self) -> u32 {
@@ -10,10 +14,32 @@ pub trait ChainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
     }
     fn get_algebra(&self) -> Rc<AlgebraAny>;
     fn get_min_degree(&self) -> i32;
+    fn get_zero_module(&self) -> Rc<M>;
     fn get_module(&self, homological_degree : u32) -> Rc<M>;
     fn get_differential(&self, homological_degree : u32) -> Rc<F>;
     fn compute_through_bidegree(&self, homological_degree : u32, degree : i32);
+
+    fn compute_homology(&self, homological_degree : u32, degree : i32){
+
+    }
 }
+
+pub trait CochainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
+    fn prime(&self) -> u32 {
+        self.get_algebra().prime()
+    }
+    fn get_algebra(&self) -> Rc<AlgebraAny>;
+    fn get_min_degree(&self) -> i32;
+    fn get_zero_module(&self) -> Rc<M>;
+    fn get_module(&self, homological_degree : u32) -> Rc<M>;
+    fn get_differential(&self, homological_degree : u32) -> Rc<F>;
+    fn compute_through_bidegree(&self, homological_degree : u32, degree : i32);
+
+    fn compute_cohomology(&self, homological_degree : u32, degree : i32){
+        
+    }
+}
+
 
 pub struct ChainComplexConcentratedInDegreeZero<M : Module> {
     module : Rc<OptionModule<M>>,
@@ -41,6 +67,11 @@ impl<M : Module> ChainComplexConcentratedInDegreeZero<M> {
 impl<M : Module> ChainComplex<OptionModule<M>, ZeroHomomorphism<OptionModule<M>, OptionModule<M>>> for ChainComplexConcentratedInDegreeZero<M> {
     fn get_algebra(&self) -> Rc<AlgebraAny> {
         self.module.get_algebra()
+    }
+
+
+    fn get_zero_module(&self) -> Rc<OptionModule<M>>{
+        Rc::clone(&self.zero_module)
     }
 
     fn get_module(&self, homological_degree : u32) -> Rc<OptionModule<M>> {

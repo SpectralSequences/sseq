@@ -81,7 +81,7 @@ impl<
         let num_gens = f_cur.get_source().get_number_of_gens_in_degree(input_internal_degree);
         let mut outputs = self.extend_step_helper(input_homological_degree, input_internal_degree, extra_images);
         let mut lock = f_cur.get_lock();
-        f_cur.add_generators_from_matrix_rows(&lock, input_internal_degree, &mut outputs, 0, 0, num_gens);
+        f_cur.add_generators_from_matrix_rows(&lock, input_internal_degree, &mut outputs, 0, 0);
         *lock += 1;
     }
 

@@ -19,9 +19,10 @@ pub mod finite_dimensional_module;
 pub mod free_module;
 pub mod free_module_homomorphism;
 pub mod finitely_presented_module;
+pub mod chain_complex;
 pub mod hom_space;
 pub mod hom_pullback;
-pub mod chain_complex;
+pub mod hom_complex;
 pub mod resolution;
 pub mod resolution_homomorphism;
 #[cfg(target_arch = "wasm32")]

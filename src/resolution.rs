@@ -138,6 +138,10 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         Rc::clone(&self.modules[homological_degree as usize])
     }
 
+    pub fn get_zero_module(&self) -> Rc<FreeModule> {
+        Rc::clone(&self.zero_module)
+    }
+
     pub fn get_number_of_gens_in_bidegree(&self, homological_degree : u32, internal_degree : i32) -> usize {
         self.get_module(homological_degree).get_number_of_gens_in_degree(internal_degree)
     }
@@ -300,12 +304,6 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         }
     }
 
-    // pub fn set_empty(&self, homological_degree : u32, degree : i32){
-    //     let current_differential = self.get_differential(homological_degree);
-    //     let source = current_differential.source;
-    //     let source_module_table = source.construct_table(degree);
-    // }
-
     /// Call our resolution $X$, and the chain complex to resolve $C$. This is a legitimate
     /// resolution if the map $f: X \to C$ induces an isomorphism on homology. This is the same as
     /// saying the cofiber is exact. The cofiber is given by the complex
@@ -467,17 +465,15 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             num_new_gens += matrix.extend_image(first_new_row + num_new_gens, padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension, &pivots, old_kernel).len();
         }
         source.add_generators(degree, source_lock, source_module_table, num_new_gens, None);
-        current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, degree, &mut matrix, first_new_row, 0, num_new_gens);
-        current_differential.add_generators_from_matrix_rows(&differential_lock, degree, &mut matrix, first_new_row, padded_target_cc_dimension, num_new_gens);
+        current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, degree, &mut matrix, first_new_row, 0);
+        current_differential.add_generators_from_matrix_rows(&differential_lock, degree, &mut matrix, first_new_row, padded_target_cc_dimension);
 
         // Record the quasi-inverses for future use.
         // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
         let image_rows = first_new_row + num_new_gens;
-        // println!("{}",matrix);
         for i in first_new_row .. image_rows {
             matrix[i].set_entry(padded_target_dimension + i, 1);
         }
-        // println!("{}",matrix);
         matrix.set_slice(0, image_rows, 0, padded_target_dimension + source_dimension + num_new_gens); 
         let mut new_pivots = vec![-1;matrix.get_columns()];
         matrix.row_reduce(&mut new_pivots);
@@ -487,7 +483,6 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             padded_target_cc_dimension + target_res_dimension,
             padded_target_dimension
         );
-        // assert!(res_qi)
 
         current_chain_map.set_quasi_inverse(&chain_map_lock, degree, cm_qi);
         current_differential.set_quasi_inverse(&differential_lock, degree, res_qi);
@@ -598,8 +593,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
 
     /// Target = result of the product
     /// Source = multiplicand
-    fn compute_product_step(&self, elt : &Cocycle, target_s : u32, target_t : i32)
-    {
+    fn compute_product_step(&self, elt : &Cocycle, target_s : u32, target_t : i32) {
         let source_s = target_s - elt.s;
         let source_t = target_t - elt.t;
 
@@ -742,6 +736,10 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
         self.get_complex().get_algebra()
     }
 
+    fn get_zero_module(&self) -> Rc<FreeModule> {
+        Rc::clone(&self.zero_module)
+    }
+
     fn get_module(&self, homological_degree : u32) -> Rc<FreeModule> {
         self.get_module(homological_degree)
     }
@@ -754,9 +752,8 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
         Rc::clone(&self.differentials[homological_degree as usize])
     }
 
-    // TODO: implement this.
     fn compute_through_bidegree(&self, hom_deg : u32, int_deg : i32) {
-
+        self.resolve_through_bidegree(hom_deg, int_deg);
     }
 
     // fn computed_through_bidegree_q(&self, hom_deg : u32, int_deg : i32) -> bool {
