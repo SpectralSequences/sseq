@@ -278,6 +278,9 @@ export class UnitDisplay extends Display {
 
         document.querySelector("#modal-ok").addEventListener("click", () => {
             let name = prompt("Name for product");
+            if (name === null) {
+                return;
+            }
             let permanent = confirm("Permanent class?");
             webSocket.send(JSON.stringify({
                 recipient : "resolver",

@@ -725,11 +725,11 @@ impl<M, F, CC> Resolution<M, F, CC> where
             let target_dim = target.get_number_of_gens_in_degree(target_t);
 
             if source_dim == 0 {
-                return;
+                continue;
             }
 
             if target_dim == 0 {
-                return;
+                continue;
             }
 
             let mut products = vec![Vec::with_capacity(target_dim); source_dim];
