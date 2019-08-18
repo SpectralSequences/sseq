@@ -48,12 +48,13 @@
     <div id="main"></div>
     <script src="bundle.js" type="text/javascript"></script>
     <script src="display.js" type="module"></script>
+    <script src="sseq.js" type="module"></script>
     <script src="index.js" type="module"></script>
     <div id="overlay" style="display: none"></div>
     <div id="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="modal-title">Select element to multiply wiith</h5>
+          <h5 class="modal-title" id="modal-title">Select element to multiply with</h5>
           <button type="button" class="close close-modal" aria-label="Close">
             <span aria-hidden="true">&times;</span>
           </button>
@@ -64,6 +65,7 @@
           <button type="button" id="modal-more" class="btn btn-link">Show more</button>
           <span style="flex-grow: 1"></span>
           <button type="button" class="btn btn-secondary close-modal" data-dismiss="modal">Close</button>
+          <button type="button" id="modal-diff" class="btn btn-primary">Add differential</button>
           <button type="button" id="modal-ok" class="btn btn-primary">OK</button>
         </div>
       </div>
