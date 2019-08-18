@@ -142,6 +142,7 @@ impl WasmResolution {
             move | name : &str, 
                 source_hom_deg : u32, source_int_deg : i32,
                 target_hom_deg : u32, target_int_deg : i32,
+                _ : bool,
                 products : Vec<Vec<u32>>|
         {
             let this = JsValue::NULL;

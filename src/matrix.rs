@@ -519,9 +519,24 @@ impl Subspace {
         }
     }
 
+    pub fn contains(&self, vector : &FpVector) -> bool {
+        let mut vector = vector.clone();
+        self.reduce(&mut vector);
+        vector.is_zero()
+    }
+
+    pub fn dimension(&self) -> usize {
+        for &i in self.column_to_pivot_row.iter().rev() {
+            if i >= 0 {
+                return i as usize + 1 ;
+            }
+        }
+        return 0;
+    }
+
     /// Returns a basis of the subspace
-    pub fn get_basis(&self) -> &Vec<FpVector> {
-        &self.matrix.vectors
+    pub fn get_basis(&self) -> &[FpVector] {
+        &self.matrix.vectors[..self.dimension()]
     }
 }
 

@@ -1,6 +1,7 @@
 use core::ops::Index;
 use core::ops::IndexMut;
 use std::slice::Iter;
+use serde::{Serialize, Serializer};
 
 /// A BiVec is like a Vec, except we allow indices to be negative. It has a min_degree
 /// property which tells us where the starting index is.
@@ -71,6 +72,9 @@ impl<T> BiVec<T> {
         self.data.push(x);
     }
 
+    pub fn last(&self) -> Option<&T> {
+        self.data.last()
+    }
     pub fn iter(&self) -> Iter<T> {
         self.data.iter()
     }
@@ -97,7 +101,13 @@ impl<T> BiVec<T> {
     }
 }
 
-
+impl<T : Serialize> Serialize for BiVec<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S : Serializer
+    {
+        self.data.serialize(serializer) // Do better than this
+    }
+}
 
 impl<T> Index<i32> for BiVec<T> {
     type Output = T;

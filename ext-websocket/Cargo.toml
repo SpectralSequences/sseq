@@ -9,4 +9,6 @@ edition = "2018"
 [dependencies]
 ws = "*"
 serde_json = "*"
+serde = { version = "*", features = ["derive"] }
 rust_ext = { path = "../" }
+bivec = { path = "../bivec" }

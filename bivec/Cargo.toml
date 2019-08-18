@@ -5,3 +5,4 @@ authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dexter@math.harvard.edu>
 edition = "2018"
 
 [dependencies]
+serde = "*"
