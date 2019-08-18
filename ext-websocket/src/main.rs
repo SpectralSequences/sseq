@@ -68,10 +68,22 @@ impl ResolutionManager {
                 Some("resolve_json") => manager.construct_resolution_json(json)?,
                 Some("resolve_further") => manager.resolve_further(json)?,
                 Some("add_product") => manager.add_product(json)?,
+                Some("add_product_differential") => manager.add_product_differential(json)?,
                 Some("query_table") => manager.query_table(json)?,
                 _ => {println!("ResolutionManager ignoring message:\n{:#}", json);}
             };
         }
+        Ok(())
+    }
+
+    fn add_product_differential(&mut self, json : Value) -> Result<(), Box<dyn Error>> {
+        let source = json["source"].clone();
+        let target = json["target"].clone();
+
+        self.sender.send(json)?;
+
+        self.add_product(source)?;
+        self.add_product(target)?;
         Ok(())
     }
 
@@ -82,6 +94,7 @@ impl ResolutionManager {
         let idx = json["idx"].as_u64().unwrap() as usize;
         let name = json["name"].as_str().unwrap().to_string();
 
+        self.sender.send(json)?;
         self.resolution().borrow_mut().add_product(s, t, idx, name);
         self.resolution().borrow().catch_up_products();
         Ok(())
@@ -268,6 +281,8 @@ impl SseqManager {
                 Some("queryTableResult") => manager.relay(json)?,
                 Some("add_differential") => manager.add_differential(json)?,
                 Some("add_permanent") => manager.add_permanent(json)?,
+                Some("add_product") => manager.add_product(json)?,
+                Some("add_product_differential") => manager.add_product_differential(json)?,
                 Some("addClass") => manager.add_class(json)?,
                 Some("addStructline") => manager.add_structline(json)?,
                 _ => {println!("SseqManager ignoring message:\n{:#}", json);}
@@ -299,6 +314,36 @@ impl SseqManager {
         }
     }
 
+    fn add_product_differential(&mut self, mut json : Value) -> Result<(), Box<dyn Error>> {
+        let source = json["source"].take();
+        let target = json["target"].take();
+        let source_name = source["name"].as_str().unwrap().to_string();
+        let target_name = target["name"].as_str().unwrap().to_string();
+
+        self.add_product(source)?;
+        self.add_product(target)?;
+
+        let origin = json["origin"].as_str();
+
+        if let Some(sseq) = self.get_sseq(origin) {
+            sseq.add_product_differential(source_name, target_name);
+        }
+        Ok(())
+    }
+
+    fn add_product(&mut self, json : Value) -> Result<(), Box<dyn Error>> {
+        let s = json["s"].as_u64().unwrap() as i32;
+        let t = json["t"].as_i64().unwrap() as i32;
+        let name = json["name"].as_str().unwrap();
+        let permanent = json["permanent"].as_bool().unwrap();
+        let origin = json["origin"].as_str();
+
+        if let Some(sseq) = self.get_sseq(origin) {
+            sseq.add_product_empty(name, t - s, s, true, permanent);
+        }
+        Ok(())
+    }
+
     fn add_permanent(&mut self, mut json : Value) -> Result<(), Box<dyn Error>> {
         let x = json["x"].as_i64().unwrap() as i32;
         let y = json["y"].as_i64().unwrap() as i32;
@@ -308,7 +353,6 @@ impl SseqManager {
 
         if let Some(sseq) = self.get_sseq(origin) {
             sseq.add_permanent_class_propagate(x, y, &FpVector::from_vec(sseq.p, &class), 0);
-//            sseq.add_permanent_class(x, y, &FpVector::from_vec(sseq.p, &class));
         }
         Ok(())
     }
