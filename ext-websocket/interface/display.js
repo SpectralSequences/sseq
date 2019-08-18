@@ -203,6 +203,7 @@ export class MainDisplay extends SidebarDisplay {
             case STATE_ADD_DIFFERENTIAL:
                 if (this.selected) {
                     this.sseq.addDifferentialInteractive(this.selected, node);
+                    this.state = null;
                     break;
                 }
             default:

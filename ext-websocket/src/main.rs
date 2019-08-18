@@ -323,7 +323,7 @@ impl SseqManager {
         let origin = json["origin"].as_str();
 
         if let Some(sseq) = self.get_sseq(origin) {
-            sseq.add_differential_propagate(r, x, y, &FpVector::from_vec(sseq.p, &source), &FpVector::from_vec(sseq.p, &target), 0);
+            sseq.add_differential_propagate(r, x, y, &FpVector::from_vec(sseq.p, &source), &mut FpVector::from_vec(sseq.p, &target), 0);
         }
         Ok(())
     }

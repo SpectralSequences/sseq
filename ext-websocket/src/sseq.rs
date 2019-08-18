@@ -105,6 +105,18 @@ impl Differential {
                 (source, target)
             }).collect::<Vec<_>>()
     }
+
+    /// Given a subspace of the target space, project the target vectors to the complement.
+    pub fn reduce_target(&mut self, zeros : &Subspace) {
+        assert_eq!(zeros.matrix.get_columns(), self.target_dim);
+
+        self.matrix.set_slice(0, self.matrix.get_rows(), self.source_dim, self.source_dim + self.target_dim);
+        for i in 0 .. self.matrix.get_rows() {
+            zeros.shift_reduce(&mut self.matrix[i]);
+        }
+        self.matrix.clear_slice();
+    }
+
     /// This evaluates the differential on `source`, adding the result to `target`. This assumes
     /// all unspecified differentials are zero. More precisely, it assumes every non-pivot column
     /// of the differential matrix has zero differential. This may or may not be actually true
@@ -212,6 +224,15 @@ impl Sseq {
                 "command": "setPageList",
                 "page_list": self.page_list
             }));
+        }
+    }
+
+    fn add_zeros(&mut self, r : i32, x : i32, y : i32, target : &FpVector) {
+        for r_ in r .. self.zeros[x][y].len() {
+            self.zeros[x][y][r_].add_vector(target);
+            if self.differentials[x + 1][y - r].len() > r_ {
+                self.differentials[x + 1][y - r][r_].reduce_target(&self.zeros[x][y][r_]);
+            }
         }
     }
 
@@ -504,8 +525,8 @@ impl Sseq {
             let d = &mut self.differentials[x][y][r];
             let pairs = d.get_source_target_pairs();
             true_differentials.push(pairs.into_iter()
-                .map(|(s, t)| (express_basis(s, Some(self.get_page_zeros(r, x, y)), &self.page_classes[x][y][r]),
-                               express_basis(t, Some(self.get_page_zeros(r, x - 1, y + r)), &self.page_classes[x - 1][y + r][r])))
+                .map(|(s, t)| (express_basis(s, Some(self.get_page_zeros(r, x, y)), &self.get_page_classes(r, x, y)),
+                               express_basis(t, Some(self.get_page_zeros(r, x - 1, y + r)), &self.get_page_classes(r, x - 1, y + r))))
                 .collect::<Vec<_>>())
         }
 
@@ -644,10 +665,11 @@ impl Sseq {
         self.compute_classes(x, y);
     }
 
-    /// Add a differential starting at (x, y)
+    /// Add a differential starting at (x, y). This mutates the target by reducing it via
+    /// `self.zeros[x - 1][y + r][r]`
     ///
     /// Panics if the target of the differential is not yet defined
-    pub fn add_differential(&mut self, r : i32, x : i32, y : i32, source : &FpVector, target : &FpVector) {
+    pub fn add_differential(&mut self, r : i32, x : i32, y : i32, source : &FpVector, target : &mut FpVector) {
         assert_eq!(source.get_dimension(), self.classes[x][y], "length of source vector not equal to dimension of source");
         assert_eq!(target.get_dimension(), self.classes[x - 1][y + r], "length of target vector not equal to dimension of target");
 
@@ -658,7 +680,9 @@ impl Sseq {
             }
         }
 
-        self.differentials[x][y][r].add(source, Some(target));
+        self.get_page_zeros(r, x - 1, y + r).reduce(target);
+
+        self.differentials[x][y][r].add(source, Some(&target));
         for i in MIN_PAGE .. r {
             self.differentials[x][y][i].add(source, None)
         }
@@ -669,9 +693,7 @@ impl Sseq {
             }
         }
 
-        for i in r + 1 .. self.zeros[x - 1][y + r].len() {
-            self.zeros[x - 1][y + r][i].add_vector(target);
-        }
+        self.add_zeros(r + 1, x - 1, y + r, target);
         // add_permanent_class in turn sets the differentials on the targets of the differentials
         // to 0.
         self.add_permanent_class(x - 1, y + r, target);
@@ -694,7 +716,7 @@ impl Sseq {
     /// have to exercise a slight bit of care to ensure we don't set both $p_1 p_2 d$ and $p_2 p_1
     /// d$ when $p_1$, $p_2$ are products and $d$ is the differential. Our strategy is that we
     /// compute $p_2 p_1 d$ if and only if $p_1$ comes earlier in the list of products than $p_2$.
-    pub fn add_differential_propagate(&mut self, r : i32, x : i32, y : i32, source : &FpVector, target : &FpVector, product_index : usize) {
+    pub fn add_differential_propagate(&mut self, r : i32, x : i32, y : i32, source : &FpVector, target : &mut FpVector, product_index : usize) {
         if product_index == self.products.len() - 1 {
             self.add_differential(r, x, y, source, target);
         } else if product_index < self.products.len() - 1 {
@@ -703,8 +725,8 @@ impl Sseq {
 
         let new_d = self.product_differential(r, x, y, source, target, &self.products[product_index]);
 
-        if let Some((new_x, new_y, new_source, new_target)) = new_d {
-            self.add_differential_propagate(r, new_x, new_y, &new_source, &new_target, product_index);
+        if let Some((new_x, new_y, new_source, mut new_target)) = new_d {
+            self.add_differential_propagate(r, new_x, new_y, &new_source, &mut new_target, product_index);
         }
     }
 
@@ -782,8 +804,8 @@ impl Sseq {
             let d = &mut self.differentials[x + 1][y - r][r];
             for (source, target) in d.get_source_target_pairs() {
                 let new_d = self.product_differential(r, x + 1, y - r, &source, &target, &self.products[idx]);
-                if let Some((x_, y_, source_, target_)) = new_d {
-                    self.add_differential(r, x_, y_, &source_, &target_);
+                if let Some((x_, y_, source_, mut target_)) = new_d {
+                    self.add_differential(r, x_, y_, &source_, &mut target_);
                 }
             }
         }
