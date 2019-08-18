@@ -30,7 +30,7 @@ function promptInteger(text, error) {
     while (true) {
         let response = prompt(text);
         if (!response) {
-            return;
+            return null;
         }
         let c = parseInt(response.trim());
         if (!isNaN(c)) {
@@ -250,7 +250,7 @@ export class ExtSseq extends EventEmitter {
         this.classes.set([x, y], classes);
         this.permanentClasses.set([x, y], data.permanents);
 
-        this.emit("update");
+        this.emit("update", x, y);
     }
 
     _setDifferential(data) {
@@ -281,7 +281,7 @@ export class ExtSseq extends EventEmitter {
         this.differentials.set([x, y], differentials);
         data.true_differentials.splice(0, 0, undefined, undefined);
         this.trueDifferentials.set([x, y], data.true_differentials);
-        this.emit("update");
+        this.emit("update", x, y);
     }
 
     _setStructline(data) {
@@ -291,7 +291,10 @@ export class ExtSseq extends EventEmitter {
         let structlines = [];
         let products = [];
         for (let mult of data.structlines) {
-            this.structlineTypes.add(mult["name"]);
+            if (!this.structlineTypes.has(mult["name"])) {
+                this.structlineTypes.add(mult["name"]);
+                this.emit("new-structline");
+            }
 
             for (let [page, matrix] of mult["matrices"].entries()) {
                 page = page + 2;
@@ -314,6 +317,8 @@ export class ExtSseq extends EventEmitter {
                     products[page] = [];
                 products[page].push({
                     name : name,
+                    x : multX,
+                    y : multY,
                     matrix : matrix
                 });
                 this.maxMultX = Math.max(this.maxMultX, multX);
@@ -323,7 +328,7 @@ export class ExtSseq extends EventEmitter {
 
         this.structlines.set([x, y], structlines);
         this.products.set([x, y], products);
-        this.emit("update");
+        this.emit("update", x, y);
     }
 
     getDrawnElements(page, xmin, xmax, ymin, ymax) {

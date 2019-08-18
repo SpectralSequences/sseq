@@ -437,6 +437,9 @@ pub trait FpVectorT {
         debug_assert!(self.get_offset() >= other.get_offset());
         debug_assert!(self.get_dimension() == other.get_dimension(),
             format!("self.dim {} not equal to other.dim {}", self.get_dimension(), other.get_dimension()));
+        if self.get_dimension() == 0 {
+            return;
+        }
         let p = self.prime();
         debug_assert!(c < p);
         let offset_shift = self.get_offset() - other.get_offset();
@@ -481,6 +484,9 @@ pub trait FpVectorT {
         debug_assert!(self.get_offset() <= other.get_offset());
         debug_assert!(self.get_dimension() == other.get_dimension(),
             format!("self.dim {} not equal to other.dim {}", self.get_dimension(), other.get_dimension()));
+        if self.get_dimension() == 0 {
+            return;
+        }
         let p = self.prime();
         debug_assert!(c < p);
         let offset_shift = other.get_offset() - self.get_offset();

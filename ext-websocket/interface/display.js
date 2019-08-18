@@ -103,7 +103,27 @@ class ClassPanel extends Panel.Panel {
         let products = sseq.getProducts(x, y, page);
         if (products) {
             for (let prod of products) {
-                this.addLine(`${Interface.renderMath(prod.name)}: ${matrixToKaTeX(prod.matrix)}`);
+                let node = document.createElement("div");
+                node.style = "padding: 0.75rem 0";
+                node.addEventListener("mouseover", () => {
+                    node.style = "padding: 0.75rem 0; color: blue; font-weight: bold";
+                    let prod_classes = sseq.getClasses(x + prod.x, y + prod.y, page);
+                    for (let c of prod_classes) {
+                        c.highlight = true;
+                    }
+                    this.display.update();
+                });
+                node.addEventListener("mouseout", () => {
+                    node.style = "padding: 0.75rem 0";
+                    let prod_classes = sseq.getClasses(x + prod.x, y + prod.y, page);
+                    for (let c of prod_classes) {
+                        c.highlight = false;
+                    }
+                    this.display.update();
+                });
+
+                node.innerHTML = `${Interface.renderMath(prod.name)}: ${matrixToKaTeX(prod.matrix)}`;
+                this.addObject(node);
             }
         }
     }
@@ -131,10 +151,9 @@ export class MainDisplay extends SidebarDisplay {
         this.selected = null;
         this.tooltip = new Tooltip(this);
         this.on("mouseover", this._onMouseover.bind(this));
-
         this.on("mouseout", this._onMouseout.bind(this));
-
         this.on("click", this.__onClick.bind(this));
+        this.on("page-change", this._unselect.bind(this));
 
         Mousetrap.bind('left',  this.previousPage);
         Mousetrap.bind('right', this.nextPage);
@@ -158,7 +177,7 @@ export class MainDisplay extends SidebarDisplay {
         this.sidebar.footer.addButton("Resolve further", this.sseq.resolveFurther.bind(this.sseq));
         this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG("sseq.svg"));
 
-        sseq.on("update", this.sidebar.showPanel.bind(this.sidebar));
+        sseq.on("update", (x, y) => { if (this.selected && this.selected.x == x && this.selected.y == y) this.sidebar.showPanel() });
     }
 
     _onMouseover(node) {
