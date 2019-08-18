@@ -271,6 +271,11 @@ export class UnitDisplay extends Display {
             c.addEventListener("click", this.closeModal.bind(this));
         });
 
+        document.querySelector("#modal-diff").addEventListener("click", () => {
+            document.querySelector("#modal-title").innerHTML = "Select target element";
+            this.state = STATE_ADD_DIFFERENTIAL;
+        });
+
         document.querySelector("#modal-ok").addEventListener("click", () => {
             let name = prompt("Name for product");
             let permanent = confirm("Permanent class?");
@@ -298,6 +303,7 @@ export class UnitDisplay extends Display {
         this.sseq.resolveFurther(10);
         document.querySelector("#overlay").style.removeProperty("display");
         document.querySelector("#modal-ok").disabled = true;
+        document.querySelector("#modal-diff").disabled = true;
         let dialog = document.querySelector("#modal-dialog");
         dialog.classList.add("modal-shown");
     }
@@ -315,9 +321,45 @@ export class UnitDisplay extends Display {
             return;
         }
 
+        if (this.state == STATE_ADD_DIFFERENTIAL) {
+            if (node.x == this.selected.x - 1 && node.y >= this.selected.y + 2) {
+                let check = confirm(`Add differential from (${this.selected.x}, ${this.selected.y}, ${this.selected.idx}) to (${node.x}, ${node.y}, ${node.idx})?`);
+                if (check) {
+                    webSocket.send(JSON.stringify({
+                        recipient : "resolver",
+                        origin : "main",
+                        command : "add_product_differential",
+                        source: {
+                            command : "add_product",
+                            origin : "main",
+                            permanent: false,
+                            s: this.selected.y,
+                            t: this.selected.x + this.selected.y,
+                            idx : this.selected.idx,
+                            name: prompt("Name of source").trim()
+                        },
+                        target: {
+                            command : "add_product",
+                            origin : "main",
+                            permanent: false,
+                            s: node.y,
+                            t: node.x + node.y,
+                            idx : node.idx,
+                            name: prompt("Name of target").trim()
+                        }
+                    }));
+                    this.state = null;
+                    this.closeModal();
+                }
+            } else {
+                alert("Invalid target for differential");
+            }
+        }
+
         this._unselect();
         this.selected = node;
         document.querySelector("#modal-ok").disabled = false;
+        document.querySelector("#modal-diff").disabled = false;
     }
 
     _unselect() {
@@ -325,6 +367,7 @@ export class UnitDisplay extends Display {
         this.selected.highlight = false;
         this.selected = null;
         this.update();
+        document.querySelector("#modal-title").innerHTML = "Select element to multiply with";
         document.querySelector("#modal-ok").disabled = true;
     }
 }
