@@ -231,9 +231,9 @@ impl Sseq {
     fn add_zeros(&mut self, r : i32, x : i32, y : i32, target : &FpVector) {
         for r_ in r .. self.zeros[x][y].len() {
             self.zeros[x][y][r_].add_vector(target);
-            if self.class_defined(x + 1, y - r) {
-                if self.differentials[x + 1][y - r].len() > r_ {
-                    self.differentials[x + 1][y - r][r_].reduce_target(&self.zeros[x][y][r_]);
+            if self.class_defined(x + 1, y - r_) {
+                if self.differentials[x + 1][y - r_].len() > r_ {
+                    self.differentials[x + 1][y - r_][r_].reduce_target(&self.zeros[x][y][r_]);
                 }
             }
         }
