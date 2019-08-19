@@ -939,12 +939,7 @@ impl Sseq {
             self.products[idx].matrices[x].push(None);
         }
 
-        if y != self.products[idx].matrices[x].len() {
-            // We have added this product before. This may happen when
-            // Resolution::catch_up_products() is called despite no new product being
-            // added (when we repeat a product)
-            return;
-        }
+        assert_eq!(y, self.products[idx].matrices[x].len());
         self.products[idx].matrices[x].push(Some(Matrix::from_vec(self.p, matrix)));
         self.propagate_along_permanent_product(x, y, idx);
 

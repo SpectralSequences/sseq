@@ -124,8 +124,9 @@ impl ActionT for AddProductType {
         let s = self.y as u32;
         let t = self.x + self.y;
 
-        resolution.borrow_mut().add_product(s, t, self.idx, &self.name);
-        resolution.borrow().catch_up_products();
+        if resolution.borrow_mut().add_product(s, t, self.idx, &self.name) {
+            resolution.borrow().catch_up_products();
+        }
     }
 }
 

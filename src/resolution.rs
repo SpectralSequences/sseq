@@ -495,7 +495,9 @@ impl<M, F, CC> Resolution<M, F, CC> where
     F : ModuleHomomorphism<M, M>,
     CC : ChainComplex<M, F>
 {
-    pub fn add_product(&mut self, s : u32, t : i32, index : usize, name : &str) {
+    /// The return value is whether the product was actually added. If the product is already
+    /// present, we do nothing.
+    pub fn add_product(&mut self, s : u32, t : i32, index : usize, name : &str) -> bool {
         let name = name.to_string();
         if !self.product_names.contains(&name) {
             self.product_names.insert(name.clone());
@@ -507,6 +509,9 @@ impl<M, F, CC> Resolution<M, F, CC> where
             // We must add a product into product_list before calling compute_products, since
             // compute_products aborts when product_list is empty.
             self.product_list.push(Cocycle { s, t, index, name });
+            true
+        } else {
+            false
         }
     }
 
@@ -660,7 +665,9 @@ impl<M, F, CC> Resolution<M, F, CC> where
     F : ModuleHomomorphism<M, M>,
     CC : ChainComplex<M, F>
 {
-    pub fn add_self_map(&mut self, s : u32, t : i32, name : &str, map_data : Matrix) {
+    /// The return value is whether the self map was actually added. If the self map is already
+    /// present, we do nothing.
+    pub fn add_self_map(&mut self, s : u32, t : i32, name : &str, map_data : Matrix) -> bool {
         let name = name.to_string();
         if !self.product_names.contains(&name) {
             if let Some(self_) = &self.self_ {
@@ -671,6 +678,9 @@ impl<M, F, CC> Resolution<M, F, CC> where
                         map : ResolutionHomomorphism::new("".to_string(), self_.clone(), self_.clone(), s, t)
                     });
             }
+            true
+        } else {
+            false
         }
     }
 
