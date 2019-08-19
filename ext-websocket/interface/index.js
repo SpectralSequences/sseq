@@ -22,35 +22,54 @@ if (!params.module) {
 } else {
     let maxDegree = parseInt(params.degree ? params.degree : 50);
 
-    openWebSocket(
+    openWebSocket([
         {
-            recipient: "resolver",
-            command : "resolve",
-            algebra : "adem",
-            module : params.module,
-            maxDegree : maxDegree
-        });
+            recipients: ["Resolver"],
+            sseq : "Main",
+            action : {
+                "Construct": {
+                    algebra_name : "adem",
+                    module_name : params.module,
+                }
+            }
+        },
+        {
+            recipients: ["Resolver"],
+            sseq : "Main",
+            action : {
+                "Resolve": {
+                    max_degree : maxDegree
+                }
+            }
+        },
+    ]);
 }
 
 function openWebSocket(initialData, maxDegree) {
     window.webSocket = new WebSocket(`ws://${window.location.host}/ws`);
 
     webSocket.onopen = function(e) {
-        webSocket.send(JSON.stringify(initialData));
+        for (let data of initialData) {
+            webSocket.send(JSON.stringify(data));
+        }
     };
 
     webSocket.onmessage = function(e) {
         let data = JSON.parse(e.data);
         try {
-            switch (data.recipient) {
-                case "main":
-                    window.mainSseq["_" + data.command](data);
-                    break;
-                case "unit":
-                    window.unitSseq["_" + data.command](data);
-                    break;
-                default:
-                    messageHandler[data.command](data);
+            let command = Object.keys(data.action)[0];
+            if (messageHandler[command]) {
+                messageHandler[command](data.action[command], data);
+            } else {
+                switch (data.sseq) {
+                    case "Main":
+                        window.mainSseq["process" + command](data.action[command]);
+                        break;
+                    case "Unit":
+                        window.unitSseq["process" + command](data.action[command]);
+                        break;
+                    default:
+                }
             }
         } catch (err) {
             console.log("Unable to process message");
@@ -71,13 +90,14 @@ function setUnitRange() {
 window.setUnitRange = setUnitRange;
 
 let messageHandler = {};
-messageHandler.resolving = (data) => {
+messageHandler.Resolving = (data, msg) => {
+    if (msg.sseq == "Unit") { return; }
     if (!window.mainSseq) {
-        window.mainSseq = new ExtSseq("main", window.webSocket);
-        window.unitSseq = new ExtSseq("unit", window.webSocket);
+        window.mainSseq = new ExtSseq("Main", window.webSocket);
+        window.unitSseq = new ExtSseq("Unit", window.webSocket);
     }
 
-    window.mainSseq._resolving(data);
+    window.mainSseq.processResolving(data);
 
     unitSseq.maxDegree = 9;
     setUnitRange();
@@ -90,11 +110,11 @@ messageHandler.resolving = (data) => {
     display.runningSign.style.removeProperty("display");
 }
 
-messageHandler.complete = function (m) {
+messageHandler.Complete = function (m) {
     display.runningSign.style.display = "none";
 }
 
-messageHandler.queryTableResult = function (m) {
+messageHandler.QueryTableResult = function (m) {
     console.log(`Table for (t - s, s) = (${m.t - m.s}, ${m.s}):`);
     console.log(m.string);
 }
@@ -106,15 +126,27 @@ document.getElementById("json-upload").addEventListener("change", function() {
     let file = document.getElementById("json-upload").files[0];
     let fileReader = new FileReader();
     fileReader.onload = e => {
-        openWebSocket(
+        openWebSocket([
             {
-                recipient : "resolver",
-                command : "resolve_json",
-                algebra : "adem",
-                data : e.target.result,
-                maxDegree : maxDegree
-            }
-        );
+                recipients: ["Resolver"],
+                sseq : "Main",
+                action : {
+                    "ConstructJson": {
+                        algebra_name : "adem",
+                        data : e.target.result,
+                    }
+                }
+            },
+            {
+                recipients: ["Resolver"],
+                sseq : "Main",
+                action : {
+                    "Resolve": {
+                        max_degree : maxDegree
+                    }
+                }
+            },
+        ]);
     };
     fileReader.readAsText(file, "UTF-8");
     document.querySelector("#home").style.display = "none";

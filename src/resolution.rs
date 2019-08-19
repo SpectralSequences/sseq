@@ -492,7 +492,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
     F : ModuleHomomorphism<M, M>,
     CC : ChainComplex<M, F>
 {
-    pub fn add_product(&mut self, s : u32, t : i32, index : usize, name : String) {
+    pub fn add_product(&mut self, s : u32, t : i32, index : usize, name : &str) {
         self.construct_unit_resolution();
         if s > self.max_product_homological_degree {
             self.max_product_homological_degree = s;
@@ -500,7 +500,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
 
         // We must add a product into product_list before calling compute_products, since
         // compute_products aborts when product_list is empty.
-        self.product_list.push(Cocycle { s, t, index, name: name.clone() });
+        self.product_list.push(Cocycle { s, t, index, name: name.to_string() });
     }
 
     /// This function computes the products between the element most recently added to product_list
@@ -653,11 +653,11 @@ impl<M, F, CC> Resolution<M, F, CC> where
     F : ModuleHomomorphism<M, M>,
     CC : ChainComplex<M, F>
 {
-    pub fn add_self_map(&mut self, s : u32, t : i32, name : String, map_data : Matrix) {
+    pub fn add_self_map(&mut self, s : u32, t : i32, name : &str, map_data : Matrix) {
         if let Some(self_) = &self.self_ {
             self.self_maps.push(
                 SelfMap {
-                    s, t, name, map_data : TempStorage::new(map_data),
+                    s, t, name : name.to_string(), map_data : TempStorage::new(map_data),
                     map : ResolutionHomomorphism::new("".to_string(), self_.clone(), self_.clone(), s, t)
                 });
         }

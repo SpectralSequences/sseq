@@ -105,7 +105,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
             let int_deg = prod["int_deg"].as_i64().unwrap() as i32;
             let idx = prod["index"].as_u64().unwrap() as usize;
             let name = prod["name"].as_str().unwrap();
-            resolution.borrow_mut().add_product(hom_deg, int_deg, idx, name.to_string());
+            resolution.borrow_mut().add_product(hom_deg, int_deg, idx, &name.to_string());
         }
     }
 
@@ -130,7 +130,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
                     map_data[r].set_entry(c, json_map_data[r][c].as_u64().unwrap() as u32);
                 }
             }
-            resolution.borrow_mut().add_self_map(s, t, name.to_string(), map_data);
+            resolution.borrow_mut().add_self_map(s, t, &name.to_string(), map_data);
         }
     }
 

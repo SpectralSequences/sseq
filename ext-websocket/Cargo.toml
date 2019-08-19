@@ -12,3 +12,4 @@ serde_json = "*"
 serde = { version = "*", features = ["derive"] }
 rust_ext = { path = "../" }
 bivec = { path = "../bivec" }
+enum_dispatch = "0.1.3"

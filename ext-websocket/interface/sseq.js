@@ -80,17 +80,20 @@ export class ExtSseq extends EventEmitter {
     }
 
     send(data) {
-        data.origin = this.name;
+        data.sseq = this.name;
         this.webSocket.send(JSON.stringify(data));
     }
 
     addPermanentClass(x, y, target) {
         this.send({
-            recipient: "sseq",
-            command: "add_permanent",
-            x: x,
-            y: y,
-            class: target,
+            recipients: ["Sseq"],
+            action: {
+                "AddPermanentClass" : {
+                    x: x,
+                    y: y,
+                    class: target,
+                }
+            }
         });
     }
 
@@ -171,13 +174,16 @@ export class ExtSseq extends EventEmitter {
 
     addDifferential(r, source_x, source_y, source, target) {
         this.send({
-            recipient: "sseq",
-            command: "add_differential",
-            r: r,
-            x: source_x,
-            y: source_y,
-            source: source,
-            target: target
+            recipients: ["Sseq"],
+            action: {
+                "AddDifferential" : {
+                    r: r,
+                    x: source_x,
+                    y: source_y,
+                    source: source,
+                    target: target
+                }
+            }
         });
     }
 
@@ -191,9 +197,12 @@ export class ExtSseq extends EventEmitter {
         }
         this.maxDegree = newmax;
         this.send({
-            recipient: "resolver",
-            command: "resolve_further",
-            maxDegree: newmax
+            recipients: ["Resolver"],
+            action: {
+                "Resolve": {
+                    max_degree: newmax
+                }
+            }
         });
         window.setUnitRange();
     }
@@ -202,28 +211,31 @@ export class ExtSseq extends EventEmitter {
         if (y < 0) { return; }
 
         this.send({
-            recipient: "resolver",
-            command: "query_table",
-            s: y,
-            t: x + y
+            recipients: ["Resolver"],
+            action: {
+                "QueryTable" : {
+                    s: y,
+                    t: x + y
+                }
+            }
         });
     }
 
-    _resolving(data) {
+    processResolving(data) {
         this.p = data.p;
-        this.minDegree = data.minDegree;
-        this.maxDegree = data.maxDegree;
+        this.minDegree = data.min_degree;
+        this.maxDegree = data.max_degree;
         this.xRange = [this.minDegree, this.maxDegree];
         this.yRange = [0, Math.ceil((this.maxDegree - this.minDegree)/2) + 1];
         this.initialxRange = [this.minDegree, this.maxDegree];
         this.initialyRange = [0, Math.ceil((this.maxDegree - this.minDegree)/2) + 1];
     }
 
-    _setPageList(data) {
+    processSetPageList(data) {
         this.page_list = data.page_list;
     }
 
-    _setClass(data) {
+    processSetClass(data) {
         let x = data.x;
         let y = data.y;
         let classes = data.classes;
@@ -253,7 +265,7 @@ export class ExtSseq extends EventEmitter {
         this.emit("update", x, y);
     }
 
-    _setDifferential(data) {
+    processSetDifferential(data) {
         let x = data.x;
         let y = data.y;
 
@@ -284,7 +296,7 @@ export class ExtSseq extends EventEmitter {
         this.emit("update", x, y);
     }
 
-    _setStructline(data) {
+    processSetStructline(data) {
         let x = data.x;
         let y = data.y;
 

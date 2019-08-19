@@ -29,7 +29,7 @@ fn check_algebra (module_name : &str, max_degree : i32, algebra_name: &str) {
     let bundle = construct(&a).unwrap();
     let p = bundle.algebra.prime();
 
-    bundle.resolution.borrow_mut().add_self_map(0, 0, "id".to_string(), Matrix::from_vec(p, &[vec![1]]));
+    bundle.resolution.borrow_mut().add_self_map(0, 0, &"id".to_string(), Matrix::from_vec(p, &[vec![1]]));
 
     let resolution = bundle.resolution.borrow();
 

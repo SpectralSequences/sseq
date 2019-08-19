@@ -24,7 +24,7 @@
 
 use std::sync::Once;
 use std::fmt;
-use serde::{Serialize, Serializer};
+use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use enum_dispatch::enum_dispatch;
 
 use crate::combinatorics::is_valid_prime;
@@ -877,6 +877,13 @@ impl Serialize for FpVector {
     }
 }
 
+impl<'de> Deserialize<'de> for FpVector {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where D : Deserializer<'de>
+    {
+        Ok(FpVector::new(2, 0)) // Implement this? This would require proper deserializing
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
