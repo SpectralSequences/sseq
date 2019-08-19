@@ -253,7 +253,9 @@ impl ResolutionManager {
 struct SseqManager {
     sender : mpsc::Sender<Message>,
     sseq : Option<Sseq>,
-    unit_sseq : Option<Sseq>
+    unit_sseq : Option<Sseq>,
+    undo_stack : Vec<Message>,
+    redo_stack : Vec<Message>,
 }
 
 impl SseqManager {
@@ -269,6 +271,8 @@ impl SseqManager {
              sender : sender,
              sseq : None,
              unit_sseq : None,
+             undo_stack : Vec::new(),
+             redo_stack : Vec::new(),
         };
 
         for msg in receiver {
@@ -276,9 +280,16 @@ impl SseqManager {
                 Action::Resolving(_) => manager.resolving(msg)?,
                 Action::Complete(_) => manager.relay(msg)?,
                 Action::QueryTableResult(_) => manager.relay(msg)?,
+                Action::Undo(_) => manager.undo(),
+                Action::Redo(_) => manager.redo(),
                 _ => {
                     if let Some(sseq) = manager.get_sseq(msg.sseq) {
                         msg.action.act_sseq(sseq);
+                        match msg.action {
+                            Action::AddClass(_) => (),
+                            Action::AddProduct(_) => (),
+                            _ => { manager.undo_stack.push(msg); manager.redo_stack.clear(); }
+                        };
                     }
                 }
             }
@@ -286,6 +297,33 @@ impl SseqManager {
         Ok(())
     }
 
+    fn undo(&mut self) {
+        if let Some(msg) = self.undo_stack.pop() {
+            self.redo_stack.push(msg);
+            if let Some(sseq) = &mut self.sseq {
+                sseq.clear();
+            }
+            if let Some(sseq) = &mut self.unit_sseq {
+                sseq.clear();
+            }
+            for msg in &mut self.undo_stack {
+                match msg.sseq {
+                    SseqChoice::Main => msg.action.act_sseq(self.sseq.as_mut().unwrap()),
+                    SseqChoice::Unit => msg.action.act_sseq(self.unit_sseq.as_mut().unwrap()),
+                }
+            }
+        }
+    }
+
+    fn redo(&mut self) {
+        let msg_ = self.redo_stack.pop();
+        if let Some(msg) = msg_ {
+            if let Some(sseq) = self.get_sseq(msg.sseq) {
+                msg.action.act_sseq(sseq);
+                self.undo_stack.push(msg);
+            }
+        }
+    }
     fn get_sseq(&mut self, sseq : SseqChoice) -> Option<&mut Sseq> {
         match sseq {
             SseqChoice::Main => self.sseq.as_mut(),

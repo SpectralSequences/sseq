@@ -84,6 +84,20 @@ export class ExtSseq extends EventEmitter {
         this.webSocket.send(JSON.stringify(data));
     }
 
+    undo() {
+        this.send({
+            recipients: ["Sseq"],
+            action : { Undo : {} }
+        });
+    }
+
+    redo() {
+        this.send({
+            recipients: ["Sseq"],
+            action : { Redo : {} }
+        });
+    }
+
     addPermanentClass(x, y, target) {
         this.send({
             recipients: ["Sseq"],

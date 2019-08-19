@@ -33,13 +33,18 @@ pub enum SseqChoice {
 #[enum_dispatch]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Action {
-    // Resolver -> Sseq
+    // JS -> Sseq
     AddProductDifferential,
     AddProductType,
-    AddProduct,
-    AddClass,
     AddPermanentClass,
     AddDifferential,
+    Undo,
+    Redo,
+    Clear,
+
+    // Resolver -> Sseq
+    AddProduct,
+    AddClass,
 
     // Resolver -> JS
     Resolving,
@@ -103,6 +108,22 @@ impl ActionT for AddDifferential {
             &FpVector::from_vec(sseq.p, &self.source),
             &mut FpVector::from_vec(sseq.p, &self.target),
             0);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Undo {}
+impl ActionT for Undo { }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Redo {}
+impl ActionT for Redo { }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Clear {}
+impl ActionT for Clear {
+    fn act_sseq(&self, sseq: &mut Sseq) {
+        sseq.clear();
     }
 }
 

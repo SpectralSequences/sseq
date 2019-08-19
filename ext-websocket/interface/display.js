@@ -173,6 +173,11 @@ export class MainDisplay extends SidebarDisplay {
         this.runningSign.innerHTML = "Running...";
         this.sidebar.footer.addObject(this.runningSign);
 
+        this.sidebar.footer.addButtonRow([
+            ["Undo", () => this.sseq.undo()],
+            ["Redo", () => this.sseq.redo()]
+        ]);
+
         this.sidebar.footer.addButton("Query table", () => this.state = STATE_QUERY_TABLE);
         this.sidebar.footer.addButton("Resolve further", this.sseq.resolveFurther.bind(this.sseq));
         this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG("sseq.svg"));

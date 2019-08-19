@@ -1,6 +1,6 @@
 use core::ops::Index;
 use core::ops::IndexMut;
-use std::slice::Iter;
+use std::slice::{Iter, IterMut};
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 
 /// A BiVec is like a Vec, except we allow indices to be negative. It has a min_degree
@@ -77,6 +77,10 @@ impl<T> BiVec<T> {
     }
     pub fn iter(&self) -> Iter<T> {
         self.data.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<T> {
+        self.data.iter_mut()
     }
 
     pub fn iter_enum(&self) -> impl Iterator<Item = (i32, &T)> {

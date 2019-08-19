@@ -60,6 +60,14 @@ impl Differential {
         }
     }
 
+    pub fn set_to_zero(&mut self) {
+        self.matrix.set_to_zero();
+        for x in &mut self.column_to_pivots_row {
+            *x = -1;
+        }
+        self.error = false;
+    }
+
     pub fn add(&mut self, source : &FpVector, target : Option<&FpVector>) {
         let source_dim = self.source_dim;
         let target_dim = self.target_dim;
@@ -212,6 +220,35 @@ impl Sseq {
             differentials : BiVec::new(min_x),
             page_classes : BiVec::new(min_x),
             zeros : BiVec::new(min_x)
+        }
+    }
+
+    /// This clears out all the user actions. This is intended to be used when we undo, where
+    /// we clear out all actions then redo the existing actions. Hence we avoid re-allocating
+    /// as much as possible because we are likely to need the space anyway
+    pub fn clear(&mut self) {
+        for prod in &mut self.products {
+            if prod.user {
+                prod.permanent = false;
+            }
+            prod.differential = None;
+        }
+        // We initialize to 0 and add_page so that we send it out too.
+        self.page_list = vec![];
+        self.add_page(MIN_PAGE);
+
+        for x in 0 .. self.classes.len() {
+            for y in 0 .. self.classes[x].len() {
+                self.permanent_classes[x][y].set_to_zero();
+                for d in self.differentials[x][y].iter_mut() {
+                    d.set_to_zero();
+                }
+                for zero in self.zeros[x][y].iter_mut() {
+                    zero.set_to_zero();
+                }
+
+                self.compute_classes(x, y);
+            }
         }
     }
 
