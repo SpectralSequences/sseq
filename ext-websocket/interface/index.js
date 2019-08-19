@@ -66,8 +66,6 @@ function openWebSocket(initialData, maxDegree) {
 
     webSocket.onopen = function(e) {
         for (let data of initialData) {
-            console.log("Sending:");
-            console.log(data);
             if (data instanceof Object) {
                 webSocket.send(JSON.stringify(data));
             } else {
