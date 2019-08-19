@@ -230,7 +230,7 @@ impl WasmResolution {
     }
 
     pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
-        self.to_resolution().borrow().get_cocycle_string(hom_deg, int_deg, idx)
+        self.to_resolution().borrow().cocycle_string(hom_deg, int_deg, idx)
     }
 
     pub fn free(self) {
