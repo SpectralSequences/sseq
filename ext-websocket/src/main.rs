@@ -130,7 +130,7 @@ impl ResolutionManager {
     fn resolve(&self, action : Resolve, sseq : SseqChoice) -> Result<(), Box<dyn Error>> {
         let resolution = &self.resolution.as_ref().unwrap();
         let min_degree = match sseq {
-            SseqChoice::Main => resolution.borrow().get_min_degree(),
+            SseqChoice::Main => resolution.borrow().min_degree(),
             SseqChoice::Unit => 0
         };
 
@@ -171,8 +171,8 @@ impl ResolutionManager {
             let s = action.s;
             let t = action.t;
 
-            let module = resolution.get_module(s);
-            if t < module.get_min_degree() {
+            let module = resolution.module(s);
+            if t < module.min_degree() {
                 return Ok(());
             }
             let string = module.generator_list_string(t);

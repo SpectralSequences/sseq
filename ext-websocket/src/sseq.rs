@@ -24,7 +24,7 @@ fn express_basis(mut elt : FpVector, zeros : Option<&Subspace>, basis : &(Vec<is
         if basis.0[i] < 0 {
             continue;
         }
-        let c = elt.get_entry(i);
+        let c = elt.entry(i);
         result.push(c);
         if c != 0 {
             elt.add(&basis.1[basis.0[i] as usize], ((elt.prime() - 1) * c) % elt.prime());
@@ -108,10 +108,10 @@ impl Differential {
 
     /// Given a subspace of the target space, project the target vectors to the complement.
     pub fn reduce_target(&mut self, zeros : &Subspace) {
-        assert_eq!(zeros.matrix.get_columns(), self.target_dim);
+        assert_eq!(zeros.matrix.columns(), self.target_dim);
 
-        self.matrix.set_slice(0, self.matrix.get_rows(), self.source_dim, self.source_dim + self.target_dim);
-        for i in 0 .. self.matrix.get_rows() {
+        self.matrix.set_slice(0, self.matrix.rows(), self.source_dim, self.source_dim + self.target_dim);
+        for i in 0 .. self.matrix.rows() {
             zeros.shift_reduce(&mut self.matrix[i]);
         }
         self.matrix.clear_slice();
@@ -130,15 +130,15 @@ impl Differential {
             }
             let row = row as usize;
 
-            let c = source.get_entry(i);
+            let c = source.entry(i);
             if c == 0 {
                 continue;
             }
             for j in 0 .. self.target_dim {
-                target.add_basis_element(j, c * self.matrix[row].get_entry(self.source_dim + j));
+                target.add_basis_element(j, c * self.matrix[row].entry(self.source_dim + j));
             }
             for j in 0 .. self.source_dim {
-                source.add_basis_element(j, (self.prime() - 1) * c * self.matrix[row].get_entry(j));
+                source.add_basis_element(j, (self.prime() - 1) * c * self.matrix[row].entry(j));
             }
         }
     }
@@ -247,7 +247,7 @@ impl Sseq {
         let target_dim = self.classes[x - 1][y + r];
         let p = self.p;
         let mut d = Differential::new(p, source_dim, target_dim);
-        for vec in self.permanent_classes[x][y].get_basis() {
+        for vec in self.permanent_classes[x][y].basis() {
             d.add(vec, None);
         }
         self.differentials[x][y].push(d);
@@ -344,7 +344,7 @@ impl Sseq {
             }
         } else {
             // Propagate permanent cycles.
-            let classes = self.permanent_classes[x][y].get_basis().to_vec();
+            let classes = self.permanent_classes[x][y].basis().to_vec();
 
             for class in classes {
                 self.leibniz(r, x, y, &class, None, source_idx, target_idx)?;
@@ -461,10 +461,10 @@ impl Sseq {
         }
 
         let mut matrix = Matrix::from_rows(p, vectors);
-        let mut pivots = vec![-1; matrix.get_columns()];
+        let mut pivots = vec![-1; matrix.columns()];
         matrix.row_reduce(&mut pivots);
 
-        for i in 0 .. matrix.get_rows() {
+        for i in 0 .. matrix.rows() {
             if matrix[i].is_zero() {
                 break;
             }
@@ -515,7 +515,7 @@ impl Sseq {
         }
 
         let mut matrix = Matrix::from_rows(self.p, vectors);
-        let mut pivots = vec![-1; matrix.get_columns()];
+        let mut pivots = vec![-1; matrix.columns()];
         matrix.row_reduce_offset(&mut pivots, source_dim);
 
         let mut first_kernel_row = 0;
@@ -525,10 +525,10 @@ impl Sseq {
             }
         }
 
-        matrix.set_slice(first_kernel_row as usize, matrix.get_rows(), 0, source_dim);
+        matrix.set_slice(first_kernel_row as usize, matrix.rows(), 0, source_dim);
         pivots.truncate(source_dim);
         matrix.row_reduce(&mut pivots);
-        for i in 0 .. matrix.get_rows() {
+        for i in 0 .. matrix.rows() {
             if matrix[i].is_zero() {
                 break;
             }
@@ -632,7 +632,7 @@ impl Sseq {
             sseq : self.name,
             action : Action::from(SetClass {
                 x, y, state,
-                permanents : self.permanent_classes[x][y].get_basis().to_vec(),
+                permanents : self.permanent_classes[x][y].basis().to_vec(),
                 classes : self.page_classes[x][y].iter().map(|x| x.1.clone()).collect::<Vec<Vec<FpVector>>>()
             })
         });
@@ -731,8 +731,8 @@ impl Sseq {
     ///
     /// Panics if the target of the differential is not yet defined
     pub fn add_differential(&mut self, r : i32, x : i32, y : i32, source : &FpVector, target : &mut FpVector) {
-        assert_eq!(source.get_dimension(), self.classes[x][y], "length of source vector not equal to dimension of source");
-        assert_eq!(target.get_dimension(), self.classes[x - 1][y + r], "length of target vector not equal to dimension of target");
+        assert_eq!(source.dimension(), self.classes[x][y], "length of source vector not equal to dimension of source");
+        assert_eq!(target.dimension(), self.classes[x - 1][y + r], "length of target vector not equal to dimension of target");
 
         // We cannot use extend_with here because of borrowing rules.
         if self.differentials[x][y].len() <= r {
@@ -934,7 +934,7 @@ impl Sseq {
             }
 
             // Find a better way to do this. This is to circumevent borrow checker.
-            let classes = self.permanent_classes[x][y].get_basis().to_vec();
+            let classes = self.permanent_classes[x][y].basis().to_vec();
             for class in classes {
                 if let Some((x_, y_, product)) = self.multiply(x, y, &class,  &self.products[idx]) {
                     self.add_permanent_class(x_, y_, &product);
