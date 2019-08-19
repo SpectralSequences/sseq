@@ -963,7 +963,7 @@ mod tests {
     fn test_sseq_differential() {
         let p = 3;
         rust_ext::fp_vector::initialize_limb_bit_index_table(p);
-        let mut sseq = crate::sseq::Sseq::new(p, "".to_string(), 0, 0, None);
+        let mut sseq = crate::sseq::Sseq::new(p, SseqChoice::Main, 0, 0, None);
         sseq.set_class(0, 0, 1);
         sseq.set_class(1, 0, 2);
         sseq.set_class(1, 1, 2);

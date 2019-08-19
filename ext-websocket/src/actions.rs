@@ -1,5 +1,5 @@
 use crate::sseq::{Sseq, ProductItem, ClassState};
-use rust_ext::module::{Module, FiniteModule};
+use rust_ext::module::FiniteModule;
 use rust_ext::resolution::{ModuleResolution};
 use rust_ext::fp_vector::FpVector;
 use bivec::BiVec;

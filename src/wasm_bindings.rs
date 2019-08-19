@@ -174,7 +174,7 @@ impl WasmResolution {
                 let int_deg = prod["int_deg"].as_i64().unwrap() as i32;
                 let idx = prod["index"].as_u64().unwrap() as usize;
                 let name = prod["name"].as_str().unwrap();
-                res.add_product(hom_deg, int_deg, idx, name.to_string());
+                res.add_product(hom_deg, int_deg, idx, &name.to_string());
             }
         }
 
@@ -202,7 +202,7 @@ impl WasmResolution {
                         map_data[r].set_entry(c, json_map_data[r][c].as_u64().unwrap() as u32);
                     }
                 }
-                boxed_res.borrow_mut().add_self_map(s, t, name.to_string(), map_data);
+                boxed_res.borrow_mut().add_self_map(s, t, &name.to_string(), map_data);
             }
         }
 
