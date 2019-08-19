@@ -133,7 +133,7 @@ pub struct AdemAlgebra {
 }
 
 impl Algebra for AdemAlgebra {
-    fn get_algebra_type(&self) -> &str {
+    fn algebra_type(&self) -> &str {
         "adem"
     }
 
@@ -141,11 +141,11 @@ impl Algebra for AdemAlgebra {
         self.p
     }
 
-    fn get_name(&self) -> &str {
+    fn name(&self) -> &str {
         &self.name
     }
 
-    fn get_default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
+    fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
         let mut products = Vec::with_capacity(4);
         let max_degree;
         if self.generic {
@@ -201,7 +201,7 @@ impl Algebra for AdemAlgebra {
         *next_degree = max_degree + 1;
     }
 
-    fn get_dimension(&self, degree : i32, excess : i32) -> usize {
+    fn dimension(&self, degree : i32, excess : i32) -> usize {
         if degree < 0 {
             return 0;
         }
@@ -276,7 +276,7 @@ impl Algebra for AdemAlgebra {
         format!("{}", self.basis_element_from_index(degree, idx))
     }
 
-    fn get_generators(&self, degree : i32) -> Vec<usize> {
+    fn generators(&self, degree : i32) -> Vec<usize> {
         let p = self.prime();
         if degree == 0 {
             return vec![];
@@ -329,7 +329,7 @@ impl Algebra for AdemAlgebra {
 
     /// We return Adem relations $b^2 = 0$, $P^i P^j = \cdots$ for $i < pj$, and $P^i b P^j = \cdots$ for $i < pj + 1$. It suffices to check these because
     /// they generate all relations.
-    fn get_relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
+    fn relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
         if self.generic && degree == 2 {
             // beta^2 = 0 is an edge case
             return vec![vec![(1, (1, 0), (1, 0))]];
@@ -337,14 +337,14 @@ impl Algebra for AdemAlgebra {
 
         let p = self.prime();
 
-        let inadmissible_pairs = combinatorics::get_inadmissible_pairs(p, self.generic, degree);
+        let inadmissible_pairs = combinatorics::inadmissible_pairs(p, self.generic, degree);
         let mut result = Vec::new();
 
         for (x, b, y) in inadmissible_pairs {
             let mut relation = Vec::new();
             // Adem relation
-            let first_sq = self.get_beps_pn(0, x);
-            let second_sq = self.get_beps_pn(b, y);
+            let first_sq = self.beps_pn(0, x);
+            let second_sq = self.beps_pn(b, y);
             relation.push((p - 1, first_sq, second_sq));
             for e1 in 0 .. b + 1 {
                 let e2 = b - e1;
@@ -597,11 +597,11 @@ impl AdemAlgebra {
             let mut table : Vec<Vec<FpVector>> = Vec::with_capacity((n + 1) as usize);
             table.push(Vec::with_capacity(0));
             for x in 1 ..= n {
-                let dimension = self.get_dimension(n - x, -1);
+                let dimension = self.dimension(n - x, -1);
                 table.push(Vec::with_capacity(dimension));
             }
             for x in (1 ..= n).rev() {
-                for idx in 0 .. self.get_dimension(n - x, -1) {
+                for idx in 0 .. self.dimension(n - x, -1) {
                     let res = self.generate_multiplication_table_2_step(&table, n, x, idx);
                     table[x as usize].push(res);
                 }
@@ -611,7 +611,7 @@ impl AdemAlgebra {
     }
 
     fn generate_multiplication_table_2_step(&self, table : &Vec<Vec<FpVector>>, n : i32, x : i32, idx : usize) -> FpVector {
-        let output_dimension = self.get_dimension(n, -1);
+        let output_dimension = self.dimension(n, -1);
         let mut result = FpVector::new(self.p, output_dimension);
         let cur_basis_elt = self.basis_element_from_index(n-x, idx);
         let x = x as u32;        
@@ -677,17 +677,17 @@ impl AdemAlgebra {
             for i in 0 ..= n/q {
                 for b in 0 ..= 1 {
                     // This corresponds to x = 2i + b
-                    let dimension = self.get_dimension(n - q * i - b, -1);
+                    let dimension = self.dimension(n - q * i - b, -1);
                     table.push(Vec::with_capacity(dimension));
                 }
             }
             for i in (0 ..= n/q).rev() {
-                for idx in 0 .. self.get_dimension(n - q * i - 1, -1) {
+                for idx in 0 .. self.dimension(n - q * i - 1, -1) {
                     let res = self.generate_multiplication_table_generic_step(&table, n, 2 * i + 1, idx);
                     table[1 + 2 * i as usize].push(res);
                 }
                 if i != 0 {
-                    for idx in 0 .. self.get_dimension(n - q * i, -1) {
+                    for idx in 0 .. self.dimension(n - q * i, -1) {
                         let res = self.generate_multiplication_table_generic_step(&table, n, 2 * i, idx);
                         table[2 * i as usize].push(res);
                     }
@@ -710,7 +710,7 @@ impl AdemAlgebra {
 
         let x : u32 = x as u32;
 
-        let output_dimension = self.get_dimension(n, -1);
+        let output_dimension = self.dimension(n, -1);
         let mut result = FpVector::new(self.p, output_dimension);
 
         // If x is just \beta, this is super easy.
@@ -835,8 +835,8 @@ impl AdemAlgebra {
         if coeff == 0 {
             return;
         }
-        assert!(r_index < self.get_dimension(r_degree, excess + s_degree));
-        assert!(s_index < self.get_dimension(s_degree, excess));
+        assert!(r_index < self.dimension(r_degree, excess + s_degree));
+        assert!(s_index < self.dimension(s_degree, excess));
 
         if s_degree == 0 {
             // If s is of length 0 then max_idx "r->P_length" is off the edge of the list and it segfaults.
@@ -912,7 +912,7 @@ impl AdemAlgebra {
                 let idx = self.basis_element_to_index(&monomial);
                 // If excess is too large, quit. It's faster to check this by comparing idx to dimension
                 // than to use fromIndex because fromIndex  dereferences a hash map.
-                if self.unstable && idx >= self.get_dimension(monomial.degree, excess) {
+                if self.unstable && idx >= self.dimension(monomial.degree, excess) {
                     return;
                 }
                 result.add_basis_element(idx, 1);
@@ -964,7 +964,7 @@ impl AdemAlgebra {
             if idx < 0 || stop_early {
                 // Admissible so write monomial to result.
                 let idx = self.basis_element_to_index(&monomial);
-                if self.unstable && idx >= self.get_dimension(monomial.degree, excess) {
+                if self.unstable && idx >= self.dimension(monomial.degree, excess) {
                     return;
                 }
                 result.add_basis_element(idx, coeff);
@@ -982,7 +982,7 @@ impl AdemAlgebra {
         let bx = (x << 1) + b1;
         let tail_degree = monomial.degree - leading_degree + (q*x + b1) as i32;
         let reduced_tail = &self.multiplication_table[tail_degree as usize][bx as usize][adm_idx];
-        let dim = self.get_dimension(tail_degree, excess);    
+        let dim = self.dimension(tail_degree, excess);    
         for (it_idx, it_value) in reduced_tail.iter().enumerate() {
             if it_value == 0 {
                 continue;
@@ -1049,7 +1049,7 @@ impl AdemAlgebra {
             bocksteins : 0,
             ps : vec![second_sq]
         });
-        let mut out_vec = FpVector::new(2, self.get_dimension(degree, -1));
+        let mut out_vec = FpVector::new(2, self.dimension(degree, -1));
         self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, -1);
         out_vec.set_entry(idx, 0);
         let mut result = Vec::new();
@@ -1125,10 +1125,10 @@ impl AdemAlgebra {
             bocksteins : 0,
             ps : vec![second_sq]
         });
-        let mut out_vec = FpVector::new(p, self.get_dimension(degree, -1));
+        let mut out_vec = FpVector::new(p, self.dimension(degree, -1));
         self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, -1);
         let mut result = Vec::new();
-        let c = out_vec.get_entry(idx);
+        let c = out_vec.entry(idx);
         assert!(c != 0);
         let c_inv = combinatorics::inverse(p, p - c);        
         result.push((((p - 1) * c_inv) % p, (first_degree, first_idx), (second_degree, second_idx)));
@@ -1143,7 +1143,7 @@ impl AdemAlgebra {
         return result;
     }
 
-    pub fn get_beps_pn(&self, e : u32, x : u32) -> (i32, usize) {
+    pub fn beps_pn(&self, e : u32, x : u32) -> (i32, usize) {
         let p = self.prime();
         let q = if self.generic { 2 * p - 2} else { 1 };
         let degree = (x * q + e) as i32;
@@ -1204,9 +1204,9 @@ mod tests {
         let s_deg = 5;
         let s_idx = 0;
         let out_deg = r_deg + s_deg;
-        let mut result1 = FpVector::new(p, A.get_dimension(out_deg, 0));
-        let mut result2 = FpVector::new(p, A.get_dimension(out_deg, 0) + 3);
-        result2.set_slice(3, 3 + result1.get_dimension());
+        let mut result1 = FpVector::new(p, A.dimension(out_deg, 0));
+        let mut result2 = FpVector::new(p, A.dimension(out_deg, 0) + 3);
+        result2.set_slice(3, 3 + result1.dimension());
 
         A.multiply_basis_elements(&mut result1, 1, r_deg, r_idx, s_deg, s_idx, 0);
         A.multiply_basis_elements(&mut result2, 1, r_deg, r_idx, s_deg, s_idx, 0);
@@ -1224,7 +1224,7 @@ mod tests {
         let algebra = AdemAlgebra::new(p, p != 2, false);
         algebra.compute_basis(max_degree);
         for i in 1 ..= max_degree {
-            let dim = algebra.get_dimension(i, -1);
+            let dim = algebra.dimension(i, -1);
             for j in 0 .. dim {
                 let b = algebra.basis_element_from_index(i, j);
                 assert_eq!(algebra.basis_element_to_index(&b), j);
@@ -1243,8 +1243,8 @@ mod tests {
         let algebra = AdemAlgebra::new(p, p != 2, false);
         algebra.compute_basis(max_degree);
         for i in 1 ..= max_degree {
-            let dim = algebra.get_dimension(i, -1);
-            let gens = algebra.get_generators(i);
+            let dim = algebra.dimension(i, -1);
+            let gens = algebra.generators(i);
             println!("i : {}, gens : {:?}", i, gens);
             let mut out_vec = FpVector::new(p, dim);
             for j in 0 .. dim {
@@ -1255,7 +1255,7 @@ mod tests {
                     print!("{} * {} * {}  +  ", coeff, algebra.basis_element_to_string(first_degree,first_idx), algebra.basis_element_to_string(second_degree, second_idx));
                     algebra.multiply_basis_elements(&mut out_vec, coeff, first_degree, first_idx, second_degree, second_idx, -1);
                 }
-                assert!(out_vec.get_entry(j) == 1, 
+                assert!(out_vec.entry(j) == 1, 
                     format!("{} != {}", algebra.basis_element_to_string(i, j), algebra.element_to_string(i, &out_vec)));
                 out_vec.set_entry(j, 0);
                 assert!(out_vec.is_zero(), 
@@ -1276,12 +1276,12 @@ mod tests {
         let mut output_vec = FpVector::new(p, 0);
         for i in 1 ..= max_degree {
             output_vec.clear_slice();
-            let output_dim = algebra.get_dimension(i, -1);
-            if output_dim > output_vec.get_dimension() {
+            let output_dim = algebra.dimension(i, -1);
+            if output_dim > output_vec.dimension() {
                 output_vec = FpVector::new(p, output_dim);
             }
             output_vec.set_slice(0, output_dim);
-            let relations = algebra.get_relations_to_check(i);
+            let relations = algebra.relations_to_check(i);
             for relation in relations {
                 for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
                     algebra.multiply_basis_elements(&mut output_vec, *coeff, *deg_1, *idx_1, *deg_2, *idx_2, -1);

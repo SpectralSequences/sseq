@@ -47,9 +47,9 @@ impl FinitelyPresentedModule {
     }
 
     pub fn add_relations(&self, degree : i32, relations_matrix : &mut Matrix){
-        let num_relns = relations_matrix.get_rows();
+        let num_relns = relations_matrix.rows();
         self.relations.add_generators_immediate(degree, num_relns, None);
-        let mut map_lock = self.map.get_lock();
+        let mut map_lock = self.map.lock();
         self.map.add_generators_from_matrix_rows(&map_lock, degree, relations_matrix, 0, 0);
         *map_lock += 1;        
     }
@@ -92,7 +92,7 @@ impl FinitelyPresentedModule {
         let name = json["name"].as_str().unwrap().to_string();
         let gens = json["gens"].take();
         let (num_gens_in_degree, gen_names, gen_to_deg_idx) = Self::module_gens_from_json(&gens);
-        let mut relations_value = json[algebra.get_algebra_type().to_owned() + "_relations"].take();
+        let mut relations_value = json[algebra.algebra_type().to_owned() + "_relations"].take();
         let relations_values = relations_value.as_array_mut().unwrap();
         let min_degree = num_gens_in_degree.min_degree();
         let max_gen_degree = num_gens_in_degree.len();
@@ -137,7 +137,7 @@ impl FinitelyPresentedModule {
         result.generators.extend_by_zero(max_degree);
         for i in min_degree ..= max_relation_degree {
             let num_relns = relations_by_degree[i].len();
-            let gens_dim = result.generators.get_dimension(i);
+            let gens_dim = result.generators.dimension(i);
             let mut relations_matrix = Matrix::new(p, num_relns, gens_dim);
             for (j, relation) in relations_by_degree[i].iter().enumerate() {
                 for term in relation {
@@ -155,9 +155,9 @@ impl FinitelyPresentedModule {
     pub fn relations_to_json(&self) -> Value {
         let mut relations = Vec::new();
         for i in self.min_degree ..= self.relations.max_computed_degree() {
-            let num_relns = self.relations.get_number_of_gens_in_degree(i);
+            let num_relns = self.relations.number_of_gens_in_degree(i);
             for j in 0 .. num_relns {
-                relations.push(self.generators.element_to_json(i, self.map.get_output(i,j)));
+                relations.push(self.generators.element_to_json(i, self.map.output(i,j)));
             }
         } 
         Value::from(relations)
@@ -178,26 +178,26 @@ impl FinitelyPresentedModule {
 }
 
 impl Module for FinitelyPresentedModule {
-    fn get_algebra(&self) -> Rc<AlgebraAny> {
-        self.generators.get_algebra()
+    fn algebra(&self) -> Rc<AlgebraAny> {
+        self.generators.algebra()
     }
 
-    fn get_min_degree(&self) -> i32 {
-        self.generators.get_min_degree()
+    fn min_degree(&self) -> i32 {
+        self.generators.min_degree()
     }
 
-    fn get_name(&self) -> &str {
+    fn name(&self) -> &str {
         &self.name
     }
 
     fn compute_basis(&self, degree : i32) {
         self.generators.extend_by_zero(degree);
         self.relations.extend_by_zero(degree);
-        let min_degree = self.get_min_degree();
+        let min_degree = self.min_degree();
         for i in self.index_table.len() as i32 + min_degree ..= degree {
-            let mut lock = self.map.get_lock();
-            self.map.compute_quasi_inverse(&mut lock, i);
-            let qi = self.map.get_quasi_inverse(degree).unwrap();
+            let mut lock = self.map.lock();
+            self.map.compute_kernels_and_quasi_inverses_through_degree(&mut lock, i);
+            let qi = self.map.quasi_inverse(degree).unwrap();
             let image = qi.image.as_ref().unwrap();
             let mut gen_idx_to_fp_idx = Vec::new();
             let mut fp_idx_to_gen_idx = Vec::new();
@@ -217,7 +217,7 @@ impl Module for FinitelyPresentedModule {
         }
     }
 
-    fn get_dimension(&self, degree : i32) -> usize {
+    fn dimension(&self, degree : i32) -> usize {
         assert!(degree >= self.min_degree);
         let degree_idx = (degree - self.min_degree) as usize;
         self.index_table[degree_idx].fp_idx_to_gen_idx.len()
@@ -227,13 +227,13 @@ impl Module for FinitelyPresentedModule {
         let p = self.prime();
         let gen_idx = self.fp_idx_to_gen_idx(mod_degree, mod_index);
         let out_deg = mod_degree + op_degree;
-        let gen_dim = self.generators.get_dimension(out_deg);
+        let gen_dim = self.generators.dimension(out_deg);
         let mut temp_vec = FpVector::new(p, gen_dim);
         self.generators.act_on_basis(&mut temp_vec, coeff, op_degree, op_index, mod_degree, gen_idx);
-        let qi = self.map.get_quasi_inverse(out_deg).unwrap();
+        let qi = self.map.quasi_inverse(out_deg).unwrap();
         qi.image.as_ref().unwrap().reduce(&mut temp_vec);
-        for i in 0..result.get_dimension() {
-            let value = temp_vec.get_entry(self.fp_idx_to_gen_idx(out_deg, i));
+        for i in 0..result.dimension() {
+            let value = temp_vec.entry(self.fp_idx_to_gen_idx(out_deg, i));
             result.set_entry(i, value);
         }
     }

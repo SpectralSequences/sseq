@@ -268,11 +268,11 @@ pub fn interactive_module_define_fdmodule(mut output_json : Value, p : u32, gene
             if gens[output_deg_idx].len() == 0 {
                 continue;
             }
-            let adem_gens = adem_algebra.get_generators(op_deg);
+            let adem_gens = adem_algebra.generators(op_deg);
             if adem_gens.len() > 0 {
                 let mut output_vec = FpVector::new(p, gens[output_deg_idx].len());
                 let adem_op_idx = adem_gens[0];
-                let milnor_op_idx = milnor_algebra.get_generators(op_deg)[0];                
+                let milnor_op_idx = milnor_algebra.generators(op_deg)[0];                
                 let callback = |string : &str| gens[output_deg_idx].iter().position(|d| d == string);
                 for input_idx in 0 .. gens[input_deg_idx].len() {                        
                     get_expression_to_vector(
@@ -381,7 +381,7 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
     }
 
     for (i, relns) in relations.iter_enum() {
-        let dim = adem_module.generators.get_dimension(i);
+        let dim = adem_module.generators.dimension(i);
         let mut matrix = crate::matrix::Matrix::new(p, relns.len(), dim);
         for (j, r) in relns.iter().enumerate() {
             matrix[j].assign(r);

@@ -34,23 +34,23 @@ pub struct FreeModule {
 }
 
 impl Module for FreeModule {
-    fn get_name(&self) -> &str {
+    fn name(&self) -> &str {
         &self.name
     }
 
-    fn get_algebra(&self) -> Rc<AlgebraAny> {
+    fn algebra(&self) -> Rc<AlgebraAny> {
         Rc::clone(&self.algebra)
     }
 
-    fn get_min_degree(&self) -> i32 {
+    fn min_degree(&self) -> i32 {
         self.min_degree
     }
 
-    fn get_dimension(&self, degree : i32) -> usize {
+    fn dimension(&self, degree : i32) -> usize {
         if degree < self.min_degree {
             return 0;
         }
-        assert!(degree < self.table.len(), format!("Free Module {} not computed through degree {}", self.get_name(), degree));
+        assert!(degree < self.table.len(), format!("Free Module {} not computed through degree {}", self.name(), degree));
         return self.table[degree].basis_element_to_opgen.len();
     }
 
@@ -66,8 +66,8 @@ impl Module for FreeModule {
     }
 
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize){
-        assert!(op_index < self.get_algebra().get_dimension(op_degree, mod_degree));
-        assert!(self.get_dimension(op_degree + mod_degree) <= result.get_dimension());
+        assert!(op_index < self.algebra().dimension(op_degree, mod_degree));
+        assert!(self.dimension(op_degree + mod_degree) <= result.dimension());
         let operation_generator = self.index_to_op_gen(mod_degree, mod_index);
         let module_operation_degree = operation_generator.operation_degree;
         let module_operation_index = operation_generator.operation_index;
@@ -76,14 +76,14 @@ impl Module for FreeModule {
 
 
         // Now all of the output elements are going to be of the form s * x. Find where such things go in the output vector.
-        let num_ops = self.get_algebra().get_dimension(module_operation_degree + op_degree, generator_degree);
+        let num_ops = self.algebra().dimension(module_operation_degree + op_degree, generator_degree);
         let output_block_min = self.operation_generator_to_index(module_operation_degree + op_degree, 0, generator_degree, generator_index);
         let output_block_max = output_block_min + num_ops;
         // Writing into slice (can we take ownership? make new vector with 0's outside range and add separately? is it okay?)
-        let old_slice = result.get_slice();
+        let old_slice = result.slice();
         result.set_slice(output_block_min, output_block_max); 
         // Now we multiply s * r and write the result to the appropriate position.
-        self.get_algebra().multiply_basis_elements(result, coeff, op_degree, op_index, module_operation_degree, module_operation_index, generator_degree);
+        self.algebra().multiply_basis_elements(result, coeff, op_degree, op_index, module_operation_degree, module_operation_index, generator_degree);
         result.restore_slice(old_slice);
     }
 }
@@ -104,7 +104,7 @@ impl FreeModule {
         self.table.max_degree()
     }
 
-    pub fn get_number_of_gens_in_degree(&self, degree : i32) -> usize {
+    pub fn number_of_gens_in_degree(&self, degree : i32) -> usize {
         if degree < self.min_degree {
             return 0;
         }
@@ -124,10 +124,10 @@ impl FreeModule {
         // A basis element in degree n comes from a generator in degree i paired with an operation in degree n - i.
         let mut offset = 0;
         for gen_deg in self.min_degree .. degree {
-            let num_gens = self.get_number_of_gens_in_degree(gen_deg);
+            let num_gens = self.number_of_gens_in_degree(gen_deg);
             let mut gentoidx_degree : Vec<usize> = Vec::with_capacity(num_gens);
             let op_deg = degree - gen_deg;
-            let num_ops = self.get_algebra().get_dimension(op_deg, gen_deg);
+            let num_ops = self.algebra().dimension(op_deg, gen_deg);
             for gen_idx in 0 .. num_gens {
                 gentoidx_degree.push(offset);
                 for op_idx in 0 .. num_ops {
@@ -151,7 +151,7 @@ impl FreeModule {
         );
     }
 
-    pub fn get_dimension_with_table(table : &FreeModuleTableEntry) -> usize {
+    pub fn dimension_with_table(table : &FreeModuleTableEntry) -> usize {
         table.basis_element_to_opgen.len()
     }
 
@@ -215,7 +215,7 @@ impl FreeModule {
 
     pub fn element_to_json(&self, degree : i32, elt : &FpVector) -> Value {
         let mut result = Vec::new();
-        let algebra = self.get_algebra();
+        let algebra = self.algebra();
         for (i, v) in elt.iter().enumerate(){
             if v == 0 { continue; }
             let opgen = self.index_to_op_gen(degree, i);
@@ -268,9 +268,9 @@ mod tests {
         let input_deg = 4;
         let input_idx = 0;
         let output_deg = op_deg + input_deg;
-        let output_dim = M.get_dimension(output_deg);
+        let output_dim = M.dimension(output_deg);
         for i in 0..9 {
-            assert_eq!(M.get_dimension(i), A.get_dimension(i,0) + A.get_dimension(i-1,1));
+            assert_eq!(M.dimension(i), A.dimension(i,0) + A.dimension(i-1,1));
         }
 
         for (gen_deg, gen_idx) in &[(0,0), (1,0)]{

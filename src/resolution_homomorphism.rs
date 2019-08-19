@@ -48,7 +48,7 @@ impl<
             let input_homological_degree = output_homological_degree + self.homological_degree_shift;
             let source_rc = self.source.upgrade().unwrap();
             let target_rc = self.target.upgrade().unwrap();
-            self.maps.push(FreeModuleHomomorphism::new(source_rc.borrow().get_module(input_homological_degree), target_rc.borrow().get_module(output_homological_degree), self.internal_degree_shift));
+            self.maps.push(FreeModuleHomomorphism::new(source_rc.borrow().module(input_homological_degree), target_rc.borrow().module(output_homological_degree), self.internal_degree_shift));
         }
         return &self.maps[output_homological_degree as usize];
     }
@@ -63,7 +63,7 @@ impl<
     pub fn extend(&self, source_homological_degree : u32, source_degree : i32){
         for i in self.homological_degree_shift ..= source_homological_degree {
             let f_cur = self.get_map_ensure_length(i - self.homological_degree_shift);
-            let start_degree = *f_cur.get_lock();
+            let start_degree = *f_cur.lock();
             for j in start_degree + 1 ..= source_degree {
                 self.extend_step(i, j, None);
             }
@@ -73,14 +73,14 @@ impl<
     pub fn extend_step(&self, input_homological_degree : u32, input_internal_degree : i32, extra_images : Option<&mut Matrix>){
         let output_homological_degree = input_homological_degree - self.homological_degree_shift;
         let f_cur = self.get_map_ensure_length(output_homological_degree);
-        let computed_degree = *f_cur.get_lock();
+        let computed_degree = *f_cur.lock();
         if input_internal_degree <= computed_degree {
             assert!(extra_images.is_none());
             return;
         }
-        let num_gens = f_cur.get_source().get_number_of_gens_in_degree(input_internal_degree);
+        let num_gens = f_cur.source().number_of_gens_in_degree(input_internal_degree);
         let mut outputs = self.extend_step_helper(input_homological_degree, input_internal_degree, extra_images);
-        let mut lock = f_cur.get_lock();
+        let mut lock = f_cur.lock();
         f_cur.add_generators_from_matrix_rows(&lock, input_internal_degree, &mut outputs, 0, 0);
         *lock += 1;
     }
@@ -94,26 +94,26 @@ impl<
         assert!(input_homological_degree >= self.homological_degree_shift);
         let output_homological_degree = input_homological_degree - self.homological_degree_shift;
         let output_internal_degree = input_internal_degree - self.internal_degree_shift;        
-        let target_chain_map = target.get_chain_map(output_homological_degree);
-        let target_chain_map_qi = target_chain_map.get_quasi_inverse(output_internal_degree);
-        let target_cc_dimension = target_chain_map.get_target().get_dimension(output_internal_degree);
+        let target_chain_map = target.chain_map(output_homological_degree);
+        let target_chain_map_qi = target_chain_map.quasi_inverse(output_internal_degree);
+        let target_cc_dimension = target_chain_map.target().dimension(output_internal_degree);
         if let Some(extra_images_matrix) = &extra_images {
-            assert!(target_cc_dimension <= extra_images_matrix.get_columns());
+            assert!(target_cc_dimension <= extra_images_matrix.columns());
         }
         let f_cur = self.get_map(output_homological_degree);
-        let num_gens = f_cur.get_source().get_number_of_gens_in_degree(input_internal_degree);
-        let fx_dimension = f_cur.get_target().get_dimension(output_internal_degree);
+        let num_gens = f_cur.source().number_of_gens_in_degree(input_internal_degree);
+        let fx_dimension = f_cur.target().dimension(output_internal_degree);
         let mut outputs_matrix = Matrix::new(p, num_gens, fx_dimension);
         if num_gens == 0 || fx_dimension == 0 {
             return outputs_matrix;
         }
         if output_homological_degree == 0 {
             if let Some(extra_images_matrix) = extra_images {
-                assert!(num_gens <= extra_images_matrix.get_rows(), 
+                assert!(num_gens <= extra_images_matrix.rows(), 
                     format!("num_gens : {} greater than rows : {} hom_deg : {}, int_deg : {}", 
-                    num_gens, extra_images_matrix.get_rows(), input_homological_degree, input_internal_degree));
+                    num_gens, extra_images_matrix.rows(), input_homological_degree, input_internal_degree));
                 for k in 0 .. num_gens {
-                    let old_slice = extra_images_matrix[k].get_slice();
+                    let old_slice = extra_images_matrix[k].slice();
                     extra_images_matrix[k].set_slice(0, target_cc_dimension);
                     target_chain_map_qi.as_ref().unwrap().apply(&mut outputs_matrix[k], 1, &extra_images_matrix[k]);
                     extra_images_matrix[k].restore_slice(old_slice);
@@ -121,16 +121,16 @@ impl<
             }
             return outputs_matrix;            
         }
-        let d_source = source.get_differential(input_homological_degree);
-        let d_target = target.get_differential(output_homological_degree);
+        let d_source = source.differential(input_homological_degree);
+        let d_target = target.differential(output_homological_degree);
         let f_prev = self.get_map(output_homological_degree - 1);
-        assert_eq!(d_source.get_source().get_name(), f_cur.get_source().get_name());
-        assert_eq!(d_source.get_target().get_name(), f_prev.get_source().get_name());
-        assert_eq!(d_target.get_source().get_name(), f_cur.get_target().get_name());
-        assert_eq!(d_target.get_target().get_name(), f_prev.get_target().get_name());
-        let d_quasi_inverse = d_target.get_quasi_inverse(output_internal_degree).unwrap();
-        let dx_dimension = f_prev.get_source().get_dimension(input_internal_degree);
-        let fdx_dimension = f_prev.get_target().get_dimension(output_internal_degree);
+        assert_eq!(d_source.source().name(), f_cur.source().name());
+        assert_eq!(d_source.target().name(), f_prev.source().name());
+        assert_eq!(d_target.source().name(), f_cur.target().name());
+        assert_eq!(d_target.target().name(), f_prev.target().name());
+        let d_quasi_inverse = d_target.quasi_inverse(output_internal_degree).unwrap();
+        let dx_dimension = f_prev.source().dimension(input_internal_degree);
+        let fdx_dimension = f_prev.target().dimension(output_internal_degree);
         let mut dx_vector = FpVector::new(p, dx_dimension);
         let mut fdx_vector = FpVector::new(p, fdx_dimension);
         let mut extra_image_row = 0;
@@ -138,7 +138,7 @@ impl<
             d_source.apply_to_generator(&mut dx_vector, 1, input_internal_degree, k);
             if dx_vector.is_zero() {
                 let extra_image_matrix = extra_images.as_mut().expect("Missing extra image rows");
-                let old_slice = extra_image_matrix[extra_image_row].get_slice();
+                let old_slice = extra_image_matrix[extra_image_row].slice();
                 extra_image_matrix[extra_image_row].set_slice(0, target_cc_dimension);
                 target_chain_map_qi.as_ref().unwrap().apply(&mut outputs_matrix[k], 1, &extra_image_matrix[extra_image_row]);
                 extra_image_matrix[extra_image_row].restore_slice(old_slice);
@@ -150,7 +150,7 @@ impl<
                 fdx_vector.set_to_zero();
             }
         }
-        // let num_extra_image_rows = extra_images.map_or(0, |matrix| matrix.get_rows());
+        // let num_extra_image_rows = extra_images.map_or(0, |matrix| matrix.rows());
         // assert!(extra_image_row == num_extra_image_rows, "Extra image rows");
         return outputs_matrix;
     }

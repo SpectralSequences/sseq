@@ -17,7 +17,7 @@ impl Field {
 }
 
 impl Algebra for Field {
-    fn get_algebra_type(&self) -> &str {
+    fn algebra_type(&self) -> &str {
         &"field"
     }
 
@@ -26,14 +26,14 @@ impl Algebra for Field {
         self.prime
     }
 
-    fn get_name(&self) -> &str {
+    fn name(&self) -> &str {
         &"field"
     }
 
     fn compute_basis(&self, degree : i32){}
 
     /// Gets the dimension of the algebra in degree `degree`.
-    fn get_dimension(&self, degree : i32, excess : i32) -> usize {
+    fn dimension(&self, degree : i32, excess : i32) -> usize {
         if degree == 0 { 1 } else { 0 }
     }
 
@@ -41,7 +41,7 @@ impl Algebra for Field {
         result.add_basis_element(0, coeff)
     }
 
-    fn get_default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
+    fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
         vec![]
     }
 
@@ -64,10 +64,10 @@ impl Algebra for Field {
 
     fn element_to_string(&self, degree : i32, element : &FpVector) -> String {
         assert!(degree == 0);
-        format!("{}", element.get_entry(0))
+        format!("{}", element.entry(0))
     }
 
-    fn get_generators(&self, degree : i32) -> Vec<usize> {
+    fn generators(&self, degree : i32) -> Vec<usize> {
         vec![]
     }
 
@@ -75,7 +75,7 @@ impl Algebra for Field {
         vec![]
     }
 
-    fn get_relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
+    fn relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
         vec![]
     }
 }

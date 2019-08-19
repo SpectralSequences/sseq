@@ -9,21 +9,21 @@ use crate::finitely_presented_module::FinitelyPresentedModule;
 
 #[enum_dispatch(FiniteModule)]
 pub trait Module {
-    fn get_algebra(&self) -> Rc<AlgebraAny>;
-    fn get_name(&self) -> &str;
-    fn get_min_degree(&self) -> i32;
+    fn algebra(&self) -> Rc<AlgebraAny>;
+    fn name(&self) -> &str;
+    fn min_degree(&self) -> i32;
     fn compute_basis(&self, _degree : i32) {}
-    fn get_dimension(&self, degree : i32) -> usize;
+    fn dimension(&self, degree : i32) -> usize;
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize);
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String;
 
     fn prime(&self) -> u32 {
-        self.get_algebra().prime()
+        self.algebra().prime()
     }
 
     fn act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector){
-        assert!(input.get_dimension() == self.get_dimension(input_degree));
-        let p = self.get_algebra().prime();
+        assert!(input.dimension() == self.dimension(input_degree));
+        let p = self.algebra().prime();
         for (i, v) in input.iter().enumerate() {
             if v == 0 {
                 continue;
@@ -33,8 +33,8 @@ pub trait Module {
     }
 
     fn act_by_element(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op : &FpVector, input_degree : i32, input : &FpVector){
-        assert_eq!(input.get_dimension(), self.get_dimension(input_degree));
-        let p = self.get_algebra().prime();
+        assert_eq!(input.dimension(), self.dimension(input_degree));
+        let p = self.algebra().prime();
         for (i, v) in op.iter().enumerate() {
             if v == 0 {
                 continue;
@@ -45,7 +45,7 @@ pub trait Module {
 
     fn generator_list_string(&self, degree : i32) -> String {
         let mut result = String::from("[");
-        result += &(0..self.get_dimension(degree))
+        result += &(0..self.dimension(degree))
             .map(|idx| self.basis_element_to_string(degree, idx))
             .collect::<Vec<String>>()
             .join(", ");
@@ -86,7 +86,7 @@ pub struct ZeroModule {
 
 impl ZeroModule {
     pub fn new(algebra : Rc<AlgebraAny>) -> Self {
-        let name = format!("Zero Module over {}", algebra.get_name());
+        let name = format!("Zero Module over {}", algebra.name());
         ZeroModule {
             algebra,
             name
@@ -95,19 +95,19 @@ impl ZeroModule {
 }
 
 impl Module for ZeroModule {
-    fn get_algebra(&self) -> Rc<AlgebraAny> {
+    fn algebra(&self) -> Rc<AlgebraAny> {
         Rc::clone(&self.algebra)
     }
     
-    fn get_name(&self) -> &str{
+    fn name(&self) -> &str{
         &self.name
     }
 
-    fn get_dimension(&self, _degree : i32) -> usize {
+    fn dimension(&self, _degree : i32) -> usize {
         0
     }
 
-    fn get_min_degree(&self) -> i32 {
+    fn min_degree(&self) -> i32 {
         0
     }
 
@@ -139,88 +139,30 @@ impl FiniteModule {
     }
 }
 
-// #[enum_dispatch(Module)]
-// pub enum ModuleChoice<L : Module, R : Module> {
-//     IntroL(L),
-//     IntroR(R)
-// }
-
-// impl<L : Module, R : Module> Module for ModuleChoice<L, R> {
-//     fn get_algebra(&self) -> Rc<AlgebraAny> {
-//         match self {
-//             ModuleChoice::IntroL(l) => l.get_algebra(),
-//             ModuleChoice::IntroR(r) => r.get_algebra()
-//         }
-//     }
-
-//     fn get_name(&self) -> &str {
-//         match self {
-//             ModuleChoice::IntroL(l) => l.get_name(),
-//             ModuleChoice::IntroR(r) => r.get_name()
-//         }
-//     }
-
-//     fn get_min_degree(&self) -> i32 {
-//         match self {
-//             ModuleChoice::IntroL(l) => l.get_min_degree(),
-//             ModuleChoice::IntroR(r) => r.get_min_degree()
-//         }
-//     }
-
-//     fn compute_basis(&mut self, degree : i32) {
-//         match self {
-//             ModuleChoice::IntroL(l) => l.compute_basis(degree),
-//             ModuleChoice::IntroR(r) => r.compute_basis(degree)
-//         }
-//     }
-
-//     fn get_dimension(&self, degree : i32) -> usize {
-//         match self {
-//             ModuleChoice::IntroL(l) => l.get_dimension(degree),
-//             ModuleChoice::IntroR(r) => r.get_dimension(degree)
-//         }
-//     }
-
-//     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize){
-//         match self {
-//             ModuleChoice::IntroL(l) => l.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index),
-//             ModuleChoice::IntroR(r) => r.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index)
-//         }
-//     }
-
-//     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
-//         match self {
-//             ModuleChoice::IntroL(l) => l.basis_element_to_string(degree, idx),
-//             ModuleChoice::IntroR(r) => r.basis_element_to_string(degree, idx)
-//         }
-//     }
-// }
-
-
 pub enum OptionModule<M : Module> {
     Some(Rc<M>),
     Zero(Rc<ZeroModule>)
 }
 
 impl<M : Module> Module for OptionModule<M> {
-    fn get_algebra(&self) -> Rc<AlgebraAny> {
+    fn algebra(&self) -> Rc<AlgebraAny> {
         match self {
-            OptionModule::Some(l) => l.get_algebra(),
-            OptionModule::Zero(r) => r.get_algebra()
+            OptionModule::Some(l) => l.algebra(),
+            OptionModule::Zero(r) => r.algebra()
         }
     }
 
-    fn get_name(&self) -> &str {
+    fn name(&self) -> &str {
         match self {
-            OptionModule::Some(l) => l.get_name(),
-            OptionModule::Zero(r) => r.get_name()
+            OptionModule::Some(l) => l.name(),
+            OptionModule::Zero(r) => r.name()
         }
     }
 
-    fn get_min_degree(&self) -> i32 {
+    fn min_degree(&self) -> i32 {
         match self {
-            OptionModule::Some(l) => l.get_min_degree(),
-            OptionModule::Zero(r) => r.get_min_degree()
+            OptionModule::Some(l) => l.min_degree(),
+            OptionModule::Zero(r) => r.min_degree()
         }
     }
 
@@ -231,10 +173,10 @@ impl<M : Module> Module for OptionModule<M> {
         }
     }
 
-    fn get_dimension(&self, degree : i32) -> usize {
+    fn dimension(&self, degree : i32) -> usize {
         match self {
-            OptionModule::Some(l) => l.get_dimension(degree),
-            OptionModule::Zero(r) => r.get_dimension(degree)
+            OptionModule::Some(l) => l.dimension(degree),
+            OptionModule::Zero(r) => r.dimension(degree)
         }
     }
 

@@ -39,7 +39,7 @@ fn evaluate_algebra_tree_helper(
             }
             let (degree_right, output_right) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, output_degree, *right)?;
             let degree = degree_left + degree_right;
-            let mut result = FpVector::new(p, adem_algebra.get_dimension(degree, -1));
+            let mut result = FpVector::new(p, adem_algebra.dimension(degree, -1));
             adem_algebra.multiply_element_by_element(&mut result, 1, degree_left, &output_left, degree_right, &output_right, -1);
             return Ok((degree, result));
         },
@@ -71,27 +71,27 @@ fn evaluate_basis_element(
     let mut result;
     match basis_elt {
         AlgebraBasisElt::PList(p_list) => {
-            let xi_degrees = crate::combinatorics::get_tau_degrees(p);
+            let xi_degrees = crate::combinatorics::tau_degrees(p);
             let mut temp_deg = 0;
             for (i, v) in p_list.iter().enumerate() {
                 temp_deg += *v * xi_degrees[i] as u32;
             }
             degree = temp_deg as i32;
-            result = FpVector::new(p, adem_algebra.get_dimension(degree, -1));
-            change_of_basis::get_adem_plist(adem_algebra, milnor_algebra, &mut result, 1, degree, p_list);
+            result = FpVector::new(p, adem_algebra.dimension(degree, -1));
+            change_of_basis::adem_plist(adem_algebra, milnor_algebra, &mut result, 1, degree, p_list);
         }
         AlgebraBasisElt::P(x) => {
-            let tuple = adem_algebra.get_beps_pn(0, x);
+            let tuple = adem_algebra.beps_pn(0, x);
             degree = tuple.0;
             let idx = tuple.1;
-            result = FpVector::new(p, adem_algebra.get_dimension(degree, -1));
+            result = FpVector::new(p, adem_algebra.dimension(degree, -1));
             result.set_entry(idx, 1);
         }
         AlgebraBasisElt::Q(x) => {
-            let tau_degrees = crate::combinatorics::get_tau_degrees(p);
+            let tau_degrees = crate::combinatorics::tau_degrees(p);
             degree = tau_degrees[x as usize];
-            result = FpVector::new(p, adem_algebra.get_dimension(degree, -1));
-            change_of_basis::get_adem_q(adem_algebra, milnor_algebra, &mut result, 1, x);
+            result = FpVector::new(p, adem_algebra.dimension(degree, -1));
+            change_of_basis::adem_q(adem_algebra, milnor_algebra, &mut result, 1, x);
         }
     }
     if let Some(requested_degree) = output_degree {
@@ -146,7 +146,7 @@ fn evaluate_module_tree_helper<M : Module>(
             }
             let (degree_right, output_right) = evaluate_module_tree_helper(adem_algebra, milnor_algebra, module, basis_elt_lookup, output_degree, *right)?;
             let degree = degree_left + degree_right;
-            let mut result = FpVector::new(p, module.get_dimension(degree));
+            let mut result = FpVector::new(p, module.dimension(degree));
             module.act_by_element(&mut result, 1, degree_left, &output_left, degree_right, &output_right);
             return Ok((degree, result));
         },
@@ -177,7 +177,7 @@ fn evaluate_module_basis_element<M : Module>(
             return Err(Box::new(DegreeError{}));
         }
     }
-    let mut result = FpVector::new(p, module.get_dimension(degree));
+    let mut result = FpVector::new(p, module.dimension(degree));
     result.set_entry(idx, 1);
     return Ok((degree, result))
 }

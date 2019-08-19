@@ -42,7 +42,7 @@ static BIT_LENGHTS : [usize; MAX_PRIME_INDEX] = [
      15, 15, 15, 15, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16
 ];
 
-fn get_bit_length(p : u32) -> usize {
+fn bit_length(p : u32) -> usize {
     BIT_LENGHTS[PRIME_TO_INDEX_MAP[p as usize]]
 }
 
@@ -57,7 +57,7 @@ static BITMASKS : [u32; MAX_PRIME_INDEX] = [
     65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535
 ];
 
-fn get_bitmask(p : u32) -> u64{
+fn bitmask(p : u32) -> u64{
     BITMASKS[PRIME_TO_INDEX_MAP[p as usize]] as u64
 }
 
@@ -70,7 +70,7 @@ static ENTRIES_PER_64_BITS : [usize;MAX_PRIME_INDEX] = [
     4, 4, 4, 4, 4, 4, 4, 4, 4, 4
 ];
 
-fn get_entries_per_64_bits(p : u32) -> usize {
+fn entries_per_64_bits(p : u32) -> usize {
     return ENTRIES_PER_64_BITS[PRIME_TO_INDEX_MAP[p as usize]];
 }
 
@@ -108,8 +108,8 @@ pub fn initialize_limb_bit_index_table(p : u32){
     }
     unsafe{
         LIMB_BIT_INDEX_ONCE_TABLE[PRIME_TO_INDEX_MAP[p as usize]].call_once(||{
-            let entries_per_limb = get_entries_per_64_bits(p);
-            let bit_length = get_bit_length(p);
+            let entries_per_limb = entries_per_64_bits(p);
+            let bit_length = bit_length(p);
             let mut table : Vec<LimbBitIndexPair> = Vec::with_capacity(MAX_DIMENSION);
             for i in 0 .. MAX_DIMENSION {
                 table.push(LimbBitIndexPair{
@@ -122,7 +122,7 @@ pub fn initialize_limb_bit_index_table(p : u32){
     }
 }
 
-fn get_limb_bit_index_pair(p : u32, idx : usize) -> LimbBitIndexPair {
+fn limb_bit_index_pair(p : u32, idx : usize) -> LimbBitIndexPair {
     match p {
         2 => { LimbBitIndexPair
             {
@@ -154,34 +154,34 @@ pub enum FpVector {
 #[enum_dispatch(FpVector)]
 pub trait FpVectorT {
     fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize );
-    fn get_vector_container(&self) -> &VectorContainer;
-    fn get_vector_container_mut(&mut self) -> &mut VectorContainer;
+    fn vector_container(&self) -> &VectorContainer;
+    fn vector_container_mut(&mut self) -> &mut VectorContainer;
     fn prime(&self) -> u32;
 
-    fn get_dimension(&self) -> usize {
-        let container = self.get_vector_container();
+    fn dimension(&self) -> usize {
+        let container = self.vector_container();
         return container.slice_end - container.slice_start;
     }
 
-    fn get_offset(&self) -> usize {
-        let container = self.get_vector_container();
-        let bit_length = get_bit_length(self.prime());
-        let entries_per_64_bits = get_entries_per_64_bits(self.prime());
+    fn offset(&self) -> usize {
+        let container = self.vector_container();
+        let bit_length = bit_length(self.prime());
+        let entries_per_64_bits = entries_per_64_bits(self.prime());
         return (container.slice_start * bit_length) % (bit_length * entries_per_64_bits);
     }
 
-    fn get_min_index(&self) -> usize {
-        let container = self.get_vector_container();
+    fn min_index(&self) -> usize {
+        let container = self.vector_container();
         return container.slice_start;
     }
 
-    fn get_slice(&self) -> (usize, usize) {
-        let container = self.get_vector_container();
+    fn slice(&self) -> (usize, usize) {
+        let container = self.vector_container();
         return (container.slice_start, container.slice_end);
     }
 
     fn set_slice(&mut self, slice_start : usize, slice_end : usize) {
-        let container = self.get_vector_container_mut();
+        let container = self.vector_container_mut();
         container.slice_end = container.slice_start + slice_end;
         container.slice_start += slice_start;
         debug_assert!(container.slice_start <= container.slice_end);
@@ -189,47 +189,45 @@ pub trait FpVectorT {
     }
 
     fn restore_slice(&mut self, slice : (usize, usize)) {
-        let container = self.get_vector_container_mut();
+        let container = self.vector_container_mut();
         container.slice_start = slice.0;
         container.slice_end = slice.1;
     }
 
     fn clear_slice(&mut self) {
-        let container = self.get_vector_container_mut();
+        let container = self.vector_container_mut();
         container.slice_start = 0;
         container.slice_end = container.dimension;
     }
 
-    fn get_min_limb(&self) -> usize {
+    fn min_limb(&self) -> usize {
         let p = self.prime();
-        let container = self.get_vector_container();
-        get_limb_bit_index_pair(p,container.slice_start).limb
+        let container = self.vector_container();
+        limb_bit_index_pair(p,container.slice_start).limb
     }
 
-    fn get_max_limb(&self) -> usize {
+    fn max_limb(&self) -> usize {
         let p = self.prime();
-        let container = self.get_vector_container();
+        let container = self.vector_container();
         if container.slice_end > 0{
-            get_limb_bit_index_pair(p, container.slice_end - 1).limb + 1
+            limb_bit_index_pair(p, container.slice_end - 1).limb + 1
         } else {
             0
         }
     }
 
-    // Private
-
-    fn get_limbs_cvec(&self) -> &Vec<u64> {
-        &self.get_vector_container().limbs
+    fn limbs(&self) -> &Vec<u64> {
+        &self.vector_container().limbs
     }
 
-    fn get_limbs_cvec_mut(&mut self) -> &mut Vec<u64> {
-        &mut self.get_vector_container_mut().limbs
+    fn limbs_mut(&mut self) -> &mut Vec<u64> {
+        &mut self.vector_container_mut().limbs
     }
 
-    fn get_limb_mask(&self, limb_idx : usize) -> u64 {
-        let offset = self.get_offset();
-        let min_limb = self.get_min_limb();
-        let max_limb = self.get_max_limb();
+    fn limb_mask(&self, limb_idx : usize) -> u64 {
+        let offset = self.offset();
+        let min_limb = self.min_limb();
+        let max_limb = self.max_limb();
         let number_of_limbs = max_limb - min_limb;
         let mut mask = !0;
         if limb_idx == 0 {
@@ -237,9 +235,9 @@ pub trait FpVectorT {
         }
         if limb_idx + 1 == number_of_limbs {
             let p = self.prime();
-            let dimension = self.get_dimension();
-            let bit_length = get_bit_length(p);
-            let entries_per_64_bits = get_entries_per_64_bits(p);
+            let dimension = self.dimension();
+            let bit_length = bit_length(p);
+            let entries_per_64_bits = entries_per_64_bits(p);
             let bits_needed_for_entire_vector = offset + dimension * bit_length;
             let usable_bits_per_limb = bit_length * entries_per_64_bits;
             let bit_max = 1 + ((bits_needed_for_entire_vector - 1)%(usable_bits_per_limb));
@@ -248,50 +246,60 @@ pub trait FpVectorT {
         return mask;
     }
     fn set_to_zero(&mut self){
-        let min_limb = self.get_min_limb();
-        let max_limb = self.get_max_limb();
+        let min_limb = self.min_limb();
+        let max_limb = self.max_limb();
         let number_of_limbs = max_limb - min_limb;
         if number_of_limbs == 0 {
             return;
         }
         for i in 1 .. number_of_limbs - 1 {
-            let limbs = self.get_limbs_cvec_mut();
+            let limbs = self.limbs_mut();
             limbs[min_limb + i] = 0;
         }
         let mut i = 0; {
-            let mask = self.get_limb_mask(i);
-            let limbs = self.get_limbs_cvec_mut();
+            let mask = self.limb_mask(i);
+            let limbs = self.limbs_mut();
             limbs[min_limb + i] &= !mask;
         }
         i = number_of_limbs - 1;
         if i > 0 {
-            let mask = self.get_limb_mask(i);
-            let limbs = self.get_limbs_cvec_mut();
+            let mask = self.limb_mask(i);
+            let limbs = self.limbs_mut();
             limbs[min_limb + i] &= !mask;
         }
     }
 
+    // TODO: implement this directly?
+    fn shift_assign(&mut self, other : &FpVector){
+        if self.offset() == other.offset() {
+            self.assign(other);
+            return;
+        }
+        self.set_to_zero();
+        self.shift_add(other, 1);
+    }
+
     fn assign(&mut self, other : &FpVector){
-        let min_target_limb = self.get_min_limb();
-        let max_target_limb = self.get_max_limb();
-        let min_source_limb = other.get_min_limb();
+        let min_target_limb = self.min_limb();
+        let max_target_limb = self.max_limb();
+        let min_source_limb = other.min_limb();
         let number_of_limbs = max_target_limb - min_target_limb;
-        assert_eq!(number_of_limbs, other.get_max_limb() - other.get_min_limb());
-        assert!(self.get_offset() == other.get_offset());
-        let target_limbs = self.get_limbs_cvec_mut();
-        let source_limbs = other.get_limbs_cvec();
+        assert_eq!(number_of_limbs, other.max_limb() - other.min_limb());
+        assert!(self.offset() == other.offset());
+        let target_limbs = self.limbs_mut();
+        let source_limbs = other.limbs();
         for i in 1 .. number_of_limbs.saturating_sub(1) {
             target_limbs[min_target_limb + i] = source_limbs[min_source_limb + i];
         }
         let mut i=0; {
-            let mask = other.get_limb_mask(i);
+            let mask = other.limb_mask(i);
             let result = source_limbs[min_source_limb + i] & mask;
             target_limbs[min_target_limb + i] &= !mask;
             target_limbs[min_target_limb + i] |= result;
         }
         i = number_of_limbs - 1;
         if i > 0 {
-            let mask = other.get_limb_mask(i);
+            let mask = other.limb_mask(i);
             let result = source_limbs[min_source_limb + i] & mask;
             target_limbs[min_target_limb + i] &= !mask;
             target_limbs[min_target_limb + i] |= result;
@@ -299,27 +307,27 @@ pub trait FpVectorT {
     }
 
     fn is_zero(&self) -> bool{
-        let min_limb = self.get_min_limb();
-        let max_limb = self.get_max_limb();
+        let min_limb = self.min_limb();
+        let max_limb = self.max_limb();
         let number_of_limbs = max_limb - min_limb;
         if number_of_limbs == 0 {
             return true;
         }
-        let limbs = self.get_limbs_cvec();
+        let limbs = self.limbs();
         for i in 1 .. number_of_limbs-1 {
             if limbs[min_limb + i] != 0 {
                 return false;
             }
         }
         let mut i = 0; {
-            let mask = self.get_limb_mask(i);
+            let mask = self.limb_mask(i);
             if limbs[min_limb + i] & mask != 0 {
                 return false;
             }
         }
         i = number_of_limbs - 1;
         if i > 0 {
-            let mask = self.get_limb_mask(i);
+            let mask = self.limb_mask(i);
             if limbs[min_limb + i] & mask != 0 {
                 return false;
             }
@@ -327,23 +335,23 @@ pub trait FpVectorT {
         return true
     }
 
-    fn get_entry(&self, index : usize) -> u32 {
-        assert!(index < self.get_dimension());
+    fn entry(&self, index : usize) -> u32 {
+        assert!(index < self.dimension());
         let p = self.prime();
-        let bit_mask = get_bitmask(p);
-        let limb_index = get_limb_bit_index_pair(p, index + self.get_min_index());
-        let mut result = self.get_limbs_cvec()[limb_index.limb];
+        let bit_mask = bitmask(p);
+        let limb_index = limb_bit_index_pair(p, index + self.min_index());
+        let mut result = self.limbs()[limb_index.limb];
         result >>= limb_index.bit_index;
         result &= bit_mask;
         return result as u32;
     }
 
     fn set_entry(&mut self, index : usize, value : u32){
-        assert!(index < self.get_dimension());
+        assert!(index < self.dimension());
         let p = self.prime();
-        let bit_mask = get_bitmask(p);
-        let limb_index = get_limb_bit_index_pair(p, index + self.get_min_index());
-        let limbs = self.get_limbs_cvec_mut();
+        let bit_mask = bitmask(p);
+        let limb_index = limb_bit_index_pair(p, index + self.min_index());
+        let limbs = self.limbs_mut();
         let mut result = limbs[limb_index.limb];
         result &= !(bit_mask << limb_index.bit_index);
         result |= (value as u64) << limb_index.bit_index;
@@ -351,7 +359,7 @@ pub trait FpVectorT {
     }
 
     fn add_basis_element(&mut self, index : usize, value : u32){
-        let mut x = self.get_entry(index);
+        let mut x = self.entry(index);
         x += value;
         x = x % self.prime();
         self.set_entry(index, x);
@@ -360,11 +368,11 @@ pub trait FpVectorT {
     /// Unpacks an FpVector onto an array slice. note that the array slice has to be long
     /// enough to hold all the elements in the FpVector.
     fn unpack(&self, target : &mut [u32]){
-        assert!(self.get_dimension() <= target.len());
+        assert!(self.dimension() <= target.len());
         let p = self.prime();
-        let dimension = self.get_dimension();
-        let offset = self.get_offset();
-        let limbs = self.get_limbs_cvec();
+        let dimension = self.dimension();
+        let offset = self.offset();
+        let limbs = self.limbs();
         let mut target_idx = 0;
         for i in 0..limbs.len() {
             target_idx += FpVector::unpack_limb(p, dimension, offset, &mut target[target_idx ..], limbs, i);
@@ -372,17 +380,17 @@ pub trait FpVectorT {
     }
 
     fn to_vector(&self) -> Vec<u32> {
-        let mut vec = vec![0; self.get_dimension()];
+        let mut vec = vec![0; self.dimension()];
         self.unpack(&mut vec);
         vec
     }
 
     fn pack(&mut self, source : &[u32]){
-        assert!(self.get_dimension() <= source.len());
+        assert!(self.dimension() <= source.len());
         let p = self.prime();
-        let dimension = self.get_dimension();
-        let offset = self.get_offset();
-        let limbs = self.get_limbs_cvec_mut();
+        let dimension = self.dimension();
+        let offset = self.offset();
+        let limbs = self.limbs_mut();
         let mut source_idx = 0;
         for i in 0..limbs.len() {
             source_idx += FpVector::pack_limb(p, dimension, offset, &source[source_idx ..], limbs, i);
@@ -392,30 +400,30 @@ pub trait FpVectorT {
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
     fn add(&mut self, other : &FpVector, c : u32){
         debug_assert!(self.prime() == other.prime());
-        debug_assert!(self.get_offset() == other.get_offset());
-        debug_assert!(self.get_dimension() == other.get_dimension(),
-            format!("self.dim {} not equal to other.dim {}", self.get_dimension(), other.get_dimension()));
+        debug_assert!(self.offset() == other.offset());
+        debug_assert!(self.dimension() == other.dimension(),
+            format!("self.dim {} not equal to other.dim {}", self.dimension(), other.dimension()));
         let p = self.prime();
         debug_assert!(c < p);
-        let min_target_limb = self.get_min_limb();
-        let max_target_limb = self.get_max_limb();
-        let min_source_limb = other.get_min_limb();
-        let max_source_limb = other.get_max_limb();
+        let min_target_limb = self.min_limb();
+        let max_target_limb = self.max_limb();
+        let min_source_limb = other.min_limb();
+        let max_source_limb = other.max_limb();
         debug_assert!(max_source_limb - min_source_limb == max_target_limb - min_target_limb);
         let number_of_limbs = max_source_limb - min_source_limb;
-        let target_limbs = self.get_limbs_cvec_mut();
-        let source_limbs = other.get_limbs_cvec();
+        let target_limbs = self.limbs_mut();
+        let source_limbs = other.limbs();
         for i in 1..number_of_limbs-1 {
             target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limbs[i + min_source_limb], c);
         }
         let mut i = 0; {
-            let mask = other.get_limb_mask(i);
+            let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
             target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limb_masked, c);
         }
         i = number_of_limbs - 1;
         if i > 0 {
-            let mask = other.get_limb_mask(i);
+            let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
             target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limb_masked, c);
         }
@@ -423,9 +431,9 @@ pub trait FpVectorT {
     }
 
     fn shift_add(&mut self, other : &FpVector, c : u32){
-        if self.get_offset() > other.get_offset() {
+        if self.offset() > other.offset() {
             self.shift_right_add(other, c);
-        } else if self.get_offset() < other.get_offset() {
+        } else if self.offset() < other.offset() {
             self.shift_left_add(other, c);
         } else {
             self.add(other, c);
@@ -434,33 +442,30 @@ pub trait FpVectorT {
 
     fn shift_right_add(&mut self, other : &FpVector, c : u32){
         debug_assert!(self.prime() == other.prime());
-        debug_assert!(self.get_offset() >= other.get_offset());
-        debug_assert!(self.get_dimension() == other.get_dimension(),
-            format!("self.dim {} not equal to other.dim {}", self.get_dimension(), other.get_dimension()));
-        if self.get_dimension() == 0 {
-            return;
-        }
+        debug_assert!(self.offset() >= other.offset());
+        debug_assert!(self.dimension() == other.dimension(),
+            format!("self.dim {} not equal to other.dim {}", self.dimension(), other.dimension()));
         let p = self.prime();
         debug_assert!(c < p);
-        let offset_shift = self.get_offset() - other.get_offset();
-        let bit_length = get_bit_length(p);
-        let entries_per_64_bits = get_entries_per_64_bits(p);
+        let offset_shift = self.offset() - other.offset();
+        let bit_length = bit_length(p);
+        let entries_per_64_bits = entries_per_64_bits(p);
         let usable_bits_per_limb = bit_length * entries_per_64_bits;
         let tail_shift = usable_bits_per_limb - offset_shift;
-        let min_target_limb = self.get_min_limb();
-        let max_target_limb = self.get_max_limb();
-        let min_source_limb = other.get_min_limb();
-        let max_source_limb = other.get_max_limb();
+        let min_target_limb = self.min_limb();
+        let max_target_limb = self.max_limb();
+        let min_source_limb = other.min_limb();
+        let max_source_limb = other.max_limb();
         let number_of_source_limbs = max_source_limb - min_source_limb;
         let number_of_target_limbs = max_target_limb - min_target_limb;
-        let target_limbs = self.get_limbs_cvec_mut();
-        let source_limbs = other.get_limbs_cvec();
+        let target_limbs = self.limbs_mut();
+        let source_limbs = other.limbs();
         for i in 1..number_of_source_limbs-1 {
             target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limbs[i + min_source_limb] << offset_shift, c);
             target_limbs[i + min_target_limb + 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb + 1], source_limbs[i + min_source_limb] >> tail_shift, c);
         }
         let mut i = 0; {
-            let mask = other.get_limb_mask(i);
+            let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
             target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limb_masked << offset_shift, c);
             if number_of_target_limbs > 1 {
@@ -469,7 +474,7 @@ pub trait FpVectorT {
         }
         i = number_of_source_limbs - 1;
         if i > 0 {
-            let mask = other.get_limb_mask(i);
+            let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
             target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limb_masked << offset_shift, c);
             if number_of_target_limbs > number_of_source_limbs {
@@ -481,39 +486,36 @@ pub trait FpVectorT {
 
     fn shift_left_add(&mut self, other : &FpVector, c : u32){
         debug_assert!(self.prime() == other.prime());
-        debug_assert!(self.get_offset() <= other.get_offset());
-        debug_assert!(self.get_dimension() == other.get_dimension(),
-            format!("self.dim {} not equal to other.dim {}", self.get_dimension(), other.get_dimension()));
-        if self.get_dimension() == 0 {
-            return;
-        }
+        debug_assert!(self.offset() <= other.offset());
+        debug_assert!(self.dimension() == other.dimension(),
+            format!("self.dim {} not equal to other.dim {}", self.dimension(), other.dimension()));
         let p = self.prime();
         debug_assert!(c < p);
-        let offset_shift = other.get_offset() - self.get_offset();
-        let bit_length = get_bit_length(p);
-        let entries_per_64_bits = get_entries_per_64_bits(p);
+        let offset_shift = other.offset() - self.offset();
+        let bit_length = bit_length(p);
+        let entries_per_64_bits = entries_per_64_bits(p);
         let usable_bits_per_limb = bit_length * entries_per_64_bits;
         let tail_shift = usable_bits_per_limb - offset_shift;
-        let min_target_limb = self.get_min_limb();
-        let max_target_limb = self.get_max_limb();
-        let min_source_limb = other.get_min_limb();
-        let max_source_limb = other.get_max_limb();
+        let min_target_limb = self.min_limb();
+        let max_target_limb = self.max_limb();
+        let min_source_limb = other.min_limb();
+        let max_source_limb = other.max_limb();
         let number_of_source_limbs = max_source_limb - min_source_limb;
         let number_of_target_limbs = max_target_limb - min_target_limb;
-        let target_limbs = self.get_limbs_cvec_mut();
-        let source_limbs = other.get_limbs_cvec();
+        let target_limbs = self.limbs_mut();
+        let source_limbs = other.limbs();
         for i in 1..number_of_source_limbs-1 {
             target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limbs[i + min_source_limb] >> offset_shift, c);
             target_limbs[i + min_target_limb - 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb - 1], source_limbs[i + min_source_limb] << tail_shift, c);
         }
         let mut i = 0; {
-            let mask = other.get_limb_mask(i);
+            let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
             target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limb_masked >> offset_shift, c);
         }
         i = number_of_source_limbs - 1;
         if i > 0 {
-            let mask = other.get_limb_mask(i);
+            let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
             target_limbs[i + min_target_limb - 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb - 1], source_limb_masked << tail_shift, c);
             if number_of_source_limbs == number_of_target_limbs {
@@ -525,16 +527,16 @@ pub trait FpVectorT {
 
     fn scale(&mut self, c : u32){
         let c = c as u64;
-        let min_limb = self.get_min_limb();
-        let max_limb = self.get_max_limb();
+        let min_limb = self.min_limb();
+        let max_limb = self.max_limb();
         let number_of_limbs = max_limb - min_limb;
         for i in 1..number_of_limbs-1 {
-            let limbs = self.get_limbs_cvec_mut();
+            let limbs = self.limbs_mut();
             limbs[i + min_limb] *= c;
         }
         let mut i = 0; {
-            let mask = self.get_limb_mask(i);
-            let limbs = self.get_limbs_cvec_mut();
+            let mask = self.limb_mask(i);
+            let limbs = self.limbs_mut();
             let full_limb = limbs[min_limb + i];
             let masked_limb = full_limb & mask;
             let rest_limb = full_limb & !mask;
@@ -542,8 +544,8 @@ pub trait FpVectorT {
         }
         i = number_of_limbs - 1;
         if i > 0 {
-            let mask = self.get_limb_mask(i);
-            let limbs = self.get_limbs_cvec_mut();
+            let mask = self.limb_mask(i);
+            let limbs = self.limbs_mut();
             let full_limb = limbs[min_limb + i];
             let masked_limb = full_limb & mask;
             let rest_limb = full_limb & !mask;
@@ -555,25 +557,25 @@ pub trait FpVectorT {
 
 impl PartialEq for FpVector {
     fn eq(&self,other : &Self) -> bool {
-        let self_min_limb = self.get_min_limb();
-        let self_max_limb = self.get_max_limb();
-        let other_min_limb = other.get_min_limb();
-        let other_max_limb = other.get_max_limb();
+        let self_min_limb = self.min_limb();
+        let self_max_limb = self.max_limb();
+        let other_min_limb = other.min_limb();
+        let other_max_limb = other.max_limb();
         let number_of_limbs = self_max_limb - self_min_limb;
 
         if other_max_limb - other_min_limb != number_of_limbs {
             return false;
         }
 
-        let self_limbs = self.get_limbs_cvec();
-        let other_limbs = other.get_limbs_cvec();
+        let self_limbs = self.limbs();
+        let other_limbs = other.limbs();
         for i in 1 .. number_of_limbs-1 {
             if self_limbs[self_min_limb + i] != other_limbs[other_min_limb + i] {
                 return false;
             }
         }
         let mut i = 0; {
-            let mask = self.get_limb_mask(i);
+            let mask = self.limb_mask(i);
             let self_limb_masked = self_limbs[self_min_limb + i] & mask;
             let other_limb_masked = other_limbs[other_min_limb + i] & mask;
             if self_limb_masked != other_limb_masked {
@@ -582,7 +584,7 @@ impl PartialEq for FpVector {
         }
         i = number_of_limbs - 1;
         if i > 0 {
-            let mask = self.get_limb_mask(i);
+            let mask = self.limb_mask(i);
             let self_limb_masked = self_limbs[self_min_limb + i] & mask;
             let other_limb_masked = other_limbs[other_min_limb + i] & mask;
             if self_limb_masked != other_limb_masked {
@@ -628,8 +630,8 @@ impl FpVectorT for FpVector2 {
     fn reduce_limbs(&mut self, _start_limb : usize, _end_limb : usize){}
 
     fn prime(&self) -> u32 { 2 }
-    fn get_vector_container (&self) -> &VectorContainer { &self.vector_container }
-    fn get_vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
+    fn vector_container (&self) -> &VectorContainer { &self.vector_container }
+    fn vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
 }
 
 impl FpVectorT for FpVector3 {
@@ -647,8 +649,8 @@ impl FpVectorT for FpVector3 {
     }
 
     fn prime (&self) -> u32 { 3 }
-    fn get_vector_container (&self) -> &VectorContainer { &self.vector_container }
-    fn get_vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
+    fn vector_container (&self) -> &VectorContainer { &self.vector_container }
+    fn vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
 }
 
 
@@ -670,14 +672,14 @@ impl FpVectorT for FpVector5 {
     }
 
     fn prime(&self) -> u32 { 5 }
-    fn get_vector_container (&self) -> &VectorContainer { &self.vector_container }
-    fn get_vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
+    fn vector_container (&self) -> &VectorContainer { &self.vector_container }
+    fn vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
 }
 
 
 impl FpVectorT for FpVectorGeneric {
     fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize){
-        let entries_per_64_bits = get_entries_per_64_bits(self.p);
+        let entries_per_64_bits = entries_per_64_bits(self.p);
         let mut unpacked_limb = Vec::with_capacity(entries_per_64_bits);
         for _ in 0..entries_per_64_bits {
             unpacked_limb.push(0);
@@ -695,15 +697,15 @@ impl FpVectorT for FpVectorGeneric {
     }
 
     fn prime (&self) -> u32 { self.p }
-    fn get_vector_container (&self) -> &VectorContainer { &self.vector_container }
-    fn get_vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
+    fn vector_container (&self) -> &VectorContainer { &self.vector_container }
+    fn vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
 }
 
 impl FpVector {
     pub fn new(p : u32, dimension : usize) -> FpVector {
         let slice_start = 0;
         let slice_end = dimension;
-        let number_of_limbs = Self::get_number_of_limbs(p, dimension);
+        let number_of_limbs = Self::number_of_limbs(p, dimension);
         let limbs = vec![0; number_of_limbs];
         let vector_container = VectorContainer {dimension, limbs, slice_start, slice_end };
         match p  {
@@ -727,22 +729,22 @@ impl FpVector {
         }
     }
 
-    pub fn get_number_of_limbs(p : u32, dimension : usize) -> usize {
+    pub fn number_of_limbs(p : u32, dimension : usize) -> usize {
         assert!(dimension < MAX_DIMENSION);
         if dimension == 0 {
             return 0;
         } else {
-            return get_limb_bit_index_pair(p, dimension - 1).limb + 1;
+            return limb_bit_index_pair(p, dimension - 1).limb + 1;
         }
     }
 
-    pub fn get_padded_dimension(p : u32, dimension : usize) -> usize {
-        let entries_per_limb = get_entries_per_64_bits(p);
+    pub fn padded_dimension(p : u32, dimension : usize) -> usize {
+        let entries_per_limb = entries_per_64_bits(p);
         return ((dimension + entries_per_limb - 1)/entries_per_limb)*entries_per_limb;
     }
 
-    pub fn get_scratch_vector(p : u32, dimension : usize) -> Self {
-        let mut result = FpVector::new(p, FpVector::get_padded_dimension(p, dimension));
+    pub fn scratch_vector(p : u32, dimension : usize) -> Self {
+        let mut result = FpVector::new(p, FpVector::padded_dimension(p, dimension));
         result.set_slice(0, dimension);
         return result;
     }
@@ -751,10 +753,10 @@ impl FpVector {
         let p = self.prime();
         self.clear_slice();
         let mut result;
-        if dimension <= self.get_dimension() {
+        if dimension <= self.dimension() {
             result = self;
         } else {
-            result = FpVector::get_scratch_vector(p, dimension);
+            result = FpVector::scratch_vector(p, dimension);
         }
         result.set_slice(0, dimension);
         return result;
@@ -763,15 +765,15 @@ impl FpVector {
     pub fn iter(&self) -> FpVectorIterator{
         FpVectorIterator {
             vect : &self,
-            dim : self.get_dimension(),
+            dim : self.dimension(),
             index : 0
         }
     }
 
     fn pack_limb(p : u32, dimension : usize, offset : usize, limb_array : &[u32], limbs : &mut Vec<u64>, limb_idx : usize) -> usize {
-        let bit_length = get_bit_length(p);
+        let bit_length = bit_length(p);
         assert_eq!(offset % bit_length, 0);
-        let entries_per_64_bits = get_entries_per_64_bits(p);
+        let entries_per_64_bits = entries_per_64_bits(p);
         let mut bit_min = 0usize;
         let mut bit_max = bit_length * entries_per_64_bits;
         if limb_idx == 0 {
@@ -803,9 +805,9 @@ impl FpVector {
     }
 
     fn unpack_limb(p : u32, dimension : usize, offset : usize, limb_array : &mut [u32], limbs : &Vec<u64>, limb_idx : usize) -> usize {
-        let bit_length = get_bit_length(p);
-        let entries_per_64_bits = get_entries_per_64_bits(p);
-        let bit_mask = get_bitmask(p);
+        let bit_length = bit_length(p);
+        let entries_per_64_bits = entries_per_64_bits(p);
+        let bit_mask = bitmask(p);
         let mut bit_min = 0usize;
         let mut bit_max = bit_length * entries_per_64_bits;
         if limb_idx == 0 {
@@ -841,7 +843,7 @@ impl<'a> Iterator for FpVectorIterator<'a> {
     type Item = u32;
     fn next(&mut self) -> Option<Self::Item>{
         if self.index < self.dim {
-            let result = Some(self.vect.get_entry(self.index));
+            let result = Some(self.vect.entry(self.index));
             self.index += 1;
             result
         } else {
@@ -898,7 +900,7 @@ mod tests {
             let mut v = FpVector::new(p, *dim);
             let v_arr = random_vector(p*(p-1), *dim);
             v.pack(&v_arr);
-            v.reduce_limbs(v.get_min_limb(), v.get_max_limb());
+            v.reduce_limbs(v.min_limb(), v.max_limb());
             let mut result = Vec::with_capacity(*dim);
             for i in 0..*dim {
                 result.push(0);
@@ -974,7 +976,7 @@ mod tests {
     }
 
     #[rstest_parametrize(p,  case(2), case(3), case(5), case(7))]
-    fn test_get_entry(p : u32) {
+    fn test_entry(p : u32) {
         initialize_limb_bit_index_table(p);
         let dim_list = [10, 20, 70, 100, 1000];
         for dim in dim_list.iter() {
@@ -984,8 +986,8 @@ mod tests {
             v.pack(&v_arr);
             let mut diffs = Vec::new();
             for i in 0..dim {
-                if v.get_entry(i) != v_arr[i] {
-                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                if v.entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.entry(i)));
                 }
             }
             assert_eq!(diffs, []);
@@ -993,7 +995,7 @@ mod tests {
     }
 
     #[rstest_parametrize(p,  case(2), case(3), case(5), case(7))]//
-    fn test_get_entry_slice(p : u32) {
+    fn test_entry_slice(p : u32) {
         initialize_limb_bit_index_table(p);
         let dim_list = [10, 20, 70, 100, 1000];
         for i in 0..dim_list.len() {
@@ -1007,9 +1009,9 @@ mod tests {
             v.set_slice(slice_start, slice_end);
             println!("slice_start: {}, slice_end: {}, slice: {}", slice_start, slice_end, v);
             let mut diffs = Vec::new();
-            for i in 0 .. v.get_dimension() {
-                if v.get_entry(i) != v_arr[i + slice_start] {
-                    diffs.push((i, v_arr[i+slice_start], v.get_entry(i)));
+            for i in 0 .. v.dimension() {
+                if v.entry(i) != v_arr[i + slice_start] {
+                    diffs.push((i, v_arr[i+slice_start], v.entry(i)));
                 }
             }
             assert_eq!(diffs, []);
@@ -1029,8 +1031,8 @@ mod tests {
             }
             let mut diffs = Vec::new();
             for i in 0..dim {
-                if v.get_entry(i) != v_arr[i] {
-                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                if v.entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.entry(i)));
                 }
             }
             assert_eq!(diffs, []);
@@ -1047,7 +1049,7 @@ mod tests {
             let slice_end = (dim + slice_start)/2;
             let mut v = FpVector::new(p, dim);
             v.set_slice(slice_start, slice_end);
-            let slice_dim  = v.get_dimension();
+            let slice_dim  = v.dimension();
             let v_arr = random_vector(p, slice_dim);
             for i in 0 .. slice_dim {
                 v.set_entry(i, v_arr[i]);
@@ -1055,8 +1057,8 @@ mod tests {
             // println!("slice_start: {}, slice_end: {}, slice: {}", slice_start, slice_end, v);
             let mut diffs = Vec::new();
             for i in 0 .. slice_dim {
-                if v.get_entry(i) != v_arr[i] {
-                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                if v.entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.entry(i)));
                 }
             }
             assert_eq!(diffs, []);
@@ -1084,18 +1086,18 @@ mod tests {
             assert!(!v.is_zero()); // The first entry is 1, so it's not zero.
             let mut diffs = Vec::new();
             for i in 0..slice_start {
-                if v.get_entry(i) != v_arr[i] {
-                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                if v.entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.entry(i)));
                 }
             }
             for i in slice_start .. slice_end {
-                if v.get_entry(i) != 0 {
-                    diffs.push((i, 0, v.get_entry(i)));
+                if v.entry(i) != 0 {
+                    diffs.push((i, 0, v.entry(i)));
                 }
             }
             for i in slice_end..dim {
-                if v.get_entry(i) != v_arr[i] {
-                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                if v.entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.entry(i)));
                 }
             }
             assert_eq!(diffs, []);
@@ -1130,18 +1132,18 @@ mod tests {
             println!("v : {}", v);
             let mut diffs = Vec::new();
             for i in 0..slice_start {
-                if v.get_entry(i) != v_arr[i] {
-                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                if v.entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.entry(i)));
                 }
             }
             for i in slice_start .. slice_end {
-                if v.get_entry(i) != (v_arr[i] + w_arr[i]) % p {
-                    diffs.push((i, (v_arr[i] + w_arr[i]) % p, v.get_entry(i)));
+                if v.entry(i) != (v_arr[i] + w_arr[i]) % p {
+                    diffs.push((i, (v_arr[i] + w_arr[i]) % p, v.entry(i)));
                 }
             }
             for i in slice_end..dim {
-                if v.get_entry(i) != v_arr[i] {
-                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                if v.entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.entry(i)));
                 }
             }
             assert_eq!(diffs, []);
@@ -1203,18 +1205,18 @@ mod tests {
             assert!(v != w);
             let mut diffs = Vec::new();
             for i in 0..slice_start {
-                if v.get_entry(i) != v_arr[i] {
-                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                if v.entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.entry(i)));
                 }
             }
             for i in slice_start .. slice_end {
-                if v.get_entry(i) != w_arr[i] {
-                    diffs.push((i, w_arr[i], v.get_entry(i)));
+                if v.entry(i) != w_arr[i] {
+                    diffs.push((i, w_arr[i], v.entry(i)));
                 }
             }
             for i in slice_end..dim {
-                if v.get_entry(i) != v_arr[i] {
-                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                if v.entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.entry(i)));
                 }
             }
             assert_eq!(diffs, []);
@@ -1249,18 +1251,18 @@ mod tests {
             println!("v : {}", v);
             let mut diffs = Vec::new();
             for i in 0..slice_start + 2 {
-                if v.get_entry(i) != v_arr[i] {
-                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                if v.entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.entry(i)));
                 }
             }
             for i in slice_start + 2 .. slice_end + 2 {
-                if v.get_entry(i) != (v_arr[i] + w_arr[i - 2]) % p {
-                    diffs.push((i, (v_arr[i] + w_arr[i - 2]) % p, v.get_entry(i)));
+                if v.entry(i) != (v_arr[i] + w_arr[i - 2]) % p {
+                    diffs.push((i, (v_arr[i] + w_arr[i - 2]) % p, v.entry(i)));
                 }
             }
             for i in slice_end  + 2 .. dim {
-                if v.get_entry(i) != v_arr[i] {
-                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                if v.entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.entry(i)));
                 }
             }
             assert_eq!(diffs, []);
@@ -1284,7 +1286,7 @@ mod tests {
             w.pack(&w_arr);
             println!("\n\n\n");
             println!("p : {}, dim : {}, slice_start : {}, slice_end : {}", p, dim, slice_start, slice_end);
-            println!("entries_per_64 : {}, bits_per_entry : {}", get_entries_per_64_bits(p), get_bit_length(p));
+            println!("entries_per_64 : {}, bits_per_entry : {}", entries_per_64_bits(p), bit_length(p));
             println!("v full: {}", v);
             println!("w full: {}", w);
             v.set_slice(slice_start - 2, slice_end - 2);
@@ -1297,18 +1299,18 @@ mod tests {
             println!("v resu: {}", v);
             let mut diffs = Vec::new();
             for i in 0..slice_start - 2 {
-                if v.get_entry(i) != v_arr[i] {
-                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                if v.entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.entry(i)));
                 }
             }
             for i in slice_start - 2 .. slice_end - 2 {
-                if v.get_entry(i) != (v_arr[i] + w_arr[i + 2]) % p {
-                    diffs.push((i, (v_arr[i] + w_arr[i + 2]) % p, v.get_entry(i)));
+                if v.entry(i) != (v_arr[i] + w_arr[i + 2]) % p {
+                    diffs.push((i, (v_arr[i] + w_arr[i + 2]) % p, v.entry(i)));
                 }
             }
             for i in slice_end - 2 .. dim {
-                if v.get_entry(i) != v_arr[i] {
-                    diffs.push((i, v_arr[i], v.get_entry(i)));
+                if v.entry(i) != v_arr[i] {
+                    diffs.push((i, v_arr[i], v.entry(i)));
                 }
             }
             assert_eq!(diffs, []);

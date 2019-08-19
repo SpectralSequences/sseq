@@ -1,6 +1,7 @@
 use rust_ext::Config;
 use rust_ext::construct_from_json;
 use rust_ext::load_module_from_file;
+use rust_ext::chain_complex::ChainComplex;
 use serde_json::Value;
 
 #[test]

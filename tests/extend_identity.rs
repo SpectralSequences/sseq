@@ -37,14 +37,14 @@ fn check_algebra (module_name : &str, max_degree : i32, algebra_name: &str) {
 
     for s in 0 ..= max_degree as u32 {
         let map = resolution.self_maps[0].map.get_map(s);
-        let source = resolution.get_module(s);
+        let source = resolution.module(s);
         for t in 0..= max_degree {
-            for idx in 0 .. source.get_number_of_gens_in_degree(t){
-                let mut correct_result = FpVector::new(p, source.get_dimension(t));
+            for idx in 0 .. source.number_of_gens_in_degree(t){
+                let mut correct_result = FpVector::new(p, source.dimension(t));
                 correct_result.set_entry(source.operation_generator_to_index(0, 0, t, idx), 1);
                 // Mathematically, there is no reason these should be lietrally
                 // equal.
-                assert_eq!(map.get_output(t, idx), &correct_result);
+                assert_eq!(map.output(t, idx), &correct_result);
             }
         }
     }

@@ -266,7 +266,7 @@ pub fn adem_relation_coefficient(p : u32, x : u32, y : u32, j : u32, e1 : u32, e
     return c % p;
 }
 
-pub fn get_inadmissible_pairs(p : u32, generic : bool, degree : i32) -> Vec<(u32, u32, u32)> {
+pub fn inadmissible_pairs(p : u32, generic : bool, degree : i32) -> Vec<(u32, u32, u32)> {
     let degree = degree as u32;
     let q = if generic { 2*p-2 } else { 1 };
     // (i, b, j) means P^i P^j if b = 0, or P^i b P^j if b = 1.
@@ -294,11 +294,11 @@ pub fn get_inadmissible_pairs(p : u32, generic : bool, degree : i32) -> Vec<(u32
     return inadmissible_pairs;
 }
 
-pub fn get_tau_degrees(p : u32) -> &'static [i32] {
+pub fn tau_degrees(p : u32) -> &'static [i32] {
     &TAU_DEGREES[PRIME_TO_INDEX_MAP[p as usize]]
 }
 
-pub fn get_xi_degrees(p : u32) -> &'static [i32] {
+pub fn xi_degrees(p : u32) -> &'static [i32] {
     &XI_DEGREES[PRIME_TO_INDEX_MAP[p as usize]]
 }
 

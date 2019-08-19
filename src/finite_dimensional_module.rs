@@ -25,21 +25,21 @@ pub struct FiniteDimensionalModule {
 }
 
 impl Module for FiniteDimensionalModule {
-    fn get_name(&self) -> &str {
+    fn name(&self) -> &str {
         &self.name
     }
 
-    fn get_algebra(&self) -> Rc<AlgebraAny> {
+    fn algebra(&self) -> Rc<AlgebraAny> {
         Rc::clone(&self.algebra)
     }
 
-    fn get_min_degree(&self) -> i32 {
+    fn min_degree(&self) -> i32 {
         self.graded_dimension.min_degree()
     }
     
     fn compute_basis(&self, _degree : i32){ }
 
-    fn get_dimension(&self, degree : i32) -> usize {
+    fn dimension(&self, degree : i32) -> usize {
         if degree < self.graded_dimension.min_degree() {
             return 0;
         }
@@ -54,9 +54,9 @@ impl Module for FiniteDimensionalModule {
     }
 
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize){
-        assert!(op_index < self.get_algebra().get_dimension(op_degree, mod_degree));
-        assert!(mod_index < self.get_dimension(mod_degree));
-        let output_dimension = self.get_dimension(mod_degree + op_degree);    
+        assert!(op_index < self.algebra().dimension(op_degree, mod_degree));
+        assert!(mod_index < self.dimension(mod_degree));
+        let output_dimension = self.dimension(mod_degree + op_degree);    
         if output_dimension == 0 {
             return;
         }
@@ -65,7 +65,7 @@ impl Module for FiniteDimensionalModule {
             result.add_basis_element(mod_index, coeff);
             return;
         }
-        let output = self.get_action(op_degree, op_index, mod_degree, mod_index);
+        let output = self.action(op_degree, op_index, mod_degree, mod_index);
         result.shift_add(output, coeff);
     }
 }
@@ -163,7 +163,7 @@ impl FiniteDimensionalModule {
                     continue;
                 }
                 let op_deg = output_degree - input_degree;
-                let number_of_operations = algebra.get_dimension(min_degree + op_deg, min_degree + input_degree);
+                let number_of_operations = algebra.dimension(min_degree + op_deg, min_degree + input_degree);
                 let number_of_inputs = graded_dimension[input_degree];
                 let number_of_outputs = graded_dimension[output_degree];
                 let mut ops_vec : Vec<Vec<FpVector>> = Vec::with_capacity(number_of_operations);
@@ -191,8 +191,8 @@ impl FiniteDimensionalModule {
         input_degree : i32, input_idx : usize,
         output : &FpVector
     ){
-        assert!(operation_idx < self.algebra.get_dimension(operation_degree, input_degree));
-        assert!(input_idx < self.get_dimension(input_degree));      
+        assert!(operation_idx < self.algebra.dimension(operation_degree, input_degree));
+        assert!(input_idx < self.dimension(input_degree));      
         let output_degree = input_degree + operation_degree;
         // (in_deg) -> (out_deg) -> (op_index) -> (in_index) -> Vector
         let output_vector = &mut self.actions[input_degree][output_degree][operation_idx][input_idx];
@@ -205,30 +205,30 @@ impl FiniteDimensionalModule {
         input_degree : i32, input_idx : usize,
         output : Vec<u32>
     ){
-        assert!(operation_idx < self.algebra.get_dimension(operation_degree, input_degree));
-        assert!(input_idx < self.get_dimension(input_degree));
+        assert!(operation_idx < self.algebra.dimension(operation_degree, input_degree));
+        assert!(input_idx < self.dimension(input_degree));
         let output_degree = input_degree + operation_degree;
         // (in_deg) -> (out_deg) -> (op_index) -> (in_index) -> Vector
         let output_vector = &mut self.actions[input_degree][output_degree][operation_idx][input_idx];
         output_vector.pack(&output);
     }    
 
-    /// This function will panic if you call it with input such that `module.get_dimension(input_degree +
+    /// This function will panic if you call it with input such that `module.dimension(input_degree +
     /// operation_degree) = 0`.
-    pub fn get_action(
+    pub fn action(
         &self,
         operation_degree : i32, operation_idx : usize,
         input_degree : i32, input_idx : usize
     ) -> &FpVector {
-        assert!(operation_idx < self.algebra.get_dimension(operation_degree, input_degree));
-        assert!(input_idx < self.get_dimension(input_degree));  
+        assert!(operation_idx < self.algebra.dimension(operation_degree, input_degree));
+        assert!(input_idx < self.dimension(input_degree));  
         let output_degree = input_degree + operation_degree;
         return &self.actions[input_degree][output_degree][operation_idx][input_idx];
     }
 
-    /// This function will panic if you call it with input such that `module.get_dimension(input_degree +
+    /// This function will panic if you call it with input such that `module.dimension(input_degree +
     /// operation_degree) = 0`.
-    fn get_action_mut(
+    fn action_mut(
         &mut self,
         operation_degree : i32, operation_idx : usize,
         input_degree : i32, input_idx : usize
@@ -242,7 +242,7 @@ impl FiniteDimensionalModule {
         let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(&gens);
         let min_degree = graded_dimension.min_degree();
         let name = json["name"].as_str().unwrap().to_string();
-        let mut actions_value = json[algebra.get_algebra_type().to_owned() + "_actions"].take();
+        let mut actions_value = json[algebra.algebra_type().to_owned() + "_actions"].take();
         let actions = actions_value.as_array_mut().unwrap();
         let mut result = Self::new(Rc::clone(&algebra), name, graded_dimension.clone());
         for (i, dim) in graded_dimension.iter_enum() {
@@ -255,7 +255,7 @@ impl FiniteDimensionalModule {
             let (degree, idx) = algebra.json_to_basis(op);
             let input_name = action["input"].as_str().unwrap();
             let (input_degree, input_idx) = gen_to_idx[&input_name.to_string()];
-            let output_vec = result.get_action_mut(degree, idx, input_degree, input_idx);
+            let output_vec = result.action_mut(degree, idx, input_degree, input_idx);
             let outputs = action["output"].as_array().unwrap();
             for basis_elt in outputs {
                 let output_name = basis_elt["gen"].as_str().unwrap();
@@ -270,16 +270,16 @@ impl FiniteDimensionalModule {
     pub fn check_validity(&self, input_deg : i32, output_deg : i32) -> Result<(),Box<dyn Error>>{
         assert!(output_deg > input_deg);
         let p = self.prime();
-        let algebra = self.get_algebra();
+        let algebra = self.algebra();
         let op_deg = output_deg - input_deg;
-        let mut output_vec = FpVector::new(p, self.get_dimension(output_deg));
-        let mut tmp_output = FpVector::new(p, self.get_dimension(output_deg));
-        for idx in 0..self.get_dimension(input_deg) {
-            let relations = algebra.get_relations_to_check(op_deg);
+        let mut output_vec = FpVector::new(p, self.dimension(output_deg));
+        let mut tmp_output = FpVector::new(p, self.dimension(output_deg));
+        for idx in 0..self.dimension(input_deg) {
+            let relations = algebra.relations_to_check(op_deg);
             for relation in relations {
                 for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                    let intermediate_dim = self.get_dimension(input_deg + *deg_2);
-                    if intermediate_dim > tmp_output.get_dimension() {
+                    let intermediate_dim = self.dimension(input_deg + *deg_2);
+                    if intermediate_dim > tmp_output.dimension() {
                         tmp_output = FpVector::new(p, intermediate_dim);
                     }
                     tmp_output.set_slice(0, intermediate_dim);
@@ -310,18 +310,18 @@ impl FiniteDimensionalModule {
 
     pub fn extend_actions(&mut self, input_deg : i32, output_deg : i32){
         let p = self.prime();
-        let algebra = self.get_algebra();
+        let algebra = self.algebra();
         let op_deg = output_deg - input_deg;
-        let mut output_vec = FpVector::new(p, self.get_dimension(output_deg));
-        let mut tmp_output = FpVector::new(p, self.get_dimension(output_deg));
-        let generators = algebra.get_generators(op_deg);  
-        for idx in 0 .. self.get_dimension(input_deg) {      
-            for op_idx in 0 .. algebra.get_dimension(op_deg, -1) {
+        let mut output_vec = FpVector::new(p, self.dimension(output_deg));
+        let mut tmp_output = FpVector::new(p, self.dimension(output_deg));
+        let generators = algebra.generators(op_deg);  
+        for idx in 0 .. self.dimension(input_deg) {      
+            for op_idx in 0 .. algebra.dimension(op_deg, -1) {
                 if !generators.contains(&op_idx) {
                     let decomposition = algebra.decompose_basis_element(op_deg, op_idx);
                     for (coef, (deg_1, idx_1), (deg_2, idx_2)) in decomposition {
-                        let intermediate_dim = self.get_dimension(input_deg + deg_2);
-                        if intermediate_dim > tmp_output.get_dimension() {
+                        let intermediate_dim = self.dimension(input_deg + deg_2);
+                        if intermediate_dim > tmp_output.dimension() {
                             tmp_output = FpVector::new(p, intermediate_dim);
                         }
                         tmp_output.set_slice(0, intermediate_dim);                        
@@ -338,19 +338,19 @@ impl FiniteDimensionalModule {
     }
 
     pub fn actions_to_json(&self) -> Value {
-        let algebra = self.get_algebra();
-        let min_degree = self.get_min_degree();
+        let algebra = self.algebra();
+        let min_degree = self.min_degree();
         let max_degree = min_degree + self.graded_dimension.len() as i32;
         let mut actions = Vec::new();
         for input_degree in min_degree..max_degree {
             for output_degree in (input_degree + 1) .. max_degree {
-                if self.get_dimension(output_degree) == 0 {
+                if self.dimension(output_degree) == 0 {
                     continue;
                 }
                 let op_degree = output_degree - input_degree;
-                for input_idx in 0..self.get_dimension(input_degree){
-                    for op_idx in 0..algebra.get_dimension(op_degree, -1) {
-                        let vec = self.get_action(op_degree, op_idx, input_degree, input_idx);
+                for input_idx in 0..self.dimension(input_degree){
+                    for op_idx in 0..algebra.dimension(op_degree, -1) {
+                        let vec = self.action(op_degree, op_idx, input_degree, input_idx);
                         let mut current_terms = Vec::new();
                         for (i, v) in vec.iter().enumerate() {
                             if v == 0 {

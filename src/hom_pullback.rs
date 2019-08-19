@@ -1,8 +1,9 @@
 use std::sync::{Mutex, MutexGuard};
 use std::rc::Rc;
 
+use crate::once::OnceBiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
-use crate::matrix::QuasiInverse;
+use crate::matrix::{Matrix, Subspace, QuasiInverse};
 // use crate::block_structure::BlockStructure;
 // use crate::algebra::AlgebraAny;
 // use crate::field::Field;
@@ -17,45 +18,52 @@ pub struct HomPullback<M : FiniteDimensionalModuleT> {
     source : Rc<HomSpace<M>>,
     target : Rc<HomSpace<M>>,
     map : Rc<FreeModuleHomomorphism<FreeModule>>,
+    kernel : OnceBiVec<Subspace>,
+    quasi_inverse : OnceBiVec<QuasiInverse>,    
     max_computed_degree : Mutex<i32>,
-
 }
 
 impl<M : FiniteDimensionalModuleT> HomPullback<M> {
     pub fn new(source : Rc<HomSpace<M>>, target : Rc<HomSpace<M>>, map : Rc<FreeModuleHomomorphism<FreeModule>>) -> Self {
-        let min_degree = source.get_min_degree();
+        let min_degree = source.min_degree();
         Self {
             source,
             target,
             map,
-            max_computed_degree : Mutex::new(min_degree - 1)
+            max_computed_degree : Mutex::new(min_degree - 1),
+            kernel : OnceBiVec::new(min_degree),
+            quasi_inverse : OnceBiVec::new(min_degree),
         }
     }
 }
 
 impl<M : FiniteDimensionalModuleT> ModuleHomomorphism<HomSpace<M>, HomSpace<M>> for HomPullback<M> {
-    fn get_source(&self) -> Rc<HomSpace<M>> {
+    fn source(&self) -> Rc<HomSpace<M>> {
         Rc::clone(&self.source)
     }
 
-    fn get_target(&self) -> Rc<HomSpace<M>> {
+    fn target(&self) -> Rc<HomSpace<M>> {
         Rc::clone(&self.target)
     }
 
-    fn get_min_degree(&self) -> i32 {
-        self.get_source().get_min_degree()
+    fn degree_shift(&self) -> i32 {
+        self.map.degree_shift()
+    }
+
+    fn min_degree(&self) -> i32 {
+        self.source().min_degree()
     }
 
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, fn_degree : i32, fn_idx : usize) {
         // println!("fn_deg : {}, fn_idx : {}", fn_degree, fn_idx);
         let p = self.prime();
         let target_module = self.target.target();
-        for out_deg in target_module.get_min_degree() ..= target_module.max_degree() {
+        for out_deg in target_module.min_degree() ..= target_module.max_degree() {
             let x_degree = fn_degree + out_deg;
-            let num_gens = self.map.get_source().get_number_of_gens_in_degree(x_degree);
-            let old_slice = result.get_slice();
+            let num_gens = self.map.source().number_of_gens_in_degree(x_degree);
+            let old_slice = result.slice();
             for i in 0 .. num_gens {
-                let x_elt = self.map.get_output(x_degree, i);
+                let x_elt = self.map.output(x_degree, i);
                 let (block_start, block_size) = self.source.block_structures[fn_degree].generator_to_block(x_degree, i);
                 result.set_slice(block_start, block_start + block_size);
                 self.target.evaluate_basis_map_on_element(result, coeff, fn_degree, fn_idx, x_degree, &x_elt);
@@ -64,20 +72,32 @@ impl<M : FiniteDimensionalModuleT> ModuleHomomorphism<HomSpace<M>, HomSpace<M>> 
         }
     }
 
-    fn get_lock(&self) -> MutexGuard<i32> {
+    fn lock(&self) -> MutexGuard<i32> {
         self.max_computed_degree.lock().unwrap()
     }
 
-    fn get_max_kernel_degree(&self) -> i32 {
-        0
+    fn max_kernel_degree(&self) -> i32 {
+        unimplemented!()
     }
 
-    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, kernel : QuasiInverse){
-
+    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse){
+        assert!(degree >= self.min_degree());
+        assert!(degree == self.quasi_inverse.len());
+        self.quasi_inverse.push(quasi_inverse);
     }
 
-    fn get_quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
-        None
+    fn quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
+        Some(&self.quasi_inverse[degree])
+    }
+
+    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace) {
+        assert!(degree >= self.min_degree());
+        assert!(degree == self.kernel.len());
+        self.kernel.push(kernel);
+    }
+
+    fn kernel(&self, degree : i32) -> Option<&Subspace> {
+        Some(&self.kernel[degree])
     }
 }
 
@@ -107,10 +127,10 @@ mod tests {
         F1.add_generators_immediate(2, 1, None);
         F1.extend_by_zero(20);
         let d = Rc::new(FreeModuleHomomorphism::new(Rc::clone(&F1), Rc::clone(&F0), 0));
-        let mut lock = d.get_lock();
+        let mut lock = d.lock();
         
         for i in 0 ..= 1 {
-            let mut matrix = Matrix::new(p, 1, F0.get_dimension(i));
+            let mut matrix = Matrix::new(p, 1, F0.dimension(i));
             d.add_generators_from_matrix_rows(&lock, i, &mut matrix, 0, 0);
             *lock += 1;
         }
@@ -172,18 +192,18 @@ mod tests {
         ];
 
         let pb = HomPullback::new(Rc::clone(&hom0), Rc::clone(&hom1), Rc::clone(&d));
-        // let mut result = FpVector::new(p, hom1.get_dimension(deg));
+        // let mut result = FpVector::new(p, hom1.dimension(deg));
         // pb.apply_to_basis_element(&mut result, 1, deg, idx);
         for deg in -4 .. 3 {
-            let mut result = FpVector::new(p, hom1.get_dimension(deg));
-            let mut desired_result = FpVector::new(p, hom1.get_dimension(deg));
-            // println!("deg : {}, dim : {}", deg, hom0.get_dimension(deg));
-            for idx in 0 .. hom0.get_dimension(deg) {
+            let mut result = FpVector::new(p, hom1.dimension(deg));
+            let mut desired_result = FpVector::new(p, hom1.dimension(deg));
+            // println!("deg : {}, dim : {}", deg, hom0.dimension(deg));
+            for idx in 0 .. hom0.dimension(deg) {
                 // println!("deg = {}, idx = {}, f = {}", deg, idx, hom1.basis_element_to_string(deg, idx));
                 pb.apply_to_basis_element(&mut result, 1, deg, idx);
                 // println!("d^* {} = {}\n", hom1.basis_element_to_string(deg, idx), hom0.element_to_string(deg, &result));
                 let desired_output = outputs[(deg + 4) as usize][idx];
-                desired_result.pack(&desired_output[0..desired_result.get_dimension()]);
+                desired_result.pack(&desired_output[0..desired_result.dimension()]);
                 assert_eq!(result, desired_result);
                 println!("{}", result);
                 result.set_to_zero();

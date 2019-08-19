@@ -92,8 +92,8 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             Vec<Vec<u32>>
         )>>
     ) -> Self {
-        let algebra = complex.get_algebra();
-        let min_degree = complex.get_min_degree();
+        let algebra = complex.algebra();
+        let min_degree = complex.min_degree();
 
         let zero_module = Rc::new(FreeModule::new(Rc::clone(&algebra), "F_{-1}".to_string(), min_degree));
 
@@ -113,7 +113,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             add_class,
             add_structline,
 
-            filtration_one_products : algebra.get_default_filtration_one_products(),
+            filtration_one_products : algebra.default_filtration_one_products(),
 
             chain_maps_to_unit_resolution : OnceVec::new(),
             max_product_homological_degree : 0,
@@ -123,41 +123,33 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             self_maps : Vec::new()
         }
     }
-
-    pub fn get_max_degree(&self) -> i32 {
-        *self.next_t.lock().unwrap() - 1
-    }
-
-    pub fn get_max_hom_deg(&self) -> u32 {
-        *self.next_s.lock().unwrap() - 1
-    }
     
-    pub fn get_complex(&self) -> Rc<CC> {
+    pub fn complex(&self) -> Rc<CC> {
         Rc::clone(&self.complex)
     }
 
-    pub fn get_module(&self, homological_degree : u32) -> Rc<FreeModule> {
+    pub fn module(&self, homological_degree : u32) -> Rc<FreeModule> {
         Rc::clone(&self.modules[homological_degree as usize])
     }
 
-    pub fn get_zero_module(&self) -> Rc<FreeModule> {
+    pub fn zero_module(&self) -> Rc<FreeModule> {
         Rc::clone(&self.zero_module)
     }
 
-    pub fn get_number_of_gens_in_bidegree(&self, homological_degree : u32, internal_degree : i32) -> usize {
-        self.get_module(homological_degree).get_number_of_gens_in_degree(internal_degree)
+    pub fn number_of_gens_in_bidegree(&self, homological_degree : u32, internal_degree : i32) -> usize {
+        self.module(homological_degree).number_of_gens_in_degree(internal_degree)
     }
 
-    pub fn get_chain_map(&self, homological_degree : u32) -> &FreeModuleHomomorphism<M> {
+    pub fn chain_map(&self, homological_degree : u32) -> &FreeModuleHomomorphism<M> {
         &self.chain_maps[homological_degree as usize]
     }
 
-    pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
+    pub fn cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
         let p = self.prime();
-        let d = self.get_differential(hom_deg);
-        let source = self.get_module(hom_deg);
-        let target = d.get_target();
-        let dimension = target.get_dimension(int_deg);
+        let d = self.differential(hom_deg);
+        let source = self.module(hom_deg);
+        let target = d.target();
+        let dimension = target.dimension(int_deg);
         let basis_idx = source.operation_generator_to_index(0, 0, int_deg, idx);
         let mut result_vector = crate::fp_vector::FpVector::new(p, dimension);
         d.apply_to_basis_element(&mut result_vector, 1, int_deg, basis_idx);
@@ -173,11 +165,11 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
     /// s degree. It does *not* perform any computations by itself. It simply lengthens the
     /// `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
     pub fn extend_through_degree(&self, mut next_s : u32, max_s : u32, next_t : i32, max_t : i32) {
-        let min_degree = self.get_min_degree();
+        let min_degree = self.min_degree();
 
         for i in next_s ..= max_s {
-            self.modules.push(Rc::new(FreeModule::new(Rc::clone(&self.get_algebra()), format!("F{}", i), min_degree)));
-            self.chain_maps.push(FreeModuleHomomorphism::new(Rc::clone(&self.modules[i]), Rc::clone(&self.complex.get_module(i)), 0));
+            self.modules.push(Rc::new(FreeModule::new(Rc::clone(&self.algebra()), format!("F{}", i), min_degree)));
+            self.chain_maps.push(FreeModuleHomomorphism::new(Rc::clone(&self.modules[i]), Rc::clone(&self.complex.module(i)), 0));
         }
 
         for _ in next_t ..= max_t {
@@ -194,7 +186,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
     }
 
     pub fn resolve_through_bidegree(&self, mut max_s : u32, mut max_t : i32) {
-        let min_degree = self.get_min_degree();
+        let min_degree = self.min_degree();
         let mut next_s = self.next_s.lock().unwrap();
         let mut next_t = self.next_t.lock().unwrap();
 
@@ -205,7 +197,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         }
 
         self.extend_through_degree(*next_s, max_s, *next_t, max_t);
-        self.get_algebra().compute_basis(max_t);// because Adem has off-by-one
+        self.algebra().compute_basis(max_t);// because Adem has off-by-one
 
         for t in min_degree ..= max_t {
             if let Some(unit_res) = &self.unit_resolution {
@@ -237,10 +229,10 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         if s == 0 {
             self.zero_module.extend_by_zero(t);
         }
-        self.get_complex().compute_through_bidegree(s, t);
+        self.complex().compute_through_bidegree(s, t);
         let new_kernel = self.generate_old_kernel_and_compute_new_kernel(s, t, old_kernel);
-        let module = self.get_module(s);
-        let num_gens = module.get_number_of_gens_in_degree(t);
+        let module = self.module(s);
+        let num_gens = module.number_of_gens_in_degree(t);
         if let Some(f) = &self.add_class {
             if num_gens > 0 {
                 f(s, t, num_gens);
@@ -259,34 +251,34 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         }
         let source_s = target_s - 1;
 
-        let source = self.get_module(source_s);
-        let target = self.get_module(target_s);
+        let source = self.module(source_s);
+        let target = self.module(target_s);
 
-        let target_dim = target.get_number_of_gens_in_degree(target_t);
+        let target_dim = target.number_of_gens_in_degree(target_t);
         if target_dim == 0 {
             return;
         }
 
         for (op_name, op_degree, op_index) in &self.filtration_one_products {
             let source_t = target_t - *op_degree;
-            if source_t < self.get_min_degree(){
+            if source_t < self.min_degree(){
                 continue;
             }
-            let source_dim = source.get_number_of_gens_in_degree(source_t);
+            let source_dim = source.number_of_gens_in_degree(source_t);
             if source_dim == 0 {
                 continue;
             }
 
-            let d = self.get_differential(target_s);
+            let d = self.differential(target_s);
 
             let mut products = vec![Vec::with_capacity(target_dim); source_dim];
 
             for i in 0 .. target_dim {
-                let dx = d.get_output(target_t, i);
+                let dx = d.output(target_t, i);
 
                 for j in 0 .. source_dim {
                     let idx = source.operation_generator_to_index(*op_degree, *op_index, source_t, j);
-                    products[j].push(dx.get_entry(idx));
+                    products[j].push(dx.entry(idx));
                 }
             }
 
@@ -384,19 +376,19 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         //                   v                               v
         // old_kernel <= X_{s-1, t} -------------------> C_{s-1, t}
 
-        let current_differential = self.get_differential(homological_degree);
-        let current_chain_map = self.get_chain_map(homological_degree);
-        let complex = self.get_complex();
-        let complex_cur_differential = complex.get_differential(homological_degree);
-        let source = &current_differential.get_source();
-        let target_cc = &current_chain_map.get_target();
-        let target_res = &current_differential.get_target();
+        let current_differential = self.differential(homological_degree);
+        let current_chain_map = self.chain_map(homological_degree);
+        let complex = self.complex();
+        let complex_cur_differential = complex.differential(homological_degree);
+        let source = &current_differential.source();
+        let target_cc = &current_chain_map.target();
+        let target_res = &current_differential.target();
         let (source_lock, source_module_table) = source.construct_table(degree);
-        let mut chain_map_lock = current_chain_map.get_lock();
-        let mut differential_lock = current_differential.get_lock();
-        let source_dimension = FreeModule::get_dimension_with_table(&source_module_table);
-        let target_cc_dimension = target_cc.get_dimension(degree);
-        let target_res_dimension = target_res.get_dimension(degree);
+        let mut chain_map_lock = current_chain_map.lock();
+        let mut differential_lock = current_differential.lock();
+        let source_dimension = FreeModule::dimension_with_table(&source_module_table);
+        let target_cc_dimension = target_cc.dimension(degree);
+        let target_res_dimension = target_res.dimension(degree);
         let target_dimension = target_cc_dimension + target_res_dimension;
         // The Homomorphism matrix has size source_dimension x target_dimension, but we are going to augment it with an
         // identity matrix so that gives a matrix with dimensions source_dimension x (target_dimension + source_dimension).
@@ -405,25 +397,23 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         // This latter matrix may be used to find a preimage of an element under the differential.
 
         // Pad the target dimension so that it ends in an aligned position.
-        let padded_target_cc_dimension = FpVector::get_padded_dimension(p, target_cc_dimension);
-        let padded_target_res_dimension = FpVector::get_padded_dimension(p, target_res_dimension);
+        let padded_target_cc_dimension = FpVector::padded_dimension(p, target_cc_dimension);
+        let padded_target_res_dimension = FpVector::padded_dimension(p, target_res_dimension);
         let padded_target_dimension = padded_target_res_dimension + padded_target_cc_dimension;
         let rows = source_dimension + target_dimension;
         let columns = padded_target_dimension + source_dimension + rows;
         let mut matrix = Matrix::new(p, rows, columns);
-        let mut pivots = vec![-1;matrix.get_columns()];
+        let mut pivots = vec![-1;matrix.columns()];
         matrix.set_slice(0, source_dimension, 0, padded_target_dimension + source_dimension);
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
         current_chain_map.get_matrix_with_table(&mut matrix, &source_module_table, degree, 0, 0);
         current_differential.get_matrix_with_table(&mut matrix, &source_module_table, degree, 0, padded_target_cc_dimension);
         // Augment with the identity matrix.
-        for i in 0 .. source_dimension {
-            matrix[i].set_entry(padded_target_dimension + i, 1);
-        }
+        matrix.set_identity(source_dimension, 0, padded_target_dimension);
         matrix.row_reduce(&mut pivots);
 
         let new_kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
-        let kernel_rows = new_kernel.matrix.get_rows();
+        let kernel_rows = new_kernel.matrix.rows();
         let first_new_row = source_dimension;
         matrix.clear_slice();
 
@@ -439,18 +429,18 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             // Now we need to make sure that we have a chain homomorphism. Each generator x we just added to 
             // X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).
             // So we set dX(x) = f^{-1}(dC(f(x)))
-            let prev_chain_map = self.get_chain_map(homological_degree - 1);
-            let maybe_quasi_inverse = prev_chain_map.get_quasi_inverse(degree);
+            let prev_chain_map = self.chain_map(homological_degree - 1);
+            let maybe_quasi_inverse = prev_chain_map.quasi_inverse(degree);
             if let Some(quasi_inverse) = maybe_quasi_inverse {
                 let mut out_vec = FpVector::new(self.prime(), target_res_dimension);
-                let dfx_dim = complex_cur_differential.get_target().get_dimension(degree);
+                let dfx_dim = complex_cur_differential.target().dimension(degree);
                 let mut dfx = FpVector::new(self.prime(), dfx_dim);
                 for (i, column) in new_generators.iter().enumerate() {
                     complex_cur_differential.apply_to_basis_element(&mut dfx, 1, degree, *column);
                     quasi_inverse.apply(&mut out_vec, 1, &dfx);
                     // Now out_vec contains f^{-1}(dC(f(x))).
                     let out_row = &mut matrix[first_new_row + i];
-                    let old_slice = out_row.get_slice();
+                    let old_slice = out_row.slice();
                     // dX(x) goes into the column range [padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension] in the matrix
                     // I think we are missing a sign here.
                     out_row.set_slice(padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension);
@@ -478,7 +468,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             matrix[i].set_entry(padded_target_dimension + i, 1);
         }
         matrix.set_slice(0, image_rows, 0, padded_target_dimension + source_dimension + num_new_gens); 
-        let mut new_pivots = vec![-1;matrix.get_columns()];
+        let mut new_pivots = vec![-1;matrix.columns()];
         matrix.row_reduce(&mut new_pivots);
         let (cm_qi, res_qi) = matrix.compute_quasi_inverses(
             &new_pivots, 
@@ -494,35 +484,6 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 
         new_kernel
     }
-
-    pub fn graded_dimension_string(&self) -> String {
-        let mut result = String::new();
-        let min_degree = self.get_min_degree();
-        let max_degree = self.get_max_degree();
-        let max_hom_deg = self.get_max_hom_deg(); //(max_degree - min_degree) as u32 / (self.prime() + 1); //self.get_max_hom_deg();
-        for i in (0 ..= max_hom_deg).rev() {
-            let module = self.get_module(i);
-            for j in min_degree + i as i32 ..= max_degree {
-                let n = module.get_number_of_gens_in_degree(j);
-                match n {
-                    0 => result.push_str("  "),
-                    1 => result.push_str("· "),
-                    2 => result.push_str(": "),
-                    3 => result.push_str("∴ "),
-                    4 => result.push_str("⁘ "),
-                    5 => result.push_str("⁙ "),
-                    _ => result.push_str(&format!("{} ", n))
-                }
-            }
-            result.push_str("\n");
-            // If it is empty so far, don't print anything
-            if result.trim_start().is_empty() {
-                result = String::new();
-            }
-        }
-        return result;
-    }
-
 }
 
 // Product algorithms
@@ -553,7 +514,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
         let new_product = [self.product_list.last().unwrap().clone()];
         let next_s = *self.next_s.lock().unwrap();
         if next_s > 0 {
-            let min_degree = self.get_min_degree();
+            let min_degree = self.min_degree();
             let max_s = next_s - 1;
             let max_t = *self.next_t.lock().unwrap() - 1;
 
@@ -568,7 +529,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
 
     pub fn construct_unit_resolution(&mut self) {
         if self.unit_resolution.is_none() {
-            let unit_module = Rc::new(FiniteModule::from(FDModule::new(self.get_algebra(), String::from("unit"), BiVec::from_vec(0, vec![1]))));
+            let unit_module = Rc::new(FiniteModule::from(FDModule::new(self.algebra(), String::from("unit"), BiVec::from_vec(0, vec![1]))));
             let ccdz = Rc::new(CCDZ::new(unit_module));
             let unit_resolution = Rc::new(RefCell::new(Resolution::new(ccdz, None, None)));
             unit_resolution.borrow_mut().set_self(Rc::downgrade(&unit_resolution));
@@ -586,7 +547,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
     /// Compute products whose result lie in degrees up to (s, t)
     fn compute_products(&self, s : u32, t : i32, products: &[Cocycle]) {
         for elt in products {
-            if s < elt.s || t < self.get_min_degree() + elt.t {
+            if s < elt.s || t < self.min_degree() + elt.t {
                 continue;
             }
 
@@ -600,8 +561,8 @@ impl<M, F, CC> Resolution<M, F, CC> where
         let source_s = target_s - elt.s;
         let source_t = target_t - elt.t;
 
-        let source_dim = self.get_number_of_gens_in_bidegree(source_s, source_t);
-        let target_dim = self.get_number_of_gens_in_bidegree(target_s, target_t);
+        let source_dim = self.number_of_gens_in_bidegree(source_s, source_t);
+        let target_dim = self.number_of_gens_in_bidegree(target_s, target_t);
 
         if source_dim == 0 {
             return;
@@ -618,12 +579,12 @@ impl<M, F, CC> Resolution<M, F, CC> where
             let f = &self.chain_maps_to_unit_resolution[source_s][source_t][k];
 
             let unit_res = self.unit_resolution.as_ref().unwrap().borrow();
-            let output_module = unit_res.get_module(elt.s);
+            let output_module = unit_res.module(elt.s);
 
             for l in 0 .. target_dim {
-                let result = f.get_map(elt.s).get_output(target_t, l);
+                let result = f.get_map(elt.s).output(target_t, l);
                 let idx = output_module.operation_generator_to_index(0, 0, elt.t, elt.index);
-                products[k].push(result.get_entry(idx));
+                products[k].push(result.entry(idx));
             }
         }
         self.add_structline(&elt.name, source_s, source_t, target_s, target_t, true, products);
@@ -643,12 +604,12 @@ impl<M, F, CC> Resolution<M, F, CC> where
 
             // Now we populate the arrays if the ResolutionHomomorphisms have not been defined.
             if s_idx == self.chain_maps_to_unit_resolution.len() {
-                self.chain_maps_to_unit_resolution.push(OnceBiVec::new(self.get_min_degree()));
+                self.chain_maps_to_unit_resolution.push(OnceBiVec::new(self.min_degree()));
             } else {
                 assert!(s_idx < self.chain_maps_to_unit_resolution.len());
             }
 
-            let num_gens = self.get_module(s).get_number_of_gens_in_degree(t);
+            let num_gens = self.module(s).number_of_gens_in_degree(t);
             if t == self.chain_maps_to_unit_resolution[s_idx].len() {
                 self.chain_maps_to_unit_resolution[s_idx].push(OnceVec::new());
                 if num_gens > 0 {
@@ -671,11 +632,11 @@ impl<M, F, CC> Resolution<M, F, CC> where
 
             // Now we actually extend the maps.
             let max_hom_deg = min(s, self.max_product_homological_degree);
-            let min_degree = self.get_min_degree();
+            let min_degree = self.min_degree();
             for i in 0 ..= s {
                 for j in min_degree ..= t {
                     let max_s = min(s, i + self.max_product_homological_degree);
-                    let num_gens = self.get_module(i).get_number_of_gens_in_degree(j);
+                    let num_gens = self.module(i).number_of_gens_in_degree(j);
                     for k in 0 .. num_gens {
                         let f = &self.chain_maps_to_unit_resolution[i as usize][j][k];
                         f.extend(max_s, t);
@@ -706,10 +667,10 @@ impl<M, F, CC> Resolution<M, F, CC> where
     fn compute_self_maps(&self, target_s : u32, target_t : i32) {
         let p = self.prime();
         for f in &self.self_maps {
-            if target_s < f.s || target_t < f.t + self.get_min_degree() {
+            if target_s < f.s || target_t < f.t + self.min_degree() {
                 continue;
             }
-            if target_s == f.s && target_t == f.t + self.get_min_degree() {
+            if target_s == f.s && target_t == f.t + self.min_degree() {
                 let mut map_data = f.map_data.take();
                 f.map.extend_step(target_s, target_t, Some(&mut map_data));
             }
@@ -718,11 +679,11 @@ impl<M, F, CC> Resolution<M, F, CC> where
             let source_s = target_s - f.s;
             let source_t = target_t - f.t;
 
-            let source = self.get_module(source_s);
-            let target = self.get_module(target_s);
+            let source = self.module(source_s);
+            let target = self.module(target_s);
 
-            let source_dim = source.get_number_of_gens_in_degree(source_t);
-            let target_dim = target.get_number_of_gens_in_degree(target_t);
+            let source_dim = source.number_of_gens_in_degree(source_t);
+            let target_dim = target.number_of_gens_in_degree(target_t);
 
             if source_dim == 0 {
                 continue;
@@ -735,11 +696,11 @@ impl<M, F, CC> Resolution<M, F, CC> where
             let mut products = vec![Vec::with_capacity(target_dim); source_dim];
 
             for j in 0 .. target_dim {
-                let result = f.map.get_map(source_s).get_output(target_t, j);
+                let result = f.map.get_map(source_s).output(target_t, j);
 
                 for k in 0 .. source_dim {
                     let vector_idx = source.operation_generator_to_index(0, 0, source_t, k);
-                    products[k].push(result.get_entry(vector_idx));
+                    products[k].push(result.entry(vector_idx));
                 }
             }
             self.add_structline(&f.name, source_s, source_t, target_s, target_t, false, products);
@@ -751,23 +712,47 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
     ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>> 
     for Resolution<M, F, CC>
 {
-    fn get_algebra(&self) -> Rc<AlgebraAny> {
-        self.get_complex().get_algebra()
+    fn algebra(&self) -> Rc<AlgebraAny> {
+        self.complex().algebra()
     }
 
-    fn get_zero_module(&self) -> Rc<FreeModule> {
+    fn max_computed_degree(&self) -> i32 {
+        *self.next_t.lock().unwrap() - 1
+    }
+
+    fn max_computed_homological_degree(&self) -> u32 {
+        *self.next_s.lock().unwrap() - 1
+    }    
+
+    fn zero_module(&self) -> Rc<FreeModule> {
         Rc::clone(&self.zero_module)
     }
 
-    fn get_module(&self, homological_degree : u32) -> Rc<FreeModule> {
-        self.get_module(homological_degree)
+    fn module(&self, homological_degree : u32) -> Rc<FreeModule> {
+        self.module(homological_degree)
     }
 
-    fn get_min_degree(&self) -> i32 {
-        self.get_complex().get_min_degree()
+    fn min_degree(&self) -> i32 {
+        self.complex().min_degree()
     }
 
-    fn get_differential(&self, homological_degree : u32) -> Rc<FreeModuleHomomorphism<FreeModule>> {
+    fn set_homology_basis(&self, homological_degree : u32, internal_degree : i32, homology_basis : Vec<usize>){
+        unimplemented!()
+    }
+
+    fn homology_basis(&self, homological_degree : u32, internal_degree : i32) -> &Vec<usize>{
+        unimplemented!()
+    }
+    
+    fn homology_dimension(&self, homological_degree : u32, internal_degree : i32) -> usize {
+        self.number_of_gens_in_bidegree(homological_degree, internal_degree)
+    }
+
+    fn max_homology_degree(&self, homological_degree : u32) -> i32 {
+        unimplemented!()
+    }
+
+    fn differential(&self, homological_degree : u32) -> Rc<FreeModuleHomomorphism<FreeModule>> {
         Rc::clone(&self.differentials[homological_degree as usize])
     }
 

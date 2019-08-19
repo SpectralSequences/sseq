@@ -59,8 +59,8 @@ impl BlockStructure {
     pub fn add_block(&self, target : &mut FpVector, coeff : u32, gen_deg : i32, gen_idx : usize, source : &FpVector){
         let (block_min, block_dimension) = self.block_starts[gen_deg][gen_idx];
         let block_max = block_min + block_dimension;
-        assert!(source.get_dimension() == block_dimension);
-        let old_slice = target.get_slice();
+        assert!(source.dimension() == block_dimension);
+        let old_slice = target.slice();
         target.set_slice(block_min, block_max);
         target.shift_add(source, coeff);
         target.restore_slice(old_slice);
