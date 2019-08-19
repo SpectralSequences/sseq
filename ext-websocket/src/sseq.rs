@@ -156,6 +156,7 @@ pub struct Product {
     x : i32,
     y : i32,
     left : bool,
+    user : bool, // whether the product was specified by the user or the module. Products specified by the module are assumed to be permanent
     permanent : bool, // whether the product class is a permanent class
     differential : Option<(i32, bool, usize)>, // The first entry is the page of the differential. The second entry is whether or not this product is the source or target of the differential. The last index is the index of the other end of the differential.
     matrices : BiVec<BiVec<Option<Matrix>>>
@@ -856,11 +857,24 @@ impl Sseq {
 
     /// Add a product to the list of products, but don't add any computed product
     pub fn add_product_type(&mut self, name : &String, mult_x : i32, mult_y : i32, left : bool, permanent: bool) {
-        if !self.product_name_to_index.contains_key(name) {
+        let idx = self.product_name_to_index.get(name);
+
+        if let Some(&i) = idx {
+            self.products[i].user = true;
+            if permanent && !self.products[i].permanent {
+                self.products[i].permanent = true;
+                for x in self.min_x .. self.products[i].matrices.len() {
+                    for y in self.min_y .. self.products[i].matrices[x].len() {
+                        self.propagate_along_permanent_product(x, y, i);
+                    }
+                }
+            }
+        } else {
             let product = Product {
                 name : name.clone(),
                 x : mult_x,
                 y : mult_y,
+                user : true,
                 left,
                 permanent,
                 differential : None,
@@ -879,6 +893,13 @@ impl Sseq {
 
         self.products[source_idx].differential = Some((r, true, target_idx));
         self.products[target_idx].differential = Some((r, false, source_idx));
+
+        for x in self.min_x .. self.products[source_idx].matrices.len() {
+            for y in self.min_y .. self.products[source_idx].matrices[x].len() {
+                // This is safe to call if the other product is not defined.
+                self.attempt_propagate_product_differential(r, x, y, source_idx, target_idx);
+            }
+        }
     }
 
     pub fn add_product(&mut self, name : &String, x : i32, y : i32, mult_x : i32, mult_y : i32, left : bool, matrix : &Vec<Vec<u32>>) {
@@ -897,6 +918,7 @@ impl Sseq {
                         name : name.clone(),
                         x : mult_x,
                         y : mult_y,
+                        user : false,
                         left,
                         permanent : true,
                         differential : None,
@@ -917,11 +939,31 @@ impl Sseq {
             self.products[idx].matrices[x].push(None);
         }
 
+        if y != self.products[idx].matrices[x].len() {
+            // We have added this product before. This may happen when
+            // Resolution::catch_up_products() is called despite no new product being
+            // added (when we repeat a product)
+            return;
+        }
         self.products[idx].matrices[x].push(Some(Matrix::from_vec(self.p, matrix)));
+        self.propagate_along_permanent_product(x, y, idx);
 
+        // Now propagate differentials in products. See documentation of
+        // attempt_propagate_product_differential for details.
+        if let Some((r, is_source, other_idx)) = self.products[idx].differential {
+            if is_source {
+                self.attempt_propagate_product_differential(r, x + 1, y - r, idx, other_idx);
+            } else {
+                self.attempt_propagate_product_differential(r, x, y, other_idx, idx);
+            }
+        }
+
+        self.compute_edges(x, y);
+    }
+
+    fn propagate_along_permanent_product(&mut self, x : i32, y : i32, idx : usize) {
         // Now propagate differentials. We propagate differentials that *hit* us, because the
         // target product is always set after the source product.
-
         if self.products[idx].permanent {
             for r in self.get_differentials_hitting(x, y) {
                 let d = &mut self.differentials[x + 1][y - r][r];
@@ -941,19 +983,7 @@ impl Sseq {
                 }
             }
         }
-
-        // Now propagate differentials in products. See documentation of
-        // attempt_propagate_product_differential for details.
-        if let Some((r, is_source, other_idx)) = self.products[idx].differential {
-            if is_source {
-                self.attempt_propagate_product_differential(r, x + 1, y - r, idx, other_idx);
-            } else {
-                self.attempt_propagate_product_differential(r, x, y, other_idx, idx);
-            }
-        }
-        self.compute_edges(x, y);
     }
-
 }
 #[cfg(test)]
 mod tests {
