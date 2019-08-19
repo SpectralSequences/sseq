@@ -176,6 +176,7 @@ export class MainDisplay extends SidebarDisplay {
         this.sidebar.footer.addButton("Query table", () => this.state = STATE_QUERY_TABLE);
         this.sidebar.footer.addButton("Resolve further", this.sseq.resolveFurther.bind(this.sseq));
         this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG("sseq.svg"));
+        this.sidebar.footer.addButton("Save", () => window.requestHistory());
 
         sseq.on("update", (x, y) => { if (this.selected && this.selected.x == x && this.selected.y == y) this.sidebar.showPanel() });
     }

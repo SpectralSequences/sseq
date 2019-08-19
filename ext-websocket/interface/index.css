@@ -30,7 +30,7 @@ div.tooltip {
     overflow: auto;
 }
 
-a.flex-grid {
+.flex-grid {
     display: block;
     text-align: center;
     width: 150px;

@@ -325,8 +325,10 @@ impl SseqManager {
 /// We also spawn a separate thread waiting for messages from ResolutionManager, and then relay it
 /// to the WebSocket, again, we do this because we don't want anything to be blocking.
 struct Server {
+    server_sender : mpsc::Sender<Message>,
     sseq_sender : mpsc::Sender<Message>,
     res_sender : mpsc::Sender<Message>,
+    history : Vec<Message>
 }
 
 impl Handler for Server {
@@ -347,6 +349,7 @@ impl Handler for Server {
         }
 
         let msg = msg.unwrap();
+        self.history.push(msg.clone());
 
         for recipient in &msg.recipients {
             match recipient {
@@ -360,6 +363,23 @@ impl Handler for Server {
                     match self.res_sender.send(msg.clone()) {
                         Ok(_) => (),
                         Err(e) => eprintln!("Failed to send message to ResolutionManager: {}", e)
+                    }
+                }
+                Recipient::Server => {
+                    if let Action::RequestHistory(_) = msg.action {
+                        let msg = Message {
+                            recipients : vec![],
+                            sseq : SseqChoice::Main, // Doesn't matter
+                            action : Action::from(actions::ReturnHistory {
+                                history : self.history.iter()
+                                    .filter(|x| x.recipients[0] != Recipient::Server)
+                                    .map(|x| x.clone())
+                                    .collect::<Vec<_>>()
+                            })
+                        };
+                        self.server_sender.send(msg).unwrap();
+                    } else {
+                        eprintln!("Unrecognized action.");
                     }
                 }
             }
@@ -400,8 +420,10 @@ impl Server {
         });
 
         Server {
+            server_sender,
             sseq_sender,
-            res_sender
+            res_sender,
+            history : Vec::new()
         }
     }
 
