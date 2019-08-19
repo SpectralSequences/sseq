@@ -27,6 +27,8 @@ pub enum SseqChoice {
     Unit
 }
 
+/// This is just a list of everything that implements `ActionT`. We use this instead of `Box<dyn
+/// ActionT>` so that Serde is happy.
 #[enum_dispatch]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Action {
@@ -56,6 +58,18 @@ pub enum Action {
     SetPageList
 }
 
+/// The name `Action` is sort-of a misnomer. It is the content of any message that is sent between
+/// the different objects. There are three functions to implement. 
+/// 
+/// The function `user` really should be a trait constant, except that makes `enum_dispatch`
+/// unhappy. It indicates whether this action comes from a user action. For example, `AddProduct`
+/// is not a user action but `AddProductType` is. This field doesn't really make sense for messages
+/// sent *to* the user, but we set it as false anyway (which is the default).
+///
+/// The functions `act_sseq` and `act_resolution` executes the action of the command on the
+/// corresponding object. These are by default empty and should be left empty if the action is not
+/// expected to act on the corresponding object. For example, `AddDifferential` has an empty
+/// `act_resolution` function.
 #[enum_dispatch(Action)]
 #[allow(unused_variables)]
 pub trait ActionT {
@@ -194,27 +208,35 @@ pub struct QueryTableResult {
     pub t : i32,
     pub string : String
 }
-impl ActionT for QueryTableResult { }
+impl ActionT for QueryTableResult {
+    fn user(&self) -> bool {true}
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Construct {
     pub module_name : String,
     pub algebra_name : String,
 }
-impl ActionT for Construct { }
+impl ActionT for Construct {
+    fn user(&self) -> bool {true}
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConstructJson {
     pub data : String,
     pub algebra_name : String,
 }
-impl ActionT for ConstructJson { }
+impl ActionT for ConstructJson {
+    fn user(&self) -> bool {true}
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Resolve {
     pub max_degree : i32,
 }
-impl ActionT for Resolve { }
+impl ActionT for Resolve {
+    fn user(&self) -> bool {true}
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryTable {
