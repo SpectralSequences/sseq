@@ -283,14 +283,17 @@ export class UnitDisplay extends Display {
             }
             let permanent = confirm("Permanent class?");
             webSocket.send(JSON.stringify({
-                recipient : "resolver",
-                origin : "main",
-                command : "add_product",
-                permanent : permanent,
-                s: this.selected.y,
-                t: this.selected.x + this.selected.y,
-                idx: this.selected.idx,
-                name: name
+                recipients : ["Sseq", "Resolver"],
+                sseq : "Main",
+                action : {
+                    "AddProductType": {
+                        permanent : permanent,
+                        x: this.selected.x,
+                        y: this.selected.y,
+                        idx: this.selected.idx,
+                        name: name
+                    }
+                }
             }));
 
             this.closeModal();
@@ -329,26 +332,25 @@ export class UnitDisplay extends Display {
                 let check = confirm(`Add differential from (${this.selected.x}, ${this.selected.y}, ${this.selected.idx}) to (${node.x}, ${node.y}, ${node.idx})?`);
                 if (check) {
                     webSocket.send(JSON.stringify({
-                        recipient : "resolver",
-                        origin : "main",
-                        command : "add_product_differential",
-                        source: {
-                            command : "add_product",
-                            origin : "main",
-                            permanent: false,
-                            s: this.selected.y,
-                            t: this.selected.x + this.selected.y,
-                            idx : this.selected.idx,
-                            name: prompt("Name of source").trim()
-                        },
-                        target: {
-                            command : "add_product",
-                            origin : "main",
-                            permanent: false,
-                            s: node.y,
-                            t: node.x + node.y,
-                            idx : node.idx,
-                            name: prompt("Name of target").trim()
+                        recipients : ["Sseq", "Resolver"],
+                        sseq : "Main",
+                        action : {
+                            "AddProductDifferential": {
+                                source : {
+                                    permanent : false,
+                                    x: this.selected.x,
+                                    y: this.selected.y,
+                                    idx: this.selected.idx,
+                                    name: prompt("Name of source").trim()
+                                },
+                                target : {
+                                    permanent : false,
+                                    x: node.x,
+                                    y: node.y,
+                                    idx: node.idx,
+                                    name: prompt("Name of target").trim()
+                                }
+                            }
                         }
                     }));
                     this.state = null;

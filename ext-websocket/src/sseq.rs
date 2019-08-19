@@ -3,9 +3,9 @@ use rust_ext::fp_vector::{FpVector, FpVectorT};
 use std::collections::HashMap;
 use std::cmp::max;
 use std::sync::mpsc;
-use serde::Serialize;
-use serde_json::Value;
+use serde::{Serialize, Deserialize};
 use bivec::BiVec;
+use crate::actions::*;
 
 const MIN_PAGE : i32 = 2;
 
@@ -34,7 +34,7 @@ fn express_basis(mut elt : FpVector, zeros : Option<&Subspace>, basis : &(Vec<is
     result
 }
 
-#[derive(Serialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum ClassState {
     Error,
     Done,
@@ -161,8 +161,8 @@ pub struct Product {
     matrices : BiVec<BiVec<Option<Matrix>>>
 }
 
-#[derive(Serialize)]
-struct ProductItem {
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct ProductItem {
     name : String,
     mult_x : i32,
     mult_y : i32,
@@ -177,11 +177,11 @@ struct ProductItem {
 ///  * Whenever a product v . x is set, the target is already set.
 pub struct Sseq {
     pub p : u32,
-    name : String, // The name is either "main" or "unit"
+    name : SseqChoice,
     min_x : i32,
     min_y : i32,
 
-    sender : Option<mpsc::Sender<Value>>,
+    sender : Option<mpsc::Sender<Message>>,
     page_list : Vec<i32>,
     product_name_to_index : HashMap<String, usize>,
     products : Vec<Product>,
@@ -193,7 +193,7 @@ pub struct Sseq {
 }
 
 impl Sseq {
-    pub fn new(p : u32, name : String, min_x : i32, min_y : i32, sender : Option<mpsc::Sender<Value>>) -> Self {
+    pub fn new(p : u32, name : SseqChoice, min_x : i32, min_y : i32, sender : Option<mpsc::Sender<Message>>) -> Self {
         let mut classes = BiVec::new(min_x - 1); // We have an extra column to the left so that differentials have something to hit.
         classes.push(BiVec::new(min_y));
         Self {
@@ -221,10 +221,11 @@ impl Sseq {
             self.page_list.push(r);
             self.page_list.sort_unstable();
 
-            self.send(json!({
-                "command": "setPageList",
-                "page_list": self.page_list
-            }));
+            self.send(Message {
+                 recipients : vec![],
+                 sseq : self.name,
+                 action : Action::from(SetPageList { page_list : self.page_list.clone() })
+            });
         }
     }
 
@@ -438,12 +439,11 @@ impl Sseq {
             }
         }
 
-        self.send(json!({
-            "command": "setStructline",
-            "x": x,
-            "y": y,
-            "structlines": structlines
-        }));
+        self.send(Message {
+            recipients : vec![],
+            sseq : self.name,
+            action : Action::from(SetStructline { x, y, structlines })
+        });
     }
 
     /// Compute the classes in next page assuming there is no differential coming out of the class
@@ -596,13 +596,11 @@ impl Sseq {
         }
 
         if differentials.len() > 0 {
-            self.send(json!({
-                "command": "setDifferential",
-                "x": x,
-                "y": y,
-                "true_differentials": true_differentials,
-                "differentials": differentials
-            }));
+            self.send(Message {
+                recipients : vec![],
+                sseq : self.name,
+                action : Action::from(SetDifferential { x, y, true_differentials, differentials })
+            });
         }
 
         self.compute_edges(x, y);
@@ -629,21 +627,20 @@ impl Sseq {
             state = ClassState::InProgress;
         }
 
-        self.send(json!({
-            "command": "setClass",
-            "x": x,
-            "y": y,
-            "state": state,
-            "permanents": self.permanent_classes[x][y].get_basis(),
-            "classes": self.page_classes[x][y].iter().map(|x| &x.1).collect::<Vec<&Vec<FpVector>>>()
-        }));
+        self.send(Message {
+            recipients : vec![],
+            sseq : self.name,
+            action : Action::from(SetClass {
+                x, y, state,
+                permanents : self.permanent_classes[x][y].get_basis().to_vec(),
+                classes : self.page_classes[x][y].iter().map(|x| x.1.clone()).collect::<Vec<Vec<FpVector>>>()
+            })
+        });
     }
 
-    fn send(&self, mut json : Value) {
+    fn send(&self, msg : Message) {
         if let Some(sender) = &self.sender {
-            let map = json.as_object_mut().unwrap();
-            map.insert("recipient".to_string(), json!(self.name));
-            sender.send(json).unwrap();
+            sender.send(msg).unwrap();
         }
     }
 }
@@ -858,10 +855,10 @@ impl Sseq {
     }
 
     /// Add a product to the list of products, but don't add any computed product
-    pub fn add_product_empty(&mut self, name : &str, mult_x : i32, mult_y : i32, left : bool, permanent: bool) {
-        if !self.product_name_to_index.contains_key(&name.to_string()) {
+    pub fn add_product_type(&mut self, name : &String, mult_x : i32, mult_y : i32, left : bool, permanent: bool) {
+        if !self.product_name_to_index.contains_key(name) {
             let product = Product {
-                name : name.to_string(),
+                name : name.clone(),
                 x : mult_x,
                 y : mult_y,
                 left,
@@ -870,13 +867,13 @@ impl Sseq {
                 matrices : BiVec::new(self.min_x)
             };
             self.products.push(product);
-            self.product_name_to_index.insert(name.to_string(), self.products.len() - 1);
+            self.product_name_to_index.insert(name.clone(), self.products.len() - 1);
         }
     }
 
-    pub fn add_product_differential(&mut self, source : String, target: String) {
-        let source_idx = *self.product_name_to_index.get(&source).unwrap();
-        let target_idx = *self.product_name_to_index.get(&target).unwrap();
+    pub fn add_product_differential(&mut self, source : &String, target: &String) {
+        let source_idx = *self.product_name_to_index.get(source).unwrap();
+        let target_idx = *self.product_name_to_index.get(target).unwrap();
 
         let r = self.products[target_idx].y - self.products[source_idx].y;
 
@@ -884,7 +881,7 @@ impl Sseq {
         self.products[target_idx].differential = Some((r, false, source_idx));
     }
 
-    pub fn add_product(&mut self, name : &str, x : i32, y : i32, mult_x : i32, mult_y : i32, left : bool, matrix : Vec<Vec<u32>>) {
+    pub fn add_product(&mut self, name : &String, x : i32, y : i32, mult_x : i32, mult_y : i32, left : bool, matrix : &Vec<Vec<u32>>) {
         if !self.class_defined(x, y) {
             return;
         }
@@ -897,7 +894,7 @@ impl Sseq {
                 Some(i) => *i,
                 None => {
                     let product = Product {
-                        name : name.to_string(),
+                        name : name.clone(),
                         x : mult_x,
                         y : mult_y,
                         left,
@@ -906,7 +903,7 @@ impl Sseq {
                         matrices : BiVec::new(self.min_x)
                     };
                     self.products.push(product);
-                    self.product_name_to_index.insert(name.to_string(), self.products.len() - 1);
+                    self.product_name_to_index.insert(name.clone(), self.products.len() - 1);
                     self.products.len() - 1
                 }
             };
@@ -920,7 +917,7 @@ impl Sseq {
             self.products[idx].matrices[x].push(None);
         }
 
-        self.products[idx].matrices[x].push(Some(Matrix::from_vec(self.p, &matrix)));
+        self.products[idx].matrices[x].push(Some(Matrix::from_vec(self.p, matrix)));
 
         // Now propagate differentials. We propagate differentials that *hit* us, because the
         // target product is always set after the source product.
