@@ -324,6 +324,8 @@ export class ExtSseq extends EventEmitter {
 
             for (let [page, matrix] of mult["matrices"].entries()) {
                 page = page + 2;
+                if (!structlines[page])
+                    structlines[page] = [];
                 let name = mult["name"];
                 let multX = mult["mult_x"];
                 let multY = mult["mult_y"];
@@ -333,8 +335,6 @@ export class ExtSseq extends EventEmitter {
                         if (matrix[i][j] != 0) {
                             let line = new Structline(this, [x, y, i], [x + multX, y + multY, j]);
                             line.setProduct(name);
-                            if (!structlines[page])
-                                structlines[page] = [];
                             structlines[page].push(line);
                         }
                     }
