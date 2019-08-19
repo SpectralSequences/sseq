@@ -123,6 +123,17 @@ impl Differential {
             zeros.shift_reduce(&mut self.matrix[i]);
         }
         self.matrix.clear_slice();
+
+        // Knowing that things are zero might fix our previous erroneous differentials.
+        self.matrix.row_reduce(&mut self.column_to_pivots_row);
+
+        self.error = false;
+        for i in 0 .. self.target_dim {
+            if self.column_to_pivots_row[self.source_dim + i] >= 0 {
+                self.error = true;
+            }
+        }
+
     }
 
     /// This evaluates the differential on `source`, adding the result to `target`. This assumes
