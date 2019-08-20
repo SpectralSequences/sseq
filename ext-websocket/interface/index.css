@@ -84,3 +84,8 @@ div.tooltip {
 #modal-body {
     flex-grow: 1;
 }
+
+.history-sub {
+    color: #444;
+    font-size: 80%;
+}

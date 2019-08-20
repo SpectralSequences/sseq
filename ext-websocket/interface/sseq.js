@@ -8,10 +8,14 @@ const NODE_COLOR = {
     "Done": "gray"
 };
 
+const KEEP_LOG = new Set(["AddDifferential", "AddProductType", "AddProductDifferential", "AddPermanentClass"]);
+
 export class ExtSseq extends EventEmitter {
     constructor(name, webSocket) {
         super();
 
+        this.history = [];
+        this.redoStack = [];
         this.name = name;
         this.webSocket = webSocket;
 
@@ -68,23 +72,50 @@ export class ExtSseq extends EventEmitter {
         this.emit("update");
     }
 
-    send(data) {
+    send(data, log=true) {
+        if (KEEP_LOG.has(Object.keys(data.action)[0])) {
+            this.emit("new-history", data);
+            if (log) {
+                this.history.push(data);
+            }
+        }
+
         data.sseq = this.name;
         this.webSocket.send(JSON.stringify(data));
     }
 
+    removeHistoryItem(msg) {
+        msg = JSON.stringify(msg);
+        if (confirm(`Are you sure you want to remove ${msg}?`)) {
+            this.history = this.history.filter(m => JSON.stringify(m) != msg);
+
+            this.send({
+                recipients: ["Sseq"],
+                action : { Clear : {} }
+            });
+            this.emit("clear-history");
+
+            for (let msg of this.history) {
+                this.send(msg, false);
+            }
+        }
+    }
     undo() {
+        this.redoStack.push(this.history.pop());
+
         this.send({
             recipients: ["Sseq"],
-            action : { Undo : {} }
+            action : { Clear : {} }
         });
+        this.emit("clear-history");
+
+        for (let msg of this.history) {
+            this.send(msg, false);
+        }
     }
 
     redo() {
-        this.send({
-            recipients: ["Sseq"],
-            action : { Redo : {} }
-        });
+        this.send(this.redoStack.pop());
     }
 
     addPermanentClass(x, y, target) {
@@ -158,6 +189,50 @@ export class ExtSseq extends EventEmitter {
         this.addDifferential(page, source.x, source.y, source_vec, target_vec);
     }
 
+    addProductInteractive(x, y, idx) {
+        let name = prompt("Name for product");
+        if (name === null) {
+            return;
+        }
+        let permanent = confirm("Permanent class?");
+        this.send({
+            recipients : ["Sseq", "Resolver"],
+            action : {
+                "AddProductType": {
+                    permanent : permanent,
+                    x: x,
+                    y: y,
+                    idx: idx,
+                    name: name
+                }
+            }
+        });
+    }
+
+    addProductDifferentialInteractive(source, target) {
+        this.send({
+            recipients : ["Sseq", "Resolver"],
+            action : {
+                "AddProductDifferential": {
+                    source : {
+                        permanent : false,
+                        x: source.x,
+                        y: source.y,
+                        idx: source.idx,
+                        name: prompt("Name of source").trim()
+                    },
+                    target : {
+                        permanent : false,
+                        x: target.x,
+                        y: target.y,
+                        idx: target.idx,
+                        name: prompt("Name of target").trim()
+                    }
+                }
+            }
+        });
+    }
+
     addPermanentClassInteractive(node) {
         let classes = this.classes.get([node.x, node.y]);
 
@@ -206,7 +281,7 @@ export class ExtSseq extends EventEmitter {
                     max_degree: newmax
                 }
             }
-        });
+        }, false);
     }
 
     queryTable(x, y) {
@@ -220,7 +295,7 @@ export class ExtSseq extends EventEmitter {
                     t: x + y
                 }
             }
-        });
+        }, false);
     }
 
     get xRange() {

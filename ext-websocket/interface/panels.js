@@ -1,19 +1,152 @@
 import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE } from "./display.js";
 import { rowToKaTeX, rowToLaTeX, matrixToKaTeX } from "./utils.js";
 
+function addLI(ul, text) {
+    let x = document.createElement("li");
+    x.innerHTML = text;
+    ul.appendChild(x);
+}
+
+const ACTION_DISPLAY_NAME = {
+    "AddDifferential": "Add Differential",
+    "AddPermanentClass": "Add Permanent Class",
+    "AddProduct": "Add Product",
+    "AddProductDifferential": "AddProductDifferential"
+}
 export class GeneralPanel extends Panel.TabbedPanel {
     constructor(parentContainer, display) {
         super(parentContainer, display);
 
         this.overviewTab = new OverviewPanel(this.container, this.display);
-        this.addTab("Overview", this.overviewTab);
+        this.addTab("Main", this.overviewTab);
 
         this.structlineTab = new StructlinePanel(this.container, this.display);
-        this.addTab("Structlines", this.structlineTab);
+        this.addTab("Prod", this.structlineTab);
+
+        this.historyTab = new HistoryPanel(this.container, this.display);
+        this.addTab("Hist", this.historyTab);
     }
 }
 
-export class OverviewPanel extends Panel.Panel {
+class HistoryPanel extends Panel.Panel {
+    constructor(parentContainer, display) {
+        super(parentContainer, display);
+
+        this.newGroup();
+        this.display.sseq.on("new-history", (data) => this.addMessage(data));
+        this.display.sseq.on("clear-history", () => {this.clear(); this.newGroup();});
+    }
+
+    _addHistoryItem(title, content, highlightClasses, msg) {
+        let d = document.createElement("details");
+        let s = document.createElement("summary");
+        let t = document.createElement("span");
+        t.innerHTML = title;
+        s.appendChild(t);
+
+        let rem = document.createElement("a");
+        rem.className = "text-danger float-right";
+        rem.innerHTML = "&times;";
+        rem.href = "#";
+        s.appendChild(rem);
+
+        rem.addEventListener("click", () => this.display.sseq.removeHistoryItem(msg));
+
+        d.appendChild(s);
+
+        let div = document.createElement("div");
+        div.className = "text-center py-1";
+        div.innerHTML = content;
+        d.appendChild(div);
+
+        this.addObject(d);
+
+        d.addEventListener("mouseover", () => {
+            d.style = "color: blue";
+            for (let pair of highlightClasses) {
+                let classes = this.display.sseq.getClasses(pair[0], pair[1], this.display.page);
+                for (let c of classes) {
+                    c.highlight = true;
+                }
+            }
+            this.display.update();
+        });
+        d.addEventListener("mouseout", () => {
+            d.style = "";
+            for (let pair of highlightClasses) {
+                let classes = this.display.sseq.getClasses(pair[0], pair[1], this.display.page);
+                for (let c of classes) {
+                    c.highlight = false;
+                }
+            }
+            this.display.update();
+        });
+
+    }
+    _AddDifferential(details, msg) {
+        this._addHistoryItem(
+            `<span>Differential</span> <span class="history-sub">(${details.x}, ${details.y})</span>`,
+            Interface.renderMath(`d_{${details.r}}(${rowToLaTeX(details.source)}) = ${rowToLaTeX(details.target)}`),
+            [[details.x, details.y], [details.x - 1, details.y + details.r]],
+            msg
+        );
+    }
+
+    _AddProductDifferential(details, msg) {
+        let content = `
+<ul class="text-left" style="padding-left: 20px; list-style-type: none">
+  <li>
+    <details>
+      <summary>source: ${Interface.renderMath(details.source.name)}</summary>
+      (${details.source.x}, ${details.source.y}, ${details.source.idx})
+    </details>
+  </li>
+  <li>
+    <details>
+      <summary>target: ${Interface.renderMath(details.target.name)}</summary>
+      (${details.target.x}, ${details.target.y}, ${details.target.idx})
+    </details>
+  </li>
+</ul>`;
+        this._addHistoryItem(
+            `<span>Product Differential (${Interface.renderMath(details.source.name + '\\to ' + details.target.name)})</span>`,
+            content,
+            [[details.source.x, details.source.y], [details.target.x, details.target.y]],
+            msg
+        );
+
+        let sseq = this.display.sseq;
+    }
+
+    _AddProductType(details, msg) {
+        this._addHistoryItem(
+            `<span>Product (${Interface.renderMath(details.name)})</span>`,
+            (details.permanent ? "Permanent" : "Non-permanent") + `: (${details.x}, ${details.y}, ${details.idx})`,
+            [[details.x, details.y]]
+            ,msg
+        );
+    }
+
+    _AddPermanentClass(details, msg) {
+        this._addHistoryItem(
+            `<span>Permanent Class</span> <span class="history-sub">(${details.x}, ${details.y})</span>`,
+            Interface.renderMath(`${rowToLaTeX(details.class)}`),
+            [[details.x, details.y]]
+            ,msg
+        );
+    }
+
+    addMessage(data) {
+        let action = data.action;
+        let actionName = Object.keys(action)[0];
+        let actionInfo = action[actionName];
+
+        this["_" + actionName](actionInfo, data);
+    }
+
+}
+
+class OverviewPanel extends Panel.Panel {
     constructor(parentContainer, display) {
         super(parentContainer, display);
         this.newGroup();
@@ -29,7 +162,7 @@ export class OverviewPanel extends Panel.Panel {
     }
 }
 
-export class StructlinePanel extends Panel.Panel {
+class StructlinePanel extends Panel.Panel {
     constructor(parentContainer, display) {
         super(parentContainer, display);
     }

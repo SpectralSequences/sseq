@@ -38,8 +38,6 @@ pub enum Action {
     AddProductType,
     AddPermanentClass,
     AddDifferential,
-    Undo,
-    Redo,
     Clear,
 
     // Resolver -> Sseq
@@ -110,14 +108,6 @@ impl ActionT for AddDifferential {
             0);
     }
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Undo {}
-impl ActionT for Undo { }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Redo {}
-impl ActionT for Redo { }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Clear {}

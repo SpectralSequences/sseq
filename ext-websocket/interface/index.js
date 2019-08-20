@@ -3,15 +3,26 @@ import { ExtSseq } from "./sseq.js";
 
 let commandQueue = [];
 function processCommandQueue() {
-    let command = "";
+    let commandText = "";
     // If we are resolving, we should wait for it to finish resolving before we
     // can continue. For example, we don't want to add a differential when the
     // corresponding classes have not been generated.
-    while (commandQueue.length > 0 && !command.includes('"Resolve"')) {
-        command = commandQueue.pop().trim();
-        if (command.length == 0)
+    while (commandQueue.length > 0 && !commandText.includes('"Resolve"')) {
+        commandText = commandQueue.pop();
+        if (commandText.trim() == "")
             continue;
-        window.webSocket.send(command);
+
+        try {
+            let command = JSON.parse(commandText);
+            if (command.sseq == "Main") {
+                window.mainSseq.send(command);
+            } else {
+                window.unitSseq.send(command);
+            }
+        } catch (e) {
+            console.log("Unable to parse command " + commandText);
+            console.log(e);
+        }
     }
 }
 
@@ -62,15 +73,14 @@ if (!params.module) {
 }
 
 function openWebSocket(initialData, maxDegree) {
+    // Keep this for the save button
+    window.constructCommand = initialData[0];
+
     window.webSocket = new WebSocket(`ws://${window.location.host}/ws`);
 
     webSocket.onopen = function(e) {
         for (let data of initialData) {
-            if (data instanceof Object) {
-                webSocket.send(JSON.stringify(data));
-            } else {
-                webSocket.send(data);
-            }
+            webSocket.send(JSON.stringify(data));
         }
     };
 
@@ -99,14 +109,38 @@ function openWebSocket(initialData, maxDegree) {
     }
 }
 
-function requestHistory() {
-    window.webSocket.send(JSON.stringify({
-        recipients: ["Server"],
-        sseq : "Main",
-        action : { "RequestHistory": { } }
-    }));
+function save() {
+    let list = [window.constructCommand];
+    list.push(
+        {
+            recipients: ["Resolver"],
+            sseq : "Main",
+            action : {
+                "Resolve": {
+                    max_degree : mainSseq.maxDegree
+                }
+            }
+        }
+    );
+    if (unitSseq.maxDegree > 9) {
+        list.push(
+            {
+                recipients: ["Resolver"],
+                sseq : "Unit",
+                action : {
+                    "Resolve": {
+                        max_degree : unitSseq.maxDegree
+                    }
+                }
+            }
+        );
+    };
+
+    list = list.concat(mainSseq.history);
+    let filename = prompt("Input filename");
+    IO.download(filename, list.map(JSON.stringify).join("\n"), "text/plain");
 }
-window.requestHistory = requestHistory;
+window.save = save;
 
 let messageHandler = {};
 messageHandler.ReturnHistory = (data) => {
@@ -196,14 +230,8 @@ document.getElementById("history-upload").addEventListener("change", function() 
         let lines = e.target.result.split("\n");
         let firstBatch = [];
 
-        let i = 0;
-        for (let line of lines) {
-            i++;
-            if (line.includes("Resolve")) {
-                break;
-            }
-        }
-        openWebSocket(lines.splice(0, i + 1));
+        // First command is construct and second command is resolve
+        openWebSocket(lines.splice(0, 2).map(JSON.parse));
 
         lines.reverse();
         commandQueue = lines;

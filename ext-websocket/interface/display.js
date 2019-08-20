@@ -38,7 +38,7 @@ export class MainDisplay extends SidebarDisplay {
         ]);
 
         this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG("sseq.svg"));
-        this.sidebar.footer.addButton("Save", () => window.requestHistory());
+        this.sidebar.footer.addButton("Save", () => window.save());
 
         sseq.on("update", (x, y) => { if (this.selected && this.selected.x == x && this.selected.y == y) this.sidebar.showPanel() });
     }
@@ -140,25 +140,7 @@ export class UnitDisplay extends Display {
         });
 
         document.querySelector("#modal-ok").addEventListener("click", () => {
-            let name = prompt("Name for product");
-            if (name === null) {
-                return;
-            }
-            let permanent = confirm("Permanent class?");
-            webSocket.send(JSON.stringify({
-                recipients : ["Sseq", "Resolver"],
-                sseq : "Main",
-                action : {
-                    "AddProductType": {
-                        permanent : permanent,
-                        x: this.selected.x,
-                        y: this.selected.y,
-                        idx: this.selected.idx,
-                        name: name
-                    }
-                }
-            }));
-
+            window.mainSseq.addProductInteractive(this.selected.x, this.selected.y, this.selected.idx);
             this.closeModal();
         });
 
@@ -194,28 +176,7 @@ export class UnitDisplay extends Display {
             if (node.x == this.selected.x - 1 && node.y >= this.selected.y + 2) {
                 let check = confirm(`Add differential from (${this.selected.x}, ${this.selected.y}, ${this.selected.idx}) to (${node.x}, ${node.y}, ${node.idx})?`);
                 if (check) {
-                    webSocket.send(JSON.stringify({
-                        recipients : ["Sseq", "Resolver"],
-                        sseq : "Main",
-                        action : {
-                            "AddProductDifferential": {
-                                source : {
-                                    permanent : false,
-                                    x: this.selected.x,
-                                    y: this.selected.y,
-                                    idx: this.selected.idx,
-                                    name: prompt("Name of source").trim()
-                                },
-                                target : {
-                                    permanent : false,
-                                    x: node.x,
-                                    y: node.y,
-                                    idx: node.idx,
-                                    name: prompt("Name of target").trim()
-                                }
-                            }
-                        }
-                    }));
+                    window.mainSseq.addProductDifferentialInteractive(this.selected, node);
                     this.state = null;
                     this.closeModal();
                 }
