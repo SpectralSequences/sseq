@@ -15,13 +15,14 @@ pub struct Message {
     pub action: Action
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Recipient {
     Sseq,
-    Resolver
+    Resolver,
+    Server
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SseqChoice {
     Main,
     Unit
@@ -32,13 +33,18 @@ pub enum SseqChoice {
 #[enum_dispatch]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Action {
-    // Resolver -> Sseq
+    // JS -> Sseq
     AddProductDifferential,
     AddProductType,
-    AddProduct,
-    AddClass,
     AddPermanentClass,
     AddDifferential,
+    Undo,
+    Redo,
+    Clear,
+
+    // Resolver -> Sseq
+    AddProduct,
+    AddClass,
 
     // Resolver -> JS
     Resolving,
@@ -55,7 +61,11 @@ pub enum Action {
     SetStructline,
     SetDifferential,
     SetClass,
-    SetPageList
+    SetPageList,
+
+    // Misc
+    RequestHistory,
+    ReturnHistory,
 }
 
 /// The name `Action` is sort-of a misnomer. It is the content of any message that is sent between
@@ -73,9 +83,12 @@ pub enum Action {
 #[enum_dispatch(Action)]
 #[allow(unused_variables)]
 pub trait ActionT {
-    fn user (&self) -> bool { false }
-    fn act_sseq(&self, sseq : &mut Sseq) {}
-    fn act_resolution(&self, resolution : &Rc<RefCell<ModuleResolution<FiniteModule>>>) {}
+    fn act_sseq(&self, sseq : &mut Sseq) {
+        unimplemented!();
+    }
+    fn act_resolution(&self, resolution : &Rc<RefCell<ModuleResolution<FiniteModule>>>) {
+        unimplemented!();
+    }
     // We take this because sometimes we want to only take an immutable borrow.
 }
 
@@ -89,14 +102,28 @@ pub struct AddDifferential {
 }
 
 impl ActionT for AddDifferential {
-    fn user(&self) -> bool {true}
-
     fn act_sseq(&self, sseq: &mut Sseq) {
         sseq.add_differential_propagate(
             self.r, self.x, self.y,
             &FpVector::from_vec(sseq.p, &self.source),
             &mut FpVector::from_vec(sseq.p, &self.target),
             0);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Undo {}
+impl ActionT for Undo { }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Redo {}
+impl ActionT for Redo { }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Clear {}
+impl ActionT for Clear {
+    fn act_sseq(&self, sseq: &mut Sseq) {
+        sseq.clear();
     }
 }
 
@@ -110,8 +137,6 @@ pub struct AddProductType {
 }
 
 impl ActionT for AddProductType {
-    fn user(&self) -> bool {true}
-
     fn act_sseq(&self, sseq : &mut Sseq) {
         sseq.add_product_type(&self.name, self.x, self.y, true, self.permanent);
     }
@@ -120,8 +145,9 @@ impl ActionT for AddProductType {
         let s = self.y as u32;
         let t = self.x + self.y;
 
-        resolution.borrow_mut().add_product(s, t, self.idx, &self.name);
-        resolution.borrow().catch_up_products();
+        if resolution.borrow_mut().add_product(s, t, self.idx, &self.name) {
+            resolution.borrow().catch_up_products();
+        }
     }
 }
 
@@ -133,8 +159,6 @@ pub struct AddPermanentClass {
 }
 
 impl ActionT for AddPermanentClass {
-    fn user(&self) -> bool {true}
-
     fn act_sseq(&self, sseq : &mut Sseq) {
         sseq.add_permanent_class_propagate(self.x, self.y, &FpVector::from_vec(sseq.p, &self.class), 0);
     }
@@ -208,35 +232,27 @@ pub struct QueryTableResult {
     pub t : i32,
     pub string : String
 }
-impl ActionT for QueryTableResult {
-    fn user(&self) -> bool {true}
-}
+impl ActionT for QueryTableResult { }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Construct {
     pub module_name : String,
     pub algebra_name : String,
 }
-impl ActionT for Construct {
-    fn user(&self) -> bool {true}
-}
+impl ActionT for Construct { }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConstructJson {
     pub data : String,
     pub algebra_name : String,
 }
-impl ActionT for ConstructJson {
-    fn user(&self) -> bool {true}
-}
+impl ActionT for ConstructJson { }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Resolve {
     pub max_degree : i32,
 }
-impl ActionT for Resolve {
-    fn user(&self) -> bool {true}
-}
+impl ActionT for Resolve { }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryTable {
@@ -278,3 +294,13 @@ pub struct SetPageList {
     pub page_list : Vec<i32>
 }
 impl ActionT for SetPageList { }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RequestHistory { }
+impl ActionT for RequestHistory { }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReturnHistory {
+    pub history : Vec<Message>
+}
+impl ActionT for ReturnHistory { }

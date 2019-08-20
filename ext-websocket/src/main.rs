@@ -130,7 +130,7 @@ impl ResolutionManager {
     fn resolve(&self, action : Resolve, sseq : SseqChoice) -> Result<(), Box<dyn Error>> {
         let resolution = &self.resolution.as_ref().unwrap();
         let min_degree = match sseq {
-            SseqChoice::Main => resolution.borrow().get_min_degree(),
+            SseqChoice::Main => resolution.borrow().min_degree(),
             SseqChoice::Unit => 0
         };
 
@@ -171,8 +171,8 @@ impl ResolutionManager {
             let s = action.s;
             let t = action.t;
 
-            let module = resolution.get_module(s);
-            if t < module.get_min_degree() {
+            let module = resolution.module(s);
+            if t < module.min_degree() {
                 return Ok(());
             }
             let string = module.generator_list_string(t);
@@ -253,7 +253,9 @@ impl ResolutionManager {
 struct SseqManager {
     sender : mpsc::Sender<Message>,
     sseq : Option<Sseq>,
-    unit_sseq : Option<Sseq>
+    unit_sseq : Option<Sseq>,
+    undo_stack : Vec<Message>,
+    redo_stack : Vec<Message>,
 }
 
 impl SseqManager {
@@ -269,6 +271,8 @@ impl SseqManager {
              sender : sender,
              sseq : None,
              unit_sseq : None,
+             undo_stack : Vec::new(),
+             redo_stack : Vec::new(),
         };
 
         for msg in receiver {
@@ -276,9 +280,16 @@ impl SseqManager {
                 Action::Resolving(_) => manager.resolving(msg)?,
                 Action::Complete(_) => manager.relay(msg)?,
                 Action::QueryTableResult(_) => manager.relay(msg)?,
+                Action::Undo(_) => manager.undo(),
+                Action::Redo(_) => manager.redo(),
                 _ => {
                     if let Some(sseq) = manager.get_sseq(msg.sseq) {
                         msg.action.act_sseq(sseq);
+                        match msg.action {
+                            Action::AddClass(_) => (),
+                            Action::AddProduct(_) => (),
+                            _ => { manager.undo_stack.push(msg); manager.redo_stack.clear(); }
+                        };
                     }
                 }
             }
@@ -286,6 +297,33 @@ impl SseqManager {
         Ok(())
     }
 
+    fn undo(&mut self) {
+        if let Some(msg) = self.undo_stack.pop() {
+            self.redo_stack.push(msg);
+            if let Some(sseq) = &mut self.sseq {
+                sseq.clear();
+            }
+            if let Some(sseq) = &mut self.unit_sseq {
+                sseq.clear();
+            }
+            for msg in &mut self.undo_stack {
+                match msg.sseq {
+                    SseqChoice::Main => msg.action.act_sseq(self.sseq.as_mut().unwrap()),
+                    SseqChoice::Unit => msg.action.act_sseq(self.unit_sseq.as_mut().unwrap()),
+                }
+            }
+        }
+    }
+
+    fn redo(&mut self) {
+        let msg_ = self.redo_stack.pop();
+        if let Some(msg) = msg_ {
+            if let Some(sseq) = self.get_sseq(msg.sseq) {
+                msg.action.act_sseq(sseq);
+                self.undo_stack.push(msg);
+            }
+        }
+    }
     fn get_sseq(&mut self, sseq : SseqChoice) -> Option<&mut Sseq> {
         match sseq {
             SseqChoice::Main => self.sseq.as_mut(),
@@ -325,8 +363,10 @@ impl SseqManager {
 /// We also spawn a separate thread waiting for messages from ResolutionManager, and then relay it
 /// to the WebSocket, again, we do this because we don't want anything to be blocking.
 struct Server {
+    server_sender : mpsc::Sender<Message>,
     sseq_sender : mpsc::Sender<Message>,
     res_sender : mpsc::Sender<Message>,
+    history : Vec<Message>
 }
 
 impl Handler for Server {
@@ -347,6 +387,7 @@ impl Handler for Server {
         }
 
         let msg = msg.unwrap();
+        self.history.push(msg.clone());
 
         for recipient in &msg.recipients {
             match recipient {
@@ -360,6 +401,23 @@ impl Handler for Server {
                     match self.res_sender.send(msg.clone()) {
                         Ok(_) => (),
                         Err(e) => eprintln!("Failed to send message to ResolutionManager: {}", e)
+                    }
+                }
+                Recipient::Server => {
+                    if let Action::RequestHistory(_) = msg.action {
+                        let msg = Message {
+                            recipients : vec![],
+                            sseq : SseqChoice::Main, // Doesn't matter
+                            action : Action::from(actions::ReturnHistory {
+                                history : self.history.iter()
+                                    .filter(|x| x.recipients[0] != Recipient::Server)
+                                    .map(|x| x.clone())
+                                    .collect::<Vec<_>>()
+                            })
+                        };
+                        self.server_sender.send(msg).unwrap();
+                    } else {
+                        eprintln!("Unrecognized action.");
                     }
                 }
             }
@@ -400,8 +458,10 @@ impl Server {
         });
 
         Server {
+            server_sender,
             sseq_sender,
-            res_sender
+            res_sender,
+            history : Vec::new()
         }
     }
 

@@ -3,6 +3,7 @@ use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::sync::Mutex;
+use std::collections::HashSet;
 
 use bivec::BiVec;
 
@@ -70,6 +71,7 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
 
     // Products
     pub unit_resolution : Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>,
+    product_names : HashSet<String>,
     product_list : Vec<Cocycle>,
     // s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
     // until we actually have a unit resolution, of course.
@@ -117,6 +119,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 
             chain_maps_to_unit_resolution : OnceVec::new(),
             max_product_homological_degree : 0,
+            product_names : HashSet::new(),
             product_list : Vec::new(),
             unit_resolution : None,
 
@@ -492,15 +495,24 @@ impl<M, F, CC> Resolution<M, F, CC> where
     F : ModuleHomomorphism<M, M>,
     CC : ChainComplex<M, F>
 {
-    pub fn add_product(&mut self, s : u32, t : i32, index : usize, name : &str) {
-        self.construct_unit_resolution();
-        if s > self.max_product_homological_degree {
-            self.max_product_homological_degree = s;
-        }
+    /// The return value is whether the product was actually added. If the product is already
+    /// present, we do nothing.
+    pub fn add_product(&mut self, s : u32, t : i32, index : usize, name : &str) -> bool {
+        let name = name.to_string();
+        if !self.product_names.contains(&name) {
+            self.product_names.insert(name.clone());
+            self.construct_unit_resolution();
+            if s > self.max_product_homological_degree {
+                self.max_product_homological_degree = s;
+            }
 
-        // We must add a product into product_list before calling compute_products, since
-        // compute_products aborts when product_list is empty.
-        self.product_list.push(Cocycle { s, t, index, name: name.to_string() });
+            // We must add a product into product_list before calling compute_products, since
+            // compute_products aborts when product_list is empty.
+            self.product_list.push(Cocycle { s, t, index, name });
+            true
+        } else {
+            false
+        }
     }
 
     /// This function computes the products between the element most recently added to product_list
@@ -653,13 +665,22 @@ impl<M, F, CC> Resolution<M, F, CC> where
     F : ModuleHomomorphism<M, M>,
     CC : ChainComplex<M, F>
 {
-    pub fn add_self_map(&mut self, s : u32, t : i32, name : &str, map_data : Matrix) {
-        if let Some(self_) = &self.self_ {
-            self.self_maps.push(
-                SelfMap {
-                    s, t, name : name.to_string(), map_data : TempStorage::new(map_data),
-                    map : ResolutionHomomorphism::new("".to_string(), self_.clone(), self_.clone(), s, t)
-                });
+    /// The return value is whether the self map was actually added. If the self map is already
+    /// present, we do nothing.
+    pub fn add_self_map(&mut self, s : u32, t : i32, name : &str, map_data : Matrix) -> bool {
+        let name = name.to_string();
+        if !self.product_names.contains(&name) {
+            if let Some(self_) = &self.self_ {
+                self.product_names.insert(name.clone());
+                self.self_maps.push(
+                    SelfMap {
+                        s, t, name : name, map_data : TempStorage::new(map_data),
+                        map : ResolutionHomomorphism::new("".to_string(), self_.clone(), self_.clone(), s, t)
+                    });
+            }
+            true
+        } else {
+            false
         }
     }
 
