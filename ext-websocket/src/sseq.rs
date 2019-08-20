@@ -257,7 +257,11 @@ impl Sseq {
                 for zero in self.zeros[x][y].iter_mut() {
                     zero.set_to_zero();
                 }
+            }
+        }
 
+        for x in 0 .. self.classes.len() {
+            for y in 0 .. self.classes[x].len() {
                 self.compute_classes(x, y);
             }
         }
