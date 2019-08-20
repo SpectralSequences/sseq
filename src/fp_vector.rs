@@ -431,6 +431,10 @@ pub trait FpVectorT {
     }
 
     fn shift_add(&mut self, other : &FpVector, c : u32){
+        if self.dimension() == 0 {
+            return;
+        }
+
         if self.offset() > other.offset() {
             self.shift_right_add(other, c);
         } else if self.offset() < other.offset() {
@@ -445,9 +449,6 @@ pub trait FpVectorT {
         debug_assert!(self.offset() >= other.offset());
         debug_assert!(self.dimension() == other.dimension(),
             format!("self.dim {} not equal to other.dim {}", self.dimension(), other.dimension()));
-        if self.dimension() == 0 {
-            return;
-        }
         let p = self.prime();
         debug_assert!(c < p);
         let offset_shift = self.offset() - other.offset();
@@ -492,9 +493,6 @@ pub trait FpVectorT {
         debug_assert!(self.offset() <= other.offset());
         debug_assert!(self.dimension() == other.dimension(),
             format!("self.dim {} not equal to other.dim {}", self.dimension(), other.dimension()));
-        if self.dimension() == 0 {
-            return;
-        }
         let p = self.prime();
         debug_assert!(c < p);
         let offset_shift = other.offset() - self.offset();
