@@ -149,7 +149,10 @@ messageHandler.ReturnHistory = (data) => {
 }
 
 messageHandler.Resolving = (data, msg) => {
-    if (msg.sseq == "Unit") { return; }
+    if (msg.sseq == "Unit") {
+        window.unitSseq.processResolving(data);
+        return;
+    }
     if (!window.mainSseq) {
         window.mainSseq = new ExtSseq("Main", window.webSocket);
         window.unitSseq = new ExtSseq("Unit", window.webSocket);
