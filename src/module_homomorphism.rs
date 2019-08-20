@@ -66,7 +66,7 @@ pub trait ModuleHomomorphism<S : Module, T : Module> {
         matrix.row_reduce(&mut pivots);
         let quasi_inverse = matrix.compute_quasi_inverse(&pivots, target_dimension, padded_target_dimension);
         self.set_quasi_inverse(&lock, degree, quasi_inverse);
-        let kernel = matrix.compute_kernel(&pivots, target_dimension);
+        let kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
         self.set_kernel(&lock, degree, kernel);
     }
     // fn get_image_pivots(&self, degree : i32) -> Option<&Vec<isize>> {
