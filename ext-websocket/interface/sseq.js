@@ -1,3 +1,5 @@
+import { promptClass, promptInteger } from "./utils.js";
+
 const OFFSET_SIZE = 0.3;
 
 const NODE_COLOR = {
@@ -5,41 +7,6 @@ const NODE_COLOR = {
     "Error": "#a6001a",
     "Done": "gray"
 };
-
-// Prompts for an array of length `length`
-function promptClass(text, error, length) {
-    while (true) {
-        let response = prompt(text);
-        if (!response) {
-            return null;
-        }
-        try {
-            let vec = JSON.parse(response.trim());
-            if (Array.isArray(vec) &&
-                vec.length == length &&
-                vec.reduce((b, x) => b && Number.isInteger(x), true)) {
-                return vec;
-            }
-        } catch(e) { // If we can't parse, try again
-        }
-        alert(error);
-    }
-}
-
-function promptInteger(text, error) {
-    while (true) {
-        let response = prompt(text);
-        if (!response) {
-            return null;
-        }
-        let c = parseInt(response.trim());
-        if (!isNaN(c)) {
-            return c;
-            break;
-        }
-        alert(error);
-    }
-}
 
 export class ExtSseq extends EventEmitter {
     constructor(name, webSocket) {

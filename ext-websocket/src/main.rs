@@ -23,11 +23,13 @@ use ws::{listen, Handler, Request, Response, Sender};
 use ws::Result as WsResult;
 
 /// List of files that our webserver will serve to the user
-const FILE_LIST : [(&str, &str, &[u8]); 7] = [
+const FILE_LIST : [(&str, &str, &[u8]); 9] = [
     ("/", "index.html", b"text/html"),
     ("/index.html", "index.html", b"text/html"),
     ("/index.js", "index.js", b"text/javascript"),
     ("/display.js", "display.js", b"text/javascript"),
+    ("/utils.js", "utils.js", b"text/javascript"),
+    ("/panels.js", "panels.js", b"text/javascript"),
     ("/sseq.js", "sseq.js", b"text/javascript"),
     ("/index.css", "index.css", b"text/css"),
     ("/bundle.js", "bundle.js", b"text/javascript")];
