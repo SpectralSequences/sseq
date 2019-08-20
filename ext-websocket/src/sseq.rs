@@ -860,12 +860,6 @@ impl Sseq {
 
     pub fn add_permanent_class(&mut self, x : i32, y : i32, class : &FpVector) {
         self.permanent_classes[x][y].add_vector(class);
-        if self.differentials.len() <= x {
-            return;
-        }
-        if self.differentials[x].len() <= y {
-            return;
-        }
         for r in MIN_PAGE .. self.differentials[x][y].len() {
             self.differentials[x][y][r].add(class, None);
         }
@@ -887,7 +881,7 @@ impl Sseq {
             }
         }
 
-        self.send_class_data(x, y);
+        self.compute_classes(x, y);
     }
 
     /// Same logic as add_differential_propagate
