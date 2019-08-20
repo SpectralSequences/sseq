@@ -11,7 +11,7 @@ use crate::chain_complex::{ChainComplex, CochainComplex};
 use crate::hom_space::HomSpace;
 use crate::hom_pullback::HomPullback;
 
-struct HomComplex<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : FiniteDimensionalModuleT> {
+pub struct HomComplex<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : FiniteDimensionalModuleT> {
     min_degree : i32,
     source : Rc<CC>,
     target : Rc<N>,
@@ -74,9 +74,9 @@ impl<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : Fini
 
     fn max_cohomology_degree(&self, homological_degree : u32) -> i32 {
         let homological_degree = homological_degree as usize;
-        if homological_degree > self.cohomology_basis.len(){
+        if homological_degree >= self.cohomology_basis.len(){
             return self.min_degree() - 1;
-        } 
+        }
         return self.cohomology_basis[homological_degree].len();
     }
 

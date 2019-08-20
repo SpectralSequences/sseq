@@ -55,7 +55,7 @@ impl<M : FiniteDimensionalModuleT> ModuleHomomorphism<HomSpace<M>, HomSpace<M>> 
     }
 
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, fn_degree : i32, fn_idx : usize) {
-        // println!("fn_deg : {}, fn_idx : {}", fn_degree, fn_idx);
+        println!("fn_deg : {}, fn_idx : {}", fn_degree, fn_idx);
         let p = self.prime();
         let target_module = self.target.target();
         for out_deg in target_module.min_degree() ..= target_module.max_degree() {
@@ -77,12 +77,12 @@ impl<M : FiniteDimensionalModuleT> ModuleHomomorphism<HomSpace<M>, HomSpace<M>> 
     }
 
     fn max_kernel_degree(&self) -> i32 {
-        unimplemented!()
+        self.kernel.max_degree()
     }
 
     fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse){
         assert!(degree >= self.min_degree());
-        assert!(degree == self.quasi_inverse.len());
+        assert_eq!(degree, self.quasi_inverse.len());
         self.quasi_inverse.push(quasi_inverse);
     }
 

@@ -127,6 +127,7 @@ pub trait CochainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
     }
 
     fn compute_cohomology(&self, homological_degree : u32, internal_degree : i32){
+        println!("==== {}, {}", homological_degree, internal_degree);
         self.compute_through_bidegree(homological_degree + 1, internal_degree);
         let d_cur = self.differential(homological_degree);
         let d_prev = self.differential(homological_degree + 1);

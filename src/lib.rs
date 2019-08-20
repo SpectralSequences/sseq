@@ -57,10 +57,11 @@ use crate::milnor_algebra::MilnorAlgebra;
 use crate::module::{FiniteModule, Module};
 use crate::matrix::Matrix;
 use crate::fp_vector::FpVectorT;
-use crate::chain_complex::ChainComplex;
+use crate::chain_complex::{ChainComplex, CochainComplex};
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 use crate::resolution::{Resolution, ModuleResolution};
+use crate::hom_complex::HomComplex;
 
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -185,6 +186,8 @@ pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
     let bundle = construct(config)?;
     let res = bundle.resolution.borrow();
     res.resolve_through_degree(config.max_degree);
+    // let hom = HomComplex::new(Rc::clone(&res), Rc::clone(&bundle.module));
+    // hom.compute_cohomology_through_bidegree(res.max_computed_homological_degree(), res.max_computed_degree());
     Ok(res.graded_dimension_string())
 }
 
@@ -193,56 +196,7 @@ pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
 // use crate::resolution_homomorphism::ResolutionHomomorphism;
 #[allow(unreachable_code)]
 #[allow(unused_mut)]
-pub fn run_test() {
-    let p = 2;
-    let max_degree = 16;
-    let adem = AdemAlgebra::new(p, p != 2, false);
-    let milnor = MilnorAlgebra::new(p);//, p != 2
-    adem.compute_basis(max_degree);
-    milnor.compute_basis(max_degree);
-    let idx = adem.basis_element_to_index(&crate::adem_algebra::AdemBasisElement {
-        degree : 7,
-        excess : 0,
-        bocksteins : 0,
-        ps : vec![4, 2, 1]
-    });
-    let mut result = fp_vector::FpVector::new(p, adem.dimension(7, -1));
-    change_of_basis::adem_to_milnor_on_basis(&adem, &milnor, &mut result, 1, 7, idx);
-    println!("Sq4 Sq2 Sq1 ==> {}\n\n", milnor.element_to_string(7, &result));
-    for i in 2..3 {
-        let degree = (1 << (i + 1)) - 1;
-        let mut result = crate::fp_vector::FpVector::new(p, adem.dimension(degree, -1));
-        crate::change_of_basis::adem_q(&adem, &milnor, &mut result, 1, i);
-        println!("Q{} ==> {}", i, adem.element_to_string(degree, &result));
-    }
-    
-    let p = 2;
-    let max_degree = 30;
-    let adem = AdemAlgebra::new(p, p != 2, false);
-    let milnor = MilnorAlgebra::new(p);//, p != 2
-    adem.compute_basis(max_degree);
-    milnor.compute_basis(max_degree);
-    let degree = 9;
-    let i = 4;
-    let dim = adem.dimension(degree, -1);
-    let mut adem_result = crate::fp_vector::FpVector::new(p, dim);
-    // crate::change_of_basis::milnor_to_adem_on_basis(&adem, &milnor, &mut adem_result, 1, degree, i);
-    return;
-
-    let p = 3;
-    let max_degree = 80;
-    let algebra = AdemAlgebra::new(p, p != 2, false);
-    algebra.compute_basis(80);
-    let idx = algebra.basis_element_to_index(&crate::adem_algebra::AdemBasisElement{
-        degree : 60,
-        excess : 0,
-        bocksteins : 0,
-        ps : vec![15]
-    });
-    let decomposition = algebra.decompose_basis_element(60, idx);
-    println!("decomposition : {:?}", decomposition);
-
-    let max_degree = 25;
+pub fn run_test() {    
     // let contents = std::fs::read_to_string("static/modules/S_3.json").unwrap();
     // S_3
     // let contents = r#"{"type" : "finite dimensional module","name": "$S_3$", "file_name": "S_3", "p": 3, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}"#;
@@ -250,25 +204,16 @@ pub fn run_test() {
     let contents = r#"{"type" : "finite dimensional module", "name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
     let mut json : Value = serde_json::from_str(&contents).unwrap();
     let p = json["p"].as_u64().unwrap() as u32;
+    let max_degree = 20;
     let algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
     let module = Rc::new(FDModule::from_json(Rc::clone(&algebra), &mut json));
     let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
-    let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), None, None)));
-    // resolution.borrow_mut().resolve_through_degree(max_degree);
-    // let f = ResolutionHomomorphism::new("test".to_string(), Rc::clone(&resolution), Rc::clone(&resolution), 1, 4);
-    // let mut v = matrix::Matrix::new(p, 1, 1);
-    // v[0].set_entry(0, 1);
-    // f.extend_step(1, 4, Some(&mut v));
-    // f.extend(3, 15);
+    let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), None, None));
+    resolution.resolve_through_degree(max_degree);
+    let hom = HomComplex::new(resolution, module);
+    hom.compute_cohomology_through_bidegree(max_degree as u32, max_degree);
+    println!("{}", hom.graded_dimension_string());
     
-//    let mut res_with_maps = ResolutionWithChainMaps::new(Rc::clone(&resolution), Rc::clone(&resolution));
-//    let mut map_data = crate::matrix::Matrix::new(2, 1, 1);
-//    map_data[0].set_entry(0, 1);
-//    // res_with_maps.add_self_map(4, 12, "v_1".to_string(), map_data);
-//    res_with_maps.add_product(2, 12, 0, "beta".to_string());
-//    res_with_maps.add_product(2, 9, 0, "\\alpha_{2}".to_string());
-//    res_with_maps.resolve_through_degree(max_degree);
-//    println!("{}", resolution.borrow().graded_dimension_string());
 }
 
 

@@ -44,13 +44,15 @@ pub trait ModuleHomomorphism<S : Module, T : Module> {
     }
 
     fn compute_kernels_and_quasi_inverses_through_degree(&self, lock : &MutexGuard<i32>, degree : i32){
-        for i in self.max_kernel_degree() ..= degree {
+        for i in self.max_kernel_degree() + 1 ..= degree {
             self.compute_kernel_and_quasi_inverse(lock, degree);
         }
     }
 
     fn compute_kernel_and_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32){
         let p = self.prime();
+        self.source().compute_basis(degree);
+        self.target().compute_basis(degree);
         let source_dimension = self.source().dimension(degree);
         let target_dimension = self.target().dimension(degree);
         let padded_target_dimension = FpVector::padded_dimension(p, target_dimension);
