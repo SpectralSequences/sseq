@@ -83,6 +83,7 @@ class HistoryPanel extends Panel.Panel {
         });
 
     }
+
     _AddDifferential(details, msg) {
         this._addHistoryItem(
             `<span>Differential</span> <span class="history-sub">(${details.x}, ${details.y})</span>`,
@@ -209,7 +210,50 @@ class StructlinePanel extends Panel.Panel {
     }
 }
 
-export class ClassPanel extends Panel.Panel {
+export class ClassPanel extends Panel.TabbedPanel {
+    constructor(parentContainer, display) {
+        super(parentContainer, display);
+        this.differentialTab = new DifferentialPanel(this.container, this.display);
+        this.addTab("Diff", this.differentialTab);
+
+        this.productsTab = new ProductsPanel(this.container, this.display);
+        this.addTab("Prod", this.productsTab);
+
+        this.dataTab = new DataPanel(this.container, this.display);
+        this.addTab("Data", this.dataTab);
+    }
+}
+
+class DataPanel extends Panel.Panel {
+    constructor(parentContainer, display) {
+        super(parentContainer, display);
+    }
+
+    show() {
+        this.container.style.removeProperty("display");
+        this.container.className = "text-center";
+        this.clear();
+
+        this.newGroup();
+        this.addHeader("Classes in E2 basis");
+        let x = this.display.selected.x;
+        let y = this.display.selected.y;
+        let page = this.display.page;
+        let sseq = this.display.sseq;
+
+        let classes = sseq.getClasses(x, y, page);
+        this.addLine(classes.map(x => rowToKaTeX(x.data)).join("<br />"));
+    }
+
+    addLine(html) {
+        let node = document.createElement("div");
+        node.style = "padding: 0.75rem 0";
+        node.innerHTML = html;
+        this.addObject(node);
+    }
+}
+
+class DifferentialPanel extends Panel.Panel {
     constructor(parentContainer, display) {
         super(parentContainer, display);
     }
@@ -224,12 +268,51 @@ export class ClassPanel extends Panel.Panel {
         let page = this.display.page;
         let sseq = this.display.sseq;
 
+        // We don't use display.selected because this would refer to the wrong object after we add a differential.
+        if (sseq.getClasses(x, y, page)[0].state == "InProgress") {
+            this.newGroup();
+            this.addHeader("Possible Differentials");
+
+            let maxR = Math.ceil(eval(sseq.vanishingSlope) * x + eval(sseq.vanishingIntercept)) - y;
+
+            let node = document.createElement("div");
+
+            for (let r = 2; r <= maxR; r ++) {
+                let classes = sseq.getClasses(x - 1, y + r, r);
+                if (classes && classes.length > 0 &&
+                    (!sseq.trueDifferentials.get([x, y]) || !sseq.trueDifferentials.get([x, y])[r] || sseq.getClasses(x, y, r).length != sseq.trueDifferentials.get([x, y])[r].length)) {
+                    let spn = document.createElement("span");
+                    spn.style.padding = "0.75rem";
+                    spn.innerHTML = r;
+
+                    // We want to update the classes on *this* page, not on the rth page
+                    classes = sseq.getClasses(x - 1, y + r, page);
+                    spn.addEventListener("mouseover", () => {
+                        spn.style.color = "blue";
+                        for (let c of classes) {
+                            c.highlight = true;
+                            console.log(c.highlight);
+                        }
+                        this.display.update();
+                    });
+                    spn.addEventListener("mouseout", () => {
+                        spn.style.removeProperty("color");
+                        for (let c of classes) {
+                            c.highlight = false;
+                        }
+                        this.display.update();
+                    });
+                    node.appendChild(spn);
+                }
+            }
+
+            if (!node.hasChildNodes()) {
+                node.innerHTML = "No possible differentials!";
+            }
+            this.addObject(node);
+        }
+
         this.newGroup();
-        let classes = sseq.getClasses(x, y, page);
-
-        this.addHeader("Classes");
-        this.addLine(classes.map(x => rowToKaTeX(x.data)).join("<br />"));
-
         this.addHeader("Differentials");
         let trueDifferentials = sseq.trueDifferentials.get([x, y]);
         if (trueDifferentials && trueDifferentials.length > page) {
@@ -239,6 +322,7 @@ export class ClassPanel extends Panel.Panel {
         }
         this.addButton("Add", () => this.display.state = STATE_ADD_DIFFERENTIAL, { shortcuts: ["d"]});
 
+        this.newGroup();
         this.addHeader("Permanent Classes");
         let permanentClasses = sseq.permanentClasses.get([x, y]);
         if (permanentClasses.length > 0) {
@@ -248,7 +332,31 @@ export class ClassPanel extends Panel.Panel {
             this.display.sseq.addPermanentClassInteractive(this.display.selected);
         }, { shortcuts: ["p"]});
 
-        this.addHeader("Products");
+    }
+
+    addLine(html) {
+        let node = document.createElement("div");
+        node.style = "padding: 0.75rem 0";
+        node.innerHTML = html;
+        this.addObject(node);
+    }
+}
+
+class ProductsPanel extends Panel.Panel {
+    constructor(parentContainer, display) {
+        super(parentContainer, display);
+    }
+
+    show() {
+        this.container.style.removeProperty("display");
+        this.container.className = "text-center";
+        this.clear();
+
+        let x = this.display.selected.x;
+        let y = this.display.selected.y;
+        let page = this.display.page;
+        let sseq = this.display.sseq;
+
         let products = sseq.getProducts(x, y, page);
         if (products) {
             for (let prod of products) {
@@ -299,5 +407,4 @@ export class ClassPanel extends Panel.Panel {
         node.innerHTML = html;
         this.addObject(node);
     }
-
 }
