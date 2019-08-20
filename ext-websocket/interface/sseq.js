@@ -15,9 +15,13 @@ export class ExtSseq extends EventEmitter {
         this.name = name;
         this.webSocket = webSocket;
 
+        this.minDegree = 0;
         this.maxDegree = 0;
         this.initial_page_idx = 0;
         this.min_page_idx = 0;
+
+        this._vanishingSlope = "1/2";
+        this._vanishingIntercept = 1;
 
         this.classes = new StringifyingMap();
         this.structlines = new StringifyingMap();
@@ -44,6 +48,24 @@ export class ExtSseq extends EventEmitter {
         this.defaultNode.fill = true;
         this.defaultNode.stroke = true;
         this.defaultNode.shape = Shapes.circle;
+    }
+
+    get vanishingSlope() {
+        return this._vanishingSlope;
+    }
+
+    get vanishingIntercept() {
+        return this._vanishingIntercept;
+    }
+
+    set vanishingSlope(m) {
+        this._vanishingSlope = m;
+        this.emit("update");
+    }
+
+    set vanishingIntercept(c) {
+        this._vanishingIntercept = c;
+        this.emit("update");
     }
 
     send(data) {
@@ -185,7 +207,6 @@ export class ExtSseq extends EventEmitter {
                 }
             }
         });
-        window.setUnitRange();
     }
 
     queryTable(x, y) {
@@ -202,14 +223,25 @@ export class ExtSseq extends EventEmitter {
         });
     }
 
+    get xRange() {
+        return [this.minDegree, this.maxDegree];
+    }
+
+    get yRange() {
+        // Because of the slope -1 ridge at the end of, the y-to-x ratio is smaller.
+        let realSlope = 1/(1/eval(this._vanishingSlope) + 1);
+
+        let maxY = Math.ceil((this.maxDegree - this.minDegree) * realSlope + 1 + eval(this._vanishingIntercept)); // We trust our inputs *so* much.
+        return [0, maxY];
+    }
+
+    get initialxRange() { return this.xRange; }
+    get initialyRange() { return this.yRange; }
+
     processResolving(data) {
         this.p = data.p;
         this.minDegree = data.min_degree;
         this.maxDegree = data.max_degree;
-        this.xRange = [this.minDegree, this.maxDegree];
-        this.yRange = [0, Math.ceil((this.maxDegree - this.minDegree)/2) + 1];
-        this.initialxRange = [this.minDegree, this.maxDegree];
-        this.initialyRange = [0, Math.ceil((this.maxDegree - this.minDegree)/2) + 1];
     }
 
     processSetPageList(data) {

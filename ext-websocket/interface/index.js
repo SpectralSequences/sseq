@@ -108,16 +108,6 @@ function requestHistory() {
 }
 window.requestHistory = requestHistory;
 
-function setUnitRange() {
-    let maxX = Math.max(unitSseq.maxDegree, mainSseq.maxDegree)
-    unitSseq.xRange = [0, maxX];
-    unitSseq.yRange = [0, Math.min(unitSseq.maxDegree, Math.ceil(maxX/2 + 1))];
-    unitSseq.initialxRange = [0, maxX];
-    unitSseq.initialyRange = [0, Math.min(unitSseq.maxDegree, Math.ceil(maxX/2 + 1))];
-}
-
-window.setUnitRange = setUnitRange;
-
 let messageHandler = {};
 messageHandler.ReturnHistory = (data) => {
     let filename = prompt("Input filename");
@@ -134,7 +124,19 @@ messageHandler.Resolving = (data, msg) => {
     window.mainSseq.processResolving(data);
 
     unitSseq.maxDegree = 9;
-    setUnitRange();
+    // Replace the getter with hand-coded actual values;
+    Object.defineProperty(unitSseq, "xRange", {
+        get() { return [0, Math.max(unitSseq.maxDegree, mainSseq.maxDegree)] }
+    });
+    Object.defineProperty(unitSseq, "yRange", {
+        get() { return [0, Math.min(unitSseq.maxDegree, Math.ceil(this.xRange[1]/2 + 1))] }
+    });
+    Object.defineProperty(unitSseq, "initialxRange", {
+        get() { return this.xRange; }
+    });
+    Object.defineProperty(unitSseq, "initialyRange", {
+        get() { return this.yRange; }
+    });
 
     if (!window.display) {
         window.display = new MainDisplay("#main", mainSseq);

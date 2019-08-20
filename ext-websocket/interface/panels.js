@@ -1,5 +1,33 @@
-import { STATE_ADD_DIFFERENTIAL } from "./display.js";
+import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE } from "./display.js";
 import { rowToKaTeX, rowToLaTeX, matrixToKaTeX } from "./utils.js";
+
+export class GeneralPanel extends Panel.TabbedPanel {
+    constructor(parentContainer, display) {
+        super(parentContainer, display);
+
+        this.overviewTab = new OverviewPanel(this.container, this.display);
+        this.addTab("Overview", this.overviewTab);
+
+        this.structlineTab = new StructlinePanel(this.container, this.display);
+        this.addTab("Structlines", this.structlineTab);
+    }
+}
+
+export class OverviewPanel extends Panel.Panel {
+    constructor(parentContainer, display) {
+        super(parentContainer, display);
+        this.newGroup();
+
+        this.addHeader("Vanishing line");
+        this.addLinkedInput("Slope", "sseq.vanishingSlope", "text");
+        this.addLinkedInput("Intercept", "sseq.vanishingIntercept", "text");
+
+        this.newGroup();
+
+        this.addButton("Query table", () => this.display.state = STATE_QUERY_TABLE, { shorcuts : ["x"] });
+        this.addButton("Resolve further", () => this.display.sseq.resolveFurther());
+    }
+}
 
 export class StructlinePanel extends Panel.Panel {
     constructor(parentContainer, display) {
@@ -130,13 +158,6 @@ export class ClassPanel extends Panel.Panel {
                 this.addObject(node);
             }
         }
-    }
-
-    addHeader(header) {
-        let node = document.createElement("h5");
-        node.className = "card-title";
-        node.innerHTML = header;
-        this.addObject(node);
     }
 
     addLine(html) {

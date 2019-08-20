@@ -1,4 +1,4 @@
-import { StructlinePanel, ClassPanel } from "./panels.js";
+import { GeneralPanel, ClassPanel } from "./panels.js";
 
 export const STATE_ADD_DIFFERENTIAL = 1;
 export const STATE_QUERY_TABLE = 2;
@@ -17,9 +17,9 @@ export class MainDisplay extends SidebarDisplay {
         Mousetrap.bind('left',  this.previousPage);
         Mousetrap.bind('right', this.nextPage);
 
-        this.structlinePanel = new StructlinePanel(this.sidebar.main_div, this);
-        this.sidebar.addPanel(this.structlinePanel);
-        this.sidebar.currentPanel = this.structlinePanel;
+        this.generalPanel = new GeneralPanel(this.sidebar.main_div, this);
+        this.sidebar.addPanel(this.generalPanel);
+        this.sidebar.currentPanel = this.generalPanel;
 
         this.classPanel = new ClassPanel(this.sidebar.main_div, this);
         this.sidebar.addPanel(this.classPanel);
@@ -37,8 +37,6 @@ export class MainDisplay extends SidebarDisplay {
             ["Redo", () => this.sseq.redo()]
         ]);
 
-        this.sidebar.footer.addButton("Query table", () => this.state = STATE_QUERY_TABLE);
-        this.sidebar.footer.addButton("Resolve further", this.sseq.resolveFurther.bind(this.sseq));
         this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG("sseq.svg"));
         this.sidebar.footer.addButton("Save", () => window.requestHistory());
 
@@ -105,7 +103,7 @@ export class MainDisplay extends SidebarDisplay {
         this.selected = null;
         this.state = null;
 
-        this.sidebar.showPanel(this.structlinePanel);
+        this.sidebar.showPanel(this.generalPanel);
 
         this._drawSseq(this.context);
     }
