@@ -71,8 +71,6 @@ export class MainDisplay extends SidebarDisplay {
                     this.state = null;
                     break;
                 }
-            case STATE_ADD_PRODUCT:
-                this.sseq.addProductInteractive(node.x, node.y, node.idx);
             default:
                 this._unselect();
                 this.selected = node;
@@ -130,7 +128,11 @@ export class UnitDisplay extends Display {
         });
 
         this.on("mouseout", () => {
-            if (this.selected) this.selected.highlight = true;
+            if (this.selected) {
+                for (let c of this.sseq.getClasses(this.selected.x, this.selected.y, this.page)) {
+                    c.highlight = true;
+                }
+            }
             this.tooltip.hide();
         });
 
@@ -144,7 +146,7 @@ export class UnitDisplay extends Display {
         });
 
         document.querySelector("#modal-ok").addEventListener("click", () => {
-            window.mainSseq.addProductInteractive(this.selected.x, this.selected.y, this.selected.idx);
+            window.mainSseq.addProductInteractive(this.selected.x, this.selected.y, this.sseq.getClasses(this.selected.x, this.selected.y, 2).length);
             this.closeModal();
         });
 
@@ -180,7 +182,7 @@ export class UnitDisplay extends Display {
             if (node.x == this.selected.x - 1 && node.y >= this.selected.y + 2) {
                 let check = confirm(`Add differential from (${this.selected.x}, ${this.selected.y}, ${this.selected.idx}) to (${node.x}, ${node.y}, ${node.idx})?`);
                 if (check) {
-                    window.mainSseq.addProductDifferentialInteractive(this.selected, node);
+                    this.sseq.addProductDifferentialInteractive(this.selected.x, this.selected.y, node.y - this.selected.y);
                     this.state = null;
                     this.closeModal();
                 }
@@ -191,13 +193,19 @@ export class UnitDisplay extends Display {
 
         this._unselect();
         this.selected = node;
+        for (let c of this.sseq.getClasses(this.selected.x, this.selected.y, this.page)) {
+            c.highlight = true;
+        }
+        this.update();
         document.querySelector("#modal-ok").disabled = false;
         document.querySelector("#modal-diff").disabled = false;
     }
 
     _unselect() {
         if (!this.selected) return;
-        this.selected.highlight = false;
+        for (let c of this.sseq.getClasses(this.selected.x, this.selected.y, this.page)) {
+            c.highlight = false;
+        }
         this.selected = null;
         this.update();
         document.querySelector("#modal-title").innerHTML = "Select element to multiply with";

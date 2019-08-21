@@ -37,7 +37,7 @@ fn ptr_eq<T, S>(a : &Rc<T>, b : &Rc<S>) -> bool {
 struct Cocycle {
     s : u32,
     t : i32,
-    index : usize,
+    class : Vec<u32>,
     name : String
 }
 
@@ -513,7 +513,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
 {
     /// The return value is whether the product was actually added. If the product is already
     /// present, we do nothing.
-    pub fn add_product(&mut self, s : u32, t : i32, index : usize, name : &str) -> bool {
+    pub fn add_product(&mut self, s : u32, t : i32, class : Vec<u32>, name : &str) -> bool {
         let name = name.to_string();
         if !self.product_names.contains(&name) {
             self.product_names.insert(name.clone());
@@ -524,7 +524,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
 
             // We must add a product into product_list before calling compute_products, since
             // compute_products aborts when product_list is empty.
-            self.product_list.push(Cocycle { s, t, index, name });
+            self.product_list.push(Cocycle { s, t, class, name });
             true
         } else {
             false
@@ -611,8 +611,14 @@ impl<M, F, CC> Resolution<M, F, CC> where
 
             for l in 0 .. target_dim {
                 let result = f.get_map(elt.s).output(target_t, l);
-                let idx = output_module.operation_generator_to_index(0, 0, elt.t, elt.index);
-                products[k].push(result.entry(idx));
+                let mut val = 0;
+                for i in 0 .. elt.class.len() {
+                    if elt.class[i] != 0 {
+                        let idx = output_module.operation_generator_to_index(0, 0, elt.t, i);
+                        val += elt.class[i] * result.entry(idx);
+                    }
+                }
+                products[k].push(val % self.prime());
             }
         }
         self.add_structline(&elt.name, source_s, source_t, target_s, target_t, true, products);

@@ -189,11 +189,17 @@ export class ExtSseq extends EventEmitter {
         this.addDifferential(page, source.x, source.y, source_vec, target_vec);
     }
 
-    addProductInteractive(x, y, idx) {
+    addProductInteractive(x, y, num) {
         let name = prompt("Name for product");
         if (name === null) {
             return;
         }
+        let c;
+        if (num == 1 && this.p == 2)
+            c = [1];
+        else
+            c = promptClass("Input class",`Invalid class. Express in terms of basis on E_2 page`, num);
+
         let permanent = confirm("Permanent class?");
         this.send({
             recipients : ["Sseq", "Resolver"],
@@ -202,30 +208,47 @@ export class ExtSseq extends EventEmitter {
                     permanent : permanent,
                     x: x,
                     y: y,
-                    idx: idx,
+                    "class": c,
                     name: name
                 }
             }
         });
     }
 
-    addProductDifferentialInteractive(source, target) {
-        this.send({
+    addProductDifferentialInteractive(sourceX, sourceY, page, sourceClass, targetClass) {
+        if (!sourceClass) {
+            let num = this.getClasses(sourceX, sourceY, 2).length;
+            if (num == 1 && this.p == 2) {
+                sourceClass = [1];
+            } else {
+                sourceClass = promptClass("Enter source class", "Invalid class. Express in terms of basis on E2", num);
+            }
+        }
+        if (!targetClass) {
+            let num = this.getClasses(sourceX - 1, sourceY + page, 2).length;
+            if (num == 1 && this.p == 2) {
+                targetClass = [1];
+            } else {
+                targetClass = promptClass("Enter target class", "Invalid class. Express in terms of basis on E2", num);
+            }
+        }
+
+        window.mainSseq.send({
             recipients : ["Sseq", "Resolver"],
             action : {
                 "AddProductDifferential": {
                     source : {
                         permanent : false,
-                        x: source.x,
-                        y: source.y,
-                        idx: source.idx,
+                        x: sourceX,
+                        y: sourceY,
+                        "class": sourceClass,
                         name: prompt("Name of source").trim()
                     },
                     target : {
                         permanent : false,
-                        x: target.x,
-                        y: target.y,
-                        idx: target.idx,
+                        x: sourceX - 1,
+                        y: sourceY + page,
+                        "class": targetClass,
                         name: prompt("Name of target").trim()
                     }
                 }

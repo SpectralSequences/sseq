@@ -107,13 +107,13 @@ class HistoryPanel extends Panel.Panel {
   <li>
     <details>
       <summary>source: ${Interface.renderMath(details.source.name)}</summary>
-      (${details.source.x}, ${details.source.y}, ${details.source.idx})
+      (${details.source.x}, ${details.source.y}): ${Interface.renderMath(rowToLaTeX(details.source.class))}
     </details>
   </li>
   <li>
     <details>
       <summary>target: ${Interface.renderMath(details.target.name)}</summary>
-      (${details.target.x}, ${details.target.y}, ${details.target.idx})
+      (${details.target.x}, ${details.target.y}): ${Interface.renderMath(rowToLaTeX(details.target.class))}
     </details>
   </li>
 </ul>`;
@@ -130,7 +130,7 @@ class HistoryPanel extends Panel.Panel {
     _AddProductType(details, msg) {
         this._addHistoryItem(
             `<span>Product (${Interface.renderMath(details.name)})</span>`,
-            (details.permanent ? "Permanent" : "Non-permanent") + `: (${details.x}, ${details.y}, ${details.idx})`,
+            (details.permanent ? "Permanent" : "Non-permanent") + `: (${details.x}, ${details.y}): ${Interface.renderMath(rowToLaTeX(details.class))}`,
             [[details.x, details.y]]
             ,msg
         );
@@ -214,31 +214,28 @@ class StructlinePanel extends Panel.Panel {
             });
         }
 
-        this.addButton("Add", () => {
-            if (this.display.isUnit) {
-                this.display.state = STATE_ADD_PRODUCT;
-            } else {
-                window.unitDisplay.openModal();
-            }
-        }, { "tooltip": "Add product to display" });
+        if (!this.display.isUnit) {
+            this.addButton("Add", () => window.unitDisplay.openModal(), { "tooltip": "Add product to display" });
+        }
     }
 }
 
 export class ClassPanel extends Panel.TabbedPanel {
     constructor(parentContainer, display) {
         super(parentContainer, display);
+        this.mainTab = new MainPanel(this.container, this.display);
+        this.addTab("Main", this.mainTab);
+
         this.differentialTab = new DifferentialPanel(this.container, this.display);
         this.addTab("Diff", this.differentialTab);
 
         this.productsTab = new ProductsPanel(this.container, this.display);
         this.addTab("Prod", this.productsTab);
 
-        this.dataTab = new DataPanel(this.container, this.display);
-        this.addTab("Data", this.dataTab);
     }
 }
 
-class DataPanel extends Panel.Panel {
+class MainPanel extends Panel.Panel {
     constructor(parentContainer, display) {
         super(parentContainer, display);
     }
@@ -257,6 +254,11 @@ class DataPanel extends Panel.Panel {
 
         let classes = sseq.getClasses(x, y, page);
         this.addLine(classes.map(x => rowToKaTeX(x.data)).join("<br />"));
+
+        if (this.display.isUnit) {
+            this.newGroup();
+            this.addButton("Add Product", () => this.display.sseq.addProductInteractive(x, y, classes.length), { shortcut : "m" });
+        }
     }
 
     addLine(html) {
@@ -305,7 +307,6 @@ class DifferentialPanel extends Panel.Panel {
                         spn.style.color = "blue";
                         for (let c of classes) {
                             c.highlight = true;
-                            console.log(c.highlight);
                         }
                         this.display.update();
                     });
@@ -331,8 +332,19 @@ class DifferentialPanel extends Panel.Panel {
         let trueDifferentials = sseq.trueDifferentials.get([x, y]);
         if (trueDifferentials && trueDifferentials.length > page) {
             for (let [source, target] of trueDifferentials[page]) {
-                this.addLine(Interface.renderMath(`d_${page}(${rowToLaTeX(source)}) = ${rowToLaTeX(target)}`));
+                let callback;
+                if (this.display.isUnit) {
+                    callback = () => {
+                        let source_ = sseq.pageBasisToE2Basis(page, x, y, source);
+                        let target_ = sseq.pageBasisToE2Basis(page, x, y, target);
+                        sseq.addProductDifferentialInteractive(x, y, page, source_, target_);
+                    }
+                }
+                this.addLine(Interface.renderMath(`d_${page}(${rowToLaTeX(source)}) = ${rowToLaTeX(target)}`), callback);
             }
+        }
+        if (this.display.isUnit) {
+            this.addLine("<span style='font-size: 80%'>Click differential to propagate</span>");
         }
         this.addButton("Add", () => this.display.state = STATE_ADD_DIFFERENTIAL, { shortcuts: ["d"]});
 
@@ -348,10 +360,13 @@ class DifferentialPanel extends Panel.Panel {
 
     }
 
-    addLine(html) {
+    addLine(html, callback) {
         let node = document.createElement("div");
         node.style = "padding: 0.75rem 0";
         node.innerHTML = html;
+        if (callback) {
+            node.addEventListener("click", callback);
+        }
         this.addObject(node);
     }
 }

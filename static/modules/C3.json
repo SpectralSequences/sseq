@@ -5,8 +5,8 @@
 "milnor_actions": [{"op": [[0], []], "input": "x0", "output": [{"gen": "x1", 
 "coeff": 1}]}], 
     "products" : [
-        { "hom_deg" : 2, "int_deg" : 12, "index" : 0, "name" : "\\beta" },
-        { "hom_deg" : 2, "int_deg" : 9, "index" : 0, "name" : "\\alpha_{2}" }
+        { "hom_deg" : 2, "int_deg" : 12, "class" : [1], "name" : "\\beta" },
+        { "hom_deg" : 2, "int_deg" : 9, "class" : [1], "name" : "\\alpha_{2}" }
     ],
     "self_maps": [
         { "hom_deg" : 1, "int_deg" : 5, "map_data" : [[1]], "name" : "v_1" }

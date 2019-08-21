@@ -121,7 +121,7 @@ impl ActionT for Clear {
 pub struct AddProductType {
     pub x : i32,
     pub y : i32,
-    pub idx : usize,
+    pub class : Vec<u32>,
     pub name : String,
     pub permanent : bool
 }
@@ -135,7 +135,7 @@ impl ActionT for AddProductType {
         let s = self.y as u32;
         let t = self.x + self.y;
 
-        if resolution.borrow_mut().add_product(s, t, self.idx, &self.name) {
+        if resolution.borrow_mut().add_product(s, t, self.class.clone(), &self.name) {
             resolution.borrow().catch_up_products();
         }
     }

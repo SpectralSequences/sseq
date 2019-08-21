@@ -98,15 +98,16 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
     let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), None, None)));
     resolution.borrow_mut().set_self(Rc::downgrade(&resolution));
 
-    let products_value = &json["products"];
+    let products_value = &mut json["products"];
     if !products_value.is_null() {
-        let products = products_value.as_array().unwrap();
+        let products = products_value.as_array_mut().unwrap();
         for prod in products {
             let hom_deg = prod["hom_deg"].as_u64().unwrap() as u32;
             let int_deg = prod["int_deg"].as_i64().unwrap() as i32;
-            let idx = prod["index"].as_u64().unwrap() as usize;
+            let class : Vec<u32> = serde_json::from_value(prod["class"].take()).unwrap();
             let name = prod["name"].as_str().unwrap();
-            resolution.borrow_mut().add_product(hom_deg, int_deg, idx, &name.to_string());
+
+            resolution.borrow_mut().add_product(hom_deg, int_deg, class, &name.to_string());
         }
     }
 
