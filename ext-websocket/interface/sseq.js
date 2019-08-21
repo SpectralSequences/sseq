@@ -1,5 +1,6 @@
 import { promptClass, promptInteger } from "./utils.js";
 
+export const MIN_PAGE = 2;
 const OFFSET_SIZE = 0.3;
 
 const NODE_COLOR = {
@@ -36,7 +37,7 @@ export class ExtSseq extends EventEmitter {
         this.trueDifferentials = new StringifyingMap();
 
         this.differentialColors = [undefined, undefined, "cyan", "red", "green"];
-        this.page_list = [2];
+        this.page_list = [MIN_PAGE];
 
         this.class_scale = 1;
         this.min_class_size = 20;
@@ -132,7 +133,7 @@ export class ExtSseq extends EventEmitter {
     }
 
     pageBasisToE2Basis(r, x, y, c) {
-        let len = this.classes.get([x, y])[2].length;
+        let len = this.classes.get([x, y])[MIN_PAGE].length;
         let pageBasis = this.getClasses(x, y, r);
 
         let result = [];
@@ -217,7 +218,7 @@ export class ExtSseq extends EventEmitter {
 
     addProductDifferentialInteractive(sourceX, sourceY, page, sourceClass, targetClass) {
         if (!sourceClass) {
-            let num = this.getClasses(sourceX, sourceY, 2).length;
+            let num = this.getClasses(sourceX, sourceY, MIN_PAGE).length;
             if (num == 1 && this.p == 2) {
                 sourceClass = [1];
             } else {
@@ -225,7 +226,7 @@ export class ExtSseq extends EventEmitter {
             }
         }
         if (!targetClass) {
-            let num = this.getClasses(sourceX - 1, sourceY + page, 2).length;
+            let num = this.getClasses(sourceX - 1, sourceY + page, MIN_PAGE).length;
             if (num == 1 && this.p == 2) {
                 targetClass = [1];
             } else {
@@ -266,8 +267,8 @@ export class ExtSseq extends EventEmitter {
         let target;
         if (last.length == 0) {
             alert("There are no surviving classes. Action ignored");
-        } else if (classes[2].length == 1) {
-            this.addPermanentClass(node.x, node.y, classes[2][0].data);
+        } else if (classes[MIN_PAGE].length == 1) {
+            this.addPermanentClass(node.x, node.y, classes[MIN_PAGE][0].data);
         } else {
             target = promptClass("Input new permanent class", "Invalid class. Express in terms of basis on last page", last.length);
         }
@@ -372,7 +373,9 @@ export class ExtSseq extends EventEmitter {
             }
         });
         // Insert empty space at r = 0, 1
-        classes.splice(0, 0, undefined, undefined);
+        for (let i = 0; i < MIN_PAGE; i++) {
+            classes.splice(0, 0, undefined);
+        }
         this.classes.set([x, y], classes);
         this.permanentClasses.set([x, y], data.permanents);
 
@@ -385,7 +388,7 @@ export class ExtSseq extends EventEmitter {
 
         let differentials = [];
         for (let [page, matrix] of data.differentials.entries()) {
-            page = page + 2;
+            page = page + MIN_PAGE;
             this.maxDiffPage = Math.max(this.maxDiffPage, page);
 
             for (let i = 0; i < matrix.length; i++) {
@@ -405,7 +408,9 @@ export class ExtSseq extends EventEmitter {
         }
 
         this.differentials.set([x, y], differentials);
-        data.true_differentials.splice(0, 0, undefined, undefined);
+        for (let i = 0; i < MIN_PAGE; i++) {
+            data.true_differentials.splice(0, 0, undefined);
+        }
         this.trueDifferentials.set([x, y], data.true_differentials);
         this.emit("update", x, y);
     }
@@ -423,7 +428,7 @@ export class ExtSseq extends EventEmitter {
             }
 
             for (let [page, matrix] of mult["matrices"].entries()) {
-                page = page + 2;
+                page = page + MIN_PAGE;
                 if (!structlines[page])
                     structlines[page] = [];
                 let name = mult["name"];
@@ -527,7 +532,7 @@ export class ExtSseq extends EventEmitter {
     getProducts(x, y, page) {
         let result = this.products.get([x, y]);
         if (!result) return undefined;
-        if (result.length == 2) return undefined;
+        if (result.length == MIN_PAGE) return undefined;
 
         if (page >= result.length) page = result.length - 1;
         return result[page];
@@ -536,7 +541,7 @@ export class ExtSseq extends EventEmitter {
     getStructlines(x, y, page) {
         let result = this.structlines.get([x, y]);
         if (!result) return undefined;
-        if (result.length == 2) return undefined;
+        if (result.length == MIN_PAGE) return undefined;
 
         if (page >= result.length) page = result.length - 1;
         return result[page];

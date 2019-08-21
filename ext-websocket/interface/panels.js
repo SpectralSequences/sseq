@@ -1,5 +1,6 @@
 import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE, STATE_ADD_PRODUCT } from "./display.js";
 import { rowToKaTeX, rowToLaTeX, matrixToKaTeX } from "./utils.js";
+import { MIN_PAGE } from "./sseq.js";
 
 function addLI(ul, text) {
     let x = document.createElement("li");
@@ -257,7 +258,7 @@ class MainPanel extends Panel.Panel {
 
         if (this.display.isUnit) {
             this.newGroup();
-            this.addButton("Add Product", () => this.display.sseq.addProductInteractive(this.display.selected.x, this.display.selected.y, this.display.sseq.getClasses(this.display.selected.x, this.display.selected.y, 2).length), { shortcuts : ["m"] });
+            this.addButton("Add Product", () => this.display.sseq.addProductInteractive(this.display.selected.x, this.display.selected.y, this.display.sseq.getClasses(this.display.selected.x, this.display.selected.y, MIN_PAGE).length), { shortcuts : ["m"] });
         }
     }
 
@@ -293,7 +294,7 @@ class DifferentialPanel extends Panel.Panel {
 
             let node = document.createElement("div");
 
-            for (let r = 2; r <= maxR; r ++) {
+            for (let r = MIN_PAGE; r <= maxR; r ++) {
                 let classes = sseq.getClasses(x - 1, y + r, r);
                 if (classes && classes.length > 0 &&
                     (!sseq.trueDifferentials.get([x, y]) || !sseq.trueDifferentials.get([x, y])[r] || sseq.getClasses(x, y, r).length != sseq.trueDifferentials.get([x, y])[r].length)) {
