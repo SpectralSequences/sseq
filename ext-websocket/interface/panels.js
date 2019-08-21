@@ -257,7 +257,7 @@ class MainPanel extends Panel.Panel {
 
         if (this.display.isUnit) {
             this.newGroup();
-            this.addButton("Add Product", () => this.display.sseq.addProductInteractive(x, y, classes.length), { shortcut : "m" });
+            this.addButton("Add Product", () => this.display.sseq.addProductInteractive(this.display.selected.x, this.display.selected.y, this.display.sseq.getClasses(this.display.selected.x, this.display.selected.y, 2).length), { shortcuts : ["m"] });
         }
     }
 
