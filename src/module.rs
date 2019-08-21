@@ -16,6 +16,8 @@ pub trait Module {
     fn dimension(&self, degree : i32) -> usize;
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize);
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String;
+    // Whether this is the unit module.
+    fn is_unit(&self) -> bool { false }
 
     fn prime(&self) -> u32 {
         self.algebra().prime()

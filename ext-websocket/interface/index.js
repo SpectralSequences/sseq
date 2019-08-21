@@ -155,29 +155,37 @@ messageHandler.Resolving = (data, msg) => {
     }
     if (!window.mainSseq) {
         window.mainSseq = new ExtSseq("Main", window.webSocket);
-        window.unitSseq = new ExtSseq("Unit", window.webSocket);
+        if (data.is_unit) {
+            window.unitSseq = window.mainSseq;
+        } else {
+            window.unitSseq = new ExtSseq("Unit", window.webSocket);
+
+            unitSseq.maxDegree = 9;
+            // Replace the getter with hand-coded actual values;
+            Object.defineProperty(unitSseq, "xRange", {
+                get() { return [0, Math.max(unitSseq.maxDegree, mainSseq.maxDegree)] }
+            });
+            Object.defineProperty(unitSseq, "yRange", {
+                get() { return [0, Math.min(unitSseq.maxDegree, Math.ceil(this.xRange[1]/2 + 1))] }
+            });
+            Object.defineProperty(unitSseq, "initialxRange", {
+                get() { return this.xRange; }
+            });
+            Object.defineProperty(unitSseq, "initialyRange", {
+                get() { return this.yRange; }
+            });
+        }
     }
 
     window.mainSseq.processResolving(data);
 
-    unitSseq.maxDegree = 9;
-    // Replace the getter with hand-coded actual values;
-    Object.defineProperty(unitSseq, "xRange", {
-        get() { return [0, Math.max(unitSseq.maxDegree, mainSseq.maxDegree)] }
-    });
-    Object.defineProperty(unitSseq, "yRange", {
-        get() { return [0, Math.min(unitSseq.maxDegree, Math.ceil(this.xRange[1]/2 + 1))] }
-    });
-    Object.defineProperty(unitSseq, "initialxRange", {
-        get() { return this.xRange; }
-    });
-    Object.defineProperty(unitSseq, "initialyRange", {
-        get() { return this.yRange; }
-    });
-
     if (!window.display) {
-        window.display = new MainDisplay("#main", mainSseq);
-        window.unitDisplay = new UnitDisplay("#modal-body", unitSseq);
+        if (data.is_unit) {
+            window.display = new MainDisplay("#main", mainSseq, data.is_unit);
+        } else {
+            window.display = new MainDisplay("#main", mainSseq, data.is_unit);
+            window.unitDisplay = new UnitDisplay("#modal-body", unitSseq);
+        }
     }
 
     display.runningSign.style.removeProperty("display");

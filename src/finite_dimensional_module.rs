@@ -53,6 +53,10 @@ impl Module for FiniteDimensionalModule {
         return self.gen_names[degree][idx].clone();
     }
 
+    fn is_unit(&self) -> bool {
+        self.graded_dimension.len() == 1 && self.graded_dimension[0] == 1
+    }
+
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize){
         assert!(op_index < self.algebra().dimension(op_degree, mod_degree));
         assert!(mod_index < self.dimension(mod_degree));

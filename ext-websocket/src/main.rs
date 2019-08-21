@@ -46,6 +46,7 @@ const FILE_LIST : [(&str, &str, &[u8]); 9] = [
 /// and what stays a local variable is simply a matter of convenience.
 struct ResolutionManager {
     sender : mpsc::Sender<Message>,
+    is_unit : bool,
     resolution : Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>
 }
 
@@ -62,6 +63,7 @@ impl ResolutionManager {
         let mut manager = ResolutionManager {
              sender : sender,
              resolution : None,
+             is_unit : false,
         };
 
         for msg in receiver {
@@ -120,11 +122,18 @@ impl ResolutionManager {
              max_degree : 0 // This is not used.
         }).unwrap();
 
-        bundle.resolution.borrow_mut().construct_unit_resolution();
+        self.is_unit = bundle.module.is_unit();
+        if self.is_unit {
+            bundle.resolution.borrow_mut().set_unit_resolution(Rc::clone(&bundle.resolution));
+        } else {
+            bundle.resolution.borrow_mut().construct_unit_resolution();
+        }
         self.resolution = Some(bundle.resolution);
 
         self.setup_callback(&self.resolution, SseqChoice::Main);
-        self.setup_callback(&(&self.resolution.as_ref().unwrap()).borrow().unit_resolution, SseqChoice::Unit);
+        if !self.is_unit {
+            self.setup_callback(&(&self.resolution.as_ref().unwrap()).borrow().unit_resolution, SseqChoice::Unit);
+        }
 
         Ok(())
     }
@@ -142,7 +151,8 @@ impl ResolutionManager {
             action : Action::from(Resolving {
                 p : resolution.borrow().prime(),
                 min_degree,
-                max_degree : action.max_degree
+                max_degree : action.max_degree,
+                is_unit : self.is_unit
             })
         };
         self.sender.send(msg)?;

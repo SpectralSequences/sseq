@@ -211,7 +211,8 @@ impl ActionT for AddProductDifferential {
 pub struct Resolving {
     pub p : u32,
     pub min_degree : i32,
-    pub max_degree : i32
+    pub max_degree : i32,
+    pub is_unit : bool,
 }
 
 impl ActionT for Resolving { }
@@ -244,7 +245,7 @@ impl ActionT for ConstructJson { }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Resolve {
-    pub max_degree : i32,
+    pub max_degree : i32
 }
 impl ActionT for Resolve { }
 

@@ -1,4 +1,4 @@
-import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE } from "./display.js";
+import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE, STATE_ADD_PRODUCT } from "./display.js";
 import { rowToKaTeX, rowToLaTeX, matrixToKaTeX } from "./utils.js";
 
 function addLI(ul, text) {
@@ -214,7 +214,13 @@ class StructlinePanel extends Panel.Panel {
             });
         }
 
-        this.addButton("Add", () => { window.unitDisplay.openModal(); }, { "tooltip": "Add product to display" });
+        this.addButton("Add", () => {
+            if (this.display.isUnit) {
+                this.display.state = STATE_ADD_PRODUCT;
+            } else {
+                window.unitDisplay.openModal();
+            }
+        }, { "tooltip": "Add product to display" });
     }
 }
 

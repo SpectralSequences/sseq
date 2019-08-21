@@ -2,11 +2,13 @@ import { GeneralPanel, ClassPanel } from "./panels.js";
 
 export const STATE_ADD_DIFFERENTIAL = 1;
 export const STATE_QUERY_TABLE = 2;
+export const STATE_ADD_PRODUCT = 3;
 
 export class MainDisplay extends SidebarDisplay {
-    constructor(container, sseq) {
+    constructor(container, sseq, isUnit) {
         super(container, sseq);
 
+        this.isUnit = isUnit;
         this.selected = null;
         this.tooltip = new Tooltip(this);
         this.on("mouseover", this._onMouseover.bind(this));
@@ -69,6 +71,8 @@ export class MainDisplay extends SidebarDisplay {
                     this.state = null;
                     break;
                 }
+            case STATE_ADD_PRODUCT:
+                this.sseq.addProductInteractive(node.x, node.y, node.idx);
             default:
                 this._unselect();
                 this.selected = node;

@@ -20,6 +20,19 @@ use crate::chain_complex::ChainComplex;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorphismToUnit};
 
+/// Hack to compare two pointers of different types (in this case because they might have different
+/// type parameters.
+fn ptr_eq<T, S>(a : &Rc<T>, b : &Rc<S>) -> bool {
+    let a = Rc::into_raw(Rc::clone(a));
+    let b = Rc::into_raw(Rc::clone(b)) as *const T;
+    let eq = std::ptr::eq(a, b);
+    unsafe {
+        let a = Rc::from_raw(a);
+        let b = Rc::from_raw(b as *const S);
+    }
+    eq
+}
+
 #[derive(Clone)]
 struct Cocycle {
     s : u32,
@@ -204,7 +217,10 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 
         for t in min_degree ..= max_t {
             if let Some(unit_res) = &self.unit_resolution {
-                unit_res.borrow().resolve_through_bidegree(self.max_product_homological_degree, t);
+                // Avoid a deadlock
+                if self.self_.is_none() || !ptr_eq(unit_res, &self.self_.as_ref().unwrap().upgrade().unwrap()) {
+                    unit_res.borrow().resolve_through_bidegree(self.max_product_homological_degree, t);
+                }
             }
 
             // TODO: Just use the borrow_mut instead of cloning
