@@ -904,8 +904,11 @@ impl Sseq {
                 let classes = self.permanent_classes[x][y].basis().to_vec();
                 for class in classes {
                     let new_d = self.leibniz(INFINITY, x, y, &class, None, idx);
-                    if let Some((r_, x_, y_, source_, Some(mut target_))) = new_d {
-                        self.add_differential(r_, x_, y_, &source_, &mut target_);
+                    if let Some((r_, x_, y_, source_, t_)) = new_d {
+                        match t_ {
+                            Some(mut target_) => self.add_differential(r_, x_, y_, &source_, &mut target_),
+                            None => self.add_permanent_class(x_, y_, &source_)
+                        };
                     }
                 }
             }
