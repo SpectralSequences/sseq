@@ -825,10 +825,9 @@ impl Sseq {
     /// compute $p_2 p_1 d$ if and only if $p_1$ comes earlier in the list of products than $p_2$.
     pub fn add_differential_propagate(&mut self, r : i32, x : i32, y : i32, source : &FpVector, target : &mut Option<FpVector>, product_index : usize) {
         if product_index == self.products.len() - 1 {
-            if let Some(target_) = target.as_mut() {
-                self.add_differential(r, x, y, source, target_);
-            } else {
-                self.add_permanent_class(x, y, source);
+            match target.as_mut() {
+                Some(target_) => self.add_differential(r, x, y, source, target_),
+                None => self.add_permanent_class(x, y, source)
             }
         } else if product_index < self.products.len() - 1 {
             self.add_differential_propagate(r, x, y, source, target, product_index + 1);
@@ -991,8 +990,11 @@ impl Sseq {
             let classes = self.permanent_classes[x][y].basis().to_vec();
             for class in classes {
                 let new_d = self.leibniz(INFINITY, x, y, &class, None, idx);
-                if let Some((r_, x_, y_, source_, Some(mut target_))) = new_d {
-                    self.add_differential(r_, x_, y_, &source_, &mut target_);
+                if let Some((r_, x_, y_, source_, t_)) = new_d {
+                    match t_ {
+                        Some(mut target_) => self.add_differential(r_, x_, y_, &source_, &mut target_),
+                        None => self.add_permanent_class(x_, y_, &source_)
+                    };
                 }
             }
         }
