@@ -50,7 +50,15 @@ class HistoryPanel extends Panel.Panel {
         rem.href = "#";
         s.appendChild(rem);
 
-        rem.addEventListener("click", () => this.display.sseq.removeHistoryItem(msg));
+        rem.addEventListener("click", () => {
+            for (let pair of highlightClasses) {
+                let classes = this.display.sseq.getClasses(pair[0], pair[1], this.display.page);
+                for (let c of classes) {
+                    c.highlight = false;
+                }
+            }
+            this.display.sseq.removeHistoryItem(msg);
+        });
 
         d.appendChild(s);
 
