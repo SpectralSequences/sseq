@@ -416,7 +416,7 @@ export class ExtSseq extends EventEmitter {
         for (let mult of data.structlines) {
             if (!this.structlineTypes.has(mult["name"])) {
                 this.structlineTypes.add(mult["name"]);
-                this.emit("new-structline");
+                this.emit("new-structline", mult["name"]);
             }
 
             for (let [page, matrix] of mult["matrices"].entries()) {

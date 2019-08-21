@@ -4,6 +4,8 @@ export const STATE_ADD_DIFFERENTIAL = 1;
 export const STATE_QUERY_TABLE = 2;
 export const STATE_ADD_PRODUCT = 3;
 
+const AUTO_SHOW_STRUCTLINES = new Set(["h_0", "a_0", "h_1", "h_2"]);
+
 export class MainDisplay extends SidebarDisplay {
     constructor(container, sseq, isUnit) {
         super(container, sseq);
@@ -113,7 +115,12 @@ export class MainDisplay extends SidebarDisplay {
     setSseq(sseq) {
         super.setSseq(sseq);
 
-        sseq.on("new-structline", () => this.sidebar.showPanel());
+        sseq.on("new-structline", (name) => {
+            if (!AUTO_SHOW_STRUCTLINES.has(name)) {
+                this.hiddenStructlines.add(name);
+            }
+            this.sidebar.showPanel()
+        });
     }
 }
 
