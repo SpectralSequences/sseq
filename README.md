@@ -64,3 +64,13 @@ To view the docuemntation, run
 $ cargo doc --no-deps --open
 ```
 As usual, the latter command triggers the former if needed. This can also be viewed on [https://hoodmane.github.io/rust_ext/doc/rust_ext/](https://hoodmane.github.io/rust_ext/doc/rust_ext/)
+
+# Websocket interface
+
+There is an alternative interface that uses the Rust binary to perform calculations. To use this, run
+```
+$ cargo run --release
+```
+in the directory `ext-websocket`. There are as before some variations on the exact command you run. After this, navigate to http://localhost:8080/ . This is equipped with an interface to manipulate spectral sequences.
+
+Currently, the redo/undo and load functions have pretty poor performance, both because of the amount of calculation required and also because the JS interface is pretty slow. A significant amount of the CPU usage by the JS interface is in redrawing the canvas, and this can be avoided by navigating to a different tab.
