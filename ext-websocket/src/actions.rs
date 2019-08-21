@@ -1,4 +1,4 @@
-use crate::sseq::{Sseq, ProductItem, ClassState};
+use crate::sseq::{Sseq, ProductItem, ClassState, INFINITY};
 use rust_ext::module::FiniteModule;
 use rust_ext::resolution::{ModuleResolution};
 use rust_ext::fp_vector::FpVector;
@@ -104,7 +104,7 @@ impl ActionT for AddDifferential {
         sseq.add_differential_propagate(
             self.r, self.x, self.y,
             &FpVector::from_vec(sseq.p, &self.source),
-            &mut FpVector::from_vec(sseq.p, &self.target),
+            &mut Some(FpVector::from_vec(sseq.p, &self.target)),
             0);
     }
 }
@@ -150,7 +150,11 @@ pub struct AddPermanentClass {
 
 impl ActionT for AddPermanentClass {
     fn act_sseq(&self, sseq : &mut Sseq) {
-        sseq.add_permanent_class_propagate(self.x, self.y, &FpVector::from_vec(sseq.p, &self.class), 0);
+        sseq.add_differential_propagate(
+            INFINITY, self.x, self.y,
+            &FpVector::from_vec(sseq.p, &self.class),
+            &mut None,
+            0);
     }
 }
 

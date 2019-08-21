@@ -8,6 +8,7 @@ use bivec::BiVec;
 use crate::actions::*;
 
 const MIN_PAGE : i32 = 2;
+pub const INFINITY : i32 = std::i32::MAX;
 
 /// Given a vector `elt`, a subspace `zeros` of the total space (with a specified choice of
 /// complement) and a basis `basis` of a subspace of the complement, project `elt` to the complement and express
@@ -339,93 +340,85 @@ impl Sseq {
         None
     }
 
-    /// Given a page `r` and coordinates `x`, `y`, a differerntial from `source` to `target`
-    /// starting at (x, y), and a product `product`, return the result of propagating the
-    /// differential along the product. If the product is not defined or the product with the
-    /// source is zero, this returns None. Otherwise, it returns `Some((new_x, new_y, new_source,
-    /// new_target))`, where `new_x/new_y` are the coordinates of the source of the new
-    /// differential.
-    fn product_differential(&self, r : i32, x : i32, y : i32, source : &FpVector, target : &FpVector, product : &Product) -> Option<(i32, i32, FpVector, FpVector)>{
-        // Handle non-zero product differential.
-        if !product.permanent {
+    /// Apply the Leibniz rule to obtain new differentials. The differential we start with is a d_r
+    /// differential from (x, y) with source `s` and target `t`. If the target is None, then it
+    /// means `s` is *permanent*. In this case, r should be set to INFINITY. On the other hand, if
+    /// `t` is zero, it simply means d_r is zero.
+    ///
+    /// The other object we multiply with is the product with index `si`. If `si` is permanent,
+    /// we simply multiply the differenial with `si`. If `si` is non-permanent but has a
+    /// differential starting *from* it, we apply Leibniz to that differential. If `si` is the
+    /// *target* of a product differential, we do nothing.
+    ///
+    /// If `si` is permanent and `t` is None, then we mark s * si to be permanent as well.
+    ///
+    /// There is no good reason why `t` is a mutable borrow instead of an immutable borrow. It
+    /// would have been an immutable borrow if we can implicitly cast Option<&mut A> to Option<A>,
+    /// but we can't.
+    ///
+    /// # Return
+    ///
+    /// We return a pair `(r_, x_, y_, s_, t_)` which is the data of the new differential --- its
+    /// page, starting coordinate and source and target vectors. Again, if s * si is permanent,
+    /// then t_ is set to None. If there is not enough products computed to calculate the result,
+    /// or if s * si is zero, we return None.
+    fn leibniz(&self, r : i32, x : i32, y : i32, s : &FpVector, t : Option<&mut FpVector>, si : usize) -> Option<(i32, i32, i32, FpVector, Option<FpVector>)> {
+        let product = &self.products[si];
+        // First compute s * si.
+        let (x_, y_, new_source) = self.multiply(x, y, s, product)?;
+
+        if new_source.is_zero() {
             return None;
         }
 
-        if let Some((new_x, new_y, prod_source)) = self.multiply(x, y, source, product) {
-            if prod_source.is_zero() {
-                return None;
+        if product.permanent {
+            if let Some(t_) = t {
+                let (_, _, mut new_target) = self.multiply(x - 1, y + r, t_, product)?;
+                if product.left && product.x % 2 != 0 {
+                    new_target.scale(self.p - 1);
+                }
+                return Some((r, x_, y_, new_source, Some(new_target)));
+            } else {
+                return Some((INFINITY, x_, y_, new_source, None));
             }
-            if let Some((_, _, mut prod_target)) = self.multiply(x - 1, y + r, target, product) {
-                if product.left && product.x % 2 == 1 {
-                    prod_target.scale(self.p - 1);
+        }
+
+        if let Some((r_, true, ti)) = product.differential {
+            if r_ < r {
+                // The original differential from s to t is useless.
+                let (_, _, mut new_target) = self.multiply(x, y, s, &self.products[ti])?;
+                if !self.products[si].left && (x - 1) % 2 != 0 {
+                    new_target.scale(self.p - 1);
+                }
+                return Some((r_, x_, y_, new_source, Some(new_target)));
+            } else if r_ > r {
+                // This is more-or-less the same as the permanent code, except we know t is not
+                // permanent (or else it would be handled by the previous case).
+                if let Some(t_) = t {
+                    let (_, _, mut new_target) = self.multiply(x - 1, y + r, t_, product)?;
+                    if self.products[si].left && self.products[si].x % 2 != 0 {
+                        new_target.scale(self.p - 1);
+                    }
+                    return Some((r, x_, y_, new_source, Some(new_target)));
+                }
+            } else {
+                // This is the sum of the two above.
+                let (_, _, mut new_target) = self.multiply(x, y, s, &self.products[ti])?;
+                if !product.left && (x - 1) % 2 != 0 {
+                    new_target.scale(self.p - 1);
+                }
+                if let Some(t_) = t {
+                    let (_, _, mut tmp) = self.multiply(x - 1, y + r, t_, product)?;
+                    if product.left && self.products[si].x % 2 != 0 {
+                        tmp.scale(self.p - 1);
+                    }
+                    new_target.add(&tmp, 1);
                 }
 
-                return Some((new_x, new_y, prod_source, prod_target));
+                return Some((r, x_, y_, new_source, Some(new_target)));
             }
         }
         None
-    }
-
-    /// This function is called by add_product, and propagates products with differentials
-    /// accordingly. The input (x, y) is the coordinate of the point we want to take the product
-    /// with.
-    ///
-    /// Observe that if we have a differential $d(a) = b$, then for any $z$, to compute $d(az)$, we
-    /// need to know the products $a d(z)$ and $bz$, and of course $az$ as well. We are able to
-    /// compute $d(az)$ if and only if we have computed all these three values. By our assumption,
-    /// $az$ is always computed before $a d(z)$. On the other hand, there are no guarantees on the
-    /// order in which different products come in.
-    ///
-    /// Thus this function should be called whenever bz and a dz is calculated.
-    ///
-    /// The return type is Option<()> so that we can use the question mark operator. In practice,
-    /// the return value will be None if the differential was not successfully calculated because
-    /// the products have not yet been defined.
-    fn attempt_propagate_product_differential(&mut self, r: i32, x : i32, y : i32, source_idx : usize, target_idx : usize) -> Option<()> {
-        if !self.class_defined(x, y) {
-            return None;
-        }
-
-        if self.differentials[x][y].len() > r {
-            // Work with the differentials
-            let pairs = self.differentials[x][y][r].get_source_target_pairs();
-            for (s, t) in pairs {
-                // If this fails, its is because some multiplication isn't defined,
-                // in which case we should abort. Then it is also not defined for
-                // all other classes.
-                self.leibniz(r, x, y, &s, Some(&t), source_idx, target_idx)?;
-            }
-        } else {
-            // Propagate permanent cycles.
-            let classes = self.permanent_classes[x][y].basis().to_vec();
-
-            for class in classes {
-                self.leibniz(r, x, y, &class, None, source_idx, target_idx)?;
-            }
-        }
-        Some(())
-    }
-
-    /// Apply Leibniz's rule to the d_r differential starting at (x, y) from `s` to `t and
-    /// another d_r differential from `products[si]` to `products[ti]`. Set `t` to be None if
-    /// the differential is zero.
-    fn leibniz(&mut self, r : i32, x : i32, y : i32, s : &FpVector, t : Option<&FpVector>, si : usize, ti : usize) -> Option<()> {
-        let (x_, y_, a_s) = self.multiply(x, y, s, &self.products[si])?;
-        if a_s.is_zero() {
-            return Some(());
-        }
-
-        let (_, _, mut bs) = self.multiply(x, y, s, &self.products[ti])?;
-        if let Some(t_) = t {
-            let (_, _, mut at) = self.multiply(x - 1, y + r, t_, &self.products[si])?;
-            if self.products[si].x % 2 != 0 {
-                at.scale(self.p - 1);
-            }
-            bs.add(&at, 1);
-        }
-        self.add_differential(r, x_, y_, &a_s, &mut bs);
-
-        Some(())
     }
 
     /// Computes products whose source is at (x, y).
@@ -809,24 +802,11 @@ impl Sseq {
 
         self.add_zeros(r + 1, x - 1, y + r, target);
         // add_permanent_class in turn sets the differentials on the targets of the differentials
-        // to 0.
+        // to 0. add_differential_propagate will take care of propagating this.
         self.add_permanent_class(x - 1, y + r, target);
 
         self.add_page(r);
         self.add_page(r + 1);
-
-        for i in 0 .. self.products.len() {
-            if let Some((r_, is_source, i_)) = self.products[i].differential {
-                if !is_source {
-                    continue;
-                }
-                if r_ == r {
-                    self.leibniz(r_, x, y, source, Some(target), i, i_);
-                } else if r_ < r {
-                    self.leibniz(r_, x, y, source, None, i, i_);
-                }
-            }
-        }
 
         self.compute_classes(x - 1, y + r);
         self.compute_classes(x, y);
@@ -843,62 +823,31 @@ impl Sseq {
     /// have to exercise a slight bit of care to ensure we don't set both $p_1 p_2 d$ and $p_2 p_1
     /// d$ when $p_1$, $p_2$ are products and $d$ is the differential. Our strategy is that we
     /// compute $p_2 p_1 d$ if and only if $p_1$ comes earlier in the list of products than $p_2$.
-    pub fn add_differential_propagate(&mut self, r : i32, x : i32, y : i32, source : &FpVector, target : &mut FpVector, product_index : usize) {
+    pub fn add_differential_propagate(&mut self, r : i32, x : i32, y : i32, source : &FpVector, target : &mut Option<FpVector>, product_index : usize) {
         if product_index == self.products.len() - 1 {
-            self.add_differential(r, x, y, source, target);
+            if let Some(target_) = target.as_mut() {
+                self.add_differential(r, x, y, source, target_);
+            } else {
+                self.add_permanent_class(x, y, source);
+            }
         } else if product_index < self.products.len() - 1 {
             self.add_differential_propagate(r, x, y, source, target, product_index + 1);
         }
 
-        let new_d = self.product_differential(r, x, y, source, target, &self.products[product_index]);
+        // Separate this to new line to make code easier to read.
+        let new_d = self.leibniz(r, x, y, source, target.as_mut(), product_index);
 
-        if let Some((new_x, new_y, new_source, mut new_target)) = new_d {
-            self.add_differential_propagate(r, new_x, new_y, &new_source, &mut new_target, product_index);
+        if let Some((r_, x_, y_, source_, mut target_)) = new_d {
+            self.add_differential_propagate(r_, x_, y_, &source_, &mut target_, product_index);
         }
     }
-
 
     pub fn add_permanent_class(&mut self, x : i32, y : i32, class : &FpVector) {
         self.permanent_classes[x][y].add_vector(class);
         for r in MIN_PAGE .. self.differentials[x][y].len() {
             self.differentials[x][y][r].add(class, None);
         }
-
-        for i in 0 .. self.products.len() {
-            if let Some((r, is_source, i_)) = self.products[i].differential {
-                if !is_source {
-                    continue;
-                }
-
-                if let Some((x_, y_, a)) = self.multiply(x, y, class, &self.products[i]) {
-                    if a.is_zero() {
-                        continue;
-                    }
-                    if let Some((_, _, mut b)) = self.multiply(x, y, class, &self.products[i_]) {
-                        self.add_differential(r, x_, y_, &a, &mut b);
-                    }
-                }
-            }
-        }
-
         self.compute_classes(x, y);
-    }
-
-    /// Same logic as add_differential_propagate
-    pub fn add_permanent_class_propagate(&mut self, x : i32, y : i32, class : &FpVector, product_index : usize) {
-        if product_index == self.products.len() - 1 {
-            self.add_permanent_class(x, y, class);
-        } else if product_index < self.products.len() - 1 {
-            self.add_permanent_class_propagate(x, y, class, product_index + 1);
-        }
-
-        if self.products[product_index].permanent {
-            if let Some((x_, y_, prod)) = self.multiply(x, y, class, &self.products[product_index]) {
-                if !prod.is_zero() {
-                    self.add_permanent_class_propagate(x_, y_, &prod, product_index);
-                }
-            }
-        }
     }
 
     /// Add a product to the list of products, but don't add any computed product
@@ -909,11 +858,7 @@ impl Sseq {
             self.products[i].user = true;
             if permanent && !self.products[i].permanent {
                 self.products[i].permanent = true;
-                for x in self.min_x .. self.products[i].matrices.len() {
-                    for y in self.min_y .. self.products[i].matrices[x].len() {
-                        self.propagate_along_permanent_product(x, y, i);
-                    }
-                }
+                self.repropagate_product(i);
             }
         } else {
             let product = Product {
@@ -940,10 +885,30 @@ impl Sseq {
         self.products[source_idx].differential = Some((r, true, target_idx));
         self.products[target_idx].differential = Some((r, false, source_idx));
 
-        for x in self.min_x .. self.products[source_idx].matrices.len() {
-            for y in self.min_y .. self.products[source_idx].matrices[x].len() {
-                // This is safe to call if the other product is not defined.
-                self.attempt_propagate_product_differential(r, x, y, source_idx, target_idx);
+        self.repropagate_product(source_idx);
+    }
+
+    fn repropagate_product(&mut self, idx : usize) {
+        for x in self.min_x .. self.products[idx].matrices.len() {
+            for y in self.min_y .. self.products[idx].matrices[x].len() {
+                for r in MIN_PAGE .. self.differentials[x][y].len() {
+                    let d = &mut self.differentials[x][y][r];
+                    for (source, mut target) in d.get_source_target_pairs() {
+                        let new_d = self.leibniz(r, x, y, &source, Some(&mut target), idx);
+                        if let Some((r_, x_, y_, source_, Some(mut target_))) = new_d {
+                            self.add_differential(r_, x_, y_, &source_, &mut target_);
+                        }
+                    }
+                }
+
+                // Find a better way to do this. This is to circumevent borrow checker.
+                let classes = self.permanent_classes[x][y].basis().to_vec();
+                for class in classes {
+                    let new_d = self.leibniz(INFINITY, x, y, &class, None, idx);
+                    if let Some((r_, x_, y_, source_, Some(mut target_))) = new_d {
+                        self.add_differential(r_, x_, y_, &source_, &mut target_);
+                    }
+                }
             }
         }
     }
@@ -987,31 +952,37 @@ impl Sseq {
 
         assert_eq!(y, self.products[idx].matrices[x].len());
         self.products[idx].matrices[x].push(Some(Matrix::from_vec(self.p, matrix)));
-        self.propagate_along_permanent_product(x, y, idx);
 
-        // Now propagate differentials in products. See documentation of
-        // attempt_propagate_product_differential for details.
-        if let Some((r, is_source, other_idx)) = self.products[idx].differential {
-            if is_source {
-                self.attempt_propagate_product_differential(r, x + 1, y - r, idx, other_idx);
-            } else {
-                self.attempt_propagate_product_differential(r, x, y, other_idx, idx);
+        // We propagate all differentials that *hit* us, because of the order in which products
+        // are added. The only exception is if this product is the target of a product
+        // differential on page r, in which case we propagate the d_r differential *starting* at
+        // (x, y).
+        if self.products[idx].differential.is_some() && !self.products[idx].differential.unwrap().1 {
+            let (r, _ , si) = self.products[idx].differential.unwrap();
+            if self.differentials[x][y].len() > r {
+                let d = &mut self.differentials[x][y][r];
+                for (source, mut target) in d.get_source_target_pairs() {
+                    let new_d = self.leibniz(r, x, y, &source, Some(&mut target), si);
+                    if let Some((r_, x_, y_, source_, Some(mut target_))) = new_d {
+                        self.add_differential(r_, x_, y_, &source_, &mut target_);
+                    }
+                }
             }
-        }
 
-        self.compute_edges(x, y);
-    }
-
-    fn propagate_along_permanent_product(&mut self, x : i32, y : i32, idx : usize) {
-        // Now propagate differentials. We propagate differentials that *hit* us, because the
-        // target product is always set after the source product.
-        if self.products[idx].permanent {
+            let classes = self.permanent_classes[x][y].basis().to_vec();
+            for class in classes {
+                let new_d = self.leibniz(INFINITY, x, y, &class, None, si);
+                if let Some((r_, x_, y_, source_, Some(mut target_))) = new_d {
+                    self.add_differential(r_, x_, y_, &source_, &mut target_);
+                }
+            }
+        } else {
             for r in self.get_differentials_hitting(x, y) {
                 let d = &mut self.differentials[x + 1][y - r][r];
-                for (source, target) in d.get_source_target_pairs() {
-                    let new_d = self.product_differential(r, x + 1, y - r, &source, &target, &self.products[idx]);
-                    if let Some((x_, y_, source_, mut target_)) = new_d {
-                        self.add_differential(r, x_, y_, &source_, &mut target_);
+                for (source, mut target) in d.get_source_target_pairs() {
+                    let new_d = self.leibniz(r, x + 1, y - r, &source, Some(&mut target), idx);
+                    if let Some((r_, x_, y_, source_, Some(mut target_))) = new_d {
+                        self.add_differential(r_, x_, y_, &source_, &mut target_);
                     }
                 }
             }
@@ -1019,11 +990,13 @@ impl Sseq {
             // Find a better way to do this. This is to circumevent borrow checker.
             let classes = self.permanent_classes[x][y].basis().to_vec();
             for class in classes {
-                if let Some((x_, y_, product)) = self.multiply(x, y, &class,  &self.products[idx]) {
-                    self.add_permanent_class(x_, y_, &product);
+                let new_d = self.leibniz(INFINITY, x, y, &class, None, idx);
+                if let Some((r_, x_, y_, source_, Some(mut target_))) = new_d {
+                    self.add_differential(r_, x_, y_, &source_, &mut target_);
                 }
             }
         }
+        self.compute_edges(x, y);
     }
 }
 #[cfg(test)]
