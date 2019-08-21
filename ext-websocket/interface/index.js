@@ -122,7 +122,7 @@ function save() {
             }
         }
     );
-    if (unitSseq.maxDegree > 9) {
+    if (!window.display.isUnit && unitSseq.maxDegree > 9) {
         list.push(
             {
                 recipients: ["Resolver"],
