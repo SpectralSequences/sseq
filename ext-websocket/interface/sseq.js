@@ -233,6 +233,9 @@ export class ExtSseq extends EventEmitter {
             }
         }
 
+        if (!(sourceClass && targetClass)) {
+            return;
+        }
         window.mainSseq.send({
             recipients : ["Sseq", "Resolver"],
             action : {
@@ -263,8 +266,8 @@ export class ExtSseq extends EventEmitter {
         let target;
         if (last.length == 0) {
             alert("There are no surviving classes. Action ignored");
-        } else if (last.length == 1) {
-            this.addPermanentClass(node.x, node.y, last[0].data);
+        } else if (classes[2].length == 1) {
+            this.addPermanentClass(node.x, node.y, classes[2][0].data);
         } else {
             target = promptClass("Input new permanent class", "Invalid class. Express in terms of basis on last page", last.length);
         }
