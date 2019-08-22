@@ -155,6 +155,7 @@ messageHandler.Resolving = (data, msg) => {
     }
     if (!window.mainSseq) {
         window.mainSseq = new ExtSseq("Main", window.webSocket);
+        window.mainSseq.isUnit = data.is_unit;
         if (data.is_unit) {
             window.unitSseq = window.mainSseq;
         } else {

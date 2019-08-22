@@ -1,4 +1,4 @@
-import { promptClass, promptInteger } from "./utils.js";
+import { promptClass, promptInteger, vecToName } from "./utils.js";
 
 export const MIN_PAGE = 2;
 const OFFSET_SIZE = 0.3;
@@ -208,15 +208,16 @@ export class ExtSseq extends EventEmitter {
     }
 
     addProductInteractive(x, y, num) {
-        let name = prompt("Name for product");
-        if (name === null) {
-            return;
-        }
         let c;
         if (num == 1 && this.p == 2)
             c = [1];
         else
             c = promptClass("Input class",`Invalid class. Express in terms of basis on E_2 page`, num);
+
+        let name = prompt("Name for product", this.isUnit ? vecToName(c, this.classNames.get([x, y])) : undefined);
+        if (name === null) {
+            return;
+        }
 
         let permanent = confirm("Permanent class?");
         this.send({
@@ -263,14 +264,14 @@ export class ExtSseq extends EventEmitter {
                         x: sourceX,
                         y: sourceY,
                         "class": sourceClass,
-                        name: prompt("Name of source").trim()
+                        name: prompt("Name of source", this.isUnit ? vecToName(sourceClass, this.classNames.get([sourceX, sourceY])) : undefined).trim()
                     },
                     target : {
                         permanent : false,
                         x: sourceX - 1,
                         y: sourceY + page,
                         "class": targetClass,
-                        name: prompt("Name of target").trim()
+                        name: prompt("Name of target", this.isUnit ? vecToName(targetClass, this.classNames.get([sourceX - 1, sourceY + page])) : undefined).trim()
                     }
                 }
             }

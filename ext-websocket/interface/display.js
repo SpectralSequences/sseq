@@ -1,4 +1,5 @@
 import { GeneralPanel, ClassPanel } from "./panels.js";
+import { MIN_PAGE } from "./sseq.js";
 
 export const STATE_ADD_DIFFERENTIAL = 1;
 export const STATE_QUERY_TABLE = 2;
@@ -55,6 +56,35 @@ export class MainDisplay extends SidebarDisplay {
             if (this.selected)
                 this.sseq.addPermanentClassInteractive(this.selected);
         });
+        Mousetrap.bind("n", () => {
+            if (!this.selected) return;
+            let x = this.selected.x;
+            let y = this.selected.y;
+            let num = this.sseq.getClasses(x, y, MIN_PAGE).length;
+
+            console.log(num);
+            let idx = 0;
+            if (num != 1) {
+                while(true) {
+                    idx = prompt("Class index");
+                    if (idx === null)
+                        return;
+
+                    idx = parseInt(idx);
+                    if (Number.isNaN(idx) || idx >= num || idx < 0) {
+                        alert(`Invalid index. Enter integer between 0 and ${num} (inclusive)`);
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            let name = prompt("New class name");
+            if (name !== null) {
+                sseq.setClassName(x, y, idx, name);
+            }
+        });
+
 
         sseq.on("update", (x, y) => { if (this.selected && this.selected.x == x && this.selected.y == y) this.sidebar.showPanel() });
     }
@@ -182,7 +212,7 @@ export class UnitDisplay extends Display {
         });
 
         document.querySelector("#modal-ok").addEventListener("click", () => {
-            window.mainSseq.addProductInteractive(this.selected.x, this.selected.y, this.sseq.getClasses(this.selected.x, this.selected.y, 2).length);
+            window.mainSseq.addProductInteractive(this.selected.x, this.selected.y, this.sseq.getClasses(this.selected.x, this.selected.y, MIN_PAGE).length);
             this.closeModal();
         });
 
@@ -215,7 +245,7 @@ export class UnitDisplay extends Display {
         }
 
         if (this.state == STATE_ADD_DIFFERENTIAL) {
-            if (node.x == this.selected.x - 1 && node.y >= this.selected.y + 2) {
+            if (node.x == this.selected.x - 1 && node.y >= this.selected.y + MIN_PAGE) {
                 let check = confirm(`Add differential from (${this.selected.x}, ${this.selected.y}, ${this.selected.idx}) to (${node.x}, ${node.y}, ${node.idx})?`);
                 if (check) {
                     this.sseq.addProductDifferentialInteractive(this.selected.x, this.selected.y, node.y - this.selected.y);
