@@ -10,6 +10,14 @@ const NODE_COLOR = {
 };
 
 const KEEP_LOG = new Set(["AddDifferential", "AddProductType", "AddProductDifferential", "AddPermanentClass", "SetClassName"]);
+// If a structline has mult_x > MAX_STRUCTLINE_8, we do not store the actual
+// structlines, because this turns out to be pretty memory intensive, and these
+// lines are pretty useless anyway. I might remove this if I rework the way
+// structlines are processed (I intend to rewrite it so that we don't use the
+// Edge object, and store a list of pairs of nodes instead (or just use the
+// product directly). This would also make it easier to customize how the
+// structlines are displayed.
+const MAX_STRUCTLINE_X = 8;
 
 export class ExtSseq extends EventEmitter {
     constructor(name, webSocket) {
@@ -445,19 +453,35 @@ export class ExtSseq extends EventEmitter {
 
         let structlines = [];
         let products = [];
+
+
         for (let mult of data.structlines) {
-            if (!this.structlineTypes.has(mult["name"])) {
+            let name = mult["name"];
+            let multX = mult["mult_x"];
+            let multY = mult["mult_y"];
+            let showStructline = multX <= MAX_STRUCTLINE_X;
+
+            if (showStructline && !this.structlineTypes.has(mult["name"])) {
                 this.structlineTypes.add(mult["name"]);
                 this.emit("new-structline", mult["name"]);
             }
 
             for (let [page, matrix] of mult["matrices"].entries()) {
                 page = page + MIN_PAGE;
+                if (!products[page])
+                    products[page] = [];
+                products[page].push({
+                    name : name,
+                    x : multX,
+                    y : multY,
+                    matrix : matrix
+                });
+
+                if (!showStructline)
+                    continue;
+
                 if (!structlines[page])
                     structlines[page] = [];
-                let name = mult["name"];
-                let multX = mult["mult_x"];
-                let multY = mult["mult_y"];
 
                 for (let i = 0; i < matrix.length; i++) {
                     for (let j = 0; j < matrix[i].length; j++) {
@@ -468,14 +492,6 @@ export class ExtSseq extends EventEmitter {
                         }
                     }
                 }
-                if (!products[page])
-                    products[page] = [];
-                products[page].push({
-                    name : name,
-                    x : multX,
-                    y : multY,
-                    matrix : matrix
-                });
                 this.maxMultX = Math.max(this.maxMultX, multX);
                 this.maxMultY = Math.max(this.maxMultY, multY);
             }
