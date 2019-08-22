@@ -1,5 +1,5 @@
 import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE, STATE_ADD_PRODUCT } from "./display.js";
-import { rowToKaTeX, rowToLaTeX, matrixToKaTeX } from "./utils.js";
+import { rowToKaTeX, rowToLaTeX, matrixToKaTeX, vecToName } from "./utils.js";
 import { MIN_PAGE } from "./sseq.js";
 
 function addLI(ul, text) {
@@ -146,6 +146,15 @@ class HistoryPanel extends Panel.Panel {
         );
     }
 
+    _SetClassName(details, msg) {
+        this._addHistoryItem(
+            `<span>Set Name</span> <span class="history-sub">(${details.x}, ${details.y})</span>`,
+            Interface.renderMath(`${details.idx} \\rightsquigarrow ${details.name}`),
+            [[details.x, details.y]]
+            ,msg
+        );
+    }
+
     addMessage(data) {
         let action = data.action;
         let actionName = Object.keys(action)[0];
@@ -232,7 +241,6 @@ export class ClassPanel extends Panel.TabbedPanel {
 
         this.productsTab = new ProductsPanel(this.container, this.display);
         this.addTab("Prod", this.productsTab);
-
     }
 }
 
@@ -247,14 +255,57 @@ class MainPanel extends Panel.Panel {
         this.clear();
 
         this.newGroup();
-        this.addHeader("Classes in E2 basis");
+        this.addHeader("Classes");
         let x = this.display.selected.x;
         let y = this.display.selected.y;
         let page = this.display.page;
         let sseq = this.display.sseq;
 
         let classes = sseq.getClasses(x, y, page);
-        this.addLine(classes.map(x => rowToKaTeX(x.data)).join("<br />"));
+        let names = sseq.classNames.get([x, y]);
+
+        let div = document.createElement("div");
+        for (let c of classes) {
+            let n = document.createElement("span");
+            n.style.padding = "0 0.6em";
+            n.innerHTML = Interface.renderMath(vecToName(c.data, names));
+            if (classes.length == sseq.classes.get([x, y])[MIN_PAGE].length) {
+                n.addEventListener("click", () => {
+                    let name = prompt("New class name");
+                    if (name !== null) {
+                        sseq.setClassName(x, y, c.data.indexOf(1), name);
+                    }
+                });
+            }
+            div.appendChild(n);
+        }
+        this.addObject(div);
+
+        let decompositions = sseq.decompositions.get([x, y]);
+        if (decompositions && decompositions.length > 0) {
+            this.newGroup();
+            this.addHeader("Decompositions");
+            for (let d of decompositions) {
+                let single = d[0].reduce((a, b) => a + b, 0) == 1;
+                let highlights = [[x - d[2], y - d[3]]];
+                if (this.display.isUnit) {
+                    highlights[1] = [d[2], d[3]]
+                }
+                if (single) {
+                    let idx = d[0].indexOf(1);
+                    // If we named the element after the decomposition, there is no point in displaying it...
+                    if (Interface.renderMath(names[idx]) != Interface.renderMath(d[1])) {
+                        this.addLine(Interface.renderMath(names[idx] + " = " + d[1]), () => {
+                            if (confirm(`Rename ${names[idx]} as ${d[1]}?`)) {
+                                sseq.setClassName(x, y, idx, d[1]);
+                            }
+                        }, highlights);
+                    }
+                } else {
+                    this.addLine(Interface.renderMath(vecToName(d[0], names) + " = " + d[1]), undefined, highlights);
+                }
+            }
+        }
 
         if (this.display.isUnit) {
             this.newGroup();
@@ -262,10 +313,32 @@ class MainPanel extends Panel.Panel {
         }
     }
 
-    addLine(html) {
+    addLine(html, callback, highlights) {
         let node = document.createElement("div");
         node.style = "padding: 0.75rem 0";
         node.innerHTML = html;
+        if (callback) {
+            node.addEventListener("click", callback);
+        }
+        if (highlights) {
+            for (let highlight of highlights) {
+                let classes = this.display.sseq.getClasses(highlight[0], highlight[1], this.display.page);
+                node.addEventListener("mouseover", () => {
+                    node.style.color = "blue";
+                    for (let c of classes) {
+                        c.highlight = true;
+                    }
+                    this.display.update();
+                });
+                node.addEventListener("mouseout", () => {
+                    node.style.removeProperty("color");
+                    for (let c of classes) {
+                        c.highlight = false;
+                    }
+                    this.display.update();
+                });
+            }
+        }
         this.addObject(node);
     }
 }
@@ -347,7 +420,7 @@ class DifferentialPanel extends Panel.Panel {
         if (this.display.isUnit) {
             this.addLine("<span style='font-size: 80%'>Click differential to propagate</span>");
         }
-        this.addButton("Add", () => this.display.state = STATE_ADD_DIFFERENTIAL, { shortcuts: ["d"]});
+        this.addButton("Add", () => this.display.state = STATE_ADD_DIFFERENTIAL);
 
         this.newGroup();
         this.addHeader("Permanent Classes");
@@ -357,7 +430,7 @@ class DifferentialPanel extends Panel.Panel {
         }
         this.addButton("Add", () => {
             this.display.sseq.addPermanentClassInteractive(this.display.selected);
-        }, { shortcuts: ["p"]});
+        });
 
     }
 

@@ -42,6 +42,7 @@ pub enum Action {
     AddProductType,
     AddPermanentClass,
     AddDifferential,
+    SetClassName,
     Clear,
     RefreshAll,
 
@@ -115,24 +116,6 @@ impl ActionT for AddDifferential {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Clear {}
-impl ActionT for Clear {
-    fn act_sseq(&self, sseq: &mut Sseq, refresh : bool) {
-        sseq.clear(refresh);
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RefreshAll {}
-impl ActionT for RefreshAll {
-    fn act_sseq(&self, sseq: &mut Sseq, refresh : bool) {
-        if refresh {
-            sseq.refresh_all();
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddProductType {
     pub x : i32,
     pub y : i32,
@@ -172,6 +155,39 @@ impl ActionT for AddPermanentClass {
             0, refresh);
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetClassName {
+    pub x : i32,
+    pub y : i32,
+    pub idx : usize,
+    pub name : String
+}
+
+impl ActionT for SetClassName {
+    fn act_sseq(&self, sseq : &mut Sseq, refresh : bool) {
+        sseq.set_class_name(self.x, self.y, self.idx, self.name.clone(), refresh);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Clear {}
+impl ActionT for Clear {
+    fn act_sseq(&self, sseq: &mut Sseq, refresh : bool) {
+        sseq.clear(refresh);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RefreshAll {}
+impl ActionT for RefreshAll {
+    fn act_sseq(&self, sseq: &mut Sseq, refresh : bool) {
+        if refresh {
+            sseq.refresh_all();
+        }
+    }
+}
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddClass {
@@ -295,7 +311,9 @@ pub struct SetClass {
     pub y : i32,
     pub state : ClassState,
     pub permanents : Vec<FpVector>,
-    pub classes : Vec<Vec<FpVector>>
+    pub classes : Vec<Vec<FpVector>>,
+    pub decompositions : Vec<(FpVector, String, i32, i32)>,
+    pub class_names : Vec<String>
 }
 impl ActionT for SetClass { }
 

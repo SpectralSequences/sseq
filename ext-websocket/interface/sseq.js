@@ -9,7 +9,7 @@ const NODE_COLOR = {
     "Done": "gray"
 };
 
-const KEEP_LOG = new Set(["AddDifferential", "AddProductType", "AddProductDifferential", "AddPermanentClass"]);
+const KEEP_LOG = new Set(["AddDifferential", "AddProductType", "AddProductDifferential", "AddPermanentClass", "SetClassName"]);
 
 export class ExtSseq extends EventEmitter {
     constructor(name, webSocket) {
@@ -33,6 +33,8 @@ export class ExtSseq extends EventEmitter {
         this.products = new StringifyingMap();
         this.structlineTypes = new Set();
         this.permanentClasses = new StringifyingMap();
+        this.classNames = new StringifyingMap();
+        this.decompositions = new StringifyingMap();
         this.differentials = new StringifyingMap();
         this.trueDifferentials = new StringifyingMap();
 
@@ -196,6 +198,13 @@ export class ExtSseq extends EventEmitter {
         target_vec = this.pageBasisToE2Basis(page, source.x - 1, source.y + page, target_vec);
 
         this.addDifferential(page, source.x, source.y, source_vec, target_vec);
+    }
+
+    setClassName(x, y, idx, name) {
+        this.send({
+            "recipients": ["Sseq"],
+            action: { "SetClassName": { x : x, y : y, idx : idx, name : name } }
+        });
     }
 
     addProductInteractive(x, y, num) {
@@ -386,6 +395,8 @@ export class ExtSseq extends EventEmitter {
         }
         this.classes.set([x, y], classes);
         this.permanentClasses.set([x, y], data.permanents);
+        this.classNames.set([x, y], data.class_names);
+        this.decompositions.set([x, y], data.decompositions);
 
         this.emit("update", x, y);
     }

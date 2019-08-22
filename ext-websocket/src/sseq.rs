@@ -207,6 +207,7 @@ pub struct Sseq {
     product_name_to_index : HashMap<String, usize>,
     products : Vec<Product>,
     classes : BiVec<BiVec<usize>>, // x -> y -> number of elements
+    class_names : BiVec<BiVec<Vec<String>>>, // x -> y -> idx -> name
     differentials : BiVec<BiVec<BiVec<Differential>>>, // x -> y -> r -> differential
     permanent_classes : BiVec<BiVec<Subspace>>, // x -> y -> r -> permanent classes
     zeros : BiVec<BiVec<BiVec<Subspace>>>, // x -> y -> r -> subspace of elements that are zero on page r
@@ -228,6 +229,7 @@ impl Sseq {
             product_name_to_index : HashMap::new(),
             products : Vec::new(),
             classes,
+            class_names : BiVec::new(min_x),
             permanent_classes : BiVec::new(min_x),
             differentials : BiVec::new(min_x),
             page_classes : BiVec::new(min_x),
@@ -691,6 +693,21 @@ impl Sseq {
             state = ClassState::InProgress;
         }
 
+        let mut decompositions : Vec<(FpVector, String, i32, i32)> = Vec::new();
+        for prod in &self.products {
+            if !self.product_defined(x - prod.x, y - prod.y, prod) {
+                continue;
+            }
+            if let Some(matrix) = &prod.matrices[x - prod.x][y - prod.y]  {
+                for i in 0 .. matrix.len() {
+                    if matrix[i].is_zero() {
+                        continue;
+                    }
+                    decompositions.push((matrix[i].clone(), format!("{} {}", prod.name, self.class_names[x - prod.x][y - prod.y][i]), prod.x, prod.y));
+                }
+            }
+        }
+
         self.send(Message {
             recipients : vec![],
             refresh : true,
@@ -698,6 +715,8 @@ impl Sseq {
             action : Action::from(SetClass {
                 x, y, state,
                 permanents : self.permanent_classes[x][y].basis().to_vec(),
+                class_names : self.class_names[x][y].clone(),
+                decompositions : decompositions.clone(),
                 classes : self.page_classes[x][y].iter().map(|x| x.1.clone()).collect::<Vec<Vec<FpVector>>>()
             })
         });
@@ -712,6 +731,18 @@ impl Sseq {
 
 // Wrapper functions
 impl Sseq {
+    fn product_defined(&self, x : i32, y : i32, product : &Product) -> bool {
+        if !self.class_defined(x, y) {
+            false
+        } else if product.matrices.max_degree() < x {
+            false
+        } else if product.matrices[x].max_degree() < y {
+            false
+        } else {
+            true
+        }
+    }
+
     fn class_defined(&self, x : i32, y : i32) -> bool {
         if x < self.min_x || y < self.min_y {
             return false;
@@ -765,6 +796,7 @@ impl Sseq {
         }
         if x == self.classes.len() {
             self.classes.push(BiVec::new(self.min_y));
+            self.class_names.push(BiVec::new(self.min_y));
             self.differentials.push(BiVec::new(self.min_y));
             self.zeros.push(BiVec::new(self.min_y));
             self.permanent_classes.push(BiVec::new(self.min_y));
@@ -782,6 +814,15 @@ impl Sseq {
         assert_eq!(self.classes[x].len(), y);
         assert_eq!(self.permanent_classes[x].len(), y);
         self.classes[x].push(num);
+        let mut names = Vec::with_capacity(num);
+        if num == 1 {
+            names.push(format!("x_{{{}, {}}}", x, y));
+        } else {
+            for i in 0 .. num {
+                names.push(format!("x_{{{}, {}}}^{{({})}}", x, y, i));
+            }
+        }
+        self.class_names[x].push(names);
         self.permanent_classes[x].push(Subspace::new(self.p, num + 1, num));
         self.differentials[x].push(BiVec::new(MIN_PAGE));
         self.zeros[x].push(BiVec::new(MIN_PAGE));
@@ -790,6 +831,18 @@ impl Sseq {
         self.allocate_zeros_subspace(MIN_PAGE, x, y);
         if refresh {
             self.compute_classes(x, y, true);
+        }
+    }
+
+    pub fn set_class_name(&mut self, x : i32, y : i32, idx : usize, name : String, refresh : bool) {
+        self.class_names[x][y][idx] = name;
+        if refresh {
+            self.send_class_data(x, y);
+            for prod in &self.products {
+                if self.class_defined(x + prod.x, y + prod.y) {
+                    self.send_class_data(x + prod.x, y+ prod.y);
+                }
+            }
         }
     }
 
@@ -1028,6 +1081,7 @@ impl Sseq {
         }
         if refresh {
             self.compute_edges(x, y);
+            self.send_class_data(x + mult_x, y + mult_y);
         }
     }
 }

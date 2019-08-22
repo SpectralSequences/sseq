@@ -1,3 +1,15 @@
+export function vecToName(v, names) {
+    let items = [];
+    for (let i = 0; i < v.length; i++) {
+        switch (v[i]) {
+            case 0 : break;
+            case 1 : items.push(names[i]); break;
+            default : items.push(`${v[i]} ${names[i]}`);
+        }
+    }
+    return items.join(" + ");
+}
+
 export function rowToKaTeX(m) {
     return Interface.renderMath(rowToLaTeX(m));
 }
