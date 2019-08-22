@@ -227,13 +227,13 @@ export class UnitDisplay extends Display {
         document.querySelector("#overlay").style.removeProperty("display");
         document.querySelector("#modal-ok").disabled = true;
         document.querySelector("#modal-diff").disabled = true;
-        let dialog = document.querySelector("#modal-dialog");
+        let dialog = document.querySelector("#unitsseq-dialog");
         dialog.classList.add("modal-shown");
     }
 
     closeModal() {
         document.querySelector("#overlay").style.display = "none";
-        let dialog = document.querySelector("#modal-dialog");
+        let dialog = document.querySelector("#unitsseq-dialog");
         dialog.classList.remove("modal-shown");
         this._unselect();
     }

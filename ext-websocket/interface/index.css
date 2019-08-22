@@ -62,7 +62,7 @@ div.tooltip {
     right: 0;
 }
 
-#modal-dialog {
+#unitsseq-dialog {
     position: absolute;
     top: 50px;
     bottom: 50px;
@@ -73,7 +73,7 @@ div.tooltip {
     transition: opacity 0.1s;
 }
 
-#modal-dialog.modal-shown {
+#unitsseq-dialog.modal-shown {
     opacity: 1;
     visibility: visible;
 }
@@ -81,7 +81,7 @@ div.tooltip {
 .modal-content {
     height: 100%;
 }
-#modal-body {
+.modal-body {
     flex-grow: 1;
 }
 

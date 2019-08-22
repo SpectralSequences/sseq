@@ -200,7 +200,7 @@ messageHandler.Resolving = (data, msg) => {
             window.display = new MainDisplay("#main", mainSseq, data.is_unit);
         } else {
             window.display = new MainDisplay("#main", mainSseq, data.is_unit);
-            window.unitDisplay = new UnitDisplay("#modal-body", unitSseq);
+            window.unitDisplay = new UnitDisplay("#unitsseq-body", unitSseq);
         }
     }
 
