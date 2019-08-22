@@ -196,12 +196,17 @@ pub struct ProductItem {
 ///  not been set, the class is assumed to be zero.
 ///  * The same is true for products, where the grading of a product is that of its source.
 ///  * Whenever a product v . x is set, the target is already set.
+///
+/// # Fields
+///  * `block_refresh` : If this is a positive number, then the spectral sequence will not
+///  re-compute classes and edges. See `Actions::BlockRefresh` for details.
 pub struct Sseq {
     pub p : u32,
     name : SseqChoice,
     min_x : i32,
     min_y : i32,
 
+    pub block_refresh : u32,
     sender : Option<mpsc::Sender<Message>>,
     page_list : Vec<i32>,
     product_name_to_index : HashMap<String, usize>,
@@ -224,6 +229,7 @@ impl Sseq {
             min_y,
             name,
             sender,
+            block_refresh : 0,
 
             page_list : vec![2],
             product_name_to_index : HashMap::new(),
@@ -240,7 +246,7 @@ impl Sseq {
     /// This clears out all the user actions. This is intended to be used when we undo, where
     /// we clear out all actions then redo the existing actions. Hence we avoid re-allocating
     /// as much as possible because we are likely to need the space anyway
-    pub fn clear(&mut self, refresh : bool) {
+    pub fn clear(&mut self) {
         for prod in &mut self.products {
             if prod.user {
                 prod.permanent = false;
@@ -263,12 +269,13 @@ impl Sseq {
             }
         }
 
-        if refresh {
-            self.refresh_all();
-        }
+        self.refresh_all();
     }
 
     pub fn refresh_all(&mut self) {
+        if self.block_refresh > 0 {
+            return;
+        }
         for x in 0 .. self.classes.len() {
             for y in 0 .. self.classes[x].len() {
                 self.compute_classes(x, y, false);
@@ -286,7 +293,6 @@ impl Sseq {
 
             self.send(Message {
                  recipients : vec![],
-                 refresh : true,
                  sseq : self.name,
                  action : Action::from(SetPageList { page_list : self.page_list.clone() })
             });
@@ -433,6 +439,8 @@ impl Sseq {
 
     /// Computes products whose source is at (x, y).
     fn compute_edges(&self, x : i32, y : i32) {
+        if self.block_refresh > 0 { return; }
+
         if !self.class_defined(x, y) {
             return;
         }
@@ -498,7 +506,6 @@ impl Sseq {
 
         self.send(Message {
             recipients : vec![],
-            refresh : true,
             sseq : self.name,
             action : Action::from(SetStructline { x, y, structlines })
         });
@@ -603,6 +610,8 @@ impl Sseq {
     ///  almost always be yes, unless we are re-computing everything, in which case this
     ///  will result in many duplicate calls of compute_edge.
     fn compute_classes(&mut self, x : i32, y : i32, refresh_edge : bool) {
+        if self.block_refresh > 0 { return; }
+
         if !self.class_defined(x, y) {
             return;
         }
@@ -661,7 +670,6 @@ impl Sseq {
         if differentials.len() > 0 {
             self.send(Message {
                 recipients : vec![],
-                refresh : true,
                 sseq : self.name,
                 action : Action::from(SetDifferential { x, y, true_differentials, differentials })
             });
@@ -676,6 +684,8 @@ impl Sseq {
     }
 
     fn send_class_data(&self, x : i32, y : i32) {
+        if self.block_refresh > 0 { return; }
+
         let mut error = false;
         for r in MIN_PAGE .. self.differentials[x][y].len() {
             error |= self.differentials[x][y][r].error;
@@ -710,7 +720,6 @@ impl Sseq {
 
         self.send(Message {
             recipients : vec![],
-            refresh : true,
             sseq : self.name,
             action : Action::from(SetClass {
                 x, y, state,
@@ -787,12 +796,12 @@ impl Sseq {
 impl Sseq {
     /// This function should only be called when everything to the left and bottom of (x, y)
     /// has been defined.
-    pub fn set_class(&mut self, x : i32, y : i32, num : usize, refresh: bool) {
+    pub fn set_class(&mut self, x : i32, y : i32, num : usize) {
         if x == self.min_x {
             self.classes[self.min_x - 1].push(0);
         }
         while x > self.classes.len() {
-            self.set_class(self.classes.len(), self.min_y - 1, 0, refresh);
+            self.set_class(self.classes.len(), self.min_y - 1, 0);
         }
         if x == self.classes.len() {
             self.classes.push(BiVec::new(self.min_y));
@@ -808,7 +817,7 @@ impl Sseq {
         }
 
         while y > self.classes[x].len() {
-            self.set_class(x, self.classes[x].len(), 0, refresh);
+            self.set_class(x, self.classes[x].len(), 0);
         }
 
         assert_eq!(self.classes[x].len(), y);
@@ -829,19 +838,15 @@ impl Sseq {
         self.page_classes[x].push(BiVec::new(MIN_PAGE));
 
         self.allocate_zeros_subspace(MIN_PAGE, x, y);
-        if refresh {
-            self.compute_classes(x, y, true);
-        }
+        self.compute_classes(x, y, true);
     }
 
-    pub fn set_class_name(&mut self, x : i32, y : i32, idx : usize, name : String, refresh : bool) {
+    pub fn set_class_name(&mut self, x : i32, y : i32, idx : usize, name : String) {
         self.class_names[x][y][idx] = name;
-        if refresh {
-            self.send_class_data(x, y);
-            for prod in &self.products {
-                if self.class_defined(x + prod.x, y + prod.y) {
-                    self.send_class_data(x + prod.x, y+ prod.y);
-                }
+        self.send_class_data(x, y);
+        for prod in &self.products {
+            if self.class_defined(x + prod.x, y + prod.y) {
+                self.send_class_data(x + prod.x, y+ prod.y);
             }
         }
     }
@@ -850,7 +855,7 @@ impl Sseq {
     /// `self.zeros[x - 1][y + r][r]`
     ///
     /// Panics if the target of the differential is not yet defined
-    pub fn add_differential(&mut self, r : i32, x : i32, y : i32, source : &FpVector, target : &mut FpVector, refresh : bool) {
+    pub fn add_differential(&mut self, r : i32, x : i32, y : i32, source : &FpVector, target : &mut FpVector) {
         assert_eq!(source.dimension(), self.classes[x][y], "length of source vector not equal to dimension of source");
         assert_eq!(target.dimension(), self.classes[x - 1][y + r], "length of target vector not equal to dimension of target");
 
@@ -877,20 +882,18 @@ impl Sseq {
         self.add_zeros(r + 1, x - 1, y + r, target);
         // add_permanent_class in turn sets the differentials on the targets of the differentials
         // to 0. add_differential_propagate will take care of propagating this.
-        self.add_permanent_class(x - 1, y + r, target, refresh);
+        self.add_permanent_class(x - 1, y + r, target);
 
         self.add_page(r);
         self.add_page(r + 1);
 
-        if refresh {
-            self.compute_classes(x - 1, y + r, true);
-            self.compute_classes(x, y, true);
+        self.compute_classes(x - 1, y + r, true);
+        self.compute_classes(x, y, true);
 
-            // self.zeros[r] will be populated if there is a non-zero differential hit on a
-            // page <= r - 1. Check if these differentials now hit 0.
-            for r_ in r + 1 .. self.zeros[x - 1][y + r].len() - 1 {
-                self.compute_classes(x, y + r - r_, true);
-            }
+        // self.zeros[r] will be populated if there is a non-zero differential hit on a
+        // page <= r - 1. Check if these differentials now hit 0.
+        for r_ in r + 1 .. self.zeros[x - 1][y + r].len() - 1 {
+            self.compute_classes(x, y + r - r_, true);
         }
     }
 
@@ -899,43 +902,41 @@ impl Sseq {
     /// have to exercise a slight bit of care to ensure we don't set both $p_1 p_2 d$ and $p_2 p_1
     /// d$ when $p_1$, $p_2$ are products and $d$ is the differential. Our strategy is that we
     /// compute $p_2 p_1 d$ if and only if $p_1$ comes earlier in the list of products than $p_2$.
-    pub fn add_differential_propagate(&mut self, r : i32, x : i32, y : i32, source : &FpVector, target : &mut Option<FpVector>, product_index : usize, refresh : bool) {
+    pub fn add_differential_propagate(&mut self, r : i32, x : i32, y : i32, source : &FpVector, target : &mut Option<FpVector>, product_index : usize) {
         if product_index == self.products.len() - 1 {
             match target.as_mut() {
-                Some(target_) => self.add_differential(r, x, y, source, target_, refresh),
-                None => self.add_permanent_class(x, y, source, refresh)
+                Some(target_) => self.add_differential(r, x, y, source, target_),
+                None => self.add_permanent_class(x, y, source)
             };
         } else if product_index < self.products.len() - 1 {
-            self.add_differential_propagate(r, x, y, source, target, product_index + 1, refresh);
+            self.add_differential_propagate(r, x, y, source, target, product_index + 1);
         }
 
         // Separate this to new line to make code easier to read.
         let new_d = self.leibniz(r, x, y, source, target.as_mut(), product_index);
 
         if let Some((r_, x_, y_, source_, mut target_)) = new_d {
-            self.add_differential_propagate(r_, x_, y_, &source_, &mut target_, product_index, refresh);
+            self.add_differential_propagate(r_, x_, y_, &source_, &mut target_, product_index);
         }
     }
 
-    pub fn add_permanent_class(&mut self, x : i32, y : i32, class : &FpVector, refresh : bool) {
+    pub fn add_permanent_class(&mut self, x : i32, y : i32, class : &FpVector) {
         self.permanent_classes[x][y].add_vector(class);
         for r in MIN_PAGE .. self.differentials[x][y].len() {
             self.differentials[x][y][r].add(class, None);
         }
-        if refresh {
-            self.compute_classes(x, y, true);
-        }
+        self.compute_classes(x, y, true);
     }
 
     /// Add a product to the list of products, but don't add any computed product
-    pub fn add_product_type(&mut self, name : &String, mult_x : i32, mult_y : i32, left : bool, permanent: bool, refresh : bool) {
+    pub fn add_product_type(&mut self, name : &String, mult_x : i32, mult_y : i32, left : bool, permanent: bool) {
         let idx = self.product_name_to_index.get(name);
 
         if let Some(&i) = idx {
             self.products[i].user = true;
             if permanent && !self.products[i].permanent {
                 self.products[i].permanent = true;
-                self.repropagate_product(i, refresh);
+                self.repropagate_product(i);
             }
         } else {
             let product = Product {
@@ -953,7 +954,7 @@ impl Sseq {
         }
     }
 
-    pub fn add_product_differential(&mut self, source : &String, target: &String, refresh : bool) {
+    pub fn add_product_differential(&mut self, source : &String, target: &String) {
         let source_idx = *self.product_name_to_index.get(source).unwrap();
         let target_idx = *self.product_name_to_index.get(target).unwrap();
 
@@ -962,10 +963,10 @@ impl Sseq {
         self.products[source_idx].differential = Some((r, true, target_idx));
         self.products[target_idx].differential = Some((r, false, source_idx));
 
-        self.repropagate_product(source_idx, refresh);
+        self.repropagate_product(source_idx);
     }
 
-    fn repropagate_product(&mut self, idx : usize, refresh : bool) {
+    fn repropagate_product(&mut self, idx : usize) {
         for x in self.min_x .. self.products[idx].matrices.len() {
             for y in self.min_y .. self.products[idx].matrices[x].len() {
                 for r in MIN_PAGE .. self.differentials[x][y].len() {
@@ -973,7 +974,7 @@ impl Sseq {
                     for (source, mut target) in d.get_source_target_pairs() {
                         let new_d = self.leibniz(r, x, y, &source, Some(&mut target), idx);
                         if let Some((r_, x_, y_, source_, Some(mut target_))) = new_d {
-                            self.add_differential(r_, x_, y_, &source_, &mut target_, refresh);
+                            self.add_differential(r_, x_, y_, &source_, &mut target_);
                         }
                     }
                 }
@@ -984,8 +985,8 @@ impl Sseq {
                     let new_d = self.leibniz(INFINITY, x, y, &class, None, idx);
                     if let Some((r_, x_, y_, source_, t_)) = new_d {
                         match t_ {
-                            Some(mut target_) => self.add_differential(r_, x_, y_, &source_, &mut target_, refresh),
-                            None => self.add_permanent_class(x_, y_, &source_, refresh)
+                            Some(mut target_) => self.add_differential(r_, x_, y_, &source_, &mut target_),
+                            None => self.add_permanent_class(x_, y_, &source_)
                         };
                     }
                 }
@@ -993,7 +994,7 @@ impl Sseq {
         }
     }
 
-    pub fn add_product(&mut self, name : &String, x : i32, y : i32, mult_x : i32, mult_y : i32, left : bool, matrix : &Vec<Vec<u32>>, refresh : bool) {
+    pub fn add_product(&mut self, name : &String, x : i32, y : i32, mult_x : i32, mult_y : i32, left : bool, matrix : &Vec<Vec<u32>>) {
         if !self.class_defined(x, y) {
             return;
         }
@@ -1044,7 +1045,7 @@ impl Sseq {
                 for (source, mut target) in d.get_source_target_pairs() {
                     let new_d = self.leibniz(r, x, y, &source, Some(&mut target), si);
                     if let Some((r_, x_, y_, source_, Some(mut target_))) = new_d {
-                        self.add_differential(r_, x_, y_, &source_, &mut target_, refresh);
+                        self.add_differential(r_, x_, y_, &source_, &mut target_);
                     }
                 }
             }
@@ -1053,7 +1054,7 @@ impl Sseq {
             for class in classes {
                 let new_d = self.leibniz(INFINITY, x, y, &class, None, si);
                 if let Some((r_, x_, y_, source_, Some(mut target_))) = new_d {
-                    self.add_differential(r_, x_, y_, &source_, &mut target_, refresh);
+                    self.add_differential(r_, x_, y_, &source_, &mut target_);
                 }
             }
         } else {
@@ -1062,7 +1063,7 @@ impl Sseq {
                 for (source, mut target) in d.get_source_target_pairs() {
                     let new_d = self.leibniz(r, x + 1, y - r, &source, Some(&mut target), idx);
                     if let Some((r_, x_, y_, source_, Some(mut target_))) = new_d {
-                        self.add_differential(r_, x_, y_, &source_, &mut target_, refresh);
+                        self.add_differential(r_, x_, y_, &source_, &mut target_);
                     }
                 }
             }
@@ -1073,16 +1074,14 @@ impl Sseq {
                 let new_d = self.leibniz(INFINITY, x, y, &class, None, idx);
                 if let Some((r_, x_, y_, source_, t_)) = new_d {
                     match t_ {
-                        Some(mut target_) => self.add_differential(r_, x_, y_, &source_, &mut target_, refresh),
-                        None => self.add_permanent_class(x_, y_, &source_, refresh)
+                        Some(mut target_) => self.add_differential(r_, x_, y_, &source_, &mut target_),
+                        None => self.add_permanent_class(x_, y_, &source_)
                     };
                 }
             }
         }
-        if refresh {
-            self.compute_edges(x, y);
-            self.send_class_data(x + mult_x, y + mult_y);
-        }
+        self.compute_edges(x, y);
+        self.send_class_data(x + mult_x, y + mult_y);
     }
 }
 #[cfg(test)]

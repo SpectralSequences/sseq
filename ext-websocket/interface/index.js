@@ -4,6 +4,15 @@ import { ExtSseq } from "./sseq.js";
 let commandQueue = [];
 function processCommandQueue() {
     let commandText = "";
+    let block = {
+        recipients : ["Resolver", "Sseq"],
+        action : { "BlockRefresh" : { block : true } }
+    };
+
+    window.mainSseq.send(block);
+    if (!window.mainSseq.isUnit) {
+        window.unitSseq.send(block);
+    }
     // If we are resolving, we should wait for it to finish resolving before we
     // can continue. For example, we don't want to add a differential when the
     // corresponding classes have not been generated.
@@ -23,6 +32,12 @@ function processCommandQueue() {
             console.log("Unable to parse command " + commandText);
             console.log(e);
         }
+    }
+    block.action.BlockRefresh.block = false;
+
+    window.mainSseq.send(block);
+    if (!window.mainSseq.isUnit) {
+        window.unitSseq.send(block);
     }
 }
 

@@ -108,6 +108,11 @@ export class ExtSseq extends EventEmitter {
 
         this.send({
             recipients: ["Sseq"],
+            action : { BlockRefresh : { block : true } }
+        });
+
+        this.send({
+            recipients: ["Sseq"],
             refresh : false,
             action : { Clear : {} }
         });
@@ -120,8 +125,7 @@ export class ExtSseq extends EventEmitter {
         }
         this.send({
             recipients: ["Sseq"],
-            refresh : true,
-            action : { RefreshAll : {} }
+            action : { BlockRefresh : { block : false } }
         });
     }
 

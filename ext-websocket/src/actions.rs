@@ -8,14 +8,10 @@ use std::cell::RefCell;
 use enum_dispatch::enum_dispatch;
 use serde::{Serialize, Deserialize};
 
-fn true_() -> bool { true }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     pub recipients : Vec<Recipient>,
     pub sseq : SseqChoice,
-    #[serde(default = "true_")]
-    pub refresh : bool,
     pub action: Action
 }
 
@@ -44,7 +40,7 @@ pub enum Action {
     AddDifferential,
     SetClassName,
     Clear,
-    RefreshAll,
+    BlockRefresh,
 
     // Resolver -> Sseq
     AddProduct,
@@ -87,7 +83,7 @@ pub enum Action {
 #[enum_dispatch(Action)]
 #[allow(unused_variables)]
 pub trait ActionT {
-    fn act_sseq(&self, sseq : &mut Sseq, refresh : bool) {
+    fn act_sseq(&self, sseq : &mut Sseq) {
         unimplemented!();
     }
     fn act_resolution(&self, resolution : &Rc<RefCell<ModuleResolution<FiniteModule>>>) {
@@ -106,12 +102,12 @@ pub struct AddDifferential {
 }
 
 impl ActionT for AddDifferential {
-    fn act_sseq(&self, sseq: &mut Sseq, refresh : bool) {
+    fn act_sseq(&self, sseq: &mut Sseq) {
         sseq.add_differential_propagate(
             self.r, self.x, self.y,
             &FpVector::from_vec(sseq.p, &self.source),
             &mut Some(FpVector::from_vec(sseq.p, &self.target)),
-            0, refresh);
+            0);
     }
 }
 
@@ -125,8 +121,8 @@ pub struct AddProductType {
 }
 
 impl ActionT for AddProductType {
-    fn act_sseq(&self, sseq : &mut Sseq, refresh : bool) {
-        sseq.add_product_type(&self.name, self.x, self.y, true, self.permanent, refresh);
+    fn act_sseq(&self, sseq : &mut Sseq) {
+        sseq.add_product_type(&self.name, self.x, self.y, true, self.permanent);
     }
 
     fn act_resolution(&self, resolution : &Rc<RefCell<ModuleResolution<FiniteModule>>>) {
@@ -147,12 +143,12 @@ pub struct AddPermanentClass {
 }
 
 impl ActionT for AddPermanentClass {
-    fn act_sseq(&self, sseq : &mut Sseq, refresh : bool) {
+    fn act_sseq(&self, sseq : &mut Sseq) {
         sseq.add_differential_propagate(
             INFINITY, self.x, self.y,
             &FpVector::from_vec(sseq.p, &self.class),
             &mut None,
-            0, refresh);
+            0);
     }
 }
 
@@ -165,29 +161,45 @@ pub struct SetClassName {
 }
 
 impl ActionT for SetClassName {
-    fn act_sseq(&self, sseq : &mut Sseq, refresh : bool) {
-        sseq.set_class_name(self.x, self.y, self.idx, self.name.clone(), refresh);
+    fn act_sseq(&self, sseq : &mut Sseq) {
+        sseq.set_class_name(self.x, self.y, self.idx, self.name.clone());
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Clear {}
 impl ActionT for Clear {
-    fn act_sseq(&self, sseq: &mut Sseq, refresh : bool) {
-        sseq.clear(refresh);
+    fn act_sseq(&self, sseq: &mut Sseq) {
+        sseq.clear();
     }
 }
 
+/// This blocks the sseq object from recomputing classes and edges. This is useful when performing
+/// a large number of operations in a row, e.g. when loading files or undoing. 
+///
+/// When loading a new file, this is both sent to the SseqManager and the ResolutionManager. All
+/// the ResolutionManager does is forward this request to the SseqManager. This is important, since
+/// these two messages go in different queues. If we only send it to the Sseq, then refresh will be
+/// unblocked once the Sseq is done processing the queries, which is too early, since we are still
+/// resolving and a lot of AddProduct messages are being sent out. By adding a message to the
+/// ResolutionManger's queue, the refreshing will be unblocked only after the resolving is done
+/// resolving.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RefreshAll {}
-impl ActionT for RefreshAll {
-    fn act_sseq(&self, sseq: &mut Sseq, refresh : bool) {
-        if refresh {
-            sseq.refresh_all();
+pub struct BlockRefresh {
+    block : bool
+}
+impl ActionT for BlockRefresh {
+    fn act_sseq(&self, sseq: &mut Sseq) {
+        if self.block {
+            sseq.block_refresh += 1;
+        } else {
+            sseq.block_refresh -= 1;
+            if sseq.block_refresh == 0 {
+                sseq.refresh_all();
+            }
         }
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddClass {
@@ -197,8 +209,8 @@ pub struct AddClass {
 }
 
 impl ActionT for AddClass {
-    fn act_sseq(&self, sseq : &mut Sseq, refresh : bool) {
-        sseq.set_class(self.x, self.y, self.num, refresh);
+    fn act_sseq(&self, sseq : &mut Sseq) {
+        sseq.set_class(self.x, self.y, self.num);
     }
 }
 
@@ -214,8 +226,8 @@ pub struct AddProduct {
 }
 
 impl ActionT for AddProduct {
-    fn act_sseq(&self, sseq : &mut Sseq, refresh : bool) {
-        sseq.add_product(&self.name, self.source_x, self.source_y, self.mult_x, self.mult_y, self.left, &self.product, refresh);
+    fn act_sseq(&self, sseq : &mut Sseq) {
+        sseq.add_product(&self.name, self.source_x, self.source_y, self.mult_x, self.mult_y, self.left, &self.product);
     }
 }
 
@@ -226,10 +238,10 @@ pub struct AddProductDifferential {
 }
 
 impl ActionT for AddProductDifferential {
-    fn act_sseq(&self, sseq : &mut Sseq, refresh : bool) {
-        self.source.act_sseq(sseq, refresh);
-        self.target.act_sseq(sseq, refresh);
-        sseq.add_product_differential(&self.source.name, &self.target.name, refresh);
+    fn act_sseq(&self, sseq : &mut Sseq) {
+        self.source.act_sseq(sseq);
+        self.target.act_sseq(sseq);
+        sseq.add_product_differential(&self.source.name, &self.target.name);
     }
 
     fn act_resolution(&self, resolution : &Rc<RefCell<ModuleResolution<FiniteModule>>>) {
