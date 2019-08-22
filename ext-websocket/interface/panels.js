@@ -52,12 +52,7 @@ class HistoryPanel extends Panel.Panel {
         s.appendChild(rem);
 
         rem.addEventListener("click", () => {
-            for (let pair of highlightClasses) {
-                let classes = this.display.sseq.getClasses(pair[0], pair[1], this.display.page);
-                for (let c of classes) {
-                    c.highlight = false;
-                }
-            }
+            this.display.clearHighlight();
             this.display.sseq.removeHistoryItem(msg);
         });
 
@@ -73,21 +68,13 @@ class HistoryPanel extends Panel.Panel {
         d.addEventListener("mouseover", () => {
             d.style = "color: blue";
             for (let pair of highlightClasses) {
-                let classes = this.display.sseq.getClasses(pair[0], pair[1], this.display.page);
-                for (let c of classes) {
-                    c.highlight = true;
-                }
+                this.display.highlightClasses(pair[0], pair[1]);
             }
             this.display.update();
         });
         d.addEventListener("mouseout", () => {
             d.style = "";
-            for (let pair of highlightClasses) {
-                let classes = this.display.sseq.getClasses(pair[0], pair[1], this.display.page);
-                for (let c of classes) {
-                    c.highlight = false;
-                }
-            }
+            this.display.clearHighlight();
             this.display.update();
         });
 
@@ -298,6 +285,7 @@ class MainPanel extends Panel.Panel {
                         this.addLine(Interface.renderMath(names[idx] + " = " + d[1]), () => {
                             if (confirm(`Rename ${names[idx]} as ${d[1]}?`)) {
                                 sseq.setClassName(x, y, idx, d[1]);
+                                this.display.clearHighlight();
                             }
                         }, highlights);
                     }
@@ -321,23 +309,18 @@ class MainPanel extends Panel.Panel {
             node.addEventListener("click", callback);
         }
         if (highlights) {
-            for (let highlight of highlights) {
-                let classes = this.display.sseq.getClasses(highlight[0], highlight[1], this.display.page);
-                node.addEventListener("mouseover", () => {
-                    node.style.color = "blue";
-                    for (let c of classes) {
-                        c.highlight = true;
-                    }
-                    this.display.update();
-                });
-                node.addEventListener("mouseout", () => {
-                    node.style.removeProperty("color");
-                    for (let c of classes) {
-                        c.highlight = false;
-                    }
-                    this.display.update();
-                });
-            }
+            node.addEventListener("mouseover", () => {
+                node.style.color = "blue";
+                for (let highlight of highlights) {
+                    this.display.highlightClasses(highlight[0], highlight[1]);
+                }
+                this.display.update();
+            });
+            node.addEventListener("mouseout", () => {
+                node.style.removeProperty("color");
+                this.display.clearHighlight();
+                this.display.update();
+            });
         }
         this.addObject(node);
     }
@@ -379,16 +362,12 @@ class DifferentialPanel extends Panel.Panel {
                     classes = sseq.getClasses(x - 1, y + r, page);
                     spn.addEventListener("mouseover", () => {
                         spn.style.color = "blue";
-                        for (let c of classes) {
-                            c.highlight = true;
-                        }
+                        this.display.highlightClasses(x - 1, y + r);
                         this.display.update();
                     });
                     spn.addEventListener("mouseout", () => {
                         spn.style.removeProperty("color");
-                        for (let c of classes) {
-                            c.highlight = false;
-                        }
+                        this.display.clearHighlight();
                         this.display.update();
                     });
                     node.appendChild(spn);
@@ -467,34 +446,13 @@ class ProductsPanel extends Panel.Panel {
                 node.style = "padding: 0.75rem 0";
                 node.addEventListener("mouseover", () => {
                     node.style = "padding: 0.75rem 0; color: blue; font-weight: bold";
-                    let prodClasses = sseq.getClasses(x + prod.x, y + prod.y, page);
-                    if (prodClasses) {
-                        for (let c of prodClasses) {
-                            c.highlight = true;
-                        }
-                    }
-                    let backClasses = sseq.getClasses(x - prod.x, y - prod.y, page);
-                    if (backClasses) {
-                        for (let c of backClasses) {
-                            c.highlight = true;
-                        }
-                    }
+                    this.display.highlightClasses(x + prod.x, y + prod.y);
+                    this.display.highlightClasses(x - prod.x, y - prod.y);
                     this.display.update();
                 });
                 node.addEventListener("mouseout", () => {
                     node.style = "padding: 0.75rem 0";
-                    let prodClasses = sseq.getClasses(x + prod.x, y + prod.y, page);
-                    if (prodClasses) {
-                        for (let c of prodClasses) {
-                            c.highlight = false;
-                        }
-                    }
-                    let backClasses = sseq.getClasses(x - prod.x, y - prod.y, page);
-                    if (backClasses) {
-                        for (let c of backClasses) {
-                            c.highlight = false;
-                        }
-                    }
+                    this.display.clearHighlight();
                     this.display.update();
                 });
 

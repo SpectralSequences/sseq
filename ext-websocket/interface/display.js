@@ -10,6 +10,7 @@ export class MainDisplay extends SidebarDisplay {
     constructor(container, sseq, isUnit) {
         super(container, sseq);
 
+        this.highlighted = [];
         this.isUnit = isUnit;
         this.selected = null;
         this.tooltip = new Tooltip(this);
@@ -17,6 +18,11 @@ export class MainDisplay extends SidebarDisplay {
         this.on("mouseout", this._onMouseout.bind(this));
         this.on("click", this.__onClick.bind(this));
         this.on("page-change", this._unselect.bind(this));
+        this.on("draw", () => {
+            if (this.selected) {
+                this.highlightClasses(this.selected.x, this.selected.y);
+            }
+        });
 
         Mousetrap.bind('left',  this.previousPage);
         Mousetrap.bind('right', this.nextPage);
@@ -85,9 +91,7 @@ export class MainDisplay extends SidebarDisplay {
                 let x = node.x;
                 let y = node.y;
 
-                for (let c of this.sseq.getClasses(x, y, this.page)) {
-                    c.highlight = true;
-                }
+                this.highlightClasses(x, y);
         }
 
         this.update();
@@ -96,8 +100,29 @@ export class MainDisplay extends SidebarDisplay {
     }
 
     _onMouseout() {
-        if (this.selected) this.selected.highlight = true;
+        if (this.selected)
+            this.highlightClasses(this.selected.x, this.selected.y);
         this.tooltip.hide();
+    }
+
+    clearHighlight() {
+        for (let c of this.highlighted) {
+            if (c) c.highlight = false;
+        }
+        this.highlighted = [];
+        if (this.selected) {
+            this.highlightClasses(this.selected.x, this.selected.y);
+        }
+    }
+
+    highlightClasses(x, y) {
+        let classes = this.sseq.getClasses(x, y, this.page);
+        if (!classes) return;
+
+        for (let c of classes) {
+            c.highlight = true;
+            this.highlighted.push(c);
+        }
     }
 
     _unselect() {
@@ -106,12 +131,10 @@ export class MainDisplay extends SidebarDisplay {
         let x = this.selected.x;
         let y = this.selected.y;
 
-        for (let c of this.sseq.getClasses(x, y, this.page)) {
-            c.highlight = false;
-        }
-
         this.selected = null;
         this.state = null;
+
+        this.clearHighlight();
 
         this.sidebar.showPanel(this.generalPanel);
 
