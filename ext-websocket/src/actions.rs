@@ -8,10 +8,14 @@ use std::cell::RefCell;
 use enum_dispatch::enum_dispatch;
 use serde::{Serialize, Deserialize};
 
+fn true_() -> bool { true }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     pub recipients : Vec<Recipient>,
     pub sseq : SseqChoice,
+    #[serde(default = "true_")]
+    pub refresh : bool,
     pub action: Action
 }
 
@@ -39,6 +43,7 @@ pub enum Action {
     AddPermanentClass,
     AddDifferential,
     Clear,
+    RefreshAll,
 
     // Resolver -> Sseq
     AddProduct,
@@ -81,7 +86,7 @@ pub enum Action {
 #[enum_dispatch(Action)]
 #[allow(unused_variables)]
 pub trait ActionT {
-    fn act_sseq(&self, sseq : &mut Sseq) {
+    fn act_sseq(&self, sseq : &mut Sseq, refresh : bool) {
         unimplemented!();
     }
     fn act_resolution(&self, resolution : &Rc<RefCell<ModuleResolution<FiniteModule>>>) {
@@ -100,20 +105,30 @@ pub struct AddDifferential {
 }
 
 impl ActionT for AddDifferential {
-    fn act_sseq(&self, sseq: &mut Sseq) {
+    fn act_sseq(&self, sseq: &mut Sseq, refresh : bool) {
         sseq.add_differential_propagate(
             self.r, self.x, self.y,
             &FpVector::from_vec(sseq.p, &self.source),
             &mut Some(FpVector::from_vec(sseq.p, &self.target)),
-            0);
+            0, refresh);
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Clear {}
 impl ActionT for Clear {
-    fn act_sseq(&self, sseq: &mut Sseq) {
-        sseq.clear();
+    fn act_sseq(&self, sseq: &mut Sseq, refresh : bool) {
+        sseq.clear(refresh);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RefreshAll {}
+impl ActionT for RefreshAll {
+    fn act_sseq(&self, sseq: &mut Sseq, refresh : bool) {
+        if refresh {
+            sseq.refresh_all();
+        }
     }
 }
 
@@ -127,8 +142,8 @@ pub struct AddProductType {
 }
 
 impl ActionT for AddProductType {
-    fn act_sseq(&self, sseq : &mut Sseq) {
-        sseq.add_product_type(&self.name, self.x, self.y, true, self.permanent);
+    fn act_sseq(&self, sseq : &mut Sseq, refresh : bool) {
+        sseq.add_product_type(&self.name, self.x, self.y, true, self.permanent, refresh);
     }
 
     fn act_resolution(&self, resolution : &Rc<RefCell<ModuleResolution<FiniteModule>>>) {
@@ -149,12 +164,12 @@ pub struct AddPermanentClass {
 }
 
 impl ActionT for AddPermanentClass {
-    fn act_sseq(&self, sseq : &mut Sseq) {
+    fn act_sseq(&self, sseq : &mut Sseq, refresh : bool) {
         sseq.add_differential_propagate(
             INFINITY, self.x, self.y,
             &FpVector::from_vec(sseq.p, &self.class),
             &mut None,
-            0);
+            0, refresh);
     }
 }
 
@@ -166,8 +181,8 @@ pub struct AddClass {
 }
 
 impl ActionT for AddClass {
-    fn act_sseq(&self, sseq : &mut Sseq) {
-        sseq.set_class(self.x, self.y, self.num);
+    fn act_sseq(&self, sseq : &mut Sseq, refresh : bool) {
+        sseq.set_class(self.x, self.y, self.num, refresh);
     }
 }
 
@@ -183,8 +198,8 @@ pub struct AddProduct {
 }
 
 impl ActionT for AddProduct {
-    fn act_sseq(&self, sseq : &mut Sseq) {
-        sseq.add_product(&self.name, self.source_x, self.source_y, self.mult_x, self.mult_y, self.left, &self.product);
+    fn act_sseq(&self, sseq : &mut Sseq, refresh : bool) {
+        sseq.add_product(&self.name, self.source_x, self.source_y, self.mult_x, self.mult_y, self.left, &self.product, refresh);
     }
 }
 
@@ -195,10 +210,10 @@ pub struct AddProductDifferential {
 }
 
 impl ActionT for AddProductDifferential {
-    fn act_sseq(&self, sseq : &mut Sseq) {
-        self.source.act_sseq(sseq);
-        self.target.act_sseq(sseq);
-        sseq.add_product_differential(&self.source.name, &self.target.name);
+    fn act_sseq(&self, sseq : &mut Sseq, refresh : bool) {
+        self.source.act_sseq(sseq, refresh);
+        self.target.act_sseq(sseq, refresh);
+        sseq.add_product_differential(&self.source.name, &self.target.name, refresh);
     }
 
     fn act_resolution(&self, resolution : &Rc<RefCell<ModuleResolution<FiniteModule>>>) {

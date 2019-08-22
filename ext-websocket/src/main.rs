@@ -148,6 +148,7 @@ impl ResolutionManager {
         let msg = Message {
             recipients : vec![],
             sseq,
+            refresh : true,
             action : Action::from(Resolving {
                 p : resolution.borrow().prime(),
                 min_degree,
@@ -170,6 +171,7 @@ impl ResolutionManager {
         let msg = Message {
             recipients : vec![],
             sseq,
+            refresh : true,
             action : Action::from(Complete {})
         };
         self.sender.send(msg)?;
@@ -191,6 +193,7 @@ impl ResolutionManager {
             let msg = Message {
                 recipients : vec![],
                 sseq : sseq,
+                refresh : true,
                 action : Action::from(QueryTableResult { s, t, string })
             };
             self.sender.send(msg)?;
@@ -208,6 +211,7 @@ impl ResolutionManager {
         let add_class = move |s: u32, t: i32, num_gen: usize| {
             let msg = Message {
                 recipients : vec![],
+                refresh : true,
                 sseq : sseq,
                 action : Action::from(AddClass {
                     x : t - s as i32,
@@ -239,6 +243,7 @@ impl ResolutionManager {
 
             let msg = Message {
                 recipients : vec![],
+                refresh : true,
                 sseq : sseq,
                 action : Action::from(AddProduct {
                     mult_x : mult_t - mult_s,
@@ -290,7 +295,7 @@ impl SseqManager {
                 Action::QueryTableResult(_) => manager.relay(msg)?,
                 _ => {
                     if let Some(sseq) = manager.get_sseq(msg.sseq) {
-                        msg.action.act_sseq(sseq);
+                        msg.action.act_sseq(sseq, msg.refresh);
                     }
                 }
             }
@@ -382,6 +387,7 @@ impl Handler for Server {
                         let msg = Message {
                             recipients : vec![],
                             sseq : SseqChoice::Main, // Doesn't matter
+                            refresh : true,
                             action : Action::from(actions::ReturnHistory {
                                 history : self.history.iter()
                                     .filter(|x| x.recipients[0] != Recipient::Server)

@@ -106,13 +106,21 @@ export class ExtSseq extends EventEmitter {
 
         this.send({
             recipients: ["Sseq"],
+            refresh : false,
             action : { Clear : {} }
         });
         this.emit("clear-history");
 
         for (let msg of this.history) {
+            msg.refresh = false;
             this.send(msg, false);
+            delete msg.refresh;
         }
+        this.send({
+            recipients: ["Sseq"],
+            refresh : true,
+            action : { RefreshAll : {} }
+        });
     }
 
     redo() {
