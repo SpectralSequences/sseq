@@ -9,6 +9,7 @@ mod actions;
 use sseq::Sseq;
 use actions::*;
 use rust_ext::Config;
+use rust_ext::AlgebraicObjectsBundle;
 use rust_ext::module::{Module, FiniteModule};
 use rust_ext::resolution::{ModuleResolution};
 use rust_ext::chain_complex::ChainComplex;
@@ -84,7 +85,7 @@ impl ResolutionManager {
                         SseqChoice::Unit => {
                             if let Some(main_resolution) = &manager.resolution {
                                 if let Some(resolution) = &main_resolution.borrow().unit_resolution {
-                                    msg.action.act_resolution(resolution);
+                                    msg.action.act_resolution(&resolution.upgrade().unwrap());
                                 }
                             }
                         }
@@ -101,11 +102,7 @@ impl ResolutionManager {
 
         let bundle = rust_ext::construct_from_json(json_data, action.algebra_name).unwrap();
 
-        bundle.resolution.borrow_mut().construct_unit_resolution();
-        self.resolution = Some(bundle.resolution);
-
-        self.setup_callback(&self.resolution, SseqChoice::Main);
-        self.setup_callback(&(&self.resolution.as_ref().unwrap()).borrow().unit_resolution, SseqChoice::Unit);
+        self.process_bundle(bundle);
 
         Ok(())
     }
@@ -123,21 +120,30 @@ impl ResolutionManager {
              max_degree : 0 // This is not used.
         }).unwrap();
 
+        self.process_bundle(bundle);
+
+        Ok(())
+    }
+
+    fn process_bundle(&mut self, bundle : AlgebraicObjectsBundle<FiniteModule>) {
         self.is_unit = bundle.module.is_unit();
         if self.is_unit {
-            bundle.resolution.borrow_mut().set_unit_resolution(Rc::clone(&bundle.resolution));
+            bundle.resolution.borrow_mut().set_unit_resolution(Rc::downgrade(&bundle.resolution));
         } else {
             bundle.resolution.borrow_mut().construct_unit_resolution();
         }
         self.resolution = Some(bundle.resolution);
 
-        self.setup_callback(&self.resolution, SseqChoice::Main);
-        if !self.is_unit {
-            self.setup_callback(&(&self.resolution.as_ref().unwrap()).borrow().unit_resolution, SseqChoice::Unit);
-        }
+        if let Some(resolution) = &self.resolution {
+            self.setup_callback(&mut resolution.borrow_mut(), SseqChoice::Main);
+            if !self.is_unit {
+                if let Some(unit_res) = &resolution.borrow().unit_resolution {
+                    self.setup_callback(&mut unit_res.upgrade().unwrap().borrow_mut(), SseqChoice::Unit);
 
-        Ok(())
-    }
+                }
+            }
+        }
+   }
 
     fn resolve(&self, action : Resolve, sseq : SseqChoice) -> Result<(), Box<dyn Error>> {
         let resolution = &self.resolution.as_ref().unwrap();
@@ -162,7 +168,7 @@ impl ResolutionManager {
             SseqChoice::Main => resolution.borrow().resolve_through_degree(action.max_degree),
             SseqChoice::Unit => {
                 if let Some(r) = &resolution.borrow().unit_resolution {
-                    r.borrow().resolve_through_degree(action.max_degree)
+                    r.upgrade().unwrap().borrow().resolve_through_degree(action.max_degree)
                 }
             }
         };
@@ -201,8 +207,7 @@ impl ResolutionManager {
 }
 
 impl ResolutionManager {
-    fn setup_callback(&self, resolution : &Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>, sseq : SseqChoice) {
-        let mut resolution = resolution.as_ref().unwrap().borrow_mut();
+    fn setup_callback(&self, resolution : &mut ModuleResolution<FiniteModule>, sseq : SseqChoice) {
         let p = resolution.prime();
 
         let sender = self.sender.clone();

@@ -22,9 +22,9 @@ use crate::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorph
 
 /// Hack to compare two pointers of different types (in this case because they might have different
 /// type parameters.
-fn ptr_eq<T, S>(a : &Rc<T>, b : &Rc<S>) -> bool {
-    let a = Rc::into_raw(Rc::clone(a));
-    let b = Rc::into_raw(Rc::clone(b)) as *const T;
+fn ptr_eq<T, S>(a : &Weak<T>, b : &Weak<S>) -> bool {
+    let a = Rc::into_raw(a.upgrade().unwrap());
+    let b = Rc::into_raw(b.upgrade().unwrap()) as *const T;
     let eq = std::ptr::eq(a, b);
     unsafe {
         let a = Rc::from_raw(a);
@@ -83,7 +83,8 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
     filtration_one_products : Vec<(String, i32, usize)>,
 
     // Products
-    pub unit_resolution : Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>,
+    pub unit_resolution : Option<Weak<RefCell<ModuleResolution<FiniteModule>>>>,
+    pub unit_resolution_owner : Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>,
     product_names : HashSet<String>,
     product_list : Vec<Cocycle>,
     // s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
@@ -135,6 +136,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             product_names : HashSet::new(),
             product_list : Vec::new(),
             unit_resolution : None,
+            unit_resolution_owner : None,
 
             self_maps : Vec::new()
         }
@@ -218,8 +220,8 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         for t in min_degree ..= max_t {
             if let Some(unit_res) = &self.unit_resolution {
                 // Avoid a deadlock
-                if self.self_.is_none() || !ptr_eq(unit_res, &self.self_.as_ref().unwrap().upgrade().unwrap()) {
-                    unit_res.borrow().resolve_through_bidegree(self.max_product_homological_degree, t);
+                if self.self_.is_none() || !ptr_eq(&unit_res, &self.self_.as_ref().unwrap()) {
+                    unit_res.upgrade().unwrap().borrow().resolve_through_bidegree(self.max_product_homological_degree, t);
                 }
             }
 
@@ -561,11 +563,12 @@ impl<M, F, CC> Resolution<M, F, CC> where
             let ccdz = Rc::new(CCDZ::new(unit_module));
             let unit_resolution = Rc::new(RefCell::new(Resolution::new(ccdz, None, None)));
             unit_resolution.borrow_mut().set_self(Rc::downgrade(&unit_resolution));
-            self.unit_resolution = Some(unit_resolution);
+            self.unit_resolution = Some(Rc::downgrade(&unit_resolution));
+            self.unit_resolution_owner = Some(unit_resolution);
         }
     }
 
-    pub fn set_unit_resolution(&mut self, unit_res : Rc<RefCell<ModuleResolution<FiniteModule>>>) {
+    pub fn set_unit_resolution(&mut self, unit_res : Weak<RefCell<ModuleResolution<FiniteModule>>>) {
         if self.chain_maps_to_unit_resolution.len() > 0 {
             panic!("Cannot change unit resolution after you start computing products");
         }
@@ -606,7 +609,8 @@ impl<M, F, CC> Resolution<M, F, CC> where
 
             let f = &self.chain_maps_to_unit_resolution[source_s][source_t][k];
 
-            let unit_res = self.unit_resolution.as_ref().unwrap().borrow();
+            let unit_res_ = self.unit_resolution.as_ref().unwrap().upgrade().unwrap();
+            let unit_res = unit_res_.borrow();
             let output_module = unit_res.module(elt.s);
 
             for l in 0 .. target_dim {
@@ -651,7 +655,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
                     for j in 0 .. num_gens {
                         let f = ResolutionHomomorphism::new(
                             format!("(hom_deg : {}, int_deg : {}, idx : {})", s, t, j),
-                            self_.clone(), Rc::downgrade(self.unit_resolution.as_ref().unwrap()),
+                            self_.clone(), self.unit_resolution.as_ref().unwrap().clone(),
                             s, t
                             );
                         unit_vector[j].set_entry(0, 1);
