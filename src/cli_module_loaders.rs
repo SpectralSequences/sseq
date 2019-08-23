@@ -158,6 +158,7 @@ where
     'outer : loop {
         let result = query(prompt, |res : String| Ok(res));
         if result == "0" {
+            output_vec.set_to_zero();
             break;
         }
         for term in result.split("+") {
