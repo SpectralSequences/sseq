@@ -32,9 +32,14 @@ impl WasmAlgebra {
         }
     }
 
-    pub fn new_milnor_algebra(p : u32) -> Self {
-        let algebra = AlgebraAny::from(MilnorAlgebra::new(p));
-        let boxed_algebra = Rc::new(algebra);
+    pub fn new_milnor_algebra(p : u32, truncated : bool, q_part : Option<u32>, p_part : Vec<u32>) -> Self {
+        let mut algebra = MilnorAlgebra::new(p);
+        algebra.profile.truncated = truncated;
+        if let Some(q_) = q_part {
+            algebra.profile.q_part = q_;
+        }
+        algebra.profile.p_part = p_part;
+        let boxed_algebra = Rc::new(AlgebraAny::from(algebra));
         Self {
             pimpl : Rc::into_raw(boxed_algebra)
         }

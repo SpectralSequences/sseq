@@ -56,7 +56,15 @@ let message_handlers = {};
 
 message_handlers.resolve = function resolve(m){
     self.p = m.p;
-    self.algebra = self.wasm.WasmAlgebra.new_adem_algebra(m.p, m.p != 2);
+    let module = JSON.parse(m.module);
+    if (module.profile) {
+        let truncated = !!module.profile.truncated;
+        let p_part = module.profile.p_part === undefined ? [] : module.profile.p_part;
+
+        self.algebra = self.wasm.WasmAlgebra.new_milnor_algebra(module.p, truncated, module.profile.q_part, p_part);
+    } else {
+        self.algebra = self.wasm.WasmAlgebra.new_adem_algebra(m.p, m.p != 2);
+    }
     self.module = self.wasm.WasmModule.new_adem_module(self.algebra, m.module);
     self.cc = self.wasm.WasmCCDZ.new_ccdz(self.module);
     self.res = self.wasm.WasmResolution.new(cc, m.module, addClass, addStructline);
