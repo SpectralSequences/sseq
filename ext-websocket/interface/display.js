@@ -62,7 +62,6 @@ export class MainDisplay extends SidebarDisplay {
             let y = this.selected.y;
             let num = this.sseq.getClasses(x, y, MIN_PAGE).length;
 
-            console.log(num);
             let idx = 0;
             if (num != 1) {
                 while(true) {
