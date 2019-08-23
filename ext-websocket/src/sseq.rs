@@ -1093,20 +1093,20 @@ mod tests {
         let p = 3;
         rust_ext::fp_vector::initialize_limb_bit_index_table(p);
         let mut sseq = crate::sseq::Sseq::new(p, SseqChoice::Main, 0, 0, None);
-        sseq.set_class(0, 0, 1, true);
-        sseq.set_class(1, 0, 2, true);
-        sseq.set_class(1, 1, 2, true);
-        sseq.set_class(0, 1, 0, true);
-        sseq.set_class(0, 2, 3, true);
-        sseq.set_class(0, 3, 1, true);
+        sseq.set_class(0, 0, 1);
+        sseq.set_class(1, 0, 2);
+        sseq.set_class(1, 1, 2);
+        sseq.set_class(0, 1, 0);
+        sseq.set_class(0, 2, 3);
+        sseq.set_class(0, 3, 1);
 
         sseq.add_differential(2, 1, 0,
                               &FpVector::from_vec(p, &vec![1, 1]),
-                              &mut FpVector::from_vec(p, &vec![0, 1, 2]), true);
+                              &mut FpVector::from_vec(p, &vec![0, 1, 2]));
 
         sseq.add_differential(3, 1, 0,
                               &FpVector::from_vec(p, &vec![1, 0]),
-                              &mut FpVector::from_vec(p, &vec![1]), true);
+                              &mut FpVector::from_vec(p, &vec![1]));
 
 
         assert_eq!(sseq.page_classes[1][0].max_degree(), 4);
@@ -1144,7 +1144,7 @@ mod tests {
 
         sseq.add_differential(2, 1, 1,
                               &FpVector::from_vec(p, &vec![1, 0]),
-                              &mut FpVector::from_vec(p, &vec![1]), true);
+                              &mut FpVector::from_vec(p, &vec![1]));
 
         assert_eq!(sseq.page_classes[1][0].max_degree(), 4);
         assert_eq!(sseq.page_classes[1][0][2].1, vec![FpVector::from_vec(p, &vec![1, 0]),
