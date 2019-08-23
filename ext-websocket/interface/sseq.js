@@ -102,6 +102,11 @@ export class ExtSseq extends EventEmitter {
 
             this.send({
                 recipients: ["Sseq"],
+                action : { BlockRefresh : { block : true } }
+            });
+
+            this.send({
+                recipients: ["Sseq"],
                 action : { Clear : {} }
             });
             this.emit("clear-history");
@@ -109,6 +114,11 @@ export class ExtSseq extends EventEmitter {
             for (let msg of this.history) {
                 this.send(msg, false);
             }
+
+            this.send({
+                recipients: ["Sseq"],
+                action : { BlockRefresh : { block : false } }
+            });
         }
     }
     undo() {
@@ -121,15 +131,12 @@ export class ExtSseq extends EventEmitter {
 
         this.send({
             recipients: ["Sseq"],
-            refresh : false,
             action : { Clear : {} }
         });
         this.emit("clear-history");
 
         for (let msg of this.history) {
-            msg.refresh = false;
             this.send(msg, false);
-            delete msg.refresh;
         }
         this.send({
             recipients: ["Sseq"],
@@ -300,7 +307,7 @@ export class ExtSseq extends EventEmitter {
         } else if (classes[MIN_PAGE].length == 1) {
             this.addPermanentClass(node.x, node.y, classes[MIN_PAGE][0].data);
         } else {
-            target = promptClass("Input new permanent class", "Invalid class. Express in terms of basis on last page", last.length);
+            target = promptClass("Input new permanent class", "Invalid class. Express in terms of basis on E_2 page", classes[MIN_PAGE].length);
         }
         if (target) {
             this.addPermanentClass(node.x, node.y, target);
