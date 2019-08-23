@@ -51,6 +51,8 @@ export class MainDisplay extends SidebarDisplay {
         this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG("sseq.svg"));
         this.sidebar.footer.addButton("Save", () => window.save());
 
+        Mousetrap.bind("J", () => this.sidebar.currentPanel.prevTab());
+        Mousetrap.bind("K", () => this.sidebar.currentPanel.nextTab());
         Mousetrap.bind("d", () => this.state = STATE_ADD_DIFFERENTIAL);
         Mousetrap.bind("p", () => {
             if (this.selected)
