@@ -96,7 +96,6 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
     let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &mut json)?);
     let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
     let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), None, None)));
-    resolution.borrow_mut().set_self(Rc::downgrade(&resolution));
 
     let products_value = &mut json["products"];
     if !products_value.is_null() {

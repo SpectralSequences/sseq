@@ -1,5 +1,4 @@
 use std::rc::Weak;
-use std::cell::RefCell;
 
 use crate::once::OnceVec;
 use crate::fp_vector::{ FpVector, FpVectorT };
@@ -10,15 +9,15 @@ use crate::module_homomorphism::{ZeroHomomorphism, ModuleHomomorphism};
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
 use crate::chain_complex::ChainComplex;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
-use crate::resolution::Resolution;
+use crate::resolution::ResolutionInner;
 
 pub struct ResolutionHomomorphism<
     S : Module, F1 : ModuleHomomorphism<S, S>, CC1 : ChainComplex<S, F1>,
     T : Module, F2 : ModuleHomomorphism<T, T>, CC2 : ChainComplex<T, F2>
 > {
     name : String,
-    source : Weak<RefCell<Resolution<S, F1, CC1>>>,
-    target : Weak<RefCell<Resolution<T, F2, CC2>>>,
+    source : Weak<ResolutionInner<S, F1, CC1>>,
+    target : Weak<ResolutionInner<T, F2, CC2>>,
     maps : OnceVec<FreeModuleHomomorphism<FreeModule>>,
     homological_degree_shift : u32,
     internal_degree_shift : i32
@@ -30,7 +29,7 @@ impl<
 > ResolutionHomomorphism<S, F1, CC1, T, F2, CC2> {
     pub fn new(
         name : String,
-        source : Weak<RefCell<Resolution<S,F1,CC1>>>, target : Weak<RefCell<Resolution<T,F2,CC2>>>,
+        source : Weak<ResolutionInner<S,F1,CC1>>, target : Weak<ResolutionInner<T,F2,CC2>>,
         homological_degree_shift : u32, internal_degree_shift : i32
     ) -> Self {
         Self {
@@ -46,13 +45,10 @@ impl<
     fn get_map_ensure_length(&self, output_homological_degree : u32) -> &FreeModuleHomomorphism<FreeModule> {
         if output_homological_degree as usize >= self.maps.len() {
             let input_homological_degree = output_homological_degree + self.homological_degree_shift;
-            let source_rc = self.source.upgrade().unwrap();
-            let target_rc = self.target.upgrade().unwrap();
-            self.maps.push(FreeModuleHomomorphism::new(source_rc.borrow().module(input_homological_degree), target_rc.borrow().module(output_homological_degree), self.internal_degree_shift));
+            self.maps.push(FreeModuleHomomorphism::new(self.source.upgrade().unwrap().module(input_homological_degree), self.target.upgrade().unwrap().module(output_homological_degree), self.internal_degree_shift));
         }
         return &self.maps[output_homological_degree as usize];
     }
-
 
     pub fn get_map(&self, output_homological_degree : u32) -> &FreeModuleHomomorphism<FreeModule> {
         &self.maps[output_homological_degree as usize]
@@ -86,10 +82,8 @@ impl<
     }
 
     fn extend_step_helper(&self, input_homological_degree : u32, input_internal_degree : i32, mut extra_images : Option<&mut Matrix>) -> Matrix {
-        let source_rc = self.source.upgrade().unwrap();
-        let source = source_rc.borrow();
-        let target_rc = self.target.upgrade().unwrap();
-        let target = target_rc.borrow();
+        let source = self.source.upgrade().unwrap();
+        let target = self.target.upgrade().unwrap();
         let p = source.prime();
         assert!(input_homological_degree >= self.homological_degree_shift);
         let output_homological_degree = input_homological_degree - self.homological_degree_shift;

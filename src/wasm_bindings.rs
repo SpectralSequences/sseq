@@ -184,7 +184,6 @@ impl WasmResolution {
         }
 
         let boxed_res = Rc::new(RefCell::new(res));
-        boxed_res.borrow_mut().set_self(Rc::downgrade(&boxed_res));
 
         let self_maps = &json["self_maps"];
         if !self_maps.is_null() {
@@ -235,7 +234,7 @@ impl WasmResolution {
     }
 
     pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
-        self.to_resolution().borrow().cocycle_string(hom_deg, int_deg, idx)
+        self.to_resolution().borrow().inner.cocycle_string(hom_deg, int_deg, idx)
     }
 
     pub fn free(self) {
