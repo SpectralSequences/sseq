@@ -7,8 +7,6 @@ use crate::fp_vector::{FpVector, FpVectorT};
 use crate::once::OnceVec;
 use crate::algebra::Algebra;
 
-
-
 pub struct MilnorProfile {
     pub truncated : bool,
     pub q_part : u32,
@@ -31,7 +29,6 @@ pub struct MilnorBasisElement {
 }
 
 const ZERO_QPART : QPart = QPart { degree : 0, q_part : 0 };
-
 
 fn from_p (p : PPart, dim : i32) -> MilnorBasisElement {
     MilnorBasisElement { p_part : p, q_part : 0, degree : dim }
@@ -97,7 +94,9 @@ pub struct MilnorAlgebra {
     ppart_table : OnceVec<Vec<PPart>>,
     qpart_table : Vec<OnceVec<QPart>>,
     basis_table : OnceVec<Vec<MilnorBasisElement>>,
-    basis_element_to_index_map : OnceVec<HashMap<MilnorBasisElement, usize>> // degree -> MilnorBasisElement -> index
+    basis_element_to_index_map : OnceVec<HashMap<MilnorBasisElement, usize>>, // degree -> MilnorBasisElement -> index
+    #[cfg(feature = "cache-multiplication")]
+    multiplication_table : OnceVec<OnceVec<Vec<Vec<FpVector>>>> // source_deg -> target_deg -> source_op -> target_op
 }
 
 impl MilnorAlgebra {
@@ -122,7 +121,9 @@ impl MilnorAlgebra {
             ppart_table : OnceVec::new(),
             qpart_table,
             basis_table : OnceVec::new(),
-            basis_element_to_index_map : OnceVec::new()
+            basis_element_to_index_map : OnceVec::new(),
+            #[cfg(feature = "cache-multiplication")]
+            multiplication_table : OnceVec::new()
         }
     }
 
@@ -222,6 +223,24 @@ impl Algebra for MilnorAlgebra {
             }
             self.basis_element_to_index_map.push(map);
         }
+
+        #[cfg(feature = "cache-multiplication")]
+        {
+            for d in 0 ..= max_degree as usize {
+                if self.multiplication_table.len() == d {
+                    self.multiplication_table.push(OnceVec::new());
+                }
+                for e in self.multiplication_table[d].len() ..= max_degree as usize  - d {
+                    self.multiplication_table[d].push(
+                        (0..self.dimension(d as i32, -1)).map(|i|
+                            (0 .. self.dimension(e as i32, -1)).map(|j|
+                                 self.multiply(&self.basis_table[d][i], &self.basis_table[e][j])
+                             ).collect::<Vec<_>>()
+                        ).collect::<Vec<_>>());
+                }
+            }
+        }
+
         *next_degree = max_degree + 1;
     }
 
@@ -229,8 +248,15 @@ impl Algebra for MilnorAlgebra {
         self.basis_table[degree as usize].len()
     }
 
+    #[cfg(not(feature = "cache-multiplication"))]
     fn multiply_basis_elements(&self, result : &mut FpVector, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32) {
         self.multiply(result, coef, &self.basis_table[r_degree as usize][r_idx], &self.basis_table[s_degree as usize][s_idx]);
+    }
+
+    #[cfg(feature = "cache-multiplication")]
+    fn multiply_basis_elements(&self, result : &mut FpVector, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32) {
+
+        result.shift_add(&self.multiplication_table[r_degree as usize][s_degree as usize][r_idx][s_idx], coef);
     }
 
     fn json_to_basis(&self, json : Value) -> (i32, usize) {
@@ -599,6 +625,35 @@ impl MilnorAlgebra {
         new_result
     }
 
+    #[cfg(feature = "cache-multiplication")]
+    fn multiply(&self, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement) -> FpVector{
+        let target_dim = m1.degree + m2.degree;
+        let mut res = FpVector::new(self.p, self.dimension(target_dim, -1));
+
+        if !self.generic {
+            for (c, p) in PPartMultiplier::new(self.p, &(m1.p_part), &(m2.p_part)) {
+                let idx = self.basis_element_to_index(&from_p(p, target_dim));
+                res.add_basis_element(idx, c);
+            }
+        } else {
+            let m1f = self.multiply_qpart(m1, m2.q_part);
+            for (cc, basis) in m1f {
+                let prod = PPartMultiplier::new(self.p, &(basis.p_part), &(m2.p_part));
+                for (c, p) in prod {
+                    let new = MilnorBasisElement {
+                        degree : target_dim,
+                        q_part : basis.q_part,
+                        p_part : p
+                    };
+                    let idx = self.basis_element_to_index(&new);
+                    res.add_basis_element(idx, c * cc);
+                }
+            }
+        }
+        res
+    }
+
+    #[cfg(not(feature = "cache-multiplication"))]
     fn multiply(&self, res : &mut FpVector, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement) {
         let target_dim = m1.degree + m2.degree;
 
@@ -623,6 +678,7 @@ impl MilnorAlgebra {
             }
         }
     }
+
 }
 
 #[allow(non_snake_case)]

@@ -48,6 +48,9 @@ debug = true
 [workspace]
 members = ["ext-websocket", "bivec"]
 
+[features]
+cache-multiplication = []
+
 # The `web-sys` crate allows you to interact with the various browser APIs,
 # like the DOM.
 #[dependencies.web-sys]
