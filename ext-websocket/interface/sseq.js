@@ -353,10 +353,9 @@ export class ExtSseq extends EventEmitter {
         // This is usually an event callback and the argument could be any random thing.
         if (!Number.isInteger(newmax)) {
             newmax = prompt("New maximum degree", this.maxDegree + 10);
+            if (newmax === null) return;
+            newmax = parseInt(newmax.trim());
         }
-        if (newmax === null) return;
-
-        newmax = parseInt(newmax.trim());
 
         if (newmax <= this.maxDegree) {
             return;
@@ -374,10 +373,10 @@ export class ExtSseq extends EventEmitter {
                     max_degree: newmax
                 }
             }
-        }, false);
+        });
         this.send({
             recipients: ["Resolver"],
-            action : { BlockRefresh : { block : true } }
+            action : { BlockRefresh : { block : false } }
         });
     }
 
