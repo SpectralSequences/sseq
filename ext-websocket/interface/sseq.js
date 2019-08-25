@@ -19,108 +19,54 @@ const KEEP_LOG = new Set(["AddDifferential", "AddProductType", "AddProductDiffer
 // structlines are displayed.
 const MAX_STRUCTLINE_X = 8;
 
-function stdCatToString(x){
-    if(x === undefined){
-        return undefined;
+export class BiVec {
+    constructor(minDegree) {
+        this.data = [];
+        this.minDegree = minDegree;
     }
-    if(x.getStringifyingMapKey !== undefined){
-        return x.getStringifyingMapKey();
-    } else {
-        return x.toString();
+    set(x, y, data) {
+        while (this.data.length <= x - this.minDegree) {
+            this.data.push([]);
+        }
+        this.data[x - this.minDegree][y] = data;
+    }
+    get(x, y) {
+        if (x < 0 || y < 0 || this.data.length <= x - this.minDegree) {
+            return undefined;
+        } else {
+            return this.data[x - this.minDegree][y];
+        }
     }
 }
 
-var StringifyingMap = (function () {
-    function StringifyingMap(catToString) {
-        if(catToString === undefined){
-            catToString = stdCatToString
-        }
-        this.catToString = catToString;
-        this.m = new Map();
-        this.key_string_to_key_object = new Map();
-    }
-    StringifyingMap.prototype.set = function (k, v) {
-        let key_string = this.catToString(k);
-        if(key_string === undefined){
-            throw new Error("Key encoding undefined.");
-        }
-        this.key_string_to_key_object.set(key_string, k);
-        let s = this.m.set(key_string, v);
-        return s;
-    };
-    StringifyingMap.prototype.get = function (k) {
-        let key_string = this.catToString(k);
-        if(key_string === undefined){
-            return undefined;
-        }
-        return this.m.get(this.catToString(k));
-    };
-    StringifyingMap.prototype.delete = function (k) {
-        this.key_string_to_key_object.delete(this.catToString(k));
-        return this.m.delete(this.catToString(k));
-    };
-    StringifyingMap.prototype.has = function (k) {
-        if(k === undefined){
-            return false;
-        }
-        return this.m.has(this.catToString(k));
-    };
-
-    StringifyingMap.prototype.getOrElse = function(key, value) {
-      return this.has(key) ? this.get(key) : value;
-    };
-
-    StringifyingMap.prototype[Symbol.iterator] = function*(){
-        for(let k of this.m){
-            yield [this.key_string_to_key_object.get(k[0]),k[1]];
-        }
-    };
-
-    StringifyingMap.prototype.keys = function(){
-        return this.key_string_to_key_object.values();
-    };
-
-    StringifyingMap.prototype.toJSON = function(){
-        return [...this];
-    }
-
-    Object.defineProperty(StringifyingMap.prototype, "size", {
-        get: function () {
-            return this.m.size;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return StringifyingMap;
-}());
-
-
 export class ExtSseq extends EventEmitter {
-    constructor(name, webSocket) {
+    constructor(name, webSocket, minDegree) {
         super();
+
+        console.log(minDegree);
+        this.minDegree = minDegree;
+        this.maxDegree = minDegree;
 
         this.history = [];
         this.redoStack = [];
         this.name = name;
         this.webSocket = webSocket;
 
-        this.minDegree = 0;
-        this.maxDegree = 0;
         this.initial_page_idx = 0;
         this.min_page_idx = 0;
 
         this._vanishingSlope = "1/2";
         this._vanishingIntercept = 1;
 
-        this.classes = new StringifyingMap();
-        this.classState = new StringifyingMap();
-        this.permanentClasses = new StringifyingMap();
-        this.classNames = new StringifyingMap();
-        this.decompositions = new StringifyingMap();
+        this.classes = new BiVec(minDegree);
+        this.classState = new BiVec(minDegree);
+        this.permanentClasses = new BiVec(minDegree);
+        this.classNames = new BiVec(minDegree);
+        this.decompositions = new BiVec(minDegree);
         this.products = new Map();
         this.structlineTypes = new Set();
-        this.differentials = new StringifyingMap();
-        this.trueDifferentials = new StringifyingMap();
+        this.differentials = new BiVec(minDegree);
+        this.trueDifferentials = new BiVec(minDegree);
 
         this.page_list = [MIN_PAGE];
 
@@ -235,7 +181,7 @@ export class ExtSseq extends EventEmitter {
     }
 
     pageBasisToE2Basis(r, x, y, c) {
-        let len = this.classes.get([x, y])[0].length;
+        let len = this.classes.get(x, y)[0].length;
         let pageBasis = this.getClasses(x, y, r);
 
         let result = [];
@@ -307,7 +253,7 @@ export class ExtSseq extends EventEmitter {
         else
             c = promptClass("Input class",`Invalid class. Express in terms of basis on E_2 page`, num);
 
-        let name = prompt("Name for product", this.isUnit ? vecToName(c, this.classNames.get([x, y])) : undefined);
+        let name = prompt("Name for product", this.isUnit ? vecToName(c, this.classNames.get(x, y)) : undefined);
         if (name === null) {
             return;
         }
@@ -357,14 +303,14 @@ export class ExtSseq extends EventEmitter {
                         x: sourceX,
                         y: sourceY,
                         "class": sourceClass,
-                        name: prompt("Name of source", this.isUnit ? vecToName(sourceClass, this.classNames.get([sourceX, sourceY])) : undefined).trim()
+                        name: prompt("Name of source", this.isUnit ? vecToName(sourceClass, this.classNames.get(sourceX, sourceY)) : undefined).trim()
                     },
                     target : {
                         permanent : false,
                         x: sourceX - 1,
                         y: sourceY + page,
                         "class": targetClass,
-                        name: prompt("Name of target", this.isUnit ? vecToName(targetClass, this.classNames.get([sourceX - 1, sourceY + page])) : undefined).trim()
+                        name: prompt("Name of target", this.isUnit ? vecToName(targetClass, this.classNames.get(sourceX - 1, sourceY + page)) : undefined).trim()
                     }
                 }
             }
@@ -372,7 +318,7 @@ export class ExtSseq extends EventEmitter {
     }
 
     addPermanentClassInteractive(x, y) {
-        let classes = this.classes.get([x, y]);
+        let classes = this.classes.get(x, y);
 
         let last = classes[classes.length - 1];
         let target;
@@ -406,12 +352,21 @@ export class ExtSseq extends EventEmitter {
     resolveFurther(newmax) {
         // This is usually an event callback and the argument could be any random thing.
         if (!Number.isInteger(newmax)) {
-            newmax = parseInt(prompt("New maximum degree", this.maxDegree + 10).trim());
+            newmax = prompt("New maximum degree", this.maxDegree + 10);
         }
+        if (newmax === null) return;
+
+        newmax = parseInt(newmax.trim());
+
         if (newmax <= this.maxDegree) {
             return;
         }
         this.maxDegree = newmax;
+
+        this.send({
+            recipients: ["Resolver"],
+            action : { BlockRefresh : { block : true } }
+        });
         this.send({
             recipients: ["Resolver"],
             action: {
@@ -420,6 +375,10 @@ export class ExtSseq extends EventEmitter {
                 }
             }
         }, false);
+        this.send({
+            recipients: ["Resolver"],
+            action : { BlockRefresh : { block : true } }
+        });
     }
 
     queryTable(x, y) {
@@ -445,7 +404,6 @@ export class ExtSseq extends EventEmitter {
 
     processResolving(data) {
         this.p = data.p;
-        this.minDegree = data.min_degree;
         this.maxDegree = data.max_degree;
     }
 
@@ -460,11 +418,11 @@ export class ExtSseq extends EventEmitter {
 
         // classes is a list, and each member of the list corresponds to a
         // page. Each page itself is a list of classes.
-        this.classes.set([x, y], classes);
-        this.classState.set([x, y], data.state);
-        this.permanentClasses.set([x, y], data.permanents);
-        this.classNames.set([x, y], data.class_names);
-        this.decompositions.set([x, y], data.decompositions);
+        this.classes.set(x, y, classes);
+        this.classState.set(x, y, data.state);
+        this.permanentClasses.set(x, y, data.permanents);
+        this.classNames.set(x, y, data.class_names);
+        this.decompositions.set(x, y, data.decompositions);
 
         this.emit("update", x, y);
     }
@@ -473,8 +431,8 @@ export class ExtSseq extends EventEmitter {
         let x = data.x;
         let y = data.y;
 
-        this.differentials.set([x, y], data.differentials);
-        this.trueDifferentials.set([x, y], data.true_differentials);
+        this.differentials.set(x, y, data.differentials);
+        this.trueDifferentials.set(x, y, data.true_differentials);
         this.emit("update", x, y);
     }
 
@@ -487,25 +445,25 @@ export class ExtSseq extends EventEmitter {
                 this.products.set(mult.name, {
                     "x": mult.mult_x,
                     "y": mult.mult_y,
-                    matrices : new StringifyingMap()
+                    matrices : new BiVec(this.minDegree)
                 });
                 this.emit("new-structline", mult.name);
             }
             let matrices = this.products.get(mult.name).matrices;
-            matrices.set([x, y], mult.matrices);
+            matrices.set(x, y, mult.matrices);
         }
         this.emit("update", x, y);
     }
 
     getDifferentials(x, y, page) {
-        let result = this.differentials.get([x, y]);
+        let result = this.differentials.get(x, y);
         if (!result) return undefined;
         return result[page - MIN_PAGE];
     }
 
     getClasses(x, y, page) {
         page -= MIN_PAGE;
-        let result = this.classes.get([x, y]);
+        let result = this.classes.get(x, y);
         if (!result) return undefined;
 
         if (page >= result.length) page = result.length - 1;

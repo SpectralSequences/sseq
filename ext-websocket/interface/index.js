@@ -165,12 +165,12 @@ messageHandler.Resolving = (data, msg) => {
         return;
     }
     if (!window.mainSseq) {
-        window.mainSseq = new ExtSseq("Main", window.webSocket);
+        window.mainSseq = new ExtSseq("Main", window.webSocket, data.min_degree);
         window.mainSseq.isUnit = data.is_unit;
         if (data.is_unit) {
             window.unitSseq = window.mainSseq;
         } else {
-            window.unitSseq = new ExtSseq("Unit", window.webSocket);
+            window.unitSseq = new ExtSseq("Unit", window.webSocket, 0);
 
             unitSseq.maxDegree = 9;
             Object.defineProperty(unitSseq, "maxX", {

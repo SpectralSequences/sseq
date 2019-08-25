@@ -650,14 +650,14 @@ class MainPanel extends Panel {
         let sseq = this.display.sseq;
 
         let classes = sseq.getClasses(x, y, page);
-        let names = sseq.classNames.get([x, y]);
+        let names = sseq.classNames.get(x, y);
 
         let div = document.createElement("div");
         for (let c of classes) {
             let n = document.createElement("span");
             n.style.padding = "0 0.6em";
             n.innerHTML = katex.renderToString(vecToName(c, names));
-            if (classes.length == sseq.classes.get([x, y])[0].length) {
+            if (classes.length == sseq.classes.get(x, y)[0].length) {
                 n.addEventListener("click", () => {
                     let name = prompt("New class name");
                     if (name !== null) {
@@ -669,7 +669,7 @@ class MainPanel extends Panel {
         }
         this.addObject(div);
 
-        let decompositions = sseq.decompositions.get([x, y]);
+        let decompositions = sseq.decompositions.get(x, y);
         if (decompositions && decompositions.length > 0) {
             this.newGroup();
             this.addHeader("Decompositions");
@@ -722,7 +722,7 @@ class DifferentialPanel extends Panel {
         let sseq = this.display.sseq;
 
         // We don't use display.selected because this would refer to the wrong object after we add a differential.
-        if (sseq.classState.get([x, y]) == "InProgress") {
+        if (sseq.classState.get(x, y) == "InProgress") {
             this.newGroup();
             this.addHeader("Possible Differentials");
 
@@ -733,7 +733,7 @@ class DifferentialPanel extends Panel {
             for (let r = MIN_PAGE; r <= maxR; r ++) {
                 let classes = sseq.getClasses(x - 1, y + r, r);
                 if (classes && classes.length > 0 &&
-                    (!sseq.trueDifferentials.get([x, y]) || !sseq.trueDifferentials.get([x, y])[r - MIN_PAGE] || sseq.getClasses(x, y, r).length != sseq.trueDifferentials.get([x, y])[r - MIN_PAGE].length)) {
+                    (!sseq.trueDifferentials.get(x, y) || !sseq.trueDifferentials.get(x, y)[r - MIN_PAGE] || sseq.getClasses(x, y, r).length != sseq.trueDifferentials.get(x, y)[r - MIN_PAGE].length)) {
                     let spn = document.createElement("span");
                     spn.style.padding = "0.75rem";
                     spn.innerHTML = r;
@@ -762,7 +762,7 @@ class DifferentialPanel extends Panel {
 
         this.newGroup();
         this.addHeader("Differentials");
-        let trueDifferentials = sseq.trueDifferentials.get([x, y]);
+        let trueDifferentials = sseq.trueDifferentials.get(x, y);
         if (trueDifferentials && trueDifferentials.length > page - MIN_PAGE) {
             for (let [source, target] of trueDifferentials[page - MIN_PAGE]) {
                 let callback;
@@ -783,7 +783,7 @@ class DifferentialPanel extends Panel {
 
         this.newGroup();
         this.addHeader("Permanent Classes");
-        let permanentClasses = sseq.permanentClasses.get([x, y]);
+        let permanentClasses = sseq.permanentClasses.get(x, y);
         if (permanentClasses.length > 0) {
             this.addLine(permanentClasses.map(rowToKaTeX).join("<br />"));
         }
@@ -809,7 +809,7 @@ class ProductsPanel extends Panel {
         let sseq = this.display.sseq;
 
         for (let [name, mult] of sseq.products) {
-            let matrices = mult.matrices.get([x, y]);
+            let matrices = mult.matrices.get(x, y);
             if (matrices === undefined)
                 continue;
 

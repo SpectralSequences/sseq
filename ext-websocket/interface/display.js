@@ -478,7 +478,7 @@ class Display extends EventEmitter {
                 if (highlighted) {
                     context.fillStyle = "red";
                 } else {
-                    context.fillStyle = NODE_COLOR[this.sseq.classState.get([x,y])];
+                    context.fillStyle = NODE_COLOR[this.sseq.classState.get(x,y)];
                 }
 
                 let num = classes.length;
@@ -508,7 +508,7 @@ class Display extends EventEmitter {
             context.strokeStyle = "black";
             for (let x = this.xmin - 1 - mult.x; x < this.xmax + 1; x++) {
                 for (let y = this.ymin - 1 - mult.y; y < this.ymax + 1; y++) {
-                    let matrices = mult.matrices.get([x, y]);
+                    let matrices = mult.matrices.get(x, y);
                     if (matrices === undefined)
                         continue;
 
