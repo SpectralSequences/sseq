@@ -769,7 +769,7 @@ class DifferentialPanel extends Panel {
                 if (this.display.isUnit) {
                     callback = () => {
                         let source_ = sseq.pageBasisToE2Basis(page, x, y, source);
-                        let target_ = sseq.pageBasisToE2Basis(page, x, y, target);
+                        let target_ = sseq.pageBasisToE2Basis(page, x - 1, y + page, target);
                         sseq.addProductDifferentialInteractive(x, y, page, source_, target_);
                     }
                 }
