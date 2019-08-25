@@ -279,6 +279,10 @@ impl Sseq {
         for x in 0 .. self.classes.len() {
             for y in 0 .. self.classes[x].len() {
                 self.compute_classes(x, y, false);
+            }
+        }
+        for x in 0 .. self.classes.len() {
+            for y in 0 .. self.classes[x].len() {
                 self.compute_edges(x, y);
             }
         }
@@ -448,13 +452,6 @@ impl Sseq {
             return;
         }
 
-        let mut global_max_page = self.page_classes[x][y].len();
-        for mult in &self.products {
-            if self.class_defined(x + mult.x, y + mult.y) {
-                global_max_page = max(global_max_page, self.page_classes[x + mult.x][y + mult.y].len());
-            }
-        }
-
         let mut structlines : Vec<ProductItem> = Vec::with_capacity(self.products.len());
         for mult in &self.products {
             if !(mult.matrices.len() > x && mult.matrices[x].len() > y) {
@@ -475,9 +472,6 @@ impl Sseq {
                 // Compute the ones where something changes.
                 for r in MIN_PAGE + 1 .. max_page {
                     let source_classes = self.get_page_classes(r, x, y);
-                    if source_classes.1.len() == 0 {
-                        break;
-                    }
                     let target_classes = self.get_page_classes(r, x + mult.x, y + mult.y);
                     let target_zeros = self.get_page_zeros(r, x + mult.x, y + mult.y);
 
@@ -489,12 +483,11 @@ impl Sseq {
                         target.set_to_zero();
                     }
                     matrices.push(result);
-                }
-                while matrices.len() < global_max_page {
-                    matrices.push(matrices.last().unwrap().clone());
-                }
-                assert_eq!(matrices.len(), global_max_page);
 
+                    if source_classes.1.len() == 0 {
+                        break;
+                    }
+                }
                 structlines.push(ProductItem {
                     name : mult.name.clone(),
                     mult_x : mult.x,

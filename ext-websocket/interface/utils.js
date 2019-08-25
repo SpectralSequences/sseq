@@ -11,15 +11,24 @@ export function vecToName(v, names) {
 }
 
 export function rowToKaTeX(m) {
-    return Interface.renderMath(rowToLaTeX(m));
+    return katex.renderToString(rowToLaTeX(m));
 }
 
 export function matrixToKaTeX(m) {
-    return Interface.renderMath("\\begin{bmatrix}" + m.map(x => x.join("&")).join("\\\\") + "\\end{bmatrix}");
+    return katex.renderToString("\\begin{bmatrix}" + m.map(x => x.join("&")).join("\\\\") + "\\end{bmatrix}");
 }
 
 export function rowToLaTeX(m) {
     return "\\begin{bmatrix}" + m.join("&") + "\\end{bmatrix}";
+}
+
+export function renderLaTeX(html) {
+    html = html.replace(/\n/g, "\n<hr>\n")
+    let html_list = html.split(/(?:\\\[)|(?:\\\()|(?:\\\))|(?:\\\])|(?:\$)/);
+    for(let i = 1; i < html_list.length; i+=2){
+        html_list[i] = katex.renderToString(html_list[i]);
+    }
+    return html_list.join("\n")
 }
 
 // Prompts for an array of length `length`
@@ -56,3 +65,18 @@ export function promptInteger(text, error) {
         alert(error);
     }
 }
+
+export function download (filename, text, mime="text/plain") {
+    if(text.constructor !== String){
+        text = JSON.stringify(text);
+    }
+    let element = document.createElement('a');
+
+    element.setAttribute('href', `data:${mime};charset=utf-8,` + encodeURIComponent(    text));
+    element.setAttribute('download', filename);
+
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+};

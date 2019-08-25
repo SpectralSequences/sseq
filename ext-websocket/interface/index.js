@@ -1,5 +1,6 @@
 import { MainDisplay, UnitDisplay } from "./display.js";
 import { ExtSseq } from "./sseq.js";
+import { renderLaTeX, download } from "./utils.js";
 
 let commandQueue = [];
 function processCommandQueue() {
@@ -56,7 +57,7 @@ if (!params.module) {
     sections.forEach(n => {
         n.children[1].children.forEach(a => {
             if (a.tagName == "A") {
-                a.innerHTML = Interface.renderLaTeX(a.innerHTML);
+                a.innerHTML = renderLaTeX(a.innerHTML);
                 a.href = `?module=${a.getAttribute("data")}&degree=50`;
             }
         });
@@ -153,16 +154,11 @@ function save() {
 
     list = list.concat(mainSseq.history);
     let filename = prompt("Input filename");
-    IO.download(filename, list.map(JSON.stringify).join("\n"), "text/plain");
+    download(filename, list.map(JSON.stringify).join("\n"), "text/plain");
 }
 window.save = save;
 
 let messageHandler = {};
-messageHandler.ReturnHistory = (data) => {
-    let filename = prompt("Input filename");
-    IO.download(filename, data.history.map(JSON.stringify).join("\n"), "text/plain");
-}
-
 messageHandler.Resolving = (data, msg) => {
     if (msg.sseq == "Unit") {
         window.unitSseq.processResolving(data);
@@ -177,18 +173,11 @@ messageHandler.Resolving = (data, msg) => {
             window.unitSseq = new ExtSseq("Unit", window.webSocket);
 
             unitSseq.maxDegree = 9;
-            // Replace the getter with hand-coded actual values;
-            Object.defineProperty(unitSseq, "xRange", {
-                get() { return [0, Math.max(unitSseq.maxDegree, mainSseq.maxDegree)] }
+            Object.defineProperty(unitSseq, "maxX", {
+                get() { return Math.max(unitSseq.maxDegree, mainSseq.maxDegree) }
             });
-            Object.defineProperty(unitSseq, "yRange", {
-                get() { return [0, Math.min(unitSseq.maxDegree, Math.ceil(this.xRange[1]/2 + 1))] }
-            });
-            Object.defineProperty(unitSseq, "initialxRange", {
-                get() { return this.xRange; }
-            });
-            Object.defineProperty(unitSseq, "initialyRange", {
-                get() { return this.yRange; }
+            Object.defineProperty(unitSseq, "maxY", {
+                get() { return Math.min(unitSseq.maxDegree, Math.ceil(unitSseq.maxX/2 + 1)); }
             });
         }
     }

@@ -19,6 +19,82 @@ const KEEP_LOG = new Set(["AddDifferential", "AddProductType", "AddProductDiffer
 // structlines are displayed.
 const MAX_STRUCTLINE_X = 8;
 
+function stdCatToString(x){
+    if(x === undefined){
+        return undefined;
+    }
+    if(x.getStringifyingMapKey !== undefined){
+        return x.getStringifyingMapKey();
+    } else {
+        return x.toString();
+    }
+}
+
+var StringifyingMap = (function () {
+    function StringifyingMap(catToString) {
+        if(catToString === undefined){
+            catToString = stdCatToString
+        }
+        this.catToString = catToString;
+        this.m = new Map();
+        this.key_string_to_key_object = new Map();
+    }
+    StringifyingMap.prototype.set = function (k, v) {
+        let key_string = this.catToString(k);
+        if(key_string === undefined){
+            throw new Error("Key encoding undefined.");
+        }
+        this.key_string_to_key_object.set(key_string, k);
+        let s = this.m.set(key_string, v);
+        return s;
+    };
+    StringifyingMap.prototype.get = function (k) {
+        let key_string = this.catToString(k);
+        if(key_string === undefined){
+            return undefined;
+        }
+        return this.m.get(this.catToString(k));
+    };
+    StringifyingMap.prototype.delete = function (k) {
+        this.key_string_to_key_object.delete(this.catToString(k));
+        return this.m.delete(this.catToString(k));
+    };
+    StringifyingMap.prototype.has = function (k) {
+        if(k === undefined){
+            return false;
+        }
+        return this.m.has(this.catToString(k));
+    };
+
+    StringifyingMap.prototype.getOrElse = function(key, value) {
+      return this.has(key) ? this.get(key) : value;
+    };
+
+    StringifyingMap.prototype[Symbol.iterator] = function*(){
+        for(let k of this.m){
+            yield [this.key_string_to_key_object.get(k[0]),k[1]];
+        }
+    };
+
+    StringifyingMap.prototype.keys = function(){
+        return this.key_string_to_key_object.values();
+    };
+
+    StringifyingMap.prototype.toJSON = function(){
+        return [...this];
+    }
+
+    Object.defineProperty(StringifyingMap.prototype, "size", {
+        get: function () {
+            return this.m.size;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return StringifyingMap;
+}());
+
+
 export class ExtSseq extends EventEmitter {
     constructor(name, webSocket) {
         super();
@@ -37,16 +113,15 @@ export class ExtSseq extends EventEmitter {
         this._vanishingIntercept = 1;
 
         this.classes = new StringifyingMap();
-        this.structlines = new StringifyingMap();
-        this.products = new StringifyingMap();
-        this.structlineTypes = new Set();
+        this.classState = new StringifyingMap();
         this.permanentClasses = new StringifyingMap();
         this.classNames = new StringifyingMap();
         this.decompositions = new StringifyingMap();
+        this.products = new Map();
+        this.structlineTypes = new Set();
         this.differentials = new StringifyingMap();
         this.trueDifferentials = new StringifyingMap();
 
-        this.differentialColors = [undefined, undefined, "cyan", "red", "green"];
         this.page_list = [MIN_PAGE];
 
         this.class_scale = 1;
@@ -57,12 +132,6 @@ export class ExtSseq extends EventEmitter {
         this.maxMultX = 0;
         this.maxMultY = 0;
         this.maxDiffPage = 0;
-
-        this.defaultNode = new Node();
-        this.defaultNode.hcolor = "red";
-        this.defaultNode.fill = true;
-        this.defaultNode.stroke = true;
-        this.defaultNode.shape = Shapes.circle;
     }
 
     get vanishingSlope() {
@@ -81,6 +150,10 @@ export class ExtSseq extends EventEmitter {
     set vanishingIntercept(c) {
         this._vanishingIntercept = c;
         this.emit("update");
+    }
+
+    get maxX() {
+        return this.maxDegree;
     }
 
     send(data, log=true) {
@@ -162,7 +235,7 @@ export class ExtSseq extends EventEmitter {
     }
 
     pageBasisToE2Basis(r, x, y, c) {
-        let len = this.classes.get([x, y])[MIN_PAGE].length;
+        let len = this.classes.get([x, y])[0].length;
         let pageBasis = this.getClasses(x, y, r);
 
         let result = [];
@@ -172,7 +245,7 @@ export class ExtSseq extends EventEmitter {
         for (let i = 0; i < pageBasis.length; i ++) {
             let coef = c[i];
             for (let j = 0; j < len; j++) {
-                result[j] += coef * pageBasis[i].data[j];
+                result[j] += coef * pageBasis[i][j];
             }
         }
         for (let i = 0; i < len; i ++) {
@@ -182,9 +255,9 @@ export class ExtSseq extends EventEmitter {
     }
 
     addDifferentialInteractive(source, target) {
-        let page = target.y - source.y;
-        let source_dim = this.getClasses(source.x, source.y, page).length;
-        let target_dim = this.getClasses(target.x, target.y, page).length;
+        let page = target[1] - source[1];
+        let source_dim = this.getClasses(source[0], source[1], page).length;
+        let target_dim = this.getClasses(target[0], target[1], page).length;
 
         let source_vec = [];
         let target_vec = [];
@@ -213,10 +286,10 @@ export class ExtSseq extends EventEmitter {
             }
         }
 
-        source_vec = this.pageBasisToE2Basis(page, source.x, source.y, source_vec);
-        target_vec = this.pageBasisToE2Basis(page, source.x - 1, source.y + page, target_vec);
+        source_vec = this.pageBasisToE2Basis(page, source[0], source[1], source_vec);
+        target_vec = this.pageBasisToE2Basis(page, source[0] - 1, source[1] + page, target_vec);
 
-        this.addDifferential(page, source.x, source.y, source_vec, target_vec);
+        this.addDifferential(page, source[0], source[1], source_vec, target_vec);
     }
 
     setClassName(x, y, idx, name) {
@@ -226,6 +299,7 @@ export class ExtSseq extends EventEmitter {
         });
     }
 
+    // addProductInteractive takes in the number of classes in bidegree (x, y), because this should be the number of classes in the *unit* spectral sequence, not the main spectral sequence
     addProductInteractive(x, y, num) {
         let c;
         if (num == 1 && this.p == 2)
@@ -297,20 +371,20 @@ export class ExtSseq extends EventEmitter {
         });
     }
 
-    addPermanentClassInteractive(node) {
-        let classes = this.classes.get([node.x, node.y]);
+    addPermanentClassInteractive(x, y) {
+        let classes = this.classes.get([x, y]);
 
         let last = classes[classes.length - 1];
         let target;
         if (last.length == 0) {
             alert("There are no surviving classes. Action ignored");
-        } else if (classes[MIN_PAGE].length == 1) {
-            this.addPermanentClass(node.x, node.y, classes[MIN_PAGE][0].data);
+        } else if (classes[0].length == 1) {
+            this.addPermanentClass(x, y, classes[0][0]);
         } else {
-            target = promptClass("Input new permanent class", "Invalid class. Express in terms of basis on E_2 page", classes[MIN_PAGE].length);
+            target = promptClass("Input new permanent class", "Invalid class. Express in terms of basis on E_2 page", classes[0].length);
         }
         if (target) {
-            this.addPermanentClass(node.x, node.y, target);
+            this.addPermanentClass(x, y, target);
         }
     }
 
@@ -362,20 +436,12 @@ export class ExtSseq extends EventEmitter {
         }, false);
     }
 
-    get xRange() {
-        return [this.minDegree, this.maxDegree];
-    }
-
-    get yRange() {
+    get maxY() {
         // Because of the slope -1 ridge at the end of, the y-to-x ratio is smaller.
         let realSlope = 1/(1/eval(this._vanishingSlope) + 1);
 
-        let maxY = Math.ceil((this.maxDegree - this.minDegree) * realSlope + 1 + eval(this._vanishingIntercept)); // We trust our inputs *so* much.
-        return [0, maxY];
+        return Math.ceil((this.maxDegree - this.minDegree) * realSlope + 1 + eval(this._vanishingIntercept)); // We trust our inputs *so* much.
     }
-
-    get initialxRange() { return this.xRange; }
-    get initialyRange() { return this.yRange; }
 
     processResolving(data) {
         this.p = data.p;
@@ -393,27 +459,9 @@ export class ExtSseq extends EventEmitter {
         let classes = data.classes;
 
         // classes is a list, and each member of the list corresponds to a
-        // page. Each page itself is a list of classes. We turn the raw class
-        // data into nodes.
-
-        classes.forEach(l => {
-            for (let i of l.keys()) {
-                let node = new Node(this.defaultNode);
-                node.x = data.x;
-                node.y = data.y;
-                node.idx = i;
-                node.total_classes = l.length;
-                node.data = l[i];
-                node.state = data.state;
-                node.color = NODE_COLOR[node.state];
-                l[i] = node;
-            }
-        });
-        // Insert empty space at r = 0, 1
-        for (let i = 0; i < MIN_PAGE; i++) {
-            classes.splice(0, 0, undefined);
-        }
+        // page. Each page itself is a list of classes.
         this.classes.set([x, y], classes);
+        this.classState.set([x, y], data.state);
         this.permanentClasses.set([x, y], data.permanents);
         this.classNames.set([x, y], data.class_names);
         this.decompositions.set([x, y], data.decompositions);
@@ -425,31 +473,7 @@ export class ExtSseq extends EventEmitter {
         let x = data.x;
         let y = data.y;
 
-        let differentials = [];
-        for (let [page, matrix] of data.differentials.entries()) {
-            page = page + MIN_PAGE;
-            this.maxDiffPage = Math.max(this.maxDiffPage, page);
-
-            for (let i = 0; i < matrix.length; i++) {
-                for (let j = 0; j < matrix[i].length; j++) {
-                    if (matrix[i][j] != 0) {
-                        let line = new Differential(this, [x, y, i], [x - 1, y + page, j], page);
-                        if (this.differentialColors[page]) {
-                            line.color = this.differentialColors[page];
-                        }
-
-                        if (!differentials[page])
-                            differentials[page] = [];
-                        differentials[page].push(line);
-                    }
-                }
-            }
-        }
-
-        this.differentials.set([x, y], differentials);
-        for (let i = 0; i < MIN_PAGE; i++) {
-            data.true_differentials.splice(0, 0, undefined);
-        }
+        this.differentials.set([x, y], data.differentials);
         this.trueDifferentials.set([x, y], data.true_differentials);
         this.emit("update", x, y);
     }
@@ -458,156 +482,34 @@ export class ExtSseq extends EventEmitter {
         let x = data.x;
         let y = data.y;
 
-        let structlines = [];
-        let products = [];
-
-
         for (let mult of data.structlines) {
-            let name = mult["name"];
-            let multX = mult["mult_x"];
-            let multY = mult["mult_y"];
-            let showStructline = multX <= MAX_STRUCTLINE_X;
-
-            if (showStructline && !this.structlineTypes.has(mult["name"])) {
-                this.structlineTypes.add(mult["name"]);
-                this.emit("new-structline", mult["name"]);
-            }
-
-            for (let [page, matrix] of mult["matrices"].entries()) {
-                page = page + MIN_PAGE;
-                if (!products[page])
-                    products[page] = [];
-                products[page].push({
-                    name : name,
-                    x : multX,
-                    y : multY,
-                    matrix : matrix
+            if (!this.products.has(mult.name)) {
+                this.products.set(mult.name, {
+                    "x": mult.mult_x,
+                    "y": mult.mult_y,
+                    matrices : new StringifyingMap()
                 });
-
-                if (!showStructline)
-                    continue;
-
-                if (!structlines[page])
-                    structlines[page] = [];
-
-                for (let i = 0; i < matrix.length; i++) {
-                    for (let j = 0; j < matrix[i].length; j++) {
-                        if (matrix[i][j] != 0) {
-                            let line = new Structline(this, [x, y, i], [x + multX, y + multY, j]);
-                            line.setProduct(name);
-                            structlines[page].push(line);
-                        }
-                    }
-                }
-                this.maxMultX = Math.max(this.maxMultX, multX);
-                this.maxMultY = Math.max(this.maxMultY, multY);
+                this.emit("new-structline", mult.name);
             }
+            let matrices = this.products.get(mult.name).matrices;
+            matrices.set([x, y], mult.matrices);
         }
-
-        this.structlines.set([x, y], structlines);
-        this.products.set([x, y], products);
         this.emit("update", x, y);
-    }
-
-    getDrawnElements(page, xmin, xmax, ymin, ymax) {
-        // We are bad and can't handle page ranges.
-        if (Array.isArray(page)) {
-            page = page[0];
-        }
-
-        let displayClasses = [];
-        for (let x = xmin; x <= xmax; x++) {
-            for (let y = ymin; y <= ymax; y++) {
-                let result = this.classes.get([x, y]);
-                if (!result) continue;
-
-                if (page >= result.length)
-                    result = result[result.length - 1];
-                else
-                    result = result[page];
-
-                for (let node of result) {
-                    displayClasses.push(node);
-                }
-            }
-        }
-
-        let displayEdges = [];
-
-        let xbuffer = Math.max(this.maxMultX, 1);
-        let ybuffer = Math.max(this.maxMultY, this.maxDiffPage);
-        for (let x = xmin - xbuffer; x <= xmax + xbuffer; x++) {
-            for (let y = ymin - ybuffer; y <= ymax + ybuffer; y++) {
-                let edges = this.getEdges(x, y, page);
-                for (let edge of edges) {
-                    edge.source_node = this.getClasses(x, y, page)[edge.source[2]];
-                    edge.target_node = this.getClasses(edge.target[0], edge.target[1], page)[edge.target[2]];
-
-                    if (edge.source_node && !displayClasses.includes(edge.source_node)) {
-                        displayClasses.push(edge.source_node);
-                    }
-                    if (edge.target_node && !displayClasses.includes(edge.target_node)) {
-                        displayClasses.push(edge.target_node);
-                    }
-                    displayEdges.push(edge);
-                }
-            }
-        }
-
-        return [displayClasses, displayEdges];
-    }
-
-    getEdges(x, y, page) {
-        let differentials = this.getDifferentials(x, y, page);
-        let structlines = this.getStructlines(x, y, page);
-
-        if (!differentials) {
-            differentials = [];
-        }
-        if (!structlines) {
-            structlines = [];
-        }
-        return differentials.concat(structlines);
     }
 
     getDifferentials(x, y, page) {
         let result = this.differentials.get([x, y]);
         if (!result) return undefined;
-        return result[page];
-    }
-
-    getProducts(x, y, page) {
-        let result = this.products.get([x, y]);
-        if (!result) return undefined;
-        if (result.length == MIN_PAGE) return undefined;
-
-        if (page >= result.length) page = result.length - 1;
-        return result[page];
-    }
-
-    getStructlines(x, y, page) {
-        let result = this.structlines.get([x, y]);
-        if (!result) return undefined;
-        if (result.length == MIN_PAGE) return undefined;
-
-        if (page >= result.length) page = result.length - 1;
-        return result[page];
+        return result[page - MIN_PAGE];
     }
 
     getClasses(x, y, page) {
+        page -= MIN_PAGE;
         let result = this.classes.get([x, y]);
         if (!result) return undefined;
 
         if (page >= result.length) page = result.length - 1;
 
         return result[page];
-    }
-
-    _getXOffset(node, page) {
-        return (node.idx - (node.total_classes - 1)/2) * OFFSET_SIZE;
-    }
-
-    _getYOffset(node, page) {
-        return 0;
     }
 }
