@@ -336,24 +336,24 @@ impl Sseq {
 
     /// Given a class `class` at `(x, y)` and a Product object `product`, compute the product of
     /// the class with the product. Returns the new coordinate of the product as well as the actual
-    /// product. The result is None if the product is not defined.
+    /// product. The result is None if the product is not yet computed.
     fn multiply(&self, x : i32, y : i32, class : &FpVector, product: &Product) -> Option<(i32, i32, FpVector)> {
-        if product.matrices.max_degree() < x {
-            return None;
-        }
-        if product.matrices[x].max_degree() < y {
+        let prod_x = product.x;
+        let prod_y = product.y;
+        if !self.class_defined(x + prod_x, y + prod_y) {
             return None;
         }
 
-        if let Some(matrix) = &product.matrices[x][y] {
-            let prod_x = product.x;
-            let prod_y = product.y;
+        let mut prod = FpVector::new(self.p, self.classes[x + prod_x][y + prod_y]);
 
-            let mut prod = FpVector::new(self.p, self.classes[x + prod_x][y + prod_y]);
-            matrix.apply(&mut prod, 1, class);
+        if self.classes[x][y] == 0 {
             return Some((x + prod_x, y + prod_y, prod));
         }
-        None
+
+        if let Some(matrix) = &product.matrices.get(x)?.get(y)? {
+            matrix.apply(&mut prod, 1, class);
+        }
+        Some((x + prod_x, y + prod_y, prod))
     }
 
     /// Apply the Leibniz rule to obtain new differentials. The differential we start with is a d_r
@@ -1035,9 +1035,8 @@ impl Sseq {
         self.products[idx].matrices[x].push(Some(Matrix::from_vec(self.p, matrix)));
 
         // We propagate all differentials that *hit* us, because of the order in which products
-        // are added. The only exception is if this product is the target of a product
-        // differential on page r, in which case we propagate the d_r differential *starting* at
-        // (x, y).
+        // are added. The exception is if this product is the target of a product
+        // differential on page r, we propagate the d_r differential *starting* at (x, y).
         if self.products[idx].differential.is_some() && !self.products[idx].differential.unwrap().1 {
             let (r, _ , si) = self.products[idx].differential.unwrap();
             if self.differentials[x][y].len() > r {

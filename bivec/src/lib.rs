@@ -72,6 +72,10 @@ impl<T> BiVec<T> {
         self.data.push(x);
     }
 
+    pub fn get(&self, idx : i32) -> Option<&T> {
+        self.data.get((idx - self.min_degree) as usize)
+    }
+
     pub fn last(&self) -> Option<&T> {
         self.data.last()
     }

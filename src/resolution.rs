@@ -493,9 +493,6 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let target = self.module(target_s);
 
         let target_dim = target.number_of_gens_in_degree(target_t);
-        if target_dim == 0 {
-            return;
-        }
 
         for (op_name, op_degree, op_index) in &self.filtration_one_products {
             let source_t = target_t - *op_degree;
@@ -503,9 +500,6 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
                 continue;
             }
             let source_dim = source.number_of_gens_in_degree(source_t);
-            if source_dim == 0 {
-                continue;
-            }
 
             let d = self.differential(target_s);
 
@@ -624,14 +618,6 @@ impl<M, F, CC> Resolution<M, F, CC> where
 
         let source_dim = self.inner.number_of_gens_in_bidegree(source_s, source_t);
         let target_dim = self.inner.number_of_gens_in_bidegree(target_s, target_t);
-
-        if source_dim == 0 {
-            return;
-        }
-
-        if target_dim == 0 {
-            return;
-        }
 
         let mut products = Vec::with_capacity(source_dim);
         for k in 0 .. source_dim {
@@ -757,14 +743,6 @@ impl<M, F, CC> Resolution<M, F, CC> where
 
             let source_dim = source.number_of_gens_in_degree(source_t);
             let target_dim = target.number_of_gens_in_degree(target_t);
-
-            if source_dim == 0 {
-                continue;
-            }
-
-            if target_dim == 0 {
-                continue;
-            }
 
             let mut products = vec![Vec::with_capacity(target_dim); source_dim];
 

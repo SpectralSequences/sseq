@@ -403,6 +403,9 @@ pub trait FpVectorT {
         debug_assert!(self.offset() == other.offset());
         debug_assert!(self.dimension() == other.dimension(),
             format!("self.dim {} not equal to other.dim {}", self.dimension(), other.dimension()));
+        if self.dimension() == 0 {
+            return;
+        }
         let p = self.prime();
         debug_assert!(c < p);
         let min_target_limb = self.min_limb();
@@ -534,6 +537,9 @@ pub trait FpVectorT {
         let min_limb = self.min_limb();
         let max_limb = self.max_limb();
         let number_of_limbs = max_limb - min_limb;
+        if number_of_limbs == 0 {
+            return;
+        }
         for i in 1..number_of_limbs-1 {
             let limbs = self.limbs_mut();
             limbs[i + min_limb] *= c;
