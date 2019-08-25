@@ -15,6 +15,12 @@ pub struct Message {
     pub action: Action
 }
 
+impl std::fmt::Display for Message {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{} ({:?})", self.action.to_string(), self.sseq)
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Recipient {
     Sseq,
@@ -82,7 +88,7 @@ pub enum Action {
 /// `act_resolution` function.
 #[enum_dispatch(Action)]
 #[allow(unused_variables)]
-pub trait ActionT {
+pub trait ActionT : std::fmt::Debug {
     fn act_sseq(&self, sseq : &mut Sseq) {
         unimplemented!();
     }
@@ -90,6 +96,10 @@ pub trait ActionT {
         unimplemented!();
     }
     // We take this because sometimes we want to only take an immutable borrow.
+
+    fn to_string(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -247,6 +257,10 @@ impl ActionT for AddProductDifferential {
     fn act_resolution(&self, resolution : &Rc<RefCell<ModuleResolution<FiniteModule>>>) {
         self.source.act_resolution(resolution);
         self.target.act_resolution(resolution);
+    }
+
+    fn to_string(&self) -> String {
+        format!("{:?}", self).replace("AddProductType ","")
     }
 }
 

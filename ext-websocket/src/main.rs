@@ -2,6 +2,8 @@ extern crate ws;
 extern crate rust_ext;
 extern crate bivec;
 extern crate serde_json;
+extern crate chrono;
+extern crate textwrap;
 
 mod sseq;
 mod actions;
@@ -19,9 +21,12 @@ use std::sync::mpsc;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::error::Error;
+use chrono::Local;
 
 use ws::{listen, Handler, Request, Response, Sender};
 use ws::Result as WsResult;
+
+use textwrap::Wrapper;
 
 /// List of files that our webserver will serve to the user
 const FILE_LIST : [(&str, &str, &[u8]); 11] = [
@@ -36,6 +41,16 @@ const FILE_LIST : [(&str, &str, &[u8]); 11] = [
     ("/sseq.js", "sseq.js", b"text/javascript"),
     ("/index.css", "index.css", b"text/css"),
     ("/bundle.js", "bundle.js", b"text/javascript")];
+
+fn ms_to_string(time : i64) -> String {
+    if time < 1000 {
+        format!("{}ms", time)
+    } else if time < 10000 {
+        format!("{}.{}s", time / 1000, time % 1000)
+    } else {
+        format!("{}s", time / 1000)
+    }
+}
 
 /// ResolutionManager is a struct that manipulates an AlgebraicObjectsBundle. At the moment, it
 /// only understands the "resolve" command which causes it to resolve a module and report back the
@@ -69,7 +84,13 @@ impl ResolutionManager {
              is_unit : false,
         };
 
+        let wrapper = Wrapper::with_termwidth()
+            .subsequent_indent("                    ");
+
         for msg in receiver {
+            let action_string = format!("{}", msg);
+            let start = Local::now();
+            println!("{}\n", wrapper.fill(&format!("{} ResolutionManager: Processing {}", start.format("%F %T"), action_string)));
             match msg.action {
                 Action::Construct(a) => manager.construct(a)?,
                 Action::ConstructJson(a) => manager.construct_json(a)?,
@@ -94,6 +115,9 @@ impl ResolutionManager {
                     }
                 }
             }
+            let end = Local::now();
+            let time_diff = (end - start).num_milliseconds();
+            println!("{}\n", wrapper.fill(&format!("{} ResolutionManager: Completed in {}", start.format("%F %T"), ms_to_string(time_diff))));
         }
         Ok(())
     }
@@ -291,7 +315,21 @@ impl SseqManager {
              unit_sseq : None
         };
 
+        let wrapper = Wrapper::with_termwidth()
+            .subsequent_indent("                    ");
+
         for msg in receiver {
+            let time = match msg.action {
+                Action::AddClass(_) => false,
+                Action::AddProduct(_) => false,
+                _ => true
+            };
+            let action_string = format!("{}", msg);
+            let start = Local::now();
+            if time {
+                println!("{}\n", wrapper.fill(&format!("{} SseqManager: Processing {}", start.format("%F %T"), action_string)));
+            }
+
             match msg.action {
                 Action::Resolving(_) => manager.resolving(msg)?,
                 Action::Complete(_) => manager.relay(msg)?,
@@ -301,6 +339,11 @@ impl SseqManager {
                         msg.action.act_sseq(sseq);
                     }
                 }
+            }
+            if time {
+                let end = Local::now();
+                let time_diff = (end - start).num_milliseconds();
+                println!("{}\n", wrapper.fill(&format!("{} SseqManager: Completed in {}", start.format("%F %T"), ms_to_string(time_diff))));
             }
         }
         Ok(())

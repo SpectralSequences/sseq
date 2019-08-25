@@ -9,10 +9,12 @@ edition = "2018"
 [dependencies]
 ws = "*"
 serde_json = "*"
+chrono = "*"
 serde = { version = "*", features = ["derive"] }
 rust_ext = { path = "../" }
 bivec = { path = "../bivec" }
 enum_dispatch = "0.1.3"
+textwrap = { version = "*", features = ["term_size"] }
 
 [features]
 cache-multiplication = ["rust_ext/cache-multiplication"]
