@@ -14,8 +14,7 @@ use rust_ext::resolution::{ModuleResolution};
 use rust_ext::chain_complex::ChainComplex;
 
 use std::{fs, thread};
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::{RwLock, Arc};
 use std::error::Error;
 
 extern crate ws;
@@ -67,7 +66,7 @@ fn ms_to_string(time : i64) -> String {
 struct ResolutionManager {
     sender : Sender,
     is_unit : bool,
-    resolution : Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>
+    resolution : Option<Arc<RwLock<ModuleResolution<FiniteModule>>>>
 }
 
 impl ResolutionManager {
@@ -127,7 +126,7 @@ impl ResolutionManager {
                     },
                     SseqChoice::Unit => {
                         if let Some(main_resolution) = &self.resolution {
-                            if let Some(resolution) = &main_resolution.borrow().unit_resolution {
+                            if let Some(resolution) = &main_resolution.read().unwrap().unit_resolution {
                                 msg.action.act_resolution(&resolution.upgrade().unwrap());
                             }
                         }
@@ -170,17 +169,17 @@ impl ResolutionManager {
     fn process_bundle(&mut self, bundle : AlgebraicObjectsBundle<FiniteModule>) {
         self.is_unit = bundle.module.is_unit();
         if self.is_unit {
-            bundle.resolution.borrow_mut().set_unit_resolution(Rc::downgrade(&bundle.resolution));
+            bundle.resolution.write().unwrap().set_unit_resolution(Arc::downgrade(&bundle.resolution));
         } else {
-            bundle.resolution.borrow_mut().construct_unit_resolution();
+            bundle.resolution.write().unwrap().construct_unit_resolution();
         }
         self.resolution = Some(bundle.resolution);
 
         if let Some(resolution) = &self.resolution {
-            self.setup_callback(&mut resolution.borrow_mut(), SseqChoice::Main);
+            self.setup_callback(&mut resolution.write().unwrap(), SseqChoice::Main);
             if !self.is_unit {
-                if let Some(unit_res) = &resolution.borrow().unit_resolution {
-                    self.setup_callback(&mut unit_res.upgrade().unwrap().borrow_mut(), SseqChoice::Unit);
+                if let Some(unit_res) = &resolution.read().unwrap().unit_resolution {
+                    self.setup_callback(&mut unit_res.upgrade().unwrap().write().unwrap(), SseqChoice::Unit);
 
                 }
             }
@@ -190,7 +189,7 @@ impl ResolutionManager {
     fn resolve(&self, action : Resolve, sseq : SseqChoice) -> Result<(), Box<dyn Error>> {
         let resolution = &self.resolution.as_ref().unwrap();
         let min_degree = match sseq {
-            SseqChoice::Main => resolution.borrow().min_degree(),
+            SseqChoice::Main => resolution.read().unwrap().min_degree(),
             SseqChoice::Unit => 0
         };
 
@@ -198,7 +197,7 @@ impl ResolutionManager {
             recipients : vec![],
             sseq,
             action : Action::from(Resolving {
-                p : resolution.borrow().prime(),
+                p : resolution.read().unwrap().prime(),
                 min_degree,
                 max_degree : action.max_degree,
                 is_unit : self.is_unit
@@ -207,10 +206,10 @@ impl ResolutionManager {
         self.sender.send(msg)?;
 
         match sseq {
-            SseqChoice::Main => resolution.borrow().resolve_through_degree(action.max_degree),
+            SseqChoice::Main => resolution.read().unwrap().resolve_through_degree(action.max_degree),
             SseqChoice::Unit => {
-                if let Some(r) = &resolution.borrow().unit_resolution {
-                    r.upgrade().unwrap().borrow().resolve_through_degree(action.max_degree)
+                if let Some(r) = &resolution.read().unwrap().unit_resolution {
+                    r.upgrade().unwrap().read().unwrap().resolve_through_degree(action.max_degree)
                 }
             }
         };
@@ -220,7 +219,7 @@ impl ResolutionManager {
 
     fn query_table(&self, action : QueryTable, sseq : SseqChoice) -> Result<(), Box<dyn Error>> {
         if let SseqChoice::Main = sseq {
-            let resolution = self.resolution.as_ref().unwrap().borrow();
+            let resolution = self.resolution.as_ref().unwrap().read().unwrap();
 
             let s = action.s;
             let t = action.t;

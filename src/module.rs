@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 use std::error::Error;
 use enum_dispatch::enum_dispatch;
 
@@ -9,7 +9,7 @@ use crate::finitely_presented_module::FinitelyPresentedModule;
 
 #[enum_dispatch(FiniteModule)]
 pub trait Module {
-    fn algebra(&self) -> Rc<AlgebraAny>;
+    fn algebra(&self) -> Arc<AlgebraAny>;
     fn name(&self) -> &str;
     fn min_degree(&self) -> i32;
     fn compute_basis(&self, _degree : i32) {}
@@ -82,12 +82,12 @@ pub trait Module {
 }
 
 pub struct ZeroModule {
-    algebra : Rc<AlgebraAny>,
+    algebra : Arc<AlgebraAny>,
     name : String
 }
 
 impl ZeroModule {
-    pub fn new(algebra : Rc<AlgebraAny>) -> Self {
+    pub fn new(algebra : Arc<AlgebraAny>) -> Self {
         let name = format!("Zero Module over {}", algebra.name());
         ZeroModule {
             algebra,
@@ -97,8 +97,8 @@ impl ZeroModule {
 }
 
 impl Module for ZeroModule {
-    fn algebra(&self) -> Rc<AlgebraAny> {
-        Rc::clone(&self.algebra)
+    fn algebra(&self) -> Arc<AlgebraAny> {
+        Arc::clone(&self.algebra)
     }
     
     fn name(&self) -> &str{
@@ -131,7 +131,7 @@ pub enum FiniteModule {
 }
 
 impl FiniteModule {
-    pub fn from_json(algebra : Rc<AlgebraAny>, json : &mut serde_json::Value) -> Result<Self, Box<dyn Error>> {
+    pub fn from_json(algebra : Arc<AlgebraAny>, json : &mut serde_json::Value) -> Result<Self, Box<dyn Error>> {
         let module_type = &json["type"].as_str().unwrap();
         match module_type {
             &"finite dimensional module" => Ok(FiniteModule::from(FiniteDimensionalModule::from_json(algebra, json))),
@@ -142,12 +142,12 @@ impl FiniteModule {
 }
 
 pub enum OptionModule<M : Module> {
-    Some(Rc<M>),
-    Zero(Rc<ZeroModule>)
+    Some(Arc<M>),
+    Zero(Arc<ZeroModule>)
 }
 
 impl<M : Module> Module for OptionModule<M> {
-    fn algebra(&self) -> Rc<AlgebraAny> {
+    fn algebra(&self) -> Arc<AlgebraAny> {
         match self {
             OptionModule::Some(l) => l.algebra(),
             OptionModule::Zero(r) => r.algebra()

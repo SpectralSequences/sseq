@@ -3,8 +3,7 @@ use rust_ext::module::FiniteModule;
 use rust_ext::resolution::{ModuleResolution};
 use rust_ext::fp_vector::FpVector;
 use bivec::BiVec;
-use std::rc::Rc;
-use std::cell::RefCell;
+use std::sync::{Arc, RwLock};
 use enum_dispatch::enum_dispatch;
 use serde::{Serialize, Deserialize};
 
@@ -87,7 +86,7 @@ pub trait ActionT : std::fmt::Debug {
     fn act_sseq(&self, sseq : &mut Sseq) {
         unimplemented!();
     }
-    fn act_resolution(&self, resolution : &Rc<RefCell<ModuleResolution<FiniteModule>>>) {
+    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) {
         unimplemented!();
     }
     // We take this because sometimes we want to only take an immutable borrow.
@@ -130,12 +129,12 @@ impl ActionT for AddProductType {
         sseq.add_product_type(&self.name, self.x, self.y, true, self.permanent);
     }
 
-    fn act_resolution(&self, resolution : &Rc<RefCell<ModuleResolution<FiniteModule>>>) {
+    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) {
         let s = self.y as u32;
         let t = self.x + self.y;
 
-        if resolution.borrow_mut().add_product(s, t, self.class.clone(), &self.name) {
-            resolution.borrow().catch_up_products();
+        if resolution.write().unwrap().add_product(s, t, self.class.clone(), &self.name) {
+            resolution.read().unwrap().catch_up_products();
         }
     }
 }
@@ -249,7 +248,7 @@ impl ActionT for AddProductDifferential {
         sseq.add_product_differential(&self.source.name, &self.target.name);
     }
 
-    fn act_resolution(&self, resolution : &Rc<RefCell<ModuleResolution<FiniteModule>>>) {
+    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) {
         self.source.act_resolution(resolution);
         self.target.act_resolution(resolution);
     }

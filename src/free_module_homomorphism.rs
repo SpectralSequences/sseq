@@ -1,5 +1,5 @@
 use std::sync::{Mutex, MutexGuard};
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::once::OnceBiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
@@ -9,8 +9,8 @@ use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module::{FreeModule, FreeModuleTableEntry};
 
 pub struct FreeModuleHomomorphism<M : Module> {
-    source : Rc<FreeModule>,
-    target : Rc<M>,
+    source : Arc<FreeModule>,
+    target : Arc<M>,
     outputs : OnceBiVec<Vec<FpVector>>, // degree --> input_idx --> output
     kernel : OnceBiVec<Subspace>,
     quasi_inverse : OnceBiVec<QuasiInverse>,
@@ -20,12 +20,12 @@ pub struct FreeModuleHomomorphism<M : Module> {
 }
 
 impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M> {
-    fn source(&self) -> Rc<FreeModule> {
-        Rc::clone(&self.source)
+    fn source(&self) -> Arc<FreeModule> {
+        Arc::clone(&self.source)
     }
 
-    fn target(&self) -> Rc<M> {
-        Rc::clone(&self.target)
+    fn target(&self) -> Arc<M> {
+        Arc::clone(&self.target)
     }
 
     fn degree_shift(&self) -> i32 {
@@ -74,7 +74,7 @@ impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M>
 
 
 impl<M : Module> FreeModuleHomomorphism<M> {
-    pub fn new(source : Rc<FreeModule>, target : Rc<M>, degree_shift : i32) -> Self {
+    pub fn new(source : Arc<FreeModule>, target : Arc<M>, degree_shift : i32) -> Self {
         let min_degree = std::cmp::max(source.min_degree(), target.min_degree() + degree_shift);
         let outputs = OnceBiVec::new(min_degree);
         let kernel = OnceBiVec::new(min_degree);

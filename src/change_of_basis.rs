@@ -3,7 +3,7 @@ use crate::algebra::{Algebra};
 use crate::adem_algebra::{AdemAlgebra, AdemBasisElement};
 use crate::milnor_algebra::{MilnorAlgebra, MilnorBasisElement};
 
-// use std::rc::Rc;
+// use std::sync::Arc;
 
 pub fn adem_to_milnor_on_basis(
     adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, 

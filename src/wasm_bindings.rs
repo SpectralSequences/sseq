@@ -1,7 +1,6 @@
 use wasm_bindgen::prelude::*;
 
-use std::rc::Rc;
-use std::cell::RefCell;
+use std::sync::{Arc, RwLock};
 use serde_json::value::Value;
 
 use crate::algebra::{Algebra, AlgebraAny};
@@ -23,9 +22,9 @@ pub struct WasmAlgebra {
 impl WasmAlgebra {
     pub fn new_adem_algebra(p : u32, generic : bool) -> Self {
         let algebra = AlgebraAny::from(AdemAlgebra::new(p, generic, false));
-        let boxed_algebra = Rc::new(algebra);
+        let boxed_algebra = Arc::new(algebra);
         Self {
-            pimpl : Rc::into_raw(boxed_algebra)
+            pimpl : Arc::into_raw(boxed_algebra)
         }
     }
 
@@ -36,9 +35,9 @@ impl WasmAlgebra {
             algebra.profile.q_part = q_;
         }
         algebra.profile.p_part = p_part;
-        let boxed_algebra = Rc::new(AlgebraAny::from(algebra));
+        let boxed_algebra = Arc::new(AlgebraAny::from(algebra));
         Self {
-            pimpl : Rc::into_raw(boxed_algebra)
+            pimpl : Arc::into_raw(boxed_algebra)
         }
     }
 
@@ -46,15 +45,15 @@ impl WasmAlgebra {
         self.to_algebra().compute_basis(degree);
     }
 
-    fn to_algebra(&self) -> Rc<AlgebraAny> {
-        let raw = unsafe { Rc::from_raw(self.pimpl) };
-        let clone = Rc::clone(&raw);
+    fn to_algebra(&self) -> Arc<AlgebraAny> {
+        let raw = unsafe { Arc::from_raw(self.pimpl) };
+        let clone = Arc::clone(&raw);
         std::mem::forget(raw);
         clone
     }
 
     pub fn free(self) {
-        let _drop_me = unsafe { Rc::from_raw(self.pimpl) };
+        let _drop_me = unsafe { Arc::from_raw(self.pimpl) };
     }
 }
 
@@ -68,23 +67,23 @@ impl WasmModule {
     pub fn new_adem_module(algebra : &WasmAlgebra, json_string : String) -> WasmModule {
         let mut json : Value = serde_json::from_str(&json_string).unwrap();
         let module = FiniteModule::from_json(algebra.to_algebra(), &mut json).ok().unwrap();
-        let boxed_module = Rc::new(module);
+        let boxed_module = Arc::new(module);
         Self {
-            pimpl : Rc::into_raw(boxed_module)
+            pimpl : Arc::into_raw(boxed_module)
         }
     }
 
-    fn to_module(&self) -> Rc<FiniteModule> {
+    fn to_module(&self) -> Arc<FiniteModule> {
         unsafe { 
-            let raw = Rc::from_raw(self.pimpl);
-            let result = Rc::clone(&raw);
+            let raw = Arc::from_raw(self.pimpl);
+            let result = Arc::clone(&raw);
             std::mem::forget(raw);
             return result;
         }
     }
 
     pub fn free(self) {
-        let _drop_me = unsafe { Rc::from_raw(self.pimpl) };
+        let _drop_me = unsafe { Arc::from_raw(self.pimpl) };
     }
 }
 
@@ -99,29 +98,29 @@ pub struct WasmCCDZ {
 impl WasmCCDZ {
     pub fn new_ccdz(module : &WasmModule) -> Self {
         let cc = CCDZ::new(module.to_module());
-        let boxed_cc : Rc<CCDZ<FiniteModule>> = Rc::new(cc);
+        let boxed_cc : Arc<CCDZ<FiniteModule>> = Arc::new(cc);
         Self {
-            pimpl : Rc::into_raw(boxed_cc)
+            pimpl : Arc::into_raw(boxed_cc)
         }
     }
 
-    fn to_chain_complex(&self) -> Rc<CCDZ<FiniteModule>> {
+    fn to_chain_complex(&self) -> Arc<CCDZ<FiniteModule>> {
         unsafe { 
-            let raw = Rc::from_raw(self.pimpl);
-            let result = Rc::clone(&raw);
+            let raw = Arc::from_raw(self.pimpl);
+            let result = Arc::clone(&raw);
             std::mem::forget(raw);
             return result;
         }
     }
 
     pub fn free(self) {
-        let _drop_me = unsafe { Rc::from_raw(self.pimpl) };
+        let _drop_me = unsafe { Arc::from_raw(self.pimpl) };
     }
 }
 
 #[wasm_bindgen]
 pub struct WasmResolution {
-   pimpl : *const RefCell<ModuleResolution<FiniteModule>>
+   pimpl : *const RwLock<ModuleResolution<FiniteModule>>
 }
 
 #[wasm_bindgen]
@@ -180,7 +179,7 @@ impl WasmResolution {
             }
         }
 
-        let boxed_res = Rc::new(RefCell::new(res));
+        let boxed_res = Arc::new(RwLock::new(res));
 
         let self_maps = &json["self_maps"];
         if !self_maps.is_null() {
@@ -203,20 +202,20 @@ impl WasmResolution {
                         map_data[r].set_entry(c, json_map_data[r][c].as_u64().unwrap() as u32);
                     }
                 }
-                boxed_res.borrow_mut().add_self_map(s, t, &name.to_string(), map_data);
+                boxed_res.write().unwrap().add_self_map(s, t, &name.to_string(), map_data);
             }
         }
 
-        let pimpl : *const RefCell<ModuleResolution<FiniteModule>> = Rc::into_raw(boxed_res);
+        let pimpl : *const RwLock<ModuleResolution<FiniteModule>> = Arc::into_raw(boxed_res);
         Self {
             pimpl
         }
     }
  
-    fn to_resolution(&self) -> Rc<RefCell<ModuleResolution<FiniteModule>>> {
+    fn to_resolution(&self) -> Arc<RwLock<ModuleResolution<FiniteModule>>> {
         unsafe { 
-            let raw = Rc::from_raw(self.pimpl);
-            let result = Rc::clone(&raw);
+            let raw = Arc::from_raw(self.pimpl);
+            let result = Arc::clone(&raw);
             std::mem::forget(raw);
             return result;
         }
@@ -227,15 +226,15 @@ impl WasmResolution {
     // }
 
     pub fn resolve_through_degree(&self, degree : i32) {
-        self.to_resolution().borrow().resolve_through_degree(degree);
+        self.to_resolution().read().unwrap().resolve_through_degree(degree);
     }
 
     pub fn get_cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
-        self.to_resolution().borrow().inner.cocycle_string(hom_deg, int_deg, idx)
+        self.to_resolution().read().unwrap().inner.cocycle_string(hom_deg, int_deg, idx)
     }
 
     pub fn free(self) {
-         let _drop_me :  Rc<RefCell<ModuleResolution<FiniteModule>>>
-            = unsafe { Rc::from_raw(self.pimpl) };
+         let _drop_me :  Arc<RwLock<ModuleResolution<FiniteModule>>>
+            = unsafe { Arc::from_raw(self.pimpl) };
     }
 }

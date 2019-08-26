@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::once::{OnceVec, OnceBiVec};
 use crate::algebra::AlgebraAny;
@@ -13,19 +13,19 @@ use crate::hom_pullback::HomPullback;
 
 pub struct HomComplex<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : FiniteDimensionalModuleT> {
     min_degree : i32,
-    source : Rc<CC>,
-    target : Rc<N>,
-    zero_module : Rc<HomSpace<N>>,
-    modules : OnceVec<Rc<HomSpace<N>>>,
-    differentials : OnceVec<Rc<HomPullback<N>>>,
+    source : Arc<CC>,
+    target : Arc<N>,
+    zero_module : Arc<HomSpace<N>>,
+    modules : OnceVec<Arc<HomSpace<N>>>,
+    differentials : OnceVec<Arc<HomPullback<N>>>,
     cohomology_basis : OnceVec<OnceBiVec<Vec<usize>>>
 }
 
 impl<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : FiniteDimensionalModuleT>
     HomComplex<CC, N> {
-    pub fn new(source : Rc<CC>, target : Rc<N>) -> Self {
+    pub fn new(source : Arc<CC>, target : Arc<N>) -> Self {
         let min_degree = source.min_degree() - target.max_degree();
-        let zero_module = Rc::new(HomSpace::new(source.zero_module(), Rc::clone(&target)));
+        let zero_module = Arc::new(HomSpace::new(source.zero_module(), Arc::clone(&target)));
         Self {
             min_degree,
             source,
@@ -40,7 +40,7 @@ impl<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : Fini
 
 impl<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : FiniteDimensionalModuleT>
     CochainComplex<HomSpace<N>, HomPullback<N>> for HomComplex<CC, N> {
-    fn algebra(&self) -> Rc<AlgebraAny> {
+    fn algebra(&self) -> Arc<AlgebraAny> {
         self.zero_module.algebra()
     }
 
@@ -48,16 +48,16 @@ impl<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : Fini
         self.min_degree
     }
 
-    fn zero_module(&self) -> Rc<HomSpace<N>> {
-        Rc::clone(&self.zero_module)
+    fn zero_module(&self) -> Arc<HomSpace<N>> {
+        Arc::clone(&self.zero_module)
     }
 
-    fn module(&self, homological_degree : u32) -> Rc<HomSpace<N>> {
-        Rc::clone(&self.modules[homological_degree])
+    fn module(&self, homological_degree : u32) -> Arc<HomSpace<N>> {
+        Arc::clone(&self.modules[homological_degree])
     }
 
-    fn differential(&self, homological_degree : u32) -> Rc<HomPullback<N>> {
-        Rc::clone(&self.differentials[homological_degree])
+    fn differential(&self, homological_degree : u32) -> Arc<HomPullback<N>> {
+        Arc::clone(&self.differentials[homological_degree])
     }
 
     fn set_cohomology_basis(&self, homological_degree : u32, internal_degree : i32, cohomology_basis : Vec<usize>) {
@@ -92,12 +92,12 @@ impl<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : Fini
     fn compute_through_bidegree(&self, homological_degree : u32, degree : i32){
         self.source.compute_through_bidegree(homological_degree, degree);
         if self.modules.len() == 0 {
-            self.modules.push(Rc::new(HomSpace::new(self.source.module(0), Rc::clone(&self.target))));
-            self.differentials.push(Rc::new(HomPullback::new(Rc::clone(&self.modules[0u32]), Rc::clone(&self.zero_module), self.source.differential(0))));
+            self.modules.push(Arc::new(HomSpace::new(self.source.module(0), Arc::clone(&self.target))));
+            self.differentials.push(Arc::new(HomPullback::new(Arc::clone(&self.modules[0u32]), Arc::clone(&self.zero_module), self.source.differential(0))));
         }
         for i in self.modules.len() as u32 ..= homological_degree {
-            self.modules.push(Rc::new(HomSpace::new(self.source.module(i), Rc::clone(&self.target))));
-            self.differentials.push(Rc::new(HomPullback::new(Rc::clone(&self.modules[i]), Rc::clone(&self.modules[i - 1]), self.source.differential(i))));
+            self.modules.push(Arc::new(HomSpace::new(self.source.module(i), Arc::clone(&self.target))));
+            self.differentials.push(Arc::new(HomPullback::new(Arc::clone(&self.modules[i]), Arc::clone(&self.modules[i - 1]), self.source.differential(i))));
         }
     }
 }

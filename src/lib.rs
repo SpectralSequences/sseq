@@ -63,8 +63,7 @@ use crate::resolution::{Resolution, ModuleResolution};
 use crate::hom_complex::HomComplex;
 
 use std::path::PathBuf;
-use std::rc::Rc;
-use std::cell::RefCell;
+use std::sync::{Arc, RwLock};
 use std::error::Error;
 use serde_json::value::Value;
 
@@ -77,10 +76,10 @@ pub struct Config {
 
 
 pub struct AlgebraicObjectsBundle<M : Module> {
-    pub algebra : Rc<AlgebraAny>,
-    pub module : Rc<M>,
-    pub chain_complex : Rc<CCDZ<M>>,
-    pub resolution : Rc<RefCell<ModuleResolution<M>>>
+    pub algebra : Arc<AlgebraAny>,
+    pub module : Arc<M>,
+    pub chain_complex : Arc<CCDZ<M>>,
+    pub resolution : Arc<RwLock<ModuleResolution<M>>>
 }
 
 pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
@@ -92,9 +91,9 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule
 
 pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
     let algebra = construct_algebra_from_json(&json, algebra_name)?;
-    let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &mut json)?);
-    let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
-    let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), None, None)));
+    let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut json)?);
+    let chain_complex = Arc::new(CCDZ::new(Arc::clone(&module)));
+    let resolution = Arc::new(RwLock::new(Resolution::new(Arc::clone(&chain_complex), None, None)));
 
     let products_value = &mut json["products"];
     if !products_value.is_null() {
@@ -105,7 +104,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
             let class : Vec<u32> = serde_json::from_value(prod["class"].take()).unwrap();
             let name = prod["name"].as_str().unwrap();
 
-            resolution.borrow_mut().add_product(hom_deg, int_deg, class, &name.to_string());
+            resolution.write().unwrap().add_product(hom_deg, int_deg, class, &name.to_string());
         }
     }
 
@@ -130,7 +129,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
                     map_data[r].set_entry(c, json_map_data[r][c].as_u64().unwrap() as u32);
                 }
             }
-            resolution.borrow_mut().add_self_map(s, t, &name.to_string(), map_data);
+            resolution.write().unwrap().add_self_map(s, t, &name.to_string(), map_data);
         }
     }
 
@@ -141,7 +140,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
         resolution
     })
 }
-pub fn construct_algebra_from_json(json : &Value, mut algebra_name : String) -> Result<Rc<AlgebraAny>, Box<dyn Error>> {
+pub fn construct_algebra_from_json(json : &Value, mut algebra_name : String) -> Result<Arc<AlgebraAny>, Box<dyn Error>> {
     let p = json["p"].as_u64().unwrap() as u32;
     let algebra_list = json["algebra"].as_array();
     if let Some(list) = algebra_list {
@@ -175,7 +174,7 @@ pub fn construct_algebra_from_json(json : &Value, mut algebra_name : String) -> 
         }
         _ => { return Err(Box::new(InvalidAlgebraError { name : algebra_name })); }
     };
-    Ok(Rc::new(algebra))
+    Ok(Arc::new(algebra))
 }
 pub fn run_define_module() -> Result<String, Box<dyn Error>> {
     cli_module_loaders::interactive_module_define()
@@ -183,9 +182,9 @@ pub fn run_define_module() -> Result<String, Box<dyn Error>> {
 
 pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
     let bundle = construct(config)?;
-    let res = bundle.resolution.borrow();
+    let res = bundle.resolution.read().unwrap();
     res.resolve_through_degree(config.max_degree);
-    // let hom = HomComplex::new(Rc::clone(&res), Rc::clone(&bundle.module));
+    // let hom = HomComplex::new(Arc::clone(&res), Arc::clone(&bundle.module));
     // hom.compute_cohomology_through_bidegree(res.max_computed_homological_degree(), res.max_computed_degree());
     Ok(res.graded_dimension_string())
 }
@@ -204,10 +203,10 @@ pub fn run_test() {
     let mut json : Value = serde_json::from_str(&contents).unwrap();
     let p = json["p"].as_u64().unwrap() as u32;
     let max_degree = 20;
-    let algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
-    let module = Rc::new(FDModule::from_json(Rc::clone(&algebra), &mut json));
-    let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
-    let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), None, None));
+    let algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
+    let module = Arc::new(FDModule::from_json(Arc::clone(&algebra), &mut json));
+    let chain_complex = Arc::new(CCDZ::new(Arc::clone(&module)));
+    let resolution = Arc::new(Resolution::new(Arc::clone(&chain_complex), None, None));
     resolution.resolve_through_degree(max_degree);
     let hom = HomComplex::new(resolution, module);
     hom.compute_cohomology_through_bidegree(max_degree as u32, max_degree);

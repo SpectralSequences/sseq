@@ -1,5 +1,5 @@
 use std::sync::{ Mutex, MutexGuard };
-use std::rc::Rc;
+use std::sync::Arc;
 use serde_json::json;
 use serde_json::Value;
 
@@ -25,7 +25,7 @@ pub struct FreeModuleTableEntry {
 }
 
 pub struct FreeModule {
-    pub algebra : Rc<AlgebraAny>,
+    pub algebra : Arc<AlgebraAny>,
     pub name : String,
     pub min_degree : i32,
     pub max_degree : Mutex<i32>,
@@ -38,8 +38,8 @@ impl Module for FreeModule {
         &self.name
     }
 
-    fn algebra(&self) -> Rc<AlgebraAny> {
-        Rc::clone(&self.algebra)
+    fn algebra(&self) -> Arc<AlgebraAny> {
+        Arc::clone(&self.algebra)
     }
 
     fn min_degree(&self) -> i32 {
@@ -89,7 +89,7 @@ impl Module for FreeModule {
 }
 
 impl FreeModule {
-    pub fn new(algebra : Rc<AlgebraAny>, name : String, min_degree : i32) -> Self {
+    pub fn new(algebra : Arc<AlgebraAny>, name : String, min_degree : i32) -> Self {
         Self {
             algebra,
             name,
@@ -252,9 +252,9 @@ mod tests {
     #[test]
     fn test_free_mod(){
         let p = 2;
-        let A = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
+        let A = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
         A.compute_basis(10);
-        let M = FreeModule::new(Rc::clone(&A), "".to_string(), 0);
+        let M = FreeModule::new(Arc::clone(&A), "".to_string(), 0);
         let (lock, table) = M.construct_table(0);
         M.add_generators(0, lock, table, 1, None);
         let (lock, table) = M.construct_table(1);
