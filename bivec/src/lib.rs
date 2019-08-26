@@ -118,10 +118,10 @@ impl<T : Serialize> Serialize for BiVec<T> {
 }
 
 impl<'de, T : Deserialize<'de>> Deserialize<'de> for BiVec<T> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
         where D : Deserializer<'de>
     {
-        Ok(BiVec::new(0)) // Implement this? This would require proper deserializing
+        unimplemented!()
     }
 }
 

@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::once::OnceBiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
-use crate::matrix::{Matrix, Subspace, QuasiInverse};
+use crate::matrix::{Subspace, QuasiInverse};
 // use crate::block_structure::BlockStructure;
 // use crate::algebra::AlgebraAny;
 // use crate::field::Field;
