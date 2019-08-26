@@ -43,7 +43,6 @@ export class ExtSseq extends EventEmitter {
     constructor(name, webSocket, minDegree) {
         super();
 
-        console.log(minDegree);
         this.minDegree = minDegree;
         this.maxDegree = minDegree;
 
@@ -458,6 +457,11 @@ export class ExtSseq extends EventEmitter {
         let result = this.differentials.get(x, y);
         if (!result) return undefined;
         return result[page - MIN_PAGE];
+    }
+
+    hasClasses(x, y, page) {
+        let classes = this.getClasses(x, y, page);
+        return classes !== undefined && classes.length > 0;
     }
 
     getClasses(x, y, page) {

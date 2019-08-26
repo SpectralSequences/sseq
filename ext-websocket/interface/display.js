@@ -8,7 +8,7 @@ export const STATE_QUERY_TABLE = 2;
 export const STATE_ADD_PRODUCT = 3;
 const OFFSET_SIZE = 0.3;
 
-const DIFFERENTIAL_COLORS = [undefined, undefined, "cyan", "red", "green"];
+const DIFFERENTIAL_COLORS = ["cyan", "red", "green"];
 const DEFAULT_DIFFERENTIAL_COLOR = "blue";
 
 const NODE_COLOR = {
@@ -19,6 +19,12 @@ const NODE_COLOR = {
 
 const gridGo = "go";
 const gridChess = "chess";
+
+const DEFAULT_EDGE_STYLE = {
+    "color": "black",
+    "bend": 0,
+    "line-dash": []
+};
 
 class Display extends EventEmitter {
     // container is either an id (e.g. "#main") or a DOM object
@@ -40,6 +46,7 @@ class Display extends EventEmitter {
         this.TICK_STEP_LOG_BASE = 1.1; // Used for deciding when to change tick step.
 
         this.visibleStructlines = new Set(["h_0", "a_0", "h_1", "h_2"]);
+        this.structlineStyles = new Map();
         this.updateQueue = 0;
 
         this.container = d3.select(container);
@@ -143,6 +150,10 @@ class Display extends EventEmitter {
         this._initializeCanvas();
 
         this.sseq.on('update', this.update);
+
+        this.sseq.on("new-structline", (name) => {
+            this.structlineStyles.set(name, Object.assign({}, DEFAULT_EDGE_STYLE));
+        });
         this.update();
     }
 
@@ -245,9 +256,6 @@ class Display extends EventEmitter {
         this._drawStructlines(ctx);
         this._drawDifferentials(ctx);
         this._drawNodes(ctx);
-
-        if (this.sseq.edgeLayerSVG)
-            this.drawSVG(ctx, this.sseq.edgeLayerSVG);
 
         ctx.restore();
     }
@@ -505,7 +513,10 @@ class Display extends EventEmitter {
                 continue;
 
             context.save();
-            context.strokeStyle = "black";
+            let style = this.structlineStyles.get(name);
+            context.strokeStyle = style.color;
+            context.setLineDash(style["line-dash"]);
+
             for (let x = this.xmin - 1 - mult.x; x < this.xmax + 1; x++) {
                 for (let y = this.ymin - 1 - mult.y; y < this.ymax + 1; y++) {
                     let matrices = mult.matrices.get(x, y);
@@ -530,8 +541,21 @@ class Display extends EventEmitter {
                                 let [targetX, targetY] = this.sseqToCanvas(x + mult.x, y + mult.y, j, targetDim);
 
                                 context.beginPath();
-                                context.moveTo(sourceX, sourceY);
-                                context.lineTo(targetX, targetY);
+                                if (style.bend > 0) {
+                                    let distance = Math.sqrt((targetX - sourceX)*(targetX - sourceX) + (targetY - sourceY)*(targetY - sourceY));
+                                    let looseness = 0.4;
+                                    let angle = Math.atan((targetY - sourceY)/(targetX - sourceX));
+                                    let bendAngle = - style.bend * Math.PI/180;
+                                    let control1X = sourceX + Math.cos(angle + bendAngle) * looseness * distance;
+                                    let control1Y = sourceY + Math.sin(angle + bendAngle) * looseness * distance;
+                                    let control2X = targetX - Math.cos(angle - bendAngle) * looseness * distance;
+                                    let control2Y = targetY - Math.sin(angle - bendAngle) * looseness * distance;
+                                    context.moveTo(sourceX, sourceY);
+                                    context.bezierCurveTo(control1X, control1Y, control2X, control2Y, targetX, targetY);
+                                } else {
+                                    context.moveTo(sourceX, sourceY);
+                                    context.lineTo(targetX, targetY);
+                                }
                                 context.stroke();
                             }
                         }
@@ -544,8 +568,8 @@ class Display extends EventEmitter {
 
     _drawDifferentials(context) {
         context.save();
-        if (DIFFERENTIAL_COLORS[this.page]) {
-            context.strokeStyle = DIFFERENTIAL_COLORS[this.page];
+        if (DIFFERENTIAL_COLORS[this.page - MIN_PAGE]) {
+            context.strokeStyle = DIFFERENTIAL_COLORS[this.page - MIN_PAGE];
         } else {
             context.strokeStyle = DEFAULT_DIFFERENTIAL_COLOR;
         }
@@ -619,16 +643,19 @@ class Display extends EventEmitter {
             mouseCoord = this.mouseCoord;
         }
 
+        if (mouseCoord === undefined) return;
+
         // We changed position!
-        if (mouseCoord != this.mouseCoord) {
+        if (this.mouseCoord === undefined ||
+             ((mouseCoord[0] != this.mouseCoord[0] || mouseCoord[1] != this.mouseCoord[1]) &&
+                 (this.mouseCoord === undefined || this.sseq.hasClasses(...mouseCoord, this.page) || this.sseq.hasClasses(...this.mouseCoord, this.page)))) {
             if (this.mouseCoord) {
                 this.removeHighlight(this.mouseCoord);
             }
             this.mouseCoord = mouseCoord;
             this.highlightClass(this.mouseCoord);
 
-            if (this.sseq.getClasses(mouseCoord[0], mouseCoord[1], this.page) === undefined ||
-                this.sseq.getClasses(mouseCoord[0], mouseCoord[1], this.page).length == 0) {
+            if (!this.sseq.hasClasses(mouseCoord[0], mouseCoord[1], this.page)) {
                 this.tooltip.hide();
             } else {
                 this.tooltip.setHTML(`(${mouseCoord[0]}, ${mouseCoord[1]})`);
