@@ -72,6 +72,9 @@ impl<T> Index<u32> for OnceVec<T> {
     }
 }
 
+unsafe impl<T : Send> Send for OnceVec<T> {}
+unsafe impl<T : Sync> Sync for OnceVec<T> {}
+
 #[derive(Debug)]
 pub struct OnceBiVec<T> {
     data : UnsafeCell<BiVec<T>>
@@ -127,3 +130,6 @@ impl<T> Index<i32> for OnceBiVec<T> {
         unsafe { &(self.get_bivec()[key]) }
     }
 }
+
+unsafe impl<T : Send> Send for OnceBiVec<T> {}
+unsafe impl<T : Sync> Sync for OnceBiVec<T> {}

@@ -18,6 +18,12 @@ use crate::chain_complex::ChainComplex;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorphismToUnit};
 
+#[cfg(feature = "concurrent")]
+const NUM_THREAD : usize = 2;
+
+#[cfg(feature = "concurrent")]
+use threadpool::ThreadPool;
+
 /// ResolutionInner contains the data of the actual resolution, while Resolution contains the bells
 /// and whistles such as self maps and callbacks. ResolutionInner is what ResolutionHomomorphism
 /// needs to take in, and is always an immutable object, so is wrapped in Arc<> instead of
@@ -382,7 +388,7 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
     product_list : Vec<Cocycle>,
     // s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
     // until we actually have a unit resolution, of course.
-    chain_maps_to_unit_resolution : OnceVec<OnceBiVec<OnceVec<ResolutionHomomorphismToUnit<M, F, CC>>>>,
+    chain_maps_to_unit_resolution : OnceVec<OnceBiVec<OnceVec<Arc<ResolutionHomomorphismToUnit<M, F, CC>>>>>,
     max_product_homological_degree : u32,
 
     // Self maps
@@ -477,6 +483,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
             f(s, t, num_gens);
         }
         self.compute_filtration_one_products(s, t);
+        self.construct_maps_to_unit(s, t);
         self.extend_maps_to_unit(s, t);
         self.compute_products(s, t, &self.product_list);
         self.compute_self_maps(s, t);
@@ -533,6 +540,65 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 
 // Product algorithms
 impl<M, F, CC> Resolution<M, F, CC> where
+    M : Module + Send + Sync + 'static,
+    F : ModuleHomomorphism<M, M> + Send + Sync + 'static,
+    CC : ChainComplex<M, F> + Send + Sync + 'static
+{
+    /// This function computes the products between the element most recently added to product_list
+    /// and the parts of Ext that have already been computed. This function should be called right
+    /// after `add_product`, unless `resolve_through_degree`/`resolve_through_bidegree` has never been
+    /// called.
+    ///
+    /// This is made separate from `add_product` because extend_maps_to_unit needs a borrow of
+    /// `self`, but `add_product` takes in a mutable borrow.
+    pub fn catch_up_products(&self) {
+        let new_product = [self.product_list.last().unwrap().clone()];
+        let next_s = *self.next_s.lock().unwrap();
+        if next_s > 0 {
+            let min_degree = self.min_degree();
+            let max_s = next_s - 1;
+            let max_t = *self.next_t.lock().unwrap() - 1;
+
+            self.construct_maps_to_unit(max_s, max_t);
+
+            #[cfg(feature = "concurrent")]
+            self.extend_maps_to_unit_concurrent(max_s, max_t);
+
+            #[cfg(not(feature = "concurrent"))]
+            self.extend_maps_to_unit(max_s, max_t);
+
+            for t in min_degree ..= max_t {
+                for s in 0 ..= max_s {
+                    self.compute_products(s, t, &new_product);
+                }
+            }
+        }
+    }
+
+    /// This ensures the chain_maps_to_unit_resolution are defined such that we can compute products up
+    /// to bidegree (s, t)
+    #[cfg(feature = "concurrent")]
+    fn extend_maps_to_unit_concurrent(&self, s : u32, t : i32) {
+        let max_hom_deg = min(s, self.max_product_homological_degree);
+        let min_degree = self.min_degree();
+        let pool = ThreadPool::new(NUM_THREAD);
+        for i in 0 ..= s {
+            for j in min_degree ..= t {
+                let max_s = min(s, i + self.max_product_homological_degree);
+                let num_gens = self.module(i).number_of_gens_in_degree(j);
+                for k in 0 .. num_gens {
+                    let f = Arc::clone(&self.chain_maps_to_unit_resolution[i as usize][j][k]);
+                    pool.execute(move || {
+                        f.extend(max_s, t);
+                    });
+                }
+            }
+        }
+        pool.join();
+    }
+}
+
+impl<M, F, CC> Resolution<M, F, CC> where
     M : Module,
     F : ModuleHomomorphism<M, M>,
     CC : ChainComplex<M, F>
@@ -554,30 +620,6 @@ impl<M, F, CC> Resolution<M, F, CC> where
             true
         } else {
             false
-        }
-    }
-
-    /// This function computes the products between the element most recently added to product_list
-    /// and the parts of Ext that have already been computed. This function should be called right
-    /// after `add_product`, unless `resolve_through_degree`/`resolve_through_bidegree` has never been
-    /// called.
-    ///
-    /// This is made separate from `add_product` because extend_maps_to_unit needs a borrow of
-    /// `self`, but `add_product` takes in a mutable borrow.
-    pub fn catch_up_products(&self) {
-        let new_product = [self.product_list.last().unwrap().clone()];
-        let next_s = *self.next_s.lock().unwrap();
-        if next_s > 0 {
-            let min_degree = self.min_degree();
-            let max_s = next_s - 1;
-            let max_t = *self.next_t.lock().unwrap() - 1;
-
-            self.extend_maps_to_unit(max_s, max_t);
-            for t in min_degree ..= max_t {
-                for s in 0 ..= max_s {
-                    self.compute_products(s, t, &new_product);
-                }
-            }
         }
     }
 
@@ -646,9 +688,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
         self.add_structline(&elt.name, source_s, source_t, target_s, target_t, true, products);
     }
 
-    /// This ensures the chain_maps_to_unit_resolution are defined such that we can compute products up
-    /// to bidegree (s, t)
-    fn extend_maps_to_unit(&self, s : u32, t : i32) {
+    fn construct_maps_to_unit(&self, s : u32, t : i32) {
         // If there are no products, we return
         if self.product_list.len() == 0 {
             return;
@@ -657,7 +697,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
         let p = self.prime();
         let s_idx = s as usize;
 
-        // Now we populate the arrays if the ResolutionHomomorphisms have not been defined.
+        // Populate the arrays if the ResolutionHomomorphisms have not been defined.
         for new_s in 0 ..= s_idx {
             if new_s == self.chain_maps_to_unit_resolution.len() {
                 self.chain_maps_to_unit_resolution.push(OnceBiVec::new(self.min_degree()));
@@ -679,11 +719,23 @@ impl<M, F, CC> Resolution<M, F, CC> where
                         unit_vector[j].set_entry(0, 1);
                         f.extend_step(new_s as u32, new_t, Some(&mut unit_vector));
                         unit_vector[j].set_to_zero();
-                        self.chain_maps_to_unit_resolution[new_s][new_t].push(f);
+                        self.chain_maps_to_unit_resolution[new_s][new_t].push(Arc::new(f));
                     }
                 }
             }
         }
+    }
+
+    /// This ensures the chain_maps_to_unit_resolution are defined such that we can compute products up
+    /// to bidegree (s, t)
+    fn extend_maps_to_unit(&self, s : u32, t : i32) {
+        // If there are no products, we return
+        if self.product_list.len() == 0 {
+            return;
+        }
+
+        let p = self.prime();
+        let s_idx = s as usize;
 
         // Now we actually extend the maps.
         let max_hom_deg = min(s, self.max_product_homological_degree);

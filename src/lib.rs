@@ -47,6 +47,9 @@ extern crate serde;
 extern crate wasm_bindgen;
 extern crate bivec;
 
+#[cfg(feature = "concurrent")]
+extern crate threadpool;
+
 // Parser
 extern crate nom;
 

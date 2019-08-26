@@ -18,3 +18,4 @@ textwrap = { version = "*", features = ["term_size"] }
 
 [features]
 cache-multiplication = ["rust_ext/cache-multiplication"]
+concurrent = ["rust_ext/concurrent"]
