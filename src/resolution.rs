@@ -12,7 +12,7 @@ use crate::matrix::{Matrix, Subspace};
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, OptionModule, FiniteModule};
 use crate::free_module::FreeModule;
-use crate::once::{OnceVec, OnceBiVec, TempStorage};
+use crate::once::{OnceVec, OnceBiVec};
 use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
@@ -353,7 +353,7 @@ pub struct SelfMap<
     pub s : u32,
     pub t : i32,
     pub name : String,
-    pub map_data : TempStorage<Matrix>,
+    pub map_data : Matrix,
     pub map : ResolutionHomomorphism<M, F, CC, M, F, CC>
 }
 
@@ -470,12 +470,13 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         // println!("step : hom_deg : {}, int_deg : {}", homological_degree, degree);
         self.inner.complex().compute_through_bidegree(s, t);
         self.inner.step_resolution(s, t);
+        if t - (s as i32) < self.min_degree() {
+            return;
+        }
         let module = self.module(s);
         let num_gens = module.number_of_gens_in_degree(t);
         if let Some(f) = &self.add_class {
-            if num_gens > 0 {
-                f(s, t, num_gens);
-            }
+            f(s, t, num_gens);
         }
         self.compute_filtration_one_products(s, t);
         self.extend_maps_to_unit(s, t);
@@ -496,7 +497,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 
         for (op_name, op_degree, op_index) in &self.filtration_one_products {
             let source_t = target_t - *op_degree;
-            if source_t < self.min_degree(){
+            if source_t - (source_s as i32) < self.min_degree(){
                 continue;
             }
             let source_dim = source.number_of_gens_in_degree(source_t);
@@ -602,10 +603,6 @@ impl<M, F, CC> Resolution<M, F, CC> where
     /// Compute products whose result lie in degrees up to (s, t)
     fn compute_products(&self, s : u32, t : i32, products: &[Cocycle]) {
         for elt in products {
-            if s < elt.s || t < self.min_degree() + elt.t {
-                continue;
-            }
-
             self.compute_product_step(elt, s, t);
         }
     }
@@ -613,8 +610,15 @@ impl<M, F, CC> Resolution<M, F, CC> where
     /// Target = result of the product
     /// Source = multiplicand
     fn compute_product_step(&self, elt : &Cocycle, target_s : u32, target_t : i32) {
+        if target_s < elt.s {
+            return;
+        }
         let source_s = target_s - elt.s;
         let source_t = target_t - elt.t;
+
+        if source_t - (source_s as i32) < self.min_degree() {
+            return;
+        }
 
         let source_dim = self.inner.number_of_gens_in_bidegree(source_s, source_t);
         let target_dim = self.inner.number_of_gens_in_bidegree(target_s, target_t);
@@ -713,7 +717,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
             self.product_names.insert(name.clone());
             self.self_maps.push(
                 SelfMap {
-                    s, t, name : name, map_data : TempStorage::new(map_data),
+                    s, t, name : name, map_data,
                     map : ResolutionHomomorphism::new("".to_string(), Rc::downgrade(&self.inner), Rc::downgrade(&self.inner), s, t)
                 });
             true
@@ -726,17 +730,19 @@ impl<M, F, CC> Resolution<M, F, CC> where
     fn compute_self_maps(&self, target_s : u32, target_t : i32) {
         let p = self.prime();
         for f in &self.self_maps {
-            if target_s < f.s || target_t < f.t + self.min_degree() {
-                continue;
+            if target_s < f.s {
+                return;
             }
-            if target_s == f.s && target_t == f.t + self.min_degree() {
-                let mut map_data = f.map_data.take();
-                f.map.extend_step(target_s, target_t, Some(&mut map_data));
-            }
-            f.map.extend(target_s, target_t);
-
             let source_s = target_s - f.s;
             let source_t = target_t - f.t;
+
+            if source_t - (source_s as i32) < self.min_degree() {
+                continue;
+            }
+            if source_s == 0 && source_t == self.min_degree() {
+                f.map.extend_step(target_s, target_t, Some(&f.map_data));
+            }
+            f.map.extend(target_s, target_t);
 
             let source = self.module(source_s);
             let target = self.module(target_s);

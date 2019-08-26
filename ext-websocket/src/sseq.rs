@@ -794,9 +794,6 @@ impl Sseq {
         if x == self.min_x {
             self.classes[self.min_x - 1].push(0);
         }
-        while x > self.classes.len() {
-            self.set_class(self.classes.len(), self.min_y - 1, 0);
-        }
         if x == self.classes.len() {
             self.classes.push(BiVec::new(self.min_y));
             self.class_names.push(BiVec::new(self.min_y));
@@ -804,14 +801,6 @@ impl Sseq {
             self.zeros.push(BiVec::new(self.min_y));
             self.permanent_classes.push(BiVec::new(self.min_y));
             self.page_classes.push(BiVec::new(self.min_y));
-        }
-
-        if y < self.min_y {
-            return; // This happens when we are padding as above
-        }
-
-        while y > self.classes[x].len() {
-            self.set_class(x, self.classes[x].len(), 0);
         }
 
         assert_eq!(self.classes[x].len(), y);
@@ -989,13 +978,8 @@ impl Sseq {
     }
 
     pub fn add_product(&mut self, name : &String, x : i32, y : i32, mult_x : i32, mult_y : i32, left : bool, matrix : &Vec<Vec<u32>>) {
-        if !self.class_defined(x, y) {
-            return;
-        }
-        if !self.class_defined(x + mult_x, y + mult_y) {
-            return;
-        }
-
+        assert!(self.class_defined(x, y));
+        assert!(self.class_defined(x + mult_x, y + mult_y));
         let idx : usize =
             match self.product_name_to_index.get(name) {
                 Some(i) => *i,

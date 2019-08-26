@@ -127,20 +127,3 @@ impl<T> Index<i32> for OnceBiVec<T> {
         unsafe { &(self.get_bivec()[key]) }
     }
 }
-
-pub struct TempStorage<T> {
-    data : UnsafeCell<Option<T>>
-}
-
-impl<T> TempStorage<T> {
-    pub fn new(object : T) -> Self {
-        Self {
-            data : UnsafeCell::new(Some(object))
-        }
-    }
-
-    pub fn take(&self) -> T {
-        let maybe_t = unsafe { &mut *self.data.get() };
-        maybe_t.take().unwrap()
-    }
-}

@@ -66,7 +66,7 @@ impl<
         }
     }
 
-    pub fn extend_step(&self, input_homological_degree : u32, input_internal_degree : i32, extra_images : Option<&mut Matrix>){
+    pub fn extend_step(&self, input_homological_degree : u32, input_internal_degree : i32, extra_images : Option<&Matrix>){
         let output_homological_degree = input_homological_degree - self.homological_degree_shift;
         let f_cur = self.get_map_ensure_length(output_homological_degree);
         let computed_degree = *f_cur.lock();
@@ -81,7 +81,7 @@ impl<
         *lock += 1;
     }
 
-    fn extend_step_helper(&self, input_homological_degree : u32, input_internal_degree : i32, mut extra_images : Option<&mut Matrix>) -> Matrix {
+    fn extend_step_helper(&self, input_homological_degree : u32, input_internal_degree : i32, mut extra_images : Option<&Matrix>) -> Matrix {
         let source = self.source.upgrade().unwrap();
         let target = self.target.upgrade().unwrap();
         let p = source.prime();
@@ -92,7 +92,7 @@ impl<
         let target_chain_map_qi = target_chain_map.quasi_inverse(output_internal_degree);
         let target_cc_dimension = target_chain_map.target().dimension(output_internal_degree);
         if let Some(extra_images_matrix) = &extra_images {
-            assert!(target_cc_dimension <= extra_images_matrix.columns());
+            assert!(target_cc_dimension == extra_images_matrix.columns());
         }
         let f_cur = self.get_map(output_homological_degree);
         let num_gens = f_cur.source().number_of_gens_in_degree(input_internal_degree);
@@ -103,14 +103,11 @@ impl<
         }
         if output_homological_degree == 0 {
             if let Some(extra_images_matrix) = extra_images {
-                assert!(num_gens <= extra_images_matrix.rows(), 
+                assert!(num_gens == extra_images_matrix.rows(),
                     format!("num_gens : {} greater than rows : {} hom_deg : {}, int_deg : {}", 
                     num_gens, extra_images_matrix.rows(), input_homological_degree, input_internal_degree));
                 for k in 0 .. num_gens {
-                    let old_slice = extra_images_matrix[k].slice();
-                    extra_images_matrix[k].set_slice(0, target_cc_dimension);
                     target_chain_map_qi.as_ref().unwrap().apply(&mut outputs_matrix[k], 1, &extra_images_matrix[k]);
-                    extra_images_matrix[k].restore_slice(old_slice);
                 }
             }
             return outputs_matrix;            
@@ -132,10 +129,7 @@ impl<
             d_source.apply_to_generator(&mut dx_vector, 1, input_internal_degree, k);
             if dx_vector.is_zero() {
                 let extra_image_matrix = extra_images.as_mut().expect("Missing extra image rows");
-                let old_slice = extra_image_matrix[extra_image_row].slice();
-                extra_image_matrix[extra_image_row].set_slice(0, target_cc_dimension);
                 target_chain_map_qi.as_ref().unwrap().apply(&mut outputs_matrix[k], 1, &extra_image_matrix[extra_image_row]);
-                extra_image_matrix[extra_image_row].restore_slice(old_slice);
                 extra_image_row += 1;
             } else {
                 f_prev.apply(&mut fdx_vector, 1, input_internal_degree, &dx_vector);
