@@ -808,7 +808,7 @@ impl Sseq {
         self.classes[x].push(num);
         let mut names = Vec::with_capacity(num);
         if num == 1 {
-            names.push(format!("x_{{{}, {}}}", x, y));
+            names.push(format!("x_{{{},{}}}", x, y));
         } else {
             for i in 0 .. num {
                 names.push(format!("x_{{{}, {}}}^{{({})}}", x, y, i));

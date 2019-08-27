@@ -37,9 +37,10 @@ class Display extends EventEmitter {
         this.leftMargin = 40;
         this.rightMargin = 5;
         this.topMargin = 30;
-        this.bottomMargin = 60;
+        this.bottomMargin = 30;
         this.domainOffset = 1 / 2;
 
+        this.alwaysHighlight = [];
         this.highlighted = new Set();
         this.tooltip = new Tooltip(this);
 
@@ -148,6 +149,7 @@ class Display extends EventEmitter {
             this.sseq.removeListener("update", this.update);
         }
         this.sseq = sseq;
+        this.sseq.display = this;
         this.pageIdx = 0;
         this.setPage();
 
@@ -156,6 +158,9 @@ class Display extends EventEmitter {
 
         this.sseq.on('update', this.update);
 
+        for (let name of sseq.products.keys()) {
+            this.structlineStyles.set(name, Object.assign({}, DEFAULT_EDGE_STYLE));
+        }
         this.sseq.on("new-structline", (name) => {
             this.structlineStyles.set(name, Object.assign({}, DEFAULT_EDGE_STYLE));
         });
@@ -186,13 +191,21 @@ class Display extends EventEmitter {
         if (this.selected) {
             this.highlightClass(this.selected);
         }
+        for (let h of this.alwaysHighlight) {
+            this.highlightClass(h);
+        }
     }
 
     removeHighlight(coord) {
-        if (this.selected && coord[0] == this.selected[0] && coord[1] == this.selected[1])
-            return;
-
         this.highlighted.delete(coord.join(" "));
+
+        if (this.selected) {
+            this.highlightClass(this.selected);
+        }
+        for (let h of this.alwaysHighlight) {
+            this.highlightClass(h);
+        }
+
     }
 
     highlightClass(coord) {
@@ -526,7 +539,7 @@ class Display extends EventEmitter {
             for (let x = this.xmin - 1 - mult.x; x < this.xmax + 1; x++) {
                 for (let y = this.ymin - 1 - mult.y; y < this.ymax + 1; y++) {
                     let matrices = mult.matrices.get(x, y);
-                    if (matrices === undefined)
+                    if (matrices === undefined || matrices === null)
                         continue;
 
                     let pageIdx = Math.min(matrices.length - 1, this.page - MIN_PAGE);
@@ -719,9 +732,9 @@ class Sidebar {
 
         parentContainer.appendChild(this.sidebar);
 
-        this.main_div = document.createElement("div");
-        this.main_div.style.overflow = "auto";
-        this.sidebar.appendChild(this.main_div);
+        this.mainDiv = document.createElement("div");
+        this.mainDiv.style.overflow = "auto";
+        this.sidebar.appendChild(this.mainDiv);
 
         let filler = document.createElement("div");
         filler.style.flexGrow = "1";
@@ -768,7 +781,7 @@ class Sidebar {
     }
 }
 
-class SidebarDisplay extends Display {
+export class SidebarDisplay extends Display {
     constructor(container, sseq) {
         if (typeof container == "string")
             container = document.querySelector(container);
@@ -791,6 +804,9 @@ class SidebarDisplay extends Display {
 
         this.sidebar = sidebar;
         this.sidebar.init(this);
+
+        Mousetrap.bind('left',  this.previousPage);
+        Mousetrap.bind('right', this.nextPage);
     }
 }
 
@@ -803,14 +819,11 @@ export class MainDisplay extends SidebarDisplay {
         this.on("mouseout", this._onMouseout.bind(this));
         this.on("click", this.__onClick.bind(this));
 
-        Mousetrap.bind('left',  this.previousPage);
-        Mousetrap.bind('right', this.nextPage);
-
-        this.generalPanel = new GeneralPanel(this.sidebar.main_div, this);
+        this.generalPanel = new GeneralPanel(this.sidebar.mainDiv, this);
         this.sidebar.addPanel(this.generalPanel);
         this.sidebar.currentPanel = this.generalPanel;
 
-        this.classPanel = new ClassPanel(this.sidebar.main_div, this);
+        this.classPanel = new ClassPanel(this.sidebar.mainDiv, this);
         this.sidebar.addPanel(this.classPanel);
 
         this.sidebar.footer.newGroup();

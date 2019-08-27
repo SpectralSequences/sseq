@@ -1,4 +1,4 @@
-import { promptClass, promptInteger, vecToName } from "./utils.js";
+import { download, promptClass, promptInteger, vecToName } from "./utils.js";
 
 export const MIN_PAGE = 2;
 const OFFSET_SIZE = 0.3;
@@ -20,8 +20,8 @@ const KEEP_LOG = new Set(["AddDifferential", "AddProductType", "AddProductDiffer
 const MAX_STRUCTLINE_X = 8;
 
 export class BiVec {
-    constructor(minDegree) {
-        this.data = [];
+    constructor(minDegree, data) {
+        this.data = data ? data : [];
         this.minDegree = minDegree;
     }
     set(x, y, data) {
@@ -110,11 +110,7 @@ export class ExtSseq extends EventEmitter {
         if (confirm(`Are you sure you want to remove ${msg}?`)) {
             this.history = this.history.filter(m => JSON.stringify(m) != msg);
 
-            this.send({
-                recipients: ["Sseq"],
-                action : { BlockRefresh : { block : true } }
-            });
-
+            this.block();
             this.send({
                 recipients: ["Sseq"],
                 action : { Clear : {} }
@@ -125,20 +121,21 @@ export class ExtSseq extends EventEmitter {
                 this.send(msg, false);
             }
 
-            this.send({
-                recipients: ["Sseq"],
-                action : { BlockRefresh : { block : false } }
-            });
+            this.block(false);
         }
     }
+
+    block(block = true) {
+        this.send({
+            recipients: ["Sseq"],
+            action : { BlockRefresh : { block : block } }
+        });
+    }
+
     undo() {
         this.redoStack.push(this.history.pop());
 
-        this.send({
-            recipients: ["Sseq"],
-            action : { BlockRefresh : { block : true } }
-        });
-
+        this.block();
         this.send({
             recipients: ["Sseq"],
             action : { Clear : {} }
@@ -148,10 +145,7 @@ export class ExtSseq extends EventEmitter {
         for (let msg of this.history) {
             this.send(msg, false);
         }
-        this.send({
-            recipients: ["Sseq"],
-            action : { BlockRefresh : { block : false } }
-        });
+        this.block(false);
     }
 
     redo() {
@@ -353,10 +347,7 @@ export class ExtSseq extends EventEmitter {
         }
         this.maxDegree = newmax;
 
-        this.send({
-            recipients: ["Resolver"],
-            action : { BlockRefresh : { block : true } }
-        });
+        this.block();
         this.send({
             recipients: ["Resolver"],
             action: {
@@ -365,10 +356,7 @@ export class ExtSseq extends EventEmitter {
                 }
             }
         });
-        this.send({
-            recipients: ["Resolver"],
-            action : { BlockRefresh : { block : false } }
-        });
+        this.block(false)
     }
 
     queryTable(x, y) {
@@ -465,4 +453,107 @@ export class ExtSseq extends EventEmitter {
 
         return result[page];
     }
+
+    getChangingJSON(prevMessage) {
+        let result = {};
+        for (let x of CHANGING_FIELDS) {
+            result[x] = this[x];
+        }
+        for (let x of CHANGING_BIVECS) {
+            result[x] = this[x].data;
+        }
+        result.products = Object.fromEntries(this.products);
+        result.action = prevMessage;
+        return LZString.compressToUTF16(JSON.stringify(result));
+    }
+
+    async downloadHistoryList() {
+        this.display.updating = true; // Block update
+        let oldHistory = this.history;
+        this.history = [];
+
+        let lines = [];
+
+        let permanent = {};
+        for (let x of PERMANENT_FIELDS) {
+            permanent[x] = this[x];
+        }
+        for (let x of PERMANENT_BIVECS) {
+            permanent[x] = this[x].data;
+        }
+        lines.push(LZString.compressToUTF16(JSON.stringify(permanent)));
+
+        this.send({
+            recipients: ["Sseq"],
+            action : { Clear : {} }
+        });
+
+        let prevMessage = null;
+        // First set all the names.
+        for (let msg of oldHistory) {
+            let name = Object.keys(msg.action)[0];
+            if (name == "SetClassName" || (name == "AddProduct" && !msg.action[name].permanent)) {
+                continue;
+            }
+
+            // In the first loop, this waits for the previous clear to be done.
+            // In then asks the resolver to compute the next step, and then
+            // start serializing the current state of the sseq. Since this is
+            // blocking, none of the results from the new messages will show up
+            // until the next loop where we await for the new promise. Since no
+            // messages have been processed, it is guaranteed that
+            // commandCounter is non-zero.
+            await new Promise(r => window.onComplete.push(r));
+            this.block();
+            this.send(msg);
+            this.block(false);
+            lines.push(this.getChangingJSON(prevMessage));
+            prevMessage = msg;
+        }
+        await new Promise(r => window.onComplete.push(r));
+        lines.push(this.getChangingJSON(prevMessage));
+
+        let filename = prompt("History file name");
+        if (filename === null) return;
+        filename = filename.trim();
+
+        let lengths = lines.map(x => x.length);
+        download(filename, JSON.stringify(lengths) + "\n" + lines.join(""), "text/plain;charset=utf-16");
+
+        this.history = oldHistory;
+        this.display.updating = false; // Block update
+    }
+
+    static fromJSON(json) {
+        let sseq = new ExtSseq("Main", json.minDegree);
+        Object.defineProperty(sseq, "maxX", { value: null, writable: true});
+        Object.defineProperty(sseq, "maxY", { value: null, writable: true});
+        for (let x of PERMANENT_FIELDS) {
+            sseq[x] = json[x];
+        }
+        for (let x of PERMANENT_BIVECS) {
+            sseq[x].data = json[x];
+        }
+        return sseq;
+    }
+
+    updateFromJSON(json) {
+        for (let x of CHANGING_FIELDS) {
+            this[x] = json[x];
+        }
+        for (let x of CHANGING_BIVECS) {
+            this[x].data = json[x];
+        }
+
+        this.currentAction = json.action;
+        this.products = new Map(Object.entries(json.products));
+        for (let [_, mult] of this.products) {
+            mult.matrices = new BiVec(this.minDegree, mult.matrices.data);
+        }
+    }
 }
+
+const PERMANENT_FIELDS = ["minDegree", "maxX", "maxY", "isUnit"];
+const PERMANENT_BIVECS = ["classNames", "decompositions"];
+const CHANGING_FIELDS = ["pageList"]
+const CHANGING_BIVECS = ["classes", "classState", "permanentClasses", "differentials", "trueDifferentials"];

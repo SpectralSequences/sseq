@@ -8,7 +8,7 @@ function addLI(ul, text) {
     ul.appendChild(x);
 }
 
-const ACTION_TO_DISPLAY = {
+export const ACTION_TO_DISPLAY = {
     AddDifferential: (details, sseq) => {
         let x = details.x;
         let y = details.y;
@@ -71,6 +71,17 @@ const ACTION_TO_DISPLAY = {
         ];
     }
 };
+
+export function msgToDisplay(msg, sseq) {
+    if (!msg) {
+        return ["",[]];
+    }
+    let action = msg.action;
+    let actionName = Object.keys(action)[0];
+    let actionInfo = action[actionName];
+
+    return ACTION_TO_DISPLAY[actionName](actionInfo, sseq);
+}
 
 /**
  * A panel is a collection of objects (button etc.) to be displayed in a
@@ -365,7 +376,7 @@ export class Panel extends EventEmitter {
  *
  * @property {Panel} currentTab - The current tab that is displayed.
  */
-class TabbedPanel extends Panel {
+export class TabbedPanel extends Panel {
     constructor (parentContainer, display) {
         super(parentContainer, display);
 
@@ -527,12 +538,7 @@ class HistoryPanel extends Panel {
     }
 
     addMessage(data) {
-        let action = data.action;
-        let actionName = Object.keys(action)[0];
-        let actionInfo = action[actionName];
-
-        let result = ACTION_TO_DISPLAY[actionName](actionInfo, this.display.sseq);
-
+        let result = msgToDisplay(data, this.display.sseq);
         this.addHistoryItem(data, ...result);
     }
 
@@ -554,7 +560,7 @@ class OverviewPanel extends Panel {
     }
 }
 
-class StructlinePanel extends Panel {
+export class StructlinePanel extends Panel {
     constructor(parentContainer, display) {
         super(parentContainer, display);
     }
@@ -689,7 +695,7 @@ class StructlinePanel extends Panel {
             });
         }
 
-        if (!this.display.isUnit) {
+        if (!this.display.isUnit && this.display.constructor.name != "CalculationDisplay") {
             this.addButton("Add", () => window.unitDisplay.openModal(), { "tooltip": "Add product to display" });
         }
     }
@@ -733,7 +739,7 @@ class MainPanel extends Panel {
             let n = document.createElement("span");
             n.style.padding = "0 0.6em";
             n.innerHTML = katex.renderToString(vecToName(c, names));
-            if (classes.length == sseq.classes.get(x, y)[0].length) {
+            if (this.display.constructor.name != "CalculationDisplay" && classes.length == sseq.classes.get(x, y)[0].length) {
                 n.addEventListener("click", () => {
                     let name = prompt("New class name");
                     if (name !== null) {
@@ -751,6 +757,8 @@ class MainPanel extends Panel {
             this.addHeader("Decompositions");
             for (let d of decompositions) {
                 let single = d[0].reduce((a, b) => a + b, 0) == 1;
+                single = single && this.display.constructor.name != "CalculationDisplay";
+
                 let highlights = [[x - d[2], y - d[3]]];
                 if (this.display.isUnit) {
                     highlights[1] = [d[2], d[3]]
@@ -772,7 +780,7 @@ class MainPanel extends Panel {
             }
         }
 
-        if (this.display.isUnit) {
+        if (this.display.isUnit && this.display.constructor.name != "CalculationDisplay") {
             this.newGroup();
             this.addButton("Add Product", () => {
                 let [x, y] = this.display.selected;
@@ -852,10 +860,12 @@ class DifferentialPanel extends Panel {
                 this.addLine(katex.renderToString(`d_${page}(${rowToLaTeX(source)}) = ${rowToLaTeX(target)}`), callback);
             }
         }
-        if (this.display.isUnit) {
-            this.addLine("<span style='font-size: 80%'>Click differential to propagate</span>");
+        if (this.display.constructor.name != "CalculationDisplay") {
+            if (this.display.isUnit) {
+                this.addLine("<span style='font-size: 80%'>Click differential to propagate</span>");
+            }
+            this.addButton("Add", () => this.display.state = STATE_ADD_DIFFERENTIAL);
         }
-        this.addButton("Add", () => this.display.state = STATE_ADD_DIFFERENTIAL);
 
         this.newGroup();
         this.addHeader("Permanent Classes");
@@ -863,9 +873,11 @@ class DifferentialPanel extends Panel {
         if (permanentClasses.length > 0) {
             this.addLine(permanentClasses.map(rowToKaTeX).join("<br />"));
         }
-        this.addButton("Add", () => {
-            sseq.addPermanentClassInteractive(x, y);
-        });
+        if (this.display.constructor.name != "CalculationDisplay") {
+            this.addButton("Add", () => {
+                sseq.addPermanentClassInteractive(x, y);
+            });
+        }
 
     }
 }
@@ -886,7 +898,7 @@ class ProductsPanel extends Panel {
 
         for (let [name, mult] of sseq.products) {
             let matrices = mult.matrices.get(x, y);
-            if (matrices === undefined)
+            if (matrices === undefined || matrices === null)
                 continue;
 
             let page_idx = Math.min(matrices.length - 1, page - MIN_PAGE);

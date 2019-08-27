@@ -26,7 +26,7 @@ export function renderLaTeX(html) {
     html = html.replace(/\n/g, "\n<hr>\n")
     let html_list = html.split(/(?:\\\[)|(?:\\\()|(?:\\\))|(?:\\\])|(?:\$)/);
     for(let i = 1; i < html_list.length; i+=2){
-        html_list[i] = katex.renderToString(html_list[i]);
+        html_list[i] = katex.renderToString(html_list[i], { throwOnError : false });
     }
     return html_list.join("\n")
 }
@@ -67,16 +67,11 @@ export function promptInteger(text, error) {
 }
 
 export function download (filename, text, mime="text/plain") {
-    if(text.constructor !== String){
-        text = JSON.stringify(text);
-    }
     let element = document.createElement('a');
 
-    element.setAttribute('href', `data:${mime};charset=utf-8,` + encodeURIComponent(    text));
-    element.setAttribute('download', filename);
-
-    element.style.display = 'none';
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+    element.href = URL.createObjectURL(new Blob([text], {type : mime}));
+    element.download = filename;
+    element.rel = 'noopener';
+    element.dispatchEvent(new MouseEvent('click'));
+    setTimeout(() => URL.revokeObjectURL(element.href), 6E4);
 };

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Steenrod Ext</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.11.0/dist/katex.min.css" integrity="sha384-BdGj8xC2eZkQaxoQ8nSLefg4AV4/AwB3Fj+8SUSo7pnKP6Eoy18liIKTPn9oBYNG" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="index.css">
+  </head>
+  <body>
+    <div id="home">
+      <div>
+        <label class="btn btn-primary btn-file">Load Calculation<input id="calculation-upload" type="file" style="display: none"></input></label>
+      </div>
+    </div>
+
+    <div id="main"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/EventEmitter/5.2.6/EventEmitter.min.js" type="text/javascript"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.11.0/dist/katex.min.js" integrity="sha384-JiKN5O8x9Hhs/UE5cT5AAJqieYlOZbGT3CHws/y97o3ty4R7/O5poG9F3JoiOYw1" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.11.0/d3.min.js" type="text/javascript"></script>
+    <script src="mousetrap.min.js" type="module"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js" type="text/javascript"></script>
+    <script src="canvas2svg.js" type="module"></script>
+    <script src="utils.js" type="module"></script>
+    <script src="panels.js" type="module"></script>
+    <script src="display.js" type="module"></script>
+    <script src="sseq.js" type="module"></script>
+    <script src="cDisplay.js" type="module"></script>
+    <script>
+      document.getElementById("calculation-upload").addEventListener("change", function() {
+        let file = document.getElementById("calculation-upload").files[0];
+
+        let fileReader = new FileReader();
+        fileReader.onload = e => {
+          let hist = e.target.result;
+          import("./cDisplay.js").then((module) => {
+            window.display = new module.CalculationDisplay("#main", hist);
+          });
+        };
+
+        fileReader.readAsText(file, "UTF-8");
+        document.querySelector("#home").style.display = "none";
+      });
+
+    </script>
+  </body>
+</html>

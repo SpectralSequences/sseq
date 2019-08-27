@@ -2,8 +2,9 @@ import { MainDisplay, UnitDisplay } from "./display.js";
 import { ExtSseq } from "./sseq.js";
 import { renderLaTeX, download } from "./utils.js";
 
-let commandCounter = 0;
+window.commandCounter = 0;
 let commandQueue = [];
+window.onComplete = [];
 function processCommandQueue() {
     if (commandQueue.length == 0)
         return;
@@ -213,6 +214,10 @@ messageHandler.Complete = function (m) {
     if (commandCounter == 0) {
         display.runningSign.style.display = "none";
         processCommandQueue();
+        let f;
+        while (f = window.onComplete.pop()) {
+            f();
+        }
     }
 }
 
