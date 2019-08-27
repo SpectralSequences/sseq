@@ -50,9 +50,6 @@ export class ExtSseq extends EventEmitter {
         this.redoStack = [];
         this.name = name;
 
-        this.initial_page_idx = 0;
-        this.min_page_idx = 0;
-
         this._vanishingSlope = "1/2";
         this._vanishingIntercept = 1;
 
@@ -66,11 +63,7 @@ export class ExtSseq extends EventEmitter {
         this.differentials = new BiVec(minDegree);
         this.trueDifferentials = new BiVec(minDegree);
 
-        this.page_list = [MIN_PAGE];
-
-        this.class_scale = 1;
-        this.min_class_size = 20;
-        this.max_class_size = 60;
+        this.pageList = [MIN_PAGE];
 
         // The largest x/y of the products we have. This is useful for figuring which structlines to draw.
         this.maxMultX = 0;
@@ -405,7 +398,7 @@ export class ExtSseq extends EventEmitter {
     }
 
     processSetPageList(data) {
-        this.page_list = data.page_list;
+        this.pageList = data.page_list;
     }
 
     processSetClass(data) {

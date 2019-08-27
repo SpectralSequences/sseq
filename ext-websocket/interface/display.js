@@ -24,7 +24,10 @@ const DEFAULT_EDGE_STYLE = {
     "color": "black",
     "bend": 0,
     "line-dash": []
-};
+}
+
+const MIN_CLASS_SIZE = 20;
+const MAX_CLASS_SIZE = 60;
 
 class Display extends EventEmitter {
     // container is either an id (e.g. "#main") or a DOM object
@@ -47,7 +50,7 @@ class Display extends EventEmitter {
 
         this.visibleStructlines = new Set(["h_0", "a_0", "h_1", "h_2"]);
         this.structlineStyles = new Map();
-        this.updateQueue = 0;
+        this.updating = false;
 
         this.container = d3.select(container);
         this.container_DOM = this.container.node();
@@ -79,6 +82,8 @@ class Display extends EventEmitter {
 
         this.canvas.addEventListener("mousemove", this._onMousemove);
         this.canvas.addEventListener("click", () => this._onClick(this.mouseCoord));
+
+        this.classScale = 1;
 
         // TODO: improve window resize handling. Currently the way that the domain changes is suboptimal.
         // I think the best would be to maintain the x and y range by scaling.
@@ -143,7 +148,7 @@ class Display extends EventEmitter {
             this.sseq.removeListener("update", this.update);
         }
         this.sseq = sseq;
-        this.page_idx = 0;
+        this.pageIdx = 0;
         this.setPage();
 
         this._initializeScale();
@@ -163,15 +168,15 @@ class Display extends EventEmitter {
     }
 
     nextPage(){
-        if (this.page_idx < this.sseq.page_list.length - 1) {
-            this.setPage(this.page_idx + 1);
+        if (this.pageIdx < this.sseq.pageList.length - 1) {
+            this.setPage(this.pageIdx + 1);
             this.update();
         }
     }
 
     previousPage(){
-        if (this.page_idx > this.sseq.min_page_idx) {
-            this.setPage(this.page_idx - 1);
+        if (this.pageIdx > MIN_PAGE) {
+            this.setPage(this.pageIdx - 1);
             this.update();
         }
     }
@@ -195,27 +200,27 @@ class Display extends EventEmitter {
     }
 
     /**
-     * Update this.page to reflect the value of page_idx.
+     * Update this.page to reflect the value of pageIdx.
      * Eventually I should make a display that indicates the current page again, then this can also say what that is.
      */
     setPage(idx){
         if (!this.sseq) return;
 
         if(idx !== undefined){
-            this.page_idx = idx;
+            this.pageIdx = idx;
         }
-        this.page = this.sseq.page_list[this.page_idx];
+        this.page = this.sseq.pageList[this.pageIdx];
         this._onClick(this.selected);
     }
 
     update() {
         if (!this.sseq) return;
+        if (this.updating) return;
 
-        this.updateQueue ++;
+        this.updating = true;
 
         requestAnimationFrame(() => {
-            this.updateQueue --;
-            if (this.updateQueue != 0) return;
+            this.updating = false;
 
             this._drawSseq(this.context);
             if (d3.event) {
@@ -474,6 +479,9 @@ class Display extends EventEmitter {
     _drawNodes(context) {
         context.save();
         context.fillStyle = "black";
+
+        let size = Math.max(Math.min(this.dxScale(1), -this.dyScale(1), MAX_CLASS_SIZE), MIN_CLASS_SIZE) * this.classScale;
+
         for (let x = this.xmin - 1; x < this.xmax + 1; x++) {
             for (let y = this.ymin - 1; y < this.ymax + 1; y++) {
 
@@ -491,8 +499,6 @@ class Display extends EventEmitter {
 
                 let num = classes.length;
                 for (let i = 0; i < num; i++) {
-                    let size = Math.max(Math.min(this.dxScale(1), -this.dyScale(1), this.sseq.max_class_size), this.sseq.min_class_size) * this.sseq.class_scale;
-
                     let [x_, y_] = this.sseqToCanvas(x, y, i, num);
 
                     context.beginPath();
@@ -523,8 +529,8 @@ class Display extends EventEmitter {
                     if (matrices === undefined)
                         continue;
 
-                    let page_idx = Math.min(matrices.length - 1, this.page - MIN_PAGE);
-                    let matrix = matrices[page_idx];
+                    let pageIdx = Math.min(matrices.length - 1, this.page - MIN_PAGE);
+                    let matrix = matrices[pageIdx];
                     if (matrix === undefined)
                         continue;
 
@@ -610,8 +616,7 @@ class Display extends EventEmitter {
         let oldSelected = this.selected;
         this.selected = null;
 
-        if (this.sseq.getClasses(coord[0], coord[1], this.page) !== undefined && 
-            this.sseq.getClasses(coord[0], coord[1], this.page).length > 0) {
+        if (this.sseq.hasClasses(...coord, this.page)) {
             this.selected = Array.from(coord); // Copy
             this.highlightClass(this.selected);
         }
@@ -673,10 +678,14 @@ class Display extends EventEmitter {
         return ctx.getSerializedSvg(true);
     }
 
-    downloadSVG(filename) {
-        if(filename === undefined){
-            filename = `${this.sseq.name}_x-${this.xmin}-${this.xmax}_y-${this.ymin}-${this.ymax}.svg`
+    downloadSVG() {
+        let filename = prompt("File name");
+        if (filename === null) {
+            return;
         }
+        filename = filename.trim();
+        if (!filename.endsWith(".svg"))
+            filename += ".svg";
         download(filename, this.toSVG(), "image/svg+xml")
     }
 }
@@ -817,7 +826,7 @@ export class MainDisplay extends SidebarDisplay {
             ["Redo", () => this.sseq.redo()]
         ]);
 
-        this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG("sseq.svg"));
+        this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG());
         this.sidebar.footer.addButton("Save", () => window.save());
 
         Mousetrap.bind("J", () => this.sidebar.currentPanel.prevTab());

@@ -26,9 +26,6 @@ const ACTION_DISPLAY_NAME = {
  * setting the display property, and then initialize the values of the elements
  * accordingly.
  *
- * Panels and its children are expected to properly track mutations and write
- * them to this.display.sseq.undo upon each change.
- *
  * There are a few helper functions that add elements to the panel, such as
  * addButton.
  *
@@ -229,22 +226,8 @@ export class Panel extends EventEmitter {
      * field is linked to this.display.foo.bar.xyz.
      * @param {string} type - The type of the input field. This is "text" or
      * "number" would usually be sensible choices.
-     * @param {Object=} mementoObject - By default, the undo/redo functions
-     * will simply set the value of target to what it was. Here the target
-     * is remembered as an *object*, not as a property of this.display via
-     * target (for example, if the input is about the currently active node
-     * (this.display.selected), the undo function should undo the change on the
-     * node that was affected, not the node that is active when the undo button
-     * is pressed). It turns out this is problematic when dealing with nodes of
-     * classes, since when classes are restored via undo/redo, the set of nodes
-     * is copied and all references are lost.
-     *
-     * If mementoObject is defined, then instead of tracking individual changes
-     * of the properties, the mutation tracker remembers the previous and after
-     * states of mementoObject and writes that into the undo stack instead.
-     * c.f. the node color/size inputs in EditorDisplay.
      */
-    addLinkedInput(label, target, type, mementoObject) {
+    addLinkedInput(label, target, type) {
         let o = document.createElement("div");
         o.className = "form-row mb-2";
         o.style.width = "100%";
@@ -273,10 +256,6 @@ export class Panel extends EventEmitter {
 
         i.addEventListener("change", (e) => {
             let target_pre;
-            if (mementoObject) {
-                mementoObject = Panel.unwrapProperty(this.display, mementoObject.split("."))
-                target_pre = mementoObject.getMemento();
-            }
 
             let l = target.split(".");
             let prop = l.pop();
@@ -285,16 +264,6 @@ export class Panel extends EventEmitter {
             let old_val = t[prop];
             let new_val = e.target.value;
             t[prop] = new_val;
-
-            if (this.display.sseq.undo) {
-                if (mementoObject) {
-                    this.display.sseq.undo.startMutationTracking()
-                    this.display.sseq.undo.addMutation(mementoObject, target_pre, mementoObject.getMemento())
-                    this.display.sseq.undo.addMutationsToUndoStack();
-                } else {
-                    this.display.sseq.undo.addValueChange(t, prop, old_val, new_val, () => this.display.sidebar.showPanel());
-                }
-            }
 
             this.display.sseq.emit("update");
         });
