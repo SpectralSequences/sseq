@@ -541,7 +541,7 @@ class Display extends EventEmitter {
                                 let [targetX, targetY] = this.sseqToCanvas(x + mult.x, y + mult.y, j, targetDim);
 
                                 context.beginPath();
-                                if (style.bend > 0) {
+                                if (style.bend != 0) {
                                     let distance = Math.sqrt((targetX - sourceX)*(targetX - sourceX) + (targetY - sourceY)*(targetY - sourceY));
                                     let looseness = 0.4;
                                     let angle = Math.atan((targetY - sourceY)/(targetX - sourceX));

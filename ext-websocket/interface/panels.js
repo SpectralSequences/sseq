@@ -583,24 +583,116 @@ class StructlinePanel extends Panel {
 
         let names = Array.from(this.display.sseq.products.keys()).sort();
         for (let name of names) {
-            let o = document.createElement("div");
-            o.className = "form-row mb-2";
-            o.style.width = "100%";
-            this.currentGroup.appendChild(o);
+            let topElement = document.createElement("details");
+            this.addObject(topElement);
+
+            topElement.addEventListener("toggle", () => {
+                if (topElement.open) {
+                    for (let x of this.currentGroup.children) {
+                        if (x !== topElement) {
+                            x.open = false;
+                        }
+                    }
+                }
+            });
+
+            let summary = document.createElement("summary");
+            summary.className = "form-row mb-2";
+            summary.style.width = "100%";
+            topElement.appendChild(summary);
 
             let l = document.createElement("label");
             l.className = "col-form-label mr-sm-2";
             l.innerHTML = katex.renderToString(name);
-            o.appendChild(l);
+            summary.appendChild(l);
 
             let s = document.createElement("span");
             s.style.flexGrow = 1;
-            o.appendChild(s);
+            summary.appendChild(s);
 
             let i = document.createElement("input");
             i.setAttribute("type", "checkbox");
             i.checked = this.display.visibleStructlines.has(name);
-            o.appendChild(i);
+            summary.appendChild(i);
+
+            /// Styling labels
+            let style = this.display.structlineStyles.get(name);
+
+            // Color
+            let cd = document.createElement("div");
+            cd.className = "form-row mb-2";
+            cd.style.width = "90%";
+            cd.style.marginLeft = "5%";
+
+            let cl = document.createElement("label");
+            cl.className = "col-form-label mr-sm-2";
+            cl.innerHTML = "Color";
+            cd.appendChild(cl);
+
+            let ci = document.createElement("input");
+            ci.style.flexGrow = 1;
+            ci.setAttribute("type", "text");
+            ci.style.width = "1px";
+            ci.value = style.color;
+            cd.appendChild(ci);
+
+            ci.addEventListener("change", (e) => {
+                style.color = ci.value;
+                this.display.update();
+            });
+
+            topElement.appendChild(cd);
+
+            // Bend
+            let bd = document.createElement("div");
+            bd.className = "form-row mb-2";
+            bd.style.width = "90%";
+            bd.style.marginLeft = "5%";
+
+            let bl = document.createElement("label");
+            bl.className = "col-form-label mr-sm-2";
+            bl.innerHTML = "Bend";
+            bd.appendChild(bl);
+
+            let bi = document.createElement("input");
+            bi.style.flexGrow = 1;
+            bi.setAttribute("type", "number");
+            bi.style.width = "1px";
+            bi.value = style.bend;
+            bd.appendChild(bi);
+
+            bi.addEventListener("change", (e) => {
+                style.bend = parseInt(bi.value);
+                this.display.update();
+            });
+
+            topElement.appendChild(bd);
+
+            // Dash
+            let dd = document.createElement("div");
+            dd.className = "form-row mb-2";
+            dd.style.width = "90%";
+            dd.style.marginLeft = "5%";
+
+            let dl = document.createElement("label");
+            dl.className = "col-form-label mr-sm-2";
+            dl.innerHTML = "Dash";
+            dd.appendChild(dl);
+
+            let di = document.createElement("input");
+            di.style.flexGrow = 1;
+            di.setAttribute("type", "text");
+            di.style.width = "1px";
+            di.value = "[" + style["line-dash"].join(", ") + "]";
+            di.title = "An array of numbers that specify distances to alternately draw a line and a gap. For example, a solid line is [], while [2, 2] gives you a dashed line where the line and the gap have equal length.";
+            dd.appendChild(di);
+
+            di.addEventListener("change", (e) => {
+                style["line-dash"] = eval(di.value);
+                this.display.update();
+            });
+
+            topElement.appendChild(dd);
 
             i.addEventListener("change", (e) => {
                 if (i.checked) {
