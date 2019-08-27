@@ -93,7 +93,6 @@ if (!params.module) {
 }
 
 function send(msg) {
-    console.log(msg);
     commandCounter += msg.recipients.length;
     if (window.display !== undefined)
         display.runningSign.style.removeProperty("display");
