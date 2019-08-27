@@ -2,8 +2,12 @@ import { MainDisplay, UnitDisplay } from "./display.js";
 import { ExtSseq } from "./sseq.js";
 import { renderLaTeX, download } from "./utils.js";
 
+let commandCounter = 0;
 let commandQueue = [];
 function processCommandQueue() {
+    if (commandQueue.length == 0)
+        return;
+
     let commandText = "";
     let block = {
         recipients : ["Resolver", "Sseq"],
@@ -88,6 +92,16 @@ if (!params.module) {
     ]);
 }
 
+function send(msg) {
+    console.log(msg);
+    commandCounter += msg.recipients.length;
+    if (window.display !== undefined)
+        display.runningSign.style.removeProperty("display");
+
+    window.webSocket.send(JSON.stringify(msg));
+}
+window.send = send;
+
 function openWebSocket(initialData, maxDegree) {
     // Keep this for the save button
     window.constructCommand = initialData[0];
@@ -96,7 +110,7 @@ function openWebSocket(initialData, maxDegree) {
 
     webSocket.onopen = function(e) {
         for (let data of initialData) {
-            webSocket.send(JSON.stringify(data));
+            window.send(data);
         }
     };
 
@@ -165,12 +179,12 @@ messageHandler.Resolving = (data, msg) => {
         return;
     }
     if (!window.mainSseq) {
-        window.mainSseq = new ExtSseq("Main", window.webSocket, data.min_degree);
+        window.mainSseq = new ExtSseq("Main", data.min_degree);
         window.mainSseq.isUnit = data.is_unit;
         if (data.is_unit) {
             window.unitSseq = window.mainSseq;
         } else {
-            window.unitSseq = new ExtSseq("Unit", window.webSocket, 0);
+            window.unitSseq = new ExtSseq("Unit", 0);
 
             unitSseq.maxDegree = 9;
             Object.defineProperty(unitSseq, "maxX", {
@@ -191,14 +205,16 @@ messageHandler.Resolving = (data, msg) => {
             window.display = new MainDisplay("#main", mainSseq, data.is_unit);
             window.unitDisplay = new UnitDisplay("#unitsseq-body", unitSseq);
         }
+        window.display.runningSign.style.removeProperty("display");
     }
-
-    display.runningSign.style.removeProperty("display");
 }
 
 messageHandler.Complete = function (m) {
-    display.runningSign.style.display = "none";
-    processCommandQueue();
+    commandCounter --;
+    if (commandCounter == 0) {
+        display.runningSign.style.display = "none";
+        processCommandQueue();
+    }
 }
 
 messageHandler.QueryTableResult = function (m) {

@@ -40,7 +40,7 @@ export class BiVec {
 }
 
 export class ExtSseq extends EventEmitter {
-    constructor(name, webSocket, minDegree) {
+    constructor(name, minDegree) {
         super();
 
         this.minDegree = minDegree;
@@ -49,7 +49,6 @@ export class ExtSseq extends EventEmitter {
         this.history = [];
         this.redoStack = [];
         this.name = name;
-        this.webSocket = webSocket;
 
         this.initial_page_idx = 0;
         this.min_page_idx = 0;
@@ -110,7 +109,7 @@ export class ExtSseq extends EventEmitter {
         }
 
         data.sseq = this.name;
-        this.webSocket.send(JSON.stringify(data));
+        window.send(data);
     }
 
     removeHistoryItem(msg) {

@@ -118,6 +118,11 @@ impl ResolutionManager {
             let end = Local::now();
             let time_diff = (end - start).num_milliseconds();
             println!("{}\n", wrapper.fill(&format!("{} ResolutionManager: Completed in {}", start.format("%F %T"), ms_to_string(time_diff))));
+            manager.sender.send(Message {
+                recipients : vec![],
+                sseq : SseqChoice::Main, // Doesn't matter
+                action : Action::from(Complete {})
+            })?;
         }
         Ok(())
     }
@@ -199,13 +204,6 @@ impl ResolutionManager {
             }
         };
 
-
-        let msg = Message {
-            recipients : vec![],
-            sseq,
-            action : Action::from(Complete {})
-        };
-        self.sender.send(msg)?;
         Ok(())
     }
 
@@ -319,14 +317,16 @@ impl SseqManager {
             .subsequent_indent("                    ");
 
         for msg in receiver {
-            let time = match msg.action {
+            let user = match msg.action {
                 Action::AddClass(_) => false,
                 Action::AddProduct(_) => false,
+                Action::Complete(_) => false,
+                Action::Resolving(_) => false,
                 _ => true
             };
             let action_string = format!("{}", msg);
             let start = Local::now();
-            if time {
+            if user {
                 println!("{}\n", wrapper.fill(&format!("{} SseqManager: Processing {}", start.format("%F %T"), action_string)));
             }
 
@@ -340,10 +340,15 @@ impl SseqManager {
                     }
                 }
             }
-            if time {
+            if user {
                 let end = Local::now();
                 let time_diff = (end - start).num_milliseconds();
                 println!("{}\n", wrapper.fill(&format!("{} SseqManager: Completed in {}", start.format("%F %T"), ms_to_string(time_diff))));
+                manager.sender.send(Message {
+                    recipients : vec![],
+                    sseq : SseqChoice::Main, // Doesn't matter
+                    action : Action::from(Complete {})
+                })?;
             }
         }
         Ok(())

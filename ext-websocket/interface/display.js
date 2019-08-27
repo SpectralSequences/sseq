@@ -208,7 +208,7 @@ class Display extends EventEmitter {
         this._onClick(this.selected);
     }
 
-    update(batch = false) {
+    update() {
         if (!this.sseq) return;
 
         this.updateQueue ++;
