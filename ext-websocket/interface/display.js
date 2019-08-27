@@ -175,7 +175,7 @@ class Display extends EventEmitter {
     }
 
     previousPage(){
-        if (this.pageIdx > MIN_PAGE) {
+        if (this.pageIdx > 0) {
             this.setPage(this.pageIdx - 1);
             this.update();
         }
