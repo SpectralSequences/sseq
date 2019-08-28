@@ -8,12 +8,69 @@ function addLI(ul, text) {
     ul.appendChild(x);
 }
 
-const ACTION_DISPLAY_NAME = {
-    "AddDifferential": "Add Differential",
-    "AddPermanentClass": "Add Permanent Class",
-    "AddProduct": "Add Product",
-    "AddProductDifferential": "AddProductDifferential"
-}
+const ACTION_TO_DISPLAY = {
+    AddDifferential: (details, sseq) => {
+        let x = details.x;
+        let y = details.y;
+        let r = details.r;
+        let sourceNames = sseq.classNames.get(x, y);
+        let targetNames = sseq.classNames.get(x - 1, y + r);
+
+        return [
+            katex.renderToString(`d_{${r}}(${vecToName(details.source, sourceNames)}) = ${vecToName(details.target, targetNames)}`),
+            [[details.x, details.y], [details.x - 1, details.y + details.r]],
+        ];
+    },
+
+    AddProductDifferential: (details, sseq) => {
+        let content = `
+<ul class="text-left" style="padding-left: 20px; list-style-type: none">
+  <li>
+    <details>
+      <summary>source: ${katex.renderToString(details.source.name)}</summary>
+      (${details.source.x}, ${details.source.y}): ${katex.renderToString(rowToLaTeX(details.source.class))}
+    </details>
+  </li>
+  <li>
+    <details>
+      <summary>target: ${katex.renderToString(details.target.name)}</summary>
+      (${details.target.x}, ${details.target.y}): ${katex.renderToString(rowToLaTeX(details.target.class))}
+    </details>
+  </li>
+</ul>`;
+        let diffString = `d_{${details.target.y - details.source.y}}(${details.source.name}) = ${details.target.name}`;
+        return [
+            `Propagate ${katex.renderToString(diffString)}`,
+            [[details.source.x, details.source.y], [details.target.x, details.target.y]],
+            sseq.isUnit ? undefined : content
+        ]
+    },
+
+    AddProductType: (details, sseq) => {
+        return [
+            `<span>${details.permanent ? "Perm. " : ""}Product ${katex.renderToString(details.name)}</span>`,
+            [[details.x, details.y]],
+            sseq.isUnit ? undefined : `(${details.x}, ${details.y}): ${katex.renderToString(rowToLaTeX(details.class))}`
+        ];
+    },
+
+    AddPermanentClass: (details, sseq) => {
+        return [
+            `Permanent class ${katex.renderToString(vecToName(details.class, sseq.classNames.get(details.x, details.y)))}`,
+            [[details.x, details.y]],
+        ];
+    },
+
+    SetClassName: (details, sseq) => {
+        let x = details.x; let y = details.y;
+        let originalName = sseq.getClasses(x, y, MIN_PAGE) == 1 ? `x_{${x},${y}}` : `x_{${x},${y}}^{(${details.idx})}`;
+
+        return [
+            "Rename " + katex.renderToString(`${originalName} \\rightsquigarrow ${details.name}`),
+            [[details.x, details.y]],
+        ];
+    }
+};
 
 /**
  * A panel is a collection of objects (button etc.) to be displayed in a
@@ -409,9 +466,27 @@ class HistoryPanel extends Panel {
         this.display.sseq.on("clear-history", () => {this.clear(); this.newGroup();});
     }
 
-    _addHistoryItem(title, content, highlightClasses, msg) {
-        let d = document.createElement("details");
-        let s = document.createElement("summary");
+    show() {
+        this.container.style.removeProperty("display");
+        this.clear();
+        this.newGroup();
+        for (let hist of this.display.sseq.history) {
+            this.addMessage(hist);
+        }
+    }
+
+    addHistoryItem(msg, title, highlightClasses, content) {
+        let d, s;
+
+        if (content === undefined) {
+            d = document.createElement("div");
+            s = d;
+        } else {
+            d = document.createElement("details");
+            s = document.createElement("summary");
+            d.appendChild(s);
+        }
+        d.className = "history-item";
         let t = document.createElement("span");
         t.innerHTML = title;
         s.appendChild(t);
@@ -427,12 +502,12 @@ class HistoryPanel extends Panel {
             this.display.sseq.removeHistoryItem(msg);
         });
 
-        d.appendChild(s);
-
-        let div = document.createElement("div");
-        div.className = "text-center py-1";
-        div.innerHTML = content;
-        d.appendChild(div);
+        if (content !== undefined) {
+            let div = document.createElement("div");
+            div.className = "text-center py-1";
+            div.innerHTML = content;
+            d.appendChild(div);
+        }
 
         this.addObject(d);
 
@@ -451,74 +526,14 @@ class HistoryPanel extends Panel {
 
     }
 
-    _AddDifferential(details, msg) {
-        this._addHistoryItem(
-            `<span>Differential</span> <span class="history-sub">(${details.x}, ${details.y})</span>`,
-            katex.renderToString(`d_{${details.r}}(${rowToLaTeX(details.source)}) = ${rowToLaTeX(details.target)}`),
-            [[details.x, details.y], [details.x - 1, details.y + details.r]],
-            msg
-        );
-    }
-
-    _AddProductDifferential(details, msg) {
-        let content = `
-<ul class="text-left" style="padding-left: 20px; list-style-type: none">
-  <li>
-    <details>
-      <summary>source: ${katex.renderToString(details.source.name)}</summary>
-      (${details.source.x}, ${details.source.y}): ${katex.renderToString(rowToLaTeX(details.source.class))}
-    </details>
-  </li>
-  <li>
-    <details>
-      <summary>target: ${katex.renderToString(details.target.name)}</summary>
-      (${details.target.x}, ${details.target.y}): ${katex.renderToString(rowToLaTeX(details.target.class))}
-    </details>
-  </li>
-</ul>`;
-        this._addHistoryItem(
-            `<span>Product Differential (${katex.renderToString(details.source.name + '\\to ' + details.target.name)})</span>`,
-            content,
-            [[details.source.x, details.source.y], [details.target.x, details.target.y]],
-            msg
-        );
-
-        let sseq = this.display.sseq;
-    }
-
-    _AddProductType(details, msg) {
-        this._addHistoryItem(
-            `<span>Product (${katex.renderToString(details.name)})</span>`,
-            (details.permanent ? "Permanent" : "Non-permanent") + `: (${details.x}, ${details.y}): ${katex.renderToString(rowToLaTeX(details.class))}`,
-            [[details.x, details.y]]
-            ,msg
-        );
-    }
-
-    _AddPermanentClass(details, msg) {
-        this._addHistoryItem(
-            `<span>Permanent Class</span> <span class="history-sub">(${details.x}, ${details.y})</span>`,
-            katex.renderToString(`${rowToLaTeX(details.class)}`),
-            [[details.x, details.y]]
-            ,msg
-        );
-    }
-
-    _SetClassName(details, msg) {
-        this._addHistoryItem(
-            `<span>Set Name</span> <span class="history-sub">(${details.x}, ${details.y})</span>`,
-            katex.renderToString(`${details.idx} \\rightsquigarrow ${details.name}`),
-            [[details.x, details.y]]
-            ,msg
-        );
-    }
-
     addMessage(data) {
         let action = data.action;
         let actionName = Object.keys(action)[0];
         let actionInfo = action[actionName];
 
-        this["_" + actionName](actionInfo, data);
+        let result = ACTION_TO_DISPLAY[actionName](actionInfo, this.display.sseq);
+
+        this.addHistoryItem(data, ...result);
     }
 
 }
