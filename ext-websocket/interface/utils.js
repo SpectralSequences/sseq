@@ -23,7 +23,7 @@ export function rowToLaTeX(m) {
 }
 
 export function renderLaTeX(html) {
-    html = html.replace(/\n/g, "\n<hr>\n")
+    html = html.replace(/\n/g, "\n<br/>\n")
     let html_list = html.split(/(?:\\\[)|(?:\\\()|(?:\\\))|(?:\\\])|(?:\$)/);
     for(let i = 1; i < html_list.length; i+=2){
         html_list[i] = katex.renderToString(html_list[i], { throwOnError : false });

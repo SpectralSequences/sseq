@@ -29,7 +29,7 @@ use ws::Result as WsResult;
 use textwrap::Wrapper;
 
 /// List of files that our webserver will serve to the user
-const FILE_LIST : [(&str, &str, &[u8]); 12] = [
+const FILE_LIST : [(&str, &str, &[u8]); 13] = [
     ("/", "index.html", b"text/html"),
     ("/index.html", "index.html", b"text/html"),
     ("/index.js", "index.js", b"text/javascript"),
@@ -41,6 +41,7 @@ const FILE_LIST : [(&str, &str, &[u8]); 12] = [
     ("/panels.js", "panels.js", b"text/javascript"),
     ("/sseq.js", "sseq.js", b"text/javascript"),
     ("/index.css", "index.css", b"text/css"),
+    ("/common.css", "common.css", b"text/css"),
     ("/bundle.js", "bundle.js", b"text/javascript")];
 
 fn ms_to_string(time : i64) -> String {

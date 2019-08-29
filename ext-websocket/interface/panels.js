@@ -194,7 +194,7 @@ export class Panel extends EventEmitter {
      */
     newGroup() {
         this.currentGroup = document.createElement("div");
-        this.currentGroup.className = "card-body";
+        this.currentGroup.className = "sidebar-group";
         this.container.appendChild(this.currentGroup);
     }
     /**
@@ -221,17 +221,17 @@ export class Panel extends EventEmitter {
      * @param {Object} extra - Extra (optional) properties to supply.
      * @param {string} extra.tooltip - Tooltip text to display
      * @param {string[]} shortcuts - A list of shortcuts that will be bound to callback
+     * @param {bool} box - Whether to enclose the button in a div, which makes
+     * flex-grow work properly. This should be true unless used by
+     * AddButtonRow, in which case there is already a div.
      */
-    addButton(text, callback, extra = {}) {
+    addButton(text, callback, extra = {}, box = true) {
         let o = document.createElement("button");
-        if (extra.style)
-            o.className = `btn btn-${extra.style} mb-2`;
-        else
-            o.className = "btn btn-primary mb-2";
-
-        o.style.width = "100%";
         o.innerHTML = text;
+        o.className = "button";
+        o.style.flexGrow = "1";
         o.addEventListener("click", callback);
+        o.addEventListener("mouseup", () => o.blur());
 
         if (extra.tooltip)
             o.setAttribute("title", extra.tooltip);
@@ -239,7 +239,14 @@ export class Panel extends EventEmitter {
             for (let k of extra.shortcuts)
                 Mousetrap.bind(k, callback);
 
-        this.currentGroup.appendChild(o);
+        if (box) {
+            let d = document.createElement("div");
+            d.style.display = "flex";
+            d.appendChild(o);
+            this.currentGroup.appendChild(d);
+        } else {
+            this.currentGroup.appendChild(o);
+        }
     }
 
     /**
@@ -253,13 +260,13 @@ export class Panel extends EventEmitter {
     addButtonRow(buttons){
         let group = this.currentGroup;
         let o = document.createElement("div");
-        o.className = "form-row";
+        o.className = "button-row";
+        this.currentGroup = o;
         for (let button of buttons) {
-            let c = document.createElement("div");
-            c.className = "col";
-            this.currentGroup = c;
-            this.addButton(...button);
-            o.appendChild(c);
+            if (button.length == 2) {
+                button[2] = undefined;
+            }
+            this.addButton(...button, false);
         }
         this.currentGroup = group;
         this.currentGroup.appendChild(o);
@@ -271,7 +278,6 @@ export class Panel extends EventEmitter {
      */
     addHeader(header) {
         let node = document.createElement("h5");
-        node.className = "card-title";
         node.innerHTML = header;
         this.addObject(node);
     }
@@ -297,28 +303,16 @@ export class Panel extends EventEmitter {
      */
     addLinkedInput(label, target, type) {
         let o = document.createElement("div");
-        o.className = "form-row mb-2";
-        o.style.width = "100%";
+        o.className = "input-row";
         this.currentGroup.appendChild(o);
 
         let l = document.createElement("label");
-        l.className = "col-form-label mr-sm-2";
         l.innerHTML = label;
         o.appendChild(l);
 
         let i = document.createElement("input");
-        i.style["flex-grow"] = 1;
         i.setAttribute("type", type);
         o.appendChild(i);
-
-        switch (type) {
-            case "text":
-                i.setAttribute("size", "1");
-                break;
-            default:
-                i.style.width = "1px";
-                break;
-        }
 
         this.links.push([target, i]);
 
@@ -380,13 +374,9 @@ export class TabbedPanel extends Panel {
     constructor (parentContainer, display) {
         super(parentContainer, display);
 
-        let head = document.createElement("div");
-        head.className = "card-header";
-        this.container.appendChild(head);
-
-        this.header = document.createElement("ul");
-        this.header.className = "nav nav-tabs card-header-tabs";
-        head.appendChild(this.header);
+        this.head = document.createElement("div");
+        this.head.className = "tab-header";
+        this.container.appendChild(this.head);
 
         this.tabs = [];
         this.currentTab = null;
@@ -400,15 +390,10 @@ export class TabbedPanel extends Panel {
      * @param {Panel} tab - The tab to be added.
      */
     addTab(name, tab) {
-        let li = document.createElement("li");
-        li.className = "nav-item";
-        this.header.appendChild(li);
-
         let a = document.createElement("a");
-        a.className = "nav-link";
-        a.href = "#";
+        a.className = "tab-header-item";
         a.innerHTML = name;
-        li.appendChild(a);
+        this.head.appendChild(a);
 
         a.addEventListener("click", () => this.showTab(tab));
         this.tabs[this.tabs.length] = [tab, a];
@@ -443,10 +428,10 @@ export class TabbedPanel extends Panel {
         this.currentTab = tab;
         for (let t of this.tabs) {
             if (t[0] == tab) {
-                t[1].className = "nav-link active";
+                t[1].className = "tab-header-item active";
                 t[0].show();
             } else {
-                t[1].className = "nav-link";
+                t[1].className = "tab-header-item";
                 t[0].hide();
             }
         }
@@ -503,7 +488,8 @@ class HistoryPanel extends Panel {
         s.appendChild(t);
 
         let rem = document.createElement("a");
-        rem.className = "text-danger float-right";
+        rem.style.float = "right";
+        rem.style.color = "#dc3545";
         rem.innerHTML = "&times;";
         rem.href = "#";
         s.appendChild(rem);
@@ -515,7 +501,7 @@ class HistoryPanel extends Panel {
 
         if (content !== undefined) {
             let div = document.createElement("div");
-            div.className = "text-center py-1";
+            div.style.textAlign = "center";
             div.innerHTML = content;
             d.appendChild(div);
         }
@@ -573,8 +559,13 @@ export class StructlinePanel extends Panel {
 
         let names = Array.from(this.display.sseq.products.keys()).sort();
         for (let name of names) {
+            let div = document.createElement("div");
+            div.style.position = "relative";
+
+            this.addObject(div);
             let topElement = document.createElement("details");
-            this.addObject(topElement);
+            topElement.className = "product-item";
+            div.appendChild(topElement);
 
             topElement.addEventListener("toggle", () => {
                 if (topElement.open) {
@@ -587,12 +578,12 @@ export class StructlinePanel extends Panel {
             });
 
             let summary = document.createElement("summary");
-            summary.className = "form-row mb-2";
+            summary.className = "product-summary";
             summary.style.width = "100%";
+            summary.addEventListener("mouseup", () => summary.blur());
             topElement.appendChild(summary);
 
             let l = document.createElement("label");
-            l.className = "col-form-label mr-sm-2";
             l.innerHTML = katex.renderToString(name);
             summary.appendChild(l);
 
@@ -600,29 +591,47 @@ export class StructlinePanel extends Panel {
             s.style.flexGrow = 1;
             summary.appendChild(s);
 
-            let i = document.createElement("input");
-            i.setAttribute("type", "checkbox");
-            i.checked = this.display.visibleStructlines.has(name);
-            summary.appendChild(i);
+            let i = document.createElement("label");
+            i.className = "switch";
+           
+            let checkbox = document.createElement("input");
+            checkbox.setAttribute("type", "checkbox");
+            checkbox.checked = this.display.visibleStructlines.has(name);
 
-            /// Styling labels
+            i.appendChild(checkbox);
+
+            let spn = document.createElement("span");
+            spn.className = "slider";
+            i.appendChild(spn);
+
+            div.appendChild(i);
+
+            i.style.position = "absolute";
+            i.style.right = "0px";
+            console.log("Summary: " + summary.clientHeight);
+            console.log("i: " + i.clientHeight);
+            i.style.top = (summary.clientHeight - i.clientHeight) + "px";
+
+            /// Styling
             let style = this.display.structlineStyles.get(name);
+
+            let styleDiv = document.createElement("div");
+            styleDiv.style.paddingLeft = "2.5%";
+            styleDiv.style.marginLeft = "2.5%";
+            styleDiv.style.borderLeft = "1.5px solid #DDD";
+            topElement.appendChild(styleDiv);
 
             // Color
             let cd = document.createElement("div");
-            cd.className = "form-row mb-2";
-            cd.style.width = "90%";
-            cd.style.marginLeft = "5%";
+            cd.className = "input-row";
 
             let cl = document.createElement("label");
-            cl.className = "col-form-label mr-sm-2";
             cl.innerHTML = "Color";
+            cl.style.width = "3rem";
             cd.appendChild(cl);
 
             let ci = document.createElement("input");
-            ci.style.flexGrow = 1;
             ci.setAttribute("type", "text");
-            ci.style.width = "1px";
             ci.value = style.color;
             cd.appendChild(ci);
 
@@ -631,23 +640,19 @@ export class StructlinePanel extends Panel {
                 this.display.update();
             });
 
-            topElement.appendChild(cd);
+            styleDiv.appendChild(cd);
 
             // Bend
             let bd = document.createElement("div");
-            bd.className = "form-row mb-2";
-            bd.style.width = "90%";
-            bd.style.marginLeft = "5%";
+            bd.className = "input-row";
 
             let bl = document.createElement("label");
-            bl.className = "col-form-label mr-sm-2";
             bl.innerHTML = "Bend";
+            bl.style.width = "3rem";
             bd.appendChild(bl);
 
             let bi = document.createElement("input");
-            bi.style.flexGrow = 1;
             bi.setAttribute("type", "number");
-            bi.style.width = "1px";
             bi.value = style.bend;
             bd.appendChild(bi);
 
@@ -656,23 +661,19 @@ export class StructlinePanel extends Panel {
                 this.display.update();
             });
 
-            topElement.appendChild(bd);
+            styleDiv.appendChild(bd);
 
             // Dash
             let dd = document.createElement("div");
-            dd.className = "form-row mb-2";
-            dd.style.width = "90%";
-            dd.style.marginLeft = "5%";
+            dd.className = "input-row";
 
             let dl = document.createElement("label");
-            dl.className = "col-form-label mr-sm-2";
             dl.innerHTML = "Dash";
+            dl.style.width = "3rem";
             dd.appendChild(dl);
 
             let di = document.createElement("input");
-            di.style.flexGrow = 1;
             di.setAttribute("type", "text");
-            di.style.width = "1px";
             di.value = "[" + style["line-dash"].join(", ") + "]";
             di.title = "An array of numbers that specify distances to alternately draw a line and a gap. For example, a solid line is [], while [2, 2] gives you a dashed line where the line and the gap have equal length.";
             dd.appendChild(di);
@@ -682,10 +683,10 @@ export class StructlinePanel extends Panel {
                 this.display.update();
             });
 
-            topElement.appendChild(dd);
+            styleDiv.appendChild(dd);
 
-            i.addEventListener("change", (e) => {
-                if (i.checked) {
+            checkbox.addEventListener("change", (e) => {
+                if (checkbox.checked) {
                     this.display.visibleStructlines.add(name)
                 } else {
                     if (this.display.visibleStructlines.has(name))
@@ -722,7 +723,7 @@ class MainPanel extends Panel {
 
     show() {
         this.container.style.removeProperty("display");
-        this.container.className = "text-center";
+        this.container.style.textAlign = "center";
         this.clear();
 
         this.newGroup();
@@ -798,7 +799,7 @@ class DifferentialPanel extends Panel {
 
     show() {
         this.container.style.removeProperty("display");
-        this.container.className = "text-center";
+        this.container.style.textAlign = "center";
         this.clear();
 
         let [x, y] = this.display.selected;
@@ -813,13 +814,16 @@ class DifferentialPanel extends Panel {
             let maxR = Math.ceil(eval(sseq.vanishingSlope) * x + eval(sseq.vanishingIntercept)) - y;
 
             let node = document.createElement("div");
+            node.style.marginLeft = "5%";
+            node.style.marginRight = "5%";
 
             for (let r = MIN_PAGE; r <= maxR; r ++) {
                 let classes = sseq.getClasses(x - 1, y + r, r);
                 if (classes && classes.length > 0 &&
                     (!sseq.trueDifferentials.get(x, y) || !sseq.trueDifferentials.get(x, y)[r - MIN_PAGE] || sseq.getClasses(x, y, r).length != sseq.trueDifferentials.get(x, y)[r - MIN_PAGE].length)) {
                     let spn = document.createElement("span");
-                    spn.style.padding = "0.75rem";
+                    spn.style.padding = "0.4rem 0.75rem";
+                    spn.style.display = "inline-block";
                     spn.innerHTML = r;
 
                     // We want to update the classes on *this* page, not on the rth page
@@ -889,7 +893,7 @@ class ProductsPanel extends Panel {
 
     show() {
         this.container.style.removeProperty("display");
-        this.container.className = "text-center";
+        this.container.style.textAlign = "center";
         this.clear();
 
         let [x, y] = this.display.selected;

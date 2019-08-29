@@ -183,7 +183,7 @@ class CHistoryPanel extends Panel {
         }
         d.className = "history-item";
         if (i + 1 != this.display.idx) { // History item starts at 1
-            d.style.opacity=0.5;
+            d.style.opacity=0.6;
         }
         s.innerHTML = title;
 

@@ -706,7 +706,7 @@ class Display extends EventEmitter {
 class Sidebar {
     constructor(parentContainer) {
         this.adjuster = document.createElement("div");
-        this.adjuster.style.backgroundColor = "rgba(0,0,0,0.125)";
+//        this.adjuster.style.backgroundColor = "rgba(0,0,0,0.125)";
         this.adjuster.style.height = "100%";
         this.adjuster.style.cursor = "ew-resize";
         this.adjuster.style.width = "2px";
@@ -723,12 +723,10 @@ class Sidebar {
         }).bind(this));
 
         this.sidebar = document.createElement("div");
-        this.sidebar.style.height = "100%";
-        this.sidebar.style.width = "240px";
-        this.sidebar.style.border = "none";
+        this.sidebar.style.width = "250px";
         this.sidebar.style.display = "flex";
         this.sidebar.style.flexDirection = "column";
-        this.sidebar.className = "card";
+        this.sidebar.className = "sidebar";
 
         parentContainer.appendChild(this.sidebar);
 
@@ -827,10 +825,8 @@ export class MainDisplay extends SidebarDisplay {
         this.sidebar.addPanel(this.classPanel);
 
         this.sidebar.footer.newGroup();
-
         this.sidebar.footer.currentGroup.style.textAlign = "center";
         this.runningSign = document.createElement("p");
-        this.runningSign.className = "card-text"
         this.runningSign.innerHTML = "Running...";
         this.sidebar.footer.addObject(this.runningSign);
 
@@ -956,6 +952,7 @@ export class UnitDisplay extends Display {
         });
 
         document.querySelector("#modal-more").addEventListener("click", () => this.sseq.resolveFurther());
+        document.querySelector("#modal-more").addEventListener("mouseup", () => document.querySelector("#modal-more").blur());
 
         this.on("click", this.__onClick.bind(this));
     }
