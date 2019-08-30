@@ -5,6 +5,9 @@ extern crate serde_json;
 extern crate chrono;
 extern crate textwrap;
 
+#[cfg(feature = "concurrent")]
+extern crate threadpool;
+
 mod sseq;
 mod actions;
 
@@ -93,6 +96,7 @@ impl ResolutionManager {
             // If the message is BlockRefresh, SseqManager is responsible for marking
             // it as complete.
             let isblock = match msg.action { Action::BlockRefresh(_) => true, _ => false };
+            let target_sseq = msg.sseq;
 
             let action_string = format!("{}", msg);
             let start = Local::now();
@@ -127,7 +131,7 @@ impl ResolutionManager {
             if !isblock {
                 manager.sender.send(Message {
                     recipients : vec![],
-                    sseq : SseqChoice::Main, // Doesn't matter
+                    sseq : target_sseq, // Doesn't matter
                     action : Action::from(Complete {})
                 })?;
             }
@@ -334,6 +338,7 @@ impl SseqManager {
             };
             let action_string = format!("{}", msg);
             let start = Local::now();
+            let target_sseq = msg.sseq;
             if user {
                 println!("{}\n", wrapper.fill(&format!("{} SseqManager: Processing {}", start.format("%F %T"), action_string)));
             }
@@ -354,7 +359,7 @@ impl SseqManager {
                 println!("{}\n", wrapper.fill(&format!("{} SseqManager: Completed in {}", start.format("%F %T"), ms_to_string(time_diff))));
                 manager.sender.send(Message {
                     recipients : vec![],
-                    sseq : SseqChoice::Main, // Doesn't matter
+                    sseq : target_sseq,
                     action : Action::from(Complete {})
                 })?;
             }
