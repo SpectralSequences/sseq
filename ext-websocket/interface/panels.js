@@ -608,8 +608,6 @@ export class StructlinePanel extends Panel {
 
             i.style.position = "absolute";
             i.style.right = "0px";
-            console.log("Summary: " + summary.clientHeight);
-            console.log("i: " + i.clientHeight);
             i.style.top = (summary.clientHeight - i.clientHeight) + "px";
 
             /// Styling

@@ -454,7 +454,7 @@ export class ExtSseq extends EventEmitter {
         return result[page];
     }
 
-    getChangingJSON(prevMessage) {
+    getChangingJSON(prevMessages) {
         let result = {};
         for (let x of CHANGING_FIELDS) {
             result[x] = this[x];
@@ -463,7 +463,7 @@ export class ExtSseq extends EventEmitter {
             result[x] = this[x].data;
         }
         result.products = Object.fromEntries(this.products);
-        result.action = prevMessage;
+        result.actions = prevMessages;
         return LZString.compressToUTF16(JSON.stringify(result));
     }
 
@@ -488,14 +488,18 @@ export class ExtSseq extends EventEmitter {
             action : { Clear : {} }
         });
 
-        let prevMessage = null;
+        let prevMessages = [];
+        let it = oldHistory[Symbol.iterator]();
+        let msg = it.next();
         // First set all the names.
-        for (let msg of oldHistory) {
-            let name = Object.keys(msg.action)[0];
-            if (name == "SetClassName" || (name == "AddProduct" && !msg.action[name].permanent)) {
+        while (!msg.done) {
+            let name = Object.keys(msg.value.action)[0];
+            if (name == "SetClassName" || (name == "AddProduct" && !msg.value.action[name].permanent)) {
+                msg = it.next();
                 continue;
             }
 
+            let newMessage = [];
             // In the first loop, this waits for the previous clear to be done.
             // In then asks the resolver to compute the next step, and then
             // start serializing the current state of the sseq. Since this is
@@ -505,13 +509,22 @@ export class ExtSseq extends EventEmitter {
             // commandCounter is non-zero.
             await new Promise(r => window.onComplete.push(r));
             this.block();
-            this.send(msg);
+            do {
+                this.send(msg.value);
+                newMessage.push(msg.value);
+                if (!msg.value.skip) {
+                    msg = it.next();
+                    break;
+                }
+                msg = it.next();
+            } while (!msg.done);
+
             this.block(false);
-            lines.push(this.getChangingJSON(prevMessage));
-            prevMessage = msg;
+            lines.push(this.getChangingJSON(prevMessages));
+            prevMessages = newMessage;
         }
         await new Promise(r => window.onComplete.push(r));
-        lines.push(this.getChangingJSON(prevMessage));
+        lines.push(this.getChangingJSON(prevMessages));
 
         let filename = prompt("History file name");
         if (filename === null) return;
@@ -545,7 +558,7 @@ export class ExtSseq extends EventEmitter {
             this[x].data = json[x];
         }
 
-        this.currentAction = json.action;
+        this.currentActions = json.actions;
         this.products = new Map(Object.entries(json.products));
         for (let [_, mult] of this.products) {
             mult.matrices = new BiVec(this.minDegree, mult.matrices.data);

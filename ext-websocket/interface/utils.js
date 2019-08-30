@@ -23,12 +23,20 @@ export function rowToLaTeX(m) {
 }
 
 export function renderLaTeX(html) {
-    html = html.replace(/\n/g, "\n<br/>\n")
     let html_list = html.split(/(?:\\\[)|(?:\\\()|(?:\\\))|(?:\\\])|(?:\$)/);
     for(let i = 1; i < html_list.length; i+=2){
         html_list[i] = katex.renderToString(html_list[i], { throwOnError : false });
     }
-    return html_list.join("\n")
+    return html_list.join("\n");
+}
+
+export function renderLaTeXP(html) {
+    html = html.replace(/\n/g, "\n</p><p>\n")
+    let html_list = html.split(/(?:\\\[)|(?:\\\()|(?:\\\))|(?:\\\])|(?:\$)/);
+    for(let i = 1; i < html_list.length; i+=2){
+        html_list[i] = katex.renderToString(html_list[i], { throwOnError : false });
+    }
+    return `<p>${html_list.join("\n")}</p>`;
 }
 
 // Prompts for an array of length `length`

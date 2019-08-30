@@ -1,7 +1,7 @@
 import { SidebarDisplay } from "./display.js"
 import { ExtSseq } from "./sseq.js"
 import { msgToDisplay, Panel, StructlinePanel, TabbedPanel, ClassPanel } from "./panels.js"
-import { renderLaTeX } from "./utils.js"
+import { renderLaTeX, renderLaTeXP } from "./utils.js"
 
 export class CalculationDisplay extends SidebarDisplay {
     constructor(container, sseqList) {
@@ -87,7 +87,9 @@ export class CalculationDisplay extends SidebarDisplay {
     updateStage() {
         this.sseq.updateFromJSON(JSON.parse(LZString.decompressFromUTF16(this.sseqData[this.idx])));
         if (this.idx == this.history.length + 1) {
-            this.history.push(this.sseq.currentAction);
+            for (let act of this.sseq.currentActions) {
+                this.history.push([this.idx, act]);
+            }
         }
         // Find a better way to do this.
         if (this.idx == this.sseqData.length - 1) {
@@ -102,12 +104,17 @@ export class CalculationDisplay extends SidebarDisplay {
             this.sidebar.footer.currentGroup.firstChild.children[0].firstChild.disabled = false;
         }
 
-        let result = msgToDisplay(this.sseq.currentAction, this.sseq);
-        this.headerDiv.innerHTML = result[0];
-        if (this.sseq.currentAction && this.sseq.currentAction["short-note"]) {
-            this.headerDiv.innerHTML += " &mdash; " + renderLaTeX(this.sseq.currentAction["short-note"]);
+        if (this.sseq.currentActions.length > 0) {
+            let results = this.sseq.currentActions.map(a => msgToDisplay(a, this.sseq));
+            this.headerDiv.innerHTML = results[0][0];
+            if (results.length > 1) {
+                this.headerDiv.innerHTML += " etc.";
+            }
+            if (this.sseq.currentActions[0] && this.sseq.currentActions[0]["short-note"]) {
+                this.headerDiv.innerHTML += " &mdash; " + renderLaTeX(this.sseq.currentActions[0]["short-note"]);
+            }
+            this.alwaysHighlight = results.map(x => x[1]).flat();
         }
-        this.alwaysHighlight = result[1];
         this.clearHighlight();
         this.update();
         this.sidebar.showPanel();
@@ -140,15 +147,15 @@ class NotePanel extends Panel {
         this.clear();
         this.newGroup();
 
-        let action = this.display.sseq.currentAction;
+        let action = this.display.sseq.currentActions[0];
         if (!action) {
             return;
         }
-        let note = this.display.sseq.currentAction["note"];
+        let note = action["note"];
         if (note) {
-            this.currentGroup.innerHTML = renderLaTeX(note);
+            this.currentGroup.innerHTML = renderLaTeXP(note);
         } else {
-            let shortNote = this.display.sseq.currentAction["short-note"];
+            let shortNote = action["short-note"];
             if (shortNote) {
                 this.currentGroup.innerHTML = renderLaTeX(shortNote);
             }
@@ -165,8 +172,8 @@ class CHistoryPanel extends Panel {
         this.container.style.removeProperty("display");
         this.clear();
         this.newGroup();
-        for (let [i, hist] of this.display.history.entries()) {
-            this.addMessage(i, hist);
+        for (let [idx, hist] of this.display.history) {
+            this.addMessage(idx, hist);
         }
     }
 
@@ -182,13 +189,13 @@ class CHistoryPanel extends Panel {
             d.appendChild(s);
         }
         d.className = "history-item";
-        if (i + 1 != this.display.idx) { // History item starts at 1
+        if (i != this.display.idx) {
             d.style.opacity=0.6;
         }
         s.innerHTML = title;
 
         d.addEventListener("dblclick", () => {
-            this.display.idx = i + 1;
+            this.display.idx = i;
             this.display.updateStage();
         });
 
@@ -213,7 +220,6 @@ class CHistoryPanel extends Panel {
             this.display.clearHighlight();
             this.display.update();
         });
-
     }
 
     addMessage(i, data) {
