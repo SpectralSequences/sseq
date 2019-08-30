@@ -48,7 +48,7 @@ export const ACTION_TO_DISPLAY = {
 
     AddProductType: (details, sseq) => {
         return [
-            `<span>${details.permanent ? "Perm. " : ""}Product ${katex.renderToString(details.name)}</span>`,
+            `<span>${details.permanent ? "Permanent p" : "P"}roduct ${katex.renderToString(details.name)}</span>`,
             [[details.x, details.y]],
             sseq.isUnit ? undefined : `(${details.x}, ${details.y}): ${katex.renderToString(rowToLaTeX(details.class))}`
         ];

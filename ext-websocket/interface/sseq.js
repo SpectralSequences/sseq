@@ -494,7 +494,7 @@ export class ExtSseq extends EventEmitter {
         // First set all the names.
         while (!msg.done) {
             let name = Object.keys(msg.value.action)[0];
-            if (name == "SetClassName" || (name == "AddProduct" && !msg.value.action[name].permanent)) {
+            if (name == "SetClassName" || (name == "AddProductType" && !msg.value.action[name].permanent)) {
                 msg = it.next();
                 continue;
             }
