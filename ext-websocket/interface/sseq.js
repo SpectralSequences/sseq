@@ -1,4 +1,4 @@
-import { download, promptClass, promptInteger, vecToName } from "./utils.js";
+import { download, promptClass, promptInteger, vecToName, inflate } from "./utils.js";
 
 export const MIN_PAGE = 2;
 const OFFSET_SIZE = 0.3;
@@ -464,7 +464,7 @@ export class ExtSseq extends EventEmitter {
         }
         result.products = Object.fromEntries(this.products);
         result.actions = prevMessages;
-        return LZString.compressToUTF16(JSON.stringify(result));
+        return pako.deflate(JSON.stringify(result));
     }
 
     async downloadHistoryList() {
@@ -481,7 +481,7 @@ export class ExtSseq extends EventEmitter {
         for (let x of PERMANENT_BIVECS) {
             permanent[x] = this[x].data;
         }
-        lines.push(LZString.compressToUTF16(JSON.stringify(permanent)));
+        lines.push(pako.deflate(JSON.stringify(permanent)));
 
         this.send({
             recipients: ["Sseq"],
@@ -531,7 +531,9 @@ export class ExtSseq extends EventEmitter {
         filename = filename.trim();
 
         let lengths = lines.map(x => x.length);
-        download(filename, JSON.stringify(lengths) + "\n" + lines.join(""), "text/plain;charset=utf-16");
+        lengths.push(0);
+
+        download(filename, [Uint32Array.from(lengths)].concat(lines), "application/octet-stream");
 
         this.history = oldHistory;
         this.display.updating = false; // Block update

@@ -32,13 +32,14 @@ use ws::Result as WsResult;
 use textwrap::Wrapper;
 
 /// List of files that our webserver will serve to the user
-const FILE_LIST : [(&str, &str, &[u8]); 13] = [
+const FILE_LIST : [(&str, &str, &[u8]); 14] = [
     ("/", "index.html", b"text/html"),
     ("/index.html", "index.html", b"text/html"),
     ("/index.js", "index.js", b"text/javascript"),
     ("/mousetrap.min.js", "mousetrap.min.js", b"text/javascript"),
     ("/canvas2svg.js", "canvas2svg.js", b"text/javascript"),
     ("/display.js", "display.js", b"text/javascript"),
+    ("/pako.js", "pako.js", b"text/javascript"),
     ("/utils.js", "utils.js", b"text/javascript"),
     ("/tooltip.js", "tooltip.js", b"text/javascript"),
     ("/panels.js", "panels.js", b"text/javascript"),

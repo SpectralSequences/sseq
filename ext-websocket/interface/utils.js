@@ -74,12 +74,19 @@ export function promptInteger(text, error) {
     }
 }
 
-export function download (filename, text, mime="text/plain") {
+export function download (filename, data, mime="text/plain") {
+    if (!Array.isArray(data)) {
+        data = [data];
+    }
     let element = document.createElement('a');
 
-    element.href = URL.createObjectURL(new Blob([text], {type : mime}));
+    element.href = URL.createObjectURL(new Blob(data, {type : mime}));
     element.download = filename;
     element.rel = 'noopener';
     element.dispatchEvent(new MouseEvent('click'));
     setTimeout(() => URL.revokeObjectURL(element.href), 6E4);
 };
+
+export function inflate(x) {
+    return new TextDecoder("utf-8").decode(pako.inflate(x));
+}

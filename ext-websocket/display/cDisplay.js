@@ -1,7 +1,7 @@
 import { SidebarDisplay } from "./display.js"
 import { ExtSseq } from "./sseq.js"
 import { msgToDisplay, Panel, StructlinePanel, TabbedPanel, ClassPanel } from "./panels.js"
-import { download, renderLaTeX, renderLaTeXP } from "./utils.js"
+import { download, renderLaTeX, renderLaTeXP, inflate } from "./utils.js"
 
 export class CalculationDisplay extends SidebarDisplay {
     constructor(container, sseqList) {
@@ -19,20 +19,24 @@ export class CalculationDisplay extends SidebarDisplay {
         this.headerDiv.style.top = "7px";
         this.container_DOM.appendChild(this.headerDiv);
 
-        let splitter = sseqList.indexOf("\n");
-        let indices = JSON.parse(sseqList.slice(0, splitter));
+        let lengths_ = new Uint32Array(sseqList, 0, Math.floor(sseqList.byteLength / 4));
+        this.lengths = [];
+        for (let len of lengths_) {
+            if (len == 0) break;;
+            this.lengths.push(len);
+        }
         this.sseqData = [];
 
-        let x = splitter + 1; // Drop the \n as well
-        for (let index of indices) {
-            this.sseqData.push(sseqList.slice(x, x + index));
-            x += index;
+        let x = (this.lengths.length + 1) * 4; // Drop the \n as well
+        for (let len of this.lengths) {
+            this.sseqData.push(new Uint8Array(sseqList, x, len));
+            x += len;
         }
 
-        this.init = JSON.parse(LZString.decompressFromUTF16(this.sseqData.shift()));
+        this.init = JSON.parse(inflate(this.sseqData.shift()));
 
         let sseq = ExtSseq.fromJSON(this.init);
-        sseq.updateFromJSON(JSON.parse(LZString.decompressFromUTF16(this.sseqData[0])));
+        sseq.updateFromJSON(JSON.parse(inflate(this.sseqData[0])));
         this.setSseq(sseq);
         this.isUnit = this.sseq.isUnit;
         this.idx = 0;
@@ -71,7 +75,7 @@ export class CalculationDisplay extends SidebarDisplay {
     }
 
     downloadHistoryFile() {
-        let lines = [LZString.compressToUTF16(JSON.stringify(this.init))];
+        let lines = [pako.deflate(JSON.stringify(this.init))];
         lines = lines.concat(this.sseqData);
 
         let filename = prompt("History file name");
@@ -79,7 +83,9 @@ export class CalculationDisplay extends SidebarDisplay {
         filename = filename.trim();
 
         let lengths = lines.map(x => x.length);
-        download(filename, JSON.stringify(lengths) + "\n" + lines.join(""), "text/plain;charset=utf-16");
+        lengths.push(0);
+
+        download(filename, [Uint32Array.from(lengths)].concat(lines), "application/octet-stream");
     }
 
     next() {
@@ -97,7 +103,7 @@ export class CalculationDisplay extends SidebarDisplay {
     }
 
     updateStage() {
-        this.sseq.updateFromJSON(JSON.parse(LZString.decompressFromUTF16(this.sseqData[this.idx])));
+        this.sseq.updateFromJSON(JSON.parse(inflate(this.sseqData[this.idx])));
         if (this.idx == this.history.length + 1) {
             for (let act of this.sseq.currentActions) {
                 this.history.push([this.idx, act]);
