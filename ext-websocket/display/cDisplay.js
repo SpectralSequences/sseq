@@ -125,9 +125,9 @@ export class CalculationDisplay extends SidebarDisplay {
             if (this.sseq.currentActions[0] && this.sseq.currentActions[0]["short-note"]) {
                 this.headerDiv.innerHTML += " &mdash; " + renderLaTeX(this.sseq.currentActions[0]["short-note"]);
             }
-            this.alwaysHighlight = results.map(x => x[1]).flat();
+            this.setSpecialClasses(results.map(x => x[1]).flat());
         }
-        this.clearHighlight();
+//        this.clearHighlight();
         this.update();
         this.sidebar.showPanel();
     }

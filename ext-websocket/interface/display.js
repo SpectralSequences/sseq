@@ -40,7 +40,7 @@ class Display extends EventEmitter {
         this.bottomMargin = 30;
         this.domainOffset = 1 / 2;
 
-        this.alwaysHighlight = [];
+        this.specialClasses = new Set();
         this.highlighted = new Set();
         this.tooltip = new Tooltip(this);
 
@@ -186,13 +186,17 @@ class Display extends EventEmitter {
         }
     }
 
+    setSpecialClasses(classes) {
+        this.specialClasses.clear();
+        for (let c of classes) {
+            this.specialClasses.add(c.join(" "));
+        }
+    }
+
     clearHighlight() {
         this.highlighted.clear();
         if (this.selected) {
             this.highlightClass(this.selected);
-        }
-        for (let h of this.alwaysHighlight) {
-            this.highlightClass(h);
         }
     }
 
@@ -202,10 +206,6 @@ class Display extends EventEmitter {
         if (this.selected) {
             this.highlightClass(this.selected);
         }
-        for (let h of this.alwaysHighlight) {
-            this.highlightClass(h);
-        }
-
     }
 
     highlightClass(coord) {
@@ -491,7 +491,6 @@ class Display extends EventEmitter {
 
     _drawNodes(context) {
         context.save();
-        context.fillStyle = "black";
 
         let size = Math.max(Math.min(this.dxScale(1), -this.dyScale(1), MAX_CLASS_SIZE), MIN_CLASS_SIZE) * this.classScale;
 
@@ -503,9 +502,10 @@ class Display extends EventEmitter {
                     continue;
                 }
 
-                let highlighted = this.highlighted.has(`${x} ${y}`);
-                if (highlighted) {
+                if (this.highlighted.has(`${x} ${y}`)) {
                     context.fillStyle = "red";
+                } else if (this.specialClasses.has(`${x} ${y}`)) {
+                    context.fillStyle = "#ff7f00";
                 } else {
                     context.fillStyle = NODE_COLOR[this.sseq.classState.get(x,y)];
                 }
@@ -517,9 +517,6 @@ class Display extends EventEmitter {
                     context.beginPath();
                     context.arc(x_, y_, size * 0.1, 0, 2 * Math.PI);
                     context.fill();
-                }
-                if (highlighted) {
-                    context.fillStyle = "black";
                 }
             }
         }
