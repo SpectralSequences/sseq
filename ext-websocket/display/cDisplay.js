@@ -1,7 +1,7 @@
 import { SidebarDisplay } from "./display.js"
 import { ExtSseq } from "./sseq.js"
 import { msgToDisplay, Panel, StructlinePanel, TabbedPanel, ClassPanel } from "./panels.js"
-import { renderLaTeX, renderLaTeXP } from "./utils.js"
+import { download, renderLaTeX, renderLaTeXP } from "./utils.js"
 
 export class CalculationDisplay extends SidebarDisplay {
     constructor(container, sseqList) {
@@ -68,6 +68,18 @@ export class CalculationDisplay extends SidebarDisplay {
         Mousetrap.bind("K", () => this.sidebar.currentPanel.nextTab());
 
         this.updateStage();
+    }
+
+    downloadHistoryFile() {
+        let lines = [LZString.compressToUTF16(JSON.stringify(this.init))];
+        lines = lines.concat(this.sseqData);
+
+        let filename = prompt("History file name");
+        if (filename === null) return;
+        filename = filename.trim();
+
+        let lengths = lines.map(x => x.length);
+        download(filename, JSON.stringify(lengths) + "\n" + lines.join(""), "text/plain;charset=utf-16");
     }
 
     next() {
