@@ -480,6 +480,7 @@ export class ExtSseq extends EventEmitter {
         for (let x of PERMANENT_BIVECS) {
             permanent[x] = this[x].data;
         }
+        permanent.name = prompt("Name of spectral sequence");
         lines.push(deflate(JSON.stringify(permanent)));
 
         this.send({
@@ -551,6 +552,7 @@ export class ExtSseq extends EventEmitter {
         for (let x of PERMANENT_BIVECS) {
             sseq[x].data = json[x];
         }
+        sseq.moduleName = json.name;
         return sseq;
     }
 

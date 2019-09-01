@@ -41,11 +41,11 @@ export class CalculationDisplay extends SidebarDisplay {
         sseq.updateFromBinary(this.sseqData[0]);
         this.setSseq(sseq);
         this.isUnit = this.sseq.isUnit;
-        this.idx = this.sseqData.length - 1;
+        this.idx = this.sseqData.length;
 
         this.sidebar.footer.newGroup();
 
-        this.sidebar.footer.addButtonRow([
+        this.prevNext = this.sidebar.footer.addButtonRow([
             ["Prev", () => this.prev()],
             ["Next", () => this.next()]
         ]);
@@ -72,6 +72,7 @@ export class CalculationDisplay extends SidebarDisplay {
         Mousetrap.bind("K", () => this.sidebar.currentPanel.nextTab());
 
         this.updateStage();
+        this.generalPanel.noteTab.currentGroup.innerHTML = "This is a display of the Adams spectral sequence calculation for " + renderLaTeX(this.sseq.moduleName);
     }
 
     downloadHistoryFile() {
@@ -88,7 +89,7 @@ export class CalculationDisplay extends SidebarDisplay {
     }
 
     next() {
-        if (this.idx == this.sseqData.length - 1)
+        if (this.idx == this.sseqData.length)
             return;
         this.idx ++;
         this.updateStage();
@@ -102,32 +103,33 @@ export class CalculationDisplay extends SidebarDisplay {
     }
 
     updateStage() {
-        this.sseq.updateFromBinary(this.sseqData[this.idx]);
-        // Find a better way to do this.
-        if (this.idx == this.sseqData.length - 1) {
-            this.sidebar.footer.currentGroup.firstChild.children[1].firstChild.disabled = true;
-        } else {
-            this.sidebar.footer.currentGroup.firstChild.children[1].firstChild.disabled = false;
-        }
+        this.sseq.updateFromBinary(this.sseqData[this.idx == this.sseqData.length ? this.sseqData.length - 1 : this.idx]);
+        this.setSpecialClasses([]);
 
         if (this.idx == 0) {
-            this.sidebar.footer.currentGroup.firstChild.children[0].firstChild.disabled = true;
+            this.prevNext[0].disabled = true;
+            this.prevNext[1].disabled = false;
+            this.headerDiv.innerHTML = "Adams Spectral Sequence for " + renderLaTeX(this.sseq.moduleName);
+        } else if (this.idx == this.sseqData.length) {
+            this.prevNext[0].disabled = false;
+            this.prevNext[1].disabled = true;
+            this.headerDiv.innerHTML = "Adams Spectral Sequence for " + renderLaTeX(this.sseq.moduleName);
         } else {
-            this.sidebar.footer.currentGroup.firstChild.children[0].firstChild.disabled = false;
-        }
+            this.prevNext[0].disabled = false;
+            this.prevNext[1].disabled = false;
+            let history = this.history[this.idx];
 
-        let history = this.history[this.idx];
-
-        if (history > 0) {
-            let results = history.map(a => msgToDisplay(a, this.sseq));
-            this.headerDiv.innerHTML = results[0][0];
-            if (results.length > 1) {
-                this.headerDiv.innerHTML += " etc.";
+            if (history.length > 0) {
+                let results = history.map(a => msgToDisplay(a, this.sseq));
+                this.headerDiv.innerHTML = results[0][0];
+                if (results.length > 1) {
+                    this.headerDiv.innerHTML += " etc.";
+                }
+                if (history[0] && history[0]["short-note"]) {
+                    this.headerDiv.innerHTML += " &mdash; " + renderLaTeX(history[0]["short-note"]);
+                }
+                this.setSpecialClasses(results.map(x => x[1]).flat());
             }
-            if (history[0] && history[0]["short-note"]) {
-                this.headerDiv.innerHTML += " &mdash; " + renderLaTeX(history[0]["short-note"]);
-            }
-            this.setSpecialClasses(results.map(x => x[1]).flat());
         }
         this.update();
         this.sidebar.showPanel();
@@ -159,6 +161,11 @@ class NotePanel extends Panel {
         this.container.style.removeProperty("display");
         this.clear();
         this.newGroup();
+
+        if (this.display.idx == this.display.sseqData.length) {
+            this.currentGroup.innerHTML = "End of calculation";
+            return;
+        }
 
         let action = this.display.history[this.display.idx][0];
         if (!action) {

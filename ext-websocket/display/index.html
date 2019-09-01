@@ -10,7 +10,7 @@
   <body>
     <div id="home">
       <div>
-        <label class="button">Load Calculation<input id="calculation-upload" type="file" style="display: none"></input></label>
+        <label class="button" id="load-button" tabindex="0" role="button">Load Calculation<input id="calculation-upload" type="file" style="display: none"></input></label>
       </div>
     </div>
 
@@ -18,30 +18,30 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/EventEmitter/5.2.6/EventEmitter.min.js" type="text/javascript"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.11.0/dist/katex.min.js" integrity="sha384-JiKN5O8x9Hhs/UE5cT5AAJqieYlOZbGT3CHws/y97o3ty4R7/O5poG9F3JoiOYw1" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.11.0/d3.min.js" type="text/javascript"></script>
-    <script src="mousetrap.min.js" type="module"></script>
-    <script src="canvas2svg.js" type="module"></script>
-    <script src="utils.js" type="module"></script>
-    <script src="panels.js" type="module"></script>
-    <script src="display.js" type="module"></script>
-    <script src="sseq.js" type="module"></script>
-    <script src="cDisplay.js" type="module"></script>
+    <script src="mousetrap.min.js"></script>
     <script src="pako.js"></script>
-    <script>
+    <script type="module">
+      import { CalculationDisplay } from "./cDisplay.js"
+
+      document.getElementById("load-button").addEventListener("keydown", (e) => {
+          if (e.keyCode === 13) {
+              e.preventDefault();
+              document.getElementById("load-button").click();
+          }
+      });
+
       document.getElementById("calculation-upload").addEventListener("change", function() {
         let file = document.getElementById("calculation-upload").files[0];
 
         let fileReader = new FileReader();
         fileReader.onload = e => {
           let hist = e.target.result;
-          import("./cDisplay.js").then((module) => {
-            window.display = new module.CalculationDisplay("#main", hist);
-          });
+            window.display = new CalculationDisplay("#main", hist);
         };
 
         fileReader.readAsArrayBuffer(file);
         document.querySelector("#home").style.display = "none";
       });
-
     </script>
   </body>
 </html>

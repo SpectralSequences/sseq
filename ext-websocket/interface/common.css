@@ -20,21 +20,22 @@ html, body {
 }
 
 .tab-header-item {
-    color: #333 !important;
+    color: #333;
     cursor: pointer;
     padding: 5px 10px 5px 10px;
     margin: 5px 5px 5px 5px;
 }
 
-.tab-header-item:hover {
+.tab-header-item:hover, .tab-header-item:focus {
     text-decoration: none;
-    color: black !important;
-    border-bottom: 2px solid #3677D9;
+    color: black;
+    outline: none;
+    border-bottom: 2px solid rgba(54,119,217,0.6);
     border-radius: 1px;
 }
 
 .tab-header-item.active {
-    color: black !important;
+    color: black;
     border-bottom: 2px solid #3677D9;
     border-radius: 1px;
 }
@@ -79,7 +80,8 @@ html, body {
 }
 
 .button:active, .button:focus {
-    background-color: #EEE;
+    box-shadow: 0px 0px 8px #CCC;
+    background-color: #F6F6F6;
     outline: none;
 }
 
@@ -89,6 +91,10 @@ html, body {
 
 .button:disabled {
     background-color: #EEE;
+    cursor: not-allowed;
+}
+.button:disabled:hover {
+    box-shadow: none;
 }
 
 .product-summary {

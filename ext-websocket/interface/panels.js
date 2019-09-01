@@ -224,11 +224,14 @@ export class Panel extends EventEmitter {
      * @param {bool} box - Whether to enclose the button in a div, which makes
      * flex-grow work properly. This should be true unless used by
      * AddButtonRow, in which case there is already a div.
+     *
+     * Returns the button DOM object that was added.
      */
     addButton(text, callback, extra = {}, box = true) {
         let o = document.createElement("button");
         o.innerHTML = text;
         o.className = "button";
+        o.setAttribute("type", "button");
         o.style.flexGrow = "1";
         o.addEventListener("click", callback);
         o.addEventListener("mouseup", () => o.blur());
@@ -247,6 +250,7 @@ export class Panel extends EventEmitter {
         } else {
             this.currentGroup.appendChild(o);
         }
+        return o;
     }
 
     /**
@@ -256,20 +260,24 @@ export class Panel extends EventEmitter {
      * to be added. Each entry in the array should itself be an array, which
      * consists of the arguments to Panel#addButton for the corresponding
      * button.
+     *
+     * Returns a list of button DOM objects.
      */
     addButtonRow(buttons){
         let group = this.currentGroup;
         let o = document.createElement("div");
         o.className = "button-row";
         this.currentGroup = o;
+        let result = [];
         for (let button of buttons) {
             if (button.length == 2) {
                 button[2] = undefined;
             }
-            this.addButton(...button, false);
+            result.push(this.addButton(...button, false));
         }
         this.currentGroup = group;
         this.currentGroup.appendChild(o);
+        return result;
     }
 
     /**
@@ -392,6 +400,7 @@ export class TabbedPanel extends Panel {
     addTab(name, tab) {
         let a = document.createElement("a");
         a.className = "tab-header-item";
+        a.href = "#";
         a.innerHTML = name;
         this.head.appendChild(a);
 
