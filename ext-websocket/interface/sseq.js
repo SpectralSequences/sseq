@@ -1,4 +1,4 @@
-import { download, promptClass, promptInteger, vecToName, inflate } from "./utils.js";
+import { download, promptClass, promptInteger, vecToName, inflate, deflate } from "./utils.js";
 
 export const MIN_PAGE = 2;
 const OFFSET_SIZE = 0.3;
@@ -464,7 +464,7 @@ export class ExtSseq extends EventEmitter {
         }
         result.products = Object.fromEntries(this.products);
         result.actions = prevMessages;
-        return pako.deflate(JSON.stringify(result));
+        return deflate(JSON.stringify(result));
     }
 
     async downloadHistoryList() {
@@ -481,7 +481,7 @@ export class ExtSseq extends EventEmitter {
         for (let x of PERMANENT_BIVECS) {
             permanent[x] = this[x].data;
         }
-        lines.push(pako.deflate(JSON.stringify(permanent)));
+        lines.push(deflate(JSON.stringify(permanent)));
 
         this.send({
             recipients: ["Sseq"],
@@ -539,7 +539,8 @@ export class ExtSseq extends EventEmitter {
         this.display.updating = false; // Block update
     }
 
-    static fromJSON(json) {
+    static fromBinary(data) {
+        let json = JSON.parse(inflate(data));
         let sseq = new ExtSseq("Main", json.minDegree);
         Object.defineProperty(sseq, "maxX", { value: null, writable: true});
         Object.defineProperty(sseq, "maxY", { value: null, writable: true});
@@ -552,7 +553,8 @@ export class ExtSseq extends EventEmitter {
         return sseq;
     }
 
-    updateFromJSON(json) {
+    updateFromBinary(data) {
+        let json = JSON.parse(inflate(data));
         for (let x of CHANGING_FIELDS) {
             this[x] = json[x];
         }

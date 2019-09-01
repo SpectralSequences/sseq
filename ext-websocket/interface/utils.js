@@ -90,3 +90,7 @@ export function download (filename, data, mime="text/plain") {
 export function inflate(x) {
     return new TextDecoder("utf-8").decode(pako.inflate(x));
 }
+
+export function deflate(x) {
+    return pako.deflate(x, { level : 1});
+}

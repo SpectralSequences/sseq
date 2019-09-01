@@ -1,7 +1,7 @@
 import { SidebarDisplay } from "./display.js"
 import { ExtSseq } from "./sseq.js"
 import { msgToDisplay, Panel, StructlinePanel, TabbedPanel, ClassPanel } from "./panels.js"
-import { download, renderLaTeX, renderLaTeXP, inflate } from "./utils.js"
+import { download, renderLaTeX, renderLaTeXP, inflate, deflate } from "./utils.js"
 
 export class CalculationDisplay extends SidebarDisplay {
     constructor(container, sseqList) {
@@ -33,10 +33,10 @@ export class CalculationDisplay extends SidebarDisplay {
             x += len;
         }
 
-        this.init = JSON.parse(inflate(this.sseqData.shift()));
+        this.init = this.sseqData.shift();
 
-        let sseq = ExtSseq.fromJSON(this.init);
-        sseq.updateFromJSON(JSON.parse(inflate(this.sseqData[0])));
+        let sseq = ExtSseq.fromBinary(this.init);
+        sseq.updateFromBinary(this.sseqData[0]);
         this.setSseq(sseq);
         this.isUnit = this.sseq.isUnit;
         this.idx = 0;
@@ -75,7 +75,7 @@ export class CalculationDisplay extends SidebarDisplay {
     }
 
     downloadHistoryFile() {
-        let lines = [pako.deflate(JSON.stringify(this.init))];
+        let lines = [this.init];
         lines = lines.concat(this.sseqData);
 
         let filename = prompt("History file name");
@@ -103,7 +103,7 @@ export class CalculationDisplay extends SidebarDisplay {
     }
 
     updateStage() {
-        this.sseq.updateFromJSON(JSON.parse(inflate(this.sseqData[this.idx])));
+        this.sseq.updateFromBinary(this.sseqData[this.idx]);
         if (this.idx == this.history.length + 1) {
             for (let act of this.sseq.currentActions) {
                 this.history.push([this.idx, act]);
