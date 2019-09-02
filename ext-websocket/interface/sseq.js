@@ -454,7 +454,7 @@ export class ExtSseq extends EventEmitter {
         return result[page];
     }
 
-    getChangingJSON(prevMessages) {
+    getChangingJSON() {
         let result = {};
         for (let x of CHANGING_FIELDS) {
             result[x] = this[x];
@@ -463,7 +463,6 @@ export class ExtSseq extends EventEmitter {
             result[x] = this[x].data;
         }
         result.products = Object.fromEntries(this.products);
-        result.actions = prevMessages;
         return deflate(JSON.stringify(result));
     }
 
@@ -488,7 +487,7 @@ export class ExtSseq extends EventEmitter {
             action : { Clear : {} }
         });
 
-        let prevMessages = [];
+        let saveHistory = [[]];
         let it = oldHistory[Symbol.iterator]();
         let msg = it.next();
         // First set all the names.
@@ -520,15 +519,17 @@ export class ExtSseq extends EventEmitter {
             } while (!msg.done);
 
             this.block(false);
-            lines.push(this.getChangingJSON(prevMessages));
-            prevMessages = newMessage;
+            saveHistory.push(newMessage);
+            lines.push(this.getChangingJSON());
         }
         await new Promise(r => window.onComplete.push(r));
-        lines.push(this.getChangingJSON(prevMessages));
+        lines.push(this.getChangingJSON());
 
         let filename = prompt("History file name");
         if (filename === null) return;
         filename = filename.trim();
+
+        lines.splice(1, 0, deflate(saveHistory.map(JSON.stringify).join("\n")));
 
         let lengths = lines.map(x => x.length);
         lengths.push(0);
@@ -562,7 +563,6 @@ export class ExtSseq extends EventEmitter {
             this[x].data = json[x];
         }
 
-        this.currentActions = json.actions;
         this.products = new Map(Object.entries(json.products));
         for (let [_, mult] of this.products) {
             mult.matrices = new BiVec(this.minDegree, mult.matrices.data);

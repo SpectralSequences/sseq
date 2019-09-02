@@ -34,12 +34,14 @@ export class CalculationDisplay extends SidebarDisplay {
         }
 
         this.init = this.sseqData.shift();
+        this.historyRaw = this.sseqData.shift();
+        this.history = inflate(this.historyRaw).split("\n").map(JSON.parse);
 
         let sseq = ExtSseq.fromBinary(this.init);
         sseq.updateFromBinary(this.sseqData[0]);
         this.setSseq(sseq);
         this.isUnit = this.sseq.isUnit;
-        this.idx = 0;
+        this.idx = this.sseqData.length - 1;
 
         this.sidebar.footer.newGroup();
 
@@ -50,8 +52,6 @@ export class CalculationDisplay extends SidebarDisplay {
 
         this.sidebar.footer.currentGroup.firstChild.children[0].firstChild.disabled = true;
         this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG());
-
-        this.history = [];
 
         this.generalPanel = new GeneralPanel(this.sidebar.mainDiv, this);
         this.sidebar.addPanel(this.generalPanel);
@@ -75,8 +75,7 @@ export class CalculationDisplay extends SidebarDisplay {
     }
 
     downloadHistoryFile() {
-        let lines = [this.init];
-        lines = lines.concat(this.sseqData);
+        lines = [this.init, this.historyRaw].concat(this.sseqData);
 
         let filename = prompt("History file name");
         if (filename === null) return;
@@ -104,11 +103,6 @@ export class CalculationDisplay extends SidebarDisplay {
 
     updateStage() {
         this.sseq.updateFromBinary(this.sseqData[this.idx]);
-        if (this.idx == this.history.length + 1) {
-            for (let act of this.sseq.currentActions) {
-                this.history.push([this.idx, act]);
-            }
-        }
         // Find a better way to do this.
         if (this.idx == this.sseqData.length - 1) {
             this.sidebar.footer.currentGroup.firstChild.children[1].firstChild.disabled = true;
@@ -122,18 +116,19 @@ export class CalculationDisplay extends SidebarDisplay {
             this.sidebar.footer.currentGroup.firstChild.children[0].firstChild.disabled = false;
         }
 
-        if (this.sseq.currentActions.length > 0) {
-            let results = this.sseq.currentActions.map(a => msgToDisplay(a, this.sseq));
+        let history = this.history[this.idx];
+
+        if (history > 0) {
+            let results = history.map(a => msgToDisplay(a, this.sseq));
             this.headerDiv.innerHTML = results[0][0];
             if (results.length > 1) {
                 this.headerDiv.innerHTML += " etc.";
             }
-            if (this.sseq.currentActions[0] && this.sseq.currentActions[0]["short-note"]) {
-                this.headerDiv.innerHTML += " &mdash; " + renderLaTeX(this.sseq.currentActions[0]["short-note"]);
+            if (history[0] && history[0]["short-note"]) {
+                this.headerDiv.innerHTML += " &mdash; " + renderLaTeX(history[0]["short-note"]);
             }
             this.setSpecialClasses(results.map(x => x[1]).flat());
         }
-//        this.clearHighlight();
         this.update();
         this.sidebar.showPanel();
     }
@@ -165,7 +160,7 @@ class NotePanel extends Panel {
         this.clear();
         this.newGroup();
 
-        let action = this.display.sseq.currentActions[0];
+        let action = this.display.history[this.display.idx][0];
         if (!action) {
             return;
         }
@@ -190,8 +185,10 @@ class CHistoryPanel extends Panel {
         this.container.style.removeProperty("display");
         this.clear();
         this.newGroup();
-        for (let [idx, hist] of this.display.history) {
-            this.addMessage(idx, hist);
+        for (let [idx, histList] of this.display.history.entries()) {
+            for (let hist of histList) {
+                this.addMessage(idx, hist);
+            }
         }
     }
 
