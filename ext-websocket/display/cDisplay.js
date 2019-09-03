@@ -2,6 +2,7 @@ import { SidebarDisplay } from "./display.js"
 import { ExtSseq } from "./sseq.js"
 import { msgToDisplay, Panel, StructlinePanel, TabbedPanel, ClassPanel } from "./panels.js"
 import { download, renderLaTeX, renderLaTeXP, inflate, deflate } from "./utils.js"
+import { IntroJS } from "./intro.js"
 
 export class CalculationDisplay extends SidebarDisplay {
     constructor(container, sseqList) {
@@ -72,7 +73,114 @@ export class CalculationDisplay extends SidebarDisplay {
         Mousetrap.bind("K", () => this.sidebar.currentPanel.nextTab());
 
         this.updateStage();
-        this.generalPanel.noteTab.currentGroup.innerHTML = "This is a display of the Adams spectral sequence calculation for " + renderLaTeX(this.sseq.moduleName);
+        this.tour();
+    }
+
+    tour() {
+        const DISPLAY_IDX = 3;
+        const SELECT_CLASS = [0, 1];
+
+        let updateState = (selectClass, tab, lastPage) => {
+            let idx = lastPage ? this.sseqData.length : DISPLAY_IDX;
+
+            if (this.idx != idx) {
+                this.idx = idx;
+                this.updateStage();
+            }
+
+            if (selectClass) {
+                this._onClick(SELECT_CLASS);
+                this.classPanel.tabs[tab][1].click();
+            } else {
+                this._onClick([-10, -10]);
+                this.generalPanel.tabs[tab][1].click();
+            }
+        };
+        let intro = new IntroJS();
+        intro.setOptions({
+            steps: [
+                {
+                    intro: `<p>This is a step-by-step demonstration of the Adams spectral sequence calculation for ${renderLaTeX(this.sseq.moduleName)}. You are currently viewing the final result of the calculation.</p><p>Use arrow keys to navigate between pages and pan and zoom with the mouse.</p><p>Continue with the walkthrough to learn more about the interface, or click anywhere else to skip it.</p>`,
+                    width: 400
+                },
+                {
+                    element: this.generalPanel.tabs[1][1],
+                    intro: "The history tab on the sidebar lists the steps performed in the calculation of the spectral sequence.",
+                    before: () => updateState(false, 1, true),
+                    position: "below"
+                },
+                {
+                    element: this.generalPanel.historyTab.container,
+                    intro: "<p>In each step, we either mark a class as permanent or add a differential. 'Permanent product' and 'Propagate ...' are annotations that say we want to propagate differentials along these permanent classes or differentials via the Leibniz rule.</p><p>Sometimes, several actions in this list are grouped together in a single step because they can be justified in a similar way.</p>",
+                    before: () => updateState(false, 1, true),
+                    position: "left"
+                },
+                {
+                    elementFunction: () => this.generalPanel.historyTab.container.firstChild.children[DISPLAY_IDX - 1],
+                    intro: "Double click on a step to display the spectral sequence after performing the step.",
+                    before: () => updateState(false, 1, false),
+                    position: "left"
+                },
+                {
+                    element: this.prevNext[0].parentElement,
+                    intro: "You can use the 'Prev' and 'Next' buttons to navigate between steps as well",
+                    before: () => updateState(false, 1, false),
+                    position: "left"
+                },
+                {
+                    element: this.headerDiv,
+                    intro: "The top bar displays the action and a short explanation if available. If multiple actions were performed, the top bar only displays the first.",
+                    before: () => updateState(false, 1, false)
+                },
+                {
+                    element: this.sidebar.mainDiv,
+                    intro: "The notes tab displays a longer explanation of the step if available",
+                    before: () => updateState(false, 0, false),
+                    position: "left"
+                },
+                {
+                    element: this.container_DOM,
+                    intro: "The classes are color coded.<ul><li>Orange classes are classes involved in the current action.</li><li>Gray classes are classes all of whose differential have been computed.</li><li>Dark red classes are classes involved in inconsistent differentials (this usually means there is some shorter differential yet to be found).</li></ul> Note that a 'class' here means the entire group in the bidegree. All 'dots' in the same bidegree will always have the same color.",
+                    width: 450,
+                    before: () => updateState(false, 1, false)
+                },
+                {
+                    element: this.sidebar.mainDiv,
+                    intro: "The product tab lists the products that have been computed",
+                    before: () => updateState(false, 2, false),
+                    position: "below"
+                },
+                {
+                    elementFunction: () => this.generalPanel.structlineTab.container.firstChild.children[1],
+                    intro: "You can toggle the display of the structlines for the product and configure the display options",
+                    before: () => {
+                        updateState(false, 2, false);
+                        this.generalPanel.structlineTab.container.firstChild.children[1].firstChild.open = true;
+                    },
+                    position: "left"
+                },
+                {
+                    element: this.container_DOM,
+                    intro: "Click on a class to display information about the class. This 'highlights' the class, and highlighted classes are marked in red",
+                    before: () => updateState(true, 0, false)
+                },
+                {
+                    element: this.sidebar.mainDiv,
+                    intro: "The various panels display information about the classes, such as their names, product decompositions and differentials.",
+                    before: () => updateState(true, 0, false),
+                    position: "left"
+                },
+                {
+                    intro: "The code used for computing the spectral sequence and generating the display can be found on <a href='https://github.com/hoodmane/rust_ext'>GitHub<a>."
+                }
+            ]
+        });
+        intro.onEnd = () => {
+            this.classPanel.tabs[0][1].click();
+            this.generalPanel.tabs[0][1].click();
+            updateState(false, 0, true);
+        }
+        intro.start();
     }
 
     downloadHistoryFile() {
@@ -143,11 +251,11 @@ export class GeneralPanel extends TabbedPanel {
         this.noteTab = new NotePanel(this.container, this.display);
         this.addTab("Note", this.noteTab);
 
-        this.structlineTab = new StructlinePanel(this.container, this.display);
-        this.addTab("Prod", this.structlineTab);
-
         this.historyTab = new CHistoryPanel(this.container, this.display);
         this.addTab("Hist", this.historyTab);
+
+        this.structlineTab = new StructlinePanel(this.container, this.display);
+        this.addTab("Prod", this.structlineTab);
     }
 }
 

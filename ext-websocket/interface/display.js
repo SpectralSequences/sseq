@@ -469,15 +469,12 @@ class Display extends EventEmitter {
     }
 
     _drawAxes(context){
-        context.save();
+        // This prevents axes labels from appearing to the left or below the
+        // axes intercept.
+        context.clearRect(0, 0, this.leftMargin, this.topMargin);
+        context.clearRect(0, this.clipHeight, this.leftMargin, this.bottomMargin);
 
-        // This makes the white square in the bottom left corner which prevents axes labels from appearing to the left
-        // or below the axes intercept.
-        context.fillStyle = "#FFF";
-        context.rect(0, this.clipHeight, this.leftMargin, this.bottomMargin);
-        context.rect(0, 0, this.leftMargin, this.topMargin);
-        context.fill();
-        context.fillStyle = "#000";
+        context.save();
 
         // Draw the axes.
         context.beginPath();
@@ -729,11 +726,8 @@ class Sidebar {
 
         this.mainDiv = document.createElement("div");
         this.mainDiv.style.overflow = "auto";
+        this.mainDiv.style.flexGrow = "1";
         this.sidebar.appendChild(this.mainDiv);
-
-        let filler = document.createElement("div");
-        filler.style.flexGrow = "1";
-        this.sidebar.appendChild(filler);
 
         this.footer_div = document.createElement("div");
         this.sidebar.appendChild(this.footer_div);

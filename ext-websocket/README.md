@@ -7,3 +7,5 @@ To run the web server, first copy (or symlink) `bundle.js` from
 $ cargo run --release
 ```
 Then navigate to `http://localhost:8080/` to view the webpage.
+
+intro.js is forked from https://github.com/usablica/intro.js

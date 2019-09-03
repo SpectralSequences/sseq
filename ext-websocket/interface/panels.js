@@ -729,6 +729,9 @@ class MainPanel extends Panel {
     }
 
     show() {
+        if (!this.display.selected)
+            return;
+
         this.container.style.removeProperty("display");
         this.container.style.textAlign = "center";
         this.clear();
