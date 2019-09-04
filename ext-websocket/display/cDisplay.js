@@ -1,7 +1,9 @@
+'use strict';
+
 import { SidebarDisplay } from "./display.js"
 import { ExtSseq } from "./sseq.js"
 import { msgToDisplay, Panel, StructlinePanel, TabbedPanel, ClassPanel } from "./panels.js"
-import { download, renderLaTeX, renderLaTeXP, inflate, deflate } from "./utils.js"
+import { download, renderLaTeX, renderLaTeXP, inflate } from "./utils.js"
 import { IntroJS } from "./intro.js"
 
 export class CalculationDisplay extends SidebarDisplay {
@@ -23,7 +25,7 @@ export class CalculationDisplay extends SidebarDisplay {
         let lengths_ = new Uint32Array(sseqList, 0, Math.floor(sseqList.byteLength / 4));
         this.lengths = [];
         for (let len of lengths_) {
-            if (len == 0) break;;
+            if (len == 0) break;
             this.lengths.push(len);
         }
         this.sseqData = [];
@@ -184,7 +186,7 @@ export class CalculationDisplay extends SidebarDisplay {
     }
 
     downloadHistoryFile() {
-        lines = [this.init, this.historyRaw].concat(this.sseqData);
+        let lines = [this.init, this.historyRaw].concat(this.sseqData);
 
         let filename = prompt("History file name");
         if (filename === null) return;

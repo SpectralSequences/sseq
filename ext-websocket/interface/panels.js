@@ -1,12 +1,9 @@
-import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE, STATE_ADD_PRODUCT } from "./display.js";
+'use strict';
+
+import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE } from "./display.js";
 import { rowToKaTeX, rowToLaTeX, matrixToKaTeX, vecToName } from "./utils.js";
 import { MIN_PAGE } from "./sseq.js";
-
-function addLI(ul, text) {
-    let x = document.createElement("li");
-    x.innerHTML = text;
-    ul.appendChild(x);
-}
+import katex from 'https://cdn.jsdelivr.net/npm/katex@0.11.0/dist/katex.mjs'
 
 export const ACTION_TO_DISPLAY = {
     AddDifferential: (details, sseq) => {
@@ -325,13 +322,10 @@ export class Panel extends EventEmitter {
         this.links.push([target, i]);
 
         i.addEventListener("change", (e) => {
-            let target_pre;
-
             let l = target.split(".");
             let prop = l.pop();
             let t = Panel.unwrapProperty(this.display, l);
 
-            let old_val = t[prop];
             let new_val = e.target.value;
             t[prop] = new_val;
 
@@ -642,7 +636,7 @@ export class StructlinePanel extends Panel {
             ci.value = style.color;
             cd.appendChild(ci);
 
-            ci.addEventListener("change", (e) => {
+            ci.addEventListener("change", () => {
                 style.color = ci.value;
                 this.display.update();
             });
@@ -663,7 +657,7 @@ export class StructlinePanel extends Panel {
             bi.value = style.bend;
             bd.appendChild(bi);
 
-            bi.addEventListener("change", (e) => {
+            bi.addEventListener("change", () => {
                 style.bend = parseInt(bi.value);
                 this.display.update();
             });
@@ -685,14 +679,14 @@ export class StructlinePanel extends Panel {
             di.title = "An array of numbers that specify distances to alternately draw a line and a gap. For example, a solid line is [], while [2, 2] gives you a dashed line where the line and the gap have equal length.";
             dd.appendChild(di);
 
-            di.addEventListener("change", (e) => {
+            di.addEventListener("change", () => {
                 style["line-dash"] = eval(di.value);
                 this.display.update();
             });
 
             styleDiv.appendChild(dd);
 
-            checkbox.addEventListener("change", (e) => {
+            checkbox.addEventListener("change", () => {
                 if (checkbox.checked) {
                     this.display.visibleStructlines.add(name)
                 } else {

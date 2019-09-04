@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Forked from https://github.com/usablica/intro.js
  */
@@ -585,6 +587,7 @@ export class IntroJS {
 
             case 'top-left-aligned':
                 // top-left-aligned is the same as the default top
+                // falls through
             case 'top':
                 arrowLayer.className = 'introjs-arrow bottom';
 
@@ -692,7 +695,7 @@ export class IntroJS {
     static getRecursiveBoundingBox(element, offset=false) {
         var rect = getBoundingClientRect(element); // Makes it mutable
         let parentElement = element;
-        while (parentElement = parentElement.parentElement) {
+        while ((parentElement = parentElement.parentElement) !== null) {
             let parentBox = parentElement.getBoundingClientRect();
             rect.left = Math.max(rect.left, parentBox.left);
             rect.right = Math.min(rect.right, parentBox.right);
@@ -707,7 +710,7 @@ export class IntroJS {
             let scrollTop = window.pageYOffset || docEl.scrollTop || body.scrollTop;
             let scrollLeft = window.pageXOffset || docEl.scrollLeft || body.scrollLeft;
             rect.left += scrollLeft;
-            rect.top += scrollLeft;
+            rect.top += scrollTop;
         }
 
         return rect;
@@ -1031,8 +1034,6 @@ export class IntroJS {
 
             var ulContainer = document.createElement('ul');
             ulContainer.setAttribute('role', 'tablist');
-
-            var anchorClick = () => this.goToStep(this.getAttribute('data-stepnumber'));
 
             _forEach(this._introItems, (item, i) => {
                 var innerLi    = document.createElement('li');

@@ -1,23 +1,10 @@
+'use strict';
+
 import { download, promptClass, promptInteger, vecToName, inflate, deflate } from "./utils.js";
 
 export const MIN_PAGE = 2;
-const OFFSET_SIZE = 0.3;
-
-const NODE_COLOR = {
-    "InProgress": "black",
-    "Error": "#a6001a",
-    "Done": "gray"
-};
 
 const KEEP_LOG = new Set(["AddDifferential", "AddProductType", "AddProductDifferential", "AddPermanentClass", "SetClassName"]);
-// If a structline has mult_x > MAX_STRUCTLINE_8, we do not store the actual
-// structlines, because this turns out to be pretty memory intensive, and these
-// lines are pretty useless anyway. I might remove this if I rework the way
-// structlines are processed (I intend to rewrite it so that we don't use the
-// Edge object, and store a list of pairs of nodes instead (or just use the
-// product directly). This would also make it easier to customize how the
-// structlines are displayed.
-const MAX_STRUCTLINE_X = 8;
 
 export class BiVec {
     constructor(minDegree, data) {

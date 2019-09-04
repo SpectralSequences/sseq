@@ -1,3 +1,5 @@
+'use strict';
+
 import { MainDisplay, UnitDisplay } from "./display.js";
 import { ExtSseq } from "./sseq.js";
 import { renderLaTeX, download } from "./utils.js";

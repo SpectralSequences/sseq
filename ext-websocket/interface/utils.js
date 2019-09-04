@@ -1,3 +1,6 @@
+'use strict';
+import katex from 'https://cdn.jsdelivr.net/npm/katex@0.11.0/dist/katex.mjs'
+
 export function vecToName(v, names) {
     let items = [];
     for (let i = 0; i < v.length; i++) {
@@ -68,7 +71,6 @@ export function promptInteger(text, error) {
         let c = parseInt(response.trim());
         if (!isNaN(c)) {
             return c;
-            break;
         }
         alert(error);
     }
@@ -85,7 +87,7 @@ export function download (filename, data, mime="text/plain") {
     element.rel = 'noopener';
     element.dispatchEvent(new MouseEvent('click'));
     setTimeout(() => URL.revokeObjectURL(element.href), 6E4);
-};
+}
 
 export function inflate(x) {
     return new TextDecoder("utf-8").decode(pako.inflate(x));

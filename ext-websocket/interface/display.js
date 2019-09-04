@@ -1,3 +1,5 @@
+'use strict';
+
 import { Panel, GeneralPanel, ClassPanel } from "./panels.js";
 import { download } from "./utils.js";
 import { MIN_PAGE } from "./sseq.js";
@@ -5,7 +7,6 @@ import { Tooltip } from "./tooltip.js";
 
 export const STATE_ADD_DIFFERENTIAL = 1;
 export const STATE_QUERY_TABLE = 2;
-export const STATE_ADD_PRODUCT = 3;
 const OFFSET_SIZE = 0.3;
 
 const DIFFERENTIAL_COLORS = ["cyan", "red", "green"];
@@ -642,8 +643,6 @@ class Display extends EventEmitter {
         if (!this.xScale)
             return;
 
-        let redraw = false;
-
         // We cannot query for mouse position. We must remember it from
         // previous events. If update() is called, we call _onMousemove without
         // an event.
@@ -916,7 +915,7 @@ export class MainDisplay extends SidebarDisplay {
     setSseq(sseq) {
         super.setSseq(sseq);
 
-        sseq.on("new-structline", (name) => {
+        sseq.on("new-structline", () => {
             this.sidebar.showPanel()
         });
     }
