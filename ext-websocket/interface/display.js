@@ -826,6 +826,7 @@ export class MainDisplay extends SidebarDisplay {
         ]);
 
         this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG());
+        this.sidebar.footer.addButton("Download Snapshots", () => this.sseq.downloadHistoryList());
         this.sidebar.footer.addButton("Save", () => window.save());
 
         Mousetrap.bind("J", () => this.sidebar.currentPanel.prevTab());
