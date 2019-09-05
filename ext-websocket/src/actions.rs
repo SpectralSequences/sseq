@@ -25,7 +25,6 @@ impl std::fmt::Display for Message {
 pub enum Recipient {
     Sseq,
     Resolver,
-    Server
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
@@ -67,11 +66,7 @@ pub enum Action {
     SetStructline,
     SetDifferential,
     SetClass,
-    SetPageList,
-
-    // Misc
-    RequestHistory,
-    ReturnHistory,
+    SetPageList
 }
 
 /// The name `Action` is sort-of a misnomer. It is the content of any message that is sent between
@@ -348,13 +343,3 @@ pub struct SetPageList {
     pub page_list : Vec<i32>
 }
 impl ActionT for SetPageList { }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RequestHistory { }
-impl ActionT for RequestHistory { }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReturnHistory {
-    pub history : Vec<Message>
-}
-impl ActionT for ReturnHistory { }

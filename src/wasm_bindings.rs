@@ -14,9 +14,6 @@ use crate::resolution::{Resolution, ModuleResolution};
 use crate::matrix::Matrix;
 use crate::fp_vector::FpVectorT;
 
-
-// use web_sys::console;
-
 #[wasm_bindgen]
 pub struct WasmAlgebra {
     pimpl : *const AlgebraAny

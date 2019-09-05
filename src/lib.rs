@@ -45,7 +45,6 @@ extern crate serde;
 
 #[cfg(target_arch = "wasm32")]
 extern crate wasm_bindgen;
-extern crate web_sys;
 extern crate bivec;
 
 // Parser
