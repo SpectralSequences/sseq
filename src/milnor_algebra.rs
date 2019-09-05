@@ -159,16 +159,21 @@ impl Algebra for MilnorAlgebra {
         let mut products = Vec::with_capacity(4);
         let max_degree;
         if self.generic {
-            products.push(("a_0".to_string(), MilnorBasisElement {
-                degree : 1,
-                q_part : 1,
-                p_part : vec![]
-            }));
-            products.push(("h_0".to_string(), MilnorBasisElement {
-                degree : (2*self.p-2) as i32,
-                q_part : 0,
-                p_part : vec![1]
-            }));
+            if self.profile.q_part & 1 != 0  {
+                products.push(("a_0".to_string(), MilnorBasisElement {
+                    degree : 1,
+                    q_part : 1,
+                    p_part : vec![]
+                }));
+            }
+            if (self.profile.p_part.len() == 0 && !self.profile.truncated) ||
+               (self.profile.p_part.len() > 0 && self.profile.p_part[0] > 0) {
+                    products.push(("h_0".to_string(), MilnorBasisElement {
+                        degree : (2*self.p-2) as i32,
+                        q_part : 0,
+                        p_part : vec![1]
+                    }));
+            }
             max_degree = (2 * self.p - 2) as i32;
         } else {
             let mut max = 4;
