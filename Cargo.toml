@@ -16,7 +16,7 @@ wasm-bindgen = "0.2"
 bivec = { path = "bivec"}
 serde_json = "*"
 serde = "*"
-threadpool = { version = "*", optional = true }
+rayon = { version = "*", optional = true }
 js-sys = "0.3.22"
 enum_dispatch = "0.1.3"
 clap = { version = "2.33.0", features = ["yaml", "wrap_help"] }
@@ -46,7 +46,7 @@ members = ["ext-websocket", "bivec"]
 
 [features]
 cache-multiplication = []
-concurrent = ["threadpool"]
+concurrent = ["rayon"]
 
 # The `web-sys` crate allows you to interact with the various browser APIs,
 # like the DOM.

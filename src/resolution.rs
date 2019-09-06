@@ -19,10 +19,7 @@ use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorphismToUnit};
 
 #[cfg(feature = "concurrent")]
-const NUM_THREAD : usize = 2;
-
-#[cfg(feature = "concurrent")]
-use threadpool::ThreadPool;
+use rayon::prelude::*;
 
 /// ResolutionInner contains the data of the actual resolution, while Resolution contains the bells
 /// and whistles such as self maps and callbacks. ResolutionInner is what ResolutionHomomorphism
@@ -388,7 +385,7 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
     product_list : Vec<Cocycle>,
     // s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
     // until we actually have a unit resolution, of course.
-    chain_maps_to_unit_resolution : OnceVec<OnceBiVec<OnceVec<Arc<ResolutionHomomorphismToUnit<M, F, CC>>>>>,
+    chain_maps_to_unit_resolution : OnceVec<OnceBiVec<OnceVec<ResolutionHomomorphismToUnit<M, F, CC>>>>,
     max_product_homological_degree : u32,
 
     // Self maps
@@ -461,7 +458,6 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
                 self.step(s as u32, t);
             }
         }
-
         *next_s = max_s + 1;
         *next_t = max_t + 1;
     }
@@ -581,20 +577,18 @@ impl<M, F, CC> Resolution<M, F, CC> where
     fn extend_maps_to_unit_concurrent(&self, s : u32, t : i32) {
         let max_hom_deg = min(s, self.max_product_homological_degree);
         let min_degree = self.min_degree();
-        let pool = ThreadPool::new(NUM_THREAD);
         for i in 0 ..= s {
-            for j in min_degree ..= t {
-                let max_s = min(s, i + self.max_product_homological_degree);
-                let num_gens = self.module(i).number_of_gens_in_degree(j);
+            let module = self.module(i);
+            let max_s = min(s, i + self.max_product_homological_degree);
+            let maps = &self.chain_maps_to_unit_resolution[i as usize];
+
+            (min_degree ..= t).into_par_iter().for_each(|j| {
+                let num_gens = module.number_of_gens_in_degree(j);
                 for k in 0 .. num_gens {
-                    let f = Arc::clone(&self.chain_maps_to_unit_resolution[i as usize][j][k]);
-                    pool.execute(move || {
-                        f.extend(max_s, t);
-                    });
+                        maps[j][k].extend(max_s, t)
                 }
-            }
+            });
         }
-        pool.join();
     }
 }
 
@@ -719,7 +713,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
                         unit_vector[j].set_entry(0, 1);
                         f.extend_step(new_s as u32, new_t, Some(&mut unit_vector));
                         unit_vector[j].set_to_zero();
-                        self.chain_maps_to_unit_resolution[new_s][new_t].push(Arc::new(f));
+                        self.chain_maps_to_unit_resolution[new_s][new_t].push(f);
                     }
                 }
             }
