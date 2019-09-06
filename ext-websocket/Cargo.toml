@@ -7,14 +7,14 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ws = "*"
 serde_json = "*"
-chrono = "*"
 serde = { version = "*", features = ["derive"] }
 threadpool = { version = "*", optional = true }
 rust_ext = { path = "../" }
 bivec = { path = "../bivec" }
 enum_dispatch = "0.1.3"
+chrono = "*"
+ws = "*"
 textwrap = { version = "*", features = ["term_size"] }
 
 [features]

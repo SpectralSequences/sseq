@@ -45,7 +45,6 @@ extern crate serde;
 
 #[cfg(target_arch = "wasm32")]
 extern crate wasm_bindgen;
-extern crate web_sys;
 extern crate bivec;
 
 // Parser
@@ -154,7 +153,7 @@ pub fn construct_algebra_from_json(json : &Value, mut algebra_name : String) -> 
         }
     }
 
-    let mut algebra : AlgebraAny;
+    let algebra : AlgebraAny;
     match algebra_name.as_ref() {
         "adem" => algebra = AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)),
         "milnor" => {

@@ -71,10 +71,10 @@ fn evaluate_basis_element(
     let mut result;
     match basis_elt {
         AlgebraBasisElt::PList(p_list) => {
-            let xi_degrees = crate::combinatorics::tau_degrees(p);
+            let xi_degrees = crate::combinatorics::xi_degrees(p);
             let mut temp_deg = 0;
             for (i, v) in p_list.iter().enumerate() {
-                temp_deg += *v * xi_degrees[i] as u32;
+                temp_deg += *v * q * xi_degrees[i] as u32;
             }
             degree = temp_deg as i32;
             result = FpVector::new(p, adem_algebra.dimension(degree, -1));

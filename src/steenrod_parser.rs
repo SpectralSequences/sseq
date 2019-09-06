@@ -203,7 +203,7 @@ fn module_expr(i: &str) -> IResult<&str, ModuleParseNode> {
   )(i)
 }
 
-pub fn parse_algebra(i : &str) -> Result<AlgebraParseNode, Box<std::error::Error>> {
+pub fn parse_algebra(i : &str) -> Result<AlgebraParseNode, Box<dyn std::error::Error>> {
     let (rest, parse_tree) = algebra_expr(i)
         .or_else(|err| Err(Box::new(ParseError{info : format!("{:#?}", err) })))?;
     if rest.len() > 0 {
@@ -213,7 +213,7 @@ pub fn parse_algebra(i : &str) -> Result<AlgebraParseNode, Box<std::error::Error
     }
 }
 
-pub fn parse_module(i : &str) -> Result<ModuleParseNode, Box<std::error::Error>> {
+pub fn parse_module(i : &str) -> Result<ModuleParseNode, Box<dyn std::error::Error>> {
     let (rest, parse_tree) = module_expr(i)
         .or_else(|err| Err(Box::new(ParseError{info : format!("{:#?}", err) })))?;
     if rest.len() > 0 {

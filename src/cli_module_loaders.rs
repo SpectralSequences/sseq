@@ -313,9 +313,7 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
     let min_degree = 0i32;
     let gens = get_gens(min_degree)?;
     let gens_json = gens_to_json(&gens);    
-    let max_degree = (gens.len() + 1) as i32 + min_degree;
     let max_degree = 20;
-
 
     let adem_algebra_rc = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
     let adem_algebra = AdemAlgebra::new(p, generic, false);
@@ -339,6 +337,11 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
     adem_module.generators.extend_by_zero(20);
 
     println!("Input relations");
+    match p {
+        2 => println!("Write relations in the form 'Sq6 * Sq2 * x + Sq7 * y'"),
+        _ => println!("Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y', where P(...) and Qi are Milnor basis elements."),
+    }
+    println!("There is currently a hard-coded maximum degree of {} for relations (this is the maximum allowed degree of an operator acting on the generators). One can raise this number by editing the max_degree variable in the interactive_module_define_fpmodule function of src/cli_module_loaders.rs. Apologies.", max_degree);
 
     let mut basis_elt_lookup = HashMap::new();
     for (i, deg_i_gens) in gens.iter_enum() {
