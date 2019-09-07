@@ -27,8 +27,7 @@ pub struct Matrix {
     slice_row_end : usize,
     slice_col_start : usize,
     slice_col_end : usize,
-    vectors : Vec<FpVector>,
-//    row_permutation : Vec<usize>
+    vectors : Vec<FpVector>
 }
 
 impl Matrix {
@@ -39,16 +38,11 @@ impl Matrix {
         for _ in 0..rows {
             vectors.push(FpVector::new(p, columns));
         }
-//        let mut row_permutation : Vec<usize> = Vec::with_capacity(columns);
-//        for i in 0..rows {
-//            row_permutation.push(i);
-//        }
         Matrix { 
             p, rows, columns, 
             slice_row_start : 0, slice_row_end : rows,
             slice_col_start : 0, slice_col_end : columns,
-            vectors, 
-//            row_permutation
+            vectors
         }
     }
 
@@ -271,94 +265,11 @@ impl std::ops::IndexMut<usize> for Matrix {
     }
 }
 
-// void Matrix_serialize(char **buffer, Matrix *M){
-//     size_t size = Matrix_getSize(M->p, M->rows, M->columns);
-//     memcpy(*buffer, M, sizeof(Matrix));
-//     *buffer += sizeof(Matrix);
-//     *buffer += M->rows * sizeof(Vector*);
-//     for(uint row = 0; row < M->rows; row++){
-//         Vector_serialize(buffer, M->vectors[row]);
-//     }
-// }
-
-// Matrix *Matrix_deserialize(char **buffer){
-//     Matrix *M = (Matrix*)*buffer;
-//     char *start_ptr = *buffer;
-//     *buffer += sizeof(Matrix);
-//     Vector **vector_ptr = (Vector**)*buffer;
-//     M->vectors = vector_ptr;
-//     uint rows = M->rows;    
-//     *buffer += rows * sizeof(Vector*);
-//     for(uint row = 0; row < rows; row++){
-//         *vector_ptr = Vector_deserialize(M->p, buffer);
-//         vector_ptr ++;
-//     }
-//     assert(start_ptr + Matrix_getSize(M->p, M->rows, M->columns) == *buffer);
-//     return M;
-// }
-
-
-// Matrix *Matrix_slice(Matrix *M, char *memory, uint row_min, uint row_max, uint column_min, uint column_max){
-//     assert(row_min <= row_max && row_max <= M->rows);
-//     assert(column_min <= column_max && column_max <= M->columns);
-//     Matrix *result = (Matrix*)memory;
-//     uint num_rows = row_max - row_min;
-//     uint num_cols = column_max - column_min;
-//     result->p = M->p;
-//     result->rows = num_rows;
-//     result->columns = num_cols;
-//     result->vectors = (Vector**)(result + 1);
-//     Vector **matrix_ptr = (Vector**)result->vectors; 
-//     char *vector_ptr = (char*)(matrix_ptr + num_rows);
-//     Vector *initialized_vector_ptr;
-//     for(uint i = 0; i < num_rows; i++){
-//         initialized_vector_ptr = Vector_initialize(M->p, &vector_ptr, 0, 0);
-//         *matrix_ptr = initialized_vector_ptr;
-//         Vector_slice(initialized_vector_ptr, M->vectors[i], column_min, column_max);
-//         matrix_ptr ++;
-//     }
-//     assert(matrix_ptr == (Vector **)(result->vectors + num_rows));
-//     assert(vector_ptr == (char*)matrix_ptr + num_rows * VECTOR_CONTAINER_SIZE);
-//     return result;
-// }
-
-
-
-// void Matrix_getRowPermutation(Matrix *M, uint *result){
-//     Vector *first_vector = (Vector*)(M->vectors + M->rows);
-//     for(uint i=0; i < M->rows; i++){
-//         uint j = ((uint64)M->vectors[i] - (uint64)first_vector)/VECTOR_CONTAINER_SIZE; // why is this sizeof(VectorPrivate)??
-//         result[i] = j;
-//     }
-// }
-
-// void Matrix_applyRowPermutation(Matrix *M, uint *permutation, uint rows){
-//     Vector *temp[rows];
-//     for(uint i=0; i < rows; i++){
-//         temp[i] = M->vectors[permutation[i]];
-//     }
-//     memcpy(M->vectors, temp, rows * sizeof(Vector*));
-// }
-
 
 impl Matrix {
     pub fn swap_rows(&mut self, i : usize, j : usize){
         self.vectors.swap(i + self.slice_row_start, j + self.slice_row_start);
-//        self.row_permutation.swap(i + self.slice_row_start, j + self.slice_row_start);
     }
-
-//    pub fn apply_permutation(&mut self, permutation : &Vec<usize>, scratch_space : &mut Vec<FpVector>){
-//        assert!(permutation.len() < self.vectors.len());
-//        assert!(permutation.len() < scratch_space.len());
-//        unsafe {
-//            for i in 0..permutation.len(){
-//                std::ptr::swap(scratch_space.as_mut_ptr().offset(i as isize), self.vectors.as_mut_ptr().offset(permutation[i] as isize));
-//            }
-//            for i in 0..permutation.len(){
-//                std::ptr::swap(self.vectors.as_mut_ptr().offset(i as isize), scratch_space.as_mut_ptr().offset(i as isize));
-//            }
-//        }
-//    }
 
     pub fn row_op(&mut self, target : usize, source : usize, coeff : u32){
     unsafe {
@@ -443,15 +354,10 @@ impl Matrix {
             self[pivot].scale(c_inv);
             // println!("({}) <== {} * ({}): \n{}", pivot, c_inv, pivot, self);
 
-            // if(col_end > 0){
-            //     printf("row(%d) *= %d\n", pivot, c_inv);
-            //     Matrix_printSlice(M, col_end, col_start);
-            // }
             for i in 0 .. rows {
                 // Between pivot and pivot_row, we already checked that the pivot column is 0, so we could skip ahead a bit.
                 // But Rust doesn't make this as easy as C.
                 if i == pivot {
-                    // i = pivot_row;
                     continue;
                 }
                 let pivot_column_entry = self[i].entry(pivot_column);
