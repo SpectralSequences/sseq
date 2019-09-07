@@ -36,7 +36,7 @@ fn main() {
 fn get_config(matches : clap::ArgMatches<'_>) -> Config {
     let mut static_modules_path = std::env::current_exe().unwrap();
     static_modules_path.pop(); static_modules_path.pop(); static_modules_path.pop();
-    static_modules_path.push("static/modules");
+    static_modules_path.push("modules");
     let current_dir = std::env::current_dir().unwrap();
     Config {
         module_paths : vec![current_dir, static_modules_path],

@@ -25,8 +25,6 @@ pub mod hom_pullback;
 pub mod hom_complex;
 pub mod resolution;
 pub mod resolution_homomorphism;
-#[cfg(target_arch = "wasm32")]
-pub mod wasm_bindings;
 mod cli_module_loaders;
 
 use crate::algebra::{Algebra, AlgebraAny};

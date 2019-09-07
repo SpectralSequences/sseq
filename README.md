@@ -1,61 +1,77 @@
 [![Build Status](https://travis-ci.org/hoodmane/rust_ext.svg?branch=master)](https://travis-ci.org/hoodmane/rust_ext)
 
 # Overview
-The project is seperated into two parts --- the Rust backend and the javascript/HTML frontend. The Rust backend is compiled into web assembly for use by the javascript, but can also be run and tested separately.
+The main crate provides a library for computing Ext resolutions. It produces a
+binary that displays the result in an ASCII graph. This is mainly used for
+testing purposes. It also comes with a CLI interface for defining Steenrod
+modules, which may be used "in production".
 
-A live and cutting-edge version of the web interface can be found at [https://hoodmane.github.io/rust_ext/](https://hoodmane.github.io/rust_ext/).
+There are two further sub-crates.
 
-# Javascript/webassembly
-To download javascript dependencies, run
-```
-$ npm install
-```
-This only has to be done once. Afterwards, to compile the web assembly and produce the website, run
-```
-$ npm run build
-```
-The files produced will be placed in `dist/` . To view the website, run
-```
-$ npm run serve
-```
-and navigate to http://locahost:8000/ . This command merely runs a webserve to serve the directory. There are two points to take note if you want to serve the directory yourself.
+## ext-websocket
+This is what you should use in general.
 
-1. By default, most http servers do not serve `.wasm` files with the correct MIME type. For example, you need to add the following line to `.htaccess` for Apache:
-```
-AddType application/wasm .wasm
-```
+The ext-websocket crate uses the rust code as a backend and relays the results
+of the computation to the JS frontend via a websocket. This is intended to be
+run and used locally --- you don't want to expose a web interface that could
+heavily drain your server resources, and relaying the result involves moving a
+lot of data. It is usually somewhat reasonable to run the backend on servers in
+the local network, and the frontend on your computer, but when the network is
+slow, running a browser on the server and using ssh X-forwarding might be a
+better idea.
 
-2. During compilation, the `dist/` directory is deleted and then re-created, so the actual directory changes every time you compile.
+There is also a version that compiles all the rust code into wasm and lets
+everything run in the browser. A live and cutting-edge version of this can be
+found at
+[https://hoodmane.github.io/rust_ext/](https://hoodmane.github.io/rust_ext/).
 
-Note that you do not have to compile the Rust part before compiling the webassembly. In fact, these two operations overwrite each others' files.
-# Rust
-To compile the Rust part, simply run
+Read the README file in `ext-websocket/` for more details.
+
+## compressor
+This is a utility for further compressing the history file constructed by the
+previous interface (again, see the README in `ext-websocket/` for more
+details). It is not very well polished. To use it, save the file to compress as
+`compressor/old.hist`, and then run `cargo run --release`. The compressed file
+will be saved at `compressor/new.hist`.
+
+This program is multithreaded, and to change the number of threads used, edit
+the `NUM_THREAD` variable in `compressor/src/main.rs`.
+
+# Compilation
+To compile the main crate, simply run
 ```
 $ cargo build
 ```
-This will automatically download and manage the dependencies, and the compiled binary can be found at `target/debug/rust_ext`.
+This will automatically download and manage the dependencies, and the compiled
+binary can be found at `target/debug/rust_ext`.
 
-This by default resolves the sphere at p = 2 to degree 30. See `rust_ext --help` for more configuration options.
+This by default resolves the sphere at p = 2 to degree 30. See `rust_ext
+--help` for more configuration options.
 
 Once can also run the resolver directly via
 ```
 $ cargo run
 ```
-This will compile the code (if necessary) and then run the binary. Command line options can be passed with `--`, e.g. `cargo run -- --help`.
+This will compile the code (if necessary) and then run the binary. Command line
+options can be passed with `--`, e.g. `cargo run -- --help`. In particular,
+`cargo run -- module` will start an interactive interface for defining a
+module.
 
 To compile and run a properly optimized version, use
 ```
 $ cargo build --release
 $ cargo run --release
 ```
-The compiled binaries can be found at `target/release`. This binary is usually much faster but compilation takes longer.
+The compiled binaries can be found at `target/release`. This binary is usually
+much faster but compilation takes longer.
 
 To run the tests, do
 ```
 $ cargo test
 ```
 
-To compile the documentation, run
+## Documentation
+To compile the code documentation, run
 ```
 $ cargo doc --no-deps
 ```
@@ -64,13 +80,3 @@ To view the docuemntation, run
 $ cargo doc --no-deps --open
 ```
 As usual, the latter command triggers the former if needed. This can also be viewed on [https://hoodmane.github.io/rust_ext/doc/rust_ext/](https://hoodmane.github.io/rust_ext/doc/rust_ext/)
-
-# Websocket interface
-
-There is an alternative interface that uses the Rust binary to perform calculations. To use this, run
-```
-$ cargo run --release
-```
-in the directory `ext-websocket`. There are as before some variations on the exact command you run. After this, navigate to http://localhost:8080/ . This is equipped with an interface to manipulate spectral sequences.
-
-Currently, the redo/undo and load functions have pretty poor performance, both because of the amount of calculation required and also because the JS interface is pretty slow. A significant amount of the CPU usage by the JS interface is in redrawing the canvas, and this can be avoided by navigating to a different tab.
