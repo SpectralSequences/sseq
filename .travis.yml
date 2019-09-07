@@ -21,11 +21,11 @@ matrix:
 
 install:
     - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh 
-    - cd ext-websocket; npm install
+    - cd ext-websocket; npm install; cd ..
 
 script:
     - cargo test --verbose --all
-    - cd ext-websocket; npm run build
+    - cd ext-websocket; npm run build; cd ..
 
 cache:
     cargo: true
