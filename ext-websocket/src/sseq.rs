@@ -2,10 +2,11 @@ use rust_ext::matrix::{Subspace, Matrix};
 use rust_ext::fp_vector::{FpVector, FpVectorT};
 use std::collections::HashMap;
 use std::cmp::max;
-use std::sync::{Arc, RwLock, mpsc};
+use std::sync::{Arc, RwLock};
 use serde::{Serialize, Deserialize};
 use bivec::BiVec;
 use crate::actions::*;
+use crate::Sender;
 
 #[cfg(feature = "concurrent")]
 use threadpool::ThreadPool;
@@ -214,7 +215,7 @@ pub struct Sseq {
     #[cfg(feature = "concurrent")]
     pub threadpool : ThreadPool,
     pub block_refresh : u32,
-    sender : Option<mpsc::Sender<Message>>,
+    sender : Option<Sender>,
     page_list : Vec<i32>,
     product_name_to_index : HashMap<String, usize>,
     products : Arc<RwLock<Vec<Product>>>,
@@ -227,7 +228,8 @@ pub struct Sseq {
 }
 
 impl Sseq {
-    pub fn new(p : u32, name : SseqChoice, min_x : i32, min_y : i32, sender : Option<mpsc::Sender<Message>>) -> Self {
+    pub fn new(p : u32, name : SseqChoice, min_x : i32, min_y : i32, sender : Option<Sender>) -> Self {
+        rust_ext::fp_vector::initialize_limb_bit_index_table(p);
         let mut classes = BiVec::new(min_x - 1); // We have an extra column to the left so that differentials have something to hit.
         classes.push(BiVec::new(min_y));
         Self {
@@ -445,7 +447,7 @@ impl Sseq {
         None
     }
 
-    fn compute_edges_inner(x : i32, y : i32, p : u32, name : SseqChoice, sender : mpsc::Sender<Message>, page_classes: Arc<RwLock<BiVec<BiVec<BiVec<(Vec<isize>, Vec<FpVector>)>>>>>, products: Arc<RwLock<Vec<Product>>>, zeros: Arc<RwLock<BiVec<BiVec<BiVec<Subspace>>>>>) {
+    fn compute_edges_inner(x : i32, y : i32, p : u32, name : SseqChoice, sender : Sender, page_classes: Arc<RwLock<BiVec<BiVec<BiVec<(Vec<isize>, Vec<FpVector>)>>>>>, products: Arc<RwLock<Vec<Product>>>, zeros: Arc<RwLock<BiVec<BiVec<BiVec<Subspace>>>>>) {
         let page_classes = page_classes.read().unwrap();
         let products = products.read().unwrap();
         let zeros = zeros.read().unwrap();

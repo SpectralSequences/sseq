@@ -1,5 +1,4 @@
 'use strict';
-import katex from 'https://cdn.jsdelivr.net/npm/katex@0.11.0/dist/katex.mjs'
 
 export function vecToName(v, names) {
     let items = [];

@@ -2,7 +2,11 @@ extern crate rust_ext;
 extern crate bivec;
 extern crate serde_json;
 #[cfg(feature = "concurrent")]
+#[cfg(not(target_arch = "wasm32"))]
 extern crate threadpool;
+
+#[cfg(target_arch = "wasm32")]
+extern crate wasm_bindgen;
 
 mod sseq;
 mod actions;
@@ -15,21 +19,37 @@ use rust_ext::module::{Module, FiniteModule};
 use rust_ext::resolution::{ModuleResolution};
 use rust_ext::chain_complex::ChainComplex;
 
-use std::{fs, thread};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::error::Error;
 
+#[cfg(not(target_arch = "wasm32"))]
 extern crate ws;
+#[cfg(not(target_arch = "wasm32"))]
 extern crate chrono;
+#[cfg(not(target_arch = "wasm32"))]
 extern crate textwrap;
+#[cfg(not(target_arch = "wasm32"))]
+use std::{fs, thread};
+#[cfg(not(target_arch = "wasm32"))]
 use chrono::Local;
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::mpsc;
+#[cfg(not(target_arch = "wasm32"))]
 use ws::{Handler, Request, Response, Sender as WsSender, Result as WsResult};
+#[cfg(not(target_arch = "wasm32"))]
 use textwrap::Wrapper;
 
+#[cfg(target_arch = "wasm32")]
+type Sender = wasm_bindings::Sender;
+
+#[cfg(not(target_arch = "wasm32"))]
 type Sender = mpsc::Sender<Message>;
+#[cfg(not(target_arch = "wasm32"))]
 type Receiver = mpsc::Receiver<Message>;
+
+#[cfg(target_arch = "wasm32")]
+pub mod wasm_bindings;
 
 /// List of files that our webserver will serve to the user
 const FILE_LIST : [(&str, &str, &[u8]); 14] = [
@@ -68,7 +88,7 @@ fn ms_to_string(time : i64) -> String {
 /// However, not everything interesting can be found inside the struct itself. Instead, some
 /// variables are simply local to the function `ResolutionManager::new`. What goes into the struct
 /// and what stays a local variable is simply a matter of convenience.
-struct ResolutionManager {
+pub struct ResolutionManager {
     sender : Sender,
     is_unit : bool,
     resolution : Option<Rc<RefCell<ModuleResolution<FiniteModule>>>>
@@ -83,6 +103,7 @@ impl ResolutionManager {
     /// # Arguments
     ///  * `receiver` - The `eceiver` object to listen commands from.
     ///  * `sender` - The `ender` object to send messages to.
+    #[cfg(not(target_arch = "wasm32"))]
     fn new(receiver : Receiver, sender : Sender) -> Result<(), Box<dyn Error>> {
         let mut manager = ResolutionManager {
              sender : sender,
@@ -119,7 +140,7 @@ impl ResolutionManager {
         Ok(())
     }
 
-    fn process_message(&mut self, msg : Message) -> Result<(), Box<dyn Error>> {
+    pub fn process_message(&mut self, msg : Message) -> Result<(), Box<dyn Error>> {
         match msg.action {
             Action::Construct(a) => self.construct(a)?,
             Action::ConstructJson(a) => self.construct_json(a)?,
@@ -326,6 +347,7 @@ impl SseqManager {
     /// # Arguments
     ///  * `receiver` - The `Receiver` object to listen commands from.
     ///  * `sender` - The `Sender` object to send messages to.
+    #[cfg(not(target_arch = "wasm32"))]
     fn new(receiver : Receiver, sender : Sender) -> Result<(), Box<dyn Error>> {
         let mut manager = SseqManager {
              sender : sender,
@@ -367,7 +389,7 @@ impl SseqManager {
         Ok(())
     }
 
-    fn process_message(&mut self, msg : Message) -> Result<(), Box<dyn Error>> {
+    pub fn process_message(&mut self, msg : Message) -> Result<(), Box<dyn Error>> {
         match msg.action {
             Action::Resolving(_) => self.resolving(msg)?,
             Action::Complete(_) => self.relay(msg)?,
@@ -414,11 +436,13 @@ impl SseqManager {
 ///
 /// We also spawn a separate thread waiting for messages from ResolutionManager, and then relay it
 /// to the WebSocket, again, we do this because we don't want anything to be blocking.
+#[cfg(not(target_arch = "wasm32"))]
 pub struct Manager {
     sseq_sender : Sender,
     res_sender : Sender
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Manager {
     fn new<T>(f : T) -> Self where T : Fn(String) -> () + Send + 'static
     {
@@ -489,11 +513,13 @@ impl Manager {
 /// request, it is either looking for some static files, as specified in `FILE_LIST`, or it is
 /// WebSocket message. If it is the former, we return the file. If it is the latter, we parse it
 /// into a string and pass it on to Manager.
+#[cfg(not(target_arch = "wasm32"))]
 pub struct Server {
     manager : Option<Manager>,
     out : Option<WsSender>
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Handler for Server {
     fn on_request(&mut self, req: &Request) -> WsResult<(Response)> {
          match req.resource() {
@@ -516,6 +542,7 @@ impl Handler for Server {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Server {
     pub fn new(out : WsSender) -> Self {
         Server {

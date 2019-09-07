@@ -3,7 +3,6 @@
 import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE } from "./display.js";
 import { rowToKaTeX, rowToLaTeX, matrixToKaTeX, vecToName } from "./utils.js";
 import { MIN_PAGE } from "./sseq.js";
-import katex from 'https://cdn.jsdelivr.net/npm/katex@0.11.0/dist/katex.mjs'
 
 export const ACTION_TO_DISPLAY = {
     AddDifferential: (details, sseq) => {
