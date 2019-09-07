@@ -284,8 +284,8 @@ pub trait FpVectorT {
         let max_target_limb = self.max_limb();
         let min_source_limb = other.min_limb();
         let number_of_limbs = max_target_limb - min_target_limb;
-        assert_eq!(number_of_limbs, other.max_limb() - other.min_limb());
-        assert!(self.offset() == other.offset());
+        debug_assert_eq!(number_of_limbs, other.max_limb() - other.min_limb());
+        debug_assert!(self.offset() == other.offset());
         let target_limbs = self.limbs_mut();
         let source_limbs = other.limbs();
         for i in 1 .. number_of_limbs.saturating_sub(1) {
@@ -336,7 +336,7 @@ pub trait FpVectorT {
     }
 
     fn entry(&self, index : usize) -> u32 {
-        assert!(index < self.dimension());
+        debug_assert!(index < self.dimension());
         let p = self.prime();
         let bit_mask = bitmask(p);
         let limb_index = limb_bit_index_pair(p, index + self.min_index());
@@ -347,7 +347,7 @@ pub trait FpVectorT {
     }
 
     fn set_entry(&mut self, index : usize, value : u32){
-        assert!(index < self.dimension());
+        debug_assert!(index < self.dimension());
         let p = self.prime();
         let bit_mask = bitmask(p);
         let limb_index = limb_bit_index_pair(p, index + self.min_index());
@@ -368,7 +368,7 @@ pub trait FpVectorT {
     /// Unpacks an FpVector onto an array slice. note that the array slice has to be long
     /// enough to hold all the elements in the FpVector.
     fn unpack(&self, target : &mut [u32]){
-        assert!(self.dimension() <= target.len());
+        debug_assert!(self.dimension() <= target.len());
         let p = self.prime();
         let dimension = self.dimension();
         let offset = self.offset();
@@ -386,7 +386,7 @@ pub trait FpVectorT {
     }
 
     fn pack(&mut self, source : &[u32]){
-        assert!(self.dimension() <= source.len());
+        debug_assert!(self.dimension() <= source.len());
         let p = self.prime();
         let dimension = self.dimension();
         let offset = self.offset();
@@ -740,7 +740,7 @@ impl FpVector {
     }
 
     pub fn number_of_limbs(p : u32, dimension : usize) -> usize {
-        assert!(dimension < MAX_DIMENSION);
+        debug_assert!(dimension < MAX_DIMENSION);
         if dimension == 0 {
             return 0;
         } else {
@@ -782,7 +782,7 @@ impl FpVector {
 
     fn pack_limb(p : u32, dimension : usize, offset : usize, limb_array : &[u32], limbs : &mut Vec<u64>, limb_idx : usize) -> usize {
         let bit_length = bit_length(p);
-        assert_eq!(offset % bit_length, 0);
+        debug_assert_eq!(offset % bit_length, 0);
         let entries_per_64_bits = entries_per_64_bits(p);
         let mut bit_min = 0usize;
         let mut bit_max = bit_length * entries_per_64_bits;

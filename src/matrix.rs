@@ -405,7 +405,7 @@ impl Matrix {
     }
 
     pub fn row_reduce_offset(&mut self, column_to_pivot_row: &mut Vec<isize>, offset : usize) {
-        assert!(self.columns() <= column_to_pivot_row.len());
+        debug_assert!(self.columns() <= column_to_pivot_row.len());
         let p = self.p;
         let columns = self.columns();
         let rows = self.rows();
@@ -502,7 +502,7 @@ impl Subspace {
                 if let Some(sp) = space {
                     return sp.column_to_pivot_row.iter().zip(subsp.column_to_pivot_row.iter())
                       .filter(|(x,y)| {
-                          assert!(**x >= 0 || **y < 0);
+                          debug_assert!(**x >= 0 || **y < 0);
                           **x >= 0 && **y < 0
                         }).map(|(x,y)| *x as usize).collect();
                 } else {
@@ -920,7 +920,7 @@ impl Matrix {
         let desired_pivots = &desired_image.column_to_pivot_row;
         let early_end_column = std::cmp::min(end_column, desired_pivots.len() + start_column);
         for i in start_column .. early_end_column {
-            assert!(current_pivots[i] < 0 || desired_pivots[i - start_column] >= 0, 
+            debug_assert!(current_pivots[i] < 0 || desired_pivots[i - start_column] >= 0,
                 format!("current_pivots : {:?}, desired_pivots : {:?}", current_pivots, desired_pivots));
             if current_pivots[i] >= 0 || desired_pivots[i - start_column] < 0 {
                 continue;
@@ -975,7 +975,7 @@ impl Matrix {
     /// assert_eq!(result, desired_result);
     /// ```
     pub fn apply(&self, result : &mut FpVector, coeff : u32, input : &FpVector) {
-        assert_eq!(input.dimension(), self.rows());
+        debug_assert_eq!(input.dimension(), self.rows());
         for i in 0 .. input.dimension() {
             result.add(&self.vectors[i], (coeff * input.entry(i)) % self.p);
         }
