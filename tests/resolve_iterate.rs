@@ -6,7 +6,7 @@ use serde_json::Value;
 
 #[test]
 fn resolve_iterate() {
-    let path = std::path::PathBuf::from("static/modules");
+    let path = std::path::PathBuf::from("modules");
     for name in &["S_2", "S_3", "Ceta", "Calpha", "C3", "Joker"] {
         let config = Config {
             module_paths : vec![path.clone()],

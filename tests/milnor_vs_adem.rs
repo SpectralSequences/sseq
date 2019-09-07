@@ -15,7 +15,7 @@ fn milnor_vs_adem() {
 
 fn compare(module_name : &str, max_degree : i32) {
     println!("module : {}", module_name);
-    let path = std::path::PathBuf::from("static/modules");
+    let path = std::path::PathBuf::from("modules");
     let a = Config {
         module_paths : vec![path.clone()],
         module_file_name : module_name.to_string(),

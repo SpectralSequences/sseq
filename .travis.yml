@@ -20,6 +20,7 @@ matrix:
     fast_finish: true
 
 install:
+    - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh 
     - cd ext-websocket; npm install
 
 script:

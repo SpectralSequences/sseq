@@ -19,7 +19,7 @@ fn extend_identity() {
 
 fn check_algebra (module_name : &str, max_degree : i32, algebra_name: &str) {
     println!("module : {}", module_name);
-    let path = std::path::PathBuf::from("static/modules");
+    let path = std::path::PathBuf::from("modules");
     let a = Config {
         module_paths : vec![path.clone()],
         module_file_name : module_name.to_string(),
