@@ -1,3 +1,5 @@
+'use strict';
+
 export function vecToName(v, names) {
     let items = [];
     for (let i = 0; i < v.length; i++) {
@@ -23,12 +25,20 @@ export function rowToLaTeX(m) {
 }
 
 export function renderLaTeX(html) {
-    html = html.replace(/\n/g, "\n<hr>\n")
     let html_list = html.split(/(?:\\\[)|(?:\\\()|(?:\\\))|(?:\\\])|(?:\$)/);
     for(let i = 1; i < html_list.length; i+=2){
-        html_list[i] = katex.renderToString(html_list[i]);
+        html_list[i] = katex.renderToString(html_list[i], { throwOnError : false });
     }
-    return html_list.join("\n")
+    return html_list.join("\n");
+}
+
+export function renderLaTeXP(html) {
+    html = html.replace(/\n/g, "\n</p><p>\n")
+    let html_list = html.split(/(?:\\\[)|(?:\\\()|(?:\\\))|(?:\\\])|(?:\$)/);
+    for(let i = 1; i < html_list.length; i+=2){
+        html_list[i] = katex.renderToString(html_list[i], { throwOnError : false });
+    }
+    return `<p>${html_list.join("\n")}</p>`;
 }
 
 // Prompts for an array of length `length`
@@ -60,23 +70,28 @@ export function promptInteger(text, error) {
         let c = parseInt(response.trim());
         if (!isNaN(c)) {
             return c;
-            break;
         }
         alert(error);
     }
 }
 
-export function download (filename, text, mime="text/plain") {
-    if(text.constructor !== String){
-        text = JSON.stringify(text);
+export function download (filename, data, mime="text/plain") {
+    if (!Array.isArray(data)) {
+        data = [data];
     }
     let element = document.createElement('a');
 
-    element.setAttribute('href', `data:${mime};charset=utf-8,` + encodeURIComponent(    text));
-    element.setAttribute('download', filename);
+    element.href = URL.createObjectURL(new Blob(data, {type : mime}));
+    element.download = filename;
+    element.rel = 'noopener';
+    element.dispatchEvent(new MouseEvent('click'));
+    setTimeout(() => URL.revokeObjectURL(element.href), 6E4);
+}
 
-    element.style.display = 'none';
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-};
+export function inflate(x) {
+    return new TextDecoder("utf-8").decode(pako.inflate(x));
+}
+
+export function deflate(x) {
+    return pako.deflate(x, { level : 1});
+}

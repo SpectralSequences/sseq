@@ -1,14 +1,10 @@
-import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE, STATE_ADD_PRODUCT } from "./display.js";
+'use strict';
+
+import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE } from "./display.js";
 import { rowToKaTeX, rowToLaTeX, matrixToKaTeX, vecToName } from "./utils.js";
 import { MIN_PAGE } from "./sseq.js";
 
-function addLI(ul, text) {
-    let x = document.createElement("li");
-    x.innerHTML = text;
-    ul.appendChild(x);
-}
-
-const ACTION_TO_DISPLAY = {
+export const ACTION_TO_DISPLAY = {
     AddDifferential: (details, sseq) => {
         let x = details.x;
         let y = details.y;
@@ -48,7 +44,7 @@ const ACTION_TO_DISPLAY = {
 
     AddProductType: (details, sseq) => {
         return [
-            `<span>${details.permanent ? "Perm. " : ""}Product ${katex.renderToString(details.name)}</span>`,
+            `<span>${details.permanent ? "Permanent p" : "P"}roduct ${katex.renderToString(details.name)}</span>`,
             [[details.x, details.y]],
             sseq.isUnit ? undefined : `(${details.x}, ${details.y}): ${katex.renderToString(rowToLaTeX(details.class))}`
         ];
@@ -71,6 +67,17 @@ const ACTION_TO_DISPLAY = {
         ];
     }
 };
+
+export function msgToDisplay(msg, sseq) {
+    if (!msg) {
+        return ["",[]];
+    }
+    let action = msg.action;
+    let actionName = Object.keys(action)[0];
+    let actionInfo = action[actionName];
+
+    return ACTION_TO_DISPLAY[actionName](actionInfo, sseq);
+}
 
 /**
  * A panel is a collection of objects (button etc.) to be displayed in a
@@ -183,7 +190,7 @@ export class Panel extends EventEmitter {
      */
     newGroup() {
         this.currentGroup = document.createElement("div");
-        this.currentGroup.className = "card-body";
+        this.currentGroup.className = "sidebar-group";
         this.container.appendChild(this.currentGroup);
     }
     /**
@@ -210,17 +217,20 @@ export class Panel extends EventEmitter {
      * @param {Object} extra - Extra (optional) properties to supply.
      * @param {string} extra.tooltip - Tooltip text to display
      * @param {string[]} shortcuts - A list of shortcuts that will be bound to callback
+     * @param {bool} box - Whether to enclose the button in a div, which makes
+     * flex-grow work properly. This should be true unless used by
+     * AddButtonRow, in which case there is already a div.
+     *
+     * Returns the button DOM object that was added.
      */
-    addButton(text, callback, extra = {}) {
+    addButton(text, callback, extra = {}, box = true) {
         let o = document.createElement("button");
-        if (extra.style)
-            o.className = `btn btn-${extra.style} mb-2`;
-        else
-            o.className = "btn btn-primary mb-2";
-
-        o.style.width = "100%";
         o.innerHTML = text;
+        o.className = "button";
+        o.setAttribute("type", "button");
+        o.style.flexGrow = "1";
         o.addEventListener("click", callback);
+        o.addEventListener("mouseup", () => o.blur());
 
         if (extra.tooltip)
             o.setAttribute("title", extra.tooltip);
@@ -228,7 +238,15 @@ export class Panel extends EventEmitter {
             for (let k of extra.shortcuts)
                 Mousetrap.bind(k, callback);
 
-        this.currentGroup.appendChild(o);
+        if (box) {
+            let d = document.createElement("div");
+            d.style.display = "flex";
+            d.appendChild(o);
+            this.currentGroup.appendChild(d);
+        } else {
+            this.currentGroup.appendChild(o);
+        }
+        return o;
     }
 
     /**
@@ -238,20 +256,24 @@ export class Panel extends EventEmitter {
      * to be added. Each entry in the array should itself be an array, which
      * consists of the arguments to Panel#addButton for the corresponding
      * button.
+     *
+     * Returns a list of button DOM objects.
      */
     addButtonRow(buttons){
         let group = this.currentGroup;
         let o = document.createElement("div");
-        o.className = "form-row";
+        o.className = "button-row";
+        this.currentGroup = o;
+        let result = [];
         for (let button of buttons) {
-            let c = document.createElement("div");
-            c.className = "col";
-            this.currentGroup = c;
-            this.addButton(...button);
-            o.appendChild(c);
+            if (button.length == 2) {
+                button[2] = undefined;
+            }
+            result.push(this.addButton(...button, false));
         }
         this.currentGroup = group;
         this.currentGroup.appendChild(o);
+        return result;
     }
 
     /**
@@ -260,7 +282,6 @@ export class Panel extends EventEmitter {
      */
     addHeader(header) {
         let node = document.createElement("h5");
-        node.className = "card-title";
         node.innerHTML = header;
         this.addObject(node);
     }
@@ -286,39 +307,24 @@ export class Panel extends EventEmitter {
      */
     addLinkedInput(label, target, type) {
         let o = document.createElement("div");
-        o.className = "form-row mb-2";
-        o.style.width = "100%";
+        o.className = "input-row";
         this.currentGroup.appendChild(o);
 
         let l = document.createElement("label");
-        l.className = "col-form-label mr-sm-2";
         l.innerHTML = label;
         o.appendChild(l);
 
         let i = document.createElement("input");
-        i.style["flex-grow"] = 1;
         i.setAttribute("type", type);
         o.appendChild(i);
-
-        switch (type) {
-            case "text":
-                i.setAttribute("size", "1");
-                break;
-            default:
-                i.style.width = "1px";
-                break;
-        }
 
         this.links.push([target, i]);
 
         i.addEventListener("change", (e) => {
-            let target_pre;
-
             let l = target.split(".");
             let prop = l.pop();
             let t = Panel.unwrapProperty(this.display, l);
 
-            let old_val = t[prop];
             let new_val = e.target.value;
             t[prop] = new_val;
 
@@ -365,17 +371,13 @@ export class Panel extends EventEmitter {
  *
  * @property {Panel} currentTab - The current tab that is displayed.
  */
-class TabbedPanel extends Panel {
+export class TabbedPanel extends Panel {
     constructor (parentContainer, display) {
         super(parentContainer, display);
 
-        let head = document.createElement("div");
-        head.className = "card-header";
-        this.container.appendChild(head);
-
-        this.header = document.createElement("ul");
-        this.header.className = "nav nav-tabs card-header-tabs";
-        head.appendChild(this.header);
+        this.head = document.createElement("div");
+        this.head.className = "tab-header";
+        this.container.appendChild(this.head);
 
         this.tabs = [];
         this.currentTab = null;
@@ -389,15 +391,11 @@ class TabbedPanel extends Panel {
      * @param {Panel} tab - The tab to be added.
      */
     addTab(name, tab) {
-        let li = document.createElement("li");
-        li.className = "nav-item";
-        this.header.appendChild(li);
-
         let a = document.createElement("a");
-        a.className = "nav-link";
+        a.className = "tab-header-item";
         a.href = "#";
         a.innerHTML = name;
-        li.appendChild(a);
+        this.head.appendChild(a);
 
         a.addEventListener("click", () => this.showTab(tab));
         this.tabs[this.tabs.length] = [tab, a];
@@ -432,10 +430,10 @@ class TabbedPanel extends Panel {
         this.currentTab = tab;
         for (let t of this.tabs) {
             if (t[0] == tab) {
-                t[1].className = "nav-link active";
+                t[1].className = "tab-header-item active";
                 t[0].show();
             } else {
-                t[1].className = "nav-link";
+                t[1].className = "tab-header-item";
                 t[0].hide();
             }
         }
@@ -492,7 +490,8 @@ class HistoryPanel extends Panel {
         s.appendChild(t);
 
         let rem = document.createElement("a");
-        rem.className = "text-danger float-right";
+        rem.style.float = "right";
+        rem.style.color = "#dc3545";
         rem.innerHTML = "&times;";
         rem.href = "#";
         s.appendChild(rem);
@@ -504,7 +503,7 @@ class HistoryPanel extends Panel {
 
         if (content !== undefined) {
             let div = document.createElement("div");
-            div.className = "text-center py-1";
+            div.style.textAlign = "center";
             div.innerHTML = content;
             d.appendChild(div);
         }
@@ -527,12 +526,7 @@ class HistoryPanel extends Panel {
     }
 
     addMessage(data) {
-        let action = data.action;
-        let actionName = Object.keys(action)[0];
-        let actionInfo = action[actionName];
-
-        let result = ACTION_TO_DISPLAY[actionName](actionInfo, this.display.sseq);
-
+        let result = msgToDisplay(data, this.display.sseq);
         this.addHistoryItem(data, ...result);
     }
 
@@ -554,7 +548,7 @@ class OverviewPanel extends Panel {
     }
 }
 
-class StructlinePanel extends Panel {
+export class StructlinePanel extends Panel {
     constructor(parentContainer, display) {
         super(parentContainer, display);
     }
@@ -567,8 +561,13 @@ class StructlinePanel extends Panel {
 
         let names = Array.from(this.display.sseq.products.keys()).sort();
         for (let name of names) {
+            let div = document.createElement("div");
+            div.style.position = "relative";
+
+            this.addObject(div);
             let topElement = document.createElement("details");
-            this.addObject(topElement);
+            topElement.className = "product-item";
+            div.appendChild(topElement);
 
             topElement.addEventListener("toggle", () => {
                 if (topElement.open) {
@@ -581,12 +580,12 @@ class StructlinePanel extends Panel {
             });
 
             let summary = document.createElement("summary");
-            summary.className = "form-row mb-2";
+            summary.className = "product-summary";
             summary.style.width = "100%";
+            summary.addEventListener("mouseup", () => summary.blur());
             topElement.appendChild(summary);
 
             let l = document.createElement("label");
-            l.className = "col-form-label mr-sm-2";
             l.innerHTML = katex.renderToString(name);
             summary.appendChild(l);
 
@@ -594,92 +593,100 @@ class StructlinePanel extends Panel {
             s.style.flexGrow = 1;
             summary.appendChild(s);
 
-            let i = document.createElement("input");
-            i.setAttribute("type", "checkbox");
-            i.checked = this.display.visibleStructlines.has(name);
-            summary.appendChild(i);
+            let i = document.createElement("label");
+            i.className = "switch";
+           
+            let checkbox = document.createElement("input");
+            checkbox.setAttribute("type", "checkbox");
+            checkbox.checked = this.display.visibleStructlines.has(name);
 
-            /// Styling labels
+            i.appendChild(checkbox);
+
+            let spn = document.createElement("span");
+            spn.className = "slider";
+            i.appendChild(spn);
+
+            div.appendChild(i);
+
+            i.style.position = "absolute";
+            i.style.right = "0px";
+            i.style.top = (summary.clientHeight - i.clientHeight) + "px";
+
+            /// Styling
             let style = this.display.structlineStyles.get(name);
+
+            let styleDiv = document.createElement("div");
+            styleDiv.style.paddingLeft = "2.5%";
+            styleDiv.style.marginLeft = "2.5%";
+            styleDiv.style.borderLeft = "1.5px solid #DDD";
+            topElement.appendChild(styleDiv);
 
             // Color
             let cd = document.createElement("div");
-            cd.className = "form-row mb-2";
-            cd.style.width = "90%";
-            cd.style.marginLeft = "5%";
+            cd.className = "input-row";
 
             let cl = document.createElement("label");
-            cl.className = "col-form-label mr-sm-2";
             cl.innerHTML = "Color";
+            cl.style.width = "3rem";
             cd.appendChild(cl);
 
             let ci = document.createElement("input");
-            ci.style.flexGrow = 1;
             ci.setAttribute("type", "text");
-            ci.style.width = "1px";
             ci.value = style.color;
             cd.appendChild(ci);
 
-            ci.addEventListener("change", (e) => {
+            ci.addEventListener("change", () => {
                 style.color = ci.value;
                 this.display.update();
             });
 
-            topElement.appendChild(cd);
+            styleDiv.appendChild(cd);
 
             // Bend
             let bd = document.createElement("div");
-            bd.className = "form-row mb-2";
-            bd.style.width = "90%";
-            bd.style.marginLeft = "5%";
+            bd.className = "input-row";
 
             let bl = document.createElement("label");
-            bl.className = "col-form-label mr-sm-2";
             bl.innerHTML = "Bend";
+            bl.style.width = "3rem";
             bd.appendChild(bl);
 
             let bi = document.createElement("input");
-            bi.style.flexGrow = 1;
             bi.setAttribute("type", "number");
-            bi.style.width = "1px";
             bi.value = style.bend;
             bd.appendChild(bi);
 
-            bi.addEventListener("change", (e) => {
+            bi.addEventListener("change", () => {
                 style.bend = parseInt(bi.value);
                 this.display.update();
             });
 
-            topElement.appendChild(bd);
+            styleDiv.appendChild(bd);
 
             // Dash
             let dd = document.createElement("div");
-            dd.className = "form-row mb-2";
-            dd.style.width = "90%";
-            dd.style.marginLeft = "5%";
+            dd.className = "input-row";
 
             let dl = document.createElement("label");
-            dl.className = "col-form-label mr-sm-2";
             dl.innerHTML = "Dash";
+            dl.style.width = "3rem";
             dd.appendChild(dl);
 
             let di = document.createElement("input");
-            di.style.flexGrow = 1;
             di.setAttribute("type", "text");
-            di.style.width = "1px";
             di.value = "[" + style["line-dash"].join(", ") + "]";
             di.title = "An array of numbers that specify distances to alternately draw a line and a gap. For example, a solid line is [], while [2, 2] gives you a dashed line where the line and the gap have equal length.";
             dd.appendChild(di);
 
-            di.addEventListener("change", (e) => {
+            di.addEventListener("change", () => {
                 style["line-dash"] = eval(di.value);
                 this.display.update();
             });
 
-            topElement.appendChild(dd);
+            styleDiv.appendChild(dd);
 
-            i.addEventListener("change", (e) => {
-                if (i.checked) {
+            checkbox.addEventListener("change", () => {
+                if (checkbox.checked) {
                     this.display.visibleStructlines.add(name)
                 } else {
                     if (this.display.visibleStructlines.has(name))
@@ -689,7 +696,7 @@ class StructlinePanel extends Panel {
             });
         }
 
-        if (!this.display.isUnit) {
+        if (!this.display.isUnit && this.display.constructor.name != "CalculationDisplay") {
             this.addButton("Add", () => window.unitDisplay.openModal(), { "tooltip": "Add product to display" });
         }
     }
@@ -715,8 +722,11 @@ class MainPanel extends Panel {
     }
 
     show() {
+        if (!this.display.selected)
+            return;
+
         this.container.style.removeProperty("display");
-        this.container.className = "text-center";
+        this.container.style.textAlign = "center";
         this.clear();
 
         this.newGroup();
@@ -733,7 +743,7 @@ class MainPanel extends Panel {
             let n = document.createElement("span");
             n.style.padding = "0 0.6em";
             n.innerHTML = katex.renderToString(vecToName(c, names));
-            if (classes.length == sseq.classes.get(x, y)[0].length) {
+            if (this.display.constructor.name != "CalculationDisplay" && classes.length == sseq.classes.get(x, y)[0].length) {
                 n.addEventListener("click", () => {
                     let name = prompt("New class name");
                     if (name !== null) {
@@ -751,6 +761,8 @@ class MainPanel extends Panel {
             this.addHeader("Decompositions");
             for (let d of decompositions) {
                 let single = d[0].reduce((a, b) => a + b, 0) == 1;
+                single = single && this.display.constructor.name != "CalculationDisplay";
+
                 let highlights = [[x - d[2], y - d[3]]];
                 if (this.display.isUnit) {
                     highlights[1] = [d[2], d[3]]
@@ -772,7 +784,7 @@ class MainPanel extends Panel {
             }
         }
 
-        if (this.display.isUnit) {
+        if (this.display.isUnit && this.display.constructor.name != "CalculationDisplay") {
             this.newGroup();
             this.addButton("Add Product", () => {
                 let [x, y] = this.display.selected;
@@ -790,7 +802,7 @@ class DifferentialPanel extends Panel {
 
     show() {
         this.container.style.removeProperty("display");
-        this.container.className = "text-center";
+        this.container.style.textAlign = "center";
         this.clear();
 
         let [x, y] = this.display.selected;
@@ -805,13 +817,16 @@ class DifferentialPanel extends Panel {
             let maxR = Math.ceil(eval(sseq.vanishingSlope) * x + eval(sseq.vanishingIntercept)) - y;
 
             let node = document.createElement("div");
+            node.style.marginLeft = "5%";
+            node.style.marginRight = "5%";
 
             for (let r = MIN_PAGE; r <= maxR; r ++) {
                 let classes = sseq.getClasses(x - 1, y + r, r);
                 if (classes && classes.length > 0 &&
                     (!sseq.trueDifferentials.get(x, y) || !sseq.trueDifferentials.get(x, y)[r - MIN_PAGE] || sseq.getClasses(x, y, r).length != sseq.trueDifferentials.get(x, y)[r - MIN_PAGE].length)) {
                     let spn = document.createElement("span");
-                    spn.style.padding = "0.75rem";
+                    spn.style.padding = "0.4rem 0.75rem";
+                    spn.style.display = "inline-block";
                     spn.innerHTML = r;
 
                     // We want to update the classes on *this* page, not on the rth page
@@ -852,10 +867,12 @@ class DifferentialPanel extends Panel {
                 this.addLine(katex.renderToString(`d_${page}(${rowToLaTeX(source)}) = ${rowToLaTeX(target)}`), callback);
             }
         }
-        if (this.display.isUnit) {
-            this.addLine("<span style='font-size: 80%'>Click differential to propagate</span>");
+        if (this.display.constructor.name != "CalculationDisplay") {
+            if (this.display.isUnit) {
+                this.addLine("<span style='font-size: 80%'>Click differential to propagate</span>");
+            }
+            this.addButton("Add", () => this.display.state = STATE_ADD_DIFFERENTIAL);
         }
-        this.addButton("Add", () => this.display.state = STATE_ADD_DIFFERENTIAL);
 
         this.newGroup();
         this.addHeader("Permanent Classes");
@@ -863,9 +880,11 @@ class DifferentialPanel extends Panel {
         if (permanentClasses.length > 0) {
             this.addLine(permanentClasses.map(rowToKaTeX).join("<br />"));
         }
-        this.addButton("Add", () => {
-            sseq.addPermanentClassInteractive(x, y);
-        });
+        if (this.display.constructor.name != "CalculationDisplay") {
+            this.addButton("Add", () => {
+                sseq.addPermanentClassInteractive(x, y);
+            });
+        }
 
     }
 }
@@ -877,7 +896,7 @@ class ProductsPanel extends Panel {
 
     show() {
         this.container.style.removeProperty("display");
-        this.container.className = "text-center";
+        this.container.style.textAlign = "center";
         this.clear();
 
         let [x, y] = this.display.selected;
@@ -886,7 +905,7 @@ class ProductsPanel extends Panel {
 
         for (let [name, mult] of sseq.products) {
             let matrices = mult.matrices.get(x, y);
-            if (matrices === undefined)
+            if (matrices === undefined || matrices === null)
                 continue;
 
             let page_idx = Math.min(matrices.length - 1, page - MIN_PAGE);

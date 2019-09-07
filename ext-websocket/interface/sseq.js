@@ -1,27 +1,14 @@
-import { promptClass, promptInteger, vecToName } from "./utils.js";
+'use strict';
+
+import { download, promptClass, promptInteger, vecToName, inflate, deflate } from "./utils.js";
 
 export const MIN_PAGE = 2;
-const OFFSET_SIZE = 0.3;
-
-const NODE_COLOR = {
-    "InProgress": "black",
-    "Error": "#a6001a",
-    "Done": "gray"
-};
 
 const KEEP_LOG = new Set(["AddDifferential", "AddProductType", "AddProductDifferential", "AddPermanentClass", "SetClassName"]);
-// If a structline has mult_x > MAX_STRUCTLINE_8, we do not store the actual
-// structlines, because this turns out to be pretty memory intensive, and these
-// lines are pretty useless anyway. I might remove this if I rework the way
-// structlines are processed (I intend to rewrite it so that we don't use the
-// Edge object, and store a list of pairs of nodes instead (or just use the
-// product directly). This would also make it easier to customize how the
-// structlines are displayed.
-const MAX_STRUCTLINE_X = 8;
 
 export class BiVec {
-    constructor(minDegree) {
-        this.data = [];
+    constructor(minDegree, data) {
+        this.data = data ? data : [];
         this.minDegree = minDegree;
     }
     set(x, y, data) {
@@ -110,11 +97,7 @@ export class ExtSseq extends EventEmitter {
         if (confirm(`Are you sure you want to remove ${msg}?`)) {
             this.history = this.history.filter(m => JSON.stringify(m) != msg);
 
-            this.send({
-                recipients: ["Sseq"],
-                action : { BlockRefresh : { block : true } }
-            });
-
+            this.block();
             this.send({
                 recipients: ["Sseq"],
                 action : { Clear : {} }
@@ -125,20 +108,21 @@ export class ExtSseq extends EventEmitter {
                 this.send(msg, false);
             }
 
-            this.send({
-                recipients: ["Sseq"],
-                action : { BlockRefresh : { block : false } }
-            });
+            this.block(false);
         }
     }
+
+    block(block = true) {
+        this.send({
+            recipients: ["Sseq"],
+            action : { BlockRefresh : { block : block } }
+        });
+    }
+
     undo() {
         this.redoStack.push(this.history.pop());
 
-        this.send({
-            recipients: ["Sseq"],
-            action : { BlockRefresh : { block : true } }
-        });
-
+        this.block();
         this.send({
             recipients: ["Sseq"],
             action : { Clear : {} }
@@ -148,10 +132,7 @@ export class ExtSseq extends EventEmitter {
         for (let msg of this.history) {
             this.send(msg, false);
         }
-        this.send({
-            recipients: ["Sseq"],
-            action : { BlockRefresh : { block : false } }
-        });
+        this.block(false);
     }
 
     redo() {
@@ -353,10 +334,7 @@ export class ExtSseq extends EventEmitter {
         }
         this.maxDegree = newmax;
 
-        this.send({
-            recipients: ["Resolver"],
-            action : { BlockRefresh : { block : true } }
-        });
+        this.block();
         this.send({
             recipients: ["Resolver"],
             action: {
@@ -365,10 +343,7 @@ export class ExtSseq extends EventEmitter {
                 }
             }
         });
-        this.send({
-            recipients: ["Resolver"],
-            action : { BlockRefresh : { block : false } }
-        });
+        this.block(false)
     }
 
     queryTable(x, y) {
@@ -465,4 +440,126 @@ export class ExtSseq extends EventEmitter {
 
         return result[page];
     }
+
+    getChangingJSON() {
+        let result = {};
+        for (let x of CHANGING_FIELDS) {
+            result[x] = this[x];
+        }
+        for (let x of CHANGING_BIVECS) {
+            result[x] = this[x].data;
+        }
+        result.products = Object.fromEntries(this.products);
+        return deflate(JSON.stringify(result));
+    }
+
+    async downloadHistoryList() {
+        this.display.updating = true; // Block update
+        let oldHistory = this.history;
+        this.history = [];
+
+        let lines = [];
+
+        let permanent = {};
+        for (let x of PERMANENT_FIELDS) {
+            permanent[x] = this[x];
+        }
+        for (let x of PERMANENT_BIVECS) {
+            permanent[x] = this[x].data;
+        }
+        permanent.name = prompt("Name of spectral sequence");
+        lines.push(deflate(JSON.stringify(permanent)));
+
+        this.send({
+            recipients: ["Sseq"],
+            action : { Clear : {} }
+        });
+
+        let saveHistory = [[]];
+        let it = oldHistory[Symbol.iterator]();
+        let msg = it.next();
+        // First set all the names.
+        while (!msg.done) {
+            let name = Object.keys(msg.value.action)[0];
+            if (name == "SetClassName" || (name == "AddProductType" && !msg.value.action[name].permanent)) {
+                msg = it.next();
+                continue;
+            }
+
+            let newMessage = [];
+            // In the first loop, this waits for the previous clear to be done.
+            // In then asks the resolver to compute the next step, and then
+            // start serializing the current state of the sseq. Since this is
+            // blocking, none of the results from the new messages will show up
+            // until the next loop where we await for the new promise. Since no
+            // messages have been processed, it is guaranteed that
+            // commandCounter is non-zero.
+            await new Promise(r => window.onComplete.push(r));
+            this.block();
+            do {
+                this.send(msg.value);
+                newMessage.push(msg.value);
+                if (!msg.value.skip) {
+                    msg = it.next();
+                    break;
+                }
+                msg = it.next();
+            } while (!msg.done);
+
+            this.block(false);
+            saveHistory.push(newMessage);
+            lines.push(this.getChangingJSON());
+        }
+        await new Promise(r => window.onComplete.push(r));
+        lines.push(this.getChangingJSON());
+
+        let filename = prompt("History file name");
+        if (filename === null) return;
+        filename = filename.trim();
+
+        lines.splice(1, 0, deflate(saveHistory.map(JSON.stringify).join("\n")));
+
+        let lengths = lines.map(x => x.length);
+        lengths.push(0);
+
+        download(filename, [Uint32Array.from(lengths)].concat(lines), "application/octet-stream");
+
+        this.history = oldHistory;
+        this.display.updating = false; // Block update
+    }
+
+    static fromBinary(data) {
+        let json = JSON.parse(inflate(data));
+        let sseq = new ExtSseq("Main", json.minDegree);
+        Object.defineProperty(sseq, "maxX", { value: null, writable: true});
+        Object.defineProperty(sseq, "maxY", { value: null, writable: true});
+        for (let x of PERMANENT_FIELDS) {
+            sseq[x] = json[x];
+        }
+        for (let x of PERMANENT_BIVECS) {
+            sseq[x].data = json[x];
+        }
+        sseq.moduleName = json.name;
+        return sseq;
+    }
+
+    updateFromBinary(data) {
+        let json = JSON.parse(inflate(data));
+        for (let x of CHANGING_FIELDS) {
+            this[x] = json[x];
+        }
+        for (let x of CHANGING_BIVECS) {
+            this[x].data = json[x];
+        }
+
+        this.products = new Map(Object.entries(json.products));
+        for (let [_, mult] of this.products) {
+            mult.matrices = new BiVec(this.minDegree, mult.matrices.data);
+        }
+    }
 }
+
+const PERMANENT_FIELDS = ["minDegree", "maxX", "maxY", "isUnit"];
+const PERMANENT_BIVECS = ["classNames", "decompositions"];
+const CHANGING_FIELDS = ["pageList"]
+const CHANGING_BIVECS = ["classes", "classState", "permanentClasses", "differentials", "trueDifferentials"];

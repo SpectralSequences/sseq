@@ -1,6 +1,3 @@
-extern crate ws;
-extern crate ext_websocket;
-
 use ws::listen;
 use ext_websocket::Server;
 

@@ -42,7 +42,7 @@ opt-level = 3
 debug = true
 
 [workspace]
-members = ["ext-websocket", "bivec"]
+members = ["ext-websocket", "bivec", "compressor"]
 
 [features]
 cache-multiplication = []
