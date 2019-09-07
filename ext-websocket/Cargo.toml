@@ -25,8 +25,7 @@ js-sys = "*"
 
 [features]
 cache-multiplication = ["rust_ext/cache-multiplication"]
-concurrent = ["threadpool"]
+concurrent = ["threadpool", "rust_ext/concurrent"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-

@@ -9,14 +9,14 @@ use serde_json::json;
 
 use std::collections::HashMap;
 use std::error::Error;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub trait FiniteDimensionalModuleT : Module {
     fn max_degree(&self) -> i32;
 }
 
 pub struct FiniteDimensionalModule {
-    algebra : Rc<AlgebraAny>,
+    algebra : Arc<AlgebraAny>,
     name : String,
     graded_dimension : BiVec<usize>,
     gen_names : BiVec<Vec<String>>,
@@ -29,8 +29,8 @@ impl Module for FiniteDimensionalModule {
         &self.name
     }
 
-    fn algebra(&self) -> Rc<AlgebraAny> {
-        Rc::clone(&self.algebra)
+    fn algebra(&self) -> Arc<AlgebraAny> {
+        Arc::clone(&self.algebra)
     }
 
     fn min_degree(&self) -> i32 {
@@ -81,7 +81,7 @@ impl FiniteDimensionalModuleT for FiniteDimensionalModule {
 }
 
 impl FiniteDimensionalModule {
-    pub fn new(algebra : Rc<AlgebraAny>, name : String, graded_dimension : BiVec<usize>) -> Self {
+    pub fn new(algebra : Arc<AlgebraAny>, name : String, graded_dimension : BiVec<usize>) -> Self {
         let min_degree = graded_dimension.min_degree();
         let max_degree = graded_dimension.len();
         let degree_difference = max_degree - min_degree;
@@ -140,7 +140,7 @@ impl FiniteDimensionalModule {
         return (graded_dimension, gen_names, gen_to_idx);
     }
 
-    fn allocate_actions(algebra : &Rc<AlgebraAny>, graded_dimension : &BiVec<usize>) -> BiVec<BiVec<Vec<Vec<FpVector>>>> {
+    fn allocate_actions(algebra : &Arc<AlgebraAny>, graded_dimension : &BiVec<usize>) -> BiVec<BiVec<Vec<Vec<FpVector>>>> {
         let min_degree = graded_dimension.min_degree();
         let max_degree = graded_dimension.len();
         let mut result : BiVec<BiVec<Vec<Vec<FpVector>>>> = BiVec::with_capacity(min_degree, max_degree);
@@ -241,14 +241,14 @@ impl FiniteDimensionalModule {
         return &mut self.actions[input_degree][output_degree][operation_idx][input_idx];
     }
 
-    pub fn from_json(algebra : Rc<AlgebraAny>, json : &mut Value) -> Self {
+    pub fn from_json(algebra : Arc<AlgebraAny>, json : &mut Value) -> Self {
         let gens = json["gens"].take();
         let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(&gens);
         let min_degree = graded_dimension.min_degree();
         let name = json["name"].as_str().unwrap().to_string();
         let mut actions_value = json[algebra.algebra_type().to_owned() + "_actions"].take();
         let actions = actions_value.as_array_mut().unwrap();
-        let mut result = Self::new(Rc::clone(&algebra), name, graded_dimension.clone());
+        let mut result = Self::new(Arc::clone(&algebra), name, graded_dimension.clone());
         for (i, dim) in graded_dimension.iter_enum() {
             for j in 0..*dim {
                 result.set_basis_element_name(i, j, gen_names[i][j].clone());

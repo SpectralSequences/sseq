@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::Display;
 use std::io::{stdin, stdout, Write};
-use std::rc::Rc;
+use std::sync::Arc;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::collections::HashMap;
@@ -233,8 +233,8 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
 
 pub fn interactive_module_define_fdmodule(mut output_json : Value, p : u32, generic : bool) -> Result<Value, Box<dyn Error>>{
     output_json["type"] = Value::from("finite dimensional module");
-    let adem_algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
-    let milnor_algebra = Rc::new(AlgebraAny::from(MilnorAlgebra::new(p)));
+    let adem_algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
+    let milnor_algebra = Arc::new(AlgebraAny::from(MilnorAlgebra::new(p)));
     let min_degree = 0i32;
     let gens = get_gens(min_degree)?;
     let gens_json = gens_to_json(&gens);    
@@ -248,8 +248,8 @@ pub fn interactive_module_define_fdmodule(mut output_json : Value, p : u32, gene
         graded_dim.push(i);
     }
 
-    let mut adem_module = FDModule::new(Rc::clone(&adem_algebra), "".to_string(), graded_dim.clone());
-    let mut milnor_module = FDModule::new(Rc::clone(&milnor_algebra), "".to_string(), graded_dim);
+    let mut adem_module = FDModule::new(Arc::clone(&adem_algebra), "".to_string(), graded_dim.clone());
+    let mut milnor_module = FDModule::new(Arc::clone(&milnor_algebra), "".to_string(), graded_dim);
 
     for (i, deg_i_gens) in gens.iter_enum() {
         for (j, gen) in deg_i_gens.iter().enumerate() {
@@ -315,7 +315,7 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
     let gens_json = gens_to_json(&gens);    
     let max_degree = 20;
 
-    let adem_algebra_rc = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
+    let adem_algebra_rc = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
     let adem_algebra = AdemAlgebra::new(p, generic, false);
     let milnor_algebra = MilnorAlgebra::new(p);
     adem_algebra_rc.compute_basis(max_degree);
@@ -327,7 +327,7 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
         graded_dim.push(i);
     }
 
-    let adem_module = FPModule::new(Rc::clone(&adem_algebra_rc), "".to_string(), min_degree);
+    let adem_module = FPModule::new(Arc::clone(&adem_algebra_rc), "".to_string(), min_degree);
 
     
     for (i, deg_i_gens) in gens.iter_enum() {

@@ -1,4 +1,4 @@
-use std::rc::Weak;
+use std::sync::Weak;
 
 use crate::once::OnceVec;
 use crate::fp_vector::{ FpVector, FpVectorT };

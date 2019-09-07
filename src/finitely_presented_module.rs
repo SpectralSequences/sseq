@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 use std::collections::HashMap;
 use serde_json::Value;
 
@@ -21,22 +21,22 @@ struct FPMIndexTable {
 pub struct FinitelyPresentedModule {
     name : String,
     min_degree : i32,
-    pub generators : Rc<FreeModule>,
-    pub relations : Rc<FreeModule>,
+    pub generators : Arc<FreeModule>,
+    pub relations : Arc<FreeModule>,
     pub map : FreeModuleHomomorphism<FreeModule>,
     index_table : OnceVec<FPMIndexTable>
 }
 
 impl FinitelyPresentedModule {
-    pub fn new(algebra : Rc<AlgebraAny>, name : String, min_degree : i32) -> Self {
-        let generators = Rc::new(FreeModule::new(Rc::clone(&algebra), format!("{}-gens", name), min_degree));
-        let relations = Rc::new(FreeModule::new(Rc::clone(&algebra), format!("{}-gens", name), min_degree));
+    pub fn new(algebra : Arc<AlgebraAny>, name : String, min_degree : i32) -> Self {
+        let generators = Arc::new(FreeModule::new(Arc::clone(&algebra), format!("{}-gens", name), min_degree));
+        let relations = Arc::new(FreeModule::new(Arc::clone(&algebra), format!("{}-gens", name), min_degree));
         Self {
             name,
             min_degree,
-            generators : Rc::clone(&generators),
-            relations : Rc::clone(&relations),
-            map : FreeModuleHomomorphism::new(Rc::clone(&relations), Rc::clone(&generators), 0),
+            generators : Arc::clone(&generators),
+            relations : Arc::clone(&relations),
+            map : FreeModuleHomomorphism::new(Arc::clone(&relations), Arc::clone(&generators), 0),
             index_table : OnceVec::new()
         }
     }
@@ -87,7 +87,7 @@ impl FinitelyPresentedModule {
         return (graded_dimension, gen_names, gen_to_idx);
     }
 
-    pub fn from_json(algebra : Rc<AlgebraAny>, json : &mut Value) -> Self {
+    pub fn from_json(algebra : Arc<AlgebraAny>, json : &mut Value) -> Self {
         let p = algebra.prime();
         let name = json["name"].as_str().unwrap().to_string();
         let gens = json["gens"].take();
@@ -130,7 +130,7 @@ impl FinitelyPresentedModule {
         }
         let max_degree = std::cmp::max(max_gen_degree, max_relation_degree);
         algebra.compute_basis(max_degree);
-        let result = Self::new(Rc::clone(&algebra), name, min_degree);
+        let result = Self::new(Arc::clone(&algebra), name, min_degree);
         for i in min_degree .. max_gen_degree {
             result.add_generators(i, gen_names[i].clone());
         }
@@ -178,7 +178,7 @@ impl FinitelyPresentedModule {
 }
 
 impl Module for FinitelyPresentedModule {
-    fn algebra(&self) -> Rc<AlgebraAny> {
+    fn algebra(&self) -> Arc<AlgebraAny> {
         self.generators.algebra()
     }
 

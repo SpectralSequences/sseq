@@ -3,7 +3,7 @@ use crate::matrix::Subspace;
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, ZeroModule, OptionModule};
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub enum ChainComplexGrading {
     Homological,
@@ -15,11 +15,11 @@ pub trait ChainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
         self.algebra().prime()
     }
 
-    fn algebra(&self) -> Rc<AlgebraAny>;
+    fn algebra(&self) -> Arc<AlgebraAny>;
     fn min_degree(&self) -> i32;
-    fn zero_module(&self) -> Rc<M>;
-    fn module(&self, homological_degree : u32) -> Rc<M>;
-    fn differential(&self, homological_degree : u32) -> Rc<F>;
+    fn zero_module(&self) -> Arc<M>;
+    fn module(&self, homological_degree : u32) -> Arc<M>;
+    fn differential(&self, homological_degree : u32) -> Arc<F>;
     fn compute_through_bidegree(&self, homological_degree : u32, internal_degree : i32);
 
     fn set_homology_basis(&self, homological_degree : u32, internal_degree : i32, homology_basis : Vec<usize>);
@@ -94,11 +94,11 @@ pub trait CochainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
     fn prime(&self) -> u32 {
         self.algebra().prime()
     }
-    fn algebra(&self) -> Rc<AlgebraAny>;
+    fn algebra(&self) -> Arc<AlgebraAny>;
     fn min_degree(&self) -> i32;
-    fn zero_module(&self) -> Rc<M>;
-    fn module(&self, homological_degree : u32) -> Rc<M>;
-    fn differential(&self, homological_degree : u32) -> Rc<F>;
+    fn zero_module(&self) -> Arc<M>;
+    fn module(&self, homological_degree : u32) -> Arc<M>;
+    fn differential(&self, homological_degree : u32) -> Arc<F>;
     fn compute_through_bidegree(&self, homological_degree : u32, degree : i32);
 
     fn max_computed_homological_degree(&self) -> u32;
@@ -172,22 +172,22 @@ pub trait CochainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
 
 
 pub struct ChainComplexConcentratedInDegreeZero<M : Module> {
-    module : Rc<OptionModule<M>>,
-    zero_module : Rc<OptionModule<M>>,
-    d0 : Rc<ZeroHomomorphism<OptionModule<M>, OptionModule<M>>>,
-    d1 : Rc<ZeroHomomorphism<OptionModule<M>, OptionModule<M>>>,
-    other_ds : Rc<ZeroHomomorphism<OptionModule<M>, OptionModule<M>>>
+    module : Arc<OptionModule<M>>,
+    zero_module : Arc<OptionModule<M>>,
+    d0 : Arc<ZeroHomomorphism<OptionModule<M>, OptionModule<M>>>,
+    d1 : Arc<ZeroHomomorphism<OptionModule<M>, OptionModule<M>>>,
+    other_ds : Arc<ZeroHomomorphism<OptionModule<M>, OptionModule<M>>>
 }
 
 impl<M : Module> ChainComplexConcentratedInDegreeZero<M> {
-    pub fn new(module : Rc<M>) -> Self {
-        let zero_module_inner = Rc::new(ZeroModule::new(Rc::clone(&module.algebra())));
-        let zero_module = Rc::new(OptionModule::Zero(Rc::clone(&zero_module_inner)));
-        let some_module = Rc::new(OptionModule::Some(Rc::clone(&module)));
+    pub fn new(module : Arc<M>) -> Self {
+        let zero_module_inner = Arc::new(ZeroModule::new(Arc::clone(&module.algebra())));
+        let zero_module = Arc::new(OptionModule::Zero(Arc::clone(&zero_module_inner)));
+        let some_module = Arc::new(OptionModule::Some(Arc::clone(&module)));
         Self {
-            d0 : Rc::new(ZeroHomomorphism::new(Rc::clone(&some_module), Rc::clone(&zero_module), 0)),
-            d1 : Rc::new(ZeroHomomorphism::new(Rc::clone(&zero_module), Rc::clone(&some_module), 0)),
-            other_ds : Rc::new(ZeroHomomorphism::new(Rc::clone(&zero_module), Rc::clone(&zero_module), 0)),
+            d0 : Arc::new(ZeroHomomorphism::new(Arc::clone(&some_module), Arc::clone(&zero_module), 0)),
+            d1 : Arc::new(ZeroHomomorphism::new(Arc::clone(&zero_module), Arc::clone(&some_module), 0)),
+            other_ds : Arc::new(ZeroHomomorphism::new(Arc::clone(&zero_module), Arc::clone(&zero_module), 0)),
             module : some_module,
             zero_module
         }
@@ -195,7 +195,7 @@ impl<M : Module> ChainComplexConcentratedInDegreeZero<M> {
 }
 
 impl<M : Module> ChainComplex<OptionModule<M>, ZeroHomomorphism<OptionModule<M>, OptionModule<M>>> for ChainComplexConcentratedInDegreeZero<M> {
-    fn algebra(&self) -> Rc<AlgebraAny> {
+    fn algebra(&self) -> Arc<AlgebraAny> {
         self.module.algebra()
     }
 
@@ -219,15 +219,15 @@ impl<M : Module> ChainComplex<OptionModule<M>, ZeroHomomorphism<OptionModule<M>,
         unimplemented!()
     }
 
-    fn zero_module(&self) -> Rc<OptionModule<M>>{
-        Rc::clone(&self.zero_module)
+    fn zero_module(&self) -> Arc<OptionModule<M>>{
+        Arc::clone(&self.zero_module)
     }
 
-    fn module(&self, homological_degree : u32) -> Rc<OptionModule<M>> {
+    fn module(&self, homological_degree : u32) -> Arc<OptionModule<M>> {
         if homological_degree == 0 {
-            Rc::clone(&self.module)
+            Arc::clone(&self.module)
         } else {
-            Rc::clone(&self.zero_module)
+            Arc::clone(&self.zero_module)
         }
     }
 
@@ -235,11 +235,11 @@ impl<M : Module> ChainComplex<OptionModule<M>, ZeroHomomorphism<OptionModule<M>,
         self.module.min_degree()
     }
 
-    fn differential(&self, homological_degree : u32) -> Rc<ZeroHomomorphism<OptionModule<M>, OptionModule<M>>> {
+    fn differential(&self, homological_degree : u32) -> Arc<ZeroHomomorphism<OptionModule<M>, OptionModule<M>>> {
         match homological_degree {
-            0 => Rc::clone(&self.d0),
-            1 => Rc::clone(&self.d1),
-            _ => Rc::clone(&self.other_ds)
+            0 => Arc::clone(&self.d0),
+            1 => Arc::clone(&self.d1),
+            _ => Arc::clone(&self.other_ds)
         }
     }
 
