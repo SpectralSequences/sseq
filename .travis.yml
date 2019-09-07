@@ -1,4 +1,9 @@
 dist: bionic
+addons:
+    apt:
+        packages:
+            - npm
+
 language: rust
 rust:
     - stable
