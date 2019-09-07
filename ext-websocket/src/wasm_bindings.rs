@@ -1,7 +1,6 @@
 use js_sys::Function;
 use crate::actions::*;
-use crate::ResolutionManager;
-use crate::SseqManager;
+use crate::managers::*;
 use wasm_bindgen::prelude::*;
 use std::error::Error;
 
@@ -31,11 +30,7 @@ pub struct Resolution {
 impl Resolution {
     pub fn new(f : Function) -> Self {
         Self {
-            r : ResolutionManager {
-                sender : Sender::new(f),
-                resolution : None,
-                is_unit : false
-            }
+            r : ResolutionManager::new(Sender::new(f))
         }
     }
 
@@ -47,34 +42,21 @@ impl Resolution {
         }
 
         let msg = msg.unwrap();
-        let isblock = match msg.action { Action::BlockRefresh(_) => true, _ => false };
-        let target_sseq = msg.sseq;
 
         self.r.process_message(msg).unwrap();
-        if !isblock {
-            self.r.sender.send(Message {
-                recipients : vec![],
-                sseq : target_sseq,
-                action : Action::from(Complete {})
-            }).unwrap();
-        }
     }
 }
 
 #[wasm_bindgen]
 pub struct Sseq {
-    r : SseqManager
+    s : SseqManager
 }
 
 #[wasm_bindgen]
 impl Sseq {
     pub fn new(f : Function) -> Self {
         Self {
-            r : SseqManager {
-                sender : Sender::new(f),
-                sseq : None,
-                unit_sseq : None
-            }
+            s : SseqManager::new(Sender::new(f))
         }
     }
 
@@ -87,23 +69,6 @@ impl Sseq {
 
         let msg = msg.unwrap();
 
-        let user = match msg.action {
-            Action::AddClass(_) => false,
-            Action::AddProduct(_) => false,
-            Action::Complete(_) => false,
-            Action::Resolving(_) => false,
-            _ => true
-        };
-        let target_sseq = msg.sseq;
-
-        self.r.process_message(msg).unwrap();
-
-        if user {
-            self.r.sender.send(Message {
-                recipients : vec![],
-                sseq : target_sseq,
-                action : Action::from(Complete {})
-            }).unwrap();
-        }
+        self.s.process_message(msg).unwrap();
     }
 }
