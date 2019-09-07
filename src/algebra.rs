@@ -27,9 +27,7 @@ pub trait Algebra {
 
     /// Returns the prime the algebra is over.
     fn prime(&self) -> u32;
-    fn name(&self) -> &str;
-    // FiltrationOneProductList *product_list; // This determines which indecomposibles have lines drawn for them.
-// Methods:
+    fn name(&self) -> &str { "" }
 
     /// Computes the list of basis elements up to and including degree `degree`. This should include any
     /// other preparation needed to evaluate all the other functions that involve a degree
@@ -70,16 +68,18 @@ pub trait Algebra {
     /// A filtration one element in Ext(k, k) is the same as an indecomposable element of the
     /// algebra.  This function returns a default list of such elements in the format `(name,
     /// degree, index)` for whom we want to compute products with in the resolutions.
-    fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)>;
+    fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> { Vec::new() }
 
     /// Converts a JSON object into a basis element. The way basis elements are represented by JSON
     /// objects is to be specified by the algebra itself, and will be used by module
     /// specifications.
-    fn json_to_basis(&self, json : Value) -> (i32, usize);
-    fn json_from_basis(&self, degree : i32, idx : usize) -> Value;
+    fn json_to_basis(&self, json : Value) -> (i32, usize) { unimplemented!() }
+    fn json_from_basis(&self, degree : i32, idx : usize) -> Value { unimplemented!() }
 
     /// Converts a basis element into a string for display.
-    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String;
+    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
+        format!("a_{{{}, {}}}", degree, idx)
+    }
 
     /// Converts an element into a string for display.
     fn element_to_string(&self, degree : i32, element : &FpVector) -> String {
@@ -113,7 +113,7 @@ pub trait Algebra {
     ///
     /// This method need not be fast, because they will only be performed when constructing the module,
     /// and will often only involve low dimensional elements.
-    fn generators(&self, degree : i32) -> Vec<usize>;
+    fn generators(&self, degree : i32) -> Vec<usize> { unimplemented!() }
 
     /// Given a non-generator basis element of the algebra, decompose it in terms of algebra
     /// generators. Recall each basis element is given by a pair $(d, i))$, where $d$ is the degree of
@@ -125,10 +125,10 @@ pub trait Algebra {
     ///
     /// This method need not be fast, because they will only be performed when constructing the module,
     /// and will often only involve low dimensional elements.
-    fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>;
+    fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> { unimplemented!() }
 
     /// Get any relations that the algebra wants checked to ensure the consistency of module.
-    fn relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>;
+    fn relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> { unimplemented!() }
 }
 
 #[enum_dispatch(Algebra)]
