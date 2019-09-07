@@ -1,0 +1,10 @@
+[package]
+name = "compressor"
+version = "0.1.0"
+authors = ["Dexter Chua <dalcde@yahoo.com.hk>"]
+edition = "2018"
+
+[dependencies]
+zopfli = "*"
+flate2 = "*"
+chrono = "*"

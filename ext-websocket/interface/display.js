@@ -1,3 +1,5 @@
+'use strict';
+
 import { Panel, GeneralPanel, ClassPanel } from "./panels.js";
 import { download } from "./utils.js";
 import { MIN_PAGE } from "./sseq.js";
@@ -5,7 +7,6 @@ import { Tooltip } from "./tooltip.js";
 
 export const STATE_ADD_DIFFERENTIAL = 1;
 export const STATE_QUERY_TABLE = 2;
-export const STATE_ADD_PRODUCT = 3;
 const OFFSET_SIZE = 0.3;
 
 const DIFFERENTIAL_COLORS = ["cyan", "red", "green"];
@@ -37,9 +38,10 @@ class Display extends EventEmitter {
         this.leftMargin = 40;
         this.rightMargin = 5;
         this.topMargin = 30;
-        this.bottomMargin = 60;
+        this.bottomMargin = 30;
         this.domainOffset = 1 / 2;
 
+        this.specialClasses = new Set();
         this.highlighted = new Set();
         this.tooltip = new Tooltip(this);
 
@@ -148,6 +150,7 @@ class Display extends EventEmitter {
             this.sseq.removeListener("update", this.update);
         }
         this.sseq = sseq;
+        this.sseq.display = this;
         this.pageIdx = 0;
         this.setPage();
 
@@ -156,6 +159,9 @@ class Display extends EventEmitter {
 
         this.sseq.on('update', this.update);
 
+        for (let name of sseq.products.keys()) {
+            this.structlineStyles.set(name, Object.assign({}, DEFAULT_EDGE_STYLE));
+        }
         this.sseq.on("new-structline", (name) => {
             this.structlineStyles.set(name, Object.assign({}, DEFAULT_EDGE_STYLE));
         });
@@ -181,6 +187,13 @@ class Display extends EventEmitter {
         }
     }
 
+    setSpecialClasses(classes) {
+        this.specialClasses.clear();
+        for (let c of classes) {
+            this.specialClasses.add(c.join(" "));
+        }
+    }
+
     clearHighlight() {
         this.highlighted.clear();
         if (this.selected) {
@@ -189,10 +202,11 @@ class Display extends EventEmitter {
     }
 
     removeHighlight(coord) {
-        if (this.selected && coord[0] == this.selected[0] && coord[1] == this.selected[1])
-            return;
-
         this.highlighted.delete(coord.join(" "));
+
+        if (this.selected) {
+            this.highlightClass(this.selected);
+        }
     }
 
     highlightClass(coord) {
@@ -456,15 +470,12 @@ class Display extends EventEmitter {
     }
 
     _drawAxes(context){
-        context.save();
+        // This prevents axes labels from appearing to the left or below the
+        // axes intercept.
+        context.clearRect(0, 0, this.leftMargin, this.topMargin);
+        context.clearRect(0, this.clipHeight, this.leftMargin, this.bottomMargin);
 
-        // This makes the white square in the bottom left corner which prevents axes labels from appearing to the left
-        // or below the axes intercept.
-        context.fillStyle = "#FFF";
-        context.rect(0, this.clipHeight, this.leftMargin, this.bottomMargin);
-        context.rect(0, 0, this.leftMargin, this.topMargin);
-        context.fill();
-        context.fillStyle = "#000";
+        context.save();
 
         // Draw the axes.
         context.beginPath();
@@ -478,7 +489,6 @@ class Display extends EventEmitter {
 
     _drawNodes(context) {
         context.save();
-        context.fillStyle = "black";
 
         let size = Math.max(Math.min(this.dxScale(1), -this.dyScale(1), MAX_CLASS_SIZE), MIN_CLASS_SIZE) * this.classScale;
 
@@ -490,9 +500,10 @@ class Display extends EventEmitter {
                     continue;
                 }
 
-                let highlighted = this.highlighted.has(`${x} ${y}`);
-                if (highlighted) {
+                if (this.highlighted.has(`${x} ${y}`)) {
                     context.fillStyle = "red";
+                } else if (this.specialClasses.has(`${x} ${y}`)) {
+                    context.fillStyle = "#ff7f00";
                 } else {
                     context.fillStyle = NODE_COLOR[this.sseq.classState.get(x,y)];
                 }
@@ -504,9 +515,6 @@ class Display extends EventEmitter {
                     context.beginPath();
                     context.arc(x_, y_, size * 0.1, 0, 2 * Math.PI);
                     context.fill();
-                }
-                if (highlighted) {
-                    context.fillStyle = "black";
                 }
             }
         }
@@ -526,7 +534,7 @@ class Display extends EventEmitter {
             for (let x = this.xmin - 1 - mult.x; x < this.xmax + 1; x++) {
                 for (let y = this.ymin - 1 - mult.y; y < this.ymax + 1; y++) {
                     let matrices = mult.matrices.get(x, y);
-                    if (matrices === undefined)
+                    if (matrices === undefined || matrices === null)
                         continue;
 
                     let pageIdx = Math.min(matrices.length - 1, this.page - MIN_PAGE);
@@ -635,8 +643,6 @@ class Display extends EventEmitter {
         if (!this.xScale)
             return;
 
-        let redraw = false;
-
         // We cannot query for mouse position. We must remember it from
         // previous events. If update() is called, we call _onMousemove without
         // an event.
@@ -693,7 +699,7 @@ class Display extends EventEmitter {
 class Sidebar {
     constructor(parentContainer) {
         this.adjuster = document.createElement("div");
-        this.adjuster.style.backgroundColor = "rgba(0,0,0,0.125)";
+//        this.adjuster.style.backgroundColor = "rgba(0,0,0,0.125)";
         this.adjuster.style.height = "100%";
         this.adjuster.style.cursor = "ew-resize";
         this.adjuster.style.width = "2px";
@@ -710,22 +716,17 @@ class Sidebar {
         }).bind(this));
 
         this.sidebar = document.createElement("div");
-        this.sidebar.style.height = "100%";
-        this.sidebar.style.width = "240px";
-        this.sidebar.style.border = "none";
+        this.sidebar.style.width = "250px";
         this.sidebar.style.display = "flex";
         this.sidebar.style.flexDirection = "column";
-        this.sidebar.className = "card";
+        this.sidebar.className = "sidebar";
 
         parentContainer.appendChild(this.sidebar);
 
-        this.main_div = document.createElement("div");
-        this.main_div.style.overflow = "auto";
-        this.sidebar.appendChild(this.main_div);
-
-        let filler = document.createElement("div");
-        filler.style.flexGrow = "1";
-        this.sidebar.appendChild(filler);
+        this.mainDiv = document.createElement("div");
+        this.mainDiv.style.overflow = "auto";
+        this.mainDiv.style.flexGrow = "1";
+        this.sidebar.appendChild(this.mainDiv);
 
         this.footer_div = document.createElement("div");
         this.sidebar.appendChild(this.footer_div);
@@ -768,7 +769,7 @@ class Sidebar {
     }
 }
 
-class SidebarDisplay extends Display {
+export class SidebarDisplay extends Display {
     constructor(container, sseq) {
         if (typeof container == "string")
             container = document.querySelector(container);
@@ -791,6 +792,9 @@ class SidebarDisplay extends Display {
 
         this.sidebar = sidebar;
         this.sidebar.init(this);
+
+        Mousetrap.bind('left',  this.previousPage);
+        Mousetrap.bind('right', this.nextPage);
     }
 }
 
@@ -803,21 +807,16 @@ export class MainDisplay extends SidebarDisplay {
         this.on("mouseout", this._onMouseout.bind(this));
         this.on("click", this.__onClick.bind(this));
 
-        Mousetrap.bind('left',  this.previousPage);
-        Mousetrap.bind('right', this.nextPage);
-
-        this.generalPanel = new GeneralPanel(this.sidebar.main_div, this);
+        this.generalPanel = new GeneralPanel(this.sidebar.mainDiv, this);
         this.sidebar.addPanel(this.generalPanel);
         this.sidebar.currentPanel = this.generalPanel;
 
-        this.classPanel = new ClassPanel(this.sidebar.main_div, this);
+        this.classPanel = new ClassPanel(this.sidebar.mainDiv, this);
         this.sidebar.addPanel(this.classPanel);
 
         this.sidebar.footer.newGroup();
-
         this.sidebar.footer.currentGroup.style.textAlign = "center";
         this.runningSign = document.createElement("p");
-        this.runningSign.className = "card-text"
         this.runningSign.innerHTML = "Running...";
         this.sidebar.footer.addObject(this.runningSign);
 
@@ -827,6 +826,7 @@ export class MainDisplay extends SidebarDisplay {
         ]);
 
         this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG());
+        this.sidebar.footer.addButton("Download Snapshots", () => this.sseq.downloadHistoryList());
         this.sidebar.footer.addButton("Save", () => window.save());
 
         Mousetrap.bind("J", () => this.sidebar.currentPanel.prevTab());
@@ -916,7 +916,7 @@ export class MainDisplay extends SidebarDisplay {
     setSseq(sseq) {
         super.setSseq(sseq);
 
-        sseq.on("new-structline", (name) => {
+        sseq.on("new-structline", () => {
             this.sidebar.showPanel()
         });
     }
@@ -943,6 +943,7 @@ export class UnitDisplay extends Display {
         });
 
         document.querySelector("#modal-more").addEventListener("click", () => this.sseq.resolveFurther());
+        document.querySelector("#modal-more").addEventListener("mouseup", () => document.querySelector("#modal-more").blur());
 
         this.on("click", this.__onClick.bind(this));
     }
