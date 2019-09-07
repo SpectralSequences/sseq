@@ -6,7 +6,7 @@ binary that displays the result in an ASCII graph. This is mainly used for
 testing purposes. It also comes with a CLI interface for defining Steenrod
 modules, which may be used "in production".
 
-There are two further sub-crates.
+There are three further sub-crates.
 
 ## ext-websocket
 This is what you should use in general.
@@ -36,6 +36,10 @@ will be saved at `compressor/new.hist`.
 
 This program is multithreaded, and to change the number of threads used, edit
 the `NUM_THREAD` variable in `compressor/src/main.rs`.
+
+## bivec
+This is a small crate that provides `BiVec` - a variant of `Vec` indexed by an
+`i32` whose starting index may be non-zero.
 
 # Compilation
 To compile the main crate, simply run
