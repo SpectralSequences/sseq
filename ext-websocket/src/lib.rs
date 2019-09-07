@@ -1,12 +1,3 @@
-extern crate rust_ext;
-extern crate bivec;
-extern crate serde_json;
-#[cfg(feature = "concurrent")]
-extern crate threadpool;
-
-#[cfg(target_arch = "wasm32")]
-extern crate wasm_bindgen;
-
 mod sseq;
 
 pub mod actions;

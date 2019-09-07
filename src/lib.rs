@@ -29,27 +29,6 @@ pub mod resolution_homomorphism;
 pub mod wasm_bindings;
 mod cli_module_loaders;
 
-
-#[cfg(test)]
-extern crate rand;
-
-#[cfg(test)]
-extern crate rstest;
-
-#[macro_use]
-extern crate lazy_static;
-extern crate enum_dispatch;
-
-extern crate serde_json;
-extern crate serde;
-
-#[cfg(target_arch = "wasm32")]
-extern crate wasm_bindgen;
-extern crate bivec;
-
-// Parser
-extern crate nom;
-
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::adem_algebra::AdemAlgebra;
 use crate::milnor_algebra::MilnorAlgebra;
