@@ -97,7 +97,7 @@ impl ResolutionManager {
     fn construct(&mut self, action : Construct) -> Result<(), Box<dyn Error>> {
         let mut dir = std::env::current_exe().unwrap();
         dir.pop(); dir.pop(); dir.pop();
-        dir.push("static/modules");
+        dir.push("modules");
 
         let bundle = rust_ext::construct(&Config {
              module_paths : vec![dir],
