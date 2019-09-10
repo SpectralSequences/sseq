@@ -7,14 +7,12 @@ use crate::matrix::{Subspace, QuasiInverse};
 // use crate::block_structure::BlockStructure;
 // use crate::algebra::AlgebraAny;
 // use crate::field::Field;
-use crate::module::Module;
-use crate::free_module::FreeModule;
-use crate::finite_dimensional_module::FiniteDimensionalModuleT;
+use crate::module::{Module, FreeModule, FDModuleT};
 use crate::hom_space::HomSpace;
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
 
-pub struct HomPullback<M : FiniteDimensionalModuleT> {
+pub struct HomPullback<M : FDModuleT> {
     source : Arc<HomSpace<M>>,
     target : Arc<HomSpace<M>>,
     map : Arc<FreeModuleHomomorphism<FreeModule>>,
@@ -23,7 +21,7 @@ pub struct HomPullback<M : FiniteDimensionalModuleT> {
     max_computed_degree : Mutex<i32>,
 }
 
-impl<M : FiniteDimensionalModuleT> HomPullback<M> {
+impl<M : FDModuleT> HomPullback<M> {
     pub fn new(source : Arc<HomSpace<M>>, target : Arc<HomSpace<M>>, map : Arc<FreeModuleHomomorphism<FreeModule>>) -> Self {
         let min_degree = source.min_degree();
         Self {
@@ -37,7 +35,7 @@ impl<M : FiniteDimensionalModuleT> HomPullback<M> {
     }
 }
 
-impl<M : FiniteDimensionalModuleT> ModuleHomomorphism<HomSpace<M>, HomSpace<M>> for HomPullback<M> {
+impl<M : FDModuleT> ModuleHomomorphism<HomSpace<M>, HomSpace<M>> for HomPullback<M> {
     fn source(&self) -> Arc<HomSpace<M>> {
         Arc::clone(&self.source)
     }
@@ -105,7 +103,7 @@ impl<M : FiniteDimensionalModuleT> ModuleHomomorphism<HomSpace<M>, HomSpace<M>> 
 mod tests {
     use super::*;
     use crate::matrix::Matrix;
-    use crate::finite_dimensional_module::FiniteDimensionalModule;
+    use crate::module::FDModule;
     use crate::algebra::{Algebra, AlgebraAny};
     use crate::adem_algebra::AdemAlgebra;
     use serde_json;
@@ -142,7 +140,7 @@ mod tests {
 
         let joker_json_string = r#"{"type" : "finite dimensional module","name": "Joker", "file_name": "Joker", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1, "x2": 2, "x3": 3, "x4": 4}, "sq_actions": [{"op": 2, "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": 2, "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": 2, "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": 1, "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": 3, "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": [1], "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": [2], "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [2], "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [3], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2, 1], "input": "x0", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [3, 1], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": [1], "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": [2], "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [2], "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [0, 1], "input": "x0", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [0, 1], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [3], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [1, 1], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}]}"#;
         let mut joker_json = serde_json::from_str(&joker_json_string).unwrap();
-        let M = Arc::new(FiniteDimensionalModule::from_json(Arc::clone(&A), &mut joker_json));
+        let M = Arc::new(FDModule::from_json(Arc::clone(&A), &mut joker_json));
 
         let hom0 = Arc::new(HomSpace::new(Arc::clone(&F0), Arc::clone(&M)));
         let hom1 = Arc::new(HomSpace::new(Arc::clone(&F1), Arc::clone(&M)));

@@ -8,7 +8,7 @@ use crate::matrix::Matrix;
 use crate::once::OnceVec;
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::Module;
-use crate::free_module::FreeModule;
+use crate::module::free_module::FreeModule;
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
 // use crate::chain_complex::ChainComplex;
@@ -105,7 +105,7 @@ impl FinitelyPresentedModule {
                     let gen_name = term["gen"].as_str().unwrap();
                     let (gen_deg, gen_idx) = gen_to_deg_idx[&gen_name.to_string()];
                     let coeff = term["coeff"].as_u64().unwrap() as u32;
-                    let op_gen = crate::free_module::OperationGeneratorPair {
+                    let op_gen = crate::module::free_module::OperationGeneratorPair {
                         operation_degree : op_deg,
                         operation_index : op_idx,
                         generator_degree : gen_deg,

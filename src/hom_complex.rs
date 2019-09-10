@@ -2,16 +2,14 @@ use std::sync::Arc;
 
 use crate::once::{OnceVec, OnceBiVec};
 use crate::algebra::AlgebraAny;
-use crate::module::Module;
-use crate::free_module::FreeModule;
-use crate::finite_dimensional_module::FiniteDimensionalModuleT;
+use crate::module::{Module, FreeModule, FDModuleT};
 // use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
 use crate::chain_complex::{ChainComplex, CochainComplex};
 use crate::hom_space::HomSpace;
 use crate::hom_pullback::HomPullback;
 
-pub struct HomComplex<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : FiniteDimensionalModuleT> {
+pub struct HomComplex<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : FDModuleT> {
     min_degree : i32,
     source : Arc<CC>,
     target : Arc<N>,
@@ -21,7 +19,7 @@ pub struct HomComplex<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeM
     cohomology_basis : OnceVec<OnceBiVec<Vec<usize>>>
 }
 
-impl<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : FiniteDimensionalModuleT>
+impl<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : FDModuleT>
     HomComplex<CC, N> {
     pub fn new(source : Arc<CC>, target : Arc<N>) -> Self {
         let min_degree = source.min_degree() - target.max_degree();
@@ -38,7 +36,7 @@ impl<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : Fini
     }
 }
 
-impl<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : FiniteDimensionalModuleT>
+impl<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : FDModuleT>
     CochainComplex<HomSpace<N>, HomPullback<N>> for HomComplex<CC, N> {
     fn algebra(&self) -> Arc<AlgebraAny> {
         self.zero_module.algebra()

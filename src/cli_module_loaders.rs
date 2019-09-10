@@ -14,10 +14,7 @@ use crate::fp_vector::{FpVector,FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::milnor_algebra::MilnorAlgebra;
 use crate::adem_algebra::AdemAlgebra;
-use crate::module::Module;
-use crate::free_module::FreeModule;
-use crate::finitely_presented_module::FinitelyPresentedModule as FPModule;
-use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
+use crate::module::{Module, FreeModule, FDModule, FPModule};
 use crate::steenrod_evaluator::evaluate_module;
 
 fn query<S : Display, T : FromStr, F>(prompt : &str, validator : F) -> S 

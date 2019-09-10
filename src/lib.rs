@@ -15,10 +15,7 @@ pub mod steenrod_parser;
 pub mod steenrod_evaluator;
 pub mod module;
 pub mod module_homomorphism;
-pub mod finite_dimensional_module;
-pub mod free_module;
 pub mod free_module_homomorphism;
-pub mod finitely_presented_module;
 pub mod chain_complex;
 pub mod hom_space;
 pub mod hom_pullback;
@@ -35,7 +32,6 @@ use crate::matrix::Matrix;
 use crate::fp_vector::FpVectorT;
 use crate::chain_complex::{ChainComplex, CochainComplex};
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
-use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
 use crate::resolution::{Resolution, ModuleResolution};
 use crate::hom_complex::HomComplex;
 
@@ -169,6 +165,7 @@ pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
 
 //use crate::fp_vector::FpVectorT;
 // use crate::resolution_homomorphism::ResolutionHomomorphism;
+//use crate::module::FDModule;
 #[allow(unreachable_code)]
 #[allow(unused_mut)]
 pub fn run_test() {    
@@ -176,22 +173,19 @@ pub fn run_test() {
     // S_3
     // let contents = r#"{"type" : "finite dimensional module","name": "$S_3$", "file_name": "S_3", "p": 3, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}"#;
     // C2:
-    let contents = r#"{"type" : "finite dimensional module", "name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
-    let mut json : Value = serde_json::from_str(&contents).unwrap();
-    let p = json["p"].as_u64().unwrap() as u32;
-    let max_degree = 20;
-    let algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
-    let module = Arc::new(FDModule::from_json(Arc::clone(&algebra), &mut json));
-    let chain_complex = Arc::new(CCDZ::new(Arc::clone(&module)));
-    let resolution = Arc::new(Resolution::new(Arc::clone(&chain_complex), None, None));
-    resolution.resolve_through_degree(max_degree);
-    let hom = HomComplex::new(resolution, module);
-    hom.compute_cohomology_through_bidegree(max_degree as u32, max_degree);
-    println!("{}", hom.graded_dimension_string());
-    
+//    let contents = r#"{"type" : "finite dimensional module", "name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
+//    let mut json : Value = serde_json::from_str(&contents).unwrap();
+//    let p = json["p"].as_u64().unwrap() as u32;
+//    let max_degree = 20;
+//    let algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
+//    let module = Arc::new(FDModule::from_json(Arc::clone(&algebra), &mut json));
+//    let chain_complex = Arc::new(CCDZ::new(Arc::clone(&module)));
+//    let resolution = Arc::new(Resolution::new(Arc::clone(&chain_complex), None, None));
+//    resolution.resolve_through_degree(max_degree);
+//    let hom = HomComplex::new(resolution, module);
+//    hom.compute_cohomology_through_bidegree(max_degree as u32, max_degree);
+//    println!("{}", hom.graded_dimension_string());
 }
-
-
 
 pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {
     let mut result = None;

@@ -2,10 +2,18 @@ use std::sync::Arc;
 use std::error::Error;
 use enum_dispatch::enum_dispatch;
 
-use crate::fp_vector::{FpVector, FpVectorT};
-use crate::algebra::{Algebra, AlgebraAny};
-use crate::finite_dimensional_module::FiniteDimensionalModule;
-use crate::finitely_presented_module::FinitelyPresentedModule;
+use super::fp_vector::{FpVector, FpVectorT};
+use super::algebra::{Algebra, AlgebraAny};
+
+mod finite_dimensional_module;
+mod finitely_presented_module;
+mod free_module;
+
+pub use finite_dimensional_module::FiniteDimensionalModule as FDModule;
+pub use finite_dimensional_module::FiniteDimensionalModuleT as FDModuleT;
+pub use finitely_presented_module::FinitelyPresentedModule as FPModule;
+pub use free_module::FreeModule;
+pub use free_module::FreeModuleTableEntry;
 
 #[enum_dispatch(FiniteModule)]
 pub trait Module {
@@ -126,16 +134,16 @@ impl Module for ZeroModule {
 
 #[enum_dispatch]
 pub enum FiniteModule {
-    FiniteDimensionalModule,
-    FinitelyPresentedModule
+    FDModule,
+    FPModule
 }
 
 impl FiniteModule {
     pub fn from_json(algebra : Arc<AlgebraAny>, json : &mut serde_json::Value) -> Result<Self, Box<dyn Error>> {
         let module_type = &json["type"].as_str().unwrap();
         match module_type {
-            &"finite dimensional module" => Ok(FiniteModule::from(FiniteDimensionalModule::from_json(algebra, json))),
-            &"finitely presented module" => Ok(FiniteModule::from(FinitelyPresentedModule::from_json(algebra, json))),
+            &"finite dimensional module" => Ok(FiniteModule::from(FDModule::from_json(algebra, json))),
+            &"finitely presented module" => Ok(FiniteModule::from(FPModule::from_json(algebra, json))),
             _ => Err(Box::new(UnknownModuleTypeError { module_type : module_type.to_string() }))
         }
     }

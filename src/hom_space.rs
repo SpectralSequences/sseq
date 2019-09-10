@@ -7,20 +7,18 @@ use crate::fp_vector::{FpVector, FpVectorT};
 use crate::block_structure::BlockStructure;
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::field::Field;
-use crate::module::Module;
-use crate::free_module::FreeModule;
-use crate::finite_dimensional_module::FiniteDimensionalModuleT;
+use crate::module::{Module, FreeModule, FDModuleT};
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
 
-pub struct HomSpace<M : FiniteDimensionalModuleT> {
+pub struct HomSpace<M : FDModuleT> {
     algebra : Arc<AlgebraAny>,
     source : Arc<FreeModule>,
     target : Arc<M>,
     pub block_structures : OnceBiVec<BlockStructure>,
 }
 
-impl<M : FiniteDimensionalModuleT> HomSpace<M> {
+impl<M : FDModuleT> HomSpace<M> {
     pub fn new(source : Arc<FreeModule>, target : Arc<M>) -> Self {
         let p = source.prime();
         let algebra = Arc::new(AlgebraAny::from(Field::new(p)));
@@ -97,7 +95,7 @@ impl<M : FiniteDimensionalModuleT> HomSpace<M> {
 
 }
 
-impl<M : FiniteDimensionalModuleT> Module for HomSpace<M> {
+impl<M : FDModuleT> Module for HomSpace<M> {
     fn algebra(&self) -> Arc<AlgebraAny> {
         Arc::clone(&self.algebra)
     }
@@ -156,8 +154,8 @@ impl<M : FiniteDimensionalModuleT> Module for HomSpace<M> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::finite_dimensional_module::FiniteDimensionalModule;
     use crate::adem_algebra::AdemAlgebra;
+    use crate::module::{Module, FreeModule, FDModule};
     use serde_json;
 
     #[allow(non_snake_case)]
@@ -173,7 +171,7 @@ mod tests {
         F.extend_by_zero(20);
         let joker_json_string = r#"{"type" : "finite dimensional module","name": "Joker", "file_name": "Joker", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1, "x2": 2, "x3": 3, "x4": 4}, "sq_actions": [{"op": 2, "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": 2, "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": 2, "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": 1, "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": 3, "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": [1], "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": [2], "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [2], "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [3], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2, 1], "input": "x0", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [3, 1], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": [1], "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": [2], "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [2], "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [0, 1], "input": "x0", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [0, 1], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [3], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [1, 1], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}]}"#;
         let mut joker_json = serde_json::from_str(&joker_json_string).unwrap();
-        let M = Arc::new(FiniteDimensionalModule::from_json(Arc::clone(&A), &mut joker_json));
+        let M = Arc::new(FDModule::from_json(Arc::clone(&A), &mut joker_json));
         let hom = HomSpace::new(Arc::clone(&F), Arc::clone(&M));
         hom.compute_basis(10);
         let dimensions = [1,2,3,3,3,2,1,0];
@@ -215,7 +213,7 @@ mod tests {
         F.extend_by_zero(20);
         let joker_json_string = r#"{"type" : "finite dimensional module","name": "Joker", "file_name": "Joker", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1, "x2": 2, "x3": 3, "x4": 4}, "sq_actions": [{"op": 2, "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": 2, "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": 2, "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": 1, "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": 3, "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": [1], "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": [2], "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [2], "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [3], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2, 1], "input": "x0", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [3, 1], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": [1], "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": [2], "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [2], "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [0, 1], "input": "x0", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [0, 1], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [3], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [1, 1], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}]}"#;
         let mut joker_json = serde_json::from_str(&joker_json_string).unwrap();
-        let M = Arc::new(FiniteDimensionalModule::from_json(Arc::clone(&A), &mut joker_json));
+        let M = Arc::new(FDModule::from_json(Arc::clone(&A), &mut joker_json));
         let hom = HomSpace::new(Arc::clone(&F), Arc::clone(&M));
         hom.compute_basis(10);
 
