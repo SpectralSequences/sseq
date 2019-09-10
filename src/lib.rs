@@ -30,10 +30,9 @@ use crate::milnor_algebra::MilnorAlgebra;
 use crate::module::{FiniteModule, Module};
 use crate::matrix::Matrix;
 use crate::fp_vector::FpVectorT;
-use crate::chain_complex::{ChainComplex, CochainComplex};
+use crate::chain_complex::ChainComplex;
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::resolution::{Resolution, ModuleResolution};
-use crate::hom_complex::HomComplex;
 
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
@@ -163,9 +162,10 @@ pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
 }
 
 
-//use crate::fp_vector::FpVectorT;
-// use crate::resolution_homomorphism::ResolutionHomomorphism;
+//use crate::resolution_homomorphism::ResolutionHomomorphism;
 //use crate::module::FDModule;
+//use crate::chain_complex::CochainComplex;
+//use crate::hom_complex::HomComplex;
 #[allow(unreachable_code)]
 #[allow(unused_mut)]
 pub fn run_test() {    
