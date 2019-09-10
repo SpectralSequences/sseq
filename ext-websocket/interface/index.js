@@ -71,6 +71,7 @@ if (!params.module) {
     });
 } else {
     let maxDegree = parseInt(params.degree ? params.degree : 50);
+    let algebra = params.algebra ? params.algebra : "adem";
 
     openWebSocket([
         {
@@ -78,7 +79,7 @@ if (!params.module) {
             sseq : "Main",
             action : {
                 "Construct": {
-                    algebra_name : "adem",
+                    algebra_name : algebra,
                     module_name : params.module,
                 }
             }
