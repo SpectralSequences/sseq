@@ -47,30 +47,35 @@ impl ResolutionManager {
         let isblock = match msg.action { Action::BlockRefresh(_) => true, _ => false };
         let target_sseq = msg.sseq;
 
+        let mut ret = None;
         match msg.action {
             Action::Construct(a) => self.construct(a)?,
             Action::ConstructJson(a) => self.construct_json(a)?,
             Action::Resolve(a) => self.resolve(a, msg.sseq)?,
             Action::BlockRefresh(_) => self.sender.send(msg)?,
-            Action::QueryTable(a) => self.query_table(a, msg.sseq)?,
             _ => {
                 // Find a better way to make this work.
                 match msg.sseq {
                     SseqChoice::Main => {
                         if let Some(resolution) = &self.resolution {
-                            msg.action.act_resolution(resolution)
+                            ret = msg.action.act_resolution(resolution);
                         }
                     },
                     SseqChoice::Unit => {
                         if let Some(main_resolution) = &self.resolution {
                             if let Some(resolution) = &main_resolution.read().unwrap().unit_resolution {
-                                msg.action.act_resolution(&resolution.upgrade().unwrap());
+                                ret = msg.action.act_resolution(&resolution.upgrade().unwrap());
                             }
                         }
                     }
                 }
             }
         };
+
+        if let Some(mut m) = ret {
+            m.sseq = target_sseq;
+            self.sender.send(m)?;
+        }
 
         if !isblock {
             self.sender.send(Message {
@@ -159,28 +164,6 @@ impl ResolutionManager {
             }
         };
 
-        Ok(())
-    }
-
-    fn query_table(&self, action : QueryTable, sseq : SseqChoice) -> Result<(), Box<dyn Error>> {
-        if let SseqChoice::Main = sseq {
-            let resolution = self.resolution.as_ref().unwrap().read().unwrap();
-
-            let s = action.s;
-            let t = action.t;
-
-            let module = resolution.module(s);
-            if t < module.min_degree() {
-                return Ok(());
-            }
-            let string = module.generator_list_string(t);
-            let msg = Message {
-                recipients : vec![],
-                sseq : sseq,
-                action : Action::from(QueryTableResult { s, t, string })
-            };
-            self.sender.send(msg)?;
-        }
         Ok(())
     }
 }
@@ -276,6 +259,8 @@ impl SseqManager {
             Action::AddClass(_) => false,
             Action::AddProduct(_) => false,
             Action::Complete(_) => false,
+            Action::QueryTableResult(_) => false,
+            Action::QueryCocycleStringResult(_) => false,
             Action::Resolving(_) => false,
             _ => true
         }
@@ -289,6 +274,7 @@ impl SseqManager {
             Action::Resolving(_) => self.resolving(msg)?,
             Action::Complete(_) => self.relay(msg)?,
             Action::QueryTableResult(_) => self.relay(msg)?,
+            Action::QueryCocycleStringResult(_) => self.relay(msg)?,
             _ => {
                 if let Some(sseq) = self.get_sseq(msg.sseq) {
                     msg.action.act_sseq(sseq);

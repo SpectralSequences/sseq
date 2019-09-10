@@ -18,7 +18,7 @@ export class BiVec {
         this.data[x - this.minDegree][y] = data;
     }
     get(x, y) {
-        if (x < 0 || y < 0 || this.data.length <= x - this.minDegree) {
+        if (x < this.minDegree || y < 0 || this.data.length <= x - this.minDegree) {
             return undefined;
         } else {
             return this.data[x - this.minDegree][y];
@@ -344,6 +344,26 @@ export class ExtSseq extends EventEmitter {
             }
         });
         this.block(false)
+    }
+
+    queryCocycleString(x, y) {
+        let classes = this.classes.get(x, y);
+        if (!classes) return;
+
+        let len = classes[0].length;
+
+        for (let i = 0; i < len; i++) {
+            this.send({
+                recipients: ["Resolver"],
+                action: {
+                    "QueryCocycleString" : {
+                        s: y,
+                        t: x + y,
+                        idx: i
+                    }
+                }
+            }, false);
+        }
     }
 
     queryTable(x, y) {

@@ -2,6 +2,8 @@ use crate::sseq::{Sseq, ProductItem, ClassState, INFINITY};
 use rust_ext::module::FiniteModule;
 use rust_ext::resolution::{ModuleResolution};
 use rust_ext::fp_vector::FpVector;
+use rust_ext::chain_complex::ChainComplex;
+use rust_ext::module::Module;
 use bivec::BiVec;
 use std::sync::{Arc, RwLock};
 use enum_dispatch::enum_dispatch;
@@ -53,19 +55,23 @@ pub enum Action {
     // Resolver -> JS
     Resolving,
     Complete,
-    QueryTableResult,
 
     // JS -> Resolver
     Construct,
     ConstructJson,
     Resolve,
-    QueryTable,
 
     // Sseq -> JS
     SetStructline,
     SetDifferential,
     SetClass,
-    SetPageList
+    SetPageList,
+
+    // Queries
+    QueryTable,
+    QueryTableResult,
+    QueryCocycleString,
+    QueryCocycleStringResult,
 }
 
 /// The name `Action` is sort-of a misnomer. It is the content of any message that is sent between
@@ -83,10 +89,10 @@ pub enum Action {
 #[enum_dispatch(Action)]
 #[allow(unused_variables)]
 pub trait ActionT : std::fmt::Debug {
-    fn act_sseq(&self, sseq : &mut Sseq) {
+    fn act_sseq(&self, sseq : &mut Sseq) -> Option<Message>{
         unimplemented!();
     }
-    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) {
+    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) -> Option<Message> {
         unimplemented!();
     }
     // We take this because sometimes we want to only take an immutable borrow.
@@ -106,12 +112,13 @@ pub struct AddDifferential {
 }
 
 impl ActionT for AddDifferential {
-    fn act_sseq(&self, sseq: &mut Sseq) {
+    fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
         sseq.add_differential_propagate(
             self.r, self.x, self.y,
             &FpVector::from_vec(sseq.p, &self.source),
             &mut Some(FpVector::from_vec(sseq.p, &self.target)),
             0);
+        None
     }
 }
 
@@ -125,17 +132,19 @@ pub struct AddProductType {
 }
 
 impl ActionT for AddProductType {
-    fn act_sseq(&self, sseq : &mut Sseq) {
+    fn act_sseq(&self, sseq : &mut Sseq) -> Option<Message> {
         sseq.add_product_type(&self.name, self.x, self.y, true, self.permanent);
+        None
     }
 
-    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) {
+    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) -> Option<Message> {
         let s = self.y as u32;
         let t = self.x + self.y;
 
         if resolution.write().unwrap().add_product(s, t, self.class.clone(), &self.name) {
             resolution.read().unwrap().catch_up_products();
         }
+        None
     }
 }
 
@@ -147,12 +156,13 @@ pub struct AddPermanentClass {
 }
 
 impl ActionT for AddPermanentClass {
-    fn act_sseq(&self, sseq : &mut Sseq) {
+    fn act_sseq(&self, sseq : &mut Sseq) -> Option<Message> {
         sseq.add_differential_propagate(
             INFINITY, self.x, self.y,
             &FpVector::from_vec(sseq.p, &self.class),
             &mut None,
             0);
+        None
     }
 }
 
@@ -165,16 +175,18 @@ pub struct SetClassName {
 }
 
 impl ActionT for SetClassName {
-    fn act_sseq(&self, sseq : &mut Sseq) {
+    fn act_sseq(&self, sseq : &mut Sseq) -> Option<Message> {
         sseq.set_class_name(self.x, self.y, self.idx, self.name.clone());
+        None
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Clear {}
 impl ActionT for Clear {
-    fn act_sseq(&self, sseq: &mut Sseq) {
+    fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
         sseq.clear();
+        None
     }
 }
 
@@ -193,7 +205,7 @@ pub struct BlockRefresh {
     block : bool
 }
 impl ActionT for BlockRefresh {
-    fn act_sseq(&self, sseq: &mut Sseq) {
+    fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
         if self.block {
             sseq.block_refresh += 1;
         } else {
@@ -202,6 +214,7 @@ impl ActionT for BlockRefresh {
                 sseq.refresh_all();
             }
         }
+        None
     }
 }
 
@@ -213,8 +226,9 @@ pub struct AddClass {
 }
 
 impl ActionT for AddClass {
-    fn act_sseq(&self, sseq : &mut Sseq) {
+    fn act_sseq(&self, sseq : &mut Sseq) -> Option<Message> {
         sseq.set_class(self.x, self.y, self.num);
+        None
     }
 }
 
@@ -230,8 +244,9 @@ pub struct AddProduct {
 }
 
 impl ActionT for AddProduct {
-    fn act_sseq(&self, sseq : &mut Sseq) {
+    fn act_sseq(&self, sseq : &mut Sseq) -> Option<Message> {
         sseq.add_product(&self.name, self.source_x, self.source_y, self.mult_x, self.mult_y, self.left, &self.product);
+        None
     }
 }
 
@@ -242,15 +257,17 @@ pub struct AddProductDifferential {
 }
 
 impl ActionT for AddProductDifferential {
-    fn act_sseq(&self, sseq : &mut Sseq) {
+    fn act_sseq(&self, sseq : &mut Sseq) -> Option<Message> {
         self.source.act_sseq(sseq);
         self.target.act_sseq(sseq);
         sseq.add_product_differential(&self.source.name, &self.target.name);
+        None
     }
 
-    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) {
+    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) -> Option<Message> {
         self.source.act_resolution(resolution);
         self.target.act_resolution(resolution);
+        None
     }
 
     fn to_string(&self) -> String {
@@ -273,14 +290,6 @@ pub struct Complete { }
 impl ActionT for Complete { }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QueryTableResult {
-    pub s : u32,
-    pub t : i32,
-    pub string : String
-}
-impl ActionT for QueryTableResult { }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Construct {
     pub module_name : String,
     pub algebra_name : String,
@@ -299,13 +308,6 @@ pub struct Resolve {
     pub max_degree : i32
 }
 impl ActionT for Resolve { }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QueryTable {
-    pub s : u32,
-    pub t : i32
-}
-impl ActionT for QueryTable { }
 
 // Now actions for sseq -> js
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -342,3 +344,78 @@ pub struct SetPageList {
     pub page_list : Vec<i32>
 }
 impl ActionT for SetPageList { }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryTable {
+    pub s : u32,
+    pub t : i32
+}
+impl ActionT for QueryTable {
+    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) -> Option<Message> {
+        let resolution = resolution.read().unwrap();
+        let s = self.s;
+        let t = self.t;
+
+        let module = resolution.module(s);
+        if t < module.min_degree() {
+            return None;
+        }
+        if t > module.max_computed_degree() {
+            return None;
+        }
+        let string = module.generator_list_string(t);
+        Some(Message {
+            recipients : vec![],
+            sseq : SseqChoice::Main, // This will be overwritten
+            action : Action::from(QueryTableResult { s, t, string })
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryTableResult {
+    s : u32,
+    t : i32,
+    string : String
+}
+impl ActionT for QueryTableResult { }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryCocycleString {
+    s : u32,
+    t : i32,
+    idx : usize
+}
+impl ActionT for QueryCocycleString {
+    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) -> Option<Message> {
+        let resolution = resolution.read().unwrap();
+        let s = self.s;
+        let t = self.t;
+        let idx = self.idx;
+
+        // Ensure bidegree is defined
+        let module = resolution.module(s);
+        if t < module.min_degree() {
+            return None;
+        }
+        if t > module.max_computed_degree() {
+            return None;
+        }
+
+        let string = resolution.inner.cocycle_string(s, t, idx);
+        Some(Message{
+            recipients : vec![],
+            sseq : SseqChoice::Main, // This will be overwritten
+            action : Action::from(QueryCocycleStringResult { s, t, idx, string })
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryCocycleStringResult {
+    s : u32,
+    t : i32,
+    idx : usize,
+    string : String
+}
+impl ActionT for QueryCocycleStringResult { }

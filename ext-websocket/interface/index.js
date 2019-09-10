@@ -223,6 +223,11 @@ messageHandler.Complete = function (m) {
     }
 }
 
+messageHandler.QueryCocycleStringResult = function (m) {
+    console.log(`Cocyle string for (t - s, s, idx) = (${m.t - m.s}, ${m.s}, ${m.idx}):`);
+    console.log(m.string);
+}
+
 messageHandler.QueryTableResult = function (m) {
     console.log(`Table for (t - s, s) = (${m.t - m.s}, ${m.s}):`);
     console.log(m.string);

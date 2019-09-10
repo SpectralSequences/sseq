@@ -1,6 +1,6 @@
 'use strict';
 
-import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE } from "./display.js";
+import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE, STATE_QUERY_COCYCLE_STRING } from "./display.js";
 import { rowToKaTeX, rowToLaTeX, matrixToKaTeX, vecToName } from "./utils.js";
 import { MIN_PAGE } from "./sseq.js";
 
@@ -543,7 +543,8 @@ class OverviewPanel extends Panel {
 
         this.newGroup();
 
-        this.addButton("Query table", () => this.display.state = STATE_QUERY_TABLE, { shorcuts : ["x"] });
+//        this.addButton("Query table", () => this.display.state = STATE_QUERY_TABLE, { shortcuts : ["y"] });
+        this.addButton("Query cocyle string", () => this.display.state = STATE_QUERY_COCYCLE_STRING, { shortcuts : ["x"] });
         this.addButton("Resolve further", () => this.display.sseq.resolveFurther());
     }
 }

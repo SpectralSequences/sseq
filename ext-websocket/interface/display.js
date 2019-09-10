@@ -7,6 +7,7 @@ import { Tooltip } from "./tooltip.js";
 
 export const STATE_ADD_DIFFERENTIAL = 1;
 export const STATE_QUERY_TABLE = 2;
+export const STATE_QUERY_COCYCLE_STRING = 3;
 const OFFSET_SIZE = 0.3;
 
 const DIFFERENTIAL_COLORS = ["cyan", "red", "green"];
@@ -878,6 +879,12 @@ export class MainDisplay extends SidebarDisplay {
             this.state = null;
             return;
         }
+        if (this.state == STATE_QUERY_COCYCLE_STRING) {
+            this.sseq.queryCocycleString(...this.mouseCoord);
+            this.state = null;
+            return;
+        }
+
 
         if (!this.selected) {
             this._unselect();
