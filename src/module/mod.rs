@@ -7,11 +7,13 @@ use super::algebra::{Algebra, AlgebraAny};
 
 mod finite_dimensional_module;
 mod finitely_presented_module;
+mod truncated_module;
 mod free_module;
 
 pub use finite_dimensional_module::FiniteDimensionalModule as FDModule;
 pub use finite_dimensional_module::FiniteDimensionalModuleT as FDModuleT;
 pub use finitely_presented_module::FinitelyPresentedModule as FPModule;
+pub use truncated_module::TruncatedModule;
 pub use free_module::FreeModule;
 pub use free_module::FreeModuleTableEntry;
 
