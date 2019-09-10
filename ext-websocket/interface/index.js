@@ -271,6 +271,12 @@ document.getElementById("history-upload").addEventListener("change", function() 
     let fileReader = new FileReader();
     fileReader.onload = e => {
         let lines = e.target.result.split("\n");
+        // Do reverse loop because we are removing things from the array.
+        for (let i = lines.length - 1; i>= 0; i--) {
+            if (lines[i].startsWith("//") || lines[i].trim() === "") {
+                lines.splice(i, 1);
+            }
+        }
         let firstBatch = [];
 
         // First command is construct and second command is resolve
