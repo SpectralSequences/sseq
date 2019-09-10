@@ -971,6 +971,7 @@ export class UnitDisplay extends Display {
         dialog.classList.remove("modal-shown");
         this.selected = null;
         this._unselect();
+        this.tooltip.hide();
     }
 
     __onClick(oldSelected) {
