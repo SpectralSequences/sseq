@@ -469,14 +469,14 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
         let mut next_s = self.next_s.lock().unwrap();
         let mut next_t = self.next_t.lock().unwrap();
 
-        // We want the computed area to always be a square.
+        // We want the computed area to always be a rectangle.
         max_t = max(max_t, *next_t - 1);
         if max_s < *next_s {
             max_s = *next_s - 1;
         }
 
         self.inner.extend_through_degree(*next_s, max_s, *next_t, max_t);
-        self.algebra().compute_basis(max_t);
+        self.algebra().compute_basis(max_t - min_degree);
 
         for t in min_degree ..= max_t {
             if let Some(unit_res) = &self.unit_resolution {
@@ -484,7 +484,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
                 let unit_res = unit_res.read().unwrap();
                 // Avoid a deadlock
                 if !ptr_eq(&unit_res.inner, &self.inner) {
-                    unit_res.resolve_through_bidegree(self.max_product_homological_degree, t);
+                    unit_res.resolve_through_bidegree(self.max_product_homological_degree, t - min_degree);
                 }
             }
 

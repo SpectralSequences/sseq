@@ -181,7 +181,7 @@ pub struct ChainComplexConcentratedInDegreeZero<M : Module> {
 
 impl<M : Module> ChainComplexConcentratedInDegreeZero<M> {
     pub fn new(module : Arc<M>) -> Self {
-        let zero_module_inner = Arc::new(ZeroModule::new(Arc::clone(&module.algebra())));
+        let zero_module_inner = Arc::new(ZeroModule::new(Arc::clone(&module.algebra()), module.min_degree()));
         let zero_module = Arc::new(OptionModule::Zero(Arc::clone(&zero_module_inner)));
         let some_module = Arc::new(OptionModule::Some(Arc::clone(&module)));
         Self {

@@ -54,7 +54,7 @@ impl Module for FiniteDimensionalModule {
     }
 
     fn is_unit(&self) -> bool {
-        self.graded_dimension.len() == 1 && self.graded_dimension[0] == 1
+        self.min_degree() == 0 && self.graded_dimension.len() == 1 && self.graded_dimension[0] == 1
     }
 
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize){

@@ -91,14 +91,16 @@ pub trait Module {
 
 pub struct ZeroModule {
     algebra : Arc<AlgebraAny>,
+    min_degree : i32,
     name : String
 }
 
 impl ZeroModule {
-    pub fn new(algebra : Arc<AlgebraAny>) -> Self {
+    pub fn new(algebra : Arc<AlgebraAny>, min_degree : i32) -> Self {
         let name = format!("Zero Module over {}", algebra.name());
         ZeroModule {
             algebra,
+            min_degree,
             name
         }
     }
@@ -118,7 +120,7 @@ impl Module for ZeroModule {
     }
 
     fn min_degree(&self) -> i32 {
-        0
+        self.min_degree
     }
 
     // Since the dimension is 0, the input of this function is an element of the basis which is the empty set.
