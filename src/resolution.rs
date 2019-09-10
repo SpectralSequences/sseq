@@ -292,18 +292,6 @@ impl<M, F, CC> ResolutionInner<M, F, CC> where
         Arc::clone(&self.complex)
     }
 
-    pub fn algebra(&self) -> Arc<AlgebraAny> {
-        Arc::clone(&self.complex.algebra())
-    }
-
-    pub fn module(&self, homological_degree : u32) -> Arc<FreeModule> {
-        Arc::clone(&self.modules[homological_degree as usize])
-    }
-
-    pub fn zero_module(&self) -> Arc<FreeModule> {
-        Arc::clone(&self.zero_module)
-    }
-
     pub fn number_of_gens_in_bidegree(&self, homological_degree : u32, internal_degree : i32) -> usize {
         self.module(homological_degree).number_of_gens_in_degree(internal_degree)
     }
@@ -312,16 +300,65 @@ impl<M, F, CC> ResolutionInner<M, F, CC> where
         &self.chain_maps[homological_degree as usize]
     }
 
-    pub fn differential(&self, homological_degree : u32) -> Arc<FreeModuleHomomorphism<FreeModule>> {
-        Arc::clone(&self.differentials[homological_degree as usize])
-    }
-
-    pub fn min_degree(&self) -> i32 {
-        self.complex.min_degree()
-    }
-
     pub fn prime(&self) -> u32 {
         self.complex.prime()
+    }
+}
+
+impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
+    ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>
+    for ResolutionInner<M, F, CC>
+{
+    fn algebra(&self) -> Arc<AlgebraAny> {
+        self.complex().algebra()
+    }
+
+    fn max_computed_degree(&self) -> i32 {
+        match self.modules.len() {
+            0 => 0,
+            _ => self.modules[0 as usize].max_computed_degree()
+        }
+    }
+
+    fn max_computed_homological_degree(&self) -> u32 {
+        self.modules.len() as u32 - 1
+    }
+
+    fn module(&self, homological_degree : u32) -> Arc<FreeModule> {
+        Arc::clone(&self.modules[homological_degree as usize])
+    }
+
+    fn zero_module(&self) -> Arc<FreeModule> {
+        Arc::clone(&self.zero_module)
+    }
+
+    fn min_degree(&self) -> i32 {
+        self.complex().min_degree()
+    }
+
+    fn set_homology_basis(&self, homological_degree : u32, internal_degree : i32, homology_basis : Vec<usize>){
+        unimplemented!()
+    }
+
+    fn homology_basis(&self, homological_degree : u32, internal_degree : i32) -> &Vec<usize>{
+        unimplemented!()
+    }
+
+    fn homology_dimension(&self, homological_degree : u32, internal_degree : i32) -> usize {
+        self.number_of_gens_in_bidegree(homological_degree, internal_degree)
+    }
+
+    fn max_homology_degree(&self, homological_degree : u32) -> i32 {
+        unimplemented!()
+    }
+
+    fn differential(&self, s : u32) -> Arc<FreeModuleHomomorphism<FreeModule>> {
+        Arc::clone(&self.differentials[s as usize])
+    }
+
+    fn compute_through_bidegree(&self, s : u32, t : i32) {
+        assert!(self.max_computed_homological_degree() >= s);
+        assert!(self.max_computed_degree() >= t);
     }
 }
 
