@@ -675,6 +675,8 @@ class Display extends EventEmitter {
             }
 
             this.update();
+        } else {
+            this.mouseCoord = mouseCoord;
         }
     }
 
