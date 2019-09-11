@@ -2,7 +2,7 @@ use bivec::BiVec;
 
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny};
-use crate::module::{Module, OptionModule, ModuleFailedRelationError};
+use crate::module::{Module, OptionModule, ModuleFailedRelationError, BoundedModule};
 
 use serde_json::value::Value;
 use serde_json::json;
@@ -10,10 +10,6 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
-
-pub trait FiniteDimensionalModuleT : Module {
-    fn max_degree(&self) -> i32;
-}
 
 pub struct FiniteDimensionalModule {
     algebra : Arc<AlgebraAny>,
@@ -74,7 +70,7 @@ impl Module for FiniteDimensionalModule {
     }
 }
 
-impl FiniteDimensionalModuleT for FiniteDimensionalModule {
+impl BoundedModule for FiniteDimensionalModule {
     fn max_degree(&self) -> i32 {
         self.graded_dimension.max_degree()
     }

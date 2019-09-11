@@ -7,18 +7,18 @@ use crate::fp_vector::{FpVector, FpVectorT};
 use crate::block_structure::BlockStructure;
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::field::Field;
-use crate::module::{Module, FreeModule, FDModuleT};
+use crate::module::{Module, FreeModule, BoundedModule};
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
 
-pub struct HomSpace<M : FDModuleT> {
+pub struct HomSpace<M : BoundedModule> {
     algebra : Arc<AlgebraAny>,
     source : Arc<FreeModule>,
     target : Arc<M>,
     pub block_structures : OnceBiVec<BlockStructure>,
 }
 
-impl<M : FDModuleT> HomSpace<M> {
+impl<M : BoundedModule> HomSpace<M> {
     pub fn new(source : Arc<FreeModule>, target : Arc<M>) -> Self {
         let p = source.prime();
         let algebra = Arc::new(AlgebraAny::from(Field::new(p)));
@@ -95,7 +95,7 @@ impl<M : FDModuleT> HomSpace<M> {
 
 }
 
-impl<M : FDModuleT> Module for HomSpace<M> {
+impl<M : BoundedModule> Module for HomSpace<M> {
     fn algebra(&self) -> Arc<AlgebraAny> {
         Arc::clone(&self.algebra)
     }

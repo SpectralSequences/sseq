@@ -1,4 +1,4 @@
-use crate::module::Module;
+use crate::module::{Module, BoundedModule};
 use crate::fp_vector::FpVector;
 use std::sync::Arc;
 use crate::algebra::{Algebra, AlgebraAny};
@@ -12,6 +12,12 @@ pub struct TruncatedModule<M : Module> {
 impl<M: Module> TruncatedModule<M> {
     pub fn new(module : Arc<M>, truncation : i32) -> Self {
         TruncatedModule { module, truncation }
+    }
+}
+
+impl<M : Module> BoundedModule for TruncatedModule<M> {
+    fn max_degree(&self) -> i32 {
+        self.truncation
     }
 }
 

@@ -7,12 +7,12 @@ use crate::matrix::{Subspace, QuasiInverse};
 // use crate::block_structure::BlockStructure;
 // use crate::algebra::AlgebraAny;
 // use crate::field::Field;
-use crate::module::{Module, FreeModule, FDModuleT};
+use crate::module::{Module, FreeModule, BoundedModule};
 use crate::hom_space::HomSpace;
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
 
-pub struct HomPullback<M : FDModuleT> {
+pub struct HomPullback<M : BoundedModule> {
     source : Arc<HomSpace<M>>,
     target : Arc<HomSpace<M>>,
     map : Arc<FreeModuleHomomorphism<FreeModule>>,
@@ -21,7 +21,7 @@ pub struct HomPullback<M : FDModuleT> {
     max_computed_degree : Mutex<i32>,
 }
 
-impl<M : FDModuleT> HomPullback<M> {
+impl<M : BoundedModule> HomPullback<M> {
     pub fn new(source : Arc<HomSpace<M>>, target : Arc<HomSpace<M>>, map : Arc<FreeModuleHomomorphism<FreeModule>>) -> Self {
         let min_degree = source.min_degree();
         Self {
@@ -35,7 +35,7 @@ impl<M : FDModuleT> HomPullback<M> {
     }
 }
 
-impl<M : FDModuleT> ModuleHomomorphism<HomSpace<M>, HomSpace<M>> for HomPullback<M> {
+impl<M : BoundedModule> ModuleHomomorphism<HomSpace<M>, HomSpace<M>> for HomPullback<M> {
     fn source(&self) -> Arc<HomSpace<M>> {
         Arc::clone(&self.source)
     }
