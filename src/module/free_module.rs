@@ -247,7 +247,7 @@ mod tests {
 
     use super::*;
 
-    use crate::adem_algebra::AdemAlgebra;
+    use crate::algebra::AdemAlgebra;
 
     #[test]
     fn test_free_mod(){
