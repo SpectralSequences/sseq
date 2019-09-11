@@ -1,7 +1,5 @@
 use crate::fp_vector::{FpVector, FpVectorT};
-use crate::algebra::Algebra;
-use crate::adem_algebra::AdemAlgebra;
-use crate::milnor_algebra::MilnorAlgebra;
+use crate::algebra::{Algebra, AdemAlgebra, MilnorAlgebra};
 use crate::module::Module;
 use crate::steenrod_parser::*;
 use crate::change_of_basis;

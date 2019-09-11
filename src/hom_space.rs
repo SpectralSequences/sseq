@@ -154,7 +154,7 @@ impl<M : BoundedModule> Module for HomSpace<M> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adem_algebra::AdemAlgebra;
+    use crate::algebra::AdemAlgebra;
     use crate::module::{Module, FreeModule, FDModule};
     use serde_json;
 

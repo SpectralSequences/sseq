@@ -1,7 +1,7 @@
 use crate::fp_vector::{FpVector, FpVectorT};
-use crate::algebra::{Algebra};
-use crate::adem_algebra::{AdemAlgebra, AdemBasisElement};
-use crate::milnor_algebra::{MilnorAlgebra, MilnorBasisElement};
+use crate::algebra::{Algebra, AdemAlgebra, MilnorAlgebra};
+use crate::algebra::adem_algebra::AdemBasisElement;
+use crate::algebra::milnor_algebra::MilnorBasisElement;
 
 // use std::sync::Arc;
 

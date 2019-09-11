@@ -1,7 +1,12 @@
+pub mod adem_algebra;
+pub mod milnor_algebra;
+pub mod field;
+
+pub use adem_algebra::AdemAlgebra;
+pub use milnor_algebra::MilnorAlgebra;
+pub use field::Field;
+
 use crate::fp_vector::FpVector;
-use crate::adem_algebra::AdemAlgebra;
-use crate::milnor_algebra::MilnorAlgebra;
-use crate::field::Field;
 use serde_json::Value;
 use enum_dispatch::enum_dispatch;
 

@@ -11,9 +11,7 @@ use serde_json::json;
 
 use bivec::BiVec;
 use crate::fp_vector::{FpVector,FpVectorT};
-use crate::algebra::{Algebra, AlgebraAny};
-use crate::milnor_algebra::MilnorAlgebra;
-use crate::adem_algebra::AdemAlgebra;
+use crate::algebra::{Algebra, AlgebraAny, MilnorAlgebra, AdemAlgebra};
 use crate::module::{Module, FreeModule, FDModule, FPModule};
 use crate::steenrod_evaluator::evaluate_module;
 

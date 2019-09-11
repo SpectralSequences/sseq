@@ -104,8 +104,7 @@ mod tests {
     use super::*;
     use crate::matrix::Matrix;
     use crate::module::FDModule;
-    use crate::algebra::{Algebra, AlgebraAny};
-    use crate::adem_algebra::AdemAlgebra;
+    use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra};
     use serde_json;
 
     #[allow(non_snake_case)]
