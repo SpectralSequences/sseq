@@ -5,7 +5,7 @@ use serde_json::Value;
 use bivec::BiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::Matrix;
-use crate::once::OnceVec;
+use once::OnceVec;
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::Module;
 use crate::module::free_module::FreeModule;

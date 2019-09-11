@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-pub mod once;
 pub mod combinatorics;
 pub mod fp_vector;
 pub mod matrix;

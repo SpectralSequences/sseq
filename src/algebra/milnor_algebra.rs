@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use crate::combinatorics;
 use crate::fp_vector::{FpVector, FpVectorT};
-use crate::once::OnceVec;
+use once::OnceVec;
 use crate::algebra::Algebra;
 
 pub struct MilnorProfile {

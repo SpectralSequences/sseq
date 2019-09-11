@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::format;
 use std::sync::Mutex;
 
-use crate::once::OnceVec;
+use once::OnceVec;
 use crate::combinatorics;
 use crate::combinatorics::MAX_XI_TAU;
 use crate::algebra::Algebra;

@@ -10,6 +10,7 @@ license = "(MIT OR Apache-2.0)"
 [dependencies]
 lazy_static = "1.2.0"
 bivec = { path = "bivec"}
+once = { path = "once"}
 serde_json = "*"
 serde = "*"
 rayon = { version = "*", optional = true }
@@ -34,7 +35,7 @@ opt-level = 3
 debug = true
 
 [workspace]
-members = ["ext-websocket", "bivec", "compressor"]
+members = ["ext-websocket", "bivec", "compressor", "once"]
 
 [features]
 cache-multiplication = []

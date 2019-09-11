@@ -41,6 +41,9 @@ the `NUM_THREAD` variable in `compressor/src/main.rs`.
 This is a small crate that provides `BiVec` - a variant of `Vec` indexed by an
 `i32` whose starting index may be non-zero.
 
+## once
+This is a small crate that provides `OnceVec` and `OnceBiVec`, a wrapper around `UnsafeCell<Vec>` (or `BiVec`) that models a `Vec` whose only way of modification is `push`. This models some partially computed infinite data structure, and we think of pushing as simply finding out more of this infinite data structure instead of genuinely mutating it.
+
 # Compilation
 To compile the main crate, simply run
 ```

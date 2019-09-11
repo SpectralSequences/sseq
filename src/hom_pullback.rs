@@ -1,7 +1,7 @@
 use std::sync::{Mutex, MutexGuard};
 use std::sync::Arc;
 
-use crate::once::OnceBiVec;
+use once::OnceBiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Subspace, QuasiInverse};
 // use crate::block_structure::BlockStructure;

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::once::{OnceVec, OnceBiVec};
+use once::{OnceVec, OnceBiVec};
 use crate::algebra::AlgebraAny;
 use crate::module::{Module, FreeModule, BoundedModule};
 // use crate::module_homomorphism::ModuleHomomorphism;

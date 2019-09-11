@@ -1,6 +1,6 @@
 use std::sync::Weak;
 
-use crate::once::OnceVec;
+use once::OnceVec;
 use crate::fp_vector::{ FpVector, FpVectorT };
 use crate::matrix::Matrix;
 use crate::module::{Module, OptionModule, FiniteModule, FreeModule};

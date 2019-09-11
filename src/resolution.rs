@@ -9,7 +9,7 @@ use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace};
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, OptionModule, FiniteModule, FDModule, FreeModule};
-use crate::once::{OnceVec, OnceBiVec};
+use once::{OnceVec, OnceBiVec};
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
 use crate::chain_complex::ChainComplex;

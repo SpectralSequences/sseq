@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use bivec::BiVec;
 
-use crate::once::OnceBiVec;
+use once::OnceBiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::block_structure::BlockStructure;
 use crate::algebra::{Algebra, AlgebraAny};
