@@ -5,6 +5,7 @@ pub mod field;
 pub use adem_algebra::AdemAlgebra;
 pub use milnor_algebra::MilnorAlgebra;
 pub use field::Field;
+use std::error::Error;
 
 use crate::fp_vector::FpVector;
 use serde_json::Value;
@@ -141,4 +142,60 @@ pub enum AlgebraAny {
     AdemAlgebra,
     MilnorAlgebra,
     Field
+}
+
+impl AlgebraAny {
+    pub fn from_json(json : &Value, mut algebra_name : String) -> Result<AlgebraAny, Box<dyn Error>> {
+        let p = json["p"].as_u64().unwrap() as u32;
+        let algebra_list = json["algebra"].as_array();
+        if let Some(list) = algebra_list {
+            let list : Vec<&str> = list.iter().map(|x| x.as_str().unwrap()).collect();
+            if !list.contains(&algebra_name.as_ref()) {
+                println!("Module does not support algebra {}", algebra_name);
+                println!("Using {} instead", list[0]);
+                algebra_name = list[0].to_string();
+            }
+        }
+
+        let algebra : AlgebraAny;
+        match algebra_name.as_ref() {
+            "adem" => algebra = AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)),
+            "milnor" => {
+                let mut algebra_inner = MilnorAlgebra::new(p);
+                let profile = &json["profile"];
+                if !profile.is_null() {
+                    if let Some(truncated) = profile["truncated"].as_bool() {
+                        algebra_inner.profile.truncated = truncated;
+                    }
+                    if let Some(q_part) = profile["q_part"].as_u64() {
+                        algebra_inner.profile.q_part = q_part as u32;
+                    }
+                    if let Some(p_part) = profile["p_part"].as_array() {
+                        let p_part = p_part.into_iter().map(|x| x.as_u64().unwrap() as u32).collect();
+                        algebra_inner.profile.p_part = p_part;
+                    }
+                }
+                algebra = AlgebraAny::from(algebra_inner);
+            }
+            _ => { return Err(Box::new(InvalidAlgebraError { name : algebra_name })); }
+        };
+        Ok(algebra)
+    }
+}
+
+#[derive(Debug)]
+struct InvalidAlgebraError {
+    name : String
+}
+
+impl std::fmt::Display for InvalidAlgebraError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Invalid algebra: {}", &self.name)
+    }
+}
+
+impl Error for InvalidAlgebraError {
+    fn description(&self) -> &str {
+        "Invalid algebra supplied"
+    }
 }

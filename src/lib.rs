@@ -20,7 +20,7 @@ pub mod resolution;
 pub mod resolution_homomorphism;
 mod cli_module_loaders;
 
-use crate::algebra::*;
+use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{FiniteModule, Module};
 use crate::matrix::Matrix;
 use crate::fp_vector::FpVectorT;
@@ -56,7 +56,7 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule
 }
 
 pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
-    let algebra = construct_algebra_from_json(&json, algebra_name)?;
+    let algebra = Arc::new(AlgebraAny::from_json(&json, algebra_name)?);
     let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut json)?);
     let chain_complex = Arc::new(CCDZ::new(Arc::clone(&module)));
     let resolution = Arc::new(RwLock::new(Resolution::new(Arc::clone(&chain_complex), None, None)));
@@ -106,42 +106,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
         resolution
     })
 }
-pub fn construct_algebra_from_json(json : &Value, mut algebra_name : String) -> Result<Arc<AlgebraAny>, Box<dyn Error>> {
-    let p = json["p"].as_u64().unwrap() as u32;
-    let algebra_list = json["algebra"].as_array();
-    if let Some(list) = algebra_list {
-        let list : Vec<&str> = list.iter().map(|x| x.as_str().unwrap()).collect();
-        if !list.contains(&algebra_name.as_ref()) {
-            println!("Module does not support algebra {}", algebra_name);
-            println!("Using {} instead", list[0]);
-            algebra_name = list[0].to_string();
-        }
-    }
 
-    let algebra : AlgebraAny;
-    match algebra_name.as_ref() {
-        "adem" => algebra = AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)),
-        "milnor" => {
-            let mut algebra_inner = MilnorAlgebra::new(p);
-            let profile = &json["profile"];
-            if !profile.is_null() {
-                 if let Some(truncated) = profile["truncated"].as_bool() {
-                     algebra_inner.profile.truncated = truncated;
-                 }
-                 if let Some(q_part) = profile["q_part"].as_u64() {
-                     algebra_inner.profile.q_part = q_part as u32;
-                 }
-                 if let Some(p_part) = profile["p_part"].as_array() {
-                     let p_part = p_part.into_iter().map(|x| x.as_u64().unwrap() as u32).collect();
-                     algebra_inner.profile.p_part = p_part;
-                 }
-            }
-            algebra = AlgebraAny::from(algebra_inner);
-        }
-        _ => { return Err(Box::new(InvalidAlgebraError { name : algebra_name })); }
-    };
-    Ok(Arc::new(algebra))
-}
 pub fn run_define_module() -> Result<String, Box<dyn Error>> {
     cli_module_loaders::interactive_module_define()
 }
@@ -215,19 +180,3 @@ impl Error for ModuleFileNotFoundError {
 }
 
 
-#[derive(Debug)]
-struct InvalidAlgebraError {
-    name : String
-}
-
-impl std::fmt::Display for InvalidAlgebraError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Invalid algebra: {}", &self.name)
-    }
-}
-
-impl Error for InvalidAlgebraError {
-    fn description(&self) -> &str {
-        "Invalid algebra supplied"
-    }
-}
