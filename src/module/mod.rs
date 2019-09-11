@@ -8,16 +8,26 @@ use super::algebra::{Algebra, AlgebraAny};
 mod finite_dimensional_module;
 mod finitely_presented_module;
 mod truncated_module;
+mod quotient_module;
 mod free_module;
 
 pub use finite_dimensional_module::FiniteDimensionalModule as FDModule;
 pub use finitely_presented_module::FinitelyPresentedModule as FPModule;
-pub use truncated_module::TruncatedModule;
+pub use truncated_module::{TruncatedModule, TruncatedHomomorphism, TruncatedHomomorphismSource};
+pub use quotient_module::{QuotientModule, QuotientHomomorphism, QuotientHomomorphismSource};
 pub use free_module::FreeModule;
 pub use free_module::FreeModuleTableEntry;
 
 pub trait BoundedModule : Module {
     fn max_degree(&self) -> i32;
+
+    fn total_dimension(&self) -> usize {
+        let mut sum = 0;
+        for i in 0 ..= self.max_degree() {
+            sum += self.dimension(i);
+        }
+        sum
+    }
 }
 
 #[enum_dispatch(FiniteModule)]

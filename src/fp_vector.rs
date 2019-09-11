@@ -894,6 +894,58 @@ impl<'de> Deserialize<'de> for FpVector {
         Ok(FpVector::new(2, 0)) // Implement this? This would require proper deserializing
     }
 }
+
+/// An FpVectorMask encodes a subset of the basis elements of an Fp vector space. This is used to
+/// project onto the subspace spanned by the selected basis elements.
+#[derive(Debug)]
+pub struct FpVectorMask {
+    p : u32,
+    dimension : usize,
+    masks : Vec<u64>
+}
+
+impl FpVectorMask {
+    pub fn new(p : u32, dimension : usize) -> Self {
+        let number_of_limbs = FpVector::number_of_limbs(p, dimension);
+        Self {
+            p,
+            dimension,
+            masks : vec![!0; number_of_limbs]
+        }
+    }
+
+    pub fn set_zero(&mut self) {
+        for limb in self.masks.iter_mut() {
+            *limb = 0;
+        }
+    }
+
+    /// If `on` is true, we add the `i`th basis element to the subset. Otherwise, we remove it.
+    pub fn set_mask(&mut self, i : usize, on : bool) {
+        let pair = limb_bit_index_pair(self.p, i);
+        let limb = &mut self.masks[pair.limb];
+
+        if on {
+            *limb |= bitmask(self.p) << pair.bit_index;
+        } else  {
+            *limb &= !(bitmask(self.p) << pair.bit_index);
+        }
+    }
+
+    /// This projects `target` onto the subspace spanned by the designated subset of basis
+    /// elements.
+    pub fn apply(&self, target : &mut FpVector) {
+        debug_assert_eq!(self.dimension, target.dimension());
+        debug_assert_eq!(target.vector_container().slice_start, 0);
+        debug_assert_eq!(target.vector_container().slice_end, target.dimension());
+
+        let target = &mut target.vector_container_mut().limbs;
+        for i in 0 .. self.masks.len() {
+            target[i] &= self.masks[i];
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1332,6 +1384,30 @@ mod tests {
             }
             assert_eq!(diffs, []);
         }
-    }    
+    }
+
+    #[test]
+    fn test_masks() {
+        test_mask(2, &[1, 0, 1, 1, 0], &[true, true, false, true, false]);
+        test_mask(7, &[3, 2, 6, 4, 0, 6, 0], &[true, false, false, true, false, true, true]);
+    }
+
+    fn test_mask(p : u32, vec : &[u32], mask : &[bool]) {
+        initialize_limb_bit_index_table(p);
+        assert_eq!(vec.len(), mask.len());
+        let mut v = FpVector::from_vec(p, vec);
+        let mut m = FpVectorMask::new(p, vec.len());
+        for (i, item) in mask.iter().enumerate() {
+            m.set_mask(i, *item);
+        }
+        m.apply(&mut v);
+        for (i, item) in v.iter().enumerate() {
+            if mask[i] {
+                assert_eq!(item, vec[i]);
+            } else {
+                assert_eq!(item, 0);
+            }
+        }
+    }
 }
 

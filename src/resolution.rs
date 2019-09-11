@@ -1,6 +1,5 @@
 use std::cmp::{min, max};
 use std::sync::{Arc, Weak, RwLock, Mutex};
-use std::marker::PhantomData;
 use std::collections::HashSet;
 
 use bivec::BiVec;
@@ -8,11 +7,11 @@ use bivec::BiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace};
 use crate::algebra::{Algebra, AlgebraAny};
-use crate::module::{Module, OptionModule, FiniteModule, FDModule, FreeModule};
+use crate::module::{Module, FiniteModule, FDModule, FreeModule};
 use once::{OnceVec, OnceBiVec};
-use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
+use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
-use crate::chain_complex::ChainComplex;
+use crate::chain_complex::{ChainComplex, AugmentedChainComplex};
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorphismToUnit};
 
@@ -26,25 +25,16 @@ use rayon::prelude::*;
 
 /// This separation should make multithreading easier because we only need ResolutionInner to be
 /// Send + Sync. In particular, we don't need the callback functions to be Send + Sync.
-pub struct ResolutionInner<M, F, CC> where
-    M : Module,
-    F : ModuleHomomorphism<M, M>,
-    CC : ChainComplex<M, F>
-{
+pub struct ResolutionInner<CC : ChainComplex> {
     complex : Arc<CC>,
     modules : OnceVec<Arc<FreeModule>>,
     zero_module : Arc<FreeModule>,
-    chain_maps : OnceVec<FreeModuleHomomorphism<M>>,
+    chain_maps : OnceVec<Arc<FreeModuleHomomorphism<CC::Module>>>,
     differentials : OnceVec<Arc<FreeModuleHomomorphism<FreeModule>>>,
-    phantom : PhantomData<F>,
     kernels : OnceBiVec<Mutex<Option<Subspace>>>
 }
 
-impl<M, F, CC> ResolutionInner<M, F, CC> where
-    M : Module,
-    F : ModuleHomomorphism<M, M>,
-    CC : ChainComplex<M, F>
-{
+impl<CC : ChainComplex> ResolutionInner<CC> {
     pub fn new(complex : Arc<CC>) -> Self {
         let algebra = complex.algebra();
         let min_degree = complex.min_degree();
@@ -57,8 +47,7 @@ impl<M, F, CC> ResolutionInner<M, F, CC> where
             chain_maps : OnceVec::new(),
             modules : OnceVec::new(),
             differentials : OnceVec::new(),
-            kernels : OnceBiVec::new(min_degree),
-            phantom : PhantomData,
+            kernels : OnceBiVec::new(min_degree)
         }
     }
 
@@ -70,7 +59,7 @@ impl<M, F, CC> ResolutionInner<M, F, CC> where
 
         for i in next_s ..= max_s {
             self.modules.push(Arc::new(FreeModule::new(Arc::clone(&self.algebra()), format!("F{}", i), min_degree)));
-            self.chain_maps.push(FreeModuleHomomorphism::new(Arc::clone(&self.modules[i]), Arc::clone(&self.complex.module(i)), 0));
+            self.chain_maps.push(Arc::new(FreeModuleHomomorphism::new(Arc::clone(&self.modules[i]), Arc::clone(&self.complex.module(i)), 0)));
         }
 
         for _ in next_t ..= max_t {
@@ -296,19 +285,16 @@ impl<M, F, CC> ResolutionInner<M, F, CC> where
         self.module(homological_degree).number_of_gens_in_degree(internal_degree)
     }
 
-    pub fn chain_map(&self, homological_degree : u32) -> &FreeModuleHomomorphism<M> {
-        &self.chain_maps[homological_degree as usize]
-    }
-
     pub fn prime(&self) -> u32 {
         self.complex.prime()
     }
 }
 
-impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
-    ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>
-    for ResolutionInner<M, F, CC>
+impl<CC : ChainComplex> ChainComplex for ResolutionInner<CC>
 {
+    type Module = FreeModule;
+    type Homomorphism = FreeModuleHomomorphism<FreeModule>;
+
     fn algebra(&self) -> Arc<AlgebraAny> {
         self.complex().algebra()
     }
@@ -324,11 +310,11 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
         self.modules.len() as u32 - 1
     }
 
-    fn module(&self, homological_degree : u32) -> Arc<FreeModule> {
+    fn module(&self, homological_degree : u32) -> Arc<Self::Module> {
         Arc::clone(&self.modules[homological_degree as usize])
     }
 
-    fn zero_module(&self) -> Arc<FreeModule> {
+    fn zero_module(&self) -> Arc<Self::Module> {
         Arc::clone(&self.zero_module)
     }
 
@@ -352,13 +338,26 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
         unimplemented!()
     }
 
-    fn differential(&self, s : u32) -> Arc<FreeModuleHomomorphism<FreeModule>> {
+    fn differential(&self, s : u32) -> Arc<Self::Homomorphism> {
         Arc::clone(&self.differentials[s as usize])
     }
 
     fn compute_through_bidegree(&self, s : u32, t : i32) {
         assert!(self.max_computed_homological_degree() >= s);
         assert!(self.max_computed_degree() >= t);
+    }
+}
+
+impl<CC : ChainComplex> AugmentedChainComplex for ResolutionInner<CC> {
+    type TargetComplex = CC;
+    type ChainMap = FreeModuleHomomorphism<CC::Module>;
+
+    fn target(&self) -> Arc<Self::TargetComplex> {
+        self.complex()
+    }
+
+    fn chain_map(&self, s : u32) -> Arc<Self::ChainMap> {
+        Arc::clone(&self.chain_maps[s])
     }
 }
 
@@ -383,22 +382,20 @@ struct Cocycle {
     name : String
 }
 
-pub struct SelfMap<
-    M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>
-> {
+pub struct SelfMap<CC : ChainComplex> {
     pub s : u32,
     pub t : i32,
     pub name : String,
     pub map_data : Matrix,
-    pub map : ResolutionHomomorphism<M, F, CC, M, F, CC>
+    pub map : ResolutionHomomorphism<CC, ResolutionInner<CC>>
 }
 
 /// # Fields
 ///  * `kernels` - For each *internal* degree, store the kernel of the most recently calculated
 ///  chain map as returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
 ///  resolve_through_degree again.
-pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> {
-    pub inner : Arc<ResolutionInner<M, F, CC>>,
+pub struct Resolution<CC : ChainComplex> {
+    pub inner : Arc<ResolutionInner<CC>>,
 
     next_s : Mutex<u32>,
     next_t : Mutex<i32>,
@@ -420,14 +417,14 @@ pub struct Resolution<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComple
     product_list : Vec<Cocycle>,
     // s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
     // until we actually have a unit resolution, of course.
-    chain_maps_to_unit_resolution : OnceVec<OnceBiVec<OnceVec<ResolutionHomomorphismToUnit<M, F, CC>>>>,
+    chain_maps_to_unit_resolution : OnceVec<OnceBiVec<OnceVec<ResolutionHomomorphismToUnit<CC>>>>,
     max_product_homological_degree : u32,
 
     // Self maps
-    pub self_maps : Vec<SelfMap<M, F, CC>>
+    pub self_maps : Vec<SelfMap<CC>>
 }
 
-impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resolution<M, F, CC> {
+impl<CC : ChainComplex> Resolution<CC> {
     pub fn new(
         complex : Arc<CC>,
         add_class : Option<Box<dyn Fn(u32, i32, usize)>>,
@@ -570,10 +567,8 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> Resoluti
 }
 
 // Product algorithms
-impl<M, F, CC> Resolution<M, F, CC> where
-    M : Module + Send + Sync + 'static,
-    F : ModuleHomomorphism<M, M> + Send + Sync + 'static,
-    CC : ChainComplex<M, F> + Send + Sync + 'static
+impl<CC> Resolution<CC> where
+    CC : ChainComplex + Send + Sync + 'static
 {
     /// This function computes the products between the element most recently added to product_list
     /// and the parts of Ext that have already been computed. This function should be called right
@@ -627,11 +622,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
     }
 }
 
-impl<M, F, CC> Resolution<M, F, CC> where
-    M : Module,
-    F : ModuleHomomorphism<M, M>,
-    CC : ChainComplex<M, F>
-{
+impl<CC : ChainComplex> Resolution<CC> {
     /// The return value is whether the product was actually added. If the product is already
     /// present, we do nothing.
     pub fn add_product(&mut self, s : u32, t : i32, class : Vec<u32>, name : &str) -> bool {
@@ -783,11 +774,7 @@ impl<M, F, CC> Resolution<M, F, CC> where
 }
 
 // Self map algorithms
-impl<M, F, CC> Resolution<M, F, CC> where
-    M : Module,
-    F : ModuleHomomorphism<M, M>,
-    CC : ChainComplex<M, F>
-{
+impl<CC : ChainComplex> Resolution<CC> {
     /// The return value is whether the self map was actually added. If the self map is already
     /// present, we do nothing.
     pub fn add_self_map(&mut self, s : u32, t : i32, name : &str, map_data : Matrix) -> bool {
@@ -844,10 +831,11 @@ impl<M, F, CC> Resolution<M, F, CC> where
     }
 }
 
-impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>> 
-    ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>> 
-    for Resolution<M, F, CC>
+impl<CC : ChainComplex> ChainComplex for Resolution<CC>
 {
+    type Module = FreeModule;
+    type Homomorphism = FreeModuleHomomorphism<FreeModule>;
+
     fn algebra(&self) -> Arc<AlgebraAny> {
         self.inner.complex().algebra()
     }
@@ -860,11 +848,11 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
         *self.next_s.lock().unwrap() - 1
     }    
 
-    fn zero_module(&self) -> Arc<FreeModule> {
+    fn zero_module(&self) -> Arc<Self::Module> {
         Arc::clone(&self.inner.zero_module)
     }
 
-    fn module(&self, homological_degree : u32) -> Arc<FreeModule> {
+    fn module(&self, homological_degree : u32) -> Arc<Self::Module> {
         self.inner.module(homological_degree)
     }
 
@@ -888,7 +876,7 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
         unimplemented!()
     }
 
-    fn differential(&self, s : u32) -> Arc<FreeModuleHomomorphism<FreeModule>> {
+    fn differential(&self, s : u32) -> Arc<Self::Homomorphism> {
         self.inner.differential(s)
     }
 
@@ -904,9 +892,4 @@ impl<M : Module, F : ModuleHomomorphism<M, M>, CC : ChainComplex<M, F>>
     // }
 }
 
-pub type ModuleResolution<M>
-    = Resolution<
-        OptionModule<M>, 
-        ZeroHomomorphism<OptionModule<M>, OptionModule<M>>, 
-        CCDZ<M>
-    >;
+pub type ModuleResolution<M> = Resolution<CCDZ<M>>;

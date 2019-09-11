@@ -10,16 +10,21 @@ pub enum ChainComplexGrading {
     Cohomological
 }
 
-pub trait ChainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
+/// A chain complex is defined to start in degree 0. The min_degree is the min_degree of the
+/// modules in the chain complex, all of which must be the same.
+pub trait ChainComplex {
+    type Module : Module;
+    type Homomorphism : ModuleHomomorphism<Source=Self::Module, Target=Self::Module>;
+
     fn prime(&self) -> u32 {
         self.algebra().prime()
     }
 
     fn algebra(&self) -> Arc<AlgebraAny>;
     fn min_degree(&self) -> i32;
-    fn zero_module(&self) -> Arc<M>;
-    fn module(&self, homological_degree : u32) -> Arc<M>;
-    fn differential(&self, homological_degree : u32) -> Arc<F>;
+    fn zero_module(&self) -> Arc<Self::Module>;
+    fn module(&self, homological_degree : u32) -> Arc<Self::Module>;
+    fn differential(&self, homological_degree : u32) -> Arc<Self::Homomorphism>;
     fn compute_through_bidegree(&self, homological_degree : u32, internal_degree : i32);
 
     fn set_homology_basis(&self, homological_degree : u32, internal_degree : i32, homology_basis : Vec<usize>);
@@ -90,15 +95,18 @@ pub trait ChainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
     }
 }
 
-pub trait CochainComplex<M : Module, F : ModuleHomomorphism<M, M>> {
+pub trait CochainComplex {
+    type Module : Module;
+    type Homomorphism : ModuleHomomorphism<Source=Self::Module, Target=Self::Module>;
+
     fn prime(&self) -> u32 {
         self.algebra().prime()
     }
     fn algebra(&self) -> Arc<AlgebraAny>;
     fn min_degree(&self) -> i32;
-    fn zero_module(&self) -> Arc<M>;
-    fn module(&self, homological_degree : u32) -> Arc<M>;
-    fn differential(&self, homological_degree : u32) -> Arc<F>;
+    fn zero_module(&self) -> Arc<Self::Module>;
+    fn module(&self, homological_degree : u32) -> Arc<Self::Module>;
+    fn differential(&self, homological_degree : u32) -> Arc<Self::Homomorphism>;
     fn compute_through_bidegree(&self, homological_degree : u32, degree : i32);
 
     fn max_computed_homological_degree(&self) -> u32;
@@ -194,7 +202,10 @@ impl<M : Module> ChainComplexConcentratedInDegreeZero<M> {
     }
 }
 
-impl<M : Module> ChainComplex<OptionModule<M>, ZeroHomomorphism<OptionModule<M>, OptionModule<M>>> for ChainComplexConcentratedInDegreeZero<M> {
+impl<M : Module> ChainComplex for ChainComplexConcentratedInDegreeZero<M> {
+    type Module = OptionModule<M>;
+    type Homomorphism = ZeroHomomorphism<Self::Module, Self::Module>;
+
     fn algebra(&self) -> Arc<AlgebraAny> {
         self.module.algebra()
     }
@@ -248,4 +259,12 @@ impl<M : Module> ChainComplex<OptionModule<M>, ZeroHomomorphism<OptionModule<M>,
             self.module.compute_basis(degree);
         }
     }
+}
+
+pub trait AugmentedChainComplex : ChainComplex {
+    type TargetComplex : ChainComplex;
+    type ChainMap : ModuleHomomorphism<Source=Self::Module, Target=<<Self as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module>;
+
+    fn target(&self) -> Arc<Self::TargetComplex>;
+    fn chain_map(&self, s: u32) -> Arc<Self::ChainMap>;
 }

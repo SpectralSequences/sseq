@@ -19,6 +19,7 @@ pub mod hom_complex;
 pub mod resolution;
 pub mod resolution_homomorphism;
 mod cli_module_loaders;
+mod yoneda;
 
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{FiniteModule, Module};
@@ -125,25 +126,106 @@ pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
 //use crate::module::FDModule;
 //use crate::chain_complex::CochainComplex;
 //use crate::hom_complex::HomComplex;
+use crate::yoneda::yoneda_representative;
+use crate::resolution_homomorphism::ResolutionHomomorphism;
+use std::io::{Write, stdin, stdout};
+use std::str::FromStr;
+use std::fmt::Display;
+use std::time::Instant;
+fn query<S : Display, T : FromStr, F>(prompt : &str, validator : F) -> S 
+    where F: Fn(T) -> Result<S, String>,
+        <T as FromStr>::Err: Display  {
+    loop {
+        print!("{} : ", prompt);
+        stdout().flush().unwrap();
+        let mut input = String::new();
+        stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
+        let trimmed = input.trim();
+        let result = 
+            trimmed.parse::<T>()
+                   .map_err(|err| format!("{}", err))
+                   .and_then(|res| validator(res));
+        match result {
+            Ok(res) => {
+                return res;
+            }, 
+            Err(e) => {
+                println!("Invalid input: {}. Try again", e);
+            }
+        }
+    }
+}
+
+fn query_with_default_no_default_indicated<S : Display, T : FromStr, F>(prompt : &str, default : S, validator : F) -> S 
+    where F: Fn(T) -> Result<S, String>,
+        <T as std::str::FromStr>::Err: std::fmt::Display  {
+    loop {
+        print!("{} : ", prompt);
+        stdout().flush().unwrap();
+        let mut input = String::new();
+        stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
+        let trimmed = input.trim();
+        if trimmed.len() == 0 {
+            return default;
+        }
+        let result = 
+            trimmed.parse::<T>()
+                   .map_err(|err| format!("{}", err))
+                   .and_then(|res| validator(res));
+        match result {
+            Ok(res) => {
+                return res;
+            }, 
+            Err(e) => {
+                println!("Invalid input: {}. Try again", e);
+            }
+        }
+    }
+}
+
 #[allow(unreachable_code)]
 #[allow(unused_mut)]
 pub fn run_test() {    
-    // let contents = std::fs::read_to_string("static/modules/S_3.json").unwrap();
-    // S_3
-    // let contents = r#"{"type" : "finite dimensional module","name": "$S_3$", "file_name": "S_3", "p": 3, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}"#;
+    let p = 2;
+    let contents = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}"#;
     // C2:
-//    let contents = r#"{"type" : "finite dimensional module", "name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
-//    let mut json : Value = serde_json::from_str(&contents).unwrap();
-//    let p = json["p"].as_u64().unwrap() as u32;
-//    let max_degree = 20;
-//    let algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
-//    let module = Arc::new(FDModule::from_json(Arc::clone(&algebra), &mut json));
-//    let chain_complex = Arc::new(CCDZ::new(Arc::clone(&module)));
-//    let resolution = Arc::new(Resolution::new(Arc::clone(&chain_complex), None, None));
-//    resolution.resolve_through_degree(max_degree);
-//    let hom = HomComplex::new(resolution, module);
-//    hom.compute_cohomology_through_bidegree(max_degree as u32, max_degree);
-//    println!("{}", hom.graded_dimension_string());
+    let mut json : Value = serde_json::from_str(&contents).unwrap();
+    let resolution = construct_from_json(json, "adem".to_string()).unwrap().resolution;
+    let resolution = resolution.read().unwrap();
+
+    loop {
+        let x : i32= query_with_default_no_default_indicated("x", 200, |x : i32| Ok(x));
+        let s : u32 = query_with_default_no_default_indicated("s", 200, |x : u32| Ok(x));
+        let i : usize = query_with_default_no_default_indicated("idx", 200, |x : usize| Ok(x));
+
+        let start = Instant::now();
+        let t = x + s as i32;
+        resolution.resolve_through_bidegree(s + 1, t + 1);
+
+        println!("Resolving time: {:?}", start.elapsed());
+
+        let idx = resolution.module(s).operation_generator_to_index(0, 0, t, i);
+        let start = Instant::now();
+        let yoneda = Arc::new(yoneda_representative(Arc::clone(&resolution.inner), s, t, idx));
+        println!("Finding representative time: {:?}", start.elapsed());
+
+        let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&yoneda), 0, 0);
+        let mut mat = Matrix::new(p, 1, 1);
+        mat[0].set_entry(0, 1);
+        f.extend_step(0, 0, Some(&mut mat));
+
+        f.extend(s, t);
+        let final_map = f.get_map(s);
+        let num_gens = resolution.inner.number_of_gens_in_bidegree(s, t);
+        for i_ in 0 .. num_gens {
+            assert_eq!(final_map.output(t, i_).dimension(), 1);
+            if i_ == i {
+                assert_eq!(final_map.output(t, i_).entry(0), 1);
+            } else {
+                assert_eq!(final_map.output(t, i_).entry(0), 0);
+            }
+        }
+    }
 }
 
 pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {

@@ -10,7 +10,7 @@ use crate::module_homomorphism::ModuleHomomorphism;
 pub struct FreeModuleHomomorphism<M : Module> {
     source : Arc<FreeModule>,
     target : Arc<M>,
-    outputs : OnceBiVec<Vec<FpVector>>, // degree --> input_idx --> output
+    pub outputs : OnceBiVec<Vec<FpVector>>, // degree --> input_idx --> output
     kernel : OnceBiVec<Subspace>,
     quasi_inverse : OnceBiVec<QuasiInverse>,
     min_degree : i32,
@@ -18,12 +18,15 @@ pub struct FreeModuleHomomorphism<M : Module> {
     degree_shift : i32
 }
 
-impl<M : Module> ModuleHomomorphism<FreeModule, M> for FreeModuleHomomorphism<M> {
-    fn source(&self) -> Arc<FreeModule> {
+impl<M : Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
+    type Source = FreeModule;
+    type Target = M;
+
+    fn source(&self) -> Arc<Self::Source> {
         Arc::clone(&self.source)
     }
 
-    fn target(&self) -> Arc<M> {
+    fn target(&self) -> Arc<Self::Target> {
         Arc::clone(&self.target)
     }
 
@@ -191,7 +194,7 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         assert!(input_degree >= self.source.min_degree);
         assert!(input_index < table.basis_element_to_opgen.len());
         let output_degree = input_degree - self.degree_shift;
-        assert!(self.target.dimension(output_degree) == result.dimension());
+        assert_eq!(self.target.dimension(output_degree), result.dimension());
         let operation_generator = &table.basis_element_to_opgen[input_index];
         let operation_degree = operation_generator.operation_degree;
         let operation_index = operation_generator.operation_index;

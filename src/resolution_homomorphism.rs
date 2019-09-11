@@ -3,32 +3,26 @@ use std::sync::Weak;
 use once::OnceVec;
 use crate::fp_vector::{ FpVector, FpVectorT };
 use crate::matrix::Matrix;
-use crate::module::{Module, OptionModule, FiniteModule, FreeModule};
-use crate::module_homomorphism::{ZeroHomomorphism, ModuleHomomorphism};
+use crate::module::{Module, FiniteModule};
+use crate::module_homomorphism::ModuleHomomorphism;
 use crate::free_module_homomorphism::FreeModuleHomomorphism;
-use crate::chain_complex::ChainComplex;
+use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::resolution::ResolutionInner;
 
-pub struct ResolutionHomomorphism<
-    S : Module, F1 : ModuleHomomorphism<S, S>, CC1 : ChainComplex<S, F1>,
-    T : Module, F2 : ModuleHomomorphism<T, T>, CC2 : ChainComplex<T, F2>
-> {
+pub struct ResolutionHomomorphism<CC1 : ChainComplex, CC2 : AugmentedChainComplex> {
     name : String,
-    source : Weak<ResolutionInner<S, F1, CC1>>,
-    target : Weak<ResolutionInner<T, F2, CC2>>,
-    maps : OnceVec<FreeModuleHomomorphism<FreeModule>>,
+    source : Weak<ResolutionInner<CC1>>,
+    target : Weak<CC2>,
+    maps : OnceVec<FreeModuleHomomorphism<CC2::Module>>,
     homological_degree_shift : u32,
     internal_degree_shift : i32
 }
 
-impl<
-    S : Module, F1 : ModuleHomomorphism<S, S>, CC1 : ChainComplex<S, F1>,
-    T : Module, F2 : ModuleHomomorphism<T, T>, CC2 : ChainComplex<T, F2>
-> ResolutionHomomorphism<S, F1, CC1, T, F2, CC2> {
+impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1, CC2> {
     pub fn new(
         name : String,
-        source : Weak<ResolutionInner<S,F1,CC1>>, target : Weak<ResolutionInner<T,F2,CC2>>,
+        source : Weak<ResolutionInner<CC1>>, target : Weak<CC2>,
         homological_degree_shift : u32, internal_degree_shift : i32
     ) -> Self {
         Self {
@@ -41,7 +35,7 @@ impl<
         }
     }
 
-    fn get_map_ensure_length(&self, output_homological_degree : u32) -> &FreeModuleHomomorphism<FreeModule> {
+    fn get_map_ensure_length(&self, output_homological_degree : u32) -> &FreeModuleHomomorphism<CC2::Module> {
         if output_homological_degree as usize >= self.maps.len() {
             let input_homological_degree = output_homological_degree + self.homological_degree_shift;
             self.maps.push(FreeModuleHomomorphism::new(self.source.upgrade().unwrap().module(input_homological_degree), self.target.upgrade().unwrap().module(output_homological_degree), self.internal_degree_shift));
@@ -49,7 +43,7 @@ impl<
         return &self.maps[output_homological_degree as usize];
     }
 
-    pub fn get_map(&self, output_homological_degree : u32) -> &FreeModuleHomomorphism<FreeModule> {
+    pub fn get_map(&self, output_homological_degree : u32) -> &FreeModuleHomomorphism<CC2::Module> {
         &self.maps[output_homological_degree as usize]
     }
 
@@ -131,8 +125,18 @@ impl<
                 target_chain_map_qi.as_ref().unwrap().apply(&mut outputs_matrix[k], 1, &extra_image_matrix[extra_image_row]);
                 extra_image_row += 1;
             } else {
+                if input_homological_degree == 1 && input_internal_degree == 2 {
+                    println!("dx: {}", dx_vector);
+                }
                 f_prev.apply(&mut fdx_vector, 1, input_internal_degree, &dx_vector);
+                if input_homological_degree == 1 && input_internal_degree == 2 {
+                    println!("fdx: {}", fdx_vector);
+                }
+
                 d_quasi_inverse.apply(&mut outputs_matrix[k], 1, &fdx_vector);
+                if input_homological_degree == 1 && input_internal_degree == 2 {
+                    println!("final: {}", outputs_matrix[k]);
+                }
                 dx_vector.set_to_zero();
                 fdx_vector.set_to_zero();
             }
@@ -144,10 +148,4 @@ impl<
 
 }
 
-pub type ResolutionHomomorphismToUnit<M, F, CC> = ResolutionHomomorphism<M, F, CC,
-    OptionModule<FiniteModule>,
-    ZeroHomomorphism<OptionModule<FiniteModule>, OptionModule<FiniteModule>>,
-    CCDZ<FiniteModule>
->;
-
-// FreeModuleHomomorphism *ResolutionHomomorphism_getMap(ResolutionHomomorphism *f, uint homological_degree);
+pub type ResolutionHomomorphismToUnit<CC> = ResolutionHomomorphism<CC, ResolutionInner<CCDZ<FiniteModule>>>;

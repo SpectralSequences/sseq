@@ -316,6 +316,11 @@ impl Matrix {
     }
 
     pub fn row_reduce_offset(&mut self, column_to_pivot_row: &mut Vec<isize>, offset : usize) {
+        self.row_reduce_permutation(column_to_pivot_row, offset..self.columns());
+    }
+
+    pub fn row_reduce_permutation<T>(&mut self, column_to_pivot_row: &mut Vec<isize>, permutation : T)
+        where T : Iterator<Item = usize> {
         debug_assert!(self.columns() <= column_to_pivot_row.len());
         let p = self.p;
         let columns = self.columns();
@@ -327,7 +332,7 @@ impl Matrix {
             return;
         }
         let mut pivot : usize = 0;
-        for pivot_column in offset .. columns {
+        for pivot_column in permutation {
             // Search down column for a nonzero entry.
             let mut pivot_row = rows;
             for i in pivot..rows {
@@ -370,7 +375,6 @@ impl Matrix {
             }
             pivot += 1;
         }
-        return;
     }
 }
 
@@ -436,6 +440,68 @@ impl Subspace {
         self.matrix.row_reduce(&mut self.column_to_pivot_row);
     }
 
+    pub fn add_vectors(&mut self, mut rows : impl std::iter::Iterator<Item=FpVector>) {
+        let num_rows = self.matrix.rows();
+        'outer: loop {
+            let mut first_row = num_rows;
+            for i in 0 .. num_rows {
+                if self.matrix[i].is_zero() {
+                    first_row = i;
+                    break;
+                }
+            }
+            if first_row == num_rows {
+                return;
+            }
+
+            for i in first_row .. num_rows {
+                if let Some(v) = rows.next() {
+                    self.matrix[i] = v;
+                } else {
+                    break 'outer;
+                }
+            }
+            self.matrix.row_reduce(&mut self.column_to_pivot_row);
+        }
+        self.matrix.row_reduce(&mut self.column_to_pivot_row);
+    }
+
+    pub fn add_basis_elements(&mut self, mut rows : impl std::iter::Iterator<Item=usize>) {
+        let num_rows = self.matrix.rows();
+        'outer: loop {
+            let mut first_row = num_rows;
+            for i in 0 .. num_rows {
+                if self.matrix[i].is_zero() {
+                    first_row = i;
+                    break;
+                }
+            }
+            if first_row == num_rows {
+                return;
+            }
+
+            for i in first_row .. num_rows {
+                if let Some(v) = rows.next() {
+                    self.matrix[i].set_entry(v, 1);
+                } else {
+                    break 'outer;
+                }
+            }
+            self.matrix.row_reduce(&mut self.column_to_pivot_row);
+        }
+        self.matrix.row_reduce(&mut self.column_to_pivot_row);
+    }
+
+    /// A version of add_vector that doesn't row reduce the resulting subspace.
+    pub fn add_vector_raw(&mut self, row : &FpVector) {
+        self.matrix.set_row(self.matrix.rows() - 1, row);
+    }
+
+    /// Flush the actions of the `add_vector_raw`
+    pub fn flush(&mut self) {
+        self.matrix.row_reduce(&mut self.column_to_pivot_row);
+    }
+
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
     /// that have a 0 in every column where there is a pivot in `matrix`
     pub fn reduce(&self, vector : &mut FpVector){
@@ -496,6 +562,15 @@ impl Subspace {
         self.matrix.set_to_zero();
         for x in self.column_to_pivot_row.iter_mut() {
             *x = -1;
+        }
+    }
+
+    /// Sets the subspace to be the entire subspace.
+    pub fn set_to_entire(&mut self) {
+        self.matrix.set_to_zero();
+        for i in 0..self.matrix.columns() {
+            self.matrix[i].set_entry(i, 1);
+            self.column_to_pivot_row[i] = i as isize;
         }
     }
 }

@@ -1,7 +1,5 @@
-use std::slice::Iter;
-
 use core::cell::UnsafeCell;
-use core::ops::Index;
+use core::ops::{Deref, DerefMut, Index, IndexMut};
 
 use bivec::BiVec;
 
@@ -29,10 +27,6 @@ impl<T>  OnceVec<T> {
         unsafe { &mut *self.data.get() }
     }
 
-    fn get_vec(&self) -> &Vec<T> {
-        unsafe { &*self.data.get() }
-    }
-
     pub fn reserve(&self, additional : usize) {
         self.get_vec_mut().reserve(additional);
     }
@@ -41,34 +35,48 @@ impl<T>  OnceVec<T> {
         self.get_vec_mut().reserve_exact(additional);
     }
 
-    pub fn len(&self) -> usize {
-        self.get_vec().len()
-    }
-
-    pub fn get(&self, i : usize) -> &T {
-        &(self.get_vec()[i])
-    }
-
     pub fn push(&self, x : T) {
         self.get_vec_mut().push(x);
-    }
-
-    pub fn iter(&self) -> Iter<T> {
-        self.get_vec().iter()
     }
 }
 
 impl<T> Index<usize> for OnceVec<T> {
     type Output = T;
     fn index(&self, key : usize) -> &T {
-        self.get(key)
+        &Deref::deref(self)[key]
+    }
+}
+
+impl<T> IndexMut<usize> for OnceVec<T> {
+    fn index_mut(&mut self, key : usize) -> &mut T {
+        &mut DerefMut::deref_mut(self)[key]
     }
 }
 
 impl<T> Index<u32> for OnceVec<T> {
     type Output = T;
     fn index(&self, key : u32) -> &T {
-        self.get(key as usize)
+        &Deref::deref(self)[key as usize]
+    }
+}
+
+impl<T> IndexMut<u32> for OnceVec<T> {
+    fn index_mut(&mut self, key : u32) -> &mut T {
+        &mut DerefMut::deref_mut(self)[key as usize]
+    }
+}
+
+impl<T> Deref for OnceVec<T> {
+    type Target = Vec<T>;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.data.get() }
+    }
+}
+
+impl<T> DerefMut for OnceVec<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *self.data.get() }
     }
 }
 
@@ -95,39 +103,35 @@ impl<T> OnceBiVec<T> {
         Self::from_bivec(BiVec::with_capacity(min_degree, capacity))
     }
 
-    pub fn min_degree(&self) -> i32 {
-        unsafe { self.get_bivec().min_degree() }
-    }
-
-    pub fn max_degree(&self) -> i32 {
-        unsafe { self.get_bivec().max_degree() }
-    }
-
-    unsafe fn get_bivec_mut(&self) -> &mut BiVec<T> {
-        &mut *self.data.get()
-    }
-
-    unsafe fn get_bivec(&self) -> &BiVec<T> {
-        &*self.data.get()
-    }
-
-    pub fn len(&self) -> i32 {
-        unsafe { self.get_bivec().len() }
-    }
-
     pub fn push(&self, x : T) {
-        unsafe { self.get_bivec_mut().push(x); }
-    }
-
-    pub fn iter(&self) -> Iter<T> {
-        unsafe { self.get_bivec().iter() }
+        unsafe { (*self.data.get()).push(x); }
     }
 }
 
 impl<T> Index<i32> for OnceBiVec<T> {
     type Output = T;
     fn index(&self, key : i32) -> &T {
-        unsafe { &(self.get_bivec()[key]) }
+        &Deref::deref(self)[key]
+    }
+}
+
+impl<T> IndexMut<i32> for OnceBiVec<T> {
+    fn index_mut(&mut self, key : i32) -> &mut T {
+        &mut DerefMut::deref_mut(self)[key]
+    }
+}
+
+impl<T> Deref for OnceBiVec<T> {
+    type Target = BiVec<T>;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.data.get() }
+    }
+}
+
+impl<T> DerefMut for OnceBiVec<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *self.data.get() }
     }
 }
 

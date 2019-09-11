@@ -9,7 +9,7 @@ use crate::chain_complex::{ChainComplex, CochainComplex};
 use crate::hom_space::HomSpace;
 use crate::hom_pullback::HomPullback;
 
-pub struct HomComplex<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : BoundedModule> {
+pub struct HomComplex<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<FreeModule>>, N : BoundedModule> {
     min_degree : i32,
     source : Arc<CC>,
     target : Arc<N>,
@@ -19,7 +19,7 @@ pub struct HomComplex<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeM
     cohomology_basis : OnceVec<OnceBiVec<Vec<usize>>>
 }
 
-impl<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : BoundedModule>
+impl<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<FreeModule>>, N : BoundedModule>
     HomComplex<CC, N> {
     pub fn new(source : Arc<CC>, target : Arc<N>) -> Self {
         let min_degree = source.min_degree() - target.max_degree();
@@ -36,8 +36,11 @@ impl<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : Boun
     }
 }
 
-impl<CC : ChainComplex<FreeModule, FreeModuleHomomorphism<FreeModule>>, N : BoundedModule>
-    CochainComplex<HomSpace<N>, HomPullback<N>> for HomComplex<CC, N> {
+impl<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<FreeModule>>, N : BoundedModule>
+    CochainComplex for HomComplex<CC, N> {
+    type Module = HomSpace<N>;
+    type Homomorphism = HomPullback<N>;
+
     fn algebra(&self) -> Arc<AlgebraAny> {
         self.zero_module.algebra()
     }

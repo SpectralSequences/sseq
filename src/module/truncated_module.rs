@@ -1,7 +1,10 @@
 use crate::module::{Module, BoundedModule};
+use crate::module_homomorphism::ModuleHomomorphism;
 use crate::fp_vector::FpVector;
+use std::sync::MutexGuard;
 use std::sync::Arc;
-use crate::algebra::{Algebra, AlgebraAny};
+use crate::algebra::AlgebraAny;
+use crate::matrix::{QuasiInverse, Subspace};
 
 /// A module M where we quotient out everything above degree `truncation`
 pub struct TruncatedModule<M : Module> {
@@ -56,8 +59,124 @@ impl<M : Module> Module for TruncatedModule<M> {
             self.module.basis_element_to_string(degree, idx)
         }
     }
+}
 
-    fn prime(&self) -> u32 {
-        self.algebra().prime()
+pub struct TruncatedHomomorphism<F : ModuleHomomorphism> {
+    f : Arc<F>,
+    s : Arc<TruncatedModule<F::Source>>,
+    t : Arc<TruncatedModule<F::Target>>
+}
+
+pub struct TruncatedHomomorphismSource<F : ModuleHomomorphism> {
+    f : Arc<F>,
+    s : Arc<TruncatedModule<F::Source>>,
+    t : Arc<F::Target>
+}
+
+impl<F : ModuleHomomorphism> TruncatedHomomorphism<F> {
+    pub fn new (f : Arc<F>, s : Arc<TruncatedModule<F::Source>>, t : Arc<TruncatedModule<F::Target>>) -> Self {
+        TruncatedHomomorphism {
+            f, s, t
+        }
+    }
+
+    fn truncated_degree(&self) -> i32 {
+        std::cmp::min(self.s.truncation - self.f.degree_shift(), self.t.truncation)
+    }
+}
+
+impl<F : ModuleHomomorphism> ModuleHomomorphism for TruncatedHomomorphism<F> {
+    type Source = TruncatedModule<F::Source>;
+    type Target = TruncatedModule<F::Target>;
+
+    fn source(&self) -> Arc<Self::Source> { Arc::clone(&self.s) }
+    fn target(&self) -> Arc<Self::Target> { Arc::clone(&self.t) }
+    fn degree_shift(&self) -> i32 { self.f.degree_shift() }
+
+    fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_idx : usize) {
+        if input_degree - self.degree_shift() <= self.truncated_degree() {
+            self.f.apply_to_basis_element(result, coeff, input_degree, input_idx);
+        }
+    }
+
+    fn lock(&self) -> MutexGuard<i32> { self.f.lock() }
+
+    fn max_kernel_degree(&self) -> i32 { self.f.max_kernel_degree() }
+
+    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace) { self.f.set_kernel(lock, degree, kernel) }
+    fn kernel(&self, degree : i32) -> Option<&Subspace> {
+        if degree > self.truncated_degree() {
+            unimplemented!();
+        } else {
+            self.f.kernel(degree)
+        }
+    }
+
+    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse) { self.f.set_quasi_inverse(lock, degree, quasi_inverse) }
+
+    fn quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
+        if degree > self.truncated_degree() {
+            None
+//            Some(&QuasiInverse {
+//                image : Some(Subspace::new(self.prime(), 0, self.t.dimension(degree))),
+//                preimage : Matrix::new(self.prime(), self.s.dimension(degree - self.degree_shift()), 0)
+//            })
+        } else {
+            self.f.quasi_inverse(degree)
+        }
+    }
+}
+
+impl<F : ModuleHomomorphism> TruncatedHomomorphismSource<F> {
+    pub fn new (f : Arc<F>, s : Arc<TruncatedModule<F::Source>>, t : Arc<F::Target>) -> Self {
+        TruncatedHomomorphismSource {
+            f, s, t
+        }
+    }
+
+    fn truncated_degree(&self) -> i32 {
+        self.s.truncation - self.f.degree_shift()
+    }
+}
+
+impl<F : ModuleHomomorphism> ModuleHomomorphism for TruncatedHomomorphismSource<F> {
+    type Source = TruncatedModule<F::Source>;
+    type Target = F::Target;
+
+    fn source(&self) -> Arc<Self::Source> { Arc::clone(&self.s) }
+    fn target(&self) -> Arc<Self::Target> { Arc::clone(&self.t) }
+    fn degree_shift(&self) -> i32 { self.f.degree_shift() }
+
+    fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_idx : usize) {
+        if input_degree <= self.s.truncation {
+            self.f.apply_to_basis_element(result, coeff, input_degree, input_idx);
+        }
+    }
+
+    fn lock(&self) -> MutexGuard<i32> { self.f.lock() }
+
+    fn max_kernel_degree(&self) -> i32 { self.f.max_kernel_degree() }
+
+    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace) { self.f.set_kernel(lock, degree, kernel) }
+    fn kernel(&self, degree : i32) -> Option<&Subspace> {
+        if degree > self.truncated_degree() {
+            unimplemented!();
+        } else {
+            self.f.kernel(degree)
+        }
+    }
+
+    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse) { self.f.set_quasi_inverse(lock, degree, quasi_inverse) }
+
+    fn quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
+        if degree > self.truncated_degree() {
+            None
+//            Some(&QuasiInverse {
+//                image : Some(Subspace::new(self.prime(), 0, self.t.dimension(degree))),
+//                preimage : Matrix::new(self.prime(), self.s.dimension(degree - self.degree_shift()), 0)
+//            })
+        } else {
+            self.f.quasi_inverse(degree)
+        }
     }
 }

@@ -35,12 +35,15 @@ impl<M : BoundedModule> HomPullback<M> {
     }
 }
 
-impl<M : BoundedModule> ModuleHomomorphism<HomSpace<M>, HomSpace<M>> for HomPullback<M> {
-    fn source(&self) -> Arc<HomSpace<M>> {
+impl<M : BoundedModule> ModuleHomomorphism for HomPullback<M> {
+    type Source = HomSpace<M>;
+    type Target = HomSpace<M>;
+
+    fn source(&self) -> Arc<Self::Source> {
         Arc::clone(&self.source)
     }
 
-    fn target(&self) -> Arc<HomSpace<M>> {
+    fn target(&self) -> Arc<Self::Target> {
         Arc::clone(&self.target)
     }
 
