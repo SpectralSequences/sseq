@@ -125,18 +125,8 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
                 target_chain_map_qi.as_ref().unwrap().apply(&mut outputs_matrix[k], 1, &extra_image_matrix[extra_image_row]);
                 extra_image_row += 1;
             } else {
-                if input_homological_degree == 1 && input_internal_degree == 2 {
-                    println!("dx: {}", dx_vector);
-                }
                 f_prev.apply(&mut fdx_vector, 1, input_internal_degree, &dx_vector);
-                if input_homological_degree == 1 && input_internal_degree == 2 {
-                    println!("fdx: {}", fdx_vector);
-                }
-
                 d_quasi_inverse.apply(&mut outputs_matrix[k], 1, &fdx_vector);
-                if input_homological_degree == 1 && input_internal_degree == 2 {
-                    println!("final: {}", outputs_matrix[k]);
-                }
                 dx_vector.set_to_zero();
                 fdx_vector.set_to_zero();
             }

@@ -129,6 +129,7 @@ pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
 use crate::yoneda::yoneda_representative;
 use crate::resolution_homomorphism::ResolutionHomomorphism;
 use std::io::{Write, stdin, stdout};
+use crate::module::BoundedModule;
 use std::str::FromStr;
 use std::fmt::Display;
 use std::time::Instant;
@@ -183,6 +184,16 @@ fn query_with_default_no_default_indicated<S : Display, T : FromStr, F>(prompt :
     }
 }
 
+fn query_yes_no(prompt : &str) -> bool {
+    query(prompt,
+        |response : String| if response.starts_with("y") || response.starts_with("n") {
+            Ok(response.starts_with("y"))
+        } else {
+            Err(format!("unrecognized response '{}'. Should be '(y)es' or '(n)o'", response))
+        }
+    )
+}
+
 #[allow(unreachable_code)]
 #[allow(unused_mut)]
 pub fn run_test() {    
@@ -197,6 +208,7 @@ pub fn run_test() {
         let x : i32= query_with_default_no_default_indicated("x", 200, |x : i32| Ok(x));
         let s : u32 = query_with_default_no_default_indicated("s", 200, |x : u32| Ok(x));
         let i : usize = query_with_default_no_default_indicated("idx", 200, |x : usize| Ok(x));
+        let individual = query_yes_no("Show individual modules");
 
         let start = Instant::now();
         let t = x + s as i32;
@@ -225,6 +237,23 @@ pub fn run_test() {
                 assert_eq!(final_map.output(t, i_).entry(0), 0);
             }
         }
+
+        let mut check = vec![0; t as usize + 1];
+        for s in 0 ..= s {
+            let module = yoneda.module(s);
+
+            println!("Dimension of {}th module is {} (minimal resolution: {})", s, module.total_dimension(), module.module.total_dimension());
+
+            for t in 0 ..= t {
+                if individual {
+                    for i in 0 .. module.dimension(t) {
+                        println!("{}: {}", t, module.basis_element_to_string(t, i));
+                    }
+                }
+                check[t as usize] += (if s % 2 == 0 { 1 } else { -1 }) * module.dimension(t) as i32;
+            }
+        }
+        println!("Check sum: {:?}", check);
     }
 }
 

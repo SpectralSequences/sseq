@@ -319,6 +319,60 @@ impl Matrix {
         self.row_reduce_permutation(column_to_pivot_row, offset..self.columns());
     }
 
+    /// This is very similar to row_reduce, except we only need to get to row echelon form, not
+    /// *reduced* row echelon form. It also returns the list of pivots instead.
+    pub fn find_pivots_permutation<T : Iterator<Item = usize>>(&mut self, permutation : T) -> Vec<usize> {
+        let p = self.p;
+        let columns = self.columns();
+        let rows = self.rows();
+        let mut pivots = Vec::with_capacity(rows);
+
+        if rows == 0 {
+            return pivots;
+        }
+
+        let mut pivot : usize = 0;
+        for pivot_column in permutation {
+            // Search down column for a nonzero entry.
+            let mut pivot_row = rows;
+            for i in pivot..rows {
+                if self[i].entry(pivot_column) != 0 {
+                    pivot_row = i;
+                    break;
+                }
+            }
+            if pivot_row == rows {
+                continue;
+            }
+
+            // Record position of pivot.
+            pivots.push(pivot_column);
+
+            // Pivot_row contains a row with a pivot in current column.
+            // Swap pivot row up.
+            self.swap_rows(pivot, pivot_row);
+            // println!("({}) <==> ({}): \n{}", pivot, pivot_row, self);
+
+            // // Divide pivot row by pivot entry
+            let c = self[pivot].entry(pivot_column);
+            let c_inv = combinatorics::inverse(p, c);
+            self[pivot].scale(c_inv);
+            // println!("({}) <== {} * ({}): \n{}", pivot, c_inv, pivot, self);
+
+            for i in pivot_row + 1 .. rows {
+                let pivot_column_entry = self[i].entry(pivot_column);
+                if pivot_column_entry == 0 {
+                    continue;
+                }
+                let row_op_coeff = p - pivot_column_entry;
+                // Do row operation
+                self.row_op(i, pivot, row_op_coeff);
+            }
+            pivot += 1;
+        }
+        pivots
+    }
+
     pub fn row_reduce_permutation<T>(&mut self, column_to_pivot_row: &mut Vec<isize>, permutation : T)
         where T : Iterator<Item = usize> {
         debug_assert!(self.columns() <= column_to_pivot_row.len());
