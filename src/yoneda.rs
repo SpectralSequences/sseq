@@ -1,6 +1,6 @@
 
 use crate::chain_complex::{ChainComplex, AugmentedChainComplex};
-use crate::module::{Module, FreeModule, QuotientModule, TruncatedModule, TruncatedHomomorphism, TruncatedHomomorphismSource, QuotientHomomorphism, QuotientHomomorphismSource};
+use crate::module::{Module, FreeModule, QuotientModule as QM, TruncatedModule as TM, TruncatedHomomorphism, TruncatedHomomorphismSource, QuotientHomomorphism, QuotientHomomorphismSource};
 use crate::module_homomorphism::{ModuleHomomorphism, FDModuleHomomorphism};
 use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra};
 
@@ -37,16 +37,16 @@ fn rate_adem_operation(algebra : &AdemAlgebra, deg : i32, idx: usize) -> u32{
 }
 
 pub struct YonedaRepresentative<CC : AugmentedChainComplex> {
-    modules : Vec<Arc<QuotientModule<TruncatedModule<CC::Module>>>>,
-    zero_module : Arc<QuotientModule<TruncatedModule<CC::Module>>>,
-    differentials : Vec<Arc<FDModuleHomomorphism<QuotientModule<TruncatedModule<CC::Module>>, QuotientModule<TruncatedModule<CC::Module>>>>>,
+    modules : Vec<Arc<QM<TM<CC::Module>>>>,
+    zero_module : Arc<QM<TM<CC::Module>>>,
+    differentials : Vec<Arc<FDModuleHomomorphism<QM<TM<CC::Module>>, QM<TM<CC::Module>>>>>,
     target_cc : Arc<CC::TargetComplex>,
-    chain_maps : Vec<Arc<FDModuleHomomorphism<QuotientModule<TruncatedModule<CC::Module>>, <<CC as AugmentedChainComplex>::ChainMap as ModuleHomomorphism>::Target>>>
+    chain_maps : Vec<Arc<FDModuleHomomorphism<QM<TM<CC::Module>>, <CC::ChainMap as ModuleHomomorphism>::Target>>>
 }
 
 impl<CC : AugmentedChainComplex> ChainComplex for YonedaRepresentative<CC> {
-    type Module = QuotientModule<TruncatedModule<CC::Module>>;
-    type Homomorphism = FDModuleHomomorphism<QuotientModule<TruncatedModule<CC::Module>>, QuotientModule<TruncatedModule<CC::Module>>>;
+    type Module = QM<TM<CC::Module>>;
+    type Homomorphism = FDModuleHomomorphism<QM<TM<CC::Module>>, QM<TM<CC::Module>>>;
 
     fn algebra(&self) -> Arc<AlgebraAny> {
         self.target_cc.algebra()
@@ -79,7 +79,7 @@ impl<CC : AugmentedChainComplex> ChainComplex for YonedaRepresentative<CC> {
 
 impl<CC : AugmentedChainComplex> AugmentedChainComplex for YonedaRepresentative<CC> {
     type TargetComplex = CC::TargetComplex;
-    type ChainMap = FDModuleHomomorphism<QuotientModule<TruncatedModule<CC::Module>>, <<CC as AugmentedChainComplex>::ChainMap as ModuleHomomorphism>::Target>;
+    type ChainMap = FDModuleHomomorphism<QM<TM<CC::Module>>, <<CC as AugmentedChainComplex>::ChainMap as ModuleHomomorphism>::Target>;
 
     fn target(&self) -> Arc<Self::TargetComplex> {
         Arc::clone(&self.target_cc)
@@ -102,7 +102,7 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
     let p = cc.prime();
     let algebra = cc.algebra();
 
-    let mut modules = (0 ..= s_max).map(|s| QuotientModule::new(Arc::new(TruncatedModule::new(cc.module(s), t_max)))).collect::<Vec<_>>();
+    let mut modules = (0 ..= s_max).map(|s| QM::new(Arc::new(TM::new(cc.module(s), t_max)))).collect::<Vec<_>>();
 
     for m in &modules {
         m.compute_basis(t_max); // populate masks/basis
@@ -242,7 +242,7 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
         }
     }
 
-    let zero_module = Arc::new(QuotientModule::new(Arc::new(TruncatedModule::new(cc.zero_module(), t_max))));
+    let zero_module = Arc::new(QM::new(Arc::new(TM::new(cc.zero_module(), t_max))));
 
     let modules = modules.into_iter().map(Arc::new).collect::<Vec<_>>();
 
