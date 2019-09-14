@@ -1,13 +1,15 @@
 
 use crate::chain_complex::{ChainComplex, AugmentedChainComplex};
-use crate::module::{Module, FreeModule, QuotientModule as QM, TruncatedModule as TM, TruncatedHomomorphism, TruncatedHomomorphismSource, QuotientHomomorphism, QuotientHomomorphismSource};
+use crate::module::{Module, FreeModule, BoundedModule};
+use crate::module::{QuotientModule as QM, TruncatedModule as TM};
+use crate::module::{TruncatedHomomorphism, TruncatedHomomorphismSource, QuotientHomomorphism, QuotientHomomorphismSource};
 use crate::module_homomorphism::{ModuleHomomorphism, FDModuleHomomorphism};
 use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra};
 
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 const PENALTY_UNIT : u32 = 100;
@@ -24,16 +26,15 @@ fn rate_adem_operation(algebra : &AdemAlgebra, deg : i32, idx: usize) -> u32{
         return 1;
     }
     let elt = algebra.basis_element_from_index(deg, idx);
-    elt.ps.len() as u32
-//    let mut pref = 0;
-//    for i in elt.ps.iter() {
-//        let mut i = *i;
-//        while i != 0 {
-//            pref += i & 1;
-//            i >>= 1;
-//        }
-//    }
-//    pref
+    let mut pref = 0;
+    for i in elt.ps.iter() {
+        let mut i = *i;
+        while i != 0 {
+            pref += i & 1;
+            i >>= 1;
+        }
+    }
+    pref
 }
 
 pub struct YonedaRepresentative<CC : AugmentedChainComplex> {
@@ -100,7 +101,7 @@ pub fn yoneda_representative<CC>(cc : Arc<CC>, s_max : u32, t_max : i32, idx : u
 where CC : AugmentedChainComplex<Module=FreeModule> {
     assert!(s_max > 0);
     let p = cc.prime();
-    let algebra = cc.algebra();
+    let algebra = &*cc.algebra(); // Deref to &AlgebraAny
 
     let mut modules = (0 ..= s_max).map(|s| QM::new(Arc::new(TM::new(cc.module(s), t_max)))).collect::<Vec<_>>();
 
@@ -108,155 +109,92 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
         m.compute_basis(t_max); // populate masks/basis
     }
 
-    // These are the generators for each s that have been chosen to keep.
-    let mut chosen_generators : Vec<HashSet<(i32, usize)>> = vec![HashSet::new(); s_max as usize];
-
     for t in (0 ..= t_max).rev() {
-        let mut differential_target : Option<Matrix> = None;
+        let mut keep : Option<Subspace>;
+        if t == t_max {
+            let mut keep_ = Subspace::new(p, 1, modules[s_max as usize].dimension(t));
+            keep_.add_basis_elements(vec![idx].into_iter());
+            keep = Some(keep_);
+        } else {
+            keep = None;
+        }
+
         for s in (0 .. s_max).rev() {
             if t - (s as i32) < cc.min_degree() {
                 continue;
             }
-            let d = cc.differential(s + 1);
 
             let (target, source) = split_mut_borrow(&mut modules, s as usize, s as usize + 1);
 
-            let mut keep : HashSet<usize> = HashSet::new();
-            let mut preferred : HashSet<usize> = HashSet::new();
-            let mut special_quotient : HashMap<usize, FpVector> = HashMap::new();
-
-            if s + 1 == s_max {
-                if t == t_max {
-                    keep.insert(idx);
-                }
-            } else {
-                let mut generators : Vec<(i32, usize)> = Vec::new();
-                let mut target_degrees = Vec::new();
-                let mut padded_target_degrees = Vec::new();
-
-                for op_deg in 1 ..= t_max - t {
-                    for op_idx in algebra.generators(op_deg) {
-                        generators.push((op_deg, op_idx));
-                        target_degrees.push(source.module.dimension(t + op_deg));
-                        padded_target_degrees.push(FpVector::padded_dimension(p, source.module.dimension(t + op_deg)));
-                    }
-                }
-
-                let total_padded_degree = padded_target_degrees.iter().sum();
-                let total_cols = total_padded_degree + source.module.dimension(t);
-
-                let mut image_subspace = Subspace::new(p, source.dimension(t), total_cols);
-
-                let mut result = FpVector::new(p, total_cols);
-                for i in 0 .. source.dimension(t) {
-                    let i = source.basis_list[t][i];
-                    let mut offset = 0;
-                    // Check if there are non-zero Steenrod operations.
-                    for (gen_idx, (op_deg, op_idx)) in generators.iter().enumerate() {
-                        result.set_slice(offset, offset + target_degrees[gen_idx]);
-                        source.act_on_original_basis(&mut result, 1, *op_deg, *op_idx, t, i);
-                        result.clear_slice();
-                        offset += padded_target_degrees[gen_idx];
-                    }
-                    if result.is_zero() {
-                        continue;
-                    }
-                    result.set_entry(total_padded_degree + i, 1);
-
-                    // Now see if the Sq^i of this element is already hit by something else. In
-                    // this case, the difference will be in the kernel.
-                    image_subspace.reduce(&mut result);
-                    result.set_slice(0, total_padded_degree);
-
-                    if result.is_zero() {
-                        result.clear_slice();
-                        result.set_slice(total_padded_degree, total_cols);
-                        let mut kernel_vec = FpVector::new(p, source.module.dimension(t));
-                        kernel_vec.assign(&result);
-                        special_quotient.insert(i, kernel_vec);
-                    } else {
-                        keep.insert(i);
-
-                        result.clear_slice();
-                        image_subspace.add_vector(&result);
-                        let opgen = source.module.module.index_to_op_gen(t, i);
-                        chosen_generators[s as usize].insert((opgen.generator_degree, opgen.generator_index));
-                    }
-                    result.clear_slice();
-                    result.set_to_zero();
-                }
+            if source.dimension(t) == 0 {
+                keep = None;
+                continue;
             }
 
-            // Add differentials to the list of targets to keep.
-            if let Some(mut diffs) = differential_target {
-                // We now assign preferences to the basis elements of source
-                let mut prefs : Vec<u32> = vec![0; source.module.dimension(t)];
-                let subspace = &source.subspaces[t];
-                for i in 0 .. source.module.dimension(t) {
-                    if subspace.column_to_pivot_row[i] >= 0 {
-                        // We should never get to use this
-                        prefs[i] = PENALTY_UNIT * 100;
-                        continue;
-                    }
+            let (mut matrix, images) = compute_kernel_image(p, source, keep, t);
 
-                    if keep.contains(&i) {
-                        continue;
-                    }
+            let mut pivots = vec![-1; matrix.columns()];
+            matrix.row_reduce(&mut pivots);
 
+            let subspace = &source.subspaces[t];
+            let mut pivot_columns : Vec<(u32, usize)> = pivots
+                .into_iter()
+                .enumerate()
+                .filter(|&(i, v)| v >= 0)
+                .map(|(i, v)| {
                     let opgen = source.module.module.index_to_op_gen(t, i);
 
-                    prefs[i] += rate_operation(&*algebra, opgen.operation_degree, opgen.operation_index);
-
-                    if !chosen_generators[s as usize].contains(&(opgen.generator_degree, opgen.generator_index)) {
-                        prefs[i] += PENALTY_UNIT;
-                    }
+                    let mut pref = rate_operation(algebra, opgen.operation_degree, opgen.operation_index);
 
                     for k in 0 .. subspace.matrix.rows() {
                         // This means we have quotiented out by something
                         if subspace.matrix[k].entry(i) != 0 {
-                            prefs[i] += PENALTY_UNIT * 2;
-                            break;
+                            pref += PENALTY_UNIT;
                         }
                     }
-                }
-                let mut prefs = prefs.iter().enumerate().map(|(x, y)| (y, x)).collect::<Vec<_>>();
-                prefs.sort_unstable();
-                // Sort uses lexicographical ordering, so this sorts by the preference
-                let perms = prefs.into_iter().map(|(x, y)| y);
 
-                let new_keep = diffs.find_pivots_permutation(perms);
+                    (pref, i)
+                })
+                .collect::<Vec<_>>();
+            pivot_columns.sort();
 
-                for i in new_keep {
-                    let opgen = source.module.module.index_to_op_gen(t, i);
-                    chosen_generators[s as usize].insert((opgen.generator_degree, opgen.generator_index));
-                    keep.insert(i);
+            let mut chosen_cols : HashSet<usize> = HashSet::new();
+
+            'outer: for image in images {
+                for (_, col) in pivot_columns.iter() {
+                    if chosen_cols.contains(col) {
+                        continue;
+                    }
+                    if image.entry(*col) != 0 {
+                        chosen_cols.insert(*col);
+                        continue 'outer;
+                    }
                 }
+                panic!();
             }
 
-            // Now do the quotienting
-            let mut source_kills_basis : Vec<usize> = Vec::with_capacity(source.module.dimension(t));
-            let mut source_kills_vec : Vec<FpVector> = Vec::with_capacity(source.module.dimension(t));
+            let mut pivot_columns = pivot_columns.iter().map(|(p, i)| i).collect::<Vec<_>>();
+            pivot_columns.sort();
+
+            let d = cc.differential(s + 1);
+
+            let mut matrix = matrix.into_vec();
+            let mut source_kills : Vec<FpVector> = Vec::with_capacity(source.module.dimension(t));
             let mut target_kills : Vec<FpVector> = Vec::with_capacity(target.module.dimension(t));
-            for i in 0 .. source.dimension(t) {
-                let i = source.basis_list[t][i];
-                if keep.contains(&i) {
+
+            for col in pivot_columns.into_iter().rev() {
+                let source_row = matrix.pop().unwrap();
+                if chosen_cols.contains(&col) {
                     continue;
                 }
-                let mut target_kill_vec = FpVector::new(p, target.module.dimension(t));
-                match special_quotient.remove(&i) {
-                    Some(v) => {
-                        d.apply(&mut target_kill_vec, 1, t, &v);
-                        source_kills_vec.push(v);
-                    },
-                    None => {
-                        source_kills_basis.push(i);
-                        d.apply_to_basis_element(&mut target_kill_vec, 1, t, i);
-                    }
-                };
-                target_kills.push(target_kill_vec);
+
+                let mut target_row = FpVector::new(p, target.module.dimension(t));
+                d.apply(&mut target_row, 1, t, &source_row);
+
+                source_kills.push(source_row);
+                target_kills.push(target_row);
             }
-            source.quotient_basis_elements(t, source_kills_basis);
-            source.quotient_vectors(t, source_kills_vec);
+            source.quotient_vectors(t, source_kills);
             target.quotient_vectors(t, target_kills);
 
             // Finally, record the differentials.
@@ -267,17 +205,15 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
 
             for i in 0 .. source_dim {
                 let i = source.basis_list[t][i];
-                // We should be intelligent and skip if i is the target of the differential, for
-                // which we know d of this will be in the span of other stuff (it's not necessarily
-                // zero, because quotienting is weird).
-
                 let mut target_kill_vec = FpVector::new(p, target_dim);
                 d.apply_to_basis_element(&mut target_kill_vec, 1, t, i);
                 target.subspaces[t].reduce(&mut target_kill_vec);
                 differentials.push(target_kill_vec);
             }
 
-            differential_target = Some(Matrix::from_rows(p, differentials));
+            let mut keep_ = Subspace::new(p, source_dim, target_dim);
+            keep_.add_vectors(differentials.into_iter());
+            keep = Some(keep_);
         }
     }
 
@@ -314,4 +250,97 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
         target_cc : cc.target(),
         chain_maps
     }
+}
+
+/// This function does the following computation:
+///
+/// Given the source module `source` and a subspace `keep`, the function returns the subspace of all
+/// elements in `source` of degree `t` that are killed by all non-trivial actions of the algebra,
+/// followed by a list of elements that span the intersection between this subspace and `keep`.
+///
+/// If `keep` is `None`, it is interpreted as the empty subspace.
+
+fn compute_kernel_image<M : BoundedModule>(
+    p : u32,
+    source : &QM<M>,
+    keep : Option<Subspace>,
+    t : i32) -> (Matrix, Vec<FpVector>) {
+
+    let algebra = &*source.algebra();
+
+    let mut generators : Vec<(i32, usize)> = Vec::new();
+    let mut target_degrees = Vec::new();
+    let mut padded_target_degrees : Vec<usize> = Vec::new();
+
+    let source_orig_dimension = source.module.dimension(t);
+    for op_deg in 1 ..= source.max_degree() - t {
+        for op_idx in algebra.generators(op_deg) {
+            generators.push((op_deg, op_idx));
+            target_degrees.push(source.module.dimension(t + op_deg));
+            padded_target_degrees.push(FpVector::padded_dimension(p, source.module.dimension(t + op_deg)));
+        }
+    }
+
+    let total_padded_degree : usize = padded_target_degrees.iter().sum();
+    let padded_source_degree : usize = FpVector::padded_dimension(p, source_orig_dimension);
+    let total_cols : usize = total_padded_degree + padded_source_degree + source_orig_dimension;
+
+    let mut matrix_rows : Vec<FpVector> = Vec::with_capacity(source.dimension(t));
+
+    let mut projection_off_keep = FpVector::new(p, source_orig_dimension);
+
+    for i in 0 .. source.dimension(t) {
+        let mut result = FpVector::new(p, total_cols);
+
+        let i = source.basis_list[t][i];
+        let mut offset = 0;
+
+        for (gen_idx, (op_deg, op_idx)) in generators.iter().enumerate() {
+            result.set_slice(offset, offset + target_degrees[gen_idx]);
+            source.act_on_original_basis(&mut result, 1, *op_deg, *op_idx, t, i);
+            result.clear_slice();
+            offset += padded_target_degrees[gen_idx];
+        }
+
+        if let Some(keep_) = &keep {
+            projection_off_keep.set_to_zero();
+            projection_off_keep.set_entry(i, 1);
+            keep_.reduce(&mut projection_off_keep);
+            result.set_slice(offset, offset + source_orig_dimension);
+            result.assign(&projection_off_keep);
+            result.clear_slice();
+        } else {
+            result.set_entry(offset + i, 1);
+        }
+
+        result.set_entry(padded_source_degree + total_padded_degree + i, 1);
+        matrix_rows.push(result);
+    }
+    let mut matrix = Matrix::from_rows(p, matrix_rows);
+    let mut pivots = vec![-1; total_cols];
+    matrix.row_reduce(&mut pivots);
+
+    let first_kernel_row = match &pivots[0..total_padded_degree].iter().rposition(|&i| i >= 0) {
+        Some(n) => pivots[*n] as usize + 1,
+        None => 0
+    };
+    let first_image_row = match &pivots[total_padded_degree .. total_padded_degree + source_orig_dimension].iter().rposition(|&i| i >= 0) {
+        Some(n) => pivots[*n + total_padded_degree] as usize + 1,
+        None => first_kernel_row
+    };
+    let first_empty_row = match &pivots[total_padded_degree + padded_source_degree .. total_cols].iter().rposition(|&i| i >= 0) {
+        Some(n) => pivots[*n + total_padded_degree + padded_source_degree] as usize + 1,
+        None => first_image_row
+    };
+
+    matrix.set_slice(first_kernel_row, first_empty_row, total_padded_degree + padded_source_degree, total_cols);
+    matrix.into_slice();
+
+    let first_image_row = first_image_row - first_kernel_row;
+
+    let mut images = Vec::with_capacity(matrix.rows() - first_image_row);
+    for i in first_image_row .. matrix.rows() {
+        images.push(matrix[i].clone());
+    }
+    (matrix, images)
 }

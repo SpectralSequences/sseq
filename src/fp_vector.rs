@@ -200,6 +200,21 @@ pub trait FpVectorT {
         container.slice_end = container.dimension;
     }
 
+    /// Drops every element in the fp_vector that is not in the current slice.
+    fn into_slice(&mut self) {
+        let p = self.prime();
+        let container = self.vector_container_mut();
+        let entries_per_64_bits = entries_per_64_bits(p);
+        assert_eq!(container.slice_start % entries_per_64_bits, 0);
+        let n = container.slice_start / entries_per_64_bits;
+        container.limbs.drain(0..n);
+
+        container.slice_end -= container.slice_start;
+        container.dimension = container.slice_end;
+        container.slice_start = 0;
+        container.limbs.truncate((container.slice_end - 1) / entries_per_64_bits + 1);
+    }
+
     fn min_limb(&self) -> usize {
         let p = self.prime();
         let container = self.vector_container();

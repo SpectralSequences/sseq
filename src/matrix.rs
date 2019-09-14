@@ -191,6 +191,23 @@ impl Matrix {
     pub fn set_row(&mut self, row_idx : usize, row : &FpVector) {
         self.vectors[row_idx] = row.clone();
     }
+
+    pub fn into_slice(&mut self) {
+        self.rows = self.rows();
+        self.columns = self.columns();
+        self.vectors.drain(0..self.slice_row_start);
+        self.slice_row_end -= self.slice_row_start;
+        self.vectors.truncate(self.slice_row_end);
+        for v in self.vectors.iter_mut() {
+            v.into_slice();
+        }
+        self.clear_slice();
+    }
+
+    pub fn into_vec(mut self) -> Vec<FpVector> {
+        self.into_slice();
+        self.vectors
+    }
 }
 
 impl std::ops::Deref for Matrix {
@@ -510,6 +527,7 @@ impl Subspace {
 
             for i in first_row .. num_rows {
                 if let Some(v) = rows.next() {
+                    assert_eq!(v.dimension(), self.matrix.columns());
                     self.matrix[i] = v;
                 } else {
                     break 'outer;
@@ -559,6 +577,7 @@ impl Subspace {
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
     /// that have a 0 in every column where there is a pivot in `matrix`
     pub fn reduce(&self, vector : &mut FpVector){
+        assert_eq!(vector.dimension(), self.matrix.columns());
         let p = self.matrix.prime();
         let mut row = 0;
         let columns = vector.dimension();
