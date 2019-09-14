@@ -221,22 +221,6 @@ pub fn run_test() {
         let yoneda = Arc::new(yoneda_representative(Arc::clone(&resolution.inner), s, t, idx));
 
         println!("Finding representative time: {:?}", start.elapsed());
-        let mut check = vec![0; t as usize + 1];
-        for s in 0 ..= s {
-            let module = yoneda.module(s);
-
-            println!("Dimension of {}th module is {} (minimal resolution: {})", s, module.total_dimension(), module.module.total_dimension());
-
-            for t in 0 ..= t {
-                if individual {
-                    for i in 0 .. module.dimension(t) {
-                        println!("{}: {}", t, module.basis_element_to_string(t, i));
-                    }
-                }
-                check[t as usize] += (if s % 2 == 0 { 1 } else { -1 }) * module.dimension(t) as i32;
-            }
-        }
-        println!("Check sum: {:?}", check);
 
         let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&yoneda), 0, 0);
         let mut mat = Matrix::new(p, 1, 1);
@@ -255,7 +239,29 @@ pub fn run_test() {
             }
         }
 
+        let mut check = vec![0; t as usize + 1];
+        for s in 0 ..= s {
+            let module = yoneda.module(s);
 
+            println!("Dimension of {}th module is {} (minimal resolution: {})", s, module.total_dimension(), module.module.total_dimension());
+
+            for t in 0 ..= t {
+                if individual {
+                    for i in 0 .. module.dimension(t) {
+                        println!("{}: {}", t, module.basis_element_to_string(t, i));
+                    }
+                }
+                check[t as usize] += (if s % 2 == 0 { 1 } else { -1 }) * module.dimension(t) as i32;
+            }
+        }
+        println!("Check sum: {:?}", check);
+
+        for s in 0 ..= s {
+            let module_string = yoneda.module(s).to_fd_module().to_minimal_json().to_string();
+            let mut output_path_buf = PathBuf::from(format!("M{}", s));
+            output_path_buf.set_extension("json");
+            std::fs::write(&output_path_buf, module_string).unwrap();
+        }
     }
 }
 

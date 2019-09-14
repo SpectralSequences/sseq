@@ -18,6 +18,8 @@ pub use quotient_module::{QuotientModule, QuotientHomomorphism, QuotientHomomorp
 pub use free_module::FreeModule;
 pub use free_module::FreeModuleTableEntry;
 
+use bivec::BiVec;
+
 pub trait BoundedModule : Module {
     fn max_degree(&self) -> i32;
 
@@ -27,6 +29,36 @@ pub trait BoundedModule : Module {
             sum += self.dimension(i);
         }
         sum
+    }
+
+    fn to_fd_module(&self) -> FDModule {
+        let min_degree = self.min_degree();
+        let max_degree = self.max_degree();
+
+        let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree + 1);
+        for i in min_degree ..= max_degree {
+            graded_dimension.push(self.dimension(i));
+        }
+        let mut result = FDModule::new(self.algebra(), self.name().to_string(), graded_dimension);
+
+        let algebra = self.algebra();
+        for input_degree in min_degree .. max_degree {
+            for output_degree in (input_degree + 1) .. max_degree {
+                let output_dimension = result.dimension(output_degree);
+                if output_dimension == 0 {
+                    continue;
+                }
+                let op_degree = output_degree - input_degree;
+
+                for input_idx in 0 .. result.dimension(input_degree){
+                    for op_idx in 0 .. algebra.dimension(op_degree, -1) {
+                        let output_vec = result.action_mut(op_degree, op_idx, input_degree, input_idx);
+                        self.act_on_basis(output_vec, 1, op_degree, op_idx, input_degree, input_idx);
+                    }
+                }
+            }
+        }
+        result
     }
 }
 

@@ -260,4 +260,28 @@ impl<S : BoundedModule, T : Module> FDModuleHomomorphism<S, T> {
             quasi_inverses
         }
     }
+
+    /// This function replaces the source of the FDModuleHomomorphism and does nothing else.
+    /// This is useful for changing the type of the source (but not the mathematical module
+    /// itself). This is intended to be used in conjunction with `BoundedModule::to_fd_module`
+    pub fn replace_source<S_ : BoundedModule>(self, source : Arc<S_>) -> FDModuleHomomorphism<S_, T> {
+        FDModuleHomomorphism {
+            source : source,
+            target : self.target,
+            degree_shift : self.degree_shift,
+            matrices : self.matrices,
+            quasi_inverses : self.quasi_inverses
+        }
+    }
+
+    /// See `replace_source`
+    pub fn replace_target<T_ : BoundedModule>(self, target : Arc<T_>) -> FDModuleHomomorphism<S, T_> {
+        FDModuleHomomorphism {
+            source : self.source,
+            target : target,
+            degree_shift : self.degree_shift,
+            matrices : self.matrices,
+            quasi_inverses : self.quasi_inverses
+        }
+    }
 }

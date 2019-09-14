@@ -86,7 +86,7 @@ impl FiniteDimensionalModule {
         for (i, dim) in graded_dimension.iter_enum() {
             let mut names = Vec::with_capacity(*dim);
             for j in 0 .. *dim {
-                names.push(format!("x{}{}", min_degree + i, j));
+                names.push(format!("x{}_{}", min_degree + i, j));
             }
             gen_names.push(names);
         }
@@ -228,7 +228,7 @@ impl FiniteDimensionalModule {
 
     /// This function will panic if you call it with input such that `module.dimension(input_degree +
     /// operation_degree) = 0`.
-    fn action_mut(
+    pub fn action_mut(
         &mut self,
         operation_degree : i32, operation_idx : usize,
         input_degree : i32, input_idx : usize
@@ -337,6 +337,46 @@ impl FiniteDimensionalModule {
         }
     }
 
+    pub fn minimal_actions_to_json(&self) -> Value {
+        let algebra = self.algebra();
+        let min_degree = self.min_degree();
+        let max_degree = min_degree + self.graded_dimension.len() as i32;
+        let mut actions = Vec::new();
+        for input_degree in min_degree..max_degree {
+            for output_degree in (input_degree + 1) .. max_degree {
+                if self.dimension(output_degree) == 0 {
+                    continue;
+                }
+                let op_degree = output_degree - input_degree;
+                for op_idx in algebra.generators(op_degree) {
+                    for input_idx in 0..self.dimension(input_degree) {
+                        let vec = self.action(op_degree, op_idx, input_degree, input_idx);
+                        if vec.is_zero() {
+                            continue;
+                        }
+                        actions.push(json!({
+                            "op": algebra.json_from_basis(op_degree, op_idx),
+                            "input_deg": input_degree,
+                            "input_idx": input_idx,
+                            "output": vec.iter().collect::<Vec<u32>>()
+                        }));
+                    }
+                }
+            }
+        }
+        json!(actions)
+    }
+
+    pub fn to_minimal_json(&self) -> Value {
+        json!({
+            "p": self.prime(),
+            "algebra": self.algebra().algebra_type(),
+            "min_degree": self.min_degree(),
+            "graded_dimension": self.graded_dimension,
+            "actions": self.minimal_actions_to_json(),
+        })
+    }
+
     pub fn actions_to_json(&self) -> Value {
         let algebra = self.algebra();
         let min_degree = self.min_degree();
@@ -357,6 +397,9 @@ impl FiniteDimensionalModule {
                                 continue;
                             }
                             current_terms.push(json!({"gen" : self.basis_element_to_string(output_degree, i), "coeff" : v}));
+                        }
+                        if current_terms.len() == 0 {
+                            continue;
                         }
                         let current_action = json!({
                             "op" : algebra.json_from_basis(op_degree, op_idx),
