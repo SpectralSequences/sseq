@@ -7,6 +7,7 @@ for(let [k,v] of url.searchParams.entries()){
 }
 
 const LEFT_MARGIN = 20;
+const BOTTOM_MARGIN = 20;
 
 let filename = params["class"];
 if (filename) {
@@ -52,10 +53,10 @@ function drawRepresentative(data) {
     context.textAlign = "center";
     context.textBaseline = "middle";
     for (let i = 0; i < num_degree; i++) {
-        let y = getY(i, num_degree, height);
+        let y = getY(i, num_degree, height - BOTTOM_MARGIN);
         context.beginPath();
         context.moveTo(LEFT_MARGIN * 2, y);
-        context.lineTo(width - LEFT_MARGIN * 2, getY(i, num_degree, height));
+        context.lineTo(width - LEFT_MARGIN * 2, y);
         context.stroke();
         context.fillText(i, LEFT_MARGIN, y);
         context.fillText(i, width - LEFT_MARGIN, y);
@@ -67,11 +68,12 @@ function drawRepresentative(data) {
     }
 }
 function drawModule(context, data, x, width, height, num_degree) {
-    const offset = 6;
+    const offset = 8;
     const mid = Math.round(x + width/2) + 0.5;
 
+    context.fillText(data.graded_dimension.reduce((a, b) => a + b, 0), mid, height - BOTTOM_MARGIN * 0.7);
     for (let i = 0; i <= num_degree; i++) {
-        const y = getY(i, num_degree, height);
+        const y = getY(i, num_degree, height - BOTTOM_MARGIN);
         const dim = data.graded_dimension[i];
         if (dim == 0) {
             continue;
@@ -79,7 +81,7 @@ function drawModule(context, data, x, width, height, num_degree) {
 
         for (let j = 0; j < dim; j++) {
             context.beginPath();
-            context.arc(mid + offset * (j - (dim - 1) / 2) , y, 4, 0, 2 * Math.PI);
+            context.arc(mid + offset * (j - (dim - 1) / 2) , y, 3, 0, 2 * Math.PI);
             context.stroke();
             context.fill();
         }
@@ -87,13 +89,13 @@ function drawModule(context, data, x, width, height, num_degree) {
     let side = [];
     for (let action of data.actions) {
         const source_dim = data.graded_dimension[action.input_deg];
-        const sourceY = getY(action.input_deg, num_degree, height);
+        const sourceY = getY(action.input_deg, num_degree, height - BOTTOM_MARGIN);
         const sourceX = mid + offset * (action.input_idx - (source_dim - 1) / 2);
 
         const op = action.op[0];
         const target_deg = action.input_deg + op;
         const target_dim = data.graded_dimension[target_deg];
-        const targetY = getY(target_deg, num_degree, height);
+        const targetY = getY(target_deg, num_degree, height - BOTTOM_MARGIN);
 
         if (!side[op]) {
             side[op] = 1;
