@@ -172,7 +172,7 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
         for s in 0 ..= s {
             let module = yoneda.module(s);
 
-            println!("Dimension of {}th module is {} (minimal resolution: {})", s, module.total_dimension(), module.module.total_dimension());
+            println!("Dimension of {}th module is {}", s, module.total_dimension());
 
             for t in min_degree ..= t {
                 if individual {
@@ -194,7 +194,7 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
         }
 
         for s in 0 ..= s {
-            let module_string = yoneda.module(s).to_fd_module().to_minimal_json().to_string();
+            let module_string = yoneda.module(s).to_minimal_json().to_string();
             let mut output_path_buf = PathBuf::from(format!("{}_{}", filename, s));
             output_path_buf.set_extension("json");
             std::fs::write(&output_path_buf, module_string).unwrap();

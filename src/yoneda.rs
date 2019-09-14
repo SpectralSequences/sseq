@@ -1,6 +1,6 @@
 
 use crate::chain_complex::{ChainComplex, AugmentedChainComplex};
-use crate::module::{Module, FreeModule, BoundedModule};
+use crate::module::{Module, FreeModule, BoundedModule, FDModule};
 use crate::module::{QuotientModule as QM, TruncatedModule as TM};
 use crate::module::{TruncatedHomomorphism, TruncatedHomomorphismSource, QuotientHomomorphism, QuotientHomomorphismSource};
 use crate::module_homomorphism::{ModuleHomomorphism, FDModuleHomomorphism};
@@ -38,16 +38,16 @@ fn rate_adem_operation(algebra : &AdemAlgebra, deg : i32, idx: usize) -> u32{
 }
 
 pub struct YonedaRepresentative<CC : AugmentedChainComplex> {
-    modules : Vec<Arc<QM<TM<CC::Module>>>>,
-    zero_module : Arc<QM<TM<CC::Module>>>,
-    differentials : Vec<Arc<FDModuleHomomorphism<QM<TM<CC::Module>>, QM<TM<CC::Module>>>>>,
+    modules : Vec<Arc<FDModule>>,
+    zero_module : Arc<FDModule>,
+    differentials : Vec<Arc<FDModuleHomomorphism<FDModule, FDModule>>>,
     target_cc : Arc<CC::TargetComplex>,
-    chain_maps : Vec<Arc<FDModuleHomomorphism<QM<TM<CC::Module>>, <CC::ChainMap as ModuleHomomorphism>::Target>>>
+    chain_maps : Vec<Arc<FDModuleHomomorphism<FDModule, <CC::ChainMap as ModuleHomomorphism>::Target>>>
 }
 
 impl<CC : AugmentedChainComplex> ChainComplex for YonedaRepresentative<CC> {
-    type Module = QM<TM<CC::Module>>;
-    type Homomorphism = FDModuleHomomorphism<QM<TM<CC::Module>>, QM<TM<CC::Module>>>;
+    type Module = FDModule;
+    type Homomorphism = FDModuleHomomorphism<FDModule, FDModule>;
 
     fn algebra(&self) -> Arc<AlgebraAny> {
         self.target_cc.algebra()
@@ -80,7 +80,7 @@ impl<CC : AugmentedChainComplex> ChainComplex for YonedaRepresentative<CC> {
 
 impl<CC : AugmentedChainComplex> AugmentedChainComplex for YonedaRepresentative<CC> {
     type TargetComplex = CC::TargetComplex;
-    type ChainMap = FDModuleHomomorphism<QM<TM<CC::Module>>, <<CC as AugmentedChainComplex>::ChainMap as ModuleHomomorphism>::Target>;
+    type ChainMap = FDModuleHomomorphism<FDModule, <CC::ChainMap as ModuleHomomorphism>::Target>;
 
     fn target(&self) -> Arc<Self::TargetComplex> {
         Arc::clone(&self.target_cc)
@@ -218,13 +218,18 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
     }
 
     let zero_module = Arc::new(QM::new(Arc::new(TM::new(cc.zero_module(), t_max))));
+    zero_module.compute_basis(t_max);
+    let zero_module_fd = Arc::new(zero_module.to_fd_module());
 
+    let modules_fd = modules.iter().map(|m| Arc::new(m.to_fd_module())).collect::<Vec<_>>();
     let modules = modules.into_iter().map(Arc::new).collect::<Vec<_>>();
 
     let zero_differential = {
         let f = cc.differential(0);
         let tf = Arc::new(TruncatedHomomorphism::new(f, Arc::clone(&modules[0].module), Arc::clone(&zero_module.module)));
-        Arc::new(FDModuleHomomorphism::from(QuotientHomomorphism::new(tf, Arc::clone(&modules[0]), Arc::clone(&zero_module))))
+        let qf = FDModuleHomomorphism::from(QuotientHomomorphism::new(tf, Arc::clone(&modules[0]), Arc::clone(&zero_module)));
+        Arc::new(qf.replace_source(Arc::clone(&modules_fd[0]))
+                   .replace_target(Arc::clone(&zero_module_fd)))
     };
 
     let mut differentials = vec![zero_differential];
@@ -232,7 +237,9 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
         let f = cc.differential(s + 1);
         let s = s as usize;
         let tf = Arc::new(TruncatedHomomorphism::new(f, Arc::clone(&modules[s + 1].module), Arc::clone(&modules[s].module)));
-        Arc::new(FDModuleHomomorphism::from(QuotientHomomorphism::new(tf, Arc::clone(&modules[s + 1]), Arc::clone(&modules[s]))))
+        let qf = FDModuleHomomorphism::from(QuotientHomomorphism::new(tf, Arc::clone(&modules[s + 1]), Arc::clone(&modules[s])));
+        Arc::new(qf.replace_source(Arc::clone(&modules_fd[s + 1]))
+                   .replace_target(Arc::clone(&modules_fd[s])))
     }));
 
     let chain_maps = (0 ..= s_max).into_iter().map(|s| {
@@ -240,12 +247,13 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
         let s = s as usize;
         let target = f.target();
         let tf = Arc::new(TruncatedHomomorphismSource::new(f, Arc::clone(&modules[s].module), Arc::clone(&target)));
-        Arc::new(FDModuleHomomorphism::from(QuotientHomomorphismSource::new(tf, Arc::clone(&modules[s]), target)))
+        let qf = FDModuleHomomorphism::from(QuotientHomomorphismSource::new(tf, Arc::clone(&modules[s]), target));
+        Arc::new(qf.replace_source(Arc::clone(&modules_fd[s])))
     }).collect::<Vec<_>>();
 
     YonedaRepresentative {
-        modules,
-        zero_module,
+        modules: modules_fd,
+        zero_module: zero_module_fd,
         differentials,
         target_cc : cc.target(),
         chain_maps
