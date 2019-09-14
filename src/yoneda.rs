@@ -5,9 +5,9 @@ use crate::module_homomorphism::{ModuleHomomorphism, FDModuleHomomorphism};
 use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra};
 
 use crate::fp_vector::{FpVector, FpVectorT};
-use crate::matrix::Matrix;
+use crate::matrix::{Matrix, Subspace};
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 const PENALTY_UNIT : u32 = 100;
@@ -24,16 +24,16 @@ fn rate_adem_operation(algebra : &AdemAlgebra, deg : i32, idx: usize) -> u32{
         return 1;
     }
     let elt = algebra.basis_element_from_index(deg, idx);
-//    elt.ps.len() as u32
-    let mut pref = 0;
-    for i in elt.ps.iter() {
-        let mut i = *i;
-        while i != 0 {
-            pref += i & 1;
-            i >>= 1;
-        }
-    }
-    pref
+    elt.ps.len() as u32
+//    let mut pref = 0;
+//    for i in elt.ps.iter() {
+//        let mut i = *i;
+//        while i != 0 {
+//            pref += i & 1;
+//            i >>= 1;
+//        }
+//    }
+//    pref
 }
 
 pub struct YonedaRepresentative<CC : AugmentedChainComplex> {
@@ -122,39 +122,68 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
             let (target, source) = split_mut_borrow(&mut modules, s as usize, s as usize + 1);
 
             let mut keep : HashSet<usize> = HashSet::new();
-
-            // We find the list of things we want to keep, in terms of the original basis.
-            // First we look for things with non-zero Steenrod operations.
-
-            let mut generators : Vec<(i32, usize)> = Vec::new();
-            for op_deg in 1 ..= t_max - t {
-                for op_idx in algebra.generators(op_deg) {
-                    generators.push((op_deg, op_idx));
-                }
-            }
+            let mut preferred : HashSet<usize> = HashSet::new();
+            let mut special_quotient : HashMap<usize, FpVector> = HashMap::new();
 
             if s + 1 == s_max {
                 if t == t_max {
                     keep.insert(idx);
                 }
             } else {
-                for i in 0 .. source.dimension(t) {
-                    // This check should be outside, but we keep it in so that we indent
-                    // less
+                let mut generators : Vec<(i32, usize)> = Vec::new();
+                let mut target_degrees = Vec::new();
+                let mut padded_target_degrees = Vec::new();
 
-                    let i = source.basis_list[t][i];
-                    // Check if there are non-zero Steenrod operations.
-                    for (op_deg, op_idx) in generators.iter() {
-                        let mut result = FpVector::new(p, source.module.dimension(t + *op_deg));
-                        source.act_on_original_basis(&mut result, 1, *op_deg, *op_idx, t, i);
-                        if !result.is_zero() {
-                            keep.insert(i);
-
-                            let opgen = source.module.module.index_to_op_gen(t, i);
-                            chosen_generators[s as usize].insert((opgen.generator_degree, opgen.generator_index));
-                            break;
-                        }
+                for op_deg in 1 ..= t_max - t {
+                    for op_idx in algebra.generators(op_deg) {
+                        generators.push((op_deg, op_idx));
+                        target_degrees.push(source.module.dimension(t + op_deg));
+                        padded_target_degrees.push(FpVector::padded_dimension(p, source.module.dimension(t + op_deg)));
                     }
+                }
+
+                let total_padded_degree = padded_target_degrees.iter().sum();
+                let total_cols = total_padded_degree + source.module.dimension(t);
+
+                let mut image_subspace = Subspace::new(p, source.dimension(t), total_cols);
+
+                let mut result = FpVector::new(p, total_cols);
+                for i in 0 .. source.dimension(t) {
+                    let i = source.basis_list[t][i];
+                    let mut offset = 0;
+                    // Check if there are non-zero Steenrod operations.
+                    for (gen_idx, (op_deg, op_idx)) in generators.iter().enumerate() {
+                        result.set_slice(offset, offset + target_degrees[gen_idx]);
+                        source.act_on_original_basis(&mut result, 1, *op_deg, *op_idx, t, i);
+                        result.clear_slice();
+                        offset += padded_target_degrees[gen_idx];
+                    }
+                    if result.is_zero() {
+                        continue;
+                    }
+                    result.set_entry(total_padded_degree + i, 1);
+
+                    // Now see if the Sq^i of this element is already hit by something else. In
+                    // this case, the difference will be in the kernel.
+                    image_subspace.reduce(&mut result);
+                    result.set_slice(0, total_padded_degree);
+
+                    if result.is_zero() {
+                        result.clear_slice();
+                        result.set_slice(total_padded_degree, total_cols);
+                        let mut kernel_vec = FpVector::new(p, source.module.dimension(t));
+                        kernel_vec.assign(&result);
+                        special_quotient.insert(i, kernel_vec);
+                    } else {
+                        keep.insert(i);
+
+                        result.clear_slice();
+                        image_subspace.add_vector(&result);
+                        let opgen = source.module.module.index_to_op_gen(t, i);
+                        chosen_generators[s as usize].insert((opgen.generator_degree, opgen.generator_index));
+                    }
+                    result.clear_slice();
+                    result.set_to_zero();
                 }
             }
 
@@ -205,7 +234,8 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
             }
 
             // Now do the quotienting
-            let mut source_kills : Vec<usize> = Vec::with_capacity(source.module.dimension(t));
+            let mut source_kills_basis : Vec<usize> = Vec::with_capacity(source.module.dimension(t));
+            let mut source_kills_vec : Vec<FpVector> = Vec::with_capacity(source.module.dimension(t));
             let mut target_kills : Vec<FpVector> = Vec::with_capacity(target.module.dimension(t));
             for i in 0 .. source.dimension(t) {
                 let i = source.basis_list[t][i];
@@ -213,11 +243,20 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
                     continue;
                 }
                 let mut target_kill_vec = FpVector::new(p, target.module.dimension(t));
-                d.apply_to_basis_element(&mut target_kill_vec, 1, t, i);
+                match special_quotient.remove(&i) {
+                    Some(v) => {
+                        d.apply(&mut target_kill_vec, 1, t, &v);
+                        source_kills_vec.push(v);
+                    },
+                    None => {
+                        source_kills_basis.push(i);
+                        d.apply_to_basis_element(&mut target_kill_vec, 1, t, i);
+                    }
+                };
                 target_kills.push(target_kill_vec);
-                source_kills.push(i);
             }
-            source.quotient_basis_elements(t, source_kills);
+            source.quotient_basis_elements(t, source_kills_basis);
+            source.quotient_vectors(t, source_kills_vec);
             target.quotient_vectors(t, target_kills);
 
             // Finally, record the differentials.
