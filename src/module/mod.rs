@@ -42,8 +42,8 @@ pub trait BoundedModule : Module {
         let mut result = FDModule::new(self.algebra(), self.name().to_string(), graded_dimension);
 
         let algebra = self.algebra();
-        for input_degree in min_degree .. max_degree {
-            for output_degree in (input_degree + 1) .. max_degree {
+        for input_degree in min_degree ..= max_degree {
+            for output_degree in (input_degree + 1) ..= max_degree {
                 let output_dimension = result.dimension(output_degree);
                 if output_dimension == 0 {
                     continue;
