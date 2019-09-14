@@ -166,8 +166,6 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
             }
         }
 
-        let individual = query_yes_no("Show individual modules (yes/no)");
-
         let mut check = BiVec::from_vec(min_degree, vec![0; t as usize + 1 - min_degree as usize]);
         for s in 0 ..= s {
             let module = yoneda.module(s);
@@ -175,11 +173,6 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
             println!("Dimension of {}th module is {}", s, module.total_dimension());
 
             for t in min_degree ..= t {
-                if individual {
-                    for i in 0 .. module.dimension(t) {
-                        println!("{}: {}", t, module.basis_element_to_string(t, i));
-                    }
-                }
                 check[t] += (if s % 2 == 0 { 1 } else { -1 }) * module.dimension(t) as i32;
             }
         }
@@ -193,25 +186,24 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
             continue;
         }
 
-        for s in 0 ..= s {
-            let module_string = yoneda.module(s).to_minimal_json().to_string();
-            let mut output_path_buf = PathBuf::from(format!("{}_{}", filename, s));
-            output_path_buf.set_extension("json");
-            std::fs::write(&output_path_buf, module_string).unwrap();
-        }
-
+        let mut module_strings = Vec::with_capacity(s as usize + 2);
         match &*bundle.module {
             FiniteModule::FDModule(m) => {
-                let module_string = m.to_minimal_json().to_string();
-                let mut output_path_buf = PathBuf::from(format!("{}_-1", filename));
-                output_path_buf.set_extension("json");
-                std::fs::write(&output_path_buf, module_string).unwrap();
+                module_strings.push(m.to_minimal_json());
             }
             FiniteModule::FPModule(m) => {
                 // This should never happen
                 panic!();
             }
         };
+
+        for s in 0 ..= s {
+            module_strings.push(yoneda.module(s).to_minimal_json());
+        }
+
+        let mut output_path_buf = PathBuf::from(format!("{}", filename));
+        output_path_buf.set_extension("json");
+        std::fs::write(&output_path_buf, Value::from(module_strings).to_string()).unwrap();
     }
 }
 
