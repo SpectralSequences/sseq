@@ -21,17 +21,22 @@ pub mod resolution_homomorphism;
 mod cli_module_loaders;
 mod yoneda;
 
-use crate::algebra::{Algebra, AlgebraAny};
-use crate::module::{FiniteModule, Module};
-use crate::matrix::Matrix;
-use crate::fp_vector::FpVectorT;
-use crate::chain_complex::ChainComplex;
-use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
-use crate::resolution::{Resolution, ModuleResolution};
+use algebra::{Algebra, AlgebraAny};
+use module::{FiniteModule, Module, BoundedModule};
+use matrix::Matrix;
+use fp_vector::FpVectorT;
+use chain_complex::ChainComplex;
+use chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
+use resolution::{Resolution, ModuleResolution};
+use resolution_homomorphism::ResolutionHomomorphism;
 
+use bivec::BiVec;
+use query::*;
+
+use std::error::Error;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
-use std::error::Error;
+use std::time::Instant;
 use serde_json::value::Value;
 
 pub struct Config {
@@ -121,94 +126,16 @@ pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
     Ok(res.graded_dimension_string())
 }
 
-
-//use crate::resolution_homomorphism::ResolutionHomomorphism;
-//use crate::module::FDModule;
-//use crate::chain_complex::CochainComplex;
-//use crate::hom_complex::HomComplex;
-use crate::yoneda::yoneda_representative;
-use crate::resolution_homomorphism::ResolutionHomomorphism;
-use std::io::{Write, stdin, stdout};
-use crate::module::BoundedModule;
-use std::str::FromStr;
-use std::fmt::Display;
-use std::time::Instant;
-fn query<S : Display, T : FromStr, F>(prompt : &str, validator : F) -> S 
-    where F: Fn(T) -> Result<S, String>,
-        <T as FromStr>::Err: Display  {
-    loop {
-        print!("{} : ", prompt);
-        stdout().flush().unwrap();
-        let mut input = String::new();
-        stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
-        let trimmed = input.trim();
-        let result = 
-            trimmed.parse::<T>()
-                   .map_err(|err| format!("{}", err))
-                   .and_then(|res| validator(res));
-        match result {
-            Ok(res) => {
-                return res;
-            }, 
-            Err(e) => {
-                println!("Invalid input: {}. Try again", e);
-            }
-        }
-    }
-}
-
-fn query_with_default_no_default_indicated<S : Display, T : FromStr, F>(prompt : &str, default : S, validator : F) -> S 
-    where F: Fn(T) -> Result<S, String>,
-        <T as std::str::FromStr>::Err: std::fmt::Display  {
-    loop {
-        print!("{} : ", prompt);
-        stdout().flush().unwrap();
-        let mut input = String::new();
-        stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
-        let trimmed = input.trim();
-        if trimmed.len() == 0 {
-            return default;
-        }
-        let result = 
-            trimmed.parse::<T>()
-                   .map_err(|err| format!("{}", err))
-                   .and_then(|res| validator(res));
-        match result {
-            Ok(res) => {
-                return res;
-            }, 
-            Err(e) => {
-                println!("Invalid input: {}. Try again", e);
-            }
-        }
-    }
-}
-
-fn query_yes_no(prompt : &str) -> bool {
-    query(prompt,
-        |response : String| if response.starts_with("y") || response.starts_with("n") {
-            Ok(response.starts_with("y"))
-        } else {
-            Err(format!("unrecognized response '{}'. Should be '(y)es' or '(n)o'", response))
-        }
-    )
-}
-
-#[allow(unreachable_code)]
-#[allow(unused_mut)]
-pub fn run_test() {    
-    let p = 2;
-    let contents = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}"#;
-    // C2:
-    let mut json : Value = serde_json::from_str(&contents).unwrap();
-    let resolution = construct_from_json(json, "adem".to_string()).unwrap().resolution;
-    let resolution = resolution.read().unwrap();
+pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
+    let bundle = construct(config)?;
+    let resolution = bundle.resolution.read().unwrap();
+    let min_degree = resolution.min_degree();
+    let p = resolution.prime();
 
     loop {
         let x : i32= query_with_default_no_default_indicated("x", 200, |x : i32| Ok(x));
         let s : u32 = query_with_default_no_default_indicated("s", 200, |x : u32| Ok(x));
         let i : usize = query_with_default_no_default_indicated("idx", 200, |x : usize| Ok(x));
-        let individual = query_yes_no("Show individual modules");
 
         let start = Instant::now();
         let t = x + s as i32;
@@ -218,7 +145,7 @@ pub fn run_test() {
 
         let idx = resolution.module(s).operation_generator_to_index(0, 0, t, i);
         let start = Instant::now();
-        let yoneda = Arc::new(yoneda_representative(Arc::clone(&resolution.inner), s, t, idx));
+        let yoneda = Arc::new(yoneda::yoneda_representative(Arc::clone(&resolution.inner), s, t, idx));
 
         println!("Finding representative time: {:?}", start.elapsed());
 
@@ -239,31 +166,56 @@ pub fn run_test() {
             }
         }
 
-        let mut check = vec![0; t as usize + 1];
+        let individual = query_yes_no("Show individual modules (yes/no)");
+
+        let mut check = BiVec::from_vec(min_degree, vec![0; t as usize + 1 - min_degree as usize]);
         for s in 0 ..= s {
             let module = yoneda.module(s);
 
             println!("Dimension of {}th module is {} (minimal resolution: {})", s, module.total_dimension(), module.module.total_dimension());
 
-            for t in 0 ..= t {
+            for t in min_degree ..= t {
                 if individual {
                     for i in 0 .. module.dimension(t) {
                         println!("{}: {}", t, module.basis_element_to_string(t, i));
                     }
                 }
-                check[t as usize] += (if s % 2 == 0 { 1 } else { -1 }) * module.dimension(t) as i32;
+                check[t] += (if s % 2 == 0 { 1 } else { -1 }) * module.dimension(t) as i32;
             }
         }
-        println!("Check sum: {:?}", check);
+        for t in min_degree ..= t {
+            assert_eq!(check[t], bundle.module.dimension(t) as i32);
+        }
+
+        let filename = query("Output file name (empty to skip)", |result : String| Ok(result));
+
+        if filename.is_empty() {
+            continue;
+        }
 
         for s in 0 ..= s {
             let module_string = yoneda.module(s).to_fd_module().to_minimal_json().to_string();
-            let mut output_path_buf = PathBuf::from(format!("M{}", s));
+            let mut output_path_buf = PathBuf::from(format!("{}_{}", filename, s));
             output_path_buf.set_extension("json");
             std::fs::write(&output_path_buf, module_string).unwrap();
         }
+
+        match &*bundle.module {
+            FiniteModule::FDModule(m) => {
+                let module_string = m.to_minimal_json().to_string();
+                let mut output_path_buf = PathBuf::from(format!("{}_-1", filename));
+                output_path_buf.set_extension("json");
+                std::fs::write(&output_path_buf, module_string).unwrap();
+            }
+            FiniteModule::FPModule(m) => {
+                // This should never happen
+                panic!();
+            }
+        };
     }
 }
+
+pub fn run_test() { }
 
 pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {
     let mut result = None;
@@ -297,5 +249,3 @@ impl Error for ModuleFileNotFoundError {
         "Module file not found"
     }
 }
-
-

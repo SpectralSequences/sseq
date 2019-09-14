@@ -16,6 +16,7 @@ serde = "*"
 rayon = { version = "*", optional = true }
 enum_dispatch = "0.1.3"
 nom = "5.0.0"
+query = { path = "query" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 clap = { version = "2.33.0", features = ["yaml", "wrap_help"] }
