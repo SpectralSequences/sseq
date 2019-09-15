@@ -164,11 +164,18 @@ impl<CC : AugmentedChainComplex> ChainComplex for YonedaRepresentative<CC> {
     }
 
     fn module(&self, s : u32) -> Arc<Self::Module> {
-        Arc::clone(&self.modules[s as usize])
+        let s = s as usize;
+        if s >= self.modules.len() {
+            self.zero_module()
+        } else {
+            Arc::clone(&self.modules[s])
+        }
     }
 
     fn differential(&self, s : u32) -> Arc<Self::Homomorphism> {
-        Arc::clone(&self.differentials[s as usize])
+        let s = s as usize;
+        let s = std::cmp::min(s, self.differentials.len() - 1); // The last entry is the zero homomorphism
+        Arc::clone(&self.differentials[s])
     }
 
     fn compute_through_bidegree(&self, homological_degree : u32, internal_degree : i32) {}
@@ -189,6 +196,7 @@ impl<CC : AugmentedChainComplex> AugmentedChainComplex for YonedaRepresentative<
         Arc::clone(&self.target_cc)
     }
 
+    /// This currently crashes if `s` is greater than the s degree of the class this came from.
     fn chain_map(&self, s: u32) -> Arc<Self::ChainMap> {
         Arc::clone(&self.chain_maps[s as usize])
     }
@@ -344,6 +352,8 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
         Arc::new(qf.replace_source(Arc::clone(&modules_fd[s + 1]))
                    .replace_target(Arc::clone(&modules_fd[s])))
     }));
+    differentials.push(Arc::new(FDModuleHomomorphism::zero_homomorphism(Arc::clone(&zero_module_fd), Arc::clone(&modules_fd[s_max as usize]), 0)));
+    differentials.push(Arc::new(FDModuleHomomorphism::zero_homomorphism(Arc::clone(&zero_module_fd), Arc::clone(&zero_module_fd), 0)));
 
     let chain_maps = (0 ..= s_max).into_iter().map(|s| {
         let f = cc.chain_map(s);

@@ -188,10 +188,6 @@ impl Matrix {
         self.slice_col_end = self.columns;
     }
 
-    pub fn set_row(&mut self, row_idx : usize, row : &FpVector) {
-        self.vectors[row_idx] = row.clone();
-    }
-
     pub fn into_slice(&mut self) {
         self.rows = self.rows();
         self.columns = self.columns();
@@ -507,7 +503,8 @@ impl Subspace {
     /// of rows. This can be achieved by setting the number of rows to be the dimension plus one
     /// when creating the subspace.
     pub fn add_vector(&mut self, row : &FpVector) {
-        self.matrix.set_row(self.matrix.rows() - 1, row);
+        let last_row = self.matrix.rows() - 1;
+        self.matrix[last_row].assign(row);
         self.matrix.row_reduce(&mut self.column_to_pivot_row);
     }
 
@@ -561,16 +558,6 @@ impl Subspace {
             }
             self.matrix.row_reduce(&mut self.column_to_pivot_row);
         }
-        self.matrix.row_reduce(&mut self.column_to_pivot_row);
-    }
-
-    /// A version of add_vector that doesn't row reduce the resulting subspace.
-    pub fn add_vector_raw(&mut self, row : &FpVector) {
-        self.matrix.set_row(self.matrix.rows() - 1, row);
-    }
-
-    /// Flush the actions of the `add_vector_raw`
-    pub fn flush(&mut self) {
         self.matrix.row_reduce(&mut self.column_to_pivot_row);
     }
 

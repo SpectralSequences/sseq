@@ -18,6 +18,9 @@ pub trait ModuleHomomorphism {
         self.source().min_degree()
     }
 
+    /// Calling this function when `input_idx < source().dimension(input_degree)` results in
+    /// undefined behaviour. Implementations are encouraged to panic when this happens (this is
+    /// usually the case because of out-of-bounds errors.
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_idx : usize);
 
     fn apply(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input : &FpVector){
@@ -98,7 +101,6 @@ pub trait ModuleHomomorphism {
         }
         return (start_row + source_dimension, start_column + target_dimension);
     }
-
 }
 
 // Maybe we should use static dispatch here? This would also get rid of a bunch of casting.
@@ -177,13 +179,16 @@ impl<S : BoundedModule, T : Module> ModuleHomomorphism for FDModuleHomomorphism<
     }
 
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_idx : usize) {
-        result.shift_add(&self.matrices[input_degree - self.degree_shift][input_idx], coeff);
+        let output_degree = input_degree - self.degree_shift;
+        if let Some(matrix) = self.matrices.get(output_degree) {
+            result.shift_add(&matrix[input_idx], coeff);
+        }
     }
 
     fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, kernel : QuasiInverse){}
 
     fn quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
-        Some(&self.quasi_inverses[degree])
+        self.quasi_inverses.get(degree)
     }
 
     fn lock(&self) -> MutexGuard<i32> { unimplemented!(); }
@@ -282,6 +287,14 @@ impl<S : BoundedModule, T : Module> FDModuleHomomorphism<S, T> {
             degree_shift : self.degree_shift,
             matrices : self.matrices,
             quasi_inverses : self.quasi_inverses
+        }
+    }
+
+    pub fn zero_homomorphism(source : Arc<S>, target : Arc<T>, degree_shift : i32) -> Self {
+        FDModuleHomomorphism {
+            source, target, degree_shift,
+            matrices : BiVec::new(0),
+            quasi_inverses : BiVec::new(0)
         }
     }
 }
