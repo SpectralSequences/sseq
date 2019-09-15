@@ -859,12 +859,12 @@ impl Matrix {
             self.clear_slice();
         }
         let mut res_preimage = Matrix::new(p, res_image_rows, source_columns);
-        let mut res_image = Subspace::new(p, res_image_rows, res_columns);            
+        let mut res_image = Subspace::new(p, res_image_rows, res_columns);
         for i in 0..res_image_rows {
             let old_slice = self[i].slice();
             self[i].set_slice(first_res_col, last_res_col);
             res_image.matrix[i].assign(&self[i]);
-            res_image.column_to_pivot_row.copy_from_slice(&new_pivots[first_res_col..last_res_col]);
+            res_image.column_to_pivot_row.copy_from_slice(&new_pivots[..res_columns]);
             self[i].restore_slice(old_slice);
             self[i].set_slice(first_source_col, columns);
             res_preimage[i].assign(&self[i]);
@@ -967,13 +967,13 @@ impl Matrix {
                 continue;
             }
             // Look up the cycle that we're missing and add a generator hitting it.
-            let kernel_vector_row = desired_pivots[i] as usize;
+            let kernel_vector_row = desired_pivots[i - start_column] as usize;
             let new_image = &desired_image.matrix[kernel_vector_row];
             let matrix_row = &mut self[first_empty_row];
             added_pivots.push(i);
             matrix_row.set_to_zero();
             let old_slice = matrix_row.slice();
-            matrix_row.set_slice(0, desired_image.matrix.columns);
+            matrix_row.set_slice(start_column, start_column + desired_image.matrix.columns);
             matrix_row.assign(&new_image);
             matrix_row.restore_slice(old_slice);
             first_empty_row += 1;
