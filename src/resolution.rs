@@ -568,7 +568,7 @@ impl<CC : ChainComplex> Resolution<CC> {
 
 // Product algorithms
 impl<CC> Resolution<CC> where
-    CC : ChainComplex + Send + Sync + 'static
+    CC : ChainComplex// + Send + Sync + 'static
 {
     /// This function computes the products between the element most recently added to product_list
     /// and the parts of Ext that have already been computed. This function should be called right

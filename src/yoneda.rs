@@ -1,9 +1,9 @@
 
-use crate::chain_complex::{ChainComplex, AugmentedChainComplex};
+use crate::chain_complex::{ChainComplex, AugmentedChainComplex, FiniteAugmentedChainComplex};
 use crate::module::{Module, FreeModule, BoundedModule, FDModule};
 use crate::module::{QuotientModule as QM, TruncatedModule as TM};
 use crate::module::{TruncatedHomomorphism, TruncatedHomomorphismSource, QuotientHomomorphism, QuotientHomomorphismSource};
-use crate::module_homomorphism::{ModuleHomomorphism, FDModuleHomomorphism};
+use crate::module_homomorphism::{ModuleHomomorphism, FDModuleHomomorphism, ZeroHomomorphismT};
 use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra};
 
 use crate::fp_vector::{FpVector, FpVectorT};
@@ -140,75 +140,19 @@ fn operation_drop(algebra : &AdemAlgebra, deg : i32, idx: usize) -> u32{
     (deg - drop) as u32
 }
 
-pub struct YonedaRepresentative<CC : AugmentedChainComplex> {
-    modules : Vec<Arc<FDModule>>,
-    zero_module : Arc<FDModule>,
-    differentials : Vec<Arc<FDModuleHomomorphism<FDModule, FDModule>>>,
-    target_cc : Arc<CC::TargetComplex>,
-    chain_maps : Vec<Arc<FDModuleHomomorphism<FDModule, <CC::ChainMap as ModuleHomomorphism>::Target>>>
-}
-
-impl<CC : AugmentedChainComplex> ChainComplex for YonedaRepresentative<CC> {
-    type Module = FDModule;
-    type Homomorphism = FDModuleHomomorphism<FDModule, FDModule>;
-
-    fn algebra(&self) -> Arc<AlgebraAny> {
-        self.target_cc.algebra()
-    }
-    fn min_degree(&self) -> i32 {
-        self.target_cc.min_degree()
-    }
-
-    fn zero_module(&self) -> Arc<Self::Module> {
-        Arc::clone(&self.zero_module)
-    }
-
-    fn module(&self, s : u32) -> Arc<Self::Module> {
-        let s = s as usize;
-        if s >= self.modules.len() {
-            self.zero_module()
-        } else {
-            Arc::clone(&self.modules[s])
-        }
-    }
-
-    fn differential(&self, s : u32) -> Arc<Self::Homomorphism> {
-        let s = s as usize;
-        let s = std::cmp::min(s, self.differentials.len() - 1); // The last entry is the zero homomorphism
-        Arc::clone(&self.differentials[s])
-    }
-
-    fn compute_through_bidegree(&self, homological_degree : u32, internal_degree : i32) {}
-
-    fn set_homology_basis(&self, homological_degree : u32, internal_degree : i32, homology_basis : Vec<usize>) { unimplemented!() }
-    fn homology_basis(&self, homological_degree : u32, internal_degree : i32) -> &Vec<usize> { unimplemented!() }
-    fn max_homology_degree(&self, homological_degree : u32) -> i32 { std::i32::MAX }
-
-    fn max_computed_homological_degree(&self) -> u32 { std::u32::MAX }
-    fn max_computed_degree(&self) -> i32 { std::i32::MAX }
-}
-
-impl<CC : AugmentedChainComplex> AugmentedChainComplex for YonedaRepresentative<CC> {
-    type TargetComplex = CC::TargetComplex;
-    type ChainMap = FDModuleHomomorphism<FDModule, <CC::ChainMap as ModuleHomomorphism>::Target>;
-
-    fn target(&self) -> Arc<Self::TargetComplex> {
-        Arc::clone(&self.target_cc)
-    }
-
-    /// This currently crashes if `s` is greater than the s degree of the class this came from.
-    fn chain_map(&self, s: u32) -> Arc<Self::ChainMap> {
-        Arc::clone(&self.chain_maps[s as usize])
-    }
-}
-
 fn split_mut_borrow<T> (v : &mut Vec<T>, i : usize, j : usize) -> (&mut T, &mut T) {
     assert!(i < j);
     let (first, second) = v.split_at_mut(j);
     (&mut first[i], &mut second[0])
 }
 
-pub fn yoneda_representative<CC>(cc : Arc<CC>, s_max : u32, t_max : i32, idx : usize) -> YonedaRepresentative<CC>
+pub fn yoneda_representative<CC>(cc : Arc<CC>, s_max : u32, t_max : i32, idx : usize) ->
+    FiniteAugmentedChainComplex<
+        FDModule,
+        FDModuleHomomorphism<FDModule, FDModule>,
+        FDModuleHomomorphism<FDModule, <CC::TargetComplex as ChainComplex>::Module>,
+        CC::TargetComplex
+    >
 where CC : AugmentedChainComplex<Module=FreeModule> {
     assert!(s_max > 0);
     let p = cc.prime();
@@ -364,7 +308,7 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
         Arc::new(qf.replace_source(Arc::clone(&modules_fd[s])))
     }).collect::<Vec<_>>();
 
-    YonedaRepresentative {
+    FiniteAugmentedChainComplex {
         modules: modules_fd,
         zero_module: zero_module_fd,
         differentials,

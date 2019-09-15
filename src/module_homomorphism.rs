@@ -289,8 +289,14 @@ impl<S : BoundedModule, T : Module> FDModuleHomomorphism<S, T> {
             quasi_inverses : self.quasi_inverses
         }
     }
+}
 
-    pub fn zero_homomorphism(source : Arc<S>, target : Arc<T>, degree_shift : i32) -> Self {
+pub trait ZeroHomomorphismT<S : Module, T : Module> {
+    fn zero_homomorphism(s : Arc<S>, t : Arc<T>, degree_shift : i32) -> Self;
+}
+
+impl<S: BoundedModule, T : Module> ZeroHomomorphismT<S, T> for FDModuleHomomorphism<S, T> {
+    fn zero_homomorphism(source : Arc<S>, target : Arc<T>, degree_shift : i32) -> Self {
         FDModuleHomomorphism {
             source, target, degree_shift,
             matrices : BiVec::new(0),

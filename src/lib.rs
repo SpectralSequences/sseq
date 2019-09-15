@@ -22,13 +22,15 @@ mod cli_module_loaders;
 mod yoneda;
 
 use algebra::{Algebra, AlgebraAny};
-use module::{FiniteModule, Module, BoundedModule};
+use module::{FiniteModule, FDModule, Module, BoundedModule};
 use matrix::Matrix;
 use fp_vector::FpVectorT;
-use chain_complex::ChainComplex;
+use chain_complex::{ChainComplex, FiniteChainComplex};
 use chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use resolution::{Resolution, ModuleResolution};
 use resolution_homomorphism::ResolutionHomomorphism;
+use yoneda::yoneda_representative;
+use module_homomorphism::FDModuleHomomorphism;
 
 use bivec::BiVec;
 use query::*;
@@ -59,6 +61,34 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule
     let json = serde_json::from_str(&contents)?;
 
     construct_from_json(json, config.algebra_name.clone())
+}
+
+pub fn construct_derived_resolution(json : Value, algebra_name : String) -> Result<
+    Resolution<
+        FiniteChainComplex<
+            FDModule,
+            FDModuleHomomorphism<FDModule, FDModule>
+        >
+    >, Box<dyn Error>> {
+
+    let algebra = Arc::new(AlgebraAny::from_json(&json, algebra_name)?);
+    let unit_module = Arc::new(FDModule::new(Arc::clone(&algebra), "unit".to_string(), BiVec::from_vec(0, vec![1])));
+    let unit_chain_complex = Arc::new(CCDZ::new(unit_module));
+    let unit_resolution = Arc::new(Resolution::new(unit_chain_complex, None, None));
+
+    let p = algebra.prime();
+    let s = json["s"].as_u64().unwrap() as u32;
+    let t = json["t"].as_i64().unwrap() as i32;
+    let idx = json["idx"].as_u64().unwrap() as usize;
+
+    unit_resolution.resolve_through_bidegree(s, t);
+
+    let idx = unit_resolution.module(s).operation_generator_to_index(0, 0, t, idx);
+    let yoneda = yoneda_representative(Arc::clone(&unit_resolution.inner), s, t, idx);
+    let mut yoneda = FiniteChainComplex::from(yoneda);
+    yoneda.pop();
+
+    Ok(Resolution::new(Arc::new(yoneda), None, None))
 }
 
 pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
@@ -207,7 +237,20 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
     }
 }
 
-pub fn run_test() { }
+pub fn run_test() {
+    let p : u32= query_with_default_no_default_indicated("p", 200, |x : u32| Ok(x));
+    let x : i32= query_with_default_no_default_indicated("t - s", 200, |x : i32| Ok(x));
+    let s : u32 = query_with_default_no_default_indicated("s", 200, |x : u32| Ok(x));
+    let i : usize = query_with_default_no_default_indicated("idx", 200, |x : usize| Ok(x));
+    let max_degree : i32 = query_with_default_no_default_indicated("max_degree", 200, |x : i32| Ok(x));
+
+    let content = format!(r#"{{"type" : "derived cofiber","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "s": {}, "t": {}, "idx": {}}}"#, s, x + s as i32, i);
+    let json = serde_json::from_str(&content).unwrap();
+    let resolution = construct_derived_resolution(json, "adem".to_string()).unwrap();
+
+    resolution.resolve_through_degree(max_degree);
+    println!("{}", resolution.graded_dimension_string());
+}
 
 pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {
     let mut result = None;
