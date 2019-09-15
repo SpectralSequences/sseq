@@ -12,14 +12,99 @@ use crate::matrix::{Matrix, Subspace};
 use std::collections::HashSet;
 use std::sync::Arc;
 
-const PENALTY_UNIT : u32 = 100;
+const PENALTY_UNIT : u32 = 10000;
 
-fn rate_operation(algebra : &AlgebraAny, op_deg : i32, op_idx : usize) -> u32 {
-    match algebra {
-        AlgebraAny::AdemAlgebra(a) => rate_adem_operation(a, op_deg, op_idx),
-        _ => 1
-    }
+fn rate_operation(algebra : &Arc<AlgebraAny>, op_deg : i32, op_idx : usize) -> u32 {
+    let mut pref = 0;
+    match &**algebra {
+        AlgebraAny::AdemAlgebra(a) => pref += rate_adem_operation(a, op_deg, op_idx),
+        _ => ()
+    };
+    pref
 }
+
+//static mut MEMOIZED_SIZE : Option<once::OnceVec<Vec<u32>>> = None;
+//unsafe fn compute_size(algebra : &Arc<AlgebraAny>, deg : i32) {
+//    if MEMOIZED_SIZE.is_none() {
+//        MEMOIZED_SIZE = Some(once::OnceVec::new());
+//    }
+//    let p = algebra.prime();
+//    if let Some(size) = &MEMOIZED_SIZE {
+//        while size.len() <= deg as usize {
+//            let t_max = size.len() as i32;
+//            let dim = algebra.dimension(t_max, -1);
+//
+//            let mut new_sizes = Vec::with_capacity(dim);
+//
+//            for i in 0 .. dim {
+//                let start_module = FreeModule::new(Arc::clone(algebra), "".to_string(), 0);
+//                start_module.add_generators_immediate(0, 1, None);
+//                start_module.extend_by_zero(t_max);
+//
+//                let mut test_module = QM::new(Arc::new(TM::new(Arc::new(start_module), t_max)));
+//                test_module.compute_basis(t_max);
+//
+//                let mut basis_list : Vec<usize> = (0 .. dim).collect::<Vec<_>>();
+//                basis_list.swap_remove(i);
+//
+//                test_module.quotient_basis_elements(t_max, basis_list);
+//
+//                for t in (0 .. t_max).rev() {
+//                    let mut generators : Vec<(i32, usize)> = Vec::new();
+//                    let mut target_degrees = Vec::new();
+//                    let mut padded_target_degrees : Vec<usize> = Vec::new();
+//
+//                    let cur_dimension = test_module.dimension(t);
+//                    for op_deg in 1 ..= t_max - t {
+//                        for op_idx in algebra.generators(op_deg) {
+//                            generators.push((op_deg, op_idx));
+//                            target_degrees.push(test_module.module.dimension(t + op_deg));
+//                            padded_target_degrees.push(FpVector::padded_dimension(p, test_module.module.dimension(t + op_deg)));
+//                        }
+//                    }
+//
+//                    let total_padded_degree : usize = padded_target_degrees.iter().sum();
+//                    let total_cols : usize = total_padded_degree + cur_dimension;
+//
+//                    let mut matrix_rows : Vec<FpVector> = Vec::with_capacity(cur_dimension);
+//
+//                    for j in 0 .. cur_dimension {
+//                        let mut result = FpVector::new(p, total_cols);
+//
+//                        let mut offset = 0;
+//
+//                        for (gen_idx, (op_deg, op_idx)) in generators.iter().enumerate() {
+//                            result.set_slice(offset, offset + target_degrees[gen_idx]);
+//                            test_module.act_on_original_basis(&mut result, 1, *op_deg, *op_idx, t, j);
+//                            result.clear_slice();
+//                            offset += padded_target_degrees[gen_idx];
+//                        }
+//                        result.set_entry(total_padded_degree + j, 1);
+//                        matrix_rows.push(result);
+//                    }
+//
+//                    let mut matrix = Matrix::from_rows(p, matrix_rows);
+//                    let mut pivots = vec![-1; total_cols];
+//                    matrix.row_reduce(&mut pivots);
+//
+//                    let first_kernel_row = match &pivots[0..total_padded_degree].iter().rposition(|&i| i >= 0) {
+//                        Some(n) => pivots[*n] as usize + 1,
+//                        None => 0
+//                    };
+//
+//                    matrix.set_slice(first_kernel_row, cur_dimension, total_padded_degree, total_cols);
+//                    matrix.into_slice();
+//
+//                    let kill_rows = matrix.into_vec();
+//
+//                    test_module.quotient_vectors(t, kill_rows);
+//                }
+//                new_sizes.push(test_module.total_dimension() as u32);
+//            }
+//            size.push(new_sizes);
+//        }
+//    }
+//}
 
 fn rate_adem_operation(algebra : &AdemAlgebra, deg : i32, idx: usize) -> u32{
     if algebra.prime() != 2 {
@@ -35,6 +120,24 @@ fn rate_adem_operation(algebra : &AdemAlgebra, deg : i32, idx: usize) -> u32{
         }
     }
     pref
+}
+
+fn operation_drop(algebra : &AdemAlgebra, deg : i32, idx: usize) -> u32{
+    if algebra.prime() != 2 {
+        return 1;
+    }
+    let elt = algebra.basis_element_from_index(deg, idx);
+    if elt.ps.len() == 0 {
+        return 0;
+    }
+
+    let mut first = elt.ps[0];
+    let mut drop = 1;
+    while first & 1 == 0 {
+        first >>= 1;
+        drop *= 2;
+    }
+    (deg - drop) as u32
 }
 
 pub struct YonedaRepresentative<CC : AugmentedChainComplex> {
@@ -101,7 +204,7 @@ pub fn yoneda_representative<CC>(cc : Arc<CC>, s_max : u32, t_max : i32, idx : u
 where CC : AugmentedChainComplex<Module=FreeModule> {
     assert!(s_max > 0);
     let p = cc.prime();
-    let algebra = &*cc.algebra(); // Deref to &AlgebraAny
+    let algebra = cc.algebra();
 
     let mut modules = (0 ..= s_max).map(|s| QM::new(Arc::new(TM::new(cc.module(s), t_max)))).collect::<Vec<_>>();
 
@@ -144,7 +247,7 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
                 .map(|(i, v)| {
                     let opgen = source.module.module.index_to_op_gen(t, i);
 
-                    let mut pref = rate_operation(algebra, opgen.operation_degree, opgen.operation_index);
+                    let mut pref = rate_operation(&algebra, opgen.operation_degree, opgen.operation_index);
 
                     for k in 0 .. subspace.matrix.rows() {
                         // This means we have quotiented out by something
@@ -274,13 +377,15 @@ fn compute_kernel_image<M : BoundedModule>(
     keep : Option<Subspace>,
     t : i32) -> (Matrix, Vec<FpVector>) {
 
-    let algebra = &*source.algebra();
+    let algebra = source.algebra();
 
     let mut generators : Vec<(i32, usize)> = Vec::new();
     let mut target_degrees = Vec::new();
     let mut padded_target_degrees : Vec<usize> = Vec::new();
 
     let source_orig_dimension = source.module.dimension(t);
+    let source_dimension = source.dimension(t);
+
     for op_deg in 1 ..= source.max_degree() - t {
         for op_idx in algebra.generators(op_deg) {
             generators.push((op_deg, op_idx));
@@ -293,11 +398,11 @@ fn compute_kernel_image<M : BoundedModule>(
     let padded_source_degree : usize = FpVector::padded_dimension(p, source_orig_dimension);
     let total_cols : usize = total_padded_degree + padded_source_degree + source_orig_dimension;
 
-    let mut matrix_rows : Vec<FpVector> = Vec::with_capacity(source.dimension(t));
+    let mut matrix_rows : Vec<FpVector> = Vec::with_capacity(source_dimension);
 
     let mut projection_off_keep = FpVector::new(p, source_orig_dimension);
 
-    for i in 0 .. source.dimension(t) {
+    for i in 0 .. source_dimension {
         let mut result = FpVector::new(p, total_cols);
 
         let i = source.basis_list[t][i];
@@ -336,12 +441,8 @@ fn compute_kernel_image<M : BoundedModule>(
         Some(n) => pivots[*n + total_padded_degree] as usize + 1,
         None => first_kernel_row
     };
-    let first_empty_row = match &pivots[total_padded_degree + padded_source_degree .. total_cols].iter().rposition(|&i| i >= 0) {
-        Some(n) => pivots[*n + total_padded_degree + padded_source_degree] as usize + 1,
-        None => first_image_row
-    };
 
-    matrix.set_slice(first_kernel_row, first_empty_row, total_padded_degree + padded_source_degree, total_cols);
+    matrix.set_slice(first_kernel_row, source_dimension, total_padded_degree + padded_source_degree, total_cols);
     matrix.into_slice();
 
     let first_image_row = first_image_row - first_kernel_row;
