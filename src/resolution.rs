@@ -203,41 +203,52 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
         // work out what dX should to to each of them.
         let new_generators = matrix.extend_to_surjection(first_new_row, 0, target_cc_dimension, &pivots);
-        let mut num_new_gens = new_generators.len();
+        let cc_new_gens = new_generators.len();
+        let mut res_new_gens = 0;
 
+        let mut middle_rows = Vec::with_capacity(cc_new_gens);
         if s > 0 {
-            // Now we need to make sure that we have a chain homomorphism. Each generator x we just added to 
-            // X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).
-            // So we set dX(x) = f^{-1}(dC(f(x)))
-            let prev_chain_map = self.chain_map(s - 1);
-            let maybe_quasi_inverse = prev_chain_map.quasi_inverse(t);
-            if let Some(quasi_inverse) = maybe_quasi_inverse {
+            if cc_new_gens > 0 {
+                // Now we need to make sure that we have a chain homomorphism. Each generator x we just added to 
+                // X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).
+                // So we set dX(x) = f^{-1}(dC(f(x)))
+                let prev_chain_map = self.chain_map(s - 1);
+                let maybe_qi = prev_chain_map.quasi_inverse(t);
+                let quasi_inverse = maybe_qi.as_ref().unwrap();
+
                 let mut out_vec = FpVector::new(self.prime(), target_res_dimension);
                 let dfx_dim = complex_cur_differential.target().dimension(t);
                 let mut dfx = FpVector::new(self.prime(), dfx_dim);
-                for (i, column) in new_generators.iter().enumerate() {
-                    complex_cur_differential.apply_to_basis_element(&mut dfx, 1, t, *column);
+                for (i, column) in new_generators.into_iter().enumerate() {
+                    complex_cur_differential.apply_to_basis_element(&mut dfx, 1, t, column);
                     quasi_inverse.apply(&mut out_vec, 1, &dfx);
                     // Now out_vec contains f^{-1}(dC(f(x))).
                     let out_row = &mut matrix[first_new_row + i];
-                    let old_slice = out_row.slice();
                     // dX(x) goes into the column range [padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension] in the matrix
                     // I think we are missing a sign here.
                     out_row.set_slice(padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension);
                     out_row.assign(&out_vec);
-                    out_row.restore_slice(old_slice);
+                    out_row.clear_slice();
                     dfx.set_to_zero();
                     out_vec.set_to_zero();
+
+                    // Keep the rows we produced because we have to row reduce to re-compute
+                    // the kernel later, but these rows are the images of the generators, so we
+                    // still need them.
+                    middle_rows.push(out_row.clone());
                 }
                 // Row reduce again since our activity may have changed the image of dX.
-                if new_generators.len() > 0 {
-                    matrix.row_reduce(&mut pivots);
-                }
+                matrix.row_reduce(&mut pivots);
             }
             // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
-            num_new_gens += matrix.extend_image(first_new_row + num_new_gens, padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension, &pivots, &old_kernel).len();
+             res_new_gens = matrix.extend_image(first_new_row + cc_new_gens, padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension, &pivots, &old_kernel).len();
         }
+        let num_new_gens = cc_new_gens + res_new_gens;
         source.add_generators(t, source_lock, source_module_table, num_new_gens, None);
+
+        for (i, row) in middle_rows.into_iter().enumerate() {
+            matrix[first_new_row + i] = row;
+        }
         current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, &mut matrix, first_new_row, 0);
         current_differential.add_generators_from_matrix_rows(&differential_lock, t, &mut matrix, first_new_row, padded_target_cc_dimension);
 
