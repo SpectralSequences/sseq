@@ -94,6 +94,7 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         }
         if output_homological_degree == 0 {
             if let Some(extra_images_matrix) = extra_images {
+                target_chain_map.compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
                 let target_chain_map_qi = target_chain_map.quasi_inverse(output_internal_degree);
                 assert!(num_gens == extra_images_matrix.rows(),
                     format!("num_gens : {} greater than rows : {} hom_deg : {}, int_deg : {}", 
@@ -120,10 +121,12 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
             d_source.apply_to_generator(&mut dx_vector, 1, input_internal_degree, k);
             if dx_vector.is_zero() {
                 let extra_image_matrix = extra_images.as_mut().expect("Missing extra image rows");
+                target_chain_map.compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
                 let target_chain_map_qi = target_chain_map.quasi_inverse(output_internal_degree);
                 target_chain_map_qi.apply(&mut outputs_matrix[k], 1, &extra_image_matrix[extra_image_row]);
                 extra_image_row += 1;
             } else {
+                d_target.compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
                 let d_quasi_inverse = d_target.quasi_inverse(output_internal_degree);
                 f_prev.apply(&mut fdx_vector, 1, input_internal_degree, &dx_vector);
                 d_quasi_inverse.apply(&mut outputs_matrix[k], 1, &fdx_vector);

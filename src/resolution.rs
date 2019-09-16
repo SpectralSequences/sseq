@@ -267,7 +267,9 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         );
 
         current_chain_map.set_quasi_inverse(&chain_map_lock, t, cm_qi);
+        current_chain_map.set_kernel(&chain_map_lock, t, Subspace::new(p, 0, 0)); // Fill it up with something dummy so that compute_kernels_and... is happy
         current_differential.set_quasi_inverse(&differential_lock, t, res_qi);
+        current_differential.set_kernel(&differential_lock, t, Subspace::new(p, 0, 0));
         *chain_map_lock += 1;
         *differential_lock += 1;
 

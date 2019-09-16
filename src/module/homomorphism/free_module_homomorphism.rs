@@ -227,6 +227,11 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         self.max_degree.lock().unwrap()
     }
 
+    pub fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace){
+        assert!(degree == self.kernel.len());
+        self.kernel.push(kernel);
+    }
+
     pub fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse){
         assert!(degree == self.quasi_inverse.len());
         self.quasi_inverse.push(quasi_inverse);
