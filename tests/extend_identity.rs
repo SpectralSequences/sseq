@@ -3,7 +3,6 @@ use rust_ext::construct;
 use rust_ext::matrix::Matrix;
 use rust_ext::module::Module;
 use rust_ext::fp_vector::{FpVectorT, FpVector};
-use rust_ext::algebra::Algebra;
 use rust_ext::chain_complex::ChainComplex;
 
 #[test]
@@ -28,7 +27,7 @@ fn check_algebra (module_name : &str, max_degree : i32, algebra_name: &str) {
     };
 
     let bundle = construct(&a).unwrap();
-    let p = bundle.algebra.prime();
+    let p = bundle.chain_complex.prime();
 
     bundle.resolution.write().unwrap().add_self_map(0, 0, &"id".to_string(), Matrix::from_vec(p, &[vec![1]]));
 
