@@ -31,9 +31,6 @@ pub trait ChainComplex {
     fn homology_basis(&self, homological_degree : u32, internal_degree : i32) -> &Vec<usize>;
     fn max_homology_degree(&self, homological_degree : u32) -> i32;
 
-    fn max_computed_homological_degree(&self) -> u32;
-    fn max_computed_degree(&self) -> i32;
-
     fn compute_homology_through_bidegree(&self, homological_degree : u32, internal_degree : i32){
         self.compute_through_bidegree(homological_degree + 1, internal_degree);
         for i in 0 ..= homological_degree {
@@ -63,34 +60,6 @@ pub trait ChainComplex {
         let homology_basis = Subspace::subquotient(Some(kernel), image.as_ref(), d_prev.source().dimension(internal_degree));
         self.set_homology_basis(homological_degree, internal_degree, homology_basis);
     }
-
-    fn graded_dimension_string(&self) -> String {
-        let mut result = String::new();
-        let min_degree = self.min_degree();
-        let max_degree = self.max_computed_degree();
-        let max_hom_deg = self.max_computed_homological_degree(); //(max_degree - min_degree) as u32 / (self.prime() + 1); //self.get_max_hom_deg();
-        for i in (0 ..= max_hom_deg).rev() {
-            let module = self.module(i);
-            for j in min_degree + i as i32 ..= max_degree {
-                let n = self.homology_dimension(i, j);
-                match n {
-                    0 => result.push_str("  "),
-                    1 => result.push_str("· "),
-                    2 => result.push_str(": "),
-                    3 => result.push_str("∴ "),
-                    4 => result.push_str("⁘ "),
-                    5 => result.push_str("⁙ "),
-                    _ => result.push_str(&format!("{} ", n))
-                }
-            }
-            result.push_str("\n");
-            // If it is empty so far, don't print anything
-            if result.trim_start().is_empty() {
-                result = String::new();
-            }
-        }
-        return result;
-    }
 }
 
 pub trait CochainComplex {
@@ -106,9 +75,6 @@ pub trait CochainComplex {
     fn module(&self, homological_degree : u32) -> Arc<Self::Module>;
     fn differential(&self, homological_degree : u32) -> Arc<Self::Homomorphism>;
     fn compute_through_bidegree(&self, homological_degree : u32, degree : i32);
-
-    fn max_computed_homological_degree(&self) -> u32;
-    fn max_computed_degree(&self) -> i32;
 
     fn set_cohomology_basis(&self, homological_degree : u32, internal_degree : i32, homology_basis : Vec<usize>);
     fn cohomology_basis(&self, homological_degree : u32, internal_degree : i32) -> &Vec<usize>;
@@ -144,34 +110,6 @@ pub trait CochainComplex {
         let cohomology_basis = Subspace::subquotient(Some(kernel), image.as_ref(), d_prev.source().dimension(internal_degree));
         self.set_cohomology_basis(homological_degree, internal_degree, cohomology_basis);
     }
-
-    fn graded_dimension_string(&self) -> String {
-        let mut result = String::new();
-        let min_degree = self.min_degree();
-        let max_degree = self.max_computed_degree();
-        let max_hom_deg = self.max_computed_homological_degree(); //(max_degree - min_degree) as u32 / (self.prime() + 1); //self.get_max_hom_deg();
-        for i in (0 ..= max_hom_deg).rev() {
-            let module = self.module(i);
-            for j in min_degree + i as i32 ..= max_degree {
-                let n = self.cohomology_dimension(i, j);
-                match n {
-                    0 => result.push_str("  "),
-                    1 => result.push_str("· "),
-                    2 => result.push_str(": "),
-                    3 => result.push_str("∴ "),
-                    4 => result.push_str("⁘ "),
-                    5 => result.push_str("⁙ "),
-                    _ => result.push_str(&format!("{} ", n))
-                }
-            }
-            result.push_str("\n");
-            // If it is empty so far, don't print anything
-            if result.trim_start().is_empty() {
-                result = String::new();
-            }
-        }
-        return result;
-    }    
 }
 
 
@@ -215,14 +153,6 @@ impl<M : Module> ChainComplex for ChainComplexConcentratedInDegreeZero<M> {
     }
 
     fn max_homology_degree(&self, homological_degree : u32) -> i32 {
-        unimplemented!()
-    }
-
-    fn max_computed_degree(&self) -> i32 {
-        unimplemented!()
-    }
-
-    fn max_computed_homological_degree(&self) -> u32 {
         unimplemented!()
     }
 
@@ -329,9 +259,6 @@ where M : Module,
     fn set_homology_basis(&self, homological_degree : u32, internal_degree : i32, homology_basis : Vec<usize>) { unimplemented!() }
     fn homology_basis(&self, homological_degree : u32, internal_degree : i32) -> &Vec<usize> { unimplemented!() }
     fn max_homology_degree(&self, homological_degree : u32) -> i32 { std::i32::MAX }
-
-    fn max_computed_homological_degree(&self) -> u32 { std::u32::MAX }
-    fn max_computed_degree(&self) -> i32 { std::i32::MAX }
 }
 
 pub struct FiniteAugmentedChainComplex<M, F1, F2, CC>
@@ -385,9 +312,6 @@ where M : Module,
     fn set_homology_basis(&self, homological_degree : u32, internal_degree : i32, homology_basis : Vec<usize>) { unimplemented!() }
     fn homology_basis(&self, homological_degree : u32, internal_degree : i32) -> &Vec<usize> { unimplemented!() }
     fn max_homology_degree(&self, homological_degree : u32) -> i32 { std::i32::MAX }
-
-    fn max_computed_homological_degree(&self) -> u32 { std::u32::MAX }
-    fn max_computed_degree(&self) -> i32 { std::i32::MAX }
 }
 
 impl<M, F1, F2, CC> AugmentedChainComplex for FiniteAugmentedChainComplex<M, F1, F2, CC>

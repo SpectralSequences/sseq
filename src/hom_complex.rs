@@ -81,15 +81,6 @@ impl<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<Fr
         return self.cohomology_basis[homological_degree].len();
     }
 
-    fn max_computed_degree(&self) -> i32 {
-        let basis : &OnceBiVec<_> = &self.cohomology_basis[0usize];
-        return basis.len();
-    }
-
-    fn max_computed_homological_degree(&self) -> u32 {
-        self.cohomology_basis.len() as u32
-    }
-
     fn compute_through_bidegree(&self, homological_degree : u32, degree : i32){
         self.source.compute_through_bidegree(homological_degree, degree);
         if self.modules.len() == 0 {

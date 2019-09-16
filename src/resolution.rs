@@ -308,17 +308,6 @@ impl<CC : ChainComplex> ChainComplex for ResolutionInner<CC>
         self.complex().algebra()
     }
 
-    fn max_computed_degree(&self) -> i32 {
-        match self.modules.len() {
-            0 => 0,
-            _ => self.modules[0 as usize].max_computed_degree()
-        }
-    }
-
-    fn max_computed_homological_degree(&self) -> u32 {
-        self.modules.len() as u32 - 1
-    }
-
     fn module(&self, homological_degree : u32) -> Arc<Self::Module> {
         Arc::clone(&self.modules[homological_degree as usize])
     }
@@ -352,8 +341,8 @@ impl<CC : ChainComplex> ChainComplex for ResolutionInner<CC>
     }
 
     fn compute_through_bidegree(&self, s : u32, t : i32) {
-        assert!(self.max_computed_homological_degree() >= s);
-        assert!(self.max_computed_degree() >= t);
+        assert!(self.modules.len() > s as usize);
+        assert!(self.modules[0 as usize].max_computed_degree() > t);
     }
 }
 
@@ -572,6 +561,42 @@ impl<CC : ChainComplex> Resolution<CC> {
         if let Some(add_structline) = &self.add_structline {
             add_structline(name, source_s, source_t, target_s, target_t, left, products);
         }
+    }
+
+    fn max_computed_degree(&self) -> i32 {
+        *self.next_t.lock().unwrap() - 1
+    }
+
+    fn max_computed_homological_degree(&self) -> u32 {
+        *self.next_s.lock().unwrap() - 1
+    }
+
+    pub fn graded_dimension_string(&self) -> String {
+        let mut result = String::new();
+        let min_degree = self.min_degree();
+        let max_degree = self.max_computed_degree();
+        let max_hom_deg = self.max_computed_homological_degree(); //(max_degree - min_degree) as u32 / (self.prime() + 1); //self.get_max_hom_deg();
+        for i in (0 ..= max_hom_deg).rev() {
+            let module = self.module(i);
+            for j in min_degree + i as i32 ..= max_degree {
+                let n = self.homology_dimension(i, j);
+                match n {
+                    0 => result.push_str("  "),
+                    1 => result.push_str("· "),
+                    2 => result.push_str(": "),
+                    3 => result.push_str("∴ "),
+                    4 => result.push_str("⁘ "),
+                    5 => result.push_str("⁙ "),
+                    _ => result.push_str(&format!("{} ", n))
+                }
+            }
+            result.push_str("\n");
+            // If it is empty so far, don't print anything
+            if result.trim_start().is_empty() {
+                result = String::new();
+            }
+        }
+        return result;
     }
 }
 
@@ -848,14 +873,6 @@ impl<CC : ChainComplex> ChainComplex for Resolution<CC>
     fn algebra(&self) -> Arc<AlgebraAny> {
         self.inner.complex().algebra()
     }
-
-    fn max_computed_degree(&self) -> i32 {
-        *self.next_t.lock().unwrap() - 1
-    }
-
-    fn max_computed_homological_degree(&self) -> u32 {
-        *self.next_s.lock().unwrap() - 1
-    }    
 
     fn zero_module(&self) -> Arc<Self::Module> {
         Arc::clone(&self.inner.zero_module)
