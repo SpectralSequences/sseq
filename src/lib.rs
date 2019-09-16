@@ -11,7 +11,6 @@ pub mod steenrod_parser;
 pub mod steenrod_evaluator;
 pub mod module;
 pub mod chain_complex;
-pub mod hom_complex;
 pub mod resolution;
 pub mod resolution_homomorphism;
 mod cli_module_loaders;
