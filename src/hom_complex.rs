@@ -3,18 +3,18 @@ use std::sync::Arc;
 use once::{OnceVec, OnceBiVec};
 use crate::algebra::AlgebraAny;
 use crate::module::{Module, FreeModule, BoundedModule};
-// use crate::module_homomorphism::ModuleHomomorphism;
-use crate::module_homomorphism::FreeModuleHomomorphism;
+// use crate::module::homomorphism::ModuleHomomorphism;
+use crate::module::homomorphism::FreeModuleHomomorphism;
 use crate::chain_complex::{ChainComplex, CochainComplex};
-use crate::hom_space::HomSpace;
-use crate::hom_pullback::HomPullback;
+use crate::module::HomModule;
+use crate::module::homomorphism::HomPullback;
 
 pub struct HomComplex<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<FreeModule>>, N : BoundedModule> {
     min_degree : i32,
     source : Arc<CC>,
     target : Arc<N>,
-    zero_module : Arc<HomSpace<N>>,
-    modules : OnceVec<Arc<HomSpace<N>>>,
+    zero_module : Arc<HomModule<N>>,
+    modules : OnceVec<Arc<HomModule<N>>>,
     differentials : OnceVec<Arc<HomPullback<N>>>,
     cohomology_basis : OnceVec<OnceBiVec<Vec<usize>>>
 }
@@ -23,7 +23,7 @@ impl<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<Fr
     HomComplex<CC, N> {
     pub fn new(source : Arc<CC>, target : Arc<N>) -> Self {
         let min_degree = source.min_degree() - target.max_degree();
-        let zero_module = Arc::new(HomSpace::new(source.zero_module(), Arc::clone(&target)));
+        let zero_module = Arc::new(HomModule::new(source.zero_module(), Arc::clone(&target)));
         Self {
             min_degree,
             source,
@@ -38,7 +38,7 @@ impl<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<Fr
 
 impl<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<FreeModule>>, N : BoundedModule>
     CochainComplex for HomComplex<CC, N> {
-    type Module = HomSpace<N>;
+    type Module = HomModule<N>;
     type Homomorphism = HomPullback<N>;
 
     fn algebra(&self) -> Arc<AlgebraAny> {
@@ -49,11 +49,11 @@ impl<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<Fr
         self.min_degree
     }
 
-    fn zero_module(&self) -> Arc<HomSpace<N>> {
+    fn zero_module(&self) -> Arc<HomModule<N>> {
         Arc::clone(&self.zero_module)
     }
 
-    fn module(&self, homological_degree : u32) -> Arc<HomSpace<N>> {
+    fn module(&self, homological_degree : u32) -> Arc<HomModule<N>> {
         Arc::clone(&self.modules[homological_degree])
     }
 
@@ -93,11 +93,11 @@ impl<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<Fr
     fn compute_through_bidegree(&self, homological_degree : u32, degree : i32){
         self.source.compute_through_bidegree(homological_degree, degree);
         if self.modules.len() == 0 {
-            self.modules.push(Arc::new(HomSpace::new(self.source.module(0), Arc::clone(&self.target))));
+            self.modules.push(Arc::new(HomModule::new(self.source.module(0), Arc::clone(&self.target))));
             self.differentials.push(Arc::new(HomPullback::new(Arc::clone(&self.modules[0u32]), Arc::clone(&self.zero_module), self.source.differential(0))));
         }
         for i in self.modules.len() as u32 ..= homological_degree {
-            self.modules.push(Arc::new(HomSpace::new(self.source.module(i), Arc::clone(&self.target))));
+            self.modules.push(Arc::new(HomModule::new(self.source.module(i), Arc::clone(&self.target))));
             self.differentials.push(Arc::new(HomPullback::new(Arc::clone(&self.modules[i]), Arc::clone(&self.modules[i - 1]), self.source.differential(i))));
         }
     }

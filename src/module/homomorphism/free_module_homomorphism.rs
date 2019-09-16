@@ -5,7 +5,7 @@ use once::OnceBiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::{Module, FreeModule, FreeModuleTableEntry};
-use crate::module_homomorphism::ModuleHomomorphism;
+use crate::module::homomorphism::ModuleHomomorphism;
 
 pub struct FreeModuleHomomorphism<M : Module> {
     source : Arc<FreeModule>,

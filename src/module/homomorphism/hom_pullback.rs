@@ -7,21 +7,21 @@ use crate::matrix::{Subspace, QuasiInverse};
 // use crate::algebra::AlgebraAny;
 // use crate::field::Field;
 use crate::module::{Module, FreeModule, BoundedModule};
-use crate::hom_space::HomSpace;
-use crate::module_homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
+use crate::module::HomModule;
+use crate::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
 
 /// Given a map `map`: A -> B and `source` = Hom(B, X), `target` = Hom(A, X), produce the induced
 /// map `map`^* Hom(B, X) -> Hom(A, X).
 pub struct HomPullback<M : BoundedModule> {
-    source : Arc<HomSpace<M>>,
-    target : Arc<HomSpace<M>>,
+    source : Arc<HomModule<M>>,
+    target : Arc<HomModule<M>>,
     map : Arc<FreeModuleHomomorphism<FreeModule>>,
     kernel : OnceBiVec<Subspace>,
     quasi_inverse : OnceBiVec<QuasiInverse>
 }
 
 impl<M : BoundedModule> HomPullback<M> {
-    pub fn new(source : Arc<HomSpace<M>>, target : Arc<HomSpace<M>>, map : Arc<FreeModuleHomomorphism<FreeModule>>) -> Self {
+    pub fn new(source : Arc<HomModule<M>>, target : Arc<HomModule<M>>, map : Arc<FreeModuleHomomorphism<FreeModule>>) -> Self {
         let min_degree = source.min_degree();
         Self {
             source,
@@ -34,8 +34,8 @@ impl<M : BoundedModule> HomPullback<M> {
 }
 
 impl<M : BoundedModule> ModuleHomomorphism for HomPullback<M> {
-    type Source = HomSpace<M>;
-    type Target = HomSpace<M>;
+    type Source = HomModule<M>;
+    type Target = HomModule<M>;
 
     fn source(&self) -> Arc<Self::Source> {
         Arc::clone(&self.source)
@@ -133,8 +133,8 @@ mod tests {
         let mut joker_json = serde_json::from_str(&joker_json_string).unwrap();
         let M = Arc::new(FDModule::from_json(Arc::clone(&A), &mut joker_json));
 
-        let hom0 = Arc::new(HomSpace::new(Arc::clone(&F0), Arc::clone(&M)));
-        let hom1 = Arc::new(HomSpace::new(Arc::clone(&F1), Arc::clone(&M)));
+        let hom0 = Arc::new(HomModule::new(Arc::clone(&F0), Arc::clone(&M)));
+        let hom1 = Arc::new(HomModule::new(Arc::clone(&F1), Arc::clone(&M)));
 
         hom0.compute_basis(10);
         hom1.compute_basis(10);

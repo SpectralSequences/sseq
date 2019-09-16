@@ -2,7 +2,7 @@ use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::Subspace;
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, ZeroModule, OptionModule};
-use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphism, ZeroHomomorphismT};
+use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism, ZeroHomomorphismT};
 use std::sync::Arc;
 
 pub enum ChainComplexGrading {

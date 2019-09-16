@@ -6,9 +6,15 @@ use crate::module::Module;
 
 mod free_module_homomorphism;
 mod bounded_module_homomorphism;
+mod hom_pullback;
+mod truncated_homomorphism;
+mod quotient_homomorphism;
 
 pub use free_module_homomorphism::FreeModuleHomomorphism;
+pub use hom_pullback::HomPullback;
 pub use bounded_module_homomorphism::BoundedModuleHomomorphism;
+pub use truncated_homomorphism::{TruncatedHomomorphism, TruncatedHomomorphismSource};
+pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
 
 pub trait ModuleHomomorphism {
     type Source : Module;

@@ -8,7 +8,7 @@ use crate::matrix::Matrix;
 use once::OnceVec;
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, FreeModule};
-use crate::module_homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
+use crate::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
 
 struct FPMIndexTable {
     gen_idx_to_fp_idx : Vec<isize>,

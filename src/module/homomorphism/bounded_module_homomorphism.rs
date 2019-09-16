@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::{Module, BoundedModule};
-use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphismT};
+use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphismT};
 use bivec::BiVec;
 
 pub struct BoundedModuleHomomorphism<S : BoundedModule, T : Module> {

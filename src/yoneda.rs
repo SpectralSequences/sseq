@@ -2,8 +2,8 @@
 use crate::chain_complex::{ChainComplex, AugmentedChainComplex, FiniteAugmentedChainComplex};
 use crate::module::{Module, FreeModule, BoundedModule, FDModule};
 use crate::module::{QuotientModule as QM, TruncatedModule as TM};
-use crate::module::{TruncatedHomomorphism, TruncatedHomomorphismSource, QuotientHomomorphism, QuotientHomomorphismSource};
-use crate::module_homomorphism::{ModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphismT};
+use crate::module::homomorphism::{TruncatedHomomorphism, TruncatedHomomorphismSource, QuotientHomomorphism, QuotientHomomorphismSource};
+use crate::module::homomorphism::{ModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphismT};
 use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra};
 
 use crate::fp_vector::{FpVector, FpVectorT};

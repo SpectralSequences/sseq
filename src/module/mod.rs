@@ -10,11 +10,15 @@ mod finitely_presented_module;
 mod truncated_module;
 mod quotient_module;
 mod free_module;
+mod hom_module;
+
+pub mod homomorphism;
 
 pub use finite_dimensional_module::FiniteDimensionalModule as FDModule;
+pub use hom_module::HomModule;
 pub use finitely_presented_module::FinitelyPresentedModule as FPModule;
-pub use truncated_module::{TruncatedModule, TruncatedHomomorphism, TruncatedHomomorphismSource};
-pub use quotient_module::{QuotientModule, QuotientHomomorphism, QuotientHomomorphismSource};
+pub use truncated_module::TruncatedModule;
+pub use quotient_module::QuotientModule;
 pub use free_module::FreeModule;
 pub use free_module::FreeModuleTableEntry;
 

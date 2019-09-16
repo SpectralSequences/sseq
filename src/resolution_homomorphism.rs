@@ -4,7 +4,7 @@ use once::OnceVec;
 use crate::fp_vector::{ FpVector, FpVectorT };
 use crate::matrix::Matrix;
 use crate::module::{Module, FiniteModule};
-use crate::module_homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
+use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
 use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::resolution::ResolutionInner;
