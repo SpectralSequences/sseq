@@ -7,7 +7,7 @@ use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::Matrix;
 use once::OnceVec;
 use crate::algebra::{Algebra, AlgebraAny};
-use crate::module::{Module, ZeroModuleT, FreeModule};
+use crate::module::{Module, ZeroModule, FreeModule};
 use crate::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
 
 struct FPMIndexTable {
@@ -24,7 +24,7 @@ pub struct FinitelyPresentedModule {
     index_table : OnceVec<FPMIndexTable>
 }
 
-impl ZeroModuleT for FinitelyPresentedModule {
+impl ZeroModule for FinitelyPresentedModule {
     fn zero_module(algebra : Arc<AlgebraAny>, min_degree : i32) -> Self {
         Self::new(algebra, "zero".to_string(), min_degree)
     }

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::fp_vector::{FpVector};
 use crate::matrix::{Subspace, QuasiInverse};
 use crate::module::{Module, FPModule, FreeModule};
-use crate::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism, ZeroHomomorphismT};
+use crate::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism, ZeroHomomorphism};
 
 pub struct FPModuleHomomorphism<N: FPModuleT, M : Module> {
     source : Arc<N>,
@@ -54,7 +54,7 @@ impl<N : FPModuleT, M : Module> ModuleHomomorphism for FPModuleHomomorphism<N, M
     }
 }
 
-impl<N: FPModuleT, M : Module> ZeroHomomorphismT<N, M> for FPModuleHomomorphism<N, M> {
+impl<N: FPModuleT, M : Module> ZeroHomomorphism<N, M> for FPModuleHomomorphism<N, M> {
     fn zero_homomorphism(source : Arc<N>, target : Arc<M>, degree_shift : i32) -> Self {
         let underlying_map = Arc::new(FreeModuleHomomorphism::new(Arc::clone(source.generators()), target, degree_shift));
         FPModuleHomomorphism {

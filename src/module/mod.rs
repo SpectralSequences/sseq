@@ -140,51 +140,6 @@ pub trait Module {
     } 
 }
 
-pub struct ZeroModule {
-    algebra : Arc<AlgebraAny>,
-    min_degree : i32,
-    name : String
-}
-
-impl ZeroModule {
-    pub fn new(algebra : Arc<AlgebraAny>, min_degree : i32) -> Self {
-        let name = format!("Zero Module over {}", algebra.name());
-        ZeroModule {
-            algebra,
-            min_degree,
-            name
-        }
-    }
-}
-
-impl Module for ZeroModule {
-    fn algebra(&self) -> Arc<AlgebraAny> {
-        Arc::clone(&self.algebra)
-    }
-    
-    fn name(&self) -> &str{
-        &self.name
-    }
-
-    fn dimension(&self, _degree : i32) -> usize {
-        0
-    }
-
-    fn min_degree(&self) -> i32 {
-        self.min_degree
-    }
-
-    // Since the dimension is 0, the input of this function is an element of the basis which is the empty set.
-    fn act_on_basis(&self, _result : &mut FpVector, _coeff : u32, _op_degree : i32, _op_index : usize, _mod_degree : i32, _mod_index : usize){
-        assert!(false);
-    }
-
-    fn basis_element_to_string(&self, _degree : i32, _index : usize) -> String{
-        assert!(false);
-        "".to_string()
-    }
-}
-
 #[enum_dispatch]
 pub enum FiniteModule {
     FDModule,
@@ -198,62 +153,6 @@ impl FiniteModule {
             &"finite dimensional module" => Ok(FiniteModule::from(FDModule::from_json(algebra, json))),
             &"finitely presented module" => Ok(FiniteModule::from(FPModule::from_json(algebra, json))),
             _ => Err(Box::new(UnknownModuleTypeError { module_type : module_type.to_string() }))
-        }
-    }
-}
-
-pub enum OptionModule<M : Module> {
-    Some(Arc<M>),
-    Zero(Arc<ZeroModule>)
-}
-
-impl<M : Module> Module for OptionModule<M> {
-    fn algebra(&self) -> Arc<AlgebraAny> {
-        match self {
-            OptionModule::Some(l) => l.algebra(),
-            OptionModule::Zero(r) => r.algebra()
-        }
-    }
-
-    fn name(&self) -> &str {
-        match self {
-            OptionModule::Some(l) => l.name(),
-            OptionModule::Zero(r) => r.name()
-        }
-    }
-
-    fn min_degree(&self) -> i32 {
-        match self {
-            OptionModule::Some(l) => l.min_degree(),
-            OptionModule::Zero(r) => r.min_degree()
-        }
-    }
-
-    fn compute_basis(&self, degree : i32) {
-        match self {
-            OptionModule::Some(l) => l.compute_basis(degree),
-            OptionModule::Zero(r) => r.compute_basis(degree)
-        }
-    }
-
-    fn dimension(&self, degree : i32) -> usize {
-        match self {
-            OptionModule::Some(l) => l.dimension(degree),
-            OptionModule::Zero(r) => r.dimension(degree)
-        }
-    }
-
-    fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize){
-        match self {
-            OptionModule::Some(l) => l.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index),
-            OptionModule::Zero(r) => r.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index)
-        }
-    }
-
-    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
-        match self {
-            OptionModule::Some(l) => l.basis_element_to_string(degree, idx),
-            OptionModule::Zero(r) => r.basis_element_to_string(degree, idx)
         }
     }
 }
@@ -294,11 +193,11 @@ impl Error for ModuleFailedRelationError {
     }
 }
 
-pub trait ZeroModuleT {
+pub trait ZeroModule {
     fn zero_module(algebra : Arc<AlgebraAny>, min_degree : i32) -> Self;
 }
 
-impl ZeroModuleT for FiniteModule {
+impl ZeroModule for FiniteModule {
     fn zero_module(algebra : Arc<AlgebraAny>, min_degree : i32) -> Self {
         FiniteModule::FDModule(FDModule::zero_module(algebra, min_degree))
     }

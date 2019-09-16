@@ -1,6 +1,6 @@
 use crate::algebra::AlgebraAny;
-use crate::module::{Module, ZeroModuleT};
-use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphismT};
+use crate::module::{Module, ZeroModule};
+use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
 use std::sync::Arc;
 
@@ -14,7 +14,7 @@ where M : Module,
 
 impl<M, F> FiniteChainComplex<M, F>
 where M : Module,
-      F : ModuleHomomorphism<Source=M, Target=M> + ZeroHomomorphismT<M, M> {
+      F : ModuleHomomorphism<Source=M, Target=M> + ZeroHomomorphism<M, M> {
 
     pub fn pop(&mut self) {
         if self.modules.len() == 0 {
@@ -32,8 +32,8 @@ where M : Module,
 }
 
 impl<M, F> FiniteChainComplex<M, F>
-where M : Module + ZeroModuleT,
-      F : ModuleHomomorphism<Source=M, Target=M> + ZeroHomomorphismT<M, M> {
+where M : Module + ZeroModule,
+      F : ModuleHomomorphism<Source=M, Target=M> + ZeroHomomorphism<M, M> {
 
     pub fn ccdz(module : Arc<M>) -> Self {
         let zero_module = Arc::new(M::zero_module(module.algebra(), module.min_degree()));

@@ -103,45 +103,6 @@ pub trait ModuleHomomorphism {
     }
 }
 
-pub struct ZeroHomomorphism<S : Module, T : Module> {
-    source : Arc<S>,
-    target : Arc<T>,
-    degree_shift : i32
-}
-
-impl<S : Module, T : Module> ZeroHomomorphism<S, T> {
-    pub fn new(source : Arc<S>, target : Arc<T>, degree_shift : i32) -> Self {
-        ZeroHomomorphism {
-            source,
-            target,
-            degree_shift
-        }
-    }
-}
-
-impl<S : Module, T : Module> ModuleHomomorphism for ZeroHomomorphism<S, T> {
-    type Source = S;
-    type Target = T;
-
-    fn source(&self) -> Arc<Self::Source> {
-        Arc::clone(&self.source)
-    }
-
-    fn target(&self) -> Arc<Self::Target> {
-        Arc::clone(&self.target)
-    }
-
-    fn degree_shift(&self) -> i32 {
-        self.degree_shift
-    }
-
-    fn apply_to_basis_element(&self, _result : &mut FpVector, _coeff : u32, _input_degree : i32, _input_idx : usize) {}
-
-    fn quasi_inverse(&self, degree : i32) -> &QuasiInverse { unimplemented!() }
-    fn kernel(&self, degree : i32) -> &Subspace { unimplemented!() }
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {}
-}
-
-pub trait ZeroHomomorphismT<S : Module, T : Module> {
+pub trait ZeroHomomorphism<S : Module, T : Module> {
     fn zero_homomorphism(s : Arc<S>, t : Arc<T>, degree_shift : i32) -> Self;
 }

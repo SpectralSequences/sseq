@@ -4,8 +4,8 @@ mod finite_chain_complex;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::Subspace;
 use crate::algebra::{Algebra, AlgebraAny};
-use crate::module::{Module, ZeroModule, OptionModule};
-use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
+use crate::module::Module;
+use crate::module::homomorphism::ModuleHomomorphism;
 use std::sync::Arc;
 
 pub use hom_complex::HomComplex;
@@ -115,81 +115,6 @@ pub trait CochainComplex {
         let image = d_cur.image(internal_degree);
         let cohomology_basis = Subspace::subquotient(Some(kernel), image.as_ref(), d_prev.source().dimension(internal_degree));
         self.set_cohomology_basis(homological_degree, internal_degree, cohomology_basis);
-    }
-}
-
-
-pub struct ChainComplexConcentratedInDegreeZero<M : Module> {
-    module : Arc<OptionModule<M>>,
-    zero_module : Arc<OptionModule<M>>,
-    d0 : Arc<ZeroHomomorphism<OptionModule<M>, OptionModule<M>>>,
-    d1 : Arc<ZeroHomomorphism<OptionModule<M>, OptionModule<M>>>,
-    other_ds : Arc<ZeroHomomorphism<OptionModule<M>, OptionModule<M>>>
-}
-
-impl<M : Module> ChainComplexConcentratedInDegreeZero<M> {
-    pub fn new(module : Arc<M>) -> Self {
-        let zero_module_inner = Arc::new(ZeroModule::new(Arc::clone(&module.algebra()), module.min_degree()));
-        let zero_module = Arc::new(OptionModule::Zero(Arc::clone(&zero_module_inner)));
-        let some_module = Arc::new(OptionModule::Some(Arc::clone(&module)));
-        Self {
-            d0 : Arc::new(ZeroHomomorphism::new(Arc::clone(&some_module), Arc::clone(&zero_module), 0)),
-            d1 : Arc::new(ZeroHomomorphism::new(Arc::clone(&zero_module), Arc::clone(&some_module), 0)),
-            other_ds : Arc::new(ZeroHomomorphism::new(Arc::clone(&zero_module), Arc::clone(&zero_module), 0)),
-            module : some_module,
-            zero_module
-        }
-    }
-}
-
-impl<M : Module> ChainComplex for ChainComplexConcentratedInDegreeZero<M> {
-    type Module = OptionModule<M>;
-    type Homomorphism = ZeroHomomorphism<Self::Module, Self::Module>;
-
-    fn algebra(&self) -> Arc<AlgebraAny> {
-        self.module.algebra()
-    }
-
-    fn set_homology_basis(&self, homological_degree : u32, internal_degree : i32, homology_basis : Vec<usize>){
-        unimplemented!()
-    }
-
-    fn homology_basis(&self, homological_degree : u32, internal_degree : i32) -> &Vec<usize>{
-        unimplemented!()
-    }
-
-    fn max_homology_degree(&self, homological_degree : u32) -> i32 {
-        unimplemented!()
-    }
-
-    fn zero_module(&self) -> Arc<OptionModule<M>>{
-        Arc::clone(&self.zero_module)
-    }
-
-    fn module(&self, homological_degree : u32) -> Arc<OptionModule<M>> {
-        if homological_degree == 0 {
-            Arc::clone(&self.module)
-        } else {
-            Arc::clone(&self.zero_module)
-        }
-    }
-
-    fn min_degree(&self) -> i32 {
-        self.module.min_degree()
-    }
-
-    fn differential(&self, homological_degree : u32) -> Arc<ZeroHomomorphism<OptionModule<M>, OptionModule<M>>> {
-        match homological_degree {
-            0 => Arc::clone(&self.d0),
-            1 => Arc::clone(&self.d1),
-            _ => Arc::clone(&self.other_ds)
-        }
-    }
-
-    fn compute_through_bidegree(&self, homological_degree : u32, degree : i32) {
-        if homological_degree == 0 {
-            self.module.compute_basis(degree);
-        }
     }
 }
 

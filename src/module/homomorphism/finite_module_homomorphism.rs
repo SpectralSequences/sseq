@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::fp_vector::{FpVector};
 use crate::matrix::{Subspace, QuasiInverse};
 use crate::module::{Module, FiniteModule, FreeModule, BoundedModule};
-use crate::module::homomorphism::{ModuleHomomorphism, FPModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphismT};
+use crate::module::homomorphism::{ModuleHomomorphism, FPModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphism};
 use crate::module::homomorphism::FPModuleT;
 
 impl BoundedModule for FiniteModule {
@@ -110,7 +110,7 @@ impl<M : Module> ModuleHomomorphism for FiniteModuleHomomorphism<M> {
     }
 }
 
-impl<M : Module> ZeroHomomorphismT<FiniteModule, M> for FiniteModuleHomomorphism<M> {
+impl<M : Module> ZeroHomomorphism<FiniteModule, M> for FiniteModuleHomomorphism<M> {
     fn zero_homomorphism(source : Arc<FiniteModule>, target : Arc<M>, degree_shift : i32) -> Self {
         let map = match &*source {
             FiniteModule::FDModule(m) => FMHI::FD(BoundedModuleHomomorphism::zero_homomorphism(Arc::clone(&source), Arc::clone(&target), degree_shift)),

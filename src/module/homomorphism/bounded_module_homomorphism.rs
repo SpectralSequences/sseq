@@ -3,7 +3,7 @@ use std::sync::{Mutex, Arc};
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::{Module, BoundedModule};
-use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphismT};
+use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use bivec::BiVec;
 use once::OnceBiVec;
 
@@ -128,7 +128,7 @@ impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {
     }
 }
 
-impl<S: BoundedModule, T : Module> ZeroHomomorphismT<S, T> for BoundedModuleHomomorphism<S, T> {
+impl<S: BoundedModule, T : Module> ZeroHomomorphism<S, T> for BoundedModuleHomomorphism<S, T> {
     fn zero_homomorphism(source : Arc<S>, target : Arc<T>, degree_shift : i32) -> Self {
         BoundedModuleHomomorphism {
             source, target, degree_shift,
