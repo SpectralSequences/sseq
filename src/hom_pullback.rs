@@ -9,8 +9,7 @@ use crate::matrix::{Subspace, QuasiInverse};
 // use crate::field::Field;
 use crate::module::{Module, FreeModule, BoundedModule};
 use crate::hom_space::HomSpace;
-use crate::module_homomorphism::ModuleHomomorphism;
-use crate::free_module_homomorphism::FreeModuleHomomorphism;
+use crate::module_homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
 
 pub struct HomPullback<M : BoundedModule> {
     source : Arc<HomSpace<M>>,

@@ -11,7 +11,6 @@ pub mod steenrod_parser;
 pub mod steenrod_evaluator;
 pub mod module;
 pub mod module_homomorphism;
-pub mod free_module_homomorphism;
 pub mod chain_complex;
 pub mod hom_space;
 pub mod hom_pullback;
@@ -30,7 +29,7 @@ use chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use resolution::{Resolution, ModuleResolution};
 use resolution_homomorphism::ResolutionHomomorphism;
 use yoneda::yoneda_representative;
-use module_homomorphism::FDModuleHomomorphism;
+use module_homomorphism::BoundedModuleHomomorphism;
 
 use bivec::BiVec;
 use query::*;
@@ -67,7 +66,7 @@ pub fn construct_derived_resolution(json : Value, algebra_name : String) -> Resu
     Resolution<
         FiniteChainComplex<
             FDModule,
-            FDModuleHomomorphism<FDModule, FDModule>
+            BoundedModuleHomomorphism<FDModule, FDModule>
         >
     >, Box<dyn Error>> {
 

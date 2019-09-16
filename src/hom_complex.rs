@@ -4,7 +4,7 @@ use once::{OnceVec, OnceBiVec};
 use crate::algebra::AlgebraAny;
 use crate::module::{Module, FreeModule, BoundedModule};
 // use crate::module_homomorphism::ModuleHomomorphism;
-use crate::free_module_homomorphism::FreeModuleHomomorphism;
+use crate::module_homomorphism::FreeModuleHomomorphism;
 use crate::chain_complex::{ChainComplex, CochainComplex};
 use crate::hom_space::HomSpace;
 use crate::hom_pullback::HomPullback;
