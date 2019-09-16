@@ -293,3 +293,13 @@ impl Error for ModuleFailedRelationError {
         "Module failed a relation"
     }
 }
+
+pub trait ZeroModuleT {
+    fn zero_module(algebra : Arc<AlgebraAny>, min_degree : i32) -> Self;
+}
+
+impl ZeroModuleT for FiniteModule {
+    fn zero_module(algebra : Arc<AlgebraAny>, min_degree : i32) -> Self {
+        FiniteModule::FDModule(FDModule::zero_module(algebra, min_degree))
+    }
+}

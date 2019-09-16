@@ -3,11 +3,11 @@ use std::sync::Weak;
 use once::OnceVec;
 use crate::fp_vector::{ FpVector, FpVectorT };
 use crate::matrix::Matrix;
-use crate::module::{Module, FiniteModule};
+use crate::module::Module;
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
-use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
 use crate::resolution::ResolutionInner;
+use crate::CCC;
 
 pub struct ResolutionHomomorphism<CC1 : ChainComplex, CC2 : AugmentedChainComplex> {
     name : String,
@@ -141,4 +141,4 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
 
 }
 
-pub type ResolutionHomomorphismToUnit<CC> = ResolutionHomomorphism<CC, ResolutionInner<CCDZ<FiniteModule>>>;
+pub type ResolutionHomomorphismToUnit<CC> = ResolutionHomomorphism<CC, ResolutionInner<CCC>>;

@@ -7,7 +7,7 @@ use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::Matrix;
 use once::OnceVec;
 use crate::algebra::{Algebra, AlgebraAny};
-use crate::module::{Module, FreeModule};
+use crate::module::{Module, ZeroModuleT, FreeModule};
 use crate::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
 
 struct FPMIndexTable {
@@ -20,9 +20,16 @@ pub struct FinitelyPresentedModule {
     min_degree : i32,
     pub generators : Arc<FreeModule>,
     pub relations : Arc<FreeModule>,
-    pub map : FreeModuleHomomorphism<FreeModule>,
+    pub map : Arc<FreeModuleHomomorphism<FreeModule>>,
     index_table : OnceVec<FPMIndexTable>
 }
+
+impl ZeroModuleT for FinitelyPresentedModule {
+    fn zero_module(algebra : Arc<AlgebraAny>, min_degree : i32) -> Self {
+        Self::new(algebra, "zero".to_string(), min_degree)
+    }
+}
+
 
 impl FinitelyPresentedModule {
     pub fn new(algebra : Arc<AlgebraAny>, name : String, min_degree : i32) -> Self {
@@ -33,7 +40,7 @@ impl FinitelyPresentedModule {
             min_degree,
             generators : Arc::clone(&generators),
             relations : Arc::clone(&relations),
-            map : FreeModuleHomomorphism::new(Arc::clone(&relations), Arc::clone(&generators), 0),
+            map : Arc::new(FreeModuleHomomorphism::new(Arc::clone(&relations), Arc::clone(&generators), 0)),
             index_table : OnceVec::new()
         }
     }
@@ -191,7 +198,6 @@ impl Module for FinitelyPresentedModule {
         self.generators.extend_by_zero(degree);
         self.relations.extend_by_zero(degree);
         let min_degree = self.min_degree();
-        let lock = self.map.lock();
         for i in self.index_table.len() as i32 + min_degree ..= degree {
             self.map.compute_kernels_and_quasi_inverses_through_degree(i);
             let qi = self.map.quasi_inverse(degree);

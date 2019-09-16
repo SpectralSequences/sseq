@@ -10,9 +10,9 @@ use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, FiniteModule, FDModule, FreeModule};
 use once::{OnceVec, OnceBiVec};
 use crate::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
-use crate::chain_complex::{ChainComplex, AugmentedChainComplex};
-use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
+use crate::chain_complex::{ChainComplex, AugmentedChainComplex, FiniteChainComplex};
 use crate::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorphismToUnit};
+use crate::CCC;
 
 #[cfg(feature = "concurrent")]
 use rayon::prelude::*;
@@ -161,6 +161,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let complex_cur_differential = complex.differential(s);
         let source = &current_differential.source();
         let target_cc = &current_chain_map.target();
+        target_cc.compute_basis(t);
         let target_res = &current_differential.target();
         let (source_lock, source_module_table) = source.construct_table(t);
         let mut chain_map_lock = current_chain_map.lock();
@@ -411,8 +412,8 @@ pub struct Resolution<CC : ChainComplex> {
     filtration_one_products : Vec<(String, i32, usize)>,
 
     // Products
-    pub unit_resolution : Option<Weak<RwLock<ModuleResolution<FiniteModule>>>>,
-    pub unit_resolution_owner : Option<Arc<RwLock<ModuleResolution<FiniteModule>>>>,
+    pub unit_resolution : Option<Weak<RwLock<Resolution<CCC>>>>,
+    pub unit_resolution_owner : Option<Arc<RwLock<Resolution<CCC>>>>,
     product_names : HashSet<String>,
     product_list : Vec<Cocycle>,
     // s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
@@ -682,14 +683,14 @@ impl<CC : ChainComplex> Resolution<CC> {
     pub fn construct_unit_resolution(&mut self) {
         if self.unit_resolution.is_none() {
             let unit_module = Arc::new(FiniteModule::from(FDModule::new(self.algebra(), String::from("unit"), BiVec::from_vec(0, vec![1]))));
-            let ccdz = Arc::new(CCDZ::new(unit_module));
+            let ccdz = Arc::new(FiniteChainComplex::ccdz(unit_module));
             let unit_resolution = Arc::new(RwLock::new(Resolution::new(ccdz, None, None)));
             self.unit_resolution = Some(Arc::downgrade(&unit_resolution));
             self.unit_resolution_owner = Some(unit_resolution);
         }
     }
 
-    pub fn set_unit_resolution(&mut self, unit_res : Weak<RwLock<ModuleResolution<FiniteModule>>>) {
+    pub fn set_unit_resolution(&mut self, unit_res : Weak<RwLock<Resolution<CCC>>>) {
         if self.chain_maps_to_unit_resolution.len() > 0 {
             panic!("Cannot change unit resolution after you start computing products");
         }
@@ -919,5 +920,3 @@ impl<CC : ChainComplex> ChainComplex for Resolution<CC>
     //     })
     // }
 }
-
-pub type ModuleResolution<M> = Resolution<CCDZ<M>>;

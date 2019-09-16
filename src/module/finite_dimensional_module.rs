@@ -2,7 +2,7 @@ use bivec::BiVec;
 
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny};
-use crate::module::{Module, OptionModule, ModuleFailedRelationError, BoundedModule};
+use crate::module::{Module, ZeroModuleT, OptionModule, ModuleFailedRelationError, BoundedModule};
 
 use serde_json::value::Value;
 use serde_json::json;
@@ -73,6 +73,12 @@ impl Module for FiniteDimensionalModule {
 impl BoundedModule for FiniteDimensionalModule {
     fn max_degree(&self) -> i32 {
         self.graded_dimension.max_degree()
+    }
+}
+
+impl ZeroModuleT for FiniteDimensionalModule {
+    fn zero_module(algebra : Arc<AlgebraAny>, min_degree : i32) -> Self {
+        Self::new(algebra, "zero".to_string(), BiVec::new(min_degree))
     }
 }
 

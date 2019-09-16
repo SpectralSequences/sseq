@@ -2,16 +2,16 @@ use std::sync::Arc;
 
 use crate::fp_vector::{FpVector};
 use crate::matrix::{Subspace, QuasiInverse};
-use crate::module::{Module, FPModule};
+use crate::module::{Module, FPModule, FreeModule};
 use crate::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism, ZeroHomomorphismT};
 
-pub struct FPModuleHomomorphism<M : Module> {
-    source : Arc<FPModule>,
+pub struct FPModuleHomomorphism<N: FPModuleT, M : Module> {
+    source : Arc<N>,
     underlying_map : Arc<FreeModuleHomomorphism<M>>
 }
 
-impl<M : Module> ModuleHomomorphism for FPModuleHomomorphism<M> {
-    type Source = FPModule;
+impl<N : FPModuleT, M : Module> ModuleHomomorphism for FPModuleHomomorphism<N, M> {
+    type Source = N;
     type Target = M;
 
     fn source(&self) -> Arc<Self::Source> {
@@ -54,11 +54,25 @@ impl<M : Module> ModuleHomomorphism for FPModuleHomomorphism<M> {
     }
 }
 
-impl<M : Module> ZeroHomomorphismT<FPModule, M> for FPModuleHomomorphism<M> {
-    fn zero_homomorphism(source : Arc<FPModule>, target : Arc<M>, degree_shift : i32) -> Self {
-        let underlying_map = Arc::new(FreeModuleHomomorphism::new(Arc::clone(&source.generators), target, degree_shift));
+impl<N: FPModuleT, M : Module> ZeroHomomorphismT<N, M> for FPModuleHomomorphism<N, M> {
+    fn zero_homomorphism(source : Arc<N>, target : Arc<M>, degree_shift : i32) -> Self {
+        let underlying_map = Arc::new(FreeModuleHomomorphism::new(Arc::clone(source.generators()), target, degree_shift));
         FPModuleHomomorphism {
             source, underlying_map
         }
+    }
+}
+
+pub trait FPModuleT : Module {
+    fn fp_idx_to_gen_idx(&self, input_degree : i32, input_index : usize) -> usize;
+    fn generators(&self) -> &Arc<FreeModule>;
+}
+
+impl FPModuleT for FPModule {
+    fn fp_idx_to_gen_idx(&self, input_degree : i32, input_index : usize) -> usize {
+        self.fp_idx_to_gen_idx(input_degree, input_index)
+    }
+    fn generators(&self) -> &Arc<FreeModule> {
+        &self.generators
     }
 }

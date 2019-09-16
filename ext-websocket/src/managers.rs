@@ -3,8 +3,9 @@ use crate::sseq::Sseq;
 
 use rust_ext::Config;
 use rust_ext::AlgebraicObjectsBundle;
-use rust_ext::module::{Module, FiniteModule};
-use rust_ext::resolution::{ModuleResolution};
+use rust_ext::CCC;
+use rust_ext::module::Module;
+use rust_ext::resolution::Resolution;
 use rust_ext::chain_complex::ChainComplex;
 use std::error::Error;
 
@@ -24,7 +25,7 @@ use crate::Sender;
 pub struct ResolutionManager {
     sender : Sender,
     is_unit : bool,
-    resolution : Option<Arc<RwLock<ModuleResolution<FiniteModule>>>>
+    resolution : Option<Arc<RwLock<Resolution<CCC>>>>
 }
 
 impl ResolutionManager {
@@ -116,8 +117,8 @@ impl ResolutionManager {
         Ok(())
     }
 
-    fn process_bundle(&mut self, bundle : AlgebraicObjectsBundle<FiniteModule>) {
-        self.is_unit = bundle.module.is_unit();
+    fn process_bundle(&mut self, bundle : AlgebraicObjectsBundle) {
+        self.is_unit = bundle.chain_complex.modules.len() == 1 && bundle.chain_complex.module(0).is_unit();
         if self.is_unit {
             bundle.resolution.write().unwrap().set_unit_resolution(Arc::downgrade(&bundle.resolution));
         } else {
@@ -169,7 +170,7 @@ impl ResolutionManager {
 }
 
 impl ResolutionManager {
-    fn setup_callback(&self, resolution : &mut ModuleResolution<FiniteModule>, sseq : SseqChoice) {
+    fn setup_callback(&self, resolution : &mut Resolution<CCC>, sseq : SseqChoice) {
         let p = resolution.prime();
 
         let sender = self.sender.clone();

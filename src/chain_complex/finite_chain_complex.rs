@@ -1,5 +1,5 @@
 use crate::algebra::AlgebraAny;
-use crate::module::Module;
+use crate::module::{Module, ZeroModuleT};
 use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphismT};
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
 use std::sync::Arc;
@@ -28,6 +28,22 @@ where M : Module,
             self.differentials.remove(len - 2);
             self.differentials[len - 3] = Arc::new(F::zero_homomorphism(self.zero_module(), Arc::clone(&self.modules[self.modules.len() - 1]), 0));
         }
+    }
+}
+
+impl<M, F> FiniteChainComplex<M, F>
+where M : Module + ZeroModuleT,
+      F : ModuleHomomorphism<Source=M, Target=M> + ZeroHomomorphismT<M, M> {
+
+    pub fn ccdz(module : Arc<M>) -> Self {
+        let zero_module = Arc::new(M::zero_module(module.algebra(), module.min_degree()));
+        let differentials = vec![
+            Arc::new(F::zero_homomorphism(Arc::clone(&module), Arc::clone(&zero_module), 0)),
+            Arc::new(F::zero_homomorphism(Arc::clone(&zero_module), Arc::clone(&module), 0)),
+            Arc::new(F::zero_homomorphism(Arc::clone(&zero_module), Arc::clone(&zero_module), 0))
+        ];
+        let modules = vec![module];
+        Self { modules, zero_module, differentials }
     }
 }
 

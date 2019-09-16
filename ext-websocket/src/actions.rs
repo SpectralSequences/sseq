@@ -1,9 +1,9 @@
 use crate::sseq::{Sseq, ProductItem, ClassState, INFINITY};
-use rust_ext::module::FiniteModule;
-use rust_ext::resolution::{ModuleResolution};
+use rust_ext::resolution::Resolution;
 use rust_ext::fp_vector::FpVector;
 use rust_ext::chain_complex::ChainComplex;
 use rust_ext::module::Module;
+use rust_ext::CCC;
 use bivec::BiVec;
 use std::sync::{Arc, RwLock};
 use enum_dispatch::enum_dispatch;
@@ -92,7 +92,7 @@ pub trait ActionT : std::fmt::Debug {
     fn act_sseq(&self, sseq : &mut Sseq) -> Option<Message>{
         unimplemented!();
     }
-    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) -> Option<Message> {
+    fn act_resolution(&self, resolution : &Arc<RwLock<Resolution<CCC>>>) -> Option<Message> {
         unimplemented!();
     }
     // We take this because sometimes we want to only take an immutable borrow.
@@ -137,7 +137,7 @@ impl ActionT for AddProductType {
         None
     }
 
-    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) -> Option<Message> {
+    fn act_resolution(&self, resolution : &Arc<RwLock<Resolution<CCC>>>) -> Option<Message> {
         let s = self.y as u32;
         let t = self.x + self.y;
 
@@ -264,7 +264,7 @@ impl ActionT for AddProductDifferential {
         None
     }
 
-    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) -> Option<Message> {
+    fn act_resolution(&self, resolution : &Arc<RwLock<Resolution<CCC>>>) -> Option<Message> {
         self.source.act_resolution(resolution);
         self.target.act_resolution(resolution);
         None
@@ -351,7 +351,7 @@ pub struct QueryTable {
     pub t : i32
 }
 impl ActionT for QueryTable {
-    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) -> Option<Message> {
+    fn act_resolution(&self, resolution : &Arc<RwLock<Resolution<CCC>>>) -> Option<Message> {
         let resolution = resolution.read().unwrap();
         let s = self.s;
         let t = self.t;
@@ -387,7 +387,7 @@ pub struct QueryCocycleString {
     idx : usize
 }
 impl ActionT for QueryCocycleString {
-    fn act_resolution(&self, resolution : &Arc<RwLock<ModuleResolution<FiniteModule>>>) -> Option<Message> {
+    fn act_resolution(&self, resolution : &Arc<RwLock<Resolution<CCC>>>) -> Option<Message> {
         let resolution = resolution.read().unwrap();
         let s = self.s;
         let t = self.t;
