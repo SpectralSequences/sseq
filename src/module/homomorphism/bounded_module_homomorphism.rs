@@ -64,7 +64,7 @@ impl<S : BoundedModule, T : Module> ModuleHomomorphism for BoundedModuleHomomorp
 }
 
 impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {
-    pub fn from<F : ModuleHomomorphism<Source=S, Target=T>>(f : F) -> Self {
+    pub fn from<F : ModuleHomomorphism<Source=S, Target=T>>(f : &F) -> Self {
         let source = f.source();
         let target = f.target();
         let degree_shift = f.degree_shift();

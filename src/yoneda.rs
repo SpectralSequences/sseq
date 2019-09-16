@@ -282,7 +282,7 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
     let zero_differential = {
         let f = cc.differential(0);
         let tf = Arc::new(TruncatedHomomorphism::new(f, Arc::clone(&modules[0].module), Arc::clone(&zero_module.module)));
-        let qf = BoundedModuleHomomorphism::from(QuotientHomomorphism::new(tf, Arc::clone(&modules[0]), Arc::clone(&zero_module)));
+        let qf = BoundedModuleHomomorphism::from(&QuotientHomomorphism::new(tf, Arc::clone(&modules[0]), Arc::clone(&zero_module)));
         Arc::new(qf.replace_source(Arc::clone(&modules_fd[0]))
                    .replace_target(Arc::clone(&zero_module_fd)))
     };
@@ -292,7 +292,7 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
         let f = cc.differential(s + 1);
         let s = s as usize;
         let tf = Arc::new(TruncatedHomomorphism::new(f, Arc::clone(&modules[s + 1].module), Arc::clone(&modules[s].module)));
-        let qf = BoundedModuleHomomorphism::from(QuotientHomomorphism::new(tf, Arc::clone(&modules[s + 1]), Arc::clone(&modules[s])));
+        let qf = BoundedModuleHomomorphism::from(&QuotientHomomorphism::new(tf, Arc::clone(&modules[s + 1]), Arc::clone(&modules[s])));
         Arc::new(qf.replace_source(Arc::clone(&modules_fd[s + 1]))
                    .replace_target(Arc::clone(&modules_fd[s])))
     }));
@@ -304,7 +304,7 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
         let s = s as usize;
         let target = f.target();
         let tf = Arc::new(TruncatedHomomorphismSource::new(f, Arc::clone(&modules[s].module), Arc::clone(&target)));
-        let qf = BoundedModuleHomomorphism::from(QuotientHomomorphismSource::new(tf, Arc::clone(&modules[s]), target));
+        let qf = BoundedModuleHomomorphism::from(&QuotientHomomorphismSource::new(tf, Arc::clone(&modules[s]), target));
         Arc::new(qf.replace_source(Arc::clone(&modules_fd[s])))
     }).collect::<Vec<_>>();
 
