@@ -299,6 +299,9 @@ pub trait FpVectorT {
         let max_target_limb = self.max_limb();
         let min_source_limb = other.min_limb();
         let number_of_limbs = max_target_limb - min_target_limb;
+        if number_of_limbs == 0 {
+            return;
+        }
         debug_assert_eq!(number_of_limbs, other.max_limb() - other.min_limb());
         debug_assert!(self.offset() == other.offset());
         let target_limbs = self.limbs_mut();
