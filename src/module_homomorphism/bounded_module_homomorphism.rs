@@ -106,8 +106,8 @@ impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {
             matrix.row_reduce(&mut pivots);
 
             quasi_inverses.push(matrix.compute_quasi_inverse(&pivots, target_dim, padded_target_dim));
-            // TODO : throw away the extra columns
             matrix.set_slice(0, source_dim, 0, target_dim);
+            matrix.into_slice();
             matrices.push(matrix);
         }
 
