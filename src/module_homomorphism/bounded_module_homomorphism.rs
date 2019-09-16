@@ -50,7 +50,7 @@ impl<S : BoundedModule, T : Module> ModuleHomomorphism for BoundedModuleHomomorp
     fn max_kernel_degree(&self) -> i32 { unimplemented!() }
     fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace) { }
     fn kernel(&self, degree : i32) -> Option<&Subspace> {
-        self.kernels.get(degree);
+        self.kernels.get(degree)
     }
 }
 
@@ -129,7 +129,8 @@ impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {
             target : self.target,
             degree_shift : self.degree_shift,
             matrices : self.matrices,
-            quasi_inverses : self.quasi_inverses
+            quasi_inverses : self.quasi_inverses,
+            kernels : self.kernels
         }
     }
 
@@ -140,7 +141,8 @@ impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {
             target : target,
             degree_shift : self.degree_shift,
             matrices : self.matrices,
-            quasi_inverses : self.quasi_inverses
+            quasi_inverses : self.quasi_inverses,
+            kernels : self.kernels
         }
     }
 }
@@ -150,7 +152,8 @@ impl<S: BoundedModule, T : Module> ZeroHomomorphismT<S, T> for BoundedModuleHomo
         BoundedModuleHomomorphism {
             source, target, degree_shift,
             matrices : BiVec::new(0),
-            quasi_inverses : BiVec::new(0)
+            quasi_inverses : BiVec::new(0),
+            kernels : BiVec::new(0)
         }
     }
 }
