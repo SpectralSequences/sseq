@@ -161,13 +161,13 @@ impl FinitelyPresentedModule {
     }
 
 
-    fn gen_idx_to_fp_idx(&self, degree : i32, idx : usize) -> isize {
+    pub fn gen_idx_to_fp_idx(&self, degree : i32, idx : usize) -> isize {
         assert!(degree >= self.min_degree);
         let degree_idx = (degree - self.min_degree) as usize;
         self.index_table[degree_idx].gen_idx_to_fp_idx[idx]
     }
 
-    fn fp_idx_to_gen_idx(&self, degree : i32, idx : usize) -> usize {
+    pub fn fp_idx_to_gen_idx(&self, degree : i32, idx : usize) -> usize {
         assert!(degree >= self.min_degree);
         let degree_idx = (degree - self.min_degree) as usize;
         self.index_table[degree_idx].fp_idx_to_gen_idx[idx]

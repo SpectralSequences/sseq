@@ -10,9 +10,9 @@ use crate::module::homomorphism::ModuleHomomorphism;
 pub struct FreeModuleHomomorphism<M : Module> {
     source : Arc<FreeModule>,
     target : Arc<M>,
-    pub outputs : OnceBiVec<Vec<FpVector>>, // degree --> input_idx --> output
-    kernel : OnceBiVec<Subspace>,
-    quasi_inverse : OnceBiVec<QuasiInverse>,
+    outputs : OnceBiVec<Vec<FpVector>>, // degree --> input_idx --> output
+    pub kernel : OnceBiVec<Subspace>,
+    pub quasi_inverse : OnceBiVec<QuasiInverse>,
     min_degree : i32,
     max_degree : Mutex<i32>,
     degree_shift : i32
@@ -104,6 +104,13 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         return &self.outputs[generator_degree][generator_index];
     }
 
+    pub fn extend_by_zero_safe(&self, degree : i32) {
+        if self.outputs.len() > degree {
+            return;
+        }
+        let lock = self.lock();
+        self.extend_by_zero(&lock, degree);
+    }
     pub fn extend_by_zero(&self, lock : &MutexGuard<i32>, degree : i32){
         // println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
         // println!("    dimension : {} target name : {}", dimension, self.target.name());

@@ -9,10 +9,12 @@ mod bounded_module_homomorphism;
 mod hom_pullback;
 mod truncated_homomorphism;
 mod quotient_homomorphism;
+mod fp_module_homomorphism;
 
 pub use free_module_homomorphism::FreeModuleHomomorphism;
 pub use hom_pullback::HomPullback;
 pub use bounded_module_homomorphism::BoundedModuleHomomorphism;
+pub use fp_module_homomorphism::FPModuleHomomorphism;
 pub use truncated_homomorphism::{TruncatedHomomorphism, TruncatedHomomorphismSource};
 pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
 
