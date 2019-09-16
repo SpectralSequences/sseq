@@ -191,10 +191,10 @@ impl Module for FinitelyPresentedModule {
         self.generators.extend_by_zero(degree);
         self.relations.extend_by_zero(degree);
         let min_degree = self.min_degree();
+        let lock = self.map.lock();
         for i in self.index_table.len() as i32 + min_degree ..= degree {
-            let mut lock = self.map.lock();
-            self.map.compute_kernels_and_quasi_inverses_through_degree(&mut lock, i);
-            let qi = self.map.quasi_inverse(degree).unwrap();
+            self.map.compute_kernels_and_quasi_inverses_through_degree(i);
+            let qi = self.map.quasi_inverse(degree);
             let image = qi.image.as_ref().unwrap();
             let mut gen_idx_to_fp_idx = Vec::new();
             let mut fp_idx_to_gen_idx = Vec::new();
@@ -227,7 +227,7 @@ impl Module for FinitelyPresentedModule {
         let gen_dim = self.generators.dimension(out_deg);
         let mut temp_vec = FpVector::new(p, gen_dim);
         self.generators.act_on_basis(&mut temp_vec, coeff, op_degree, op_index, mod_degree, gen_idx);
-        let qi = self.map.quasi_inverse(out_deg).unwrap();
+        let qi = self.map.quasi_inverse(out_deg);
         qi.image.as_ref().unwrap().reduce(&mut temp_vec);
         for i in 0..result.dimension() {
             let value = temp_vec.entry(self.fp_idx_to_gen_idx(out_deg, i));

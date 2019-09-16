@@ -34,41 +34,34 @@ impl<M : Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
         self.degree_shift
     }
 
-    fn max_kernel_degree(&self) -> i32 {
-        self.kernel.len() - 1
-    }
-
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_index : usize){
         assert!(input_degree >= self.source.min_degree);
         let table = &self.source.table[input_degree];
         self.apply_to_basis_element_with_table(result, coeff, input_degree, table, input_index);
     }
 
-    fn lock(&self) -> MutexGuard<i32> {
-        self.max_degree.lock().unwrap()
-    }
-
-    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse){
-        assert!(degree >= self.min_degree);
-        assert!(degree == self.quasi_inverse.len());
-        self.quasi_inverse.push(quasi_inverse);
-    }
-
-    fn quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
+    fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
         debug_assert!(degree >= self.min_degree, format!("Degree {} less than min degree {}", degree, self.min_degree));
-        Some(&self.quasi_inverse[degree])
+        &self.quasi_inverse[degree]
     }
 
-    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace){
-        assert!(degree >= self.min_degree);
-        assert!(degree == self.kernel.len());
-        self.kernel.push(kernel);
+    fn kernel(&self, degree : i32) -> &Subspace {
+        &self.kernel[degree]
     }
 
-    fn kernel(&self, degree : i32) -> Option<&Subspace> {
-        Some(&self.kernel[degree])
+    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
+        let lock = self.lock();
+        let kernel_len = self.kernel.len();
+        let qi_len = self.quasi_inverse.len();
+        assert_eq!(kernel_len, qi_len);
+        for i in kernel_len ..= degree {
+            let (kernel, qi) = self.kernel_and_quasi_inverse(degree);
+            self.kernel.push(kernel);
+            self.quasi_inverse.push(qi);
+        }
     }
 }
+
 // // Run FreeModule_ConstructBlockOffsetTable(source, degree) before using this on an input in that degree
 // void FreeModuleHomomorphism_applyToBasisElement(FreeModuleHomomorphism *f, Vector *result, uint coeff, int input_degree, uint input_index){
 
@@ -228,5 +221,14 @@ impl<M : Module> FreeModuleHomomorphism<M> {
             output_vector.restore_slice(old_slice);
         }
         return (start_row + source_dimension, start_column + target_dimension);
-    } 
+    }
+
+    pub fn lock(&self) -> MutexGuard<i32> {
+        self.max_degree.lock().unwrap()
+    }
+
+    pub fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse){
+        assert!(degree == self.quasi_inverse.len());
+        self.quasi_inverse.push(quasi_inverse);
+    }
 }

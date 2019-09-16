@@ -4,7 +4,6 @@ use crate::matrix::{QuasiInverse, Subspace};
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::module::{Module, BoundedModule};
 use once::OnceBiVec;
-use std::sync::MutexGuard;
 use std::sync::Arc;
 
 /// Given a module `module`, this is the quotient of `module` by a collection of basis elements.
@@ -149,20 +148,15 @@ impl<F : ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphism<F> {
         self.t.old_basis_to_new(output_degree, result, &result_);
     }
 
-    fn lock(&self) -> MutexGuard<i32> { self.f.lock() }
-
-    fn max_kernel_degree(&self) -> i32 { self.f.max_kernel_degree() }
-
-    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace) { self.f.set_kernel(lock, degree, kernel); }
-    fn kernel(&self, degree : i32) -> Option<&Subspace> {
+    fn kernel(&self, degree : i32) -> &Subspace {
         unimplemented!();
     }
 
-    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse) {
+    fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
         unimplemented!();
     }
 
-    fn quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
+    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
         unimplemented!();
     }
 }
@@ -193,20 +187,15 @@ impl<F : ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphismSource<F
         self.f.apply_to_basis_element(result, coeff, input_degree, self.s.basis_list[input_degree][input_idx]);
     }
 
-    fn lock(&self) -> MutexGuard<i32> { self.f.lock() }
-
-    fn max_kernel_degree(&self) -> i32 { self.f.max_kernel_degree() }
-
-    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace) { self.f.set_kernel(lock, degree, kernel); }
-    fn kernel(&self, degree : i32) -> Option<&Subspace> {
+    fn kernel(&self, degree : i32) -> &Subspace {
         unimplemented!();
     }
 
-    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse) {
+    fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
         unimplemented!();
     }
 
-    fn quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
+    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
         unimplemented!();
     }
 }

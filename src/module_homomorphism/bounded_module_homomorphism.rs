@@ -1,4 +1,3 @@
-use std::sync::MutexGuard;
 use std::sync::Arc;
 
 use crate::fp_vector::{FpVector, FpVectorT};
@@ -6,7 +5,6 @@ use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::{Module, BoundedModule};
 use crate::module_homomorphism::{ModuleHomomorphism, ZeroHomomorphismT};
 use bivec::BiVec;
-
 
 pub struct BoundedModuleHomomorphism<S : BoundedModule, T : Module> {
     source : Arc<S>,
@@ -40,18 +38,15 @@ impl<S : BoundedModule, T : Module> ModuleHomomorphism for BoundedModuleHomomorp
         }
     }
 
-    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, kernel : QuasiInverse){}
-
-    fn quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
-        self.quasi_inverses.get(degree)
+    fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
+        &self.quasi_inverses[degree]
     }
 
-    fn lock(&self) -> MutexGuard<i32> { unimplemented!(); }
-    fn max_kernel_degree(&self) -> i32 { unimplemented!() }
-    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace) { }
-    fn kernel(&self, degree : i32) -> Option<&Subspace> {
-        self.kernels.get(degree)
+    fn kernel(&self, degree : i32) -> &Subspace {
+        &self.kernels[degree]
     }
+
+    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {}
 }
 
 impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {

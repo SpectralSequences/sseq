@@ -1,7 +1,6 @@
 use crate::module::{Module, BoundedModule};
 use crate::module_homomorphism::ModuleHomomorphism;
 use crate::fp_vector::FpVector;
-use std::sync::MutexGuard;
 use std::sync::Arc;
 use crate::algebra::AlgebraAny;
 use crate::matrix::{QuasiInverse, Subspace};
@@ -99,12 +98,7 @@ impl<F : ModuleHomomorphism> ModuleHomomorphism for TruncatedHomomorphism<F> {
         }
     }
 
-    fn lock(&self) -> MutexGuard<i32> { self.f.lock() }
-
-    fn max_kernel_degree(&self) -> i32 { self.f.max_kernel_degree() }
-
-    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace) { self.f.set_kernel(lock, degree, kernel) }
-    fn kernel(&self, degree : i32) -> Option<&Subspace> {
+    fn kernel(&self, degree : i32) -> &Subspace {
         if degree > self.truncated_degree() {
             unimplemented!();
         } else {
@@ -112,11 +106,9 @@ impl<F : ModuleHomomorphism> ModuleHomomorphism for TruncatedHomomorphism<F> {
         }
     }
 
-    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse) { self.f.set_quasi_inverse(lock, degree, quasi_inverse) }
-
-    fn quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
+    fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
         if degree > self.truncated_degree() {
-            None
+            unimplemented!();
 //            Some(&QuasiInverse {
 //                image : Some(Subspace::new(self.prime(), 0, self.t.dimension(degree))),
 //                preimage : Matrix::new(self.prime(), self.s.dimension(degree - self.degree_shift()), 0)
@@ -124,6 +116,10 @@ impl<F : ModuleHomomorphism> ModuleHomomorphism for TruncatedHomomorphism<F> {
         } else {
             self.f.quasi_inverse(degree)
         }
+    }
+
+    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
+        self.f.compute_kernels_and_quasi_inverses_through_degree(degree);
     }
 }
 
@@ -153,12 +149,7 @@ impl<F : ModuleHomomorphism> ModuleHomomorphism for TruncatedHomomorphismSource<
         }
     }
 
-    fn lock(&self) -> MutexGuard<i32> { self.f.lock() }
-
-    fn max_kernel_degree(&self) -> i32 { self.f.max_kernel_degree() }
-
-    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace) { self.f.set_kernel(lock, degree, kernel) }
-    fn kernel(&self, degree : i32) -> Option<&Subspace> {
+    fn kernel(&self, degree : i32) -> &Subspace {
         if degree > self.truncated_degree() {
             unimplemented!();
         } else {
@@ -166,11 +157,10 @@ impl<F : ModuleHomomorphism> ModuleHomomorphism for TruncatedHomomorphismSource<
         }
     }
 
-    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse) { self.f.set_quasi_inverse(lock, degree, quasi_inverse) }
-
-    fn quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
+    fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
         if degree > self.truncated_degree() {
-            None
+            unimplemented!()
+//            None
 //            Some(&QuasiInverse {
 //                image : Some(Subspace::new(self.prime(), 0, self.t.dimension(degree))),
 //                preimage : Matrix::new(self.prime(), self.s.dimension(degree - self.degree_shift()), 0)
@@ -178,5 +168,9 @@ impl<F : ModuleHomomorphism> ModuleHomomorphism for TruncatedHomomorphismSource<
         } else {
             self.f.quasi_inverse(degree)
         }
+    }
+
+    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
+        self.f.compute_kernels_and_quasi_inverses_through_degree(degree);
     }
 }

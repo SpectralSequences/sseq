@@ -81,7 +81,6 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         let output_homological_degree = input_homological_degree - self.homological_degree_shift;
         let output_internal_degree = input_internal_degree - self.internal_degree_shift;        
         let target_chain_map = target.chain_map(output_homological_degree);
-        let target_chain_map_qi = target_chain_map.quasi_inverse(output_internal_degree);
         let target_cc_dimension = target_chain_map.target().dimension(output_internal_degree);
         if let Some(extra_images_matrix) = &extra_images {
             assert!(target_cc_dimension == extra_images_matrix.columns());
@@ -95,11 +94,12 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         }
         if output_homological_degree == 0 {
             if let Some(extra_images_matrix) = extra_images {
+                let target_chain_map_qi = target_chain_map.quasi_inverse(output_internal_degree);
                 assert!(num_gens == extra_images_matrix.rows(),
                     format!("num_gens : {} greater than rows : {} hom_deg : {}, int_deg : {}", 
                     num_gens, extra_images_matrix.rows(), input_homological_degree, input_internal_degree));
                 for k in 0 .. num_gens {
-                    target_chain_map_qi.as_ref().unwrap().apply(&mut outputs_matrix[k], 1, &extra_images_matrix[k]);
+                    target_chain_map_qi.apply(&mut outputs_matrix[k], 1, &extra_images_matrix[k]);
                 }
             }
             return outputs_matrix;            
@@ -111,7 +111,6 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         assert_eq!(d_source.target().name(), f_prev.source().name());
         assert_eq!(d_target.source().name(), f_cur.target().name());
         assert_eq!(d_target.target().name(), f_prev.target().name());
-        let d_quasi_inverse = d_target.quasi_inverse(output_internal_degree).unwrap();
         let dx_dimension = f_prev.source().dimension(input_internal_degree);
         let fdx_dimension = f_prev.target().dimension(output_internal_degree);
         let mut dx_vector = FpVector::new(p, dx_dimension);
@@ -121,9 +120,11 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
             d_source.apply_to_generator(&mut dx_vector, 1, input_internal_degree, k);
             if dx_vector.is_zero() {
                 let extra_image_matrix = extra_images.as_mut().expect("Missing extra image rows");
-                target_chain_map_qi.as_ref().unwrap().apply(&mut outputs_matrix[k], 1, &extra_image_matrix[extra_image_row]);
+                let target_chain_map_qi = target_chain_map.quasi_inverse(output_internal_degree);
+                target_chain_map_qi.apply(&mut outputs_matrix[k], 1, &extra_image_matrix[extra_image_row]);
                 extra_image_row += 1;
             } else {
+                let d_quasi_inverse = d_target.quasi_inverse(output_internal_degree);
                 f_prev.apply(&mut fdx_vector, 1, input_internal_degree, &dx_vector);
                 d_quasi_inverse.apply(&mut outputs_matrix[k], 1, &fdx_vector);
                 dx_vector.set_to_zero();

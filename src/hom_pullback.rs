@@ -1,4 +1,3 @@
-use std::sync::{Mutex, MutexGuard};
 use std::sync::Arc;
 
 use once::OnceBiVec;
@@ -18,8 +17,7 @@ pub struct HomPullback<M : BoundedModule> {
     target : Arc<HomSpace<M>>,
     map : Arc<FreeModuleHomomorphism<FreeModule>>,
     kernel : OnceBiVec<Subspace>,
-    quasi_inverse : OnceBiVec<QuasiInverse>,    
-    max_computed_degree : Mutex<i32>,
+    quasi_inverse : OnceBiVec<QuasiInverse>
 }
 
 impl<M : BoundedModule> HomPullback<M> {
@@ -29,7 +27,6 @@ impl<M : BoundedModule> HomPullback<M> {
             source,
             target,
             map,
-            max_computed_degree : Mutex::new(min_degree - 1),
             kernel : OnceBiVec::new(min_degree),
             quasi_inverse : OnceBiVec::new(min_degree),
         }
@@ -74,32 +71,23 @@ impl<M : BoundedModule> ModuleHomomorphism for HomPullback<M> {
         }
     }
 
-    fn lock(&self) -> MutexGuard<i32> {
-        self.max_computed_degree.lock().unwrap()
+    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
+        let kernel_len = self.kernel.len();
+        let qi_len = self.quasi_inverse.len();
+        assert_eq!(kernel_len, qi_len);
+        for i in kernel_len ..= degree {
+            let (kernel, qi) = self.kernel_and_quasi_inverse(degree);
+            self.kernel.push(kernel);
+            self.quasi_inverse.push(qi);
+        }
     }
 
-    fn max_kernel_degree(&self) -> i32 {
-        self.kernel.max_degree()
+    fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
+       &self.quasi_inverse[degree]
     }
 
-    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse){
-        assert!(degree >= self.min_degree());
-        assert_eq!(degree, self.quasi_inverse.len());
-        self.quasi_inverse.push(quasi_inverse);
-    }
-
-    fn quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse> {
-        Some(&self.quasi_inverse[degree])
-    }
-
-    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace) {
-        assert!(degree >= self.min_degree());
-        assert!(degree == self.kernel.len());
-        self.kernel.push(kernel);
-    }
-
-    fn kernel(&self, degree : i32) -> Option<&Subspace> {
-        Some(&self.kernel[degree])
+    fn kernel(&self, degree : i32) -> &Subspace {
+        &self.kernel[degree]
     }
 }
 

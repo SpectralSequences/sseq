@@ -1,4 +1,3 @@
-use std::sync::{Mutex, MutexGuard};
 use std::sync::Arc;
 
 use crate::fp_vector::{FpVector, FpVectorT};
@@ -19,14 +18,16 @@ pub trait ModuleHomomorphism {
     fn target(&self) -> Arc<Self::Target>;
     fn degree_shift(&self) -> i32;
 
-    fn min_degree(&self) -> i32 {
-        self.source().min_degree()
-    }
-
     /// Calling this function when `input_idx < source().dimension(input_degree)` results in
     /// undefined behaviour. Implementations are encouraged to panic when this happens (this is
     /// usually the case because of out-of-bounds errors.
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_idx : usize);
+
+    fn kernel(&self, degree : i32) -> &Subspace;
+
+    fn quasi_inverse(&self, degree : i32) -> &QuasiInverse;
+
+    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32);
 
     fn apply(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input : &FpVector){
         let p = self.prime();
@@ -40,28 +41,17 @@ pub trait ModuleHomomorphism {
         self.source().prime()
     }
 
-    fn lock(&self) -> MutexGuard<i32>;
-
-    fn max_kernel_degree(&self) -> i32;
-
-    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace);
-    fn kernel(&self, degree : i32) -> Option<&Subspace>;
-
-    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse);    
-    fn quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse>;
-
-    fn image(&self, degree : i32) -> Option<&Subspace> {
-        let option_quasi_inverse = self.quasi_inverse(degree);
-        return option_quasi_inverse.and_then(|quasi_inverse| quasi_inverse.image.as_ref() );
+    fn min_degree(&self) -> i32 {
+        self.source().min_degree()
     }
 
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, lock : &MutexGuard<i32>, degree : i32){
-        for i in self.max_kernel_degree() + 1 ..= degree {
-            self.compute_kernel_and_quasi_inverse(lock, degree);
-        }
+    /// Returns the image of the module homomorphism in degree `degree`. If `None`, the image
+    /// is the whole space.
+    fn image(&self, degree : i32) -> &Option<Subspace> {
+        &self.quasi_inverse(degree).image
     }
 
-    fn compute_kernel_and_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32){
+    fn kernel_and_quasi_inverse(&self, degree : i32) -> (Subspace, QuasiInverse) {
         let p = self.prime();
         self.source().compute_basis(degree);
         self.target().compute_basis(degree);
@@ -77,14 +67,9 @@ pub trait ModuleHomomorphism {
         let mut pivots = vec![-1;columns];
         matrix.row_reduce(&mut pivots);
         let quasi_inverse = matrix.compute_quasi_inverse(&pivots, target_dimension, padded_target_dimension);
-        self.set_quasi_inverse(&lock, degree, quasi_inverse);
         let kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
-        self.set_kernel(&lock, degree, kernel);
+        (kernel, quasi_inverse)
     }
-    // fn get_image_pivots(&self, degree : i32) -> Option<&Vec<isize>> {
-    //     let image = self.get_image(degree);
-    //     return image.map(|subspace| &subspace.column_to_pivot_row );
-    // }
     
     fn get_matrix(&self, matrix : &mut Matrix, degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {
         let source_dimension = self.source().dimension(degree);
@@ -111,17 +96,14 @@ pub trait ModuleHomomorphism {
 pub struct ZeroHomomorphism<S : Module, T : Module> {
     source : Arc<S>,
     target : Arc<T>,
-    max_degree : Mutex<i32>,
     degree_shift : i32
 }
 
 impl<S : Module, T : Module> ZeroHomomorphism<S, T> {
     pub fn new(source : Arc<S>, target : Arc<T>, degree_shift : i32) -> Self {
-        let max_degree =  Mutex::new(source.min_degree() - 1);
         ZeroHomomorphism {
             source,
             target,
-            max_degree,
             degree_shift
         }
     }
@@ -143,19 +125,11 @@ impl<S : Module, T : Module> ModuleHomomorphism for ZeroHomomorphism<S, T> {
         self.degree_shift
     }
 
-    fn apply_to_basis_element(&self, _result : &mut FpVector, _coeff : u32, _input_degree : i32, _input_idx : usize){}
+    fn apply_to_basis_element(&self, _result : &mut FpVector, _coeff : u32, _input_degree : i32, _input_idx : usize) {}
 
-    fn lock(&self) -> MutexGuard<i32> {
-        self.max_degree.lock().unwrap()
-    }
-
-    fn max_kernel_degree(&self) -> i32 { 1000000 }
-
-    fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, kernel : QuasiInverse){}
-    fn quasi_inverse(&self, degree : i32) -> Option<&QuasiInverse>{ None }
-
-    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace){}
-    fn kernel(&self, degree : i32) -> Option<&Subspace> { None }
+    fn quasi_inverse(&self, degree : i32) -> &QuasiInverse { unimplemented!() }
+    fn kernel(&self, degree : i32) -> &Subspace { unimplemented!() }
+    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {}
 }
 
 pub trait ZeroHomomorphismT<S : Module, T : Module> {

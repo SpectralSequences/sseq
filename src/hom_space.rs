@@ -7,7 +7,7 @@ use crate::fp_vector::{FpVector, FpVectorT};
 use crate::block_structure::BlockStructure;
 use crate::algebra::{Algebra, AlgebraAny, Field};
 use crate::module::{Module, FreeModule, BoundedModule};
-use crate::module_homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
+use crate::module_homomorphism::FreeModuleHomomorphism;
 
 pub struct HomSpace<M : BoundedModule> {
     algebra : Arc<AlgebraAny>,

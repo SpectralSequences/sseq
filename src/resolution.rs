@@ -212,8 +212,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                 // X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).
                 // So we set dX(x) = f^{-1}(dC(f(x)))
                 let prev_chain_map = self.chain_map(s - 1);
-                let maybe_qi = prev_chain_map.quasi_inverse(t);
-                let quasi_inverse = maybe_qi.as_ref().unwrap();
+                let quasi_inverse = prev_chain_map.quasi_inverse(t);
 
                 let mut out_vec = FpVector::new(self.prime(), target_res_dimension);
                 let dfx_dim = complex_cur_differential.target().dimension(t);
