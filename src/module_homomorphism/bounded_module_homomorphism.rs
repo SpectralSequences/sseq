@@ -13,7 +13,8 @@ pub struct BoundedModuleHomomorphism<S : BoundedModule, T : Module> {
     target : Arc<T>,
     degree_shift : i32,
     matrices : BiVec<Matrix>,
-    quasi_inverses : BiVec<QuasiInverse>
+    quasi_inverses : BiVec<QuasiInverse>,
+    kernels : BiVec<Subspace>
 }
 
 impl<S : BoundedModule, T : Module> ModuleHomomorphism for BoundedModuleHomomorphism<S, T> {
@@ -47,8 +48,10 @@ impl<S : BoundedModule, T : Module> ModuleHomomorphism for BoundedModuleHomomorp
 
     fn lock(&self) -> MutexGuard<i32> { unimplemented!(); }
     fn max_kernel_degree(&self) -> i32 { unimplemented!() }
-    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace) { unimplemented!() }
-    fn kernel(&self, degree : i32) -> Option<&Subspace> { unimplemented!(); }
+    fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace) { }
+    fn kernel(&self, degree : i32) -> Option<&Subspace> {
+        self.kernels.get(degree);
+    }
 }
 
 impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {
@@ -66,6 +69,7 @@ impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {
 
         let mut matrices = BiVec::with_capacity(min_degree, max_degree + 1);
         let mut quasi_inverses = BiVec::with_capacity(min_degree, max_degree + 1);
+        let mut kernels = BiVec::with_capacity(min_degree, max_degree + 1);
         for target_deg in min_degree ..= max_degree {
             let source_deg = target_deg + degree_shift;
 
@@ -89,26 +93,21 @@ impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {
                 continue;
             }
 
-            let mut matrix_rows = Vec::with_capacity(source_dim);
-            for i in 0 .. source_dim {
-                let mut result = FpVector::new(p, padded_target_dim + source_dim);
+            let mut matrix = Matrix::new(p, source_dim, padded_target_dim + source_dim);
+            f.get_matrix(&mut matrix, source_deg, 0, 0);
 
-                result.set_slice(0, target_dim);
-                f.apply_to_basis_element(&mut result, 1, source_deg, i);
-                result.clear_slice();
+            // TODO: Make this more efficient.
+            let mut new_matrix = matrix.clone();
+            new_matrix.set_slice(0, source_dim, 0, target_dim);
+            new_matrix.into_slice();
+            matrices.push(new_matrix);
 
-                result.set_entry(padded_target_dim + i, 1);
-                matrix_rows.push(result);
-            }
-            let mut matrix = Matrix::from_rows(p, matrix_rows);
             let mut pivots = vec![-1; matrix.columns()];
 
             matrix.row_reduce(&mut pivots);
 
             quasi_inverses.push(matrix.compute_quasi_inverse(&pivots, target_dim, padded_target_dim));
-            matrix.set_slice(0, source_dim, 0, target_dim);
-            matrix.into_slice();
-            matrices.push(matrix);
+            kernels.push(matrix.compute_kernel(&pivots, padded_target_dim));
         }
 
         BoundedModuleHomomorphism {
@@ -116,7 +115,8 @@ impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {
             target,
             degree_shift,
             matrices,
-            quasi_inverses
+            quasi_inverses,
+            kernels
         }
     }
 
