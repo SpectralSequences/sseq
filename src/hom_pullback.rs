@@ -11,6 +11,8 @@ use crate::module::{Module, FreeModule, BoundedModule};
 use crate::hom_space::HomSpace;
 use crate::module_homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
 
+/// Given a map `map`: A -> B and `source` = Hom(B, X), `target` = Hom(A, X), produce the induced
+/// map `map`^* Hom(B, X) -> Hom(A, X).
 pub struct HomPullback<M : BoundedModule> {
     source : Arc<HomSpace<M>>,
     target : Arc<HomSpace<M>>,

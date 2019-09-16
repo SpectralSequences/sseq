@@ -466,7 +466,15 @@ impl Subspace {
         }
     }
 
-    pub fn quotient(space : Option<&Subspace>, subspace : Option<&Subspace>, ambient_dimension : usize) -> Vec<usize> {
+    /// Given a chain of subspaces `subspace` < `space` < k^`ambient_dimension`, compute the
+    /// subquotient `space`/`subspace`. The answer is expressed as a list of basis vectors of
+    /// `space` whose image in `space`/`subspace` forms a basis, and a basis vector of `space` is
+    /// described by its index in the list of basis vectors of `space` (not the ambient space).
+    ///
+    /// # Arguments
+    ///  * `space` - If this is None, it is the whole space k^`ambient_dimension`
+    ///  * `subspace` - If this is None, it is empty
+    pub fn subquotient(space : Option<&Subspace>, subspace : Option<&Subspace>, ambient_dimension : usize) -> Vec<usize> {
         match subspace {
             None => {
                 if let Some(sp) = space {

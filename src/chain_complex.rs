@@ -62,7 +62,7 @@ pub trait ChainComplex {
         d_cur.compute_kernels_and_quasi_inverses_through_degree(&d_cur_lock, internal_degree);
         let kernel = d_prev.kernel(internal_degree);
         let image = d_cur.image(internal_degree);
-        let homology_basis = Subspace::quotient(kernel, image, d_prev.source().dimension(internal_degree));
+        let homology_basis = Subspace::subquotient(kernel, image, d_prev.source().dimension(internal_degree));
         self.set_homology_basis(homological_degree, internal_degree, homology_basis);
     }
 
@@ -145,7 +145,7 @@ pub trait CochainComplex {
         d_cur.compute_kernels_and_quasi_inverses_through_degree(&d_cur_lock, internal_degree);
         let kernel = d_prev.kernel(internal_degree);
         let image = d_cur.image(internal_degree);
-        let cohomology_basis = Subspace::quotient(kernel, image, d_prev.source().dimension(internal_degree));
+        let cohomology_basis = Subspace::subquotient(kernel, image, d_prev.source().dimension(internal_degree));
         self.set_cohomology_basis(homological_degree, internal_degree, cohomology_basis);
     }
 
