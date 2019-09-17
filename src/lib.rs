@@ -155,7 +155,7 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
     let p = resolution.prime();
 
     loop {
-        let x : i32= query_with_default_no_default_indicated("x", 200, |x : i32| Ok(x));
+        let x : i32= query_with_default_no_default_indicated("t - s", 200, |x : i32| Ok(x));
         let s : u32 = query_with_default_no_default_indicated("s", 200, |x : u32| Ok(x));
         let i : usize = query_with_default_no_default_indicated("idx", 200, |x : usize| Ok(x));
 
@@ -232,20 +232,107 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
     }
 }
 
+use crate::chain_complex::TensorChainComplex;
+use crate::fp_vector::FpVector;
+use crate::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
 pub fn run_test() {
-    let p : u32= query_with_default_no_default_indicated("p", 200, |x : u32| Ok(x));
-    let x : i32= query_with_default_no_default_indicated("t - s", 200, |x : i32| Ok(x));
-    let s : u32 = query_with_default_no_default_indicated("s", 200, |x : u32| Ok(x));
-    let i : usize = query_with_default_no_default_indicated("idx", 200, |x : usize| Ok(x));
-    let max_degree : i32 = query_with_default_no_default_indicated("max_degree", 200, |x : i32| Ok(x));
-
-    let content = format!(r#"{{"type" : "derived cofiber","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "s": {}, "t": {}, "idx": {}}}"#, s, x + s as i32, i);
-    let json = serde_json::from_str(&content).unwrap();
-    let bundle = construct_derived_resolution(json, "adem".to_string()).unwrap();
-
+    let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
+    let k = serde_json::from_str(k).unwrap();
+    let bundle = construct_from_json(k, "adem".to_string()).unwrap();
     let resolution = bundle.resolution.read().unwrap();
-    resolution.resolve_through_degree(max_degree);
-    println!("{}", resolution.graded_dimension_string());
+    let p = 2;
+
+    loop {
+        let x : i32= query_with_default_no_default_indicated("t - s", 200, |x : i32| Ok(x));
+        let s : u32 = query_with_default_no_default_indicated("s", 200, |x : u32| Ok(x));
+        let idx : usize = query_with_default_no_default_indicated("idx", 200, |x : usize| Ok(x));
+
+        let t = s as i32 + x;
+        resolution.resolve_through_bidegree(2 * s, 2 * t);
+
+        let idx_ = resolution.module(s).operation_generator_to_index(0, 0, t, idx);
+        let yoneda = Arc::new(yoneda_representative(Arc::clone(&resolution.inner), s, t, idx_));
+
+        let square = Arc::new(TensorChainComplex::new(Arc::clone(&yoneda), Arc::clone(&yoneda)));
+
+        let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&square), 0, 0);
+        let mut mat = Matrix::new(p, 1, 1);
+        mat[0].set_entry(0, 1);
+        f.extend_step(0, 0, Some(&mut mat));
+
+        f.extend(2 * s, 2 * t);
+
+        {
+            let final_map = f.get_map(2 * s);
+            let num_gens = resolution.inner.number_of_gens_in_bidegree(2 * s, 2 * t);
+
+            println!("Sq^{} x_{{{}, {}}}^({}) = [{}]", s, t-s as i32, s, idx, (0 .. num_gens).map(|i| format!("{}", final_map.output(2 * t, i).entry(0))).collect::<Vec<_>>().join(", "));
+
+        }
+
+        let mut delta = Vec::with_capacity(s as usize);
+        delta.push(f.to_chain_maps());
+
+        // We have computed Δ_0. We now compute Δ_i for all i.
+        //
+        // We use the formula d Δ_i + Δ_i d = Δ_{i-1} + τΔ_{i-1}
+        for i in 1 ..= s {
+            // Δ_i is a map C_s -> C_{s + i}. So to hit C_{2s}, we only need to compute up to 2
+            // * s - i
+
+            let mut maps : Vec<FreeModuleHomomorphism<_>> = Vec::with_capacity(2 * s as usize - 1);
+            for s in 0 ..= 2 * s - i {
+                let source = resolution.inner.module(s);
+                let target = square.module(s + i);
+
+                let dsource = if s > 0 { resolution.inner.module(s - 1) } else { resolution.inner.module(s) }; // We don't need it for s = 0, but we want to have something
+                let dtarget = square.module(s + i - 1);
+
+                let d_res = resolution.inner.differential(s);
+
+                let map = FreeModuleHomomorphism::new(Arc::clone(&source), Arc::clone(&target), 0);
+                let prev_delta = &delta[i as usize - 1][s as usize];
+
+                for t in 0 ..= 2 * t {
+                    let num_gens = source.number_of_gens_in_degree(t);
+
+                    let mut output_matrix = Matrix::new(p, num_gens, target.dimension(t));
+
+                    let mut result = FpVector::new(p, dtarget.dimension(t));
+                    let mut tmp    = FpVector::new(p, dtarget.dimension(t));
+                    let mut tmp2   = FpVector::new(p, dsource.dimension(t));
+                    for j in 0 .. num_gens {
+                        // Δ_{i-1} x
+                        prev_delta.apply_to_generator(&mut result, 1, t, j);
+
+                        // τ Δ_{i-1}x
+                        square.swap(&mut tmp, &result, s + i as u32 - 1, t);
+                        result.add(&tmp, 1);
+
+                        if s > 0 {
+                            d_res.apply_to_generator(&mut tmp2, 1, t, j);
+                            maps.last().unwrap().apply(&mut result, 1, t, &tmp2);
+                        }
+                        square.differential(s + i as u32).compute_kernels_and_quasi_inverses_through_degree(t);
+                        square.differential(s + i as u32).quasi_inverse(t).apply(&mut output_matrix[j], 1, &result);
+
+                        result.set_to_zero();
+                        tmp.set_to_zero();
+                        tmp2.set_to_zero();
+                    }
+                    let mut lock = map.lock();
+                    map.add_generators_from_matrix_rows(&lock, t, &mut output_matrix, 0, 0);
+                    *lock += 1;
+                }
+                maps.push(map);
+            }
+            let final_map = maps.last().unwrap();
+            let num_gens = resolution.inner.number_of_gens_in_bidegree(2 * s - i, 2 * t);
+            println!("Sq^{} x_{{{}, {}}}^({}) = [{}]", s - i, t-s as i32, s, idx, (0 .. num_gens).map(|k| format!("{}", final_map.output(2 * t, k).entry(0))).collect::<Vec<_>>().join(", "));
+
+            delta.push(maps);
+        }
+    }
 }
 
 pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {

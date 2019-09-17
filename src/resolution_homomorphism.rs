@@ -46,9 +46,14 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         &self.maps[output_homological_degree as usize]
     }
 
+    pub fn to_chain_maps(self) -> Vec<FreeModuleHomomorphism<CC2::Module>> {
+        self.maps.to_vec()
+    }
+
     /// Extend the resolution homomorphism such that it is defined on degrees
     /// (`source_homological_degree`, `source_degree`).
     pub fn extend(&self, source_homological_degree : u32, source_degree : i32){
+        self.target.upgrade().unwrap().compute_through_bidegree(source_homological_degree - self.homological_degree_shift, source_degree - self.internal_degree_shift);
         for i in self.homological_degree_shift ..= source_homological_degree {
             let f_cur = self.get_map_ensure_length(i - self.homological_degree_shift);
             let start_degree = *f_cur.lock();
@@ -60,6 +65,9 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
 
     pub fn extend_step(&self, input_homological_degree : u32, input_internal_degree : i32, extra_images : Option<&Matrix>){
         let output_homological_degree = input_homological_degree - self.homological_degree_shift;
+        let output_internal_degree = input_internal_degree - self.internal_degree_shift;
+        self.target.upgrade().unwrap().compute_through_bidegree(output_homological_degree, output_internal_degree);
+
         let f_cur = self.get_map_ensure_length(output_homological_degree);
         let computed_degree = *f_cur.lock();
         if input_internal_degree <= computed_degree {
@@ -80,11 +88,6 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         assert!(input_homological_degree >= self.homological_degree_shift);
         let output_homological_degree = input_homological_degree - self.homological_degree_shift;
         let output_internal_degree = input_internal_degree - self.internal_degree_shift;        
-        let target_chain_map = target.chain_map(output_homological_degree);
-        let target_cc_dimension = target_chain_map.target().dimension(output_internal_degree);
-        if let Some(extra_images_matrix) = &extra_images {
-            assert!(target_cc_dimension == extra_images_matrix.columns());
-        }
         let f_cur = self.get_map(output_homological_degree);
         let num_gens = f_cur.source().number_of_gens_in_degree(input_internal_degree);
         let fx_dimension = f_cur.target().dimension(output_internal_degree);
@@ -94,6 +97,12 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         }
         if output_homological_degree == 0 {
             if let Some(extra_images_matrix) = extra_images {
+                let target_chain_map = target.chain_map(output_homological_degree);
+                let target_cc_dimension = target_chain_map.target().dimension(output_internal_degree);
+                if let Some(extra_images_matrix) = &extra_images {
+                    assert!(target_cc_dimension == extra_images_matrix.columns());
+                }
+
                 target_chain_map.compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
                 let target_chain_map_qi = target_chain_map.quasi_inverse(output_internal_degree);
                 assert!(num_gens == extra_images_matrix.rows(),
@@ -120,6 +129,12 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         for k in 0 .. num_gens {
             d_source.apply_to_generator(&mut dx_vector, 1, input_internal_degree, k);
             if dx_vector.is_zero() {
+                let target_chain_map = target.chain_map(output_homological_degree);
+                let target_cc_dimension = target_chain_map.target().dimension(output_internal_degree);
+                if let Some(extra_images_matrix) = &extra_images {
+                    assert!(target_cc_dimension == extra_images_matrix.columns());
+                }
+
                 let extra_image_matrix = extra_images.as_mut().expect("Missing extra image rows");
                 target_chain_map.compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
                 let target_chain_map_qi = target_chain_map.quasi_inverse(output_internal_degree);

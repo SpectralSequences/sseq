@@ -1,5 +1,6 @@
 mod hom_complex;
 mod finite_chain_complex;
+mod tensor_product_chain_complex;
 
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::Subspace;
@@ -10,6 +11,7 @@ use std::sync::Arc;
 
 pub use hom_complex::HomComplex;
 pub use finite_chain_complex::{FiniteChainComplex, FiniteAugmentedChainComplex};
+pub use tensor_product_chain_complex::TensorChainComplex;
 
 pub enum ChainComplexGrading {
     Homological,
@@ -30,6 +32,8 @@ pub trait ChainComplex {
     fn min_degree(&self) -> i32;
     fn zero_module(&self) -> Arc<Self::Module>;
     fn module(&self, homological_degree : u32) -> Arc<Self::Module>;
+
+    // This returns the differential starting from the sth module.
     fn differential(&self, homological_degree : u32) -> Arc<Self::Homomorphism>;
     fn compute_through_bidegree(&self, homological_degree : u32, internal_degree : i32);
 

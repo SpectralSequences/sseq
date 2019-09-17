@@ -8,10 +8,10 @@ use crate::module::{Module, ZeroModule, BoundedModule};
 use std::sync::Arc;
 
 pub struct TensorModule<M : Module, N : Module> {
-    left : Arc<M>,
-    right : Arc<N>,
+    pub left : Arc<M>,
+    pub right : Arc<N>,
     // Use BlockStructure for this?
-    offsets : OnceBiVec<BiVec<usize>>,
+    pub offsets : OnceBiVec<BiVec<usize>>,
     dimensions : OnceBiVec<usize>
 }
 
@@ -21,6 +21,13 @@ impl<M : Module, N : Module> TensorModule<M, N> {
             offsets : OnceBiVec::new(left.min_degree() + right.min_degree()),
             dimensions : OnceBiVec::new(left.min_degree() + right.min_degree()),
             left, right
+        }
+    }
+
+    pub fn seek_module_num(&self, degree : i32, index : usize) -> i32 {
+        match self.offsets[degree].iter().position(|x| *x > index) {
+            Some(n) => n as i32 - 1 + self.left.min_degree() + self.right.min_degree(),
+            None => self.offsets[degree].len() - 1
         }
     }
 }

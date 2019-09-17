@@ -9,6 +9,10 @@ pub struct OnceVec<T> {
 }
 
 impl<T>  OnceVec<T> {
+    pub fn to_vec(self) -> Vec<T> {
+        self.data.into_inner()
+    }
+
     pub fn from_vec(vec : Vec<T>) -> Self {
         Self {
             data : UnsafeCell::new(vec)
@@ -89,6 +93,10 @@ pub struct OnceBiVec<T> {
 }
 
 impl<T> OnceBiVec<T> {
+    pub fn to_bivec(self) -> BiVec<T> {
+        self.data.into_inner()
+    }
+
     pub fn from_bivec(bivec : BiVec<T>) -> Self {
         Self {
             data : UnsafeCell::new(bivec)

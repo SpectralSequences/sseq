@@ -10,9 +10,9 @@ pub struct SumModule<M : Module> {
     // We need these because modules might be empty
     algebra : Arc<AlgebraAny>,
     min_degree : i32,
-    modules : Vec<Arc<M>>,
+    pub modules : Vec<Arc<M>>,
     // Use BlockStructure for this?
-    offsets : OnceBiVec<Vec<usize>>,
+    pub offsets : OnceBiVec<Vec<usize>>,
     dimensions : OnceBiVec<usize>
 }
 
@@ -27,7 +27,7 @@ impl<M : Module> SumModule<M> {
         }
     }
 
-    fn seek_module_num(&self, degree : i32, index : usize) -> usize {
+    pub fn seek_module_num(&self, degree : i32, index : usize) -> usize {
         match self.offsets[degree].iter().position(|x| *x > index) {
             Some(n) => n - 1,
             None => self.modules.len() - 1

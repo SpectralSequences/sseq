@@ -8,15 +8,14 @@ use bivec::BiVec;
 use once::OnceBiVec;
 
 pub struct BoundedModuleHomomorphism<S : BoundedModule, T : Module> {
-    lock : Mutex<()>,
-    source : Arc<S>,
-    target : Arc<T>,
-    degree_shift : i32,
-    matrices : BiVec<Matrix>,
-    quasi_inverses : OnceBiVec<QuasiInverse>,
-    kernels : OnceBiVec<Subspace>
+    pub lock : Mutex<()>,
+    pub source : Arc<S>,
+    pub target : Arc<T>,
+    pub degree_shift : i32,
+    pub matrices : BiVec<Matrix>,
+    pub quasi_inverses : OnceBiVec<QuasiInverse>,
+    pub kernels : OnceBiVec<Subspace>
 }
-
 impl<S : BoundedModule, T : Module> ModuleHomomorphism for BoundedModuleHomomorphism<S, T> {
     type Source = S;
     type Target = T;
