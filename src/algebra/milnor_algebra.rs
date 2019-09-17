@@ -336,12 +336,19 @@ impl Algebra for MilnorAlgebra {
             return vec![];
         }
         temp_degree /= q;
+        let mut power = 0;
         while temp_degree % p == 0 {
             temp_degree /= p;
+            power += 1;
         }
         if temp_degree != 1 {
             return vec![];
         }
+        if (self.profile.p_part.len() == 0 && self.profile.truncated) ||
+           (self.profile.p_part.len() > 0 && self.profile.p_part[0] <= power) {
+            return vec![];
+        }
+
         let idx = self.basis_element_to_index(&MilnorBasisElement {
             degree,
             q_part : 0,
