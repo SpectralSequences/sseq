@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use once::OnceVec;
 use crate::combinatorics;
 use crate::combinatorics::MAX_XI_TAU;
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, Bialgebra};
 // use crate::memory::CVec;
 use crate::fp_vector::{FpVector, FpVectorT};
 use serde_json::value::Value;
@@ -1304,5 +1304,25 @@ mod tests {
                 }
             }
         }
+    }
+}
+
+impl Bialgebra for AdemAlgebra {
+    fn decompose(&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize)> {
+        if self.generic {
+            unimplemented!();
+        }
+
+        let elt = &self.basis_table[op_deg as usize][op_idx];
+        elt.ps.iter().rev().map(|i| (*i as i32, 0 as usize)).collect::<Vec<_>>()
+    }
+
+    fn coproduct(&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize, i32, usize)> {
+        if self.generic {
+            unimplemented!();
+        }
+        assert_eq!(op_idx, 0);
+
+        (0 ..= op_deg).map(|j| (j, 0 as usize, op_deg - j, 0 as usize)).collect::<Vec<_>>()
     }
 }

@@ -2,7 +2,7 @@ use serde_json::Value;
 use serde_json::json;
 
 use crate::fp_vector::{FpVector, FpVectorT};
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, Bialgebra};
 
 pub struct Field {
     prime : u32
@@ -77,5 +77,14 @@ impl Algebra for Field {
 
     fn relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
         vec![]
+    }
+}
+
+impl Bialgebra for Field {
+    fn coproduct (&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize, i32, usize)> {
+        vec![(1, 0, 1, 0)]
+    }
+    fn decompose (&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize)> {
+        vec![(1, 0)]
     }
 }

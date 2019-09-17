@@ -24,6 +24,14 @@ pub struct FinitelyPresentedModule {
     index_table : OnceVec<FPMIndexTable>
 }
 
+impl PartialEq for FinitelyPresentedModule {
+    fn eq(&self, other : &Self) -> bool {
+        unimplemented!()
+    }
+}
+
+impl Eq for FinitelyPresentedModule {}
+
 impl ZeroModule for FinitelyPresentedModule {
     fn zero_module(algebra : Arc<AlgebraAny>, min_degree : i32) -> Self {
         Self::new(algebra, "zero".to_string(), min_degree)

@@ -5,7 +5,7 @@ use std::sync::Mutex;
 use crate::combinatorics;
 use crate::fp_vector::{FpVector, FpVectorT};
 use once::OnceVec;
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, Bialgebra};
 
 pub struct MilnorProfile {
     pub truncated : bool,
@@ -979,4 +979,13 @@ mod tests {
             }
         }
     }    
+}
+impl Bialgebra for MilnorAlgebra {
+    fn coproduct(&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize, i32, usize)> {
+        unimplemented!()
+    }
+    fn decompose(&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize)> {
+        unimplemented!()
+    }
+
 }

@@ -20,6 +20,15 @@ pub struct FiniteDimensionalModule {
     actions : BiVec<BiVec<Vec<Vec<FpVector>>>>,
 }
 
+impl PartialEq for FiniteDimensionalModule {
+    fn eq(&self, other : &Self) -> bool {
+        self.graded_dimension == other.graded_dimension &&
+            self.actions == other.actions
+    }
+}
+
+impl Eq for FiniteDimensionalModule {}
+
 impl Module for FiniteDimensionalModule {
     fn name(&self) -> &str {
         &self.name

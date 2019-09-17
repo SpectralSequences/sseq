@@ -415,6 +415,21 @@ pub trait FpVectorT {
         }
     }
 
+    fn add_tensor(&mut self, offset : usize, left : &FpVector, right : &FpVector) {
+        let right_dim = right.dimension();
+
+        let old_slice = self.slice();
+        for i in 0 .. left.dimension() {
+            let entry = left.entry(i);
+            if entry == 0 {
+                continue;
+            }
+            self.set_slice(offset + i * right_dim, offset + (i + 1) * right_dim);
+            self.shift_add(right, entry);
+            self.restore_slice(old_slice);
+        }
+    }
+
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
     fn add(&mut self, other : &FpVector, c : u32){
         debug_assert!(self.prime() == other.prime());

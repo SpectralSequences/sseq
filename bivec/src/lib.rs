@@ -9,7 +9,7 @@ use serde::{Serialize, Serializer, Deserialize, Deserializer};
 /// Note that properties like length and capacity are defined to be the maximum index allowed. For
 /// example, if `v.min_degree = -2` and `v.len() = 3`, it means we can access `v[-2], v[-1], v[0],
 /// v[1], v[2]` but not `v[3]`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BiVec<T> {
     pub data : Vec<T>,
     min_degree : i32

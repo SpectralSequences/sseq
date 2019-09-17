@@ -11,6 +11,7 @@ mod truncated_module;
 mod quotient_module;
 mod free_module;
 mod hom_module;
+mod tensor_module;
 
 pub mod homomorphism;
 
@@ -38,6 +39,7 @@ pub trait BoundedModule : Module {
     fn to_fd_module(&self) -> FDModule {
         let min_degree = self.min_degree();
         let max_degree = self.max_degree();
+        self.compute_basis(max_degree);
 
         let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree + 1);
         for i in min_degree ..= max_degree {
@@ -141,6 +143,7 @@ pub trait Module {
 }
 
 #[enum_dispatch]
+#[derive(PartialEq, Eq)]
 pub enum FiniteModule {
     FDModule,
     FPModule
@@ -153,6 +156,20 @@ impl FiniteModule {
             &"finite dimensional module" => Ok(FiniteModule::from(FDModule::from_json(algebra, json))),
             &"finitely presented module" => Ok(FiniteModule::from(FPModule::from_json(algebra, json))),
             _ => Err(Box::new(UnknownModuleTypeError { module_type : module_type.to_string() }))
+        }
+    }
+
+    pub fn as_fp_module(self) -> Option<FPModule> {
+        match self {
+            FiniteModule::FDModule(_) => None,
+            FiniteModule::FPModule(m) => Some(m)
+        }
+    }
+
+    pub fn as_fd_module(self) -> Option<FDModule> {
+        match self {
+            FiniteModule::FDModule(m) => Some(m),
+            FiniteModule::FPModule(_) => None
         }
     }
 }
@@ -193,7 +210,7 @@ impl Error for ModuleFailedRelationError {
     }
 }
 
-pub trait ZeroModule {
+pub trait ZeroModule : Module {
     fn zero_module(algebra : Arc<AlgebraAny>, min_degree : i32) -> Self;
 }
 
