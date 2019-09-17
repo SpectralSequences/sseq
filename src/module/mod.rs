@@ -12,6 +12,7 @@ mod quotient_module;
 mod free_module;
 mod hom_module;
 mod tensor_module;
+mod sum_module;
 
 pub mod homomorphism;
 
@@ -22,6 +23,8 @@ pub use truncated_module::TruncatedModule;
 pub use quotient_module::QuotientModule;
 pub use free_module::FreeModule;
 pub use free_module::FreeModuleTableEntry;
+pub use tensor_module::TensorModule;
+pub use sum_module::SumModule;
 
 use bivec::BiVec;
 

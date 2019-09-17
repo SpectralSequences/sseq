@@ -121,7 +121,6 @@ impl FiniteDimensionalModule {
     
     fn module_gens_from_json(gens : &Value) -> (BiVec<usize>, BiVec<Vec<String>>, HashMap<&String, (i32, usize)>) {
         let gens = gens.as_object().unwrap();
-        assert!(gens.len() > 0);
         let mut min_degree = 10000;
         let mut max_degree = -10000;
         for (_name, degree_value) in gens.iter() {
@@ -132,6 +131,10 @@ impl FiniteDimensionalModule {
             if degree + 1 > max_degree {
                 max_degree = degree + 1;
             }
+        }
+        if gens.len() == 0 {
+            min_degree = 0;
+            max_degree = 0;
         }
         let mut gen_to_idx = HashMap::new();
         let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree);
