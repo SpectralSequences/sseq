@@ -18,10 +18,10 @@ mod yoneda;
 
 use algebra::{Algebra, AlgebraAny};
 use module::{FiniteModule, FDModule, Module, BoundedModule};
-use module::homomorphism::{FiniteModuleHomomorphism};
+use module::homomorphism::{FiniteModuleHomomorphism, ModuleHomomorphism, FreeModuleHomomorphism};
 use matrix::Matrix;
-use fp_vector::FpVectorT;
-use chain_complex::{FiniteChainComplex, ChainComplex};
+use fp_vector::{FpVector, FpVectorT};
+use chain_complex::{FiniteChainComplex, ChainComplex, TensorChainComplex};
 use resolution::Resolution;
 use resolution_homomorphism::ResolutionHomomorphism;
 use yoneda::yoneda_representative;
@@ -232,10 +232,7 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
     }
 }
 
-use crate::chain_complex::TensorChainComplex;
-use crate::fp_vector::FpVector;
-use crate::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
-pub fn run_test() {
+pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
     let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
     let k = serde_json::from_str(k).unwrap();
     let bundle = construct_from_json(k, "adem".to_string()).unwrap();
@@ -248,13 +245,29 @@ pub fn run_test() {
         let idx : usize = query_with_default_no_default_indicated("idx", 200, |x : usize| Ok(x));
 
         let t = s as i32 + x;
+        print!("Resolving ext: ");
+        let start = Instant::now();
         resolution.resolve_through_bidegree(2 * s, 2 * t);
+        println!("{:?}", start.elapsed());
 
         let idx_ = resolution.module(s).operation_generator_to_index(0, 0, t, idx);
+
+        print!("Computing Yoneda representative: ");
+        let start = Instant::now();
         let yoneda = Arc::new(yoneda_representative(Arc::clone(&resolution.inner), s, t, idx_));
+        println!("{:?}", start.elapsed());
+
+        print!("Dimensions of Yoneda representative: 1");
+        for s in 0 ..= s {
+            let module = yoneda.module(s);
+            print!(" {}", module.total_dimension());
+        }
+        println!("");
 
         let square = Arc::new(TensorChainComplex::new(Arc::clone(&yoneda), Arc::clone(&yoneda)));
 
+        println!("Computing Steenrod operations: ");
+        let start = Instant::now();
         let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&square), 0, 0);
         let mut mat = Matrix::new(p, 1, 1);
         mat[0].set_entry(0, 1);
@@ -267,7 +280,6 @@ pub fn run_test() {
             let num_gens = resolution.inner.number_of_gens_in_bidegree(2 * s, 2 * t);
 
             println!("Sq^{} x_{{{}, {}}}^({}) = [{}]", s, t-s as i32, s, idx, (0 .. num_gens).map(|i| format!("{}", final_map.output(2 * t, i).entry(0))).collect::<Vec<_>>().join(", "));
-
         }
 
         let mut delta = Vec::with_capacity(s as usize);
@@ -332,8 +344,11 @@ pub fn run_test() {
 
             delta.push(maps);
         }
+        println!("Computing Steenrod operations: {:?}", start.elapsed());
     }
 }
+
+pub fn run_test() {}
 
 pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {
     let mut result = None;

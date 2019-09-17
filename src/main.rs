@@ -7,6 +7,7 @@ use rust_ext::run_resolve;
 use rust_ext::run_define_module;
 use rust_ext::run_test;
 use rust_ext::run_yoneda;
+use rust_ext::run_steenrod;
 use clap::App;
 
 const BOLD_ANSI_CODE : &str = "\x1b[1m";
@@ -26,6 +27,9 @@ fn main() {
         },
         ("yoneda", Some(_sub_m)) => {
             result = run_yoneda(&get_config(matches));
+        },
+        ("steenrod", Some(_)) => {
+            result = run_steenrod();
         },
         (_, _) => {
             result = run_resolve(&get_config(matches));

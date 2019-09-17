@@ -25,5 +25,7 @@ subcommands:
         about: Define module interactively
     - yoneda:
         about: Construct Yoneda representatives for Ext classes
+    - steenrod:
+        about: Compute some Steenrod squares
     - test:
         about: "Separate entrypoint for devs"
