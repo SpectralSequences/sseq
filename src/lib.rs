@@ -258,10 +258,20 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
         println!("{:?}", start.elapsed());
 
         print!("Dimensions of Yoneda representative: 1");
+        let mut check = vec![0; t as usize + 1];
         for s in 0 ..= s {
             let module = yoneda.module(s);
             print!(" {}", module.total_dimension());
+
+            for t in 0 ..= t {
+                check[t as usize] += (if s % 2 == 0 { 1 } else { -1 }) * module.dimension(t) as i32;
+            }
         }
+        assert_eq!(check[0], 1);
+        for t in 1 ..= t as usize {
+            assert_eq!(check[t], 0);
+        }
+
         println!("");
 
         let square = Arc::new(TensorChainComplex::new(Arc::clone(&yoneda), Arc::clone(&yoneda)));

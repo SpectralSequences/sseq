@@ -61,6 +61,26 @@ pub trait ModuleHomomorphism {
         &self.quasi_inverse(degree).image
     }
 
+    /// A version of kernel_and_quasi_inverse that, in fact, doesn't compute the kernel.
+    fn calculate_quasi_inverse(&self, degree : i32) -> QuasiInverse {
+        let p = self.prime();
+        self.source().compute_basis(degree);
+        self.target().compute_basis(degree);
+        let source_dimension = self.source().dimension(degree);
+        let target_dimension = self.target().dimension(degree);
+        let padded_target_dimension = FpVector::padded_dimension(p, target_dimension);
+        let columns = padded_target_dimension + source_dimension;
+        let mut matrix = Matrix::new(p, source_dimension, columns);
+        self.get_matrix(&mut matrix, degree, 0, 0);
+        for i in 0..source_dimension {
+            matrix[i].set_entry(padded_target_dimension + i, 1);
+        }
+        let mut pivots = vec![-1;columns];
+        matrix.row_reduce(&mut pivots);
+        let quasi_inverse = matrix.compute_quasi_inverse(&pivots, target_dimension, padded_target_dimension);
+        quasi_inverse
+    }
+
     fn kernel_and_quasi_inverse(&self, degree : i32) -> (Subspace, QuasiInverse) {
         let p = self.prime();
         self.source().compute_basis(degree);

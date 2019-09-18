@@ -127,7 +127,6 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ChainComplex for TensorChainComplex
                 lock : Mutex::new(()),
                 source : self.module(0),
                 target : self.zero_module(),
-                kernels : OnceBiVec::new(self.min_degree()),
                 quasi_inverses : OnceBiVec::new(self.min_degree())
             }));
         }
@@ -139,7 +138,6 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ChainComplex for TensorChainComplex
                 lock : Mutex::new(()),
                 source : self.module(s),
                 target : self.module(s - 1),
-                kernels : OnceBiVec::new(self.min_degree()),
                 quasi_inverses : OnceBiVec::new(self.min_degree())
             }));
         }
@@ -157,7 +155,6 @@ pub struct TensorChainMap<CC1 : ChainComplex, CC2 : ChainComplex> {
     lock : Mutex<()>,
     source : Arc<STM<CC1::Module, CC2::Module>>,
     target : Arc<STM<CC1::Module, CC2::Module>>,
-    kernels : OnceBiVec<Subspace>,
     quasi_inverses : OnceBiVec<QuasiInverse>
 }
 
@@ -219,7 +216,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainM
     }
 
     fn kernel(&self, degree : i32) -> &Subspace {
-        &self.kernels[degree]
+        panic!("Kernels not calculated for TensorChainMap");
     }
 
     fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
@@ -227,15 +224,15 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainM
     }
 
     fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
+        let next_degree = self.quasi_inverses.len();
+        if next_degree > degree {
+            return;
+        }
+
         let lock = self.lock.lock().unwrap();
 
-        let next_degree = self.kernels.len();
-        assert_eq!(next_degree, self.quasi_inverses.len());
-
         for i in next_degree ..= degree {
-            let (kernel, qi) = self.kernel_and_quasi_inverse(i);
-            self.kernels.push(kernel);
-            self.quasi_inverses.push(qi);
+            self.quasi_inverses.push(self.calculate_quasi_inverse(i));
         }
     }
 }
