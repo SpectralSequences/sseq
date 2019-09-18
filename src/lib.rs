@@ -199,7 +199,7 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
             }
         }
         for t in min_degree ..= t {
-            assert_eq!(check[t], module.dimension(t) as i32);
+            assert_eq!(check[t], module.dimension(t) as i32, "Incorrect Euler characteristic at t = {}", t);
         }
 
         let filename = query("Output file name (empty to skip)", |result : String| Ok(result));
@@ -267,12 +267,37 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                 check[t as usize] += (if s % 2 == 0 { 1 } else { -1 }) * module.dimension(t) as i32;
             }
         }
-        assert_eq!(check[0], 1);
-        for t in 1 ..= t as usize {
-            assert_eq!(check[t], 0);
-        }
-
         println!("");
+
+        // We check that lifting the identity returns the original class. Even if the
+        // algorithm in yoneda.rs is incorrect, this ensures that a posteriori we happened
+        // to have a valid Yoneda representative. (Not really --- we don't check it is exact, just
+        // that its Euler characteristic is 0 in each degree)
+        print!("Checking Yoneda representative: ");
+        let start = Instant::now();
+        {
+            assert_eq!(check[0], 1, "Incorrect Euler characteristic at t = 0");
+            for t in 1 ..= t as usize {
+                assert_eq!(check[t], 0, "Incorrect Euler characteristic at t = {}", t);
+            }
+            let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&yoneda), 0, 0);
+            let mut mat = Matrix::new(p, 1, 1);
+            mat[0].set_entry(0, 1);
+            f.extend_step(0, 0, Some(&mut mat));
+
+            f.extend(s, t);
+            let final_map = f.get_map(s);
+            let num_gens = resolution.inner.number_of_gens_in_bidegree(s, t);
+            for i_ in 0 .. num_gens {
+                assert_eq!(final_map.output(t, i_).dimension(), 1);
+                if i_ == idx {
+                    assert_eq!(final_map.output(t, i_).entry(0), 1);
+                } else {
+                    assert_eq!(final_map.output(t, i_).entry(0), 0);
+                }
+            }
+        }
+        println!("{:?}", start.elapsed());
 
         let square = Arc::new(TensorChainComplex::new(Arc::clone(&yoneda), Arc::clone(&yoneda)));
 
