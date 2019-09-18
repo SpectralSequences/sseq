@@ -186,7 +186,7 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
                 continue;
             }
 
-            let (mut matrix, images) = compute_kernel_image(p, source, keep, t);
+            let (mut matrix, images) = compute_kernel_image(source, keep, t);
 
             let mut pivots = vec![-1; matrix.columns()];
             matrix.row_reduce(&mut pivots);
@@ -328,12 +328,12 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
 /// If `keep` is `None`, it is interpreted as the empty subspace.
 
 fn compute_kernel_image<M : BoundedModule>(
-    p : u32,
     source : &QM<M>,
     keep : Option<Subspace>,
     t : i32) -> (Matrix, Vec<FpVector>) {
 
     let algebra = source.algebra();
+    let p = algebra.prime();
 
     let mut generators : Vec<(i32, usize)> = Vec::new();
     let mut target_degrees = Vec::new();
