@@ -20,6 +20,12 @@ if (filename) {
 
     window.context = canvas.getContext("2d");
 
+    window.zoom = d3.zoom()
+        .scaleExtent([1, 8])
+        .on("zoom", () => drawRepresentative(data));
+
+    d3.select(window.canvas).call(window.zoom);
+
     drawRepresentative(data);
     window.addEventListener("resize", () => drawRepresentative(data));
   })();
@@ -36,6 +42,8 @@ if (filename) {
 }
 
 function drawRepresentative(data) {
+    const transform = d3.zoomTransform(window.canvas);
+
     const boundingRectangle = document.body.getBoundingClientRect();
     const width = boundingRectangle.width;
     const height = boundingRectangle.height;
@@ -49,29 +57,44 @@ function drawRepresentative(data) {
     }
     let module_width = Math.floor((width - LEFT_MARGIN * 2)/data.length);
 
-    context.strokeStyle = "rgba(0, 0, 0, 0.3)";
     context.textAlign = "center";
     context.textBaseline = "middle";
     for (let i = 0; i < num_degree; i++) {
         let y = getY(i, num_degree, height - BOTTOM_MARGIN);
-        context.beginPath();
-        context.moveTo(LEFT_MARGIN * 2, y);
-        context.lineTo(width - LEFT_MARGIN * 2, y);
-        context.stroke();
+        y = transform.apply([0, y])[1];
+
         context.fillText(i, LEFT_MARGIN, y);
         context.fillText(i, width - LEFT_MARGIN, y);
+    }
+
+    let saved = context.save();
+    context.beginPath();
+    context.rect(LEFT_MARGIN * 2, 0, width - LEFT_MARGIN * 4, height);
+    context.clip();
+    window.zoom.translateExtent([[0, 0], [width, height]]);
+
+    context.strokeStyle = "rgba(0, 0, 0, 0.3)";
+    for (let i = 0; i < num_degree; i++) {
+        let y = getY(i, num_degree, height - BOTTOM_MARGIN);
+        context.beginPath();
+        context.moveTo(...transform.apply([LEFT_MARGIN * 2, y]));
+        context.lineTo(...transform.apply([width - LEFT_MARGIN * 2, y]));
+        context.stroke();
     }
     context.strokeStyle = "black";
 
     for (let i = 0; i < data.length; i++) {
         drawModule(context, data[i], i * module_width + LEFT_MARGIN, module_width, height, num_degree);
     }
+    context.restore(saved);
 }
 function drawModule(context, data, x, width, height, num_degree) {
+    const transform = d3.zoomTransform(window.canvas);
     const offset = 8;
     const mid = Math.round(x + width/2) + 0.5;
 
-    context.fillText(data.graded_dimension.reduce((a, b) => a + b, 0), mid, height - BOTTOM_MARGIN * 0.7);
+    context.fillText(data.graded_dimension.reduce((a, b) => a + b, 0), transform.apply([mid, height])[0], height - BOTTOM_MARGIN * 0.7);
+
     for (let i = 0; i <= num_degree; i++) {
         const y = getY(i, num_degree, height - BOTTOM_MARGIN);
         const dim = data.graded_dimension[i];
@@ -81,7 +104,7 @@ function drawModule(context, data, x, width, height, num_degree) {
 
         for (let j = 0; j < dim; j++) {
             context.beginPath();
-            context.arc(mid + offset * (j - (dim - 1) / 2) , y, 3, 0, 2 * Math.PI);
+            context.arc(...transform.apply([mid + offset * (j - (dim - 1) / 2) , y]), 3, 0, 2 * Math.PI);
             context.stroke();
             context.fill();
         }
@@ -89,20 +112,24 @@ function drawModule(context, data, x, width, height, num_degree) {
     let side = [];
     for (let action of data.actions) {
         const source_dim = data.graded_dimension[action.input_deg];
-        const sourceY = getY(action.input_deg, num_degree, height - BOTTOM_MARGIN);
-        const sourceX = mid + offset * (action.input_idx - (source_dim - 1) / 2);
+        const sourceY_ = getY(action.input_deg, num_degree, height - BOTTOM_MARGIN);
+        const sourceX_ = mid + offset * (action.input_idx - (source_dim - 1) / 2);
+
+        const [sourceX, sourceY] = transform.apply([sourceX_, sourceY_]);
 
         const op = action.op[0];
         const target_deg = action.input_deg + op;
         const target_dim = data.graded_dimension[target_deg];
-        const targetY = getY(target_deg, num_degree, height - BOTTOM_MARGIN);
+        const targetY_ = getY(target_deg, num_degree, height - BOTTOM_MARGIN);
 
         if (!side[op]) {
             side[op] = 1;
         }
         for (let j = 0; j < target_dim; j++) {
             if (action.output[j] != 0) {
-                const targetX = mid + offset * (j - (target_dim - 1) / 2);
+                const targetX_ = mid + offset * (j - (target_dim - 1) / 2);
+
+                const [targetX, targetY] = transform.apply([targetX_, targetY_]);
 
                 context.beginPath();
                 if (op == 1) {
