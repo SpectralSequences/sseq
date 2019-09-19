@@ -248,12 +248,9 @@ where TCM : BoundedModule,
                 goal_t_dim = target.dimension(t) - target_kills.len();
             }
             source.quotient_vectors(t, source_kills);
-            if s != s_max {
-                assert_eq!(source.dimension(t), goal_s_dim, "Failed s dimension check at (s, t) = ({}, {})", s, t);
-            }
-
             target.quotient_vectors(t, target_kills);
             if s != s_max {
+                assert_eq!(source.dimension(t), goal_s_dim, "Failed s dimension check at (s, t) = ({}, {})", s, t);
                 assert_eq!(target.dimension(t), goal_t_dim, "Failed t dimension check at (s, t) = ({}, {})", s, t);
             }
 

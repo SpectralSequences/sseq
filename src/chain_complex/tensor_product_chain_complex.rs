@@ -278,7 +278,7 @@ mod tests {
 
     use crate::construct_from_json;
     use crate::resolution_homomorphism::ResolutionHomomorphism;
-    use crate::yoneda::yoneda_representative;
+    use crate::yoneda::yoneda_representative_element;
 
     #[test]
     fn test_square_ccs() {
@@ -298,8 +298,7 @@ mod tests {
         let resolution = bundle.resolution.read().unwrap();
         resolution.resolve_through_bidegree(2 * s, 2 * t);
 
-        let idx = resolution.module(s).operation_generator_to_index(0, 0, t, i);
-        let yoneda = Arc::new(yoneda_representative(Arc::clone(&resolution.inner), s, t, idx));
+        let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution.inner), s, t, i));
 
         let square = Arc::new(TensorChainComplex::new(Arc::clone(&yoneda), Arc::clone(&yoneda)));
 
