@@ -86,7 +86,6 @@ where TCM : BoundedModule,
     drop(lock);
 
     let cm = ChainMap {
-        source : Arc::clone(&cc),
         s_shift : s,
         chain_maps : vec![map]
     };
@@ -94,7 +93,7 @@ where TCM : BoundedModule,
 }
 
 /// This function produces a quasi-isomorphic quotient of `cc` (as an augmented chain complex) that `map` factors through
-pub fn yoneda_representative<TCM, TC, CC, CMM, CMF>(cc : Arc<CC>, map : ChainMap<CC, CMF>) -> Yoneda<CC>
+pub fn yoneda_representative<TCM, TC, CC, CMM, CMF>(cc : Arc<CC>, map : ChainMap<CMF>) -> Yoneda<CC>
 where TCM : BoundedModule,
       TC : ChainComplex<Module=TCM> + BoundedChainComplex,
       CC : AugmentedChainComplex<TargetComplex=TC, Module=FreeModule>,
@@ -116,7 +115,7 @@ where TCM : BoundedModule,
         })
 }
 
-pub fn yoneda_representative_with_strategy<TCM, TC, CC, CMM, CMF, F>(cc : Arc<CC>, map : ChainMap<CC, CMF>, strategy : F) -> Yoneda<CC>
+pub fn yoneda_representative_with_strategy<TCM, TC, CC, CMM, CMF, F>(cc : Arc<CC>, map : ChainMap<CMF>, strategy : F) -> Yoneda<CC>
 where TCM : BoundedModule,
       TC : ChainComplex<Module=TCM> + BoundedChainComplex,
       CC : AugmentedChainComplex<TargetComplex=TC>,

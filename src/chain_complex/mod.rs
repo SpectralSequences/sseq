@@ -139,8 +139,7 @@ pub trait BoundedChainComplex : ChainComplex {
 
 
 /// `chain_maps` is required to be non-empty
-pub struct ChainMap<CC1 : ChainComplex, F : ModuleHomomorphism<Source=CC1::Module>> {
-    pub source : Arc<CC1>,
+pub struct ChainMap<F : ModuleHomomorphism> {
     pub s_shift : u32,
     pub chain_maps : Vec<F>
 }

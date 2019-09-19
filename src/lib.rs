@@ -17,14 +17,14 @@ mod cli_module_loaders;
 mod yoneda;
 
 use algebra::{Algebra, AlgebraAny};
-use module::{FiniteModule, FDModule, Module, BoundedModule};
+use module::{FiniteModule, Module, BoundedModule};
 use module::homomorphism::{FiniteModuleHomomorphism, ModuleHomomorphism, FreeModuleHomomorphism};
 use matrix::Matrix;
 use fp_vector::{FpVector, FpVectorT};
-use chain_complex::{FiniteChainComplex, ChainComplex, TensorChainComplex};
+use chain_complex::{FiniteChainComplex, ChainComplex, TensorChainComplex, ChainMap};
 use resolution::Resolution;
 use resolution_homomorphism::ResolutionHomomorphism;
-use yoneda::yoneda_representative_element;
+use yoneda::{yoneda_representative_element, yoneda_representative};
 
 use bivec::BiVec;
 use query::*;
@@ -56,38 +56,40 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle, Box<dyn Err
     construct_from_json(json, config.algebra_name.clone())
 }
 
-pub fn construct_derived_resolution(json : Value, algebra_name : String) -> Result<AlgebraicObjectsBundle, Box<dyn Error>> {
-    let algebra = Arc::new(AlgebraAny::from_json(&json, algebra_name)?);
-    let unit_module = Arc::new(FiniteModule::from(FDModule::new(Arc::clone(&algebra), "unit".to_string(), BiVec::from_vec(0, vec![1]))));
-    let unit_chain_complex : Arc<CCC> = Arc::new(FiniteChainComplex::ccdz(unit_module));
-    let unit_resolution = Arc::new(Resolution::new(unit_chain_complex, None, None));
-
-    let p = algebra.prime();
-    let s = json["s"].as_u64().unwrap() as u32;
-    let t = json["t"].as_i64().unwrap() as i32;
-    let idx = json["idx"].as_u64().unwrap() as usize;
-
-    unit_resolution.resolve_through_bidegree(s, t);
-
-    let yoneda = yoneda_representative_element(Arc::clone(&unit_resolution.inner), s, t, idx);
-    let mut yoneda = FiniteChainComplex::from(yoneda);
-    yoneda.pop();
-
-    let yoneda = Arc::new(yoneda);
-    Ok(AlgebraicObjectsBundle {
-        chain_complex : Arc::clone(&yoneda),
-        resolution : Arc::new(RwLock::new(Resolution::new(yoneda, None, None))),
-    })
-}
-
 pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<AlgebraicObjectsBundle, Box<dyn Error>> {
-    if json["type"].as_str().unwrap() == "derived cofiber" {
-        return construct_derived_resolution(json, algebra_name);
-    }
     let algebra = Arc::new(AlgebraAny::from_json(&json, algebra_name)?);
     let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut json)?);
-    let chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
-    let resolution = Arc::new(RwLock::new(Resolution::new(Arc::clone(&chain_complex), None, None)));
+    let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
+    let mut resolution = Resolution::new(Arc::clone(&chain_complex), None, None);
+
+    let cofiber = &json["cofiber"];
+    if !cofiber.is_null() {
+        let s = cofiber["s"].as_u64().unwrap() as u32;
+        let t = cofiber["t"].as_i64().unwrap() as i32;
+        let idx = cofiber["idx"].as_u64().unwrap() as usize;
+
+        resolution.resolve_through_bidegree(s, t + module.max_degree());
+
+        let map = FreeModuleHomomorphism::new(resolution.module(s), Arc::clone(&module), t);
+        let mut new_output = Matrix::new(module.prime(), resolution.module(s).number_of_gens_in_degree(t), 1);
+        new_output[idx].set_entry(0, 1);
+
+        let lock = map.lock();
+        map.add_generators_from_matrix_rows(&lock, t, &mut new_output, 0, 0);
+        drop(lock);
+        map.extend_by_zero_safe(module.max_degree() + t);
+
+        let cm = ChainMap {
+            s_shift : s,
+            chain_maps : vec![map]
+        };
+        let yoneda = yoneda_representative(Arc::clone(&resolution.inner), cm);
+        let mut yoneda = FiniteChainComplex::from(yoneda);
+        yoneda.pop();
+
+        chain_complex = Arc::new(yoneda);
+        resolution = Resolution::new(Arc::clone(&chain_complex), None, None);
+    }
 
     let products_value = &mut json["products"];
     if !products_value.is_null() {
@@ -98,7 +100,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
             let class : Vec<u32> = serde_json::from_value(prod["class"].take()).unwrap();
             let name = prod["name"].as_str().unwrap();
 
-            resolution.write().unwrap().add_product(hom_deg, int_deg, class, &name.to_string());
+            resolution.add_product(hom_deg, int_deg, class, &name.to_string());
         }
     }
 
@@ -123,13 +125,12 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
                     map_data[r].set_entry(c, json_map_data[r][c].as_u64().unwrap() as u32);
                 }
             }
-            resolution.write().unwrap().add_self_map(s, t, &name.to_string(), map_data);
+            resolution.add_self_map(s, t, &name.to_string(), map_data);
         }
     }
-
     Ok(AlgebraicObjectsBundle {
         chain_complex,
-        resolution
+        resolution : Arc::new(RwLock::new(resolution))
     })
 }
 
