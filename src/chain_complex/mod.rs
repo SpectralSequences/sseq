@@ -122,6 +122,8 @@ pub trait CochainComplex {
     }
 }
 
+/// An augmented chain complex is a map of chain complexes C -> D that is a *quasi-isomorphism*. We
+/// usually think of C as a resolution of D. The chain map must be a map of degree shift 0.
 pub trait AugmentedChainComplex : ChainComplex {
     type TargetComplex : ChainComplex;
     type ChainMap : ModuleHomomorphism<Source=Self::Module, Target=<<Self as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module>;
@@ -130,3 +132,15 @@ pub trait AugmentedChainComplex : ChainComplex {
     fn chain_map(&self, s: u32) -> Arc<Self::ChainMap>;
 }
 
+/// A bounded chain complex is a chain complex C for which C_s = 0 for all s >= max_s
+pub trait BoundedChainComplex : ChainComplex {
+    fn max_s (&self) -> u32;
+}
+
+
+/// `chain_maps` is required to be non-empty
+pub struct ChainMap<CC1 : ChainComplex, F : ModuleHomomorphism<Source=CC1::Module>> {
+    pub source : Arc<CC1>,
+    pub s_shift : u32,
+    pub chain_maps : Vec<F>
+}

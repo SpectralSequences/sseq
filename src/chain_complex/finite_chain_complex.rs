@@ -1,7 +1,7 @@
 use crate::algebra::AlgebraAny;
 use crate::module::{Module, ZeroModule};
 use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
-use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
+use crate::chain_complex::{AugmentedChainComplex, ChainComplex, BoundedChainComplex};
 use std::sync::Arc;
 
 pub struct FiniteChainComplex<M, F>
@@ -84,6 +84,14 @@ where M : Module,
     fn set_homology_basis(&self, homological_degree : u32, internal_degree : i32, homology_basis : Vec<usize>) { unimplemented!() }
     fn homology_basis(&self, homological_degree : u32, internal_degree : i32) -> &Vec<usize> { unimplemented!() }
     fn max_homology_degree(&self, homological_degree : u32) -> i32 { std::i32::MAX }
+}
+
+impl<M, F> BoundedChainComplex for FiniteChainComplex<M, F>
+where M : Module,
+      F : ModuleHomomorphism<Source=M, Target=M> {
+    fn max_s(&self) -> u32 {
+        self.modules.len() as u32
+    }
 }
 
 pub struct FiniteAugmentedChainComplex<M, F1, F2, CC>
@@ -169,5 +177,15 @@ where M : Module,
             zero_module : Arc::clone(&c.zero_module),
             differentials : c.differentials.clone()
         }
+    }
+}
+impl<M, F1, F2, CC> BoundedChainComplex for FiniteAugmentedChainComplex<M, F1, F2, CC>
+where M : Module,
+      CC : ChainComplex,
+      F1 : ModuleHomomorphism<Source=M, Target=M>,
+      F2 : ModuleHomomorphism<Source=M, Target=CC::Module> {
+
+    fn max_s(&self) -> u32 {
+        self.modules.len() as u32
     }
 }

@@ -1,11 +1,13 @@
 use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra};
-use crate::chain_complex::{ChainComplex, AugmentedChainComplex, FiniteAugmentedChainComplex};
+use crate::chain_complex::{ChainComplex, AugmentedChainComplex, FiniteAugmentedChainComplex, BoundedChainComplex, ChainMap};
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace};
-use crate::module::homomorphism::{ModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphism, FiniteModuleHomomorphism};
+use crate::module::homomorphism::{ModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphism, FiniteModuleHomomorphism, FreeModuleHomomorphism};
 use crate::module::homomorphism::{TruncatedHomomorphism, TruncatedHomomorphismSource, QuotientHomomorphism, QuotientHomomorphismSource};
-use crate::module::{Module, FreeModule, BoundedModule, FiniteModule};
+use crate::module::{Module, FDModule, FreeModule, BoundedModule, FiniteModule};
 use crate::module::{QuotientModule as QM, TruncatedModule as TM};
+
+use bivec::BiVec;
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -68,9 +70,38 @@ fn split_mut_borrow<T> (v : &mut Vec<T>, i : usize, j : usize) -> (&mut T, &mut 
     (&mut first[i], &mut second[0])
 }
 
-pub fn yoneda_representative<CC>(cc : Arc<CC>, s_max : u32, t_max : i32, idx : usize) -> Yoneda<CC>
-where CC : AugmentedChainComplex<Module=FreeModule> {
-    yoneda_representative_with_strategy(cc, s_max, t_max, idx,
+pub fn yoneda_representative_element<TCM, TC, CC>(cc : Arc<CC>, s : u32, t : i32, idx : usize) -> Yoneda<CC>
+where TCM : BoundedModule,
+      TC : ChainComplex<Module=TCM> + BoundedChainComplex,
+      CC : AugmentedChainComplex<TargetComplex=TC, Module=FreeModule> {
+    let p = cc.prime();
+
+    let target = FDModule::new(cc.algebra(), "".to_string(), BiVec::from_vec(0, vec![1]));
+    let map = FreeModuleHomomorphism::new(cc.module(s), Arc::new(target), t);
+    let mut new_output = Matrix::new(p, cc.module(s).number_of_gens_in_degree(t), 1);
+    new_output[idx].set_entry(0, 1);
+
+    let lock = map.lock();
+    map.add_generators_from_matrix_rows(&lock, t, &mut new_output, 0, 0);
+    drop(lock);
+
+    let cm = ChainMap {
+        source : Arc::clone(&cc),
+        s_shift : s,
+        chain_maps : vec![map]
+    };
+    yoneda_representative(cc, cm)
+}
+
+/// This function produces a quasi-isomorphic quotient of `cc` (as an augmented chain complex) that `map` factors through
+pub fn yoneda_representative<TCM, TC, CC, CMM, CMF>(cc : Arc<CC>, map : ChainMap<CC, CMF>) -> Yoneda<CC>
+where TCM : BoundedModule,
+      TC : ChainComplex<Module=TCM> + BoundedChainComplex,
+      CC : AugmentedChainComplex<TargetComplex=TC, Module=FreeModule>,
+      CMM : BoundedModule,
+      CMF : ModuleHomomorphism<Source=CC::Module, Target=CMM>
+{
+    yoneda_representative_with_strategy(cc, map,
         |module : &FreeModule, subspace : &Subspace, t : i32, i : usize| {
             let opgen = module.index_to_op_gen(t, i);
 
@@ -85,12 +116,25 @@ where CC : AugmentedChainComplex<Module=FreeModule> {
         })
 }
 
-pub fn yoneda_representative_with_strategy<CC, F>(cc : Arc<CC>, s_max : u32, t_max : i32, idx : usize, strategy : F) -> Yoneda<CC>
-where CC : AugmentedChainComplex,
+pub fn yoneda_representative_with_strategy<TCM, TC, CC, CMM, CMF, F>(cc : Arc<CC>, map : ChainMap<CC, CMF>, strategy : F) -> Yoneda<CC>
+where TCM : BoundedModule,
+      TC : ChainComplex<Module=TCM> + BoundedChainComplex,
+      CC : AugmentedChainComplex<TargetComplex=TC>,
+      CMM : BoundedModule,
+      CMF : ModuleHomomorphism<Source=CC::Module, Target=CMM>,
       F : Fn(&CC::Module, &Subspace, i32, usize) -> i32 {
-    assert!(s_max > 0);
     let p = cc.prime();
     let algebra = cc.algebra();
+    let target_cc = cc.target();
+
+    let t_shift : i32 = map.chain_maps[0].degree_shift();
+    let s_shift : u32 = map.s_shift;
+
+    let s_max = std::cmp::max(target_cc.max_s(), map.s_shift + map.chain_maps.len() as u32) - 1;
+    let t_max = std::cmp::max(
+        (0 .. target_cc.max_s()).map(|i| target_cc.module(i).max_degree()).max().unwrap_or(target_cc.min_degree()),
+        map.chain_maps[0].degree_shift() + map.chain_maps.iter().map(|m| m.target().max_degree()).max().unwrap()
+    );
 
     let mut modules = (0 ..= s_max).map(|s| QM::new(Arc::new(TM::new(cc.module(s), t_max)))).collect::<Vec<_>>();
 
@@ -99,28 +143,60 @@ where CC : AugmentedChainComplex,
     }
 
     for t in (0 ..= t_max).rev() {
-        let mut keep : Option<Subspace>;
-        if t == t_max {
-            let mut keep_ = Subspace::new(p, 1, modules[s_max as usize].dimension(t));
-            keep_.add_basis_elements(vec![idx].into_iter());
-            keep = Some(keep_);
-        } else {
-            keep = None;
-        }
-
-        for s in (0 .. s_max).rev() {
+        for s in (1 ..= s_max).rev() {
             if t - (s as i32) < cc.min_degree() {
                 continue;
             }
 
-            let (target, source) = split_mut_borrow(&mut modules, s as usize, s as usize + 1);
-
-            if source.dimension(t) == 0 {
-                keep = None;
+            if cc.module(s).dimension(t) == 0 {
                 continue;
             }
 
-            let (mut matrix, images) = compute_kernel_image(source, keep, t);
+            let keep : Option<Subspace>;
+            // Now compute the image of the differentials, if any.
+            if s < s_max {
+                let prev = &modules[s as usize + 1];
+                let curr = &modules[s as usize];
+                let d = cc.differential(s + 1);
+
+                let prev_dim = prev.dimension(t);
+                let curr_orig_dim = curr.module.dimension(t);
+
+                let mut differentials = Matrix::new(p, prev_dim, curr_orig_dim);
+
+                for i in 0 .. prev_dim {
+                    let j = prev.basis_list[t][i];
+                    d.apply_to_basis_element(&mut differentials[i], 1, t, j);
+                    curr.subspaces[t].reduce(&mut differentials[i]);
+                }
+
+                let mut pivots = vec![-1; curr_orig_dim];
+                differentials.row_reduce(&mut pivots);
+
+                keep = Some(Subspace {
+                    matrix : differentials,
+                    column_to_pivot_row : pivots
+                });
+            } else {
+                keep = None;
+            }
+
+
+            let (target, source) = split_mut_borrow(&mut modules, s as usize - 1, s as usize);
+
+            let augmentation_map = if s < target_cc.max_s() && target_cc.module(s).dimension(t) > 0 { Some(cc.chain_map(s)) } else { None };
+            let preserve_map = if s >= s_shift && t >= t_shift {
+                match map.chain_maps.get((s - s_shift) as usize) {
+                    Some(m) => if m.target().dimension(t - t_shift) > 0 { Some(m) } else { None },
+                    None => None
+                }
+            } else { None };
+
+            // We can only quotient out by things in the kernel of the augmentation maps *and* the
+            // steenrod operations. Moreover, the space we quotient out must be complementary to
+            // the image of the differentials. The function computes the kernel and a list of
+            // elements that span the image of the differentials.
+            let (mut matrix, mut images) = compute_kernel_image(source, augmentation_map, preserve_map, keep, t);
 
             let mut pivots = vec![-1; matrix.columns()];
             matrix.row_reduce(&mut pivots);
@@ -136,25 +212,18 @@ where CC : AugmentedChainComplex,
                 .collect::<Vec<_>>();
             pivot_columns.sort();
 
+            let image_pivots = images.find_pivots_permutation(pivot_columns.iter().map(|(p, i)| *i));
+
             let mut chosen_cols : HashSet<usize> = HashSet::new();
 
-            'outer: for image in images {
-                for (_, col) in pivot_columns.iter() {
-                    if chosen_cols.contains(col) {
-                        continue;
-                    }
-                    if image.entry(*col) != 0 {
-                        chosen_cols.insert(*col);
-                        continue 'outer;
-                    }
-                }
-                panic!();
+            for image in image_pivots.into_iter() {
+                chosen_cols.insert(image);
             }
 
             let mut pivot_columns = pivot_columns.iter().map(|(p, i)| i).collect::<Vec<_>>();
             pivot_columns.sort();
 
-            let d = cc.differential(s + 1);
+            let d = cc.differential(s);
 
             let mut matrix = matrix.into_vec();
             let mut source_kills : Vec<FpVector> = Vec::with_capacity(source.module.dimension(t));
@@ -172,26 +241,22 @@ where CC : AugmentedChainComplex,
                 source_kills.push(source_row);
                 target_kills.push(target_row);
             }
+            let mut goal_s_dim = 0;
+            let mut goal_t_dim = 0;
+            if s != s_max {
+                goal_s_dim = source.dimension(t) - source_kills.len();
+                goal_t_dim = target.dimension(t) - target_kills.len();
+            }
             source.quotient_vectors(t, source_kills);
-            target.quotient_vectors(t, target_kills);
-
-            // Finally, record the differentials.
-            let source_dim = source.dimension(t);
-            let target_dim = target.module.dimension(t);
-
-            let mut differentials = Vec::with_capacity(source_dim);
-
-            for i in 0 .. source_dim {
-                let i = source.basis_list[t][i];
-                let mut target_kill_vec = FpVector::new(p, target_dim);
-                d.apply_to_basis_element(&mut target_kill_vec, 1, t, i);
-                target.subspaces[t].reduce(&mut target_kill_vec);
-                differentials.push(target_kill_vec);
+            if s != s_max {
+                assert_eq!(source.dimension(t), goal_s_dim, "Failed s dimension check at (s, t) = ({}, {})", s, t);
             }
 
-            let mut keep_ = Subspace::new(p, source_dim, target_dim);
-            keep_.add_vectors(differentials.into_iter());
-            keep = Some(keep_);
+            target.quotient_vectors(t, target_kills);
+            if s != s_max {
+                assert_eq!(target.dimension(t), goal_t_dim, "Failed t dimension check at (s, t) = ({}, {})", s, t);
+            }
+
         }
     }
 
@@ -250,10 +315,12 @@ where CC : AugmentedChainComplex,
 ///
 /// If `keep` is `None`, it is interpreted as the empty subspace.
 
-fn compute_kernel_image<M : BoundedModule>(
+fn compute_kernel_image<M : BoundedModule, F : ModuleHomomorphism, G : ModuleHomomorphism>(
     source : &QM<M>,
+    augmentation_map : Option<Arc<F>>,
+    preserve_map : Option<&G>,
     keep : Option<Subspace>,
-    t : i32) -> (Matrix, Vec<FpVector>) {
+    t : i32) -> (Matrix, Matrix) {
 
     let algebra = source.algebra();
     let p = algebra.prime();
@@ -273,7 +340,19 @@ fn compute_kernel_image<M : BoundedModule>(
         }
     }
 
+    if let Some(m) = &augmentation_map {
+        target_degrees.push(m.target().dimension(t));
+        padded_target_degrees.push(FpVector::padded_dimension(p, m.target().dimension(t)));
+    }
+
+    if let Some(m) = &preserve_map {
+        let dim = m.target().dimension(t - m.degree_shift());
+        target_degrees.push(dim);
+        padded_target_degrees.push(FpVector::padded_dimension(p, dim));
+    }
+
     let total_padded_degree : usize = padded_target_degrees.iter().sum();
+
     let padded_source_degree : usize = FpVector::padded_dimension(p, source_orig_dimension);
     let total_cols : usize = total_padded_degree + padded_source_degree + source_orig_dimension;
 
@@ -287,17 +366,34 @@ fn compute_kernel_image<M : BoundedModule>(
         let i = source.basis_list[t][i];
         let mut offset = 0;
 
-        for (gen_idx, (op_deg, op_idx)) in generators.iter().enumerate() {
-            result.set_slice(offset, offset + target_degrees[gen_idx]);
+        let mut target_idx = 0;
+        for (op_deg, op_idx) in generators.iter() {
+            result.set_slice(offset, offset + target_degrees[target_idx]);
             source.act_on_original_basis(&mut result, 1, *op_deg, *op_idx, t, i);
             result.clear_slice();
-            offset += padded_target_degrees[gen_idx];
+            offset += padded_target_degrees[target_idx];
+            target_idx += 1;
         }
 
-        if let Some(keep_) = &keep {
+        if let Some(m) = &augmentation_map {
+            result.set_slice(offset, offset + target_degrees[target_idx]);
+            m.apply_to_basis_element(&mut result, 1, t, i);
+            result.clear_slice();
+            offset += padded_target_degrees[target_idx];
+            target_idx += 1;
+        }
+
+        if let Some(m) = &preserve_map {
+            result.set_slice(offset, offset + target_degrees[target_idx]);
+            m.apply_to_basis_element(&mut result, 1, t, i);
+            result.clear_slice();
+            offset += padded_target_degrees[target_idx];
+        }
+
+        if let Some(keep) = &keep {
             projection_off_keep.set_to_zero();
             projection_off_keep.set_entry(i, 1);
-            keep_.reduce(&mut projection_off_keep);
+            keep.reduce(&mut projection_off_keep);
             result.set_slice(offset, offset + source_orig_dimension);
             result.assign(&projection_off_keep);
             result.clear_slice();
@@ -330,7 +426,13 @@ fn compute_kernel_image<M : BoundedModule>(
     for i in first_image_row .. matrix.rows() {
         images.push(matrix[i].clone());
     }
-    (matrix, images)
+    let image_matrix;
+    if images.len() > 0 {
+        image_matrix = Matrix::from_rows(p, images);
+    } else {
+        image_matrix = Matrix::new(p, 0, source_orig_dimension);
+    }
+    (matrix, image_matrix)
 }
 
 //static mut MEMOIZED_SIZE : Option<once::OnceVec<Vec<u32>>> = None;

@@ -29,6 +29,7 @@ pub use sum_module::SumModule;
 use bivec::BiVec;
 
 pub trait BoundedModule : Module {
+    /// `max_degree` is the a degree such that if t > `max_degree`, then `self.dimension(t) = 0`.
     fn max_degree(&self) -> i32;
 
     fn total_dimension(&self) -> usize {

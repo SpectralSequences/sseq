@@ -24,7 +24,7 @@ use fp_vector::{FpVector, FpVectorT};
 use chain_complex::{FiniteChainComplex, ChainComplex, TensorChainComplex};
 use resolution::Resolution;
 use resolution_homomorphism::ResolutionHomomorphism;
-use yoneda::yoneda_representative;
+use yoneda::yoneda_representative_element;
 
 use bivec::BiVec;
 use query::*;
@@ -69,8 +69,7 @@ pub fn construct_derived_resolution(json : Value, algebra_name : String) -> Resu
 
     unit_resolution.resolve_through_bidegree(s, t);
 
-    let idx = unit_resolution.module(s).operation_generator_to_index(0, 0, t, idx);
-    let yoneda = yoneda_representative(Arc::clone(&unit_resolution.inner), s, t, idx);
+    let yoneda = yoneda_representative_element(Arc::clone(&unit_resolution.inner), s, t, idx);
     let mut yoneda = FiniteChainComplex::from(yoneda);
     yoneda.pop();
 
@@ -165,9 +164,8 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
 
         println!("Resolving time: {:?}", start.elapsed());
 
-        let idx = resolution.module(s).operation_generator_to_index(0, 0, t, i);
         let start = Instant::now();
-        let yoneda = Arc::new(yoneda_representative(Arc::clone(&resolution.inner), s, t, idx));
+        let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution.inner), s, t, i));
 
         println!("Finding representative time: {:?}", start.elapsed());
 
@@ -250,11 +248,9 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
         resolution.resolve_through_bidegree(2 * s, 2 * t);
         println!("{:?}", start.elapsed());
 
-        let idx_ = resolution.module(s).operation_generator_to_index(0, 0, t, idx);
-
         print!("Computing Yoneda representative: ");
         let start = Instant::now();
-        let yoneda = Arc::new(yoneda_representative(Arc::clone(&resolution.inner), s, t, idx_));
+        let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution.inner), s, t, idx));
         println!("{:?}", start.elapsed());
 
         print!("Dimensions of Yoneda representative: 1");
