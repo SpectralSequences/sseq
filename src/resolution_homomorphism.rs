@@ -122,11 +122,10 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         assert_eq!(d_target.target().name(), f_prev.target().name());
         let dx_dimension = f_prev.source().dimension(input_internal_degree);
         let fdx_dimension = f_prev.target().dimension(output_internal_degree);
-        let mut dx_vector = FpVector::new(p, dx_dimension);
         let mut fdx_vector = FpVector::new(p, fdx_dimension);
         let mut extra_image_row = 0;
         for k in 0 .. num_gens {
-            d_source.apply_to_generator(&mut dx_vector, 1, input_internal_degree, k);
+            let dx_vector = d_source.output(input_internal_degree, k);
             if dx_vector.is_zero() {
                 let target_chain_map = target.chain_map(output_homological_degree);
                 let target_cc_dimension = target_chain_map.target().dimension(output_internal_degree);
@@ -140,9 +139,8 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
                 extra_image_row += 1;
             } else {
                 d_target.compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
-                f_prev.apply(&mut fdx_vector, 1, input_internal_degree, &dx_vector);
+                f_prev.apply(&mut fdx_vector, 1, input_internal_degree, dx_vector);
                 d_target.apply_quasi_inverse(&mut outputs_matrix[k], output_internal_degree, &fdx_vector);
-                dx_vector.set_to_zero();
                 fdx_vector.set_to_zero();
             }
         }

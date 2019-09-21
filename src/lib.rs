@@ -352,25 +352,21 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                     let mut output_matrix = Matrix::new(p, num_gens, target.dimension(t));
 
                     let mut result = FpVector::new(p, dtarget.dimension(t));
-                    let mut tmp    = FpVector::new(p, dtarget.dimension(t));
-                    let mut tmp2   = FpVector::new(p, dsource.dimension(t));
                     for j in 0 .. num_gens {
                         // Δ_{i-1} x
-                        prev_delta.apply_to_generator(&mut result, 1, t, j);
+                        let prevd = prev_delta.output(t, j);
 
                         // τ Δ_{i-1}x
-                        square.swap(&mut tmp, &result, s + i as u32 - 1, t);
-                        result.add(&tmp, 1);
+                        square.swap(&mut result, prevd, s + i as u32 - 1, t);
+                        result.add(prevd, 1);
 
                         if s > 0 {
-                            d_res.apply_to_generator(&mut tmp2, 1, t, j);
-                            maps.last().unwrap().apply(&mut result, 1, t, &tmp2);
+                            let dx = d_res.output(t, j);
+                            maps.last().unwrap().apply(&mut result, 1, t, dx);
                         }
                         square.differential(s + i as u32).apply_quasi_inverse(&mut output_matrix[j], t, &result);
 
                         result.set_to_zero();
-                        tmp.set_to_zero();
-                        tmp2.set_to_zero();
                     }
                     let mut lock = map.lock();
                     map.add_generators_from_matrix_rows(&lock, t, &mut output_matrix, 0, 0);
