@@ -931,6 +931,36 @@ impl<'a> FpVectorIterator<'a> {
             counter
         }
     }
+
+    pub fn skip_n(&mut self, mut n : usize) {
+        if n >= self.counter {
+            self.counter = 0;
+            return;
+        }
+        let entries_per_64_bits = self.entries_per_64_bits_m_1 + 1;
+        if n < self.entries_left {
+            self.entries_left -= n;
+            self.counter -= n;
+            self.cur_limb >>= self.bit_length * n;
+            return;
+        }
+
+        n -= self.entries_left;
+        self.counter -= self.entries_left;
+        self.entries_left = 0;
+
+        let skip_limbs = n / entries_per_64_bits;
+        self.limb_index += skip_limbs;
+        self.counter -= skip_limbs * entries_per_64_bits;
+        n -= skip_limbs * entries_per_64_bits;
+
+        if n > 0 {
+            self.entries_left = entries_per_64_bits - n;
+            self.limb_index += 1;
+            self.cur_limb = self.limbs[self.limb_index] >> n * self.bit_length;
+            self.counter -= n;
+        }
+    }
 }
 
 impl<'a> Iterator for FpVectorIterator<'a> {
@@ -1500,6 +1530,31 @@ mod tests {
     }
 
     #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]
+    fn test_iterator_skip(p : u32) {
+        initialize_limb_bit_index_table(p);
+        let ep = entries_per_64_bits(p);
+        let dim = 5 * ep;
+        for num_skip in &[ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1, 6 * ep] {
+            let mut v = FpVector::new(p, dim);
+            let v_arr = random_vector(p, dim);
+            v.pack(&v_arr);
+
+            let mut w = v.iter();
+            w.skip_n(*num_skip);
+            let mut counter = 0;
+            for (i, x) in w.enumerate() {
+                assert_eq!(v.entry(i + *num_skip), x);
+                counter += 1;
+            }
+            if *num_skip != 6 * ep {
+                assert_eq!(counter, v.dimension() - *num_skip);
+            } else {
+                assert_eq!(counter, 0);
+            }
+        }
+    }
+
+    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]
     fn test_iterator(p : u32) {
         initialize_limb_bit_index_table(p);
         let ep = entries_per_64_bits(p);
@@ -1511,7 +1566,6 @@ mod tests {
             let w = v.iter();
             let mut counter = 0;
             for (i, x) in w.enumerate() {
-                println!("i: {}, dim : {}", i, dim);
                 assert_eq!(v.entry(i), x);
                 counter += 1;
             }
