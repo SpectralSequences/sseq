@@ -41,6 +41,7 @@ impl<M : Module, N : Module> TensorModule<M, N> {
         let target_offset = &self.offsets[mod_degree + op_degree];
 
         for (op_deg_l, op_idx_l, op_deg_r, op_idx_r) in coproduct {
+            let mut idx = 0;
             for left_deg in source_offset.min_degree() .. source_offset.len() {
                 let right_deg = mod_degree - left_deg;
 
@@ -52,6 +53,7 @@ impl<M : Module, N : Module> TensorModule<M, N> {
 
                 if left_target_dim == 0 || right_target_dim == 0 ||
                     left_source_dim == 0 || right_source_dim == 0 {
+                        idx += left_source_dim * right_source_dim;
                         continue;
                     }
 
@@ -60,12 +62,13 @@ impl<M : Module, N : Module> TensorModule<M, N> {
                         let left_result = self.left.act_on_basis_borrow(op_deg_l, op_idx_l, left_deg, i);
 
                         if left_result.is_zero_pure() {
+                            idx += right_source_dim;
                             continue;
                         }
 
                         for j in 0 .. right_source_dim {
-                            let idx = source_offset[left_deg] + i * right_source_dim + j;
                             let entry = input.entry(idx);
+                            idx += 1;
                             if entry == 0 {
                                 continue;
                             }
@@ -85,12 +88,13 @@ impl<M : Module, N : Module> TensorModule<M, N> {
                         self.left.act_on_basis(&mut left_result, coeff, op_deg_l, op_idx_l, left_deg, i);
 
                         if left_result.is_zero() {
+                            idx += right_source_dim;
                             continue;
                         }
 
                         for j in 0 .. right_source_dim {
-                            let idx = source_offset[left_deg] + i * right_source_dim + j;
                             let entry = input.entry(idx);
+                            idx += 1;
                             if entry == 0 {
                                 continue;
                             }
