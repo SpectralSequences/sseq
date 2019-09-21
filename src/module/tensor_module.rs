@@ -40,6 +40,8 @@ impl<M : Module, N : Module> TensorModule<M, N> {
         let source_offset = &self.offsets[mod_degree];
         let target_offset = &self.offsets[mod_degree + op_degree];
 
+        let borrow_output = self.left.borrow_output() && self.right.borrow_output();
+
         for (op_deg_l, op_idx_l, op_deg_r, op_idx_r) in coproduct {
             let mut idx = 0;
             for left_deg in source_offset.min_degree() .. source_offset.len() {
@@ -57,7 +59,7 @@ impl<M : Module, N : Module> TensorModule<M, N> {
                         continue;
                     }
 
-                if self.left.borrow_output() && self.right.borrow_output() {
+                if borrow_output {
                     for i in 0 .. left_source_dim {
                         let left_result = self.left.act_on_basis_borrow(op_deg_l, op_idx_l, left_deg, i);
 
