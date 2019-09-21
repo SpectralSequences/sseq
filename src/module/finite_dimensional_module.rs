@@ -77,6 +77,11 @@ impl Module for FiniteDimensionalModule {
         let output = self.action(op_degree, op_index, mod_degree, mod_index);
         result.shift_add(output, coeff);
     }
+
+    fn borrow_output(&self) -> bool { true }
+    fn act_on_basis_borrow(&self, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize) -> &FpVector {
+        self.action(op_degree, op_index, mod_degree, mod_index)
+    }
 }
 
 impl BoundedModule for FiniteDimensionalModule {
@@ -174,7 +179,17 @@ impl FiniteDimensionalModule {
                 result.push(BiVec::new(input_degree));
                 continue;
             }
-            let mut outputs_vec : BiVec<Vec<Vec<FpVector>>> = BiVec::with_capacity(input_degree + 1, max_degree);
+            let mut outputs_vec : BiVec<Vec<Vec<FpVector>>> = BiVec::with_capacity(input_degree, max_degree);
+            // We assume our algebra is connected, so we can manually fill in the first entry.
+            let number_of_inputs = graded_dimension[input_degree];
+            let mut ops_vec : Vec<Vec<FpVector>> = vec![Vec::with_capacity(number_of_inputs)];
+            for i in 0 .. number_of_inputs {
+                let mut result = FpVector::new(algebra.prime(), number_of_inputs);
+                result.set_entry(i, 1);
+                ops_vec[0].push(result);
+            }
+            outputs_vec.push(ops_vec);
+
             for output_degree in input_degree + 1 .. max_degree {
                 if graded_dimension[output_degree] == 0 {
                     outputs_vec.push(Vec::with_capacity(0));
@@ -238,10 +253,8 @@ impl FiniteDimensionalModule {
         operation_degree : i32, operation_idx : usize,
         input_degree : i32, input_idx : usize
     ) -> &FpVector {
-        assert!(operation_idx < self.algebra.dimension(operation_degree, input_degree));
-        assert!(input_idx < self.dimension(input_degree));  
         let output_degree = input_degree + operation_degree;
-        return &self.actions[input_degree][output_degree][operation_idx][input_idx];
+        &self.actions[input_degree][output_degree][operation_idx][input_idx]
     }
 
     /// This function will panic if you call it with input such that `module.dimension(input_degree +

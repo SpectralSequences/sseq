@@ -383,7 +383,37 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
     }
 }
 
-pub fn run_test() { }
+pub fn run_test() {
+    let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
+    let k = serde_json::from_str(k).unwrap();
+    let bundle = construct_from_json(k, "adem".to_string()).unwrap();
+    let resolution = bundle.resolution.read().unwrap();
+    let p = 2;
+
+    let x : i32 = 30;
+    let s : u32 = 6;
+    let idx : usize = 0;
+
+    let t = s as i32 + x;
+    let start = Instant::now();
+    resolution.resolve_through_bidegree(s, t);
+
+    let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution.inner), s, t, idx));
+    let square = Arc::new(TensorChainComplex::new(Arc::clone(&yoneda), Arc::clone(&yoneda)));
+
+    square.compute_through_bidegree(6, 48);
+    println!("Starting test");
+    for deg in 0 ..= 30 {
+        let mut result = FpVector::new(p, square.module(6).dimension(deg + 18));
+        for i in 0 .. square.module(6).dimension(deg) {
+            square.module(6).act_on_basis(&mut result, 1, 18, 2, deg, i);
+        }
+        let mut result = FpVector::new(p, square.module(5).dimension(deg + 18));
+        for i in 0 .. square.module(5).dimension(deg) {
+            square.module(5).act_on_basis(&mut result, 1, 18, 3, deg, i);
+        }
+    }
+}
 
 pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {
     let mut result = None;

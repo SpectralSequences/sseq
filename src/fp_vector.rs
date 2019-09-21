@@ -415,12 +415,13 @@ pub trait FpVectorT {
         }
     }
 
-    fn add_tensor(&mut self, offset : usize, left : &FpVector, right : &FpVector) {
+    /// `coeff` need not be reduced mod p.
+    fn add_tensor(&mut self, offset : usize, coeff : u32, left : &FpVector, right : &FpVector) {
         let right_dim = right.dimension();
 
         let old_slice = self.slice();
         for i in 0 .. left.dimension() {
-            let entry = left.entry(i);
+            let entry = (left.entry(i) * coeff) % self.prime();
             if entry == 0 {
                 continue;
             }

@@ -55,32 +55,56 @@ impl<M : Module, N : Module> TensorModule<M, N> {
                         continue;
                     }
 
-                let mut left_result = FpVector::new(p, left_target_dim);
-                let mut right_result = FpVector::new(p, right_target_dim);
+                if self.left.borrow_output() && self.right.borrow_output() {
+                    for i in 0 .. left_source_dim {
+                        let left_result = self.left.act_on_basis_borrow(op_deg_l, op_idx_l, left_deg, i);
 
-                for i in 0 .. left_source_dim {
-                    self.left.act_on_basis(&mut left_result, coeff, op_deg_l, op_idx_l, left_deg, i);
-
-                    if left_result.is_zero() {
-                        continue;
-                    }
-
-                    for j in 0 .. right_source_dim {
-                        let idx = source_offset[left_deg] + i * right_source_dim + j;
-                        let entry = input.entry(idx);
-                        if entry == 0 {
+                        if left_result.is_zero() {
                             continue;
                         }
-                        self.right.act_on_basis(&mut right_result, entry, op_deg_r, op_idx_r, right_deg, j);
 
-                        if right_result.is_zero() {
+                        for j in 0 .. right_source_dim {
+                            let idx = source_offset[left_deg] + i * right_source_dim + j;
+                            let entry = input.entry(idx);
+                            if entry == 0 {
+                                continue;
+                            }
+                            let right_result = self.right.act_on_basis_borrow(op_deg_r, op_idx_r, right_deg, j);
+
+                            if right_result.is_zero() {
+                                continue;
+                            }
+                            result.add_tensor(target_offset[left_deg + op_deg_l], coeff * entry, &left_result, &right_result);
+                        }
+                    }
+                } else {
+                    let mut left_result = FpVector::new(p, left_target_dim);
+                    let mut right_result = FpVector::new(p, right_target_dim);
+
+                    for i in 0 .. left_source_dim {
+                        self.left.act_on_basis(&mut left_result, coeff, op_deg_l, op_idx_l, left_deg, i);
+
+                        if left_result.is_zero() {
                             continue;
                         }
-                        result.add_tensor(target_offset[left_deg + op_deg_l], &left_result, &right_result);
 
-                        right_result.set_to_zero();
+                        for j in 0 .. right_source_dim {
+                            let idx = source_offset[left_deg] + i * right_source_dim + j;
+                            let entry = input.entry(idx);
+                            if entry == 0 {
+                                continue;
+                            }
+                            self.right.act_on_basis(&mut right_result, entry, op_deg_r, op_idx_r, right_deg, j);
+
+                            if right_result.is_zero() {
+                                continue;
+                            }
+                            result.add_tensor(target_offset[left_deg + op_deg_l], 1, &left_result, &right_result);
+
+                            right_result.set_to_zero();
+                        }
+                        left_result.set_to_zero();
                     }
-                    left_result.set_to_zero();
                 }
             }
         }

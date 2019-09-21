@@ -80,6 +80,7 @@ pub trait Module {
     fn compute_basis(&self, _degree : i32) {}
     fn dimension(&self, degree : i32) -> usize;
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize);
+
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String;
     // Whether this is the unit module.
     fn is_unit(&self) -> bool { false }
@@ -87,6 +88,9 @@ pub trait Module {
     fn prime(&self) -> u32 {
         self.algebra().prime()
     }
+
+    fn borrow_output(&self) -> bool { false }
+    fn act_on_basis_borrow(&self, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize) -> &FpVector { unimplemented!() }
 
     fn act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector){
         assert!(input.dimension() == self.dimension(input_degree));
