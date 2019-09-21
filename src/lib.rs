@@ -298,6 +298,14 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
 
         let square = Arc::new(TensorChainComplex::new(Arc::clone(&yoneda), Arc::clone(&yoneda)));
 
+        print!("Computing quasi_inverses: ");
+        let start = Instant::now();
+        square.compute_through_bidegree(2 * s, 2 * t);
+        for s in 0 ..= 2 * s {
+            square.differential(s as u32).compute_kernels_and_quasi_inverses_through_degree(2 * t);
+        }
+        println!("{:?}", start.elapsed());
+
         println!("Computing Steenrod operations: ");
         let start = Instant::now();
         let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&square), 0, 0);
@@ -311,7 +319,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
             let final_map = f.get_map(2 * s);
             let num_gens = resolution.inner.number_of_gens_in_bidegree(2 * s, 2 * t);
 
-            println!("Sq^{} x_{{{}, {}}}^({}) = [{}]", s, t-s as i32, s, idx, (0 .. num_gens).map(|i| format!("{}", final_map.output(2 * t, i).entry(0))).collect::<Vec<_>>().join(", "));
+            println!("Sq^{} x_{{{}, {}}}^({}) = [{}] ({:?})", s, t-s as i32, s, idx, (0 .. num_gens).map(|i| format!("{}", final_map.output(2 * t, i).entry(0))).collect::<Vec<_>>().join(", "), start.elapsed());
         }
 
         let mut delta = Vec::with_capacity(s as usize);
@@ -323,6 +331,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
         for i in 1 ..= s {
             // Δ_i is a map C_s -> C_{s + i}. So to hit C_{2s}, we only need to compute up to 2
             // * s - i
+            let start = Instant::now();
 
             let mut maps : Vec<FreeModuleHomomorphism<_>> = Vec::with_capacity(2 * s as usize - 1);
             for s in 0 ..= 2 * s - i {
@@ -337,7 +346,6 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                 let map = FreeModuleHomomorphism::new(Arc::clone(&source), Arc::clone(&target), 0);
                 let prev_delta = &delta[i as usize - 1][s as usize];
 
-                square.differential(s + i as u32).compute_kernels_and_quasi_inverses_through_degree(2 * t);
                 for t in 0 ..= 2 * t {
                     let num_gens = source.number_of_gens_in_degree(t);
 
@@ -372,7 +380,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
             }
             let final_map = maps.last().unwrap();
             let num_gens = resolution.inner.number_of_gens_in_bidegree(2 * s - i, 2 * t);
-            println!("Sq^{} x_{{{}, {}}}^({}) = [{}]", s - i, t-s as i32, s, idx, (0 .. num_gens).map(|k| format!("{}", final_map.output(2 * t, k).entry(0))).collect::<Vec<_>>().join(", "));
+            println!("Sq^{} x_{{{}, {}}}^({}) = [{}] ({:?})", s - i, t-s as i32, s, idx, (0 .. num_gens).map(|k| format!("{}", final_map.output(2 * t, k).entry(0))).collect::<Vec<_>>().join(", "), start.elapsed());
 
             delta.push(maps);
         }
@@ -380,7 +388,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
     }
 }
 
-pub fn run_test() {}
+pub fn run_test() { }
 
 pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {
     let mut result = None;
