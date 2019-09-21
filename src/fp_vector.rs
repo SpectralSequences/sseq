@@ -302,8 +302,8 @@ pub trait FpVectorT {
         if number_of_limbs == 0 {
             return;
         }
-        debug_assert_eq!(number_of_limbs, other.max_limb() - other.min_limb());
         debug_assert!(self.offset() == other.offset());
+        debug_assert_eq!(number_of_limbs, other.max_limb() - other.min_limb());
         let target_limbs = self.limbs_mut();
         let source_limbs = other.limbs();
         for i in 1 .. number_of_limbs.saturating_sub(1) {

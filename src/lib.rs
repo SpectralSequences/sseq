@@ -337,6 +337,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                 let map = FreeModuleHomomorphism::new(Arc::clone(&source), Arc::clone(&target), 0);
                 let prev_delta = &delta[i as usize - 1][s as usize];
 
+                square.differential(s + i as u32).compute_kernels_and_quasi_inverses_through_degree(2 * t);
                 for t in 0 ..= 2 * t {
                     let num_gens = source.number_of_gens_in_degree(t);
 
@@ -357,8 +358,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                             d_res.apply_to_generator(&mut tmp2, 1, t, j);
                             maps.last().unwrap().apply(&mut result, 1, t, &tmp2);
                         }
-                        square.differential(s + i as u32).compute_kernels_and_quasi_inverses_through_degree(t);
-                        square.differential(s + i as u32).quasi_inverse(t).apply(&mut output_matrix[j], 1, &result);
+                        square.differential(s + i as u32).apply_quasi_inverse(&mut output_matrix[j], t, &result);
 
                         result.set_to_zero();
                         tmp.set_to_zero();

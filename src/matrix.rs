@@ -679,7 +679,9 @@ impl QuasiInverse {
                 continue;
             }}
             let c = input.entry(i);
-            target.add(&self.preimage[row], (coeff * c) % p);
+            if c != 0 {
+                target.add(&self.preimage[row], (coeff * c) % p);
+            }
             row += 1;
         }
     }

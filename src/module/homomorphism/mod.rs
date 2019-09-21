@@ -23,6 +23,7 @@ pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource
 pub trait ModuleHomomorphism {
     type Source : Module;
     type Target : Module;
+    const CUSTOM_QI : bool = false;
 
     fn source(&self) -> Arc<Self::Source>;
     fn target(&self) -> Arc<Self::Target>;
@@ -120,6 +121,11 @@ pub trait ModuleHomomorphism {
             output_vector.restore_slice(old_slice);
         }
         return (start_row + source_dimension, start_column + target_dimension);
+    }
+
+    fn apply_quasi_inverse(&self, result : &mut FpVector, degree : i32, input : &FpVector) {
+        let qi = self.quasi_inverse(degree);
+        qi.apply(result, 1, input);
     }
 }
 

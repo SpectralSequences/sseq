@@ -155,7 +155,7 @@ pub struct TensorChainMap<CC1 : ChainComplex, CC2 : ChainComplex> {
     lock : Mutex<()>,
     source : Arc<STM<CC1::Module, CC2::Module>>,
     target : Arc<STM<CC1::Module, CC2::Module>>,
-    quasi_inverses : OnceBiVec<QuasiInverse>
+    quasi_inverses : OnceBiVec<Vec<Option<Vec<(usize, usize, FpVector)>>>>
 }
 
 impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainMap<CC1, CC2> {
@@ -220,7 +220,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainM
     }
 
     fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
-        &self.quasi_inverses[degree]
+        panic!("Use apply_quassi_inverse instead");
     }
 
     fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
@@ -232,8 +232,156 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainM
         let lock = self.lock.lock().unwrap();
 
         for i in next_degree ..= degree {
-            self.quasi_inverses.push(self.calculate_quasi_inverse(i));
+            self.calculate_quasi_inverse(i);
         }
+    }
+
+    fn apply_quasi_inverse(&self, result : &mut FpVector, degree : i32, input : &FpVector) {
+        let qis = &self.quasi_inverses[degree];
+        assert_eq!(input.dimension(), qis.len());
+
+        let old_slice = result.slice();
+
+        for (i, x) in input.iter().enumerate() {
+            if x == 0 { continue; }
+            if let Some(qi) = &qis[i] {
+                for (offset_start, offset_end, data) in qi.iter() {
+                    result.set_slice(*offset_start, *offset_end);
+                    result.shift_add(data, x);
+                    result.restore_slice(old_slice);
+                }
+            }
+        }
+    }
+}
+
+impl<CC1 : ChainComplex, CC2 : ChainComplex> TensorChainMap<CC1, CC2> {
+    fn calculate_quasi_inverse(&self, degree : i32) {
+        let p = self.prime();
+        // start, end, preimage
+        let mut quasi_inverse_list : Vec<Option<Vec<(usize, usize, FpVector)>>> = vec![None; self.target.dimension(degree)];
+
+        for left_t in self.left_cc.min_degree() ..= degree - self.right_cc.min_degree() {
+            let right_t = degree - left_t;
+
+            let source_dim = self.source.modules.iter().map(|m| m.left.dimension(left_t) * m.right.dimension(right_t)).sum();
+            let target_dim = self.target.modules.iter().map(|m| m.left.dimension(left_t) * m.right.dimension(right_t)).sum();
+
+            if source_dim == 0 || target_dim == 0 {
+                continue;
+            }
+
+            let padded_target_dim = FpVector::padded_dimension(p, target_dim);
+
+            let mut matrix = Matrix::new(p, source_dim, padded_target_dim + source_dim);
+
+            // Compute 1 (x) d
+            let mut target_offset = 0;
+            let mut row_count = 0;
+            for s in 0 ..= self.source_s - 1 {
+                let source_module = &self.source.modules[s as usize]; // C_s (x) D_{source_s - s}
+                let target_module = &self.target.modules[s as usize]; // C_s (x) D_{source_s - s - 1}
+
+                let source_right_dim = source_module.right.dimension(right_t);
+                let source_left_dim = source_module.left.dimension(left_t);
+                let target_right_dim = target_module.right.dimension(right_t);
+                let target_left_dim = target_module.left.dimension(left_t);
+                assert_eq!(target_left_dim, source_left_dim);
+
+                let mut result = FpVector::new(p, target_right_dim);
+                for ri in 0 .. source_right_dim {
+                    self.right_cc.differential(self.source_s - s).apply_to_basis_element(&mut result, 1, right_t, ri);
+                    for li in 0 .. source_left_dim {
+                        let row = &mut matrix[row_count + li * source_right_dim + ri];
+                        row.set_slice(target_offset + li * target_right_dim, target_offset + (li + 1) * target_right_dim);
+                        row.shift_assign(&result);
+                        row.clear_slice();
+                    }
+                    result.set_to_zero();
+                }
+                target_offset += target_right_dim * target_left_dim;
+                row_count += source_right_dim * source_left_dim;
+            }
+
+            // Compute d (x) 1
+            let mut target_offset = 0;
+            let mut row_count = match &self.source.modules[0 as usize] { m => m.left.dimension(left_t) * m.right.dimension(right_t) };
+            for s in 1 ..= self.source_s {
+                let source_module = &self.source.modules[s as usize]; // C_s (x) D_{source_s - s}
+                let target_module = &self.target.modules[s as usize - 1]; // C_{s - 1} (x) D_{source_s - s}
+
+                let source_right_dim = source_module.right.dimension(right_t);
+                let source_left_dim = source_module.left.dimension(left_t);
+                let target_right_dim = target_module.right.dimension(right_t);
+                let target_left_dim = target_module.left.dimension(left_t);
+                assert_eq!(target_right_dim, source_right_dim);
+
+                let mut result = FpVector::new(p, target_left_dim);
+                for li in 0 .. source_left_dim {
+                    self.left_cc.differential(s).apply_to_basis_element(&mut result, 1, left_t, li);
+                    for ri in 0 .. source_right_dim {
+                        let row = &mut matrix[row_count];
+                        for (i, x) in result.iter().enumerate() {
+                            if x != 0 {
+                                row.add_basis_element(target_offset + i * target_right_dim + ri, x);
+                            }
+                        }
+                        row_count += 1;
+                    }
+                    result.set_to_zero();
+                }
+                target_offset += target_right_dim * target_left_dim;
+            }
+
+            for i in 0 .. source_dim {
+                matrix[i].set_entry(padded_target_dim + i, 1);
+            }
+
+            let mut pivots = vec![-1; matrix.columns()];
+            matrix.row_reduce(&mut pivots);
+
+            let mut index = 0;
+            let mut row = 0;
+            for s in 0 .. self.source_s as usize{
+                let target_module = &self.target.modules[s as usize]; // C_s (x) D_{source_s - s - 1}
+
+                let target_right_dim = target_module.right.dimension(right_t);
+                let target_left_dim = target_module.left.dimension(left_t);
+
+                for li in 0 .. target_left_dim {
+                    for ri in 0 .. target_right_dim {
+                        if pivots[index] >= 0 {
+                            let true_index = self.target.offsets[degree][s] + self.target.modules[s].offsets[degree][left_t] + li * target_right_dim + ri;
+                            let mut entries = Vec::new();
+                            let mut offset = 0;
+                            for s_ in 0 ..= self.source_s as usize {
+                                let dim = match &self.source.modules[s_] { m => m.left.dimension(left_t) * m.right.dimension(right_t) };
+                                if dim == 0 { continue; }
+
+                                matrix[row].set_slice(padded_target_dim + offset, padded_target_dim + offset + dim);
+                                let mut entry = FpVector::new(p, matrix[row].dimension());
+                                entry.shift_assign(&matrix[row]);
+                                matrix.clear_slice();
+
+                                if !entry.is_zero() {
+                                    let true_slice_start = self.source.offsets[degree][s_] + self.source.modules[s_].offsets[degree][left_t];
+                                    let true_slice_end = true_slice_start + dim;
+                                    entries.push((true_slice_start, true_slice_end, entry));
+                                }
+
+                                offset += dim;
+                            }
+                            assert!(quasi_inverse_list[true_index].is_none());
+                            assert!(entries.len() > 0);
+                            quasi_inverse_list[true_index] = Some(entries);
+                            row += 1;
+                        }
+                        index += 1;
+                    }
+                }
+            }
+        }
+        self.quasi_inverses.push(quasi_inverse_list);
     }
 }
 
