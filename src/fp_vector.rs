@@ -324,6 +324,15 @@ pub trait FpVectorT {
         }
     }
 
+    fn is_zero_pure(&self) -> bool {
+        for limb in self.limbs().iter() {
+            if *limb != 0 {
+                return false;
+            }
+        }
+        true
+    }
+
     fn is_zero(&self) -> bool{
         let min_limb = self.min_limb();
         let max_limb = self.max_limb();

@@ -59,7 +59,7 @@ impl<M : Module, N : Module> TensorModule<M, N> {
                     for i in 0 .. left_source_dim {
                         let left_result = self.left.act_on_basis_borrow(op_deg_l, op_idx_l, left_deg, i);
 
-                        if left_result.is_zero() {
+                        if left_result.is_zero_pure() {
                             continue;
                         }
 
@@ -71,7 +71,7 @@ impl<M : Module, N : Module> TensorModule<M, N> {
                             }
                             let right_result = self.right.act_on_basis_borrow(op_deg_r, op_idx_r, right_deg, j);
 
-                            if right_result.is_zero() {
+                            if right_result.is_zero_pure() {
                                 continue;
                             }
                             result.add_tensor(target_offset[left_deg + op_deg_l], coeff * entry, &left_result, &right_result);
