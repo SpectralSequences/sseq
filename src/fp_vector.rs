@@ -815,12 +815,8 @@ impl FpVector {
         return result;
     }
 
-    pub fn iter(&self) -> FpVectorIterator{
-        FpVectorIterator {
-            vect : &self,
-            dim : self.dimension(),
-            index : 0
-        }
+    pub fn iter(&self) -> FpVectorIterator {
+        FpVectorIterator::new(self)
     }
 
     fn pack_limb(p : u32, dimension : usize, offset : usize, limb_array : &[u32], limbs : &mut Vec<u64>, limb_idx : usize) -> usize {
@@ -886,22 +882,75 @@ impl FpVector {
 }
 
 pub struct FpVectorIterator<'a> {
-    vect : &'a FpVector,
-    dim : usize,
-    index : usize
+    limbs : &'a Vec<u64>,
+    bit_length : usize,
+    bit_mask : u64,
+    entries_per_64_bits_m_1 : usize,
+    limb_index : usize,
+    entries_left : usize,
+    cur_limb : u64,
+    counter : usize,
 }
 
+impl<'a> FpVectorIterator<'a> {
+    fn new(vec : &'a FpVector) -> FpVectorIterator {
+        let counter = vec.dimension();
+        let limbs = vec.limbs();
+
+        if counter == 0 {
+            return FpVectorIterator {
+                limbs,
+                bit_length : 0,
+                entries_per_64_bits_m_1 : 0,
+                bit_mask : 0,
+                limb_index : 0,
+                entries_left : 0,
+                cur_limb: 0,
+                counter
+            }
+        }
+        let p = vec.prime();
+
+        let min_index = vec.min_index();
+        let pair = limb_bit_index_pair(p,min_index);
+
+        let bit_length = bit_length(p);
+        let cur_limb = limbs[pair.limb] >> pair.bit_index;
+
+        let offset = vec.offset();
+
+        let entries_per_64_bits = entries_per_64_bits(p);
+        FpVectorIterator {
+            limbs,
+            bit_length,
+            entries_per_64_bits_m_1 : entries_per_64_bits - 1,
+            bit_mask : bitmask(p),
+            limb_index : pair.limb,
+            entries_left : entries_per_64_bits - (min_index % entries_per_64_bits),
+            cur_limb,
+            counter
+        }
+    }
+}
 
 impl<'a> Iterator for FpVectorIterator<'a> {
     type Item = u32;
-    fn next(&mut self) -> Option<Self::Item>{
-        if self.index < self.dim {
-            let result = Some(self.vect.entry(self.index));
-            self.index += 1;
-            result
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.counter == 0 {
+            return None;
+        } else if self.entries_left == 0 {
+            self.limb_index += 1;
+            self.cur_limb = self.limbs[self.limb_index];
+            self.entries_left = self.entries_per_64_bits_m_1; // Set to entries_per_64_bits, then immediately decrement 1
         } else {
-            None
+            self.entries_left -= 1;
         }
+
+        let result = (self.cur_limb & self.bit_mask) as u32;
+        self.counter -= 1;
+        self.cur_limb >>= self.bit_length;
+
+        Some(result)
     }
 }
 
@@ -1426,6 +1475,47 @@ mod tests {
                 }
             }
             assert_eq!(diffs, []);
+        }
+    }
+
+    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]
+    fn test_iterator_slice(p : u32) {
+        initialize_limb_bit_index_table(p);
+        let ep = entries_per_64_bits(p);
+        for dim in &[5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
+            let mut v = FpVector::new(p, *dim);
+            let v_arr = random_vector(p, *dim);
+            v.pack(&v_arr);
+            v.set_slice(3, dim - 1);
+
+            let w = v.iter();
+            let mut counter = 0;
+            for (i, x) in w.enumerate() {
+                println!("i: {}, dim : {}", i, dim);
+                assert_eq!(v.entry(i), x);
+                counter += 1;
+            }
+            assert_eq!(counter, v.dimension());
+        }
+    }
+
+    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]
+    fn test_iterator(p : u32) {
+        initialize_limb_bit_index_table(p);
+        let ep = entries_per_64_bits(p);
+        for dim in &[0, 5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
+            let mut v = FpVector::new(p, *dim);
+            let v_arr = random_vector(p, *dim);
+            v.pack(&v_arr);
+
+            let w = v.iter();
+            let mut counter = 0;
+            for (i, x) in w.enumerate() {
+                println!("i: {}, dim : {}", i, dim);
+                assert_eq!(v.entry(i), x);
+                counter += 1;
+            }
+            assert_eq!(counter, v.dimension());
         }
     }
 
