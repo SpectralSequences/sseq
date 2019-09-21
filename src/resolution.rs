@@ -193,7 +193,6 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         matrix.row_reduce(&mut pivots);
 
         let new_kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
-        let kernel_rows = new_kernel.matrix.rows();
         let first_new_row = source_dimension;
         matrix.clear_slice();
 
@@ -369,8 +368,8 @@ fn ptr_eq<T, S>(a : &Arc<T>, b : &Arc<S>) -> bool {
     let b = Arc::into_raw(Arc::clone(b)) as *const T;
     let eq = std::ptr::eq(a, b);
     unsafe {
-        let a = Arc::from_raw(a);
-        let b = Arc::from_raw(b as *const S);
+        let _ = Arc::from_raw(a);
+        let _ = Arc::from_raw(b as *const S);
     }
     eq
 }
@@ -580,7 +579,6 @@ impl<CC : ChainComplex> Resolution<CC> {
         let max_degree = self.max_computed_degree();
         let max_hom_deg = self.max_computed_homological_degree(); //(max_degree - min_degree) as u32 / (self.prime() + 1); //self.get_max_hom_deg();
         for i in (0 ..= max_hom_deg).rev() {
-            let module = self.module(i);
             for j in min_degree + i as i32 ..= max_degree {
                 let n = self.homology_dimension(i, j);
                 match n {
@@ -791,11 +789,7 @@ impl<CC : ChainComplex> Resolution<CC> {
             return;
         }
 
-        let p = self.prime();
-        let s_idx = s as usize;
-
         // Now we actually extend the maps.
-        let max_hom_deg = min(s, self.max_product_homological_degree);
         let min_degree = self.min_degree();
         for i in 0 ..= s {
             for j in min_degree ..= t {

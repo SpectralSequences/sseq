@@ -55,7 +55,7 @@ impl<M : Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
         let qi_len = self.quasi_inverse.len();
         assert_eq!(kernel_len, qi_len);
         for i in kernel_len ..= degree {
-            let (kernel, qi) = self.kernel_and_quasi_inverse(degree);
+            let (kernel, qi) = self.kernel_and_quasi_inverse(i);
             self.kernel.push(kernel);
             self.quasi_inverse.push(qi);
         }
@@ -234,12 +234,12 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         self.max_degree.lock().unwrap()
     }
 
-    pub fn set_kernel(&self, lock : &MutexGuard<i32>, degree : i32, kernel : Subspace){
+    pub fn set_kernel(&self, _lock : &MutexGuard<i32>, degree : i32, kernel : Subspace){
         assert!(degree == self.kernel.len());
         self.kernel.push(kernel);
     }
 
-    pub fn set_quasi_inverse(&self, lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse){
+    pub fn set_quasi_inverse(&self, _lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse){
         assert!(degree == self.quasi_inverse.len());
         self.quasi_inverse.push(quasi_inverse);
     }

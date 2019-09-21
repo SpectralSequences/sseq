@@ -336,7 +336,6 @@ impl Matrix {
     /// *reduced* row echelon form. It also returns the list of pivots instead.
     pub fn find_pivots_permutation<T : Iterator<Item = usize>>(&mut self, permutation : T) -> Vec<usize> {
         let p = self.p;
-        let columns = self.columns();
         let rows = self.rows();
         let mut pivots = Vec::with_capacity(rows);
 
@@ -390,7 +389,6 @@ impl Matrix {
         where T : Iterator<Item = usize> {
         debug_assert!(self.columns() <= column_to_pivot_row.len());
         let p = self.p;
-        let columns = self.columns();
         let rows = self.rows();
         for x in column_to_pivot_row.iter_mut() {
             *x = -1;
@@ -489,7 +487,7 @@ impl Subspace {
                       .filter(|(x,y)| {
                           debug_assert!(**x >= 0 || **y < 0);
                           **x >= 0 && **y < 0
-                        }).map(|(x,y)| *x as usize).collect();
+                        }).map(|(x,_)| *x as usize).collect();
                 } else {
                     return (0..ambient_dimension).filter( |i| subsp.column_to_pivot_row[*i] < 0).collect();
                 }

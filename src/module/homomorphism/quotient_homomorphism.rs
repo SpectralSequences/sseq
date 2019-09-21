@@ -1,7 +1,6 @@
 use crate::fp_vector::FpVector;
 use crate::matrix::{QuasiInverse, Subspace};
 use crate::module::{Module, QuotientModule};
-use once::OnceBiVec;
 use std::sync::Arc;
 
 use crate::module::homomorphism::ModuleHomomorphism;
@@ -9,14 +8,13 @@ use crate::module::homomorphism::ModuleHomomorphism;
 pub struct QuotientHomomorphism<F : ModuleHomomorphism> {
     f : Arc<F>,
     s : Arc<QuotientModule<F::Source>>,
-    t : Arc<QuotientModule<F::Target>>,
-    quasi_inverses : OnceBiVec<QuasiInverse>
+    t : Arc<QuotientModule<F::Target>>
 }
 
 impl<F : ModuleHomomorphism> QuotientHomomorphism<F> {
     pub fn new (f : Arc<F>, s : Arc<QuotientModule<F::Source>>, t : Arc<QuotientModule<F::Target>>) -> Self {
         QuotientHomomorphism {
-            quasi_inverses : OnceBiVec::new(s.min_degree()), f, s, t,
+            f, s, t,
         }
     }
 }
@@ -55,13 +53,12 @@ pub struct QuotientHomomorphismSource<F : ModuleHomomorphism> {
     f : Arc<F>,
     s : Arc<QuotientModule<F::Source>>,
     t : Arc<F::Target>,
-    quasi_inverses : OnceBiVec<QuasiInverse>
 }
 
 impl<F : ModuleHomomorphism> QuotientHomomorphismSource<F> {
     pub fn new (f : Arc<F>, s : Arc<QuotientModule<F::Source>>, t : Arc<F::Target>) -> Self {
         QuotientHomomorphismSource {
-            quasi_inverses : OnceBiVec::new(s.min_degree()), f, s, t,
+            f, s, t,
         }
     }
 }

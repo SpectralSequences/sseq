@@ -212,7 +212,7 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
             FiniteModule::FDModule(m) => {
                 module_strings.push(m.to_minimal_json());
             }
-            FiniteModule::FPModule(m) => {
+            FiniteModule::FPModule(_) => {
                 // This should never happen
                 panic!();
             }
@@ -338,7 +338,6 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                 let source = resolution.inner.module(s);
                 let target = square.module(s + i);
 
-                let dsource = if s > 0 { resolution.inner.module(s - 1) } else { resolution.inner.module(s) }; // We don't need it for s = 0, but we want to have something
                 let dtarget = square.module(s + i - 1);
 
                 let d_res = resolution.inner.differential(s);

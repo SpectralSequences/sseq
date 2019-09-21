@@ -8,7 +8,6 @@ use once::OnceVec;
 use crate::combinatorics;
 use crate::combinatorics::MAX_XI_TAU;
 use crate::algebra::{Algebra, Bialgebra};
-// use crate::memory::CVec;
 use crate::fp_vector::{FpVector, FpVectorT};
 use serde_json::value::Value;
 
@@ -128,7 +127,7 @@ pub struct AdemAlgebra {
     basis_table : OnceVec<Vec<AdemBasisElement>>, // degree -> index -> AdemBasisElement
     basis_element_to_index_map : OnceVec<HashMap<AdemBasisElement, usize>>, // degree -> AdemBasisElement -> index
     multiplication_table : OnceVec<Vec<Vec<FpVector>>>,// degree -> first square -> admissibile sequence idx -> result vector
-    excess_table : OnceVec<Vec<u32>>,
+//    excess_table : OnceVec<Vec<u32>>,
     sort_order : Option<fn(&AdemBasisElement, &AdemBasisElement) -> Ordering>
 }
 
@@ -379,7 +378,7 @@ impl AdemAlgebra {
         let basis_table = OnceVec::new();
         let basis_element_to_index_map = OnceVec::new();
         let multiplication_table = OnceVec::new();
-        let excess_table = OnceVec::new();
+//        let excess_table = OnceVec::new();
         Self {
             p,
             name : format!("AdemAlgebra(p={})", p),
@@ -390,7 +389,7 @@ impl AdemAlgebra {
             basis_table,
             basis_element_to_index_map,
             multiplication_table,
-            excess_table,
+//            excess_table,
             sort_order : None
         }
     }

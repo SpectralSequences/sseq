@@ -1,4 +1,4 @@
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
 
 use once::OnceVec;
 use crate::fp_vector::{ FpVector, FpVectorT };
@@ -74,7 +74,6 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
             assert!(extra_images.is_none());
             return;
         }
-        let num_gens = f_cur.source().number_of_gens_in_degree(input_internal_degree);
         let mut outputs = self.extend_step_helper(input_homological_degree, input_internal_degree, extra_images);
         let mut lock = f_cur.lock();
         f_cur.add_generators_from_matrix_rows(&lock, input_internal_degree, &mut outputs, 0, 0);
@@ -116,11 +115,10 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         let d_source = source.differential(input_homological_degree);
         let d_target = target.differential(output_homological_degree);
         let f_prev = self.get_map(output_homological_degree - 1);
-        assert_eq!(d_source.source().name(), f_cur.source().name());
-        assert_eq!(d_source.target().name(), f_prev.source().name());
-        assert_eq!(d_target.source().name(), f_cur.target().name());
-        assert_eq!(d_target.target().name(), f_prev.target().name());
-        let dx_dimension = f_prev.source().dimension(input_internal_degree);
+        assert!(Arc::ptr_eq(&d_source.source(), &f_cur.source()));
+        assert!(Arc::ptr_eq(&d_source.target(), &f_prev.source()));
+        assert!(Arc::ptr_eq(&d_target.source(), &f_cur.target()));
+        assert!(Arc::ptr_eq(&d_target.target(), &f_prev.target()));
         let fdx_dimension = f_prev.target().dimension(output_internal_degree);
         let mut fdx_vector = FpVector::new(p, fdx_dimension);
         let mut extra_image_row = 0;

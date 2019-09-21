@@ -41,13 +41,13 @@ impl<N : FPModuleT, M : Module> ModuleHomomorphism for FPModuleHomomorphism<N, M
     }
 
     fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
-        let lock = self.underlying_map.lock();
+        let _lock = self.underlying_map.lock();
 
         let kernel_len = self.underlying_map.kernel.len();
         let qi_len = self.underlying_map.quasi_inverse.len();
         assert_eq!(kernel_len, qi_len);
         for i in kernel_len ..= degree {
-            let (kernel, qi) = self.kernel_and_quasi_inverse(degree);
+            let (kernel, qi) = self.kernel_and_quasi_inverse(i);
             self.underlying_map.kernel.push(kernel);
             self.underlying_map.quasi_inverse.push(qi);
         }

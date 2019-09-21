@@ -62,7 +62,7 @@ impl<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<Fr
     }
 
     fn set_cohomology_basis(&self, homological_degree : u32, internal_degree : i32, cohomology_basis : Vec<usize>) {
-        for i in cohomology_basis.len() ..= homological_degree as usize {
+        for _ in cohomology_basis.len() ..= homological_degree as usize {
             self.cohomology_basis.push(OnceBiVec::new(self.min_degree()));
         }
         assert!(self.cohomology_basis[homological_degree].len() == internal_degree);

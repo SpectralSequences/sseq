@@ -119,7 +119,7 @@ impl<M : BoundedModule> Module for HomModule<M> {
                 }
                 let num_gens = self.source.number_of_gens_in_degree(d + i);
                 let mut block_sizes_entry = Vec::with_capacity(num_gens);                
-                for i in 0 .. num_gens {
+                for _ in 0 .. num_gens {
                     block_sizes_entry.push(target_dim)
                 }
                 block_sizes.push(block_sizes_entry);

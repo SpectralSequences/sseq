@@ -71,9 +71,6 @@ impl<M : Module> Module for SumModule<M> {
     }
 
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize) {
-        let algebra = self.algebra();
-        let p = self.prime();
-
         let module_num = self.seek_module_num(mod_degree, mod_index);
 
         let source_offset = self.offsets[mod_degree][module_num];

@@ -229,7 +229,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainM
             return;
         }
 
-        let lock = self.lock.lock().unwrap();
+        let _lock = self.lock.lock().unwrap();
 
         for i in next_degree ..= degree {
             self.calculate_quasi_inverse(i);

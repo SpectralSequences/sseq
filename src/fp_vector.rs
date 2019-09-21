@@ -921,7 +921,7 @@ impl Serialize for FpVector {
 }
 
 impl<'de> Deserialize<'de> for FpVector {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
         where D : Deserializer<'de>
     {
         Ok(FpVector::new(2, 0)) // Implement this? This would require proper deserializing

@@ -55,7 +55,6 @@ impl<M : BoundedModule> ModuleHomomorphism for HomPullback<M> {
 
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, fn_degree : i32, fn_idx : usize) {
         println!("fn_deg : {}, fn_idx : {}", fn_degree, fn_idx);
-        let p = self.prime();
         let target_module = self.target.target();
         for out_deg in target_module.min_degree() ..= target_module.max_degree() {
             let x_degree = fn_degree + out_deg;
@@ -76,7 +75,7 @@ impl<M : BoundedModule> ModuleHomomorphism for HomPullback<M> {
         let qi_len = self.quasi_inverse.len();
         assert_eq!(kernel_len, qi_len);
         for i in kernel_len ..= degree {
-            let (kernel, qi) = self.kernel_and_quasi_inverse(degree);
+            let (kernel, qi) = self.kernel_and_quasi_inverse(i);
             self.kernel.push(kernel);
             self.quasi_inverse.push(qi);
         }

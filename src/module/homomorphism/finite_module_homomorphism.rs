@@ -10,7 +10,7 @@ impl BoundedModule for FiniteModule {
     fn max_degree(&self) -> i32 {
         match self {
             FiniteModule::FDModule(m) => m.max_degree(),
-            FiniteModule::FPModule(m) => panic!("Finitely Presented Module is not bounded")
+            FiniteModule::FPModule(_) => panic!("Finitely Presented Module is not bounded")
         }
     }
 }
@@ -18,7 +18,7 @@ impl BoundedModule for FiniteModule {
 impl FPModuleT for FiniteModule {
     fn fp_idx_to_gen_idx(&self, input_degree : i32, input_index : usize) -> usize {
         match self {
-             FiniteModule::FDModule(m) => panic!("Finite Dimensional Module is not finitely presented"),
+             FiniteModule::FDModule(_) => panic!("Finite Dimensional Module is not finitely presented"),
              FiniteModule::FPModule(m) => m.fp_idx_to_gen_idx(input_degree, input_index)
         }
     }
@@ -113,8 +113,8 @@ impl<M : Module> ModuleHomomorphism for FiniteModuleHomomorphism<M> {
 impl<M : Module> ZeroHomomorphism<FiniteModule, M> for FiniteModuleHomomorphism<M> {
     fn zero_homomorphism(source : Arc<FiniteModule>, target : Arc<M>, degree_shift : i32) -> Self {
         let map = match &*source {
-            FiniteModule::FDModule(m) => FMHI::FD(BoundedModuleHomomorphism::zero_homomorphism(Arc::clone(&source), Arc::clone(&target), degree_shift)),
-            FiniteModule::FPModule(m) => FMHI::FP(FPModuleHomomorphism::zero_homomorphism(Arc::clone(&source), Arc::clone(&target), degree_shift))
+            FiniteModule::FDModule(_) => FMHI::FD(BoundedModuleHomomorphism::zero_homomorphism(Arc::clone(&source), Arc::clone(&target), degree_shift)),
+            FiniteModule::FPModule(_) => FMHI::FP(FPModuleHomomorphism::zero_homomorphism(Arc::clone(&source), Arc::clone(&target), degree_shift))
         };
         FiniteModuleHomomorphism {
             source,

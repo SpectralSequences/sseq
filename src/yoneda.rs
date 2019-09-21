@@ -123,7 +123,6 @@ where TCM : BoundedModule,
       CMF : ModuleHomomorphism<Source=CC::Module, Target=CMM>,
       F : Fn(&CC::Module, &Subspace, i32, usize) -> i32 {
     let p = cc.prime();
-    let algebra = cc.algebra();
     let target_cc = cc.target();
 
     let t_shift : i32 = map.chain_maps[0].degree_shift();
@@ -204,14 +203,14 @@ where TCM : BoundedModule,
             let mut pivot_columns : Vec<(i32, usize)> = pivots
                 .into_iter()
                 .enumerate()
-                .filter(|&(i, v)| v >= 0)
-                .map(|(i, v)| {
+                .filter(|&(_i, v)| v >= 0)
+                .map(|(i, _v)| {
                     (strategy(&*source.module.module, subspace, t, i), i)
                 })
                 .collect::<Vec<_>>();
             pivot_columns.sort();
 
-            let image_pivots = images.find_pivots_permutation(pivot_columns.iter().map(|(p, i)| *i));
+            let image_pivots = images.find_pivots_permutation(pivot_columns.iter().map(|(_p, i)| *i));
 
             let mut chosen_cols : HashSet<usize> = HashSet::new();
 

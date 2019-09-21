@@ -182,7 +182,6 @@ impl Algebra for MilnorAlgebra {
             }
             for i in 0..max {
                 let degree = 1 << i; // degree is 2^hi
-                let ps = vec![degree as u32];
                 products.push((format!("h_{}", i), MilnorBasisElement {
                     degree,
                     q_part : 0,
@@ -371,7 +370,6 @@ impl Algebra for MilnorAlgebra {
             return vec![vec![(1, (1, 0), (1, 0))]];
         }
         let p = self.prime();
-        let q = if self.generic { 2*(p - 1) } else { 1 };
         let inadmissible_pairs = combinatorics::inadmissible_pairs(p, self.generic, degree);
         let mut result = Vec::new();
         for (x, b, y) in inadmissible_pairs {
@@ -562,8 +560,6 @@ impl MilnorAlgebra {
     }
 
     fn multiply_qpart (&self, m1 : &MilnorBasisElement, f : u32) -> Vec<(u32, MilnorBasisElement)>{
-        let xi_degrees = crate::combinatorics::xi_degrees(self.p);
-
         let mut new_result : Vec<(u32, MilnorBasisElement)> = vec![(1, m1.clone())];
         let mut old_result : Vec<(u32, MilnorBasisElement)> = Vec::new();
 
@@ -668,7 +664,6 @@ struct PPartMultiplier<'a> {
     p : u32,
     M : Vec<Vec<u32>>,
     r : &'a PPart,
-    s : &'a PPart,
     rows : usize,
     cols : usize,
     diag_num : usize,
@@ -690,7 +685,7 @@ impl<'a>  PPartMultiplier<'a> {
         for i in 1..cols {
             M[0][i] = s[i - 1];
         }
-        PPartMultiplier { p, M, r, s, rows, cols, diag_num, cont : true }
+        PPartMultiplier { p, M, r, rows, cols, diag_num, cont : true }
     }
 
     fn update(&mut self) -> bool {
