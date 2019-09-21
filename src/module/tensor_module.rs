@@ -30,6 +30,61 @@ impl<M : Module, N : Module> TensorModule<M, N> {
             None => self.offsets[degree].len() - 1
         }
     }
+
+    fn act_helper(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, input: &FpVector) {
+        let algebra = self.algebra();
+        let p = self.prime();
+
+        let coproduct = algebra.coproduct(op_degree, op_index).into_iter();
+
+        let source_offset = &self.offsets[mod_degree];
+        let target_offset = &self.offsets[mod_degree + op_degree];
+
+        for (op_deg_l, op_idx_l, op_deg_r, op_idx_r) in coproduct {
+            for left_deg in source_offset.min_degree() .. source_offset.len() {
+                let right_deg = mod_degree - left_deg;
+
+                let left_source_dim = self.left.dimension(left_deg);
+                let right_source_dim = self.right.dimension(right_deg);
+
+                let left_target_dim = self.left.dimension(left_deg + op_deg_l);
+                let right_target_dim = self.right.dimension(right_deg + op_deg_r);
+
+                if left_target_dim == 0 || right_target_dim == 0 ||
+                    left_source_dim == 0 || right_source_dim == 0 {
+                        continue;
+                    }
+
+                let mut left_result = FpVector::new(p, left_target_dim);
+                let mut right_result = FpVector::new(p, right_target_dim);
+
+                for i in 0 .. left_source_dim {
+                    self.left.act_on_basis(&mut left_result, coeff, op_deg_l, op_idx_l, left_deg, i);
+
+                    if left_result.is_zero() {
+                        continue;
+                    }
+
+                    for j in 0 .. right_source_dim {
+                        let idx = source_offset[left_deg] + i * right_source_dim + j;
+                        let entry = input.entry(idx);
+                        if entry == 0 {
+                            continue;
+                        }
+                        self.right.act_on_basis(&mut right_result, entry, op_deg_r, op_idx_r, right_deg, j);
+
+                        if right_result.is_zero() {
+                            continue;
+                        }
+                        result.add_tensor(target_offset[left_deg + op_deg_l], &left_result, &right_result);
+
+                        right_result.set_to_zero();
+                    }
+                    left_result.set_to_zero();
+                }
+            }
+        }
+    }
 }
 
 impl<M : Module, N : Module> Module for TensorModule<M, N> {
@@ -67,71 +122,45 @@ impl<M : Module, N : Module> Module for TensorModule<M, N> {
     }
 
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize) {
+        let mut working_element = FpVector::new(self.prime(), self.dimension(mod_degree));
+        working_element.set_entry(mod_index, 1);
+
+        self.act(result, coeff, op_degree, op_index, mod_degree, &working_element);
+    }
+
+    fn act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, input : &FpVector) {
+        if op_degree == 0 {
+            result.add(input, coeff);
+            return;
+        }
+
         let algebra = self.algebra();
         let p = self.prime();
-        let decomposition = algebra.decompose(op_degree, op_index).into_iter();
+        let decomposition = algebra.decompose(op_degree, op_index);
 
-        let mut working_degree = mod_degree;
-        let mut working_element = FpVector::new(p, self.dimension(mod_degree));
+        match decomposition.len() {
+            0 => panic!("Decomposition has length 0"),
+            1 => self.act_helper(result, coeff, op_degree, op_index, mod_degree, input),
+            n => {
+                let (op_degree, op_index) = decomposition[0];
 
-        working_element.set_entry(mod_index, 1);
-        for (op_degree, op_index) in decomposition {
-            let coproduct = algebra.coproduct(op_degree, op_index).into_iter();
-            let mut new_element = FpVector::new(p, self.dimension(working_degree + op_degree));
+                let mut working_degree = mod_degree;
+                let mut working_element = FpVector::new(p, self.dimension(working_degree + op_degree));
+                self.act_helper(&mut working_element, coeff, op_degree, op_index, working_degree, input);
+                working_degree += op_degree;
 
-            let source_offset = &self.offsets[working_degree];
-            let target_offset = &self.offsets[working_degree + op_degree];
-
-            for (op_deg_l, op_idx_l, op_deg_r, op_idx_r) in coproduct {
-                for left_deg in source_offset.min_degree() .. source_offset.len() {
-                    let right_deg = working_degree - left_deg;
-
-                    let left_source_dim = self.left.dimension(left_deg);
-                    let right_source_dim = self.right.dimension(right_deg);
-
-                    let left_target_dim = self.left.dimension(left_deg + op_deg_l);
-                    let right_target_dim = self.right.dimension(right_deg + op_deg_r);
-
-                    if left_target_dim == 0 || right_target_dim == 0 ||
-                       left_source_dim == 0 || right_source_dim == 0 {
-                        continue;
-                    }
-
-                    let mut left_result = FpVector::new(p, left_target_dim);
-                    let mut right_result = FpVector::new(p, right_target_dim);
-
-                    for i in 0 .. left_source_dim {
-                        self.left.act_on_basis(&mut left_result, 1, op_deg_l, op_idx_l, left_deg, i);
-
-                        if left_result.is_zero() {
-                            continue;
-                        }
-
-                        for j in 0 .. right_source_dim {
-                            let idx = source_offset[left_deg] + i * right_source_dim + j;
-                            let entry = working_element.entry(idx);
-                            if entry == 0 {
-                                continue;
-                            }
-                            self.right.act_on_basis(&mut right_result, entry, op_deg_r, op_idx_r, right_deg, j);
-
-                            if right_result.is_zero() {
-                                continue;
-                            }
-                            new_element.add_tensor(target_offset[left_deg + op_deg_l], &left_result, &right_result);
-
-                            right_result.set_to_zero();
-                        }
-                        left_result.set_to_zero();
-                    }
+                for i in 1 .. n - 1 {
+                    let (op_degree, op_index) = decomposition[i];
+                    let mut new_element = FpVector::new(p, self.dimension(working_degree + op_degree));
+                    self.act_helper(&mut new_element, coeff, op_degree, op_index, working_degree, &working_element);
+                    working_element = new_element;
+                    working_degree += op_degree;
                 }
-            }
 
-            working_degree += op_degree;
-            working_element = new_element;
+                let (op_degree, op_index) = decomposition[n - 1];
+                self.act_helper(result, coeff, op_degree, op_index, working_degree, &working_element);
+            }
         }
-        assert_eq!(working_degree, op_degree + mod_degree);
-        result.shift_add(&working_element, 1);
     }
 
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String { String::from("") }
