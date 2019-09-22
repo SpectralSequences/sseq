@@ -45,7 +45,8 @@ function to_latex(p, str) {
 
 function to_input_form(p, str) {
     let P_or_Sq = p == 2 ? "Sq" : "P";
-    return str.replace(/((?:P|Sq)(?:\d*)) ((?:P|Sq)(?:\d*))/, "$1 * $2")
+    return str.replace(/((?:P|Sq)(?:\d*)) ((?:P|Sq)(?:\d*))/g, "$1 * $2")
+              .replace(/((?:P|Sq)(?:\d*)) ((?:P|Sq)(?:\d*))/g, "$1 * $2")
               .replace(/P/g, `${P_or_Sq}`);
 }
 
@@ -54,14 +55,17 @@ message_handlers.calculate = function calculate(m){
         self.calculators[m.prime] = self.wasm.SteenrodCalculator.new(m.prime);
         self.calculators[m.prime].compute_basis(20);
     }
-    console.log("hi!");
     let result;
-    if(m.basis === "adem") {
-        result = self.calculators[m.prime].evaluate_adem(m.input);
-    } else if(m.basis === "milnor") {
-        result = self.calculators[m.prime].evaluate_milnor(m.input);
-    } else {
-        // Unknown basis...
+    try {
+        if(m.basis === "adem") {
+            result = self.calculators[m.prime].evaluate_adem(m.input);
+        } else if(m.basis === "milnor") {
+            result = self.calculators[m.prime].evaluate_milnor(m.input);
+        } else {
+            // Unknown basis...
+        }
+    } catch(e) {
+        self.postMessage({"cmd" : "error", "error" : e});
     }
     let latex_input = to_latex(m.prime, m.input);
     let latex_result = to_latex(m.prime, result);

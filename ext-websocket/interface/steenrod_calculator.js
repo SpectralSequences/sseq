@@ -34,7 +34,6 @@ worker.addEventListener("message", ev => {
 let katex_macros = {};
 function katexMathInDelims(string){
     let html_list = string.split(/(?:\\\[)|(?:\\\()|(?:\\\))|(?:\\\])|(?:\$)/);
-    console.log(html_list);
     for(let i = 1; i < html_list.length; i+=2){
         html_list[i] = katex.renderToString(html_list[i], {macros : katex_macros});
     }
@@ -108,7 +107,7 @@ message_handlers.parse_error = function(data){
 message_handlers.error = function(data){
     let result_element = document.getElementById("adem-result");
     let result_simple_element = document.getElementById("adem-result-simple");
-    result_element.innerHTML = data.error_str;
+    result_element.innerHTML = data.error;
 }
 
 window.copyToClipboard = function copyToClipboard(text) {
