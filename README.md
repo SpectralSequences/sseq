@@ -6,7 +6,15 @@ binary that displays the result in an ASCII graph. This is mainly used for
 testing purposes. It also comes with a CLI interface for defining Steenrod
 modules, which may be used "in production".
 
-There are three further sub-crates.
+At the moment, it also has an interface for calculating Steenrod operations in
+Ext using the algorithm described in
+[https://arxiv.org/abs/1909.03117](https://arxiv.org/abs/1909.03117) via the
+`steenrod` subcommand (`cargo run --release steenrod`), but the intention is to
+expose this via `ext-websocket` once it is sufficiently presentable (the
+current algorithm can be very slow, and the speed cannot be easily determined
+a priori).
+
+There are a few further sub-crates.
 
 ## ext-websocket
 This is what you should use in general.
@@ -43,6 +51,9 @@ This is a small crate that provides `BiVec` - a variant of `Vec` indexed by an
 
 ## once
 This is a small crate that provides `OnceVec` and `OnceBiVec`, a wrapper around `UnsafeCell<Vec>` (or `BiVec`) that models a `Vec` whose only way of modification is `push`. This models some partially computed infinite data structure, and we think of pushing as simply finding out more of this infinite data structure instead of genuinely mutating it.
+
+## query
+This contains some helper functions for a command line interface.
 
 # Compilation
 To compile the main crate, simply run
