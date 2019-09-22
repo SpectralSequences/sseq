@@ -1,12 +1,11 @@
 use rust_ext::Config;
 use rust_ext::construct_from_json;
 use rust_ext::load_module_from_file;
-use rust_ext::chain_complex::ChainComplex;
 use serde_json::Value;
 
 #[test]
 fn resolve_iterate() {
-    let path = std::path::PathBuf::from("static/modules");
+    let path = std::path::PathBuf::from("modules");
     for name in &["S_2", "S_3", "Ceta", "Calpha", "C3", "Joker"] {
         let config = Config {
             module_paths : vec![path.clone()],
@@ -35,17 +34,17 @@ fn test_iterate(config: &Config) {
     let first = construct_from_json(json.clone(), config.algebra_name.clone()).unwrap();
     let second = construct_from_json(json, config.algebra_name.clone()).unwrap();
 
-    first.resolution.borrow().resolve_through_degree(20);
+    first.resolution.read().unwrap().resolve_through_degree(20);
 
-    second.resolution.borrow().resolve_through_degree(0);
-    second.resolution.borrow().resolve_through_degree(5);
-    second.resolution.borrow().resolve_through_degree(10);
-    second.resolution.borrow().resolve_through_degree(10);
-    second.resolution.borrow().resolve_through_degree(18);
-    second.resolution.borrow().resolve_through_degree(14);
-    second.resolution.borrow().resolve_through_degree(15);
-    second.resolution.borrow().resolve_through_degree(20);
+    second.resolution.read().unwrap().resolve_through_degree(0);
+    second.resolution.read().unwrap().resolve_through_degree(5);
+    second.resolution.read().unwrap().resolve_through_degree(10);
+    second.resolution.read().unwrap().resolve_through_degree(10);
+    second.resolution.read().unwrap().resolve_through_degree(18);
+    second.resolution.read().unwrap().resolve_through_degree(14);
+    second.resolution.read().unwrap().resolve_through_degree(15);
+    second.resolution.read().unwrap().resolve_through_degree(20);
 
-    assert_eq!(first.resolution.borrow().graded_dimension_string(),
-               second.resolution.borrow().graded_dimension_string());
+    assert_eq!(first.resolution.read().unwrap().graded_dimension_string(),
+               second.resolution.read().unwrap().graded_dimension_string());
 }

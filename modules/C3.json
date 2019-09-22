@@ -1,0 +1,17 @@
+{
+    "type" : "finite dimensional module",
+    "name": "$C(3)$",
+    "file_name": "C3",
+    "algebra": ["milnor"],
+    "profile": {"q_part": 65534},
+    "p": 3, "generic": true,
+    "gens": {"x0": 0},
+    "sq_actions": [], "adem_actions": [], "milnor_actions": [],
+    "products" : [
+        { "hom_deg" : 2, "int_deg" : 12, "class" : [1], "name" : "\\beta" },
+        { "hom_deg" : 2, "int_deg" : 9, "class" : [1], "name" : "\\alpha_{2}" }
+    ],
+    "self_maps": [
+        { "hom_deg" : 1, "int_deg" : 5, "map_data" : [[1]], "name" : "v_1" }
+    ]
+}

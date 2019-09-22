@@ -1,73 +1,44 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-pub mod once;
 pub mod combinatorics;
 pub mod fp_vector;
 pub mod matrix;
 pub mod block_structure;
 pub mod algebra;
-pub mod field;
-pub mod adem_algebra;
-pub mod milnor_algebra;
 pub mod change_of_basis;
 pub mod steenrod_parser;
 pub mod steenrod_evaluator;
 pub mod module;
-pub mod module_homomorphism;
-pub mod finite_dimensional_module;
-pub mod free_module;
-pub mod free_module_homomorphism;
-pub mod finitely_presented_module;
 pub mod chain_complex;
-pub mod hom_space;
-pub mod hom_pullback;
-pub mod hom_complex;
 pub mod resolution;
 pub mod resolution_homomorphism;
-#[cfg(target_arch = "wasm32")]
-pub mod wasm_bindings;
 mod cli_module_loaders;
+mod yoneda;
 
+use algebra::{Algebra, AlgebraAny};
+use module::{FiniteModule, Module, BoundedModule};
+use module::homomorphism::{FiniteModuleHomomorphism, ModuleHomomorphism, FreeModuleHomomorphism};
+use matrix::Matrix;
+use fp_vector::{FpVector, FpVectorT};
+use chain_complex::{FiniteChainComplex, ChainComplex, TensorChainComplex, ChainMap};
+use resolution::Resolution;
+use resolution_homomorphism::ResolutionHomomorphism;
+use yoneda::{yoneda_representative_element, yoneda_representative};
 
-#[cfg(test)]
-extern crate rand;
+use bivec::BiVec;
+use query::*;
 
-#[cfg(test)]
-extern crate rstest;
-
-#[macro_use]
-extern crate lazy_static;
-extern crate enum_dispatch;
-
-extern crate serde_json;
-extern crate serde;
-
-#[cfg(target_arch = "wasm32")]
-extern crate wasm_bindgen;
-extern crate web_sys;
-extern crate bivec;
-
-// Parser
-extern crate nom;
-
-use crate::algebra::{Algebra, AlgebraAny};
-use crate::adem_algebra::AdemAlgebra;
-use crate::milnor_algebra::MilnorAlgebra;
-use crate::module::{FiniteModule, Module};
-use crate::matrix::Matrix;
-use crate::fp_vector::FpVectorT;
-use crate::chain_complex::{ChainComplex, CochainComplex};
-use crate::chain_complex::ChainComplexConcentratedInDegreeZero as CCDZ;
-use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
-use crate::resolution::{Resolution, ModuleResolution};
-use crate::hom_complex::HomComplex;
-
-use std::path::PathBuf;
-use std::rc::Rc;
-use std::cell::RefCell;
 use std::error::Error;
+use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
+use std::time::Instant;
 use serde_json::value::Value;
+
+#[cfg(feature = "steenrod-concurrent")]
+use std::collections::VecDeque;
+#[cfg(feature = "steenrod-concurrent")]
+use std::{thread, thread::JoinHandle, sync::mpsc};
 
 pub struct Config {
     pub module_paths : Vec<PathBuf>,
@@ -76,37 +47,65 @@ pub struct Config {
     pub max_degree : i32
 }
 
+pub type CCC = FiniteChainComplex<FiniteModule, FiniteModuleHomomorphism<FiniteModule>>;
 
-pub struct AlgebraicObjectsBundle<M : Module> {
-    pub algebra : Rc<AlgebraAny>,
-    pub module : Rc<M>,
-    pub chain_complex : Rc<CCDZ<M>>,
-    pub resolution : Rc<RefCell<ModuleResolution<M>>>
+pub struct AlgebraicObjectsBundle {
+    pub chain_complex : Arc<CCC>,
+    pub resolution : Arc<RwLock<Resolution<CCC>>>
 }
 
-pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
+pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle, Box<dyn Error>> {
     let contents = load_module_from_file(config)?;
     let json = serde_json::from_str(&contents)?;
 
     construct_from_json(json, config.algebra_name.clone())
 }
 
-pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<AlgebraicObjectsBundle<FiniteModule>, Box<dyn Error>> {
-    let algebra = construct_algebra_from_json(&json, algebra_name)?;
-    let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &mut json)?);
-    let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
-    let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), None, None)));
-    resolution.borrow_mut().set_self(Rc::downgrade(&resolution));
+pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<AlgebraicObjectsBundle, Box<dyn Error>> {
+    let algebra = Arc::new(AlgebraAny::from_json(&json, algebra_name)?);
+    let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut json)?);
+    let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
+    let mut resolution = Resolution::new(Arc::clone(&chain_complex), None, None);
 
-    let products_value = &json["products"];
+    let cofiber = &json["cofiber"];
+    if !cofiber.is_null() {
+        let s = cofiber["s"].as_u64().unwrap() as u32;
+        let t = cofiber["t"].as_i64().unwrap() as i32;
+        let idx = cofiber["idx"].as_u64().unwrap() as usize;
+
+        resolution.resolve_through_bidegree(s, t + module.max_degree());
+
+        let map = FreeModuleHomomorphism::new(resolution.module(s), Arc::clone(&module), t);
+        let mut new_output = Matrix::new(module.prime(), resolution.module(s).number_of_gens_in_degree(t), 1);
+        new_output[idx].set_entry(0, 1);
+
+        let lock = map.lock();
+        map.add_generators_from_matrix_rows(&lock, t, &mut new_output, 0, 0);
+        drop(lock);
+        map.extend_by_zero_safe(module.max_degree() + t);
+
+        let cm = ChainMap {
+            s_shift : s,
+            chain_maps : vec![map]
+        };
+        let yoneda = yoneda_representative(Arc::clone(&resolution.inner), cm);
+        let mut yoneda = FiniteChainComplex::from(yoneda);
+        yoneda.pop();
+
+        chain_complex = Arc::new(yoneda);
+        resolution = Resolution::new(Arc::clone(&chain_complex), None, None);
+    }
+
+    let products_value = &mut json["products"];
     if !products_value.is_null() {
-        let products = products_value.as_array().unwrap();
+        let products = products_value.as_array_mut().unwrap();
         for prod in products {
             let hom_deg = prod["hom_deg"].as_u64().unwrap() as u32;
             let int_deg = prod["int_deg"].as_i64().unwrap() as i32;
-            let idx = prod["index"].as_u64().unwrap() as usize;
+            let class : Vec<u32> = serde_json::from_value(prod["class"].take()).unwrap();
             let name = prod["name"].as_str().unwrap();
-            resolution.borrow_mut().add_product(hom_deg, int_deg, idx, &name.to_string());
+
+            resolution.add_product(hom_deg, int_deg, class, &name.to_string());
         }
     }
 
@@ -131,126 +130,360 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
                     map_data[r].set_entry(c, json_map_data[r][c].as_u64().unwrap() as u32);
                 }
             }
-            resolution.borrow_mut().add_self_map(s, t, &name.to_string(), map_data);
+            resolution.add_self_map(s, t, &name.to_string(), map_data);
         }
     }
-
     Ok(AlgebraicObjectsBundle {
-        algebra,
-        module,
         chain_complex,
-        resolution
+        resolution : Arc::new(RwLock::new(resolution))
     })
 }
-pub fn construct_algebra_from_json(json : &Value, mut algebra_name : String) -> Result<Rc<AlgebraAny>, Box<dyn Error>> {
-    let p = json["p"].as_u64().unwrap() as u32;
-    let algebra_list = json["algebra"].as_array();
-    if let Some(list) = algebra_list {
-        let list : Vec<&str> = list.iter().map(|x| x.as_str().unwrap()).collect();
-        if !list.contains(&algebra_name.as_ref()) {
-            println!("Module does not support algebra {}", algebra_name);
-            println!("Using {} instead", list[0]);
-            algebra_name = list[0].to_string();
-        }
-    }
 
-    let mut algebra : AlgebraAny;
-    match algebra_name.as_ref() {
-        "adem" => algebra = AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)),
-        "milnor" => {
-            let mut algebra_inner = MilnorAlgebra::new(p);
-            let profile = &json["profile"];
-            if !profile.is_null() {
-                 if let Some(truncated) = profile["truncated"].as_bool() {
-                     algebra_inner.profile.truncated = truncated;
-                 }
-                 if let Some(q_part) = profile["q_part"].as_u64() {
-                     algebra_inner.profile.q_part = q_part as u32;
-                 }
-                 if let Some(p_part) = profile["p_part"].as_array() {
-                     let p_part = p_part.into_iter().map(|x| x.as_u64().unwrap() as u32).collect();
-                     algebra_inner.profile.p_part = p_part;
-                 }
-            }
-            algebra = AlgebraAny::from(algebra_inner);
-        }
-        _ => { return Err(Box::new(InvalidAlgebraError { name : algebra_name })); }
-    };
-    Ok(Rc::new(algebra))
-}
 pub fn run_define_module() -> Result<String, Box<dyn Error>> {
     cli_module_loaders::interactive_module_define()
 }
 
 pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
     let bundle = construct(config)?;
-    let res = bundle.resolution.borrow();
+    let res = bundle.resolution.read().unwrap();
     res.resolve_through_degree(config.max_degree);
-    // let hom = HomComplex::new(Rc::clone(&res), Rc::clone(&bundle.module));
+    // let hom = HomComplex::new(Arc::clone(&res), Arc::clone(&bundle.module));
     // hom.compute_cohomology_through_bidegree(res.max_computed_homological_degree(), res.max_computed_degree());
     Ok(res.graded_dimension_string())
 }
 
+pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
+    let bundle = construct(config)?;
+    let module = bundle.chain_complex.module(0);
+    let resolution = bundle.resolution.read().unwrap();
+    let min_degree = resolution.min_degree();
+    let p = resolution.prime();
 
-//use crate::fp_vector::FpVectorT;
-// use crate::resolution_homomorphism::ResolutionHomomorphism;
-use crate::abelianization_algebra::AbelianizationAlgebra;
-#[allow(unreachable_code)]
-#[allow(unused_mut)]
-pub fn run_test() {
-    // let p = 2;
-    // let calculator = steenrod_evaluator::SteenrodCalculator::new(2);
-    // println!("{}", calculator.evaluate_adem_to_string("P2*P2").unwrap());
-    // let algebra = AbelianizationAlgebra::new(2);
-    // algebra.compute_basis(10);
-    // for d in 0 .. 10 {
-    //     println!("degree {}",d);
-    //     for idx in 0 .. algebra.dimension(d, -1) {
-    //         println!("    {}", algebra.basis_element_to_string(d, idx));
-    //     }
-    //     println!("");
-    // }
+    loop {
+        let x : i32= query_with_default_no_default_indicated("t - s", 200, |x : i32| Ok(x));
+        let s : u32 = query_with_default_no_default_indicated("s", 200, |x : u32| Ok(x));
+        let i : usize = query_with_default_no_default_indicated("idx", 200, |x : usize| Ok(x));
 
-    // let mut result_vec = crate::fp_vector::FpVector::new(p, 1);
-    // for i in 1..8 {
-    //     for j in 1..8 {
-    //         if i + j >= 8 { continue; }
-    //         print!("{} * {} = ", 
-    //             algebra.basis_element_to_string(i, 0), 
-    //             algebra.basis_element_to_string(j, 0));
-    //         algebra.multiply_basis_elements(&mut result_vec, 1, i, 0, j, 0, -1);
-    //         println!("{}",
-    //             algebra.element_to_string(i + j, &result_vec)
-    //         );
-    //         result_vec.set_to_zero();
-    //     }
-    // }
+        let start = Instant::now();
+        let t = x + s as i32;
+        resolution.resolve_through_bidegree(s + 1, t + 1);
 
-    // let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &mut json)?);
-    // let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
-    // let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), None, None)));
-    // resolution.borrow_mut().set_self(Rc::downgrade(&resolution));    
+        println!("Resolving time: {:?}", start.elapsed());
 
-    // let contents = std::fs::read_to_string("static/modules/S_3.json").unwrap();
-    // S_3
-    // let contents = r#"{"type" : "finite dimensional module","name": "$S_3$", "file_name": "S_3", "p": 3, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}"#;
-    // C2:
-    // let contents = r#"{"type" : "finite dimensional module", "name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
-    // let mut json : Value = serde_json::from_str(&contents).unwrap();
-    // let p = json["p"].as_u64().unwrap() as u32;
-    // let max_degree = 20;
-    // let algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
-    // let module = Rc::new(FDModule::from_json(Rc::clone(&algebra), &mut json));
-    // let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
-    // let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), None, None));
-    // resolution.resolve_through_degree(max_degree);
-    // let hom = HomComplex::new(resolution, module);
-    // hom.compute_cohomology_through_bidegree(max_degree as u32, max_degree);
-    // println!("{}", hom.graded_dimension_string());
-    
+        let start = Instant::now();
+        let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution.inner), s, t, i));
+
+        println!("Finding representative time: {:?}", start.elapsed());
+
+        let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&yoneda), 0, 0);
+        let mut mat = Matrix::new(p, 1, 1);
+        mat[0].set_entry(0, 1);
+        f.extend_step(0, 0, Some(&mut mat));
+
+        f.extend(s, t);
+        let final_map = f.get_map(s);
+        let num_gens = resolution.inner.number_of_gens_in_bidegree(s, t);
+        for i_ in 0 .. num_gens {
+            assert_eq!(final_map.output(t, i_).dimension(), 1);
+            if i_ == i {
+                assert_eq!(final_map.output(t, i_).entry(0), 1);
+            } else {
+                assert_eq!(final_map.output(t, i_).entry(0), 0);
+            }
+        }
+
+        let mut check = BiVec::from_vec(min_degree, vec![0; t as usize + 1 - min_degree as usize]);
+        for s in 0 ..= s {
+            let module = yoneda.module(s);
+
+            println!("Dimension of {}th module is {}", s, module.total_dimension());
+
+            for t in min_degree ..= t {
+                check[t] += (if s % 2 == 0 { 1 } else { -1 }) * module.dimension(t) as i32;
+            }
+        }
+        for t in min_degree ..= t {
+            assert_eq!(check[t], module.dimension(t) as i32, "Incorrect Euler characteristic at t = {}", t);
+        }
+
+        let filename = query("Output file name (empty to skip)", |result : String| Ok(result));
+
+        if filename.is_empty() {
+            continue;
+        }
+
+        let mut module_strings = Vec::with_capacity(s as usize + 2);
+        match &*module {
+            FiniteModule::FDModule(m) => {
+                module_strings.push(m.to_minimal_json());
+            }
+            FiniteModule::FPModule(_) => {
+                // This should never happen
+                panic!();
+            }
+        };
+
+        for s in 0 ..= s {
+            match &*yoneda.module(s) {
+                FiniteModule::FDModule(m) => module_strings.push(m.to_minimal_json()),
+                _ => panic!()
+            }
+        }
+
+        let mut output_path_buf = PathBuf::from(format!("{}", filename));
+        output_path_buf.set_extension("json");
+        std::fs::write(&output_path_buf, Value::from(module_strings).to_string()).unwrap();
+    }
 }
 
+pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
+    let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
+    let k = serde_json::from_str(k).unwrap();
+    let bundle = construct_from_json(k, "adem".to_string()).unwrap();
+    let resolution = bundle.resolution.read().unwrap();
+    let p = 2;
+    #[cfg(feature = "steenrod-concurrent")]
+    let num_threads = query_with_default_no_default_indicated("Number of threads", 2, |x : usize| Ok(x));
 
+    loop {
+        let x : i32= query_with_default_no_default_indicated("t - s", 8, |x : i32| Ok(x));
+        let s : u32 = query_with_default_no_default_indicated("s", 3, |x : u32| Ok(x));
+        let idx : usize = query_with_default_no_default_indicated("idx", 0, |x : usize| Ok(x));
+
+        let t = s as i32 + x;
+        print!("Resolving ext: ");
+        let start = Instant::now();
+        resolution.resolve_through_bidegree(2 * s, 2 * t);
+        println!("{:?}", start.elapsed());
+
+        print!("Computing Yoneda representative: ");
+        let start = Instant::now();
+        let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution.inner), s, t, idx));
+        println!("{:?}", start.elapsed());
+
+        print!("Dimensions of Yoneda representative: 1");
+        let mut check = vec![0; t as usize + 1];
+        for s in 0 ..= s {
+            let module = yoneda.module(s);
+            print!(" {}", module.total_dimension());
+
+            for t in 0 ..= t {
+                check[t as usize] += (if s % 2 == 0 { 1 } else { -1 }) * module.dimension(t) as i32;
+            }
+        }
+        println!("");
+
+        // We check that lifting the identity returns the original class. Even if the
+        // algorithm in yoneda.rs is incorrect, this ensures that a posteriori we happened
+        // to have a valid Yoneda representative. (Not really --- we don't check it is exact, just
+        // that its Euler characteristic is 0 in each degree)
+        print!("Checking Yoneda representative: ");
+        let start = Instant::now();
+        {
+            assert_eq!(check[0], 1, "Incorrect Euler characteristic at t = 0");
+            for t in 1 ..= t as usize {
+                assert_eq!(check[t], 0, "Incorrect Euler characteristic at t = {}", t);
+            }
+            let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&yoneda), 0, 0);
+            let mut mat = Matrix::new(p, 1, 1);
+            mat[0].set_entry(0, 1);
+            f.extend_step(0, 0, Some(&mut mat));
+
+            f.extend(s, t);
+            let final_map = f.get_map(s);
+            let num_gens = resolution.inner.number_of_gens_in_bidegree(s, t);
+            for i_ in 0 .. num_gens {
+                assert_eq!(final_map.output(t, i_).dimension(), 1);
+                if i_ == idx {
+                    assert_eq!(final_map.output(t, i_).entry(0), 1);
+                } else {
+                    assert_eq!(final_map.output(t, i_).entry(0), 0);
+                }
+            }
+        }
+        println!("{:?}", start.elapsed());
+
+        let square = Arc::new(TensorChainComplex::new(Arc::clone(&yoneda), Arc::clone(&yoneda)));
+
+        print!("Computing quasi_inverses: ");
+        let start = Instant::now();
+        square.compute_through_bidegree(2 * s, 2 * t);
+        for s in 0 ..= 2 * s {
+            square.differential(s as u32).compute_kernels_and_quasi_inverses_through_degree(2 * t);
+        }
+        println!("{:?}", start.elapsed());
+
+        println!("Computing Steenrod operations: ");
+        let start = Instant::now();
+
+        let mut delta = Vec::with_capacity(s as usize);
+
+        for i in 0 ..= s {
+            let mut maps : Vec<Arc<FreeModuleHomomorphism<_>>> = Vec::with_capacity(2 * s as usize - 1);
+
+            for s in 0 ..= 2 * s - i {
+                let source = resolution.inner.module(s);
+                let target = square.module(s + i);
+
+                let map = FreeModuleHomomorphism::new(Arc::clone(&source), Arc::clone(&target), 0);
+                maps.push(Arc::new(map));
+            }
+            delta.push(maps);
+        }
+
+        // We use the formula d Δ_i + Δ_i d = Δ_{i-1} + τΔ_{i-1}
+        for i in 0 ..= s {
+            // Δ_i is a map C_s -> C_{s + i}. So to hit C_{2s}, we only need to compute up to 2
+            // * s - i
+            let start = Instant::now();
+
+            #[cfg(feature = "steenrod-concurrent")]
+            let mut handles : VecDeque<JoinHandle<()>> = VecDeque::with_capacity(num_threads);
+            #[cfg(feature = "steenrod-concurrent")]
+            let mut last_receiver : Option<mpsc::Receiver<()>> = None;
+
+            for s in 0 ..= 2 * s - i {
+                if i == 0 && s == 0 {
+                    let map = &delta[0][0];
+                    let mut lock = map.lock();
+                    map.add_generators_from_matrix_rows(&lock, 0, &mut Matrix::from_vec(p, &[vec![1]]), 0, 0);
+                    *lock += 1;
+                    map.extend_by_zero(&lock, 2 * t);
+                    continue;
+                }
+
+                #[cfg(feature = "steenrod-concurrent")]
+                {
+                    if handles.len() == num_threads {
+                        handles.pop_front().unwrap().join().unwrap();
+                    }
+                }
+
+                let square = Arc::clone(&square);
+
+                let source = resolution.inner.module(s);
+                let target = square.module(s + i);
+
+                let dtarget_module = square.module(s + i - 1);
+
+                let d_res = resolution.inner.differential(s);
+                let d_target = square.differential(s + i as u32);
+
+                let map = Arc::clone(&delta[i as usize][s as usize]);
+                let prev_map = match s { 0 => None, _ => Some(Arc::clone(&delta[i as usize][s as usize - 1])) };
+
+                let prev_delta = match i { 0 => None, _ => Some(Arc::clone(&delta[i as usize - 1][s as usize])) };
+
+                #[cfg(feature = "steenrod-concurrent")]
+                let (sender, new_receiver) = mpsc::channel();
+
+                // Define this as a closure so that we can easily switch between threaded and
+                // un-threaded
+                let fun = move || {
+                    for t in 0 ..= 2 * t {
+                        #[cfg(feature = "steenrod-concurrent")]
+                        {
+                            if let Some(recv) = &last_receiver {
+                                recv.recv().unwrap();
+                            }
+                        }
+                        let num_gens = source.number_of_gens_in_degree(t);
+
+                        let fx_dim = target.dimension(t);
+                        let fdx_dim = dtarget_module.dimension(t);
+
+                        if fx_dim == 0 || fdx_dim == 0 || num_gens == 0 {
+                            let mut lock = map.lock();
+                            map.extend_by_zero(&lock, t);
+                            *lock += 1;
+
+                            #[cfg(feature = "steenrod-concurrent")]
+                            sender.send(()).unwrap();
+
+                            continue;
+                        }
+
+                        let mut output_matrix = Matrix::new(p, num_gens, fx_dim);
+                        let mut result = FpVector::new(p, fdx_dim);
+                        for j in 0 .. num_gens {
+                            if let Some(m) = &prev_delta {
+                                // Δ_{i-1} x
+                                let prevd = m.output(t, j);
+
+                                // τ Δ_{i-1}x
+                                square.swap(&mut result, prevd, s + i as u32 - 1, t);
+                                result.add(prevd, 1);
+                            }
+
+                            if let Some(m) = &prev_map {
+                                let dx = d_res.output(t, j);
+                                m.apply(&mut result, 1, t, dx);
+                            }
+                            d_target.apply_quasi_inverse(&mut output_matrix[j], t, &result);
+
+                            result.set_to_zero();
+                        }
+                        let mut lock = map.lock();
+                        map.add_generators_from_matrix_rows(&lock, t, &mut output_matrix, 0, 0);
+                        *lock += 1;
+
+                        #[cfg(feature = "steenrod-concurrent")]
+                        sender.send(()).unwrap();
+                    }
+                };
+
+                #[cfg(feature = "steenrod-concurrent")]
+                {
+                    let handle = thread::Builder::new().name(format!("Delta_{}, s = {}", i, s)).spawn(fun);
+                    last_receiver = Some(new_receiver);
+                    handles.push_back(handle.unwrap());
+                }
+                #[cfg(not(feature = "steenrod-concurrent"))]
+                fun();
+            }
+            #[cfg(feature = "steenrod-concurrent")]
+            for handle in handles.into_iter() {
+                handle.join().unwrap();
+            }
+            let final_map = &delta[i as usize][(2 * s - i) as usize];
+            let num_gens = resolution.inner.number_of_gens_in_bidegree(2 * s - i, 2 * t);
+            println!("Sq^{} x_{{{}, {}}}^({}) = [{}] ({:?})", s - i, t-s as i32, s, idx, (0 .. num_gens).map(|k| format!("{}", final_map.output(2 * t, k).entry(0))).collect::<Vec<_>>().join(", "), start.elapsed());
+        }
+        println!("Computing Steenrod operations: {:?}", start.elapsed());
+    }
+}
+
+pub fn run_test() {
+    let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
+    let k = serde_json::from_str(k).unwrap();
+    let bundle = construct_from_json(k, "adem".to_string()).unwrap();
+    let resolution = bundle.resolution.read().unwrap();
+    let p = 2;
+
+    let x : i32 = 30;
+    let s : u32 = 6;
+    let idx : usize = 0;
+
+    let t = s as i32 + x;
+    let start = Instant::now();
+    resolution.resolve_through_bidegree(s, t);
+
+    let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution.inner), s, t, idx));
+    let square = Arc::new(TensorChainComplex::new(Arc::clone(&yoneda), Arc::clone(&yoneda)));
+
+    square.compute_through_bidegree(6, 48);
+    println!("Starting test");
+    for deg in 0 ..= 30 {
+        let mut result = FpVector::new(p, square.module(6).dimension(deg + 18));
+        for i in 0 .. square.module(6).dimension(deg) {
+            square.module(6).act_on_basis(&mut result, 1, 18, 2, deg, i);
+        }
+        let mut result = FpVector::new(p, square.module(5).dimension(deg + 18));
+        for i in 0 .. square.module(5).dimension(deg) {
+            square.module(5).act_on_basis(&mut result, 1, 18, 3, deg, i);
+        }
+    }
+}
 
 pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {
     let mut result = None;
@@ -282,23 +515,5 @@ impl std::fmt::Display for ModuleFileNotFoundError {
 impl Error for ModuleFileNotFoundError {
     fn description(&self) -> &str {
         "Module file not found"
-    }
-}
-
-
-#[derive(Debug)]
-struct InvalidAlgebraError {
-    name : String
-}
-
-impl std::fmt::Display for InvalidAlgebraError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Invalid algebra: {}", &self.name)
-    }
-}
-
-impl Error for InvalidAlgebraError {
-    fn description(&self) -> &str {
-        "Invalid algebra supplied"
     }
 }

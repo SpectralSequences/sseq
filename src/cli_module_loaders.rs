@@ -1,91 +1,19 @@
 use std::error::Error;
-use std::fmt::Display;
-use std::io::{stdin, stdout, Write};
-use std::rc::Rc;
+use std::io::{stdout, Write};
+use std::sync::Arc;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::collections::HashMap;
 
 use serde_json::Value;
 use serde_json::json;
 
+use query::*;
+
 use bivec::BiVec;
 use crate::fp_vector::{FpVector,FpVectorT};
-use crate::algebra::{Algebra, AlgebraAny};
-use crate::milnor_algebra::MilnorAlgebra;
-use crate::adem_algebra::AdemAlgebra;
-use crate::module::Module;
-use crate::free_module::FreeModule;
-use crate::finitely_presented_module::FinitelyPresentedModule as FPModule;
-use crate::finite_dimensional_module::FiniteDimensionalModule as FDModule;
+use crate::algebra::{Algebra, AlgebraAny, MilnorAlgebra, AdemAlgebra};
+use crate::module::{Module, FreeModule, FDModule, FPModule};
 use crate::steenrod_evaluator::evaluate_module;
-
-fn query<S : Display, T : FromStr, F>(prompt : &str, validator : F) -> S 
-    where F: Fn(T) -> Result<S, String>,
-        <T as FromStr>::Err: Display  {
-    loop {
-        print!("{} : ", prompt);
-        stdout().flush().unwrap();
-        let mut input = String::new();
-        stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
-        let trimmed = input.trim();
-        let result = 
-            trimmed.parse::<T>()
-                   .map_err(|err| format!("{}", err))
-                   .and_then(|res| validator(res));
-        match result {
-            Ok(res) => {
-                return res;
-            }, 
-            Err(e) => {
-                println!("Invalid input: {}. Try again", e);
-            }
-        }
-    }
-}
-
-fn query_with_default<S : Display, T : FromStr + Display, F>(prompt : &str, default : S, validator : F) -> S
-    where F: Fn(T) -> Result<S, String>,
-        <T as std::str::FromStr>::Err: std::fmt::Display {
-    query_with_default_no_default_indicated(&format!("{} (default : {})", prompt, default), default, validator)
-}
-
-fn query_with_default_no_default_indicated<S : Display, T : FromStr, F>(prompt : &str, default : S, validator : F) -> S 
-    where F: Fn(T) -> Result<S, String>,
-        <T as std::str::FromStr>::Err: std::fmt::Display  {
-    loop {
-        print!("{} : ", prompt);
-        stdout().flush().unwrap();
-        let mut input = String::new();
-        stdin().read_line(&mut input).expect(&format!("Error reading for prompt: {}", prompt));
-        let trimmed = input.trim();
-        if trimmed.len() == 0 {
-            return default;
-        }
-        let result = 
-            trimmed.parse::<T>()
-                   .map_err(|err| format!("{}", err))
-                   .and_then(|res| validator(res));
-        match result {
-            Ok(res) => {
-                return res;
-            }, 
-            Err(e) => {
-                println!("Invalid input: {}. Try again", e);
-            }
-        }
-    }
-}
-
-fn query_yes_no(prompt : &str) -> bool {
-    query(prompt, 
-        |response : String| if response.starts_with("y") || response.starts_with("n") {
-            Ok(response.starts_with("y"))
-        } else {
-            Err(format!("unrecognized response '{}'. Should be '(y)es' or '(n)o'", response))
-        }
-    )
-}
 
 pub fn get_gens(min_degree : i32) -> Result<BiVec<Vec<String>>, Box<dyn Error>>{
     // Query for generators
@@ -158,6 +86,7 @@ where
     'outer : loop {
         let result = query(prompt, |res : String| Ok(res));
         if result == "0" {
+            output_vec.set_to_zero();
             break;
         }
         for term in result.split("+") {
@@ -232,8 +161,8 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
 
 pub fn interactive_module_define_fdmodule(mut output_json : Value, p : u32, generic : bool) -> Result<Value, Box<dyn Error>>{
     output_json["type"] = Value::from("finite dimensional module");
-    let adem_algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
-    let milnor_algebra = Rc::new(AlgebraAny::from(MilnorAlgebra::new(p)));
+    let adem_algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
+    let milnor_algebra = Arc::new(AlgebraAny::from(MilnorAlgebra::new(p)));
     let min_degree = 0i32;
     let gens = get_gens(min_degree)?;
     let gens_json = gens_to_json(&gens);    
@@ -247,8 +176,8 @@ pub fn interactive_module_define_fdmodule(mut output_json : Value, p : u32, gene
         graded_dim.push(i);
     }
 
-    let mut adem_module = FDModule::new(Rc::clone(&adem_algebra), "".to_string(), graded_dim.clone());
-    let mut milnor_module = FDModule::new(Rc::clone(&milnor_algebra), "".to_string(), graded_dim);
+    let mut adem_module = FDModule::new(Arc::clone(&adem_algebra), "".to_string(), graded_dim.clone());
+    let mut milnor_module = FDModule::new(Arc::clone(&milnor_algebra), "".to_string(), graded_dim);
 
     for (i, deg_i_gens) in gens.iter_enum() {
         for (j, gen) in deg_i_gens.iter().enumerate() {
@@ -312,11 +241,9 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
     let min_degree = 0i32;
     let gens = get_gens(min_degree)?;
     let gens_json = gens_to_json(&gens);    
-    let max_degree = (gens.len() + 1) as i32 + min_degree;
     let max_degree = 20;
 
-
-    let adem_algebra_rc = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
+    let adem_algebra_rc = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
     let adem_algebra = AdemAlgebra::new(p, generic, false);
     let milnor_algebra = MilnorAlgebra::new(p);
     adem_algebra_rc.compute_basis(max_degree);
@@ -328,7 +255,7 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
         graded_dim.push(i);
     }
 
-    let adem_module = FPModule::new(Rc::clone(&adem_algebra_rc), "".to_string(), min_degree);
+    let adem_module = FPModule::new(Arc::clone(&adem_algebra_rc), "".to_string(), min_degree);
 
     
     for (i, deg_i_gens) in gens.iter_enum() {
@@ -338,6 +265,11 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
     adem_module.generators.extend_by_zero(20);
 
     println!("Input relations");
+    match p {
+        2 => println!("Write relations in the form 'Sq6 * Sq2 * x + Sq7 * y'"),
+        _ => println!("Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y', where P(...) and Qi are Milnor basis elements."),
+    }
+    println!("There is currently a hard-coded maximum degree of {} for relations (this is the maximum allowed degree of an operator acting on the generators). One can raise this number by editing the max_degree variable in the interactive_module_define_fpmodule function of src/cli_module_loaders.rs. Apologies.", max_degree);
 
     let mut basis_elt_lookup = HashMap::new();
     for (i, deg_i_gens) in gens.iter_enum() {

@@ -6,6 +6,8 @@ use rust_ext::Config;
 use rust_ext::run_resolve;
 use rust_ext::run_define_module;
 use rust_ext::run_test;
+use rust_ext::run_yoneda;
+use rust_ext::run_steenrod;
 use clap::App;
 
 const BOLD_ANSI_CODE : &str = "\x1b[1m";
@@ -23,6 +25,12 @@ fn main() {
             run_test();
             std::process::exit(0);
         },
+        ("yoneda", Some(_sub_m)) => {
+            result = run_yoneda(&get_config(matches));
+        },
+        ("steenrod", Some(_)) => {
+            result = run_steenrod();
+        },
         (_, _) => {
             result = run_resolve(&get_config(matches));
         }
@@ -36,7 +44,7 @@ fn main() {
 fn get_config(matches : clap::ArgMatches<'_>) -> Config {
     let mut static_modules_path = std::env::current_exe().unwrap();
     static_modules_path.pop(); static_modules_path.pop(); static_modules_path.pop();
-    static_modules_path.push("static/modules");
+    static_modules_path.push("modules");
     let current_dir = std::env::current_dir().unwrap();
     Config {
         module_paths : vec![current_dir, static_modules_path],

@@ -200,6 +200,21 @@ pub trait FpVectorT {
         container.slice_end = container.dimension;
     }
 
+    /// Drops every element in the fp_vector that is not in the current slice.
+    fn into_slice(&mut self) {
+        let p = self.prime();
+        let container = self.vector_container_mut();
+        let entries_per_64_bits = entries_per_64_bits(p);
+        assert_eq!(container.slice_start % entries_per_64_bits, 0);
+        let n = container.slice_start / entries_per_64_bits;
+        container.limbs.drain(0..n);
+
+        container.slice_end -= container.slice_start;
+        container.dimension = container.slice_end;
+        container.slice_start = 0;
+        container.limbs.truncate((container.slice_end - 1) / entries_per_64_bits + 1);
+    }
+
     fn min_limb(&self) -> usize {
         let p = self.prime();
         let container = self.vector_container();
@@ -284,8 +299,11 @@ pub trait FpVectorT {
         let max_target_limb = self.max_limb();
         let min_source_limb = other.min_limb();
         let number_of_limbs = max_target_limb - min_target_limb;
-        assert_eq!(number_of_limbs, other.max_limb() - other.min_limb());
-        assert!(self.offset() == other.offset());
+        if number_of_limbs == 0 {
+            return;
+        }
+        debug_assert!(self.offset() == other.offset());
+        debug_assert_eq!(number_of_limbs, other.max_limb() - other.min_limb());
         let target_limbs = self.limbs_mut();
         let source_limbs = other.limbs();
         for i in 1 .. number_of_limbs.saturating_sub(1) {
@@ -304,6 +322,15 @@ pub trait FpVectorT {
             target_limbs[min_target_limb + i] &= !mask;
             target_limbs[min_target_limb + i] |= result;
         }
+    }
+
+    fn is_zero_pure(&self) -> bool {
+        for limb in self.limbs().iter() {
+            if *limb != 0 {
+                return false;
+            }
+        }
+        true
     }
 
     fn is_zero(&self) -> bool{
@@ -336,7 +363,7 @@ pub trait FpVectorT {
     }
 
     fn entry(&self, index : usize) -> u32 {
-        assert!(index < self.dimension());
+        debug_assert!(index < self.dimension());
         let p = self.prime();
         let bit_mask = bitmask(p);
         let limb_index = limb_bit_index_pair(p, index + self.min_index());
@@ -347,7 +374,7 @@ pub trait FpVectorT {
     }
 
     fn set_entry(&mut self, index : usize, value : u32){
-        assert!(index < self.dimension());
+        debug_assert!(index < self.dimension());
         let p = self.prime();
         let bit_mask = bitmask(p);
         let limb_index = limb_bit_index_pair(p, index + self.min_index());
@@ -368,7 +395,7 @@ pub trait FpVectorT {
     /// Unpacks an FpVector onto an array slice. note that the array slice has to be long
     /// enough to hold all the elements in the FpVector.
     fn unpack(&self, target : &mut [u32]){
-        assert!(self.dimension() <= target.len());
+        debug_assert!(self.dimension() <= target.len());
         let p = self.prime();
         let dimension = self.dimension();
         let offset = self.offset();
@@ -386,7 +413,7 @@ pub trait FpVectorT {
     }
 
     fn pack(&mut self, source : &[u32]){
-        assert!(self.dimension() <= source.len());
+        debug_assert!(self.dimension() <= source.len());
         let p = self.prime();
         let dimension = self.dimension();
         let offset = self.offset();
@@ -397,12 +424,31 @@ pub trait FpVectorT {
         }
     }
 
+    /// `coeff` need not be reduced mod p.
+    fn add_tensor(&mut self, offset : usize, coeff : u32, left : &FpVector, right : &FpVector) {
+        let right_dim = right.dimension();
+
+        let old_slice = self.slice();
+        for i in 0 .. left.dimension() {
+            let entry = (left.entry(i) * coeff) % self.prime();
+            if entry == 0 {
+                continue;
+            }
+            self.set_slice(offset + i * right_dim, offset + (i + 1) * right_dim);
+            self.shift_add(right, entry);
+            self.restore_slice(old_slice);
+        }
+    }
+
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
     fn add(&mut self, other : &FpVector, c : u32){
         debug_assert!(self.prime() == other.prime());
         debug_assert!(self.offset() == other.offset());
         debug_assert!(self.dimension() == other.dimension(),
             format!("self.dim {} not equal to other.dim {}", self.dimension(), other.dimension()));
+        if self.dimension() == 0 {
+            return;
+        }
         let p = self.prime();
         debug_assert!(c < p);
         let min_target_limb = self.min_limb();
@@ -534,6 +580,9 @@ pub trait FpVectorT {
         let min_limb = self.min_limb();
         let max_limb = self.max_limb();
         let number_of_limbs = max_limb - min_limb;
+        if number_of_limbs == 0 {
+            return;
+        }
         for i in 1..number_of_limbs-1 {
             let limbs = self.limbs_mut();
             limbs[i + min_limb] *= c;
@@ -734,7 +783,7 @@ impl FpVector {
     }
 
     pub fn number_of_limbs(p : u32, dimension : usize) -> usize {
-        assert!(dimension < MAX_DIMENSION);
+        debug_assert!(dimension < MAX_DIMENSION);
         if dimension == 0 {
             return 0;
         } else {
@@ -766,17 +815,13 @@ impl FpVector {
         return result;
     }
 
-    pub fn iter(&self) -> FpVectorIterator{
-        FpVectorIterator {
-            vect : &self,
-            dim : self.dimension(),
-            index : 0
-        }
+    pub fn iter(&self) -> FpVectorIterator {
+        FpVectorIterator::new(self)
     }
 
     fn pack_limb(p : u32, dimension : usize, offset : usize, limb_array : &[u32], limbs : &mut Vec<u64>, limb_idx : usize) -> usize {
         let bit_length = bit_length(p);
-        assert_eq!(offset % bit_length, 0);
+        debug_assert_eq!(offset % bit_length, 0);
         let entries_per_64_bits = entries_per_64_bits(p);
         let mut bit_min = 0usize;
         let mut bit_max = bit_length * entries_per_64_bits;
@@ -837,22 +882,105 @@ impl FpVector {
 }
 
 pub struct FpVectorIterator<'a> {
-    vect : &'a FpVector,
-    dim : usize,
-    index : usize
+    limbs : &'a Vec<u64>,
+    bit_length : usize,
+    bit_mask : u64,
+    entries_per_64_bits_m_1 : usize,
+    limb_index : usize,
+    entries_left : usize,
+    cur_limb : u64,
+    counter : usize,
 }
 
+impl<'a> FpVectorIterator<'a> {
+    fn new(vec : &'a FpVector) -> FpVectorIterator {
+        let counter = vec.dimension();
+        let limbs = vec.limbs();
+
+        if counter == 0 {
+            return FpVectorIterator {
+                limbs,
+                bit_length : 0,
+                entries_per_64_bits_m_1 : 0,
+                bit_mask : 0,
+                limb_index : 0,
+                entries_left : 0,
+                cur_limb: 0,
+                counter
+            }
+        }
+        let p = vec.prime();
+
+        let min_index = vec.min_index();
+        let pair = limb_bit_index_pair(p,min_index);
+
+        let bit_length = bit_length(p);
+        let cur_limb = limbs[pair.limb] >> pair.bit_index;
+
+        let offset = vec.offset();
+
+        let entries_per_64_bits = entries_per_64_bits(p);
+        FpVectorIterator {
+            limbs,
+            bit_length,
+            entries_per_64_bits_m_1 : entries_per_64_bits - 1,
+            bit_mask : bitmask(p),
+            limb_index : pair.limb,
+            entries_left : entries_per_64_bits - (min_index % entries_per_64_bits),
+            cur_limb,
+            counter
+        }
+    }
+
+    pub fn skip_n(&mut self, mut n : usize) {
+        if n >= self.counter {
+            self.counter = 0;
+            return;
+        }
+        let entries_per_64_bits = self.entries_per_64_bits_m_1 + 1;
+        if n < self.entries_left {
+            self.entries_left -= n;
+            self.counter -= n;
+            self.cur_limb >>= self.bit_length * n;
+            return;
+        }
+
+        n -= self.entries_left;
+        self.counter -= self.entries_left;
+        self.entries_left = 0;
+
+        let skip_limbs = n / entries_per_64_bits;
+        self.limb_index += skip_limbs;
+        self.counter -= skip_limbs * entries_per_64_bits;
+        n -= skip_limbs * entries_per_64_bits;
+
+        if n > 0 {
+            self.entries_left = entries_per_64_bits - n;
+            self.limb_index += 1;
+            self.cur_limb = self.limbs[self.limb_index] >> n * self.bit_length;
+            self.counter -= n;
+        }
+    }
+}
 
 impl<'a> Iterator for FpVectorIterator<'a> {
     type Item = u32;
-    fn next(&mut self) -> Option<Self::Item>{
-        if self.index < self.dim {
-            let result = Some(self.vect.entry(self.index));
-            self.index += 1;
-            result
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.counter == 0 {
+            return None;
+        } else if self.entries_left == 0 {
+            self.limb_index += 1;
+            self.cur_limb = self.limbs[self.limb_index];
+            self.entries_left = self.entries_per_64_bits_m_1; // Set to entries_per_64_bits, then immediately decrement 1
         } else {
-            None
+            self.entries_left -= 1;
         }
+
+        let result = (self.cur_limb & self.bit_mask) as u32;
+        self.counter -= 1;
+        self.cur_limb >>= self.bit_length;
+
+        Some(result)
     }
 }
 
@@ -882,12 +1010,64 @@ impl Serialize for FpVector {
 }
 
 impl<'de> Deserialize<'de> for FpVector {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
         where D : Deserializer<'de>
     {
         Ok(FpVector::new(2, 0)) // Implement this? This would require proper deserializing
     }
 }
+
+/// An FpVectorMask encodes a subset of the basis elements of an Fp vector space. This is used to
+/// project onto the subspace spanned by the selected basis elements.
+#[derive(Debug)]
+pub struct FpVectorMask {
+    p : u32,
+    dimension : usize,
+    masks : Vec<u64>
+}
+
+impl FpVectorMask {
+    pub fn new(p : u32, dimension : usize) -> Self {
+        let number_of_limbs = FpVector::number_of_limbs(p, dimension);
+        Self {
+            p,
+            dimension,
+            masks : vec![!0; number_of_limbs]
+        }
+    }
+
+    pub fn set_zero(&mut self) {
+        for limb in self.masks.iter_mut() {
+            *limb = 0;
+        }
+    }
+
+    /// If `on` is true, we add the `i`th basis element to the subset. Otherwise, we remove it.
+    pub fn set_mask(&mut self, i : usize, on : bool) {
+        let pair = limb_bit_index_pair(self.p, i);
+        let limb = &mut self.masks[pair.limb];
+
+        if on {
+            *limb |= bitmask(self.p) << pair.bit_index;
+        } else  {
+            *limb &= !(bitmask(self.p) << pair.bit_index);
+        }
+    }
+
+    /// This projects `target` onto the subspace spanned by the designated subset of basis
+    /// elements.
+    pub fn apply(&self, target : &mut FpVector) {
+        debug_assert_eq!(self.dimension, target.dimension());
+        debug_assert_eq!(target.vector_container().slice_start, 0);
+        debug_assert_eq!(target.vector_container().slice_end, target.dimension());
+
+        let target = &mut target.vector_container_mut().limbs;
+        for i in 0 .. self.masks.len() {
+            target[i] &= self.masks[i];
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1326,6 +1506,95 @@ mod tests {
             }
             assert_eq!(diffs, []);
         }
-    }    
+    }
+
+    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]
+    fn test_iterator_slice(p : u32) {
+        initialize_limb_bit_index_table(p);
+        let ep = entries_per_64_bits(p);
+        for dim in &[5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
+            let mut v = FpVector::new(p, *dim);
+            let v_arr = random_vector(p, *dim);
+            v.pack(&v_arr);
+            v.set_slice(3, dim - 1);
+
+            let w = v.iter();
+            let mut counter = 0;
+            for (i, x) in w.enumerate() {
+                println!("i: {}, dim : {}", i, dim);
+                assert_eq!(v.entry(i), x);
+                counter += 1;
+            }
+            assert_eq!(counter, v.dimension());
+        }
+    }
+
+    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]
+    fn test_iterator_skip(p : u32) {
+        initialize_limb_bit_index_table(p);
+        let ep = entries_per_64_bits(p);
+        let dim = 5 * ep;
+        for num_skip in &[ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1, 6 * ep] {
+            let mut v = FpVector::new(p, dim);
+            let v_arr = random_vector(p, dim);
+            v.pack(&v_arr);
+
+            let mut w = v.iter();
+            w.skip_n(*num_skip);
+            let mut counter = 0;
+            for (i, x) in w.enumerate() {
+                assert_eq!(v.entry(i + *num_skip), x);
+                counter += 1;
+            }
+            if *num_skip != 6 * ep {
+                assert_eq!(counter, v.dimension() - *num_skip);
+            } else {
+                assert_eq!(counter, 0);
+            }
+        }
+    }
+
+    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]
+    fn test_iterator(p : u32) {
+        initialize_limb_bit_index_table(p);
+        let ep = entries_per_64_bits(p);
+        for dim in &[0, 5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
+            let mut v = FpVector::new(p, *dim);
+            let v_arr = random_vector(p, *dim);
+            v.pack(&v_arr);
+
+            let w = v.iter();
+            let mut counter = 0;
+            for (i, x) in w.enumerate() {
+                assert_eq!(v.entry(i), x);
+                counter += 1;
+            }
+            assert_eq!(counter, v.dimension());
+        }
+    }
+
+    #[test]
+    fn test_masks() {
+        test_mask(2, &[1, 0, 1, 1, 0], &[true, true, false, true, false]);
+        test_mask(7, &[3, 2, 6, 4, 0, 6, 0], &[true, false, false, true, false, true, true]);
+    }
+
+    fn test_mask(p : u32, vec : &[u32], mask : &[bool]) {
+        initialize_limb_bit_index_table(p);
+        assert_eq!(vec.len(), mask.len());
+        let mut v = FpVector::from_vec(p, vec);
+        let mut m = FpVectorMask::new(p, vec.len());
+        for (i, item) in mask.iter().enumerate() {
+            m.set_mask(i, *item);
+        }
+        m.apply(&mut v);
+        for (i, item) in v.iter().enumerate() {
+            if mask[i] {
+                assert_eq!(item, vec[i]);
+            } else {
+                assert_eq!(item, 0);
+            }
+        }
+    }
 }
 

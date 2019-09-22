@@ -1,4 +1,9 @@
-dist: xenial
+dist: bionic
+addons:
+    apt:
+        packages:
+            - npm
+
 language: rust
 rust:
     - stable
@@ -15,27 +20,28 @@ matrix:
     fast_finish: true
 
 install:
-    - npm install
+    - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh 
+    - cd ext-websocket; npm install; cd ..
 
 script:
     - cargo test --verbose --all
-    - npm run build
+    - cd ext-websocket; npm run build; cd ..
 
 cache:
     cargo: true
     directories:
-        - node_modules
+        - ext-websocket/node_modules
 
 before_deploy:
     - sh gen_doc.sh
-    - cp -r target/doc/ dist/
+    - cp -r target/doc/ ext-websocket/dist/
 
 deploy:
   provider: pages
   skip_cleanup: true
   github_token: $GITHUB_TOKEN  # Set in the settings page of your repository, as a secure variable
   keep_history: true
-  local_dir: dist/
+  local_dir: ext-websocket/dist/
   on:
       branch: master
       condition: "$TRAVIS_RUST_VERSION = stable"

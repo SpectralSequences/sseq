@@ -9,7 +9,7 @@ use serde::{Serialize, Serializer, Deserialize, Deserializer};
 /// Note that properties like length and capacity are defined to be the maximum index allowed. For
 /// example, if `v.min_degree = -2` and `v.len() = 3`, it means we can access `v[-2], v[-1], v[0],
 /// v[1], v[2]` but not `v[3]`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BiVec<T> {
     pub data : Vec<T>,
     min_degree : i32
@@ -72,6 +72,10 @@ impl<T> BiVec<T> {
         self.data.push(x);
     }
 
+    pub fn get(&self, idx : i32) -> Option<&T> {
+        self.data.get((idx - self.min_degree) as usize)
+    }
+
     pub fn last(&self) -> Option<&T> {
         self.data.last()
     }
@@ -114,10 +118,10 @@ impl<T : Serialize> Serialize for BiVec<T> {
 }
 
 impl<'de, T : Deserialize<'de>> Deserialize<'de> for BiVec<T> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
         where D : Deserializer<'de>
     {
-        Ok(BiVec::new(0)) // Implement this? This would require proper deserializing
+        unimplemented!()
     }
 }
 

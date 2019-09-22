@@ -3,7 +3,7 @@ use rust_ext::construct;
 use rust_ext::matrix::Matrix;
 use rust_ext::module::Module;
 use rust_ext::fp_vector::{FpVectorT, FpVector};
-use rust_ext::algebra::Algebra;
+use rust_ext::chain_complex::ChainComplex;
 
 #[test]
 fn extend_identity() {
@@ -18,7 +18,7 @@ fn extend_identity() {
 
 fn check_algebra (module_name : &str, max_degree : i32, algebra_name: &str) {
     println!("module : {}", module_name);
-    let path = std::path::PathBuf::from("static/modules");
+    let path = std::path::PathBuf::from("modules");
     let a = Config {
         module_paths : vec![path.clone()],
         module_file_name : module_name.to_string(),
@@ -27,11 +27,11 @@ fn check_algebra (module_name : &str, max_degree : i32, algebra_name: &str) {
     };
 
     let bundle = construct(&a).unwrap();
-    let p = bundle.algebra.prime();
+    let p = bundle.chain_complex.prime();
 
-    bundle.resolution.borrow_mut().add_self_map(0, 0, &"id".to_string(), Matrix::from_vec(p, &[vec![1]]));
+    bundle.resolution.write().unwrap().add_self_map(0, 0, &"id".to_string(), Matrix::from_vec(p, &[vec![1]]));
 
-    let resolution = bundle.resolution.borrow();
+    let resolution = bundle.resolution.read().unwrap();
 
     resolution.resolve_through_degree(max_degree);
 
