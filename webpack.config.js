@@ -10,7 +10,8 @@ const appConfig = {
         minimize: false
     },
     entry: {
-        index: "./js/index.js"
+        index: "./js/index.js",
+        steenrod_calculator : "./js/steenrod_calculator.js"
     },
     devServer: {
         contentBase: dist
@@ -37,7 +38,10 @@ const appConfig = {
 
 const workerConfig = {
     mode: "production",
-    entry: "./js/worker.js",
+    entry: {
+        worker : "./js/worker.js",
+        steenrod_calculator_worker : "./js/steenrod_calculator_worker.js"
+    },
     target: "webworker",
     plugins: [
         new WasmPackPlugin({
@@ -51,7 +55,7 @@ const workerConfig = {
     },
     output: {
         path: dist,
-        filename: "worker.js"
+        filename: "[name].js"
     },
     node: { // see https://github.com/webpack-contrib/css-loader/issues/447
         fs: 'empty'

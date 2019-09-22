@@ -54,7 +54,7 @@ pub fn adem_to_milnor_on_basis(
     }
 }
 
-fn adem_to_milnor(
+pub fn adem_to_milnor(
     adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra,
     result : &mut FpVector, coeff : u32, degree : i32, input : &FpVector
 ){
@@ -146,7 +146,7 @@ fn milnor_to_adem_on_basis_generic(
 }
 
 
-fn milnor_to_adem(
+pub fn milnor_to_adem(
     adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra,
     result : &mut FpVector, coeff : u32, degree : i32, input : &FpVector
 ){

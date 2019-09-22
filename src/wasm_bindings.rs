@@ -13,6 +13,7 @@ use crate::chain_complex::ChainComplex;
 use crate::resolution::{Resolution, ModuleResolution};
 use crate::matrix::Matrix;
 use crate::fp_vector::FpVectorT;
+use crate::steenrod_evaluator::SteenrodCalculator;
 
 
 // use web_sys::console;
@@ -236,5 +237,47 @@ impl WasmResolution {
     pub fn free(self) {
          let _drop_me :  Rc<RefCell<ModuleResolution<FiniteModule>>>
             = unsafe { Rc::from_raw(self.pimpl) };
+    }
+}
+
+
+
+#[wasm_bindgen]
+pub struct WasmSteenrodCalculator {
+    pimpl : *const SteenrodCalculator,
+
+}
+
+#[wasm_bindgen]
+impl WasmSteenrodCalculator {
+    pub fn new(p : u32) -> Self {
+        let calculator = SteenrodCalculator::new(p);
+        let boxed_calculator = Rc::new(calculator);
+        Self {
+            pimpl : Rc::into_raw(boxed_calculator)
+        }
+    }
+
+    pub fn compute_basis(&self, degree : i32) {
+        self.to_calculator().compute_basis(degree);
+    }
+
+    fn to_calculator(&self) -> Rc<SteenrodCalculator> {
+        let raw = unsafe { Rc::from_raw(self.pimpl) };
+        let clone = Rc::clone(&raw);
+        std::mem::forget(raw);
+        clone
+    }
+
+    pub fn evaluate_adem(&self, input : &str) -> Result<String, JsValue> {
+        self.to_calculator().evaluate_adem_to_string(input).map_err(|err| JsValue::from(err.to_string()))
+    }
+
+    // pub fn evaluate_milnor(&self, input : &str) -> Result<(i32, FpVector), Box<dyn Error>> {
+    //     self.to_calculator().evaluate_milnor(input)
+    // }    
+
+    pub fn free(self) {
+        let _drop_me = unsafe { Rc::from_raw(self.pimpl) };
     }
 }

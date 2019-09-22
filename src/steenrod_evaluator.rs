@@ -8,8 +8,52 @@ use crate::change_of_basis;
 use std::error::Error;
 use std::collections::HashMap;
 
-pub fn evaluate_algebra(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, input : &str) -> Result<(i32, FpVector), Box<dyn Error>> {
+pub struct SteenrodCalculator {
+    adem_algebra : AdemAlgebra,
+    milnor_algebra : MilnorAlgebra
+}
+
+impl SteenrodCalculator {
+    pub fn new(p : u32) -> Self {
+        Self {
+            adem_algebra : AdemAlgebra::new(p, p != 2, false),
+            milnor_algebra : MilnorAlgebra::new(p)
+        }
+    }
+
+    pub fn compute_basis(&self, degree : i32){
+        self.adem_algebra.compute_basis(degree);
+        self.milnor_algebra.compute_basis(degree);
+    }
+
+    pub fn evaluate_adem_to_string(&self, input : &str) -> Result<String, Box<dyn Error>>{
+        self.evaluate_adem(input).map(|(d, vect)| self.adem_algebra.element_to_string(d, &vect))
+    }
+
+    pub fn evaluate_adem(&self, input : &str) -> Result<(i32, FpVector), Box<dyn Error>> {
+        evaluate_algebra_adem(&self.adem_algebra, &self.milnor_algebra, input)
+    }
+
+    pub fn evaluate_milnor(&self, input : &str) -> Result<(i32, FpVector), Box<dyn Error>> {
+        evaluate_algebra_milnor(&self.adem_algebra, &self.milnor_algebra, input)
+    }
+}
+
+// Outputs in the Adem basis.
+pub fn evaluate_algebra_adem(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, input : &str) -> Result<(i32, FpVector), Box<dyn Error>> {
     evaluate_algebra_tree(adem_algebra, milnor_algebra, parse_algebra(input)?)
+}
+
+// Outputs in the Milnor basis
+pub fn evaluate_algebra_milnor(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, input : &str) -> Result<(i32, FpVector), Box<dyn Error>> {
+    let adem_result = evaluate_algebra_adem(adem_algebra, milnor_algebra, input);
+    if let Ok((degree, adem_vector)) = adem_result {
+        let mut milnor_vector = FpVector::new(adem_vector.prime(), adem_vector.dimension());
+        change_of_basis::adem_to_milnor(adem_algebra, milnor_algebra, &mut milnor_vector, 1, degree, &adem_vector);
+        Ok((degree, milnor_vector))
+    } else {
+        adem_result
+    }
 }
 
 fn evaluate_algebra_tree(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, tree : AlgebraParseNode) -> Result<(i32, FpVector), Box<dyn Error>> {
@@ -236,7 +280,7 @@ mod tests {
             ("Sq7 + Q2","P5 P2 + P6 P1 + P4 P2 P1"),            
             ("(Q2 + Sq7) * Q1", "P6 P3 P1"),
         ]{
-            let (degree, result) = evaluate_algebra(&adem, &milnor, input).unwrap();
+            let (degree, result) = evaluate_algebra_adem(&adem, &milnor, input).unwrap();
             println!("{} ==> {}", input, adem.element_to_string(degree, &result));
             assert_eq!(adem.element_to_string(degree, &result), output);
         }

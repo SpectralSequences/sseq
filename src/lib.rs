@@ -194,25 +194,59 @@ pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
 
 //use crate::fp_vector::FpVectorT;
 // use crate::resolution_homomorphism::ResolutionHomomorphism;
+use crate::abelianization_algebra::AbelianizationAlgebra;
 #[allow(unreachable_code)]
 #[allow(unused_mut)]
-pub fn run_test() {    
+pub fn run_test() {
+    // let p = 2;
+    // let calculator = steenrod_evaluator::SteenrodCalculator::new(2);
+    // println!("{}", calculator.evaluate_adem_to_string("P2*P2").unwrap());
+    // let algebra = AbelianizationAlgebra::new(2);
+    // algebra.compute_basis(10);
+    // for d in 0 .. 10 {
+    //     println!("degree {}",d);
+    //     for idx in 0 .. algebra.dimension(d, -1) {
+    //         println!("    {}", algebra.basis_element_to_string(d, idx));
+    //     }
+    //     println!("");
+    // }
+
+    // let mut result_vec = crate::fp_vector::FpVector::new(p, 1);
+    // for i in 1..8 {
+    //     for j in 1..8 {
+    //         if i + j >= 8 { continue; }
+    //         print!("{} * {} = ", 
+    //             algebra.basis_element_to_string(i, 0), 
+    //             algebra.basis_element_to_string(j, 0));
+    //         algebra.multiply_basis_elements(&mut result_vec, 1, i, 0, j, 0, -1);
+    //         println!("{}",
+    //             algebra.element_to_string(i + j, &result_vec)
+    //         );
+    //         result_vec.set_to_zero();
+    //     }
+    // }
+
+    // let module = Rc::new(FiniteModule::from_json(Rc::clone(&algebra), &mut json)?);
+    // let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
+    // let resolution = Rc::new(RefCell::new(Resolution::new(Rc::clone(&chain_complex), None, None)));
+    // resolution.borrow_mut().set_self(Rc::downgrade(&resolution));    
+
     // let contents = std::fs::read_to_string("static/modules/S_3.json").unwrap();
     // S_3
     // let contents = r#"{"type" : "finite dimensional module","name": "$S_3$", "file_name": "S_3", "p": 3, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}"#;
     // C2:
-    let contents = r#"{"type" : "finite dimensional module", "name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
-    let mut json : Value = serde_json::from_str(&contents).unwrap();
-    let p = json["p"].as_u64().unwrap() as u32;
-    let max_degree = 20;
-    let algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
-    let module = Rc::new(FDModule::from_json(Rc::clone(&algebra), &mut json));
-    let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
-    let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), None, None));
-    resolution.resolve_through_degree(max_degree);
-    let hom = HomComplex::new(resolution, module);
-    hom.compute_cohomology_through_bidegree(max_degree as u32, max_degree);
-    println!("{}", hom.graded_dimension_string());
+    // let contents = r#"{"type" : "finite dimensional module", "name": "$C(2)$", "file_name": "C2", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
+    // let mut json : Value = serde_json::from_str(&contents).unwrap();
+    // let p = json["p"].as_u64().unwrap() as u32;
+    // let max_degree = 20;
+    // let algebra = Rc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
+    // let module = Rc::new(FDModule::from_json(Rc::clone(&algebra), &mut json));
+    // let chain_complex = Rc::new(CCDZ::new(Rc::clone(&module)));
+    // let resolution = Rc::new(Resolution::new(Rc::clone(&chain_complex), None, None));
+    // resolution.resolve_through_degree(max_degree);
+    // let hom = HomComplex::new(resolution, module);
+    // hom.compute_cohomology_through_bidegree(max_degree as u32, max_degree);
+    // println!("{}", hom.graded_dimension_string());
     
 }
 
