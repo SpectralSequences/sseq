@@ -28,6 +28,10 @@ impl SteenrodCalculator {
         self.evaluate_adem(input).map(|(d, vect)| self.adem_algebra.element_to_string(d, &vect))
     }
 
+    pub fn evaluate_milnor_to_string(&self, input : &str) -> Result<String, Box<dyn Error>>{
+        self.evaluate_milnor(input).map(|(d, vect)| self.milnor_algebra.element_to_string(d, &vect))//
+    }
+
     pub fn evaluate_adem(&self, input : &str) -> Result<(i32, FpVector), Box<dyn Error>> {
         evaluate_algebra_adem(&self.adem_algebra, &self.milnor_algebra, input)
     }
@@ -81,6 +85,8 @@ fn evaluate_algebra_tree_helper(
             }
             let (degree_right, output_right) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, output_degree, *right)?;
             let degree = degree_left + degree_right;
+            adem_algebra.compute_basis(degree);
+            milnor_algebra.compute_basis(degree);            
             let mut result = FpVector::new(p, adem_algebra.dimension(degree, -1));
             adem_algebra.multiply_element_by_element(&mut result, 1, degree_left, &output_left, degree_right, &output_right, -1);
             return Ok((degree, result));
@@ -119,10 +125,15 @@ fn evaluate_basis_element(
                 temp_deg += *v * q * xi_degrees[i] as u32;
             }
             degree = temp_deg as i32;
+            adem_algebra.compute_basis(degree);
+            milnor_algebra.compute_basis(degree);            
             result = FpVector::new(p, adem_algebra.dimension(degree, -1));
             change_of_basis::adem_plist(adem_algebra, milnor_algebra, &mut result, 1, degree, p_list);
         }
         AlgebraBasisElt::P(x) => {
+            let q = if adem_algebra.generic { 2 * adem_algebra.prime() - 2} else {1};
+            adem_algebra.compute_basis((x * q) as i32);
+            milnor_algebra.compute_basis((x * q) as i32);
             let tuple = adem_algebra.beps_pn(0, x);
             degree = tuple.0;
             let idx = tuple.1;
@@ -132,6 +143,8 @@ fn evaluate_basis_element(
         AlgebraBasisElt::Q(x) => {
             let tau_degrees = crate::combinatorics::tau_degrees(p);
             degree = tau_degrees[x as usize];
+            adem_algebra.compute_basis(degree);
+            milnor_algebra.compute_basis(degree);            
             result = FpVector::new(p, adem_algebra.dimension(degree, -1));
             change_of_basis::adem_q(adem_algebra, milnor_algebra, &mut result, 1, x);
         }

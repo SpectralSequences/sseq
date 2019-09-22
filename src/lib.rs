@@ -454,6 +454,12 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
 }
 
 pub fn run_test() {
+    let calculator = crate::steenrod_evaluator::SteenrodCalculator::new(2);
+    calculator.compute_basis(20);
+    calculator.evaluate_adem_to_string("P19").unwrap();
+    calculator.evaluate_adem_to_string("Q4").unwrap();
+    return;
+
     let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
     let k = serde_json::from_str(k).unwrap();
     let bundle = construct_from_json(k, "adem".to_string()).unwrap();

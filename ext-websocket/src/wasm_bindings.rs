@@ -108,9 +108,9 @@ impl SteenrodCalculator {
         self.to_calculator().evaluate_adem_to_string(input).map_err(|err| JsValue::from(err.to_string()))
     }
 
-    // pub fn evaluate_milnor(&self, input : &str) -> Result<(i32, FpVector), Box<dyn Error>> {
-    //     self.to_calculator().evaluate_milnor(input)
-    // }    
+    pub fn evaluate_milnor(&self, input : &str) -> Result<String, JsValue> {
+        self.to_calculator().evaluate_milnor_to_string(input).map_err(|err| JsValue::from(err.to_string()))
+    }    
 
     pub fn free(self) {
         let _drop_me = unsafe { Rc::from_raw(self.pimpl) };
