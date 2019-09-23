@@ -28,7 +28,6 @@ use yoneda::{yoneda_representative_element, yoneda_representative};
 
 use bivec::BiVec;
 use query::*;
-use thread_token::TokenBucket;
 
 use std::error::Error;
 use std::path::PathBuf;
@@ -36,8 +35,11 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use serde_json::value::Value;
 
-#[cfg(feature = "steenrod-concurrent")]
+#[cfg(feature = "concurrent")]
 use std::{thread, thread::JoinHandle, sync::mpsc};
+
+#[cfg(feature = "concurrent")]
+use thread_token::TokenBucket;
 
 pub struct Config {
     pub module_paths : Vec<PathBuf>,
@@ -145,7 +147,17 @@ pub fn run_define_module() -> Result<String, Box<dyn Error>> {
 pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
     let bundle = construct(config)?;
     let res = bundle.resolution.read().unwrap();
+
+    #[cfg(not(feature = "concurrent"))]
     res.resolve_through_degree(config.max_degree);
+
+    #[cfg(feature = "concurrent")]
+    {
+        let num_threads = query_with_default_no_default_indicated("Number of threads", 2, |x : usize| Ok(x));
+        let bucket = Arc::new(TokenBucket::new(num_threads));
+        res.resolve_through_degree_concurrent(config.max_degree, &bucket);
+    }
+
     // let hom = HomComplex::new(Arc::clone(&res), Arc::clone(&bundle.module));
     // hom.compute_cohomology_through_bidegree(res.max_computed_homological_degree(), res.max_computed_degree());
     Ok(res.graded_dimension_string())
@@ -158,6 +170,11 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
     let min_degree = resolution.min_degree();
     let p = resolution.prime();
 
+    #[cfg(feature = "concurrent")]
+    let num_threads = query_with_default_no_default_indicated("Number of threads", 2, |x : usize| Ok(x));
+    #[cfg(feature = "concurrent")]
+    let bucket = Arc::new(TokenBucket::new(num_threads));
+
     loop {
         let x : i32= query_with_default_no_default_indicated("t - s", 200, |x : i32| Ok(x));
         let s : u32 = query_with_default_no_default_indicated("s", 200, |x : u32| Ok(x));
@@ -165,7 +182,12 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
 
         let start = Instant::now();
         let t = x + s as i32;
+
+        #[cfg(not(feature = "concurrent"))]
         resolution.resolve_through_bidegree(s + 1, t + 1);
+
+        #[cfg(feature = "concurrent")]
+        resolution.resolve_through_bidegree_concurrent(s + 1, t + 1, &bucket);
 
         println!("Resolving time: {:?}", start.elapsed());
 
@@ -241,9 +263,10 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
     let bundle = construct_from_json(k, "adem".to_string()).unwrap();
     let resolution = bundle.resolution.read().unwrap();
     let p = 2;
-    #[cfg(feature = "steenrod-concurrent")]
+    #[cfg(feature = "concurrent")]
     let num_threads = query_with_default_no_default_indicated("Number of threads", 2, |x : usize| Ok(x));
 
+    #[cfg(feature = "concurrent")]
     let bucket = Arc::new(TokenBucket::new(num_threads));
 
     loop {
@@ -254,7 +277,13 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
         let t = s as i32 + x;
         print!("Resolving ext: ");
         let start = Instant::now();
+
+        #[cfg(feature = "concurrent")]
+        resolution.resolve_through_bidegree_concurrent(2 * s, 2 * t, &bucket);
+
+        #[cfg(not(feature = "concurrent"))]
         resolution.resolve_through_bidegree(2 * s, 2 * t);
+
         println!("{:?}", start.elapsed());
 
         print!("Computing Yoneda representative: ");
@@ -338,10 +367,10 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
             // * s - i
             let start = Instant::now();
 
-            #[cfg(feature = "steenrod-concurrent")]
+            #[cfg(feature = "concurrent")]
             let mut handles : Vec<JoinHandle<()>> = Vec::with_capacity((2 * s - i + 1) as usize);
 
-            #[cfg(feature = "steenrod-concurrent")]
+            #[cfg(feature = "concurrent")]
             let mut last_receiver : Option<mpsc::Receiver<()>> = None;
 
             for s in 0 ..= 2 * s - i {
@@ -370,34 +399,23 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                 let prev_delta = match i { 0 => None, _ => Some(Arc::clone(&delta[i as usize - 1][s as usize])) };
 
 
-                #[cfg(feature = "steenrod-concurrent")]
+                #[cfg(feature = "concurrent")]
                 let (sender, new_receiver) = mpsc::channel();
-                #[cfg(feature = "steenrod-concurrent")]
+                #[cfg(feature = "concurrent")]
                 let bucket = Arc::clone(&bucket);
 
                 // Define this as a closure so that we can easily switch between threaded and
                 // un-threaded
                 let fun = move || {
-                    #[cfg(feature = "steenrod-concurrent")]
+                    #[cfg(feature = "concurrent")]
                     let mut token = bucket.take_token();
 
                     for t in 0 ..= 2 * t {
-                        #[cfg(feature = "steenrod-concurrent")]
+                        #[cfg(feature = "concurrent")]
                         {
-                            if let Some(recv) = &last_receiver {
-                                match recv.try_recv() {
-                                    Ok(_) => (),
-                                    // No messages. Release thread, wait for next message, then
-                                    // wait for token
-                                    Err(mpsc::TryRecvError::Empty) => {
-                                        token.release();
-                                        recv.recv().unwrap();
-                                        token = bucket.take_token();
-                                    },
-                                    Err(mpsc::TryRecvError::Disconnected) => panic!("Sender disconnected")
-                                }
-                            }
+                            token = bucket.recv_or_release(token, &last_receiver);
                         }
+
                         let num_gens = source.number_of_gens_in_degree(t);
 
                         let fx_dim = target.dimension(t);
@@ -408,7 +426,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                             map.extend_by_zero(&lock, t);
                             *lock += 1;
 
-                            #[cfg(feature = "steenrod-concurrent")]
+                            #[cfg(feature = "concurrent")]
                             sender.send(()).unwrap();
 
                             continue;
@@ -438,21 +456,21 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                         map.add_generators_from_matrix_rows(&lock, t, &mut output_matrix, 0, 0);
                         *lock += 1;
 
-                        #[cfg(feature = "steenrod-concurrent")]
+                        #[cfg(feature = "concurrent")]
                         sender.send(()).unwrap();
                     }
                 };
 
-                #[cfg(feature = "steenrod-concurrent")]
+                #[cfg(feature = "concurrent")]
                 {
                     let handle = thread::Builder::new().name(format!("Delta_{}, s = {}", i, s)).spawn(fun);
                     last_receiver = Some(new_receiver);
                     handles.push(handle.unwrap());
                 }
-                #[cfg(not(feature = "steenrod-concurrent"))]
+                #[cfg(not(feature = "concurrent"))]
                 fun();
             }
-            #[cfg(feature = "steenrod-concurrent")]
+            #[cfg(feature = "concurrent")]
             for handle in handles.into_iter() {
                 handle.join().unwrap();
             }

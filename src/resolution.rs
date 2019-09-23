@@ -15,7 +15,9 @@ use crate::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorph
 use crate::CCC;
 
 #[cfg(feature = "concurrent")]
-use rayon::prelude::*;
+use std::{thread, sync::mpsc};
+#[cfg(feature = "concurrent")]
+use thread_token::TokenBucket;
 
 /// ResolutionInner contains the data of the actual resolution, while Resolution contains the bells
 /// and whistles such as self maps and callbacks. ResolutionInner is what ResolutionHomomorphism
@@ -461,6 +463,74 @@ impl<CC : ChainComplex> Resolution<CC> {
         }
     }
 
+    #[cfg(feature = "concurrent")]
+    pub fn resolve_through_bidegree_concurrent(&self, mut max_s : u32, mut max_t : i32, bucket : &Arc<TokenBucket>) {
+        let min_degree = self.min_degree();
+        let mut next_s = self.next_s.lock().unwrap();
+        let mut next_t = self.next_t.lock().unwrap();
+
+        // We want the computed area to always be a rectangle.
+        max_t = max(max_t, *next_t - 1);
+        if max_s < *next_s {
+            max_s = *next_s - 1;
+        }
+
+        self.inner.complex().compute_through_bidegree(max_s, max_t);
+        self.inner.extend_through_degree(*next_s, max_s, *next_t, max_t);
+        self.algebra().compute_basis(max_t - min_degree);
+
+        if let Some(unit_res) = &self.unit_resolution {
+            let unit_res = unit_res.upgrade().unwrap();
+            let unit_res = unit_res.read().unwrap();
+            // Avoid a deadlock
+            if !ptr_eq(&unit_res.inner, &self.inner) {
+                unit_res.resolve_through_bidegree_concurrent(self.max_product_homological_degree, max_t - min_degree, bucket);
+            }
+        }
+
+        let (pp_sender, pp_receiver) = mpsc::channel();
+        let mut last_receiver : Option<mpsc::Receiver<()>> = None;
+        for t in min_degree ..= max_t {
+            let next_t = *next_t;
+            let next_s = *next_s;
+
+            let start = if t < next_t { next_s } else { 0 };
+
+            let (sender, receiver) = mpsc::channel();
+
+            let bucket = Arc::clone(bucket);
+            let inner = Arc::clone(&self.inner);
+
+            let pp_sender = pp_sender.clone();
+            thread::spawn(move || {
+                if t == next_t - 1 {
+                    for _ in 0 .. next_s {
+                        sender.send(()).unwrap();
+                    }
+                }
+
+                let mut token = bucket.take_token();
+                for s in start ..= max_s {
+                    token = bucket.recv_or_release(token, &last_receiver);
+                    inner.step_resolution(s, t);
+
+                    pp_sender.send((s, t)).unwrap();
+                    sender.send(()).unwrap();
+                }
+            });
+            last_receiver = Some(receiver);
+        }
+        // We drop this pp_sender, so that when all previous threads end, no pp_sender's are
+        // present, so pp_receiver terminates.
+        drop(pp_sender);
+
+        for (s, t) in pp_receiver {
+            self.step_after(s, t);
+        }
+        *next_s = max_s + 1;
+        *next_t = max_t + 1;
+    }
+
     pub fn resolve_through_bidegree(&self, mut max_s : u32, mut max_t : i32) {
         let min_degree = self.min_degree();
         let mut next_s = self.next_s.lock().unwrap();
@@ -472,36 +542,40 @@ impl<CC : ChainComplex> Resolution<CC> {
             max_s = *next_s - 1;
         }
 
+        self.inner.complex().compute_through_bidegree(max_s, max_t);
         self.inner.extend_through_degree(*next_s, max_s, *next_t, max_t);
         self.algebra().compute_basis(max_t - min_degree);
 
-        for t in min_degree ..= max_t {
-            if let Some(unit_res) = &self.unit_resolution {
-                let unit_res = unit_res.upgrade().unwrap();
-                let unit_res = unit_res.read().unwrap();
-                // Avoid a deadlock
-                if !ptr_eq(&unit_res.inner, &self.inner) {
-                    unit_res.resolve_through_bidegree(self.max_product_homological_degree, t - min_degree);
-                }
+        if let Some(unit_res) = &self.unit_resolution {
+            let unit_res = unit_res.upgrade().unwrap();
+            let unit_res = unit_res.read().unwrap();
+            // Avoid a deadlock
+            if !ptr_eq(&unit_res.inner, &self.inner) {
+                unit_res.resolve_through_bidegree(self.max_product_homological_degree, max_t - min_degree);
             }
+        }
 
+        for t in min_degree ..= max_t {
             let start = if t < *next_t { *next_s } else { 0 };
             for s in start ..= max_s {
-                self.step(s as u32, t);
+                self.inner.step_resolution(s, t);
+                self.step_after(s, t);
             }
         }
         *next_s = max_s + 1;
         *next_t = max_t + 1;
     }
 
+    #[cfg(feature = "concurrent")]
+    pub fn resolve_through_degree_concurrent(&self, degree : i32, bucket : &Arc<TokenBucket>) {
+        self.resolve_through_bidegree_concurrent(degree as u32, degree, bucket);
+    }
+
     pub fn resolve_through_degree(&self, degree : i32) {
         self.resolve_through_bidegree(degree as u32, degree);
     }
 
-    pub fn step(&self, s : u32, t : i32) {
-        // println!("step : hom_deg : {}, int_deg : {}", homological_degree, degree);
-        self.inner.complex().compute_through_bidegree(s, t);
-        self.inner.step_resolution(s, t);
+    fn step_after(&self, s : u32, t : i32) {
         if t - (s as i32) < self.min_degree() {
             return;
         }
@@ -622,10 +696,6 @@ impl<CC> Resolution<CC> where
 
             self.construct_maps_to_unit(max_s, max_t);
 
-            #[cfg(feature = "concurrent")]
-            self.extend_maps_to_unit_concurrent(max_s, max_t);
-
-            #[cfg(not(feature = "concurrent"))]
             self.extend_maps_to_unit(max_s, max_t);
 
             for t in min_degree ..= max_t {
@@ -636,28 +706,6 @@ impl<CC> Resolution<CC> where
         }
     }
 
-    /// This ensures the chain_maps_to_unit_resolution are defined such that we can compute products up
-    /// to bidegree (s, t)
-    #[cfg(feature = "concurrent")]
-    fn extend_maps_to_unit_concurrent(&self, s : u32, t : i32) {
-        let max_hom_deg = min(s, self.max_product_homological_degree);
-        let min_degree = self.min_degree();
-        for i in 0 ..= s {
-            let module = self.module(i);
-            let max_s = min(s, i + self.max_product_homological_degree);
-            let maps = &self.chain_maps_to_unit_resolution[i as usize];
-
-            (min_degree ..= t).into_par_iter().for_each(|j| {
-                let num_gens = module.number_of_gens_in_degree(j);
-                for k in 0 .. num_gens {
-                        maps[j][k].extend(max_s, t)
-                }
-            });
-        }
-    }
-}
-
-impl<CC : ChainComplex> Resolution<CC> {
     /// The return value is whether the product was actually added. If the product is already
     /// present, we do nothing.
     pub fn add_product(&mut self, s : u32, t : i32, class : Vec<u32>, name : &str) -> bool {

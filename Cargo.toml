@@ -40,8 +40,5 @@ debug = true
 members = ["ext-websocket", "bivec", "compressor", "once", "thread-token"]
 
 [features]
-default = ["steenrod-concurrent"]
-
 cache-multiplication = []
-concurrent = ["rayon"]
-steenrod-concurrent = ["thread-token"]
+concurrent = ["thread-token"]

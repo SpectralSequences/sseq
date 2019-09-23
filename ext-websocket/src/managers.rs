@@ -10,6 +10,10 @@ use rust_ext::chain_complex::ChainComplex;
 use std::error::Error;
 
 use std::sync::{RwLock, Arc};
+#[cfg(feature = "concurrent")]
+use thread_token::TokenBucket;
+#[cfg(feature = "concurrent")]
+const NUM_THREADS : usize = 2;
 
 use crate::Sender;
 
@@ -23,6 +27,8 @@ use crate::Sender;
 ///  products etc.
 ///  * `resolution` : The resolution object itself.
 pub struct ResolutionManager {
+    #[cfg(feature = "concurrent")]
+    bucket : Arc<TokenBucket>,
     sender : Sender,
     is_unit : bool,
     resolution : Option<Arc<RwLock<Resolution<CCC>>>>
@@ -35,9 +41,12 @@ impl ResolutionManager {
     ///  * `sender` - The `sender` object to send messages to.
     pub fn new(sender : Sender) -> Self {
         ResolutionManager {
-             sender : sender,
-             resolution : None,
-             is_unit : false,
+            #[cfg(feature = "concurrent")]
+            bucket : Arc::new(TokenBucket::new(NUM_THREADS)),
+
+            sender : sender,
+            resolution : None,
+            is_unit : false,
         }
     }
 
@@ -156,11 +165,22 @@ impl ResolutionManager {
         };
         self.sender.send(msg)?;
 
+        #[cfg(not(feature = "concurrent"))]
         match sseq {
             SseqChoice::Main => resolution.read().unwrap().resolve_through_degree(action.max_degree),
             SseqChoice::Unit => {
                 if let Some(r) = &resolution.read().unwrap().unit_resolution {
                     r.upgrade().unwrap().read().unwrap().resolve_through_degree(action.max_degree)
+                }
+            }
+        };
+
+        #[cfg(feature = "concurrent")]
+        match sseq {
+            SseqChoice::Main => resolution.read().unwrap().resolve_through_degree_concurrent(action.max_degree, &self.bucket),
+            SseqChoice::Unit => {
+                if let Some(r) = &resolution.read().unwrap().unit_resolution {
+                    r.upgrade().unwrap().read().unwrap().resolve_through_degree_concurrent(action.max_degree, &self.bucket)
                 }
             }
         };

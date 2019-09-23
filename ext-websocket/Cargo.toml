@@ -11,21 +11,22 @@ serde_json = "*"
 serde = { version = "*", features = ["derive"] }
 rust_ext = { path = "../" }
 bivec = { path = "../bivec" }
+thread-token = { path = "../thread-token", optional = true }
 enum_dispatch = "0.1.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 chrono = "*"
 ws = "*"
 textwrap = { version = "*", features = ["term_size"] }
-threadpool = { version = "*", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "*"
 js-sys = "*"
 
 [features]
+default = []
 cache-multiplication = ["rust_ext/cache-multiplication"]
-concurrent = ["threadpool", "rust_ext/concurrent"]
+concurrent = ["thread-token", "rust_ext/concurrent"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

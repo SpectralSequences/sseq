@@ -1,5 +1,5 @@
 
-use std::sync::{Mutex, Condvar};
+use std::sync::{mpsc, Mutex, Condvar};
 
 /// A `TokenBucket` is a bucket containing a fixed number of "tokens". Threads can take request to
 /// take out a token. If no tokens are available, the thread is blocked (while consuming no CPU
@@ -36,6 +36,25 @@ impl TokenBucket {
                 running_threads = self.condvar.wait(running_threads).unwrap();
             }
         }
+    }
+
+    /// This function attempts to read a message from `receiver` (if available). If a message is
+    /// received, it returns the same token. If not, it releases the existing token. It then waits
+    /// for a message, and then queues for a new token. The new token is then returned.
+    pub fn recv_or_release<'a>(&'a self, mut token : Token<'a>, receiver : &Option<mpsc::Receiver<()>>) -> Token<'a> {
+        if let Some(recv) = &receiver {
+            match recv.try_recv() {
+                Ok(_) => (),
+                Err(mpsc::TryRecvError::Empty) => {
+                    token.release();
+                    recv.recv().unwrap();
+                    token = self.take_token();
+                },
+                Err(mpsc::TryRecvError::Disconnected) => panic!("Sender
+                            disconnected")
+            }
+        }
+        token
     }
 
     fn release_token(&self) {

@@ -1,7 +1,6 @@
 use crate::sseq::{Sseq, ProductItem, ClassState, INFINITY};
 use rust_ext::resolution::Resolution;
 use rust_ext::fp_vector::FpVector;
-use rust_ext::chain_complex::ChainComplex;
 use rust_ext::module::Module;
 use rust_ext::CCC;
 use bivec::BiVec;

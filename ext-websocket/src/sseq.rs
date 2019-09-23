@@ -8,11 +8,6 @@ use bivec::BiVec;
 use crate::actions::*;
 use crate::Sender;
 
-#[cfg(feature = "concurrent")]
-use threadpool::ThreadPool;
-#[cfg(feature = "concurrent")]
-const NUM_THREAD : usize = 2;
-
 const MIN_PAGE : i32 = 2;
 pub const INFINITY : i32 = std::i32::MAX;
 
@@ -212,8 +207,6 @@ pub struct Sseq {
     min_x : i32,
     min_y : i32,
 
-    #[cfg(feature = "concurrent")]
-    pub threadpool : ThreadPool,
     pub block_refresh : u32,
     sender : Option<Sender>,
     page_list : Vec<i32>,
@@ -240,8 +233,6 @@ impl Sseq {
             sender,
             block_refresh : 0,
 
-            #[cfg(feature = "concurrent")]
-            threadpool : ThreadPool::new(NUM_THREAD),
             page_list : vec![2],
             product_name_to_index : HashMap::new(),
             products : Arc::new(RwLock::new(Vec::new())),
@@ -298,11 +289,9 @@ impl Sseq {
         }
         for x in 0 .. self.classes.len() {
             for y in 0 .. self.classes[x].len() {
-                self.compute_edges(x, y, true);
+                self.compute_edges(x, y);
             }
         }
-        #[cfg(feature = "concurrent")]
-        self.threadpool.join();
     }
 
     /// Adds a page to the page list, which is the list of pages where something changes from the
@@ -505,7 +494,7 @@ impl Sseq {
     }
 
     /// Computes products whose source is at (x, y).
-    fn compute_edges(&self, x : i32, y : i32, parallel : bool) {
+    fn compute_edges(&self, x : i32, y : i32) {
         if self.block_refresh > 0 { return; }
 
         if !self.class_defined(x, y) {
@@ -523,17 +512,7 @@ impl Sseq {
             let p = self.p;
             let name = self.name;
 
-            if parallel {
-                #[cfg(feature = "concurrent")]
-                self.threadpool.execute(move || {
-                    Sseq::compute_edges_inner(x, y, p, name, sender, page_classes, products, zeros);
-                });
-
-                #[cfg(not(feature = "concurrent"))]
-                Sseq::compute_edges_inner(x, y, p, name, sender, page_classes, products, zeros);
-            } else {
-                Sseq::compute_edges_inner(x, y, p, name, sender, page_classes, products, zeros);
-            }
+            Sseq::compute_edges_inner(x, y, p, name, sender, page_classes, products, zeros);
         }
     }
 
@@ -709,9 +688,9 @@ impl Sseq {
         }
 
         if refresh_edge {
-            self.compute_edges(x, y, false);
+            self.compute_edges(x, y);
             for prod in self.products.read().unwrap().iter() {
-                self.compute_edges(x - prod.x, y - prod.y, false);
+                self.compute_edges(x - prod.x, y - prod.y);
             }
         }
     }
@@ -1113,7 +1092,7 @@ impl Sseq {
                 }
             }
         }
-        self.compute_edges(x, y, false);
+        self.compute_edges(x, y);
         self.send_class_data(x + mult_x, y + mult_y);
     }
 }
