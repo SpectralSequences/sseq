@@ -73,7 +73,7 @@ pub trait BoundedModule : Module {
 }
 
 #[enum_dispatch(FiniteModule)]
-pub trait Module {
+pub trait Module : Send + Sync + 'static {
     fn algebra(&self) -> Arc<AlgebraAny>;
     fn name(&self) -> &str;
     fn min_degree(&self) -> i32;

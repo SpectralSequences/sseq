@@ -20,7 +20,7 @@ pub enum ChainComplexGrading {
 
 /// A chain complex is defined to start in degree 0. The min_degree is the min_degree of the
 /// modules in the chain complex, all of which must be the same.
-pub trait ChainComplex {
+pub trait ChainComplex : Send + Sync + 'static {
     type Module : Module;
     type Homomorphism : ModuleHomomorphism<Source=Self::Module, Target=Self::Module>;
 
@@ -72,7 +72,7 @@ pub trait ChainComplex {
     }
 }
 
-pub trait CochainComplex {
+pub trait CochainComplex : Send + Sync + 'static {
     type Module : Module;
     type Homomorphism : ModuleHomomorphism<Source=Self::Module, Target=Self::Module>;
 

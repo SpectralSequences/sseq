@@ -580,7 +580,7 @@ impl<CC : ChainComplex> Resolution<CC> {
         let max_hom_deg = self.max_computed_homological_degree(); //(max_degree - min_degree) as u32 / (self.prime() + 1); //self.get_max_hom_deg();
         for i in (0 ..= max_hom_deg).rev() {
             for j in min_degree + i as i32 ..= max_degree {
-                let n = self.homology_dimension(i, j);
+                let n = self.module(i).number_of_gens_in_degree(j);
                 match n {
                     0 => result.push_str("  "),
                     1 => result.push_str("· "),
@@ -603,7 +603,7 @@ impl<CC : ChainComplex> Resolution<CC> {
 
 // Product algorithms
 impl<CC> Resolution<CC> where
-    CC : ChainComplex// + Send + Sync + 'static
+    CC : ChainComplex
 {
     /// This function computes the products between the element most recently added to product_list
     /// and the parts of Ext that have already been computed. This function should be called right
@@ -862,55 +862,25 @@ impl<CC : ChainComplex> Resolution<CC> {
     }
 }
 
-impl<CC : ChainComplex> ChainComplex for Resolution<CC>
+impl<CC : ChainComplex> Resolution<CC>
 {
-    type Module = FreeModule;
-    type Homomorphism = FreeModuleHomomorphism<FreeModule>;
-
-    fn algebra(&self) -> Arc<AlgebraAny> {
+    pub fn algebra(&self) -> Arc<AlgebraAny> {
         self.inner.complex().algebra()
     }
 
-    fn zero_module(&self) -> Arc<Self::Module> {
-        Arc::clone(&self.inner.zero_module)
+    pub fn prime(&self) -> u32 {
+        self.inner.prime()
     }
 
-    fn module(&self, homological_degree : u32) -> Arc<Self::Module> {
+    pub fn module(&self, homological_degree : u32) -> Arc<FreeModule> {
         self.inner.module(homological_degree)
     }
 
-    fn min_degree(&self) -> i32 {
+    pub fn min_degree(&self) -> i32 {
         self.inner.complex().min_degree()
     }
 
-    fn set_homology_basis(&self, homological_degree : u32, internal_degree : i32, homology_basis : Vec<usize>){
-        unimplemented!()
-    }
-
-    fn homology_basis(&self, homological_degree : u32, internal_degree : i32) -> &Vec<usize>{
-        unimplemented!()
-    }
-    
-    fn homology_dimension(&self, homological_degree : u32, internal_degree : i32) -> usize {
-        self.inner.number_of_gens_in_bidegree(homological_degree, internal_degree)
-    }
-
-    fn max_homology_degree(&self, homological_degree : u32) -> i32 {
-        unimplemented!()
-    }
-
-    fn differential(&self, s : u32) -> Arc<Self::Homomorphism> {
+    pub fn differential(&self, s : u32) -> Arc<FreeModuleHomomorphism<FreeModule>> {
         self.inner.differential(s)
     }
-
-    fn compute_through_bidegree(&self, hom_deg : u32, int_deg : i32) {
-        self.resolve_through_bidegree(hom_deg, int_deg);
-    }
-
-    // fn computed_through_bidegree_q(&self, hom_deg : u32, int_deg : i32) -> bool {
-    //     self.res_inner.rent(|res_homs| {
-    //         res_homs.differentials.len() > hom_deg 
-    //             && res_homs.differentials[hom_deg as usize].
-    //     })
-    // }
 }

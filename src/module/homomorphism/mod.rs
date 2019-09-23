@@ -20,7 +20,7 @@ pub use fp_module_homomorphism::{FPModuleHomomorphism, FPModuleT};
 pub use truncated_homomorphism::{TruncatedHomomorphism, TruncatedHomomorphismSource};
 pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
 
-pub trait ModuleHomomorphism {
+pub trait ModuleHomomorphism : Send + Sync + 'static {
     type Source : Module;
     type Target : Module;
     const CUSTOM_QI : bool = false;
