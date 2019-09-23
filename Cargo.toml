@@ -14,6 +14,7 @@ once = { path = "once"}
 serde_json = "*"
 serde = "*"
 rayon = { version = "*", optional = true }
+thread-token = { path = "thread-token", optional = true }
 enum_dispatch = "0.1.3"
 nom = "5.0.0"
 query = { path = "query" }
@@ -36,11 +37,11 @@ opt-level = 3
 debug = true
 
 [workspace]
-members = ["ext-websocket", "bivec", "compressor", "once"]
+members = ["ext-websocket", "bivec", "compressor", "once", "thread-token"]
 
 [features]
 default = ["steenrod-concurrent"]
 
 cache-multiplication = []
 concurrent = ["rayon"]
-steenrod-concurrent = []
+steenrod-concurrent = ["thread-token"]

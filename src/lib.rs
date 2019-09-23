@@ -28,6 +28,7 @@ use yoneda::{yoneda_representative_element, yoneda_representative};
 
 use bivec::BiVec;
 use query::*;
+use thread_token::TokenBucket;
 
 use std::error::Error;
 use std::path::PathBuf;
@@ -35,8 +36,6 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use serde_json::value::Value;
 
-#[cfg(feature = "steenrod-concurrent")]
-use std::collections::VecDeque;
 #[cfg(feature = "steenrod-concurrent")]
 use std::{thread, thread::JoinHandle, sync::mpsc};
 
@@ -245,6 +244,8 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
     #[cfg(feature = "steenrod-concurrent")]
     let num_threads = query_with_default_no_default_indicated("Number of threads", 2, |x : usize| Ok(x));
 
+    let bucket = Arc::new(TokenBucket::new(num_threads));
+
     loop {
         let x : i32= query_with_default_no_default_indicated("t - s", 8, |x : i32| Ok(x));
         let s : u32 = query_with_default_no_default_indicated("s", 3, |x : u32| Ok(x));
@@ -338,7 +339,8 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
             let start = Instant::now();
 
             #[cfg(feature = "steenrod-concurrent")]
-            let mut handles : VecDeque<JoinHandle<()>> = VecDeque::with_capacity(num_threads);
+            let mut handles : Vec<JoinHandle<()>> = Vec::with_capacity((2 * s - i + 1) as usize);
+
             #[cfg(feature = "steenrod-concurrent")]
             let mut last_receiver : Option<mpsc::Receiver<()>> = None;
 
@@ -350,13 +352,6 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                     *lock += 1;
                     map.extend_by_zero(&lock, 2 * t);
                     continue;
-                }
-
-                #[cfg(feature = "steenrod-concurrent")]
-                {
-                    if handles.len() == num_threads {
-                        handles.pop_front().unwrap().join().unwrap();
-                    }
                 }
 
                 let square = Arc::clone(&square);
@@ -374,17 +369,33 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
 
                 let prev_delta = match i { 0 => None, _ => Some(Arc::clone(&delta[i as usize - 1][s as usize])) };
 
+
                 #[cfg(feature = "steenrod-concurrent")]
                 let (sender, new_receiver) = mpsc::channel();
+                #[cfg(feature = "steenrod-concurrent")]
+                let bucket = Arc::clone(&bucket);
 
                 // Define this as a closure so that we can easily switch between threaded and
                 // un-threaded
                 let fun = move || {
+                    #[cfg(feature = "steenrod-concurrent")]
+                    let mut token = bucket.take_token();
+
                     for t in 0 ..= 2 * t {
                         #[cfg(feature = "steenrod-concurrent")]
                         {
                             if let Some(recv) = &last_receiver {
-                                recv.recv().unwrap();
+                                match recv.try_recv() {
+                                    Ok(_) => (),
+                                    // No messages. Release thread, wait for next message, then
+                                    // wait for token
+                                    Err(mpsc::TryRecvError::Empty) => {
+                                        token.release();
+                                        recv.recv().unwrap();
+                                        token = bucket.take_token();
+                                    },
+                                    Err(mpsc::TryRecvError::Disconnected) => panic!("Sender disconnected")
+                                }
                             }
                         }
                         let num_gens = source.number_of_gens_in_degree(t);
@@ -436,7 +447,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                 {
                     let handle = thread::Builder::new().name(format!("Delta_{}, s = {}", i, s)).spawn(fun);
                     last_receiver = Some(new_receiver);
-                    handles.push_back(handle.unwrap());
+                    handles.push(handle.unwrap());
                 }
                 #[cfg(not(feature = "steenrod-concurrent"))]
                 fun();
