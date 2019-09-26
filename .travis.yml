@@ -25,6 +25,7 @@ install:
 
 script:
     - cargo test --verbose --all
+    - cargo test --all-features --verbose --all
     - cd ext-websocket; npm run build; cd ..
 
 cache:
