@@ -494,7 +494,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
 
                 #[cfg(feature = "concurrent")]
                 {
-                    let handle = thread::Builder::new().name(format!("Delta_{}, s = {}", i, s)).spawn(fun);
+                    let handle = thread::Builder::new().name(format!("D_{}, s = {}", i, s)).spawn(fun);
                     last_receiver = Some(new_receiver);
                     handles_inner.push(handle.unwrap());
                 }
