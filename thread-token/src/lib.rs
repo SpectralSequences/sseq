@@ -57,6 +57,48 @@ impl TokenBucket {
         token
     }
 
+    /// This function attempts to read a message from `receiver` (if available). If a message is
+    /// received, it returns the same token. If not, it releases the existing token. It then waits
+    /// for a message, and then queues for a new token. The new token is then returned.
+    pub fn recv2_or_release<'a>(&'a self, mut token : Token<'a>, receiver1 : &Option<mpsc::Receiver<()>>, receiver2 : &Option<mpsc::Receiver<()>>) -> Token<'a> {
+        if receiver1.is_none() {
+            return self.recv_or_release(token, receiver2);
+        } else if receiver2.is_none() {
+            return self.recv_or_release(token, receiver1);
+        }
+
+        let recv1 = receiver1.as_ref().unwrap();
+
+        match recv1.try_recv() {
+            Ok(_) => {
+                token = self.recv_or_release(token, receiver2);
+            },
+            Err(mpsc::TryRecvError::Empty) => {
+                token.release();
+
+                let recv2 = receiver2.as_ref().unwrap();
+
+                match recv2.try_recv() {
+                    Ok(_) => {
+                        recv1.recv().unwrap();
+                        token = self.take_token();
+                    },
+                    // We are waiting for both recv1 and recv2
+                    Err(mpsc::TryRecvError::Empty) => {
+                        recv1.recv().unwrap();
+                        recv2.recv().unwrap();
+                        token = self.take_token();
+                    },
+                    Err(mpsc::TryRecvError::Disconnected) => panic!("Sender
+                            disconnected")
+                }
+            },
+            Err(mpsc::TryRecvError::Disconnected) => panic!("Sender
+                            disconnected")
+        }
+        token
+    }
+
     fn release_token(&self) {
         let mut running_threads = self.running_threads.lock().unwrap();
         *running_threads -= 1;

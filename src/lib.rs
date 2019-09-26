@@ -361,17 +361,33 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
             delta.push(maps);
         }
 
+        #[cfg(feature = "concurrent")]
+        let mut prev_i_receivers : Vec<Option<mpsc::Receiver<()>>> = Vec::new();
+        #[cfg(feature = "concurrent")]
+        for _ in 0 ..= 2 * s {
+            prev_i_receivers.push(None);
+        }
+
+        #[cfg(feature = "concurrent")]
+        let mut handles : Vec<Vec<JoinHandle<()>>> = Vec::with_capacity(s as usize + 1);
+
+        #[cfg(feature = "concurrent")]
+        let start = Instant::now();
+
         // We use the formula d Δ_i + Δ_i d = Δ_{i-1} + τΔ_{i-1}
         for i in 0 ..= s {
             // Δ_i is a map C_s -> C_{s + i}. So to hit C_{2s}, we only need to compute up to 2
             // * s - i
+            #[cfg(not(feature = "concurrent"))]
             let start = Instant::now();
 
             #[cfg(feature = "concurrent")]
-            let mut handles : Vec<JoinHandle<()>> = Vec::with_capacity((2 * s - i + 1) as usize);
+            let mut handles_inner : Vec<JoinHandle<()>> = Vec::with_capacity((2 * s - i + 1) as usize);
 
             #[cfg(feature = "concurrent")]
             let mut last_receiver : Option<mpsc::Receiver<()>> = None;
+
+            let top_s = 2 * s - i;
 
             for s in 0 ..= 2 * s - i {
                 if i == 0 && s == 0 {
@@ -402,18 +418,25 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                 #[cfg(feature = "concurrent")]
                 let (sender, new_receiver) = mpsc::channel();
                 #[cfg(feature = "concurrent")]
+                let (prev_i_sender, new_prev_i_receiver) = mpsc::channel();
+
+                #[cfg(feature = "concurrent")]
                 let bucket = Arc::clone(&bucket);
+
+                #[cfg(feature = "concurrent")]
+                let prev_i_receiver = std::mem::replace(&mut prev_i_receivers[s as usize], Some(new_prev_i_receiver));
 
                 // Define this as a closure so that we can easily switch between threaded and
                 // un-threaded
                 let fun = move || {
                     #[cfg(feature = "concurrent")]
                     let mut token = bucket.take_token();
+                    let mut lock = map.lock();
 
                     for t in 0 ..= 2 * t {
                         #[cfg(feature = "concurrent")]
                         {
-                            token = bucket.recv_or_release(token, &last_receiver);
+                            token = bucket.recv2_or_release(token, &last_receiver, &prev_i_receiver);
                         }
 
                         let num_gens = source.number_of_gens_in_degree(t);
@@ -422,12 +445,16 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                         let fdx_dim = dtarget_module.dimension(t);
 
                         if fx_dim == 0 || fdx_dim == 0 || num_gens == 0 {
-                            let mut lock = map.lock();
                             map.extend_by_zero(&lock, t);
                             *lock += 1;
 
                             #[cfg(feature = "concurrent")]
-                            sender.send(()).unwrap();
+                            {
+                                if s < top_s {
+                                    sender.send(()).unwrap();
+                                    prev_i_sender.send(()).unwrap();
+                                }
+                            }
 
                             continue;
                         }
@@ -452,12 +479,16 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
 
                             result.set_to_zero();
                         }
-                        let mut lock = map.lock();
                         map.add_generators_from_matrix_rows(&lock, t, &mut output_matrix, 0, 0);
                         *lock += 1;
 
                         #[cfg(feature = "concurrent")]
-                        sender.send(()).unwrap();
+                        {
+                            if s < top_s {
+                                sender.send(()).unwrap();
+                                prev_i_sender.send(()).unwrap();
+                            }
+                        }
                     }
                 };
 
@@ -465,19 +496,34 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                 {
                     let handle = thread::Builder::new().name(format!("Delta_{}, s = {}", i, s)).spawn(fun);
                     last_receiver = Some(new_receiver);
-                    handles.push(handle.unwrap());
+                    handles_inner.push(handle.unwrap());
                 }
                 #[cfg(not(feature = "concurrent"))]
                 fun();
             }
             #[cfg(feature = "concurrent")]
-            for handle in handles.into_iter() {
+            handles.push(handles_inner);
+
+            #[cfg(not(feature = "concurrent"))]
+            {
+                let final_map = &delta[i as usize][(2 * s - i) as usize];
+                let num_gens = resolution.inner.number_of_gens_in_bidegree(2 * s - i, 2 * t);
+                println!("Sq^{} x_{{{}, {}}}^({}) = [{}] ({:?})", s - i, t-s as i32, s, idx, (0 .. num_gens).map(|k| format!("{}", final_map.output(2 * t, k).entry(0))).collect::<Vec<_>>().join(", "), start.elapsed());
+            }
+        }
+
+        #[cfg(feature = "concurrent")]
+        for (i, handle_inner) in handles.into_iter().enumerate() {
+            let i = i as u32;
+
+            for handle in handle_inner.into_iter() {
                 handle.join().unwrap();
             }
             let final_map = &delta[i as usize][(2 * s - i) as usize];
             let num_gens = resolution.inner.number_of_gens_in_bidegree(2 * s - i, 2 * t);
-            println!("Sq^{} x_{{{}, {}}}^({}) = [{}] ({:?})", s - i, t-s as i32, s, idx, (0 .. num_gens).map(|k| format!("{}", final_map.output(2 * t, k).entry(0))).collect::<Vec<_>>().join(", "), start.elapsed());
+            println!("Sq^{} x_{{{}, {}}}^({}) = [{}] ({:?} total)", s - i, t-s as i32, s, idx, (0 .. num_gens).map(|k| format!("{}", final_map.output(2 * t, k).entry(0))).collect::<Vec<_>>().join(", "), start.elapsed());
         }
+
         println!("Computing Steenrod operations: {:?}", start.elapsed());
     }
 }
