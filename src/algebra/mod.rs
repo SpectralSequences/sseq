@@ -8,6 +8,7 @@ pub use field::Field;
 use std::error::Error;
 
 use crate::fp_vector::FpVector;
+use serde::Deserialize;
 use serde_json::Value;
 use enum_dispatch::enum_dispatch;
 
@@ -162,16 +163,31 @@ impl Bialgebra for AlgebraAny {
     }
 }
 
+
+#[derive(Deserialize, Debug)]
+struct MilnorProfileOption {
+    truncated : Option<bool>,
+    q_part : Option<u32>,
+    p_part : Option<Vec<u32>>
+}
+
+#[derive(Deserialize, Debug)]
+struct AlgebraSpec {
+    p : u32,
+    algebra : Option<Vec<String>>,
+    profile : Option<MilnorProfileOption>
+}
+
 impl AlgebraAny {
     pub fn from_json(json : &Value, mut algebra_name : String) -> Result<AlgebraAny, Box<dyn Error>> {
-        let p = json["p"].as_u64().unwrap() as u32;
-        let algebra_list = json["algebra"].as_array();
-        if let Some(list) = algebra_list {
-            let list : Vec<&str> = list.iter().map(|x| x.as_str().unwrap()).collect();
-            if !list.contains(&algebra_name.as_ref()) {
+        let spec : AlgebraSpec = serde_json::from_value(json.clone())?;
+
+        let p = spec.p;
+        if let Some(mut list) = spec.algebra {
+            if !list.contains(&algebra_name) {
                 println!("Module does not support algebra {}", algebra_name);
                 println!("Using {} instead", list[0]);
-                algebra_name = list[0].to_string();
+                algebra_name = list.remove(0);
             }
         }
 
@@ -180,16 +196,14 @@ impl AlgebraAny {
             "adem" => algebra = AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)),
             "milnor" => {
                 let mut algebra_inner = MilnorAlgebra::new(p);
-                let profile = &json["profile"];
-                if !profile.is_null() {
-                    if let Some(truncated) = profile["truncated"].as_bool() {
+                if let Some(profile) = spec.profile {
+                    if let Some(truncated) = profile.truncated {
                         algebra_inner.profile.truncated = truncated;
                     }
-                    if let Some(q_part) = profile["q_part"].as_u64() {
-                        algebra_inner.profile.q_part = q_part as u32;
+                    if let Some(q_part) = profile.q_part {
+                        algebra_inner.profile.q_part = q_part;
                     }
-                    if let Some(p_part) = profile["p_part"].as_array() {
-                        let p_part = p_part.into_iter().map(|x| x.as_u64().unwrap() as u32).collect();
+                    if let Some(p_part) = profile.p_part {
                         algebra_inner.profile.p_part = p_part;
                     }
                 }

@@ -12,7 +12,7 @@ lazy_static = "1.2.0"
 bivec = { path = "bivec"}
 once = { path = "once"}
 serde_json = "*"
-serde = "*"
+serde = { version = "*", features = ["derive"] }
 rayon = { version = "*", optional = true }
 thread-token = { path = "thread-token", optional = true }
 enum_dispatch = "0.1.3"
