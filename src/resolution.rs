@@ -1024,6 +1024,8 @@ impl<CC : ChainComplex> Load for Resolution<CC> {
         assert!(next_s > 0, "Cannot load uninitialized resolution");
         let next_t = result.inner.module(0).max_computed_degree() + 1;
 
+        result.inner.zero_module.extend_by_zero(next_t - 1);
+
         *result.next_s.lock().unwrap() = next_s as u32;
         *result.next_t.lock().unwrap() = next_t;
 

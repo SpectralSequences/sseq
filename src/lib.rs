@@ -28,9 +28,11 @@ use yoneda::{yoneda_representative_element, yoneda_representative};
 
 use bivec::BiVec;
 use query::*;
+use saveload::{Save, Load};
 
 use std::error::Error;
-use std::path::PathBuf;
+use std::fs::File;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use serde_json::value::Value;
@@ -261,7 +263,19 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
     let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
     let k = serde_json::from_str(k).unwrap();
     let bundle = construct_from_json(k, "adem".to_string()).unwrap();
-    let resolution = bundle.resolution.read().unwrap();
+    let mut resolution = &*bundle.resolution.read().unwrap();
+
+    let saved_resolution;
+
+    if Path::new("resolution.save").exists() {
+        print!("Loading saved resolution: ");
+        let start = Instant::now();
+        let mut f = File::open("resolution.save")?;
+        saved_resolution = Resolution::load(&mut f, &bundle.chain_complex)?;
+        resolution = &saved_resolution;
+        println!("{:?}", start.elapsed());
+    }
+
     let p = 2;
     #[cfg(feature = "concurrent")]
     let num_threads = query_with_default_no_default_indicated("Number of threads", 2, |x : usize| Ok(x));
@@ -284,6 +298,13 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
         #[cfg(not(feature = "concurrent"))]
         resolution.resolve_through_bidegree(2 * s, 2 * t);
 
+        println!("{:?}", start.elapsed());
+
+        print!("Saving resolution: ");
+        let start = Instant::now();
+        let mut file = File::create("resolution.save")?;
+        resolution.save(&mut file)?;
+        drop(file);
         println!("{:?}", start.elapsed());
 
         print!("Computing Yoneda representative: ");
