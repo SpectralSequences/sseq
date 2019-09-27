@@ -13,7 +13,6 @@ bivec = { path = "bivec"}
 once = { path = "once"}
 serde_json = "*"
 serde = { version = "*", features = ["derive"] }
-rayon = { version = "*", optional = true }
 thread-token = { path = "thread-token", optional = true }
 saveload = { path = "saveload" }
 enum_dispatch = "0.1.3"
