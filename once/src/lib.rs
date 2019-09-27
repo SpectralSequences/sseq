@@ -145,3 +145,39 @@ impl<T> DerefMut for OnceBiVec<T> {
 
 unsafe impl<T : Send> Send for OnceBiVec<T> {}
 unsafe impl<T : Sync> Sync for OnceBiVec<T> {}
+
+use std::io;
+use std::io::{Read, Write};
+use saveload::{Save, Load};
+
+impl<T : Save> Save for OnceVec<T> {
+    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+        unsafe { (&*self.data.get()).save(buffer) }
+    }
+}
+
+impl<T : Save> Save for OnceBiVec<T> {
+    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+        unsafe { (&*self.data.get()).save(buffer) }
+    }
+}
+
+impl<T : Load> Load for OnceVec<T> {
+    type AuxData = <Vec<T> as Load>::AuxData;
+
+    fn load(buffer : &mut impl Read, data : &Self::AuxData) -> io::Result<Self> {
+        Ok(Self {
+            data : UnsafeCell::new(Load::load(buffer, data)?)
+        })
+    }
+}
+
+impl<T : Load> Load for OnceBiVec<T> {
+    type AuxData = <BiVec<T> as Load>::AuxData;
+
+    fn load(buffer : &mut impl Read, data : &Self::AuxData) -> io::Result<Self> {
+        Ok(Self {
+            data : UnsafeCell::new(Load::load(buffer, data)?)
+        })
+    }
+}

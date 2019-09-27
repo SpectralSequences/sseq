@@ -15,6 +15,7 @@ serde_json = "*"
 serde = { version = "*", features = ["derive"] }
 rayon = { version = "*", optional = true }
 thread-token = { path = "thread-token", optional = true }
+saveload = { path = "saveload" }
 enum_dispatch = "0.1.3"
 nom = "5.0.0"
 query = { path = "query" }
@@ -37,7 +38,7 @@ opt-level = 3
 debug = true
 
 [workspace]
-members = ["ext-websocket", "bivec", "compressor", "once", "thread-token"]
+members = ["ext-websocket", "bivec", "compressor", "once", "thread-token", "saveload"]
 
 [features]
 cache-multiplication = []

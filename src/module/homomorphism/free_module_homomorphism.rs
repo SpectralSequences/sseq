@@ -244,3 +244,48 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         self.quasi_inverse.push(quasi_inverse);
     }
 }
+
+use std::io;
+use std::io::{Read, Write};
+use saveload::{Save, Load};
+
+impl<M : Module> Save for FreeModuleHomomorphism<M> {
+    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+        self.outputs.save(buffer)?;
+
+        Ok(())
+    }
+}
+
+impl<M : Module> Load for FreeModuleHomomorphism<M> {
+    type AuxData = (Arc<FreeModule>, Arc<M>, i32);
+
+    fn load(buffer : &mut impl Read, data : &Self::AuxData) -> io::Result<Self> {
+        let source : Arc<FreeModule> = Arc::clone(&data.0);
+        let target : Arc<M> = Arc::clone(&data.1);
+        let degree_shift = data.2;
+        let min_degree = std::cmp::max(source.min_degree(), target.min_degree() + degree_shift);
+        let p = source.prime();
+
+        let outputs : OnceBiVec<Vec<FpVector>> = Load::load(buffer, &(min_degree, p))?;
+        let max_degree = outputs.max_degree();
+
+        let kernel = OnceBiVec::new(min_degree);
+        let quasi_inverse = OnceBiVec::new(min_degree);
+
+        for _ in min_degree ..= max_degree {
+            kernel.push(Subspace::new(p, 0, 0));
+            quasi_inverse.push(QuasiInverse { image : None, preimage : Matrix::new(p, 0, 0) });
+        }
+
+        let max_degree = Mutex::new(max_degree);
+
+        Ok(Self {
+            source, target,
+            outputs,
+            kernel, quasi_inverse,
+            min_degree, max_degree,
+            degree_shift
+        })
+    }
+}

@@ -241,6 +241,36 @@ impl FreeModule {
     }
 }
 
+use std::io;
+use std::io::{Read, Write};
+use saveload::{Save, Load};
+
+impl Save for FreeModule {
+    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+        let num_gens : Vec<usize> = self.table.iter().map(|t| t.num_gens).collect::<Vec<_>>();
+        let num_gens : BiVec<usize> = BiVec::from_vec(self.table.min_degree(), num_gens);
+        num_gens.save(buffer)
+    }
+}
+
+impl Load for FreeModule {
+    type AuxData = (Arc<AlgebraAny>, i32);
+
+    fn load(buffer : &mut impl Read, data : &Self::AuxData) -> io::Result<Self> {
+        let algebra = Arc::clone(&data.0);
+        let p = algebra.prime();
+        let min_degree = data.1;
+
+        let result = FreeModule::new(algebra, "".to_string(), min_degree);
+
+        let num_gens : BiVec<usize> = Load::load(buffer, &(min_degree, ()))?;
+        for (degree, num) in num_gens.iter_enum() {
+            result.add_generators_immediate(degree, *num, None);
+        }
+        Ok(result)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(non_snake_case)]

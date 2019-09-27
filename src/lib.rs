@@ -528,6 +528,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
     }
 }
 
+#[allow(unreachable_code)]
 pub fn run_test() {
     let calculator = crate::steenrod_evaluator::SteenrodCalculator::new(2);
     calculator.compute_basis(20);

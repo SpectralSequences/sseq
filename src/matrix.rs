@@ -1031,6 +1031,52 @@ impl Matrix {
     }
 }
 
+use std::io;
+use std::io::{Read, Write};
+use saveload::{Save, Load};
+
+impl Save for Matrix {
+    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+        self.columns.save(buffer)?;
+        self.vectors.save(buffer)
+    }
+}
+
+impl Load for Matrix {
+    type AuxData = u32;
+
+    fn load(buffer : &mut impl Read, p : &u32) -> io::Result<Self> {
+        let columns = usize::load(buffer, &())?;
+
+        let vectors : Vec<FpVector> = Load::load(buffer, p)?;
+        let mut result = Matrix::from_rows(*p, vectors);
+
+        if result.rows == 0 {
+            result.columns = columns;
+            result.slice_col_end = columns;
+        }
+
+        Ok(result)
+    }
+}
+
+impl Save for Subspace {
+    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+        self.matrix.save(buffer)?;
+        self.column_to_pivot_row.save(buffer)
+    }
+}
+
+impl Load for Subspace {
+    type AuxData = u32;
+
+    fn load(buffer : &mut impl Read, p : &u32) -> io::Result<Self> {
+        let matrix : Matrix = Matrix::load(buffer, p)?;
+        let column_to_pivot_row : Vec<isize> = Load::load(buffer, &())?;
+
+        Ok(Subspace { matrix, column_to_pivot_row })
+    }
+}
 
 
 #[cfg(test)]

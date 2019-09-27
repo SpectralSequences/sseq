@@ -1068,6 +1068,60 @@ impl FpVectorMask {
     }
 }
 
+use std::io;
+use std::io::{Read, Write};
+use saveload::{Save, Load};
+
+impl Save for FpVector {
+    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+        self.dimension().save(buffer)?;
+        for limb in self.limbs().iter() {
+            limb.save(buffer)?;
+        }
+        Ok(())
+    }
+}
+
+impl Load for FpVector {
+    type AuxData = u32;
+
+    fn load(buffer : &mut impl Read, p : &u32) -> io::Result<Self> {
+        let p = *p;
+
+        let dimension = usize::load(buffer, &())?;
+
+        if dimension == 0 {
+            return Ok(FpVector::new(p, 0));
+        }
+
+        let entries_per_64_bits = entries_per_64_bits(p);
+
+        let num_limbs = (dimension - 1) / entries_per_64_bits + 1;
+
+        let mut limbs : Vec<u64> = Vec::with_capacity(num_limbs);
+
+        for _ in 0 .. num_limbs {
+            limbs.push(u64::load(buffer, &())?);
+        }
+
+        let vector_container = VectorContainer {
+            dimension,
+            slice_start : 0,
+            slice_end : dimension,
+            limbs
+        };
+
+        let result = match p  {
+            2 => FpVector::from(FpVector2 { vector_container }),
+            3 => FpVector::from(FpVector3 { vector_container }),
+            5 => FpVector::from(FpVector5 { vector_container }),
+            _ => FpVector::from(FpVectorGeneric { p, vector_container })
+        };
+
+        Ok(result)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1597,4 +1651,3 @@ mod tests {
         }
     }
 }
-

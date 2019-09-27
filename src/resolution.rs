@@ -438,7 +438,22 @@ impl<CC : ChainComplex> Resolution<CC> {
             Vec<Vec<u32>>
         )>>
     ) -> Self {
-        let inner = Arc::new(ResolutionInner::new(complex));
+        let inner = ResolutionInner::new(complex);
+        Self::new_with_inner(inner, add_class, add_structline)
+    }
+
+    pub fn new_with_inner(
+        inner : ResolutionInner<CC>,
+        add_class : Option<Box<dyn Fn(u32, i32, usize)>>,
+        add_structline : Option<Box<dyn Fn(
+            &str,
+            u32, i32,
+            u32, i32,
+            bool,
+            Vec<Vec<u32>>
+        )>>
+    ) -> Self {
+        let inner = Arc::new(inner);
         let min_degree = inner.min_degree();
         let algebra = inner.complex().algebra();
 
@@ -462,6 +477,8 @@ impl<CC : ChainComplex> Resolution<CC> {
             self_maps : Vec::new()
         }
     }
+
+
 
     #[cfg(feature = "concurrent")]
     pub fn resolve_through_bidegree_concurrent(&self, mut max_s : u32, mut max_t : i32, bucket : &Arc<TokenBucket>) {
@@ -930,5 +947,86 @@ impl<CC : ChainComplex> Resolution<CC>
 
     pub fn differential(&self, s : u32) -> Arc<FreeModuleHomomorphism<FreeModule>> {
         self.inner.differential(s)
+    }
+}
+
+use std::io;
+use std::io::{Read, Write};
+use saveload::{Save, Load};
+
+impl<CC : ChainComplex> Save for ResolutionInner<CC> {
+    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+        self.modules.save(buffer)?;
+        self.kernels.save(buffer)?;
+        self.differentials.save(buffer)?;
+        self.chain_maps.save(buffer)?;
+        Ok(())
+    }
+}
+
+impl<CC : ChainComplex> Load for ResolutionInner<CC> {
+    type AuxData = Arc<CC>;
+
+    fn load(buffer : &mut impl Read, cc : &Self::AuxData) -> io::Result<Self> {
+        let mut result = ResolutionInner::new(Arc::clone(cc));
+
+        let algebra = result.algebra();
+        let p = result.prime();
+        let min_degree = result.min_degree();
+
+        result.modules = Load::load(buffer, &(Arc::clone(&algebra), min_degree))?;
+        result.kernels = Load::load(buffer, &(min_degree, Some(p)))?;
+
+        let max_s = result.modules.len();
+        assert!(max_s > 0, "cannot load uninitialized resolution");
+
+        let len = usize::load(buffer, &())?;
+        assert_eq!(len, max_s);
+
+        result.differentials.push(Load::load(buffer, &(result.module(0), result.zero_module(), 0))?);
+        for s in 1 .. max_s as u32 {
+            let d : Arc<FreeModuleHomomorphism<FreeModule>> = Load::load(buffer, &(result.module(s), result.module(s - 1), 0))?;
+            result.differentials.push(d);
+        }
+
+        let len = usize::load(buffer, &())?;
+        assert_eq!(len, max_s);
+
+        for s in 0 .. max_s as u32 {
+            let c : Arc<FreeModuleHomomorphism<CC::Module>> = Load::load(buffer, &(result.module(s), result.complex().module(s), 0))?;
+            result.chain_maps.push(c);
+        }
+
+        Ok(result)
+    }
+}
+
+impl<CC : ChainComplex> Save for Resolution<CC> {
+    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+        let algebra_dim = *self.next_t.lock().unwrap() - self.min_degree() - 1;
+        algebra_dim.save(buffer)?;
+        self.inner.save(buffer)
+    }
+}
+
+impl<CC : ChainComplex> Load for Resolution<CC> {
+    type AuxData = Arc<CC>;
+
+    fn load(buffer : &mut impl Read, cc : &Self::AuxData) -> io::Result<Self> {
+        let dim = i32::load(buffer, &())?;
+        cc.algebra().compute_basis(dim);
+
+        let inner = ResolutionInner::load(buffer, cc)?;
+
+        let result = Resolution::new_with_inner(inner, None, None);
+
+        let next_s = result.inner.modules.len();
+        assert!(next_s > 0, "Cannot load uninitialized resolution");
+        let next_t = result.inner.module(0).max_computed_degree() + 1;
+
+        *result.next_s.lock().unwrap() = next_s as u32;
+        *result.next_t.lock().unwrap() = next_t;
+
+        Ok(result)
     }
 }
