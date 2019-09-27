@@ -502,6 +502,7 @@ pub trait FpVectorT {
         let entries_per_64_bits = entries_per_64_bits(p);
         let usable_bits_per_limb = bit_length * entries_per_64_bits;
         let tail_shift = usable_bits_per_limb - offset_shift;
+        let zero_bits = 64 - usable_bits_per_limb;
         let min_target_limb = self.min_limb();
         let max_target_limb = self.max_limb();
         let min_source_limb = other.min_limb();
@@ -511,13 +512,13 @@ pub trait FpVectorT {
         let target_limbs = self.limbs_mut();
         let source_limbs = other.limbs();
         for i in 1..number_of_source_limbs-1 {
-            target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limbs[i + min_source_limb] << offset_shift, c);
+            target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], (source_limbs[i + min_source_limb] << (offset_shift + zero_bits)) >> zero_bits, c);
             target_limbs[i + min_target_limb + 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb + 1], source_limbs[i + min_source_limb] >> tail_shift, c);
         }
         let mut i = 0; {
             let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limb_masked << offset_shift, c);
+            target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], (source_limb_masked << (offset_shift + zero_bits)) >> zero_bits, c);
             if number_of_target_limbs > 1 {
                 target_limbs[i + min_target_limb + 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb + 1], source_limb_masked >> tail_shift, c);
             }
@@ -526,7 +527,7 @@ pub trait FpVectorT {
         if i > 0 {
             let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limb_masked << offset_shift, c);
+            target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], (source_limb_masked << (offset_shift + zero_bits)) >> zero_bits, c);
             if number_of_target_limbs > number_of_source_limbs {
                 target_limbs[i + min_target_limb + 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb + 1], source_limb_masked >> tail_shift, c);
             }            
@@ -546,6 +547,7 @@ pub trait FpVectorT {
         let entries_per_64_bits = entries_per_64_bits(p);
         let usable_bits_per_limb = bit_length * entries_per_64_bits;
         let tail_shift = usable_bits_per_limb - offset_shift;
+        let zero_bits = 64 - usable_bits_per_limb;
         let min_target_limb = self.min_limb();
         let max_target_limb = self.max_limb();
         let min_source_limb = other.min_limb();
@@ -556,7 +558,7 @@ pub trait FpVectorT {
         let source_limbs = other.limbs();
         for i in 1..number_of_source_limbs-1 {
             target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limbs[i + min_source_limb] >> offset_shift, c);
-            target_limbs[i + min_target_limb - 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb - 1], source_limbs[i + min_source_limb] << tail_shift, c);
+            target_limbs[i + min_target_limb - 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb - 1], (source_limbs[i + min_source_limb] << (tail_shift + zero_bits)) >> zero_bits, c);
         }
         let mut i = 0; {
             let mask = other.limb_mask(i);
@@ -567,7 +569,7 @@ pub trait FpVectorT {
         if i > 0 {
             let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb - 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb - 1], source_limb_masked << tail_shift, c);
+            target_limbs[i + min_target_limb - 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb - 1], (source_limb_masked << (tail_shift + zero_bits)) >> zero_bits, c);
             if number_of_source_limbs == number_of_target_limbs {
                 target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limb_masked >> offset_shift, c);
             }
