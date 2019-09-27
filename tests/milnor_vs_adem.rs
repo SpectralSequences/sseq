@@ -1,5 +1,7 @@
 use rust_ext::Config;
-use rust_ext::run_resolve;
+use rust_ext::construct;
+#[cfg(feature = "concurrent")]
+use thread_token::TokenBucket;
 
 #[test]
 fn milnor_vs_adem() {
@@ -22,16 +24,31 @@ fn compare(module_name : &str, max_degree : i32) {
         max_degree,
         algebra_name : String::from("adem")
     };
-    let m = Config {
+    let b = Config {
         module_paths : vec![path.clone()],
         module_file_name : module_name.to_string(),
         max_degree,
         algebra_name : String::from("milnor")
     };
 
-    match (run_resolve(&a), run_resolve(&m)) {
-        (Err(e), _)    => panic!("Failed to read file: {}", e),
-        (_, Err(e))    => panic!("Failed to read file: {}", e),
-        (Ok(x), Ok(y)) => assert_eq!(x, y)
+    let a = construct(&a).unwrap();
+    let b = construct(&b).unwrap();
+
+    let a = a.resolution.read().unwrap();
+    let b = b.resolution.read().unwrap();
+
+    #[cfg(not(feature = "concurrent"))]
+    {
+        a.resolve_through_degree(max_degree);
+        b.resolve_through_degree(max_degree);
     }
+
+    #[cfg(feature = "concurrent")]
+    {
+        let bucket = std::sync::Arc::new(TokenBucket::new(2));
+        a.resolve_through_degree_concurrent(max_degree, &bucket);
+        b.resolve_through_degree_concurrent(max_degree, &bucket);
+    }
+
+    assert_eq!(a.graded_dimension_string(), b.graded_dimension_string());
 }
