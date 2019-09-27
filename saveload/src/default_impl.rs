@@ -210,5 +210,3 @@ impl<T : Load> Load for Option<T> {
         }
     }
 }
-
-

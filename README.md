@@ -55,6 +55,9 @@ This is a small crate that provides `OnceVec` and `OnceBiVec`, a wrapper around 
 ## query
 This contains some helper functions for a command line interface.
 
+## saveload
+This provides an interface for saving and loading resolutions and other data.
+
 # Compilation
 To compile the main crate, simply run
 ```
