@@ -32,6 +32,7 @@ use saveload::{Save, Load};
 
 use std::error::Error;
 use std::fs::File;
+use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
@@ -270,7 +271,8 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
     if Path::new("resolution.save").exists() {
         print!("Loading saved resolution: ");
         let start = Instant::now();
-        let mut f = File::open("resolution.save")?;
+        let f = File::open("resolution.save")?;
+        let mut f = BufReader::new(f);
         saved_resolution = Resolution::load(&mut f, &bundle.chain_complex)?;
         resolution = &saved_resolution;
         println!("{:?}", start.elapsed());
@@ -302,7 +304,8 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
 
         print!("Saving resolution: ");
         let start = Instant::now();
-        let mut file = File::create("resolution.save")?;
+        let file = File::create("resolution.save")?;
+        let mut file = BufWriter::new(file);
         resolution.save(&mut file)?;
         drop(file);
         println!("{:?}", start.elapsed());

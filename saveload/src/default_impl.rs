@@ -20,7 +20,7 @@ impl Load for bool {
 
     fn load(buffer : &mut impl Read, _ : &()) -> io::Result<Self> {
         let mut bytes : [u8; 1] = [0; 1];
-        buffer.read(&mut bytes)?;
+        buffer.read_exact(&mut bytes)?;
         if bytes[0] == 1 {
             Ok(true)
         } else if bytes[0] == 0 {
@@ -44,7 +44,7 @@ impl Load for i64 {
 
     fn load(buffer : &mut impl Read, _ : &()) -> io::Result<Self> {
         let mut bytes : [u8; 8] = [0; 8];
-        buffer.read(&mut bytes)?;
+        buffer.read_exact(&mut bytes)?;
         Ok(i64::from_le_bytes(bytes))
     }
 }
@@ -62,7 +62,7 @@ impl Load for i32 {
 
     fn load(buffer : &mut impl Read, _ : &()) -> io::Result<Self> {
         let mut bytes : [u8; 4] = [0; 4];
-        buffer.read(&mut bytes)?;
+        buffer.read_exact(&mut bytes)?;
         Ok(i32::from_le_bytes(bytes))
     }
 }
@@ -80,7 +80,7 @@ impl Load for u32 {
 
     fn load(buffer : &mut impl Read, _ : &()) -> io::Result<Self> {
         let mut bytes : [u8; 4] = [0; 4];
-        buffer.read(&mut bytes)?;
+        buffer.read_exact(&mut bytes)?;
         Ok(u32::from_le_bytes(bytes))
     }
 }
@@ -98,7 +98,7 @@ impl Load for u64 {
 
     fn load(buffer : &mut impl Read, _ : &()) -> io::Result<Self> {
         let mut bytes : [u8; 8] = [0; 8];
-        buffer.read(&mut bytes)?;
+        buffer.read_exact(&mut bytes)?;
         Ok(u64::from_le_bytes(bytes))
     }
 }
