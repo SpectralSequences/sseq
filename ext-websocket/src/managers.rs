@@ -4,9 +4,10 @@ use crate::sseq::Sseq;
 use rust_ext::Config;
 use rust_ext::AlgebraicObjectsBundle;
 use rust_ext::CCC;
-use rust_ext::module::Module;
+use rust_ext::module::{Module, FiniteModule, FDModule};
 use rust_ext::resolution::Resolution;
-use rust_ext::chain_complex::ChainComplex;
+use rust_ext::chain_complex::{FiniteChainComplex, ChainComplex};
+use bivec::BiVec;
 use std::error::Error;
 
 use std::sync::{RwLock, Arc};
@@ -31,7 +32,8 @@ pub struct ResolutionManager {
     bucket : Arc<TokenBucket>,
     sender : Sender,
     is_unit : bool,
-    resolution : Option<Arc<RwLock<Resolution<CCC>>>>
+    resolution : Option<Arc<RwLock<Resolution<CCC>>>>,
+    unit_resolution : Option<Arc<RwLock<Resolution<CCC>>>>
 }
 
 impl ResolutionManager {
@@ -46,6 +48,7 @@ impl ResolutionManager {
 
             sender : sender,
             resolution : None,
+            unit_resolution : None,
             is_unit : false,
         }
     }
@@ -64,21 +67,13 @@ impl ResolutionManager {
             Action::Resolve(a) => self.resolve(a, msg.sseq)?,
             Action::BlockRefresh(_) => self.sender.send(msg)?,
             _ => {
-                // Find a better way to make this work.
-                match msg.sseq {
-                    SseqChoice::Main => {
-                        if let Some(resolution) = &self.resolution {
-                            ret = msg.action.act_resolution(resolution);
-                        }
-                    },
-                    SseqChoice::Unit => {
-                        if let Some(main_resolution) = &self.resolution {
-                            if let Some(resolution) = &main_resolution.read().unwrap().unit_resolution {
-                                ret = msg.action.act_resolution(&resolution.upgrade().unwrap());
-                            }
-                        }
-                    }
-                }
+                let resolution = match msg.sseq {
+                    SseqChoice::Main => &self.resolution,
+                    SseqChoice::Unit => &self.unit_resolution
+                };
+                let resolution = resolution.as_ref().unwrap();
+
+                ret = msg.action.act_resolution(resolution);
             }
         };
 
@@ -128,36 +123,49 @@ impl ResolutionManager {
 
     fn process_bundle(&mut self, bundle : AlgebraicObjectsBundle) {
         self.is_unit = bundle.chain_complex.modules.len() == 1 && bundle.chain_complex.module(0).is_unit();
+
         if self.is_unit {
             bundle.resolution.write().unwrap().set_unit_resolution(Arc::downgrade(&bundle.resolution));
+            self.unit_resolution = Some(Arc::clone(&bundle.resolution));
         } else {
-            bundle.resolution.write().unwrap().construct_unit_resolution();
+            let algebra = bundle.resolution.read().unwrap().algebra();
+
+            let unit_module = Arc::new(FiniteModule::from(FDModule::new(algebra, String::from("unit"), BiVec::from_vec(0, vec![1]))));
+            let ccdz = Arc::new(FiniteChainComplex::ccdz(unit_module));
+            let unit_resolution = Arc::new(RwLock::new(Resolution::new(ccdz, None, None)));
+
+            bundle.resolution.write().unwrap().set_unit_resolution(Arc::downgrade(&unit_resolution));
+            self.unit_resolution = Some(Arc::clone(&unit_resolution));
         }
         self.resolution = Some(bundle.resolution);
 
-        if let Some(resolution) = &self.resolution {
-            self.setup_callback(&mut resolution.write().unwrap(), SseqChoice::Main);
-            if !self.is_unit {
-                if let Some(unit_res) = &resolution.read().unwrap().unit_resolution {
-                    self.setup_callback(&mut unit_res.upgrade().unwrap().write().unwrap(), SseqChoice::Unit);
+        let resolution = self.resolution.as_ref().unwrap();
+        let mut resolution = resolution.write().unwrap();
+        self.setup_callback(&mut resolution, SseqChoice::Main);
 
-                }
-            }
+        if !self.is_unit {
+            let unit_resolution = self.unit_resolution.as_ref().unwrap();
+            let mut unit_resolution = unit_resolution.write().unwrap();
+            self.setup_callback(&mut unit_resolution, SseqChoice::Unit);
         }
-   }
+    }
 
     fn resolve(&self, action : Resolve, sseq : SseqChoice) -> Result<(), Box<dyn Error>> {
-        let resolution = &self.resolution.as_ref().unwrap();
-        let min_degree = match sseq {
-            SseqChoice::Main => resolution.read().unwrap().min_degree(),
-            SseqChoice::Unit => 0
+        let resolution = match sseq {
+            SseqChoice::Main => &self.resolution,
+            SseqChoice::Unit => &self.unit_resolution
         };
+
+        let resolution = resolution.as_ref().unwrap();
+        let resolution = resolution.read().unwrap();
+
+        let min_degree = resolution.min_degree();
 
         let msg = Message {
             recipients : vec![],
             sseq,
             action : Action::from(Resolving {
-                p : resolution.read().unwrap().prime(),
+                p : resolution.prime(),
                 min_degree,
                 max_degree : action.max_degree,
                 is_unit : self.is_unit
@@ -166,24 +174,10 @@ impl ResolutionManager {
         self.sender.send(msg)?;
 
         #[cfg(not(feature = "concurrent"))]
-        match sseq {
-            SseqChoice::Main => resolution.read().unwrap().resolve_through_degree(action.max_degree),
-            SseqChoice::Unit => {
-                if let Some(r) = &resolution.read().unwrap().unit_resolution {
-                    r.upgrade().unwrap().read().unwrap().resolve_through_degree(action.max_degree)
-                }
-            }
-        };
+        resolution.resolve_through_degree(action.max_degree);
 
         #[cfg(feature = "concurrent")]
-        match sseq {
-            SseqChoice::Main => resolution.read().unwrap().resolve_through_degree_concurrent(action.max_degree, &self.bucket),
-            SseqChoice::Unit => {
-                if let Some(r) = &resolution.read().unwrap().unit_resolution {
-                    r.upgrade().unwrap().read().unwrap().resolve_through_degree_concurrent(action.max_degree, &self.bucket)
-                }
-            }
-        };
+        resolution.resolve_through_degree_concurrent(action.max_degree, &self.bucket);
 
         Ok(())
     }
