@@ -80,8 +80,8 @@ pub trait Algebra {
     /// Converts a JSON object into a basis element. The way basis elements are represented by JSON
     /// objects is to be specified by the algebra itself, and will be used by module
     /// specifications.
-    fn json_to_basis(&self, json : Value) -> (i32, usize) { unimplemented!() }
-    fn json_from_basis(&self, degree : i32, idx : usize) -> Value { unimplemented!() }
+    fn json_to_basis(&self, _json : Value) -> (i32, usize) { unimplemented!() }
+    fn json_from_basis(&self, _degree : i32, _idx : usize) -> Value { unimplemented!() }
 
     /// Converts a basis element into a string for display.
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
@@ -120,7 +120,7 @@ pub trait Algebra {
     ///
     /// This method need not be fast, because they will only be performed when constructing the module,
     /// and will often only involve low dimensional elements.
-    fn generators(&self, degree : i32) -> Vec<usize> { unimplemented!() }
+    fn generators(&self, _degree : i32) -> Vec<usize> { unimplemented!() }
 
     /// Given a non-generator basis element of the algebra, decompose it in terms of algebra
     /// generators. Recall each basis element is given by a pair $(d, i))$, where $d$ is the degree of
@@ -132,10 +132,10 @@ pub trait Algebra {
     ///
     /// This method need not be fast, because they will only be performed when constructing the module,
     /// and will often only involve low dimensional elements.
-    fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> { unimplemented!() }
+    fn decompose_basis_element(&self, _degree : i32, _idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> { unimplemented!() }
 
     /// Get any relations that the algebra wants checked to ensure the consistency of module.
-    fn relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> { unimplemented!() }
+    fn relations_to_check(&self, _degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> { unimplemented!() }
 }
 
 #[enum_dispatch(Algebra)]

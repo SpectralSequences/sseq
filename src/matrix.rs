@@ -223,11 +223,11 @@ impl std::ops::DerefMut for Matrix {
 }
 
 impl Matrix {
-    fn iter(&self) -> std::slice::Iter<FpVector> {
+    pub fn iter(&self) -> std::slice::Iter<FpVector> {
         (*self.vectors)[self.slice_row_start .. self.slice_row_end].iter()
     }
 
-    fn iter_mut(&mut self) -> std::slice::IterMut<FpVector> {
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<FpVector> {
         (*self.vectors)[self.slice_row_start .. self.slice_row_end].iter_mut()
     }
 }
@@ -1114,7 +1114,7 @@ mod tests {
             let mut output_pivots_cvec = vec![-1; cols];
             m.row_reduce(&mut output_pivots_cvec);
             let mut unpacked_row : Vec<u32> = vec![0; cols];
-            for (i,x) in input.iter().enumerate(){
+            for i in 0 .. input.len() {
                 m[i].unpack(&mut unpacked_row);
                 assert_eq!(unpacked_row, goal_output[i]);
             }

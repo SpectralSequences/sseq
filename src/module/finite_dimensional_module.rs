@@ -271,7 +271,6 @@ impl FiniteDimensionalModule {
     pub fn from_json(algebra : Arc<AlgebraAny>, json : &mut Value) -> Self {
         let gens = json["gens"].take();
         let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(&gens);
-        let min_degree = graded_dimension.min_degree();
         let name = json["name"].as_str().unwrap().to_string();
         let mut actions_value = json[algebra.algebra_type().to_owned() + "_actions"].take();
         let actions = actions_value.as_array_mut().unwrap();

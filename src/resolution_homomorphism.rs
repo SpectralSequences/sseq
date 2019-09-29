@@ -10,6 +10,7 @@ use crate::resolution::ResolutionInner;
 use crate::CCC;
 
 pub struct ResolutionHomomorphism<CC1 : ChainComplex, CC2 : AugmentedChainComplex> {
+    #[allow(dead_code)]
     name : String,
     source : Weak<ResolutionInner<CC1>>,
     target : Weak<CC2>,

@@ -46,6 +46,7 @@ fn rate_adem_operation(algebra : &AdemAlgebra, deg : i32, idx: usize) -> i32 {
     pref
 }
 
+#[allow(dead_code)]
 fn operation_drop(algebra : &AdemAlgebra, deg : i32, idx: usize) -> i32 {
     if algebra.prime() != 2 {
         return 1;
@@ -218,7 +219,7 @@ where TCM : BoundedModule,
                 chosen_cols.insert(image);
             }
 
-            let mut pivot_columns = pivot_columns.iter().map(|(p, i)| i).collect::<Vec<_>>();
+            let mut pivot_columns = pivot_columns.iter().map(|(_p, i)| i).collect::<Vec<_>>();
             pivot_columns.sort();
 
             let d = cc.differential(s);

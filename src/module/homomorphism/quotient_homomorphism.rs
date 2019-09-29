@@ -36,15 +36,15 @@ impl<F : ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphism<F> {
         self.t.old_basis_to_new(output_degree, result, &result_);
     }
 
-    fn kernel(&self, degree : i32) -> &Subspace {
+    fn kernel(&self, _degree : i32) -> &Subspace {
         unimplemented!();
     }
 
-    fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
+    fn quasi_inverse(&self, _degree : i32) -> &QuasiInverse {
         unimplemented!();
     }
 
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
+    fn compute_kernels_and_quasi_inverses_through_degree(&self, _degree : i32) {
         unimplemented!();
     }
 }
@@ -74,15 +74,15 @@ impl<F : ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphismSource<F
         self.f.apply_to_basis_element(result, coeff, input_degree, self.s.basis_list[input_degree][input_idx]);
     }
 
-    fn kernel(&self, degree : i32) -> &Subspace {
+    fn kernel(&self, _degree : i32) -> &Subspace {
         unimplemented!();
     }
 
-    fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
+    fn quasi_inverse(&self, _degree : i32) -> &QuasiInverse {
         unimplemented!();
     }
 
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
+    fn compute_kernels_and_quasi_inverses_through_degree(&self, _degree : i32) {
         unimplemented!();
     }
 }

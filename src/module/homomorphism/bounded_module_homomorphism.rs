@@ -48,7 +48,7 @@ impl<S : BoundedModule, T : Module> ModuleHomomorphism for BoundedModuleHomomorp
     }
 
     fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
-        let lock = self.lock.lock().unwrap();
+        let _lock = self.lock.lock().unwrap();
 
         let max_degree = std::cmp::min(degree + 1, self.matrices.len());
         let next_degree = self.kernels.len();

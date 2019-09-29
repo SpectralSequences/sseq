@@ -30,14 +30,14 @@ impl Algebra for Field {
         &"field"
     }
 
-    fn compute_basis(&self, degree : i32){}
+    fn compute_basis(&self, _degree : i32){}
 
     /// Gets the dimension of the algebra in degree `degree`.
-    fn dimension(&self, degree : i32, excess : i32) -> usize {
+    fn dimension(&self, degree : i32, _excess : i32) -> usize {
         if degree == 0 { 1 } else { 0 }
     }
 
-    fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32) {
+    fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, _r_degree : i32, _r_idx : usize, _s_degree: i32, _s_idx : usize, _excess : i32) {
         result.add_basis_element(0, coeff)
     }
 
@@ -48,16 +48,16 @@ impl Algebra for Field {
     /// Converts a JSON object into a basis element. The way basis elements are represented by JSON
     /// objects is to be specified by the algebra itself, and will be used by module
     /// specifications.
-    fn json_to_basis(&self, json : Value) -> (i32, usize) {
+    fn json_to_basis(&self, _json : Value) -> (i32, usize) {
         (0, 0)
     }
 
-    fn json_from_basis(&self, degree : i32, idx : usize) -> Value {
+    fn json_from_basis(&self, _degree : i32, _idx : usize) -> Value {
         json!({})
     }
 
     /// Converts a basis element into a string for display.
-    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
+    fn basis_element_to_string(&self, degree : i32, _idx : usize) -> String {
         assert!(degree == 0);
         "1".to_string()
     }
@@ -67,24 +67,24 @@ impl Algebra for Field {
         format!("{}", element.entry(0))
     }
 
-    fn generators(&self, degree : i32) -> Vec<usize> {
+    fn generators(&self, _degree : i32) -> Vec<usize> {
         vec![]
     }
 
-    fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
+    fn decompose_basis_element(&self, _degree : i32, _idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
         vec![]
     }
 
-    fn relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
+    fn relations_to_check(&self, _degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
         vec![]
     }
 }
 
 impl Bialgebra for Field {
-    fn coproduct (&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize, i32, usize)> {
+    fn coproduct (&self, _op_deg : i32, _op_idx : usize) -> Vec<(i32, usize, i32, usize)> {
         vec![(1, 0, 1, 0)]
     }
-    fn decompose (&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize)> {
+    fn decompose (&self, _op_deg : i32, _op_idx : usize) -> Vec<(i32, usize)> {
         vec![(1, 0)]
     }
 }

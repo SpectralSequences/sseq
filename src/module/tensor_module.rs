@@ -193,7 +193,8 @@ impl<M : Module, N : Module> Module for TensorModule<M, N> {
         }
     }
 
-    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String { String::from("") }
+    /// TODO: Implement
+    fn basis_element_to_string(&self, _degree : i32, _idx : usize) -> String { String::from("") }
 }
 
 impl<M : BoundedModule, N : BoundedModule> BoundedModule for TensorModule<M, N> {

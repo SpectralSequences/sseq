@@ -919,8 +919,6 @@ impl<'a> FpVectorIterator<'a> {
         let bit_length = bit_length(p);
         let cur_limb = limbs[pair.limb] >> pair.bit_index;
 
-        let offset = vec.offset();
-
         let entries_per_64_bits = entries_per_64_bits(p);
         FpVectorIterator {
             limbs,
@@ -1132,7 +1130,7 @@ mod tests {
     fn random_vector(p : u32, dimension : usize) -> Vec<u32> {
         let mut result = Vec::with_capacity(dimension);
         let mut rng = rand::thread_rng();
-        for i in 0..dimension {
+        for _ in 0..dimension {
             result.push(rng.gen::<u32>() % p);
         }
         return result;
@@ -1149,7 +1147,7 @@ mod tests {
             v.pack(&v_arr);
             v.reduce_limbs(v.min_limb(), v.max_limb());
             let mut result = Vec::with_capacity(*dim);
-            for i in 0..*dim {
+            for _ in 0..*dim {
                 result.push(0);
             }
             v.unpack(&mut result);
@@ -1173,7 +1171,7 @@ mod tests {
             let mut v_arr = random_vector(p, *dim);
             let w_arr = random_vector(p, *dim);
             let mut result = Vec::with_capacity(*dim);
-            for i in 0..*dim {
+            for _ in 0..*dim {
                 result.push(0);
             }
             v.pack(&v_arr);
@@ -1203,7 +1201,7 @@ mod tests {
             let mut result = Vec::with_capacity(*dim);
             let mut rng = rand::thread_rng();
             let c = rng.gen::<u32>() % p;
-            for i in 0..*dim {
+            for _ in 0..*dim {
                 result.push(0);
             }
             v.pack(&v_arr);
@@ -1408,7 +1406,7 @@ mod tests {
             let v_arr = random_vector(p, *dim);
             let w_arr = random_vector(p, *dim);
             let mut result = Vec::with_capacity(*dim);
-            for i in 0..*dim {
+            for _ in 0..*dim {
                 result.push(0);
             }
             v.pack(&v_arr);

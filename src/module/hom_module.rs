@@ -132,7 +132,7 @@ impl<M : BoundedModule> Module for HomModule<M> {
         self.block_structures[degree].total_dimension
     }
 
-    fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize) {
+    fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, _mod_degree : i32, mod_index : usize) {
         assert!(op_degree == 0);
         assert!(op_index == 0);
         result.add_basis_element(mod_index, coeff);    
@@ -179,7 +179,6 @@ mod tests {
         }
         let f_degree = 0;
         let x_degree = 4;
-        let hom_dim = hom.dimension(f_degree);
         let out_degree = x_degree - f_degree;
         let mut x = FpVector::new(2, F.dimension(x_degree));
         let mut result = FpVector::new(2, M.dimension(out_degree));

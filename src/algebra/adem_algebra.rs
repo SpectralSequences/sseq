@@ -90,6 +90,7 @@ impl std::fmt::Display for AdemBasisElement {
     }
 }
 
+#[allow(dead_code)]
 fn adem_basis_element_excess_sort_order(a : &AdemBasisElement, b : &AdemBasisElement) -> Ordering{
     match(a.excess, b.excess){
         (x,y) if x > y => Ordering::Greater,
@@ -100,6 +101,7 @@ fn adem_basis_element_excess_sort_order(a : &AdemBasisElement, b : &AdemBasisEle
 }
 
 // We need this for generic basis generation.
+#[allow(dead_code)]
 fn adem_basis_element_length_sort_order(a : &AdemBasisElement, b : &AdemBasisElement) -> Ordering {
     match(a.ps.len(), b.ps.len()){
         (x,y) if x > y => Ordering::Greater,
@@ -128,6 +130,7 @@ pub struct AdemAlgebra {
     basis_element_to_index_map : OnceVec<HashMap<AdemBasisElement, usize>>, // degree -> AdemBasisElement -> index
     multiplication_table : OnceVec<Vec<Vec<FpVector>>>,// degree -> first square -> admissibile sequence idx -> result vector
 //    excess_table : OnceVec<Vec<u32>>,
+    #[allow(dead_code)]
     sort_order : Option<fn(&AdemBasisElement, &AdemBasisElement) -> Ordering>
 }
 
@@ -200,7 +203,7 @@ impl Algebra for AdemAlgebra {
         *next_degree = max_degree + 1;
     }
 
-    fn dimension(&self, degree : i32, excess : i32) -> usize {
+    fn dimension(&self, degree : i32, _excess : i32) -> usize {
         if degree < 0 {
             return 0;
         }

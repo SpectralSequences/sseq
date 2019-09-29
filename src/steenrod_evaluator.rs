@@ -71,7 +71,7 @@ fn evaluate_algebra_tree_helper(
     match tree {
         AlgebraParseNode::Sum(left, right) => {
             let (degree_left, mut output_left) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, output_degree, *left)?;
-            let (degree_right, output_right) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, Some(degree_left), *right)?;
+            let (_degree_right, output_right) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, Some(degree_left), *right)?;
             output_left.add(&output_right, 1);
             return Ok((degree_left, output_left));
         }
@@ -187,7 +187,7 @@ fn evaluate_module_tree_helper<M : Module>(
     match tree {
         ModuleParseNode::Sum(left, right) => {
             let (degree_left, mut output_left) = evaluate_module_tree_helper(adem_algebra, milnor_algebra, module, basis_elt_lookup, output_degree, *left)?;
-            let (degree_right, output_right) = evaluate_module_tree_helper(adem_algebra, milnor_algebra, module, basis_elt_lookup, Some(degree_left), *right)?;
+            let (_degree_right, output_right) = evaluate_module_tree_helper(adem_algebra, milnor_algebra, module, basis_elt_lookup, Some(degree_left), *right)?;
             output_left.add(&output_right, 1);
             return Ok((degree_left, output_left));
         }
@@ -213,7 +213,7 @@ fn evaluate_module_tree_helper<M : Module>(
 
 fn evaluate_module_basis_element<M : Module>(
     adem_algebra : &AdemAlgebra, 
-    milnor_algebra : &MilnorAlgebra, 
+    _milnor_algebra : &MilnorAlgebra,
     module : &M,
     basis_elt_lookup : &HashMap<String, (i32, usize)>, 
     output_degree : Option<i32>, basis_elt : String

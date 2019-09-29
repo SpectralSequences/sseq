@@ -248,17 +248,17 @@ impl Algebra for MilnorAlgebra {
         *next_degree = max_degree + 1;
     }
 
-    fn dimension(&self, degree : i32, excess : i32) -> usize {
+    fn dimension(&self, degree : i32, _excess : i32) -> usize {
         self.basis_table[degree as usize].len()
     }
 
     #[cfg(not(feature = "cache-multiplication"))]
-    fn multiply_basis_elements(&self, result : &mut FpVector, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32) {
+    fn multiply_basis_elements(&self, result : &mut FpVector, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, _excess : i32) {
         self.multiply(result, coef, &self.basis_table[r_degree as usize][r_idx], &self.basis_table[s_degree as usize][s_idx]);
     }
 
     #[cfg(feature = "cache-multiplication")]
-    fn multiply_basis_elements(&self, result : &mut FpVector, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32) {
+    fn multiply_basis_elements(&self, result : &mut FpVector, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, _excess : i32) {
         result.shift_add(&self.multiplication_table[r_degree as usize][s_degree as usize][r_idx][s_idx], coef);
     }
 

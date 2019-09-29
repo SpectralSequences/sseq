@@ -104,7 +104,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ChainComplex for TensorChainComplex
         self.left_cc.compute_through_bidegree(s, t - self.right_cc.min_degree());
         self.right_cc.compute_through_bidegree(s, t - self.left_cc.min_degree());
 
-        let lock = self.lock.lock().unwrap();
+        let _lock = self.lock.lock().unwrap();
 
         for i in self.modules.len() as u32 ..= s {
             let new_module_list : Vec<Arc<TensorModule<CC1::Module, CC2::Module>>> =
@@ -143,9 +143,9 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ChainComplex for TensorChainComplex
         }
     }
 
-    fn set_homology_basis(&self, homological_degree : u32, internal_degree : i32, homology_basis : Vec<usize>) { unimplemented!() }
-    fn homology_basis(&self, homological_degree : u32, internal_degree : i32) -> &Vec<usize> { unimplemented!() }
-    fn max_homology_degree(&self, homological_degree : u32) -> i32 { unimplemented!() }
+    fn set_homology_basis(&self, _homological_degree : u32, _internal_degree : i32, _homology_basis : Vec<usize>) { unimplemented!() }
+    fn homology_basis(&self, _homological_degree : u32, _internal_degree : i32) -> &Vec<usize> { unimplemented!() }
+    fn max_homology_degree(&self, _homological_degree : u32) -> i32 { unimplemented!() }
 }
 
 pub struct TensorChainMap<CC1 : ChainComplex, CC2 : ChainComplex> {
@@ -215,12 +215,12 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainM
         }
     }
 
-    fn kernel(&self, degree : i32) -> &Subspace {
+    fn kernel(&self, _degree : i32) -> &Subspace {
         panic!("Kernels not calculated for TensorChainMap");
     }
 
-    fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
-        panic!("Use apply_quassi_inverse instead");
+    fn quasi_inverse(&self, _degree : i32) -> &QuasiInverse {
+        panic!("Use apply_quasi_inverse instead");
     }
 
     fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {

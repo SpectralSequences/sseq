@@ -95,7 +95,7 @@ pub trait Module : Send + Sync + 'static {
     /// Returns a borrow of the value of the corresponding action on the basis element. This
     /// FpVector must be "pure", i.e. it is not sliced and the limbs are zero in indices greater
     /// than the dimension of the vector.
-    fn act_on_basis_borrow(&self, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize) -> &FpVector { unimplemented!() }
+    fn act_on_basis_borrow(&self, _op_degree : i32, _op_index : usize, _mod_degree : i32, _mod_index : usize) -> &FpVector { unimplemented!() }
 
     fn act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector){
         assert!(input.dimension() == self.dimension(input_degree));

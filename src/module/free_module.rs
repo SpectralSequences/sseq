@@ -258,7 +258,6 @@ impl Load for FreeModule {
 
     fn load(buffer : &mut impl Read, data : &Self::AuxData) -> io::Result<Self> {
         let algebra = Arc::clone(&data.0);
-        let p = algebra.prime();
         let min_degree = data.1;
 
         let result = FreeModule::new(algebra, "".to_string(), min_degree);
@@ -293,11 +292,7 @@ mod tests {
             let (lock, table) = M.construct_table(i);
             M.add_generators(i, lock, table, 0, None);
         }
-        let op_deg = 2;
-        let op_idx = 0;
-        let input_deg = 4;
-        let input_idx = 0;
-        let output_deg = op_deg + input_deg;
+        let output_deg = 6;
         let output_dim = M.dimension(output_deg);
         for i in 0..9 {
             assert_eq!(M.dimension(i), A.dimension(i,0) + A.dimension(i-1,1));

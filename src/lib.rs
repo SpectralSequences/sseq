@@ -1,6 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-
 pub mod combinatorics;
 pub mod fp_vector;
 pub mod matrix;
@@ -368,7 +365,6 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
         println!("{:?}", start.elapsed());
 
         println!("Computing Steenrod operations: ");
-        let start = Instant::now();
 
         let mut delta = Vec::with_capacity(s as usize);
 
@@ -395,7 +391,6 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
         #[cfg(feature = "concurrent")]
         let mut handles : Vec<Vec<JoinHandle<()>>> = Vec::with_capacity(s as usize + 1);
 
-        #[cfg(feature = "concurrent")]
         let start = Instant::now();
 
         // We use the formula d Δ_i + Δ_i d = Δ_{i-1} + τΔ_{i-1}
@@ -411,6 +406,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
             #[cfg(feature = "concurrent")]
             let mut last_receiver : Option<mpsc::Receiver<()>> = None;
 
+            #[cfg(feature = "concurrent")]
             let top_s = 2 * s - i;
 
             for s in 0 ..= 2 * s - i {
@@ -571,7 +567,6 @@ pub fn run_test() -> Result<(), Box<dyn Error>> {
     let idx : usize = 0;
 
     let t = s as i32 + x;
-    let start = Instant::now();
     resolution.resolve_through_bidegree(s, t);
 
     let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution.inner), s, t, idx));

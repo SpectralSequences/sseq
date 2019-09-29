@@ -24,7 +24,7 @@ impl FPModuleT for FiniteModule {
     }
     fn generators(&self) -> &Arc<FreeModule> {
         match self {
-             FiniteModule::FDModule(m) => panic!("Finite Dimensional Module is not finitely presented"),
+             FiniteModule::FDModule(_) => panic!("Finite Dimensional Module is not finitely presented"),
              FiniteModule::FPModule(m) => &m.generators
         }
     }

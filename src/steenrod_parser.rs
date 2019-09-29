@@ -132,7 +132,7 @@ fn algebra_term(i: &str) -> IResult<&str, AlgebraParseNode> {
     fold_many0(
         pair(alt((char('*'), char(' '))), algebra_factor),
         first_factor,
-        |acc, (op, val): (char, AlgebraParseNode)| {
+        |acc, (_op, val): (char, AlgebraParseNode)| {
             AlgebraParseNode::Product(Box::new(acc), Box::new(val))
         }
     )(i)
@@ -144,7 +144,7 @@ fn algebra_expr(i: &str) -> IResult<&str, AlgebraParseNode> {
   fold_many0(
     pair(alt((char('+'), char('-'))), algebra_term),
     init,
-    |acc, (op, val): (char, AlgebraParseNode)| {
+    |acc, (_op, val): (char, AlgebraParseNode)| {
         AlgebraParseNode::Sum(Box::new(acc), Box::new(val))
     }
   )(i)
@@ -197,7 +197,7 @@ fn module_expr(i: &str) -> IResult<&str, ModuleParseNode> {
   fold_many0(
     pair(alt((char('+'), char('-'))), module_term),
     init,
-    |acc, (op, val): (char, ModuleParseNode)| {
+    |acc, (_op, val): (char, ModuleParseNode)| {
         ModuleParseNode::Sum(Box::new(acc), Box::new(val))
     }
   )(i)

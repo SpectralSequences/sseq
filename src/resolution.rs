@@ -324,11 +324,11 @@ impl<CC : ChainComplex> ChainComplex for ResolutionInner<CC>
         self.complex().min_degree()
     }
 
-    fn set_homology_basis(&self, homological_degree : u32, internal_degree : i32, homology_basis : Vec<usize>){
+    fn set_homology_basis(&self, _homological_degree : u32, _internal_degree : i32, _homology_basis : Vec<usize>){
         unimplemented!()
     }
 
-    fn homology_basis(&self, homological_degree : u32, internal_degree : i32) -> &Vec<usize>{
+    fn homology_basis(&self, _homological_degree : u32, _internal_degree : i32) -> &Vec<usize>{
         unimplemented!()
     }
 
@@ -336,7 +336,7 @@ impl<CC : ChainComplex> ChainComplex for ResolutionInner<CC>
         self.number_of_gens_in_bidegree(homological_degree, internal_degree)
     }
 
-    fn max_homology_degree(&self, homological_degree : u32) -> i32 {
+    fn max_homology_degree(&self, _homological_degree : u32) -> i32 {
         unimplemented!()
     }
 
@@ -890,7 +890,6 @@ impl<CC : ChainComplex> Resolution<CC> {
 
     /// We compute the products by self maps where the result has degree (s, t).
     fn compute_self_maps(&self, target_s : u32, target_t : i32) {
-        let p = self.prime();
         for f in &self.self_maps {
             if target_s < f.s {
                 return;

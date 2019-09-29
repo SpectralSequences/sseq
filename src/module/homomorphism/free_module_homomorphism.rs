@@ -50,7 +50,7 @@ impl<M : Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
     }
 
     fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
-        let lock = self.lock();
+        let _lock = self.lock();
         let kernel_len = self.kernel.len();
         let qi_len = self.quasi_inverse.len();
         assert_eq!(kernel_len, qi_len);
