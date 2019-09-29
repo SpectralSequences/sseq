@@ -49,12 +49,12 @@ impl Matrix {
     /// Produces a matrix from a list of rows. If `vectors.len() == 0`, this returns a matrix
     /// with 0 rows and columns.  The function does not check if the rows have the same length,
     /// but please only input rows that do have the same length.
-    pub fn from_rows(p : u32, vectors : Vec<FpVector>) -> Self {
+    pub fn from_rows(p : u32, vectors : Vec<FpVector>, columns : usize) -> Self {
         let rows = vectors.len();
-        if rows == 0 {
-            return Matrix::new(p, 0, 0);
+        for row in vectors.iter() {
+            debug_assert_eq!(row.dimension(), columns);
         }
-        let columns = vectors[0].dimension();
+
         Matrix {
             p,
             rows, columns,
@@ -64,7 +64,9 @@ impl Matrix {
         }
     }
 
-    /// Produces a Matrix from an `&[Vec<u32>]` object
+    /// Produces a Matrix from an `&[Vec<u32>]` object. If the number of rows is 0, the number
+    /// of columns is also assumed to be zero.
+    ///
     /// # Example
     /// ```
     /// let p = 7;
@@ -1049,14 +1051,7 @@ impl Load for Matrix {
         let columns = usize::load(buffer, &())?;
 
         let vectors : Vec<FpVector> = Load::load(buffer, p)?;
-        let mut result = Matrix::from_rows(*p, vectors);
-
-        if result.rows == 0 {
-            result.columns = columns;
-            result.slice_col_end = columns;
-        }
-
-        Ok(result)
+        Ok(Matrix::from_rows(*p, vectors, columns))
     }
 }
 

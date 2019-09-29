@@ -530,7 +530,7 @@ impl Sseq {
             vectors.push(result);
         }
 
-        let mut matrix = Matrix::from_rows(p, vectors);
+        let mut matrix = Matrix::from_rows(p, vectors, source_dim);
         let mut pivots = vec![-1; matrix.columns()];
         matrix.row_reduce(&mut pivots);
 
@@ -588,7 +588,7 @@ impl Sseq {
             dvec.set_to_zero();
         }
 
-        let mut matrix = Matrix::from_rows(self.p, vectors);
+        let mut matrix = Matrix::from_rows(self.p, vectors, source_dim + target_dim);
         let mut pivots = vec![-1; matrix.columns()];
         matrix.row_reduce_offset(&mut pivots, source_dim);
 

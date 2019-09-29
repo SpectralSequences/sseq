@@ -124,7 +124,7 @@ mod tests {
         }
 
         let i = 2;
-        let mut matrix = Matrix::from_rows(p, vec![FpVector::from_vec(p, &[1, 1, 1])]);
+        let mut matrix = Matrix::from_rows(p, vec![FpVector::from_vec(p, &[1, 1, 1])], 3);
         d.add_generators_from_matrix_rows(&lock, i, &mut matrix, 0, 0);
         *lock += 1;
 

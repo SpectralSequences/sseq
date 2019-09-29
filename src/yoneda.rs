@@ -399,7 +399,7 @@ fn compute_kernel_image<M : BoundedModule, F : ModuleHomomorphism, G : ModuleHom
         result.set_entry(padded_source_degree + total_padded_degree + i, 1);
         matrix_rows.push(result);
     }
-    let mut matrix = Matrix::from_rows(p, matrix_rows);
+    let mut matrix = Matrix::from_rows(p, matrix_rows, total_cols);
     let mut pivots = vec![-1; total_cols];
     matrix.row_reduce(&mut pivots);
 
@@ -421,12 +421,7 @@ fn compute_kernel_image<M : BoundedModule, F : ModuleHomomorphism, G : ModuleHom
     for i in first_image_row .. matrix.rows() {
         images.push(matrix[i].clone());
     }
-    let image_matrix;
-    if images.len() > 0 {
-        image_matrix = Matrix::from_rows(p, images);
-    } else {
-        image_matrix = Matrix::new(p, 0, source_orig_dimension);
-    }
+    let image_matrix = Matrix::from_rows(p, images, source_orig_dimension);
     (matrix, image_matrix)
 }
 
@@ -490,7 +485,7 @@ fn compute_kernel_image<M : BoundedModule, F : ModuleHomomorphism, G : ModuleHom
 //                        matrix_rows.push(result);
 //                    }
 //
-//                    let mut matrix = Matrix::from_rows(p, matrix_rows);
+//                    let mut matrix = Matrix::from_rows(p, matrix_rows, total_cols);
 //                    let mut pivots = vec![-1; total_cols];
 //                    matrix.row_reduce(&mut pivots);
 //
