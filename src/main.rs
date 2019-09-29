@@ -22,8 +22,8 @@ fn main() {
             result = run_define_module();
         },
         ("test", Some(_sub_m)) => {
-            run_test();
-            std::process::exit(0);
+            run_test().unwrap();
+            return;
         },
         ("yoneda", Some(_sub_m)) => {
             result = run_yoneda(&get_config(matches));
