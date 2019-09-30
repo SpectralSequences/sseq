@@ -176,7 +176,7 @@ impl Algebra for MilnorAlgebra {
         } else {
             let mut max = 4;
             if self.profile.p_part.len() > 0 {
-                max = self.profile.p_part[0];
+                max = std::cmp::min(4, self.profile.p_part[0]);
             } else if self.profile.truncated {
                 max = 0;
             }
