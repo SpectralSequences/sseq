@@ -245,7 +245,7 @@ impl Module for FinitelyPresentedModule {
         qi.image.as_ref().unwrap().reduce(&mut temp_vec);
         for i in 0..result.dimension() {
             let value = temp_vec.entry(self.fp_idx_to_gen_idx(out_deg, i));
-            result.set_entry(i, value);
+            result.add_basis_element(i, value);
         }
     }
 
