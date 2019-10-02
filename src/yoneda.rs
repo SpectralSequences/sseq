@@ -74,7 +74,7 @@ fn split_mut_borrow<T> (v : &mut Vec<T>, i : usize, j : usize) -> (&mut T, &mut 
 pub fn yoneda_representative_element<TCM, TC, CC>(cc : Arc<CC>, s : u32, t : i32, idx : usize) -> Yoneda<CC>
 where TCM : BoundedModule,
       TC : ChainComplex<Module=TCM> + BoundedChainComplex,
-      CC : AugmentedChainComplex<TargetComplex=TC, Module=FreeModule> {
+      CC : AugmentedChainComplex<TargetComplex=TC, Module=FreeModule, ChainMap=FreeModuleHomomorphism<TCM>> {
     let p = cc.prime();
 
     let target = FDModule::new(cc.algebra(), "".to_string(), BiVec::from_vec(0, vec![1]));
@@ -94,12 +94,11 @@ where TCM : BoundedModule,
 }
 
 /// This function produces a quasi-isomorphic quotient of `cc` (as an augmented chain complex) that `map` factors through
-pub fn yoneda_representative<TCM, TC, CC, CMM, CMF>(cc : Arc<CC>, map : ChainMap<CMF>) -> Yoneda<CC>
+pub fn yoneda_representative<TCM, TC, CC, CMM>(cc : Arc<CC>, map : ChainMap<FreeModuleHomomorphism<CMM>>) -> Yoneda<CC>
 where TCM : BoundedModule,
       TC : ChainComplex<Module=TCM> + BoundedChainComplex,
-      CC : AugmentedChainComplex<TargetComplex=TC, Module=FreeModule>,
-      CMM : BoundedModule,
-      CMF : ModuleHomomorphism<Source=CC::Module, Target=CMM>
+      CC : AugmentedChainComplex<TargetComplex=TC, Module=FreeModule, ChainMap=FreeModuleHomomorphism<TCM>>,
+      CMM : BoundedModule
 {
     yoneda_representative_with_strategy(cc, map,
         |module : &FreeModule, subspace : &Subspace, t : i32, i : usize| {
@@ -116,12 +115,11 @@ where TCM : BoundedModule,
         })
 }
 
-pub fn yoneda_representative_with_strategy<TCM, TC, CC, CMM, CMF, F>(cc : Arc<CC>, map : ChainMap<CMF>, strategy : F) -> Yoneda<CC>
+pub fn yoneda_representative_with_strategy<TCM, TC, CC, CMM, F>(cc : Arc<CC>, map : ChainMap<FreeModuleHomomorphism<CMM>>, strategy : F) -> Yoneda<CC>
 where TCM : BoundedModule,
       TC : ChainComplex<Module=TCM> + BoundedChainComplex,
-      CC : AugmentedChainComplex<TargetComplex=TC>,
+      CC : AugmentedChainComplex<TargetComplex=TC, Module=FreeModule, ChainMap=FreeModuleHomomorphism<TCM>>,
       CMM : BoundedModule,
-      CMF : ModuleHomomorphism<Source=CC::Module, Target=CMM>,
       F : Fn(&CC::Module, &Subspace, i32, usize) -> i32 {
     let p = cc.prime();
     let target_cc = cc.target();
@@ -135,29 +133,23 @@ where TCM : BoundedModule,
         map.chain_maps[0].degree_shift() + map.chain_maps.iter().map(|m| m.target().max_degree()).max().unwrap()
     );
 
+    let t_min = cc.min_degree();
+
     let mut modules = (0 ..= s_max).map(|s| QM::new(Arc::new(TM::new(cc.module(s), t_max)))).collect::<Vec<_>>();
 
     for m in &modules {
         m.compute_basis(t_max); // populate masks/basis
     }
 
-    for t in (0 ..= t_max).rev() {
-        for s in (1 ..= s_max).rev() {
-            if t - (s as i32) < cc.min_degree() {
-                continue;
-            }
+    for s in (1 ..= s_max).rev() {
+        let mut differential_images : BiVec<Subspace> = BiVec::with_capacity(t_min, t_max + 1);
 
-            if cc.module(s).dimension(t) == 0 {
-                continue;
-            }
+        if s < s_max {
+            let prev = &modules[s as usize + 1];
+            let curr = &modules[s as usize];
+            let d = cc.differential(s + 1);
 
-            let keep : Option<Subspace>;
-            // Now compute the image of the differentials, if any.
-            if s < s_max {
-                let prev = &modules[s as usize + 1];
-                let curr = &modules[s as usize];
-                let d = cc.differential(s + 1);
-
+            for t in t_min ..= t_max {
                 let prev_dim = prev.dimension(t);
                 let curr_orig_dim = curr.module.dimension(t);
 
@@ -172,16 +164,175 @@ where TCM : BoundedModule,
                 let mut pivots = vec![-1; curr_orig_dim];
                 differentials.row_reduce(&mut pivots);
 
-                keep = Some(Subspace {
+                differential_images.push(Subspace {
                     matrix : differentials,
                     column_to_pivot_row : pivots
                 });
+            }
+        }
+
+        let (target, source) = split_mut_borrow(&mut modules, s as usize - 1, s as usize);
+        let d = cc.differential(s);
+        if s < s_max {
+            let dims_with_gens = source.module.module.table[t_max].generator_to_index.iter_enum()
+                .filter(|(_, x)| x.len() > 0)
+                .map(|(i, _)| i)
+                .collect::<Vec<_>>();
+
+            let mut prev_differentials : BiVec<Option<Subspace>> = BiVec::with_capacity(t_min, t_max + 1);
+            let mut prev_subspaces : BiVec<Option<Subspace>> = BiVec::with_capacity(t_min, t_max + 1);
+            let mut prev_basis_list : BiVec<Option<Vec<usize>>> = BiVec::with_capacity(t_min, t_max + 1);
+
+            // This is use for sanity checking.
+            let mut dim_drop : BiVec<Option<usize>> = BiVec::with_capacity(t_min, t_max + 1);
+
+            for _ in t_min ..= t_max {
+                prev_differentials.push(None);
+                prev_subspaces.push(None);
+                prev_basis_list.push(None);
+                dim_drop.push(None);
+            }
+            'gen_loop: for i in 0 .. dims_with_gens.len() {
+                let gen_dim = dims_with_gens[i];
+
+                // Check if augmentation map is non-zero on the generator
+                if s < target_cc.max_s() && target_cc.module(s).dimension(gen_dim) > 0 {
+                    let m = cc.chain_map(s);
+                    let num_gens = source.module.module.number_of_gens_in_degree(gen_dim);
+                    for i in 0 .. num_gens {
+                        if !m.output(gen_dim, i).is_zero() {
+                            continue 'gen_loop
+                        }
+                    }
+                }
+
+                // Check if preserve map is non-zero on the generator
+                if s >= s_shift && gen_dim >= t_shift {
+                    if let Some(m) =  map.chain_maps.get((s - s_shift) as usize) {
+                        if m.target().dimension(gen_dim - t_shift) > 0 {
+                            let num_gens = source.module.module.number_of_gens_in_degree(gen_dim);
+                            for i in 0 .. num_gens {
+                                if !m.output(gen_dim, i).is_zero() {
+                                    continue 'gen_loop
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for t in gen_dim ..= t_max {
+                    let orig_diff_dimension = differential_images[t].dimension();
+                    if orig_diff_dimension == 0 {
+                        continue;
+                    }
+
+                    prev_differentials[t] = Some(differential_images[t].clone());
+                    prev_subspaces[t] = Some(source.subspaces[t].clone());
+                    prev_basis_list[t] = Some(source.basis_list[t].clone());
+
+                    let offsets = &source.module.module.table[t].generator_to_index;
+                    let start = offsets[gen_dim][0];
+                    let dim = source.module.module.dimension(t);
+
+                    let end;
+                    if i == dims_with_gens.len() - 1 || dims_with_gens[i + 1] >= offsets.len() {
+                        end = dim;
+                    } else {
+                        end = offsets[dims_with_gens[i + 1]][0];
+                    }
+
+                    let source_orig_dim = source.dimension(t);
+                    source.quotient_basis_elements(t, start .. end);
+                    dim_drop[t] = Some(source_orig_dim - source.dimension(t));
+
+                    for row in differential_images[t].matrix.iter_mut() {
+                        if row.is_zero_pure() {
+                            break;
+                        }
+                        source.reduce(t, row);
+                        if row.is_zero_pure() {
+                            for t in gen_dim ..= t {
+                                if prev_differentials[t].is_none() {
+                                    continue;
+                                }
+                                differential_images[t] = prev_differentials[t].take().unwrap();
+                                source.subspaces[t] = prev_subspaces[t].take().unwrap();
+                                source.basis_list[t] = prev_basis_list[t].take().unwrap();
+                                dim_drop[t] = None;
+                            }
+                            continue 'gen_loop;
+                        }
+                    }
+
+                    differential_images[t].row_reduce();
+                    if orig_diff_dimension != differential_images[t].dimension() {
+                        for t in gen_dim ..= t {
+                            if prev_differentials[t].is_none() {
+                                continue;
+                            }
+                            differential_images[t] = prev_differentials[t].take().unwrap();
+                            source.subspaces[t] = prev_subspaces[t].take().unwrap();
+                            source.basis_list[t] = prev_basis_list[t].take().unwrap();
+                            dim_drop[t] = None;
+                        }
+                        continue 'gen_loop;
+                    }
+                }
+
+                // We are free to clear this basis element. Do it
+                for t in gen_dim ..= t_max {
+                    let offsets = &source.module.module.table[t].generator_to_index;
+                    let start = offsets[gen_dim][0];
+
+                    let end;
+                    if i == dims_with_gens.len() - 1 || dims_with_gens[i + 1] >= offsets.len() {
+                        end = source.module.module.dimension(t);
+                    } else {
+                        end = offsets[dims_with_gens[i + 1]][0];
+                    }
+
+                    if prev_differentials[t].is_none() {
+                        // We previously skipped this because there were no differentials to check
+
+                        let source_orig_dim = source.dimension(t);
+                        source.quotient_basis_elements(t, start .. end);
+                        dim_drop[t] = Some(source_orig_dim - source.dimension(t));
+                    } else {
+                        prev_differentials[t] = None;
+                        prev_subspaces[t] = None;
+                        prev_basis_list[t] = None;
+                    }
+
+                    let mut target_kills : Vec<FpVector> = Vec::with_capacity(end - start);
+                    let target_dim = target.module.dimension(t);
+
+                    let target_orig_dim = target.dimension(t);
+                    for i in start .. end {
+                        let mut result = FpVector::new(p, target_dim);
+                        d.apply_to_basis_element(&mut result, 1, t, i);
+                        target_kills.push(result);
+                    }
+                    target.quotient_vectors(t, target_kills);
+                    assert_eq!(target.dimension(t), target_orig_dim - dim_drop[t].take().unwrap());
+                }
+            }
+        }
+
+        for t in (t_min ..= t_max).rev() {
+            if t - (s as i32) < cc.min_degree() {
+                continue;
+            }
+            if cc.module(s).dimension(t) == 0 {
+                continue;
+            }
+
+            let keep : Option<&Subspace>;
+            // Now compute the image of the differentials, if any.
+            if s < s_max {
+                keep = Some(&differential_images[t]);
             } else {
                 keep = None;
             }
-
-
-            let (target, source) = split_mut_borrow(&mut modules, s as usize - 1, s as usize);
 
             let augmentation_map = if s < target_cc.max_s() && target_cc.module(s).dimension(t) > 0 { Some(cc.chain_map(s)) } else { None };
             let preserve_map = if s >= s_shift && t >= t_shift {
@@ -221,8 +372,6 @@ where TCM : BoundedModule,
 
             let mut pivot_columns = pivot_columns.iter().map(|(_p, i)| i).collect::<Vec<_>>();
             pivot_columns.sort();
-
-            let d = cc.differential(s);
 
             let mut matrix = matrix.into_vec();
             let mut source_kills : Vec<FpVector> = Vec::with_capacity(source.module.dimension(t));
@@ -315,7 +464,7 @@ fn compute_kernel_image<M : BoundedModule, F : ModuleHomomorphism, G : ModuleHom
     source : &QM<M>,
     augmentation_map : Option<Arc<F>>,
     preserve_map : Option<&G>,
-    keep : Option<Subspace>,
+    keep : Option<&Subspace>,
     t : i32) -> (Matrix, Matrix) {
 
     let algebra = source.algebra();

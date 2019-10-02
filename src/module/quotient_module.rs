@@ -30,8 +30,8 @@ impl<M: Module> QuotientModule<M> {
         self.flush(degree);
     }
 
-    pub fn quotient_basis_elements(&mut self, degree : i32, elements : Vec<usize>) {
-        self.subspaces[degree].add_basis_elements(elements.into_iter());
+    pub fn quotient_basis_elements(&mut self, degree : i32, elements : impl std::iter::Iterator<Item=usize>) {
+        self.subspaces[degree].add_basis_elements(elements);
         self.flush(degree);
     }
 

@@ -116,6 +116,11 @@ impl<T> OnceBiVec<T> {
     }
 }
 
+impl<T : Clone> Clone for OnceBiVec<T> {
+    fn clone(&self) -> Self {
+        unsafe { OnceBiVec::from_bivec((&*self.data.get()).clone()) }
+    }
+}
 impl<T> Index<i32> for OnceBiVec<T> {
     type Output = T;
     fn index(&self, key : i32) -> &T {

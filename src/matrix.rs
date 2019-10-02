@@ -538,9 +538,9 @@ impl Subspace {
                     break 'outer;
                 }
             }
-            self.matrix.row_reduce(&mut self.column_to_pivot_row);
+            self.row_reduce();
         }
-        self.matrix.row_reduce(&mut self.column_to_pivot_row);
+        self.row_reduce();
     }
 
     pub fn add_basis_elements(&mut self, mut rows : impl std::iter::Iterator<Item=usize>) {
@@ -564,9 +564,9 @@ impl Subspace {
                     break 'outer;
                 }
             }
-            self.matrix.row_reduce(&mut self.column_to_pivot_row);
+            self.row_reduce();
         }
-        self.matrix.row_reduce(&mut self.column_to_pivot_row);
+        self.row_reduce();
     }
 
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
@@ -603,6 +603,10 @@ impl Subspace {
             }
             row += 1;
         }
+    }
+
+    pub fn row_reduce(&mut self) {
+        self.matrix.row_reduce(&mut self.column_to_pivot_row);
     }
 
     pub fn contains(&self, vector : &FpVector) -> bool {
