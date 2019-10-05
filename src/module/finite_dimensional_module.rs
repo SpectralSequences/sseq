@@ -29,6 +29,59 @@ impl PartialEq for FiniteDimensionalModule {
 
 impl Eq for FiniteDimensionalModule {}
 
+impl FiniteDimensionalModule {
+    pub fn test_equal(&self, other : &Self) -> Result<(), String> {
+        if self.graded_dimension != other.graded_dimension {
+            if self.graded_dimension.min_degree() != other.graded_dimension.min_degree() {
+                return Err(format!("Min degrees disagree. left.min_degree() = {} but right.min_degree() = {}.", self.graded_dimension.min_degree(), other.graded_dimension.min_degree()));
+            }
+            if self.graded_dimension.len() != other.graded_dimension.len() {
+                return Err(format!("Graded dimension lengths disagree. left.len() = {} but right.len() = {}.", self.graded_dimension.len(), other.graded_dimension.len()));
+            }
+            let mut disagreements = vec![];
+            for i in self.graded_dimension.min_degree() .. self.graded_dimension.len() {
+                if self.graded_dimension[i] != other.graded_dimension[i] {
+                    disagreements.push(i);
+                }
+            }
+            return Err(format!("Graded dimensions disagree in positions {:?}. Left has graded dimensions:\n    {:?}\nRight has graded dimension:\n    {:?}\n",
+                disagreements,
+                self.graded_dimension,
+                other.graded_dimension
+            ))
+        }
+        if self.actions != other.actions {
+            // actions goes input_degree --> output_degree --> operation --> input_index --> Vector
+            let mut disagreements = vec![];
+            for input_degree in self.actions.min_degree() .. self.actions.len(){
+                for output_degree in self.actions[input_degree].min_degree() .. self.actions[input_degree].len(){
+                    for operation in 0 .. self.actions[input_degree][output_degree].len() {
+                        for input_index in 0 .. self.actions[input_degree][output_degree][operation].len() {
+                            let self_action = &self.actions[input_degree][output_degree][operation][input_index];
+                            let other_action = &other.actions[input_degree][output_degree][operation][input_index];
+                            if self_action != other_action {
+                                disagreements.push((input_degree, output_degree, operation, input_index, self_action, other_action));
+                            }
+                        }
+                    }
+                }
+            }
+            
+            let mut err_string = "Actions disagree.\n".to_string();
+            for x in disagreements {
+                err_string.push_str(&format!("  {} * {} disagreement.\n    Left: {}\n    Right: {}", 
+                    self.algebra.basis_element_to_string(x.1 - x.0, x.2),
+                    self.basis_element_to_string(x.0, x.3),
+                    self.element_to_string(x.1, &x.4),
+                    self.element_to_string(x.1, &x.5)
+                ))
+            }
+            return Err(err_string);
+        }
+        return Ok(());
+    }
+}
+
 impl Module for FiniteDimensionalModule {
     fn name(&self) -> &str {
         &self.name

@@ -59,7 +59,7 @@ impl<CC : ChainComplex> TensorChainComplex<CC, CC> {
             for left_t in 0 ..= t {
                 let right_t = t - left_t;
 
-                let source_inner_offset = module.modules[left_s].offset(t,left_t);
+                let source_inner_offset = module.modules[left_s].offset(t, left_t);
                 let target_inner_offset = module.modules[right_s].offset(t, right_t);
 
                 let left_dim = module.modules[left_s].left.dimension(left_t);

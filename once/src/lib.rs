@@ -1,11 +1,16 @@
 use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut, Index, IndexMut};
-
+use std::fmt;
 use bivec::BiVec;
 
-#[derive(Debug)]
 pub struct OnceVec<T> {
     data : UnsafeCell<Vec<T>>
+}
+
+impl<T: fmt::Debug> fmt::Debug for OnceVec<T> {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        self.get_vec().fmt(formatter)
+    }
 }
 
 impl<T>  OnceVec<T> {
@@ -29,6 +34,10 @@ impl<T>  OnceVec<T> {
 
     fn get_vec_mut(&self) -> &mut Vec<T> {
         unsafe { &mut *self.data.get() }
+    }
+
+    fn get_vec(&self) -> &Vec<T> {
+        unsafe { &*self.data.get() }
     }
 
     pub fn reserve(&self, additional : usize) {
@@ -87,9 +96,14 @@ impl<T> DerefMut for OnceVec<T> {
 unsafe impl<T : Send> Send for OnceVec<T> {}
 unsafe impl<T : Sync> Sync for OnceVec<T> {}
 
-#[derive(Debug)]
 pub struct OnceBiVec<T> {
     data : UnsafeCell<BiVec<T>>
+}
+
+impl<T: fmt::Debug> fmt::Debug for OnceBiVec<T> {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        self.get_bivec().fmt(formatter)
+    }
 }
 
 impl<T> OnceBiVec<T> {
@@ -102,6 +116,10 @@ impl<T> OnceBiVec<T> {
             data : UnsafeCell::new(bivec)
         }
     }
+
+    fn get_bivec(&self) -> &BiVec<T> {
+        unsafe { &*self.data.get() }
+    }    
 
     pub fn new(min_degree : i32) -> Self {
         Self::from_bivec(BiVec::new(min_degree))

@@ -425,6 +425,7 @@ pub trait FpVectorT {
     }
 
     /// `coeff` need not be reduced mod p.
+    /// Adds v otimes w to self.
     fn add_tensor(&mut self, offset : usize, coeff : u32, left : &FpVector, right : &FpVector) {
         let right_dim = right.dimension();
 

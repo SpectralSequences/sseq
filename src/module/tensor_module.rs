@@ -2,6 +2,7 @@ use bivec::BiVec;
 use once::OnceBiVec;
 
 use crate::fp_vector::{FpVector, FpVectorT};
+use crate::block_structure::BlockStructure;
 use crate::algebra::{AlgebraAny, Bialgebra};
 use crate::module::{Module, ZeroModule, BoundedModule};
 
@@ -10,29 +11,23 @@ use std::sync::Arc;
 pub struct TensorModule<M : Module, N : Module> {
     pub left : Arc<M>,
     pub right : Arc<N>,
-    // Use BlockStructure for this?
-    pub offsets : OnceBiVec<BiVec<usize>>,
-    dimensions : OnceBiVec<usize>
+    block_structures : OnceBiVec<BlockStructure>,
 }
 
 impl<M : Module, N : Module> TensorModule<M, N> {
     pub fn new(left : Arc<M>, right : Arc<N>) -> Self {
         TensorModule {
-            offsets : OnceBiVec::new(left.min_degree() + right.min_degree()),
-            dimensions : OnceBiVec::new(left.min_degree() + right.min_degree()),
-            left, right
+            block_structures : OnceBiVec::new(left.min_degree() + right.min_degree()),
+            left, right,
         }
     }
 
     pub fn seek_module_num(&self, degree : i32, index : usize) -> i32 {
-        match self.offsets[degree].iter().position(|x| *x > index) {
-            Some(n) => n as i32 - 1 + self.left.min_degree() + self.right.min_degree(),
-            None => self.offsets[degree].len() - 1
-        }
+        self.block_structures[degree].index_to_generator_basis_elt(index).generator_degree
     }
     
-    pub fn offset(&self, degree : i32, index : i32) -> usize {
-        self.offsets[degree][index]
+    pub fn offset(&self, degree : i32, left_degree : i32) -> usize {
+        self.block_structures[degree].generator_to_block(left_degree, 0).block_start_index
     }
 
     fn act_helper(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, input: &FpVector) {
@@ -40,15 +35,13 @@ impl<M : Module, N : Module> TensorModule<M, N> {
         let p = self.prime();
 
         let coproduct = algebra.coproduct(op_degree, op_index).into_iter();
-
-        let source_offset = &self.offsets[mod_degree];
-        let target_offset = &self.offsets[mod_degree + op_degree];
+        let output_degree = mod_degree + op_degree;
 
         let borrow_output = self.left.borrow_output() && self.right.borrow_output();
 
         for (op_deg_l, op_idx_l, op_deg_r, op_idx_r) in coproduct {
             let mut idx = 0;
-            for left_deg in source_offset.min_degree() .. source_offset.len() {
+            for left_deg in self.left.min_degree() ..= mod_degree {
                 let right_deg = mod_degree - left_deg;
 
                 let left_source_dim = self.left.dimension(left_deg);
@@ -58,11 +51,11 @@ impl<M : Module, N : Module> TensorModule<M, N> {
                 let right_target_dim = self.right.dimension(right_deg + op_deg_r);
 
                 if left_target_dim == 0 || right_target_dim == 0 ||
-                    left_source_dim == 0 || right_source_dim == 0 {
+                    left_source_dim == 0 || right_source_dim == 0 
+                {
                         idx += left_source_dim * right_source_dim;
                         continue;
-                    }
-
+                }
                 if borrow_output {
                     for i in 0 .. left_source_dim {
                         let left_result = self.left.act_on_basis_borrow(op_deg_l, op_idx_l, left_deg, i);
@@ -83,7 +76,7 @@ impl<M : Module, N : Module> TensorModule<M, N> {
                             if right_result.is_zero_pure() {
                                 continue;
                             }
-                            result.add_tensor(target_offset[left_deg + op_deg_l], coeff * entry, &left_result, &right_result);
+                            result.add_tensor(self.offset(output_degree, left_deg + op_deg_l), coeff * entry, &left_result, &right_result);
                         }
                     }
                 } else {
@@ -109,7 +102,7 @@ impl<M : Module, N : Module> TensorModule<M, N> {
                             if right_result.is_zero() {
                                 continue;
                             }
-                            result.add_tensor(target_offset[left_deg + op_deg_l], 1, &left_result, &right_result);
+                            result.add_tensor(self.offset(output_degree, left_deg + op_deg_l), 1, &left_result, &right_result);
 
                             right_result.set_to_zero();
                         }
@@ -137,22 +130,29 @@ impl<M : Module, N : Module> Module for TensorModule<M, N> {
     fn compute_basis(&self, degree : i32) {
         self.left.compute_basis(degree - self.right.min_degree());
         self.right.compute_basis(degree - self.left.min_degree());
-
-        for i in self.offsets.len() ..= degree {
-            let mut offset_vec = BiVec::with_capacity(self.left.min_degree(), degree - self.left.min_degree() - self.right.min_degree() + 1);
-            let mut offset = 0;
+        if degree < self.block_structures.len() {
+            return;
+        }
+        for i in self.block_structures.len() ..= degree {
+            let mut block_sizes = BiVec::with_capacity(self.left.min_degree(), degree - self.left.min_degree() - self.right.min_degree() + 1);
             for j in self.left.min_degree() ..= i - self.right.min_degree() {
-                offset_vec.push(offset);
-                offset += self.left.dimension(j) * self.right.dimension(i - j);
+                let mut block_sizes_entry = Vec::with_capacity(self.left.dimension(j));
+                for _ in 0 .. self.left.dimension(j) {
+                    block_sizes_entry.push(self.right.dimension(i - j))
+                }
+                block_sizes.push(block_sizes_entry);
             }
-            assert_eq!(offset_vec.len(), i - self.left.min_degree() - self.right.min_degree() + 1);
-            self.dimensions.push(offset);
-            self.offsets.push(offset_vec);
+            assert_eq!(block_sizes.len(), i - self.left.min_degree() - self.right.min_degree() + 1);
+            self.block_structures.push(BlockStructure::new(&block_sizes));
         }
     }
 
     fn dimension(&self, degree : i32) -> usize {
-        *self.dimensions.get(degree).unwrap_or(&(0 as usize))
+        self.compute_basis(degree);
+        match self.block_structures.get(degree) {
+            Some(x) => x.total_dimension,
+            None => panic!("Hi!")
+        }
     }
 
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize) {
@@ -266,6 +266,9 @@ mod tests {
         let tensor = TensorModule::new(M, N).to_fd_module();
         let T = FiniteModule::from_json(Arc::clone(&A), &mut T).unwrap().as_fd_module().unwrap();
 
-        assert!(tensor == T);
+        if let Err(msg) = tensor.test_equal(&T) {
+            println!("Test case failed. {}",msg);
+            assert!(false, "See error message above...");
+        }
     }
 }

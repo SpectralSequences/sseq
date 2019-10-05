@@ -1,6 +1,7 @@
 use core::ops::Index;
 use core::ops::IndexMut;
 use std::slice::{Iter, IterMut};
+use std::fmt;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 
 /// A BiVec is like a Vec, except we allow indices to be negative. It has a min_degree
@@ -9,10 +10,17 @@ use serde::{Serialize, Serializer, Deserialize, Deserializer};
 /// Note that properties like length and capacity are defined to be the maximum index allowed. For
 /// example, if `v.min_degree = -2` and `v.len() = 3`, it means we can access `v[-2], v[-1], v[0],
 /// v[1], v[2]` but not `v[3]`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BiVec<T> {
     pub data : Vec<T>,
     min_degree : i32
+}
+
+impl<T: fmt::Debug> fmt::Debug for BiVec<T> {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "BiVec({}) ", self.min_degree)?;
+        self.data.fmt(formatter)
+    }
 }
 
 impl<T> BiVec<T> {
