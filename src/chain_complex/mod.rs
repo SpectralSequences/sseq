@@ -1,4 +1,4 @@
-mod hom_complex;
+//mod hom_complex;
 mod finite_chain_complex;
 mod tensor_product_chain_complex;
 
@@ -9,7 +9,7 @@ use crate::module::Module;
 use crate::module::homomorphism::ModuleHomomorphism;
 use std::sync::Arc;
 
-pub use hom_complex::HomComplex;
+//pub use hom_complex::HomComplex;
 pub use finite_chain_complex::{FiniteChainComplex, FiniteAugmentedChainComplex};
 pub use tensor_product_chain_complex::TensorChainComplex;
 

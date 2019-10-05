@@ -53,14 +53,14 @@ impl<CC : ChainComplex> TensorChainComplex<CC, CC> {
             let right_s = s - left_s;
             let module = &self.modules[s];
 
-            let source_offset = module.offsets[t][left_s];
-            let target_offset = module.offsets[t][right_s];
+            let source_offset = module.offset(t, left_s);
+            let target_offset = module.offset(t, right_s);
 
             for left_t in 0 ..= t {
                 let right_t = t - left_t;
 
-                let source_inner_offset = module.modules[left_s].offsets[t][left_t];
-                let target_inner_offset = module.modules[right_s].offsets[t][right_t];
+                let source_inner_offset = module.modules[left_s].offset(t,left_t);
+                let target_inner_offset = module.modules[right_s].offset(t, right_t);
 
                 let left_dim = module.modules[left_s].left.dimension(left_t);
                 let right_dim = module.modules[left_s].right.dimension(right_t);
@@ -170,12 +170,12 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainM
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, degree : i32, input_idx : usize) {
         // Source is of the form ⊕_i L_i ⊗ R_(s - i). This i indexes the s degree. First figure out
         // which i this belongs to.
-        let left_s = self.source.seek_module_num(degree, input_idx);
+        let left_s = self.source.get_module_num(degree, input_idx);
         let right_s = self.source_s as usize - left_s;
 
         let source_module = &self.source.modules[left_s];
 
-        let first_offset = self.source.offsets[degree][left_s];
+        let first_offset = self.source.offset(degree, left_s);
         let inner_index = input_idx - first_offset;
 
         // Now redefine L = L_i, R = R_(degree - i). Then L ⊗ R is itself a sum of terms of
@@ -183,7 +183,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainM
         let left_t = source_module.seek_module_num(degree, inner_index);
         let right_t = degree - left_t;
 
-        let inner_index = inner_index - source_module.offsets[degree][left_t];
+        let inner_index = inner_index - source_module.offset(degree, left_t);
 
         let source_right_dim = source_module.right.dimension(right_t);
         let right_index = inner_index % source_right_dim;
@@ -193,7 +193,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainM
         // Now calculate 1 (x) d
         if right_s > 0 {
             let target_module = &self.target.modules[left_s];
-            let target_offset = self.target.offsets[degree][left_s] + self.target.modules[left_s].offsets[degree][left_t];
+            let target_offset = self.target.offset(degree, left_s) + self.target.modules[left_s].offset(degree, left_t);
             let target_right_dim = target_module.right.dimension(right_t);
 
             result.set_slice(target_offset + left_index * target_right_dim, target_offset + (left_index + 1) * target_right_dim);
@@ -204,7 +204,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainM
         // Now calculate d (x) 1
         if left_s > 0 {
             let target_module = &self.target.modules[left_s - 1];
-            let target_offset = self.target.offsets[degree][left_s - 1] + self.target.modules[left_s - 1].offsets[degree][left_t];
+            let target_offset = self.target.offset(degree, left_s - 1) + self.target.modules[left_s - 1].offset(degree, left_t);
             let target_right_dim = target_module.right.dimension(right_t);
 
             let mut dl = FpVector::new(self.prime(), target_module.left.dimension(left_t));
@@ -351,7 +351,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> TensorChainMap<CC1, CC2> {
                 for li in 0 .. target_left_dim {
                     for ri in 0 .. target_right_dim {
                         if pivots[index] >= 0 {
-                            let true_index = self.target.offsets[degree][s] + self.target.modules[s].offsets[degree][left_t] + li * target_right_dim + ri;
+                            let true_index = self.target.offset(degree, s) + self.target.modules[s].offset(degree, left_t) + li * target_right_dim + ri;
                             let mut entries = Vec::new();
                             let mut offset = 0;
                             for s_ in 0 ..= self.source_s as usize {
@@ -364,7 +364,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> TensorChainMap<CC1, CC2> {
                                 matrix.clear_slice();
 
                                 if !entry.is_zero() {
-                                    let true_slice_start = self.source.offsets[degree][s_] + self.source.modules[s_].offsets[degree][left_t];
+                                    let true_slice_start = self.source.offset(degree, s_) + self.source.modules[s_].offset(degree, left_t);
                                     let true_slice_end = true_slice_start + dim;
                                     entries.push((true_slice_start, true_slice_end, entry));
                                 }

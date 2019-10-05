@@ -44,7 +44,7 @@ fn digits(i : &str) -> IResult<&str, u32> {
     map_res(delimited(space, digit, space), FromStr::from_str)(i)
 }
 
-fn integer_list(i : &str) -> IResult<&str, Vec<u32>> {
+fn comma_separated_integer_list(i : &str) -> IResult<&str, Vec<u32>> {
     let (i, init) = digits(i)?;
     let mut result = vec![init];
     let (rest, list) = many0(pair(char(','), digits))(i)?;
@@ -52,10 +52,10 @@ fn integer_list(i : &str) -> IResult<&str, Vec<u32>> {
     return Ok((rest, result));
 }
 
-fn sequence(i : &str) -> IResult<&str, Vec<u32>> {
+fn comma_separated_sequence(i : &str) -> IResult<&str, Vec<u32>> {
     delimited(
       tag("("),
-      integer_list,
+      comma_separated_integer_list,
       tag(")")
     )(i)
 }
@@ -76,8 +76,8 @@ fn algebra_generator(i : &str) -> IResult<&str, AlgebraParseNode> {
         };
     } else {
         let (new_rest, elt) = alt((
-            pair(tag("P"), sequence),
-            pair(tag("Sq"), sequence)
+            pair(tag("P"), comma_separated_sequence),
+            pair(tag("Sq"), comma_separated_sequence)
         ))(i)?;
         rest = new_rest;
         match elt {

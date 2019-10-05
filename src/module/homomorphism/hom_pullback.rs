@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use once::OnceBiVec;
+use crate::block_structure::BlockStart;
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Subspace, QuasiInverse};
 // use crate::block_structure::BlockStructure;
@@ -62,8 +63,8 @@ impl<M : BoundedModule> ModuleHomomorphism for HomPullback<M> {
             let old_slice = result.slice();
             for i in 0 .. num_gens {
                 let x_elt = self.map.output(x_degree, i);
-                let (block_start, block_size) = self.source.block_structures[fn_degree].generator_to_block(x_degree, i);
-                result.set_slice(block_start, block_start + block_size);
+                let BlockStart {block_start_index, block_size} = self.source.block_structures[fn_degree].generator_to_block(x_degree, i);
+                result.set_slice(*block_start_index, *block_start_index + block_size);
                 self.target.evaluate_basis_map_on_element(result, coeff, fn_degree, fn_idx, x_degree, &x_elt);
                 result.restore_slice(old_slice);
             }

@@ -30,6 +30,10 @@ impl<M : Module, N : Module> TensorModule<M, N> {
             None => self.offsets[degree].len() - 1
         }
     }
+    
+    pub fn offset(&self, degree : i32, index : i32) -> usize {
+        self.offsets[degree][index]
+    }
 
     fn act_helper(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, input: &FpVector) {
         let algebra = self.algebra();

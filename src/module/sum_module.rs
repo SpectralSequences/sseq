@@ -1,8 +1,10 @@
+use bivec::BiVec;
 use once::OnceBiVec;
 
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::algebra::AlgebraAny;
 use crate::module::{Module, ZeroModule, BoundedModule};
+use crate::block_structure::{BlockStructure, GeneratorBasisEltPair, BlockStart};
 
 use std::sync::Arc;
 
@@ -12,8 +14,7 @@ pub struct SumModule<M : Module> {
     min_degree : i32,
     pub modules : Vec<Arc<M>>,
     // Use BlockStructure for this?
-    pub offsets : OnceBiVec<Vec<usize>>,
-    dimensions : OnceBiVec<usize>
+    pub block_structures : OnceBiVec<BlockStructure>,
 }
 
 impl<M : Module> SumModule<M> {
@@ -22,16 +23,16 @@ impl<M : Module> SumModule<M> {
             algebra,
             modules,
             min_degree,
-            offsets : OnceBiVec::new(min_degree),
-            dimensions : OnceBiVec::new(min_degree)
+            block_structures : OnceBiVec::new(min_degree),
         }
     }
 
-    pub fn seek_module_num(&self, degree : i32, index : usize) -> usize {
-        match self.offsets[degree].iter().position(|x| *x > index) {
-            Some(n) => n - 1,
-            None => self.modules.len() - 1
-        }
+    pub fn get_module_num(&self, degree : i32, index : usize) -> usize {
+        self.block_structures[degree].index_to_generator_basis_elt(index).generator_index
+    }
+
+    pub fn offset(&self, degree : i32, module_num : usize) -> usize {
+        self.block_structures[degree].generator_to_block(degree, module_num).block_start_index
     }
 }
 
@@ -52,41 +53,40 @@ impl<M : Module> Module for SumModule<M> {
         for module in self.modules.iter() {
             module.compute_basis(degree);
         }
-
-        for i in self.offsets.len() ..= degree {
-            let mut offset_vec = Vec::with_capacity(self.modules.len());
-            let mut offset = 0;
-            for module in self.modules.iter() {
-                offset_vec.push(offset);
-                offset += module.dimension(i);
-            }
-            assert_eq!(offset_vec.len(), self.modules.len());
-            self.dimensions.push(offset);
-            self.offsets.push(offset_vec);
+        for i in self.block_structures.len() ..= degree {
+            let mut block_sizes = BiVec::new(i);
+            block_sizes.push(
+                self.modules.iter().map(|m| m.dimension(i)).collect()
+            );
+            self.block_structures.push(BlockStructure::new(&block_sizes));
         }
     }
 
     fn dimension(&self, degree : i32) -> usize {
-        *self.dimensions.get(degree).unwrap_or(&(0 as usize))
+        match self.block_structures.get(degree) {
+            Some(x) => x.total_dimension,
+            None => 0
+        }
     }
 
     fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize) {
-        let module_num = self.seek_module_num(mod_degree, mod_index);
-
-        let source_offset = self.offsets[mod_degree][module_num];
-        let target_offset = self.offsets[mod_degree + op_degree][module_num];
-        let module = &self.modules[module_num];
+        let target_degree = mod_degree + op_degree;
+        let GeneratorBasisEltPair { generator_index : module_num, basis_index, ..} 
+            = self.block_structures[mod_degree].index_to_generator_basis_elt(mod_index);
+        let BlockStart {block_start_index : target_offset, block_size : target_module_dimension} 
+            = self.block_structures[target_degree].generator_to_block(target_degree, *module_num);
+        let module = &self.modules[*module_num];
 
         let old_slice = result.slice();
-        result.set_slice(target_offset, target_offset + module.dimension(mod_degree + op_degree));
-        module.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index - source_offset);
+        result.set_slice(*target_offset, target_offset + target_module_dimension);
+        module.act_on_basis(result, coeff, op_degree, op_index, mod_degree, *basis_index);
         result.restore_slice(old_slice);
     }
 
-    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
-        let module_num = self.seek_module_num(degree, idx);
-        let offset = self.offsets[degree][idx];
-        self.modules[module_num].basis_element_to_string(degree, idx - offset)
+    fn basis_element_to_string(&self, degree : i32, index : usize) -> String {
+        let GeneratorBasisEltPair { generator_index : module_num, basis_index, ..} 
+            = self.block_structures[degree].index_to_generator_basis_elt(index);
+        self.modules[*module_num].basis_element_to_string(degree, *basis_index)
     }
 }
 
@@ -112,7 +112,7 @@ mod tests {
     use crate::algebra::AdemAlgebra;
 
     #[test]
-    fn test_tensor_modules() {
+    fn test_sum_modules() {
         let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}"#;
         let k2 = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0, "y0":0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}"#;
 

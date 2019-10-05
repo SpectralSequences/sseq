@@ -9,7 +9,7 @@ use crate::chain_complex::{ChainComplex, CochainComplex};
 use crate::module::HomModule;
 use crate::module::homomorphism::HomPullback;
 
-pub struct HomComplex<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<FreeModule>>, N : BoundedModule> {
+pub struct HomComplex<Source : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<FreeModule>>, Target : BoundedChainComplex> {
     min_degree : i32,
     source : Arc<CC>,
     target : Arc<N>,
@@ -19,7 +19,7 @@ pub struct HomComplex<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModu
     cohomology_basis : OnceVec<OnceBiVec<Vec<usize>>>
 }
 
-impl<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<FreeModule>>, N : BoundedModule>
+impl<CC : ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<FreeModule>>, N : BoundedChainComplex>
     HomComplex<CC, N> {
     pub fn new(source : Arc<CC>, target : Arc<N>) -> Self {
         let min_degree = source.min_degree() - target.max_degree();

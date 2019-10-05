@@ -37,6 +37,8 @@ impl<M : BoundedModule> HomModule<M> {
         Arc::clone(&self.target)
     }
 
+    // Each element of HomModule represents a homomorphism from source to target of a given degree.
+    // Turn an FpVector representing an element of the HomModule  into a FreeModuleHomomorphism
     pub fn element_to_homomorphism(&self, degree : i32, x : &mut FpVector) -> FreeModuleHomomorphism<M> {
         let result = FreeModuleHomomorphism::new(Arc::clone(&self.source), Arc::clone(&self.target), degree);
         {// Restrict scope of lock
