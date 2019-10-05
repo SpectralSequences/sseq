@@ -53,8 +53,8 @@ impl<M : Module, N : Module> TensorModule<M, N> {
                 if left_target_dim == 0 || right_target_dim == 0 ||
                     left_source_dim == 0 || right_source_dim == 0 
                 {
-                        idx += left_source_dim * right_source_dim;
-                        continue;
+                    idx += left_source_dim * right_source_dim;
+                    continue;
                 }
                 if borrow_output {
                     for i in 0 .. left_source_dim {

@@ -17,6 +17,7 @@ use std::str::FromStr;
 #[derive(Debug)]
 #[derive(Clone)]
 pub enum AlgebraBasisElt {
+    AList(Vec<BocksteinOrSq>), // Admissible list.
     PList(Vec<u32>),
     P(u32),
     Q(u32)
@@ -52,6 +53,7 @@ fn comma_separated_integer_list(i : &str) -> IResult<&str, Vec<u32>> {
     return Ok((rest, result));
 }
 
+
 fn comma_separated_sequence(i : &str) -> IResult<&str, Vec<u32>> {
     delimited(
       tag("("),
@@ -60,33 +62,80 @@ fn comma_separated_sequence(i : &str) -> IResult<&str, Vec<u32>> {
     )(i)
 }
 
+fn space_separated_integer_list(i : &str) -> IResult<&str, Vec<u32>> {
+    many0(digits)(i)
+}
+
+fn space_separated_sequence(i : &str) -> IResult<&str, Vec<u32>> {
+    delimited(
+      tag("("),
+      space_separated_integer_list,
+      tag(")")
+    )(i)
+}
+
+#[derive(Clone, Debug)]
+pub enum BocksteinOrSq {
+    Bockstein,
+    Sq(u32)
+}
+
+fn bockstein_b(i : &str) -> IResult<&str, BocksteinOrSq> {
+    let (rest, _c) = char('b')(i)?;
+    Ok((rest, BocksteinOrSq::Bockstein))
+}
+
+fn sq_digits(i : &str) -> IResult<&str, BocksteinOrSq> {
+    let (rest, c) = digits(i)?;
+    Ok((rest, BocksteinOrSq::Sq(c)))
+}
+
+fn space_separated_bockstein_or_sq_list(i : &str) -> IResult<&str, Vec<BocksteinOrSq>> {
+    many0(alt((bockstein_b, sq_digits)))(i)
+}
+
+fn space_separated_bockstein_or_sq_sequence(i : &str) -> IResult<&str, Vec<BocksteinOrSq>> {
+    delimited(
+      tag("("),
+      space_separated_bockstein_or_sq_list,
+      tag(")")
+    )(i)
+}
+
+
 fn algebra_generator(i : &str) -> IResult<&str, AlgebraParseNode> {
-    let (mut rest, opt_elt) = opt(alt((
+    let (rest, opt_elt) = opt(alt((
         pair(tag("Q"), digits),
         pair(tag("P"), digits),
         pair(tag("Sq"), digits)
     )))(i)?;
     
-    let result;    
     if let Some(elt) = opt_elt {
-        match elt {
-            ("Q", x ) => result = AlgebraBasisElt::Q(x),
-            ("P", x ) | ( "Sq", x) => result = AlgebraBasisElt::P(x),
+        let result = match elt {
+            ("Q", x ) => AlgebraBasisElt::Q(x),
+            ("P", x ) | ( "Sq", x) => AlgebraBasisElt::P(x),
             _ => unreachable!()
         };
-    } else {
-        let (new_rest, elt) = alt((
-            pair(tag("P"), comma_separated_sequence),
-            pair(tag("Sq"), comma_separated_sequence)
-        ))(i)?;
-        rest = new_rest;
-        match elt {
-            ("P", x ) | ( "Sq", x) => result = AlgebraBasisElt::PList(x),
-            _ => unreachable!()
-        }
+        return Ok((rest, AlgebraParseNode::BasisElt(result)));
     }
-    // ("P", x ) | ( "Sq", x) => BasisElt::PList(x),
-    return Ok((rest, AlgebraParseNode::BasisElt(result)));
+    if let Ok((rest, elt)) = alt((
+            pair(tag("P"), comma_separated_sequence),
+            pair(tag("Sq"), comma_separated_sequence),
+            pair(tag("M"), space_separated_sequence),
+        ))(i) {
+        let result = match elt {
+            ("P", x ) | ( "Sq", x) | ("M", x) => AlgebraBasisElt::PList(x),
+            _ => unreachable!()
+        };
+        return Ok((rest, AlgebraParseNode::BasisElt(result)));
+    }
+    let (rest, elt) = pair(tag("A"), space_separated_bockstein_or_sq_sequence)(i)?; {
+        let result = match elt {
+            ("A", x ) => AlgebraBasisElt::AList(x),
+            _ => unreachable!()
+        };
+        return Ok((rest, AlgebraParseNode::BasisElt(result)));
+    }
 }
 
 fn scalar(i : &str) -> IResult<&str, AlgebraParseNode> {
@@ -223,14 +272,6 @@ pub fn parse_module(i : &str) -> Result<ModuleParseNode, Box<dyn std::error::Err
     }
 }
 
-#[cfg(test)]
-mod tests {
-    // use super::*;
-    // use rstest::rstest_parametrize;
-
-}
-
-
 #[derive(Debug)]
 pub struct ParseError {
     pub info : String,
@@ -246,4 +287,21 @@ impl Error for ParseError {
     fn description(&self) -> &str {
         "Parse error"
     }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parser(){
+        println!("");
+        
+        println!("{:?}",parse_algebra("Sq(1,2)+Sq2 + A(2 b 2 3)").unwrap());
+        
+        println!("");
+    }
+    // use rstest::rstest_parametrize;
+
 }

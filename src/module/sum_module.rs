@@ -143,6 +143,9 @@ mod tests {
         let mut S = serde_json::from_str(S).unwrap();
         let S = FiniteModule::from_json(Arc::clone(&A), &mut S).unwrap().as_fd_module().unwrap();
 
-        assert!(sum == S);
+        if let Err(msg) = sum.test_equal(&S) {
+            println!("Test case failed. {}",msg);
+            assert!(false, "See error message above...");
+        }
     }
 }

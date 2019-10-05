@@ -1,10 +1,13 @@
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AdemAlgebra, MilnorAlgebra};
+use crate::algebra::adem_algebra::AdemBasisElement;
+use crate::steenrod_parser::BocksteinOrSq;
 use crate::module::Module;
 use crate::steenrod_parser::*;
 use crate::change_of_basis;
 use std::error::Error;
 use std::collections::HashMap;
+
 
 pub struct SteenrodCalculator {
     adem_algebra : AdemAlgebra,
@@ -118,6 +121,11 @@ fn evaluate_basis_element(
     let degree : i32;
     let mut result;
     match basis_elt {
+        AlgebraBasisElt::AList(p_or_b_list) => {
+            let degree_result = evaluate_p_or_b_list(adem_algebra, &p_or_b_list);
+            degree = degree_result.0;
+            result = degree_result.1;
+        }
         AlgebraBasisElt::PList(p_list) => {
             let xi_degrees = crate::combinatorics::xi_degrees(p);
             let mut temp_deg = 0;
@@ -237,6 +245,58 @@ fn evaluate_module_basis_element<M : Module>(
     return Ok((degree, result))
 }
 
+fn bockstein_or_sq_to_adem_basis_elt(e : &BocksteinOrSq, q : i32) -> AdemBasisElement {
+    match e {
+        BocksteinOrSq::Bockstein => if q == 1 {
+            AdemBasisElement {
+                degree : 1,
+                excess : 1,
+                bocksteins : 1,
+                ps : vec![]
+            }
+        } else {
+            AdemBasisElement {
+                degree : 1,
+                excess : 1,
+                bocksteins : 0,
+                ps : vec![1]
+            }            
+        },
+        BocksteinOrSq::Sq(x) => AdemBasisElement {
+            degree : (*x) as i32 * q,
+            excess : 2 * (*x) as i32,
+            bocksteins : 0,
+            ps : vec![*x]         
+        }
+    }
+}
+
+fn evaluate_p_or_b_list(adem_algebra : &AdemAlgebra, list : &Vec<BocksteinOrSq>) -> (i32, FpVector) {
+    let p = adem_algebra.prime();
+    let q = if adem_algebra.generic { 2*p as i32 - 2} else { 1 };
+    let mut tmp_vector_a = FpVector::scratch_vector(p, 1);
+    let mut tmp_vector_b = FpVector::scratch_vector(p, 1);
+    let first_elt = bockstein_or_sq_to_adem_basis_elt(&list[0], q);
+    let mut total_degree = first_elt.degree;
+    adem_algebra.compute_basis(total_degree);
+    let idx = adem_algebra.basis_element_to_index(&first_elt);
+    let cur_dim = adem_algebra.dimension(total_degree, -1);
+    tmp_vector_a = tmp_vector_a.set_scratch_vector_size(cur_dim);
+    tmp_vector_a.set_entry(idx, 1);
+
+    for i in 1 .. list.len() {
+        let cur_elt = bockstein_or_sq_to_adem_basis_elt(&list[i], q);
+        let idx = adem_algebra.basis_element_to_index(&cur_elt);
+        let cur_dim = adem_algebra.dimension(total_degree + cur_elt.degree, -1);
+        tmp_vector_b = tmp_vector_b.set_scratch_vector_size(cur_dim);
+        adem_algebra.multiply_element_by_basis_element(&mut tmp_vector_b, 1, total_degree, &tmp_vector_a, cur_elt.degree, idx, -1);
+        total_degree += cur_elt.degree;
+        std::mem::swap(&mut tmp_vector_a, &mut tmp_vector_b);
+        tmp_vector_b.set_to_zero();
+    }
+    return (total_degree, tmp_vector_a);
+}
+
 #[derive(Debug)]
 pub struct DegreeError {}
 
@@ -286,6 +346,7 @@ mod tests {
 
         for (input, output) in vec![
             ("Sq2 * Sq2", "P3 P1"),
+            ("A(2 2)", "P3 P1"),
             ("Sq2 * Sq2 * Sq2 + Sq3 * Sq3", "0"),
             ("Sq2 * (Sq2 * Sq2 + Sq4)", "P6"),
             ("Sq7 + Q2","P5 P2 + P6 P1 + P4 P2 P1"),            
