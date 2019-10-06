@@ -1,4 +1,4 @@
-//mod hom_complex;
+mod hom_complex;
 mod finite_chain_complex;
 mod tensor_product_chain_complex;
 
@@ -9,7 +9,7 @@ use crate::module::Module;
 use crate::module::homomorphism::ModuleHomomorphism;
 use std::sync::Arc;
 
-//pub use hom_complex::HomComplex;
+// pub use hom_complex::HomComplex;
 pub use finite_chain_complex::{FiniteChainComplex, FiniteAugmentedChainComplex};
 pub use tensor_product_chain_complex::TensorChainComplex;
 
@@ -17,6 +17,11 @@ pub enum ChainComplexGrading {
     Homological,
     Cohomological
 }
+
+pub trait ResolutionComplex : ChainComplex<
+    Module = crate::module::FreeModule, 
+    Homomorphism = crate::module::homomorphism::FreeModuleHomomorphism<crate::module::FreeModule>
+> {}
 
 /// A chain complex is defined to start in degree 0. The min_degree is the min_degree of the
 /// modules in the chain complex, all of which must be the same.

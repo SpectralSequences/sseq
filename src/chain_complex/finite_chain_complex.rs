@@ -16,6 +16,10 @@ impl<M, F> FiniteChainComplex<M, F>
 where M : Module,
       F : ModuleHomomorphism<Source=M, Target=M> + ZeroHomomorphism<M, M> {
 
+    pub fn max_degree(&self) -> i32 {
+        unimplemented!()
+    }
+
     pub fn pop(&mut self) {
         if self.modules.len() == 0 {
             return;

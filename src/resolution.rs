@@ -10,7 +10,7 @@ use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, FiniteModule, FDModule, FreeModule};
 use once::{OnceVec, OnceBiVec};
 use crate::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
-use crate::chain_complex::{ChainComplex, AugmentedChainComplex, FiniteChainComplex};
+use crate::chain_complex::{ChainComplex, AugmentedChainComplex, FiniteChainComplex, ResolutionComplex};
 use crate::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorphismToUnit};
 use crate::CCC;
 
@@ -303,8 +303,9 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
     }
 }
 
-impl<CC : ChainComplex> ChainComplex for ResolutionInner<CC>
-{
+impl<CC : ChainComplex> ResolutionComplex for ResolutionInner<CC> {}
+
+impl<CC : ChainComplex> ChainComplex for ResolutionInner<CC> {
     type Module = FreeModule;
     type Homomorphism = FreeModuleHomomorphism<FreeModule>;
 

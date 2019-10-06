@@ -25,7 +25,7 @@ pub struct TensorChainComplex<CC1 : ChainComplex, CC2 : ChainComplex> {
 
 impl<CC1 : ChainComplex, CC2 : ChainComplex> TensorChainComplex<CC1, CC2> {
     pub fn new(left_cc : Arc<CC1>, right_cc : Arc<CC2>) -> Self {
-        TensorChainComplex {
+        Self {
             lock : Mutex::new(()),
             modules : OnceVec::new(),
             differentials : OnceVec::new(),
