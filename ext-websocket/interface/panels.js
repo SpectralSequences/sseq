@@ -543,8 +543,6 @@ class OverviewPanel extends Panel {
 
         this.newGroup();
 
-//        this.addButton("Query table", () => this.display.state = STATE_QUERY_TABLE, { shortcuts : ["y"] });
-        this.addButton("Query cocyle string", () => this.display.state = STATE_QUERY_COCYCLE_STRING, { shortcuts : ["x"] });
         this.addButton("Resolve further", () => this.display.sseq.resolveFurther());
     }
 }

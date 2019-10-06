@@ -839,6 +839,9 @@ export class MainDisplay extends SidebarDisplay {
             if (this.selected)
                 this.sseq.addPermanentClassInteractive(...this.selected);
         });
+        Mousetrap.bind("y", () => this.state = STATE_QUERY_TABLE);
+        Mousetrap.bind("x", () => this.state = STATE_QUERY_COCYCLE_STRING);
+
         Mousetrap.bind("n", () => {
             if (!this.selected) return;
             let [x, y] = this.selected;
