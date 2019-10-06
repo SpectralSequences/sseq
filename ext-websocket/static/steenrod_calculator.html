@@ -12,6 +12,7 @@
         min-height: 98.5%;
         margin-top: 0.4cm;
         margin-left:0.4cm;
+        margin-right:3cm;
       }
 
       hr { height:2px; visibility:hidden; margin-bottom:-1px; }
@@ -21,15 +22,28 @@
   
   </head>
   <body>
-    <p id="description">
+    <h3>Steenrod Calculator</h3>
+    <div id="description-div" style="margin-left:1cm; width:50em; max-width: 100%;">
+      <p>
       This is a Steenrod calculator. A Steenrod square is input like "Sq5" or "P5". 
       The Milnor primitives are written like "Q2".
       In particular, at an odd prime the Bockstein is currently written "Q0".
       The Milnor basis elements are denoted like "Sq(0,1)" which is the same as "Q1" at the prime 2 or "P(0,0,1)" which is $[[P^1,P^p],P^{p^2}]$.
-      Input can be an arbitrary homogenous arithmetic expression in these generators. 
-      In order to multiply two elements you MUST include a "*" between them, for instance "Sq4*Sq2*Sq1". You can use parentheses for grouping as in "(Q2 + Sq7)*Sq2".
+      </p>
+      <p>      
+      In order to multiply two elements you MUST include a "*" between them, for instance "Sq4*Sq2*Sq1". 
+      You can use parentheses for grouping as in "(Q2 + Sq7)*Sq2".
+      Input can be an arbitrary homogenous arithmetic expression using +, -, *, and parentheses in these generators. 
+      Scalars are denoted like "2*P2". "P1*P1*2", or "-P1*P1" or "P1*P1*-1" are all valid notations. 
     </p>
+    <p>
+      For convenience, we also allow the notation "A(2 2 2 2)" for $Sq^2 Sq^2 Sq^2 Sq^2$ and "A(1 b 1)" for "P^1 \beta P^1". 
+      The letter "A" here stands for "admissible", though of course the sequences involved are not admissible. 
+      We also allow "M(0 0 2)" as an alternate notation for "P(0, 0, 2)" or "Sq(0,0,2)".
+    </p>
+    </div>
 <!-- -->
+<div id="calculator-div">
 <form id="adem-calculator" onsubmit="runAdem(); return false;" action="#">
     Prime: <select name="prime" id="calculator-prime">
         <option value="2">2</option>
@@ -60,5 +74,6 @@
     </p>   
   </form>     
   <script src="./steenrod_calculator.js" type="text/javascript"></script>
+</div>
   </body>
 </html> 
