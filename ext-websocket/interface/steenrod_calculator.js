@@ -40,10 +40,10 @@ function katexMathInDelims(string){
     return html_list.join("");
 }
 
-let description_element = document.getElementById("description");
+let description_element = document.getElementById("description-div");
 description_element.innerHTML = katexMathInDelims(description_element.innerHTML);
 
-let adem_reln_element = document.getElementById("adem_relation")
+let adem_reln_element = document.getElementById("adem-relation");
 adem_reln_element.innerHTML = katexMathInDelims(adem_reln_element.innerHTML);
 
 
