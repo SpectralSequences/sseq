@@ -260,6 +260,13 @@ pub trait FpVectorT {
         }
         return mask;
     }
+
+    fn set_to_zero_pure (&mut self){
+        for limb in self.limbs_mut().iter_mut() {
+            *limb = 0;
+        }
+    }
+
     fn set_to_zero(&mut self){
         let min_limb = self.min_limb();
         let max_limb = self.max_limb();

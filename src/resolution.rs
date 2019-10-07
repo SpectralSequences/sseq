@@ -229,8 +229,8 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                     out_row.set_slice(padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension);
                     out_row.assign(&out_vec);
                     out_row.clear_slice();
-                    dfx.set_to_zero();
-                    out_vec.set_to_zero();
+                    dfx.set_to_zero_pure();
+                    out_vec.set_to_zero_pure();
 
                     // Keep the rows we produced because we have to row reduce to re-compute
                     // the kernel later, but these rows are the images of the generators, so we
@@ -839,7 +839,7 @@ impl<CC> Resolution<CC> where
                             );
                         unit_vector[j].set_entry(0, 1);
                         f.extend_step(new_s as u32, new_t, Some(&mut unit_vector));
-                        unit_vector[j].set_to_zero();
+                        unit_vector[j].set_to_zero_pure();
                         self.chain_maps_to_unit_resolution[new_s][new_t].push(f);
                     }
                 }

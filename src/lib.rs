@@ -497,7 +497,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                             }
                             d_target.apply_quasi_inverse(&mut output_matrix[j], t, &result);
 
-                            result.set_to_zero();
+                            result.set_to_zero_pure();
                         }
                         map.add_generators_from_matrix_rows(&lock, t, &mut output_matrix, 0, 0);
                         *lock += 1;

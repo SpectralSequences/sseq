@@ -303,7 +303,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> TensorChainMap<CC1, CC2> {
                         row.shift_assign(&result);
                         row.clear_slice();
                     }
-                    result.set_to_zero();
+                    result.set_to_zero_pure();
                 }
                 target_offset += target_right_dim * target_left_dim;
                 row_count += source_right_dim * source_left_dim;
@@ -334,7 +334,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> TensorChainMap<CC1, CC2> {
                         }
                         row_count += 1;
                     }
-                    result.set_to_zero();
+                    result.set_to_zero_pure();
                 }
                 target_offset += target_right_dim * target_left_dim;
             }

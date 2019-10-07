@@ -140,7 +140,7 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
                 d_target.compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
                 f_prev.apply(&mut fdx_vector, 1, input_internal_degree, dx_vector);
                 d_target.apply_quasi_inverse(&mut outputs_matrix[k], output_internal_degree, &fdx_vector);
-                fdx_vector.set_to_zero();
+                fdx_vector.set_to_zero_pure();
             }
         }
         // let num_extra_image_rows = extra_images.map_or(0, |matrix| matrix.rows());
