@@ -11,6 +11,9 @@ use crate::Sender;
 const MIN_PAGE : i32 = 2;
 pub const INFINITY : i32 = std::i32::MAX;
 
+fn sseq_profile(r : i32, x : i32, y: i32) -> (i32, i32) { (x - 1, y + r) }
+fn sseq_profile_i(r : i32, x : i32, y: i32) -> (i32, i32) { (x + 1, y - r) }
+
 /// Given a vector `elt`, a subspace `zeros` of the total space (with a specified choice of
 /// complement) and a basis `basis` of a subspace of the complement, project `elt` to the complement and express
 /// as a linear combination of the basis. This assumes the projection of `elt` is indeed in the
@@ -313,7 +316,8 @@ impl Sseq {
     /// classes to 0.
     fn allocate_differential_matrix(&mut self, r : i32, x : i32, y : i32) {
         let source_dim = self.classes[x][y];
-        let target_dim = self.classes[x - 1][y + r];
+        let (tx, ty) = sseq_profile(r, x, y);
+        let target_dim = self.classes[tx][ty];
         let p = self.p;
         let mut d = Differential::new(p, source_dim, target_dim);
         for vec in self.permanent_classes[x][y].basis() {
@@ -386,9 +390,11 @@ impl Sseq {
             return None;
         }
 
+
         if product.permanent {
             if let Some(t_) = t {
-                let (_, _, mut new_target) = self.multiply(x - 1, y + r, t_, product)?;
+                let (tx, ty) = sseq_profile(r, x, y);
+                let (_, _, mut new_target) = self.multiply(tx, ty, t_, product)?;
                 if product.left && product.x % 2 != 0 {
                     new_target.scale(self.p - 1);
                 }
@@ -410,7 +416,8 @@ impl Sseq {
                 // This is more-or-less the same as the permanent code, except we know t is not
                 // permanent (or else it would be handled by the previous case).
                 if let Some(t_) = t {
-                    let (_, _, mut new_target) = self.multiply(x - 1, y + r, t_, product)?;
+                    let (tx, ty) = sseq_profile(r, x, y);
+                    let (_, _, mut new_target) = self.multiply(tx, ty, t_, product)?;
                     if product.left && product.x % 2 != 0 {
                         new_target.scale(self.p - 1);
                     }
@@ -423,7 +430,8 @@ impl Sseq {
                     new_target.scale(self.p - 1);
                 }
                 if let Some(t_) = t {
-                    let (_, _, mut tmp) = self.multiply(x - 1, y + r, t_, product)?;
+                    let (tx, ty) = sseq_profile(r, x, y);
+                    let (_, _, mut tmp) = self.multiply(tx, ty, t_, product)?;
                     if product.left && product.x % 2 != 0 {
                         tmp.scale(self.p - 1);
                     }
@@ -553,7 +561,8 @@ impl Sseq {
         let page_classes = self.page_classes.read().unwrap();
 
         let source_zeros = Sseq::get_page(r, &zeros[x][y]);
-        let target_zeros = Sseq::get_page(r - 1, &zeros[x - 1][y + r - 1]);
+        let (tx, ty) = sseq_profile(r - 1, x, y);
+        let target_zeros = Sseq::get_page(r - 1, &zeros[tx][ty]);
         let d = &self.differentials[x][y][r - 1];
 
         let source_dim = d.source_dim;
@@ -584,7 +593,7 @@ impl Sseq {
             result.clear_slice();
 
             vectors.push(result);
-            differentials.push(express_basis(&mut dvec, None, Sseq::get_page(r - 1, &page_classes[x - 1][y + r - 1])));
+            differentials.push(express_basis(&mut dvec, None, Sseq::get_page(r - 1, &page_classes[tx][ty])));
             dvec.set_to_zero();
         }
 
@@ -673,9 +682,11 @@ impl Sseq {
         for r in MIN_PAGE .. self.differentials[x][y].len() {
             let d = &mut self.differentials[x][y][r];
             let pairs = d.get_source_target_pairs();
+            let (tx, ty) = sseq_profile(r, x, y);
+
             true_differentials.push(pairs.into_iter()
                 .map(|(mut s, mut t)| (express_basis(&mut s, Some(Sseq::get_page(r, &zeros[x][y])), &Sseq::get_page(r, &page_classes[x][y])),
-                               express_basis(&mut t, Some(Sseq::get_page(r, &zeros[x - 1][y + r])), &Sseq::get_page(r, &page_classes[x - 1][y + r]))))
+                               express_basis(&mut t, Some(Sseq::get_page(r, &zeros[tx][ty])), &Sseq::get_page(r, &page_classes[tx][ty]))))
                 .collect::<Vec<_>>())
         }
 
@@ -703,7 +714,8 @@ impl Sseq {
             error |= self.differentials[x][y][r].error;
         }
         for r in self.get_differentials_hitting(x, y) {
-            error |= self.differentials[x + 1][y - r][r].error;
+            let (sx, sy) = sseq_profile_i(r, x, y);
+            error |= self.differentials[sx][sy][r].error;
         }
 
         let state;
@@ -791,8 +803,11 @@ impl Sseq {
         let max_r = self.zeros.read().unwrap()[x][y].len() - 1; // If there is a d_r hitting us, then zeros will be populated up to r + 1
 
         (MIN_PAGE .. max_r)
-            .filter(|&r| self.differentials[x + 1].max_degree() >= y - r
-                    && self.differentials[x + 1][y - r].max_degree() >= r)
+            .filter(|&r| {
+                let (sx, sy) = sseq_profile_i(r, x, y);
+                self.differentials[sx].max_degree() >= sy
+                    && self.differentials[sx][sy].max_degree() >= r
+            })
             .collect::<Vec<i32>>()
     }
 }
@@ -861,46 +876,50 @@ impl Sseq {
             }
         }
 
+        let (tx, ty) = sseq_profile(r, x, y);
         let mut zeros = self.zeros.write().unwrap();
-        Sseq::get_page(r, &zeros[x - 1][y + r]).reduce(target);
+        Sseq::get_page(r, &zeros[tx][ty]).reduce(target);
 
         self.differentials[x][y][r].add(source, Some(&target));
         for i in MIN_PAGE .. r {
             self.differentials[x][y][i].add(source, None)
         }
 
-        if zeros[x - 1][y + r].len() <= r + 1 {
-            for r_ in zeros[x - 1][y + r].len() ..= r + 1 {
-                self.allocate_zeros_subspace(&mut zeros, r_, x - 1, y + r);
+        if zeros[tx][ty].len() <= r + 1 {
+            for r_ in zeros[tx][ty].len() ..= r + 1 {
+                self.allocate_zeros_subspace(&mut zeros, r_, tx, ty);
             }
         }
 
-        for r_ in r + 1 .. zeros[x - 1][y + r].len() {
-            zeros[x - 1][y + r][r_].add_vector(target);
-            if self.class_defined(x, y + r - r_) {
-                if self.differentials[x][y + r - r_].len() > r_ {
-                    self.differentials[x][y + r - r_][r_].reduce_target(&zeros[x - 1][y + r][r_]);
+        for r_ in r + 1 .. zeros[tx][ty].len() {
+            zeros[tx][ty][r_].add_vector(target);
+            let (px, py) = sseq_profile_i(r_, tx, ty);
+            if self.class_defined(px, py) {
+                if self.differentials[px][py].len() > r_ {
+                    self.differentials[px][py][r_].reduce_target(&zeros[tx][ty][r_]);
                 }
             }
         }
 
-        let len = zeros[x - 1][y + r].len();
+        let len = zeros[tx][ty].len();
         drop(zeros);
 
         // add_permanent_class in turn sets the differentials on the targets of the differentials
         // to 0. add_differential_propagate will take care of propagating this.
-        self.add_permanent_class(x - 1, y + r, target);
+        self.add_permanent_class(tx, ty, target);
 
         self.add_page(r);
         self.add_page(r + 1);
 
-        self.compute_classes(x - 1, y + r, true);
+        self.compute_classes(tx, ty, true);
         self.compute_classes(x, y, true);
 
         // self.zeros[r] will be populated if there is a non-zero differential hit on a
         // page <= r - 1. Check if these differentials now hit 0.
+        // TODO: this needs fixing
         for r_ in r + 1 .. len - 1 {
-            self.compute_classes(x, y + r - r_, true);
+            let (px, py) = sseq_profile_i(r_, tx, ty);
+            self.compute_classes(px, py, true);
         }
     }
 
@@ -1071,9 +1090,10 @@ impl Sseq {
             }
         } else {
             for r in self.get_differentials_hitting(x, y) {
-                let d = &mut self.differentials[x + 1][y - r][r];
+                let (sx, sy) = sseq_profile_i(r, x, y);
+                let d = &mut self.differentials[sx][sy][r];
                 for (source, mut target) in d.get_source_target_pairs() {
-                    let new_d = self.leibniz(r, x + 1, y - r, &source, Some(&mut target), idx);
+                    let new_d = self.leibniz(r, sx, sy, &source, Some(&mut target), idx);
                     if let Some((r_, x_, y_, source_, Some(mut target_))) = new_d {
                         self.add_differential(r_, x_, y_, &source_, &mut target_);
                     }
