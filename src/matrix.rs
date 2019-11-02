@@ -1037,6 +1037,25 @@ impl Matrix {
     }
 }
 
+impl std::ops::Mul for &Matrix {
+    type Output = Matrix;
+
+    fn mul(self, rhs : Self) -> Matrix {
+        assert_eq!(self.prime(), rhs.prime());
+        assert_eq!(self.columns(), rhs.rows());
+
+        let mut result = Matrix::new(self.prime(), self.rows(), rhs.columns());
+        for i in 0 .. self.rows() {
+            for j in 0 .. rhs.columns() {
+                for k in 0 .. self.columns() {
+                    result[i].add_basis_element(j, self[i].entry(k) * rhs[k].entry(j));
+                }
+            }
+        }
+        result
+    }
+}
+
 use std::io;
 use std::io::{Read, Write};
 use saveload::{Save, Load};
