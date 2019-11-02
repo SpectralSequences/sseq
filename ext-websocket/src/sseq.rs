@@ -285,13 +285,13 @@ impl Sseq {
         if self.block_refresh > 0 {
             return;
         }
-        for x in 0 .. self.classes.len() {
-            for y in 0 .. self.classes[x].len() {
+        for x in self.min_x .. self.classes.len() {
+            for y in self.min_y .. self.classes[x].len() {
                 self.compute_classes(x, y, false);
             }
         }
-        for x in 0 .. self.classes.len() {
-            for y in 0 .. self.classes[x].len() {
+        for x in self.min_x .. self.classes.len() {
+            for y in self.min_y .. self.classes[x].len() {
                 self.compute_edges(x, y);
             }
         }
