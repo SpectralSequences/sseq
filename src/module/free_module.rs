@@ -108,7 +108,7 @@ impl FreeModule {
         if degree < self.min_degree {
             return 0;
         }
-        return self.table[degree].num_gens;
+        self.table[degree].num_gens
     }
 
     pub fn construct_table(&self, degree : i32) -> (MutexGuard<i32>, FreeModuleTableEntry) {

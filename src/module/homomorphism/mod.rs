@@ -119,7 +119,7 @@ pub trait ModuleHomomorphism : Send + Sync + 'static {
             self.apply_to_basis_element(output_vector, 1, degree, input_idx);
             output_vector.restore_slice(old_slice);
         }
-        return (start_row + source_dimension, start_column + target_dimension);
+        (start_row + source_dimension, start_column + target_dimension)
     }
 
     fn apply_quasi_inverse(&self, result : &mut FpVector, degree : i32, input : &FpVector) {

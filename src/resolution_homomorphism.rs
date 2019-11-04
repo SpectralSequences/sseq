@@ -47,7 +47,7 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         &self.maps[output_homological_degree as usize]
     }
 
-    pub fn to_chain_maps(self) -> Vec<FreeModuleHomomorphism<CC2::Module>> {
+    pub fn into_chain_maps(self) -> Vec<FreeModuleHomomorphism<CC2::Module>> {
         self.maps.into_vec()
     }
 

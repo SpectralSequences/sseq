@@ -202,7 +202,7 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
         let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&yoneda), 0, 0);
         let mut mat = Matrix::new(p, 1, 1);
         mat[0].set_entry(0, 1);
-        f.extend_step(0, 0, Some(&mut mat));
+        f.extend_step(0, 0, Some(&mat));
 
         f.extend(s, t);
         let final_map = f.get_map(s);
@@ -335,8 +335,8 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
         let start = Instant::now();
         {
             assert_eq!(check[0], 1, "Incorrect Euler characteristic at t = 0");
-            for t in 1 ..= t as usize {
-                assert_eq!(check[t], 0, "Incorrect Euler characteristic at t = {}", t);
+            for entry in check.into_iter().skip(1) {
+                assert_eq!(entry, 0, "Incorrect Euler characteristic at t = {}", t);
             }
             let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&yoneda), 0, 0);
             let mut mat = Matrix::new(p, 1, 1);

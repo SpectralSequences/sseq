@@ -165,9 +165,9 @@ pub enum FiniteModule {
 impl FiniteModule {
     pub fn from_json(algebra : Arc<AlgebraAny>, json : &mut serde_json::Value) -> Result<Self, Box<dyn Error>> {
         let module_type = &json["type"].as_str().unwrap();
-        match module_type {
-            &"finite dimensional module" => Ok(FiniteModule::from(FDModule::from_json(algebra, json))),
-            &"finitely presented module" => Ok(FiniteModule::from(FPModule::from_json(algebra, json))),
+        match *module_type {
+            "finite dimensional module" => Ok(FiniteModule::from(FDModule::from_json(algebra, json))),
+            "finitely presented module" => Ok(FiniteModule::from(FPModule::from_json(algebra, json))),
             _ => Err(Box::new(UnknownModuleTypeError { module_type : module_type.to_string() }))
         }
     }

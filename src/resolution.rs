@@ -394,6 +394,14 @@ pub struct SelfMap<CC : ChainComplex> {
     pub map : ResolutionHomomorphism<CC, ResolutionInner<CC>>
 }
 
+pub type AddClassFn = Box<dyn Fn(u32, i32, usize)>;
+pub type AddStructlineFn = Box<dyn Fn(
+    &str,
+    u32, i32,
+    u32, i32,
+    bool,
+    Vec<Vec<u32>>
+    )>;
 /// # Fields
 ///  * `kernels` - For each *internal* degree, store the kernel of the most recently calculated
 ///  chain map as returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
@@ -403,14 +411,8 @@ pub struct Resolution<CC : ChainComplex> {
 
     next_s : Mutex<u32>,
     next_t : Mutex<i32>,
-    pub add_class : Option<Box<dyn Fn(u32, i32, usize)>>,
-    pub add_structline : Option<Box<dyn Fn(
-        &str,
-        u32, i32,
-        u32, i32,
-        bool,
-        Vec<Vec<u32>>
-    )>>,
+    pub add_class : Option<AddClassFn>,
+    pub add_structline : Option<AddStructlineFn>,
 
     filtration_one_products : Vec<(String, i32, usize)>,
 
@@ -431,14 +433,8 @@ pub struct Resolution<CC : ChainComplex> {
 impl<CC : ChainComplex> Resolution<CC> {
     pub fn new(
         complex : Arc<CC>,
-        add_class : Option<Box<dyn Fn(u32, i32, usize)>>,
-        add_structline : Option<Box<dyn Fn(
-            &str,
-            u32, i32,
-            u32, i32,
-            bool,
-            Vec<Vec<u32>>
-        )>>
+        add_class : Option<AddClassFn>,
+        add_structline : Option<AddStructlineFn>
     ) -> Self {
         let inner = ResolutionInner::new(complex);
         Self::new_with_inner(inner, add_class, add_structline)
@@ -446,14 +442,8 @@ impl<CC : ChainComplex> Resolution<CC> {
 
     pub fn new_with_inner(
         inner : ResolutionInner<CC>,
-        add_class : Option<Box<dyn Fn(u32, i32, usize)>>,
-        add_structline : Option<Box<dyn Fn(
-            &str,
-            u32, i32,
-            u32, i32,
-            bool,
-            Vec<Vec<u32>>
-        )>>
+        add_class : Option<AddClassFn>,
+        add_structline : Option<AddStructlineFn>
     ) -> Self {
         let inner = Arc::new(inner);
         let min_degree = inner.min_degree();
@@ -812,7 +802,7 @@ impl<CC> Resolution<CC> where
 
     fn construct_maps_to_unit(&self, s : u32, t : i32) {
         // If there are no products, we return
-        if self.product_list.len() == 0 {
+        if self.product_list.is_empty() {
             return;
         }
 

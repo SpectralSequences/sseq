@@ -84,12 +84,12 @@ where
     F: for<'a> Fn(&'a str) -> Option<usize>
 {
     'outer : loop {
-        let result = query(prompt, |res : String| Ok(res));
+        let result : String = query(prompt, Ok);
         if result == "0" {
             output_vec.set_to_zero();
             break;
         }
-        for term in result.split("+") {
+        for term in result.split('+') {
             let term = term.trim();
             let parts : Vec<&str> = term.splitn(2, ' ').collect();
             if parts.len() == 1 {
@@ -198,7 +198,7 @@ pub fn interactive_module_define_fdmodule(mut output_json : Value, p : u32, gene
                 continue;
             }
             let adem_gens = adem_algebra.generators(op_deg);
-            if adem_gens.len() > 0 {
+            if !adem_gens.is_empty() {
                 let mut output_vec = FpVector::new(p, gens[output_deg_idx].len());
                 let adem_op_idx = adem_gens[0];
                 let milnor_op_idx = milnor_algebra.generators(op_deg)[0];                

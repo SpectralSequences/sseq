@@ -111,7 +111,7 @@ pub trait Algebra {
             result.pop();
             result.pop();
         }
-        return result;
+        result
     }    
 
     /// Given a degree `degree`, the function returns a list of algebra generators in that degree.

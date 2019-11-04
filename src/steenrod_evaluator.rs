@@ -76,7 +76,7 @@ fn evaluate_algebra_tree_helper(
             let (degree_left, mut output_left) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, output_degree, *left)?;
             let (_degree_right, output_right) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, Some(degree_left), *right)?;
             output_left.add(&output_right, 1);
-            return Ok((degree_left, output_left));
+            Ok((degree_left, output_left))
         }
         AlgebraParseNode::Product(left, right) => {
             let (degree_left, output_left) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, None, *left)?;
@@ -92,7 +92,7 @@ fn evaluate_algebra_tree_helper(
             milnor_algebra.compute_basis(degree);            
             let mut result = FpVector::new(p, adem_algebra.dimension(degree, -1));
             adem_algebra.multiply_element_by_element(&mut result, 1, degree_left, &output_left, degree_right, &output_right, -1);
-            return Ok((degree, result));
+            Ok((degree, result))
         },
         AlgebraParseNode::BasisElt(basis_elt) => {
             evaluate_basis_element(adem_algebra, milnor_algebra, output_degree, basis_elt)
@@ -106,7 +106,7 @@ fn evaluate_algebra_tree_helper(
             let mut result = FpVector::new(p, 1);
             let p = p as i32;
             result.set_entry(0, (((x % p) + p) % p) as u32);
-            return Ok((0, result));
+            Ok((0, result))
         }
     }
 }
@@ -162,7 +162,7 @@ fn evaluate_basis_element(
             return Err(Box::new(DegreeError{}));
         }
     }
-    return Ok((degree, result));
+    Ok((degree, result))
 }
 
 
@@ -197,7 +197,7 @@ fn evaluate_module_tree_helper<M : Module>(
             let (degree_left, mut output_left) = evaluate_module_tree_helper(adem_algebra, milnor_algebra, module, basis_elt_lookup, output_degree, *left)?;
             let (_degree_right, output_right) = evaluate_module_tree_helper(adem_algebra, milnor_algebra, module, basis_elt_lookup, Some(degree_left), *right)?;
             output_left.add(&output_right, 1);
-            return Ok((degree_left, output_left));
+            Ok((degree_left, output_left))
         }
         ModuleParseNode::Act(left, right) => {
             let (degree_left, output_left) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, None, *left)?;
@@ -211,7 +211,7 @@ fn evaluate_module_tree_helper<M : Module>(
             let degree = degree_left + degree_right;
             let mut result = FpVector::new(p, module.dimension(degree));
             module.act_by_element(&mut result, 1, degree_left, &output_left, degree_right, &output_right);
-            return Ok((degree, result));
+            Ok((degree, result))
         },
         ModuleParseNode::ModuleBasisElt(basis_elt) => {
             evaluate_module_basis_element(adem_algebra, milnor_algebra, module, basis_elt_lookup, output_degree, basis_elt)
@@ -242,7 +242,7 @@ fn evaluate_module_basis_element<M : Module>(
     }
     let mut result = FpVector::new(p, module.dimension(degree));
     result.set_entry(idx, 1);
-    return Ok((degree, result))
+    Ok((degree, result))
 }
 
 fn bockstein_or_sq_to_adem_basis_elt(e : &BocksteinOrSq, q : i32) -> AdemBasisElement {
@@ -294,7 +294,7 @@ fn evaluate_p_or_b_list(adem_algebra : &AdemAlgebra, list : &[BocksteinOrSq]) ->
         std::mem::swap(&mut tmp_vector_a, &mut tmp_vector_b);
         tmp_vector_b.set_to_zero();
     }
-    return (total_degree, tmp_vector_a);
+    (total_degree, tmp_vector_a)
 }
 
 #[derive(Debug)]

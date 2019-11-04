@@ -217,7 +217,7 @@ fn multinomial_odd(p : u32, l : &[u32]) -> u32{
                 return 0
             }
             multi *= direct_binomial(p, partial_sum, l_expansions[i][index]);
-            multi = multi % p;
+            multi %= p;
         }
         answer = (answer * multi) % p;
     }

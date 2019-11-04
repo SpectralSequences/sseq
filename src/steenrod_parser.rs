@@ -50,7 +50,7 @@ fn comma_separated_integer_list(i : &str) -> IResult<&str, Vec<u32>> {
     let mut result = vec![init];
     let (rest, list) = many0(pair(char(','), digits))(i)?;
     result.extend(list.iter().map(|t| t.1));
-    return Ok((rest, result));
+    Ok((rest, result))
 }
 
 
@@ -134,7 +134,7 @@ fn algebra_generator(i : &str) -> IResult<&str, AlgebraParseNode> {
             ("A", x ) => AlgebraBasisElt::AList(x),
             _ => unreachable!()
         };
-        return Ok((rest, AlgebraParseNode::BasisElt(result)));
+        Ok((rest, AlgebraParseNode::BasisElt(result)))
     }
 }
 
@@ -255,7 +255,7 @@ fn module_expr(i: &str) -> IResult<&str, ModuleParseNode> {
 pub fn parse_algebra(i : &str) -> Result<AlgebraParseNode, Box<dyn std::error::Error>> {
     let (rest, parse_tree) = algebra_expr(i)
         .or_else(|err| Err(Box::new(ParseError{info : format!("{:#?}", err) })))?;
-    if rest.len() > 0 {
+    if !rest.is_empty() {
         Err(Box::new(ParseError {info : "Failed to consume all of input".to_string()}))
     } else {
         Ok(parse_tree)
@@ -265,7 +265,7 @@ pub fn parse_algebra(i : &str) -> Result<AlgebraParseNode, Box<dyn std::error::E
 pub fn parse_module(i : &str) -> Result<ModuleParseNode, Box<dyn std::error::Error>> {
     let (rest, parse_tree) = module_expr(i)
         .or_else(|err| Err(Box::new(ParseError{info : format!("{:#?}", err) })))?;
-    if rest.len() > 0 {
+    if !rest.is_empty() {
         Err(Box::new(ParseError {info : "Failed to consume all of input".to_string()}))
     } else {
         Ok(parse_tree)

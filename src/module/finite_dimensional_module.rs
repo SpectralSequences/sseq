@@ -78,7 +78,7 @@ impl FiniteDimensionalModule {
             }
             return Err(err_string);
         }
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -104,11 +104,11 @@ impl Module for FiniteDimensionalModule {
         if degree > self.graded_dimension.max_degree() {
             return 0;
         }        
-        return self.graded_dimension[degree];
+        self.graded_dimension[degree]
     }
 
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
-        return self.gen_names[degree][idx].clone();
+        self.gen_names[degree][idx].clone()
     }
 
     fn is_unit(&self) -> bool {
@@ -209,7 +209,7 @@ impl FiniteDimensionalModule {
             gen_to_idx.insert(name, (degree, graded_dimension[degree]));
             graded_dimension[degree] += 1;
         }
-        return (graded_dimension, gen_names, gen_to_idx);
+        (graded_dimension, gen_names, gen_to_idx)
     }
 
     fn allocate_actions(algebra : &Arc<AlgebraAny>, graded_dimension : &BiVec<usize>) -> BiVec<BiVec<Vec<Vec<FpVector>>>> {
@@ -268,7 +268,7 @@ impl FiniteDimensionalModule {
             result.push(outputs_vec);
         }
         assert!(result.len() == max_degree);
-        return result;
+        result
     }
 
     pub fn set_action_vector(
@@ -318,7 +318,7 @@ impl FiniteDimensionalModule {
         input_degree : i32, input_idx : usize
     ) -> &mut FpVector {
         let output_degree = input_degree + operation_degree;
-        return &mut self.actions[input_degree][output_degree][operation_idx][input_idx];
+        &mut self.actions[input_degree][output_degree][operation_idx][input_idx]
     }
 
     pub fn from_json(algebra : Arc<AlgebraAny>, json : &mut Value) -> Self {

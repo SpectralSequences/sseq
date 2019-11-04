@@ -478,20 +478,20 @@ impl Subspace {
         match subspace {
             None => {
                 if let Some(sp) = space {
-                    return sp.column_to_pivot_row.iter().filter( |i| **i >= 0).map(|i| *i as usize).collect();
+                    sp.column_to_pivot_row.iter().filter( |i| **i >= 0).map(|i| *i as usize).collect()
                 } else {
-                    return (0..ambient_dimension).collect();
+                    (0..ambient_dimension).collect()
                 }
             },
             Some(subsp) => {
                 if let Some(sp) = space {
-                    return sp.column_to_pivot_row.iter().zip(subsp.column_to_pivot_row.iter())
+                    sp.column_to_pivot_row.iter().zip(subsp.column_to_pivot_row.iter())
                       .filter(|(x,y)| {
                           debug_assert!(**x >= 0 || **y < 0);
                           **x >= 0 && **y < 0
-                        }).map(|(x,_)| *x as usize).collect();
+                        }).map(|(x,_)| *x as usize).collect()
                 } else {
-                    return (0..ambient_dimension).filter( |i| subsp.column_to_pivot_row[*i] < 0).collect();
+                    (0..ambient_dimension).filter( |i| subsp.column_to_pivot_row[*i] < 0).collect()
                 }
             }
         }
@@ -503,7 +503,7 @@ impl Subspace {
             result.matrix[i].set_entry(i, 1);
             result.column_to_pivot_row[i] = i as isize;
         }
-        return result;
+        result
     }
 
     /// This adds a vector to the subspace. This function assumes that the last row of the
@@ -621,7 +621,7 @@ impl Subspace {
                 return i as usize + 1 ;
             }
         }
-        return 0;
+        0
     }
 
     /// Returns a basis of the subspace.
@@ -704,7 +704,7 @@ impl Matrix {
                 return pivots[i] as usize;
             }
         }
-        return self.rows();
+        self.rows()
     }
 
     /// Computes the kernel from an augmented matrix in rref. To compute the kernel of a matrix
@@ -771,7 +771,7 @@ impl Matrix {
             kernel.matrix[row].assign(&vector);
             vector.restore_slice(old_slice);
         }
-        return kernel;
+        kernel
     }
 
     /// Computes the quasi-inverse of a matrix given a rref of [A|0|I], where 0 is the zero padding
@@ -829,10 +829,10 @@ impl Matrix {
             matrix : image_matrix,
             column_to_pivot_row : image_pivots
         };
-        return QuasiInverse {
+        QuasiInverse {
             image : Some(image),
             preimage
-        };
+        }
     }
 
     /// This function computes quasi-inverses for matrices A, B given a reduced row echelon form of
@@ -894,7 +894,7 @@ impl Matrix {
         };
         // println!("{:?}", self);
         // println!("{:?}", res_qi);
-        return (cm_qi, res_qi);
+        (cm_qi, res_qi)
     }
     
     pub fn get_image(&mut self, image_rows : usize, target_dimension : usize, pivots : &[isize]) -> Subspace {
@@ -907,7 +907,7 @@ impl Matrix {
             image.matrix[i].assign(vector_to_copy);
             vector_to_copy.restore_slice(old_slice);
         }
-        return image;
+        image
     }
 
     /// Given a matrix M in rref, add rows to make the matrix surjective when restricted to the
@@ -945,7 +945,7 @@ impl Matrix {
             matrix_row.set_entry(i, 1);
             first_empty_row += 1;
         }
-        return added_pivots;
+        added_pivots
     }
 
     /// Given a matrix in rref, say [A|B|C], where B lies between columns `start_column` and
@@ -992,7 +992,7 @@ impl Matrix {
             matrix_row.restore_slice(old_slice);
             first_empty_row += 1;
         }
-        return added_pivots;
+        added_pivots
     }
 
     /// Extends the image of a matrix to either the whole codomain, or the desired image specified
@@ -1005,9 +1005,9 @@ impl Matrix {
         current_pivots : &[isize], desired_image : &Option<Subspace>
     ) -> Vec<usize> {
         if let Some(image) = desired_image.as_ref() {
-            return self.extend_image_to_desired_image(first_empty_row, start_column, end_column, current_pivots, image);
+            self.extend_image_to_desired_image(first_empty_row, start_column, end_column, current_pivots, image)
         } else {
-            return self.extend_to_surjection(first_empty_row, start_column, end_column, current_pivots);
+            self.extend_to_surjection(first_empty_row, start_column, end_column, current_pivots)
         }
     }
 

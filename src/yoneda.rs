@@ -129,7 +129,7 @@ where TCM : BoundedModule,
 
     let s_max = std::cmp::max(target_cc.max_s(), map.s_shift + map.chain_maps.len() as u32) - 1;
     let t_max = std::cmp::max(
-        (0 .. target_cc.max_s()).map(|i| target_cc.module(i).max_degree()).max().unwrap_or(target_cc.min_degree()),
+        (0 .. target_cc.max_s()).map(|i| target_cc.module(i).max_degree()).max().unwrap_or_else(|| target_cc.min_degree()),
         map.chain_maps[0].degree_shift() + map.chain_maps.iter().map(|m| m.target().max_degree()).max().unwrap()
     );
 
@@ -175,7 +175,7 @@ where TCM : BoundedModule,
         let d = cc.differential(s);
         if s < s_max {
             let dims_with_gens = source.module.module.table[t_max].generator_to_index.iter_enum()
-                .filter(|(_, x)| x.len() > 0)
+                .filter(|(_, x)| !x.is_empty())
                 .map(|(i, _)| i)
                 .collect::<Vec<_>>();
 
@@ -234,12 +234,11 @@ where TCM : BoundedModule,
                     let start = offsets[gen_dim][0];
                     let dim = source.module.module.dimension(t);
 
-                    let end;
-                    if i == dims_with_gens.len() - 1 || dims_with_gens[i + 1] >= offsets.len() {
-                        end = dim;
+                    let end = if i == dims_with_gens.len() - 1 || dims_with_gens[i + 1] >= offsets.len() {
+                        dim
                     } else {
-                        end = offsets[dims_with_gens[i + 1]][0];
-                    }
+                        offsets[dims_with_gens[i + 1]][0]
+                    };
 
                     let source_orig_dim = source.dimension(t);
                     source.quotient_basis_elements(t, start .. end);
@@ -284,12 +283,11 @@ where TCM : BoundedModule,
                     let offsets = &source.module.module.table[t].generator_to_index;
                     let start = offsets[gen_dim][0];
 
-                    let end;
-                    if i == dims_with_gens.len() - 1 || dims_with_gens[i + 1] >= offsets.len() {
-                        end = source.module.module.dimension(t);
+                    let end = if i == dims_with_gens.len() - 1 || dims_with_gens[i + 1] >= offsets.len() {
+                        source.module.module.dimension(t)
                     } else {
-                        end = offsets[dims_with_gens[i + 1]][0];
-                    }
+                        offsets[dims_with_gens[i + 1]][0]
+                    };
 
                     if prev_differentials[t].is_none() {
                         // We previously skipped this because there were no differentials to check
@@ -326,13 +324,12 @@ where TCM : BoundedModule,
                 continue;
             }
 
-            let keep : Option<&Subspace>;
             // Now compute the image of the differentials, if any.
-            if s < s_max {
-                keep = Some(&differential_images[t]);
+            let keep : Option<&Subspace> = if s < s_max {
+                Some(&differential_images[t])
             } else {
-                keep = None;
-            }
+                None
+            };
 
             let augmentation_map = if s < target_cc.max_s() && target_cc.module(s).dimension(t) > 0 { Some(cc.chain_map(s)) } else { None };
             let preserve_map = if s >= s_shift && t >= t_shift {
@@ -389,14 +386,12 @@ where TCM : BoundedModule,
                 source_kills.push(source_row);
                 target_kills.push(target_row);
             }
-            let mut goal_s_dim = 0;
-            let mut goal_t_dim = 0;
-            if s != s_max {
-                goal_s_dim = source.dimension(t) - source_kills.len();
-                goal_t_dim = target.dimension(t) - target_kills.len();
-            }
+            let goal_s_dim = if s == s_max { 0 } else { source.dimension(t) - source_kills.len() };
+            let goal_t_dim = if s == s_max { 0 } else { target.dimension(t) - target_kills.len() };
+
             source.quotient_vectors(t, source_kills);
             target.quotient_vectors(t, target_kills);
+
             if s != s_max {
                 assert_eq!(source.dimension(t), goal_s_dim, "Failed s dimension check at (s, t) = ({}, {})", s, t);
                 assert_eq!(target.dimension(t), goal_t_dim, "Failed t dimension check at (s, t) = ({}, {})", s, t);

@@ -50,7 +50,7 @@ pub fn adem_to_milnor_on_basis(
     if bocksteins & 1 != 0 {
         milnor_algebra.multiply_element_by_basis_element(result, coeff, total_degree, &tmp_vector_a, 1, 0, -1);
     } else {
-        result.add(&mut tmp_vector_a, coeff);
+        result.add(&tmp_vector_a, coeff);
     }
 }
 

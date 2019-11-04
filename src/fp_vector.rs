@@ -71,7 +71,7 @@ static ENTRIES_PER_64_BITS : [usize;MAX_PRIME_INDEX] = [
 ];
 
 fn entries_per_64_bits(p : u32) -> usize {
-    return ENTRIES_PER_64_BITS[PRIME_TO_INDEX_MAP[p as usize]];
+    ENTRIES_PER_64_BITS[PRIME_TO_INDEX_MAP[p as usize]]
 }
 
 #[derive(Clone)]
@@ -653,7 +653,7 @@ impl PartialEq for FpVector {
                 return false;
             }
         }
-        return true;
+        true
     }
 }
 
@@ -751,8 +751,8 @@ impl FpVectorT for FpVectorGeneric {
         let limbs = &mut self.vector_container.limbs;
         for i in start_limb..end_limb {
             FpVector::unpack_limb(p, dimension, 0, &mut unpacked_limb, limbs, i);
-            for j in 0..unpacked_limb.len() {
-                unpacked_limb[j] = unpacked_limb[j] % self.p;
+            for limb in &mut unpacked_limb {
+                *limb %= self.p;
             }
             FpVector::pack_limb(p, dimension, 0, &unpacked_limb, limbs, i);
         }
@@ -794,21 +794,21 @@ impl FpVector {
     pub fn number_of_limbs(p : u32, dimension : usize) -> usize {
         debug_assert!(dimension < MAX_DIMENSION);
         if dimension == 0 {
-            return 0;
+            0
         } else {
-            return limb_bit_index_pair(p, dimension - 1).limb + 1;
+            limb_bit_index_pair(p, dimension - 1).limb + 1
         }
     }
 
     pub fn padded_dimension(p : u32, dimension : usize) -> usize {
         let entries_per_limb = entries_per_64_bits(p);
-        return ((dimension + entries_per_limb - 1)/entries_per_limb)*entries_per_limb;
+        ((dimension + entries_per_limb - 1)/entries_per_limb)*entries_per_limb
     }
 
     pub fn scratch_vector(p : u32, dimension : usize) -> Self {
         let mut result = FpVector::new(p, FpVector::padded_dimension(p, dimension));
         result.set_slice(0, dimension);
-        return result;
+        result
     }
 
     pub fn set_scratch_vector_size(mut self, dimension : usize) -> Self {
@@ -820,7 +820,7 @@ impl FpVector {
             FpVector::scratch_vector(p, dimension)
         };
         result.set_slice(0, dimension);
-        return result;
+        result
     }
 
     pub fn iter(&self) -> FpVectorIterator {
@@ -858,7 +858,7 @@ impl FpVector {
             idx += 1;
         }
         limbs[limb_idx] = limb_value;
-        return idx;
+        idx
     }
 
     fn unpack_limb(p : u32, dimension : usize, offset : usize, limb_array : &mut [u32], limbs : &[u64], limb_idx : usize) -> usize {
@@ -885,7 +885,7 @@ impl FpVector {
             limb_array[idx] = ((limb_value >> j) & bit_mask) as u32;
             idx += 1;
         }
-        return idx;
+        idx
     }
 }
 
@@ -963,7 +963,7 @@ impl<'a> FpVectorIterator<'a> {
         if n > 0 {
             self.entries_left = entries_per_64_bits - n;
             self.limb_index += 1;
-            self.cur_limb = self.limbs[self.limb_index] >> n * self.bit_length;
+            self.cur_limb = self.limbs[self.limb_index] >> (n * self.bit_length);
             self.counter -= n;
         }
     }
