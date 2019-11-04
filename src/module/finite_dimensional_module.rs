@@ -190,7 +190,7 @@ impl FiniteDimensionalModule {
                 max_degree = degree + 1;
             }
         }
-        if gens.len() == 0 {
+        if gens.is_empty() {
             min_degree = 0;
             max_degree = 0;
         }
@@ -347,7 +347,7 @@ impl FiniteDimensionalModule {
                 output_vec.set_entry(output_idx, output_coeff);
             }
         }
-        return result;
+        result
     }
 
     pub fn check_validity(&self, input_deg : i32, output_deg : i32) -> Result<(),Box<dyn Error>>{
@@ -481,7 +481,7 @@ impl FiniteDimensionalModule {
                             }
                             current_terms.push(json!({"gen" : self.basis_element_to_string(output_degree, i), "coeff" : v}));
                         }
-                        if current_terms.len() == 0 {
+                        if current_terms.is_empty() {
                             continue;
                         }
                         let current_action = json!({

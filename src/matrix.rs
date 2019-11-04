@@ -698,7 +698,7 @@ impl Matrix {
         }
     }
 
-    pub fn find_first_row_in_block(&self, pivots : &Vec<isize>, first_column_in_block : usize) -> usize {
+    pub fn find_first_row_in_block(&self, pivots : &[isize], first_column_in_block : usize) -> usize {
         for i in first_column_in_block .. self.columns() {
             if pivots[i] >= 0 {
                 return pivots[i] as usize;
@@ -743,14 +743,14 @@ impl Matrix {
     /// ker.matrix[0].unpack(&mut target);
     /// assert_eq!(target, vec![1, 1, 2]);
     /// ```
-    pub fn compute_kernel(&mut self, column_to_pivot_row : &Vec<isize>, first_source_column : usize) -> Subspace {
+    pub fn compute_kernel(&mut self, column_to_pivot_row : &[isize], first_source_column : usize) -> Subspace {
         let p = self.p;
         let rows = self.rows();
         let columns = self.columns();
         let source_dimension = columns - first_source_column;
 
         // Find the first kernel row
-        let first_kernel_row = self.find_first_row_in_block(&column_to_pivot_row, first_source_column);
+        let first_kernel_row = self.find_first_row_in_block(column_to_pivot_row, first_source_column);
         // Every row after the first kernel row is also a kernel row, so now we know how big it is and can allocate space.
         let kernel_dimension = rows - first_kernel_row;
         let mut kernel = Subspace::new(p, kernel_dimension, source_dimension);
@@ -808,11 +808,11 @@ impl Matrix {
     ///                 vec![0, 2, 2]];
     /// assert_eq!(qi.preimage, Matrix::from_vec(p, &preimage));
     /// ```
-    pub fn compute_quasi_inverse(&mut self, pivots : &Vec<isize>, last_target_col : usize, first_source_col : usize) -> QuasiInverse {
+    pub fn compute_quasi_inverse(&mut self, pivots : &[isize], last_target_col : usize, first_source_col : usize) -> QuasiInverse {
         let p = self.prime();
         let columns = self.columns();
         let source_columns = columns - first_source_col;
-        let first_kernel_row = self.find_first_row_in_block(&pivots, first_source_col);
+        let first_kernel_row = self.find_first_row_in_block(pivots, first_source_col);
         let mut image_matrix = Matrix::new(p, first_kernel_row, last_target_col);
         let mut preimage = Matrix::new(p, first_kernel_row, source_columns);
         for i in 0 .. first_kernel_row {
@@ -845,13 +845,13 @@ impl Matrix {
     ///  * `first_res_column` - the first column of B
     ///  * `last_res_col` - the last column of B
     ///  * `first_source_col` - the first column of I
-    pub fn compute_quasi_inverses(&mut self, pivots : &Vec<isize>, first_res_col : usize, last_res_col : usize,  first_source_col : usize) -> (QuasiInverse, QuasiInverse) {
+    pub fn compute_quasi_inverses(&mut self, pivots : &[isize], first_res_col : usize, last_res_col : usize,  first_source_col : usize) -> (QuasiInverse, QuasiInverse) {
         let p = self.prime();
         let columns = self.columns();
         let source_columns = columns - first_source_col;
         let res_columns = last_res_col - first_res_col;
-        let first_res_row = self.find_first_row_in_block(&pivots, first_res_col);
-        let first_kernel_row = self.find_first_row_in_block(&pivots, first_source_col);
+        let first_res_row = self.find_first_row_in_block(pivots, first_res_col);
+        let first_kernel_row = self.find_first_row_in_block(pivots, first_source_col);
         let mut cc_preimage = Matrix::new(p, first_res_row, source_columns);
         for i in 0..first_res_row {
             let old_slice = self[i].slice();
@@ -869,7 +869,7 @@ impl Matrix {
         } else {
             self.set_slice(0, first_kernel_row, first_res_col, columns);
             self.row_reduce(&mut new_pivots);
-            res_image_rows = self.find_first_row_in_block(&pivots, first_source_col - first_res_col);
+            res_image_rows = self.find_first_row_in_block(pivots, first_source_col - first_res_col);
             self.clear_slice();
         }
         let mut res_preimage = Matrix::new(p, res_image_rows, source_columns);
@@ -897,7 +897,7 @@ impl Matrix {
         return (cm_qi, res_qi);
     }
     
-    pub fn get_image(&mut self, image_rows : usize, target_dimension : usize, pivots : &Vec<isize>) -> Subspace {
+    pub fn get_image(&mut self, image_rows : usize, target_dimension : usize, pivots : &[isize]) -> Subspace {
         let mut image = Subspace::new(self.p, image_rows, target_dimension);
         for i in 0 .. image_rows {
             image.column_to_pivot_row[i] = pivots[i];
@@ -930,7 +930,7 @@ impl Matrix {
     pub fn extend_to_surjection(&mut self, 
         mut first_empty_row : usize, 
         start_column : usize, end_column : usize,        
-        current_pivots : &Vec<isize>
+        current_pivots : &[isize]
     ) -> Vec<usize> {
         let mut added_pivots = Vec::new();
         for i in start_column .. end_column {
@@ -969,7 +969,7 @@ impl Matrix {
     pub fn extend_image_to_desired_image(&mut self,
         mut first_empty_row : usize,
         start_column : usize, end_column : usize,
-        current_pivots : &Vec<isize>, desired_image : &Subspace
+        current_pivots : &[isize], desired_image : &Subspace
     ) -> Vec<usize> {
         let mut added_pivots = Vec::new();
         let desired_pivots = &desired_image.column_to_pivot_row;
@@ -1002,7 +1002,7 @@ impl Matrix {
     pub fn extend_image(&mut self, 
         first_empty_row : usize, 
         start_column : usize, end_column : usize, 
-        current_pivots : &Vec<isize>, desired_image : &Option<Subspace>
+        current_pivots : &[isize], desired_image : &Option<Subspace>
     ) -> Vec<usize> {
         if let Some(image) = desired_image.as_ref() {
             return self.extend_image_to_desired_image(first_empty_row, start_column, end_column, current_pivots, image);

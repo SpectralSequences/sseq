@@ -103,7 +103,7 @@ impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {
     /// itself). This is intended to be used in conjunction with `BoundedModule::to_fd_module`
     pub fn replace_source<S_ : BoundedModule>(self, source : Arc<S_>) -> BoundedModuleHomomorphism<S_, T> {
         BoundedModuleHomomorphism {
-            source : source,
+            source,
             target : self.target,
             degree_shift : self.degree_shift,
             lock : self.lock,
@@ -117,7 +117,7 @@ impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {
     pub fn replace_target<T_ : BoundedModule>(self, target : Arc<T_>) -> BoundedModuleHomomorphism<S, T_> {
         BoundedModuleHomomorphism {
             source : self.source,
-            target : target,
+            target,
             degree_shift : self.degree_shift,
             lock : self.lock,
             matrices : self.matrices,

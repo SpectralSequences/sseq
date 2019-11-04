@@ -21,11 +21,11 @@ where M : Module,
     }
 
     pub fn pop(&mut self) {
-        if self.modules.len() == 0 {
+        if self.modules.is_empty() {
             return;
         }
         self.modules.pop();
-        if self.modules.len() == 0 {
+        if self.modules.is_empty() {
             self.differentials.drain(0..self.differentials.len() - 2);
         } else {
             let len = self.differentials.len();

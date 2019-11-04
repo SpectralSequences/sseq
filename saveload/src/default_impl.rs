@@ -7,9 +7,9 @@ use crate::{Save, Load};
 impl Save for bool {
     fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
         if *self {
-            buffer.write(&[1])?;
+            buffer.write_all(&[1])?;
         } else {
-            buffer.write(&[0])?;
+            buffer.write_all(&[0])?;
         }
         Ok(())
     }
@@ -34,7 +34,7 @@ impl Load for bool {
 impl Save for i64 {
     fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
         let bytes = self.to_le_bytes();
-        buffer.write(&bytes)?;
+        buffer.write_all(&bytes)?;
         Ok(())
     }
 }
@@ -52,7 +52,7 @@ impl Load for i64 {
 impl Save for i32 {
     fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
         let bytes = self.to_le_bytes();
-        buffer.write(&bytes)?;
+        buffer.write_all(&bytes)?;
         Ok(())
     }
 }
@@ -70,7 +70,7 @@ impl Load for i32 {
 impl Save for u32 {
     fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
         let bytes = self.to_le_bytes();
-        buffer.write(&bytes)?;
+        buffer.write_all(&bytes)?;
         Ok(())
     }
 }
@@ -88,7 +88,7 @@ impl Load for u32 {
 impl Save for u64 {
     fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
         let bytes = self.to_le_bytes();
-        buffer.write(&bytes)?;
+        buffer.write_all(&bytes)?;
         Ok(())
     }
 }

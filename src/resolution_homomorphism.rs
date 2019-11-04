@@ -40,7 +40,7 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
             let input_homological_degree = output_homological_degree + self.homological_degree_shift;
             self.maps.push(FreeModuleHomomorphism::new(self.source.upgrade().unwrap().module(input_homological_degree), self.target.upgrade().unwrap().module(output_homological_degree), self.internal_degree_shift));
         }
-        return &self.maps[output_homological_degree as usize];
+        &self.maps[output_homological_degree as usize]
     }
 
     pub fn get_map(&self, output_homological_degree : u32) -> &FreeModuleHomomorphism<CC2::Module> {
@@ -48,7 +48,7 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
     }
 
     pub fn to_chain_maps(self) -> Vec<FreeModuleHomomorphism<CC2::Module>> {
-        self.maps.to_vec()
+        self.maps.into_vec()
     }
 
     /// Extend the resolution homomorphism such that it is defined on degrees
@@ -99,9 +99,7 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
             if let Some(extra_images_matrix) = extra_images {
                 let target_chain_map = target.chain_map(output_homological_degree);
                 let target_cc_dimension = target_chain_map.target().dimension(output_internal_degree);
-                if let Some(extra_images_matrix) = &extra_images {
-                    assert!(target_cc_dimension == extra_images_matrix.columns());
-                }
+                assert!(target_cc_dimension == extra_images_matrix.columns());
 
                 target_chain_map.compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
                 assert!(num_gens == extra_images_matrix.rows(),
@@ -145,7 +143,7 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         }
         // let num_extra_image_rows = extra_images.map_or(0, |matrix| matrix.rows());
         // assert!(extra_image_row == num_extra_image_rows, "Extra image rows");
-        return outputs_matrix;
+        outputs_matrix
     }
 
 }

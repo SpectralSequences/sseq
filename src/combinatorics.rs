@@ -221,7 +221,7 @@ fn multinomial_odd(p : u32, l : &[u32]) -> u32{
         }
         answer = (answer * multi) % p;
     }
-    return answer;
+    answer
 }
 
 //Mod p binomial coefficient n choose k. If p is 2, more efficient to use Binomial2.
@@ -230,22 +230,22 @@ fn binomial_odd(p : u32, n : i32, k : i32) -> u32 {
         return 0;
     }
     let l : [u32 ; 2] = [(n-k) as u32, k as u32];
-    return multinomial_odd(p, &l);
+    multinomial_odd(p, &l)
 }
 
 //Dispatch to Multinomial2 or MultinomialOdd
 pub fn multinomial(p : u32, l : &[u32]) -> u32 {
     if p == 2{
-        return multinomial2(l);
+        multinomial2(l)
     } else {
-        return multinomial_odd(p, l);
+        multinomial_odd(p, l)
     }
 }
 
 //Dispatch to Binomial2 or BinomialOdd
 pub fn binomial(p : u32, n : i32, k : i32) -> u32 {
     if p == 2{
-        return binomial2(n, k);
+        binomial2(n, k)
     } else {
         binomial_odd(p, n, k)
     }
@@ -263,7 +263,7 @@ pub fn adem_relation_coefficient(p : u32, x : u32, y : u32, j : u32, e1 : u32, e
         return 0; 
     }
     c *= minus_one_to_the_n(p, ((x + j) + e2) as u32);
-    return c % p;
+    c % p
 }
 
 pub fn inadmissible_pairs(p : u32, generic : bool, degree : i32) -> Vec<(u32, u32, u32)> {
@@ -291,7 +291,7 @@ pub fn inadmissible_pairs(p : u32, generic : bool, degree : i32) -> Vec<(u32, u3
             inadmissible_pairs.push((i, 1, degq - i));
         }
     }
-    return inadmissible_pairs;
+    inadmissible_pairs
 }
 
 pub fn tau_degrees(p : u32) -> &'static [i32] {

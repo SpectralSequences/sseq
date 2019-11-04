@@ -62,7 +62,7 @@ impl std::fmt::Display for MilnorBasisElement {
                 if qpart & 1 != 0 {
                     write!(f, "Q_{} ", i)?;
                 }
-                qpart = qpart >> 1;
+                qpart >>= 1;
                 i += 1;
             }
         }
@@ -115,7 +115,7 @@ impl MilnorAlgebra {
         Self {
             p,
             generic : p != 2,
-            profile: profile,
+            profile,
             name : format!("MilnorAlgebra(p={})", p),
             next_degree : Mutex::new(0),
             ppart_table : OnceVec::new(),
@@ -308,9 +308,9 @@ impl Algebra for MilnorAlgebra {
                 q_part ^= 1 << tz;
                 q_list.push(tz);
             }
-            return serde_json::to_value((q_list, &b.p_part)).unwrap();
+            serde_json::to_value((q_list, &b.p_part)).unwrap()
         } else {
-            return serde_json::to_value(&b.p_part).unwrap();
+            serde_json::to_value(&b.p_part).unwrap()
         }
     }
 
@@ -358,9 +358,9 @@ impl Algebra for MilnorAlgebra {
         let basis = &self.basis_table[degree as usize][idx];
         // If qpart = 0, return self
         if basis.q_part == 0 {
-            return self.decompose_basis_element_ppart(degree, idx);
+            self.decompose_basis_element_ppart(degree, idx)
         } else {
-            return self.decompose_basis_element_qpart(degree, idx);
+            self.decompose_basis_element_qpart(degree, idx)
         }
     }
 
@@ -378,13 +378,13 @@ impl Algebra for MilnorAlgebra {
             let (first_degree, first_index) = self.beps_pn(0, x);
             let (second_degree, second_index) = self.beps_pn(b, y);
             relation.push((p - 1, (first_degree, first_index), (second_degree, second_index)));
-            for e1 in 0 .. b + 1 {
+            for e1 in 0 ..= b {
                 let e2 = b - e1;
                 // e1 and e2 determine where a bockstein shows up.
                 // e1 determines whether a bockstein shows up in front 
                 // e2 determines whether a bockstein shows up in middle
                 // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
-                for j in 0 .. x/p + 1 {
+                for j in 0 ..= x/p {
                     let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
                     if c == 0 { continue; }
                     if j == 0 {
@@ -398,7 +398,7 @@ impl Algebra for MilnorAlgebra {
             }
             result.push(relation);
         }
-        return result;
+        result
     }
 }
 
@@ -556,7 +556,7 @@ impl MilnorAlgebra {
             q_part : e,
             p_part : vec![x]
         });
-        return (degree, index);
+        (degree, index)
     }
 
     fn multiply_qpart (&self, m1 : &MilnorBasisElement, f : u32) -> Vec<(u32, MilnorBasisElement)>{
@@ -604,7 +604,7 @@ impl MilnorAlgebra {
                     let mut v = term.q_part >> (k + i as u32 + 1);
                     while v != 0 {
                         larger_q += v & 1;
-                        v = v >> 1;
+                        v >>= 1;
                     }
 
                     // If new_p ends with 0, drop them
@@ -682,9 +682,8 @@ impl<'a>  PPartMultiplier<'a> {
         for i in 1..rows {
             M[i][0] = r[i - 1];
         }
-        for i in 1..cols {
-            M[0][i] = s[i - 1];
-        }
+        M[0][1..cols].clone_from_slice(&s[0..(cols - 1)]);
+
         PPartMultiplier { p, M, r, rows, cols, diag_num, cont : true }
     }
 
@@ -727,7 +726,7 @@ impl<'a>  PPartMultiplier<'a> {
                 total += self.M[i][j] * p_to_the_j;
             }
         }
-        return false
+        false
     }
 }
 
@@ -760,7 +759,7 @@ impl<'a> Iterator for PPartMultiplier<'a> {
                 continue;
             }
             coef *= crate::combinatorics::multinomial(self.p, &diagonal);
-            coef = coef % self.p;
+            coef %= self.p;
             if coef == 0 {
                 self.cont = self.update();
                 return self.next();
@@ -785,7 +784,7 @@ impl MilnorAlgebra {
         // Look for left-most non-zero qpart
         let i = basis.q_part.trailing_zeros();
         // If the basis element is just Q_{k+1}, we decompose Q_{k+1} = P(p^k) Q_k - Q_k P(p^k).
-        if basis.q_part == 1 << i && basis.p_part.len() == 0 {
+        if basis.q_part == 1 << i && basis.p_part.is_empty() {
             let ppow = crate::combinatorics::integer_power(self.p, i - 1);
 
             let q_degree = (2 * ppow - 1) as i32;
@@ -878,7 +877,7 @@ impl MilnorAlgebra {
                 result.push(((c_inv * c * v) % p, t1, t2));
             }
         }
-        return result;
+        result
     }
 }
 
@@ -983,7 +982,7 @@ mod tests {
 
 impl MilnorAlgebra {
     /// Returns `true` if the new element is not within the bounds
-    fn increment_p_part(element: &mut Vec<u32>, max : &Vec<u32>) -> bool {
+    fn increment_p_part(element: &mut Vec<u32>, max : &[u32]) -> bool {
         element[0] += 1;
         for i in 0 .. element.len() - 1{
             if element[i] > max[i] {

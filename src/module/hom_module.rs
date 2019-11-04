@@ -59,7 +59,7 @@ impl<M : BoundedModule> HomModule<M> {
                 x.restore_slice(old_slice);
             }
         }
-        return result;
+        result
     }
 
     pub fn evaluate_basis_map_on_element(&self, result : &mut FpVector, coeff : u32, f_degree : i32, f_idx : usize, x_degree : i32, x : &FpVector){

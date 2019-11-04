@@ -287,7 +287,8 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let basis_idx = source.operation_generator_to_index(0, 0, int_deg, idx);
         let mut result_vector = crate::fp_vector::FpVector::new(p, dimension);
         d.apply_to_basis_element(&mut result_vector, 1, int_deg, basis_idx);
-        return target.element_to_string(int_deg, &result_vector);
+
+        target.element_to_string(int_deg, &result_vector)
     }
 
     pub fn complex(&self) -> Arc<CC> {
@@ -689,7 +690,7 @@ impl<CC : ChainComplex> Resolution<CC> {
                 result = String::new();
             }
         }
-        return result;
+        result
     }
 }
 
@@ -851,7 +852,7 @@ impl<CC> Resolution<CC> where
     /// to bidegree (s, t)
     fn extend_maps_to_unit(&self, s : u32, t : i32) {
         // If there are no products, we return
-        if self.product_list.len() == 0 {
+        if self.product_list.is_empty() {
             return;
         }
 
@@ -880,7 +881,7 @@ impl<CC : ChainComplex> Resolution<CC> {
             self.product_names.insert(name.clone());
             self.self_maps.push(
                 SelfMap {
-                    s, t, name : name, map_data,
+                    s, t, name, map_data,
                     map : ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&self.inner), Arc::downgrade(&self.inner), s, t)
                 });
             true

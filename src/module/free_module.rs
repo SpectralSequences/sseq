@@ -51,7 +51,7 @@ impl Module for FreeModule {
             return 0;
         }
         assert!(degree < self.table.len(), format!("Free Module {} not computed through degree {}", self.name(), degree));
-        return self.table[degree].basis_element_to_opgen.len();
+        self.table[degree].basis_element_to_opgen.len()
     }
 
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
@@ -142,13 +142,13 @@ impl FreeModule {
             }
             generator_to_index.push(gentoidx_degree);
         }
-        return (lock,
+        (lock,
             FreeModuleTableEntry {
                 num_gens : 0,
                 basis_element_to_opgen,
                 generator_to_index
             }
-        );
+        )
     }
 
     pub fn dimension_with_table(table : &FreeModuleTableEntry) -> usize {
@@ -196,7 +196,7 @@ impl FreeModule {
     pub fn operation_generator_to_index(&self, op_deg : i32, op_idx : usize, gen_deg : i32, gen_idx : usize) -> usize {
         assert!(op_deg >= 0);
         assert!(gen_deg >= self.min_degree);
-        return self.table[op_deg + gen_deg].generator_to_index[gen_deg][gen_idx] + op_idx;
+        self.table[op_deg + gen_deg].generator_to_index[gen_deg][gen_idx] + op_idx
     }
 
     pub fn operation_generator_pair_to_idx(&self, op_gen : &OperationGeneratorPair) -> usize {
@@ -210,7 +210,7 @@ impl FreeModule {
 
     pub fn index_to_op_gen(&self, degree : i32, index : usize) -> &OperationGeneratorPair {
         assert!(degree >= self.min_degree);
-        return &self.table[degree].basis_element_to_opgen[index];
+        &self.table[degree].basis_element_to_opgen[index]
     }
 
     pub fn element_to_json(&self, degree : i32, elt : &FpVector) -> Value {

@@ -78,8 +78,7 @@ pub trait ModuleHomomorphism : Send + Sync + 'static {
         }
         let mut pivots = vec![-1;columns];
         matrix.row_reduce(&mut pivots);
-        let quasi_inverse = matrix.compute_quasi_inverse(&pivots, target_dimension, padded_target_dimension);
-        quasi_inverse
+        matrix.compute_quasi_inverse(&pivots, target_dimension, padded_target_dimension)
     }
 
     fn kernel_and_quasi_inverse(&self, degree : i32) -> (Subspace, QuasiInverse) {

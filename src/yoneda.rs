@@ -52,7 +52,7 @@ fn operation_drop(algebra : &AdemAlgebra, deg : i32, idx: usize) -> i32 {
         return 1;
     }
     let elt = algebra.basis_element_from_index(deg, idx);
-    if elt.ps.len() == 0 {
+    if elt.ps.is_empty() {
         return 0;
     }
 
@@ -422,7 +422,7 @@ where TCM : BoundedModule,
     };
 
     let mut differentials = vec![zero_differential];
-    differentials.extend((0 .. s_max).into_iter().map(|s| {
+    differentials.extend((0 .. s_max).map(|s| {
         let f = cc.differential(s + 1);
         let s = s as usize;
         let tf = Arc::new(TruncatedHomomorphism::new(f, Arc::clone(&modules[s + 1].module), Arc::clone(&modules[s].module)));
@@ -434,7 +434,7 @@ where TCM : BoundedModule,
     differentials.push(Arc::new(FiniteModuleHomomorphism::from(BoundedModuleHomomorphism::zero_homomorphism(Arc::clone(&zero_module_fd), Arc::clone(&modules_fd[s_max as usize]), 0))));
     differentials.push(Arc::new(FiniteModuleHomomorphism::from(BoundedModuleHomomorphism::zero_homomorphism(Arc::clone(&zero_module_fd), Arc::clone(&zero_module_fd), 0))));
 
-    let chain_maps = (0 ..= s_max).into_iter().map(|s| {
+    let chain_maps = (0 ..= s_max).map(|s| {
         let f = cc.chain_map(s);
         let s = s as usize;
         let target = f.target();

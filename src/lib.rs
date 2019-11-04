@@ -1,3 +1,6 @@
+#![allow(clippy::many_single_char_names)]
+#![allow(clippy::unreadable_literal)]
+
 pub mod combinatorics;
 pub mod fp_vector;
 pub mod matrix;
@@ -176,9 +179,9 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
     let bucket = Arc::new(TokenBucket::new(num_threads));
 
     loop {
-        let x : i32= query_with_default_no_default_indicated("t - s", 200, |x : i32| Ok(x));
-        let s : u32 = query_with_default_no_default_indicated("s", 200, |x : u32| Ok(x));
-        let i : usize = query_with_default_no_default_indicated("idx", 200, |x : usize| Ok(x));
+        let x : i32= query_with_default_no_default_indicated("t - s", 200, Ok);
+        let s : u32 = query_with_default_no_default_indicated("s", 200, Ok);
+        let i : usize = query_with_default_no_default_indicated("idx", 200, Ok);
 
         let start = Instant::now();
         let t = x + s as i32;
@@ -227,7 +230,7 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
             assert_eq!(check[t], module.dimension(t) as i32, "Incorrect Euler characteristic at t = {}", t);
         }
 
-        let filename = query("Output file name (empty to skip)", |result : String| Ok(result));
+        let filename : String = query("Output file name (empty to skip)", Ok);
 
         if filename.is_empty() {
             continue;
@@ -251,7 +254,7 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
             }
         }
 
-        let mut output_path_buf = PathBuf::from(format!("{}", filename));
+        let mut output_path_buf = PathBuf::from(filename.to_string());
         output_path_buf.set_extension("json");
         std::fs::write(&output_path_buf, Value::from(module_strings).to_string()).unwrap();
     }
@@ -283,9 +286,9 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
     let bucket = Arc::new(TokenBucket::new(num_threads));
 
     loop {
-        let x : i32= query_with_default_no_default_indicated("t - s", 8, |x : i32| Ok(x));
-        let s : u32 = query_with_default_no_default_indicated("s", 3, |x : u32| Ok(x));
-        let idx : usize = query_with_default_no_default_indicated("idx", 0, |x : usize| Ok(x));
+        let x : i32= query_with_default_no_default_indicated("t - s", 8, Ok);
+        let s : u32 = query_with_default_no_default_indicated("s", 3, Ok);
+        let idx : usize = query_with_default_no_default_indicated("idx", 0, Ok);
 
         let t = s as i32 + x;
         print!("Resolving ext: ");
@@ -322,7 +325,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                 check[t as usize] += (if s % 2 == 0 { 1 } else { -1 }) * module.dimension(t) as i32;
             }
         }
-        println!("");
+        println!();
 
         // We check that lifting the identity returns the original class. Even if the
         // algorithm in yoneda.rs is incorrect, this ensures that a posteriori we happened
@@ -338,7 +341,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
             let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&yoneda), 0, 0);
             let mut mat = Matrix::new(p, 1, 1);
             mat[0].set_entry(0, 1);
-            f.extend_step(0, 0, Some(&mut mat));
+            f.extend_step(0, 0, Some(&mat));
 
             f.extend(s, t);
             let final_map = f.get_map(s);
@@ -598,9 +601,9 @@ pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>>
             break;
         }
     }
-    return result.ok_or_else(|| Box::new(ModuleFileNotFoundError {
+    result.ok_or_else(|| Box::new(ModuleFileNotFoundError {
         name : config.module_file_name.clone()
-    }) as Box<dyn Error>);
+    }) as Box<dyn Error>)
 }
 
 #[derive(Debug)]

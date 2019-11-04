@@ -7,6 +7,12 @@ pub struct OnceVec<T> {
     data : UnsafeCell<Vec<T>>
 }
 
+impl<T> Default for OnceVec<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: fmt::Debug> fmt::Debug for OnceVec<T> {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         self.get_vec().fmt(formatter)
@@ -14,7 +20,7 @@ impl<T: fmt::Debug> fmt::Debug for OnceVec<T> {
 }
 
 impl<T>  OnceVec<T> {
-    pub fn to_vec(self) -> Vec<T> {
+    pub fn into_vec(self) -> Vec<T> {
         self.data.into_inner()
     }
 
@@ -32,6 +38,7 @@ impl<T>  OnceVec<T> {
         Self::from_vec(Vec::with_capacity(capacity))
     }
 
+    #[allow(clippy::mut_from_ref)]
     fn get_vec_mut(&self) -> &mut Vec<T> {
         unsafe { &mut *self.data.get() }
     }
@@ -107,7 +114,7 @@ impl<T: fmt::Debug> fmt::Debug for OnceBiVec<T> {
 }
 
 impl<T> OnceBiVec<T> {
-    pub fn to_bivec(self) -> BiVec<T> {
+    pub fn into_bivec(self) -> BiVec<T> {
         self.data.into_inner()
     }
 

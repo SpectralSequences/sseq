@@ -148,7 +148,7 @@ mod tests {
             println!("d({}) = {}", F1.basis_element_to_string(2, i), F0.element_to_string(2, &result));
             result.set_to_zero();
         }
-        println!("");
+        println!();
 
         let outputs = [
             [[0, 0, 0],

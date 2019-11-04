@@ -72,10 +72,10 @@ impl std::fmt::Display for AdemBasisElement {
             if (self.bocksteins >> i) & 1 == 1 {
                 write!(f, "b ")?;
             }
-            write!(f, "{}{}", "P", n)?;
+            write!(f, "P{}", n)?;
             first = false;
         }
-        if self.ps.len() == 0 {
+        if self.ps.is_empty() {
             if self.bocksteins & 1 == 1 {
                 write!(f, "b")?;
             } else {
@@ -207,7 +207,7 @@ impl Algebra for AdemAlgebra {
         if degree < 0 {
             return 0;
         }
-        return self.basis_table[degree as usize].len();
+        self.basis_table[degree as usize].len()
     }
 
     fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, 
@@ -229,7 +229,7 @@ impl Algebra for AdemAlgebra {
             for (i, sq) in op.iter().enumerate() {
                 if i % 2 == 0 {
                     degree += sq;
-                    bocksteins |= sq << i/2;
+                    bocksteins |= sq << (i/2);
                 } else {
                     degree += q * sq;
                     sqs.push(*sq);
@@ -269,8 +269,7 @@ impl Algebra for AdemAlgebra {
                 out_sqs.push(*sq);
             }
         }
-        let result = serde_json::to_value(out_sqs).unwrap();
-        result
+        serde_json::to_value(out_sqs).unwrap()
     }
 
 
@@ -348,7 +347,7 @@ impl Algebra for AdemAlgebra {
             let first_sq = self.beps_pn(0, x);
             let second_sq = self.beps_pn(b, y);
             relation.push((p - 1, first_sq, second_sq));
-            for e1 in 0 .. b + 1 {
+            for e1 in 0 ..= b {
                 let e2 = b - e1;
                 // e1 and e2 determine where a bockstein shows up.
                 // e1 determines if a bockstein shows up in front 
@@ -368,7 +367,7 @@ impl Algebra for AdemAlgebra {
             }
             result.push(relation);
         }
-        return result;
+        result
     }
 }
 
@@ -437,7 +436,7 @@ impl AdemAlgebra {
         // or (p+1) * last <= n or last <= n/(p+1). We order the squares in decreasing
         // order of their last element so that as we walk over the previous basis
         // when we find a square whose end is too small, we can break.
-        for last in (1 .. n/(p+1) + 1).rev() {
+        for last in (1 ..= n/(p+1)).rev() {
             let previous_basis = &self.even_basis_table[(n-last) as usize];
             for prev_elt in previous_basis {
                 let prev_elt_p_len = prev_elt.ps.len();
@@ -585,7 +584,7 @@ impl AdemAlgebra {
         unsafe { elt.ps = shift_vec(elt.ps, -(idx as isize)); }
         elt.degree = degree;
         elt.bocksteins = bocksteins;
-        return (elt, result);
+        (elt, result)
     }
 
     fn generate_multiplication_table_2(&self, mut next_degree : i32, max_degree : i32){
@@ -622,7 +621,7 @@ impl AdemAlgebra {
         // Be careful to deal with the case that cur_basis_elt has length 0
         // If the length is 0 or the sequence is already admissible, we can just write a 1 in the answer
         // and continue.
-        if cur_basis_elt.ps.len() == 0 || x >= 2*cur_basis_elt.ps[0] {
+        if cur_basis_elt.ps.is_empty() || x >= 2*cur_basis_elt.ps[0] {
             working_elt.ps.insert(0, x);
             working_elt.degree = n;
             let out_idx = self.basis_element_to_index(&working_elt);
@@ -1062,7 +1061,7 @@ impl AdemAlgebra {
             }
             result.extend(self.decompose_basis_element_2(degree, i));
         }
-        return result;
+        result
     }
 
     fn decompose_basis_element_generic(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
@@ -1142,7 +1141,7 @@ impl AdemAlgebra {
             let (c, t1, t2) = self.decompose_basis_element_generic(degree, i)[0];
             result.push(((c_inv * c * v) % p, t1, t2));
         }
-        return result;
+        result
     }
 
     pub fn beps_pn(&self, e : u32, x : u32) -> (i32, usize) {
@@ -1155,7 +1154,7 @@ impl AdemAlgebra {
             bocksteins : e,
             ps : vec![x]
         });
-        return (degree, index);
+        (degree, index)
     }
 }
 

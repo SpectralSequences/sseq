@@ -101,7 +101,7 @@ impl<M : Module> FreeModuleHomomorphism<M> {
             format!("generator_index {} greater than number of generators {}", 
                 generator_index, self.source.number_of_gens_in_degree(generator_degree)
         ));
-        return &self.outputs[generator_degree][generator_index];
+        &self.outputs[generator_degree][generator_index]
     }
 
     pub fn extend_by_zero_safe(&self, degree : i32) {
@@ -117,7 +117,7 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         if degree < self.min_degree {
             return;
         }
-        assert!(degree >= **lock + 1);
+        assert!(degree > **lock);
         let p = self.prime();
         for i in **lock + 1 ..= degree{
             let num_gens = self.source.number_of_gens_in_degree(i);
@@ -227,7 +227,7 @@ impl<M : Module> FreeModuleHomomorphism<M> {
             self.apply_to_basis_element_with_table(output_vector, 1, degree, table, input_idx);
             output_vector.restore_slice(old_slice);
         }
-        return (start_row + source_dimension, start_column + target_dimension);
+        (start_row + source_dimension, start_column + target_dimension)
     }
 
     pub fn lock(&self) -> MutexGuard<i32> {

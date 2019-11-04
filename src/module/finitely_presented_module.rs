@@ -96,7 +96,7 @@ impl FinitelyPresentedModule {
             gen_to_idx.insert(name, (degree, graded_dimension[degree]));
             graded_dimension[degree] += 1;
         }
-        return (graded_dimension, gen_names, gen_to_idx);
+        (graded_dimension, gen_names, gen_to_idx)
     }
 
     pub fn from_json(algebra : Arc<AlgebraAny>, json : &mut Value) -> Self {
@@ -123,7 +123,7 @@ impl FinitelyPresentedModule {
                         generator_degree : gen_deg,
                         generator_index : gen_idx
                     };
-                    return (coeff, op_gen);
+                    (coeff, op_gen)
                 }
             ).collect()
         ).collect();
@@ -161,7 +161,7 @@ impl FinitelyPresentedModule {
             }
             result.add_relations(i, &mut relations_matrix);
         }
-        return result;
+        result
     }
 
     pub fn relations_to_json(&self) -> Value {

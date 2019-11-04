@@ -151,7 +151,7 @@ pub trait Module : Send + Sync + 'static {
             result.pop();
             result.pop();
         }
-        return result;
+        result
     } 
 }
 

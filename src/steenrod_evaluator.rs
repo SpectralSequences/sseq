@@ -271,7 +271,7 @@ fn bockstein_or_sq_to_adem_basis_elt(e : &BocksteinOrSq, q : i32) -> AdemBasisEl
     }
 }
 
-fn evaluate_p_or_b_list(adem_algebra : &AdemAlgebra, list : &Vec<BocksteinOrSq>) -> (i32, FpVector) {
+fn evaluate_p_or_b_list(adem_algebra : &AdemAlgebra, list : &[BocksteinOrSq]) -> (i32, FpVector) {
     let p = adem_algebra.prime();
     let q = if adem_algebra.generic { 2*p as i32 - 2} else { 1 };
     let mut tmp_vector_a = FpVector::scratch_vector(p, 1);

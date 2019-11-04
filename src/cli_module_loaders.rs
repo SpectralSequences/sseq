@@ -23,7 +23,7 @@ pub fn get_gens(min_degree : i32) -> Result<BiVec<Vec<String>>, Box<dyn Error>>{
     let mut gens : BiVec<Vec<_>> = BiVec::new(min_degree);
     let finished_degree = i32::max_value();
     loop {
-        let gen_deg = query_with_default_no_default_indicated("Generator degree", finished_degree, |x : i32| Ok(x));
+        let gen_deg : i32 = query_with_default_no_default_indicated("Generator degree", finished_degree, Ok);
         if gen_deg == finished_degree {
             println!("This is the list of generators and degrees:");
             for (i, deg_i_gens) in gens.iter_enum() {
@@ -31,7 +31,7 @@ pub fn get_gens(min_degree : i32) -> Result<BiVec<Vec<String>>, Box<dyn Error>>{
                     print!("({}, {}) ", i, gen);
                 }
             }
-            print!("\n");
+            println!();
             if query_yes_no("Is it okay?") {
                 break;
             } else {
@@ -57,7 +57,7 @@ pub fn get_gens(min_degree : i32) -> Result<BiVec<Vec<String>>, Box<dyn Error>>{
                         return Err(format!("Variable name cannot contain {}. Should be alphanumeric and '_'", c));
                     }
                 }
-                return Ok(x);
+                Ok(x)
             }
         );
         gens[gen_deg].push(gen_name);
@@ -72,7 +72,7 @@ pub fn gens_to_json(gens : &BiVec<Vec<String>>) -> serde_json::Value {
             gens_json[gen] = json!(i);
         }
     }
-    return gens_json;
+    gens_json
 }
 
 pub fn get_expression_to_vector<F>(
@@ -91,7 +91,7 @@ where
         }
         for term in result.split("+") {
             let term = term.trim();
-            let parts : Vec<&str> = term.splitn(2,  " ").collect();
+            let parts : Vec<&str> = term.splitn(2, ' ').collect();
             if parts.len() == 1 {
                 match string_to_basis_element(&parts[0]) {
                     Some(i) => output_vec.add_basis_element(i, 1),
@@ -132,7 +132,7 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
         }
     );
 
-    let name = query("Module name (use latex between $'s)", |name : String| Ok(name));
+    let name : String = query("Module name (use latex between $'s)", Ok);
     // Query for prime
     let p = query_with_default("p", 2, 
         |p : u32| if crate::combinatorics::is_valid_prime(p) {Ok(p)} else {Err("invalid prime".to_string())});
@@ -194,7 +194,7 @@ pub fn interactive_module_define_fdmodule(mut output_json : Value, p : u32, gene
             let op_deg = output_deg - input_deg;
             let input_deg_idx = input_deg;
             let output_deg_idx = output_deg;
-            if gens[output_deg_idx].len() == 0 {
+            if gens[output_deg_idx].is_empty() {
                 continue;
             }
             let adem_gens = adem_algebra.generators(op_deg);
@@ -229,11 +229,11 @@ pub fn interactive_module_define_fdmodule(mut output_json : Value, p : u32, gene
 }
 
 fn get_relation(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, module : &FreeModule, basis_elt_lookup : &HashMap<String, (i32, usize)>) -> Result<(i32, FpVector), String> {
-    let relation = query("Relation", |x : String| Ok(x));
+    let relation : String = query("Relation", Ok);
     if relation == "" {
         return Err("".to_string());
     }
-    return evaluate_module(adem_algebra, milnor_algebra, module, basis_elt_lookup, &relation).map_err(|err| err.to_string());
+    evaluate_module(adem_algebra, milnor_algebra, module, basis_elt_lookup, &relation).map_err(|err| err.to_string())
 }
 
 pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, generic : bool) -> Result<Value, Box<dyn Error>>{
@@ -293,7 +293,7 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
                         print!("{}, ", adem_module.generators.element_to_string(i, r));
                     }
                 }
-                print!("\n");
+                println!();
                 if query_yes_no("Is it okay?") {
                     break;
                 } else {

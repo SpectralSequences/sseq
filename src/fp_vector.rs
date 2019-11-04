@@ -160,24 +160,23 @@ pub trait FpVectorT {
 
     fn dimension(&self) -> usize {
         let container = self.vector_container();
-        return container.slice_end - container.slice_start;
+        container.slice_end - container.slice_start
     }
 
     fn offset(&self) -> usize {
         let container = self.vector_container();
         let bit_length = bit_length(self.prime());
         let entries_per_64_bits = entries_per_64_bits(self.prime());
-        return (container.slice_start * bit_length) % (bit_length * entries_per_64_bits);
+        (container.slice_start * bit_length) % (bit_length * entries_per_64_bits)
     }
 
     fn min_index(&self) -> usize {
-        let container = self.vector_container();
-        return container.slice_start;
+        self.vector_container().slice_start
     }
 
     fn slice(&self) -> (usize, usize) {
         let container = self.vector_container();
-        return (container.slice_start, container.slice_end);
+        (container.slice_start, container.slice_end)
     }
 
     fn set_slice(&mut self, slice_start : usize, slice_end : usize) {
@@ -258,7 +257,7 @@ pub trait FpVectorT {
             let bit_max = 1 + ((bits_needed_for_entire_vector - 1)%(usable_bits_per_limb));
             mask &= (!0) >> (64 - bit_max);
         }
-        return mask;
+        mask
     }
 
     fn set_to_zero_pure (&mut self){
@@ -366,7 +365,7 @@ pub trait FpVectorT {
                 return false;
             }
         }
-        return true
+        true
     }
 
     fn entry(&self, index : usize) -> u32 {
@@ -377,7 +376,7 @@ pub trait FpVectorT {
         let mut result = self.limbs()[limb_index.limb];
         result >>= limb_index.bit_index;
         result &= bit_mask;
-        return result as u32;
+        result as u32
     }
 
     fn set_entry(&mut self, index : usize, value : u32){
@@ -815,12 +814,11 @@ impl FpVector {
     pub fn set_scratch_vector_size(mut self, dimension : usize) -> Self {
         let p = self.prime();
         self.clear_slice();
-        let mut result;
-        if dimension <= self.dimension() {
-            result = self;
+        let mut result = if dimension <= self.dimension() {
+            self
         } else {
-            result = FpVector::scratch_vector(p, dimension);
-        }
+            FpVector::scratch_vector(p, dimension)
+        };
         result.set_slice(0, dimension);
         return result;
     }
@@ -863,7 +861,7 @@ impl FpVector {
         return idx;
     }
 
-    fn unpack_limb(p : u32, dimension : usize, offset : usize, limb_array : &mut [u32], limbs : &Vec<u64>, limb_idx : usize) -> usize {
+    fn unpack_limb(p : u32, dimension : usize, offset : usize, limb_array : &mut [u32], limbs : &[u64], limb_idx : usize) -> usize {
         let bit_length = bit_length(p);
         let entries_per_64_bits = entries_per_64_bits(p);
         let bit_mask = bitmask(p);
