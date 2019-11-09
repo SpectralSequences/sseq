@@ -190,20 +190,21 @@ impl Matrix {
         self.slice_col_end = self.columns;
     }
 
-    pub fn into_slice(&mut self) {
+    pub fn into_slice(mut self) -> Self {
         self.rows = self.rows();
         self.columns = self.columns();
         self.vectors.drain(0..self.slice_row_start);
         self.slice_row_end -= self.slice_row_start;
         self.vectors.truncate(self.slice_row_end);
-        for v in self.vectors.iter_mut() {
+        for v in &mut self.vectors {
             v.into_slice();
         }
         self.clear_slice();
+        self
     }
 
     pub fn into_vec(mut self) -> Vec<FpVector> {
-        self.into_slice();
+        self = self.into_slice();
         self.vectors
     }
 }
@@ -699,9 +700,9 @@ impl Matrix {
     }
 
     pub fn find_first_row_in_block(&self, pivots : &[isize], first_column_in_block : usize) -> usize {
-        for i in first_column_in_block .. self.columns() {
-            if pivots[i] >= 0 {
-                return pivots[i] as usize;
+        for &pivot in &pivots[first_column_in_block..] {
+            if pivot >= 0 {
+                return pivot as usize;
             }
         }
         self.rows()
@@ -862,9 +863,8 @@ impl Matrix {
         let mut new_pivots = vec![-1; columns - first_res_col];
         let res_image_rows;
         if first_res_row == 0 {
-            for i in first_res_col..columns {
-                new_pivots[i - first_res_col] = pivots[i];
-            }
+            new_pivots[0 .. (columns - first_res_col)]
+                .clone_from_slice(&pivots[first_res_col..columns]);
             res_image_rows = first_kernel_row;
         } else {
             self.set_slice(0, first_kernel_row, first_res_col, columns);
@@ -933,8 +933,8 @@ impl Matrix {
         current_pivots : &[isize]
     ) -> Vec<usize> {
         let mut added_pivots = Vec::new();
-        for i in start_column .. end_column {
-            if current_pivots[i] >= 0 {
+        for (i, &pivot) in current_pivots[start_column .. end_column].iter().enumerate() {
+            if pivot >= 0 {
                 continue;
             }
             // Look up the cycle that we're missing and add a generator hitting it.

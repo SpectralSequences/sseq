@@ -172,14 +172,14 @@ impl FiniteModule {
         }
     }
 
-    pub fn as_fp_module(self) -> Option<FPModule> {
+    pub fn into_fp_module(self) -> Option<FPModule> {
         match self {
             FiniteModule::FDModule(_) => None,
             FiniteModule::FPModule(m) => Some(m)
         }
     }
 
-    pub fn as_fd_module(self) -> Option<FDModule> {
+    pub fn into_fd_module(self) -> Option<FDModule> {
         match self {
             FiniteModule::FDModule(m) => Some(m),
             FiniteModule::FPModule(_) => None

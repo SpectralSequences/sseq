@@ -312,8 +312,13 @@ pub trait FpVectorT {
         debug_assert_eq!(number_of_limbs, other.max_limb() - other.min_limb());
         let target_limbs = self.limbs_mut();
         let source_limbs = other.limbs();
-        for i in 1 .. number_of_limbs.saturating_sub(1) {
-            target_limbs[min_target_limb + i] = source_limbs[min_source_limb + i];
+        {
+            let start = 1;
+            let end = number_of_limbs - 1;
+            if end > start {
+                target_limbs[start + min_target_limb .. end + min_target_limb]
+                    .clone_from_slice(&source_limbs[start + min_source_limb .. end + min_source_limb]);
+            }
         }
         let mut i=0; {
             let mask = other.limb_mask(i);
@@ -394,7 +399,7 @@ pub trait FpVectorT {
     fn add_basis_element(&mut self, index : usize, value : u32){
         let mut x = self.entry(index);
         x += value;
-        x = x % self.prime();
+        x %= self.prime();
         self.set_entry(index, x);
     }
 
@@ -699,14 +704,13 @@ impl FpVectorT for FpVector2 {
 impl FpVectorT for FpVector3 {
     fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize ){
         let limbs = &mut self.vector_container.limbs;
-        for i in start_limb..end_limb {
+        for limb in &mut limbs[start_limb..end_limb] {
             let top_bit_set_in_each_field = 0x4924924924924924u64;
-            let mut limb = limbs[i];
-            limb = ((limb & top_bit_set_in_each_field) >> 2) + (limb & (!top_bit_set_in_each_field));
-            let mut limb_3s = limb & (limb >> 1);
+            let mut limb_2 = ((*limb & top_bit_set_in_each_field) >> 2) + (*limb & (!top_bit_set_in_each_field));
+            let mut limb_3s = limb_2 & (limb_2 >> 1);
             limb_3s |= limb_3s << 1;
-            limb ^= limb_3s;
-            limbs[i] = limb;
+            limb_2 ^= limb_3s;
+            *limb = limb_2;
         }
     }
 
@@ -719,17 +723,17 @@ impl FpVectorT for FpVector3 {
 impl FpVectorT for FpVector5 {
     fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize ){
         let limbs = &mut self.vector_container.limbs;
-        for i in start_limb..end_limb {
+        for limb in &mut limbs[start_limb..end_limb] {
             let bottom_bit = 0x84210842108421u64;
             let bottom_two_bits = bottom_bit | (bottom_bit << 1);
             let bottom_three_bits = bottom_bit | (bottom_two_bits << 1);
-            let a = (limbs[i] >> 2) & bottom_three_bits;
-            let b = limbs[i] & bottom_two_bits;
+            let a = (*limb >> 2) & bottom_three_bits;
+            let b = *limb & bottom_two_bits;
             let m = (bottom_bit << 3) - a + b;
             let mut c = (m >> 3) & bottom_bit;
             c |= c << 1;
             let d = m & bottom_three_bits;
-            limbs[i] = d + c - bottom_two_bits;
+            *limb = d + c - bottom_two_bits;
         }
     }
 
@@ -1062,6 +1066,7 @@ impl FpVectorMask {
 
     /// This projects `target` onto the subspace spanned by the designated subset of basis
     /// elements.
+    #[allow(clippy::needless_range_loop)]
     pub fn apply(&self, target : &mut FpVector) {
         debug_assert_eq!(self.dimension, target.dimension());
         debug_assert_eq!(target.vector_container().slice_start, 0);

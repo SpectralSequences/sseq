@@ -21,6 +21,7 @@ pub type Yoneda<CC> = FiniteAugmentedChainComplex<
         <CC as AugmentedChainComplex>::TargetComplex
     >;
 
+#[allow(clippy::single_match)]
 fn rate_operation(algebra : &Arc<AlgebraAny>, op_deg : i32, op_idx : usize) -> i32 {
     let mut pref = 0;
     match &**algebra {
@@ -115,6 +116,7 @@ where TCM : BoundedModule,
         })
 }
 
+#[allow(clippy::cognitive_complexity)]
 pub fn yoneda_representative_with_strategy<TCM, TC, CC, CMM, F>(cc : Arc<CC>, map : ChainMap<FreeModuleHomomorphism<CMM>>, strategy : F) -> Yoneda<CC>
 where TCM : BoundedModule,
       TC : ChainComplex<Module=TCM> + BoundedChainComplex,
@@ -558,7 +560,7 @@ fn compute_kernel_image<M : BoundedModule, F : ModuleHomomorphism, G : ModuleHom
     };
 
     matrix.set_slice(first_kernel_row, source_dimension, total_padded_degree + padded_source_degree, total_cols);
-    matrix.into_slice();
+    matrix = matrix.into_slice();
 
     let first_image_row = first_image_row - first_kernel_row;
 

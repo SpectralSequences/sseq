@@ -600,6 +600,7 @@ impl<CC : ChainComplex> Resolution<CC> {
         self.compute_self_maps(s, t);
     }
 
+    #[allow(clippy::needless_range_loop)]
     fn compute_filtration_one_products(&self, target_s : u32, target_t : i32){
         if target_s == 0 {
             return;
@@ -829,7 +830,7 @@ impl<CC> Resolution<CC> where
                             new_s as u32, new_t
                             );
                         unit_vector[j].set_entry(0, 1);
-                        f.extend_step(new_s as u32, new_t, Some(&mut unit_vector));
+                        f.extend_step(new_s as u32, new_t, Some(&unit_vector));
                         unit_vector[j].set_to_zero_pure();
                         self.chain_maps_to_unit_resolution[new_s][new_t].push(f);
                     }
@@ -881,6 +882,7 @@ impl<CC : ChainComplex> Resolution<CC> {
     }
 
     /// We compute the products by self maps where the result has degree (s, t).
+    #[allow(clippy::needless_range_loop)]
     fn compute_self_maps(&self, target_s : u32, target_t : i32) {
         for f in &self.self_maps {
             if target_s < f.s {

@@ -327,13 +327,12 @@ impl Sseq {
     }
 
     fn allocate_zeros_subspace(&self, zeros : &mut BiVec<BiVec<BiVec<Subspace>>>, r : i32, x : i32, y : i32) {
-        let subspace;
-        if r == MIN_PAGE {
+        let subspace = if r == MIN_PAGE {
             let dim = self.classes[x][y];
-            subspace = Subspace::new(self.p, dim + 1, dim);
+            Subspace::new(self.p, dim + 1, dim)
         } else {
-            subspace = zeros[x][y][r - 1].clone();
-        }
+            zeros[x][y][r - 1].clone()
+        };
         zeros[x][y].push(subspace);
     }
 
@@ -481,7 +480,7 @@ impl Sseq {
                     }
                     matrices.push(result);
 
-                    if source_classes.1.len() == 0 {
+                    if source_classes.1.is_empty() {
                         break;
                     }
                 }
@@ -657,7 +656,7 @@ impl Sseq {
         classes.push(((0..source_dim as isize).collect(), class_list));
 
         for r in MIN_PAGE + 1 .. max_page {
-            if classes[r - 1].1.len() == 0 {
+            if classes[r - 1].1.is_empty() {
                 break;
             }
 
@@ -690,7 +689,7 @@ impl Sseq {
                 .collect::<Vec<_>>())
         }
 
-        if differentials.len() > 0 {
+        if !differentials.is_empty() {
             self.send(Message {
                 recipients : vec![],
                 sseq : self.name,
@@ -722,7 +721,7 @@ impl Sseq {
         let page_classes = self.page_classes.read().unwrap();
         if error {
             state = ClassState::Error;
-        } else if page_classes[x][y].last().unwrap().1.iter().fold(true, |b, c| b && self.permanent_classes[x][y].contains(c)) {
+        } else if page_classes[x][y].last().unwrap().1.iter().all(|c| self.permanent_classes[x][y].contains(c)) {
             state = ClassState::Done;
         } else {
             state = ClassState::InProgress;
@@ -766,28 +765,15 @@ impl Sseq {
 // Wrapper functions
 impl Sseq {
     fn product_defined(&self, x : i32, y : i32, product : &Product) -> bool {
-        if !self.class_defined(x, y) {
-            false
-        } else if product.matrices.max_degree() < x {
-            false
-        } else if product.matrices[x].max_degree() < y {
-            false
-        } else {
-            true
-        }
+        self.class_defined(x, y) &&
+            product.matrices.max_degree() >= x &&
+            product.matrices[x].max_degree() >= y
     }
 
     fn class_defined(&self, x : i32, y : i32) -> bool {
-        if x < self.min_x || y < self.min_y {
-            return false;
-        }
-        if x > self.classes.max_degree() {
-            return false;
-        }
-        if y > self.classes[x].max_degree() {
-            return false;
-        }
-        true
+        x >= self.min_x && y >= self.min_y &&
+            self.classes.max_degree() >= x &&
+            self.classes[x].max_degree() >= y
     }
 
     fn get_page<T>(r : i32, bivec : &BiVec<T>) -> &T {
@@ -894,10 +880,9 @@ impl Sseq {
         for r_ in r + 1 .. zeros[tx][ty].len() {
             zeros[tx][ty][r_].add_vector(target);
             let (px, py) = sseq_profile_i(r_, tx, ty);
-            if self.class_defined(px, py) {
-                if self.differentials[px][py].len() > r_ {
-                    self.differentials[px][py][r_].reduce_target(&zeros[tx][ty][r_]);
-                }
+            if self.class_defined(px, py) &&
+               self.differentials[px][py].len() > r_ {
+                   self.differentials[px][py][r_].reduce_target(&zeros[tx][ty][r_]);
             }
         }
 
@@ -956,7 +941,7 @@ impl Sseq {
     }
 
     /// Add a product to the list of products, but don't add any computed product
-    pub fn add_product_type(&mut self, name : &String, mult_x : i32, mult_y : i32, left : bool, permanent: bool) {
+    pub fn add_product_type(&mut self, name : &str, mult_x : i32, mult_y : i32, left : bool, permanent: bool) {
         let idx = self.product_name_to_index.get(name);
 
         let mut products = self.products.write().unwrap();
@@ -970,7 +955,7 @@ impl Sseq {
             }
         } else {
             let product = Product {
-                name : name.clone(),
+                name : name.to_string(),
                 x : mult_x,
                 y : mult_y,
                 user : true,
@@ -980,10 +965,11 @@ impl Sseq {
                 matrices : BiVec::new(self.min_x)
             };
             products.push(product);
-            self.product_name_to_index.insert(name.clone(), products.len() - 1);
+            self.product_name_to_index.insert(name.to_string(), products.len() - 1);
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn add_product_differential(&mut self, source : &String, target: &String) {
         let source_idx = *self.product_name_to_index.get(source).unwrap();
         let target_idx = *self.product_name_to_index.get(target).unwrap();
@@ -1028,7 +1014,8 @@ impl Sseq {
         }
     }
 
-    pub fn add_product(&mut self, name : &String, x : i32, y : i32, mult_x : i32, mult_y : i32, left : bool, matrix : &Vec<Vec<u32>>) {
+    #[allow(clippy::ptr_arg)]
+    pub fn add_product(&mut self, name : &String, x : i32, y : i32, mult_x : i32, mult_y : i32, left : bool, matrix : &[Vec<u32>]) {
         assert!(self.class_defined(x, y));
         assert!(self.class_defined(x + mult_x, y + mult_y));
         let mut products = self.products.write().unwrap();

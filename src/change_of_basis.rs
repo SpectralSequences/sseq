@@ -165,22 +165,21 @@ pub fn adem_q(
 ){
     let p = adem_algebra.prime();
     let degree = crate::combinatorics::tau_degrees(p)[qi as usize];
-    let mbe;
-    if adem_algebra.generic {
-        mbe = MilnorBasisElement {
+    let mbe = if adem_algebra.generic {
+        MilnorBasisElement {
             degree,
             q_part : 1 << qi, 
             p_part : vec![]
-        };
+        }
     } else {
         let mut p_part = vec![0; qi as usize + 1];
         p_part[qi as usize] = 1;
-        mbe = MilnorBasisElement {
+        MilnorBasisElement {
             degree,
             q_part: 0,
             p_part
-        };
-    }
+        }
+    };
     let idx = milnor_algebra.basis_element_to_index(&mbe);
     milnor_to_adem_on_basis(adem_algebra, milnor_algebra, result, coeff, degree, idx);
 }

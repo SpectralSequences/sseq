@@ -66,7 +66,7 @@ impl std::fmt::Display for MilnorBasisElement {
                 i += 1;
             }
         }
-        if self.p_part.len() > 0 {
+        if !self.p_part.is_empty() {
             write!(f, "P(")?;
             write!(f, "{}", self.p_part.iter()
                    .map(u32::to_string)
@@ -153,6 +153,7 @@ impl Algebra for MilnorAlgebra {
         &self.name
     }
 
+    #[allow(clippy::useless_let_if_seq)]
     fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
         let mut products = Vec::with_capacity(4);
         let max_degree;
@@ -164,8 +165,8 @@ impl Algebra for MilnorAlgebra {
                     p_part : vec![]
                 }));
             }
-            if (self.profile.p_part.len() == 0 && !self.profile.truncated) ||
-               (self.profile.p_part.len() > 0 && self.profile.p_part[0] > 0) {
+            if (self.profile.p_part.is_empty() && !self.profile.truncated) ||
+               (!self.profile.p_part.is_empty() && self.profile.p_part[0] > 0) {
                     products.push(("h_0".to_string(), MilnorBasisElement {
                         degree : (2*self.p-2) as i32,
                         q_part : 0,
@@ -175,7 +176,7 @@ impl Algebra for MilnorAlgebra {
             max_degree = (2 * self.p - 2) as i32;
         } else {
             let mut max = 4;
-            if self.profile.p_part.len() > 0 {
+            if !self.profile.p_part.is_empty() {
                 max = std::cmp::min(4, self.profile.p_part[0]);
             } else if self.profile.truncated {
                 max = 0;
@@ -220,8 +221,8 @@ impl Algebra for MilnorAlgebra {
         for d in *next_degree as usize ..= max_degree as usize {
             let basis = &self.basis_table[d];
             let mut map = HashMap::with_capacity(basis.len());
-            for i in 0 .. basis.len() {
-                map.insert(basis[i].clone(), i);
+            for (i, b) in basis.iter().enumerate() {
+                map.insert(b.clone(), i);
             }
             self.basis_element_to_index_map.push(map);
         }
@@ -341,8 +342,8 @@ impl Algebra for MilnorAlgebra {
         if temp_degree != 1 {
             return vec![];
         }
-        if (self.profile.p_part.len() == 0 && self.profile.truncated) ||
-           (self.profile.p_part.len() > 0 && self.profile.p_part[0] <= power) {
+        if (self.profile.p_part.is_empty() && self.profile.truncated) ||
+           (!self.profile.p_part.is_empty() && self.profile.p_part[0] <= power) {
             return vec![];
         }
 
@@ -483,10 +484,7 @@ impl MilnorAlgebra {
         let bit_string_max : u32 = 1 << new_max_tau;
 
         let mut residue : i32 = (old_max_tau as i32) % q;
-        let mut total : i32 = 0;
-        for i in 0..old_max_tau {
-            total += tau_degrees[i];
-        }
+        let mut total : i32 = tau_degrees[0 .. old_max_tau].iter().sum();
 
         for bit_string in bit_string_min..bit_string_max {
             let mut v = (bit_string ^ (bit_string - 1)) >> 1;
@@ -501,7 +499,7 @@ impl MilnorAlgebra {
             if bit_string & profile != 0 {
                 continue;
             }
-            residue = residue % q;
+            residue %= q;
             if residue < 0 {
                 residue += q;
             }
@@ -608,11 +606,8 @@ impl MilnorAlgebra {
                     }
 
                     // If new_p ends with 0, drop them
-                    loop {
-                        match new_p.last() {
-                            Some(0) => new_p.pop(),
-                            _ => break,
-                        };
+                    while let Some(0) = new_p.last() {
+                        new_p.pop();
                     }
                     // Now put everything together
                     let m = MilnorBasisElement {
@@ -672,6 +667,7 @@ struct PPartMultiplier<'a> {
 
 #[allow(non_snake_case)]
 impl<'a>  PPartMultiplier<'a> {
+    #[allow(clippy::ptr_arg)]
     fn new (p : u32, r : &'a PPart, s : &'a PPart) -> PPartMultiplier<'a> {
         let rows = r.len() + 1;
         let cols = s.len() + 1;
@@ -766,11 +762,8 @@ impl<'a> Iterator for PPartMultiplier<'a> {
             }
         }
         // If new_p ends with 0, drop them
-        loop {
-            match new_p.last() {
-                Some(0) => new_p.pop(),
-                _ => break,
-            };
+        while let Some(0) = new_p.last() {
+            new_p.pop();
         }
 
         self.cont = self.update();
@@ -824,6 +817,7 @@ impl MilnorAlgebra {
     }
 
     // use https://monks.scranton.edu/files/pubs/bases.pdf page 8
+    #[allow(clippy::useless_let_if_seq)]
     fn decompose_basis_element_ppart(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>{
         let p = self.p;
         let b = &self.basis_table[degree as usize][idx];

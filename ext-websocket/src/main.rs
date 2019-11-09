@@ -189,7 +189,7 @@ impl Server {
 
     pub fn serve_files(&self, request_path: &str) -> WsResult<(Response)> {
         println!("Request path: {}", request_path);
-        let request_path = request_path.split("?").collect::<Vec<&str>>()[0]; // Ignore ?...
+        let request_path = request_path.split('?').collect::<Vec<&str>>()[0]; // Ignore ?...
         let mut dir = std::env::current_exe().unwrap();
         dir.pop(); dir.pop(); dir.pop();
         dir.push("ext-websocket/interface");
@@ -218,7 +218,7 @@ fn main() {
     };
 
     println!("Opening websocket on 127.0.0.1:{}", port);
-    match listen(&format!("127.0.0.1:{}", port), |out| Server::new(out)) {
+    match listen(&format!("127.0.0.1:{}", port), Server::new) {
         Ok(_) => (),
         Err(e) => eprintln!("Unable to open websocket: {}", e)
     }

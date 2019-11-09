@@ -183,8 +183,7 @@ impl<M : Module, N : Module> Module for TensorModule<M, N> {
                 self.act_helper(&mut working_element, coeff, op_degree, op_index, working_degree, input);
                 working_degree += op_degree;
 
-                for i in 1 .. n - 1 {
-                    let (op_degree, op_index) = decomposition[i];
+                for &(op_degree, op_index) in &decomposition[1 .. n - 1] {
                     let mut new_element = FpVector::new(p, self.dimension(working_degree + op_degree));
                     self.act_helper(&mut new_element, coeff, op_degree, op_index, working_degree, &working_element);
                     working_element = new_element;
@@ -264,7 +263,7 @@ mod tests {
         let N = Arc::new(FiniteModule::from_json(Arc::clone(&A), &mut N).unwrap());
 
         let tensor = TensorModule::new(M, N).to_fd_module();
-        let T = FiniteModule::from_json(Arc::clone(&A), &mut T).unwrap().as_fd_module().unwrap();
+        let T = FiniteModule::from_json(Arc::clone(&A), &mut T).unwrap().into_fd_module().unwrap();
 
         if let Err(msg) = tensor.test_equal(&T) {
             println!("Test case failed. {}",msg);

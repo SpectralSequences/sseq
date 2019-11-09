@@ -46,7 +46,7 @@ impl ResolutionManager {
             #[cfg(feature = "concurrent")]
             bucket : Arc::new(TokenBucket::new(NUM_THREADS)),
 
-            sender : sender,
+            sender,
             resolution : None,
             unit_resolution : None,
             is_unit : false,
@@ -191,7 +191,7 @@ impl ResolutionManager {
         let add_class = move |s: u32, t: i32, num_gen: usize| {
             let msg = Message {
                 recipients : vec![],
-                sseq : sseq,
+                sseq,
                 action : Action::from(AddClass {
                     x : t - s as i32,
                     y : s as i32,
@@ -213,16 +213,16 @@ impl ResolutionManager {
             // Product in Ext is not product in E_2
             if (left && mult_s * source_t % 2 != 0) ||
                (!left && mult_t * source_s % 2 != 0) {
-                for a in 0 .. product.len() {
-                    for b in 0 .. product[a].len() {
-                        product[a][b] = ((p - 1) * product[a][b]) % p;
+                for prod_row in &mut product {
+                    for prod_entry in prod_row {
+                        *prod_entry = ((p - 1) * *prod_entry) % p;
                     }
                 }
             }
 
             let msg = Message {
                 recipients : vec![],
-                sseq : sseq,
+                sseq,
                 action : Action::from(AddProduct {
                     mult_x : mult_t - mult_s,
                     mult_y : mult_s,
@@ -260,7 +260,7 @@ impl SseqManager {
     ///  * `sender` - The `Sender` object to send messages to.
     pub fn new(sender : Sender) -> Self {
         SseqManager {
-             sender : sender,
+             sender,
              sseq : None,
              unit_sseq : None
         }

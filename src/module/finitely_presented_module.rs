@@ -69,7 +69,7 @@ impl FinitelyPresentedModule {
     // Exact duplicate of function in fdmodule.rs...
     fn module_gens_from_json(gens : &Value) -> (BiVec<usize>, BiVec<Vec<String>>, HashMap<&String, (i32, usize)>) {
         let gens = gens.as_object().unwrap();
-        assert!(gens.len() > 0);
+        assert!(!gens.is_empty());
         let mut min_degree = 10000;
         let mut max_degree = -10000;
         for (_name, degree_value) in gens.iter() {
@@ -213,8 +213,8 @@ impl Module for FinitelyPresentedModule {
             let mut gen_idx_to_fp_idx = Vec::new();
             let mut fp_idx_to_gen_idx = Vec::new();
             let pivots = &image.column_to_pivot_row;
-            for i in 0 .. pivots.len() {
-                if pivots[i] < 0 {
+            for (i, &pivot) in pivots.iter().enumerate() {
+                if pivot < 0 {
                     gen_idx_to_fp_idx.push(fp_idx_to_gen_idx.len() as isize);
                     fp_idx_to_gen_idx.push(i);
                 } else {

@@ -1,4 +1,4 @@
-
+#![allow(clippy::mutex_atomic)]
 use std::sync::{mpsc, Mutex, Condvar};
 
 /// A `TokenBucket` is a bucket containing a fixed number of "tokens". Threads can take request to
@@ -25,7 +25,7 @@ impl TokenBucket {
     }
 
     /// Attempts to take a token from the bucket. This will block until a token is available.
-    pub fn take_token<'a>(&'a self) -> Token<'a> {
+    pub fn take_token(&'_ self) -> Token {
         let mut running_threads = self.running_threads.lock().unwrap();
 
         loop {

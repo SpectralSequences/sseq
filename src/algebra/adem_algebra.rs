@@ -92,23 +92,13 @@ impl std::fmt::Display for AdemBasisElement {
 
 #[allow(dead_code)]
 fn adem_basis_element_excess_sort_order(a : &AdemBasisElement, b : &AdemBasisElement) -> Ordering{
-    match(a.excess, b.excess){
-        (x,y) if x > y => Ordering::Greater,
-        (x,y) if x == y => Ordering::Equal,
-        (x,y) if x < y => Ordering::Less,
-        _ => {assert!(false); Ordering::Equal}
-    }
+    a.excess.cmp(&b.excess)
 }
 
 // We need this for generic basis generation.
 #[allow(dead_code)]
 fn adem_basis_element_length_sort_order(a : &AdemBasisElement, b : &AdemBasisElement) -> Ordering {
-    match(a.ps.len(), b.ps.len()){
-        (x,y) if x > y => Ordering::Greater,
-        (x,y) if x == y => Ordering::Equal,
-        (x,y) if x < y => Ordering::Less,
-        _ => {assert!(false); Ordering::Equal}
-    }
+    a.ps.len().cmp(&b.ps.len())
 }
 
 unsafe fn shift_vec<T>(v : Vec<T> , offset : isize) -> Vec<T> {
@@ -147,6 +137,7 @@ impl Algebra for AdemAlgebra {
         &self.name
     }
 
+    #[allow(clippy::useless_let_if_seq)]
     fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
         let mut products = Vec::with_capacity(4);
         let max_degree;
@@ -551,8 +542,8 @@ impl AdemAlgebra {
         for n in next_degree ..= max_degree {
             let basis = &self.basis_table[n as usize];
             let mut map = HashMap::with_capacity(basis.len());
-            for i in 0 .. basis.len() {
-                map.insert(basis[i].clone(), i);
+            for (i, basis) in basis.iter().enumerate() {
+                map.insert(basis.clone(), i);
             }
             self.basis_element_to_index_map.push(map);
         }
@@ -567,8 +558,7 @@ impl AdemAlgebra {
             *idx
         } else {
             println!("Didn't find element: {:?}", elt);
-            assert!(false);
-            0
+            panic!();
         }
     }
 
@@ -611,7 +601,7 @@ impl AdemAlgebra {
         }
     }
 
-    fn generate_multiplication_table_2_step(&self, table : &Vec<Vec<FpVector>>, n : i32, x : i32, idx : usize) -> FpVector {
+    fn generate_multiplication_table_2_step(&self, table : &[Vec<FpVector>], n : i32, x : i32, idx : usize) -> FpVector {
         let output_dimension = self.dimension(n, -1);
         let mut result = FpVector::new(self.p, output_dimension);
         let cur_basis_elt = self.basis_element_from_index(n-x, idx);
@@ -705,7 +695,7 @@ impl AdemAlgebra {
     /// Here $Sq^x$ means $P^{x/2}$ if $x$ is even and $\beta P^{(x-1)/2}$ if $x$ is odd.
     ///
     /// Note that x is always positive.
-    fn generate_multiplication_table_generic_step(&self, table : &Vec<Vec<FpVector>>,  n : i32, x : i32, idx : usize) -> FpVector {
+    fn generate_multiplication_table_generic_step(&self, table : &[Vec<FpVector>],  n : i32, x : i32, idx : usize) -> FpVector {
         let p : i32 = self.p as i32; // we use p for the i32 version and self.p for the u32 version
         let q : i32 = 2*p - 2;
 
@@ -747,7 +737,7 @@ impl AdemAlgebra {
         let mut working_elt = self.basis_element_from_index(n - (q * i as i32), idx).clone();
 
         let b : u32 = working_elt.bocksteins & 1;
-        if working_elt.ps.len() == 0 || i >= self.p*working_elt.ps[0] + b {
+        if working_elt.ps.is_empty() || i >= self.p*working_elt.ps[0] + b {
             working_elt.ps.insert(0, i);
             working_elt.bocksteins <<= 1;
             working_elt.degree = n;
@@ -956,10 +946,7 @@ impl AdemAlgebra {
         let p = self.p;
         let q = 2*p-2;
         // Check for admissibility
-        let mut b1 = 0;
-        if idx >= 0 {
-            b1 = (monomial.bocksteins >> idx) & 1;
-        }
+        let b1 = if idx >= 0 { (monomial.bocksteins >> idx) & 1 } else { 0 };
         let b2 = (monomial.bocksteins >> (idx+1)) & 1;
         while idx < 0 || idx == monomial.ps.len() as i32 - 1 || monomial.ps[idx as usize] >= p*monomial.ps[idx as usize + 1] + b2 {
             if idx < 0 || stop_early {

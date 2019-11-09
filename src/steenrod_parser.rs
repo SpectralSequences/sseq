@@ -230,14 +230,12 @@ fn module_term(i: &str) -> IResult<&str, ModuleParseNode> {
     // println!("hi");
     let (rest, (opt_pm, opt_algebra, mut result)) = tuple((opt(alt((char('+'), char('-')))), opt(pair(algebra_expr, char('*'))), module_factor))(i)?;
     // println!("{:?}, {:?}, {:?}", opt_pm, opt_algebra, result);
-    match opt_algebra {
-        Some((algebra_term, _)) => result = ModuleParseNode::Act(Box::new(algebra_term), Box::new(result)),
-        None => {}
-    };
-    match opt_pm {
-        Some('-') => result = ModuleParseNode::Act(Box::new(AlgebraParseNode::Scalar(-1)), Box::new(result)),
-        _ => {}
-    };
+    if let Some((algebra_term, _)) = opt_algebra {
+        result = ModuleParseNode::Act(Box::new(algebra_term), Box::new(result));
+    }
+    if let Some('-') = opt_pm {
+        result = ModuleParseNode::Act(Box::new(AlgebraParseNode::Scalar(-1)), Box::new(result));
+    }
     Ok((rest,result))
 }
 

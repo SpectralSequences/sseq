@@ -28,8 +28,8 @@ fn main() {
     let mut lengths : Vec<u32> = Vec::new();
     let mut buf = [0u8; 4];
     loop {
-        source.read(&mut buf).unwrap();
-        let num = u32::from_le_bytes(buf.clone());
+        source.read_exact(&mut buf).unwrap();
+        let num = u32::from_le_bytes(buf);
         if num == 0 {
             break;
         }
@@ -85,11 +85,11 @@ fn main() {
     let mut final_size = (1 + outputs.len() as u32) * 4;
     for line in outputs.iter() {
         final_size += line.len() as u32;
-        output.write(&(line.len() as u32).to_le_bytes()).unwrap();
+        output.write_all(&(line.len() as u32).to_le_bytes()).unwrap();
     }
-    output.write(&0u32.to_le_bytes()).unwrap();
+    output.write_all(&0u32.to_le_bytes()).unwrap();
     for line in outputs {
-        output.write(&line).unwrap();
+        output.write_all(&line).unwrap();
     }
 
     println!("Original size: {}, New size: {}, Compression: {}%", orig_size, final_size, (100.0 * final_size as f64 / orig_size as f64).round());

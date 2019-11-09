@@ -262,6 +262,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainM
 }
 
 impl<CC1 : ChainComplex, CC2 : ChainComplex> TensorChainMap<CC1, CC2> {
+    #[allow(clippy::range_minus_one)]
     fn calculate_quasi_inverse(&self, degree : i32) {
         let p = self.prime();
         // start, end, preimage
@@ -378,7 +379,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> TensorChainMap<CC1, CC2> {
                                 offset += dim;
                             }
                             assert!(quasi_inverse_list[true_index].is_none());
-                            assert!(entries.len() > 0);
+                            assert!(!entries.is_empty());
                             quasi_inverse_list[true_index] = Some(entries);
                             row += 1;
                         }

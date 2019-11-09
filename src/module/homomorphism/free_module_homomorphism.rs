@@ -148,10 +148,10 @@ impl<M : Module> FreeModuleHomomorphism<M> {
             self.outputs.push(new_outputs);
             return;
         }
-        for i in 0 .. new_generators {
+        for (i, new_output) in new_outputs.iter_mut().enumerate() {
             let old_slice = outputs_vectors.slice();
             outputs_vectors.set_slice(target_dimension * i, target_dimension * (i + 1));
-            new_outputs[i].shift_add(&outputs_vectors, 1);
+            new_output.shift_assign(&outputs_vectors);
             outputs_vectors.restore_slice(old_slice);
         }
         self.outputs.push(new_outputs);
@@ -175,11 +175,11 @@ impl<M : Module> FreeModuleHomomorphism<M> {
             self.outputs.push(new_outputs);
             return;
         }
-        for i in 0 .. new_generators {
+        for (i, new_output) in new_outputs.iter_mut().enumerate() {
             let output_vector = &mut matrix[first_new_row + i];
             let old_slice = output_vector.slice();
             output_vector.set_slice(first_target_column, first_target_column + dimension);
-            new_outputs[i].assign(&output_vector);
+            new_output.assign(&output_vector);
             output_vector.restore_slice(old_slice);
         }
         self.outputs.push(new_outputs);

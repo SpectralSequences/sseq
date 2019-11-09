@@ -1,3 +1,6 @@
+#![allow(clippy::many_single_char_names)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
 mod sseq;
 
 pub mod actions;

@@ -90,7 +90,7 @@ pub fn inverse(p : u32, k : u32) -> u32{
     assert!(is_valid_prime(p));
     let result = INVERSE_TABLE[PRIME_TO_INDEX_MAP[p as usize]][k as usize];
     assert!(result != 0);
-    return result;
+    result
 }
 
 pub fn minus_one_to_the_n(p : u32, i : u32) -> u32 {
@@ -184,17 +184,17 @@ fn multinomial2(l : &[u32]) -> u32 {
 fn binomial2(n : i32, k : i32) -> u32 {
     if n < k {
         0
+    } else if (n-k) & k == 0 {
+        1
     } else {
-        if (n-k) & k == 0 {
-            1
-        } else {
-            0
-        }
+        0
     }
 }
 
 //Mod p multinomial coefficient of l. If p is 2, more efficient to use Multinomial2.
 //This uses Lucas's theorem to reduce to n choose k for n, k < p.
+// There is some cleaning up to be done here about the arrays. Suppress clippy for now
+#[allow(clippy::needless_range_loop)]
 fn multinomial_odd(p : u32, l : &[u32]) -> u32{
     let mut total = 0u32;
     for e in l {

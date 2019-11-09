@@ -1,5 +1,8 @@
 #![allow(clippy::many_single_char_names)]
 #![allow(clippy::unreadable_literal)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::implicit_hasher)]
 
 pub mod combinatorics;
 pub mod fp_vector;

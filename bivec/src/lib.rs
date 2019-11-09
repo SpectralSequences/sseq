@@ -76,6 +76,10 @@ impl<T> BiVec<T> {
         self.data.len() as i32 + self.min_degree
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.data.len() == 0
+    }
+
     pub fn push(&mut self, x : T) {
         self.data.push(x);
     }
