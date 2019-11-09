@@ -266,8 +266,7 @@ mod tests {
         let T = FiniteModule::from_json(Arc::clone(&A), &mut T).unwrap().into_fd_module().unwrap();
 
         if let Err(msg) = tensor.test_equal(&T) {
-            println!("Test case failed. {}",msg);
-            assert!(false, "See error message above...");
+            panic!("Test case failed. {}",msg);
         }
     }
 }

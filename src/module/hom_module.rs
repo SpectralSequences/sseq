@@ -160,6 +160,7 @@ mod tests {
     use serde_json;
 
     #[allow(non_snake_case)]
+    #[allow(clippy::needless_range_loop)]
     #[test]
     fn test_hom_space() {
         let p = 2;

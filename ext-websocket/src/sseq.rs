@@ -1108,6 +1108,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::cognitive_complexity)]
     fn test_sseq_differential() {
         let p = 3;
         rust_ext::fp_vector::initialize_limb_bit_index_table(p);
@@ -1120,68 +1121,68 @@ mod tests {
         sseq.set_class(0, 3, 1);
 
         sseq.add_differential(2, 1, 0,
-                              &FpVector::from_vec(p, &vec![1, 1]),
-                              &mut FpVector::from_vec(p, &vec![0, 1, 2]));
+                              &FpVector::from_vec(p, &[1, 1]),
+                              &mut FpVector::from_vec(p, &[0, 1, 2]));
 
         sseq.add_differential(3, 1, 0,
-                              &FpVector::from_vec(p, &vec![1, 0]),
-                              &mut FpVector::from_vec(p, &vec![1]));
+                              &FpVector::from_vec(p, &[1, 0]),
+                              &mut FpVector::from_vec(p, &[1]));
 
 
         let page_classes = sseq.page_classes.read().unwrap();
         assert_eq!(page_classes[1][0].max_degree(), 4);
-        assert_eq!(page_classes[1][0][2].1, vec![FpVector::from_vec(p, &vec![1, 0]),
-                                                 FpVector::from_vec(p, &vec![0, 1])]);
+        assert_eq!(page_classes[1][0][2].1, vec![FpVector::from_vec(p, &[1, 0]),
+                                                 FpVector::from_vec(p, &[0, 1])]);
 
-        assert_eq!(page_classes[1][0][3].1, vec![FpVector::from_vec(p, &vec![1, 0])]);
+        assert_eq!(page_classes[1][0][3].1, vec![FpVector::from_vec(p, &[1, 0])]);
         assert_eq!(page_classes[1][0][4].1, vec![]);
 
         assert_eq!(page_classes[1][1].max_degree(), 2);
-        assert_eq!(page_classes[1][1][2].1, vec![FpVector::from_vec(p, &vec![1, 0]),
-                                                 FpVector::from_vec(p, &vec![0, 1])]);
+        assert_eq!(page_classes[1][1][2].1, vec![FpVector::from_vec(p, &[1, 0]),
+                                                 FpVector::from_vec(p, &[0, 1])]);
 
         assert_eq!(page_classes[0][2].max_degree(), 3);
-        assert_eq!(page_classes[0][2][2].1, vec![FpVector::from_vec(p, &vec![1, 0, 0]),
-                                                 FpVector::from_vec(p, &vec![0, 1, 0]),
-                                                 FpVector::from_vec(p, &vec![0, 0, 1])]);
+        assert_eq!(page_classes[0][2][2].1, vec![FpVector::from_vec(p, &[1, 0, 0]),
+                                                 FpVector::from_vec(p, &[0, 1, 0]),
+                                                 FpVector::from_vec(p, &[0, 0, 1])]);
 
-        assert_eq!(page_classes[0][2][3].1, vec![FpVector::from_vec(p, &vec![1, 0, 0]),
-                                                 FpVector::from_vec(p, &vec![0, 0, 1])]);
+        assert_eq!(page_classes[0][2][3].1, vec![FpVector::from_vec(p, &[1, 0, 0]),
+                                                 FpVector::from_vec(p, &[0, 0, 1])]);
 
         assert_eq!(page_classes[0][3].max_degree(), 4);
-        assert_eq!(page_classes[0][3][2].1, vec![FpVector::from_vec(p, &vec![1])]);
-        assert_eq!(page_classes[0][3][3].1, vec![FpVector::from_vec(p, &vec![1])]);
+        assert_eq!(page_classes[0][3][2].1, vec![FpVector::from_vec(p, &[1])]);
+        assert_eq!(page_classes[0][3][3].1, vec![FpVector::from_vec(p, &[1])]);
         assert_eq!(page_classes[0][3][4].1, vec![]);
 
         drop(page_classes);
         sseq.add_differential(2, 1, 1,
-                              &FpVector::from_vec(p, &vec![1, 0]),
-                              &mut FpVector::from_vec(p, &vec![1]));
+                              &FpVector::from_vec(p, &[1, 0]),
+                              &mut FpVector::from_vec(p, &[1]));
 
         let page_classes = sseq.page_classes.read().unwrap();
         assert_eq!(page_classes[1][0].max_degree(), 4);
-        assert_eq!(page_classes[1][0][2].1, vec![FpVector::from_vec(p, &vec![1, 0]),
-                                                 FpVector::from_vec(p, &vec![0, 1])]);
+        assert_eq!(page_classes[1][0][2].1, vec![FpVector::from_vec(p, &[1, 0]),
+                                                 FpVector::from_vec(p, &[0, 1])]);
 
-        assert_eq!(page_classes[1][0][3].1, vec![FpVector::from_vec(p, &vec![1, 0])]);
-        assert_eq!(page_classes[1][0][4].1, vec![FpVector::from_vec(p, &vec![1, 0])]);
+        assert_eq!(page_classes[1][0][3].1, vec![FpVector::from_vec(p, &[1, 0])]);
+        assert_eq!(page_classes[1][0][4].1, vec![FpVector::from_vec(p, &[1, 0])]);
 
         assert_eq!(page_classes[1][1].max_degree(), 3);
-        assert_eq!(page_classes[1][1][2].1, vec![FpVector::from_vec(p, &vec![1, 0]),
-                                                 FpVector::from_vec(p, &vec![0, 1])]);
+        assert_eq!(page_classes[1][1][2].1, vec![FpVector::from_vec(p, &[1, 0]),
+                                                 FpVector::from_vec(p, &[0, 1])]);
 
-        assert_eq!(page_classes[1][1][3].1, vec![FpVector::from_vec(p, &vec![0, 1])]);
+        assert_eq!(page_classes[1][1][3].1, vec![FpVector::from_vec(p, &[0, 1])]);
 
         assert_eq!(page_classes[0][2].max_degree(), 3);
-        assert_eq!(page_classes[0][2][2].1, vec![FpVector::from_vec(p, &vec![1, 0, 0]),
-                                                 FpVector::from_vec(p, &vec![0, 1, 0]),
-                                                 FpVector::from_vec(p, &vec![0, 0, 1])]);
+        assert_eq!(page_classes[0][2][2].1, vec![FpVector::from_vec(p, &[1, 0, 0]),
+                                                 FpVector::from_vec(p, &[0, 1, 0]),
+                                                 FpVector::from_vec(p, &[0, 0, 1])]);
 
-        assert_eq!(page_classes[0][2][3].1, vec![FpVector::from_vec(p, &vec![1, 0, 0]),
-                                                 FpVector::from_vec(p, &vec![0, 0, 1])]);
+        assert_eq!(page_classes[0][2][3].1, vec![FpVector::from_vec(p, &[1, 0, 0]),
+                                                 FpVector::from_vec(p, &[0, 0, 1])]);
 
         assert_eq!(page_classes[0][3].max_degree(), 3);
-        assert_eq!(page_classes[0][3][2].1, vec![FpVector::from_vec(p, &vec![1])]);
+        assert_eq!(page_classes[0][3][2].1, vec![FpVector::from_vec(p, &[1])]);
         assert_eq!(page_classes[0][3][3].1, vec![]);
     }
 
@@ -1197,21 +1198,21 @@ mod tests {
         sseq.set_class(0, 2, 2);
 
         sseq.add_differential(2, 1, 0,
-                              &FpVector::from_vec(p, &vec![1, 0]),
-                              &mut FpVector::from_vec(p, &vec![1, 0]));
+                              &FpVector::from_vec(p, &[1, 0]),
+                              &mut FpVector::from_vec(p, &[1, 0]));
         sseq.add_differential(2, 1, 0,
-                              &FpVector::from_vec(p, &vec![0, 1]),
-                              &mut FpVector::from_vec(p, &vec![1, 1]));
+                              &FpVector::from_vec(p, &[0, 1]),
+                              &mut FpVector::from_vec(p, &[1, 1]));
 
         let page_classes = sseq.page_classes.read().unwrap();
         assert_eq!(page_classes[1][0].max_degree(), 3);
-        assert_eq!(page_classes[1][0][2].1, vec![FpVector::from_vec(p, &vec![1, 0]),
-                                                 FpVector::from_vec(p, &vec![0, 1])]);
+        assert_eq!(page_classes[1][0][2].1, vec![FpVector::from_vec(p, &[1, 0]),
+                                                 FpVector::from_vec(p, &[0, 1])]);
         assert_eq!(page_classes[1][0][3].1.len(), 0);
 
         assert_eq!(page_classes[0][2].max_degree(), 3);
-        assert_eq!(page_classes[0][2][2].1, vec![FpVector::from_vec(p, &vec![1, 0]),
-                                                 FpVector::from_vec(p, &vec![0, 1])]);
+        assert_eq!(page_classes[0][2][2].1, vec![FpVector::from_vec(p, &[1, 0]),
+                                                 FpVector::from_vec(p, &[0, 1])]);
         assert_eq!(page_classes[0][2][3].1.len(), 0);
     }
 }

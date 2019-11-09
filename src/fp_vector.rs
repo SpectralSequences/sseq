@@ -1134,6 +1134,7 @@ impl Load for FpVector {
 }
 
 #[cfg(test)]
+#[allow(clippy::needless_range_loop)]
 mod tests {
     use super::*;
     use rand::Rng;
@@ -1144,7 +1145,7 @@ mod tests {
         for _ in 0..dimension {
             result.push(rng.gen::<u32>() % p);
         }
-        return result;
+        result
     }
     use rstest::rstest_parametrize;
 
@@ -1217,8 +1218,8 @@ mod tests {
             }
             v.pack(&v_arr);
             v.scale(c);
-            for i in 0..*dim {
-                v_arr[i] = (v_arr[i] * c) % p;
+            for entry in &mut v_arr {
+                *entry = (*entry * c) % p;
             }
             v.unpack(&mut result);
             let mut diffs = Vec::new();

@@ -965,9 +965,7 @@ mod tests {
                     relation_string.pop(); relation_string.pop(); relation_string.pop();
                     relation_string.pop(); relation_string.pop();
                     let value_string = algebra.element_to_string(i as i32, &output_vec);
-                    assert!(false,
-                        format!("{}", ModuleFailedRelationError {relation : relation_string, value : value_string})
-                    );
+                    panic!("{}", ModuleFailedRelationError {relation : relation_string, value : value_string});
                 }
             }
         }

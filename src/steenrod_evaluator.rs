@@ -344,7 +344,7 @@ mod tests {
         milnor.compute_basis(max_degree);
         println!("{:?}", milnor.basis_element_from_index(1, 0));
 
-        for (input, output) in vec![
+        for (input, output) in &[
             ("Sq2 * Sq2", "P3 P1"),
             ("A(2 2)", "P3 P1"),
             ("Sq2 * Sq2 * Sq2 + Sq3 * Sq3", "0"),
@@ -354,7 +354,7 @@ mod tests {
         ]{
             let (degree, result) = evaluate_algebra_adem(&adem, &milnor, input).unwrap();
             println!("{} ==> {}", input, adem.element_to_string(degree, &result));
-            assert_eq!(adem.element_to_string(degree, &result), output);
+            assert_eq!(adem.element_to_string(degree, &result), *output);
         }
         let p = 3;
         let max_degree = 30;
@@ -362,7 +362,7 @@ mod tests {
         let milnor = MilnorAlgebra::new(p);//, p != 2
         adem.compute_basis(max_degree);
         milnor.compute_basis(max_degree);
-        for (input, output) in vec![
+        for (input, output) in &[
             ("P1 * P1", "2 * P2"),
             ("A(1 1)", "2 * P2"),
             ("A(1 b 1)", "b P2 + P2 b"),
@@ -370,7 +370,7 @@ mod tests {
         ]{
             let (degree, result) = evaluate_algebra_adem(&adem, &milnor, input).unwrap();
             println!("{} ==> {}", input, adem.element_to_string(degree, &result));
-            assert_eq!(adem.element_to_string(degree, &result), output);
+            assert_eq!(adem.element_to_string(degree, &result), *output);
         }
     }
 }

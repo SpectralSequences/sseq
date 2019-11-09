@@ -1142,8 +1142,8 @@ mod tests {
                 assert_eq!(unpacked_row, goal_output[i]);
             }
             let mut output_pivots_vec = Vec::with_capacity(cols);
-            for i in 0..cols {
-                output_pivots_vec.push(output_pivots_cvec[i]);
+            for &entry in &output_pivots_cvec {
+                output_pivots_vec.push(entry);
             }
             assert_eq!(output_pivots_vec, goal_pivots)
         }

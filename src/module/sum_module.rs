@@ -144,8 +144,7 @@ mod tests {
         let S = FiniteModule::from_json(Arc::clone(&A), &mut S).unwrap().into_fd_module().unwrap();
 
         if let Err(msg) = sum.test_equal(&S) {
-            println!("Test case failed. {}",msg);
-            assert!(false, "See error message above...");
+            panic!("Test case failed. {}",msg);
         }
     }
 }

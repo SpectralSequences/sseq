@@ -460,7 +460,7 @@ mod tests {
         let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&square), 0, 0);
         let mut mat = Matrix::new(p, 1, 1);
         mat[0].set_entry(0, 1);
-        f.extend_step(0, 0, Some(&mut mat));
+        f.extend_step(0, 0, Some(&mat));
 
         f.extend(2 * s, 2 * t);
         let final_map = f.get_map(2 * s);

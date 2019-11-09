@@ -210,16 +210,16 @@ mod tests {
         let milnor = MilnorAlgebra::new(p);//, p != 2
         adem.compute_basis(max_degree);
         milnor.compute_basis(max_degree);
-        for (qi, output) in vec![
+        for (qi, output) in &[
             (0, "P1"),
             (1, "P3 + P2 P1"),
             (2, "P7 + P5 P2 + P6 P1 + P4 P2 P1")
         ] {
-            let degree = (1 << (qi + 1)) - 1;
+            let degree = (1 << (*qi + 1)) - 1;
             let mut result = FpVector::new(p, adem.dimension(degree, -1));
-            adem_q(&adem, &milnor, &mut result, 1, qi);
+            adem_q(&adem, &milnor, &mut result, 1, *qi);
             println!("Q{} ==> {}", qi, adem.element_to_string(degree, &result));
-            assert_eq!(adem.element_to_string(degree, &result), output)
+            assert_eq!(adem.element_to_string(degree, &result), *output)
         }
     }
 

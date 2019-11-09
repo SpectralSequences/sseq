@@ -159,7 +159,7 @@ pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
 
     #[cfg(feature = "concurrent")]
     {
-        let num_threads = query_with_default_no_default_indicated("Number of threads", 2, |x : usize| Ok(x));
+        let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
         let bucket = Arc::new(TokenBucket::new(num_threads));
         res.resolve_through_degree_concurrent(config.max_degree, &bucket);
     }
@@ -177,7 +177,7 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
     let p = resolution.prime();
 
     #[cfg(feature = "concurrent")]
-    let num_threads = query_with_default_no_default_indicated("Number of threads", 2, |x : usize| Ok(x));
+    let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
     #[cfg(feature = "concurrent")]
     let bucket = Arc::new(TokenBucket::new(num_threads));
 
@@ -283,7 +283,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
 
     let p = 2;
     #[cfg(feature = "concurrent")]
-    let num_threads = query_with_default_no_default_indicated("Number of threads", 2, |x : usize| Ok(x));
+    let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
 
     #[cfg(feature = "concurrent")]
     let bucket = Arc::new(TokenBucket::new(num_threads));
