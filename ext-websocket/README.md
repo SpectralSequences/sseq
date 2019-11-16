@@ -33,7 +33,7 @@ The files produced will be placed in `dist/` . To view the website, run
 $ npm run serve
 ```
 Navigate to `http://localhost:8000` to view the page. This final command merely
-runs a webserve to serve the directory. There are two points to take note if
+runs a webserver to serve the directory. There are two points to take note if
 you want to serve the directory yourself.
 
 1. By default, most http servers do not serve `.wasm` files with the correct
