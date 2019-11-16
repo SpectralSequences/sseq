@@ -249,7 +249,7 @@ impl FiniteDimensionalModule {
                     continue;
                 }
                 let op_deg = output_degree - input_degree;
-                let number_of_operations = algebra.dimension(min_degree + op_deg, min_degree + input_degree);
+                let number_of_operations = algebra.dimension(op_deg, min_degree + input_degree);
                 let number_of_inputs = graded_dimension[input_degree];
                 let number_of_outputs = graded_dimension[output_degree];
                 let mut ops_vec : Vec<Vec<FpVector>> = Vec::with_capacity(number_of_operations);
