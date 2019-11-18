@@ -265,8 +265,8 @@ impl Sseq {
         self.add_page(MIN_PAGE);
 
         let mut zeros = self.zeros.write().unwrap();
-        for x in 0 .. self.classes.len() {
-            for y in 0 .. self.classes[x].len() {
+        for x in self.min_x .. self.classes.len() {
+            for y in self.min_y .. self.classes[x].len() {
                 self.permanent_classes[x][y].set_to_zero();
                 for d in self.differentials[x][y].iter_mut() {
                     d.set_to_zero();
