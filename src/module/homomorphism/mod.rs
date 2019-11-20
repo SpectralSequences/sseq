@@ -5,6 +5,7 @@ use crate::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::Module;
 
 mod free_module_homomorphism;
+mod generic_zero_homomorphism;
 mod bounded_module_homomorphism;
 mod hom_pullback;
 mod truncated_homomorphism;
@@ -13,6 +14,7 @@ mod fp_module_homomorphism;
 mod finite_module_homomorphism;
 
 pub use free_module_homomorphism::FreeModuleHomomorphism;
+pub use generic_zero_homomorphism::GenericZeroHomomorphism;
 pub use hom_pullback::HomPullback;
 pub use bounded_module_homomorphism::BoundedModuleHomomorphism;
 pub use finite_module_homomorphism::FiniteModuleHomomorphism;

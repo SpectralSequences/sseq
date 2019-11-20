@@ -9,6 +9,8 @@ fn milnor_vs_adem() {
     compare("C2", 30);
     compare("Joker", 30);
     compare("RP4", 30);
+    compare("RP_inf", 30);
+    compare("RP_-4_inf", 30);
     compare("Csigma", 30);
     compare("S_3", 30);
     compare("Calpha", 30);

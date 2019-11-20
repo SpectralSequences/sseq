@@ -13,10 +13,12 @@ mod free_module;
 mod hom_module;
 mod tensor_module;
 mod sum_module;
+mod rpn;
 
 pub mod homomorphism;
 
 pub use finite_dimensional_module::FiniteDimensionalModule as FDModule;
+pub use rpn::RealProjectiveSpace;
 pub use hom_module::HomModule;
 pub use finitely_presented_module::FinitelyPresentedModule as FPModule;
 pub use truncated_module::TruncatedModule;
@@ -159,30 +161,39 @@ pub trait Module : Send + Sync + 'static {
 #[derive(PartialEq, Eq)]
 pub enum FiniteModule {
     FDModule,
-    FPModule
+    FPModule,
+    RealProjectiveSpace,
 }
 
 impl FiniteModule {
     pub fn from_json(algebra : Arc<AlgebraAny>, json : &mut serde_json::Value) -> Result<Self, Box<dyn Error>> {
         let module_type = &json["type"].as_str().unwrap();
         match *module_type {
+            "real projective space" => Ok(FiniteModule::from(RealProjectiveSpace::from_json(algebra, json)?)),
             "finite dimensional module" => Ok(FiniteModule::from(FDModule::from_json(algebra, json))),
             "finitely presented module" => Ok(FiniteModule::from(FPModule::from_json(algebra, json))),
             _ => Err(Box::new(UnknownModuleTypeError { module_type : module_type.to_string() }))
         }
     }
 
+    pub fn into_real_projective_space(self) -> Option<RealProjectiveSpace> {
+        match self {
+            FiniteModule::RealProjectiveSpace(m) => Some(m),
+            _ => None,
+        }
+    }
+
     pub fn into_fp_module(self) -> Option<FPModule> {
         match self {
-            FiniteModule::FDModule(_) => None,
-            FiniteModule::FPModule(m) => Some(m)
+            FiniteModule::FPModule(m) => Some(m),
+            _ => None,
         }
     }
 
     pub fn into_fd_module(self) -> Option<FDModule> {
         match self {
             FiniteModule::FDModule(m) => Some(m),
-            FiniteModule::FPModule(_) => None
+            _ => None,
         }
     }
 }

@@ -3,14 +3,15 @@ use std::sync::Arc;
 use crate::fp_vector::{FpVector};
 use crate::matrix::{Subspace, QuasiInverse};
 use crate::module::{Module, FiniteModule, FreeModule, BoundedModule};
-use crate::module::homomorphism::{ModuleHomomorphism, FPModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphism};
+use crate::module::homomorphism::{ModuleHomomorphism, GenericZeroHomomorphism, FPModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphism};
 use crate::module::homomorphism::FPModuleT;
 
 impl BoundedModule for FiniteModule {
     fn max_degree(&self) -> i32 {
         match self {
             FiniteModule::FDModule(m) => m.max_degree(),
-            FiniteModule::FPModule(_) => panic!("Finitely Presented Module is not bounded")
+            FiniteModule::FPModule(_) => panic!("Finitely Presented Module is not bounded"),
+            FiniteModule::RealProjectiveSpace(_) => panic!("Real Projective Space is not bounded"),
         }
     }
 }
@@ -19,12 +20,14 @@ impl FPModuleT for FiniteModule {
     fn fp_idx_to_gen_idx(&self, input_degree : i32, input_index : usize) -> usize {
         match self {
              FiniteModule::FDModule(_) => panic!("Finite Dimensional Module is not finitely presented"),
+             FiniteModule::RealProjectiveSpace(_) => panic!("RealProjectiveSpace is not finitely presented"),
              FiniteModule::FPModule(m) => m.fp_idx_to_gen_idx(input_degree, input_index)
         }
     }
     fn generators(&self) -> &Arc<FreeModule> {
         match self {
              FiniteModule::FDModule(_) => panic!("Finite Dimensional Module is not finitely presented"),
+             FiniteModule::RealProjectiveSpace(_) => panic!("RealProjectiveSpace is not finitely presented"),
              FiniteModule::FPModule(m) => &m.generators
         }
     }
@@ -53,7 +56,8 @@ impl<M : Module> From<FPModuleHomomorphism<FiniteModule, M>> for FiniteModuleHom
 // Finite Module Homomorphism Interior
 enum FMHI<M : Module> {
     FD(BoundedModuleHomomorphism<FiniteModule, M>),
-    FP(FPModuleHomomorphism<FiniteModule, M>)
+    FP(FPModuleHomomorphism<FiniteModule, M>),
+    RP(GenericZeroHomomorphism<FiniteModule, M>)
 }
 
 pub struct FiniteModuleHomomorphism<M : Module> {
@@ -77,13 +81,15 @@ impl<M : Module> ModuleHomomorphism for FiniteModuleHomomorphism<M> {
     fn degree_shift(&self) -> i32 {
         match &self.map {
             FMHI::FD(f) => f.degree_shift(),
-            FMHI::FP(f) => f.degree_shift()
+            FMHI::RP(f) => f.degree_shift(),
+            FMHI::FP(f) => f.degree_shift(),
         }
     }
 
     fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_index : usize){
         match &self.map {
             FMHI::FD(f) => f.apply_to_basis_element(result, coeff, input_degree, input_index),
+            FMHI::RP(f) => f.apply_to_basis_element(result, coeff, input_degree, input_index),
             FMHI::FP(f) => f.apply_to_basis_element(result, coeff, input_degree, input_index)
         }
     }
@@ -91,6 +97,7 @@ impl<M : Module> ModuleHomomorphism for FiniteModuleHomomorphism<M> {
     fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
         match &self.map {
             FMHI::FD(f) => f.quasi_inverse(degree),
+            FMHI::RP(f) => f.quasi_inverse(degree),
             FMHI::FP(f) => f.quasi_inverse(degree)
         }
     }
@@ -98,6 +105,7 @@ impl<M : Module> ModuleHomomorphism for FiniteModuleHomomorphism<M> {
     fn kernel(&self, degree : i32) -> &Subspace {
         match &self.map {
             FMHI::FD(f) => f.kernel(degree),
+            FMHI::RP(f) => f.kernel(degree),
             FMHI::FP(f) => f.kernel(degree)
         }
     }
@@ -105,6 +113,7 @@ impl<M : Module> ModuleHomomorphism for FiniteModuleHomomorphism<M> {
     fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
         match &self.map {
             FMHI::FD(f) => f.compute_kernels_and_quasi_inverses_through_degree(degree),
+            FMHI::RP(f) => f.compute_kernels_and_quasi_inverses_through_degree(degree),
             FMHI::FP(f) => f.compute_kernels_and_quasi_inverses_through_degree(degree)
         }
     }
@@ -114,6 +123,7 @@ impl<M : Module> ZeroHomomorphism<FiniteModule, M> for FiniteModuleHomomorphism<
     fn zero_homomorphism(source : Arc<FiniteModule>, target : Arc<M>, degree_shift : i32) -> Self {
         let map = match &*source {
             FiniteModule::FDModule(_) => FMHI::FD(BoundedModuleHomomorphism::zero_homomorphism(Arc::clone(&source), Arc::clone(&target), degree_shift)),
+            FiniteModule::RealProjectiveSpace(_) => FMHI::RP(GenericZeroHomomorphism::zero_homomorphism(Arc::clone(&source), Arc::clone(&target), degree_shift)),
             FiniteModule::FPModule(_) => FMHI::FP(FPModuleHomomorphism::zero_homomorphism(Arc::clone(&source), Arc::clone(&target), degree_shift))
         };
         FiniteModuleHomomorphism {

@@ -244,7 +244,7 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
             FiniteModule::FDModule(m) => {
                 module_strings.push(m.to_minimal_json());
             }
-            FiniteModule::FPModule(_) => {
+            _ => {
                 // This should never happen
                 panic!();
             }
