@@ -26,7 +26,7 @@ install:
 
 script:
     - cargo test --verbose --all
-    - cargo test --all-features --verbose --all
+    - cargo test --features cache-multiplication --verbose --all
     - cargo clippy --all --all-targets -- -D warnings
     - cargo clippy --all --all-features --all-targets -- -D warnings
     - cd ext-websocket; npm run build; cd ..
