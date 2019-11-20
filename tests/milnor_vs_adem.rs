@@ -14,7 +14,6 @@ fn milnor_vs_adem() {
     compare("Csigma", 30);
     compare("S_3", 30);
     compare("Calpha", 30);
-    compare("C3", 60);
 }
 
 fn compare(module_name : &str, max_degree : i32) {
