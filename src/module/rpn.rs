@@ -88,7 +88,8 @@ fn coef_adem(algebra : &AdemAlgebra, op_deg : i32, op_idx : usize, mut j : i32) 
         if c == 0 {
             return false;
         }
-        j += 1;
+        // Somehow j += 1 produces the same answer...
+        j += *i as i32;
     }
     true
 }
