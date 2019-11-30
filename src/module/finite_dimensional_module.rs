@@ -159,7 +159,7 @@ impl FiniteDimensionalModule {
         for (i, dim) in graded_dimension.iter_enum() {
             let mut names = Vec::with_capacity(*dim);
             for j in 0 .. *dim {
-                names.push(format!("x{}_{}", min_degree + i, j));
+                names.push(format!("x{}_{}", i, j));
             }
             gen_names.push(names);
         }
