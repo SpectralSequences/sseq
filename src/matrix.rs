@@ -1017,16 +1017,17 @@ impl Matrix {
     /// ```
     /// let p = 7;
     /// # use rust_ext::matrix::Matrix;
+    /// # use rust_ext::fp_vector::{FpVector, FpVectorT};
     /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
     /// let input  = [vec![1, 3, 6],
     ///               vec![0, 3, 4]];
     ///
     /// let m = Matrix::from_vec(p, &input);
     /// let mut v = FpVector::new(p, 2);
-    /// v.pack(vec![3, 1]);
+    /// v.pack(&vec![3, 1]);
     /// let mut result = FpVector::new(p, 3);
     /// let mut desired_result = FpVector::new(p, 3);
-    /// result.pack(vec![3, 5, 1]);
+    /// desired_result.pack(&vec![3, 5, 1]);
     /// m.apply(&mut result, 1, &v);
     /// assert_eq!(result, desired_result);
     /// ```

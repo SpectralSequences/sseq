@@ -55,15 +55,14 @@ impl Module for RealProjectiveSpace {
         }
 
         // TODO: Make this work in general
-        if self.clear_bottom {
-            if degree == self.min + 1 + 0 ||
-               degree == self.min + 1 + 1 ||
-               degree == self.min + 1 + 2 ||
-               degree == self.min + 1 + 4 ||
-               degree == self.min + 1 + 8
-                {
-                    return 0;
-                }
+        if self.clear_bottom &&
+            ( degree == self.min + 1 ||
+              degree == self.min + 1 + 1 ||
+              degree == self.min + 1 + 2 ||
+              degree == self.min + 1 + 4 ||
+              degree == self.min + 1 + 8
+            ) {
+                return 0;
         }
         1
     }
