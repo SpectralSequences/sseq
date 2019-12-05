@@ -1014,6 +1014,7 @@ impl Matrix {
     /// Applies a matrix to a vector.
     ///
     /// # Example
+    /// ```
     /// let p = 7;
     /// # use rust_ext::matrix::Matrix;
     /// # rust_ext::fp_vector::initialize_limb_bit_index_table(p);
