@@ -22,6 +22,7 @@
 //! However, the way this structured means one always has to import both `FpVector` and
 //! `FpVectorT`, since you cannot use the functions of a trait unless you have imported the trait.
 
+use std::cmp::Ordering;
 use std::sync::Once;
 use std::fmt;
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
@@ -493,13 +494,11 @@ pub trait FpVectorT {
             return;
         }
 
-        if self.offset() > other.offset() {
-            self.shift_right_add(other, c);
-        } else if self.offset() < other.offset() {
-            self.shift_left_add(other, c);
-        } else {
-            self.add(other, c);
-        }
+        match self.offset().cmp(&other.offset()) {
+            Ordering::Greater => self.shift_right_add(other, c),
+            Ordering::Less => self.shift_left_add(other, c),
+            Ordering::Equal => self.add(other, c),
+        };
     }
 
     fn shift_right_add(&mut self, other : &FpVector, c : u32){

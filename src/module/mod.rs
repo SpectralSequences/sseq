@@ -172,7 +172,7 @@ impl FiniteModule {
             "real projective space" => Ok(FiniteModule::from(RealProjectiveSpace::from_json(algebra, json)?)),
             "finite dimensional module" => Ok(FiniteModule::from(FDModule::from_json(algebra, json))),
             "finitely presented module" => Ok(FiniteModule::from(FPModule::from_json(algebra, json))),
-            _ => Err(Box::new(UnknownModuleTypeError { module_type : module_type.to_string() }))
+            _ => Err(Box::new(UnknownModuleTypeError { module_type : (*module_type).to_string() }))
         }
     }
 
