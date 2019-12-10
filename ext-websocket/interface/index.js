@@ -2,11 +2,12 @@
 
 import { MainDisplay, UnitDisplay } from "./display.js";
 import { ExtSseq } from "./sseq.js";
-import { renderLaTeX, download } from "./utils.js";
+import { renderLaTeX, download, stringToB64, b64ToString } from "./utils.js";
 
 window.commandCounter = 0;
 let commandQueue = [];
 window.onComplete = [];
+
 function processCommandQueue() {
     if (commandQueue.length == 0)
         return;
@@ -55,21 +56,7 @@ for(let [k,v] of url.searchParams.entries()){
     params[k] = v;
 }
 
-if (!params.module) {
-    document.querySelector("#home").style.removeProperty("display");
-
-    HTMLCollection.prototype.forEach = Array.prototype.forEach;
-    let sections = document.querySelector("#home").getElementsByTagName("section");
-
-    sections.forEach(n => {
-        n.children[1].children.forEach(a => {
-            if (a.tagName == "A") {
-                a.innerHTML = renderLaTeX(a.innerHTML);
-                a.href = `?module=${a.getAttribute("data")}&degree=50`;
-            }
-        });
-    });
-} else {
+if (params.module) {
     let maxDegree = parseInt(params.degree ? params.degree : 50);
     let algebra = params.algebra ? params.algebra : "adem";
 
@@ -94,6 +81,23 @@ if (!params.module) {
             }
         },
     ]);
+} else if (params.data) {
+    let data = b64ToString(params.data);
+    loadHistory(data);
+} else {
+    document.querySelector("#home").style.removeProperty("display");
+
+    HTMLCollection.prototype.forEach = Array.prototype.forEach;
+    let sections = document.querySelector("#home").getElementsByTagName("section");
+
+    sections.forEach(n => {
+        n.children[1].children.forEach(a => {
+            if (a.tagName == "A") {
+                a.innerHTML = renderLaTeX(a.innerHTML);
+                a.href = `?module=${a.getAttribute("data")}&degree=50`;
+            }
+        });
+    });
 }
 
 function send(msg) {
@@ -142,7 +146,12 @@ function openWebSocket(initialData, maxDegree) {
     }
 }
 
-function save() {
+function getHistoryLink() {
+    return `${url.origin}${url.pathname}?data=` + stringToB64(generateHistory());
+}
+window.getHistoryLink = getHistoryLink;
+
+function generateHistory() {
     let list = [window.constructCommand];
     list.push(
         {
@@ -168,12 +177,33 @@ function save() {
             }
         );
     };
-
     list = list.concat(mainSseq.history);
+
+    return list.map(JSON.stringify).join("\n")
+}
+
+function save() {
     let filename = prompt("Input filename");
-    download(filename, list.map(JSON.stringify).join("\n"), "text/plain");
+    download(filename, generateHistory() , "text/plain");
 }
 window.save = save;
+
+function loadHistory(hist) {
+    let lines = hist.split("\n");
+    // Do reverse loop because we are removing things from the array.
+    for (let i = lines.length - 1; i>= 0; i--) {
+        if (lines[i].startsWith("//") || lines[i].trim() === "") {
+            lines.splice(i, 1);
+        }
+    }
+    let firstBatch = [];
+
+    // First command is construct and second command is resolve
+    openWebSocket(lines.splice(0, 2).map(JSON.parse));
+
+    lines.reverse();
+    commandQueue = lines;
+}
 
 let messageHandler = {};
 messageHandler.Resolving = (data, msg) => {
@@ -271,20 +301,7 @@ document.getElementById("history-upload").addEventListener("change", function() 
 
     let fileReader = new FileReader();
     fileReader.onload = e => {
-        let lines = e.target.result.split("\n");
-        // Do reverse loop because we are removing things from the array.
-        for (let i = lines.length - 1; i>= 0; i--) {
-            if (lines[i].startsWith("//") || lines[i].trim() === "") {
-                lines.splice(i, 1);
-            }
-        }
-        let firstBatch = [];
-
-        // First command is construct and second command is resolve
-        openWebSocket(lines.splice(0, 2).map(JSON.parse));
-
-        lines.reverse();
-        commandQueue = lines;
+        loadHistory(e.target.result);
     };
 
     fileReader.readAsText(file, "UTF-8");

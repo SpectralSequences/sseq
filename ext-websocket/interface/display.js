@@ -73,7 +73,7 @@ class Display extends EventEmitter {
 
         this.context = this.canvas.getContext("2d");
 
-        this.update= this.update.bind(this);
+        this.update = this.update.bind(this);
         this.nextPage = this.nextPage.bind(this);
         this.previousPage = this.previousPage.bind(this);
         this._onMousemove = this._onMousemove.bind(this);
@@ -830,7 +830,10 @@ export class MainDisplay extends SidebarDisplay {
 
         this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG());
         this.sidebar.footer.addButton("Download Snapshots", () => this.sseq.downloadHistoryList());
-        this.sidebar.footer.addButton("Save", () => window.save());
+        this.sidebar.footer.addButtonRow([
+            ["Save", () => window.save()],
+            ["Link", () => alert("Link to calculation:\n\n" + window.getHistoryLink())],
+        ]);
 
         Mousetrap.bind("J", () => this.sidebar.currentPanel.prevTab());
         Mousetrap.bind("K", () => this.sidebar.currentPanel.nextTab());
