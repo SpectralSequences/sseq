@@ -2,7 +2,7 @@
 
 import { MainDisplay, UnitDisplay } from "./display.js";
 import { ExtSseq } from "./sseq.js";
-import { renderLaTeX, download } from "./utils.js";
+import { renderLaTeX, download, stringToB64, b64ToString } from "./utils.js";
 
 window.resolutionWorker = new Worker("./resolution_worker.js");
 window.sseqWorker = new Worker("./sseq_worker.js");
@@ -84,22 +84,18 @@ for(let [k,v] of url.searchParams.entries()){
     params[k] = v;
 }
 
-if (!params.module) {
-    document.querySelector("#home").style.removeProperty("display");
-
-    HTMLCollection.prototype.forEach = Array.prototype.forEach;
-    let sections = document.querySelector("#home").getElementsByTagName("section");
-
-    sections.forEach(n => {
-        n.children[1].children.forEach(a => {
-            if (a.tagName == "A") {
-                a.innerHTML = renderLaTeX(a.innerHTML);
-                a.href = `?module=${a.getAttribute("data")}&degree=50`;
-            }
-        });
-    });
-} else {
+if (params.module) {
     let maxDegree = parseInt(params.degree ? params.degree : 50);
+    window.constructCommand = {
+        recipients: ["Resolver"],
+        sseq : "Main",
+        action : {
+            "Construct": {
+                algebra_name : "adem",
+                module_name : params.module,
+            }
+        }
+    };
 
     (async () => {
         let response = await fetch(`modules/${params.module}.json`);
@@ -127,6 +123,23 @@ if (!params.module) {
             },
         ]);
     })();
+} else if (params.data) {
+    let data = b64ToString(params.data);
+    loadHistory(data);
+} else {
+    document.querySelector("#home").style.removeProperty("display");
+
+    HTMLCollection.prototype.forEach = Array.prototype.forEach;
+    let sections = document.querySelector("#home").getElementsByTagName("section");
+
+    sections.forEach(n => {
+        n.children[1].children.forEach(a => {
+            if (a.tagName == "A") {
+                a.innerHTML = renderLaTeX(a.innerHTML);
+                a.href = `?module=${a.getAttribute("data")}&degree=50`;
+            }
+        });
+    });
 }
 
 function send(msg) {
@@ -147,13 +160,17 @@ window.send = send;
 
 function openWebSocket(initialData, maxDegree) {
     // Keep this for the save button
-    window.constructCommand = initialData[0];
     for (let data of initialData) {
         send(data);
     }
 }
 
-function save() {
+function getHistoryLink() {
+    return `${url.origin}${url.pathname}?data=` + stringToB64(generateHistory());
+}
+window.getHistoryLink = getHistoryLink;
+
+function generateHistory() {
     let list = [window.constructCommand];
     list.push(
         {
@@ -179,12 +196,50 @@ function save() {
             }
         );
     };
-
     list = list.concat(mainSseq.history);
+
+    return list.map(JSON.stringify).join("\n")
+}
+
+function save() {
     let filename = prompt("Input filename");
-    download(filename, list.map(JSON.stringify).join("\n"), "text/plain");
+    download(filename, generateHistory(), "text/plain");
 }
 window.save = save;
+
+async function loadHistory(hist) {
+    let lines = hist.split("\n");
+    let firstTwo = lines.splice(0, 2).map(JSON.parse);
+
+    window.constructCommand = Object.assign({}, firstTwo[0]); // Shallow copy is enough since we will replace firstTwo[0].action
+
+    // Make this work well with Construct
+    if (firstTwo[0].action["Construct"]) {
+        let name = firstTwo[0].action["Construct"].module_name;
+
+        let response = await fetch(`modules/${name}.json`);
+        let json = await response.json();
+        firstTwo[0].action = {
+            "ConstructJson": {
+                algebra_name : "adem",
+                data : JSON.stringify(json)
+            }
+        }
+    }
+
+    // First command is construct and second command is resolve
+    openWebSocket(firstTwo);
+
+    // Do reverse loop because we are removing things from the array.
+    for (let i = lines.length - 1; i>= 0; i--) {
+        if (lines[i].startsWith("//") || lines[i].trim() === "") {
+            lines.splice(i, 1);
+        }
+    }
+
+    lines.reverse();
+    commandQueue = lines;
+}
 
 let messageHandler = {};
 messageHandler.Resolving = (data, msg) => {
@@ -252,17 +307,19 @@ document.getElementById("json-upload").addEventListener("change", function() {
     let file = document.getElementById("json-upload").files[0];
     let fileReader = new FileReader();
     fileReader.onload = e => {
-        openWebSocket([
-            {
-                recipients: ["Resolver"],
-                sseq : "Main",
-                action : {
-                    "ConstructJson": {
-                        algebra_name : "adem",
-                        data : e.target.result,
-                    }
+        window.constructCommand = {
+            recipients: ["Resolver"],
+            sseq : "Main",
+            action : {
+                "ConstructJson": {
+                    algebra_name : "adem",
+                    data : e.target.result,
                 }
-            },
+            }
+        };
+
+        openWebSocket([
+            window.constructCommand,
             {
                 recipients: ["Resolver"],
                 sseq : "Main",
@@ -282,32 +339,8 @@ document.getElementById("history-upload").addEventListener("change", function() 
     let file = document.getElementById("history-upload").files[0];
 
     let fileReader = new FileReader();
-    fileReader.onload = async e => {
-        let lines = e.target.result.split("\n");
-        let firstBatch = [];
-
-        let firstLine = JSON.parse(lines[0]);
-
-        // Make this work well with Construct
-        if (firstLine.action["Construct"]) {
-            let name = firstLine.action["Construct"].module_name;
-
-            let response = await fetch(`modules/${name}.json`);
-            let json = await response.json();
-            firstLine.action = {
-                "ConstructJson": {
-                    algebra_name : "adem",
-                    data : JSON.stringify(json)
-                }
-            }
-            lines[0] = JSON.stringify(firstLine);
-        }
-
-        // First command is construct and second command is resolve
-        openWebSocket(lines.splice(0, 2).map(JSON.parse));
-
-        lines.reverse();
-        window.commandQueue = lines;
+    fileReader.onload = e => {
+        loadHistory(e.target.reult);
     };
 
     fileReader.readAsText(file, "UTF-8");
