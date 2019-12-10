@@ -339,8 +339,8 @@ document.getElementById("history-upload").addEventListener("change", function() 
     let file = document.getElementById("history-upload").files[0];
 
     let fileReader = new FileReader();
-    fileReader.onload = e => {
-        loadHistory(e.target.reult);
+    fileReader.onload = (e) => {
+        loadHistory(e.target.result);
     };
 
     fileReader.readAsText(file, "UTF-8");
