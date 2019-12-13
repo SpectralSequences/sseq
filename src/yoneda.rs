@@ -176,10 +176,7 @@ where TCM : BoundedModule,
         let (target, source) = split_mut_borrow(&mut modules, s as usize - 1, s as usize);
         let d = cc.differential(s);
         if s < s_max {
-            let dims_with_gens = source.module.module.table[t_max].generator_to_index.iter_enum()
-                .filter(|(_, x)| !x.is_empty())
-                .map(|(i, _)| i)
-                .collect::<Vec<_>>();
+            let degrees_with_gens = source.module.module.get_degrees_with_gens(t_max);
 
             let mut prev_differentials : BiVec<Option<Subspace>> = BiVec::with_capacity(t_min, t_max + 1);
             let mut prev_subspaces : BiVec<Option<Subspace>> = BiVec::with_capacity(t_min, t_max + 1);
@@ -194,8 +191,8 @@ where TCM : BoundedModule,
                 prev_basis_list.push(None);
                 dim_drop.push(None);
             }
-            'gen_loop: for i in 0 .. dims_with_gens.len() {
-                let gen_dim = dims_with_gens[i];
+            'gen_loop: for i in 0 .. degrees_with_gens.len() {
+                let gen_dim = degrees_with_gens[i];
 
                 // Check if augmentation map is non-zero on the generator
                 if s < target_cc.max_s() && target_cc.module(s).dimension(gen_dim) > 0 {
@@ -232,14 +229,13 @@ where TCM : BoundedModule,
                     prev_subspaces[t] = Some(source.subspaces[t].clone());
                     prev_basis_list[t] = Some(source.basis_list[t].clone());
 
-                    let offsets = &source.module.module.table[t].generator_to_index;
-                    let start = offsets[gen_dim][0];
+                    let start = source.module.module.generator_offset(t, gen_dim, 0);
                     let dim = source.module.module.dimension(t);
 
-                    let end = if i == dims_with_gens.len() - 1 || dims_with_gens[i + 1] >= offsets.len() {
+                    let end = if i == degrees_with_gens.len() - 1 || degrees_with_gens[i + 1] >= t {
                         dim
                     } else {
-                        offsets[dims_with_gens[i + 1]][0]
+                        source.module.module.generator_offset(t, degrees_with_gens[i + 1], 0)
                     };
 
                     let source_orig_dim = source.dimension(t);
@@ -282,13 +278,12 @@ where TCM : BoundedModule,
 
                 // We are free to clear this basis element. Do it
                 for t in gen_dim ..= t_max {
-                    let offsets = &source.module.module.table[t].generator_to_index;
-                    let start = offsets[gen_dim][0];
+                    let start = source.module.module.generator_offset(t, gen_dim, 0);
 
-                    let end = if i == dims_with_gens.len() - 1 || dims_with_gens[i + 1] >= offsets.len() {
+                    let end = if i == degrees_with_gens.len() - 1 || degrees_with_gens[i + 1] >= t {
                         source.module.module.dimension(t)
                     } else {
-                        offsets[dims_with_gens[i + 1]][0]
+                        source.module.module.generator_offset(t, degrees_with_gens[i + 1], 0)
                     };
 
                     if prev_differentials[t].is_none() {
