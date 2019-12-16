@@ -567,6 +567,60 @@ fn compute_kernel_image<M : BoundedModule, F : ModuleHomomorphism, G : ModuleHom
     (matrix, image_matrix)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::CCC;
+    use crate::chain_complex::FiniteChainComplex;
+    use crate::resolution::Resolution;
+    use crate::resolution_homomorphism::ResolutionHomomorphism;
+
+    #[test]
+    fn test() {
+        let algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(2, false, false)));
+        let module = Arc::new(FiniteModule::from(FDModule::new(algebra, "".to_string(), BiVec::from_vec(0, vec![1]))));
+        let chain_complex : Arc<CCC> = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
+        let resolution = Resolution::new(chain_complex, None, None);
+
+        let x : i32 = 30;
+        let s : u32 = 6;
+        let idx : usize = 0;
+
+        let t = s as i32 + x;
+        resolution.resolve_through_bidegree(s, t);
+
+        let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution.inner), s, t, idx));
+
+        let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&yoneda), 0, 0);
+        let mut mat = Matrix::new(2, 1, 1);
+        mat[0].set_entry(0, 1);
+        f.extend_step(0, 0, Some(&mat));
+
+        f.extend(s, t);
+        let final_map = f.get_map(s);
+        let num_gens = resolution.inner.number_of_gens_in_bidegree(s, t);
+        for i_ in 0 .. num_gens {
+            assert_eq!(final_map.output(t, i_).dimension(), 1);
+            if i_ == idx {
+                assert_eq!(final_map.output(t, i_).entry(0), 1);
+            } else {
+                assert_eq!(final_map.output(t, i_).entry(0), 0);
+            }
+        }
+
+        let mut check = BiVec::from_vec(0, vec![0; t as usize + 1]);
+        for s in 0 ..= s {
+            let module = yoneda.module(s);
+
+            for t in 0 ..= t {
+                check[t] += (if s % 2 == 0 { 1 } else { -1 }) * module.dimension(t) as i32;
+            }
+        }
+        for t in 0 ..= t {
+            assert_eq!(check[t], module.dimension(t) as i32, "Incorrect Euler characteristic at t = {}", t);
+        }
+    }
+}
 //static mut MEMOIZED_SIZE : Option<once::OnceVec<Vec<u32>>> = None;
 //unsafe fn compute_size(algebra : &Arc<AlgebraAny>, deg : i32) {
 //    if MEMOIZED_SIZE.is_none() {
