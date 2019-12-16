@@ -191,9 +191,7 @@ where TCM : BoundedModule,
                 prev_basis_list.push(None);
                 dim_drop.push(None);
             }
-            'gen_loop: for i in 0 .. degrees_with_gens.len() {
-                let gen_dim = degrees_with_gens[i];
-
+            'gen_loop: for (i, &gen_dim) in degrees_with_gens.iter().enumerate() {
                 // Check if augmentation map is non-zero on the generator
                 if s < target_cc.max_s() && target_cc.module(s).dimension(gen_dim) > 0 {
                     let m = cc.chain_map(s);
@@ -232,7 +230,7 @@ where TCM : BoundedModule,
                     let start = source.module.module.generator_offset(t, gen_dim, 0);
                     let dim = source.module.module.dimension(t);
 
-                    let end = if i == degrees_with_gens.len() - 1 || degrees_with_gens[i + 1] >= t {
+                    let end = if degrees_with_gens.get(i + 1).map_or(true, |&t_| t_ > t) {
                         dim
                     } else {
                         source.module.module.generator_offset(t, degrees_with_gens[i + 1], 0)
@@ -280,7 +278,7 @@ where TCM : BoundedModule,
                 for t in gen_dim ..= t_max {
                     let start = source.module.module.generator_offset(t, gen_dim, 0);
 
-                    let end = if i == degrees_with_gens.len() - 1 || degrees_with_gens[i + 1] >= t {
+                    let end = if degrees_with_gens.get(i + 1).map_or(true, |&t_| t_ > t) {
                         source.module.module.dimension(t)
                     } else {
                         source.module.module.generator_offset(t, degrees_with_gens[i + 1], 0)
