@@ -261,7 +261,7 @@ impl FreeModule {
                 result.push(i);
             }
         }
-        return result;
+        result
     }
 
 }
