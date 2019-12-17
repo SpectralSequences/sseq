@@ -183,7 +183,7 @@ impl Matrix {
     pub fn clear_slice(&mut self) {
         for v in self.vectors.iter_mut() {
             v.clear_slice();
-        }        
+        }
         self.slice_row_start = 0;
         self.slice_row_end = self.rows;
         self.slice_col_start = 0;
@@ -193,9 +193,8 @@ impl Matrix {
     pub fn into_slice(mut self) -> Self {
         self.rows = self.rows();
         self.columns = self.columns();
-        self.vectors.drain(0..self.slice_row_start);
-        self.slice_row_end -= self.slice_row_start;
         self.vectors.truncate(self.slice_row_end);
+        self.vectors.drain(0..self.slice_row_start);
         for v in &mut self.vectors {
             v.into_slice();
         }
@@ -204,8 +203,7 @@ impl Matrix {
     }
 
     pub fn into_vec(mut self) -> Vec<FpVector> {
-        self = self.into_slice();
-        self.vectors
+        self.into_slice().vectors
     }
 }
 
