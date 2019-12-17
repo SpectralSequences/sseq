@@ -44,3 +44,4 @@ members = ["ext-websocket", "bivec", "compressor", "once", "thread-token", "save
 [features]
 cache-multiplication = []
 concurrent = ["thread-token"]
+prime-two = []

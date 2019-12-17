@@ -22,6 +22,12 @@ impl Algebra for Field {
     }
 
     /// Returns the prime the algebra is over.
+    #[cfg(feature = "prime-two")]
+    fn prime(&self) -> u32 {
+        2
+    }
+
+    #[cfg(not(feature = "prime-two"))]
     fn prime(&self) -> u32 {
         self.prime
     }

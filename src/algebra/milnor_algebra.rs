@@ -145,6 +145,12 @@ impl Algebra for MilnorAlgebra {
         "milnor"
     }
 
+    #[cfg(feature = "prime-two")]
+    fn prime(&self) -> u32 {
+        2
+    }
+
+    #[cfg(not(feature = "prime-two"))]
     fn prime(&self) -> u32 {
         self.p
     }
@@ -168,12 +174,12 @@ impl Algebra for MilnorAlgebra {
             if (self.profile.p_part.is_empty() && !self.profile.truncated) ||
                (!self.profile.p_part.is_empty() && self.profile.p_part[0] > 0) {
                     products.push(("h_0".to_string(), MilnorBasisElement {
-                        degree : (2*self.p-2) as i32,
+                        degree : (2*self.prime()-2) as i32,
                         q_part : 0,
                         p_part : vec![1]
                     }));
             }
-            max_degree = (2 * self.p - 2) as i32;
+            max_degree = (2 * self.prime() - 2) as i32;
         } else {
             let mut max = 4;
             if !self.profile.p_part.is_empty() {
@@ -237,7 +243,7 @@ impl Algebra for MilnorAlgebra {
                     self.multiplication_table[d].push(
                         (0..self.dimension(d as i32, -1)).map(|i|
                             (0 .. self.dimension(e as i32, -1)).map(|j| {
-                                let mut res = FpVector::new(self.p, self.dimension((d + e) as i32, -1));
+                                let mut res = FpVector::new(self.prime(), self.dimension((d + e) as i32, -1));
                                 self.multiply(&mut res, 1, &self.basis_table[d][i], &self.basis_table[e][j]);
                                 res
                             }).collect::<Vec<_>>()
@@ -264,8 +270,8 @@ impl Algebra for MilnorAlgebra {
     }
 
     fn json_to_basis(&self, json : Value) -> (i32, usize) {
-        let xi_degrees = combinatorics::xi_degrees(self.p);
-        let tau_degrees = combinatorics::tau_degrees(self.p);
+        let xi_degrees = combinatorics::xi_degrees(self.prime());
+        let tau_degrees = combinatorics::tau_degrees(self.prime());
 
         let mut p_part = Vec::new();
         let mut q_part = 0;
@@ -274,7 +280,7 @@ impl Algebra for MilnorAlgebra {
         if self.generic {
             let p_list = json[1].as_array().unwrap();
             let q_list = json[0].as_array().unwrap();
-            let q = (2 * self.p - 2) as i32;
+            let q = (2 * self.prime() - 2) as i32;
 
             for i in 0..p_list.len() {
                 let val = p_list[i].as_u64().unwrap();
@@ -327,7 +333,7 @@ impl Algebra for MilnorAlgebra {
         if self.generic && degree == 1 {
             return vec![0]; // Q_0
         }
-        let p = self.p;
+        let p = self.prime();
         let q = if self.generic { 2 * p - 2 } else { 1 };
         let mut temp_degree = degree as u32;        
         if temp_degree % q != 0 {
@@ -411,18 +417,18 @@ impl MilnorAlgebra {
             next_degree = 1;
         }
 
-        let p = self.p as i32;
+        let p = self.prime() as i32;
         let q = if p == 2 {1} else {2 * p - 2};
         let new_deg = max_degree/q;
         let old_deg = (next_degree-1)/q;
 
         self.ppart_table.reserve((new_deg - old_deg) as usize);
 
-        let xi_degrees = combinatorics::xi_degrees(self.p);
+        let xi_degrees = combinatorics::xi_degrees(self.prime());
         let mut profile_list = Vec::with_capacity(xi_degrees.len());
         for i in 0..xi_degrees.len() {
             if i < self.profile.p_part.len() {
-                profile_list.push(combinatorics::integer_power(self.p, self.profile.p_part[i]) - 1);
+                profile_list.push(combinatorics::integer_power(self.prime(), self.profile.p_part[i]) - 1);
             } else if self.profile.truncated {
                 profile_list.push(0);
             } else {
@@ -463,7 +469,7 @@ impl MilnorAlgebra {
     }
 
     fn compute_qpart(&self, next_degree : i32, max_degree : i32) {
-        let q = (2 * self.p - 2) as i32;
+        let q = (2 * self.prime() - 2) as i32;
         let profile = !self.profile.q_part;
 
         if !self.generic {
@@ -476,7 +482,7 @@ impl MilnorAlgebra {
             next_degree = 1;
         }
 
-        let tau_degrees = crate::combinatorics::tau_degrees(self.p);
+        let tau_degrees = crate::combinatorics::tau_degrees(self.prime());
         let old_max_tau = tau_degrees.iter().position(|d| *d > next_degree - 1).unwrap(); // Use expect instead
         let new_max_tau = tau_degrees.iter().position(|d| *d > max_degree).unwrap();
 
@@ -511,7 +517,7 @@ impl MilnorAlgebra {
     }
 
     fn generate_basis_generic(&self, next_degree : i32, max_degree : i32) {
-        let q = (2 * self.p - 2) as usize;
+        let q = (2 * self.prime() - 2) as usize;
 
         for d in next_degree as usize..= max_degree as usize {
             let mut new_table = Vec::new(); // Initialize size
@@ -566,7 +572,7 @@ impl MilnorAlgebra {
         while f & !((1 << k) - 1) != 0 {
             if f & (1<<k) == 0 { // If only we had goto (or C-style for-loops)
                 k+=1;
-                pk *= self.p;
+                pk *= self.prime();
                 continue;
             }
 
@@ -615,14 +621,14 @@ impl MilnorAlgebra {
                         q_part : term.q_part | 1 << (k + i as u32),
                         degree : 0 // we don't really care about the degree here. The final degree of the whole calculation is known a priori
                     };
-                    let c = if larger_q % 2 == 0 { *coef } else { *coef * (self.p - 1) };
+                    let c = if larger_q % 2 == 0 { *coef } else { *coef * (self.prime() - 1) };
 
                     new_result.push((c, m));
                 }
             }
 
             k += 1;
-            pk *= self.p;
+            pk *= self.prime();
         }
         new_result
     }
@@ -631,14 +637,14 @@ impl MilnorAlgebra {
         let target_dim = m1.degree + m2.degree;
 
         if !self.generic {
-            for (c, p) in PPartMultiplier::new(self.p, &(m1.p_part), &(m2.p_part)) {
+            for (c, p) in PPartMultiplier::new(self.prime(), &(m1.p_part), &(m2.p_part)) {
                 let idx = self.basis_element_to_index(&from_p(p, target_dim));
                 res.add_basis_element(idx, c * coef);
             }
         } else {
             let m1f = self.multiply_qpart(m1, m2.q_part);
             for (cc, basis) in m1f {
-                let prod = PPartMultiplier::new(self.p, &(basis.p_part), &(m2.p_part));
+                let prod = PPartMultiplier::new(self.prime(), &(basis.p_part), &(m2.p_part));
                 for (c, p) in prod {
                     let new = MilnorBasisElement {
                         degree : target_dim,
@@ -667,6 +673,16 @@ struct PPartMultiplier<'a> {
 
 #[allow(non_snake_case)]
 impl<'a>  PPartMultiplier<'a> {
+    #[cfg(feature = "prime-two")]
+    fn prime(&self) -> u32 {
+        2
+    }
+
+    #[cfg(not(feature = "prime-two"))]
+    fn prime(&self) -> u32 {
+        self.p
+    }
+
     #[allow(clippy::ptr_arg)]
     fn new (p : u32, r : &'a PPart, s : &'a PPart) -> PPartMultiplier<'a> {
         let rows = r.len() + 1;
@@ -688,7 +704,7 @@ impl<'a>  PPartMultiplier<'a> {
             let mut total = self.M[i][0];
             let mut p_to_the_j = 1;
             for j in 1..self.cols {
-                p_to_the_j *= self.p;
+                p_to_the_j *= self.prime();
                 if total < p_to_the_j {
                     // We don't have enough weight left in the entries above this one in the column to increment this cell.
                     // Add the weight from this cell to the total, we can use it to increment a cell lower down.
@@ -754,8 +770,8 @@ impl<'a> Iterator for PPartMultiplier<'a> {
             if sum == 0  {
                 continue;
             }
-            coef *= crate::combinatorics::multinomial(self.p, &diagonal);
-            coef %= self.p;
+            coef *= crate::combinatorics::multinomial(self.prime(), &diagonal);
+            coef %= self.prime();
             if coef == 0 {
                 self.cont = self.update();
                 return self.next();
@@ -778,10 +794,10 @@ impl MilnorAlgebra {
         let i = basis.q_part.trailing_zeros();
         // If the basis element is just Q_{k+1}, we decompose Q_{k+1} = P(p^k) Q_k - Q_k P(p^k).
         if basis.q_part == 1 << i && basis.p_part.is_empty() {
-            let ppow = crate::combinatorics::integer_power(self.p, i - 1);
+            let ppow = crate::combinatorics::integer_power(self.prime(), i - 1);
 
             let q_degree = (2 * ppow - 1) as i32;
-            let p_degree = (ppow * (2 * self.p - 2)) as i32;
+            let p_degree = (ppow * (2 * self.prime() - 2)) as i32;
 
             let p_idx = self.basis_element_to_index(&from_p(vec![ppow], p_degree)).to_owned();
 
@@ -792,11 +808,11 @@ impl MilnorAlgebra {
                     degree : q_degree
                 }).to_owned();
 
-            return vec![(1, (p_degree, p_idx), (q_degree, q_idx)), (self.p - 1, (q_degree, q_idx), (p_degree, p_idx))];
+            return vec![(1, (p_degree, p_idx), (q_degree, q_idx)), (self.prime() - 1, (q_degree, q_idx), (p_degree, p_idx))];
         }
 
         // Otherwise, separate out the first Q_k.
-        let first_degree = crate::combinatorics::tau_degrees(self.p)[i as usize];
+        let first_degree = crate::combinatorics::tau_degrees(self.prime())[i as usize];
         let second_degree = degree - first_degree;
 
         let first_idx = self.basis_element_to_index(
@@ -819,7 +835,7 @@ impl MilnorAlgebra {
     // use https://monks.scranton.edu/files/pubs/bases.pdf page 8
     #[allow(clippy::useless_let_if_seq)]
     fn decompose_basis_element_ppart(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>{
-        let p = self.p;
+        let p = self.prime();
         let b = &self.basis_table[degree as usize][idx];
         let first;
         let second;
@@ -992,7 +1008,7 @@ impl Bialgebra for MilnorAlgebra {
         if op_deg == 0 {
             return vec![(0, 0, 0, 0)];
         }
-        let xi_degrees = combinatorics::xi_degrees(self.p);
+        let xi_degrees = combinatorics::xi_degrees(self.prime());
 
         let mut len = 1;
         let p_part = &self.basis_element_from_index(op_deg, op_idx).p_part;

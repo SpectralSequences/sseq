@@ -145,11 +145,19 @@ fn limb_bit_index_pair(p : u32, idx : usize) -> LimbBitIndexPair {
 
 #[enum_dispatch]
 #[derive(Debug, Clone)]
+#[cfg(not(feature = "prime-two"))]
 pub enum FpVector {
     FpVector2,
     FpVector3,
     FpVector5,
     FpVectorGeneric
+}
+
+#[enum_dispatch]
+#[derive(Debug, Clone)]
+#[cfg(feature = "prime-two")]
+pub enum FpVector {
+    FpVector2,
 }
 
 #[enum_dispatch(FpVector)]
@@ -773,11 +781,20 @@ impl FpVector {
         let number_of_limbs = Self::number_of_limbs(p, dimension);
         let limbs = vec![0; number_of_limbs];
         let vector_container = VectorContainer {dimension, limbs, slice_start, slice_end };
-        match p  {
-            2 => FpVector::from(FpVector2 { vector_container }),
-            3 => FpVector::from(FpVector3 { vector_container }),
-            5 => FpVector::from(FpVector5 { vector_container }),
-            _ => FpVector::from(FpVectorGeneric { p, vector_container })
+
+        #[cfg(feature = "prime-two")]
+        {
+            FpVector::from(FpVector2 { vector_container })
+        }
+
+        #[cfg(not(feature = "prime-two"))]
+        {
+            match p  {
+                2 => FpVector::from(FpVector2 { vector_container }),
+                3 => FpVector::from(FpVector3 { vector_container }),
+                5 => FpVector::from(FpVector5 { vector_container }),
+                _ => FpVector::from(FpVectorGeneric { p, vector_container })
+            }
         }
     }
 
@@ -1121,6 +1138,10 @@ impl Load for FpVector {
             limbs
         };
 
+        #[cfg(feature = "prime-two")]
+        let result = FpVector::from(FpVector2 { vector_container });
+
+        #[cfg(not(feature = "prime-two"))]
         let result = match p  {
             2 => FpVector::from(FpVector2 { vector_container }),
             3 => FpVector::from(FpVector3 { vector_container }),

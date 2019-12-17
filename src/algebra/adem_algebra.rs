@@ -129,6 +129,12 @@ impl Algebra for AdemAlgebra {
         "adem"
     }
 
+    #[cfg(feature = "prime-two")]
+    fn prime(&self) -> u32 {
+        2
+    }
+
+    #[cfg(not(feature = "prime-two"))]
     fn prime(&self) -> u32 {
         self.p
     }
@@ -149,12 +155,12 @@ impl Algebra for AdemAlgebra {
                 ps : vec![]
             }));
             products.push(("h_0".to_string(), AdemBasisElement {
-                degree : (2*self.p-2) as i32,
+                degree : (2*self.prime()-2) as i32,
                 bocksteins : 0,
                 excess : 0,
                 ps : vec![1]
             }));
-            max_degree = (2 * self.p - 2) as i32;
+            max_degree = (2 * self.prime() - 2) as i32;
         } else {
             for i in 0..4 {
                 let degree = 1 << i; // degree is 2^hi
@@ -211,7 +217,7 @@ impl Algebra for AdemAlgebra {
     fn json_to_basis(&self, json : Value) -> (i32, usize) {
         let op : Vec<u32> = serde_json::from_value(json).unwrap();
         let mut sqs = Vec::with_capacity(op.len());
-        let p = self.p;
+        let p = self.prime();
         let q;
         let mut degree = 0;
         let mut bocksteins = 0;
@@ -408,7 +414,7 @@ impl AdemAlgebra {
     }
 
     fn generate_basis_even_degreen(&self, n : i32){
-        let p = self.p as i32;
+        let p = self.prime() as i32;
         let mut basis = Vec::new();
         // Put Sqn into the list.
         basis.push(
@@ -485,7 +491,7 @@ impl AdemAlgebra {
     // a bit flag that indicates where bocksteins are allowed to go.
     #[allow(non_snake_case)]
     fn generate_basis_generic_degreen(&self, n : i32){
-        let p = self.p as i32;
+        let p = self.prime() as i32;
         let q = 2*(p-1);        
         let residue = n % q;
         let mut basis : Vec<AdemBasisElement> = Vec::new();
@@ -603,7 +609,7 @@ impl AdemAlgebra {
 
     fn generate_multiplication_table_2_step(&self, table : &[Vec<FpVector>], n : i32, x : i32, idx : usize) -> FpVector {
         let output_dimension = self.dimension(n, -1);
-        let mut result = FpVector::new(self.p, output_dimension);
+        let mut result = FpVector::new(self.prime(), output_dimension);
         let cur_basis_elt = self.basis_element_from_index(n-x, idx);
         let x = x as u32;        
         let mut working_elt = cur_basis_elt.clone();
@@ -662,7 +668,7 @@ impl AdemAlgebra {
             self.multiplication_table.push(Vec::new());
             next_degree += 1;
         }
-        let q = 2 * self.p as i32 - 2;
+        let q = 2 * self.prime() as i32 - 2;
         for n in next_degree ..= max_degree {
             let mut table : Vec<Vec<FpVector>> = Vec::with_capacity(2*(n/q + 1) as usize);
             for i in 0 ..= n/q {
@@ -696,13 +702,13 @@ impl AdemAlgebra {
     ///
     /// Note that x is always positive.
     fn generate_multiplication_table_generic_step(&self, table : &[Vec<FpVector>],  n : i32, x : i32, idx : usize) -> FpVector {
-        let p : i32 = self.p as i32; // we use p for the i32 version and self.p for the u32 version
+        let p : i32 = self.prime() as i32; // we use p for the i32 version and self.p for the u32 version
         let q : i32 = 2*p - 2;
 
         let x : u32 = x as u32;
 
         let output_dimension = self.dimension(n, -1);
-        let mut result = FpVector::new(self.p, output_dimension);
+        let mut result = FpVector::new(self.prime(), output_dimension);
 
         // If x is just \beta, this is super easy.
         if x == 1 {
@@ -737,7 +743,7 @@ impl AdemAlgebra {
         let mut working_elt = self.basis_element_from_index(n - (q * i as i32), idx).clone();
 
         let b : u32 = working_elt.bocksteins & 1;
-        if working_elt.ps.is_empty() || i >= self.p*working_elt.ps[0] + b {
+        if working_elt.ps.is_empty() || i >= self.prime()*working_elt.ps[0] + b {
             working_elt.ps.insert(0, i);
             working_elt.bocksteins <<= 1;
             working_elt.degree = n;
@@ -756,8 +762,8 @@ impl AdemAlgebra {
 
         if b == 0 {
             // We use P^i P^j = \sum ... P^{i + j - k} P^k
-            for k in 0 ..= i/self.p {
-                let c = combinatorics::adem_relation_coefficient(self.p, i, j, k, 0, 0);
+            for k in 0 ..= i/self.prime() {
+                let c = combinatorics::adem_relation_coefficient(self.prime(), i, j, k, 0, 0);
                 if c == 0 {
                     continue;
                 }
@@ -773,13 +779,13 @@ impl AdemAlgebra {
                 let rest_reduced = &self.multiplication_table[(n - q * (i + j - k) as i32) as usize][2 * k as usize][tail_idx];
                 for (id, coeff) in rest_reduced.iter().enumerate() {
                     let source = &table[2 * (i + j - k) as usize][id];
-                    result.add(source, (c * coeff) % self.p);
+                    result.add(source, (c * coeff) % self.prime());
                 }
             }
         } else {
             // First treat the k = 0 case.
             // \beta P^{i + j - k} P^i
-            let c = combinatorics::adem_relation_coefficient(self.p, i, j, 0, 1, 0);
+            let c = combinatorics::adem_relation_coefficient(self.prime(), i, j, 0, 1, 0);
             working_elt.ps[0] = i + j;
             working_elt.degree = n;
             let index = self.basis_element_to_index(&working_elt);
@@ -787,30 +793,30 @@ impl AdemAlgebra {
 
             // P^{i + j - k} \beta P^k. Check if there is \beta following P^k
             if working_elt.bocksteins & 2 == 0 {
-                let c = combinatorics::adem_relation_coefficient(self.p, i, j, 0, 0, 1);
+                let c = combinatorics::adem_relation_coefficient(self.prime(), i, j, 0, 0, 1);
                 working_elt.bocksteins ^= 3; // flip the first two bits, so that it now ends with 10
                 let index = self.basis_element_to_index(&working_elt);
                 result.add_basis_element(index, c);
             }
 
-            for k in 1 ..= i/self.p {
+            for k in 1 ..= i/self.prime() {
                 // \beta P^{i + j - k} P^k
-                let c = combinatorics::adem_relation_coefficient(self.p, i, j, k, 1, 0);
+                let c = combinatorics::adem_relation_coefficient(self.prime(), i, j, k, 1, 0);
                 if c != 0 {
                     let rest_reduced = &self.multiplication_table[(n - q * (i + j - k) as i32 - 1) as usize][2 * k as usize][tail_idx];
                     for (id, coeff) in rest_reduced.iter().enumerate() {
                         let source = &table[1 + 2 * (i + j - k) as usize][id];
-                        result.add(source, (c * coeff) % self.p);
+                        result.add(source, (c * coeff) % self.prime());
                     }
                 }
 
                 // P^{i + j - k} \beta P^k
-                let c = combinatorics::adem_relation_coefficient(self.p, i, j, k, 0, 1);
+                let c = combinatorics::adem_relation_coefficient(self.prime(), i, j, k, 0, 1);
                 if c != 0 {
                     let rest_reduced = &self.multiplication_table[(n - q * (i + j - k) as i32) as usize][1 + 2 * k as usize][tail_idx];
                     for (id, coeff) in rest_reduced.iter().enumerate() {
                         let source = &table[2 * (i + j - k) as usize][id];
-                        result.add(source, (c * coeff) % self.p);
+                        result.add(source, (c * coeff) % self.prime());
                     }
                 }
             }
@@ -871,7 +877,7 @@ impl AdemAlgebra {
     }
 
     pub fn make_mono_admissible(&self, result : &mut FpVector, coeff : u32, monomial : AdemBasisElement, excess : i32){
-        let q = if self.generic { 2 * self.p - 2 } else { 1 };
+        let q = if self.generic { 2 * self.prime() - 2 } else { 1 };
         let mut leading_degree = monomial.degree - (q * monomial.ps[monomial.ps.len() - 1]) as i32;
         let idx = monomial.ps.len() as i32 - 2;    
         if self.generic {
@@ -943,7 +949,7 @@ impl AdemAlgebra {
         &self, result : &mut FpVector, coeff : u32, mut monomial : AdemBasisElement,
         mut idx : i32, mut leading_degree : i32, excess : i32, stop_early : bool        
     ){
-        let p = self.p;
+        let p = self.prime();
         let q = 2*p-2;
         // Check for admissibility
         let b1 = if idx >= 0 { (monomial.bocksteins >> idx) & 1 } else { 0 };

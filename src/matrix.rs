@@ -132,6 +132,12 @@ impl Matrix {
         }
     }
 
+    #[cfg(feature = "prime-two")]
+    pub fn prime(&self) -> u32 {
+        2
+    }
+
+    #[cfg(not(feature = "prime-two"))]
     pub fn prime(&self) -> u32 {
         self.p
     }
@@ -202,7 +208,7 @@ impl Matrix {
         self
     }
 
-    pub fn into_vec(mut self) -> Vec<FpVector> {
+    pub fn into_vec(self) -> Vec<FpVector> {
         self.into_slice().vectors
     }
 }
