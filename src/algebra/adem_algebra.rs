@@ -9,6 +9,14 @@ use crate::combinatorics;
 use crate::combinatorics::MAX_XI_TAU;
 use crate::algebra::{Algebra, Bialgebra};
 use crate::fp_vector::{FpVector, FpVectorT};
+use nom::{
+    IResult,
+    combinator::map,
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{char, digit1, space1},
+    sequence::{delimited, pair},
+};
 use serde_json::value::Value;
 
 
@@ -248,6 +256,19 @@ impl Algebra for AdemAlgebra {
         (degree as i32, *self.basis_element_to_index_map[degree as usize].get(&b).unwrap())
     }
 
+    fn string_to_basis<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> {
+        let first = map(alt((
+            delimited(char('P'), digit1, space1),
+            delimited(tag("Sq"), digit1, space1),
+        )), |elt| {
+            let i : u32 = std::str::FromStr::from_str(elt).unwrap();
+            self.beps_pn(0, i)
+        });
+
+        let second = map(pair(char('b'), space1), |_| (1, 0));
+
+        alt((first, second))(input)
+    }
 
     fn json_from_basis(&self, degree : i32, index : usize) -> Value {
         let b = self.basis_element_from_index(degree, index);
@@ -559,13 +580,12 @@ impl AdemAlgebra {
         &self.basis_table[degree as usize][idx]
     }
 
+    pub fn try_basis_element_to_index(&self, elt: &AdemBasisElement) -> Option<usize> {
+        self.basis_element_to_index_map[elt.degree as usize].get(elt).copied()
+    }
+
     pub fn basis_element_to_index(&self, elt : &AdemBasisElement) -> usize {
-        if let Some(idx) = self.basis_element_to_index_map[elt.degree as usize].get(elt) {
-            *idx
-        } else {
-            println!("Didn't find element: {:?}", elt);
-            panic!();
-        }
+        self.try_basis_element_to_index(elt).expect(&format!("Didn't find element: {:?}", elt))
     }
 
     fn tail_of_basis_element_to_index(&self, mut elt : AdemBasisElement, idx : u32, q : u32) -> (AdemBasisElement, usize) {

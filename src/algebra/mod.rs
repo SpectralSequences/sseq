@@ -8,6 +8,7 @@ pub use field::Field;
 use std::error::Error;
 
 use crate::fp_vector::FpVector;
+use nom::IResult;
 use serde::Deserialize;
 use serde_json::Value;
 use enum_dispatch::enum_dispatch;
@@ -82,6 +83,8 @@ pub trait Algebra {
     /// specifications.
     fn json_to_basis(&self, _json : Value) -> (i32, usize) { unimplemented!() }
     fn json_from_basis(&self, _degree : i32, _idx : usize) -> Value { unimplemented!() }
+
+    fn string_to_basis<'a, 'b>(&'a self, _input: &'b str) -> IResult<&'b str, (i32, usize)> { unimplemented!() }
 
     /// Converts a basis element into a string for display.
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {

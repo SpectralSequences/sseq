@@ -8,7 +8,6 @@ use crate::change_of_basis;
 use std::error::Error;
 use std::collections::HashMap;
 
-
 pub struct SteenrodCalculator {
     adem_algebra : AdemAlgebra,
     milnor_algebra : MilnorAlgebra

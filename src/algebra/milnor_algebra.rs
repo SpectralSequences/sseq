@@ -7,6 +7,15 @@ use crate::fp_vector::{FpVector, FpVectorT};
 use once::OnceVec;
 use crate::algebra::{Algebra, Bialgebra};
 
+use nom::{
+    IResult,
+    combinator::map,
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{char, digit1, space1},
+    sequence::{delimited, pair},
+};
+
 pub struct MilnorProfile {
     pub truncated : bool,
     pub q_part : u32,
@@ -131,12 +140,12 @@ impl MilnorAlgebra {
         &self.basis_table[degree as usize][idx]
     }
 
+    pub fn try_basis_element_to_index(&self, elt : &MilnorBasisElement) -> Option<usize> {
+        self.basis_element_to_index_map[elt.degree as usize].get(elt).copied()
+    }
+
     pub fn basis_element_to_index(&self, elt : &MilnorBasisElement) -> usize {
-        if let Some(idx) = self.basis_element_to_index_map[elt.degree as usize].get(elt) {
-            *idx
-        } else {
-            panic!("Didn't find element: {:?}", elt)
-        }
+        self.try_basis_element_to_index(elt).expect(&format!("Didn't find element: {:?}", elt))
     }
 }
 
@@ -321,6 +330,21 @@ impl Algebra for MilnorAlgebra {
         }
     }
 
+    // Same implementation as AdemAlgebra
+    fn string_to_basis<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> {
+        let first = map(alt((
+            delimited(char('P'), digit1, space1),
+            delimited(tag("Sq"), digit1, space1),
+        )), |elt| {
+            let i : u32 = std::str::FromStr::from_str(elt).unwrap();
+            self.beps_pn(0, i)
+        });
+
+        let second = map(pair(char('b'), space1), |_| (1, 0));
+
+        alt((first, second))(input)
+    }
+
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
         format!("{}", self.basis_table[degree as usize][idx])
     }
@@ -381,29 +405,32 @@ impl Algebra for MilnorAlgebra {
         let mut result = Vec::new();
         for (x, b, y) in inadmissible_pairs {
             let mut relation = Vec::new();
-            // Adem relation
-            let (first_degree, first_index) = self.beps_pn(0, x);
-            let (second_degree, second_index) = self.beps_pn(b, y);
-            relation.push((p - 1, (first_degree, first_index), (second_degree, second_index)));
-            for e1 in 0 ..= b {
-                let e2 = b - e1;
-                // e1 and e2 determine where a bockstein shows up.
-                // e1 determines whether a bockstein shows up in front 
-                // e2 determines whether a bockstein shows up in middle
-                // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
-                for j in 0 ..= x/p {
-                    let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
-                    if c == 0 { continue; }
-                    if j == 0 {
-                        relation.push((c, self.beps_pn(e1, x + y), (e2 as i32, 0)));
-                        continue;
+            // Adem relation. Sometimes these don't exist because of profiles. Then just ignore it.
+            (|| {
+                let (first_degree, first_index) = self.try_beps_pn(0, x)?;
+                let (second_degree, second_index) = self.try_beps_pn(b, y)?;
+                relation.push((p - 1, (first_degree, first_index), (second_degree, second_index)));
+                for e1 in 0 ..= b {
+                    let e2 = b - e1;
+                    // e1 and e2 determine where a bockstein shows up.
+                    // e1 determines whether a bockstein shows up in front
+                    // e2 determines whether a bockstein shows up in middle
+                    // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
+                    for j in 0 ..= x/p {
+                        let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
+                        if c == 0 { continue; }
+                        if j == 0 {
+                            relation.push((c, self.try_beps_pn(e1, x + y)?, (e2 as i32, 0)));
+                            continue;
+                        }
+                        let first_sq = self.try_beps_pn(e1, x + y - j)?;
+                        let second_sq = self.try_beps_pn(e2, j)?;
+                        relation.push((c, first_sq, second_sq));
                     }
-                    let first_sq = self.beps_pn(e1, x + y - j);
-                    let second_sq = self.beps_pn(e2, j);
-                    relation.push((c, first_sq, second_sq));
                 }
-            }
-            result.push(relation);
+                result.push(relation);
+                Some(())
+            })();
         }
         result
     }
@@ -551,16 +578,19 @@ impl MilnorAlgebra {
 
 // Multiplication logic
 impl MilnorAlgebra {
-    fn beps_pn(&self, e : u32, x : u32) -> (i32, usize) {
+    fn try_beps_pn(&self, e: u32, x: u32) -> Option<(i32, usize)> {
         let p = self.prime();
         let q = if self.generic { 2*(p - 1) } else { 1 };
         let degree = (q * x + e) as i32;
-        let index = self.basis_element_to_index(&MilnorBasisElement {
+        self.try_basis_element_to_index(&MilnorBasisElement {
             degree,
             q_part : e,
             p_part : vec![x]
-        });
-        (degree, index)
+        }).map(|index| (degree, index))
+    }
+
+    fn beps_pn(&self, e : u32, x : u32) -> (i32, usize) {
+        self.try_beps_pn(e, x).unwrap()
     }
 
     fn multiply_qpart (&self, m1 : &MilnorBasisElement, f : u32) -> Vec<(u32, MilnorBasisElement)>{
