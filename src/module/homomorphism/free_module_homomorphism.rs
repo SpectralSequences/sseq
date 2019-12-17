@@ -49,6 +49,10 @@ impl<M : Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
         &self.kernel[degree]
     }
 
+    fn get_matrix(&self, matrix : &mut Matrix, degree : i32) {
+        self.get_matrix(matrix, degree)
+    }
+
     fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
         let _lock = self.lock();
         let kernel_len = self.kernel.len();
@@ -206,28 +210,21 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         }
     }
 
-    pub fn get_matrix(&self, matrix : &mut Matrix, degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {
-        self.get_matrix_with_table(matrix, &self.source.table[degree], degree, start_row, start_column)
+    pub fn get_matrix(&self, matrix : &mut Matrix, degree : i32) {
+        self.get_matrix_with_table(matrix, &self.source.table[degree], degree);
     }
 
     /// # Arguments
     ///  * `degree` - The internal degree of the target of the homomorphism.
-    pub fn get_matrix_with_table(&self, matrix : &mut Matrix, table : &FreeModuleTableEntry , degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {
+    pub fn get_matrix_with_table(&self, matrix : &mut Matrix, table : &FreeModuleTableEntry , degree : i32) {
         let source_dimension = FreeModule::dimension_with_table(table);
         let target_dimension = self.target().dimension(degree);
-        assert!(source_dimension <= matrix.rows());
-        assert!(target_dimension <= matrix.columns());
-        for input_idx in 0 .. source_dimension {
-            // Writing into slice.
-            // Can we take ownership from matrix and then put back? 
-            // If source is smaller than target, just allow add to ignore rest of input would work here.
-            let output_vector = &mut matrix[start_row + input_idx];
-            let old_slice = output_vector.slice();
-            output_vector.set_slice(start_column, start_column + target_dimension);
-            self.apply_to_basis_element_with_table(output_vector, 1, degree, table, input_idx);
-            output_vector.restore_slice(old_slice);
+        assert_eq!(source_dimension, matrix.rows());
+        assert_eq!(target_dimension, matrix.columns());
+
+        for (i, row) in matrix.iter_mut().enumerate() {
+            self.apply_to_basis_element_with_table(row, 1, degree, table, i);
         }
-        (start_row + source_dimension, start_column + target_dimension)
     }
 
     pub fn lock(&self) -> MutexGuard<i32> {

@@ -83,7 +83,7 @@ impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {
             let target_dim = target.dimension(target_deg);
 
             let mut matrix = Matrix::new(p, source_dim, target_dim);
-            f.get_matrix(&mut matrix, source_deg, 0, 0);
+            f.get_matrix(&mut matrix, source_deg);
             matrices.push(matrix);
         }
 

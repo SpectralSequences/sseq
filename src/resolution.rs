@@ -186,12 +186,20 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let columns = padded_target_dimension + source_dimension + rows;
         let mut matrix = Matrix::new(p, rows, columns);
         let mut pivots = vec![-1;matrix.columns()];
-        matrix.set_slice(0, source_dimension, 0, padded_target_dimension + source_dimension);
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
-        current_chain_map.get_matrix_with_table(&mut matrix, &source_module_table, t, 0, 0);
-        current_differential.get_matrix_with_table(&mut matrix, &source_module_table, t, 0, padded_target_cc_dimension);
+
+        matrix.set_slice(0, source_dimension, 0, target_cc_dimension);
+        current_chain_map.get_matrix_with_table(&mut matrix, &source_module_table, t);
+        matrix.clear_slice();
+
+        matrix.set_slice(0, source_dimension, padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension);
+        current_differential.get_matrix_with_table(&mut matrix, &source_module_table, t);
+        matrix.clear_slice();
+
         // Augment with the identity matrix.
         matrix.set_identity(source_dimension, 0, padded_target_dimension);
+
+        matrix.set_slice(0, source_dimension, 0, padded_target_dimension + source_dimension);
         matrix.row_reduce(&mut pivots);
 
         let new_kernel = matrix.compute_kernel(&pivots, padded_target_dimension);

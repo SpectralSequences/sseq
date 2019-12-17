@@ -74,7 +74,11 @@ pub trait ModuleHomomorphism : Send + Sync + 'static {
         let padded_target_dimension = FpVector::padded_dimension(p, target_dimension);
         let columns = padded_target_dimension + source_dimension;
         let mut matrix = Matrix::new(p, source_dimension, columns);
-        self.get_matrix(&mut matrix, degree, 0, 0);
+
+        matrix.set_slice(0, source_dimension, 0, target_dimension);
+        self.get_matrix(&mut matrix, degree);
+        matrix.clear_slice();
+
         for i in 0..source_dimension {
             matrix[i].set_entry(padded_target_dimension + i, 1);
         }
@@ -92,7 +96,11 @@ pub trait ModuleHomomorphism : Send + Sync + 'static {
         let padded_target_dimension = FpVector::padded_dimension(p, target_dimension);
         let columns = padded_target_dimension + source_dimension;
         let mut matrix = Matrix::new(p, source_dimension, columns);
-        self.get_matrix(&mut matrix, degree, 0, 0);
+
+        matrix.set_slice(0, source_dimension, 0, target_dimension);
+        self.get_matrix(&mut matrix, degree);
+        matrix.clear_slice();
+
         for i in 0..source_dimension {
             matrix[i].set_entry(padded_target_dimension + i, 1);
         }
@@ -102,26 +110,20 @@ pub trait ModuleHomomorphism : Send + Sync + 'static {
         let kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
         (kernel, quasi_inverse)
     }
-    
-    fn get_matrix(&self, matrix : &mut Matrix, degree : i32, start_row : usize, start_column : usize) -> (usize, usize) {
-        let source_dimension = self.source().dimension(degree);
-        let target_dimension = self.target().dimension(degree);
-        if target_dimension == 0 {
-            return (0, 0);
+
+    /// The (sliced) dimensions of `matrix` must be equal to source_dimension x
+    /// target_dimension
+    fn get_matrix(&self, matrix : &mut Matrix, degree : i32) {
+        if self.target().dimension(degree) == 0 {
+            return;
         }
-        assert!(source_dimension <= matrix.rows());
-        assert!(target_dimension <= matrix.columns());
-        for input_idx in 0 .. source_dimension {
-            // Writing into slice.
-            // Can we take ownership from matrix and then put back? 
-            // If source is smaller than target, just allow add to ignore rest of input would work here.
-            let output_vector = &mut matrix[start_row + input_idx];
-            let old_slice = output_vector.slice();
-            output_vector.set_slice(start_column, start_column + target_dimension);
-            self.apply_to_basis_element(output_vector, 1, degree, input_idx);
-            output_vector.restore_slice(old_slice);
+
+        assert_eq!(self.source().dimension(degree), matrix.rows());
+        assert_eq!(self.target().dimension(degree), matrix.columns());
+
+        for (i, row) in matrix.iter_mut().enumerate() {
+            self.apply_to_basis_element(row, 1, degree, i);
         }
-        (start_row + source_dimension, start_column + target_dimension)
     }
 
     fn apply_quasi_inverse(&self, result : &mut FpVector, degree : i32, input : &FpVector) {
