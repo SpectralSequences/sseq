@@ -753,7 +753,7 @@ impl Sseq {
                 x, y, state,
                 permanents : self.permanent_classes[x][y].basis().to_vec(),
                 class_names : self.class_names[x][y].clone(),
-                decompositions : decompositions,
+                decompositions,
                 classes : page_classes[x][y].iter().map(|x| x.1.clone()).collect::<Vec<Vec<FpVector>>>()
             })
         });
