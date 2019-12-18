@@ -224,36 +224,36 @@ impl Algebra for AdemAlgebra {
 
     fn json_to_basis(&self, json : Value) -> (i32, usize) {
         let op : Vec<u32> = serde_json::from_value(json).unwrap();
-        let mut sqs = Vec::with_capacity(op.len());
         let p = self.prime();
-        let q;
-        let mut degree = 0;
-        let mut bocksteins = 0;
-        if self.generic {
-            q = 2*p-2;
-            for (i, sq) in op.iter().enumerate() {
-                if i % 2 == 0 {
-                    degree += sq;
-                    bocksteins |= sq << (i/2);
-                } else {
-                    degree += q * sq;
-                    sqs.push(*sq);
-                }
+
+        let b = if self.generic {
+            let q = 2*p-2;
+
+            // The P^i are in the odd entries and the bocksteins are in the even ones.
+            let sqs = op.iter().copied().skip(1).step_by(2).collect::<Vec<_>>();
+
+            let mut degree : u32 = q * sqs.iter().sum::<u32>();
+            let mut bocksteins = 0;
+
+            for (i, sq) in op.iter().step_by(2).enumerate() {
+                degree += sq;
+                bocksteins |= sq << i;
+            }
+            AdemBasisElement {
+                degree: degree as i32,
+                excess : 0,
+                bocksteins,
+                ps : sqs,
             }
         } else {
-            q = 1;
-            for sq in op {
-                degree += q * sq;
-                sqs.push(sq);
+            AdemBasisElement {
+                degree : op.iter().sum::<u32>() as i32,
+                excess : 0,
+                bocksteins: 0,
+                ps : op,
             }
-        }
-        let b = AdemBasisElement {
-            degree : degree as i32,
-            excess : 0,
-            bocksteins,
-            ps : sqs
         };
-        (degree as i32, *self.basis_element_to_index_map[degree as usize].get(&b).unwrap())
+        (b.degree, self.basis_element_to_index(&b))
     }
 
     fn string_to_basis<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> {
@@ -272,20 +272,19 @@ impl Algebra for AdemAlgebra {
 
     fn json_from_basis(&self, degree : i32, index : usize) -> Value {
         let b = self.basis_element_from_index(degree, index);
-        let mut out_sqs = Vec::with_capacity(2*b.ps.len() + 1);
+        let mut out_sqs;
         let mut bocksteins = b.bocksteins;
         if self.generic {
+            out_sqs = Vec::with_capacity(2*b.ps.len() + 1);
             out_sqs.push(bocksteins & 1);
             bocksteins >>= 1;
             for sq in b.ps.iter() {
                 out_sqs.push(*sq);
                 out_sqs.push(bocksteins & 1);
-                bocksteins >>= 1;                
+                bocksteins >>= 1;
             }
         } else {
-            for sq in b.ps.iter() {
-                out_sqs.push(*sq);
-            }
+            out_sqs = b.ps.clone();
         }
         serde_json::to_value(out_sqs).unwrap()
     }
@@ -585,7 +584,7 @@ impl AdemAlgebra {
     }
 
     pub fn basis_element_to_index(&self, elt : &AdemBasisElement) -> usize {
-        self.try_basis_element_to_index(elt).expect(&format!("Didn't find element: {:?}", elt))
+        self.try_basis_element_to_index(elt).unwrap_or_else(|| panic!("Didn't find element: {:?}", elt))
     }
 
     fn tail_of_basis_element_to_index(&self, mut elt : AdemBasisElement, idx : u32, q : u32) -> (AdemBasisElement, usize) {

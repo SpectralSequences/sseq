@@ -145,7 +145,7 @@ impl MilnorAlgebra {
     }
 
     pub fn basis_element_to_index(&self, elt : &MilnorBasisElement) -> usize {
-        self.try_basis_element_to_index(elt).expect(&format!("Didn't find element: {:?}", elt))
+        self.try_basis_element_to_index(elt).unwrap_or_else(|| panic!("Didn't find element: {:?}", elt))
     }
 }
 

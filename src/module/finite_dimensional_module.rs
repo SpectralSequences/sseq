@@ -384,7 +384,7 @@ impl FiniteDimensionalModule {
 
         for value in values {
             let (_, (coef, gen)) = Self::parse_element(value)
-                .expect(&format!("Invalid action: {}", entry_));
+                .unwrap_or_else(|_| panic!("Invalid action: {}", entry_));
 
             let (deg, idx) = gen_to_idx[&gen.to_string()];
             assert!(deg == input_deg + op_deg, "Invalid action: {}", entry_);
