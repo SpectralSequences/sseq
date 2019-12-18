@@ -9,7 +9,7 @@ fn resolve_iterate() {
     for name in &["S_2", "S_3", "Ceta", "Calpha", "C3", "Joker"] {
         let config = Config {
             module_paths : vec![path.clone()],
-            module_file_name : name.to_string(),
+            module_file_name : (*name).to_string(),
             max_degree : 0, // Doesn't matter
             algebra_name : String::from("milnor")
         };
@@ -17,7 +17,7 @@ fn resolve_iterate() {
 
         let config = Config {
             module_paths : vec![path.clone()],
-            module_file_name : name.to_string(),
+            module_file_name : (*name).to_string(),
             max_degree : 0, // Doesn't matter
             algebra_name : String::from("adem")
         };

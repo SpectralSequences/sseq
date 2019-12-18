@@ -20,7 +20,7 @@ fn check_algebra (module_name : &str, max_degree : i32, algebra_name: &str) {
     println!("module : {}", module_name);
     let path = std::path::PathBuf::from("modules");
     let a = Config {
-        module_paths : vec![path.clone()],
+        module_paths : vec![path],
         module_file_name : module_name.to_string(),
         max_degree,
         algebra_name : String::from(algebra_name)

@@ -1,7 +1,7 @@
 use rust_ext::matrix::{Subspace, Matrix};
 use rust_ext::fp_vector::{FpVector, FpVectorT};
 use std::collections::HashMap;
-use std::cmp::max;
+use std::cmp::{max, Ordering};
 use std::sync::{Arc, RwLock};
 use serde::{Serialize, Deserialize};
 use bivec::BiVec;
@@ -404,40 +404,44 @@ impl Sseq {
         }
 
         if let Some((r_, true, ti)) = product.differential {
-            if r_ < r {
-                // The original differential from s to t is useless.
-                let (_, _, mut new_target) = self.multiply(x, y, s, &self.products.read().unwrap()[ti])?;
-                if !product.left && (x - 1) % 2 != 0 {
-                    new_target.scale(self.p - 1);
-                }
-                return Some((r_, x_, y_, new_source, Some(new_target)));
-            } else if r_ > r {
-                // This is more-or-less the same as the permanent code, except we know t is not
-                // permanent (or else it would be handled by the previous case).
-                if let Some(t_) = t {
-                    let (tx, ty) = sseq_profile(r, x, y);
-                    let (_, _, mut new_target) = self.multiply(tx, ty, t_, product)?;
-                    if product.left && product.x % 2 != 0 {
+            match r_.cmp(&r) {
+                Ordering::Less => {
+                    // The original differential from s to t is useless.
+                    let (_, _, mut new_target) = self.multiply(x, y, s, &self.products.read().unwrap()[ti])?;
+                    if !product.left && (x - 1) % 2 != 0 {
                         new_target.scale(self.p - 1);
                     }
+                    return Some((r_, x_, y_, new_source, Some(new_target)));
+                }
+                Ordering::Greater => {
+                    // This is more-or-less the same as the permanent code, except we know t is not
+                    // permanent (or else it would be handled by the previous case).
+                    if let Some(t_) = t {
+                        let (tx, ty) = sseq_profile(r, x, y);
+                        let (_, _, mut new_target) = self.multiply(tx, ty, t_, product)?;
+                        if product.left && product.x % 2 != 0 {
+                            new_target.scale(self.p - 1);
+                        }
+                        return Some((r, x_, y_, new_source, Some(new_target)));
+                    }
+                }
+                Ordering::Equal => {
+                    // This is the sum of the two above.
+                    let (_, _, mut new_target) = self.multiply(x, y, s, &self.products.read().unwrap()[ti])?;
+                    if !product.left && (x - 1) % 2 != 0 {
+                        new_target.scale(self.p - 1);
+                    }
+                    if let Some(t_) = t {
+                        let (tx, ty) = sseq_profile(r, x, y);
+                        let (_, _, mut tmp) = self.multiply(tx, ty, t_, product)?;
+                        if product.left && product.x % 2 != 0 {
+                            tmp.scale(self.p - 1);
+                        }
+                        new_target.add(&tmp, 1);
+                    }
+
                     return Some((r, x_, y_, new_source, Some(new_target)));
                 }
-            } else {
-                // This is the sum of the two above.
-                let (_, _, mut new_target) = self.multiply(x, y, s, &self.products.read().unwrap()[ti])?;
-                if !product.left && (x - 1) % 2 != 0 {
-                    new_target.scale(self.p - 1);
-                }
-                if let Some(t_) = t {
-                    let (tx, ty) = sseq_profile(r, x, y);
-                    let (_, _, mut tmp) = self.multiply(tx, ty, t_, product)?;
-                    if product.left && product.x % 2 != 0 {
-                        tmp.scale(self.p - 1);
-                    }
-                    new_target.add(&tmp, 1);
-                }
-
-                return Some((r, x_, y_, new_source, Some(new_target)));
             }
         }
         None
@@ -749,7 +753,7 @@ impl Sseq {
                 x, y, state,
                 permanents : self.permanent_classes[x][y].basis().to_vec(),
                 class_names : self.class_names[x][y].clone(),
-                decompositions : decompositions.clone(),
+                decompositions : decompositions,
                 classes : page_classes[x][y].iter().map(|x| x.1.clone()).collect::<Vec<Vec<FpVector>>>()
             })
         });
@@ -915,13 +919,19 @@ impl Sseq {
     /// compute $p_2 p_1 d$ if and only if $p_1$ comes earlier in the list of products than $p_2$.
     pub fn add_differential_propagate(&mut self, r : i32, x : i32, y : i32, source : &FpVector, target : &mut Option<FpVector>, product_index : usize) {
         let num_products = self.products.read().unwrap().len();
-        if product_index == num_products - 1 {
-            match target.as_mut() {
-                Some(target_) => self.add_differential(r, x, y, source, target_),
-                None => self.add_permanent_class(x, y, source)
-            };
-        } else if product_index < num_products - 1 {
-            self.add_differential_propagate(r, x, y, source, target, product_index + 1);
+        match product_index.cmp(&(num_products - 1)) {
+            Ordering::Equal => {
+                match target.as_mut() {
+                    Some(target_) => self.add_differential(r, x, y, source, target_),
+                    None => self.add_permanent_class(x, y, source)
+                };
+            }
+            Ordering::Less => {
+                self.add_differential_propagate(r, x, y, source, target, product_index + 1);
+            }
+            Ordering::Greater => {
+                panic!("Product index greater than number of products")
+            }
         }
 
         // Separate this to new line to make code easier to read.

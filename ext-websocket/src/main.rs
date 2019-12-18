@@ -157,7 +157,7 @@ pub struct Server {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl Handler for Server {
-    fn on_request(&mut self, req: &Request) -> WsResult<(Response)> {
+    fn on_request(&mut self, req: &Request) -> WsResult<Response> {
          match req.resource() {
              "/ws" => Response::from_request(req),
              _ => self.serve_files(req.resource())
@@ -187,7 +187,7 @@ impl Server {
         }
     }
 
-    pub fn serve_files(&self, request_path: &str) -> WsResult<(Response)> {
+    pub fn serve_files(&self, request_path: &str) -> WsResult<Response> {
         println!("Request path: {}", request_path);
         let request_path = request_path.split('?').collect::<Vec<&str>>()[0]; // Ignore ?...
         let mut dir = std::env::current_exe().unwrap();
