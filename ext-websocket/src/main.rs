@@ -1,5 +1,4 @@
 use std::{fs, thread};
-use chrono::Local;
 use std::sync::mpsc;
 use ws::{listen, Handler, Request, Response, Sender as WsSender, Result as WsResult};
 use textwrap::Wrapper;
@@ -66,14 +65,14 @@ impl Manager {
 
             for msg in res_receiver {
                 let action_string = format!("{}", msg);
-                let start = Local::now();
-                println!("{}\n", wrapper.fill(&format!("{} ResolutionManager: Processing {}", start.format("%F %T"), action_string)));
+                let start = time::now();
+                println!("{}\n", wrapper.fill(&format!("{} ResolutionManager: Processing {}", start.strftime("%F %T").unwrap(), action_string)));
 
                 resolution_manager.process_message(msg).unwrap();
 
-                let end = Local::now();
+                let end = time::now();
                 let time_diff = (end - start).num_milliseconds();
-                println!("{}\n", wrapper.fill(&format!("{} ResolutionManager: Completed in {}", start.format("%F %T"), ms_to_string(time_diff))));
+                println!("{}\n", wrapper.fill(&format!("{} ResolutionManager: Completed in {}", end.strftime("%F %T").unwrap(), ms_to_string(time_diff))));
             }
         });
 
@@ -88,18 +87,18 @@ impl Manager {
             for msg in sseq_receiver {
                 let action_string = format!("{}", msg);
                 let user = SseqManager::is_user(&msg.action);
-                let start = Local::now();
+                let start = time::now();
 
                 if user {
-                    println!("{}\n", wrapper.fill(&format!("{} SseqManager: Processing {}", start.format("%F %T"), action_string)));
+                    println!("{}\n", wrapper.fill(&format!("{} SseqManager: Processing {}", start.strftime("%F %T").unwrap(), action_string)));
                 }
 
                 sseq_manager.process_message(msg).unwrap();
 
                 if user {
-                    let end = Local::now();
+                    let end = time::now();
                     let time_diff = (end - start).num_milliseconds();
-                    println!("{}\n", wrapper.fill(&format!("{} SseqManager: Completed in {}", start.format("%F %T"), ms_to_string(time_diff))));
+                    println!("{}\n", wrapper.fill(&format!("{} SseqManager: Completed in {}", end.strftime("%F %T").unwrap(), ms_to_string(time_diff))));
                 }
             }
         });
