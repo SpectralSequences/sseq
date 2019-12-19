@@ -33,8 +33,11 @@ script:
     - cd ext-websocket; npm run build; cd ..
 
 cache:
-    cargo: true
+    cargo: false
     directories:
+        - ~/.cargo
+        - ~/.rustup/toolchains
+        - ~/.rustup/update-hashes
         - ext-websocket/node_modules
 
 before_deploy:
