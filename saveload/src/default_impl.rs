@@ -1,5 +1,5 @@
-use std::io;
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
+use std::mem::size_of;
 use std::sync::{Arc, Mutex};
 
 use crate::{Save, Load};
@@ -31,105 +31,31 @@ impl Load for bool {
     }
 }
 
-impl Save for i64 {
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
-        let bytes = self.to_le_bytes();
-        buffer.write_all(&bytes)?;
-        Ok(())
+macro_rules! impl_num {
+    ( $( $x:ty ), * ) => {
+        $(
+            impl Save for $x {
+                fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+                    let bytes = self.to_le_bytes();
+                    buffer.write_all(&bytes)?;
+                    Ok(())
+                }
+            }
+
+            impl Load for $x {
+                type AuxData = ();
+
+                fn load(buffer : &mut impl Read, _ : &()) -> io::Result<Self> {
+                    let mut bytes : [u8; size_of::<$x>()] = [0; size_of::<$x>()];
+                    buffer.read_exact(&mut bytes)?;
+                    Ok(<$x>::from_le_bytes(bytes))
+                }
+            }
+        )*
     }
 }
 
-impl Load for i64 {
-    type AuxData = ();
-
-    fn load(buffer : &mut impl Read, _ : &()) -> io::Result<Self> {
-        let mut bytes : [u8; 8] = [0; 8];
-        buffer.read_exact(&mut bytes)?;
-        Ok(i64::from_le_bytes(bytes))
-    }
-}
-
-impl Save for i32 {
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
-        let bytes = self.to_le_bytes();
-        buffer.write_all(&bytes)?;
-        Ok(())
-    }
-}
-
-impl Load for i32 {
-    type AuxData = ();
-
-    fn load(buffer : &mut impl Read, _ : &()) -> io::Result<Self> {
-        let mut bytes : [u8; 4] = [0; 4];
-        buffer.read_exact(&mut bytes)?;
-        Ok(i32::from_le_bytes(bytes))
-    }
-}
-
-impl Save for u32 {
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
-        let bytes = self.to_le_bytes();
-        buffer.write_all(&bytes)?;
-        Ok(())
-    }
-}
-
-impl Load for u32 {
-    type AuxData = ();
-
-    fn load(buffer : &mut impl Read, _ : &()) -> io::Result<Self> {
-        let mut bytes : [u8; 4] = [0; 4];
-        buffer.read_exact(&mut bytes)?;
-        Ok(u32::from_le_bytes(bytes))
-    }
-}
-
-impl Save for u64 {
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
-        let bytes = self.to_le_bytes();
-        buffer.write_all(&bytes)?;
-        Ok(())
-    }
-}
-
-impl Load for u64 {
-    type AuxData = ();
-
-    fn load(buffer : &mut impl Read, _ : &()) -> io::Result<Self> {
-        let mut bytes : [u8; 8] = [0; 8];
-        buffer.read_exact(&mut bytes)?;
-        Ok(u64::from_le_bytes(bytes))
-    }
-}
-
-impl Save for isize {
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
-        (*self as i64).save(buffer)
-    }
-}
-
-impl Load for isize {
-    type AuxData = ();
-
-    fn load(buffer : &mut impl Read, _ : &()) -> io::Result<Self> {
-        Ok(i64::load(buffer, &())? as isize)
-    }
-}
-
-impl Save for usize {
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
-        (*self as u64).save(buffer)
-    }
-}
-
-impl Load for usize {
-    type AuxData = ();
-
-    fn load(buffer : &mut impl Read, _ : &()) -> io::Result<Self> {
-        Ok(u64::load(buffer, &())? as usize)
-    }
-}
+impl_num!(i32, i64, isize, u32, u64, usize);
 
 impl<T : Save> Save for Vec<T> {
     fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
