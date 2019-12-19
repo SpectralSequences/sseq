@@ -112,7 +112,7 @@ impl ResolutionManager {
         let bundle = rust_ext::construct(&Config {
              module_paths : vec![dir],
              module_file_name : format!("{}.json", action.module_name),
-             algebra_name : action.algebra_name.to_string(),
+             algebra_name : action.algebra_name,
              max_degree : 0 // This is not used.
         }).unwrap();
 
