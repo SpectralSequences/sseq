@@ -621,12 +621,10 @@ impl Subspace {
     }
 
     pub fn dimension(&self) -> usize {
-        for &i in self.column_to_pivot_row.iter().rev() {
-            if i >= 0 {
-                return i as usize + 1 ;
-            }
-        }
-        0
+        self.column_to_pivot_row.iter().rev()
+            .find(|&&i| i >= 0)
+            .map(|&i| i as usize + 1)
+            .unwrap_or(0)
     }
 
     /// Returns a basis of the subspace.

@@ -78,7 +78,7 @@ impl Manager {
         });
 
         // SseqManager thread
-        let sender = server_sender.clone();
+        let sender = server_sender;
         thread::spawn(move|| {
             let mut sseq_manager = SseqManager::new(sender);
 
