@@ -5,6 +5,6 @@ authors = ["Dexter Chua <dalcde@yahoo.com.hk>"]
 edition = "2018"
 
 [dependencies]
-zopfli = "*"
-flate2 = "*"
-chrono = "*"
+zopfli = "0.4.0"
+flate2 = "1.0.0"
+time = "0.1.0"

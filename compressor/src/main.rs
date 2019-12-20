@@ -4,7 +4,6 @@ use std::collections::VecDeque;
 
 use flate2::read::ZlibDecoder;
 use zopfli::{Format, compress};
-use chrono::Local;
 use std::sync::mpsc;
 use std::thread;
 
@@ -21,7 +20,7 @@ fn ms_to_string(time : i64) -> String {
 }
 
 fn main() {
-    let init = Local::now();
+    let init = time::now();
 
     let mut source = File::open("old.hist").unwrap();
     let mut output = File::create("new.hist").unwrap();
@@ -47,12 +46,12 @@ fn main() {
 
         let (sender, receiver) = mpsc::channel();
         thread::spawn(move || {
-            let start = Local::now();
+            let start = time::now();
 
             let mut cursor = Cursor::new(Vec::new());
             compress(&Default::default(), &Format::Zlib, &inflated, &mut cursor).unwrap();
 
-            let time_diff = (Local::now() - start).num_milliseconds();
+            let time_diff = (time::now() - start).num_milliseconds();
             println!("Encoded {}/{} in {}", c, num_lines, ms_to_string(time_diff));
             sender.send(cursor.into_inner()).unwrap();
         });
@@ -94,6 +93,6 @@ fn main() {
 
     println!("Original size: {}, New size: {}, Compression: {}%", orig_size, final_size, (100.0 * final_size as f64 / orig_size as f64).round());
 
-    let time_diff = (Local::now() - init).num_milliseconds();
+    let time_diff = (time::now() - init).num_milliseconds();
     println!("Total time: {}", ms_to_string(time_diff));
 }

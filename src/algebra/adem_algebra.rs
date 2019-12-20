@@ -1227,9 +1227,9 @@ mod tests {
         println!("result : {}", A.element_to_string(out_deg, &result2));
     }
 
-    use rstest::rstest_parametrize;
+    use rstest::rstest;
 
-    #[rstest_parametrize(p, max_degree,
+    #[rstest(p, max_degree,
         case(2, 32),
         case(3, 120)
     )]
@@ -1248,7 +1248,7 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p, max_degree,
+    #[rstest(p, max_degree,
         case(2, 32),
         case(3, 120)
     )]
@@ -1279,7 +1279,7 @@ mod tests {
     }
 
     use crate::module::ModuleFailedRelationError;
-    #[rstest_parametrize(p, max_degree,
+    #[rstest(p, max_degree,
         case(2, 32),
         case(3, 120)
     )]

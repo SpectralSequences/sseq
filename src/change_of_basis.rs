@@ -200,7 +200,7 @@ pub fn adem_plist(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rstest::rstest_parametrize;
+    use rstest::rstest;
     
     #[test]
     fn test_cob_milnor_qs_to_adem(){
@@ -224,7 +224,7 @@ mod tests {
     }
 
     #[allow(non_snake_case)]
-    #[rstest_parametrize(p, max_degree,
+    #[rstest(p, max_degree,
         case(2, 32),
         case(3, 60)//106 // reduced size of test because we use a slow implementation
     )]    

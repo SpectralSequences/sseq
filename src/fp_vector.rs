@@ -1167,9 +1167,9 @@ mod tests {
         }
         result
     }
-    use rstest::rstest_parametrize;
+    use rstest::rstest;
 
-    #[rstest_parametrize(p, case(3), case(5), case(7))]
+    #[rstest(p, case(3), case(5), case(7))]
     fn test_reduce_limb(p : u32){
         initialize_limb_bit_index_table(p);
         for &dim in &[10, 20, 70, 100, 1000] {
@@ -1190,7 +1190,7 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p,  case(2), case(3), case(5), case(7))]
+    #[rstest(p,  case(2), case(3), case(5), case(7))]
     fn test_add(p : u32){
         initialize_limb_bit_index_table(p);
         for &dim in &[10, 20, 70, 100, 1000] {
@@ -1217,7 +1217,7 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p,  case(2), case(3), case(5), case(7))]
+    #[rstest(p,  case(2), case(3), case(5), case(7))]
     fn test_scale(p : u32){
         initialize_limb_bit_index_table(p);
         for &dim in &[10, 20, 70, 100, 1000] {
@@ -1243,7 +1243,7 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p,  case(2), case(3), case(5), case(7))]
+    #[rstest(p,  case(2), case(3), case(5), case(7))]
     fn test_entry(p : u32) {
         initialize_limb_bit_index_table(p);
         let dim_list = [10, 20, 70, 100, 1000];
@@ -1261,7 +1261,7 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p,  case(2), case(3), case(5), case(7))]//
+    #[rstest(p,  case(2), case(3), case(5), case(7))]//
     fn test_entry_slice(p : u32) {
         initialize_limb_bit_index_table(p);
         let dim_list = [10, 20, 70, 100, 1000];
@@ -1285,7 +1285,7 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p,  case(2), case(3), case(5), case(7))]
+    #[rstest(p,  case(2), case(3), case(5), case(7))]
     fn test_set_entry(p : u32) {
         initialize_limb_bit_index_table(p);
         let dim_list = [10, 20, 70, 100, 1000];
@@ -1305,7 +1305,7 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p,  case(2), case(3), case(5), case(7))]//
+    #[rstest(p,  case(2), case(3), case(5), case(7))]//
     fn test_set_entry_slice(p : u32) {
         initialize_limb_bit_index_table(p);
         let dim_list = [10, 20, 70, 100, 1000];
@@ -1332,7 +1332,7 @@ mod tests {
     }
 
     // Tests set_to_zero for a slice and also is_zero.
-    #[rstest_parametrize(p,  case(2), case(3), case(5), case(7))]
+    #[rstest(p,  case(2), case(3), case(5), case(7))]
     fn test_set_to_zero_slice(p : u32) {
         initialize_limb_bit_index_table(p);
         let dim_list = [10, 20, 70, 100, 1000];
@@ -1371,7 +1371,7 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]//
+    #[rstest(p, case(2), case(3), case(5), case(7))]//
     fn test_add_slice_to_slice(p : u32) {
         println!("p : {}", p);
         initialize_limb_bit_index_table(p);
@@ -1417,7 +1417,7 @@ mod tests {
     }
 
     // Tests assign and Eq
-    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]//
+    #[rstest(p, case(2), case(3), case(5), case(7))]//
     fn test_assign(p : u32) {
         initialize_limb_bit_index_table(p);
         for &dim in &[10, 20, 70, 100, 1000] {
@@ -1442,7 +1442,7 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]//
+    #[rstest(p, case(2), case(3), case(5), case(7))]//
     fn test_assign_slice_to_slice(p : u32) {
         println!("p : {}", p);
         initialize_limb_bit_index_table(p);
@@ -1486,7 +1486,7 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]
+    #[rstest(p, case(2), case(3), case(5), case(7))]
     fn test_add_shift_right(p : u32) {
         println!("p : {}", p);
         initialize_limb_bit_index_table(p);
@@ -1532,7 +1532,7 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]
+    #[rstest(p, case(2), case(3), case(5), case(7))]
     fn test_add_shift_left(p : u32) {
         println!("p : {}", p);
         initialize_limb_bit_index_table(p);
@@ -1580,7 +1580,7 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]
+    #[rstest(p, case(2), case(3), case(5), case(7))]
     fn test_iterator_slice(p : u32) {
         initialize_limb_bit_index_table(p);
         let ep = entries_per_64_bits(p);
@@ -1601,7 +1601,7 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]
+    #[rstest(p, case(2), case(3), case(5), case(7))]
     fn test_iterator_skip(p : u32) {
         initialize_limb_bit_index_table(p);
         let ep = entries_per_64_bits(p);
@@ -1626,7 +1626,7 @@ mod tests {
         }
     }
 
-    #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]
+    #[rstest(p, case(2), case(3), case(5), case(7))]
     fn test_iterator(p : u32) {
         initialize_limb_bit_index_table(p);
         let ep = entries_per_64_bits(p);
