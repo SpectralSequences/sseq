@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use bivec::BiVec;
 
 use crate::fp_vector::{FpVector, FpVectorT};
-use crate::matrix::{Matrix, Subspace};
+use crate::matrix::{Matrix, Subspace, AugmentedMatrix3};
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, FiniteModule, FDModule, FreeModule};
 use once::{OnceVec, OnceBiVec};
@@ -168,6 +168,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let (source_lock, source_module_table) = source.construct_table(t);
         let mut chain_map_lock = current_chain_map.lock();
         let mut differential_lock = current_differential.lock();
+
         let source_dimension = FreeModule::dimension_with_table(&source_module_table);
         let target_cc_dimension = target_cc.dimension(t);
         let target_res_dimension = target_res.dimension(t);
@@ -178,33 +179,24 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // This has size target_dimension x (2*target_dimension).
         // This latter matrix may be used to find a preimage of an element under the differential.
 
-        // Pad the target dimension so that it ends in an aligned position.
-        let padded_target_cc_dimension = FpVector::padded_dimension(p, target_cc_dimension);
-        let padded_target_res_dimension = FpVector::padded_dimension(p, target_res_dimension);
-        let padded_target_dimension = padded_target_res_dimension + padded_target_cc_dimension;
         let rows = source_dimension + target_dimension;
-        let columns = padded_target_dimension + source_dimension + rows;
-        let mut matrix = Matrix::new(p, rows, columns);
+        let mut matrix = AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, source_dimension + rows]);
         let mut pivots = vec![-1;matrix.columns()];
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
 
-        matrix.set_slice(0, source_dimension, 0, target_cc_dimension);
-        current_chain_map.get_matrix_with_table(&mut matrix, &source_module_table, t);
-        matrix.clear_slice();
+        matrix.set_row_slice(0, source_dimension);
+        current_chain_map.get_matrix_with_table(&mut *matrix.segment(0,0), &source_module_table, t);
+        current_differential.get_matrix_with_table(&mut *matrix.segment(1,1), &source_module_table, t);
+        matrix.segment(2,2).set_identity(source_dimension, 0, 0);
 
-        matrix.set_slice(0, source_dimension, padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension);
-        current_differential.get_matrix_with_table(&mut matrix, &source_module_table, t);
-        matrix.clear_slice();
-
-        // Augment with the identity matrix.
-        matrix.set_identity(source_dimension, 0, padded_target_dimension);
-
-        matrix.set_slice(0, source_dimension, 0, padded_target_dimension + source_dimension);
+        // This slices the underling matrix. Be sure to revert this.
+        matrix.set_slice(0, source_dimension, 0, matrix.start(2) + source_dimension);
         matrix.row_reduce(&mut pivots);
-
-        let new_kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
-        let first_new_row = source_dimension;
+        let first_source_col = matrix.start(2);
+        let new_kernel = matrix.compute_kernel(&pivots, first_source_col);
         matrix.clear_slice();
+
+        let first_new_row = source_dimension;
 
         // Now add generators to surject onto C_{s, t}.
         // (For now we are just adding the eventual images of the new generators into matrix, we will update
@@ -224,57 +216,61 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                 let prev_chain_map = self.chain_map(s - 1);
                 let quasi_inverse = prev_chain_map.quasi_inverse(t);
 
-                let mut out_vec = FpVector::new(self.prime(), target_res_dimension);
                 let dfx_dim = complex_cur_differential.target().dimension(t);
                 let mut dfx = FpVector::new(self.prime(), dfx_dim);
+
+                matrix.set_row_slice(first_new_row, first_new_row + cc_new_gens);
+                let mut matrix_ = matrix.segment(1, 1);
                 for (i, column) in new_generators.into_iter().enumerate() {
                     complex_cur_differential.apply_to_basis_element(&mut dfx, 1, t, column);
-                    quasi_inverse.apply(&mut out_vec, 1, &dfx);
-                    // Now out_vec contains f^{-1}(dC(f(x))).
-                    let out_row = &mut matrix[first_new_row + i];
-                    // dX(x) goes into the column range [padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension] in the matrix
-                    // I think we are missing a sign here.
-                    out_row.set_slice(padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension);
-                    out_row.assign(&out_vec);
-                    out_row.clear_slice();
+                    quasi_inverse.apply(&mut matrix_[i], 1, &dfx);
                     dfx.set_to_zero_pure();
-                    out_vec.set_to_zero_pure();
 
                     // Keep the rows we produced because we have to row reduce to re-compute
                     // the kernel later, but these rows are the images of the generators, so we
                     // still need them.
-                    middle_rows.push(out_row.clone());
+                    let mut save_row = matrix_[i].clone();
+                    save_row.clear_slice();
+                    middle_rows.push(save_row);
                 }
+                drop(matrix_);
+                matrix.clear_row_slice();
                 // Row reduce again since our activity may have changed the image of dX.
                 matrix.row_reduce(&mut pivots);
             }
             // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
-             res_new_gens = matrix.extend_image(first_new_row + cc_new_gens, padded_target_cc_dimension, padded_target_cc_dimension + target_res_dimension, &pivots, &old_kernel).len();
+            let (start, end) = (matrix.start(1), matrix.end(1));
+            res_new_gens = matrix.extend_image(first_new_row + cc_new_gens, start, end, &pivots, &old_kernel).len();
+
+            // Now restore the middle rows.
+            for (i, row) in middle_rows.into_iter().enumerate() {
+                matrix[first_new_row + i] = row;
+            }
         }
         let num_new_gens = cc_new_gens + res_new_gens;
         source.add_generators(t, source_lock, source_module_table, num_new_gens, None);
 
-        for (i, row) in middle_rows.into_iter().enumerate() {
-            matrix[first_new_row + i] = row;
-        }
-        current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, &mut matrix, first_new_row, 0);
-        current_differential.add_generators_from_matrix_rows(&differential_lock, t, &mut matrix, first_new_row, padded_target_cc_dimension);
+        matrix.set_row_slice(first_new_row, rows);
+        current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, &mut matrix.segment(0, 0));
+        current_differential.add_generators_from_matrix_rows(&differential_lock, t, &mut *matrix.segment(1, 1));
+        matrix.clear_row_slice();
 
         // Record the quasi-inverses for future use.
         // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
         let image_rows = first_new_row + num_new_gens;
+        let start = matrix.start(2);
         for i in first_new_row .. image_rows {
-            matrix[i].set_entry(padded_target_dimension + i, 1);
+            matrix[i].set_entry(start + i, 1);
         }
-        matrix.set_slice(0, image_rows, 0, padded_target_dimension + source_dimension + num_new_gens); 
+
+        // From now on we only use the underlying matrix. We manipulate slice directly but don't
+        // drop matrix so that we can use matrix.start
+        matrix.set_slice(0, image_rows, 0, matrix.start(2) + source_dimension + num_new_gens); 
         let mut new_pivots = vec![-1;matrix.columns()];
         matrix.row_reduce(&mut new_pivots);
-        let (cm_qi, res_qi) = matrix.compute_quasi_inverses(
-            &new_pivots, 
-            padded_target_cc_dimension, 
-            padded_target_cc_dimension + target_res_dimension,
-            padded_target_dimension
-        );
+
+        // Should this be a method on AugmentedMatrix3?
+        let (cm_qi, res_qi) = matrix.compute_quasi_inverses(&new_pivots);
 
         current_chain_map.set_quasi_inverse(&chain_map_lock, t, cm_qi);
         current_chain_map.set_kernel(&chain_map_lock, t, Subspace::new(p, 0, 0)); // Fill it up with something dummy so that compute_kernels_and... is happy

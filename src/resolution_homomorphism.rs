@@ -77,7 +77,7 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         }
         let mut outputs = self.extend_step_helper(input_homological_degree, input_internal_degree, extra_images);
         let mut lock = f_cur.lock();
-        f_cur.add_generators_from_matrix_rows(&lock, input_internal_degree, &mut outputs, 0, 0);
+        f_cur.add_generators_from_matrix_rows(&lock, input_internal_degree, &mut outputs);
         *lock += 1;
     }
 

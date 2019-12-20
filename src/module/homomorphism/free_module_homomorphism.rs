@@ -161,8 +161,7 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         self.outputs.push(new_outputs);
     }    
 
-    // We don't actually mutate &mut matrix, we just slice it.
-    pub fn add_generators_from_matrix_rows(&self, lock : &MutexGuard<i32>, degree : i32, matrix : &mut Matrix, first_new_row : usize, first_target_column : usize){
+    pub fn add_generators_from_matrix_rows(&self, lock : &MutexGuard<i32>, degree : i32, matrix : &Matrix){
         // println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
         // println!("    dimension : {} target name : {}", dimension, self.target.get_name());
         assert!(degree >= self.min_degree);
@@ -171,6 +170,8 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         let p = self.prime();
         let new_generators = self.source.number_of_gens_in_degree(degree);
         let dimension = self.target.dimension(degree - self.degree_shift);
+        assert_eq!(matrix.columns(), dimension);
+
         let mut new_outputs : Vec<FpVector> = Vec::with_capacity(new_generators);
         for _ in 0 .. new_generators {
             new_outputs.push(FpVector::new(p, dimension));
@@ -180,11 +181,7 @@ impl<M : Module> FreeModuleHomomorphism<M> {
             return;
         }
         for (i, new_output) in new_outputs.iter_mut().enumerate() {
-            let output_vector = &mut matrix[first_new_row + i];
-            let old_slice = output_vector.slice();
-            output_vector.set_slice(first_target_column, first_target_column + dimension);
-            new_output.assign(&output_vector);
-            output_vector.restore_slice(old_slice);
+            new_output.assign(&matrix[i]);
         }
         self.outputs.push(new_outputs);
     }

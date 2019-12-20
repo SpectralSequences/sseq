@@ -62,7 +62,7 @@ impl FinitelyPresentedModule {
         let num_relns = relations_matrix.rows();
         self.relations.add_generators_immediate(degree, num_relns, None);
         let mut map_lock = self.map.lock();
-        self.map.add_generators_from_matrix_rows(&map_lock, degree, relations_matrix, 0, 0);
+        self.map.add_generators_from_matrix_rows(&map_lock, degree, relations_matrix);
         *map_lock += 1;        
     }
 
