@@ -548,7 +548,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
         for (i, handle_inner) in handles.into_iter().enumerate() {
             let i = i as u32;
 
-            for handle in handle_inner.into_iter() {
+            for handle in handle_inner {
                 handle.join().unwrap();
             }
             let final_map = &delta[i as usize][(2 * s - i) as usize];
