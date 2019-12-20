@@ -728,7 +728,9 @@ impl<CC> Resolution<CC> where
     /// present, we do nothing.
     pub fn add_product(&mut self, s : u32, t : i32, class : Vec<u32>, name : &str) -> bool {
         let name = name.to_string();
-        if !self.product_names.contains(&name) {
+        if self.product_names.contains(&name) {
+            false
+        } else {
             self.product_names.insert(name.clone());
             self.construct_unit_resolution();
             if s > self.max_product_homological_degree {
@@ -739,8 +741,6 @@ impl<CC> Resolution<CC> where
             // compute_products aborts when product_list is empty.
             self.product_list.push(Cocycle { s, t, class, name });
             true
-        } else {
-            false
         }
     }
 
@@ -876,7 +876,9 @@ impl<CC : ChainComplex> Resolution<CC> {
     /// present, we do nothing.
     pub fn add_self_map(&mut self, s : u32, t : i32, name : &str, map_data : Matrix) -> bool {
         let name = name.to_string();
-        if !self.product_names.contains(&name) {
+        if self.product_names.contains(&name) {
+            false
+        } else {
             self.product_names.insert(name.clone());
             self.self_maps.push(
                 SelfMap {
@@ -884,8 +886,6 @@ impl<CC : ChainComplex> Resolution<CC> {
                     map : ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&self.inner), Arc::downgrade(&self.inner), s, t)
                 });
             true
-        } else {
-            false
         }
     }
 

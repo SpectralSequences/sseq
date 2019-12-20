@@ -3,6 +3,12 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::implicit_hasher)]
+#![warn(clippy::default_trait_access)]
+#![warn(clippy::if_not_else)]
+#![warn(clippy::needless_continue)]
+#![warn(clippy::redundant_closure_for_method_calls)]
+#![warn(clippy::explicit_iter_loop)]
+#![warn(clippy::explicit_into_iter_loop)]
 
 pub mod combinatorics;
 pub mod fp_vector;
@@ -595,7 +601,7 @@ pub fn run_test() -> Result<(), Box<dyn Error>> {
 
 pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {
     let mut result = None;
-    for path in config.module_paths.iter() {
+    for path in &config.module_paths {
         let mut path = path.clone();
         path.push(&config.module_file_name);
         path.set_extension("json");

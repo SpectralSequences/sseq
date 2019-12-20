@@ -278,7 +278,7 @@ impl Algebra for AdemAlgebra {
             out_sqs = Vec::with_capacity(2*b.ps.len() + 1);
             out_sqs.push(bocksteins & 1);
             bocksteins >>= 1;
-            for sq in b.ps.iter() {
+            for sq in &b.ps {
                 out_sqs.push(*sq);
                 out_sqs.push(bocksteins & 1);
                 bocksteins >>= 1;

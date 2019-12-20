@@ -473,7 +473,7 @@ impl MilnorAlgebra {
                 }
 
                 let rem = (d - xi_degrees[i]) as usize;
-                for old in self.ppart_table[rem].iter() {
+                for old in &self.ppart_table[rem] {
                     // ppart_table[rem] is arranged in increasing order of highest
                     // xi_i. If we get something too large, we may abort;
                     if old.len() > i + 1 {
@@ -556,7 +556,7 @@ impl MilnorAlgebra {
                     break;
                 }
 
-                for p_part in self.ppart_table[(d - (q_part.degree as usize))/q].iter() {
+                for p_part in &self.ppart_table[(d - (q_part.degree as usize))/q] {
                     new_table.push( MilnorBasisElement { p_part : p_part.clone(), q_part : q_part.q_part, degree : d as i32 } );
                 }
             }
@@ -666,12 +666,7 @@ impl MilnorAlgebra {
     fn multiply(&self, res : &mut FpVector, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement) {
         let target_dim = m1.degree + m2.degree;
 
-        if !self.generic {
-            for (c, p) in PPartMultiplier::new(self.prime(), &(m1.p_part), &(m2.p_part)) {
-                let idx = self.basis_element_to_index(&from_p(p, target_dim));
-                res.add_basis_element(idx, c * coef);
-            }
-        } else {
+        if self.generic {
             let m1f = self.multiply_qpart(m1, m2.q_part);
             for (cc, basis) in m1f {
                 let prod = PPartMultiplier::new(self.prime(), &(basis.p_part), &(m2.p_part));
@@ -684,6 +679,11 @@ impl MilnorAlgebra {
                     let idx = self.basis_element_to_index(&new);
                     res.add_basis_element(idx, c * cc * coef);
                 }
+            }
+        } else {
+            for (c, p) in PPartMultiplier::new(self.prime(), &(m1.p_part), &(m2.p_part)) {
+                let idx = self.basis_element_to_index(&from_p(p, target_dim));
+                res.add_basis_element(idx, c * coef);
             }
         }
     }

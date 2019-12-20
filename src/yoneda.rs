@@ -37,7 +37,7 @@ fn rate_adem_operation(algebra : &AdemAlgebra, deg : i32, idx: usize) -> i32 {
     }
     let elt = algebra.basis_element_from_index(deg, idx);
     let mut pref = 0;
-    for i in elt.ps.iter() {
+    for i in &elt.ps {
         let mut i = *i;
         while i != 0 {
             pref += (i & 1) as i32;
@@ -358,7 +358,7 @@ where TCM : BoundedModule,
 
             let mut chosen_cols : HashSet<usize> = HashSet::new();
 
-            for image in image_pivots.into_iter() {
+            for image in image_pivots {
                 chosen_cols.insert(image);
             }
 
@@ -502,7 +502,7 @@ fn compute_kernel_image<M : BoundedModule, F : ModuleHomomorphism, G : ModuleHom
         let mut offset = 0;
 
         let mut target_idx = 0;
-        for (op_deg, op_idx) in generators.iter() {
+        for (op_deg, op_idx) in &generators {
             result.set_slice(offset, offset + target_degrees[target_idx]);
             source.act_on_original_basis(&mut result, 1, *op_deg, *op_idx, t, i);
             result.clear_slice();

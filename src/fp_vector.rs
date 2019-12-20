@@ -1063,7 +1063,7 @@ impl FpVectorMask {
     }
 
     pub fn set_zero(&mut self) {
-        for limb in self.masks.iter_mut() {
+        for limb in &mut self.masks {
             *limb = 0;
         }
     }
@@ -1172,19 +1172,16 @@ mod tests {
     #[rstest_parametrize(p, case(3), case(5), case(7))]
     fn test_reduce_limb(p : u32){
         initialize_limb_bit_index_table(p);
-        for dim in [10, 20, 70, 100, 1000].iter() {
+        for &dim in &[10, 20, 70, 100, 1000] {
             println!("p: {}, dim: {}", p, dim);
-            let mut v = FpVector::new(p, *dim);
-            let v_arr = random_vector(p*(p-1), *dim);
+            let mut v = FpVector::new(p, dim);
+            let v_arr = random_vector(p*(p-1), dim);
             v.pack(&v_arr);
             v.reduce_limbs(v.min_limb(), v.max_limb());
-            let mut result = Vec::with_capacity(*dim);
-            for _ in 0..*dim {
-                result.push(0);
-            }
+            let mut result = vec![0; dim];
             v.unpack(&mut result);
             let mut diffs = Vec::new();
-            for i in 0..*dim {
+            for i in 0..dim {
                 if result[i] != v_arr[i] % p {
                     diffs.push((i, result[i],v_arr[i]));
                 }
@@ -1196,25 +1193,22 @@ mod tests {
     #[rstest_parametrize(p,  case(2), case(3), case(5), case(7))]
     fn test_add(p : u32){
         initialize_limb_bit_index_table(p);
-        for dim in [10, 20, 70, 100, 1000].iter() {
+        for &dim in &[10, 20, 70, 100, 1000] {
             println!("p: {}, dim: {}", p, dim);
-            let mut v = FpVector::new(p, *dim);
-            let mut w = FpVector::new(p, *dim);
-            let mut v_arr = random_vector(p, *dim);
-            let w_arr = random_vector(p, *dim);
-            let mut result = Vec::with_capacity(*dim);
-            for _ in 0..*dim {
-                result.push(0);
-            }
+            let mut v = FpVector::new(p, dim);
+            let mut w = FpVector::new(p, dim);
+            let mut v_arr = random_vector(p, dim);
+            let w_arr = random_vector(p, dim);
+            let mut result = vec![0; dim];
             v.pack(&v_arr);
             w.pack(&w_arr);
             v.add(&w, 1);
             v.unpack(&mut result);
-            for i in 0..*dim {
+            for i in 0..dim {
                 v_arr[i] = (v_arr[i] + w_arr[i]) % p;
             }
             let mut diffs = Vec::new();
-            for i in 0..*dim {
+            for i in 0..dim {
                 if result[i] != v_arr[i] {
                     diffs.push((i, result[i],v_arr[i]));
                 }
@@ -1226,16 +1220,13 @@ mod tests {
     #[rstest_parametrize(p,  case(2), case(3), case(5), case(7))]
     fn test_scale(p : u32){
         initialize_limb_bit_index_table(p);
-        for dim in [10, 20, 70, 100, 1000].iter() {
+        for &dim in &[10, 20, 70, 100, 1000] {
             println!("p: {}, dim: {}", p, dim);
-            let mut v = FpVector::new(p, *dim);
-            let mut v_arr = random_vector(p, *dim);
-            let mut result = Vec::with_capacity(*dim);
+            let mut v = FpVector::new(p, dim);
+            let mut v_arr = random_vector(p, dim);
+            let mut result = vec![0; dim];
             let mut rng = rand::thread_rng();
             let c = rng.gen::<u32>() % p;
-            for _ in 0..*dim {
-                result.push(0);
-            }
             v.pack(&v_arr);
             v.scale(c);
             for entry in &mut v_arr {
@@ -1243,7 +1234,7 @@ mod tests {
             }
             v.unpack(&mut result);
             let mut diffs = Vec::new();
-            for i in 0..*dim {
+            for i in 0..dim {
                 if result[i] != v_arr[i] {
                     diffs.push((i, result[i],v_arr[i]));
                 }
@@ -1256,8 +1247,7 @@ mod tests {
     fn test_entry(p : u32) {
         initialize_limb_bit_index_table(p);
         let dim_list = [10, 20, 70, 100, 1000];
-        for dim in dim_list.iter() {
-            let dim = *dim;
+        for &dim in &dim_list {
             let mut v = FpVector::new(p, dim);
             let v_arr = random_vector(p, dim);
             v.pack(&v_arr);
@@ -1299,8 +1289,7 @@ mod tests {
     fn test_set_entry(p : u32) {
         initialize_limb_bit_index_table(p);
         let dim_list = [10, 20, 70, 100, 1000];
-        for dim in dim_list.iter() {
-            let dim = *dim;
+        for &dim in &dim_list {
             let mut v = FpVector::new(p, dim);
             let v_arr = random_vector(p, dim);
             for i in 0..dim {
@@ -1431,23 +1420,20 @@ mod tests {
     #[rstest_parametrize(p, case(2), case(3), case(5), case(7))]//
     fn test_assign(p : u32) {
         initialize_limb_bit_index_table(p);
-        for dim in [10, 20, 70, 100, 1000].iter() {
+        for &dim in &[10, 20, 70, 100, 1000] {
             println!("p: {}, dim: {}", p, dim);
-            let mut v = FpVector::new(p, *dim);
-            let mut w = FpVector::new(p, *dim);
-            let v_arr = random_vector(p, *dim);
-            let w_arr = random_vector(p, *dim);
-            let mut result = Vec::with_capacity(*dim);
-            for _ in 0..*dim {
-                result.push(0);
-            }
+            let mut v = FpVector::new(p, dim);
+            let mut w = FpVector::new(p, dim);
+            let v_arr = random_vector(p, dim);
+            let w_arr = random_vector(p, dim);
+            let mut result = vec![0; dim];
             v.pack(&v_arr);
             w.pack(&w_arr);
             v.assign(&w);
             assert_eq!(v, w);
             v.unpack(&mut result);
             let mut diffs = Vec::new();
-            for i in 0..*dim {
+            for i in 0..dim {
                 if result[i] != w_arr[i] {
                     diffs.push((i, w_arr[i], result[i]));
                 }
@@ -1598,9 +1584,9 @@ mod tests {
     fn test_iterator_slice(p : u32) {
         initialize_limb_bit_index_table(p);
         let ep = entries_per_64_bits(p);
-        for dim in &[5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
-            let mut v = FpVector::new(p, *dim);
-            let v_arr = random_vector(p, *dim);
+        for &dim in &[5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
+            let mut v = FpVector::new(p, dim);
+            let v_arr = random_vector(p, dim);
             v.pack(&v_arr);
             v.set_slice(3, dim - 1);
 
@@ -1620,22 +1606,22 @@ mod tests {
         initialize_limb_bit_index_table(p);
         let ep = entries_per_64_bits(p);
         let dim = 5 * ep;
-        for num_skip in &[ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1, 6 * ep] {
+        for &num_skip in &[ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1, 6 * ep] {
             let mut v = FpVector::new(p, dim);
             let v_arr = random_vector(p, dim);
             v.pack(&v_arr);
 
             let mut w = v.iter();
-            w.skip_n(*num_skip);
+            w.skip_n(num_skip);
             let mut counter = 0;
             for (i, x) in w.enumerate() {
-                assert_eq!(v.entry(i + *num_skip), x);
+                assert_eq!(v.entry(i + num_skip), x);
                 counter += 1;
             }
-            if *num_skip != 6 * ep {
-                assert_eq!(counter, v.dimension() - *num_skip);
-            } else {
+            if num_skip == 6 * ep {
                 assert_eq!(counter, 0);
+            } else {
+                assert_eq!(counter, v.dimension() - num_skip);
             }
         }
     }
@@ -1644,9 +1630,9 @@ mod tests {
     fn test_iterator(p : u32) {
         initialize_limb_bit_index_table(p);
         let ep = entries_per_64_bits(p);
-        for dim in &[0, 5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
-            let mut v = FpVector::new(p, *dim);
-            let v_arr = random_vector(p, *dim);
+        for &dim in &[0, 5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
+            let mut v = FpVector::new(p, dim);
+            let v_arr = random_vector(p, dim);
             v.pack(&v_arr);
 
             let w = v.iter();

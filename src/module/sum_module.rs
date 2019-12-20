@@ -50,7 +50,7 @@ impl<M : Module> Module for SumModule<M> {
     }
 
     fn compute_basis(&self, degree : i32) {
-        for module in self.modules.iter() {
+        for module in &self.modules {
             module.compute_basis(degree);
         }
         for i in self.block_structures.len() ..= degree {

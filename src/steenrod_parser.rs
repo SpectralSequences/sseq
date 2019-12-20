@@ -253,20 +253,20 @@ fn module_expr(i: &str) -> IResult<&str, ModuleParseNode> {
 pub fn parse_algebra(i : &str) -> Result<AlgebraParseNode, Box<dyn std::error::Error>> {
     let (rest, parse_tree) = algebra_expr(i)
         .or_else(|err| Err(Box::new(ParseError{info : format!("{:#?}", err) })))?;
-    if !rest.is_empty() {
-        Err(Box::new(ParseError {info : "Failed to consume all of input".to_string()}))
-    } else {
+    if rest.is_empty() {
         Ok(parse_tree)
+    } else {
+        Err(Box::new(ParseError {info : "Failed to consume all of input".to_string()}))
     }
 }
 
 pub fn parse_module(i : &str) -> Result<ModuleParseNode, Box<dyn std::error::Error>> {
     let (rest, parse_tree) = module_expr(i)
         .or_else(|err| Err(Box::new(ParseError{info : format!("{:#?}", err) })))?;
-    if !rest.is_empty() {
-        Err(Box::new(ParseError {info : "Failed to consume all of input".to_string()}))
-    } else {
+    if rest.is_empty() {
         Ok(parse_tree)
+    } else {
+        Err(Box::new(ParseError {info : "Failed to consume all of input".to_string()}))
     }
 }
 

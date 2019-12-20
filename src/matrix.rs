@@ -51,7 +51,7 @@ impl Matrix {
     /// but please only input rows that do have the same length.
     pub fn from_rows(p : u32, vectors : Vec<FpVector>, columns : usize) -> Self {
         let rows = vectors.len();
-        for row in vectors.iter() {
+        for row in &vectors {
             debug_assert_eq!(row.dimension(), columns);
         }
 
@@ -176,7 +176,7 @@ impl Matrix {
     /// assert_eq!(m[0].entry(0), 0);
     /// ```
     pub fn set_slice(&mut self, row_start : usize, row_end : usize, col_start : usize, col_end : usize) {
-        for v in self.vectors.iter_mut() {
+        for v in &mut self.vectors {
             v.set_slice(col_start, col_end);
         }
         self.slice_row_start = row_start;
@@ -187,7 +187,7 @@ impl Matrix {
 
     /// Un-slice the matrix.
     pub fn clear_slice(&mut self) {
-        for v in self.vectors.iter_mut() {
+        for v in &mut self.vectors {
             v.clear_slice();
         }
         self.slice_row_start = 0;
@@ -635,7 +635,7 @@ impl Subspace {
     /// Sets the subspace to be the zero subspace.
     pub fn set_to_zero(&mut self) {
         self.matrix.set_to_zero();
-        for x in self.column_to_pivot_row.iter_mut() {
+        for x in &mut self.column_to_pivot_row {
             *x = -1;
         }
     }
