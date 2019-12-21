@@ -93,7 +93,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
         new_output[idx].set_entry(0, 1);
 
         let lock = map.lock();
-        map.add_generators_from_matrix_rows(&lock, t, &mut new_output);
+        map.add_generators_from_matrix_rows(&lock, t, &new_output);
         drop(lock);
         map.extend_by_zero_safe(module.max_degree() + t);
 
@@ -425,7 +425,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                 if i == 0 && s == 0 {
                     let map = &delta[0][0];
                     let mut lock = map.lock();
-                    map.add_generators_from_matrix_rows(&lock, 0, &mut Matrix::from_vec(p, &[vec![1]]));
+                    map.add_generators_from_matrix_rows(&lock, 0, &Matrix::from_vec(p, &[vec![1]]));
                     *lock += 1;
                     map.extend_by_zero(&lock, 2 * t);
                     continue;
@@ -511,7 +511,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
 
                             result.set_to_zero_pure();
                         }
-                        map.add_generators_from_matrix_rows(&lock, t, &mut output_matrix);
+                        map.add_generators_from_matrix_rows(&lock, t, &output_matrix);
                         *lock += 1;
 
                         #[cfg(feature = "concurrent")]

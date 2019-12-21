@@ -190,10 +190,9 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         matrix.segment(2,2).set_identity(source_dimension, 0, 0);
 
         // This slices the underling matrix. Be sure to revert this.
-        matrix.set_slice(0, source_dimension, 0, matrix.start(2) + source_dimension);
+        matrix.inner.set_slice(0, source_dimension, 0, matrix.start[2] + source_dimension);
         matrix.row_reduce(&mut pivots);
-        let first_source_col = matrix.start(2);
-        let new_kernel = matrix.compute_kernel(&pivots, first_source_col);
+        let new_kernel = matrix.inner.compute_kernel(&pivots, matrix.start[2]);
         matrix.clear_slice();
 
         let first_new_row = source_dimension;
@@ -203,7 +202,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // X_{s,t} and f later).
         // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
         // work out what dX should to to each of them.
-        let new_generators = matrix.extend_to_surjection(first_new_row, 0, target_cc_dimension, &pivots);
+        let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, matrix.end[0], &pivots);
         let cc_new_gens = new_generators.len();
         let mut res_new_gens = 0;
 
@@ -239,8 +238,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                 matrix.row_reduce(&mut pivots);
             }
             // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
-            let (start, end) = (matrix.start(1), matrix.end(1));
-            res_new_gens = matrix.extend_image(first_new_row + cc_new_gens, start, end, &pivots, &old_kernel).len();
+            res_new_gens = matrix.inner.extend_image(first_new_row + cc_new_gens, matrix.start[1], matrix.end[1], &pivots, &old_kernel).len();
 
             // Now restore the middle rows.
             for (i, row) in middle_rows.into_iter().enumerate() {
@@ -251,21 +249,20 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         source.add_generators(t, source_lock, source_module_table, num_new_gens, None);
 
         matrix.set_row_slice(first_new_row, rows);
-        current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, &mut matrix.segment(0, 0));
-        current_differential.add_generators_from_matrix_rows(&differential_lock, t, &mut *matrix.segment(1, 1));
+        current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, &*matrix.segment(0, 0));
+        current_differential.add_generators_from_matrix_rows(&differential_lock, t, &*matrix.segment(1, 1));
         matrix.clear_row_slice();
 
         // Record the quasi-inverses for future use.
         // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
         let image_rows = first_new_row + num_new_gens;
-        let start = matrix.start(2);
         for i in first_new_row .. image_rows {
-            matrix[i].set_entry(start + i, 1);
+            matrix.inner[i].set_entry(matrix.start[2] + i, 1);
         }
 
         // From now on we only use the underlying matrix. We manipulate slice directly but don't
         // drop matrix so that we can use matrix.start
-        matrix.set_slice(0, image_rows, 0, matrix.start(2) + source_dimension + num_new_gens); 
+        matrix.inner.set_slice(0, image_rows, 0, matrix.start[2] + source_dimension + num_new_gens);
         let mut new_pivots = vec![-1;matrix.columns()];
         matrix.row_reduce(&mut new_pivots);
 

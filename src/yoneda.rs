@@ -84,7 +84,7 @@ where TCM : BoundedModule,
     new_output[idx].set_entry(0, 1);
 
     let lock = map.lock();
-    map.add_generators_from_matrix_rows(&lock, t, &mut new_output);
+    map.add_generators_from_matrix_rows(&lock, t, &new_output);
     drop(lock);
 
     let cm = ChainMap {

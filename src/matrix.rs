@@ -179,8 +179,7 @@ impl Matrix {
         for v in &mut self.vectors {
             v.restore_slice((col_start, col_end));
         }
-        self.slice_row_start = row_start;
-        self.slice_row_end = row_end;
+        self.set_row_slice(row_start, row_end);
         self.slice_col_start = col_start;
         self.slice_col_end = col_end;
     }
@@ -190,10 +189,19 @@ impl Matrix {
         for v in &mut self.vectors {
             v.clear_slice();
         }
-        self.slice_row_start = 0;
-        self.slice_row_end = self.rows;
+        self.clear_row_slice();
         self.slice_col_start = 0;
         self.slice_col_end = self.columns;
+    }
+
+    pub fn set_row_slice(&mut self, row_start: usize, row_end: usize) {
+        self.slice_row_start = row_start;
+        self.slice_row_end = row_end;
+    }
+
+    pub fn clear_row_slice(&mut self) {
+        self.slice_row_start = 0;
+        self.slice_row_end = self.rows;
     }
 
     pub fn into_slice(mut self) -> Self {
@@ -1000,68 +1008,82 @@ impl std::ops::Mul for &Matrix {
     }
 }
 
-pub struct AugmentedMatrix3 {
-    end: [usize; 3],
-    start: [usize; 3],
-    matrix: Matrix,
+macro_rules! augmented_matrix {
+    ( $($N:expr, $name:ident), * ) => {
+        $(
+            /// This models an augmented matrix.
+            ///
+            /// In an ideal world, this will have no public fields. The inner matrix
+            /// can be accessed via deref, and there are functions that expose `end`
+            /// and `start`. However, in the real world, the borrow checker exists, and there are
+            /// cases where directly accessing these fields is what it takes to let you pass the
+            /// borrow checker.
+            ///
+            /// In particular, if `m` is an augmented matrix and `f` is a function
+            /// that takes in `&mut Matrix`, trying to run `m.f(m.start[0])` produces an error
+            /// because it is not clear if we first do the `deref_mut` then retrieve `start[0]`.
+            /// (since `deref_mut` takes in a mutable borrow, it could in theory modify `m`
+            /// non-trivially)
+            pub struct $name {
+                pub end: [usize; $N],
+                pub start: [usize; $N],
+                pub inner: Matrix,
+            }
+
+            impl $name {
+                pub fn new(p: u32, rows: usize, columns: &[usize]) -> Self {
+                    let mut start = [0; $N];
+                    let mut end = [0; $N];
+                    for i in 1 .. $N {
+                        start[i] = start[i - 1] + FpVector::padded_dimension(p, columns[i - 1]);
+                    }
+                    for i in 0 .. $N {
+                        end[i] = start[i] + columns[i];
+                    }
+
+                    Self {
+                        inner: Matrix::new(p, rows, end[$N - 1]),
+                        start,
+                        end,
+                    }
+                }
+
+                pub fn segment(&mut self, start: usize, end: usize) -> MatrixSlice<'_> {
+                    let start_idx = self.start[start];
+                    let end_idx = self.end[end];
+                    for v in &mut *self.inner {
+                        v.restore_slice((start_idx, end_idx));
+                    }
+                    self.inner.slice_col_start = start_idx;
+                    self.inner.slice_col_end = end_idx;
+                    MatrixSlice(&mut self.inner)
+                }
+
+                pub fn into_matrix(self) -> Matrix {
+                    self.inner
+                }
+            }
+
+            impl std::ops::Deref for $name {
+                type Target = Matrix;
+
+                fn deref(&self) -> &Matrix {
+                    &self.inner
+                }
+            }
+
+            impl std::ops::DerefMut for $name {
+                fn deref_mut(&mut self) -> &mut Matrix {
+                    &mut self.inner
+                }
+            }
+        )*
+    }
 }
 
+augmented_matrix!(3, AugmentedMatrix3, 2, AugmentedMatrix2);
+
 impl AugmentedMatrix3 {
-    pub fn new(p: u32, rows: usize, columns: &[usize]) -> Self {
-        let start = [0,
-        FpVector::padded_dimension(p, columns[0]),
-        FpVector::padded_dimension(p, columns[0]) + FpVector::padded_dimension(p, columns[1])];
-
-        let end = [
-            columns[0],
-            FpVector::padded_dimension(p, columns[0]) + columns[1],
-            FpVector::padded_dimension(p, columns[0]) + FpVector::padded_dimension(p, columns[1]) + columns[2]
-        ];
-
-        Self {
-            matrix: Matrix::new(p, rows, end[2]),
-            start,
-            end,
-        }
-    }
-
-    pub fn start(&self, n: usize) -> usize {
-        self.start[n]
-    }
-
-    pub fn end(&self, n: usize) -> usize {
-        self.end[n]
-    }
-
-    pub fn set_slice(&mut self, row_start : usize, row_end : usize, col_start : usize, col_end : usize) {
-        self.matrix.set_slice(row_start, row_end, col_start, col_end);
-    }
-
-    pub fn set_row_slice(&mut self, row_start: usize, row_end: usize) {
-        self.matrix.slice_row_start = row_start;
-        self.matrix.slice_row_end = row_end;
-    }
-
-    pub fn clear_row_slice(&mut self) {
-        self.matrix.slice_row_start = 0;
-        self.matrix.slice_row_end = self.matrix.rows;
-    }
-
-    pub fn segment<'a>(&'a mut self, start: usize, end: usize) -> AugmentedMatrix3Guard<'a> {
-        let start_idx = self.start(start);
-        let end_idx = self.end(end);
-        for v in &mut *self.matrix {
-            v.restore_slice((start_idx, end_idx));
-        }
-        self.matrix.slice_col_start = start_idx;
-        self.matrix.slice_col_end = end_idx;
-        AugmentedMatrix3Guard(self)
-    }
-
-    pub fn into_matrix(self) -> Matrix {
-        self.matrix
-    }
-
     /// This function computes quasi-inverses for [A|B|I] given that A is surjective. Moreover, if
     /// Q is the quasi-inverse of A, it is guaranteed that the image of QB and B|_{ker A} are
     /// disjoint.
@@ -1071,40 +1093,40 @@ impl AugmentedMatrix3 {
     pub fn compute_quasi_inverses(&mut self, pivots : &[isize]) -> (QuasiInverse, QuasiInverse) {
         let p = self.prime();
         let columns = self.columns();
-        let source_columns = columns - self.start(2);
-        let res_columns = self.end(1) - self.start(1);
-        let first_res_row = self.matrix.find_first_row_in_block(pivots, self.start(1));
-        let first_kernel_row = self.matrix.find_first_row_in_block(pivots, self.start(2));
+        let source_columns = columns - self.start[2];
+        let res_columns = self.end[1] - self.start[1];
+        let first_res_row = self.inner.find_first_row_in_block(pivots, self.start[1]);
+        let first_kernel_row = self.inner.find_first_row_in_block(pivots, self.start[2]);
         let mut cc_preimage = Matrix::new(p, first_res_row, source_columns);
         for i in 0..first_res_row {
             let old_slice = self[i].slice();
-            self.matrix[i].set_slice(self.start[2], columns);
-            cc_preimage[i].assign(&self.matrix[i]);
-            self.matrix[i].restore_slice(old_slice);
+            self.inner[i].set_slice(self.start[2], columns);
+            cc_preimage[i].assign(&self.inner[i]);
+            self.inner[i].restore_slice(old_slice);
         }
-        let mut new_pivots = vec![-1; columns - self.start(1)];
+        let mut new_pivots = vec![-1; columns - self.start[1]];
         let res_image_rows;
         if first_res_row == 0 {
-            new_pivots[0 .. (columns - self.start(1))]
-                .clone_from_slice(&pivots[self.start(1)..columns]);
+            new_pivots[0 .. (columns - self.start[1])]
+                .clone_from_slice(&pivots[self.start[1]..columns]);
             res_image_rows = first_kernel_row;
         } else {
-            self.set_slice(0, first_kernel_row, self.start(1), columns);
+            self.inner.set_slice(0, first_kernel_row, self.start[1], columns);
             self.row_reduce(&mut new_pivots);
-            res_image_rows = self.find_first_row_in_block(pivots, self.start(2) - self.start(1));
+            res_image_rows = self.find_first_row_in_block(pivots, self.start[2] - self.start[1]);
             self.clear_slice();
         }
         let mut res_preimage = Matrix::new(p, res_image_rows, source_columns);
         let mut res_image = Subspace::new(p, res_image_rows, res_columns);
         for i in 0..res_image_rows {
             let old_slice = self[i].slice();
-            self.matrix[i].set_slice(self.start[1], self.end[1]);
+            self.inner[i].set_slice(self.start[1], self.end[1]);
             res_image.matrix[i].assign(&self[i]);
             res_image.column_to_pivot_row.copy_from_slice(&new_pivots[..res_columns]);
-            self.matrix[i].restore_slice(old_slice);
-            self.matrix[i].set_slice(self.start[2], columns);
+            self.inner[i].restore_slice(old_slice);
+            self.inner[i].set_slice(self.start[2], columns);
             res_preimage[i].assign(&self[i]);
-            self.matrix[i].restore_slice(old_slice);
+            self.inner[i].restore_slice(old_slice);
         }
         let cm_qi = QuasiInverse {
             image : None,
@@ -1119,43 +1141,29 @@ impl AugmentedMatrix3 {
 
 }
 
-pub struct AugmentedMatrix3Guard<'a>(&'a mut AugmentedMatrix3);
+pub struct MatrixSlice<'a>(&'a mut Matrix);
 
-impl<'a> Drop for AugmentedMatrix3Guard<'a> {
+impl<'a> Drop for MatrixSlice<'a> {
     fn drop(&mut self) {
-        self.0.matrix.slice_col_start = 0;
-        self.0.matrix.slice_col_end = self.0.matrix.columns;
-        for v in &mut ***self.0 {
+        self.0.slice_col_start = 0;
+        self.0.slice_col_end = self.0.columns;
+        for v in &mut **self.0 {
             v.clear_slice();
         }
     }
 }
 
-impl std::ops::Deref for AugmentedMatrix3Guard<'_> {
+impl std::ops::Deref for MatrixSlice<'_> {
     type Target = Matrix;
 
     fn deref(&self) -> &Matrix {
-        &*self.0
+        &self.0
     }
 }
 
-impl std::ops::Deref for AugmentedMatrix3 {
-    type Target = Matrix;
-
-    fn deref(&self) -> &Matrix {
-        &self.matrix
-    }
-}
-
-impl std::ops::DerefMut for AugmentedMatrix3Guard<'_> {
+impl std::ops::DerefMut for MatrixSlice<'_> {
     fn deref_mut(&mut self) -> &mut Matrix {
-        &mut *self.0
-    }
-}
-
-impl std::ops::DerefMut for AugmentedMatrix3 {
-    fn deref_mut(&mut self) -> &mut Matrix {
-        &mut self.matrix
+        &mut self.0
     }
 }
 
