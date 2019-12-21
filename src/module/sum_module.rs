@@ -1,7 +1,7 @@
 use bivec::BiVec;
 use once::OnceBiVec;
 
-use crate::fp_vector::{FpVector, FpVectorT};
+use crate::fp_vector::FpVector;
 use crate::algebra::AlgebraAny;
 use crate::module::{Module, ZeroModule, BoundedModule};
 use crate::block_structure::{BlockStructure, GeneratorBasisEltPair, BlockStart};
@@ -77,10 +77,9 @@ impl<M : Module> Module for SumModule<M> {
             = self.block_structures[target_degree].generator_to_block(target_degree, *module_num);
         let module = &self.modules[*module_num];
 
-        let old_slice = result.slice();
-        result.set_slice(*target_offset, target_offset + target_module_dimension);
-        module.act_on_basis(result, coeff, op_degree, op_index, mod_degree, *basis_index);
-        result.restore_slice(old_slice);
+        module.act_on_basis(
+            &mut *result.borrow_slice(*target_offset, target_offset + target_module_dimension),
+            coeff, op_degree, op_index, mod_degree, *basis_index);
     }
 
     fn basis_element_to_string(&self, degree : i32, index : usize) -> String {

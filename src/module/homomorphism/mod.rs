@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::fp_vector::{FpVector, FpVectorT};
-use crate::matrix::{Matrix, Subspace, QuasiInverse};
+use crate::fp_vector::FpVector;
+use crate::matrix::{Matrix, AugmentedMatrix2, Subspace, QuasiInverse};
 use crate::module::Module;
 
 mod free_module_homomorphism;
@@ -71,20 +71,14 @@ pub trait ModuleHomomorphism : Send + Sync + 'static {
         self.target().compute_basis(degree);
         let source_dimension = self.source().dimension(degree);
         let target_dimension = self.target().dimension(degree);
-        let padded_target_dimension = FpVector::padded_dimension(p, target_dimension);
-        let columns = padded_target_dimension + source_dimension;
-        let mut matrix = Matrix::new(p, source_dimension, columns);
+        let mut matrix = AugmentedMatrix2::new(p, source_dimension, &[target_dimension, source_dimension]);
 
-        matrix.set_slice(0, source_dimension, 0, target_dimension);
-        self.get_matrix(&mut matrix, degree);
-        matrix.clear_slice();
+        self.get_matrix(&mut *matrix.segment(0, 0), degree);
+        matrix.segment(1, 1).set_identity(source_dimension, 0, 0);
 
-        for i in 0..source_dimension {
-            matrix[i].set_entry(padded_target_dimension + i, 1);
-        }
-        let mut pivots = vec![-1;columns];
+        let mut pivots = vec![-1;matrix.columns()];
         matrix.row_reduce(&mut pivots);
-        matrix.compute_quasi_inverse(&pivots, target_dimension, padded_target_dimension)
+        matrix.compute_quasi_inverse(&pivots)
     }
 
     fn kernel_and_quasi_inverse(&self, degree : i32) -> (Subspace, QuasiInverse) {
@@ -93,21 +87,16 @@ pub trait ModuleHomomorphism : Send + Sync + 'static {
         self.target().compute_basis(degree);
         let source_dimension = self.source().dimension(degree);
         let target_dimension = self.target().dimension(degree);
-        let padded_target_dimension = FpVector::padded_dimension(p, target_dimension);
-        let columns = padded_target_dimension + source_dimension;
-        let mut matrix = Matrix::new(p, source_dimension, columns);
+        let mut matrix = AugmentedMatrix2::new(p, source_dimension, &[target_dimension, source_dimension]);
 
-        matrix.set_slice(0, source_dimension, 0, target_dimension);
-        self.get_matrix(&mut matrix, degree);
-        matrix.clear_slice();
+        self.get_matrix(&mut *matrix.segment(0, 0), degree);
+        matrix.segment(1, 1).set_identity(source_dimension, 0, 0);
 
-        for i in 0..source_dimension {
-            matrix[i].set_entry(padded_target_dimension + i, 1);
-        }
-        let mut pivots = vec![-1;columns];
+        let mut pivots = vec![-1;matrix.columns()];
         matrix.row_reduce(&mut pivots);
-        let quasi_inverse = matrix.compute_quasi_inverse(&pivots, target_dimension, padded_target_dimension);
-        let kernel = matrix.compute_kernel(&pivots, padded_target_dimension);
+
+        let quasi_inverse = matrix.compute_quasi_inverse(&pivots);
+        let kernel = matrix.compute_kernel(&pivots);
         (kernel, quasi_inverse)
     }
 

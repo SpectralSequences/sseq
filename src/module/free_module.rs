@@ -80,12 +80,11 @@ impl Module for FreeModule {
         let num_ops = self.algebra().dimension(module_operation_degree + op_degree, generator_degree);
         let output_block_min = self.operation_generator_to_index(module_operation_degree + op_degree, 0, generator_degree, generator_index);
         let output_block_max = output_block_min + num_ops;
-        // Writing into slice (can we take ownership? make new vector with 0's outside range and add separately? is it okay?)
-        let old_slice = result.slice();
-        result.set_slice(output_block_min, output_block_max); 
+
         // Now we multiply s * r and write the result to the appropriate position.
-        self.algebra().multiply_basis_elements(result, coeff, op_degree, op_index, module_operation_degree, module_operation_index, generator_degree);
-        result.restore_slice(old_slice);
+        self.algebra().multiply_basis_elements(
+            &mut *result.borrow_slice(output_block_min, output_block_max),
+            coeff, op_degree, op_index, module_operation_degree, module_operation_index, generator_degree);
     }
 }
 

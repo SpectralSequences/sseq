@@ -220,31 +220,27 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                 let dfx_dim = complex_cur_differential.target().dimension(t);
                 let mut dfx = FpVector::new(self.prime(), dfx_dim);
 
-                matrix.set_row_slice(first_new_row, first_new_row + cc_new_gens);
-                let mut matrix_ = matrix.segment(1, 1);
                 for (i, column) in new_generators.into_iter().enumerate() {
                     complex_cur_differential.apply_to_basis_element(&mut dfx, 1, t, column);
-                    quasi_inverse.apply(&mut matrix_[i], 1, &dfx);
+                    quasi_inverse.apply(&mut *matrix.row_segment(first_new_row + i, 1, 1), 1, &dfx);
                     dfx.set_to_zero_pure();
 
                     // Keep the rows we produced because we have to row reduce to re-compute
                     // the kernel later, but these rows are the images of the generators, so we
                     // still need them.
-                    let mut save_row = matrix_[i].clone();
-                    save_row.clear_slice();
-                    middle_rows.push(save_row);
+                    middle_rows.push(matrix[i].clone());
                 }
-                drop(matrix_);
-                matrix.clear_row_slice();
                 // Row reduce again since our activity may have changed the image of dX.
                 matrix.row_reduce(&mut pivots);
             }
             // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
             res_new_gens = matrix.inner.extend_image(first_new_row + cc_new_gens, matrix.start[1], matrix.end[1], &pivots, &old_kernel).len();
 
-            // Now restore the middle rows.
-            for (i, row) in middle_rows.into_iter().enumerate() {
-                matrix[first_new_row + i] = row;
+            if cc_new_gens > 0 {
+                // Now restore the middle rows.
+                for (i, row) in middle_rows.into_iter().enumerate() {
+                    matrix[first_new_row + i] = row;
+                }
             }
         }
         let num_new_gens = cc_new_gens + res_new_gens;

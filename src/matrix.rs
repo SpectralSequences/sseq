@@ -1,5 +1,5 @@
 use crate::combinatorics;
-use crate::fp_vector::{FpVector, FpVectorT};
+use crate::fp_vector::{FpVector, FpVectorT, FpVectorSlice};
 
 
 use std::fmt;
@@ -774,13 +774,8 @@ impl Matrix {
             kernel.column_to_pivot_row[i] = column_to_pivot_row[i + first_source_column] - first_kernel_row as isize;
         }
         // Copy kernel matrix into kernel
-        for row in 0 .. kernel_dimension {
-            // Reading from slice, alright.
-            let vector = &mut self[first_kernel_row + row];
-            let old_slice = vector.slice();
-            vector.set_slice(first_source_column, first_source_column + source_dimension);
-            kernel.matrix[row].assign(&vector);
-            vector.restore_slice(old_slice);
+        for (i, row) in kernel.matrix.iter_mut().enumerate() {
+            row.assign(&*self[first_kernel_row + i].borrow_slice(first_source_column, first_source_column + source_dimension));
         }
         kernel
     }
@@ -846,7 +841,60 @@ impl Matrix {
         }
     }
 
-    
+    /// This function computes quasi-inverses for matrices A, B given a reduced row echelon form of
+    /// [A|0|B|0|I] such that the [A|0] and [B|0] blocks have number of columns a multiple of
+    /// `entries_per_64_bit`, and A is surjective. Moreover, if Q is the quasi-inverse of A, it is
+    /// guaranteed that the image of QB and B|_{ker A} are disjoint.
+    ///
+    /// # Arguments
+    ///  * `pivots` - the pivots produced by `row_reduce`
+    ///  * `first_res_column` - the first column of B
+    ///  * `last_res_col` - the last column of B
+    ///  * `first_source_col` - the first column of I
+    pub fn compute_quasi_inverses(&mut self, pivots : &[isize], first_res_col : usize, last_res_col : usize,  first_source_col : usize) -> (QuasiInverse, QuasiInverse) {
+        let p = self.prime();
+        let columns = self.columns();
+        let source_columns = columns - first_source_col;
+        let res_columns = last_res_col - first_res_col;
+        let first_res_row = self.find_first_row_in_block(pivots, first_res_col);
+        let first_kernel_row = self.find_first_row_in_block(pivots, first_source_col);
+        let mut cc_preimage = Matrix::new(p, first_res_row, source_columns);
+        for i in 0..first_res_row {
+            let old_slice = self[i].slice();
+            self[i].set_slice(first_source_col, columns);
+            cc_preimage[i].assign(&self[i]);
+            self[i].restore_slice(old_slice);
+        }
+        let mut new_pivots = vec![-1; columns - first_res_col];
+        let res_image_rows;
+        if first_res_row == 0 {
+            new_pivots[0 .. (columns - first_res_col)]
+                .clone_from_slice(&pivots[first_res_col..columns]);
+            res_image_rows = first_kernel_row;
+        } else {
+            self.set_slice(0, first_kernel_row, first_res_col, columns);
+            self.row_reduce(&mut new_pivots);
+            res_image_rows = self.find_first_row_in_block(pivots, first_source_col - first_res_col);
+            self.clear_slice();
+        }
+        let mut res_preimage = Matrix::new(p, res_image_rows, source_columns);
+        let mut res_image = Subspace::new(p, res_image_rows, res_columns);
+        for i in 0..res_image_rows {
+            res_image.matrix[i].assign(&*self[i].borrow_slice(first_res_col, last_res_col));
+            res_image.column_to_pivot_row.copy_from_slice(&new_pivots[..res_columns]);
+            res_preimage[i].assign(&*self[i].borrow_slice(first_source_col, columns));
+        }
+        let cm_qi = QuasiInverse {
+            image : None,
+            preimage  : cc_preimage
+        };
+        let res_qi = QuasiInverse {
+            image : Some(res_image),
+            preimage : res_preimage
+        };
+        (cm_qi, res_qi)
+    }
+
     pub fn get_image(&mut self, image_rows : usize, target_dimension : usize, pivots : &[isize]) -> Subspace {
         let mut image = Subspace::new(self.p, image_rows, target_dimension);
         for i in 0 .. image_rows {
@@ -1059,6 +1107,12 @@ macro_rules! augmented_matrix {
                     MatrixSlice(&mut self.inner)
                 }
 
+                pub fn row_segment(&mut self, i: usize, start: usize, end: usize) -> FpVectorSlice<'_> {
+                    let start_idx = self.start[start];
+                    let end_idx = self.end[end];
+                    self[i].borrow_slice(start_idx, end_idx)
+                }
+
                 pub fn into_matrix(self) -> Matrix {
                     self.inner
                 }
@@ -1083,62 +1137,19 @@ macro_rules! augmented_matrix {
 
 augmented_matrix!(3, AugmentedMatrix3, 2, AugmentedMatrix2);
 
-impl AugmentedMatrix3 {
-    /// This function computes quasi-inverses for [A|B|I] given that A is surjective. Moreover, if
-    /// Q is the quasi-inverse of A, it is guaranteed that the image of QB and B|_{ker A} are
-    /// disjoint.
-    ///
-    /// # Arguments
-    ///  * `pivots` - the pivots produced by `row_reduce`
-    pub fn compute_quasi_inverses(&mut self, pivots : &[isize]) -> (QuasiInverse, QuasiInverse) {
-        let p = self.prime();
-        let columns = self.columns();
-        let source_columns = columns - self.start[2];
-        let res_columns = self.end[1] - self.start[1];
-        let first_res_row = self.inner.find_first_row_in_block(pivots, self.start[1]);
-        let first_kernel_row = self.inner.find_first_row_in_block(pivots, self.start[2]);
-        let mut cc_preimage = Matrix::new(p, first_res_row, source_columns);
-        for i in 0..first_res_row {
-            let old_slice = self[i].slice();
-            self.inner[i].set_slice(self.start[2], columns);
-            cc_preimage[i].assign(&self.inner[i]);
-            self.inner[i].restore_slice(old_slice);
-        }
-        let mut new_pivots = vec![-1; columns - self.start[1]];
-        let res_image_rows;
-        if first_res_row == 0 {
-            new_pivots[0 .. (columns - self.start[1])]
-                .clone_from_slice(&pivots[self.start[1]..columns]);
-            res_image_rows = first_kernel_row;
-        } else {
-            self.inner.set_slice(0, first_kernel_row, self.start[1], columns);
-            self.row_reduce(&mut new_pivots);
-            res_image_rows = self.find_first_row_in_block(pivots, self.start[2] - self.start[1]);
-            self.clear_slice();
-        }
-        let mut res_preimage = Matrix::new(p, res_image_rows, source_columns);
-        let mut res_image = Subspace::new(p, res_image_rows, res_columns);
-        for i in 0..res_image_rows {
-            let old_slice = self[i].slice();
-            self.inner[i].set_slice(self.start[1], self.end[1]);
-            res_image.matrix[i].assign(&self[i]);
-            res_image.column_to_pivot_row.copy_from_slice(&new_pivots[..res_columns]);
-            self.inner[i].restore_slice(old_slice);
-            self.inner[i].set_slice(self.start[2], columns);
-            res_preimage[i].assign(&self[i]);
-            self.inner[i].restore_slice(old_slice);
-        }
-        let cm_qi = QuasiInverse {
-            image : None,
-            preimage  : cc_preimage
-        };
-        let res_qi = QuasiInverse {
-            image : Some(res_image),
-            preimage : res_preimage
-        };
-        (cm_qi, res_qi)
+impl AugmentedMatrix2 {
+    pub fn compute_quasi_inverse(&mut self, pivots : &[isize]) -> QuasiInverse {
+        self.inner.compute_quasi_inverse(pivots, self.end[0], self.start[1])
     }
+    pub fn compute_kernel(&mut self, pivots : &[isize]) -> Subspace {
+        self.inner.compute_kernel(pivots, self.start[1])
+    }
+}
 
+impl AugmentedMatrix3 {
+    pub fn compute_quasi_inverses(&mut self, pivots : &[isize]) -> (QuasiInverse, QuasiInverse) {
+        self.inner.compute_quasi_inverses(pivots, self.start[1], self.end[1], self.start[2])
+    }
 }
 
 pub struct MatrixSlice<'a>(&'a mut Matrix);

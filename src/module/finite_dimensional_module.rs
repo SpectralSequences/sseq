@@ -418,7 +418,7 @@ impl FiniteDimensionalModule {
                     self.act_on_basis(&mut tmp_output, 1, deg_2, idx_2, input_deg, idx);
                     self.act(&mut output_vec, coef, deg_1, idx_1, deg_2 + input_deg, &tmp_output);
                     tmp_output.clear_slice();
-                    tmp_output.set_to_zero();
+                    tmp_output.set_to_zero_pure();
                 }
 
                 if !output_vec.is_zero() {
@@ -466,7 +466,7 @@ impl FiniteDimensionalModule {
                         self.act_on_basis(&mut tmp_output, 1, deg_2, idx_2, input_deg, idx);
                         self.act(&mut output_vec, coef, deg_1, idx_1, deg_2 + input_deg, &tmp_output);
                         tmp_output.clear_slice();
-                        tmp_output.set_to_zero();
+                        tmp_output.set_to_zero_pure();
                     }
                     self.set_action_vector(op_deg, op_idx, input_deg, idx, &output_vec);
                 }

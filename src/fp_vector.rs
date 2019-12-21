@@ -907,6 +907,15 @@ impl FpVector {
         }
         idx
     }
+
+    pub fn borrow_slice(&mut self, start: usize, end: usize) -> FpVectorSlice<'_> {
+        let old_slice = self.slice();
+        self.set_slice(start, end);
+        FpVectorSlice {
+            old_slice,
+            inner: self
+        }
+    }
 }
 
 pub struct FpVectorIterator<'a> {
@@ -1043,6 +1052,30 @@ impl<'de> Deserialize<'de> for FpVector {
     }
 }
 
+pub struct FpVectorSlice<'a> {
+    old_slice: (usize, usize),
+    inner: &'a mut FpVector
+}
+
+impl<'a> Drop for FpVectorSlice<'a> {
+    fn drop(&mut self) {
+        self.inner.restore_slice(self.old_slice);
+    }
+}
+
+impl std::ops::Deref for FpVectorSlice<'_> {
+    type Target = FpVector;
+
+    fn deref(&self) -> &FpVector {
+        &self.inner
+    }
+}
+
+impl std::ops::DerefMut for FpVectorSlice<'_> {
+    fn deref_mut(&mut self) -> &mut FpVector {
+        &mut self.inner
+    }
+}
 /// An FpVectorMask encodes a subset of the basis elements of an Fp vector space. This is used to
 /// project onto the subspace spanned by the selected basis elements.
 #[derive(Debug)]
