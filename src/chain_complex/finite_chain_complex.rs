@@ -83,7 +83,11 @@ where M : Module,
         Arc::clone(&self.differentials[s])
     }
 
-    fn compute_through_bidegree(&self, _homological_degree : u32, _internal_degree : i32) {}
+    fn compute_through_bidegree(&self, s : u32, t : i32) {
+        for module in self.modules.iter().take(s as usize + 1) {
+            module.compute_basis(t);
+        }
+    }
 
     fn set_homology_basis(&self, _homological_degree : u32, _internal_degree : i32, _homology_basis : Vec<usize>) { unimplemented!() }
     fn homology_basis(&self, _homological_degree : u32, _internal_degree : i32) -> &Vec<usize> { unimplemented!() }

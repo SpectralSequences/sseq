@@ -156,30 +156,32 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         //                   v                               v
         // old_kernel <= X_{s-1, t} -------------------> C_{s-1, t}
 
+        let complex = self.complex();
+        complex.compute_through_bidegree(s, t);
+
         let current_differential = self.differential(s);
         let current_chain_map = self.chain_map(s);
-
-        let complex = self.complex();
         let complex_cur_differential = complex.differential(s);
-        let source = &current_differential.source();
-        let target_cc = &current_chain_map.target();
-        target_cc.compute_basis(t);
-        let target_res = &current_differential.target();
+
+        let source = self.module(s);
+        let target_cc = complex.module(s);
+        let target_res = current_differential.target(); // This is self.module(s - 1) unless s = 0.
+
         let (source_lock, source_module_table) = source.construct_table(t);
         let mut chain_map_lock = current_chain_map.lock();
         let mut differential_lock = current_differential.lock();
 
-        let source_dimension = FreeModule::dimension_with_table(&source_module_table);
-        let target_cc_dimension = target_cc.dimension(t);
-        let target_res_dimension = target_res.dimension(t);
-        let target_dimension = target_cc_dimension + target_res_dimension;
         // The Homomorphism matrix has size source_dimension x target_dimension, but we are going to augment it with an
         // identity matrix so that gives a matrix with dimensions source_dimension x (target_dimension + source_dimension).
         // Later we're going to write into this same matrix an isomorphism source/image + new vectors --> kernel
         // This has size target_dimension x (2*target_dimension).
         // This latter matrix may be used to find a preimage of an element under the differential.
+        let source_dimension = FreeModule::dimension_with_table(&source_module_table);
+        let target_cc_dimension = target_cc.dimension(t);
+        let target_res_dimension = target_res.dimension(t);
 
-        let rows = source_dimension + target_dimension;
+        let rows = source_dimension + target_cc_dimension + target_res_dimension;
+
         let mut matrix = AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, source_dimension + rows]);
         let mut pivots = vec![-1;matrix.columns()];
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
