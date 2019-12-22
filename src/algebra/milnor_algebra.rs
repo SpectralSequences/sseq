@@ -698,7 +698,8 @@ struct PPartMultiplier<'a> {
     rows : usize,
     cols : usize,
     diag_num : usize,
-    cont : bool
+    cont : bool,
+    diagonal: Vec<u32>,
 }
 
 #[allow(non_snake_case)]
@@ -718,6 +719,7 @@ impl<'a>  PPartMultiplier<'a> {
         let rows = r.len() + 1;
         let cols = s.len() + 1;
         let diag_num = r.len() + s.len();
+        let diagonal = Vec::with_capacity(std::cmp::max(rows, cols));
 
         let mut M = vec![vec![0; cols]; rows];
 
@@ -726,7 +728,7 @@ impl<'a>  PPartMultiplier<'a> {
         }
         M[0][1..cols].clone_from_slice(&s[0..(cols - 1)]);
 
-        PPartMultiplier { p, M, r, rows, cols, diag_num, cont : true }
+        PPartMultiplier { p, M, r, rows, cols, diag_num, diagonal, cont : true }
     }
 
     fn update(&mut self) -> bool {
@@ -781,18 +783,17 @@ impl<'a> Iterator for PPartMultiplier<'a> {
         }
 
         let mut coef = 1;
-        let mut new_p = Vec::new();
-        let mut diagonal = Vec::with_capacity(std::cmp::max(self.rows, self.cols));
+        let mut new_p = Vec::with_capacity(self.diag_num);
 
         for diag_idx in 1..=self.diag_num {
             let i_min = if diag_idx + 1 > self.cols { diag_idx + 1 - self.cols } else {0} ;
             let i_max = std::cmp::min(1 + diag_idx, self.rows);
             let mut sum = 0;
 
-            diagonal.clear();
+            self.diagonal.clear();
 
             for i in i_min..i_max {
-                diagonal.push(self.M[i][diag_idx - i]);
+                self.diagonal.push(self.M[i][diag_idx - i]);
                 sum += self.M[i][diag_idx - i];
             }
             new_p.push(sum);
@@ -800,7 +801,7 @@ impl<'a> Iterator for PPartMultiplier<'a> {
             if sum == 0  {
                 continue;
             }
-            coef *= crate::combinatorics::multinomial(self.prime(), &diagonal);
+            coef *= crate::combinatorics::multinomial(self.prime(), &self.diagonal);
             coef %= self.prime();
             if coef == 0 {
                 self.cont = self.update();
