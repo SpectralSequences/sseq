@@ -235,7 +235,7 @@ impl Algebra for AdemAlgebra {
             let mut degree : u32 = q * sqs.iter().sum::<u32>();
             let mut bocksteins = 0;
 
-            for (i, sq) in op.iter().step_by(2).enumerate() {
+            for (i, sq) in op.into_iter().step_by(2).enumerate() {
                 degree += sq;
                 bocksteins |= sq << i;
             }
@@ -473,9 +473,7 @@ impl AdemAlgebra {
                     bocksteins &= !(1 << (prev_elt_p_len +1));
                 }
                 let mut ps : Vec<u32> = Vec::with_capacity(prev_elt_p_len + 1);
-                for k in &prev_elt.ps {
-                    ps.push(*k);
-                }
+                ps.extend_from_slice(&prev_elt.ps);
                 ps.push(last as u32);
                 basis.push(AdemBasisElement {
                     degree,
@@ -548,7 +546,7 @@ impl AdemAlgebra {
                     excess += (bocksteins & 1) as i32; // leading bockstein increases excess by 1
                     let nonleading_bocksteins = bocksteins & ((1<<P.ps.len()) - 1) & !1;
                     excess -= nonleading_bocksteins.count_ones() as i32; // remaining bocksteins reduce excess by 1
-                    let ps = P.ps.to_vec();
+                    let ps = P.ps.clone();
                     basis.push(AdemBasisElement {
                         degree,
                         excess,
@@ -1089,7 +1087,7 @@ impl AdemAlgebra {
             let rest_degree = b_new.degree;
             let rest_idx = self.basis_element_to_index(&b_new);
             return vec![(1, (first_degree, first_idx), (rest_degree, rest_idx))];
-        } 
+        }
         if b.bocksteins != 0 || b.ps.len() != 1 {
             let first_degree = (b.ps[0] * 2 * (p-1)) as i32;
             let rest_degree = b.degree - first_degree;
