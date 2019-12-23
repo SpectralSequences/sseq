@@ -84,7 +84,7 @@ impl Module for FreeModule {
         // Now we multiply s * r and write the result to the appropriate position.
         self.algebra().multiply_basis_elements(
             &mut *result.borrow_slice(output_block_min, output_block_max),
-            coeff, op_degree, op_index, module_operation_degree, module_operation_index, generator_degree);
+            coeff, op_degree, op_index, module_operation_degree, module_operation_index, 0);
     }
 }
 
