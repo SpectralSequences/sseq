@@ -109,12 +109,12 @@ fn adem_basis_element_length_sort_order(a : &AdemBasisElement, b : &AdemBasisEle
     a.ps.len().cmp(&b.ps.len())
 }
 
-unsafe fn shift_vec<T>(v : Vec<T> , offset : isize) -> Vec<T> {
+unsafe fn shift_vec<T>(v : &mut Vec<T> , offset : isize) {
     let ptr = v.as_ptr();
     let len = v.len();
     let cap = v.capacity();
-    std::mem::forget(v);        
-    Vec::from_raw_parts((ptr as *mut T).offset(offset), (len as isize - offset) as usize, (cap as isize - offset) as usize)
+    let w = std::mem::replace(v, Vec::from_raw_parts((ptr as *mut T).offset(offset), (len as isize - offset) as usize, (cap as isize - offset) as usize));
+    std::mem::forget(w);
 }
 
 pub struct AdemAlgebra {
@@ -585,19 +585,19 @@ impl AdemAlgebra {
         self.try_basis_element_to_index(elt).unwrap_or_else(|| panic!("Didn't find element: {:?}", elt))
     }
 
-    fn tail_of_basis_element_to_index(&self, mut elt : AdemBasisElement, idx : u32, q : u32) -> (AdemBasisElement, usize) {
+    fn tail_of_basis_element_to_index(&self, elt : &mut AdemBasisElement, idx : u32, q : u32) -> usize {
         let degree = elt.degree;
         let bocksteins = elt.bocksteins;
         for i in 0..idx as usize {
             elt.degree -= (q * elt.ps[i] + (elt.bocksteins & 1)) as i32;
             elt.bocksteins >>= 1;            
         }
-        unsafe { elt.ps = shift_vec(elt.ps, idx as isize); }
+        unsafe { shift_vec(&mut elt.ps, idx as isize); }
         let result  = self.basis_element_to_index(&elt);
-        unsafe { elt.ps = shift_vec(elt.ps, -(idx as isize)); }
+        unsafe { shift_vec(&mut elt.ps, -(idx as isize)); }
         elt.degree = degree;
         elt.bocksteins = bocksteins;
-        (elt, result)
+        result
     }
 
     fn generate_multiplication_table_2(&self, mut next_degree : i32, max_degree : i32){
@@ -645,9 +645,7 @@ impl AdemAlgebra {
         // We now want to decompose Sq^x Sq^y = \sum_j *coef* Sq^{x + y - j} Sq^j.
         let y = working_elt.ps[0];
 
-        let tuple = self.tail_of_basis_element_to_index(working_elt, 1, 1);
-        working_elt = tuple.0;
-        let tail_idx = tuple.1;
+        let tail_idx = self.tail_of_basis_element_to_index(&mut working_elt, 1, 1);
 
         for j in 0 ..= x/2 {
             if combinatorics::adem_relation_coefficient(2, x, y, j, 0, 0) == 0 {
@@ -773,9 +771,7 @@ impl AdemAlgebra {
         // In other cases, use the Adem relations.
         let j : u32 = working_elt.ps[0];
 
-        let tuple = self.tail_of_basis_element_to_index(working_elt, 1, q as u32);
-        working_elt = tuple.0;
-        let tail_idx = tuple.1;
+        let tail_idx = self.tail_of_basis_element_to_index(&mut working_elt, 1, q as u32);
 
         if b == 0 {
             // We use P^i P^j = \sum ... P^{i + j - k} P^k
@@ -874,26 +870,22 @@ impl AdemAlgebra {
             monomial.bocksteins = r.bocksteins;
             monomial.bocksteins |= s.bocksteins << (r.ps.len());
         }
-        
-        for cur_p in &r.ps {
-            monomial.ps.push(*cur_p);
-        }
-        for cur_p in &s.ps {
-            monomial.ps.push(*cur_p);
-        }        
-        assert!(monomial.ps.len() == r.ps.len() + s.ps.len());
+
+        monomial.ps.extend_from_slice(&r.ps);
+        monomial.ps.extend_from_slice(&s.ps);
+
         if self.generic {
             // If r ends in a bockstein, we need to move it over because we consider
             // the monomial from right to left in chunks like bP^i. The b from the end of r gets donated
             // to the P from the beginning of s.
             let leading_degree = r.degree - ((r.bocksteins >> r.ps.len()) & 1) as i32;
-            self.make_mono_admissible_generic(result, coeff, monomial, r.ps.len() as i32 - 1, leading_degree, excess, true);
+            self.make_mono_admissible_generic(result, coeff, &mut monomial, r.ps.len() as i32 - 1, leading_degree, excess, true);
         } else {
-            self.make_mono_admissible_2(result, monomial, r.ps.len() as i32 - 1, r.degree, excess, true);
+            self.make_mono_admissible_2(result, &mut monomial, r.ps.len() as i32 - 1, r.degree, excess, true);
         }
     }
 
-    pub fn make_mono_admissible(&self, result : &mut FpVector, coeff : u32, monomial : AdemBasisElement, excess : i32){
+    pub fn make_mono_admissible(&self, result : &mut FpVector, coeff : u32, monomial : &mut AdemBasisElement, excess : i32){
         let q = if self.generic { 2 * self.prime() - 2 } else { 1 };
         let mut leading_degree = monomial.degree - (q * monomial.ps[monomial.ps.len() - 1]) as i32;
         let idx = monomial.ps.len() as i32 - 2;    
@@ -917,7 +909,7 @@ impl AdemAlgebra {
     *  * `leading_degree` - the degree of the squares between 0 and idx (so of length idx + 1)
     */
     fn make_mono_admissible_2(
-        &self, result : &mut FpVector, mut monomial : AdemBasisElement,
+        &self, result : &mut FpVector, monomial : &mut AdemBasisElement,
         mut idx : i32, mut leading_degree : i32, excess : i32, stop_early : bool
     ){
         while idx < 0 || idx as usize == monomial.ps.len() - 1 || monomial.ps[idx as usize] >= 2*monomial.ps[idx as usize + 1] {
@@ -935,35 +927,33 @@ impl AdemAlgebra {
             leading_degree -= monomial.ps[idx as usize] as i32;
             idx -= 1;
         }
-        let tuple = self.tail_of_basis_element_to_index(monomial, idx as u32 + 1, 1);
-        monomial = tuple.0;
-        let adm_idx = tuple.1;
-        let x = monomial.ps[idx as usize] as i32;
+        let idx = idx as usize;
+        let adm_idx = self.tail_of_basis_element_to_index(monomial, idx as u32 + 1, 1);
+        let x = monomial.ps[idx] as i32;
         let tail_degree = monomial.degree - leading_degree + x;
         let reduced_tail = &self.multiplication_table[tail_degree as usize][x as usize][adm_idx];
+
+        let mut new_monomial = AdemBasisElement {
+            degree : monomial.degree,
+            excess : -1,
+            bocksteins : 0,
+            ps : monomial.ps[0..idx].to_vec()
+        };
+
         for (it_idx, it_value) in reduced_tail.iter().enumerate() {
             if it_value == 0 {
                 continue;
             }
             let cur_tail_basis_elt = self.basis_element_from_index(tail_degree, it_idx);
-            let mut new_monomial = AdemBasisElement {
-                degree : monomial.degree,
-                excess : -1,
-                bocksteins : 0,
-                ps : Vec::with_capacity(idx as usize + cur_tail_basis_elt.ps.len())
-            };
-            for i in 0..idx {
-                new_monomial.ps.push(monomial.ps[i as usize]);
-            }
-            for cur_p in &cur_tail_basis_elt.ps {
-                new_monomial.ps.push(*cur_p);
-            }
-            self.make_mono_admissible_2(result, new_monomial, idx - 1, leading_degree - x, excess, stop_early);
+
+            new_monomial.ps.truncate(idx);
+            new_monomial.ps.extend_from_slice(&cur_tail_basis_elt.ps);
+            self.make_mono_admissible_2(result, &mut new_monomial, idx as i32 - 1, leading_degree - x, excess, stop_early);
         }
     }
 
     fn make_mono_admissible_generic(
-        &self, result : &mut FpVector, coeff : u32, mut monomial : AdemBasisElement,
+        &self, result : &mut FpVector, coeff : u32, monomial : &mut AdemBasisElement,
         mut idx : i32, mut leading_degree : i32, excess : i32, stop_early : bool        
     ){
         let p = self.prime();
@@ -985,15 +975,22 @@ impl AdemAlgebra {
             leading_degree -= ((monomial.bocksteins >> idx) & 1) as i32;
             idx -= 1;
         }
-        let tuple = self.tail_of_basis_element_to_index(monomial, idx as u32 + 1, q);
-        monomial = tuple.0;
-        let adm_idx = tuple.1;
+        let idx = idx as usize;
+        let adm_idx = self.tail_of_basis_element_to_index(monomial, idx as u32 + 1, q);
         // Notice how much we avoid bockstein twiddling here. It's all hidden in multiplication_table =)
-        let x = monomial.ps[idx as usize];
+        let x = monomial.ps[idx];
         let bx = (x << 1) + b1;
         let tail_degree = monomial.degree - leading_degree + (q*x + b1) as i32;
         let reduced_tail = &self.multiplication_table[tail_degree as usize][bx as usize][adm_idx];
         let dim = self.dimension(tail_degree, excess);    
+
+        let mut new_monomial = AdemBasisElement {
+            degree : monomial.degree,
+            excess : -1,
+            bocksteins : 0,
+            ps : monomial.ps[0 .. idx].to_vec(),
+        };
+
         for (it_idx, it_value) in reduced_tail.iter().enumerate() {
             if it_value == 0 {
                 continue;
@@ -1002,22 +999,12 @@ impl AdemAlgebra {
                 break;
             }
             let cur_tail_basis_elt = self.basis_element_from_index(tail_degree, it_idx);
-            let mut new_monomial = AdemBasisElement {
-                degree : monomial.degree,
-                excess : -1,
-                bocksteins : 0,
-                ps : Vec::with_capacity(idx as usize + cur_tail_basis_elt.ps.len())
-            };            
-            for i in 0..idx {
-                new_monomial.ps.push(monomial.ps[i as usize]);
-            }
-            for cur_p in &cur_tail_basis_elt.ps {
-                new_monomial.ps.push(*cur_p);
-            }
+            new_monomial.ps.truncate(idx);
+            new_monomial.ps.extend_from_slice(&cur_tail_basis_elt.ps);
             new_monomial.bocksteins = monomial.bocksteins & ((1<<idx)-1);
             new_monomial.bocksteins |= cur_tail_basis_elt.bocksteins << idx;
             let new_leading_degree = leading_degree - (q*x + b1) as i32;
-            self.make_mono_admissible_generic(result, (coeff * it_value) % p, new_monomial, idx - 1, new_leading_degree, excess, stop_early);
+            self.make_mono_admissible_generic(result, (coeff * it_value) % p, &mut new_monomial, idx as i32 - 1, new_leading_degree, excess, stop_early);
         }
     }
 
