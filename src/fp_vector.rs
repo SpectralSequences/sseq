@@ -706,6 +706,12 @@ impl FpVectorT for FpVector2 {
     fn prime(&self) -> u32 { 2 }
     fn vector_container (&self) -> &VectorContainer { &self.vector_container }
     fn vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
+
+    fn add_basis_element(&mut self, index : usize, value : u32){
+        let limb_index = limb_bit_index_pair(2, index + self.min_index());
+        let value = (value % 2) as u64;
+        self.vector_container.limbs[limb_index.limb] ^= value << limb_index.bit_index;
+    }
 }
 
 impl FpVectorT for FpVector3 {
