@@ -669,20 +669,26 @@ impl MilnorAlgebra {
         if self.generic {
             let m1f = self.multiply_qpart(m1, m2.q_part);
             for (cc, basis) in m1f {
-                let prod = PPartMultiplier::new(self.prime(), &(basis.p_part), &(m2.p_part));
-                for (c, p) in prod {
-                    let new = MilnorBasisElement {
-                        degree : target_dim,
-                        q_part : basis.q_part,
-                        p_part : p
-                    };
+                let mut multiplier = PPartMultiplier::new(self.prime(), &(basis.p_part), &(m2.p_part));
+                let mut new = MilnorBasisElement {
+                    degree : target_dim,
+                    q_part : basis.q_part,
+                    p_part : Vec::with_capacity(multiplier.diag_num)
+                };
+                while let Some(c) = multiplier.next(&mut new) {
                     let idx = self.basis_element_to_index(&new);
                     res.add_basis_element(idx, c * cc * coef);
                 }
             }
         } else {
-            for (c, p) in PPartMultiplier::new(self.prime(), &(m1.p_part), &(m2.p_part)) {
-                let idx = self.basis_element_to_index(&from_p(p, target_dim));
+            let mut multiplier = PPartMultiplier::new(self.prime(), &(m1.p_part), &(m2.p_part));
+            let mut new = MilnorBasisElement {
+                degree: target_dim,
+                q_part: 0,
+                p_part: Vec::with_capacity(multiplier.diag_num)
+            };
+            while let Some(c) = multiplier.next(&mut new) {
+                let idx = self.basis_element_to_index(&new);
                 res.add_basis_element(idx, c * coef);
             }
         }
@@ -690,10 +696,38 @@ impl MilnorAlgebra {
 
 }
 
+struct Matrix2D {
+    cols: usize,
+    inner: Vec<u32>,
+}
+
+impl Matrix2D {
+    fn new(rows: usize, cols: usize) -> Self {
+        Matrix2D {
+            cols,
+            inner: vec![0; rows * cols]
+        }
+    }
+}
+
+impl std::ops::Index<usize> for Matrix2D {
+    type Output = [u32];
+
+    fn index(&self, row: usize) -> &Self::Output {
+        &self.inner[row * self.cols .. (row + 1) * self.cols]
+    }
+}
+
+impl std::ops::IndexMut<usize> for Matrix2D {
+    fn index_mut(&mut self, row: usize) -> &mut Self::Output {
+        &mut self.inner[row * self.cols .. (row + 1) * self.cols]
+    }
+}
+
 #[allow(non_snake_case)]
 struct PPartMultiplier<'a> {
     p : u32,
-    M : Vec<Vec<u32>>,
+    M : Matrix2D,
     r : &'a PPart,
     rows : usize,
     cols : usize,
@@ -721,7 +755,7 @@ impl<'a>  PPartMultiplier<'a> {
         let diag_num = r.len() + s.len();
         let diagonal = Vec::with_capacity(std::cmp::max(rows, cols));
 
-        let mut M = vec![vec![0; cols]; rows];
+        let mut M = Matrix2D::new(rows, cols);
 
         for i in 1..rows {
             M[i][0] = r[i - 1];
@@ -772,18 +806,16 @@ impl<'a>  PPartMultiplier<'a> {
         }
         false
     }
-}
 
-impl<'a> Iterator for PPartMultiplier<'a> {
-    type Item = (u32, PPart);
-
-    fn next(&mut self) -> Option<Self::Item> {
+    // returns coefficient
+    fn next(&mut self, basis: &mut MilnorBasisElement) -> Option<u32> {
         if !self.cont {
             return None;
         }
 
         let mut coef = 1;
-        let mut new_p = Vec::with_capacity(self.diag_num);
+        let new_p = &mut basis.p_part;
+        new_p.clear();
 
         for diag_idx in 1..=self.diag_num {
             let i_min = if diag_idx + 1 > self.cols { diag_idx + 1 - self.cols } else {0} ;
@@ -805,7 +837,7 @@ impl<'a> Iterator for PPartMultiplier<'a> {
             coef %= self.prime();
             if coef == 0 {
                 self.cont = self.update();
-                return self.next();
+                return self.next(basis);
             }
         }
         // If new_p ends with 0, drop them
@@ -814,7 +846,7 @@ impl<'a> Iterator for PPartMultiplier<'a> {
         }
 
         self.cont = self.update();
-        Some((coef, new_p))
+        Some(coef)
     }
 }
 
