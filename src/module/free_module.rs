@@ -1,5 +1,5 @@
-use std::sync::{ Mutex, MutexGuard };
-use std::sync::Arc;
+use std::sync::{ Mutex, MutexGuard, Arc };
+use std::cmp::{min, max};
 use serde_json::json;
 use serde_json::Value;
 
@@ -7,7 +7,7 @@ use serde_json::Value;
 use bivec::BiVec;
 use once::OnceBiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
-use crate::algebra::{Algebra, AlgebraAny};
+use crate::algebra::{Algebra, AlgebraAny, MilnorAlgebra, milnor_algebra::MilnorBasisElement};
 use crate::module::Module;
 
 #[derive(Debug)]
@@ -85,6 +85,19 @@ impl Module for FreeModule {
         self.algebra().multiply_basis_elements(
             &mut *result.borrow_slice(output_block_min, output_block_max),
             coeff, op_degree, op_index, module_operation_degree, module_operation_index, 0);
+    }
+
+    #[cfg(not(feature = "cache-multiplication"))]
+    fn act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector){
+        if self.prime() == 2 {
+            if let AlgebraAny::MilnorAlgebra(m) = &*self.algebra() {
+                self.custom_milnor_act(m, result, coeff, op_degree, op_index, input_degree, input);
+            } else {
+                self.standard_act(result, coeff, op_degree, op_index, input_degree, input);
+            }
+        } else {
+                self.standard_act(result, coeff, op_degree, op_index, input_degree, input);
+        }
     }
 }
 
@@ -294,6 +307,221 @@ impl Load for FreeModule {
     }
 }
 
+#[cfg(not(feature = "cache-multiplication"))]
+impl FreeModule {
+    fn standard_act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector) {
+        assert!(input.dimension() == self.dimension(input_degree));
+        let p = self.algebra().prime();
+        for (i, v) in input.iter().enumerate() {
+            if v == 0 {
+                continue;
+            }
+            self.act_on_basis(result, (coeff * v) % p, op_degree, op_index, input_degree, i);
+        }
+    }
+
+    /// For the Milnor algebra, there is a faster algorithm for computing the action, which I
+    /// learnt from Christian Nassau. This is only implemented for p = 2 for now.
+    ///
+    /// To compute $\mathrm{Sq}(R) \mathrm{Sq}(S)$, we need to iterate over all admissible
+    /// matrices, namely the $x_{i, j}$ such that $r_i = \sum x_{i, j} p^j$ and the column sums are
+    /// the $s_j$.
+    ///
+    /// Now if we want to compute $\mathrm{Sq}(R) (\mathrm{Sq}(S^{(1)}) + \cdots)$, we can omit the
+    /// 0th row of the matrix and the column sum condition. The such a matrix $x_{i, j}$
+    /// contributes to $\mathrm{Sq}(R) \mathrm{Sq}(S^{(k)})$ iff the column sum is at most
+    /// $s_{j}^{(k)}$. There are also some bitwise disjointness conditions we have to check to
+    /// ensure the coefficient is non-zero.
+    fn custom_milnor_act(&self, algebra: &MilnorAlgebra, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector) {
+        if coeff % 2 == 0 {
+            return;
+        }
+        if op_degree == 0 {
+            result.add(input, 1);
+        }
+        let op = algebra.basis_element_from_index(op_degree, op_index);
+        let p_part = &op.p_part;
+        let mut matrix = AdmissibleMatrix::new(p_part);
+
+        let output_degree = input_degree + op_degree;
+        let mut working_elt = MilnorBasisElement {
+            q_part: 0,
+            p_part: Vec::with_capacity(matrix.cols - 1),
+            degree: 0,
+        };
+
+        let terms : Vec<usize> = input.iter().enumerate()
+            .filter(|(_, x)| *x != 0)
+            .map(|(i, _)| i)
+            .collect();
+
+        loop {
+            'outer: for &i in &terms {
+                let elt = self.index_to_op_gen(input_degree, i);
+                let basis = algebra.basis_element_from_index(elt.operation_degree, elt.operation_index);
+
+                working_elt.p_part.clear();
+                working_elt.p_part.reserve(max(basis.p_part.len(), matrix.masks.len()));
+
+                for j in 0 .. min(basis.p_part.len(), matrix.col_sums.len()) {
+                    if matrix.col_sums[j] > basis.p_part[j] {
+                        continue 'outer;
+                    }
+                    if (basis.p_part[j] - matrix.col_sums[j]) & matrix.masks[j] != 0 {
+                        continue 'outer;
+                    }
+                    working_elt.p_part.push((basis.p_part[j] - matrix.col_sums[j]) | matrix.masks[j]); // We are supposed to add the diagonal sum, but that is equal to the mask, and since there are no bit conflicts, this is the same as doing a bitwise or.
+                }
+                if basis.p_part.len() < matrix.col_sums.len() {
+                    for j in basis.p_part.len() ..  matrix.col_sums.len() {
+                        if matrix.col_sums[j] > 0 {
+                            continue 'outer;
+                        }
+                    }
+                    for j in basis.p_part.len() ..  matrix.masks.len() {
+                        working_elt.p_part.push(matrix.masks[j])
+                    }
+                } else {
+                    for j in matrix.col_sums.len() .. min(basis.p_part.len(), matrix.masks.len()) {
+                        if basis.p_part[j] & matrix.masks[j] != 0 {
+                            continue 'outer;
+                        }
+                        working_elt.p_part.push(basis.p_part[j] | matrix.masks[j]);
+                    }
+                    if basis.p_part.len() < matrix.masks.len() {
+                        for j in basis.p_part.len() .. matrix.masks.len() {
+                            working_elt.p_part.push(matrix.masks[j]);
+                        }
+                    } else {
+                        for j in matrix.masks.len() .. basis.p_part.len() {
+                            working_elt.p_part.push(basis.p_part[j])
+                        }
+                    }
+                }
+                while let Some(0) = working_elt.p_part.last() {
+                    working_elt.p_part.pop();
+                }
+                working_elt.degree = output_degree - elt.generator_degree;
+
+                let idx = self.operation_generator_to_index(
+                    working_elt.degree,
+                    algebra.basis_element_to_index(&working_elt),
+                    elt.generator_degree,
+                    elt.generator_index
+                );
+                result.add_basis_element(idx, 1);
+            }
+            if !matrix.next() {
+                break;
+            }
+        }
+    }
+}
+
+#[cfg(not(feature = "cache-multiplication"))]
+struct AdmissibleMatrix {
+    cols: usize,
+    rows: usize,
+    matrix: Vec<u32>,
+    totals: Vec<u32>,
+    col_sums: Vec<u32>,
+    masks: Vec<u32>,
+}
+
+#[cfg(not(feature = "cache-multiplication"))]
+impl AdmissibleMatrix {
+    fn new(ps: &[u32]) -> Self {
+        let rows = ps.len();
+        let cols = ps.iter().map(|x| 32 - x.leading_zeros()).max().unwrap() as usize;
+        let mut matrix = vec![0; rows * cols];
+        for (i, &x) in ps.iter().enumerate() {
+            matrix[i * cols] = x;
+        }
+
+        let mut masks = Vec::with_capacity(rows + cols - 1);
+        masks.extend_from_slice(ps);
+        masks.resize(rows + cols - 1, 0);
+
+        Self {
+            rows,
+            cols,
+            totals: vec![0; rows], // totals is only used next_matrix. No need to initialize
+            col_sums: vec![0; cols - 1],
+            matrix,
+            masks,
+        }
+    }
+
+    fn next(&mut self) -> bool {
+        let mut p_to_the_j;
+        for row in 0 .. self.rows {
+            p_to_the_j = 1;
+            self.totals[row] = self[row][0];
+            'mid: for col in 1 .. self.cols {
+                p_to_the_j *= 2;
+                // We do a quick check before computing the bitsums.
+                if p_to_the_j <= self.totals[row] {
+                    // Compute bitsum
+                    let mut d = 0;
+                    for c in (row + col + 1).saturating_sub(self.rows) .. col {
+                        d |= self[row + col - c][c];
+                    }
+                    // Magic - find next number greater than self[row][col] whose bitwise and with
+                    // d is 0.
+                    let new_entry = ((self[row][col] | d) + 1) & !d;
+                    let inc = new_entry - self[row][col];
+                    let sub = inc * p_to_the_j;
+                    if self.totals[row] < sub {
+                        self.totals[row] += p_to_the_j * self[row][col];
+                        continue 'mid;
+                    }
+                    self[row][0] = self.totals[row] - sub;
+                    self.masks[row] = self[row][0];
+                    self.col_sums[col - 1] += inc;
+                    for j in 1 .. col {
+                        self.masks[row + j] &= !self[row][j];
+                        self.col_sums[j - 1] -= self[row][j];
+                        self[row][j] = 0;
+                    }
+                    self[row][col] = new_entry;
+
+                    for i in 0 .. row {
+                        self[i][0] = self.totals[i];
+                        self.masks[i] = self.totals[i];
+                        for j in 1 .. self.cols {
+                            if i + j > row {
+                                self.masks[i + j] &= !self[i][j];
+                            }
+                            self.col_sums[j - 1] -= self[i][j];
+                            self[i][j] = 0;
+                        }
+                    }
+                    self.masks[row + col] = d | new_entry;
+                    return true;
+                }
+                self.totals[row] += p_to_the_j * self[row][col];
+            }
+        }
+        false
+    }
+}
+
+#[cfg(not(feature = "cache-multiplication"))]
+impl std::ops::Index<usize> for AdmissibleMatrix {
+    type Output = [u32];
+
+    fn index(&self, row: usize) -> &Self::Output {
+        &self.matrix[row * self.cols .. (row + 1) * self.cols]
+    }
+}
+
+#[cfg(not(feature = "cache-multiplication"))]
+impl std::ops::IndexMut<usize> for AdmissibleMatrix {
+    fn index_mut(&mut self, row: usize) -> &mut Self::Output {
+        &mut self.matrix[row * self.cols .. (row + 1) * self.cols]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(non_snake_case)]
@@ -340,6 +568,5 @@ mod tests {
     }
 
 }
-
 
 // uint FreeModule_element_toJSONString(char *result, FreeModule *this, int degree, Vector *element);
