@@ -29,7 +29,7 @@ script:
     - cargo test --features cache-multiplication --verbose --workspace
     - cargo check --features "prime-two concurrent" --workspace
     - cargo clippy --workspace --all-targets -- -D warnings
-    - cargo clippy --workspace --features "cache-multiplication concurrent" --all-targets -- -D warnings
+    - cargo clippy --workspace --features "cache-multiplication concurrent" --all-targets -- -D warnings -A unused_imports
     - cd ext-websocket; npm run build; cd ..
 
 cache:
