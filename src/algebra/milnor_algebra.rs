@@ -732,7 +732,7 @@ struct PPartMultiplier<'a> {
     rows : usize,
     cols : usize,
     diag_num : usize,
-    cont : bool,
+    init : bool,
     diagonal: Vec<u32>,
 }
 
@@ -762,7 +762,7 @@ impl<'a>  PPartMultiplier<'a> {
         }
         M[0][1..cols].clone_from_slice(&s[0..(cols - 1)]);
 
-        PPartMultiplier { p, M, r, rows, cols, diag_num, diagonal, cont : true }
+        PPartMultiplier { p, M, r, rows, cols, diag_num, diagonal, init : true }
     }
 
     fn update(&mut self) -> bool {
@@ -807,46 +807,60 @@ impl<'a>  PPartMultiplier<'a> {
         false
     }
 
-    // returns coefficient
     fn next(&mut self, basis: &mut MilnorBasisElement) -> Option<u32> {
-        if !self.cont {
-            return None;
-        }
-
-        let mut coef = 1;
         let new_p = &mut basis.p_part;
         new_p.clear();
+        let mut coef = 1;
 
-        for diag_idx in 1..=self.diag_num {
-            let i_min = if diag_idx + 1 > self.cols { diag_idx + 1 - self.cols } else {0} ;
-            let i_max = std::cmp::min(1 + diag_idx, self.rows);
-            let mut sum = 0;
-
-            self.diagonal.clear();
-
-            for i in i_min..i_max {
-                self.diagonal.push(self.M[i][diag_idx - i]);
-                sum += self.M[i][diag_idx - i];
+        if self.init {
+            self.init = false;
+            for i in 1 .. std::cmp::min(self.cols, self.rows) {
+                coef *= crate::combinatorics::multinomial(self.prime(), &[self.M[i][0], self.M[0][i]]);
             }
-            new_p.push(sum);
-
-            if sum == 0  {
-                continue;
-            }
-            coef *= crate::combinatorics::multinomial(self.prime(), &self.diagonal);
-            coef %= self.prime();
             if coef == 0 {
-                self.cont = self.update();
-                return self.next(basis);
+                self.next(basis)
+            } else {
+                new_p.extend_from_slice(&self.M[0][1..self.cols]);
+                if self.rows > self.cols {
+                    new_p.resize(self.r.len(), 0);
+                }
+                for (i, &entry) in self.r.iter().enumerate() {
+                    new_p[i] += entry;
+                }
+                Some(coef)
             }
-        }
-        // If new_p ends with 0, drop them
-        while let Some(0) = new_p.last() {
-            new_p.pop();
-        }
+        } else if self.update() {
+            for diag_idx in 1..=self.diag_num {
+                let i_min = if diag_idx + 1 > self.cols { diag_idx + 1 - self.cols } else {0} ;
+                let i_max = std::cmp::min(1 + diag_idx, self.rows);
+                let mut sum = 0;
 
-        self.cont = self.update();
-        Some(coef)
+                self.diagonal.clear();
+
+                for i in i_min..i_max {
+                    self.diagonal.push(self.M[i][diag_idx - i]);
+                    sum += self.M[i][diag_idx - i];
+                }
+                new_p.push(sum);
+
+                if sum == 0  {
+                    continue;
+                }
+                coef *= crate::combinatorics::multinomial(self.prime(), &self.diagonal);
+                coef %= self.prime();
+                if coef == 0 {
+                    return self.next(basis);
+                }
+            }
+            // If new_p ends with 0, drop them
+            while let Some(0) = new_p.last() {
+                new_p.pop();
+            }
+
+            Some(coef)
+        } else {
+            None
+        }
     }
 }
 
