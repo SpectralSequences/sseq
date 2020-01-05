@@ -5,7 +5,8 @@ use crate::module::{Module, ZeroModule, SumModule, TensorModule, FiniteModule};
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteAugmentedChainComplex};
 use crate::CCC;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use bivec::BiVec;
 use once::{OnceVec, OnceBiVec};
@@ -110,7 +111,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ChainComplex for TensorChainComplex
         self.left_cc.compute_through_bidegree(s, t - self.right_cc.min_degree());
         self.right_cc.compute_through_bidegree(s, t - self.left_cc.min_degree());
 
-        let _lock = self.lock.lock().unwrap();
+        let _lock = self.lock.lock();
 
         for i in self.modules.len() as u32 ..= s {
             let new_module_list : Vec<Arc<TensorModule<CC1::Module, CC2::Module>>> =
@@ -235,7 +236,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainM
             return;
         }
 
-        let _lock = self.lock.lock().unwrap();
+        let _lock = self.lock.lock();
 
         for i in next_degree ..= degree {
             self.calculate_quasi_inverse(i);
@@ -450,7 +451,7 @@ mod tests {
 
         let k = serde_json::from_str(k).unwrap();
         let bundle = construct_from_json(k, "adem".to_string()).unwrap();
-        let resolution = bundle.resolution.read().unwrap();
+        let resolution = bundle.resolution.read();
         resolution.resolve_through_bidegree(2 * s, 2 * t);
 
         let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution.inner), s, t, i));

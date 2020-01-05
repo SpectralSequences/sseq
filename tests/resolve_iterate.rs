@@ -34,17 +34,17 @@ fn test_iterate(config: &Config) {
     let first = construct_from_json(json.clone(), config.algebra_name.clone()).unwrap();
     let second = construct_from_json(json, config.algebra_name.clone()).unwrap();
 
-    first.resolution.read().unwrap().resolve_through_degree(20);
+    first.resolution.read().resolve_through_degree(20);
 
-    second.resolution.read().unwrap().resolve_through_degree(0);
-    second.resolution.read().unwrap().resolve_through_degree(5);
-    second.resolution.read().unwrap().resolve_through_degree(10);
-    second.resolution.read().unwrap().resolve_through_degree(10);
-    second.resolution.read().unwrap().resolve_through_degree(18);
-    second.resolution.read().unwrap().resolve_through_degree(14);
-    second.resolution.read().unwrap().resolve_through_degree(15);
-    second.resolution.read().unwrap().resolve_through_degree(20);
+    second.resolution.read().resolve_through_degree(0);
+    second.resolution.read().resolve_through_degree(5);
+    second.resolution.read().resolve_through_degree(10);
+    second.resolution.read().resolve_through_degree(10);
+    second.resolution.read().resolve_through_degree(18);
+    second.resolution.read().resolve_through_degree(14);
+    second.resolution.read().resolve_through_degree(15);
+    second.resolution.read().resolve_through_degree(20);
 
-    assert_eq!(first.resolution.read().unwrap().graded_dimension_string(),
-               second.resolution.read().unwrap().graded_dimension_string());
+    assert_eq!(first.resolution.read().graded_dimension_string(),
+               second.resolution.read().graded_dimension_string());
 }

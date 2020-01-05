@@ -8,7 +8,7 @@ fn test_save_load() {
     let k = serde_json::from_str(k).unwrap();
     let bundle = construct_from_json(k, "adem".to_string()).unwrap();
 
-    let resolution1 = bundle.resolution.read().unwrap();
+    let resolution1 = bundle.resolution.read();
     resolution1.resolve_through_degree(10);
 
     let mut cursor : Cursor<Vec<u8>> = Cursor::new(Vec::new());

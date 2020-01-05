@@ -10,7 +10,8 @@ use crate::fp_vector::{FpVector, FpVectorT};
 use crate::block_structure::{BlockStructure,BlockStart};
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FiniteAugmentedChainComplex, ResolutionComplex};
 use crate::CCC;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use bivec::BiVec;
 use once::{OnceVec, OnceBiVec};
@@ -197,7 +198,7 @@ for HomChainMap<CC1, M, F> {
             return;
         }
 
-        let _lock = self.lock.lock().unwrap();
+        let _lock = self.lock.lock();
 
         for i in next_degree ..= degree {
             self.calculate_quasi_inverse(i);

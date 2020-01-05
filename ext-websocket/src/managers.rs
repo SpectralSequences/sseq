@@ -10,7 +10,8 @@ use rust_ext::chain_complex::{FiniteChainComplex, ChainComplex};
 use bivec::BiVec;
 use std::error::Error;
 
-use std::sync::{RwLock, Arc};
+use std::sync::Arc;
+use parking_lot::RwLock;
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 #[cfg(feature = "concurrent")]
@@ -125,27 +126,27 @@ impl ResolutionManager {
         self.is_unit = bundle.chain_complex.modules.len() == 1 && bundle.chain_complex.module(0).is_unit();
 
         if self.is_unit {
-            bundle.resolution.write().unwrap().set_unit_resolution(Arc::downgrade(&bundle.resolution));
+            bundle.resolution.write().set_unit_resolution(Arc::downgrade(&bundle.resolution));
             self.unit_resolution = Some(Arc::clone(&bundle.resolution));
         } else {
-            let algebra = bundle.resolution.read().unwrap().algebra();
+            let algebra = bundle.resolution.read().algebra();
 
             let unit_module = Arc::new(FiniteModule::from(FDModule::new(algebra, String::from("unit"), BiVec::from_vec(0, vec![1]))));
             let ccdz = Arc::new(FiniteChainComplex::ccdz(unit_module));
             let unit_resolution = Arc::new(RwLock::new(Resolution::new(ccdz, None, None)));
 
-            bundle.resolution.write().unwrap().set_unit_resolution(Arc::downgrade(&unit_resolution));
+            bundle.resolution.write().set_unit_resolution(Arc::downgrade(&unit_resolution));
             self.unit_resolution = Some(Arc::clone(&unit_resolution));
         }
         self.resolution = Some(bundle.resolution);
 
         let resolution = self.resolution.as_ref().unwrap();
-        let mut resolution = resolution.write().unwrap();
+        let mut resolution = resolution.write();
         self.setup_callback(&mut resolution, SseqChoice::Main);
 
         if !self.is_unit {
             let unit_resolution = self.unit_resolution.as_ref().unwrap();
-            let mut unit_resolution = unit_resolution.write().unwrap();
+            let mut unit_resolution = unit_resolution.write();
             self.setup_callback(&mut unit_resolution, SseqChoice::Unit);
         }
     }
@@ -157,7 +158,7 @@ impl ResolutionManager {
         };
 
         let resolution = resolution.as_ref().unwrap();
-        let resolution = resolution.read().unwrap();
+        let resolution = resolution.read();
 
         let min_degree = resolution.min_degree();
 

@@ -1,4 +1,5 @@
-use std::sync::{Mutex, Arc};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::fp_vector::{FpVector, FpVectorT};
 use crate::matrix::{Matrix, Subspace, QuasiInverse};
@@ -48,7 +49,7 @@ impl<S : BoundedModule, T : Module> ModuleHomomorphism for BoundedModuleHomomorp
     }
 
     fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
-        let _lock = self.lock.lock().unwrap();
+        let _lock = self.lock.lock();
 
         let max_degree = std::cmp::min(degree + 1, self.matrices.len());
         let next_degree = self.kernels.len();

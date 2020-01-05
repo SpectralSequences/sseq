@@ -2,7 +2,7 @@ use core::cmp::Ordering;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::format;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 
 use once::OnceVec;
 use crate::combinatorics;
@@ -190,7 +190,7 @@ impl Algebra for AdemAlgebra {
     }
 
     fn compute_basis(&self, max_degree : i32) {
-        let mut next_degree = self.next_degree.lock().unwrap();
+        let mut next_degree = self.next_degree.lock();
         if max_degree < *next_degree {
             return;
         }

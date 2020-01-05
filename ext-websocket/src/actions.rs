@@ -4,7 +4,8 @@ use rust_ext::fp_vector::FpVector;
 use rust_ext::module::Module;
 use rust_ext::CCC;
 use bivec::BiVec;
-use std::sync::{Arc, RwLock};
+use parking_lot::RwLock;
+use std::sync::Arc;
 use enum_dispatch::enum_dispatch;
 use serde::{Serialize, Deserialize};
 
@@ -140,8 +141,8 @@ impl ActionT for AddProductType {
         let s = self.y as u32;
         let t = self.x + self.y;
 
-        if resolution.write().unwrap().add_product(s, t, self.class.clone(), &self.name) {
-            resolution.read().unwrap().catch_up_products();
+        if resolution.write().add_product(s, t, self.class.clone(), &self.name) {
+            resolution.read().catch_up_products();
         }
         None
     }
@@ -351,7 +352,7 @@ pub struct QueryTable {
 }
 impl ActionT for QueryTable {
     fn act_resolution(&self, resolution : &Arc<RwLock<Resolution<CCC>>>) -> Option<Message> {
-        let resolution = resolution.read().unwrap();
+        let resolution = resolution.read();
         let s = self.s;
         let t = self.t;
 
@@ -387,7 +388,7 @@ pub struct QueryCocycleString {
 }
 impl ActionT for QueryCocycleString {
     fn act_resolution(&self, resolution : &Arc<RwLock<Resolution<CCC>>>) -> Option<Message> {
-        let resolution = resolution.read().unwrap();
+        let resolution = resolution.read();
         let s = self.s;
         let t = self.t;
         let idx = self.idx;

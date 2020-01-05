@@ -1,6 +1,6 @@
 use serde_json::value::Value;
 use std::collections::HashMap;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 
 use crate::combinatorics;
 use crate::fp_vector::{FpVector, FpVectorT};
@@ -214,7 +214,7 @@ impl Algebra for MilnorAlgebra {
     }
 
     fn compute_basis(&self, max_degree : i32) {
-        let mut next_degree = self.next_degree.lock().unwrap();
+        let mut next_degree = self.next_degree.lock();
 
         if max_degree < *next_degree {
             return;

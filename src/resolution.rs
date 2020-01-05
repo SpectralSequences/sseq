@@ -1,5 +1,6 @@
 use std::cmp::{min, max};
-use std::sync::{Arc, Weak, RwLock, Mutex};
+use std::sync::{Arc, Weak};
+use parking_lot::{RwLock, Mutex};
 use std::collections::HashSet;
 
 use bivec::BiVec;
@@ -146,7 +147,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
             self.zero_module.extend_by_zero(t);
         }
 
-        let mut old_kernel = self.kernels[t].lock().unwrap();
+        let mut old_kernel = self.kernels[t].lock();
         let p = self.prime();
 
         //                           current_chain_map
@@ -474,8 +475,8 @@ impl<CC : ChainComplex> Resolution<CC> {
     #[cfg(feature = "concurrent")]
     pub fn resolve_through_bidegree_concurrent(&self, mut max_s : u32, mut max_t : i32, bucket : &Arc<TokenBucket>) {
         let min_degree = self.min_degree();
-        let mut next_s = self.next_s.lock().unwrap();
-        let mut next_t = self.next_t.lock().unwrap();
+        let mut next_s = self.next_s.lock();
+        let mut next_t = self.next_t.lock();
 
         // We want the computed area to always be a rectangle.
         max_t = max(max_t, *next_t - 1);
@@ -489,7 +490,7 @@ impl<CC : ChainComplex> Resolution<CC> {
 
         if let Some(unit_res) = &self.unit_resolution {
             let unit_res = unit_res.upgrade().unwrap();
-            let unit_res = unit_res.read().unwrap();
+            let unit_res = unit_res.read();
             // Avoid a deadlock
             if !ptr_eq(&unit_res.inner, &self.inner) {
                 unit_res.resolve_through_bidegree_concurrent(self.max_product_homological_degree, max_t - min_degree, bucket);
@@ -541,8 +542,8 @@ impl<CC : ChainComplex> Resolution<CC> {
 
     pub fn resolve_through_bidegree(&self, mut max_s : u32, mut max_t : i32) {
         let min_degree = self.min_degree();
-        let mut next_s = self.next_s.lock().unwrap();
-        let mut next_t = self.next_t.lock().unwrap();
+        let mut next_s = self.next_s.lock();
+        let mut next_t = self.next_t.lock();
 
         // We want the computed area to always be a rectangle.
         max_t = max(max_t, *next_t - 1);
@@ -556,7 +557,7 @@ impl<CC : ChainComplex> Resolution<CC> {
 
         if let Some(unit_res) = &self.unit_resolution {
             let unit_res = unit_res.upgrade().unwrap();
-            let unit_res = unit_res.read().unwrap();
+            let unit_res = unit_res.read();
             // Avoid a deadlock
             if !ptr_eq(&unit_res.inner, &self.inner) {
                 unit_res.resolve_through_bidegree(self.max_product_homological_degree, max_t - min_degree);
@@ -649,11 +650,11 @@ impl<CC : ChainComplex> Resolution<CC> {
     }
 
     fn max_computed_degree(&self) -> i32 {
-        *self.next_t.lock().unwrap() - 1
+        *self.next_t.lock() - 1
     }
 
     fn max_computed_homological_degree(&self) -> u32 {
-        *self.next_s.lock().unwrap() - 1
+        *self.next_s.lock() - 1
     }
 
     pub fn graded_dimension_string(&self) -> String {
@@ -697,11 +698,11 @@ impl<CC> Resolution<CC> where
     /// `self`, but `add_product` takes in a mutable borrow.
     pub fn catch_up_products(&self) {
         let new_product = [self.product_list.last().unwrap().clone()];
-        let next_s = *self.next_s.lock().unwrap();
+        let next_s = *self.next_s.lock();
         if next_s > 0 {
             let min_degree = self.min_degree();
             let max_s = next_s - 1;
-            let max_t = *self.next_t.lock().unwrap() - 1;
+            let max_t = *self.next_t.lock() - 1;
 
             self.construct_maps_to_unit(max_s, max_t);
 
@@ -782,7 +783,7 @@ impl<CC> Resolution<CC> where
             let f = &self.chain_maps_to_unit_resolution[source_s][source_t][k];
 
             let unit_res_ = self.unit_resolution.as_ref().unwrap().upgrade().unwrap();
-            let unit_res = unit_res_.read().unwrap();
+            let unit_res = unit_res_.read();
             let output_module = unit_res.module(elt.s);
 
             for l in 0 .. target_dim {
@@ -825,7 +826,7 @@ impl<CC> Resolution<CC> where
                     for j in 0 .. num_gens {
                         let f = ResolutionHomomorphism::new(
                             format!("(hom_deg : {}, int_deg : {}, idx : {})", new_s, new_t, j),
-                            Arc::downgrade(&self.inner), Arc::downgrade(&self.unit_resolution.as_ref().unwrap().upgrade().unwrap().read().unwrap().inner),
+                            Arc::downgrade(&self.inner), Arc::downgrade(&self.unit_resolution.as_ref().unwrap().upgrade().unwrap().read().inner),
                             new_s as u32, new_t
                             );
                         unit_vector[j].set_entry(0, 1);
@@ -995,7 +996,7 @@ impl<CC : ChainComplex> Load for ResolutionInner<CC> {
 
 impl<CC : ChainComplex> Save for Resolution<CC> {
     fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
-        let algebra_dim = *self.next_t.lock().unwrap() - self.min_degree() - 1;
+        let algebra_dim = *self.next_t.lock() - self.min_degree() - 1;
         algebra_dim.save(buffer)?;
         self.inner.save(buffer)
     }
@@ -1018,8 +1019,8 @@ impl<CC : ChainComplex> Load for Resolution<CC> {
 
         result.inner.zero_module.extend_by_zero(next_t - 1);
 
-        *result.next_s.lock().unwrap() = next_s as u32;
-        *result.next_t.lock().unwrap() = next_t;
+        *result.next_s.lock() = next_s as u32;
+        *result.next_t.lock() = next_t;
 
         Ok(result)
     }

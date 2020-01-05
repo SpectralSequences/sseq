@@ -1,4 +1,5 @@
-use std::sync::{ Mutex, MutexGuard, Arc };
+use std::sync::Arc;
+use parking_lot::{Mutex, MutexGuard};
 use std::cmp::{min, max};
 use serde_json::json;
 use serde_json::Value;
@@ -129,7 +130,7 @@ impl FreeModule {
 
     pub fn construct_table(&self, degree : i32) -> (MutexGuard<i32>, FreeModuleTableEntry) {
         assert!(degree >= self.min_degree);
-        let lock = self.max_degree.lock().unwrap();
+        let lock = self.max_degree.lock();
         assert!(degree == *lock + 1);
         let mut basis_element_to_opgen : Vec<OperationGeneratorPair> = Vec::new();
         let mut generator_to_index : Vec<usize> = Vec::new();
@@ -258,7 +259,7 @@ impl FreeModule {
     }
 
     pub fn extend_by_zero(&self, degree : i32){
-        let old_max_degree = { *self.max_degree.lock().unwrap() };
+        let old_max_degree = { *self.max_degree.lock() };
         for i in old_max_degree + 1 ..= degree {
             self.add_generators_immediate(i, 0, None)
         }

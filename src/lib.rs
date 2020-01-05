@@ -43,7 +43,8 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 use std::time::Instant;
 use serde_json::value::Value;
 
@@ -158,7 +159,7 @@ pub fn run_define_module() -> Result<String, Box<dyn Error>> {
 
 pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
     let bundle = construct(config)?;
-    let res = bundle.resolution.read().unwrap();
+    let res = bundle.resolution.read();
 
     #[cfg(not(feature = "concurrent"))]
     res.resolve_through_degree(config.max_degree);
@@ -178,7 +179,7 @@ pub fn run_resolve(config : &Config) -> Result<String, Box<dyn Error>> {
 pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
     let bundle = construct(config)?;
     let module = bundle.chain_complex.module(0);
-    let resolution = bundle.resolution.read().unwrap();
+    let resolution = bundle.resolution.read();
     let min_degree = resolution.min_degree();
     let p = resolution.prime();
 
@@ -273,7 +274,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
     let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
     let k = serde_json::from_str(k).unwrap();
     let bundle = construct_from_json(k, "adem".to_string()).unwrap();
-    let mut resolution = &*bundle.resolution.read().unwrap();
+    let mut resolution = &*bundle.resolution.read();
 
     let saved_resolution;
 
@@ -571,7 +572,7 @@ pub fn run_test() -> Result<(), Box<dyn Error>> {
     let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
     let k = serde_json::from_str(k)?;
     let bundle = construct_from_json(k, "adem".to_string())?;
-    let resolution = bundle.resolution.read().unwrap();
+    let resolution = bundle.resolution.read();
     let p = 2;
 
     let x : i32 = 30;

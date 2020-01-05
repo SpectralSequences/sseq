@@ -1,4 +1,4 @@
-use std::sync::{Mutex, MutexGuard};
+use parking_lot::{Mutex, MutexGuard};
 use std::sync::Arc;
 
 use once::OnceBiVec;
@@ -225,7 +225,7 @@ impl<M : Module> FreeModuleHomomorphism<M> {
     }
 
     pub fn lock(&self) -> MutexGuard<i32> {
-        self.max_degree.lock().unwrap()
+        self.max_degree.lock()
     }
 
     pub fn set_kernel(&self, _lock : &MutexGuard<i32>, degree : i32, kernel : Subspace){

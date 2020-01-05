@@ -1,5 +1,6 @@
 #![allow(clippy::mutex_atomic)]
-use std::sync::{mpsc, Mutex, Condvar};
+use std::sync::mpsc;
+use parking_lot::{Mutex, Condvar};
 
 /// A `TokenBucket` is a bucket containing a fixed number of "tokens". Threads can take request to
 /// take out a token. If no tokens are available, the thread is blocked (while consuming no CPU
@@ -26,14 +27,14 @@ impl TokenBucket {
 
     /// Attempts to take a token from the bucket. This will block until a token is available.
     pub fn take_token(&'_ self) -> Token {
-        let mut running_threads = self.running_threads.lock().unwrap();
+        let mut running_threads = self.running_threads.lock();
 
         loop {
             if *running_threads < self.max_threads {
                 *running_threads += 1;
                 return Token { bucket : &self };
             } else {
-                running_threads = self.condvar.wait(running_threads).unwrap();
+                self.condvar.wait(&mut running_threads);
             }
         }
     }
@@ -100,7 +101,7 @@ impl TokenBucket {
     }
 
     fn release_token(&self) {
-        let mut running_threads = self.running_threads.lock().unwrap();
+        let mut running_threads = self.running_threads.lock();
         *running_threads -= 1;
         self.condvar.notify_one();
     }
