@@ -14,7 +14,7 @@ pub struct FreeModuleHomomorphism<M : Module> {
     pub kernel : OnceBiVec<Subspace>,
     pub quasi_inverse : OnceBiVec<QuasiInverse>,
     min_degree : i32,
-    max_degree : Mutex<i32>,
+    lock : Mutex<()>,
     degree_shift : i32
 }
 
@@ -85,7 +85,7 @@ impl<M : Module> FreeModuleHomomorphism<M> {
             kernel,
             quasi_inverse,
             min_degree,
-            max_degree : Mutex::new(min_degree - 1),
+            lock : Mutex::new(()),
             degree_shift
         }
     }
@@ -96,6 +96,10 @@ impl<M : Module> FreeModuleHomomorphism<M> {
 
     pub fn min_degree(&self) -> i32 {
         self.min_degree
+    }
+
+    pub fn next_degree(&self) -> i32 {
+        self.outputs.len()
     }
 
     pub fn output(&self, generator_degree : i32, generator_index : usize) -> &FpVector {
@@ -115,15 +119,18 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         let lock = self.lock();
         self.extend_by_zero(&lock, degree);
     }
-    pub fn extend_by_zero(&self, lock : &MutexGuard<i32>, degree : i32){
+    pub fn extend_by_zero(&self, lock : &MutexGuard<()>, degree : i32){
+        self.check_mutex(lock);
+
         // println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
         // println!("    dimension : {} target name : {}", dimension, self.target.name());
         if degree < self.min_degree {
             return;
         }
-        assert!(degree > **lock);
+        let next_degree = self.next_degree();
+        assert!(degree >= next_degree);
         let p = self.prime();
-        for i in **lock + 1 ..= degree{
+        for i in next_degree ..= degree{
             let num_gens = self.source.number_of_gens_in_degree(i);
             let dimension = self.target.dimension(i - self.degree_shift);
             let mut new_outputs : Vec<FpVector> = Vec::with_capacity(num_gens);
@@ -135,12 +142,10 @@ impl<M : Module> FreeModuleHomomorphism<M> {
     }
 
     // We don't actually mutate vector, we just slice it.
-    pub fn add_generators_from_big_vector(&self, lock : &MutexGuard<i32>, degree : i32, outputs_vectors : &mut FpVector){
-        // println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
-        // println!("    dimension : {} target name : {}", dimension, self.target.name());
-        assert!(degree >= self.min_degree);
+    pub fn add_generators_from_big_vector(&self, lock : &MutexGuard<()>, degree : i32, outputs_vectors : &mut FpVector){
+        self.check_mutex(lock);
         assert_eq!(degree, self.outputs.len());
-        assert!(degree == **lock + 1);
+
         let p = self.prime();
         let new_generators = self.source.number_of_gens_in_degree(degree);
         let target_dimension = self.target.dimension(degree - self.degree_shift);
@@ -161,12 +166,10 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         self.outputs.push(new_outputs);
     }    
 
-    pub fn add_generators_from_matrix_rows(&self, lock : &MutexGuard<i32>, degree : i32, matrix : &Matrix){
-        // println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
-        // println!("    dimension : {} target name : {}", dimension, self.target.get_name());
-        assert!(degree >= self.min_degree);
+    pub fn add_generators_from_matrix_rows(&self, lock : &MutexGuard<()>, degree : i32, matrix : &Matrix){
+        self.check_mutex(lock);
         assert_eq!(degree, self.outputs.len());
-        assert!(degree == **lock + 1);
+
         let p = self.prime();
         let new_generators = self.source.number_of_gens_in_degree(degree);
         let dimension = self.target.dimension(degree - self.degree_shift);
@@ -224,18 +227,24 @@ impl<M : Module> FreeModuleHomomorphism<M> {
         }
     }
 
-    pub fn lock(&self) -> MutexGuard<i32> {
-        self.max_degree.lock()
+    pub fn lock(&self) -> MutexGuard<()> {
+        self.lock.lock()
     }
 
-    pub fn set_kernel(&self, _lock : &MutexGuard<i32>, degree : i32, kernel : Subspace){
+    pub fn set_kernel(&self, lock : &MutexGuard<()>, degree : i32, kernel : Subspace){
+        self.check_mutex(lock);
         assert!(degree == self.kernel.len());
         self.kernel.push(kernel);
     }
 
-    pub fn set_quasi_inverse(&self, _lock : &MutexGuard<i32>, degree : i32, quasi_inverse : QuasiInverse){
+    pub fn set_quasi_inverse(&self, lock : &MutexGuard<()>, degree : i32, quasi_inverse : QuasiInverse){
+        self.check_mutex(lock);
         assert!(degree == self.quasi_inverse.len());
         self.quasi_inverse.push(quasi_inverse);
+    }
+
+    fn check_mutex(&self, lock: &MutexGuard<()>) {
+        assert!(std::ptr::eq(lock_api::MutexGuard::mutex(&lock), &self.lock));
     }
 }
 
@@ -272,13 +281,11 @@ impl<M : Module> Load for FreeModuleHomomorphism<M> {
             quasi_inverse.push(QuasiInverse { image : None, preimage : Matrix::new(p, 0, 0) });
         }
 
-        let max_degree = Mutex::new(max_degree);
-
         Ok(Self {
             source, target,
             outputs,
             kernel, quasi_inverse,
-            min_degree, max_degree,
+            min_degree, lock: Mutex::new(()),
             degree_shift
         })
     }

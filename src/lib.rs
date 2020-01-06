@@ -425,9 +425,8 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
             for s in 0 ..= 2 * s - i {
                 if i == 0 && s == 0 {
                     let map = &delta[0][0];
-                    let mut lock = map.lock();
+                    let lock = map.lock();
                     map.add_generators_from_matrix_rows(&lock, 0, &Matrix::from_vec(p, &[vec![1]]));
-                    *lock += 1;
                     map.extend_by_zero(&lock, 2 * t);
                     continue;
                 }
@@ -464,7 +463,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                 let fun = move || {
                     #[cfg(feature = "concurrent")]
                     let mut token = bucket.take_token();
-                    let mut lock = map.lock();
+                    let lock = map.lock();
 
                     for t in 0 ..= 2 * t {
                         #[cfg(feature = "concurrent")]
@@ -479,7 +478,6 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
 
                         if fx_dim == 0 || fdx_dim == 0 || num_gens == 0 {
                             map.extend_by_zero(&lock, t);
-                            *lock += 1;
 
                             #[cfg(feature = "concurrent")]
                             {
@@ -513,7 +511,6 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
                             result.set_to_zero_pure();
                         }
                         map.add_generators_from_matrix_rows(&lock, t, &output_matrix);
-                        *lock += 1;
 
                         #[cfg(feature = "concurrent")]
                         {

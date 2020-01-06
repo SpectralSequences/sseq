@@ -41,24 +41,21 @@ impl<M : BoundedModule> HomModule<M> {
     // Turn an FpVector representing an element of the HomModule  into a FreeModuleHomomorphism
     pub fn element_to_homomorphism(&self, degree : i32, x : &mut FpVector) -> FreeModuleHomomorphism<M> {
         let result = FreeModuleHomomorphism::new(Arc::clone(&self.source), Arc::clone(&self.target), degree);
-        {// Restrict scope of lock
-            let mut lock = result.lock();
-            let min_nonzero_degree = degree + self.target.min_degree();
-            let max_nonzero_degree = degree + self.target.max_degree();
-            result.extend_by_zero(&lock, min_nonzero_degree - 1);
-            *lock = min_nonzero_degree - 1;
-            let mut used_entries = 0;
-            let old_slice = x.slice();
-            for i in min_nonzero_degree ..= max_nonzero_degree {
-                let gens = self.source.number_of_gens_in_degree(i);
-                let out_dim = self.target.dimension(i - degree);
-                x.set_slice(used_entries, used_entries + gens * out_dim);
-                used_entries += gens * out_dim;
-                result.add_generators_from_big_vector(&lock, i, x);
-                *lock += 1;
-                x.restore_slice(old_slice);
-            }
+        let lock = result.lock();
+        let min_nonzero_degree = degree + self.target.min_degree();
+        let max_nonzero_degree = degree + self.target.max_degree();
+        result.extend_by_zero(&lock, min_nonzero_degree - 1);
+        let mut used_entries = 0;
+        let old_slice = x.slice();
+        for i in min_nonzero_degree ..= max_nonzero_degree {
+            let gens = self.source.number_of_gens_in_degree(i);
+            let out_dim = self.target.dimension(i - degree);
+            x.set_slice(used_entries, used_entries + gens * out_dim);
+            used_entries += gens * out_dim;
+            result.add_generators_from_big_vector(&lock, i, x);
+            x.restore_slice(old_slice);
         }
+        drop(lock);
         result
     }
 

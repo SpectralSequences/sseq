@@ -9,6 +9,7 @@ license = "(MIT OR Apache-2.0)"
 
 [dependencies]
 parking_lot = "0.10"
+lock_api = "0.3"
 lazy_static = "1.2.0"
 bivec = { path = "bivec"}
 once = { path = "once"}

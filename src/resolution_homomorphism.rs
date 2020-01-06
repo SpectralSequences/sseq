@@ -57,8 +57,7 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         self.target.upgrade().unwrap().compute_through_bidegree(source_homological_degree - self.homological_degree_shift, source_degree - self.internal_degree_shift);
         for i in self.homological_degree_shift ..= source_homological_degree {
             let f_cur = self.get_map_ensure_length(i - self.homological_degree_shift);
-            let start_degree = *f_cur.lock();
-            for j in start_degree + 1 ..= source_degree {
+            for j in f_cur.next_degree() ..= source_degree {
                 self.extend_step(i, j, None);
             }
         }
@@ -70,15 +69,13 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         self.target.upgrade().unwrap().compute_through_bidegree(output_homological_degree, output_internal_degree);
 
         let f_cur = self.get_map_ensure_length(output_homological_degree);
-        let computed_degree = *f_cur.lock();
-        if input_internal_degree <= computed_degree {
+        if input_internal_degree < f_cur.next_degree() {
             assert!(extra_images.is_none());
             return;
         }
         let outputs = self.extend_step_helper(input_homological_degree, input_internal_degree, extra_images);
-        let mut lock = f_cur.lock();
+        let lock = f_cur.lock();
         f_cur.add_generators_from_matrix_rows(&lock, input_internal_degree, &outputs);
-        *lock += 1;
     }
 
     fn extend_step_helper(&self, input_homological_degree : u32, input_internal_degree : i32, mut extra_images : Option<&Matrix>) -> Matrix {

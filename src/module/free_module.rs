@@ -4,7 +4,6 @@ use std::cmp::{min, max};
 use serde_json::json;
 use serde_json::Value;
 
-
 use bivec::BiVec;
 use once::OnceBiVec;
 use crate::fp_vector::{FpVector, FpVectorT};
@@ -29,7 +28,7 @@ pub struct FreeModule {
     pub algebra : Arc<AlgebraAny>,
     pub name : String,
     pub min_degree : i32,
-    pub max_degree : Mutex<i32>,
+    lock : Mutex<()>,
     gen_names : OnceBiVec<Vec<String>>,
     gen_deg_idx_to_internal_idx : OnceBiVec<usize>,
     pub table : OnceBiVec<FreeModuleTableEntry>
@@ -110,11 +109,15 @@ impl FreeModule {
             algebra,
             name,
             min_degree,
-            max_degree : Mutex::new(min_degree - 1),
+            lock : Mutex::new(()),
             gen_names : OnceBiVec::new(min_degree),
             gen_deg_idx_to_internal_idx,
             table : OnceBiVec::new(min_degree)
         }
+    }
+
+    pub fn lock(&self) -> MutexGuard<()> {
+        self.lock.lock()
     }
 
     pub fn max_computed_degree(&self) -> i32 {
@@ -128,10 +131,7 @@ impl FreeModule {
         self.table[degree].num_gens
     }
 
-    pub fn construct_table(&self, degree : i32) -> (MutexGuard<i32>, FreeModuleTableEntry) {
-        assert!(degree >= self.min_degree);
-        let lock = self.max_degree.lock();
-        assert!(degree == *lock + 1);
+    pub fn construct_table(&self, degree : i32) -> FreeModuleTableEntry {
         let mut basis_element_to_opgen : Vec<OperationGeneratorPair> = Vec::new();
         let mut generator_to_index : Vec<usize> = Vec::new();
         // gen_to_idx goes internal_gen_idx => start of block.
@@ -157,22 +157,20 @@ impl FreeModule {
                 offset += num_ops;
             }
         }
-        (lock,
-            FreeModuleTableEntry {
-                num_gens : 0,
-                basis_element_to_opgen,
-                generator_to_index
-            }
-        )
+        FreeModuleTableEntry {
+            num_gens : 0,
+            basis_element_to_opgen,
+            generator_to_index
+        }
     }
 
     pub fn dimension_with_table(table : &FreeModuleTableEntry) -> usize {
         table.basis_element_to_opgen.len()
     }
 
-    pub fn add_generators(&self, degree : i32, mut lock : MutexGuard<i32>, mut table : FreeModuleTableEntry, num_gens : usize, names : Option<Vec<String>>){
+    pub fn add_generators(&self, degree : i32, lock: &MutexGuard<()>, mut table : FreeModuleTableEntry, num_gens : usize, names : Option<Vec<String>>){
         assert!(degree >= self.min_degree);
-        assert!(degree == *lock + 1);
+        assert!(std::ptr::eq(lock_api::MutexGuard::mutex(&lock), &self.lock));
         let mut gen_names;
         if let Some(names_vec) = names {
             gen_names = names_vec;
@@ -185,7 +183,6 @@ impl FreeModule {
         self.gen_names.push(gen_names);
         self.add_generators_to_table(degree, &mut table, num_gens);
         self.table.push(table);
-        *lock += 1;
     }
 
     fn add_generators_to_table(&self, degree : i32, table : &mut FreeModuleTableEntry, num_gens : usize){
@@ -253,15 +250,19 @@ impl FreeModule {
         Value::from(result)
     }
 
-    pub fn add_generators_immediate(&self, degree : i32, num_gens : usize, gen_names : Option<Vec<String>>){
-        let (lock, table) = self.construct_table(degree);
+    pub fn add_generators_immediate(&self, degree: i32, num_gens : usize, gen_names : Option<Vec<String>>){
+        self.add_num_generators(degree, &self.lock(), num_gens, gen_names);
+    }
+
+    pub fn add_num_generators(&self, degree: i32, lock: &MutexGuard<()>, num_gens : usize, gen_names : Option<Vec<String>>){
+        let table = self.construct_table(degree);
         self.add_generators(degree, lock, table, num_gens, gen_names);
     }
 
     pub fn extend_by_zero(&self, degree : i32){
-        let old_max_degree = { *self.max_degree.lock() };
-        for i in old_max_degree + 1 ..= degree {
-            self.add_generators_immediate(i, 0, None)
+        let lock = self.lock();
+        for i in self.table.len() ..= degree {
+            self.add_num_generators(i, &lock, 0, None)
         }
     }
 
@@ -301,9 +302,11 @@ impl Load for FreeModule {
         let result = FreeModule::new(algebra, "".to_string(), min_degree);
 
         let num_gens : BiVec<usize> = Load::load(buffer, &(min_degree, ()))?;
+        let lock = result.lock();
         for (degree, num) in num_gens.iter_enum() {
-            result.add_generators_immediate(degree, *num, None);
+            result.add_num_generators(degree, &lock, *num, None);
         }
+        drop(lock);
         Ok(result)
     }
 }
@@ -537,13 +540,14 @@ mod tests {
         let A = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
         A.compute_basis(10);
         let M = FreeModule::new(Arc::clone(&A), "".to_string(), 0);
-        let (lock, table) = M.construct_table(0);
-        M.add_generators(0, lock, table, 1, None);
-        let (lock, table) = M.construct_table(1);
-        M.add_generators(1, lock, table, 1, None);
+        let lock = M.lock();
+        let table = M.construct_table(0);
+        M.add_generators(0, &lock, table, 1, None);
+        let table = M.construct_table(1);
+        M.add_generators(1, &lock, table, 1, None);
         for i in 2..10{
-            let (lock, table) = M.construct_table(i);
-            M.add_generators(i, lock, table, 0, None);
+            let table = M.construct_table(i);
+            M.add_generators(i, &lock, table, 0, None);
         }
         let output_deg = 6;
         let output_dim = M.dimension(output_deg);
