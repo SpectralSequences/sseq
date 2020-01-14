@@ -6,7 +6,7 @@
 // we have to pull out each block and multiply each block separately by the steenrod operation.
 
 use bivec::BiVec;
-use crate::fp_vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, FpVectorT};
 
 #[derive(Debug)]
 pub struct GeneratorBasisEltPair {

@@ -1,7 +1,7 @@
 use bivec::BiVec;
 use once::OnceBiVec;
 
-use crate::fp_vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, FpVectorT};
 use crate::block_structure::BlockStructure;
 use crate::algebra::{AlgebraAny, Bialgebra};
 use crate::module::{Module, ZeroModule, BoundedModule};

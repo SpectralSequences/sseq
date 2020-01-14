@@ -5,8 +5,8 @@ use std::collections::HashSet;
 
 use bivec::BiVec;
 
-use crate::fp_vector::{FpVector, FpVectorT};
-use crate::matrix::{Matrix, Subspace, AugmentedMatrix3};
+use fp::vector::{FpVector, FpVectorT};
+use fp::matrix::{Matrix, Subspace, AugmentedMatrix3};
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, FiniteModule, FDModule, FreeModule};
 use once::{OnceVec, OnceBiVec};
@@ -286,7 +286,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let target = d.target();
         let dimension = target.dimension(int_deg);
         let basis_idx = source.operation_generator_to_index(0, 0, int_deg, idx);
-        let mut result_vector = crate::fp_vector::FpVector::new(p, dimension);
+        let mut result_vector = fp::vector::FpVector::new(p, dimension);
         d.apply_to_basis_element(&mut result_vector, 1, int_deg, basis_idx);
 
         target.element_to_string(int_deg, &result_vector)

@@ -3,10 +3,10 @@
 #![allow(dead_code)]
 
 use crate::algebra::AlgebraAny;
-use crate::matrix::{Matrix, Subspace, QuasiInverse};
+use fp::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::homomorphism::{ModuleHomomorphism, BoundedModuleHomomorphism, FiniteModuleHomomorphism};
 use crate::module::{Module, ZeroModule, SumModule, TensorModule, FiniteModule, HomModule, BoundedModule };
-use crate::fp_vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, FpVectorT};
 use crate::block_structure::{BlockStructure,BlockStart};
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FiniteAugmentedChainComplex, ResolutionComplex};
 use crate::CCC;

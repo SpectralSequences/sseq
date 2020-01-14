@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::error::Error;
 use enum_dispatch::enum_dispatch;
 
-use super::fp_vector::{FpVector, FpVectorT};
-use super::algebra::{Algebra, AlgebraAny};
+use fp::vector::{FpVector, FpVectorT};
+use crate::algebra::{Algebra, AlgebraAny};
 
 mod finite_dimensional_module;
 mod finitely_presented_module;

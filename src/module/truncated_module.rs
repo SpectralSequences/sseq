@@ -1,5 +1,5 @@
 use crate::algebra::AlgebraAny;
-use crate::fp_vector::FpVector;
+use fp::vector::FpVector;
 use crate::module::{Module, BoundedModule};
 use std::sync::Arc;
 

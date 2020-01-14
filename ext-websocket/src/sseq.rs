@@ -1,5 +1,5 @@
-use rust_ext::matrix::{Subspace, Matrix};
-use rust_ext::fp_vector::{FpVector, FpVectorT};
+use fp::matrix::{Subspace, Matrix};
+use fp::vector::{FpVector, FpVectorT};
 use std::collections::HashMap;
 use std::cmp::{max, Ordering};
 use parking_lot::RwLock;
@@ -226,7 +226,7 @@ pub struct Sseq {
 
 impl Sseq {
     pub fn new(p : u32, name : SseqChoice, min_x : i32, min_y : i32, sender : Option<Sender>) -> Self {
-        rust_ext::fp_vector::initialize_limb_bit_index_table(p);
+        fp::vector::initialize_limb_bit_index_table(p);
         let mut classes = BiVec::new(min_x - 1); // We have an extra column to the left so that differentials have something to hit.
         classes.push(BiVec::new(min_y));
         Self {
@@ -1122,7 +1122,7 @@ mod tests {
     #[allow(clippy::cognitive_complexity)]
     fn test_sseq_differential() {
         let p = 3;
-        rust_ext::fp_vector::initialize_limb_bit_index_table(p);
+        fp::vector::initialize_limb_bit_index_table(p);
         let mut sseq = crate::sseq::Sseq::new(p, SseqChoice::Main, 0, 0, None);
         sseq.set_class(0, 0, 1);
         sseq.set_class(1, 0, 2);
@@ -1200,7 +1200,7 @@ mod tests {
     #[test]
     fn test_sseq_differential_2() {
         let p = 2;
-        rust_ext::fp_vector::initialize_limb_bit_index_table(p);
+        fp::vector::initialize_limb_bit_index_table(p);
         let mut sseq = crate::sseq::Sseq::new(p, SseqChoice::Main, 0, 0, None);
 
         sseq.set_class(0, 0, 0);

@@ -1,8 +1,8 @@
 use crate::algebra::AlgebraAny;
-use crate::matrix::{Matrix, Subspace, QuasiInverse};
+use fp::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::homomorphism::{ModuleHomomorphism, BoundedModuleHomomorphism, FiniteModuleHomomorphism};
 use crate::module::{Module, ZeroModule, SumModule, TensorModule, FiniteModule};
-use crate::fp_vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, FpVectorT};
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteAugmentedChainComplex};
 use crate::CCC;
 use std::sync::Arc;

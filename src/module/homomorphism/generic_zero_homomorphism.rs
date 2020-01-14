@@ -1,6 +1,6 @@
 use crate::module::Module;
-use crate::fp_vector::FpVector;
-use crate::matrix::{Subspace, QuasiInverse};
+use fp::vector::FpVector;
+use fp::matrix::{Subspace, QuasiInverse};
 use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use std::sync::Arc;
 

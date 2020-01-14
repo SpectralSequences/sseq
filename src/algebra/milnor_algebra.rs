@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use parking_lot::Mutex;
 
 use crate::combinatorics;
-use crate::fp_vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, FpVectorT};
 use once::OnceVec;
 use crate::algebra::{Algebra, Bialgebra};
 
@@ -110,7 +110,7 @@ pub struct MilnorAlgebra {
 
 impl MilnorAlgebra {
     pub fn new(p : u32) -> Self {
-        crate::fp_vector::initialize_limb_bit_index_table(p);
+        fp::vector::initialize_limb_bit_index_table(p);
 
         let profile = MilnorProfile {
             truncated: false,
@@ -455,7 +455,7 @@ impl MilnorAlgebra {
         let mut profile_list = Vec::with_capacity(xi_degrees.len());
         for i in 0..xi_degrees.len() {
             if i < self.profile.p_part.len() {
-                profile_list.push(combinatorics::integer_power(self.prime(), self.profile.p_part[i]) - 1);
+                profile_list.push(fp::prime::integer_power(self.prime(), self.profile.p_part[i]) - 1);
             } else if self.profile.truncated {
                 profile_list.push(0);
             } else {
@@ -509,7 +509,7 @@ impl MilnorAlgebra {
             next_degree = 1;
         }
 
-        let tau_degrees = crate::combinatorics::tau_degrees(self.prime());
+        let tau_degrees = combinatorics::tau_degrees(self.prime());
         let old_max_tau = tau_degrees.iter().position(|d| *d > next_degree - 1).unwrap(); // Use expect instead
         let new_max_tau = tau_degrees.iter().position(|d| *d > max_degree).unwrap();
 
@@ -815,7 +815,7 @@ impl<'a>  PPartMultiplier<'a> {
         if self.init {
             self.init = false;
             for i in 1 .. std::cmp::min(self.cols, self.rows) {
-                coef *= crate::combinatorics::multinomial(self.prime(), &[self.M[i][0], self.M[0][i]]);
+                coef *= fp::prime::multinomial(self.prime(), &[self.M[i][0], self.M[0][i]]);
             }
             if coef == 0 {
                 self.next(basis)
@@ -846,7 +846,7 @@ impl<'a>  PPartMultiplier<'a> {
                 if sum == 0  {
                     continue;
                 }
-                coef *= crate::combinatorics::multinomial(self.prime(), &self.diagonal);
+                coef *= fp::prime::multinomial(self.prime(), &self.diagonal);
                 coef %= self.prime();
                 if coef == 0 {
                     return self.next(basis);
@@ -871,7 +871,7 @@ impl MilnorAlgebra {
         let i = basis.q_part.trailing_zeros();
         // If the basis element is just Q_{k+1}, we decompose Q_{k+1} = P(p^k) Q_k - Q_k P(p^k).
         if basis.q_part == 1 << i && basis.p_part.is_empty() {
-            let ppow = crate::combinatorics::integer_power(self.prime(), i - 1);
+            let ppow = fp::prime::integer_power(self.prime(), i - 1);
 
             let q_degree = (2 * ppow - 1) as i32;
             let p_degree = (ppow * (2 * self.prime() - 2)) as i32;
@@ -889,7 +889,7 @@ impl MilnorAlgebra {
         }
 
         // Otherwise, separate out the first Q_k.
-        let first_degree = crate::combinatorics::tau_degrees(self.prime())[i as usize];
+        let first_degree = combinatorics::tau_degrees(self.prime())[i as usize];
         let second_degree = degree - first_degree;
 
         let first_idx = self.basis_element_to_index(
@@ -954,7 +954,7 @@ impl MilnorAlgebra {
         let c = out_vec.entry(idx);
         assert!(c != 0);
         out_vec.set_entry(idx, 0);
-        let c_inv = crate::combinatorics::inverse(p, p - c);
+        let c_inv = fp::prime::inverse(p, p - c);
         result.push((((p - 1) * c_inv) % p, first, second));
         for (i, v) in out_vec.iter().enumerate() {
             if v == 0 {

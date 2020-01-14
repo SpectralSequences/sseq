@@ -11,8 +11,6 @@
 #![warn(clippy::explicit_into_iter_loop)]
 
 pub mod combinatorics;
-pub mod fp_vector;
-pub mod matrix;
 pub mod block_structure;
 pub mod algebra;
 pub mod change_of_basis;
@@ -28,8 +26,8 @@ mod yoneda;
 use algebra::{Algebra, AlgebraAny};
 use module::{FiniteModule, Module, BoundedModule};
 use module::homomorphism::{FiniteModuleHomomorphism, ModuleHomomorphism, FreeModuleHomomorphism};
-use matrix::Matrix;
-use fp_vector::{FpVector, FpVectorT};
+use fp::matrix::Matrix;
+use fp::vector::{FpVector, FpVectorT};
 use chain_complex::{FiniteChainComplex, ChainComplex, TensorChainComplex, ChainMap};
 use resolution::Resolution;
 use resolution_homomorphism::ResolutionHomomorphism;

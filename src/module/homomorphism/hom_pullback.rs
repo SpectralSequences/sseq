@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use once::OnceBiVec;
 use crate::block_structure::BlockStart;
-use crate::fp_vector::{FpVector, FpVectorT};
-use crate::matrix::{Subspace, QuasiInverse};
+use fp::vector::{FpVector, FpVectorT};
+use fp::matrix::{Subspace, QuasiInverse};
 // use crate::block_structure::BlockStructure;
 // use crate::algebra::AlgebraAny;
 // use crate::field::Field;
@@ -94,7 +94,7 @@ impl<M : BoundedModule> ModuleHomomorphism for HomPullback<M> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::matrix::Matrix;
+    use fp::matrix::Matrix;
     use crate::module::FDModule;
     use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra};
     use serde_json;

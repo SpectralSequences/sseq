@@ -1,8 +1,8 @@
 use rust_ext::Config;
 use rust_ext::construct;
-use rust_ext::matrix::Matrix;
+use fp::matrix::Matrix;
 use rust_ext::module::Module;
-use rust_ext::fp_vector::{FpVectorT, FpVector};
+use fp::vector::{FpVectorT, FpVector};
 use rust_ext::chain_complex::ChainComplex;
 
 #[test]

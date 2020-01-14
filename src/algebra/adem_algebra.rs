@@ -8,7 +8,7 @@ use once::OnceVec;
 use crate::combinatorics;
 use crate::combinatorics::MAX_XI_TAU;
 use crate::algebra::{Algebra, Bialgebra};
-use crate::fp_vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, FpVectorT};
 use nom::{
     IResult,
     combinator::map,
@@ -392,7 +392,7 @@ impl Algebra for AdemAlgebra {
 // uint AdemAlgebra__generateName(AdemAlgebra *algebra); // defined in adem_io
 impl AdemAlgebra {
     pub fn new(p : u32, generic : bool, unstable : bool) -> Self {
-        crate::fp_vector::initialize_limb_bit_index_table(p);
+        fp::vector::initialize_limb_bit_index_table(p);
         let even_basis_table = OnceVec::new();
         let basis_table = OnceVec::new();
         let basis_element_to_index_map = OnceVec::new();
@@ -1128,7 +1128,7 @@ impl AdemAlgebra {
         let mut result = Vec::new();
         let c = out_vec.entry(idx);
         assert!(c != 0);
-        let c_inv = combinatorics::inverse(p, p - c);        
+        let c_inv = fp::prime::inverse(p, p - c);        
         result.push((((p - 1) * c_inv) % p, (first_degree, first_idx), (second_degree, second_idx)));
         out_vec.set_entry(idx, 0);
         for (i, v) in out_vec.iter().enumerate() {

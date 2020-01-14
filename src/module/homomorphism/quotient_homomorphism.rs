@@ -1,5 +1,5 @@
-use crate::fp_vector::FpVector;
-use crate::matrix::{QuasiInverse, Subspace};
+use fp::vector::FpVector;
+use fp::matrix::{QuasiInverse, Subspace};
 use crate::module::{Module, QuotientModule};
 use std::sync::Arc;
 

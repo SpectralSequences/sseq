@@ -1,4 +1,4 @@
-use crate::fp_vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AdemAlgebra, MilnorAlgebra};
 use crate::algebra::adem_algebra::AdemBasisElement;
 use crate::steenrod_parser::BocksteinOrSq;

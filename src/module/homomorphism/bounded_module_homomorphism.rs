@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use parking_lot::Mutex;
 
-use crate::fp_vector::{FpVector, FpVectorT};
-use crate::matrix::{Matrix, Subspace, QuasiInverse};
+use fp::vector::{FpVector, FpVectorT};
+use fp::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::{Module, BoundedModule};
 use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use bivec::BiVec;

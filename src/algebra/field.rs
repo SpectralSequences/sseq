@@ -1,7 +1,7 @@
 use serde_json::Value;
 use serde_json::json;
 
-use crate::fp_vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, Bialgebra};
 
 pub struct Field {

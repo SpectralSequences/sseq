@@ -10,7 +10,7 @@ use serde_json::json;
 use query::*;
 
 use bivec::BiVec;
-use crate::fp_vector::{FpVector,FpVectorT};
+use fp::vector::{FpVector,FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny, MilnorAlgebra, AdemAlgebra};
 use crate::module::{Module, FreeModule, FDModule, FPModule};
 use crate::steenrod_evaluator::evaluate_module;
@@ -135,7 +135,7 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
     let name : String = query("Module name (use latex between $'s)", Ok);
     // Query for prime
     let p = query_with_default("p", 2, 
-        |p : u32| if crate::combinatorics::is_valid_prime(p) {Ok(p)} else {Err("invalid prime".to_string())});
+        |p : u32| if fp::prime::is_valid_prime(p) {Ok(p)} else {Err("invalid prime".to_string())});
     let generic = p != 2;
     let mut output_path_buf = PathBuf::from(output_path);
     output_path_buf.set_extension("json");
@@ -314,7 +314,7 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
 
     for (i, relns) in relations.iter_enum() {
         let dim = adem_module.generators.dimension(i);
-        let mut matrix = crate::matrix::Matrix::new(p, relns.len(), dim);
+        let mut matrix = fp::matrix::Matrix::new(p, relns.len(), dim);
         for (j, r) in relns.iter().enumerate() {
             matrix[j].assign(r);
         }

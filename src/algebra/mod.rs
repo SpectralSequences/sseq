@@ -7,7 +7,7 @@ pub use milnor_algebra::MilnorAlgebra;
 pub use field::Field;
 use std::error::Error;
 
-use crate::fp_vector::FpVector;
+use fp::vector::FpVector;
 use nom::IResult;
 use serde::Deserialize;
 use serde_json::Value;

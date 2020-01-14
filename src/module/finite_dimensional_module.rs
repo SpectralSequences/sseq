@@ -1,6 +1,6 @@
 use bivec::BiVec;
 
-use crate::fp_vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, ZeroModule, ModuleFailedRelationError, BoundedModule};
 

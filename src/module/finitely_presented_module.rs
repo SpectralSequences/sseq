@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use serde_json::Value;
 
 use bivec::BiVec;
-use crate::fp_vector::{FpVector, FpVectorT};
-use crate::matrix::Matrix;
+use fp::vector::{FpVector, FpVectorT};
+use fp::matrix::Matrix;
 use once::OnceVec;
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::{Module, ZeroModule, FreeModule};

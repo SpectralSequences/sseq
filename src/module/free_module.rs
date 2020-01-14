@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use bivec::BiVec;
 use once::OnceBiVec;
-use crate::fp_vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny, MilnorAlgebra, milnor_algebra::MilnorBasisElement};
 use crate::module::Module;
 

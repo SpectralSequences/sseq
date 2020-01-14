@@ -2,8 +2,8 @@ mod hom_complex;
 mod finite_chain_complex;
 mod tensor_product_chain_complex;
 
-use crate::fp_vector::{FpVector, FpVectorT};
-use crate::matrix::Subspace;
+use fp::vector::{FpVector, FpVectorT};
+use fp::matrix::Subspace;
 use crate::algebra::{Algebra, AlgebraAny};
 use crate::module::Module;
 use crate::module::homomorphism::ModuleHomomorphism;

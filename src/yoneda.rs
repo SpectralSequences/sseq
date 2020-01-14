@@ -1,7 +1,7 @@
 use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra};
 use crate::chain_complex::{ChainComplex, AugmentedChainComplex, FiniteAugmentedChainComplex, BoundedChainComplex, ChainMap};
-use crate::fp_vector::{FpVector, FpVectorT};
-use crate::matrix::{Matrix, Subspace};
+use fp::vector::{FpVector, FpVectorT};
+use fp::matrix::{Matrix, Subspace};
 use crate::module::homomorphism::{ModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphism, FiniteModuleHomomorphism, FreeModuleHomomorphism};
 use crate::module::homomorphism::{TruncatedHomomorphism, TruncatedHomomorphismSource, QuotientHomomorphism, QuotientHomomorphismSource};
 use crate::module::{Module, FDModule, FreeModule, BoundedModule, FiniteModule};

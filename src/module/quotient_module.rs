@@ -1,6 +1,6 @@
 use crate::algebra::AlgebraAny;
-use crate::fp_vector::{FpVector, FpVectorT};
-use crate::matrix::Subspace;
+use fp::vector::{FpVector, FpVectorT};
+use fp::matrix::Subspace;
 use crate::module::{Module, BoundedModule};
 use once::OnceBiVec;
 use std::sync::Arc;

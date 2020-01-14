@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::fp_vector::{FpVector};
-use crate::matrix::{Subspace, QuasiInverse};
+use fp::vector::{FpVector};
+use fp::matrix::{Subspace, QuasiInverse};
 use crate::module::{Module, FiniteModule, FreeModule, BoundedModule};
 use crate::module::homomorphism::{ModuleHomomorphism, GenericZeroHomomorphism, FPModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphism};
 use crate::module::homomorphism::FPModuleT;

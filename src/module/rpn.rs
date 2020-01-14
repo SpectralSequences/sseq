@@ -1,8 +1,8 @@
 
-use crate::fp_vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra, adem_algebra::AdemBasisElement, MilnorAlgebra, milnor_algebra::MilnorBasisElement};
 use crate::module::{Module, ZeroModule};
-use crate::combinatorics::{binomial, multinomial};
+use fp::prime::{binomial, multinomial};
 
 use std::sync::Arc;
 

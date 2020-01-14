@@ -8,18 +8,19 @@ repository = "https://github.com/hoodmane/rust_ext/"
 license = "(MIT OR Apache-2.0)"
 
 [dependencies]
-parking_lot = "0.10"
-lock_api = "0.3"
-lazy_static = "1.2.0"
 bivec = { path = "bivec"}
+enum_dispatch = "0.2.0"
+fp = { path = "fp" }
+lazy_static = "1.2.0"
+lock_api = "0.3"
+nom = "5.0.0"
 once = { path = "once"}
+parking_lot = "0.10"
+query = { path = "query" }
+saveload = { path = "saveload" }
 serde_json = "1.0.0"
 serde = { version = "1.0.0", features = ["derive"] }
 thread-token = { path = "thread-token", optional = true }
-saveload = { path = "saveload" }
-enum_dispatch = "0.2.0"
-nom = "5.0.0"
-query = { path = "query" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.clap]
 version = "2.33.0"
@@ -27,7 +28,6 @@ default-features = false
 features = ["yaml", "wrap_help", "color"]
 
 [dev-dependencies]
-rand = "0.7.0"
 rstest = "0.5.0"
 
 [lib]
@@ -41,9 +41,9 @@ opt-level = 3
 debug = true
 
 [workspace]
-members = ["ext-websocket", "bivec", "compressor", "once", "thread-token", "saveload"]
+members = ["ext-websocket", "bivec", "compressor", "once", "thread-token", "saveload", "fp"]
 
 [features]
 cache-multiplication = []
 concurrent = ["thread-token"]
-prime-two = []
+prime-two = ["fp/prime-two"]

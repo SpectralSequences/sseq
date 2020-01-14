@@ -1,8 +1,8 @@
 use std::sync::{Weak, Arc};
 
 use once::OnceVec;
-use crate::fp_vector::{ FpVector, FpVectorT };
-use crate::matrix::Matrix;
+use fp::vector::{ FpVector, FpVectorT };
+use fp::matrix::Matrix;
 use crate::module::Module;
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
