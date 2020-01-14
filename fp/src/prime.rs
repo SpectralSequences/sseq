@@ -2,51 +2,13 @@ pub const MAX_PRIME_INDEX : usize = 54;
 pub const MAX_PRIME : usize = 251;
 const NOT_A_PRIME : usize = !1;
 pub const MAX_MULTINOMIAL_LEN : usize = 10;
-pub const PRIME_TO_INDEX_MAP : [usize; MAX_PRIME+1] = [
-    !1, !1, 0, 1, !1, 2, !1, 3, !1, !1, !1, 4, !1, 5, !1, !1, !1, 6, !1,
-    7,  !1, !1, !1, 8, !1, !1, !1, !1, !1, 9, !1, 10, !1, !1, !1, !1, !1,
-    11, !1, !1, !1, 12, !1, 13, !1, !1, !1, 14, !1, !1, !1, !1, !1, 15,
-    !1, !1, !1, !1, !1, 16, !1, 17, !1, !1, !1, !1, !1, 18, !1, !1, !1,
-    19, !1, 20, !1, !1, !1, !1, !1, 21, !1, !1, !1, 22, !1, !1, !1, !1,
-    !1, 23, !1, !1, !1, !1, !1, !1, !1, 24, !1, !1, !1, 25, !1, 26, !1,
-    !1, !1, 27, !1, 28, !1, !1, !1, 29, !1, !1, !1, !1, !1, !1, !1, !1,
-    !1, !1, !1, !1, !1, 30, !1, !1, !1, 31, !1, !1, !1, !1, !1, 32, !1,
-    33, !1, !1, !1, !1, !1, !1, !1, !1, !1, 34, !1, 35, !1, !1, !1, !1,
-    !1, 36, !1, !1, !1, !1, !1, 37, !1, !1, !1, 38, !1, !1, !1, !1, !1,
-    39, !1, !1, !1, !1, !1, 40, !1, 41, !1, !1, !1, !1, !1, !1, !1, !1,
-    !1, 42, !1, 43, !1, !1, !1, 44, !1, 45, !1, !1, !1, !1, !1, !1, !1,
-    !1, !1, !1, !1, 46, !1, !1, !1, !1, !1, !1, !1, !1, !1, !1, !1, 47,
-    !1, !1, !1, 48, !1, 49, !1, !1, !1, 50, !1, !1, !1, !1, !1, 51, !1,
-    52, !1, !1, !1, !1, !1, !1, !1, !1, !1, 53 //, !1, !1, !1, !1
-];
 
 pub fn is_valid_prime(p : u32) -> bool {
     (p as usize) < MAX_PRIME && PRIME_TO_INDEX_MAP[p as usize] != NOT_A_PRIME
 }
 
-// Mathematica:
-// "[\n    " <> # <> "\n]" &[
-//  StringJoin @@
-//   StringReplace[
-//    ToString /@
-//     Riffle[Map[If[# > 2^31, 0, #] &,
-//       Function[p,
-//         PadRight[PowerMod[#, -1, p] & /@ Range[p - 1],
-//          Prime[8] - 1]] /@ Prime[Range[8]], {2}], ",\n    "], {"{" ->
-//      "[", "}" -> "]"}]]
-static INVERSE_TABLE : [[u32; 19]; 8] = [
-    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 1, 3, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 1, 4, 5, 2, 3, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 1, 6, 4, 3, 9, 2, 8, 7, 5, 10, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 1, 7, 9, 10, 8, 11, 2, 5, 3, 4, 6, 12, 0, 0, 0, 0, 0, 0],
-    [0, 1, 9, 6, 13, 7, 3, 5, 15, 2, 12, 14, 10, 4, 11, 8, 16, 0, 0],
-    [0, 1, 10, 13, 5, 4, 16, 11, 12, 17, 2, 7, 8, 3, 15, 14, 6, 9, 18]
-];
-
 // Uses a the lookup table we initialized.
-pub fn inverse(p : u32, k : u32) -> u32{
+pub fn inverse(p : u32, k : u32) -> u32 {
     assert!(is_valid_prime(p));
     let result = INVERSE_TABLE[PRIME_TO_INDEX_MAP[p as usize]][k as usize];
     assert!(result != 0);
@@ -57,9 +19,9 @@ pub fn minus_one_to_the_n(p : u32, i : u32) -> u32 {
     if i % 2 == 0 { 1 } else { p - 1 }
 }
 
-// Makes a lookup table for n choose k when n and k are both less than p.
-// Lucas's theorem reduces general binomial coefficients to this case.
-
+/// This uses a lookup table for n choose k when n and k are both less than p.
+/// Lucas's theorem reduces general binomial coefficients to this case.
+///
 /// Calling this function safely requires that
 ///  * `p` is a valid prime
 ///  * `p <= 19`
@@ -67,15 +29,16 @@ pub fn minus_one_to_the_n(p : u32, i : u32) -> u32 {
 /// These invariants are often known apriori because k and n are obtained by reducing mod p (and
 /// the first two are checked beforehand), so it is better to expose an unsafe interface that
 /// avoids these checks.
-unsafe fn direct_binomial(p : u32, n : u32, k : u32) -> u32{
+unsafe fn direct_binomial(p : u32, n : u32, k : u32) -> u32 {
     *BINOMIAL_TABLE.get_unchecked(*PRIME_TO_INDEX_MAP.get_unchecked(p as usize)).get_unchecked(n as usize).get_unchecked(k as usize)
 }
-
 
 /// Computes b^e.
 pub fn integer_power(mut b : u32, mut e : u32) -> u32 {
     let mut result: u32 = 1;
     while e > 0 {
+//      b is b^{2^i}
+//      if the current bit of e is odd, mutliply b^{2^i} into result.
         if e&1 == 1 {
             result *= b;
         }
@@ -86,11 +49,9 @@ pub fn integer_power(mut b : u32, mut e : u32) -> u32 {
 }
 
 /// Compute b^e mod p.
-pub fn power_mod(p : u32, mut b : u32, mut e : u32) -> u32{
+pub fn power_mod(p : u32, mut b : u32, mut e : u32) -> u32 {
     assert!(p > 0);
     let mut result : u32 = 1;
-//      b is b^{2^i} mod p
-//      if the current bit of e is odd, mutliply b^{2^i} mod p into r.
     while e > 0 {
         if (e&1) == 1 {
             result = (result*b)%p;
@@ -110,6 +71,10 @@ pub fn logp(p : u32, mut n : u32) -> u32 {
     }
     result
 }
+
+// We next have separate implementations of binomial and multinomial coefficients for p = 2 and odd
+// primes. It appears that making these public prevents inlining of these in the general case,
+// which gives a somewhat significant overhead.
 
 //Multinomial coefficient of the list l
 fn multinomial2(l : &mut [u32]) -> u32 {
@@ -316,6 +281,45 @@ mod tests {
         }
     }
 }
+
+pub const PRIME_TO_INDEX_MAP : [usize; MAX_PRIME+1] = [
+    !1, !1, 0, 1, !1, 2, !1, 3, !1, !1, !1, 4, !1, 5, !1, !1, !1, 6, !1,
+    7,  !1, !1, !1, 8, !1, !1, !1, !1, !1, 9, !1, 10, !1, !1, !1, !1, !1,
+    11, !1, !1, !1, 12, !1, 13, !1, !1, !1, 14, !1, !1, !1, !1, !1, 15,
+    !1, !1, !1, !1, !1, 16, !1, 17, !1, !1, !1, !1, !1, 18, !1, !1, !1,
+    19, !1, 20, !1, !1, !1, !1, !1, 21, !1, !1, !1, 22, !1, !1, !1, !1,
+    !1, 23, !1, !1, !1, !1, !1, !1, !1, 24, !1, !1, !1, 25, !1, 26, !1,
+    !1, !1, 27, !1, 28, !1, !1, !1, 29, !1, !1, !1, !1, !1, !1, !1, !1,
+    !1, !1, !1, !1, !1, 30, !1, !1, !1, 31, !1, !1, !1, !1, !1, 32, !1,
+    33, !1, !1, !1, !1, !1, !1, !1, !1, !1, 34, !1, 35, !1, !1, !1, !1,
+    !1, 36, !1, !1, !1, !1, !1, 37, !1, !1, !1, 38, !1, !1, !1, !1, !1,
+    39, !1, !1, !1, !1, !1, 40, !1, 41, !1, !1, !1, !1, !1, !1, !1, !1,
+    !1, 42, !1, 43, !1, !1, !1, 44, !1, 45, !1, !1, !1, !1, !1, !1, !1,
+    !1, !1, !1, !1, 46, !1, !1, !1, !1, !1, !1, !1, !1, !1, !1, !1, 47,
+    !1, !1, !1, 48, !1, 49, !1, !1, !1, 50, !1, !1, !1, !1, !1, 51, !1,
+    52, !1, !1, !1, !1, !1, !1, !1, !1, !1, 53 //, !1, !1, !1, !1
+];
+
+// Mathematica:
+// "[\n    " <> # <> "\n]" &[
+//  StringJoin @@
+//   StringReplace[
+//    ToString /@
+//     Riffle[Map[If[# > 2^31, 0, #] &,
+//       Function[p,
+//         PadRight[PowerMod[#, -1, p] & /@ Range[p - 1],
+//          Prime[8] - 1]] /@ Prime[Range[8]], {2}], ",\n    "], {"{" ->
+//      "[", "}" -> "]"}]]
+static INVERSE_TABLE : [[u32; 19]; 8] = [
+    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 3, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 4, 5, 2, 3, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 6, 4, 3, 9, 2, 8, 7, 5, 10, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 7, 9, 10, 8, 11, 2, 5, 3, 4, 6, 12, 0, 0, 0, 0, 0, 0],
+    [0, 1, 9, 6, 13, 7, 3, 5, 15, 2, 12, 14, 10, 4, 11, 8, 16, 0, 0],
+    [0, 1, 10, 13, 5, 4, 16, 11, 12, 17, 2, 7, 8, 3, 15, 14, 6, 9, 18]
+];
 
 // Mathematica:
 // StringReplace[
