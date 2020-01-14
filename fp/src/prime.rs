@@ -60,10 +60,15 @@ pub fn minus_one_to_the_n(p : u32, i : u32) -> u32 {
 // Makes a lookup table for n choose k when n and k are both less than p.
 // Lucas's theorem reduces general binomial coefficients to this case.
 
-// This is a table lookup, n, k < p.
-fn direct_binomial(p : u32, n : u32, k : u32) -> u32{
-    assert!(is_valid_prime(p));
-    BINOMIAL_TABLE[PRIME_TO_INDEX_MAP[p as usize]][n as usize][k as usize]
+/// Calling this function safely requires that
+///  * `p` is a valid prime
+///  * `p <= 19`
+///  * `k, n < p`.
+/// These invariants are often known apriori because k and n are obtained by reducing mod p (and
+/// the first two are checked beforehand), so it is better to expose an unsafe interface that
+/// avoids these checks.
+unsafe fn direct_binomial(p : u32, n : u32, k : u32) -> u32{
+    *BINOMIAL_TABLE.get_unchecked(*PRIME_TO_INDEX_MAP.get_unchecked(p as usize)).get_unchecked(n as usize).get_unchecked(k as usize)
 }
 
 
@@ -137,20 +142,24 @@ fn binomial2(n : i32, k : i32) -> u32 {
 
 //Mod p multinomial coefficient of l. If p is 2, more efficient to use Multinomial2.
 //This uses Lucas's theorem to reduce to n choose k for n, k < p.
-fn multinomial_odd(p : u32, l : &mut [u32]) -> u32{
-    let mut total : u32 = l.iter().sum();
+fn multinomial_odd(p : u32, l : &mut [u32]) -> u32 {
+    assert!(p > 0 && p < 20 && PRIME_TO_INDEX_MAP[p as usize] != NOT_A_PRIME);
+    let mut n : u32 = l.iter().sum();
+    if n == 0 {
+        return 1;
+    }
     let mut answer : u32 = 1;
 
-    let base_p_expansion_length = logp(p, total) as usize;
-
-    for _ in 0 .. base_p_expansion_length {
+    while n > 0 {
         let mut multi : u32 = 1;
-        let mut partial_sum : u32 = 0;
 
-        let total_entry = total % p;
-        total /= p;
+        let total_entry = n % p;
+        n /= p;
 
-        for ll in l.iter_mut() {
+        let mut partial_sum : u32 = l[0] % p;
+        l[0] /= p;
+
+        for ll in l.iter_mut().skip(1) {
             let entry = *ll % p;
             *ll /= p;
 
@@ -160,7 +169,8 @@ fn multinomial_odd(p : u32, l : &mut [u32]) -> u32{
                 // partial_sum < 19
                 return 0;
             }
-            multi *= direct_binomial(p, partial_sum, entry);
+            // This is safe because p < 20, partial_sum <= total_entry < p and entry < p.
+            multi *= unsafe { direct_binomial(p, partial_sum, entry) };
             multi %= p;
         }
         answer *= multi;
@@ -171,10 +181,26 @@ fn multinomial_odd(p : u32, l : &mut [u32]) -> u32{
 
 //Mod p binomial coefficient n choose k. If p is 2, more efficient to use Binomial2.
 fn binomial_odd(p : u32, n : i32, k : i32) -> u32 {
+    // When computing mod p, we check if p is zero. The PRIME_TO_INDEX_MAP check ensures that p !=
+    // 0, but the compiler does not know that, so repeats the check in the loop every time.
+    assert!(p > 0 && p < 20 && PRIME_TO_INDEX_MAP[p as usize] != NOT_A_PRIME);
     if n < k || k < 0 {
         return 0;
     }
-    multinomial_odd(p, &mut[(n-k) as u32, k as u32])
+
+    let mut k = k as u32;
+    let mut n = n as u32;
+
+    let mut answer : u32 = 1;
+
+    while n > 0 {
+        // This is safe because p < 20 and anything mod p is < p.
+        answer *= unsafe { direct_binomial(p, n % p, k % p) };
+        answer %= p;
+        n /= p;
+        k /= p;
+    }
+    answer
 }
 
 /// This computes the multinomial coefficient $\binom{n}{l_1 \ldots l_k}\bmod p$, where $n$
@@ -269,19 +295,28 @@ mod tests {
     //     }
     // }
 
-
     #[test]
     fn binomial_test() {
         let entries = [
             [2, 2, 1, 0],
             [2, 3, 1, 1],
             [3, 1090, 730, 1],
-            [23, 108054, 758, 0],
             [7, 3, 2, 3],
         ];
 
         for entry in &entries {
             assert_eq!(entry[3] as u32, binomial(entry[0] as u32, entry[1], entry[2]));
+        }
+    }
+
+    #[test]
+    fn binomial_vs_monomial() {
+        for &p in &[2, 3, 5, 7, 11] {
+            for l in 0 .. 20 {
+                for m in 0 .. 20 {
+                    assert_eq!(binomial(p, (l + m) as i32, m as i32), multinomial(p, &mut [l, m]))
+                }
+            }
         }
     }
 }
