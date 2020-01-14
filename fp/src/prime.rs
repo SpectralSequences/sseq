@@ -1,5 +1,5 @@
-pub const MAX_PRIME_INDEX : usize = 54;
-pub const MAX_PRIME : usize = 251;
+pub const NUM_PRIMES : usize = 8;
+pub const MAX_PRIME : usize = 19;
 const NOT_A_PRIME : usize = !1;
 pub const MAX_MULTINOMIAL_LEN : usize = 10;
 
@@ -23,8 +23,7 @@ pub fn minus_one_to_the_n(p : u32, i : u32) -> u32 {
 /// Lucas's theorem reduces general binomial coefficients to this case.
 ///
 /// Calling this function safely requires that
-///  * `p` is a valid prime
-///  * `p <= 19`
+///  * `p` is a valid prime (in particular, it is <= 19)
 ///  * `k, n < p`.
 /// These invariants are often known apriori because k and n are obtained by reducing mod p (and
 /// the first two are checked beforehand), so it is better to expose an unsafe interface that
@@ -104,7 +103,9 @@ fn binomial2(n : i32, k : i32) -> u32 {
 //Mod p multinomial coefficient of l. If p is 2, more efficient to use Multinomial2.
 //This uses Lucas's theorem to reduce to n choose k for n, k < p.
 fn multinomial_odd(p : u32, l : &mut [u32]) -> u32 {
-    assert!(p > 0 && p < 20 && PRIME_TO_INDEX_MAP[p as usize] != NOT_A_PRIME);
+    // When reducing mod p, the compiler checks if p is zero. The PRIME_TO_INDEX_MAP check ensures
+    // that p != 0, but the compiler does not know that, so repeats the check in every loop.
+    assert!(p > 0 && is_valid_prime(p));
     let mut n : u32 = l.iter().sum();
     if n == 0 {
         return 1;
@@ -142,9 +143,7 @@ fn multinomial_odd(p : u32, l : &mut [u32]) -> u32 {
 
 //Mod p binomial coefficient n choose k. If p is 2, more efficient to use Binomial2.
 fn binomial_odd(p : u32, n : i32, k : i32) -> u32 {
-    // When computing mod p, we check if p is zero. The PRIME_TO_INDEX_MAP check ensures that p !=
-    // 0, but the compiler does not know that, so repeats the check in the loop every time.
-    assert!(p > 0 && p < 20 && PRIME_TO_INDEX_MAP[p as usize] != NOT_A_PRIME);
+    assert!(p > 0 && is_valid_prime(p));
     if n < k || k < 0 {
         return 0;
     }
@@ -283,21 +282,7 @@ mod tests {
 }
 
 pub const PRIME_TO_INDEX_MAP : [usize; MAX_PRIME+1] = [
-    !1, !1, 0, 1, !1, 2, !1, 3, !1, !1, !1, 4, !1, 5, !1, !1, !1, 6, !1,
-    7,  !1, !1, !1, 8, !1, !1, !1, !1, !1, 9, !1, 10, !1, !1, !1, !1, !1,
-    11, !1, !1, !1, 12, !1, 13, !1, !1, !1, 14, !1, !1, !1, !1, !1, 15,
-    !1, !1, !1, !1, !1, 16, !1, 17, !1, !1, !1, !1, !1, 18, !1, !1, !1,
-    19, !1, 20, !1, !1, !1, !1, !1, 21, !1, !1, !1, 22, !1, !1, !1, !1,
-    !1, 23, !1, !1, !1, !1, !1, !1, !1, 24, !1, !1, !1, 25, !1, 26, !1,
-    !1, !1, 27, !1, 28, !1, !1, !1, 29, !1, !1, !1, !1, !1, !1, !1, !1,
-    !1, !1, !1, !1, !1, 30, !1, !1, !1, 31, !1, !1, !1, !1, !1, 32, !1,
-    33, !1, !1, !1, !1, !1, !1, !1, !1, !1, 34, !1, 35, !1, !1, !1, !1,
-    !1, 36, !1, !1, !1, !1, !1, 37, !1, !1, !1, 38, !1, !1, !1, !1, !1,
-    39, !1, !1, !1, !1, !1, 40, !1, 41, !1, !1, !1, !1, !1, !1, !1, !1,
-    !1, 42, !1, 43, !1, !1, !1, 44, !1, 45, !1, !1, !1, !1, !1, !1, !1,
-    !1, !1, !1, !1, 46, !1, !1, !1, !1, !1, !1, !1, !1, !1, !1, !1, 47,
-    !1, !1, !1, 48, !1, 49, !1, !1, !1, 50, !1, !1, !1, !1, !1, 51, !1,
-    52, !1, !1, !1, !1, !1, !1, !1, !1, !1, 53 //, !1, !1, !1, !1
+    !1, !1, 0, 1, !1, 2, !1, 3, !1, !1, !1, 4, !1, 5, !1, !1, !1, 6, !1, 7
 ];
 
 // Mathematica:
@@ -310,7 +295,7 @@ pub const PRIME_TO_INDEX_MAP : [usize; MAX_PRIME+1] = [
 //         PadRight[PowerMod[#, -1, p] & /@ Range[p - 1],
 //          Prime[8] - 1]] /@ Prime[Range[8]], {2}], ",\n    "], {"{" ->
 //      "[", "}" -> "]"}]]
-static INVERSE_TABLE : [[u32; 19]; 8] = [
+static INVERSE_TABLE : [[u32; MAX_PRIME]; NUM_PRIMES] = [
     [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 1, 3, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -333,7 +318,7 @@ static INVERSE_TABLE : [[u32; 19]; 8] = [
 //           Table[Mod[Binomial[n, k], p], {n, 0, p - 1}, {k, 0, p - 1}],
 //           Prime[8], {Table[0, {Prime[8]}]}]] /@ Prime[Range[8]],
 //       ",\n    "], {"{" -> "[", "}" -> "]"}]], "], " -> "],\n     "]
-static BINOMIAL_TABLE : [[[u32; 19]; 19]; 8] = [
+static BINOMIAL_TABLE : [[[u32; MAX_PRIME]; MAX_PRIME]; NUM_PRIMES] = [
     [[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
      [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],

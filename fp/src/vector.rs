@@ -30,17 +30,15 @@ use enum_dispatch::enum_dispatch;
 
 use crate::prime::is_valid_prime;
 use crate::prime::PRIME_TO_INDEX_MAP;
-use crate::prime::MAX_PRIME_INDEX;
+use crate::prime::NUM_PRIMES;
 
 pub const MAX_DIMENSION : usize = 147500;
 
 // Generated with Mathematica:
 //     bitlengths = Prepend[#,1]&@ Ceiling[Log2[# (# - 1) + 1 &[Prime[Range[2, 54]]]]]
 // But for 2 it should be 1.
-static BIT_LENGHTS : [usize; MAX_PRIME_INDEX] = [
-     1, 3, 5, 6, 7, 8, 9, 9, 9, 10, 10, 11, 11, 11, 12, 12, 12, 12, 13,
-     13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15,
-     15, 15, 15, 15, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16
+static BIT_LENGHTS : [usize; NUM_PRIMES] = [
+     1, 3, 5, 6, 7, 8, 9, 9
 ];
 
 fn bit_length(p : u32) -> usize {
@@ -50,12 +48,8 @@ fn bit_length(p : u32) -> usize {
 // This is 2^bitlength - 1.
 // Generated with Mathematica:
 //     2^bitlengths-1
-static BITMASKS : [u32; MAX_PRIME_INDEX] = [
-    1, 7, 31, 63, 127, 255, 511, 511, 511, 1023, 1023, 2047, 2047, 2047,
-    4095, 4095, 4095, 4095, 8191, 8191, 8191, 8191, 8191, 8191, 16383,
-    16383, 16383, 16383, 16383, 16383, 16383, 32767, 32767, 32767, 32767,
-    32767, 32767, 32767, 32767, 32767, 32767, 32767, 65535, 65535, 65535,
-    65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535
+static BITMASKS : [u32; NUM_PRIMES] = [
+    1, 7, 31, 63, 127, 255, 511, 511
 ];
 
 fn bitmask(p : u32) -> u64{
@@ -65,10 +59,8 @@ fn bitmask(p : u32) -> u64{
 // This is floor(64/bitlength).
 // Generated with Mathematica:
 //      Floor[64/bitlengths]
-static ENTRIES_PER_64_BITS : [usize;MAX_PRIME_INDEX] = [
-    64, 21, 12, 10, 9, 8, 7, 7, 7, 6, 6, 5, 5, 5, 5, 5, 5, 5, 4, 4, 4,
-    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-    4, 4, 4, 4, 4, 4, 4, 4, 4, 4
+static ENTRIES_PER_64_BITS : [usize;NUM_PRIMES] = [
+    64, 21, 12, 10, 9, 8, 7, 7
 ];
 
 fn entries_per_64_bits(p : u32) -> usize {
@@ -83,24 +75,13 @@ struct LimbBitIndexPair {
 
 /// This table tells us which limb and which bitfield of that limb to look for a given index of
 /// the vector in.
-static mut LIMB_BIT_INDEX_TABLE : [Option<Vec<LimbBitIndexPair>>; MAX_PRIME_INDEX] = [
-    None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,
-    None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,
-    None,None,None,None,None,None,None,None,None,None,None,None,None,None
+static mut LIMB_BIT_INDEX_TABLE : [Option<Vec<LimbBitIndexPair>>; NUM_PRIMES] = [
+    None,None,None,None,None,None,None,None
 ];
 
-static mut LIMB_BIT_INDEX_ONCE_TABLE : [Once; MAX_PRIME_INDEX] = [
+static mut LIMB_BIT_INDEX_ONCE_TABLE : [Once; NUM_PRIMES] = [
     Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
-    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
-    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
-    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
-    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
-    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
-    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
-    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
-    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
-    Once::new(),Once::new(), Once::new(), Once::new(), Once::new(),
-    Once::new(),Once::new(), Once::new(), Once::new()
+    Once::new(),Once::new(), Once::new()
 ];
 
 pub fn initialize_limb_bit_index_table(p : u32){
