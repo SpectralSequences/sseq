@@ -815,7 +815,7 @@ impl<'a>  PPartMultiplier<'a> {
         if self.init {
             self.init = false;
             for i in 1 .. std::cmp::min(self.cols, self.rows) {
-                coef *= fp::prime::multinomial(self.prime(), &mut [self.M[i][0], self.M[0][i]]);
+                coef *= fp::prime::binomial(self.prime(), (self.M[i][0] + self.M[0][i]) as i32, self.M[0][i] as i32);
             }
             if coef == 0 {
                 self.next(basis)
