@@ -161,7 +161,7 @@ impl RealProjectiveSpace {
         let clear_bottom = spec.clear_bottom.unwrap_or(false);
         let mut min = spec.min;
         if clear_bottom {
-            let x = (spec.min + 1) % 8; //.rem_euclid(8);
+            let x = (spec.min + 1).rem_euclid(8);
             if x != 0 {
                 min += 8 - x;
             }
