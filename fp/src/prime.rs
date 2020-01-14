@@ -284,47 +284,6 @@ mod tests {
             assert_eq!(entry[3] as u32, binomial(entry[0] as u32, entry[1], entry[2]));
         }
     }
-    // func TestMultinomialOdd(t *testing.T) {
-    //     tables := []struct {
-    //         l []int
-    //         p int
-    //         output int
-    //     }{
-    //         {[]int {1090, 730}, 3, 1},
-    //         {[]int {108054, 758}, 23, 18},
-    //         {[]int {3, 2}, 7, 3},
-    //     }
-    //     for _, table := range tables {
-    //         output := MultinomialOdd(table.l, table.p)
-    //         if output != table.output {
-    //             t.Errorf("Ran MultinomialOdd(%v, %v) expected %v, got %v", table.l, table.p, table.output, output)
-    //         }
-    //     }
-    // }
-    // //
-    // func TestBinomialOdd(t *testing.T) {
-
-    // }
-
-    // #[test]
-    // func TestXiDegrees(t *testing.T) {
-    //     let tables : []struct {
-    //         n int
-    //         p int
-    //         output []int
-    //     }{
-    //         {17,   2, []int{1, 3, 7, 15}},
-    //         {17,   3, []int{1, 4, 13}},
-    //         {400, 17, []int{1, 18, 307}},
-    //     }
-
-    //     for _, table := range tables {
-    //         output := XiDegrees(table.n, table.p)
-    //         if !eqListsQ(output, table.output) {
-    //             t.Errorf("Ran XiDegrees(%v, %v) expected %v, got %v", table.n, table.p, table.output, output)
-    //         }
-    //     }
-    // }
 }
 
 // Mathematica:
