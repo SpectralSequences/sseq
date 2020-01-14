@@ -73,10 +73,8 @@ unsafe fn direct_binomial(p : u32, n : u32, k : u32) -> u32{
 
 
 /// Computes b^e.
-pub fn integer_power(b : u32, e : u32) -> u32 {
-    let mut b = b;
-    let mut e = e;
-    let mut result = 1u32;
+pub fn integer_power(mut b : u32, mut e : u32) -> u32 {
+    let mut result: u32 = 1;
     while e > 0 {
         if e&1 == 1 {
             result *= b;
@@ -88,11 +86,9 @@ pub fn integer_power(b : u32, e : u32) -> u32 {
 }
 
 /// Compute b^e mod p.
-/// We use this for computing modulo inverses.
-pub fn power_mod(p : u32, b : u32, e : u32) -> u32{
-    let mut b = b;
-    let mut e = e;
-    let mut result = 1u32;
+pub fn power_mod(p : u32, mut b : u32, mut e : u32) -> u32{
+    assert!(p > 0);
+    let mut result : u32 = 1;
 //      b is b^{2^i} mod p
 //      if the current bit of e is odd, mutliply b^{2^i} mod p into r.
     while e > 0 {
