@@ -131,7 +131,7 @@ fn coef_milnor(algebra : &MilnorAlgebra, op_deg : i32, op_idx : usize, mut mod_d
     list.push(mod_degree - sum);
     list.extend(elt.p_part.iter());
 
-    multinomial(2, &list) == 1
+    multinomial(2, &mut list) == 1
 }
 
 impl ZeroModule for RealProjectiveSpace {

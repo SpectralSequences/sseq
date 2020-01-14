@@ -1,8 +1,7 @@
 pub const MAX_PRIME_INDEX : usize = 54;
 pub const MAX_PRIME : usize = 251;
 const NOT_A_PRIME : usize = !1;
-const MAX_EXPONENT : usize = 20;
-pub const MAX_XI_TAU : usize = 10;
+pub const MAX_MULTINOMIAL_LEN : usize = 10;
 pub const PRIME_TO_INDEX_MAP : [usize; MAX_PRIME+1] = [
     !1, !1, 0, 1, !1, 2, !1, 3, !1, !1, !1, 4, !1, 5, !1, !1, !1, 6, !1,
     7,  !1, !1, !1, 8, !1, !1, !1, !1, !1, 9, !1, 10, !1, !1, !1, !1, !1,
@@ -111,26 +110,11 @@ pub fn logp(p : u32, mut n : u32) -> u32 {
     result
 }
 
-/**
- * Expand n base p and write the result into buffer result.
- * Result has to have length greater than logp(p, n) or we'll have a buffer overflow.
- */
-fn basep_expansion(result : &mut[u32], p : u32, mut n : u32) -> &mut[u32] {
-    let mut i = 0usize;
-    while n > 0 {
-        result[i] = n % p;
-        i += 1;
-        n /= p;
-    }
-    result
-}
-
-
 //Multinomial coefficient of the list l
-fn multinomial2(l : &[u32]) -> u32 {
+fn multinomial2(l : &mut [u32]) -> u32 {
     let mut bit_or = 0u32;
     let mut sum = 0u32;
-    for e in l {
+    for &mut e in l {
         sum += e;
         bit_or |= e;
 //        if(bit_or < sum){
@@ -153,33 +137,34 @@ fn binomial2(n : i32, k : i32) -> u32 {
 
 //Mod p multinomial coefficient of l. If p is 2, more efficient to use Multinomial2.
 //This uses Lucas's theorem to reduce to n choose k for n, k < p.
-// There is some cleaning up to be done here about the arrays. Suppress clippy for now
-#[allow(clippy::needless_range_loop)]
-fn multinomial_odd(p : u32, l : &[u32]) -> u32{
-    let mut total = 0u32;
-    for e in l {
-        total += e;
-    }
-    let mut answer = 1u32;
-    let mut total_expansion : [u32 ; MAX_EXPONENT] = [0; MAX_EXPONENT];
+fn multinomial_odd(p : u32, l : &mut [u32]) -> u32{
+    let mut total : u32 = l.iter().sum();
+    let mut answer : u32 = 1;
+
     let base_p_expansion_length = logp(p, total) as usize;
-    basep_expansion(&mut total_expansion, p, total);
-    let mut l_expansions : [[u32; MAX_EXPONENT];MAX_XI_TAU] = [[0;MAX_EXPONENT];MAX_XI_TAU];
-    for i in 0..l.len() {
-        basep_expansion(&mut l_expansions[i], p,  l[i]);
-    }
-    for index in 0 .. base_p_expansion_length {
-        let mut multi = 1u32;
-        let mut partial_sum = 0u32;
-        for i in 0 .. l.len() {
-            partial_sum += l_expansions[i][index];
-            if partial_sum > total_expansion[index] {
-                return 0
+
+    for _ in 0 .. base_p_expansion_length {
+        let mut multi : u32 = 1;
+        let mut partial_sum : u32 = 0;
+
+        let total_entry = total % p;
+        total /= p;
+
+        for ll in l.iter_mut() {
+            let entry = *ll % p;
+            *ll /= p;
+
+            partial_sum += entry;
+            if partial_sum > total_entry {
+                // This early return is necessary because direct_binomial only works when
+                // partial_sum < 19
+                return 0;
             }
-            multi *= direct_binomial(p, partial_sum, l_expansions[i][index]);
+            multi *= direct_binomial(p, partial_sum, entry);
             multi %= p;
         }
-        answer = (answer * multi) % p;
+        answer *= multi;
+        answer %= p;
     }
     answer
 }
@@ -189,13 +174,13 @@ fn binomial_odd(p : u32, n : i32, k : i32) -> u32 {
     if n < k || k < 0 {
         return 0;
     }
-    let l : [u32 ; 2] = [(n-k) as u32, k as u32];
-    multinomial_odd(p, &l)
+    multinomial_odd(p, &mut[(n-k) as u32, k as u32])
 }
 
-//Dispatch to Multinomial2 or MultinomialOdd
-pub fn multinomial(p : u32, l : &[u32]) -> u32 {
-    if p == 2{
+/// This computes the multinomial coefficient $\binom{n}{l_1 \ldots l_k}\bmod p$, where $n$
+/// is the sum of the entries of l. This function modifies the entries of l.
+pub fn multinomial(p : u32, l : &mut [u32]) -> u32 {
+    if p == 2 {
         multinomial2(l)
     } else {
         multinomial_odd(p, l)
@@ -213,27 +198,7 @@ pub fn binomial(p : u32, n : i32, k : i32) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
-    // use super::*;
-
-    // #[test]
-    // fn test_basep_expansion(){
-
-    //     tables := []struct {
-    //         n int
-    //         p int
-    //         output []int
-    //     }{
-    //         {8,  3, []int {2, 2}},
-    //         {33, 5, []int {3, 1, 1}},
-    //     }
-    //     for _, table := range tables {
-    //         output := basepExpansion(table.n, table.p, 0)
-    //         if !eqListsQ(output, table.output) {
-    //             t.Errorf("Ran basepExpansion(%v,%v) expected %v got %v", table.n, table.p, table.output, output)
-    //         }
-    //     }
-    // }
+    use super::*;
 
     // #[test]
     // fn direct_binomial(t *testing.T) {
@@ -305,6 +270,20 @@ mod tests {
     // }
 
 
+    #[test]
+    fn binomial_test() {
+        let entries = [
+            [2, 2, 1, 0],
+            [2, 3, 1, 1],
+            [3, 1090, 730, 1],
+            [23, 108054, 758, 0],
+            [7, 3, 2, 3],
+        ];
+
+        for entry in &entries {
+            assert_eq!(entry[3] as u32, binomial(entry[0] as u32, entry[1], entry[2]));
+        }
+    }
     // func TestMultinomialOdd(t *testing.T) {
     //     tables := []struct {
     //         l []int
