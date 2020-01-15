@@ -67,7 +67,7 @@ fn entries_per_64_bits(p : u32) -> usize {
     ENTRIES_PER_64_BITS[PRIME_TO_INDEX_MAP[p as usize]]
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 struct LimbBitIndexPair {
     limb : usize,
     bit_index : usize
@@ -118,7 +118,7 @@ fn limb_bit_index_pair(p : u32, idx : usize) -> LimbBitIndexPair {
             debug_assert!(idx < MAX_DIMENSION);
             unsafe {
                 let table = &LIMB_BIT_INDEX_TABLE[prime_idx];
-                (*table.as_ref().unwrap().get_unchecked(idx)).clone()
+                *table.as_ref().unwrap().get_unchecked(idx)
             }
         }
     }
@@ -228,6 +228,7 @@ pub trait FpVectorT {
         &mut self.vector_container_mut().limbs
     }
 
+    #[inline(always)]
     fn limb_mask(&self, limb_idx : usize) -> u64 {
         let offset = self.offset();
         let min_limb = self.min_limb();
