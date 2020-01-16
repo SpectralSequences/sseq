@@ -5,8 +5,8 @@ use std::fmt;
 use std::cmp::{PartialEq, Eq};
 // use std::slice::{Iter};
 
-static DEFAULT_CAPACITY : usize = 1028 * PAGE_SIZE;
-static PAGE_SIZE : usize = 1028;
+// static DEFAULT_CAPACITY : usize = 1028 * PAGE_SIZE;
+// static PAGE_SIZE : usize = 1028;
 
 pub struct OnceVec<T> {
     data : UnsafeCell<Vec<Vec<T>>>
@@ -57,7 +57,7 @@ impl<T: fmt::Debug> fmt::Debug for OnceVec<T> {
 impl<T> PartialEq for OnceVec<T>
     where T : PartialEq {
     fn eq(&self, other: &OnceVec<T>) -> bool {
-        if self.len() != other.len() { // || self.capacity() != other.capacity() {
+        if self.len() != other.len() { 
             return false;
         }
         for i in 0..self.len() {
@@ -83,14 +83,13 @@ impl<T>  OnceVec<T> {
     // }
 
     pub fn new() -> Self {
-        Self::with_capacity(DEFAULT_CAPACITY)
+        Self {
+            data : UnsafeCell::new(Vec::with_capacity(64))
+        }
     }
 
-    pub fn with_capacity(capacity : usize) -> Self {
-        let vec = Vec::with_capacity((capacity + PAGE_SIZE - 1)/PAGE_SIZE);
-        Self {
-            data : UnsafeCell::new(vec)
-        }
+    pub fn with_capacity(_capacity : usize) -> Self {
+        Self::new()
     }
 
     #[allow(clippy::mut_from_ref)]
@@ -102,8 +101,10 @@ impl<T>  OnceVec<T> {
         let outer_len = Deref::deref(self).len();
         if outer_len == 0 {
             0
+        } else if outer_len == 1 {
+            1
         } else {
-            (outer_len - 1) * PAGE_SIZE + Deref::deref(self)[outer_len - 1].len()
+            (1 << (outer_len - 1)) - 1  + Deref::deref(self)[outer_len - 1].len()
         }
     }
 
@@ -128,7 +129,7 @@ impl<T>  OnceVec<T> {
     }
 
     pub fn capacity(&self) -> usize {
-        Deref::deref(self).capacity() * PAGE_SIZE
+        10000 // Deref::deref(self).capacity() * PAGE_SIZE
     }
 
     pub fn reserve(&self, additional : usize) {
@@ -141,19 +142,11 @@ impl<T>  OnceVec<T> {
 
     pub fn push(&self, x : T) {
         let outer_vec = self.get_outer_vec_mut();
-        if outer_vec.is_empty() {
-            outer_vec.push(Vec::with_capacity(PAGE_SIZE));
+        // println!("current length : ")
+        if (self.len() + 1).count_ones() == 1 { // need a new entry
+            outer_vec.push(Vec::with_capacity(1 << outer_vec.len()));
         }
-        let mut outer_vec_len = outer_vec.len();
-        let mut inner_vec = &mut outer_vec[outer_vec_len - 1];
-        if inner_vec.len() == inner_vec.capacity() {
-            if outer_vec.len() == outer_vec.capacity() {
-                panic!("Out of space!");
-            }
-            outer_vec.push(Vec::with_capacity(PAGE_SIZE));
-            outer_vec_len += 1;
-            inner_vec = &mut outer_vec[outer_vec_len - 1];
-        } 
+        let inner_vec = outer_vec.last_mut().unwrap(); 
         inner_vec.push(x);
     }
 
@@ -167,39 +160,43 @@ impl<T>  OnceVec<T> {
 
 impl<T> Index<usize> for OnceVec<T> {
     type Output = T;
-    fn index(&self, key : usize) -> &T {
+    fn index(&self, mut key : usize) -> &T {
         // let (page, page_idx) = key.div_rem(PAGE_SIZE);
-        let page = key / PAGE_SIZE;
-        let page_idx = key % PAGE_SIZE;
-        &Deref::deref(self)[page][page_idx]
+        key += 1;
+        let page = (63 - key.leading_zeros()) as usize;
+        key -= 1 << page;
+        &Deref::deref(self)[page][key]
     }
 }
 
 impl<T> IndexMut<usize> for OnceVec<T> {
-    fn index_mut(&mut self, key : usize) -> &mut T {
-        let page = key / PAGE_SIZE;
-        let page_idx = key % PAGE_SIZE;        
-        &mut DerefMut::deref_mut(self)[page][page_idx]
+    fn index_mut(&mut self, mut key : usize) -> &mut T {
+        key += 1;
+        let page = (63 - key.leading_zeros()) as usize;
+        key -= 1 << page;
+        &mut DerefMut::deref_mut(self)[page][key]
     }
 }
 
 impl<T> Index<u32> for OnceVec<T> {
     type Output = T;
     fn index(&self, key : u32) -> &T {
-        let key = key as usize;
-        // let (page, page_idx) = key.div_rem(PAGE_SIZE);
-        let page = key / PAGE_SIZE;
-        let page_idx = key % PAGE_SIZE;
-        &Deref::deref(self)[page][page_idx]
+        let mut key = key as usize;
+        key += 1;
+        let page = (63 - key.leading_zeros()) as usize;
+        key -= 1 << page;
+        println!("page : {}, key : {}",page, key);
+        &Deref::deref(self)[page][key]
     }
 }
 
 impl<T> IndexMut<u32> for OnceVec<T> {
     fn index_mut(&mut self, key : u32) -> &mut T {
-        let key = key as usize;
-        let page = key / PAGE_SIZE;
-        let page_idx = key % PAGE_SIZE;        
-        &mut DerefMut::deref_mut(self)[page][page_idx]
+        let mut key = key as usize;
+        key += 1;
+        let page = (63 - key.leading_zeros()) as usize;
+        key -= 1 << page;
+        &mut DerefMut::deref_mut(self)[page][key]
     }
 }
 
@@ -240,7 +237,7 @@ impl<T : Load> Load for OnceVec<T> {
 
     fn load(buffer : &mut impl Read, data : &Self::AuxData) -> io::Result<Self> {
         let len = usize::load(buffer, &())?;
-        let result : OnceVec<T> = OnceVec::with_capacity(2*len);
+        let result : OnceVec<T> = OnceVec::new();
         for _ in 0 .. len {
             result.push(T::load(buffer, data)?);
         }
@@ -396,9 +393,40 @@ mod tests {
     // use rstest::rstest_parametrize;
 
     #[test]
+    fn test_push(){
+        let v = OnceVec::new();
+        for i in 0u32 .. 100_000u32 {
+            v.push(i);
+            println!("i : {}",i);
+            assert_eq!(v[i], i);
+        }
+    }
+
+
+    #[test]
+    fn test_segv(){
+        let v = OnceVec::new();
+        v.push(vec![0]);
+        let firstvec : &Vec<i32> = &v[0usize];
+        println!("firstvec[0] : {} firstvec_addr: {:p}", firstvec[0], firstvec as *const Vec<i32>);
+        let mut address : *const Vec<i32> = &v[0usize];
+        for i in 0 ..= 1028*1028 {
+            if address != &v[0usize] {
+                address = &v[0usize];
+                println!("moved. i: {}. New address: {:p}", i, address);
+            }
+            v.push(vec![i]);
+        }
+        println!("old_addr   : {:p}", firstvec as *const Vec<i32>);
+        println!("actual_addr: {:p}", &v[0usize] as *const Vec<i32>);
+
+        println!("Next line segfaults:");
+        println!("{}", firstvec[0]);
+    }
+
+    #[test]
     fn test_saveload(){
-        use saveload::{Save, Load};
-        use std::io::{Read, Cursor, SeekFrom, Seek};
+        use std::io::{Cursor, SeekFrom, Seek};
 
         let v : OnceVec<u32> = OnceVec::new();
         v.push(6);
@@ -428,26 +456,5 @@ mod tests {
         // let w_saved_then_loaded : BiVec<u32> = Load::load(&mut cursor, &(-3, ())).unwrap();        
         
         // assert_eq!(w, w_saved_then_loaded);
-    }
-
-    #[test]
-    fn test_segv(){
-        let v = OnceVec::with_capacity(1028*1028 + 5);
-        v.push(vec![0]);
-        let firstvec : &Vec<i32> = &v[0usize];
-        println!("firstvec[0] : {} firstvec_addr: {:p}", firstvec[0], firstvec as *const Vec<i32>);
-        let mut address : *const Vec<i32> = &v[0usize];
-        for i in 0 ..= 1028*1028 {
-            if address != &v[0usize] {
-                address = &v[0usize];
-                println!("moved. i: {}. New address: {:p}", i, address);
-            }
-            v.push(vec![i]);
-        }
-        println!("old_addr   : {:p}", firstvec as *const Vec<i32>);
-        println!("actual_addr: {:p}", &v[0usize] as *const Vec<i32>);
-
-        println!("Next line segfaults:");
-        println!("{}", firstvec[0]);
     }
 }
