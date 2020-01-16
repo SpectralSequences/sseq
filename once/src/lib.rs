@@ -65,7 +65,7 @@ impl<T> PartialEq for OnceVec<T>
                 return false;
             }
         }
-        return true;
+        true
     }
 }
 
@@ -107,6 +107,10 @@ impl<T>  OnceVec<T> {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        Deref::deref(self).is_empty()
+    }    
+
     pub fn get(&self, idx : usize) -> Option<&T> {
         if idx < self.len() {
             Some(&self[idx])
@@ -116,7 +120,7 @@ impl<T>  OnceVec<T> {
     }
 
     pub fn last(&self) -> Option<&T> {
-        if self.len() > 0 {
+        if !self.is_empty() {
             Some(&self[self.len() - 1])
         } else {
             None
@@ -137,7 +141,7 @@ impl<T>  OnceVec<T> {
 
     pub fn push(&self, x : T) {
         let outer_vec = self.get_outer_vec_mut();
-        if outer_vec.len() == 0 {
+        if outer_vec.is_empty() {
             outer_vec.push(Vec::with_capacity(PAGE_SIZE));
         }
         let mut outer_vec_len = outer_vec.len();
@@ -394,7 +398,7 @@ mod tests {
     #[test]
     fn test_saveload(){
         use saveload::{Save, Load};
-        use std::io::{Read, Cursor, SeekFrom, Seek, Error};
+        use std::io::{Read, Cursor, SeekFrom, Seek};
 
         let v : OnceVec<u32> = OnceVec::new();
         v.push(6);
@@ -433,7 +437,7 @@ mod tests {
         let firstvec : &Vec<i32> = &v[0usize];
         println!("firstvec[0] : {} firstvec_addr: {:p}", firstvec[0], firstvec as *const Vec<i32>);
         let mut address : *const Vec<i32> = &v[0usize];
-        for i in 0 .. 1028*1028 + 1 {
+        for i in 0 ..= 1028*1028 {
             if address != &v[0usize] {
                 address = &v[0usize];
                 println!("moved. i: {}. New address: {:p}", i, address);

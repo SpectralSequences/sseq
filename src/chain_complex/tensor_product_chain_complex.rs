@@ -126,7 +126,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ChainComplex for TensorChainComplex
             module.compute_basis(t);
         }
 
-        if self.differentials.len() == 0 {
+        if self.differentials.is_empty() {
             self.differentials.push(Arc::new(TensorChainMap {
                 left_cc: self.left_cc(),
                 right_cc: self.right_cc(),

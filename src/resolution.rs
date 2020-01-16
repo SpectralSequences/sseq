@@ -748,7 +748,7 @@ impl<CC> Resolution<CC> where
     }
 
     pub fn set_unit_resolution(&mut self, unit_res : Weak<RwLock<Resolution<CCC>>>) {
-        if self.chain_maps_to_unit_resolution.len() > 0 {
+        if !self.chain_maps_to_unit_resolution.is_empty() {
             panic!("Cannot change unit resolution after you start computing products");
         }
         self.unit_resolution = Some(unit_res);
