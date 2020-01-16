@@ -25,7 +25,7 @@ impl<T: fmt::Debug> fmt::Debug for BiVec<T> {
 
 impl<T> BiVec<T> {
     pub fn new(min_degree : i32) -> Self {
-        BiVec {
+        Self {
             data : Vec::new(),
             min_degree
         }
@@ -40,7 +40,7 @@ impl<T> BiVec<T> {
 
     pub fn with_capacity(min_degree : i32, capacity : i32) -> Self {
         debug_assert!(capacity >= min_degree);
-        BiVec {
+        Self {
             data : Vec::with_capacity((capacity - min_degree) as usize),
             min_degree
         }
