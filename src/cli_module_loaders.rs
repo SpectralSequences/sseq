@@ -211,6 +211,7 @@ pub fn interactive_module_define_fdmodule(mut output_json : Value, p : u32, gene
                     );
                     adem_module.set_action_vector(op_deg, adem_op_idx, input_deg, input_idx, &output_vec);
                     milnor_module.set_action_vector(op_deg, milnor_op_idx, input_deg, input_idx, &output_vec);
+                    output_vec.set_to_zero();
                 }
             }
             adem_module.extend_actions(input_deg, output_deg);

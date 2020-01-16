@@ -354,7 +354,6 @@ impl Algebra for AdemAlgebra {
         }
 
         let p = self.prime();
-
         let inadmissible_pairs = combinatorics::inadmissible_pairs(p, self.generic, degree);
         let mut result = Vec::new();
 
@@ -1187,6 +1186,28 @@ impl AdemAlgebra {
 //     return algebra->excess_table[degree][excess];
 // }
 
+
+impl Bialgebra for AdemAlgebra {
+    fn decompose(&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize)> {
+        if self.generic {
+            unimplemented!();
+        }
+
+        let elt = &self.basis_table[op_deg as usize][op_idx];
+        elt.ps.iter().rev().map(|i| (*i as i32, 0 as usize)).collect::<Vec<_>>()
+    }
+
+    fn coproduct(&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize, i32, usize)> {
+        if self.generic {
+            unimplemented!();
+        }
+        assert_eq!(op_idx, 0);
+
+        (0 ..= op_deg).map(|j| (j, 0 as usize, op_deg - j, 0 as usize)).collect::<Vec<_>>()
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1211,6 +1232,7 @@ mod tests {
         println!("result : {}", A.element_to_string(out_deg, &result1));
         println!("result : {}", A.element_to_string(out_deg, &result2));
     }
+
 
     use rstest::rstest;
 
@@ -1300,25 +1322,5 @@ mod tests {
                 }
             }
         }
-    }
-}
-
-impl Bialgebra for AdemAlgebra {
-    fn decompose(&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize)> {
-        if self.generic {
-            unimplemented!();
-        }
-
-        let elt = &self.basis_table[op_deg as usize][op_idx];
-        elt.ps.iter().rev().map(|i| (*i as i32, 0 as usize)).collect::<Vec<_>>()
-    }
-
-    fn coproduct(&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize, i32, usize)> {
-        if self.generic {
-            unimplemented!();
-        }
-        assert_eq!(op_idx, 0);
-
-        (0 ..= op_deg).map(|j| (j, 0 as usize, op_deg - j, 0 as usize)).collect::<Vec<_>>()
     }
 }
