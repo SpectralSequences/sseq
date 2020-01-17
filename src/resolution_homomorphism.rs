@@ -47,9 +47,9 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
         &self.maps[output_homological_degree as usize]
     }
 
-    // pub fn into_chain_maps(self) -> Vec<FreeModuleHomomorphism<CC2::Module>> {
-    //     self.maps.into_vec()
-    // }
+    pub fn into_chain_maps(self) -> Vec<FreeModuleHomomorphism<CC2::Module>> {
+        self.maps.into_vec()
+    }
 
     /// Extend the resolution homomorphism such that it is defined on degrees
     /// (`source_homological_degree`, `source_degree`).

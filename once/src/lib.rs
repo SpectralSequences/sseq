@@ -1,34 +1,10 @@
 use core::cell::UnsafeCell;
-use core::ops::{Deref,  Index, DerefMut, IndexMut};
+use core::ops::{Index, IndexMut};
 use std::fmt;
-// use bivec::BiVec;
 use std::cmp::{PartialEq, Eq};
-// use std::slice::{Iter};
-
-// static DEFAULT_CAPACITY : usize = 1028 * PAGE_SIZE;
-// static PAGE_SIZE : usize = 1028;
 
 pub struct OnceVec<T> {
     data : UnsafeCell<Vec<Vec<T>>>
-}
-
-pub struct OnceVecIter<'a, T> {
-    vector : &'a OnceVec<T>,
-    idx : usize
-}
-
-impl<'a, T> Iterator for OnceVecIter<'a, T> {
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<&'a T> {
-        if self.idx == self.vector.len() {
-            None
-        } else {
-            let result = &self.vector[self.idx];
-            self.idx += 1;
-            Some(result)
-        }
-    }
 }
 
 impl<T> Default for OnceVec<T> {
@@ -55,7 +31,7 @@ impl<T: fmt::Debug> fmt::Debug for OnceVec<T> {
 }
 
 impl<T> PartialEq for OnceVec<T>
-    where T : PartialEq {
+where T : PartialEq {
     fn eq(&self, other: &OnceVec<T>) -> bool {
         if self.len() != other.len() { 
             return false;
@@ -72,15 +48,18 @@ impl<T> PartialEq for OnceVec<T>
 impl<T> Eq for OnceVec<T> where T : Eq {}
 
 impl<T>  OnceVec<T> {
-    // pub fn into_vec(self) -> Vec<T> {
-    //     self.data.into_inner()
-    // }
+    pub fn into_vec(self) -> Vec<T> {
+        self.into_iter().collect()
+    }
 
-    // pub fn from_vec(vec : Vec<T>) -> Self {
-    //     Self {
-    //         data : UnsafeCell::new(vec)
-    //     }
-    // }
+    // TODO: Make this more efficient
+    pub fn from_vec(vec : Vec<T>) -> Self {
+        let result = Self::new();
+        for item in vec {
+            result.push(item);
+        }
+        result
+    }
 
     pub fn new() -> Self {
         Self {
@@ -92,24 +71,22 @@ impl<T>  OnceVec<T> {
         Self::new()
     }
 
-    #[allow(clippy::mut_from_ref)]
-    fn get_outer_vec_mut(&self) -> &mut Vec<Vec<T>> {
-        unsafe { &mut *self.data.get() }
-    }
-
     pub fn len(&self) -> usize {
-        let outer_len = Deref::deref(self).len();
-        if outer_len == 0 {
-            0
-        } else if outer_len == 1 {
-            1
-        } else {
-            (1 << (outer_len - 1)) - 1  + Deref::deref(self)[outer_len - 1].len()
+        unsafe {
+            let outer = &mut *self.data.get();
+            let outer_len = outer.len();
+            if outer_len == 0 {
+                0
+            } else if outer_len == 1 {
+                1
+            } else {
+                (1 << (outer_len - 1)) - 1 + outer[outer_len - 1].len()
+            }
         }
     }
 
     pub fn is_empty(&self) -> bool {
-        Deref::deref(self).is_empty()
+        self.len() == 0
     }    
 
     pub fn get(&self, idx : usize) -> Option<&T> {
@@ -128,44 +105,45 @@ impl<T>  OnceVec<T> {
         }
     }
 
-    pub fn capacity(&self) -> usize {
-        10000 // Deref::deref(self).capacity() * PAGE_SIZE
-    }
+    pub fn reserve(&self, _additional : usize) {}
 
-    pub fn reserve(&self, additional : usize) {
-        assert!(self.len() + additional <= self.capacity(), "Not enough space to reserve!");
-    }
-
-    pub fn reserve_exact(&self, additional : usize) {
-        assert!(self.len() + additional <= self.capacity(), "Not enough space to reserve!");
-    }
+    pub fn reserve_exact(&self, _additional : usize) {}
 
     pub fn push(&self, x : T) {
-        let outer_vec = self.get_outer_vec_mut();
-        // println!("current length : ")
-        if (self.len() + 1).count_ones() == 1 { // need a new entry
-            outer_vec.push(Vec::with_capacity(1 << outer_vec.len()));
+        unsafe {
+            let outer_vec = &mut *self.data.get();
+            if (self.len() + 1).is_power_of_two() { // need a new entry
+                outer_vec.push(Vec::with_capacity(1 << outer_vec.len()));
+            }
+            let inner_vec = outer_vec.last_mut().unwrap(); 
+            inner_vec.push(x);
         }
-        let inner_vec = outer_vec.last_mut().unwrap(); 
-        inner_vec.push(x);
     }
 
-    pub fn iter(&self) -> OnceVecIter<T> {
-        OnceVecIter {
-            vector : &self,
-            idx : 0
+    pub fn iter(&self) -> impl Iterator<Item=&T> {
+        let len = self.len();
+        unsafe {
+            (&*self.data.get()).iter().flatten().take(len)
         }
+    }
+}
+
+impl<T> IntoIterator for OnceVec<T> {
+    type Item = T;
+    type IntoIter = std::iter::Flatten<std::vec::IntoIter<Vec<T>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.into_inner().into_iter().flatten()
     }
 }
 
 impl<T> Index<usize> for OnceVec<T> {
     type Output = T;
     fn index(&self, mut key : usize) -> &T {
-        // let (page, page_idx) = key.div_rem(PAGE_SIZE);
         key += 1;
         let page = (63 - key.leading_zeros()) as usize;
         key -= 1 << page;
-        &Deref::deref(self)[page][key]
+        unsafe { &(&*self.data.get())[page][key] }
     }
 }
 
@@ -174,44 +152,20 @@ impl<T> IndexMut<usize> for OnceVec<T> {
         key += 1;
         let page = (63 - key.leading_zeros()) as usize;
         key -= 1 << page;
-        &mut DerefMut::deref_mut(self)[page][key]
+        unsafe { &mut (&mut *self.data.get())[page][key] }
     }
 }
 
 impl<T> Index<u32> for OnceVec<T> {
     type Output = T;
     fn index(&self, key : u32) -> &T {
-        let mut key = key as usize;
-        key += 1;
-        let page = (63 - key.leading_zeros()) as usize;
-        key -= 1 << page;
-        println!("page : {}, key : {}",page, key);
-        &Deref::deref(self)[page][key]
+        self.index(key as usize)
     }
 }
 
 impl<T> IndexMut<u32> for OnceVec<T> {
     fn index_mut(&mut self, key : u32) -> &mut T {
-        let mut key = key as usize;
-        key += 1;
-        let page = (63 - key.leading_zeros()) as usize;
-        key -= 1 << page;
-        &mut DerefMut::deref_mut(self)[page][key]
-    }
-}
-
-impl<T> Deref for OnceVec<T> {
-    type Target = Vec<Vec<T>>;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*self.data.get() }
-    }
-}
-
-
-impl<T> DerefMut for OnceVec<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut *self.data.get() }
+        self.index_mut(key as usize)
     }
 }
 
@@ -266,12 +220,12 @@ impl<T> OnceBiVec<T> {
         }
     }
 
-    // pub fn from_vec(min_degree : i32, data : Vec<T>) -> Self {
-    //     Self {
-    //         data,
-    //         min_degree
-    //     }
-    // }
+    pub fn from_vec(min_degree : i32, data : Vec<T>) -> Self {
+        Self {
+            data: OnceVec::from_vec(data),
+            min_degree
+        }
+    }
 
     pub fn with_capacity(min_degree : i32, capacity : i32) -> Self {
         debug_assert!(capacity >= min_degree);
@@ -326,7 +280,7 @@ impl<T> OnceBiVec<T> {
     pub fn last(&self) -> Option<&T> {
         self.data.last()
     }
-    pub fn iter(&self) -> OnceVecIter<T> {
+    pub fn iter(&self) -> impl Iterator<Item=&T> {
         self.data.iter()
     }
 
@@ -383,9 +337,6 @@ impl<T : Load> Load for OnceBiVec<T> {
         Ok(Self { data, min_degree })
     }
 }
-
-
-
 
 #[cfg(test)]
 mod tests {
@@ -454,7 +405,7 @@ mod tests {
         // w.save(&mut cursor2).unwrap();
         // cursor2.seek(SeekFrom::Start(0)).unwrap();
         // let w_saved_then_loaded : BiVec<u32> = Load::load(&mut cursor, &(-3, ())).unwrap();        
-        
+
         // assert_eq!(w, w_saved_then_loaded);
     }
 }
