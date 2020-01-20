@@ -3,6 +3,8 @@ use core::ops::{Index, IndexMut};
 use std::fmt;
 use std::cmp::{PartialEq, Eq};
 
+const USIZE_LEN : u32 = 0usize.count_zeros();
+
 pub struct OnceVec<T> {
     data : UnsafeCell<Vec<Vec<T>>>
 }
@@ -141,7 +143,7 @@ impl<T> Index<usize> for OnceVec<T> {
     type Output = T;
     fn index(&self, mut key : usize) -> &T {
         key += 1;
-        let page = (63 - key.leading_zeros()) as usize;
+        let page = ((USIZE_LEN - 1) - key.leading_zeros()) as usize;
         key -= 1 << page;
         unsafe { &(&*self.data.get())[page][key] }
     }
@@ -150,7 +152,7 @@ impl<T> Index<usize> for OnceVec<T> {
 impl<T> IndexMut<usize> for OnceVec<T> {
     fn index_mut(&mut self, mut key : usize) -> &mut T {
         key += 1;
-        let page = (63 - key.leading_zeros()) as usize;
+        let page = ((USIZE_LEN - 1) - key.leading_zeros()) as usize;
         key -= 1 << page;
         unsafe { &mut (&mut *self.data.get())[page][key] }
     }
