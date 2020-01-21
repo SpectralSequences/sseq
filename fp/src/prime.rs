@@ -7,9 +7,20 @@ pub fn is_valid_prime(p : u32) -> bool {
     (p as usize) < MAX_PRIME && PRIME_TO_INDEX_MAP[p as usize] != NOT_A_PRIME
 }
 
+/// This function checks that the prime is valid. Afterwards, it tells the compiler that p is
+/// positive via unreachable_unchecked to enable some optimizations.
+#[inline(always)]
+pub fn assert_valid_prime(p: u32) {
+    let p = p as usize;
+    assert!(p < MAX_PRIME && PRIME_TO_INDEX_MAP[p] != NOT_A_PRIME);
+    if p == 0 {
+        unsafe { std::hint::unreachable_unchecked() }
+    }
+}
+
 // Uses a the lookup table we initialized.
 pub fn inverse(p : u32, k : u32) -> u32 {
-    assert!(is_valid_prime(p));
+    assert_valid_prime(p);
     let result = INVERSE_TABLE[PRIME_TO_INDEX_MAP[p as usize]][k as usize];
     assert!(result != 0);
     result
@@ -103,9 +114,8 @@ fn binomial2(n : i32, k : i32) -> u32 {
 //Mod p multinomial coefficient of l. If p is 2, more efficient to use Multinomial2.
 //This uses Lucas's theorem to reduce to n choose k for n, k < p.
 fn multinomial_odd(p : u32, l : &mut [u32]) -> u32 {
-    // When reducing mod p, the compiler checks if p is zero. The PRIME_TO_INDEX_MAP check ensures
-    // that p != 0, but the compiler does not know that, so repeats the check in every loop.
-    assert!(p > 0 && is_valid_prime(p));
+    assert_valid_prime(p);
+
     let mut n : u32 = l.iter().sum();
     if n == 0 {
         return 1;
@@ -143,7 +153,7 @@ fn multinomial_odd(p : u32, l : &mut [u32]) -> u32 {
 
 //Mod p binomial coefficient n choose k. If p is 2, more efficient to use Binomial2.
 fn binomial_odd(p : u32, n : i32, k : i32) -> u32 {
-    assert!(p > 0 && is_valid_prime(p));
+    assert_valid_prime(p);
     if n < k || k < 0 {
         return 0;
     }
