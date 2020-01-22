@@ -14,6 +14,7 @@ fn extend_identity() {
     check_algebra("S_3", 50, "milnor");
     check_algebra("Calpha", 50, "milnor");
     check_algebra("tmf2", 40, "milnor");
+    check_algebra("A-mod-Sq1-Sq2", 20, "adem");
 }
 
 fn check_algebra (module_name : &str, max_degree : i32, algebra_name: &str) {

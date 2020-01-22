@@ -202,12 +202,13 @@ impl Module for FinitelyPresentedModule {
     }
 
     fn compute_basis(&self, degree : i32) {
+        self.algebra().compute_basis(degree);
         self.generators.extend_by_zero(degree);
         self.relations.extend_by_zero(degree);
         let min_degree = self.min_degree();
         for i in self.index_table.len() as i32 + min_degree ..= degree {
             self.map.compute_kernels_and_quasi_inverses_through_degree(i);
-            let qi = self.map.quasi_inverse(degree);
+            let qi = self.map.quasi_inverse(i);
             let image = qi.image.as_ref().unwrap();
             let mut gen_idx_to_fp_idx = Vec::new();
             let mut fp_idx_to_gen_idx = Vec::new();
