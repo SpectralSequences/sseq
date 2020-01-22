@@ -8,12 +8,13 @@ pub fn is_valid_prime(p : u32) -> bool {
 }
 
 /// This function checks that the prime is valid. Afterwards, it tells the compiler that p is
-/// positive via unreachable_unchecked to enable some optimizations.
+/// positive and PRIME_TO_INDEX_MAP[p] < NUM_PRIMES via unreachable_unchecked to enable some
+/// optimizations.
 #[inline(always)]
 pub fn assert_valid_prime(p: u32) {
     let p = p as usize;
-    assert!(p < MAX_PRIME && PRIME_TO_INDEX_MAP[p] != NOT_A_PRIME);
-    if p == 0 {
+    assert!(p <= MAX_PRIME && PRIME_TO_INDEX_MAP[p] != NOT_A_PRIME);
+    if p == 0 || PRIME_TO_INDEX_MAP[p] >= NUM_PRIMES {
         unsafe { std::hint::unreachable_unchecked() }
     }
 }
@@ -21,9 +22,9 @@ pub fn assert_valid_prime(p: u32) {
 // Uses a the lookup table we initialized.
 pub fn inverse(p : u32, k : u32) -> u32 {
     assert_valid_prime(p);
-    let result = INVERSE_TABLE[PRIME_TO_INDEX_MAP[p as usize]][k as usize];
-    assert!(result != 0);
-    result
+    assert!(k > 0 && k < p);
+    // LLVM doesn't understand the inequality is transitive
+    unsafe { *INVERSE_TABLE[PRIME_TO_INDEX_MAP[p as usize]].get_unchecked(k as usize) }
 }
 
 pub fn minus_one_to_the_n(p : u32, i : u32) -> u32 {
