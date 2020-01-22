@@ -1,18 +1,62 @@
 'use strict';
 
-import { download } from "./utils.js";
+import { parseIntegerArray, download } from "./utils.js";
 
 window.maxDegree = 10;
 window.form = document.getElementById("header-form");
 
 const LEFT_MARGIN = 20;
 const NODE_OFFSET = 20;
- 
+
 // prime
-window.prime = parseInt(form.prime.value);
 form.prime.addEventListener("change", () => {
     window.prime = parseInt(form.prime.value);
+    if (window.prime == 2) {
+        form.qpart.disabled = true;
+    } else {
+        form.qpart.disabled = false;
+    }
 });
+form.prime.dispatchEvent(new Event("change"));
+
+form.algebra.addEventListener("change", () => {
+    if (form.algebra.value == "Milnor") {
+        document.getElementById("profile").style.display = "flex";
+    } else {
+        document.getElementById("profile").style.display = "none";
+    }
+});
+form.algebra.dispatchEvent(new Event("change"));
+
+form.ppart.addEventListener("change", () => {
+    let value = form.ppart.value.trim();
+    if (value == "") {
+        form.ppart.setCustomValidity("");
+        return;
+    }
+    value = parseIntegerArray(value);
+    if (value === null) {
+        form.ppart.setCustomValidity("Invalid syntax.");
+    } else if (!validatePPart(value)) {
+        form.ppart.setCustomValidity("Invalid profile function. A profile [p_1, p_2, ...] is valid iff p_i >= min(p_j, p_{i - j} - j) for all i > j.");
+    } else {
+        form.ppart.setCustomValidity("");
+    }
+});
+form.ppart.dispatchEvent(new Event("change"));
+
+function validatePPart(ppart) {
+    for (let k = 1; k <= ppart.length; k++) {
+        for (let j = 1; j < ppart[k - 1]; j++) {
+            if (ppart[k + j - 1] === undefined)
+                ppart[k + j - 1] = 0;
+            if (ppart[j + k - 1] < ppart[j - 1] && ppart[j + k - 1] + j < ppart[k - 1]) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
 
 /******************************
  * Finite Dimensional Modules *
@@ -238,14 +282,11 @@ canvas.addEventListener("click", (e) => {
             const targetDim = getDimension(degree + (1 << op));
             let value;
             while (true) {
-                try {
-                    value = JSON.parse(prompt("Set value of action").trim());
-                    if (Array.isArray(value) &&
-                        value.length == targetDim &&
-                        value.reduce((b, x) => b && Number.isInteger(x) && b < window.prime, true)) {
-                        break;
-                    }
-                } catch(e) { // If we can't parse, try again
+                value = parseIntegerArray(prompt("Set value of action"));
+                if (value !== null &&
+                    value.length == targetDim &&
+                    value.reduce((b, x) => b && x < window.prime, true)) {
+                    break;
                 }
                 if (!confirm("Invalid value. Please write action in the form [0, 1, ...]")) return;
             }
@@ -260,14 +301,47 @@ canvas.addEventListener("click", (e) => {
 drawCanvas();
 
 document.getElementById("download").addEventListener("click", () => {
+    // Check qpart and ppart are valid
+    if (form.algebra.value == "Milnor") {
+        const valid = form.ppart.validity.valid && (prime == 2 || form.qpart.validity.valid);
+        if (!valid) {
+            alert("Invalid Milnor algebra profile");
+            return;
+        }
+    }
     let result = {};
     result.type = "finite dimensional module";
     result.name = prompt("Name");
+    if (result.name === null)
+        return;
+
     result.file_name = prompt("File Name (without extension)");
+    if (result.file_name === null)
+        return;
+
     result.p = window.prime;
     result.generic = (result.p != 2);
     result.gens = {};
     result.actions = [];
+    switch (form.algebra.value) {
+        case "Adem":
+            result.algebra = ["adem"];
+            break;
+        case "Milnor":
+            result.algebra = ["milnor"];
+            const hasProfile = (form.ppart.value != "") || (prime > 2 && form.qpart.value != "");
+            if (hasProfile) {
+                result.profile = {};
+                if (form.ppart.value != "") {
+                    result.profile.truncated = true;
+                    result.profile.p_part = parseIntegerArray(form.ppart.value);
+                }
+                if (prime > 2 && form.qpart.value != "") {
+                    result.profile.q_part = parseInt(form.qpart.value);
+                }
+            }
+            break;
+    }
     for (let deg = minDegree; deg <= maxDegree; deg++) {
         const dim = getDimension(deg);
         const action = getAction(deg);

@@ -48,17 +48,24 @@ export function promptClass(text, error, length) {
         if (!response) {
             return null;
         }
-        try {
-            let vec = JSON.parse(response.trim());
-            if (Array.isArray(vec) &&
-                vec.length == length &&
-                vec.reduce((b, x) => b && Number.isInteger(x), true)) {
-                return vec;
-            }
-        } catch(e) { // If we can't parse, try again
+        let vec = parseIntegerArray(response);
+        if (vec === null || vec.length != length) {
+            alert(error);
+        } else {
+            return vec;
         }
-        alert(error);
     }
+}
+
+export function parseIntegerArray(text) {
+    try {
+        let vec = JSON.parse(text.trim());
+        if (Array.isArray(vec) &&
+            vec.reduce((b, x) => b && Number.isInteger(x), true)) {
+            return vec;
+        }
+    } catch(e) { }
+    return null;
 }
 
 export function promptInteger(text, error) {

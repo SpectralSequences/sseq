@@ -31,17 +31,26 @@
             </div>
             <select class="custom-select" id="algebra">
               <option> Any </option>
-              <option> Milnor Basis </option>
-              <option> Adem Basis </option>
+              <option> Milnor </option>
+              <option> Adem </option>
             </select>
           </div>
         </div>
       </div>
 
-      <div id="profile" style="display: none">
-        Truncated: <input type="checkbox" name="truncated">
-        P part: <input type="text" pattern="\[ *[0-9]* *(, *[0-9]* *)*\]">
-        Q part: <input type="text" pattern="\[ *[01]* *(, *[01]* *)*\]">
+      <div id="profile" style="display: flex;">
+        <div class="input-group mb-3" style="flex: 1; padding: 0px 15px;">
+          <div class="input-group-prepend">
+            <label class="input-group-text" title="Enter a profile function for the P (xi) part, e.g. [3, 2, 1] for tmf. Leave empty to allow all P's.">P part</label>
+          </div>
+          <input class="form-control" id="ppart" type="text">
+        </div>
+        <div class="input-group mb-3" style="flex: 1; padding: 0px 15px;">
+          <div class="input-group-prepend">
+            <label class="input-group-text" title="Currently unsupported">Q part</label>
+          </div>
+          <input class="form-control" id="qpart" type="text">
+        </div>
       </div>
     </form>
     <div id="fdmodule" style="flex: 1; padding: 0; display: flex; flex-direction: column; align-items: stretch;">
