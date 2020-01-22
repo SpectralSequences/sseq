@@ -66,7 +66,7 @@ impl FinitelyPresentedModule {
     }
 
     // Exact duplicate of function in fdmodule.rs...
-    fn module_gens_from_json(gens : &Value) -> (BiVec<usize>, BiVec<Vec<String>>, HashMap<&String, (i32, usize)>) {
+    fn module_gens_from_json(gens : &Value) -> (BiVec<usize>, BiVec<Vec<String>>, HashMap<String, (i32, usize)>) {
         let gens = gens.as_object().unwrap();
         assert!(!gens.is_empty());
         let mut min_degree = 10000;
@@ -82,17 +82,17 @@ impl FinitelyPresentedModule {
         }
         let mut gen_to_idx = HashMap::new();
         let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree);
+        let mut gen_names = BiVec::with_capacity(min_degree, max_degree);
+
         for _ in min_degree..max_degree {
             graded_dimension.push(0);
-        }
-        let mut gen_names = BiVec::with_capacity(min_degree, max_degree);
-        for _ in min_degree..max_degree {
             gen_names.push(vec![]);
-        }        
-        for (name, degree_value) in gens.iter() {
+        }
+
+        for (name, degree_value) in gens {
             let degree = degree_value.as_i64().unwrap() as i32;
             gen_names[degree].push(name.clone());            
-            gen_to_idx.insert(name, (degree, graded_dimension[degree]));
+            gen_to_idx.insert(name.clone(), (degree, graded_dimension[degree]));
             graded_dimension[degree] += 1;
         }
         (graded_dimension, gen_names, gen_to_idx)
@@ -114,7 +114,7 @@ impl FinitelyPresentedModule {
                     let op = term["op"].take();
                     let (op_deg, op_idx) = algebra.json_to_basis(op);
                     let gen_name = term["gen"].as_str().unwrap();
-                    let (gen_deg, gen_idx) = gen_to_deg_idx[&gen_name.to_string()];
+                    let (gen_deg, gen_idx) = gen_to_deg_idx[gen_name];
                     let coeff = term["coeff"].as_u64().unwrap() as u32;
                     let op_gen = crate::module::free_module::OperationGeneratorPair {
                         operation_degree : op_deg,

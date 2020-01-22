@@ -352,12 +352,12 @@ impl FiniteDimensionalModule {
                 let op = action["op"].take();
                 let (degree, idx) = algebra.json_to_basis(op);
                 let input_name = action["input"].as_str().unwrap();
-                let (input_degree, input_idx) = gen_to_idx[&input_name.to_string()];
+                let (input_degree, input_idx) = gen_to_idx[input_name];
                 let output_vec = result.action_mut(degree, idx, input_degree, input_idx);
                 let outputs = action["output"].as_array().unwrap();
                 for basis_elt in outputs {
                     let output_name = basis_elt["gen"].as_str().unwrap();
-                    let output_idx = gen_to_idx[&output_name.to_string()].1;
+                    let output_idx = gen_to_idx[output_name].1;
                     let output_coeff = basis_elt["coeff"].as_u64().unwrap() as u32;
                     output_vec.set_entry(output_idx, output_coeff);
                 }
@@ -376,7 +376,7 @@ impl FiniteDimensionalModule {
 
         let (entry, ((op_deg, op_idx), gen, _)) = lhs(entry_).unwrap();
 
-        let (input_deg, input_idx) = gen_to_idx[&gen.trim().to_string()];
+        let (input_deg, input_idx) = gen_to_idx[gen.trim()];
         let row = self.action_mut(op_deg, op_idx, input_deg, input_idx);
 
         // Need explicit type here
@@ -386,7 +386,7 @@ impl FiniteDimensionalModule {
             let (_, (coef, gen)) = Self::parse_element(value)
                 .unwrap_or_else(|_| panic!("Invalid action: {}", entry_));
 
-            let (deg, idx) = gen_to_idx[&gen.to_string()];
+            let (deg, idx) = gen_to_idx[gen];
             assert!(deg == input_deg + op_deg, "Invalid action: {}", entry_);
 
             row.add_basis_element(idx, coef);
