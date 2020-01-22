@@ -100,7 +100,7 @@ impl FinitelyPresentedModule {
 
     pub fn from_json(algebra : Arc<AlgebraAny>, json : &mut Value) -> Self {
         let p = algebra.prime();
-        let name = json["name"].as_str().unwrap().to_string();
+        let name = json["name"].as_str().unwrap_or("").to_string();
         let gens = json["gens"].take();
         let (num_gens_in_degree, gen_names, gen_to_deg_idx) = Self::module_gens_from_json(&gens);
         let mut relations_value = json[algebra.algebra_type().to_owned() + "_relations"].take();

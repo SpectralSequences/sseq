@@ -326,7 +326,7 @@ impl FiniteDimensionalModule {
     pub fn from_json(algebra : Arc<AlgebraAny>, json : &mut Value) -> Self {
         let gens = json["gens"].take();
         let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(gens);
-        let name = json["name"].as_str().unwrap().to_string();
+        let name = json["name"].as_str().unwrap_or("").to_string();
 
         let mut result = Self::new(Arc::clone(&algebra), name, graded_dimension.clone());
         for (i, dim) in graded_dimension.iter_enum() {
