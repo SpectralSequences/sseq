@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html style="height: 100%; margin: 0px; padding: 0px;">
+  <head>
+    <meta name="generator" content="HTML Tidy for HTML5 for Linux version 5.7.16">
+    <meta charset="utf-8">
+    <title>Module constructor</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+  </head>
+  <body style="max-width: 600px; margin-left: auto; margin-right: auto; display: flex; align-items: stretch; flex-direction: column; height: 100%; margin-top: 0px; margin-bottom: 0px; padding: 20px 0px 0px 0px;">
+    <form id="header-form">
+      <div class="container">
+        <div class="row">
+          <div class="col input-group mb-3">
+            <div class="input-group-prepend">
+              <label class="input-group-text">Prime</label>
+            </div>
+            <select class="custom-select" id="prime">
+              <option> 2 </option>
+              <option> 3 </option>
+              <option> 5 </option>
+              <option> 7 </option>
+              <option> 11 </option>
+              <option> 13 </option>
+              <option> 17 </option>
+              <option> 19 </option>
+            </select>
+          </div>
+          <div class="col input-group mb-3">
+            <div class="input-group-prepend">
+              <label class="input-group-text">Basis</label>
+            </div>
+            <select class="custom-select" id="algebra">
+              <option> Any </option>
+              <option> Milnor Basis </option>
+              <option> Adem Basis </option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="profile" style="display: none">
+        Truncated: <input type="checkbox" name="truncated">
+        P part: <input type="text" pattern="\[ *[0-9]* *(, *[0-9]* *)*\]">
+        Q part: <input type="text" pattern="\[ *[01]* *(, *[01]* *)*\]">
+      </div>
+    </form>
+    <div id="fdmodule" style="flex: 1; padding: 0; display: flex; flex-direction: column; align-items: stretch;">
+      <form id="fdmodule-form">
+        <div style="display: flex;">
+          <div class="input-group mb-3" style="flex: 1; padding: 0px 15px;">
+            <div class="input-group-prepend">
+              <label class="input-group-text">Min degree</label>
+            </div>
+            <input id="min-degree" type="number" min="0" class="form-control" value="0">
+          </div>
+          <div class="input-group mb-3" style="flex: 1; padding: 0px 15px;">
+            <div class="input-group-prepend">
+              <label class="input-group-text">Max degree</label>
+            </div>
+            <input id="max-degree" type="number" min="0" class="form-control" value="10">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: center;">
+          <div id="mode-radio" class="btn-group btn-group-toggle">
+            <label class="btn btn-primary"><input type="radio" name="mode" value="add" id="mode-add" checked>Add generator</label>
+            <label class="btn btn-primary"><input type="radio" name="mode" value="rm" id= "mode-rm">Remove generator</label>
+            <label class="btn btn-primary"><input type="radio" name="mode" value="action" id= "mode-action">Set actions</label>
+          </div>
+        </div>
+      </form>
+
+      <canvas id="fdmodule-canvas" style="flex: 1; padding: 0; margin: 0;">
+      </canvas>
+    </div>
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+      <button class="btn btn-primary" type="submit" id="download">Download</button>
+    </div>
+    <script src="utils.js" type="module"></script>
+    <script src="./constructor.js" type="module"></script>
+  </body>
+</html>
