@@ -136,7 +136,7 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
     let name : String = query("Module name (use latex between $'s)", Ok);
     // Query for prime
     let p = query_with_default("p", ValidPrime::new(2),
-        |p : u32| ValidPrime::try_new(p).ok_or("invalid prime".to_string()));
+        |p : u32| ValidPrime::try_new(p).ok_or_else(|| "invalid prime".to_string()));
     let generic = *p != 2;
     let mut output_path_buf = PathBuf::from(output_path);
     output_path_buf.set_extension("json");
