@@ -8,33 +8,31 @@
   </head>
   <body style="max-width: 600px; margin-left: auto; margin-right: auto; display: flex; align-items: stretch; flex-direction: column; height: 100%; margin-top: 0px; margin-bottom: 0px; padding: 20px 0px 0px 0px;">
     <form id="header-form">
-      <div class="container">
-        <div class="row">
-          <div class="col input-group mb-3">
-            <div class="input-group-prepend">
-              <label class="input-group-text">Prime</label>
-            </div>
-            <select class="custom-select" id="prime">
-              <option> 2 </option>
-              <option> 3 </option>
-              <option> 5 </option>
-              <option> 7 </option>
-              <option> 11 </option>
-              <option> 13 </option>
-              <option> 17 </option>
-              <option> 19 </option>
-            </select>
+      <div style="display: flex;">
+        <div class="input-group mb-3" style="flex: 1; padding: 0px 15px;">
+          <div class="input-group-prepend">
+            <label class="input-group-text">Prime</label>
           </div>
-          <div class="col input-group mb-3">
-            <div class="input-group-prepend">
-              <label class="input-group-text">Basis</label>
-            </div>
-            <select class="custom-select" id="algebra">
-              <option> Any </option>
-              <option> Milnor </option>
-              <option> Adem </option>
-            </select>
+          <select class="custom-select" id="prime">
+            <option> 2 </option>
+            <option> 3 </option>
+            <option> 5 </option>
+            <option> 7 </option>
+            <option> 11 </option>
+            <option> 13 </option>
+            <option> 17 </option>
+            <option> 19 </option>
+          </select>
+        </div>
+        <div class="input-group mb-3" style="flex: 1; padding: 0px 15px;">
+          <div class="input-group-prepend">
+            <label class="input-group-text">Basis</label>
           </div>
+          <select class="custom-select" id="algebra">
+            <option> Any </option>
+            <option> Milnor </option>
+            <option> Adem </option>
+          </select>
         </div>
       </div>
 
@@ -51,6 +49,16 @@
           </div>
           <input class="form-control" id="qpart" type="text">
         </div>
+      </div>
+      <div class="input-group mb-3" style="padding: 0px 15px;">
+        <div class="input-group-prepend">
+          <label class="input-group-text">Module type</label>
+        </div>
+        <select class="custom-select" id="module-type">
+          <option> Finite Dimensional Module </option>
+          <option> Finitely Presented Module </option>
+          <option> Stunted Projective Space </option>
+        </select>
       </div>
     </form>
     <div id="fdmodule" style="flex: 1; padding: 0; display: flex; flex-direction: column; align-items: stretch;">
@@ -80,6 +88,26 @@
 
       <canvas id="fdmodule-canvas" style="flex: 1; padding: 0; margin: 0;">
       </canvas>
+    </div>
+    <div id="fpmodule" style="flex: 1; padding: 0; display: flex; flex-direction: column; align-items: stretch;">
+      TODO: fpmodule
+    </div>
+    <div id="rpn" style="flex: 1; padding: 0; display: flex; flex-direction: column; align-items: stretch;">
+      This defines the stunted projective space P<sup>n</sup><sub>m</sub>.
+      <div class="input-group mb-3" style="padding: 0px 15px;">
+        <div class="input-group-prepend">
+          <label class="input-group-text">n</label>
+        </div>
+        <input id="n" type="number" class="form-control" value="1">
+      </div>
+      <div class="input-group mb-3" style="padding: 0px 15px;">
+        <div class="input-group-prepend">
+          <label class="input-group-text">m</label>
+        </div>
+        <input id="m" type="number" class="form-control" value="1">
+      </div>
+
+      TODO: rpn
     </div>
     <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
       <button class="btn btn-primary" type="submit" id="download">Download</button>

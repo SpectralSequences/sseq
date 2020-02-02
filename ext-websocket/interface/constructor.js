@@ -58,6 +58,31 @@ function validatePPart(ppart) {
     return true;
 }
 
+form["module-type"].addEventListener("change", () => {
+    switch (form["module-type"].value) {
+      case "Finite Dimensional Module":
+        window.moduleType = "fdmodule";
+        break;
+      case "Finitely Presented Module":
+        window.moduleType = "fpmodule";
+        break;
+      case "Stunted Projective Space":
+        window.moduleType = "rpn";
+        break;
+      default:
+        console.log(`Invalid module type: ${form["module-type"].value}`);
+    }
+    for (let x of ["fdmodule", "fpmodule", "rpn"]) {
+      if (x == window.moduleType) {
+        document.getElementById(x).style.display = "flex";
+      } else {
+        document.getElementById(x).style.display = "none";
+      }
+    }
+  document.getElementById(window.moduleType).onShow();
+});
+// Dispatch event at the end when onShow is defined.
+
 /******************************
  * Finite Dimensional Modules *
  * ****************************/
@@ -182,6 +207,7 @@ function drawCanvas() {
         }
     }
 }
+document.getElementById("fdmodule").onShow = drawCanvas;
 
 function getAction(degree) {
     if (actions.has(degree)) {
@@ -300,7 +326,7 @@ canvas.addEventListener("click", (e) => {
 });
 drawCanvas();
 
-document.getElementById("download").addEventListener("click", () => {
+function getModuleObject() {
     // Check qpart and ppart are valid
     if (form.algebra.value == "Milnor") {
         const valid = form.ppart.validity.valid && (prime == 2 || form.qpart.validity.valid);
@@ -371,5 +397,12 @@ document.getElementById("download").addEventListener("click", () => {
             }
         }
     }
+    return result;
+}
+
+document.getElementById("download").addEventListener("click", () => {
+    const result = getModuleObject();
     download(`${result.file_name}.json`, JSON.stringify(result), "application/json");
 });
+
+form["module-type"].dispatchEvent(new Event("change"));
