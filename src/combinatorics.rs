@@ -39,8 +39,8 @@ static TAU_DEGREES : [[i32; 10]; 8] = [
     [1, 37, 721, 13717, 260641, 4952197, 94091761, 1787743477, 0, 0]
 ];
 
-pub fn adem_relation_coefficient(p : u32, x : u32, y : u32, j : u32, e1 : u32, e2 : u32) -> u32{
-    let pi32 = p as i32;
+pub fn adem_relation_coefficient(p : ValidPrime, x : u32, y : u32, j : u32, e1 : u32, e2 : u32) -> u32{
+    let pi32 = *p as i32;
     let x = x as i32;
     let y = y as i32;
     let j = j as i32;
@@ -50,11 +50,12 @@ pub fn adem_relation_coefficient(p : u32, x : u32, y : u32, j : u32, e1 : u32, e
     if c == 0 { 
         return 0; 
     }
-    c *= minus_one_to_the_n(p, ((x + j) + e2) as u32);
-    c % p
+    c *= minus_one_to_the_n(*p, ((x + j) + e2) as u32);
+    c % *p
 }
 
-pub fn inadmissible_pairs(p : u32, generic : bool, degree : i32) -> Vec<(u32, u32, u32)> {
+pub fn inadmissible_pairs(p : ValidPrime, generic : bool, degree : i32) -> Vec<(u32, u32, u32)> {
+    let p = *p;
     let degree = degree as u32;
     let q = if generic { 2*p-2 } else { 1 };
     // (i, b, j) means P^i P^j if b = 0, or P^i b P^j if b = 1.
@@ -82,10 +83,10 @@ pub fn inadmissible_pairs(p : u32, generic : bool, degree : i32) -> Vec<(u32, u3
     inadmissible_pairs
 }
 
-pub fn tau_degrees(p : u32) -> &'static [i32] {
-    &TAU_DEGREES[PRIME_TO_INDEX_MAP[p as usize]]
+pub fn tau_degrees(p : ValidPrime) -> &'static [i32] {
+    &TAU_DEGREES[PRIME_TO_INDEX_MAP[*p as usize]]
 }
 
-pub fn xi_degrees(p : u32) -> &'static [i32] {
-    &XI_DEGREES[PRIME_TO_INDEX_MAP[p as usize]]
+pub fn xi_degrees(p : ValidPrime) -> &'static [i32] {
+    &XI_DEGREES[PRIME_TO_INDEX_MAP[*p as usize]]
 }

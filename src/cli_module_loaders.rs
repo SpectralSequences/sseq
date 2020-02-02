@@ -10,6 +10,7 @@ use serde_json::json;
 use query::*;
 
 use bivec::BiVec;
+use fp::prime::ValidPrime;
 use fp::vector::{FpVector,FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny, MilnorAlgebra, AdemAlgebra};
 use crate::module::{Module, FreeModule, FDModule, FPModule};
@@ -134,9 +135,9 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
 
     let name : String = query("Module name (use latex between $'s)", Ok);
     // Query for prime
-    let p = query_with_default("p", 2, 
-        |p : u32| if fp::prime::is_valid_prime(p) {Ok(p)} else {Err("invalid prime".to_string())});
-    let generic = p != 2;
+    let p = query_with_default("p", ValidPrime::new(2),
+        |p : u32| ValidPrime::try_new(p).ok_or("invalid prime".to_string()));
+    let generic = *p != 2;
     let mut output_path_buf = PathBuf::from(output_path);
     output_path_buf.set_extension("json");
     let file_name = output_path_buf.file_stem().unwrap();    
@@ -159,7 +160,7 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
 }
 
 
-pub fn interactive_module_define_fdmodule(mut output_json : Value, p : u32, generic : bool) -> Result<Value, Box<dyn Error>>{
+pub fn interactive_module_define_fdmodule(mut output_json : Value, p : ValidPrime, generic : bool) -> Result<Value, Box<dyn Error>>{
     output_json["type"] = Value::from("finite dimensional module");
     let adem_algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
     let milnor_algebra = Arc::new(AlgebraAny::from(MilnorAlgebra::new(p)));
@@ -237,7 +238,7 @@ fn get_relation(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, mo
     evaluate_module(adem_algebra, milnor_algebra, module, basis_elt_lookup, &relation).map_err(|err| err.to_string())
 }
 
-pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, generic : bool) -> Result<Value, Box<dyn Error>>{
+pub fn interactive_module_define_fpmodule(mut output_json : Value, p : ValidPrime, generic : bool) -> Result<Value, Box<dyn Error>>{
     output_json["type"] = Value::from("finitely presented module");
     let min_degree = 0i32;
     let gens = get_gens(min_degree)?;
@@ -266,7 +267,7 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : u32, gene
     adem_module.generators.extend_by_zero(20);
 
     println!("Input relations");
-    match p {
+    match *p {
         2 => println!("Write relations in the form 'Sq6 * Sq2 * x + Sq7 * y'"),
         _ => println!("Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y', where P(...) and Qi are Milnor basis elements."),
     }

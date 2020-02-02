@@ -1,3 +1,4 @@
+use fp::prime::ValidPrime;
 use fp::matrix::{Subspace, Matrix};
 use fp::vector::{FpVector, FpVectorT};
 use std::collections::HashMap;
@@ -33,7 +34,7 @@ fn express_basis(mut elt : &mut FpVector, zeros : Option<&Subspace>, basis : &(V
         let c = elt.entry(i);
         result.push(c);
         if c != 0 {
-            elt.add(&basis.1[basis.0[i] as usize], ((elt.prime() - 1) * c) % elt.prime());
+            elt.add(&basis.1[basis.0[i] as usize], ((*elt.prime() - 1) * c) % *elt.prime());
         }
     }
 //    assert!(elt.is_zero());
@@ -56,7 +57,7 @@ pub struct Differential {
 }
 
 impl Differential {
-    pub fn new(p : u32, source_dim : usize, target_dim : usize) -> Self {
+    pub fn new(p : ValidPrime, source_dim : usize, target_dim : usize) -> Self {
         Differential {
             matrix : Matrix::new(p, source_dim + 1, source_dim + target_dim),
             source_dim,
@@ -163,12 +164,12 @@ impl Differential {
                 target.add_basis_element(j, c * self.matrix[row].entry(self.source_dim + j));
             }
             for j in 0 .. self.source_dim {
-                source.add_basis_element(j, (self.prime() - 1) * c * self.matrix[row].entry(j));
+                source.add_basis_element(j, (*self.prime() - 1) * c * self.matrix[row].entry(j));
             }
         }
     }
 
-    pub fn prime(&self) -> u32 {
+    pub fn prime(&self) -> ValidPrime {
         self.matrix.prime()
     }
 }
@@ -206,7 +207,7 @@ pub struct ProductItem {
 ///  * `block_refresh` : If this is a positive number, then the spectral sequence will not
 ///  re-compute classes and edges. See `Actions::BlockRefresh` for details.
 pub struct Sseq {
-    pub p : u32,
+    pub p : ValidPrime,
     name : SseqChoice,
     min_x : i32,
     min_y : i32,
@@ -225,7 +226,7 @@ pub struct Sseq {
 }
 
 impl Sseq {
-    pub fn new(p : u32, name : SseqChoice, min_x : i32, min_y : i32, sender : Option<Sender>) -> Self {
+    pub fn new(p : ValidPrime, name : SseqChoice, min_x : i32, min_y : i32, sender : Option<Sender>) -> Self {
         fp::vector::initialize_limb_bit_index_table(p);
         let mut classes = BiVec::new(min_x - 1); // We have an extra column to the left so that differentials have something to hit.
         classes.push(BiVec::new(min_y));
@@ -396,7 +397,7 @@ impl Sseq {
                 let (tx, ty) = sseq_profile(r, x, y);
                 let (_, _, mut new_target) = self.multiply(tx, ty, t_, product)?;
                 if product.left && product.x % 2 != 0 {
-                    new_target.scale(self.p - 1);
+                    new_target.scale(*self.p - 1);
                 }
                 return Some((r, x_, y_, new_source, Some(new_target)));
             } else {
@@ -410,7 +411,7 @@ impl Sseq {
                     // The original differential from s to t is useless.
                     let (_, _, mut new_target) = self.multiply(x, y, s, &self.products.read()[ti])?;
                     if !product.left && (x - 1) % 2 != 0 {
-                        new_target.scale(self.p - 1);
+                        new_target.scale(*self.p - 1);
                     }
                     return Some((r_, x_, y_, new_source, Some(new_target)));
                 }
@@ -421,7 +422,7 @@ impl Sseq {
                         let (tx, ty) = sseq_profile(r, x, y);
                         let (_, _, mut new_target) = self.multiply(tx, ty, t_, product)?;
                         if product.left && product.x % 2 != 0 {
-                            new_target.scale(self.p - 1);
+                            new_target.scale(*self.p - 1);
                         }
                         return Some((r, x_, y_, new_source, Some(new_target)));
                     }
@@ -430,13 +431,13 @@ impl Sseq {
                     // This is the sum of the two above.
                     let (_, _, mut new_target) = self.multiply(x, y, s, &self.products.read()[ti])?;
                     if !product.left && (x - 1) % 2 != 0 {
-                        new_target.scale(self.p - 1);
+                        new_target.scale(*self.p - 1);
                     }
                     if let Some(t_) = t {
                         let (tx, ty) = sseq_profile(r, x, y);
                         let (_, _, mut tmp) = self.multiply(tx, ty, t_, product)?;
                         if product.left && product.x % 2 != 0 {
-                            tmp.scale(self.p - 1);
+                            tmp.scale(*self.p - 1);
                         }
                         new_target.add(&tmp, 1);
                     }
@@ -448,7 +449,7 @@ impl Sseq {
         None
     }
 
-    fn compute_edges_inner(x : i32, y : i32, p : u32, name : SseqChoice, sender : Sender, page_classes: Arc<RwLock<BiVec<BiVec<BiVec<(Vec<isize>, Vec<FpVector>)>>>>>, products: Arc<RwLock<Vec<Product>>>, zeros: Arc<RwLock<BiVec<BiVec<BiVec<Subspace>>>>>) {
+    fn compute_edges_inner(x : i32, y : i32, p : ValidPrime, name : SseqChoice, sender : Sender, page_classes: Arc<RwLock<BiVec<BiVec<BiVec<(Vec<isize>, Vec<FpVector>)>>>>>, products: Arc<RwLock<Vec<Product>>>, zeros: Arc<RwLock<BiVec<BiVec<BiVec<Subspace>>>>>) {
         let page_classes = page_classes.read();
         let products = products.read();
         let zeros = zeros.read();
@@ -530,7 +531,7 @@ impl Sseq {
 
     /// Compute the classes in next page assuming there is no differential coming out of the class
     /// on that page. Returns a basis of the remaining classes together with column_to_pivot_row.
-    fn compute_next_page_no_d (p : u32 , old_classes : &(Vec<isize>, Vec<FpVector>), zeros : &Subspace) -> (Vec<isize>, Vec<FpVector>) {
+    fn compute_next_page_no_d (p : ValidPrime , old_classes : &(Vec<isize>, Vec<FpVector>), zeros : &Subspace) -> (Vec<isize>, Vec<FpVector>) {
         let source_dim = old_classes.0.len();
 
         let mut class_list = Vec::new();
@@ -1121,7 +1122,7 @@ mod tests {
     #[test]
     #[allow(clippy::cognitive_complexity)]
     fn test_sseq_differential() {
-        let p = 3;
+        let p = ValidPrime::new(3);
         fp::vector::initialize_limb_bit_index_table(p);
         let mut sseq = crate::sseq::Sseq::new(p, SseqChoice::Main, 0, 0, None);
         sseq.set_class(0, 0, 1);
@@ -1199,7 +1200,7 @@ mod tests {
 
     #[test]
     fn test_sseq_differential_2() {
-        let p = 2;
+        let p = ValidPrime::new(2);
         fp::vector::initialize_limb_bit_index_table(p);
         let mut sseq = crate::sseq::Sseq::new(p, SseqChoice::Main, 0, 0, None);
 

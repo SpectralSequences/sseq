@@ -11,7 +11,7 @@ pub fn adem_to_milnor_on_basis(
 ){
     let elt = adem_algebra.basis_element_from_index(degree, idx);
     let p = milnor_algebra.prime();
-    let q = if milnor_algebra.generic { 2 * p - 2 } else { 1 };
+    let q = if milnor_algebra.generic { 2 * (*p) - 2 } else { 1 };
     let dim = milnor_algebra.dimension(elt.degree, -1);
     if dim == 1 {
         result.set_entry(0, coeff);
@@ -63,7 +63,7 @@ pub fn adem_to_milnor(
         if v == 0 {
             continue;
         }
-        adem_to_milnor_on_basis(adem_algebra, milnor_algebra, result, (coeff * v) % p, degree, i);
+        adem_to_milnor_on_basis(adem_algebra, milnor_algebra, result, (coeff * v) % *p, degree, i);
     }
 }
 
@@ -128,7 +128,7 @@ fn milnor_to_adem_on_basis_generic(
     t[t_len - 1] = last_p_part + ((elt.q_part >> (t_len)) & 1);
     for i in (0 .. t_len - 1).rev() {
         let p_part = if i < elt.p_part.len() { elt.p_part[i] } else { 0 };
-        t[i] = p_part + ((elt.q_part >> (i + 1)) & 1) + p * t[i + 1];
+        t[i] = p_part + ((elt.q_part >> (i + 1)) & 1) + *p * t[i + 1];
     }
     let t_idx = adem_algebra.basis_element_to_index(&AdemBasisElement {
         degree,
@@ -140,7 +140,7 @@ fn milnor_to_adem_on_basis_generic(
     adem_to_milnor_on_basis(adem_algebra, milnor_algebra, &mut tmp_vector_a, 1, degree, t_idx);
     assert!(tmp_vector_a.entry(idx) == 1);
     tmp_vector_a.set_entry(idx, 0);
-    tmp_vector_a.scale(p - 1);
+    tmp_vector_a.scale(*p - 1);
     milnor_to_adem(adem_algebra, milnor_algebra, result, coeff, degree, &tmp_vector_a);
     result.add_basis_element(t_idx, coeff);
 }
@@ -155,7 +155,7 @@ pub fn milnor_to_adem(
         if v == 0 {
             continue;
         }
-        milnor_to_adem_on_basis(adem_algebra, milnor_algebra, result, (coeff * v) % p, degree, i);
+        milnor_to_adem_on_basis(adem_algebra, milnor_algebra, result, (coeff * v) % *p, degree, i);
     }
 }
 
@@ -201,13 +201,14 @@ pub fn adem_plist(
 mod tests {
     use super::*;
     use rstest::rstest;
+    use fp::prime::ValidPrime;
     
     #[test]
     fn test_cob_milnor_qs_to_adem(){
-        let p = 2;
+        let p = ValidPrime::new(2);
         let max_degree = 16;
-        let adem = AdemAlgebra::new(p, p != 2, false);
-        let milnor = MilnorAlgebra::new(p);//, p != 2
+        let adem = AdemAlgebra::new(p, *p != 2, false);
+        let milnor = MilnorAlgebra::new(p);
         adem.compute_basis(max_degree);
         milnor.compute_basis(max_degree);
         for (qi, output) in &[
@@ -229,7 +230,8 @@ mod tests {
         case(3, 60)//106 // reduced size of test because we use a slow implementation
     )]    
    fn test_cob_adem_to_milnor(p : u32, max_degree : i32){
-        let adem = AdemAlgebra::new(p, p != 2, false);
+        let p = ValidPrime::new(p);
+        let adem = AdemAlgebra::new(p, *p != 2, false);
         let milnor = MilnorAlgebra::new(p);//, p != 2
         adem.compute_basis(max_degree);
         milnor.compute_basis(max_degree);

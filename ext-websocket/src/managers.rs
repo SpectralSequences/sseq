@@ -216,7 +216,7 @@ impl ResolutionManager {
                (!left && mult_t * source_s % 2 != 0) {
                 for prod_row in &mut product {
                     for prod_entry in prod_row {
-                        *prod_entry = ((p - 1) * *prod_entry) % p;
+                        *prod_entry = ((*p - 1) * *prod_entry) % *p;
                     }
                 }
             }

@@ -5,6 +5,7 @@ use std::collections::HashSet;
 
 use bivec::BiVec;
 
+use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use fp::matrix::{Matrix, Subspace, AugmentedMatrix3};
 use crate::algebra::{Algebra, AlgebraAny};
@@ -300,7 +301,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         self.module(homological_degree).number_of_gens_in_degree(internal_degree)
     }
 
-    pub fn prime(&self) -> u32 {
+    pub fn prime(&self) -> ValidPrime {
         self.complex.prime()
     }
 }
@@ -796,7 +797,7 @@ impl<CC> Resolution<CC> where
                         val += elt.class[i] * result.entry(idx);
                     }
                 }
-                products[k].push(val % self.prime());
+                products[k].push(val % *self.prime());
             }
         }
         self.add_structline(&elt.name, source_s, source_t, target_s, target_t, true, products);
@@ -927,7 +928,7 @@ impl<CC : ChainComplex> Resolution<CC>
         self.inner.complex().algebra()
     }
 
-    pub fn prime(&self) -> u32 {
+    pub fn prime(&self) -> ValidPrime {
         self.inner.prime()
     }
 

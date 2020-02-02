@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::error::Error;
 use enum_dispatch::enum_dispatch;
 
+use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny};
 
@@ -87,7 +88,7 @@ pub trait Module : Send + Sync + 'static {
     // Whether this is the unit module.
     fn is_unit(&self) -> bool { false }
 
-    fn prime(&self) -> u32 {
+    fn prime(&self) -> ValidPrime {
         self.algebra().prime()
     }
 
@@ -101,23 +102,23 @@ pub trait Module : Send + Sync + 'static {
 
     fn act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector){
         assert!(input.dimension() == self.dimension(input_degree));
-        let p = self.algebra().prime();
+        let p = self.prime();
         for (i, v) in input.iter().enumerate() {
             if v == 0 {
                 continue;
             }
-            self.act_on_basis(result, (coeff * v) % p, op_degree, op_index, input_degree, i);
+            self.act_on_basis(result, (coeff * v) % *p, op_degree, op_index, input_degree, i);
         }
     }
 
     fn act_by_element(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op : &FpVector, input_degree : i32, input : &FpVector){
         assert_eq!(input.dimension(), self.dimension(input_degree));
-        let p = self.algebra().prime();
+        let p = self.prime();
         for (i, v) in op.iter().enumerate() {
             if v == 0 {
                 continue;
             }
-            self.act(result, (coeff * v) % p, op_degree, i, input_degree, input);
+            self.act(result, (coeff * v) % *p, op_degree, i, input_degree, input);
         }
     }
 

@@ -8,6 +8,7 @@ use once::OnceVec;
 use crate::combinatorics;
 use crate::combinatorics::MAX_XI_TAU;
 use crate::algebra::{Algebra, Bialgebra};
+use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use nom::{
     IResult,
@@ -118,7 +119,7 @@ unsafe fn shift_vec<T>(v : &mut Vec<T> , offset : isize) {
 }
 
 pub struct AdemAlgebra {
-    p : u32,
+    p : ValidPrime,
     name : String,
     pub generic : bool,
     unstable : bool,
@@ -137,13 +138,7 @@ impl Algebra for AdemAlgebra {
         "adem"
     }
 
-    #[cfg(feature = "prime-two")]
-    fn prime(&self) -> u32 {
-        2
-    }
-
-    #[cfg(not(feature = "prime-two"))]
-    fn prime(&self) -> u32 {
+    fn prime(&self) -> ValidPrime {
         self.p
     }
 
@@ -163,12 +158,12 @@ impl Algebra for AdemAlgebra {
                 ps : vec![]
             }));
             products.push(("h_0".to_string(), AdemBasisElement {
-                degree : (2*self.prime()-2) as i32,
+                degree : (2*(*self.prime())-2) as i32,
                 bocksteins : 0,
                 excess : 0,
                 ps : vec![1]
             }));
-            max_degree = (2 * self.prime() - 2) as i32;
+            max_degree = (2 * (*self.prime()) - 2) as i32;
         } else {
             for i in 0..4 {
                 let degree = 1 << i; // degree is 2^hi
@@ -224,7 +219,7 @@ impl Algebra for AdemAlgebra {
 
     fn json_to_basis(&self, json : Value) -> (i32, usize) {
         let op : Vec<u32> = serde_json::from_value(json).unwrap();
-        let p = self.prime();
+        let p = *self.prime();
 
         let b = if self.generic {
             let q = 2*p-2;
@@ -295,7 +290,7 @@ impl Algebra for AdemAlgebra {
     }
 
     fn generators(&self, degree : i32) -> Vec<usize> {
-        let p = self.prime();
+        let p = *self.prime();
         if degree == 0 {
             return vec![];
         }
@@ -362,14 +357,14 @@ impl Algebra for AdemAlgebra {
             // Adem relation
             let first_sq = self.beps_pn(0, x);
             let second_sq = self.beps_pn(b, y);
-            relation.push((p - 1, first_sq, second_sq));
+            relation.push((*p - 1, first_sq, second_sq));
             for e1 in 0 ..= b {
                 let e2 = b - e1;
                 // e1 and e2 determine where a bockstein shows up.
                 // e1 determines if a bockstein shows up in front 
                 // e2 determines if a bockstein shows up in middle
                 // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
-                for j in 0 ..= x/p {
+                for j in 0 ..= x / *p {
                     let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
                     if c == 0 { continue; }
                     let idx = self.basis_element_to_index(&AdemBasisElement{
@@ -390,7 +385,7 @@ impl Algebra for AdemAlgebra {
 // static void AdemAlgebra__initializeFields(AdemAlgebraInternal *algebra, uint p, bool generic, bool unstable);
 // uint AdemAlgebra__generateName(AdemAlgebra *algebra); // defined in adem_io
 impl AdemAlgebra {
-    pub fn new(p : u32, generic : bool, unstable : bool) -> Self {
+    pub fn new(p : ValidPrime, generic : bool, unstable : bool) -> Self {
         fp::vector::initialize_limb_bit_index_table(p);
         let even_basis_table = OnceVec::new();
         let basis_table = OnceVec::new();
@@ -433,7 +428,7 @@ impl AdemAlgebra {
     }
 
     fn generate_basis_even_degreen(&self, n : i32){
-        let p = self.prime() as i32;
+        let p = *self.prime() as i32;
         let mut basis = Vec::new();
         // Put Sqn into the list.
         basis.push(
@@ -508,7 +503,7 @@ impl AdemAlgebra {
     // a bit flag that indicates where bocksteins are allowed to go.
     #[allow(non_snake_case)]
     fn generate_basis_generic_degreen(&self, n : i32){
-        let p = self.prime() as i32;
+        let p = *self.prime() as i32;
         let q = 2*(p-1);        
         let residue = n % q;
         let mut basis : Vec<AdemBasisElement> = Vec::new();
@@ -647,7 +642,7 @@ impl AdemAlgebra {
         let tail_idx = self.tail_of_basis_element_to_index(&mut working_elt, 1, 1);
 
         for j in 0 ..= x/2 {
-            if combinatorics::adem_relation_coefficient(2, x, y, j, 0, 0) == 0 {
+            if combinatorics::adem_relation_coefficient(ValidPrime::new(2), x, y, j, 0, 0) == 0 {
                 continue;
             }
             if j==0 {
@@ -682,7 +677,7 @@ impl AdemAlgebra {
             self.multiplication_table.push(Vec::new());
             next_degree += 1;
         }
-        let q = 2 * self.prime() as i32 - 2;
+        let q = 2 * (*self.prime()) as i32 - 2;
         for n in next_degree ..= max_degree {
             let mut table : Vec<Vec<FpVector>> = Vec::with_capacity(2*(n/q + 1) as usize);
             for i in 0 ..= n/q {
@@ -716,7 +711,7 @@ impl AdemAlgebra {
     ///
     /// Note that x is always positive.
     fn generate_multiplication_table_generic_step(&self, table : &[Vec<FpVector>],  n : i32, x : i32, idx : usize) -> FpVector {
-        let p : i32 = self.prime() as i32; // we use p for the i32 version and self.p for the u32 version
+        let p : i32 = *self.prime() as i32; // we use p for the i32 version and self.p for the u32 version
         let q : i32 = 2*p - 2;
 
         let x : u32 = x as u32;
@@ -757,7 +752,7 @@ impl AdemAlgebra {
         let mut working_elt = self.basis_element_from_index(n - (q * i as i32), idx).clone();
 
         let b : u32 = working_elt.bocksteins & 1;
-        if working_elt.ps.is_empty() || i >= self.prime()*working_elt.ps[0] + b {
+        if working_elt.ps.is_empty() || i >= (*self.prime())*working_elt.ps[0] + b {
             working_elt.ps.insert(0, i);
             working_elt.bocksteins <<= 1;
             working_elt.degree = n;
@@ -774,7 +769,7 @@ impl AdemAlgebra {
 
         if b == 0 {
             // We use P^i P^j = \sum ... P^{i + j - k} P^k
-            for k in 0 ..= i/self.prime() {
+            for k in 0 ..= i/(*self.prime()) {
                 let c = combinatorics::adem_relation_coefficient(self.prime(), i, j, k, 0, 0);
                 if c == 0 {
                     continue;
@@ -791,7 +786,7 @@ impl AdemAlgebra {
                 let rest_reduced = &self.multiplication_table[(n - q * (i + j - k) as i32) as usize][2 * k as usize][tail_idx];
                 for (id, coeff) in rest_reduced.iter().enumerate() {
                     let source = &table[2 * (i + j - k) as usize][id];
-                    result.add(source, (c * coeff) % self.prime());
+                    result.add(source, (c * coeff) % *self.prime());
                 }
             }
         } else {
@@ -811,14 +806,14 @@ impl AdemAlgebra {
                 result.add_basis_element(index, c);
             }
 
-            for k in 1 ..= i/self.prime() {
+            for k in 1 ..= i/(*self.prime()) {
                 // \beta P^{i + j - k} P^k
                 let c = combinatorics::adem_relation_coefficient(self.prime(), i, j, k, 1, 0);
                 if c != 0 {
                     let rest_reduced = &self.multiplication_table[(n - q * (i + j - k) as i32 - 1) as usize][2 * k as usize][tail_idx];
                     for (id, coeff) in rest_reduced.iter().enumerate() {
                         let source = &table[1 + 2 * (i + j - k) as usize][id];
-                        result.add(source, (c * coeff) % self.prime());
+                        result.add(source, (c * coeff) % *self.prime());
                     }
                 }
 
@@ -828,7 +823,7 @@ impl AdemAlgebra {
                     let rest_reduced = &self.multiplication_table[(n - q * (i + j - k) as i32) as usize][1 + 2 * k as usize][tail_idx];
                     for (id, coeff) in rest_reduced.iter().enumerate() {
                         let source = &table[2 * (i + j - k) as usize][id];
-                        result.add(source, (c * coeff) % self.prime());
+                        result.add(source, (c * coeff) % *self.prime());
                     }
                 }
             }
@@ -885,7 +880,7 @@ impl AdemAlgebra {
     }
 
     pub fn make_mono_admissible(&self, result : &mut FpVector, coeff : u32, monomial : &mut AdemBasisElement, excess : i32){
-        let q = if self.generic { 2 * self.prime() - 2 } else { 1 };
+        let q = if self.generic { 2 * (*self.prime()) - 2 } else { 1 };
         let mut leading_degree = monomial.degree - (q * monomial.ps[monomial.ps.len() - 1]) as i32;
         let idx = monomial.ps.len() as i32 - 2;    
         if self.generic {
@@ -955,7 +950,7 @@ impl AdemAlgebra {
         &self, result : &mut FpVector, coeff : u32, monomial : &mut AdemBasisElement,
         mut idx : i32, mut leading_degree : i32, excess : i32, stop_early : bool        
     ){
-        let p = self.prime();
+        let p = *self.prime();
         let q = 2*p-2;
         // Check for admissibility
         let b1 = if idx >= 0 { (monomial.bocksteins >> idx) & 1 } else { 0 };
@@ -1046,7 +1041,7 @@ impl AdemAlgebra {
             bocksteins : 0,
             ps : vec![second_sq]
         });
-        let mut out_vec = FpVector::new(2, self.dimension(degree, -1));
+        let mut out_vec = FpVector::new(ValidPrime::new(2), self.dimension(degree, -1));
         self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, -1);
         out_vec.set_entry(idx, 0);
         let mut result = Vec::new();
@@ -1075,7 +1070,7 @@ impl AdemAlgebra {
             return vec![(1, (first_degree, first_idx), (rest_degree, rest_idx))];
         }
         if b.bocksteins != 0 || b.ps.len() != 1 {
-            let first_degree = (b.ps[0] * 2 * (p-1)) as i32;
+            let first_degree = (b.ps[0] * 2 * (*p-1)) as i32;
             let rest_degree = b.degree - first_degree;
             let ps_first = vec![b.ps[0]];
             let ps_rest = b.ps[1..].to_vec();
@@ -1100,16 +1095,16 @@ impl AdemAlgebra {
         let mut pow = 1;
         {
             let mut temp_sq = sq;
-            while temp_sq % p == 0 {
-                temp_sq /= p;
-                pow *= p;
+            while temp_sq % *p == 0 {
+                temp_sq /= *p;
+                pow *= *p;
             }
         }
 
         let first_sq = pow;
         let second_sq = sq - first_sq;
-        let first_degree = (first_sq * 2*(p-1)) as i32;
-        let second_degree = (second_sq * 2*(p-1)) as i32;
+        let first_degree = (first_sq * 2*(*p-1)) as i32;
+        let second_degree = (second_sq * 2*(*p-1)) as i32;
         let first_idx = self.basis_element_to_index(&AdemBasisElement {
             degree : first_degree,
             excess : 0,
@@ -1127,21 +1122,21 @@ impl AdemAlgebra {
         let mut result = Vec::new();
         let c = out_vec.entry(idx);
         assert!(c != 0);
-        let c_inv = fp::prime::inverse(p, p - c);        
-        result.push((((p - 1) * c_inv) % p, (first_degree, first_idx), (second_degree, second_idx)));
+        let c_inv = fp::prime::inverse(p, *p - c);
+        result.push((((*p - 1) * c_inv) % *p, (first_degree, first_idx), (second_degree, second_idx)));
         out_vec.set_entry(idx, 0);
         for (i, v) in out_vec.iter().enumerate() {
             if v == 0 {
                 continue;
             }
             let (c, t1, t2) = self.decompose_basis_element_generic(degree, i)[0];
-            result.push(((c_inv * c * v) % p, t1, t2));
+            result.push(((c_inv * c * v) % *p, t1, t2));
         }
         result
     }
 
     pub fn beps_pn(&self, e : u32, x : u32) -> (i32, usize) {
-        let p = self.prime();
+        let p = *self.prime();
         let q = if self.generic { 2 * p - 2} else { 1 };
         let degree = (x * q + e) as i32;
         let index = self.basis_element_to_index(&AdemBasisElement {
@@ -1215,8 +1210,8 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_adem(){
-        let p = 2;
-        let A = AdemAlgebra::new(p, p != 2, false);
+        let p = ValidPrime::new(2);
+        let A = AdemAlgebra::new(p, *p != 2, false);
         A.compute_basis(10);
         let r_deg = 4;
         let r_idx = 0;
@@ -1241,7 +1236,8 @@ mod tests {
         case(3, 120)
     )]
     fn test_adem_basis(p : u32, max_degree : i32){
-        let algebra = AdemAlgebra::new(p, p != 2, false);
+        let p = ValidPrime::new(p);
+        let algebra = AdemAlgebra::new(p, *p != 2, false);
         algebra.compute_basis(max_degree);
         for i in 1 ..= max_degree {
             let dim = algebra.dimension(i, -1);
@@ -1260,7 +1256,8 @@ mod tests {
         case(3, 120)
     )]
     fn test_adem_decompose(p : u32, max_degree : i32){
-        let algebra = AdemAlgebra::new(p, p != 2, false);
+        let p = ValidPrime::new(p);
+        let algebra = AdemAlgebra::new(p, *p != 2, false);
         algebra.compute_basis(max_degree);
         for i in 1 ..= max_degree {
             let dim = algebra.dimension(i, -1);
@@ -1291,7 +1288,8 @@ mod tests {
         case(3, 120)
     )]
     fn test_adem_relations(p : u32, max_degree : i32){
-        let algebra = AdemAlgebra::new(p, p != 2, false);
+        let p = ValidPrime::new(p);
+        let algebra = AdemAlgebra::new(p, *p != 2, false);
         algebra.compute_basis(max_degree);
         let mut output_vec = FpVector::new(p, 0);
         for i in 1 ..= max_degree {

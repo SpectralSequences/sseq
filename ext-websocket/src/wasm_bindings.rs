@@ -86,7 +86,7 @@ pub struct SteenrodCalculator {
 #[wasm_bindgen]
 impl SteenrodCalculator {
     pub fn new(p : u32) -> Self {
-        let calculator = steenrod_evaluator::SteenrodCalculator::new(p);
+        let calculator = steenrod_evaluator::SteenrodCalculator::new(ValidPrime::new(p));
         let boxed_calculator = Rc::new(calculator);
         Self {
             pimpl : Rc::into_raw(boxed_calculator)

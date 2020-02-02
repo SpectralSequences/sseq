@@ -94,6 +94,7 @@ impl<M : BoundedModule> ModuleHomomorphism for HomPullback<M> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use fp::prime::ValidPrime;
     use fp::matrix::Matrix;
     use crate::module::FDModule;
     use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra};
@@ -102,8 +103,8 @@ mod tests {
     #[allow(non_snake_case)]
     #[test]
     fn test_pullback(){
-        let p = 2;
-        let A = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
+        let p = ValidPrime::new(2);
+        let A = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, *p != 2, false)));
         A.compute_basis(20);
         let F0 = Arc::new(FreeModule::new(Arc::clone(&A), "F0".to_string(), 0));
         F0.add_generators_immediate(0, 1, None);

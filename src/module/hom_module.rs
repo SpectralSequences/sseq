@@ -77,7 +77,7 @@ impl<M : BoundedModule> HomModule<M> {
         let input_block_start = self.source.operation_generator_to_index(op_deg, 0, gen_deg, gen_idx);
         let input_block_dim = self.source.algebra().dimension(op_deg, gen_deg);
         let input_block_end = input_block_start + input_block_dim;
-        let p = self.source.prime();
+        let p = *self.prime();
         for i in input_block_start .. input_block_end {
             let v = x.entry(i);
             if v == 0 {
@@ -87,8 +87,6 @@ impl<M : BoundedModule> HomModule<M> {
             self.target.act_on_basis(result, (coeff * v) % p, op_deg, op_idx, mod_deg, mod_idx);
         }
     }
-
-
 
 }
 
@@ -156,12 +154,14 @@ mod tests {
     use crate::module::homomorphism::ModuleHomomorphism;
     use serde_json;
 
+    use fp::prime::ValidPrime;
+
     #[allow(non_snake_case)]
     #[allow(clippy::needless_range_loop)]
     #[test]
     fn test_hom_space() {
-        let p = 2;
-        let A = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
+        let p = ValidPrime::new(2);
+        let A = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, *p != 2, false)));
         A.compute_basis(20);
         let F = Arc::new(FreeModule::new(Arc::clone(&A), "".to_string(), 0));
         F.add_generators_immediate(0, 1, None);
@@ -180,9 +180,9 @@ mod tests {
         let f_degree = 0;
         let x_degree = 4;
         let out_degree = x_degree - f_degree;
-        let mut x = FpVector::new(2, F.dimension(x_degree));
-        let mut result = FpVector::new(2, M.dimension(out_degree));
-        let mut expected_result = FpVector::new(2, M.dimension(out_degree));
+        let mut x = FpVector::new(p, F.dimension(x_degree));
+        let mut result = FpVector::new(p, M.dimension(out_degree));
+        let mut expected_result = FpVector::new(p, M.dimension(out_degree));
         let outputs = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0,0,0], [0,0, 1]];
         for i in 0 .. x.dimension(){
             x.set_entry(i, 1);
@@ -201,8 +201,8 @@ mod tests {
     #[allow(non_snake_case)]
     #[test]
     fn test_hom_space_elt_to_map() {
-        let p = 2;
-        let A = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
+        let p = ValidPrime::new(2);
+        let A = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, *p != 2, false)));
         A.compute_basis(20);
         let F = Arc::new(FreeModule::new(Arc::clone(&A), "".to_string(), 0));
         F.add_generators_immediate(0, 1, None);

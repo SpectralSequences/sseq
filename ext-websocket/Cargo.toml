@@ -29,6 +29,7 @@ js-sys = "0.3.0"
 default = []
 cache-multiplication = ["rust_ext/cache-multiplication"]
 concurrent = ["thread-token", "rust_ext/concurrent"]
+prime-two = ["fp/prime-two", "rust_ext/prime-two"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -2,29 +2,92 @@ pub const NUM_PRIMES : usize = 8;
 pub const MAX_PRIME : usize = 19;
 const NOT_A_PRIME : usize = !1;
 pub const MAX_MULTINOMIAL_LEN : usize = 10;
+use serde::{Serialize, Deserialize, Serializer, Deserializer};
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct ValidPrime {
+    #[cfg(not(feature = "prime-two"))]
+    p: u32
+}
+
+impl ValidPrime {
+    pub fn new(p: u32) -> Self {
+        assert!(is_valid_prime(p), "Invalid prime: {}", p);
+
+        #[cfg(not(feature = "prime-two"))]
+        { Self { p } }
+
+        #[cfg(feature = "prime-two")]
+        { Self {} }
+    }
+
+    pub fn try_new(p: u32) -> Option<Self> {
+        if is_valid_prime(p) {
+            Some(Self::new(p))
+        } else {
+            None
+        }
+    }
+}
+
+impl std::ops::Deref for ValidPrime {
+    type Target = u32;
+
+    #[cfg(feature = "prime-two")]
+    fn deref(&self) -> &Self::Target {
+        &2
+    }
+
+    #[cfg(not(feature = "prime-two"))]
+    fn deref(&self) -> &Self::Target {
+        let p = self.p;
+        unsafe {
+            if !is_valid_prime(p) || p == 0 || PRIME_TO_INDEX_MAP[p as usize] >= NUM_PRIMES {
+                std::hint::unreachable_unchecked()
+            }
+        }
+        &self.p
+    }
+}
+
+impl std::fmt::Display for ValidPrime {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        (**self).fmt(f)
+    }
+}
+
+impl Serialize for ValidPrime {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S : Serializer,
+    {
+        (**self).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ValidPrime {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where D : Deserializer<'de>
+    {
+        let p : u32 = u32::deserialize(deserializer)?;
+        Ok(ValidPrime::new(p))
+    }
+}
+
+#[cfg(not(feature = "prime-two"))]
 pub fn is_valid_prime(p : u32) -> bool {
     (p as usize) < MAX_PRIME && PRIME_TO_INDEX_MAP[p as usize] != NOT_A_PRIME
 }
 
-/// This function checks that the prime is valid. Afterwards, it tells the compiler that p is
-/// positive and PRIME_TO_INDEX_MAP[p] < NUM_PRIMES via unreachable_unchecked to enable some
-/// optimizations.
-#[inline(always)]
-pub fn assert_valid_prime(p: u32) {
-    let p = p as usize;
-    assert!(p <= MAX_PRIME && PRIME_TO_INDEX_MAP[p] != NOT_A_PRIME);
-    if p == 0 || PRIME_TO_INDEX_MAP[p] >= NUM_PRIMES {
-        unsafe { std::hint::unreachable_unchecked() }
-    }
+#[cfg(feature = "prime-two")]
+pub fn is_valid_prime(p : u32) -> bool {
+    p == 2
 }
 
 // Uses a the lookup table we initialized.
-pub fn inverse(p : u32, k : u32) -> u32 {
-    assert_valid_prime(p);
-    assert!(k > 0 && k < p);
+pub fn inverse(p : ValidPrime, k : u32) -> u32 {
+    assert!(k > 0 && k < *p);
     // LLVM doesn't understand the inequality is transitive
-    unsafe { *INVERSE_TABLE[PRIME_TO_INDEX_MAP[p as usize]].get_unchecked(k as usize) }
+    unsafe { *INVERSE_TABLE[PRIME_TO_INDEX_MAP[*p as usize]].get_unchecked(k as usize) }
 }
 
 pub fn minus_one_to_the_n(p : u32, i : u32) -> u32 {
@@ -34,14 +97,11 @@ pub fn minus_one_to_the_n(p : u32, i : u32) -> u32 {
 /// This uses a lookup table for n choose k when n and k are both less than p.
 /// Lucas's theorem reduces general binomial coefficients to this case.
 ///
-/// Calling this function safely requires that
-///  * `p` is a valid prime (in particular, it is <= 19)
-///  * `k, n < p`.
-/// These invariants are often known apriori because k and n are obtained by reducing mod p (and
-/// the first two are checked beforehand), so it is better to expose an unsafe interface that
-/// avoids these checks.
-unsafe fn direct_binomial(p : u32, n : u32, k : u32) -> u32 {
-    *BINOMIAL_TABLE.get_unchecked(*PRIME_TO_INDEX_MAP.get_unchecked(p as usize)).get_unchecked(n as usize).get_unchecked(k as usize)
+/// Calling this function safely requires that `k, n < p`.  These invariants are often known
+/// apriori because k and n are obtained by reducing mod p, so it is better to expose an unsafe
+/// interface that avoids these checks.
+unsafe fn direct_binomial(p : ValidPrime, n : u32, k : u32) -> u32 {
+    *BINOMIAL_TABLE.get_unchecked(PRIME_TO_INDEX_MAP[*p as usize]).get_unchecked(n as usize).get_unchecked(k as usize)
 }
 
 /// Computes b^e.
@@ -114,8 +174,8 @@ fn binomial2(n : i32, k : i32) -> u32 {
 
 //Mod p multinomial coefficient of l. If p is 2, more efficient to use Multinomial2.
 //This uses Lucas's theorem to reduce to n choose k for n, k < p.
-fn multinomial_odd(p : u32, l : &mut [u32]) -> u32 {
-    assert_valid_prime(p);
+fn multinomial_odd(p_ : ValidPrime, l : &mut [u32]) -> u32 {
+    let p = *p_;
 
     let mut n : u32 = l.iter().sum();
     if n == 0 {
@@ -143,7 +203,7 @@ fn multinomial_odd(p : u32, l : &mut [u32]) -> u32 {
                 return 0;
             }
             // This is safe because p < 20, partial_sum <= total_entry < p and entry < p.
-            multi *= unsafe { direct_binomial(p, partial_sum, entry) };
+            multi *= unsafe { direct_binomial(p_, partial_sum, entry) };
             multi %= p;
         }
         answer *= multi;
@@ -153,8 +213,9 @@ fn multinomial_odd(p : u32, l : &mut [u32]) -> u32 {
 }
 
 //Mod p binomial coefficient n choose k. If p is 2, more efficient to use Binomial2.
-fn binomial_odd(p : u32, n : i32, k : i32) -> u32 {
-    assert_valid_prime(p);
+fn binomial_odd(p_ : ValidPrime, n : i32, k : i32) -> u32 {
+    let p = *p_;
+
     if n < k || k < 0 {
         return 0;
     }
@@ -166,7 +227,7 @@ fn binomial_odd(p : u32, n : i32, k : i32) -> u32 {
 
     while n > 0 {
         // This is safe because p < 20 and anything mod p is < p.
-        answer *= unsafe { direct_binomial(p, n % p, k % p) };
+        answer *= unsafe { direct_binomial(p_, n % p, k % p) };
         answer %= p;
         n /= p;
         k /= p;
@@ -176,8 +237,8 @@ fn binomial_odd(p : u32, n : i32, k : i32) -> u32 {
 
 /// This computes the multinomial coefficient $\binom{n}{l_1 \ldots l_k}\bmod p$, where $n$
 /// is the sum of the entries of l. This function modifies the entries of l.
-pub fn multinomial(p : u32, l : &mut [u32]) -> u32 {
-    if p == 2 {
+pub fn multinomial(p : ValidPrime, l : &mut [u32]) -> u32 {
+    if *p == 2 {
         multinomial2(l)
     } else {
         multinomial_odd(p, l)
@@ -185,8 +246,8 @@ pub fn multinomial(p : u32, l : &mut [u32]) -> u32 {
 }
 
 //Dispatch to Binomial2 or BinomialOdd
-pub fn binomial(p : u32, n : i32, k : i32) -> u32 {
-    if p == 2{
+pub fn binomial(p : ValidPrime, n : i32, k : i32) -> u32 {
+    if *p == 2{
         binomial2(n, k)
     } else {
         binomial_odd(p, n, k)
@@ -276,13 +337,14 @@ mod tests {
         ];
 
         for entry in &entries {
-            assert_eq!(entry[3] as u32, binomial(entry[0] as u32, entry[1], entry[2]));
+            assert_eq!(entry[3] as u32, binomial(ValidPrime::new(entry[0] as u32), entry[1], entry[2]));
         }
     }
 
     #[test]
     fn binomial_vs_monomial() {
         for &p in &[2, 3, 5, 7, 11] {
+            let p = ValidPrime::new(p);
             for l in 0 .. 20 {
                 for m in 0 .. 20 {
                     assert_eq!(binomial(p, (l + m) as i32, m as i32), multinomial(p, &mut [l, m]))

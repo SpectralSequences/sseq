@@ -32,7 +32,7 @@ fn rate_operation(algebra : &Arc<AlgebraAny>, op_deg : i32, op_idx : usize) -> i
 }
 
 fn rate_adem_operation(algebra : &AdemAlgebra, deg : i32, idx: usize) -> i32 {
-    if algebra.prime() != 2 {
+    if *algebra.prime() != 2 {
         return 1;
     }
     let elt = algebra.basis_element_from_index(deg, idx);
@@ -49,7 +49,7 @@ fn rate_adem_operation(algebra : &AdemAlgebra, deg : i32, idx: usize) -> i32 {
 
 #[allow(dead_code)]
 fn operation_drop(algebra : &AdemAlgebra, deg : i32, idx: usize) -> i32 {
-    if algebra.prime() != 2 {
+    if *algebra.prime() != 2 {
         return 1;
     }
     let elt = algebra.basis_element_from_index(deg, idx);
@@ -573,9 +573,11 @@ mod tests {
     use crate::resolution::Resolution;
     use crate::resolution_homomorphism::ResolutionHomomorphism;
 
+    use fp::prime::ValidPrime;
+
     #[test]
     fn test() {
-        let algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(2, false, false)));
+        let algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(ValidPrime::new(2), false, false)));
         let module = Arc::new(FiniteModule::from(FDModule::new(algebra, "".to_string(), BiVec::from_vec(0, vec![1]))));
         let chain_complex : Arc<CCC> = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
         let resolution = Resolution::new(chain_complex, None, None);
@@ -590,7 +592,7 @@ mod tests {
         let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution.inner), s, t, idx));
 
         let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&yoneda), 0, 0);
-        let mut mat = Matrix::new(2, 1, 1);
+        let mut mat = Matrix::new(ValidPrime::new(2), 1, 1);
         mat[0].set_entry(0, 1);
         f.extend_step(0, 0, Some(&mat));
 

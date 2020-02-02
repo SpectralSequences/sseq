@@ -28,7 +28,7 @@ use std::fmt;
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use enum_dispatch::enum_dispatch;
 
-use crate::prime::is_valid_prime;
+use crate::prime::ValidPrime;
 use crate::prime::PRIME_TO_INDEX_MAP;
 use crate::prime::NUM_PRIMES;
 
@@ -41,8 +41,8 @@ static BIT_LENGHTS : [usize; NUM_PRIMES] = [
      1, 3, 5, 6, 7, 8, 9, 9
 ];
 
-fn bit_length(p : u32) -> usize {
-    BIT_LENGHTS[PRIME_TO_INDEX_MAP[p as usize]]
+fn bit_length(p : ValidPrime) -> usize {
+    BIT_LENGHTS[PRIME_TO_INDEX_MAP[*p as usize]]
 }
 
 // This is 2^bitlength - 1.
@@ -52,8 +52,8 @@ static BITMASKS : [u32; NUM_PRIMES] = [
     1, 7, 31, 63, 127, 255, 511, 511
 ];
 
-fn bitmask(p : u32) -> u64{
-    BITMASKS[PRIME_TO_INDEX_MAP[p as usize]] as u64
+fn bitmask(p : ValidPrime) -> u64{
+    BITMASKS[PRIME_TO_INDEX_MAP[*p as usize]] as u64
 }
 
 // This is floor(64/bitlength).
@@ -63,8 +63,8 @@ static ENTRIES_PER_64_BITS : [usize;NUM_PRIMES] = [
     64, 21, 12, 10, 9, 8, 7, 7
 ];
 
-fn entries_per_64_bits(p : u32) -> usize {
-    ENTRIES_PER_64_BITS[PRIME_TO_INDEX_MAP[p as usize]]
+fn entries_per_64_bits(p : ValidPrime) -> usize {
+    ENTRIES_PER_64_BITS[PRIME_TO_INDEX_MAP[*p as usize]]
 }
 
 #[derive(Copy, Clone)]
@@ -84,12 +84,12 @@ static mut LIMB_BIT_INDEX_ONCE_TABLE : [Once; NUM_PRIMES] = [
     Once::new(),Once::new(), Once::new()
 ];
 
-pub fn initialize_limb_bit_index_table(p : u32){
-    if p == 2 {
+pub fn initialize_limb_bit_index_table(p : ValidPrime){
+    if *p == 2 {
         return;
     }
     unsafe{
-        LIMB_BIT_INDEX_ONCE_TABLE[PRIME_TO_INDEX_MAP[p as usize]].call_once(||{
+        LIMB_BIT_INDEX_ONCE_TABLE[PRIME_TO_INDEX_MAP[*p as usize]].call_once(||{
             let entries_per_limb = entries_per_64_bits(p);
             let bit_length = bit_length(p);
             let mut table : Vec<LimbBitIndexPair> = Vec::with_capacity(MAX_DIMENSION);
@@ -99,13 +99,13 @@ pub fn initialize_limb_bit_index_table(p : u32){
                     bit_index : (i % entries_per_limb) * bit_length,
                 })
             }
-            LIMB_BIT_INDEX_TABLE[PRIME_TO_INDEX_MAP[p as usize]] = Some(table);
+            LIMB_BIT_INDEX_TABLE[PRIME_TO_INDEX_MAP[*p as usize]] = Some(table);
         });
     }
 }
 
-fn limb_bit_index_pair(p : u32, idx : usize) -> LimbBitIndexPair {
-    match p {
+fn limb_bit_index_pair(p : ValidPrime, idx : usize) -> LimbBitIndexPair {
+    match *p {
         2 => { LimbBitIndexPair
             {
                 limb : idx/64,
@@ -113,12 +113,12 @@ fn limb_bit_index_pair(p : u32, idx : usize) -> LimbBitIndexPair {
             }
         },
         _ => {
-            let prime_idx = PRIME_TO_INDEX_MAP[p as usize];
-            debug_assert!(is_valid_prime(p));
+            let prime_idx = PRIME_TO_INDEX_MAP[*p as usize];
             debug_assert!(idx < MAX_DIMENSION);
             unsafe {
                 let table = &LIMB_BIT_INDEX_TABLE[prime_idx];
-                *table.as_ref().unwrap().get_unchecked(idx)
+                debug_assert!(table.is_some());
+                *table.as_ref().unwrap_or_else(|| std::hint::unreachable_unchecked()).get_unchecked(idx)
             }
         }
     }
@@ -146,7 +146,7 @@ pub trait FpVectorT {
     fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize );
     fn vector_container(&self) -> &VectorContainer;
     fn vector_container_mut(&mut self) -> &mut VectorContainer;
-    fn prime(&self) -> u32;
+    fn prime(&self) -> ValidPrime;
 
     fn dimension(&self) -> usize {
         let container = self.vector_container();
@@ -390,7 +390,7 @@ pub trait FpVectorT {
     fn add_basis_element(&mut self, index : usize, value : u32){
         let mut x = self.entry(index);
         x += value;
-        x %= self.prime();
+        x %= *self.prime();
         self.set_entry(index, x);
     }
 
@@ -433,7 +433,7 @@ pub trait FpVectorT {
 
         let old_slice = self.slice();
         for i in 0 .. left.dimension() {
-            let entry = (left.entry(i) * coeff) % self.prime();
+            let entry = (left.entry(i) * coeff) % *self.prime();
             if entry == 0 {
                 continue;
             }
@@ -453,7 +453,7 @@ pub trait FpVectorT {
             return;
         }
         let p = self.prime();
-        debug_assert!(c < p);
+        debug_assert!(c < *p);
         let min_target_limb = self.min_limb();
         let max_target_limb = self.max_limb();
         let min_source_limb = other.min_limb();
@@ -497,7 +497,7 @@ pub trait FpVectorT {
         debug_assert!(self.dimension() == other.dimension(),
             format!("self.dim {} not equal to other.dim {}", self.dimension(), other.dimension()));
         let p = self.prime();
-        debug_assert!(c < p);
+        debug_assert!(c < *p);
         let offset_shift = self.offset() - other.offset();
         let bit_length = bit_length(p);
         let entries_per_64_bits = entries_per_64_bits(p);
@@ -542,7 +542,7 @@ pub trait FpVectorT {
         debug_assert!(self.dimension() == other.dimension(),
             format!("self.dim {} not equal to other.dim {}", self.dimension(), other.dimension()));
         let p = self.prime();
-        debug_assert!(c < p);
+        debug_assert!(c < *p);
         let offset_shift = other.offset() - self.offset();
         let bit_length = bit_length(p);
         let entries_per_64_bits = entries_per_64_bits(p);
@@ -678,19 +678,19 @@ pub struct FpVector5 {
 
 #[derive(Debug, Clone)]
 pub struct FpVectorGeneric {
-    p : u32,
+    p : ValidPrime,
     vector_container : VectorContainer
 }
 
 impl FpVectorT for FpVector2 {
     fn reduce_limbs(&mut self, _start_limb : usize, _end_limb : usize){}
 
-    fn prime(&self) -> u32 { 2 }
+    fn prime(&self) -> ValidPrime { ValidPrime::new(2) }
     fn vector_container (&self) -> &VectorContainer { &self.vector_container }
     fn vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
 
     fn add_basis_element(&mut self, index : usize, value : u32){
-        let limb_index = limb_bit_index_pair(2, index + self.min_index());
+        let limb_index = limb_bit_index_pair(self.prime(), index + self.min_index());
         let value = (value % 2) as u64;
         self.vector_container.limbs[limb_index.limb] ^= value << limb_index.bit_index;
     }
@@ -709,7 +709,7 @@ impl FpVectorT for FpVector3 {
         }
     }
 
-    fn prime (&self) -> u32 { 3 }
+    fn prime (&self) -> ValidPrime { ValidPrime::new(3) }
     fn vector_container (&self) -> &VectorContainer { &self.vector_container }
     fn vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
 }
@@ -732,7 +732,7 @@ impl FpVectorT for FpVector5 {
         }
     }
 
-    fn prime(&self) -> u32 { 5 }
+    fn prime(&self) -> ValidPrime { ValidPrime::new(5) }
     fn vector_container (&self) -> &VectorContainer { &self.vector_container }
     fn vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
 }
@@ -740,30 +740,30 @@ impl FpVectorT for FpVector5 {
 
 impl FpVectorT for FpVectorGeneric {
     fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize){
-        let entries_per_64_bits = entries_per_64_bits(self.p);
+        let p = self.p;
+        let entries_per_64_bits = entries_per_64_bits(p);
         let mut unpacked_limb = Vec::with_capacity(entries_per_64_bits);
         for _ in 0..entries_per_64_bits {
             unpacked_limb.push(0);
         }
-        let p = self.p;
         let dimension = self.vector_container.dimension;
         let limbs = &mut self.vector_container.limbs;
         for i in start_limb..end_limb {
             FpVector::unpack_limb(p, dimension, 0, &mut unpacked_limb, limbs, i);
             for limb in &mut unpacked_limb {
-                *limb %= self.p;
+                *limb %= *p;
             }
             FpVector::pack_limb(p, dimension, 0, &unpacked_limb, limbs, i);
         }
     }
 
-    fn prime (&self) -> u32 { self.p }
+    fn prime (&self) -> ValidPrime { self.p }
     fn vector_container (&self) -> &VectorContainer { &self.vector_container }
     fn vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
 }
 
 impl FpVector {
-    pub fn new(p : u32, dimension : usize) -> FpVector {
+    pub fn new(p : ValidPrime, dimension : usize) -> FpVector {
         let slice_start = 0;
         let slice_end = dimension;
         let number_of_limbs = Self::number_of_limbs(p, dimension);
@@ -777,7 +777,7 @@ impl FpVector {
 
         #[cfg(not(feature = "prime-two"))]
         {
-            match p  {
+            match *p  {
                 2 => FpVector::from(FpVector2 { vector_container }),
                 3 => FpVector::from(FpVector3 { vector_container }),
                 5 => FpVector::from(FpVector5 { vector_container }),
@@ -786,20 +786,20 @@ impl FpVector {
         }
     }
 
-    pub fn from_vec(p : u32, vec : &[u32]) -> FpVector {
+    pub fn from_vec(p : ValidPrime, vec : &[u32]) -> FpVector {
         let mut result = FpVector::new(p, vec.len());
         result.pack(&vec);
         result
     }
 
-    fn add_limb(p : u32, limb_a : u64, limb_b : u64, coeff : u32) -> u64 {
-        match p {
+    fn add_limb(p : ValidPrime, limb_a : u64, limb_b : u64, coeff : u32) -> u64 {
+        match *p {
            2 => limb_a ^ (coeff as u64 * limb_b),
            _ => limb_a + (coeff as u64) * limb_b
         }
     }
 
-    pub fn number_of_limbs(p : u32, dimension : usize) -> usize {
+    pub fn number_of_limbs(p : ValidPrime, dimension : usize) -> usize {
         debug_assert!(dimension < MAX_DIMENSION);
         if dimension == 0 {
             0
@@ -808,12 +808,12 @@ impl FpVector {
         }
     }
 
-    pub fn padded_dimension(p : u32, dimension : usize) -> usize {
+    pub fn padded_dimension(p : ValidPrime, dimension : usize) -> usize {
         let entries_per_limb = entries_per_64_bits(p);
         ((dimension + entries_per_limb - 1)/entries_per_limb)*entries_per_limb
     }
 
-    pub fn scratch_vector(p : u32, dimension : usize) -> Self {
+    pub fn scratch_vector(p : ValidPrime, dimension : usize) -> Self {
         let mut result = FpVector::new(p, FpVector::padded_dimension(p, dimension));
         result.set_slice(0, dimension);
         result
@@ -835,7 +835,7 @@ impl FpVector {
         FpVectorIterator::new(self)
     }
 
-    fn pack_limb(p : u32, dimension : usize, offset : usize, limb_array : &[u32], limbs : &mut Vec<u64>, limb_idx : usize) -> usize {
+    fn pack_limb(p : ValidPrime, dimension : usize, offset : usize, limb_array : &[u32], limbs : &mut Vec<u64>, limb_idx : usize) -> usize {
         let bit_length = bit_length(p);
         debug_assert_eq!(offset % bit_length, 0);
         let entries_per_64_bits = entries_per_64_bits(p);
@@ -869,7 +869,7 @@ impl FpVector {
         idx
     }
 
-    fn unpack_limb(p : u32, dimension : usize, offset : usize, limb_array : &mut [u32], limbs : &[u64], limb_idx : usize) -> usize {
+    fn unpack_limb(p : ValidPrime, dimension : usize, offset : usize, limb_array : &mut [u32], limbs : &[u64], limb_idx : usize) -> usize {
         let bit_length = bit_length(p);
         let entries_per_64_bits = entries_per_64_bits(p);
         let bit_mask = bitmask(p);
@@ -1036,7 +1036,7 @@ impl<'de> Deserialize<'de> for FpVector {
     fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
         where D : Deserializer<'de>
     {
-        Ok(FpVector::new(2, 0)) // Implement this? This would require proper deserializing
+        Ok(FpVector::new(ValidPrime::new(2), 0)) // Implement this? This would require proper deserializing
     }
 }
 
@@ -1068,13 +1068,13 @@ impl std::ops::DerefMut for FpVectorSlice<'_> {
 /// project onto the subspace spanned by the selected basis elements.
 #[derive(Debug)]
 pub struct FpVectorMask {
-    p : u32,
+    p : ValidPrime,
     dimension : usize,
     masks : Vec<u64>
 }
 
 impl FpVectorMask {
-    pub fn new(p : u32, dimension : usize) -> Self {
+    pub fn new(p : ValidPrime, dimension : usize) -> Self {
         let number_of_limbs = FpVector::number_of_limbs(p, dimension);
         Self {
             p,
@@ -1131,9 +1131,9 @@ impl Save for FpVector {
 }
 
 impl Load for FpVector {
-    type AuxData = u32;
+    type AuxData = ValidPrime;
 
-    fn load(buffer : &mut impl Read, p : &u32) -> io::Result<Self> {
+    fn load(buffer : &mut impl Read, p : &ValidPrime) -> io::Result<Self> {
         let p = *p;
 
         let dimension = usize::load(buffer, &())?;
@@ -1163,7 +1163,7 @@ impl Load for FpVector {
         let result = FpVector::from(FpVector2 { vector_container });
 
         #[cfg(not(feature = "prime-two"))]
-        let result = match p  {
+        let result = match *p  {
             2 => FpVector::from(FpVector2 { vector_container }),
             3 => FpVector::from(FpVector3 { vector_container }),
             5 => FpVector::from(FpVector5 { vector_container }),
@@ -1192,10 +1192,11 @@ mod tests {
 
     #[rstest(p, case(3), case(5), case(7))]
     fn test_reduce_limb(p : u32){
-        initialize_limb_bit_index_table(p);
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
         for &dim in &[10, 20, 70, 100, 1000] {
             println!("p: {}, dim: {}", p, dim);
-            let mut v = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
             let v_arr = random_vector(p*(p-1), dim);
             v.pack(&v_arr);
             v.reduce_limbs(v.min_limb(), v.max_limb());
@@ -1213,11 +1214,12 @@ mod tests {
 
     #[rstest(p,  case(2), case(3), case(5), case(7))]
     fn test_add(p : u32){
-        initialize_limb_bit_index_table(p);
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
         for &dim in &[10, 20, 70, 100, 1000] {
             println!("p: {}, dim: {}", p, dim);
-            let mut v = FpVector::new(p, dim);
-            let mut w = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
+            let mut w = FpVector::new(p_, dim);
             let mut v_arr = random_vector(p, dim);
             let w_arr = random_vector(p, dim);
             let mut result = vec![0; dim];
@@ -1240,10 +1242,11 @@ mod tests {
 
     #[rstest(p,  case(2), case(3), case(5), case(7))]
     fn test_scale(p : u32){
-        initialize_limb_bit_index_table(p);
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
         for &dim in &[10, 20, 70, 100, 1000] {
             println!("p: {}, dim: {}", p, dim);
-            let mut v = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
             let mut v_arr = random_vector(p, dim);
             let mut result = vec![0; dim];
             let mut rng = rand::thread_rng();
@@ -1264,12 +1267,13 @@ mod tests {
         }
     }
 
-    #[rstest(p,  case(2), case(3), case(5), case(7))]
+    #[rstest(p, case(2), case(3), case(5), case(7))]
     fn test_entry(p : u32) {
-        initialize_limb_bit_index_table(p);
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
         let dim_list = [10, 20, 70, 100, 1000];
         for &dim in &dim_list {
-            let mut v = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
             let v_arr = random_vector(p, dim);
             v.pack(&v_arr);
             let mut diffs = Vec::new();
@@ -1284,13 +1288,14 @@ mod tests {
 
     #[rstest(p,  case(2), case(3), case(5), case(7))]//
     fn test_entry_slice(p : u32) {
-        initialize_limb_bit_index_table(p);
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
         let dim_list = [10, 20, 70, 100, 1000];
         for i in 0..dim_list.len() {
             let dim = dim_list[i];
             let slice_start = [5, 10, 20, 30, 290][i];
             let slice_end = (dim + slice_start)/2;
-            let mut v = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
             let v_arr = random_vector(p, dim);
             v.pack(&v_arr);
             println!("v: {}", v);
@@ -1308,10 +1313,11 @@ mod tests {
 
     #[rstest(p,  case(2), case(3), case(5), case(7))]
     fn test_set_entry(p : u32) {
-        initialize_limb_bit_index_table(p);
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
         let dim_list = [10, 20, 70, 100, 1000];
         for &dim in &dim_list {
-            let mut v = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
             let v_arr = random_vector(p, dim);
             for i in 0..dim {
                 v.set_entry(i, v_arr[i]);
@@ -1328,13 +1334,14 @@ mod tests {
 
     #[rstest(p,  case(2), case(3), case(5), case(7))]//
     fn test_set_entry_slice(p : u32) {
-        initialize_limb_bit_index_table(p);
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
         let dim_list = [10, 20, 70, 100, 1000];
         for i in 0..dim_list.len() {
             let dim = dim_list[i];
             let slice_start = [5, 10, 20, 30, 290][i];
             let slice_end = (dim + slice_start)/2;
-            let mut v = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
             v.set_slice(slice_start, slice_end);
             let slice_dim  = v.dimension();
             let v_arr = random_vector(p, slice_dim);
@@ -1355,7 +1362,8 @@ mod tests {
     // Tests set_to_zero for a slice and also is_zero.
     #[rstest(p,  case(2), case(3), case(5), case(7))]
     fn test_set_to_zero_slice(p : u32) {
-        initialize_limb_bit_index_table(p);
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
         let dim_list = [10, 20, 70, 100, 1000];
         for i in 0..dim_list.len() {
             let dim = dim_list[i];
@@ -1364,7 +1372,7 @@ mod tests {
             println!("slice_start : {}, slice_end : {}", slice_start, slice_end);
             let mut v_arr = random_vector(p, dim);
             v_arr[0] = 1; // make sure that v isn't zero
-            let mut v = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
             v.pack(&v_arr);
             v.set_slice(slice_start, slice_end);
             v.set_to_zero();
@@ -1394,18 +1402,19 @@ mod tests {
 
     #[rstest(p, case(2), case(3), case(5), case(7))]//
     fn test_add_slice_to_slice(p : u32) {
+        let p_ = ValidPrime::new(p);
         println!("p : {}", p);
-        initialize_limb_bit_index_table(p);
+        initialize_limb_bit_index_table(p_);
         let dim_list = [10, 20, 70, 100, 1000];
         for i in 0..dim_list.len() {
             let dim = dim_list[i];
             let slice_start = [5, 10, 20, 30, 290][i];
             let slice_end = (dim + slice_start)/2;
             let v_arr = random_vector(p, dim);
-            let mut v = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
             v.pack(&v_arr);
             let w_arr = random_vector(p, dim);
-            let mut w = FpVector::new(p, dim);
+            let mut w = FpVector::new(p_, dim);
             w.pack(&w_arr);
             println!("slice_start : {}, slice_end : {}", slice_start, slice_end);
             println!("v : {}", v);
@@ -1440,11 +1449,12 @@ mod tests {
     // Tests assign and Eq
     #[rstest(p, case(2), case(3), case(5), case(7))]//
     fn test_assign(p : u32) {
-        initialize_limb_bit_index_table(p);
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
         for &dim in &[10, 20, 70, 100, 1000] {
             println!("p: {}, dim: {}", p, dim);
-            let mut v = FpVector::new(p, dim);
-            let mut w = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
+            let mut w = FpVector::new(p_, dim);
             let v_arr = random_vector(p, dim);
             let w_arr = random_vector(p, dim);
             let mut result = vec![0; dim];
@@ -1465,8 +1475,9 @@ mod tests {
 
     #[rstest(p, case(2), case(3), case(5), case(7))]//
     fn test_assign_slice_to_slice(p : u32) {
+        let p_ = ValidPrime::new(p);
         println!("p : {}", p);
-        initialize_limb_bit_index_table(p);
+        initialize_limb_bit_index_table(p_);
         let dim_list = [10, 20, 70, 100, 1000];
         for i in 0..dim_list.len() {
             let dim = dim_list[i];
@@ -1474,11 +1485,11 @@ mod tests {
             let slice_end = (dim + slice_start)/2;
             let mut v_arr = random_vector(p, dim);
             v_arr[0] = 1; // Ensure v != w.
-            let mut v = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
             v.pack(&v_arr);
             let mut w_arr = random_vector(p, dim);
             w_arr[0] = 0; // Ensure v != w.
-            let mut w = FpVector::new(p, dim);
+            let mut w = FpVector::new(p_, dim);
             w.pack(&w_arr);
             v.set_slice(slice_start, slice_end);
             w.set_slice(slice_start, slice_end);
@@ -1509,18 +1520,19 @@ mod tests {
 
     #[rstest(p, case(2), case(3), case(5), case(7))]
     fn test_add_shift_right(p : u32) {
+        let p_ = ValidPrime::new(p);
         println!("p : {}", p);
-        initialize_limb_bit_index_table(p);
+        initialize_limb_bit_index_table(p_);
         let dim_list = [10, 20, 70, 100, 1000];
         for i in 0..dim_list.len() {
             let dim = dim_list[i];
             let slice_start = [5, 10, 20, 30, 290][i];
             let slice_end = (dim + slice_start)/2;
             let v_arr = random_vector(p, dim);
-            let mut v = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
             v.pack(&v_arr);
             let w_arr = random_vector(p, dim);
-            let mut w = FpVector::new(p, dim);
+            let mut w = FpVector::new(p_, dim);
             w.pack(&w_arr);
             println!("\n\n\n");
             println!("dim : {}, slice_start : {}, slice_end : {}", dim, slice_start, slice_end);
@@ -1555,22 +1567,23 @@ mod tests {
 
     #[rstest(p, case(2), case(3), case(5), case(7))]
     fn test_add_shift_left(p : u32) {
+        let p_ = ValidPrime::new(p);
         println!("p : {}", p);
-        initialize_limb_bit_index_table(p);
+        initialize_limb_bit_index_table(p_);
         let dim_list = [10, 20, 70, 100, 1000];
         for i in 0..dim_list.len() {
             let dim = dim_list[i];
             let slice_start = [5, 10, 20, 30, 290][i];
             let slice_end = (dim + slice_start)/2;
             let v_arr = random_vector(p, dim);
-            let mut v = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
             v.pack(&v_arr);
             let w_arr = random_vector(p, dim);
-            let mut w = FpVector::new(p, dim);
+            let mut w = FpVector::new(p_, dim);
             w.pack(&w_arr);
             println!("\n\n\n");
             println!("p : {}, dim : {}, slice_start : {}, slice_end : {}", p, dim, slice_start, slice_end);
-            println!("entries_per_64 : {}, bits_per_entry : {}", entries_per_64_bits(p), bit_length(p));
+            println!("entries_per_64 : {}, bits_per_entry : {}", entries_per_64_bits(p_), bit_length(p_));
             println!("v full: {}", v);
             println!("w full: {}", w);
             v.set_slice(slice_start - 2, slice_end - 2);
@@ -1603,10 +1616,11 @@ mod tests {
 
     #[rstest(p, case(2), case(3), case(5), case(7))]
     fn test_iterator_slice(p : u32) {
-        initialize_limb_bit_index_table(p);
-        let ep = entries_per_64_bits(p);
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
+        let ep = entries_per_64_bits(p_);
         for &dim in &[5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
-            let mut v = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
             let v_arr = random_vector(p, dim);
             v.pack(&v_arr);
             v.set_slice(3, dim - 1);
@@ -1624,11 +1638,12 @@ mod tests {
 
     #[rstest(p, case(2), case(3), case(5), case(7))]
     fn test_iterator_skip(p : u32) {
-        initialize_limb_bit_index_table(p);
-        let ep = entries_per_64_bits(p);
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
+        let ep = entries_per_64_bits(p_);
         let dim = 5 * ep;
         for &num_skip in &[ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1, 6 * ep] {
-            let mut v = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
             let v_arr = random_vector(p, dim);
             v.pack(&v_arr);
 
@@ -1649,10 +1664,11 @@ mod tests {
 
     #[rstest(p, case(2), case(3), case(5), case(7))]
     fn test_iterator(p : u32) {
-        initialize_limb_bit_index_table(p);
-        let ep = entries_per_64_bits(p);
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
+        let ep = entries_per_64_bits(p_);
         for &dim in &[0, 5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
-            let mut v = FpVector::new(p, dim);
+            let mut v = FpVector::new(p_, dim);
             let v_arr = random_vector(p, dim);
             v.pack(&v_arr);
 
@@ -1673,10 +1689,11 @@ mod tests {
     }
 
     fn test_mask(p : u32, vec : &[u32], mask : &[bool]) {
-        initialize_limb_bit_index_table(p);
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
         assert_eq!(vec.len(), mask.len());
-        let mut v = FpVector::from_vec(p, vec);
-        let mut m = FpVectorMask::new(p, vec.len());
+        let mut v = FpVector::from_vec(p_, vec);
+        let mut m = FpVectorMask::new(p_, vec.len());
         for (i, item) in mask.iter().enumerate() {
             m.set_mask(i, *item);
         }

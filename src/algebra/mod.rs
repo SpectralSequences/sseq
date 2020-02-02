@@ -8,6 +8,7 @@ pub use field::Field;
 use std::error::Error;
 
 use fp::vector::FpVector;
+use fp::prime::ValidPrime;
 use nom::IResult;
 use serde::Deserialize;
 use serde_json::Value;
@@ -34,7 +35,7 @@ pub trait Algebra {
     fn algebra_type(&self) -> &str;
 
     /// Returns the prime the algebra is over.
-    fn prime(&self) -> u32;
+    fn prime(&self) -> ValidPrime;
     fn name(&self) -> &str { "" }
 
     /// Computes the list of basis elements up to and including degree `degree`. This should include any
@@ -53,7 +54,7 @@ pub trait Algebra {
         let p = self.prime();
         for (i, v) in s.iter().enumerate() {
             if v == 0 { continue; }
-            self.multiply_basis_elements(result, (coeff * v) % p, r_degree, r_idx, s_degree, i, excess);
+            self.multiply_basis_elements(result, (coeff * v) % *p, r_degree, r_idx, s_degree, i, excess);
         }
     }
 
@@ -61,7 +62,7 @@ pub trait Algebra {
         let p = self.prime();
         for (i, v) in r.iter().enumerate() {
             if v == 0 { continue; }
-            self.multiply_basis_elements(result, (coeff * v) % p, r_degree, i, s_degree, s_idx, excess);
+            self.multiply_basis_elements(result, (coeff * v) % *p, r_degree, i, s_degree, s_idx, excess);
         }
     }
 
@@ -69,7 +70,7 @@ pub trait Algebra {
         let p = self.prime();
         for (i, v) in s.iter().enumerate() {
             if v == 0 { continue; }
-            self.multiply_element_by_basis_element(result, (coeff * v) % p, r_degree, r, s_degree, i, excess);
+            self.multiply_element_by_basis_element(result, (coeff * v) % *p, r_degree, r, s_degree, i, excess);
         }
     }
 
@@ -185,7 +186,7 @@ impl AlgebraAny {
     pub fn from_json(json : &Value, mut algebra_name : String) -> Result<AlgebraAny, Box<dyn Error>> {
         let spec : AlgebraSpec = serde_json::from_value(json.clone())?;
 
-        let p = spec.p;
+        let p = ValidPrime::new(spec.p);
         if let Some(mut list) = spec.algebra {
             if !list.contains(&algebra_name) {
                 println!("Module does not support algebra {}", algebra_name);
@@ -196,7 +197,7 @@ impl AlgebraAny {
 
         let algebra : AlgebraAny;
         match algebra_name.as_ref() {
-            "adem" => algebra = AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)),
+            "adem" => algebra = AlgebraAny::from(AdemAlgebra::new(p, *p != 2, false)),
             "milnor" => {
                 let mut algebra_inner = MilnorAlgebra::new(p);
                 if let Some(profile) = spec.profile {

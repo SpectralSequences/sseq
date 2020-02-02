@@ -2,6 +2,7 @@ mod hom_complex;
 mod finite_chain_complex;
 mod tensor_product_chain_complex;
 
+use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use fp::matrix::Subspace;
 use crate::algebra::{Algebra, AlgebraAny};
@@ -29,7 +30,7 @@ pub trait ChainComplex : Send + Sync + 'static {
     type Module : Module;
     type Homomorphism : ModuleHomomorphism<Source=Self::Module, Target=Self::Module>;
 
-    fn prime(&self) -> u32 {
+    fn prime(&self) -> ValidPrime {
         self.algebra().prime()
     }
 
@@ -81,7 +82,7 @@ pub trait CochainComplex : Send + Sync + 'static {
     type Module : Module;
     type Homomorphism : ModuleHomomorphism<Source=Self::Module, Target=Self::Module>;
 
-    fn prime(&self) -> u32 {
+    fn prime(&self) -> ValidPrime {
         self.algebra().prime()
     }
     fn algebra(&self) -> Arc<AlgebraAny>;

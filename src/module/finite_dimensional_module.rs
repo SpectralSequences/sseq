@@ -562,18 +562,18 @@ mod tests {
 
     #[test]
     fn test_module_check_validity(){
-        let p = 2;
-        let adem_algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
+        let p = fp::prime::ValidPrime::new(2);
+        let adem_algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, *p != 2, false)));
         adem_algebra.compute_basis(10);
         let mut adem_module = FiniteDimensionalModule::new(Arc::clone(&adem_algebra), "".to_string(), BiVec::from_vec(0, vec![1,2,1]));
         adem_module.set_basis_element_name(0, 0, "x0".to_string());
         adem_module.set_basis_element_name(1, 0, "x10".to_string());
         adem_module.set_basis_element_name(1, 1, "x11".to_string());
         adem_module.set_basis_element_name(2, 0, "x2".to_string());
-        adem_module.set_action_vector(1, 0, 0, 0, &FpVector::from_vec(2,&[1,1]));
-        adem_module.set_action_vector(1, 0, 1, 0, &FpVector::from_vec(2,&[1]));
-        adem_module.set_action_vector(1, 0, 1, 1, &FpVector::from_vec(2,&[1]));
-        adem_module.set_action_vector(2, 0, 0, 0, &FpVector::from_vec(2,&[1]));
+        adem_module.set_action_vector(1, 0, 0, 0, &FpVector::from_vec(p,&[1,1]));
+        adem_module.set_action_vector(1, 0, 1, 0, &FpVector::from_vec(p,&[1]));
+        adem_module.set_action_vector(1, 0, 1, 1, &FpVector::from_vec(p,&[1]));
+        adem_module.set_action_vector(2, 0, 0, 0, &FpVector::from_vec(p,&[1]));
         adem_module.check_validity(0, 2).unwrap();
     }
 

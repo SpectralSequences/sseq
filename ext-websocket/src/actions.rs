@@ -277,7 +277,7 @@ impl ActionT for AddProductDifferential {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Resolving {
-    pub p : u32,
+    pub p : fp::prime::ValidPrime,
     pub min_degree : i32,
     pub max_degree : i32,
     pub is_unit : bool,

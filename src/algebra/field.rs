@@ -1,15 +1,16 @@
 use serde_json::Value;
 use serde_json::json;
 
+use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, Bialgebra};
 
 pub struct Field {
-    prime : u32
+    prime : ValidPrime
 }
 
 impl Field {
-    pub fn new(p : u32) -> Self {
+    pub fn new(p : ValidPrime) -> Self {
         Self {
             prime : p
         }
@@ -22,13 +23,7 @@ impl Algebra for Field {
     }
 
     /// Returns the prime the algebra is over.
-    #[cfg(feature = "prime-two")]
-    fn prime(&self) -> u32 {
-        2
-    }
-
-    #[cfg(not(feature = "prime-two"))]
-    fn prime(&self) -> u32 {
+    fn prime(&self) -> ValidPrime {
         self.prime
     }
 

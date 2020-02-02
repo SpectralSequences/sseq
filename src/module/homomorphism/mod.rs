@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use fp::matrix::{Matrix, AugmentedMatrix2, Subspace, QuasiInverse};
 use crate::module::Module;
@@ -46,11 +47,11 @@ pub trait ModuleHomomorphism : Send + Sync + 'static {
         let p = self.prime();
         for (i, v) in input.iter().enumerate() {
             if v==0 { continue; }
-            self.apply_to_basis_element(result, (coeff * v) % p, input_degree, i);
+            self.apply_to_basis_element(result, (coeff * v) % *p, input_degree, i);
         }
     }
     
-    fn prime(&self) -> u32 {
+    fn prime(&self) -> ValidPrime {
         self.source().prime()
     }
 

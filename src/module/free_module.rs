@@ -89,7 +89,7 @@ impl Module for FreeModule {
 
     #[cfg(not(feature = "cache-multiplication"))]
     fn act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector){
-        if self.prime() == 2 {
+        if *self.prime() == 2 {
             if let AlgebraAny::MilnorAlgebra(m) = &*self.algebra() {
                 self.custom_milnor_act(m, result, coeff, op_degree, op_index, input_degree, input);
             } else {
@@ -315,7 +315,7 @@ impl Load for FreeModule {
 impl FreeModule {
     fn standard_act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector) {
         assert!(input.dimension() == self.dimension(input_degree));
-        let p = self.algebra().prime();
+        let p = *self.prime();
         for (i, v) in input.iter().enumerate() {
             if v == 0 {
                 continue;
@@ -532,12 +532,13 @@ mod tests {
 
     use super::*;
 
+    use fp::prime::ValidPrime;
     use crate::algebra::AdemAlgebra;
 
     #[test]
     fn test_free_mod(){
-        let p = 2;
-        let A = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
+        let p = ValidPrime::new(2);
+        let A = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, *p != 2, false)));
         A.compute_basis(10);
         let M = FreeModule::new(Arc::clone(&A), "".to_string(), 0);
         let lock = M.lock();

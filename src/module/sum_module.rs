@@ -129,8 +129,8 @@ mod tests {
     }
 
     fn test_sum_module(M : Vec<&str>, S : &str) {
-        let p = 2;
-        let A = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, p != 2, false)));
+        let p = fp::prime::ValidPrime::new(2);
+        let A = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, *p != 2, false)));
 
         let M : Vec<Arc<FiniteModule>> = M.into_iter().map(|s| {
             let mut m = serde_json::from_str(s).unwrap();

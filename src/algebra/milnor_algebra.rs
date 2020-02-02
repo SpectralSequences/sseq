@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use parking_lot::Mutex;
 
 use crate::combinatorics;
+use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use once::OnceVec;
 use crate::algebra::{Algebra, Bialgebra};
@@ -98,7 +99,7 @@ pub struct MilnorAlgebra {
     pub profile : MilnorProfile,
     name : String,
     next_degree : Mutex<i32>,
-    p : u32,
+    p : ValidPrime,
     pub generic : bool,
     ppart_table : OnceVec<Vec<PPart>>,
     qpart_table : Vec<OnceVec<QPart>>,
@@ -109,7 +110,7 @@ pub struct MilnorAlgebra {
 }
 
 impl MilnorAlgebra {
-    pub fn new(p : u32) -> Self {
+    pub fn new(p : ValidPrime) -> Self {
         fp::vector::initialize_limb_bit_index_table(p);
 
         let profile = MilnorProfile {
@@ -119,11 +120,11 @@ impl MilnorAlgebra {
         };
 
         let mut qpart_table = Vec::new();
-        qpart_table.resize_with((2 * p - 2) as usize, OnceVec::new);
+        qpart_table.resize_with((2 * *p - 2) as usize, OnceVec::new);
 
         Self {
             p,
-            generic : p != 2,
+            generic : *p != 2,
             profile,
             name : format!("MilnorAlgebra(p={})", p),
             next_degree : Mutex::new(0),
@@ -154,13 +155,7 @@ impl Algebra for MilnorAlgebra {
         "milnor"
     }
 
-    #[cfg(feature = "prime-two")]
-    fn prime(&self) -> u32 {
-        2
-    }
-
-    #[cfg(not(feature = "prime-two"))]
-    fn prime(&self) -> u32 {
+    fn prime(&self) -> ValidPrime {
         self.p
     }
 
@@ -183,12 +178,12 @@ impl Algebra for MilnorAlgebra {
             if (self.profile.p_part.is_empty() && !self.profile.truncated) ||
                (!self.profile.p_part.is_empty() && self.profile.p_part[0] > 0) {
                     products.push(("h_0".to_string(), MilnorBasisElement {
-                        degree : (2*self.prime()-2) as i32,
+                        degree : (2* (*self.prime())-2) as i32,
                         q_part : 0,
                         p_part : vec![1]
                     }));
             }
-            max_degree = (2 * self.prime() - 2) as i32;
+            max_degree = (2 * (*self.prime()) - 2) as i32;
         } else {
             let mut max = 4;
             if !self.profile.p_part.is_empty() {
@@ -289,7 +284,7 @@ impl Algebra for MilnorAlgebra {
         if self.generic {
             let p_list = json[1].as_array().unwrap();
             let q_list = json[0].as_array().unwrap();
-            let q = (2 * self.prime() - 2) as i32;
+            let q = (2 * (*self.prime()) - 2) as i32;
 
             for i in 0..p_list.len() {
                 let val = p_list[i].as_u64().unwrap();
@@ -357,7 +352,7 @@ impl Algebra for MilnorAlgebra {
         if self.generic && degree == 1 {
             return vec![0]; // Q_0
         }
-        let p = self.prime();
+        let p = *self.prime();
         let q = if self.generic { 2 * p - 2 } else { 1 };
         let mut temp_degree = degree as u32;        
         if temp_degree % q != 0 {
@@ -409,14 +404,14 @@ impl Algebra for MilnorAlgebra {
             (|| {
                 let (first_degree, first_index) = self.try_beps_pn(0, x)?;
                 let (second_degree, second_index) = self.try_beps_pn(b, y)?;
-                relation.push((p - 1, (first_degree, first_index), (second_degree, second_index)));
+                relation.push((*p - 1, (first_degree, first_index), (second_degree, second_index)));
                 for e1 in 0 ..= b {
                     let e2 = b - e1;
                     // e1 and e2 determine where a bockstein shows up.
                     // e1 determines whether a bockstein shows up in front
                     // e2 determines whether a bockstein shows up in middle
                     // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
-                    for j in 0 ..= x/p {
+                    for j in 0 ..= x / *p {
                         let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
                         if c == 0 { continue; }
                         if j == 0 {
@@ -444,7 +439,7 @@ impl MilnorAlgebra {
             next_degree = 1;
         }
 
-        let p = self.prime() as i32;
+        let p = *self.prime() as i32;
         let q = if p == 2 {1} else {2 * p - 2};
         let new_deg = max_degree/q;
         let old_deg = (next_degree-1)/q;
@@ -455,7 +450,7 @@ impl MilnorAlgebra {
         let mut profile_list = Vec::with_capacity(xi_degrees.len());
         for i in 0..xi_degrees.len() {
             if i < self.profile.p_part.len() {
-                profile_list.push(fp::prime::integer_power(self.prime(), self.profile.p_part[i]) - 1);
+                profile_list.push(fp::prime::integer_power(*self.prime(), self.profile.p_part[i]) - 1);
             } else if self.profile.truncated {
                 profile_list.push(0);
             } else {
@@ -496,7 +491,7 @@ impl MilnorAlgebra {
     }
 
     fn compute_qpart(&self, next_degree : i32, max_degree : i32) {
-        let q = (2 * self.prime() - 2) as i32;
+        let q = (2 * (*self.prime()) - 2) as i32;
         let profile = !self.profile.q_part;
 
         if !self.generic {
@@ -544,7 +539,7 @@ impl MilnorAlgebra {
     }
 
     fn generate_basis_generic(&self, next_degree : i32, max_degree : i32) {
-        let q = (2 * self.prime() - 2) as usize;
+        let q = (2 * (*self.prime()) - 2) as usize;
 
         for d in next_degree as usize..= max_degree as usize {
             let mut new_table = Vec::new(); // Initialize size
@@ -579,7 +574,7 @@ impl MilnorAlgebra {
 // Multiplication logic
 impl MilnorAlgebra {
     fn try_beps_pn(&self, e: u32, x: u32) -> Option<(i32, usize)> {
-        let p = self.prime();
+        let p = *self.prime();
         let q = if self.generic { 2*(p - 1) } else { 1 };
         let degree = (q * x + e) as i32;
         self.try_basis_element_to_index(&MilnorBasisElement {
@@ -602,7 +597,7 @@ impl MilnorAlgebra {
         while f & !((1 << k) - 1) != 0 {
             if f & (1<<k) == 0 { // If only we had goto (or C-style for-loops)
                 k+=1;
-                pk *= self.prime();
+                pk *= *self.prime();
                 continue;
             }
 
@@ -651,14 +646,14 @@ impl MilnorAlgebra {
                         q_part : term.q_part | 1 << (k + i as u32),
                         degree : 0 // we don't really care about the degree here. The final degree of the whole calculation is known a priori
                     };
-                    let c = if larger_q % 2 == 0 { *coef } else { *coef * (self.prime() - 1) };
+                    let c = if larger_q % 2 == 0 { *coef } else { *coef * (*self.prime() - 1) };
 
                     new_result.push((c, m));
                 }
             }
 
             k += 1;
-            pk *= self.prime();
+            pk *= *self.prime();
         }
         new_result
     }
@@ -726,7 +721,7 @@ impl std::ops::IndexMut<usize> for Matrix2D {
 
 #[allow(non_snake_case)]
 struct PPartMultiplier<'a> {
-    p : u32,
+    p : ValidPrime,
     M : Matrix2D,
     r : &'a PPart,
     rows : usize,
@@ -738,18 +733,12 @@ struct PPartMultiplier<'a> {
 
 #[allow(non_snake_case)]
 impl<'a>  PPartMultiplier<'a> {
-    #[cfg(feature = "prime-two")]
-    fn prime(&self) -> u32 {
-        2
-    }
-
-    #[cfg(not(feature = "prime-two"))]
-    fn prime(&self) -> u32 {
+    fn prime(&self) -> ValidPrime {
         self.p
     }
 
     #[allow(clippy::ptr_arg)]
-    fn new (p : u32, r : &'a PPart, s : &'a PPart) -> PPartMultiplier<'a> {
+    fn new (p : ValidPrime, r : &'a PPart, s : &'a PPart) -> PPartMultiplier<'a> {
         let rows = r.len() + 1;
         let cols = s.len() + 1;
         let diag_num = r.len() + s.len();
@@ -770,7 +759,7 @@ impl<'a>  PPartMultiplier<'a> {
             let mut total = self.M[i][0];
             let mut p_to_the_j = 1;
             for j in 1..self.cols {
-                p_to_the_j *= self.prime();
+                p_to_the_j *= *self.prime();
                 if total < p_to_the_j {
                     // We don't have enough weight left in the entries above this one in the column to increment this cell.
                     // Add the weight from this cell to the total, we can use it to increment a cell lower down.
@@ -847,7 +836,7 @@ impl<'a>  PPartMultiplier<'a> {
                     continue;
                 }
                 coef *= fp::prime::multinomial(self.prime(), &mut self.diagonal);
-                coef %= self.prime();
+                coef %= *self.prime();
                 if coef == 0 {
                     return self.next(basis);
                 }
@@ -871,10 +860,10 @@ impl MilnorAlgebra {
         let i = basis.q_part.trailing_zeros();
         // If the basis element is just Q_{k+1}, we decompose Q_{k+1} = P(p^k) Q_k - Q_k P(p^k).
         if basis.q_part == 1 << i && basis.p_part.is_empty() {
-            let ppow = fp::prime::integer_power(self.prime(), i - 1);
+            let ppow = fp::prime::integer_power(*self.prime(), i - 1);
 
             let q_degree = (2 * ppow - 1) as i32;
-            let p_degree = (ppow * (2 * self.prime() - 2)) as i32;
+            let p_degree = (ppow * (2 * (*self.prime()) - 2)) as i32;
 
             let p_idx = self.basis_element_to_index(&from_p(vec![ppow], p_degree)).to_owned();
 
@@ -885,7 +874,7 @@ impl MilnorAlgebra {
                     degree : q_degree
                 }).to_owned();
 
-            return vec![(1, (p_degree, p_idx), (q_degree, q_idx)), (self.prime() - 1, (q_degree, q_idx), (p_degree, p_idx))];
+            return vec![(1, (p_degree, p_idx), (q_degree, q_idx)), (*self.prime() - 1, (q_degree, q_idx), (p_degree, p_idx))];
         }
 
         // Otherwise, separate out the first Q_k.
@@ -921,7 +910,7 @@ impl MilnorAlgebra {
             let mut pow = 1;
             for r in &b.p_part {
                 t1 += r * pow;
-                pow *= p;
+                pow *= *p;
             }
             first = self.beps_pn(0, t1);
             let second_degree = degree - first.0;
@@ -937,9 +926,9 @@ impl MilnorAlgebra {
             let mut pow = 1;
             {
                 let mut temp_sq = sq;
-                while temp_sq % p == 0 {
-                    temp_sq /= p;
-                    pow *= p;
+                while temp_sq % *p == 0 {
+                    temp_sq /= *p;
+                    pow *= *p;
                 }
             }
             if sq == pow {
@@ -954,14 +943,14 @@ impl MilnorAlgebra {
         let c = out_vec.entry(idx);
         assert!(c != 0);
         out_vec.set_entry(idx, 0);
-        let c_inv = fp::prime::inverse(p, p - c);
-        result.push((((p - 1) * c_inv) % p, first, second));
+        let c_inv = fp::prime::inverse(p, *p - c);
+        result.push((((*p - 1) * c_inv) % *p, first, second));
         for (i, v) in out_vec.iter().enumerate() {
             if v == 0 {
                 continue;
             }
             for (c, t1, t2) in self.decompose_basis_element_ppart(degree, i){
-                result.push(((c_inv * c * v) % p, t1, t2));
+                result.push(((c_inv * c * v) % *p, t1, t2));
             }
         }
         result
@@ -980,6 +969,7 @@ mod tests {
         case(3, 106)    
     )]
     fn test_milnor_basis(p : u32, max_degree : i32){
+        let p = ValidPrime::new(p);
         let algebra = MilnorAlgebra::new(p);//p != 2
         algebra.compute_basis(max_degree);
         for i in 1 .. max_degree {
@@ -999,6 +989,7 @@ mod tests {
         case(3, 106)    
     )]
     fn test_milnor_decompose(p : u32, max_degree : i32){
+        let p = ValidPrime::new(p);
         let algebra = MilnorAlgebra::new(p);
         algebra.compute_basis(max_degree);
         for i in 1 .. max_degree {
@@ -1030,6 +1021,7 @@ mod tests {
         case(3, 106)    
     )]
     fn test_adem_relations(p : u32, max_degree : i32){
+        let p = ValidPrime::new(p);
         let algebra = MilnorAlgebra::new(p); // , p != 2
         algebra.compute_basis(max_degree + 2);
         let mut output_vec = FpVector::new(p, 0);
@@ -1081,7 +1073,7 @@ impl MilnorAlgebra {
 
 impl Bialgebra for MilnorAlgebra {
     fn coproduct(&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize, i32, usize)> {
-        assert_eq!(self.prime(), 2, "Coproduct at odd primes not supported");
+        assert_eq!(*self.prime(), 2, "Coproduct at odd primes not supported");
         if op_deg == 0 {
             return vec![(0, 0, 0, 0)];
         }
@@ -1135,5 +1127,4 @@ impl Bialgebra for MilnorAlgebra {
     fn decompose(&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize)> {
         vec![(op_deg, op_idx)]
     }
-
 }

@@ -1,3 +1,4 @@
+use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AdemAlgebra, MilnorAlgebra};
 use crate::algebra::adem_algebra::AdemBasisElement;
@@ -14,9 +15,9 @@ pub struct SteenrodCalculator {
 }
 
 impl SteenrodCalculator {
-    pub fn new(p : u32) -> Self {
+    pub fn new(p : ValidPrime) -> Self {
         Self {
-            adem_algebra : AdemAlgebra::new(p, p != 2, false),
+            adem_algebra : AdemAlgebra::new(p, *p != 2, false),
             milnor_algebra : MilnorAlgebra::new(p)
         }
     }
@@ -103,7 +104,7 @@ fn evaluate_algebra_tree_helper(
                 }
             }
             let mut result = FpVector::new(p, 1);
-            let p = p as i32;
+            let p = *p as i32;
             result.set_entry(0, (((x % p) + p) % p) as u32);
             Ok((0, result))
         }
@@ -116,7 +117,7 @@ fn evaluate_basis_element(
     output_degree : Option<i32>, basis_elt : AlgebraBasisElt
 ) -> Result<(i32, FpVector), Box<dyn Error>> {
     let p = adem_algebra.prime();
-    let q = if adem_algebra.generic { 2 * p - 2 } else { 1 };
+    let q = if adem_algebra.generic { 2 * (*p) - 2 } else { 1 };
     let degree : i32;
     let mut result;
     match basis_elt {
@@ -138,7 +139,7 @@ fn evaluate_basis_element(
             change_of_basis::adem_plist(adem_algebra, milnor_algebra, &mut result, 1, degree, p_list);
         }
         AlgebraBasisElt::P(x) => {
-            let q = if adem_algebra.generic { 2 * adem_algebra.prime() - 2} else {1};
+            let q = if adem_algebra.generic { 2 * *adem_algebra.prime() - 2} else {1};
             adem_algebra.compute_basis((x * q) as i32);
             milnor_algebra.compute_basis((x * q) as i32);
             let tuple = adem_algebra.beps_pn(0, x);
@@ -272,7 +273,7 @@ fn bockstein_or_sq_to_adem_basis_elt(e : &BocksteinOrSq, q : i32) -> AdemBasisEl
 
 fn evaluate_p_or_b_list(adem_algebra : &AdemAlgebra, list : &[BocksteinOrSq]) -> (i32, FpVector) {
     let p = adem_algebra.prime();
-    let q = if adem_algebra.generic { 2*p as i32 - 2} else { 1 };
+    let q = if adem_algebra.generic { 2*(*p) as i32 - 2} else { 1 };
     let mut tmp_vector_a = FpVector::scratch_vector(p, 1);
     let mut tmp_vector_b = FpVector::scratch_vector(p, 1);
     let first_elt = bockstein_or_sq_to_adem_basis_elt(&list[0], q);
@@ -335,9 +336,9 @@ mod tests {
 
     #[test]
     fn test_evaluate(){
-        let p = 2;
+        let p = ValidPrime::new(2);
         let max_degree = 30;
-        let adem = AdemAlgebra::new(p, p != 2, false);
+        let adem = AdemAlgebra::new(p, *p != 2, false);
         let milnor = MilnorAlgebra::new(p);//, p != 2
         adem.compute_basis(max_degree);
         milnor.compute_basis(max_degree);
@@ -355,9 +356,9 @@ mod tests {
             println!("{} ==> {}", input, adem.element_to_string(degree, &result));
             assert_eq!(adem.element_to_string(degree, &result), *output);
         }
-        let p = 3;
+        let p = ValidPrime::new(3);
         let max_degree = 30;
-        let adem = AdemAlgebra::new(p, p != 2, false);
+        let adem = AdemAlgebra::new(p, *p != 2, false);
         let milnor = MilnorAlgebra::new(p);//, p != 2
         adem.compute_basis(max_degree);
         milnor.compute_basis(max_degree);

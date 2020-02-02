@@ -1,4 +1,5 @@
 
+use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra, adem_algebra::AdemBasisElement, MilnorAlgebra, milnor_algebra::MilnorBasisElement};
 use crate::module::{Module, ZeroModule};
@@ -98,9 +99,9 @@ fn coef_adem(algebra : &AdemAlgebra, op_deg : i32, op_idx : usize, mut j : i32) 
     // Apply Sq^i to x^j and see if it is zero
     for i in elt.ps.iter().rev() {
         let c = if j >= 0 {
-            binomial(2, j, *i as i32)
+            binomial(ValidPrime::new(2), j, *i as i32)
         } else {
-            binomial(2, -j + (*i as i32) - 1, *i as i32)
+            binomial(ValidPrime::new(2), -j + (*i as i32) - 1, *i as i32)
         };
         if c == 0 {
             return false;
@@ -131,7 +132,7 @@ fn coef_milnor(algebra : &MilnorAlgebra, op_deg : i32, op_idx : usize, mut mod_d
     list.push(mod_degree - sum);
     list.extend_from_slice(&elt.p_part);
 
-    multinomial(2, &mut list) == 1
+    multinomial(ValidPrime::new(2), &mut list) == 1
 }
 
 impl ZeroModule for RealProjectiveSpace {
@@ -149,7 +150,7 @@ struct RPSpec {
 
 impl RealProjectiveSpace {
     pub fn new(algebra : Arc<AlgebraAny>, min : i32, max : Option<i32>, clear_bottom: bool) -> Self {
-        assert_eq!(algebra.prime(), 2);
+        assert_eq!(*algebra.prime(), 2);
         if let Some(max) = max {
             assert!(max >= min);
         }

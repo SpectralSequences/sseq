@@ -1,4 +1,4 @@
-use crate::prime;
+use crate::prime::{self, ValidPrime};
 use crate::vector::{FpVector, FpVectorT, FpVectorSlice};
 
 use std::fmt;
@@ -19,7 +19,7 @@ use std::fmt;
 /// omitted from all examples.
 #[derive(PartialEq, Eq, Clone)]
 pub struct Matrix {
-    p : u32,
+    p : ValidPrime,
     rows : usize,
     columns : usize,
     slice_row_start : usize,
@@ -32,7 +32,7 @@ pub struct Matrix {
 impl Matrix {
     /// Produces a new matrix over F_p with the specified number of rows and columns, intiialized
     /// to the 0 matrix.
-    pub fn new(p : u32, rows : usize, columns : usize) -> Matrix {
+    pub fn new(p : ValidPrime, rows : usize, columns : usize) -> Matrix {
         let mut vectors : Vec<FpVector> = Vec::with_capacity(rows);
         for _ in 0..rows {
             vectors.push(FpVector::new(p, columns));
@@ -48,7 +48,7 @@ impl Matrix {
     /// Produces a matrix from a list of rows. If `vectors.len() == 0`, this returns a matrix
     /// with 0 rows and columns.  The function does not check if the rows have the same length,
     /// but please only input rows that do have the same length.
-    pub fn from_rows(p : u32, vectors : Vec<FpVector>, columns : usize) -> Self {
+    pub fn from_rows(p : ValidPrime, vectors : Vec<FpVector>, columns : usize) -> Self {
         let rows = vectors.len();
         for row in &vectors {
             debug_assert_eq!(row.dimension(), columns);
@@ -68,14 +68,15 @@ impl Matrix {
     ///
     /// # Example
     /// ```
-    /// let p = 7;
+    /// # use fp::prime::ValidPrime;
+    /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
     /// # fp::vector::initialize_limb_bit_index_table(p);
     /// let input  = [vec![1, 3, 6],
     ///               vec![0, 3, 4]];
     ///
     /// let m = Matrix::from_vec(p, &input);
-    pub fn from_vec(p : u32, input : &[Vec<u32>]) -> Matrix {
+    pub fn from_vec(p : ValidPrime, input : &[Vec<u32>]) -> Matrix {
         let rows = input.len();
         if rows == 0 {
             return Matrix::new(p, 0, 0);
@@ -101,7 +102,8 @@ impl Matrix {
     ///
     /// # Example
     /// ```
-    /// let p = 7;
+    /// # use fp::prime::ValidPrime;
+    /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::FpVector;
     /// # fp::vector::initialize_limb_bit_index_table(p);
@@ -110,7 +112,7 @@ impl Matrix {
     ///
     /// let (n, m) = Matrix::augmented_from_vec(p, &input);
     /// assert_eq!(n, FpVector::padded_dimension(p, input[0].len()));
-    pub fn augmented_from_vec(p : u32, input : &[Vec<u32>]) -> (usize, Matrix) {
+    pub fn augmented_from_vec(p : ValidPrime, input : &[Vec<u32>]) -> (usize, Matrix) {
         let rows = input.len();
         let cols = input[0].len();
         let padded_cols = FpVector::padded_dimension(p, cols);
@@ -131,13 +133,7 @@ impl Matrix {
         }
     }
 
-    #[cfg(feature = "prime-two")]
-    pub fn prime(&self) -> u32 {
-        2
-    }
-
-    #[cfg(not(feature = "prime-two"))]
-    pub fn prime(&self) -> u32 {
+    pub fn prime(&self) -> ValidPrime {
         self.p
     }
 
@@ -159,9 +155,10 @@ impl Matrix {
     ///
     /// # Example
     /// ```
-    /// let p = 3;
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::FpVectorT;
+    /// # use fp::prime::ValidPrime;
+    /// let p = ValidPrime::new(3);
     /// # fp::vector::initialize_limb_bit_index_table(p);
     /// let input  = [vec![1, 2, 1, 1, 0],
     ///               vec![1, 0, 2, 1, 0],
@@ -322,7 +319,8 @@ impl Matrix {
     ///
     /// # Example
     /// ```
-    /// let p = 7;
+    /// # use fp::prime::ValidPrime;
+    /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
     /// # fp::vector::initialize_limb_bit_index_table(p);
     ///
@@ -390,7 +388,7 @@ impl Matrix {
                 if pivot_column_entry == 0 {
                     continue;
                 }
-                let row_op_coeff = p - pivot_column_entry;
+                let row_op_coeff = *p - pivot_column_entry;
                 // Do row operation
                 self.row_op(i, pivot, row_op_coeff);
             }
@@ -448,7 +446,7 @@ impl Matrix {
                 if pivot_column_entry == 0 {
                     continue;
                 }
-                let row_op_coeff = p - pivot_column_entry;
+                let row_op_coeff = *p - pivot_column_entry;
                 // Do row operation
                 self.row_op(i, pivot, row_op_coeff);
             }
@@ -471,7 +469,7 @@ pub struct Subspace {
 }
 
 impl Subspace {
-    pub fn new(p : u32, rows : usize, columns : usize) -> Self {
+    pub fn new(p : ValidPrime, rows : usize, columns : usize) -> Self {
         Self {
             matrix : Matrix::new(p, rows, columns),
             column_to_pivot_row : vec![-1; columns]
@@ -509,7 +507,7 @@ impl Subspace {
         }
     }
 
-    pub fn entire_space(p : u32, dim : usize) -> Self {
+    pub fn entire_space(p : ValidPrime, dim : usize) -> Self {
         let mut result = Self::new(p, dim, dim);
         for i in 0..dim {
             result.matrix[i].set_entry(i, 1);
@@ -594,7 +592,7 @@ impl Subspace {
             }
             let c = vector.entry(i);
             if c != 0 {
-                vector.add(&self.matrix[row], p - c);
+                vector.add(&self.matrix[row], *p - c);
             }
             row += 1;
         }
@@ -611,7 +609,7 @@ impl Subspace {
             }
             let c = vector.entry(i);
             if c != 0 {
-                vector.shift_add(&self.matrix[row], p - c);
+                vector.shift_add(&self.matrix[row], *p - c);
             }
             row += 1;
         }
@@ -673,7 +671,7 @@ pub struct QuasiInverse {
 
 
 impl QuasiInverse {
-    pub fn prime(&self) -> u32 {
+    pub fn prime(&self) -> ValidPrime {
         self.preimage.prime()
     }
 
@@ -694,7 +692,7 @@ impl QuasiInverse {
             }}
             let c = input.entry(i);
             if c != 0 {
-                target.add(&self.preimage[row], (coeff * c) % p);
+                target.add(&self.preimage[row], (coeff * c) % *p);
             }
             row += 1;
         }
@@ -735,7 +733,8 @@ impl Matrix {
     ///
     /// # Example
     /// ```
-    /// let p = 3;
+    /// # use fp::prime::ValidPrime;
+    /// let p = ValidPrime::new(3);
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::{FpVector, FpVectorT};
     /// # fp::vector::initialize_limb_bit_index_table(p);
@@ -788,7 +787,8 @@ impl Matrix {
     ///
     /// # Example
     /// ```
-    /// let p = 3;
+    /// # use fp::prime::ValidPrime;
+    /// let p = ValidPrime::new(3);
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::{FpVector, FpVectorT};
     /// # fp::vector::initialize_limb_bit_index_table(p);
@@ -1010,7 +1010,8 @@ impl Matrix {
     ///
     /// # Example
     /// ```
-    /// let p = 7;
+    /// # use fp::prime::ValidPrime;
+    /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::{FpVector, FpVectorT};
     /// # fp::vector::initialize_limb_bit_index_table(p);
@@ -1029,7 +1030,7 @@ impl Matrix {
     pub fn apply(&self, result : &mut FpVector, coeff : u32, input : &FpVector) {
         debug_assert_eq!(input.dimension(), self.rows());
         for i in 0 .. input.dimension() {
-            result.add(&self.vectors[i], (coeff * input.entry(i)) % self.p);
+            result.add(&self.vectors[i], (coeff * input.entry(i)) % *self.p);
         }
     }
 }
@@ -1076,7 +1077,7 @@ macro_rules! augmented_matrix {
             }
 
             impl $name {
-                pub fn new(p: u32, rows: usize, columns: &[usize]) -> Self {
+                pub fn new(p: ValidPrime, rows: usize, columns: &[usize]) -> Self {
                     let mut start = [0; $N];
                     let mut end = [0; $N];
                     for i in 1 .. $N {
@@ -1187,9 +1188,9 @@ impl Save for Matrix {
 }
 
 impl Load for Matrix {
-    type AuxData = u32;
+    type AuxData = ValidPrime;
 
-    fn load(buffer : &mut impl Read, p : &u32) -> io::Result<Self> {
+    fn load(buffer : &mut impl Read, p : &ValidPrime) -> io::Result<Self> {
         let columns = usize::load(buffer, &())?;
 
         let vectors : Vec<FpVector> = Load::load(buffer, p)?;
@@ -1205,9 +1206,9 @@ impl Save for Subspace {
 }
 
 impl Load for Subspace {
-    type AuxData = u32;
+    type AuxData = ValidPrime;
 
-    fn load(buffer : &mut impl Read, p : &u32) -> io::Result<Self> {
+    fn load(buffer : &mut impl Read, p : &ValidPrime) -> io::Result<Self> {
         let matrix : Matrix = Matrix::load(buffer, p)?;
         let column_to_pivot_row : Vec<isize> = Load::load(buffer, &())?;
 
@@ -1229,7 +1230,7 @@ mod tests {
     }
 
     fn test_augmented_matrix_inner(cols: &[usize]) {
-        let mut aug = AugmentedMatrix3::new(2, 3, cols);
+        let mut aug = AugmentedMatrix3::new(ValidPrime::new(2), 3, cols);
         assert_eq!(aug.segment(0, 0).columns(), cols[0]);
         assert_eq!(aug.segment(1, 1).columns(), cols[1]);
         assert_eq!(aug.segment(2, 2).columns(), cols[2]);
@@ -1237,7 +1238,7 @@ mod tests {
 
     #[test]
     fn test_row_reduce_2(){
-        let p = 2;
+        let p = ValidPrime::new(2);
         let tests = [(
             [
                 [0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1],

@@ -27,6 +27,7 @@ use algebra::{Algebra, AlgebraAny};
 use module::{FiniteModule, Module, BoundedModule};
 use module::homomorphism::{FiniteModuleHomomorphism, ModuleHomomorphism, FreeModuleHomomorphism};
 use fp::matrix::Matrix;
+use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use chain_complex::{FiniteChainComplex, ChainComplex, TensorChainComplex, ChainMap};
 use resolution::Resolution;
@@ -286,7 +287,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
         println!("{:?}", start.elapsed());
     }
 
-    let p = 2;
+    let p = ValidPrime::new(2);
     #[cfg(feature = "concurrent")]
     let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
 
@@ -558,7 +559,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
 
 #[allow(unreachable_code)]
 pub fn run_test() -> Result<(), Box<dyn Error>> {
-    let calculator = crate::steenrod_evaluator::SteenrodCalculator::new(2);
+    let calculator = crate::steenrod_evaluator::SteenrodCalculator::new(ValidPrime::new(2));
     calculator.compute_basis(20);
     calculator.evaluate_adem_to_string("P19").unwrap();
     calculator.evaluate_adem_to_string("Q4").unwrap();
@@ -568,7 +569,7 @@ pub fn run_test() -> Result<(), Box<dyn Error>> {
     let k = serde_json::from_str(k)?;
     let bundle = construct_from_json(k, "adem".to_string())?;
     let resolution = bundle.resolution.read();
-    let p = 2;
+    let p = ValidPrime::new(2);
 
     let x : i32 = 30;
     let s : u32 = 6;

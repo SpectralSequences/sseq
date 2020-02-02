@@ -432,6 +432,7 @@ mod tests {
 
     use super::*;
 
+    use fp::prime::ValidPrime;
     use crate::construct_from_json;
     use crate::resolution_homomorphism::ResolutionHomomorphism;
     use crate::yoneda::yoneda_representative_element;
@@ -447,7 +448,7 @@ mod tests {
 
     fn test_square_cc(s : u32, t : i32, i : usize, fi :usize) {
         let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
-        let p = 2;
+        let p = ValidPrime::new(2);
 
         let k = serde_json::from_str(k).unwrap();
         let bundle = construct_from_json(k, "adem".to_string()).unwrap();
