@@ -82,7 +82,7 @@ if (params.module) {
         },
     ]);
 } else if (params.data) {
-    let data = b64ToString(params.data);
+    const data = b64ToString(params.data);
     loadHistory(data);
 } else {
     document.querySelector("#home").style.removeProperty("display");

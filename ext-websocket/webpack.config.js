@@ -11,6 +11,7 @@ const appConfig = {
 //    },
     entry: {
         index: "./wasm/index.js",
+        constructor: "./interface/constructor.js",
         steenrod_calculator : "./interface/steenrod_calculator.js"
     },
     devServer: {

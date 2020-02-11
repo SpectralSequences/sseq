@@ -1,6 +1,6 @@
 'use strict';
 
-import { parseIntegerArray, download } from "./utils.js";
+import { parseIntegerArray, download, stringToB64 } from "./utils.js";
 
 window.maxDegree = 10;
 window.form = document.getElementById("header-form");
@@ -326,7 +326,7 @@ canvas.addEventListener("click", (e) => {
 });
 drawCanvas();
 
-function getModuleObject() {
+function getModuleObject(download) {
     // Check qpart and ppart are valid
     if (form.algebra.value == "Milnor") {
         const valid = form.ppart.validity.valid && (prime == 2 || form.qpart.validity.valid);
@@ -337,13 +337,15 @@ function getModuleObject() {
     }
     let result = {};
     result.type = "finite dimensional module";
-    result.name = prompt("Name");
-    if (result.name === null)
-        return;
+    if (download) {
+        result.name = prompt("Name");
+        if (result.name === null)
+            return;
 
-    result.file_name = prompt("File Name (without extension)");
-    if (result.file_name === null)
-        return;
+        result.file_name = prompt("File Name (without extension)");
+        if (result.file_name === null)
+            return;
+    }
 
     result.p = window.prime;
     result.generic = (result.p != 2);
@@ -401,8 +403,35 @@ function getModuleObject() {
 }
 
 document.getElementById("download").addEventListener("click", () => {
-    const result = getModuleObject();
+    const result = getModuleObject(true);
     download(`${result.file_name}.json`, JSON.stringify(result), "application/json");
 });
+document.getElementById("resolve").addEventListener("click", () => {
+    const result = getModuleObject(false);
+    const history = [
+      {
+        recipients: ["Resolver"],
+        sseq : "Main",
+        action : {
+          "ConstructJson": {
+            algebra_name : "adem",
+            data : JSON.stringify(result),
+          }
+        }
+      },
+      {
+        recipients: ["Resolver"],
+        sseq : "Main",
+        action : {
+          "Resolve": {
+            max_degree : 30
+          }
+        }
+      }
+    ];
+    const historyString = history.map(JSON.stringify).join("\n");
+    window.location.href = `index.html?data=${stringToB64(historyString)}`;
+});
+
 
 form["module-type"].dispatchEvent(new Event("change"));
