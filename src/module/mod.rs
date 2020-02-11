@@ -49,10 +49,15 @@ pub trait BoundedModule : Module {
         self.compute_basis(max_degree);
 
         let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree + 1);
-        for i in min_degree ..= max_degree {
-            graded_dimension.push(self.dimension(i));
+        for t in min_degree ..= max_degree {
+            graded_dimension.push(self.dimension(t));
         }
         let mut result = FDModule::new(self.algebra(), self.name().to_string(), graded_dimension);
+        for t in min_degree ..= max_degree {
+            for idx in 0 .. result.dimension(t) {
+                result.set_basis_element_name(t, idx, self.basis_element_to_string(t, idx));
+            }
+        }
 
         let algebra = self.algebra();
         for input_degree in min_degree ..= max_degree {

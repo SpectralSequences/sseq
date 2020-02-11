@@ -194,7 +194,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainM
 
         let source_right_dim = source_module.right.dimension(right_t);
         let right_index = inner_index % source_right_dim;
-        let left_index = (inner_index - right_index) / source_right_dim;
+        let left_index = inner_index / source_right_dim;
 
         let old_slice = result.slice();
         // Now calculate 1 (x) d

@@ -196,8 +196,18 @@ impl<M : Module, N : Module> Module for TensorModule<M, N> {
         }
     }
 
-    /// TODO: Implement
-    fn basis_element_to_string(&self, _degree : i32, _idx : usize) -> String { String::from("") }
+    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
+        let left_degree = self.seek_module_num(degree, idx);
+        let right_degree = degree - left_degree;
+        let inner_index = idx - self.offset(degree, left_degree);
+
+        let right_dim = self.right.dimension(right_degree);
+
+        let left_index = inner_index / right_dim;
+        let right_index = inner_index % right_dim;
+
+        format!("{}.{}", self.left.basis_element_to_string(left_degree, left_index), self.right.basis_element_to_string(right_degree, right_index))
+    }
 }
 
 impl<M : BoundedModule, N : BoundedModule> BoundedModule for TensorModule<M, N> {

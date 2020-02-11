@@ -187,7 +187,7 @@ impl FiniteDimensionalModule {
     pub fn set_basis_element_name(&mut self, degree : i32, idx : usize, name : String) {
         self.gen_names[degree][idx] = name;
     }
-    
+
     fn module_gens_from_json(gens : Value) -> (BiVec<usize>, BiVec<Vec<String>>, HashMap<String, (i32, usize)>) {
         let gens = gens.as_object().unwrap();
 
