@@ -3,26 +3,32 @@ use std::sync::{Weak, Arc};
 use once::OnceVec;
 use fp::vector::{ FpVector, FpVectorT };
 use fp::matrix::Matrix;
-use crate::module::Module;
+use crate::module::{Module, FreeModule};
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
 use crate::resolution::ResolutionInner;
 use crate::CCC;
 
-pub struct ResolutionHomomorphism<CC1 : ChainComplex, CC2 : AugmentedChainComplex> {
+pub struct ResolutionHomomorphism<CC1, CC2>
+where CC1: ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<FreeModule>>,
+      CC2: AugmentedChainComplex
+{
     #[allow(dead_code)]
     name : String,
-    source : Weak<ResolutionInner<CC1>>,
+    source : Weak<CC1>,
     target : Weak<CC2>,
     maps : OnceVec<FreeModuleHomomorphism<CC2::Module>>,
     homological_degree_shift : u32,
     internal_degree_shift : i32
 }
 
-impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1, CC2> {
+impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
+where CC1: ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<FreeModule>>,
+      CC2: AugmentedChainComplex
+{
     pub fn new(
         name : String,
-        source : Weak<ResolutionInner<CC1>>, target : Weak<CC2>,
+        source : Weak<CC1>, target : Weak<CC2>,
         homological_degree_shift : u32, internal_degree_shift : i32
     ) -> Self {
         Self {
@@ -145,4 +151,4 @@ impl<CC1 : ChainComplex, CC2 : AugmentedChainComplex> ResolutionHomomorphism<CC1
 
 }
 
-pub type ResolutionHomomorphismToUnit<CC> = ResolutionHomomorphism<CC, ResolutionInner<CCC>>;
+pub type ResolutionHomomorphismToUnit<CC> = ResolutionHomomorphism<ResolutionInner<CC>, ResolutionInner<CCC>>;

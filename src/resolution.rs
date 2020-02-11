@@ -393,7 +393,7 @@ pub struct SelfMap<CC : ChainComplex> {
     pub t : i32,
     pub name : String,
     pub map_data : Matrix,
-    pub map : ResolutionHomomorphism<CC, ResolutionInner<CC>>
+    pub map : ResolutionHomomorphism<ResolutionInner<CC>, ResolutionInner<CC>>
 }
 
 pub type AddClassFn = Box<dyn Fn(u32, i32, usize)>;
