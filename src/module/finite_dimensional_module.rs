@@ -369,7 +369,7 @@ impl FiniteDimensionalModule {
     fn parse_action(&mut self, gen_to_idx: &HashMap<String, (i32, usize)>, entry_: &str) {
         let algebra = self.algebra();
         let lhs = tuple((
-            |e| algebra.string_to_basis(e),
+            |e| algebra.string_to_generator(e),
             is_not("="),
             take(1usize)
         ));
@@ -527,25 +527,17 @@ impl FiniteDimensionalModule {
                     continue;
                 }
                 let op_degree = output_degree - input_degree;
-                for input_idx in 0..self.dimension(input_degree){
-                    for op_idx in 0..algebra.dimension(op_degree, -1) {
+                for op_idx in algebra.generators(op_degree) {
+                    for input_idx in 0..self.dimension(input_degree) {
                         let vec = self.action(op_degree, op_idx, input_degree, input_idx);
-                        let mut current_terms = Vec::new();
-                        for (i, v) in vec.iter().enumerate() {
-                            if v == 0 {
-                                continue;
-                            }
-                            current_terms.push(json!({"gen" : self.basis_element_to_string(output_degree, i), "coeff" : v}));
-                        }
-                        if current_terms.is_empty() {
+                        if vec.is_zero() {
                             continue;
                         }
-                        let current_action = json!({
-                            "op" : algebra.json_from_basis(op_degree, op_idx),
-                            "input" : self.basis_element_to_string(input_degree, input_idx),
-                            "output" : current_terms
-                        });
-                        actions.push(current_action);
+                        actions.push(format!("{} {} = {}",
+                                             algebra.generator_to_string(op_degree, op_idx),
+                                             self.gen_names[input_degree][input_idx],
+                                             self.element_to_string(output_degree, vec)
+                                            ))
                     }
                 }
             }

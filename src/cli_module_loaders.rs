@@ -162,28 +162,24 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
 
 pub fn interactive_module_define_fdmodule(mut output_json : Value, p : ValidPrime, generic : bool) -> Result<Value, Box<dyn Error>>{
     output_json["type"] = Value::from("finite dimensional module");
-    let adem_algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
-    let milnor_algebra = Arc::new(AlgebraAny::from(MilnorAlgebra::new(p)));
+    let algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
     let min_degree = 0i32;
     let gens = get_gens(min_degree)?;
     let gens_json = gens_to_json(&gens);    
     let max_degree = (gens.len() + 1) as i32 + min_degree;
     
-    adem_algebra.compute_basis(max_degree);
-    milnor_algebra.compute_basis(max_degree);
+    algebra.compute_basis(max_degree);
     
     let mut graded_dim = BiVec::with_capacity(min_degree, max_degree);
     for i in gens.iter().map(Vec::len) {
         graded_dim.push(i);
     }
 
-    let mut adem_module = FDModule::new(Arc::clone(&adem_algebra), "".to_string(), graded_dim.clone());
-    let mut milnor_module = FDModule::new(Arc::clone(&milnor_algebra), "".to_string(), graded_dim);
+    let mut module = FDModule::new(Arc::clone(&algebra), "".to_string(), graded_dim);
 
     for (i, deg_i_gens) in gens.iter_enum() {
         for (j, gen) in deg_i_gens.iter().enumerate() {
-            adem_module.set_basis_element_name(i as i32, j, gen.to_string());
-            milnor_module.set_basis_element_name(i as i32, j, gen.to_string());
+            module.set_basis_element_name(i as i32, j, gen.to_string());
         }
     }
 
@@ -198,35 +194,28 @@ pub fn interactive_module_define_fdmodule(mut output_json : Value, p : ValidPrim
             if gens[output_deg_idx].is_empty() {
                 continue;
             }
-            let adem_gens = adem_algebra.generators(op_deg);
-            if !adem_gens.is_empty() {
+            for op_idx in algebra.generators(op_deg) {
                 let mut output_vec = FpVector::new(p, gens[output_deg_idx].len());
-                let adem_op_idx = adem_gens[0];
-                let milnor_op_idx = milnor_algebra.generators(op_deg)[0];                
                 let callback = |string : &str| gens[output_deg_idx].iter().position(|d| d == string);
                 for input_idx in 0 .. gens[input_deg_idx].len() {                        
                     get_expression_to_vector(
-                        &format!("{} {}", adem_algebra.basis_element_to_string(op_deg, adem_op_idx), gens[input_deg_idx][input_idx]),
+                        &format!("{} {}", algebra.basis_element_to_string(op_deg, op_idx), gens[input_deg_idx][input_idx]),
                         &mut output_vec,
                         callback
                     );
-                    adem_module.set_action_vector(op_deg, adem_op_idx, input_deg, input_idx, &output_vec);
-                    milnor_module.set_action_vector(op_deg, milnor_op_idx, input_deg, input_idx, &output_vec);
+                    module.set_action_vector(op_deg, op_idx, input_deg, input_idx, &output_vec);
                     output_vec.set_to_zero();
                 }
             }
-            adem_module.extend_actions(input_deg, output_deg);
-            milnor_module.extend_actions(input_deg, output_deg);
-            adem_module.check_validity(input_deg, output_deg)?;
+            module.extend_actions(input_deg, output_deg);
+            module.check_validity(input_deg, output_deg)?;
         }
     }
 
-    let adem_actions = adem_module.actions_to_json();
-    let milnor_actions = milnor_module.actions_to_json();
+    let actions = module.actions_to_json();
     
     output_json["gens"] = gens_json;
-    output_json["adem_actions"] = adem_actions;
-    output_json["milnor_actions"] = milnor_actions;
+    output_json["actions"] = actions;
     Ok(output_json)
 }
 

@@ -326,7 +326,7 @@ impl Algebra for MilnorAlgebra {
     }
 
     // Same implementation as AdemAlgebra
-    fn string_to_basis<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> {
+    fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> {
         let first = map(alt((
             delimited(char('P'), digit1, space1),
             delimited(tag("Sq"), digit1, space1),
@@ -340,11 +340,22 @@ impl Algebra for MilnorAlgebra {
         alt((first, second))(input)
     }
 
+    fn generator_to_string(&self, degree: i32, _idx: usize) -> String {
+        if self.generic {
+            if degree == 1 {
+                "b".to_string()
+            } else {
+                format!("P{}", degree as u32 / (2 * (*self.prime()) - 2))
+            }
+        } else {
+            format!("Sq{}", degree)
+        }
+    }
+
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
         format!("{}", self.basis_table[degree as usize][idx])
     }
 
-    /// We pick our generators to be Q_0 and all the P(...). This has room for improvement...
     fn generators(&self, degree : i32) -> Vec<usize> {
         if degree == 0 {
             return vec![];

@@ -251,7 +251,7 @@ impl Algebra for AdemAlgebra {
         (b.degree, self.basis_element_to_index(&b))
     }
 
-    fn string_to_basis<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> {
+    fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> {
         let first = map(alt((
             delimited(char('P'), digit1, space1),
             delimited(tag("Sq"), digit1, space1),
@@ -263,6 +263,18 @@ impl Algebra for AdemAlgebra {
         let second = map(pair(char('b'), space1), |_| (1, 0));
 
         alt((first, second))(input)
+    }
+
+    fn generator_to_string(&self, degree: i32, _idx: usize) -> String {
+        if self.generic {
+            if degree == 1 {
+                "b".to_string()
+            } else {
+                format!("P{}", degree as u32 / (2 * (*self.prime()) - 2))
+            }
+        } else {
+            format!("Sq{}", degree)
+        }
     }
 
     fn json_from_basis(&self, degree : i32, index : usize) -> Value {

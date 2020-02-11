@@ -85,8 +85,6 @@ pub trait Algebra {
     fn json_to_basis(&self, _json : Value) -> (i32, usize) { unimplemented!() }
     fn json_from_basis(&self, _degree : i32, _idx : usize) -> Value { unimplemented!() }
 
-    fn string_to_basis<'a, 'b>(&'a self, _input: &'b str) -> IResult<&'b str, (i32, usize)> { unimplemented!() }
-
     /// Converts a basis element into a string for display.
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
         format!("a_{{{}, {}}}", degree, idx)
@@ -125,6 +123,24 @@ pub trait Algebra {
     /// This method need not be fast, because they will only be performed when constructing the module,
     /// and will often only involve low dimensional elements.
     fn generators(&self, _degree : i32) -> Vec<usize> { unimplemented!() }
+
+    /// This returns the name of a generator. Note that the index is the index of the generator
+    /// in the list of all basis elements. It is undefined behaviour to call this function with a
+    /// (degree, index) pair that is not a generator.
+    ///
+    /// The default implementation calls `self.basis_element_to_string`, but occassionally the
+    /// generators might have alternative, more concise names that are preferred.
+    ///
+    /// This function MUST be inverse to `string_to_generator`.
+    fn generator_to_string(&self, degree: i32, idx: usize) -> String {
+        self.basis_element_to_string(degree, idx)
+    }
+
+    /// This parses a string and returns the generator described by the string. The signature of
+    /// this function is the same `nom` combinators.
+    ///
+    /// This function MUST be inverse to `string_to_generator` (and not `basis_element_to_string`).
+    fn string_to_generator<'a, 'b>(&'a self, _input: &'b str) -> IResult<&'b str, (i32, usize)> { unimplemented!() }
 
     /// Given a non-generator basis element of the algebra, decompose it in terms of algebra
     /// generators. Recall each basis element is given by a pair $(d, i))$, where $d$ is the degree of
