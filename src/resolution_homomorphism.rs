@@ -3,14 +3,14 @@ use std::sync::{Weak, Arc};
 use once::OnceVec;
 use fp::vector::{ FpVector, FpVectorT };
 use fp::matrix::Matrix;
-use crate::module::{Module, FreeModule};
+use crate::module::Module;
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
+use crate::chain_complex::{AugmentedChainComplex, FreeChainComplex};
 use crate::resolution::ResolutionInner;
 use crate::CCC;
 
 pub struct ResolutionHomomorphism<CC1, CC2>
-where CC1: ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<FreeModule>>,
+where CC1: FreeChainComplex,
       CC2: AugmentedChainComplex
 {
     #[allow(dead_code)]
@@ -23,7 +23,7 @@ where CC1: ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<F
 }
 
 impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
-where CC1: ChainComplex<Module=FreeModule, Homomorphism=FreeModuleHomomorphism<FreeModule>>,
+where CC1: FreeChainComplex,
       CC2: AugmentedChainComplex
 {
     pub fn new(

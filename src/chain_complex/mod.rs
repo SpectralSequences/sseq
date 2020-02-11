@@ -19,7 +19,13 @@ pub enum ChainComplexGrading {
     Cohomological
 }
 
-pub trait ResolutionComplex : ChainComplex<
+pub trait FreeChainComplex : ChainComplex<
+    Module = crate::module::FreeModule,
+    Homomorphism = crate::module::homomorphism::FreeModuleHomomorphism<crate::module::FreeModule>
+> {}
+
+impl<CC> FreeChainComplex for CC where
+    CC: ChainComplex<
     Module = crate::module::FreeModule, 
     Homomorphism = crate::module::homomorphism::FreeModuleHomomorphism<crate::module::FreeModule>
 > {}
