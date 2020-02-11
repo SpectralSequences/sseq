@@ -561,42 +561,44 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
     }
 }
 
+use module::homomorphism::BoundedModuleHomomorphism;
 #[allow(unreachable_code)]
 pub fn run_test() -> Result<(), Box<dyn Error>> {
-    let calculator = crate::steenrod_evaluator::SteenrodCalculator::new(ValidPrime::new(2));
-    calculator.compute_basis(20);
-    calculator.evaluate_adem_to_string("P19").unwrap();
-    calculator.evaluate_adem_to_string("Q4").unwrap();
-    return Ok(());
+    let moore_spec = r#"{"type" : "finite dimensional module", "p": 3, "generic": false, "gens": {"x0": 0, "x1": 1}, "actions": ["b x0 = x1"]}"#;
+    let moore_moore_spec = r#"{"type" : "finite dimensional module", "p": 3, "generic": false, "gens": {"x0x0": 0, "x0x1": 1, "x1x0": 1, "x1x1": 2}, "actions": ["b x0x0 = x1x0 + x0x1", "b x0x1 = x1x1", "b x1x0 = 2 x1x1"]}"#;
 
-    let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
-    let k = serde_json::from_str(k)?;
-    let bundle = construct_from_json(k, "adem".to_string())?;
-    let resolution = bundle.resolution.read();
-    let p = ValidPrime::new(2);
+    let moore_bundle = construct_from_json(serde_json::from_str(moore_spec)?, "adem".to_string())?;
+    let moore_resolution = moore_bundle.resolution.read();
+    let moore_moore_bundle = construct_from_json(serde_json::from_str(moore_moore_spec)?, "adem".to_string())?;
+    let moore_moore_resolution = moore_moore_bundle.resolution.read();
 
-    let x : i32 = 30;
-    let s : u32 = 6;
-    let idx : usize = 0;
+    let p = moore_bundle.chain_complex.prime();
 
-    let t = s as i32 + x;
-    resolution.resolve_through_bidegree(s, t);
+    moore_resolution.resolve_through_bidegree(1, 5);
+    moore_moore_resolution.resolve_through_bidegree(1, 5);
 
-    let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution.inner), s, t, idx));
-    let square = Arc::new(TensorChainComplex::new(Arc::clone(&yoneda), Arc::clone(&yoneda)));
+    let moore_module = moore_bundle.chain_complex.module(0);
+    let moore_moore_module = moore_moore_bundle.chain_complex.module(0);
+    let hom = BoundedModuleHomomorphism::from_matrices(
+        moore_moore_module,
+        moore_module,
+        0,
+        BiVec::from_vec(0, vec![
+            Matrix::from_vec(p, &[vec![1]]),
+            Matrix::from_vec(p, &[vec![0], vec![1]]),
+        ])
+    );
+    let res_hom = ResolutionHomomorphism::from_module_homomorphism(
+        "".to_string(),
+        Arc::clone(&moore_moore_resolution.inner),
+        Arc::clone(&moore_resolution.inner),
+        &FiniteModuleHomomorphism::from(hom)
+    );
 
-    square.compute_through_bidegree(6, 48);
-    println!("Starting test");
-    for deg in 0 ..= 30 {
-        let mut result = FpVector::new(p, square.module(6).dimension(deg + 18));
-        for i in 0 .. square.module(6).dimension(deg) {
-            square.module(6).act_on_basis(&mut result, 1, 18, 2, deg, i);
-        }
-        let mut result = FpVector::new(p, square.module(5).dimension(deg + 18));
-        for i in 0 .. square.module(5).dimension(deg) {
-            square.module(5).act_on_basis(&mut result, 1, 18, 3, deg, i);
-        }
-    }
+    res_hom.extend(1, 5);
+    let mut result = FpVector::new(p, 2);
+    res_hom.act(&mut result, 1, 5, 0);
+    println!("{}", result);
     Ok(())
 }
 

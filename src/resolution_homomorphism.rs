@@ -214,4 +214,25 @@ where ACC: AugmentedChainComplex<TargetComplex=TCC>,
     }
 }
 
+impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
+where CC1: FreeChainComplex,
+      CC2: AugmentedChainComplex + FreeChainComplex
+{
+    pub fn act(&self, result: &mut FpVector, s: u32, t: i32, idx: usize) {
+        let source_s = s - self.homological_degree_shift;
+        let source_t = t - self.internal_degree_shift;
+
+        let source = self.source.upgrade().unwrap();
+        let target = self.target.upgrade().unwrap();
+        assert_eq!(result.dimension(), source.module(source_s).number_of_gens_in_degree(source_t));
+
+        let target_module = target.module(s);
+
+        let map = self.get_map(s);
+        for i in 0 .. result.dimension() {
+            let j = target_module.operation_generator_to_index(0, 0, t, idx);
+            result.add_basis_element(i, map.output(t, i).entry(j));
+        }
+    }
+}
 pub type ResolutionHomomorphismToUnit<CC> = ResolutionHomomorphism<ResolutionInner<CC>, ResolutionInner<CCC>>;

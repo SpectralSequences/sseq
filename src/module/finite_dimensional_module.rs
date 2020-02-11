@@ -386,7 +386,8 @@ impl FiniteDimensionalModule {
             let (_, (coef, gen)) = Self::parse_element(value)
                 .unwrap_or_else(|_| panic!("Invalid action: {}", entry_));
 
-            let (deg, idx) = gen_to_idx[gen];
+            let (deg, idx) = *gen_to_idx.get(gen)
+                .unwrap_or_else(|| panic!("Invalid generator: {}", gen));
             assert!(deg == input_deg + op_deg, "Invalid action: {}", entry_);
 
             row.add_basis_element(idx, coef);

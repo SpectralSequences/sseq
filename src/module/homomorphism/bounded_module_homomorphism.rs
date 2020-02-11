@@ -64,6 +64,19 @@ impl<S : BoundedModule, T : Module> ModuleHomomorphism for BoundedModuleHomomorp
 }
 
 impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {
+    pub fn from_matrices(source: Arc<S>, target: Arc<T>, degree_shift: i32, matrices: BiVec<Matrix>) -> Self {
+        let min_degree = target.min_degree();
+        BoundedModuleHomomorphism {
+            source: source,
+            target: target,
+            degree_shift,
+            matrices,
+            lock : Mutex::new(()),
+            quasi_inverses : OnceBiVec::new(min_degree),
+            kernels : OnceBiVec::new(min_degree)
+        }
+    }
+
     pub fn from<F : ModuleHomomorphism<Source=S, Target=T>>(f : &F) -> Self {
         let source = f.source();
         let target = f.target();
