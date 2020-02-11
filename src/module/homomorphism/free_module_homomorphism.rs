@@ -41,7 +41,7 @@ impl<M : Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
     }
 
     fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
-        debug_assert!(degree >= self.min_degree, format!("Degree {} less than min degree {}", degree, self.min_degree));
+        debug_assert!(degree >= self.min_degree, "Degree {} less than min degree {}", degree, self.min_degree);
         &self.quasi_inverse[degree]
     }
 
@@ -104,11 +104,10 @@ impl<M : Module> FreeModuleHomomorphism<M> {
 
     pub fn output(&self, generator_degree : i32, generator_index : usize) -> &FpVector {
         assert!(generator_degree >= self.min_degree(), 
-            format!("generator_degree {} less than min degree {}", generator_degree, self.min_degree()));
+            "generator_degree {} less than min degree {}", generator_degree, self.min_degree());
         assert!(generator_index < self.source.number_of_gens_in_degree(generator_degree),
-            format!("generator_index {} greater than number of generators {}", 
-                generator_index, self.source.number_of_gens_in_degree(generator_degree)
-        ));
+            "generator_index {} greater than number of generators {}",
+                generator_index, self.source.number_of_gens_in_degree(generator_degree));
         &self.outputs[generator_degree][generator_index]
     }
 

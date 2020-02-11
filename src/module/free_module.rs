@@ -51,7 +51,7 @@ impl Module for FreeModule {
         if degree < self.min_degree {
             return 0;
         }
-        assert!(degree < self.table.len(), format!("Free Module {} not computed through degree {}", self.name(), degree));
+        assert!(degree < self.table.len(), "Free Module {} not computed through degree {}", self.name(), degree);
         self.table[degree].basis_element_to_opgen.len()
     }
 

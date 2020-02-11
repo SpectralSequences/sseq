@@ -106,8 +106,8 @@ where CC1: FreeChainComplex,
 
                 target_chain_map.compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
                 assert!(num_gens == extra_images_matrix.rows(),
-                    format!("num_gens : {} greater than rows : {} hom_deg : {}, int_deg : {}", 
-                    num_gens, extra_images_matrix.rows(), input_homological_degree, input_internal_degree));
+                    "num_gens : {} greater than rows : {} hom_deg : {}, int_deg : {}",
+                    num_gens, extra_images_matrix.rows(), input_homological_degree, input_internal_degree);
                 for k in 0 .. num_gens {
                     target_chain_map.apply_quasi_inverse(&mut outputs_matrix[k], output_internal_degree, &extra_images_matrix[k]);
                 }
