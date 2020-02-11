@@ -67,8 +67,8 @@ impl<S : BoundedModule, T : Module> BoundedModuleHomomorphism<S, T> {
     pub fn from_matrices(source: Arc<S>, target: Arc<T>, degree_shift: i32, matrices: BiVec<Matrix>) -> Self {
         let min_degree = target.min_degree();
         BoundedModuleHomomorphism {
-            source: source,
-            target: target,
+            source,
+            target,
             degree_shift,
             matrices,
             lock : Mutex::new(()),

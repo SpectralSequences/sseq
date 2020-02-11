@@ -552,6 +552,16 @@ impl FiniteDimensionalModule {
         }
         json!(actions)
     }
+
+    pub fn gens_to_json(&self) -> Value {
+        let mut gens = json!({});
+        for (i, names) in self.gen_names.iter_enum() {
+            for name in names {
+                gens[name] = Value::from(i);
+            }
+        }
+        gens
+    }
 }
 
 
