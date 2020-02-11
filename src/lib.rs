@@ -25,7 +25,7 @@ mod yoneda;
 
 use algebra::{Algebra, AlgebraAny};
 use module::{FiniteModule, Module, BoundedModule};
-use module::homomorphism::{FiniteModuleHomomorphism, ModuleHomomorphism, FreeModuleHomomorphism};
+use module::homomorphism::{FiniteModuleHomomorphism, ModuleHomomorphism, FreeModuleHomomorphism, IdentityHomomorphism};
 use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
@@ -180,7 +180,6 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
     let module = bundle.chain_complex.module(0);
     let resolution = bundle.resolution.read();
     let min_degree = resolution.min_degree();
-    let p = resolution.prime();
 
     #[cfg(feature = "concurrent")]
     let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
@@ -208,10 +207,12 @@ pub fn run_yoneda(config : &Config) -> Result<String, Box<dyn Error>> {
 
         println!("Finding representative time: {:?}", start.elapsed());
 
-        let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&yoneda), 0, 0);
-        let mut mat = Matrix::new(p, 1, 1);
-        mat[0].set_entry(0, 1);
-        f.extend_step(0, 0, Some(&mat));
+        let f = ResolutionHomomorphism::from_module_homomorphism(
+            "".to_string(),
+            Arc::clone(&resolution.inner),
+            Arc::clone(&yoneda),
+            &FiniteModuleHomomorphism::identity_homomorphism(Arc::clone(&module))
+        );
 
         f.extend(s, t);
         let final_map = f.get_map(s);
@@ -274,6 +275,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
     let k = serde_json::from_str(k).unwrap();
     let bundle = construct_from_json(k, "adem".to_string()).unwrap();
     let mut resolution = &*bundle.resolution.read();
+    let module = bundle.chain_complex.module(0);
 
     let saved_resolution;
 
@@ -347,10 +349,12 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
             for entry in check.into_iter().skip(1) {
                 assert_eq!(entry, 0, "Incorrect Euler characteristic at t = {}", t);
             }
-            let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&yoneda), 0, 0);
-            let mut mat = Matrix::new(p, 1, 1);
-            mat[0].set_entry(0, 1);
-            f.extend_step(0, 0, Some(&mat));
+            let f = ResolutionHomomorphism::from_module_homomorphism(
+                "".to_string(),
+                Arc::clone(&resolution.inner),
+                Arc::clone(&yoneda),
+                &FiniteModuleHomomorphism::identity_homomorphism(Arc::clone(&module))
+            );
 
             f.extend(s, t);
             let final_map = f.get_map(s);

@@ -572,6 +572,7 @@ mod tests {
     use crate::chain_complex::FiniteChainComplex;
     use crate::resolution::Resolution;
     use crate::resolution_homomorphism::ResolutionHomomorphism;
+    use crate::module::homomorphism::IdentityHomomorphism;
 
     use fp::prime::ValidPrime;
 
@@ -591,10 +592,12 @@ mod tests {
 
         let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution.inner), s, t, idx));
 
-        let f = ResolutionHomomorphism::new("".to_string(), Arc::downgrade(&resolution.inner), Arc::downgrade(&yoneda), 0, 0);
-        let mut mat = Matrix::new(ValidPrime::new(2), 1, 1);
-        mat[0].set_entry(0, 1);
-        f.extend_step(0, 0, Some(&mat));
+        let f = ResolutionHomomorphism::from_module_homomorphism(
+            "".to_string(),
+            Arc::clone(&resolution.inner),
+            Arc::clone(&yoneda),
+            &FiniteModuleHomomorphism::identity_homomorphism(Arc::clone(&module))
+        );
 
         f.extend(s, t);
         let final_map = f.get_map(s);

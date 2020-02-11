@@ -229,6 +229,10 @@ impl<T> OnceBiVec<T> {
         }
     }
 
+    pub fn from_bivec(data: bivec::BiVec<T>) -> Self {
+        Self::from_vec(data.min_degree(), data.into_vec())
+    }
+
     pub fn with_capacity(min_degree : i32, capacity : i32) -> Self {
         debug_assert!(capacity >= min_degree);
         Self {

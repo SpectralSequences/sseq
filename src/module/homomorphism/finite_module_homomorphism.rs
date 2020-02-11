@@ -3,7 +3,7 @@ use std::sync::Arc;
 use fp::vector::{FpVector};
 use fp::matrix::{Subspace, QuasiInverse};
 use crate::module::{Module, FiniteModule, FreeModule, BoundedModule};
-use crate::module::homomorphism::{ModuleHomomorphism, GenericZeroHomomorphism, FPModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphism};
+use crate::module::homomorphism::{ModuleHomomorphism, GenericZeroHomomorphism, FPModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphism, IdentityHomomorphism};
 use crate::module::homomorphism::FPModuleT;
 
 impl BoundedModule for FiniteModule {
@@ -17,13 +17,21 @@ impl BoundedModule for FiniteModule {
 }
 
 impl FPModuleT for FiniteModule {
-    fn fp_idx_to_gen_idx(&self, input_degree : i32, input_index : usize) -> usize {
+    fn fp_idx_to_gen_idx(&self, degree : i32, index : usize) -> usize {
         match self {
              FiniteModule::FDModule(_) => panic!("Finite Dimensional Module is not finitely presented"),
              FiniteModule::RealProjectiveSpace(_) => panic!("RealProjectiveSpace is not finitely presented"),
-             FiniteModule::FPModule(m) => m.fp_idx_to_gen_idx(input_degree, input_index)
+             FiniteModule::FPModule(m) => m.fp_idx_to_gen_idx(degree, index)
         }
     }
+    fn gen_idx_to_fp_idx(&self, degree : i32, index : usize) -> isize {
+        match self {
+             FiniteModule::FDModule(_) => panic!("Finite Dimensional Module is not finitely presented"),
+             FiniteModule::RealProjectiveSpace(_) => panic!("RealProjectiveSpace is not finitely presented"),
+             FiniteModule::FPModule(m) => m.gen_idx_to_fp_idx(degree, index)
+        }
+    }
+
     fn generators(&self) -> &Arc<FreeModule> {
         match self {
              FiniteModule::FDModule(_) => panic!("Finite Dimensional Module is not finitely presented"),
@@ -129,6 +137,21 @@ impl<M : Module> ZeroHomomorphism<FiniteModule, M> for FiniteModuleHomomorphism<
         FiniteModuleHomomorphism {
             source,
             target,
+            map
+        }
+    }
+}
+
+impl IdentityHomomorphism<FiniteModule> for FiniteModuleHomomorphism<FiniteModule> {
+    fn identity_homomorphism(source : Arc<FiniteModule>) -> Self {
+        let map = match &*source {
+            FiniteModule::FDModule(_) => FMHI::FD(BoundedModuleHomomorphism::identity_homomorphism(Arc::clone(&source))),
+            FiniteModule::RealProjectiveSpace(_) => panic!("Identity morphism not supported for RealProjectiveSpace"),
+            FiniteModule::FPModule(_) => FMHI::FP(FPModuleHomomorphism::identity_homomorphism(Arc::clone(&source)))
+        };
+        FiniteModuleHomomorphism {
+            source: Arc::clone(&source),
+            target: source,
             map
         }
     }

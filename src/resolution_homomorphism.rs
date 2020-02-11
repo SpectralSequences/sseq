@@ -148,7 +148,70 @@ where CC1: FreeChainComplex,
         // assert!(extra_image_row == num_extra_image_rows, "Extra image rows");
         outputs_matrix
     }
+}
 
+use crate::chain_complex::{ChainComplex, BoundedChainComplex};
+use crate::module::homomorphism::FiniteModuleHomomorphism;
+use crate::module::{BoundedModule, FiniteModule};
+
+impl<ACC, TCC> ResolutionHomomorphism<ResolutionInner<CCC>, ACC>
+where ACC: AugmentedChainComplex<TargetComplex=TCC>,
+      TCC: BoundedChainComplex,
+{
+    pub fn from_module_homomorphism(name: String, source: Arc<ResolutionInner<CCC>>, target: Arc<ACC>, f: &FiniteModuleHomomorphism<TCC::Module>) -> Self {
+        assert_eq!(source.target().max_s(), 1);
+        assert_eq!(target.target().max_s(), 1);
+
+        let source_module = source.target().module(0);
+        let target_module = target.target().module(0);
+        assert!(Arc::ptr_eq(&source_module, &f.source()));
+        assert!(Arc::ptr_eq(&target_module, &f.target()));
+
+        let p = source.prime();
+        let degree_shift = f.degree_shift();
+
+        let max_degree = match &*source_module {
+            FiniteModule::FDModule(m) => m.max_degree(),
+            FiniteModule::FPModule(m) => m.generators.get_max_generator_degree(),
+            FiniteModule::RealProjectiveSpace(_) => panic!("Real Projective Space not supported"),
+        };
+
+        let hom = Self::new(name, Arc::downgrade(&source), Arc::downgrade(&target), 0, degree_shift);
+
+        source_module.compute_basis(max_degree);
+        target_module.compute_basis(degree_shift + max_degree);
+
+        // These are just asserts.
+        source.compute_through_bidegree(0, max_degree);
+        target.compute_through_bidegree(0, degree_shift + max_degree);
+
+        let source_chain_map = source.chain_map(0);
+        let target_chain_map = target.chain_map(0);
+        target_chain_map.compute_kernels_and_quasi_inverses_through_degree(degree_shift + max_degree);
+
+        let g = hom.get_map_ensure_length(0);
+        let lock = g.lock();
+
+        for t in source_module.min_degree() ..= max_degree {
+            let num_gens = source.module(0).number_of_gens_in_degree(t);
+
+            let mut fx = FpVector::new(p, target_module.dimension(t + degree_shift));
+
+            let mut outputs_matrix = Matrix::new(p, num_gens, target.module(0).dimension(t + degree_shift));
+            if num_gens == 0 || fx.dimension() == 0 {
+                g.add_generators_from_matrix_rows(&lock, t, &outputs_matrix);
+                continue;
+            }
+            for j in 0 .. num_gens {
+                f.apply(&mut fx, 1, t, source_chain_map.output(t, j));
+                target_chain_map.apply_quasi_inverse(&mut outputs_matrix[j], t + degree_shift, &fx);
+                fx.set_to_zero_pure();
+            }
+            g.add_generators_from_matrix_rows(&lock, t, &outputs_matrix);
+        }
+        drop(lock);
+        hom
+    }
 }
 
 pub type ResolutionHomomorphismToUnit<CC> = ResolutionHomomorphism<ResolutionInner<CC>, ResolutionInner<CCC>>;

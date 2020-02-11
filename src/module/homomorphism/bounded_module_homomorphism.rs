@@ -4,7 +4,7 @@ use parking_lot::Mutex;
 use fp::vector::{FpVector, FpVectorT};
 use fp::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::{Module, BoundedModule};
-use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
+use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism, IdentityHomomorphism};
 use bivec::BiVec;
 use once::OnceBiVec;
 
@@ -136,6 +136,35 @@ impl<S: BoundedModule, T : Module> ZeroHomomorphism<S, T> for BoundedModuleHomom
             matrices : BiVec::new(0),
             quasi_inverses : OnceBiVec::new(0),
             kernels : OnceBiVec::new(0)
+        }
+    }
+}
+
+impl<S: BoundedModule> IdentityHomomorphism<S> for BoundedModuleHomomorphism<S, S> {
+    fn identity_homomorphism(source : Arc<S>) -> Self {
+        let p = source.prime();
+        let min_degree = source.min_degree();
+        let max_degree = source.max_degree();
+
+        let mut matrices = BiVec::with_capacity(min_degree, max_degree + 1);
+
+        for i in min_degree ..= max_degree {
+            let dim = source.dimension(i);
+            let mut matrix = Matrix::new(p, dim, dim);
+            for k in 0 .. dim {
+                matrix[k].set_entry(k, 1);
+            }
+            matrices.push(matrix);
+        }
+
+        BoundedModuleHomomorphism {
+            source: Arc::clone(&source),
+            target: source,
+            degree_shift: 0,
+            lock : Mutex::new(()),
+            matrices,
+            quasi_inverses : OnceBiVec::new(min_degree),
+            kernels : OnceBiVec::new(min_degree)
         }
     }
 }

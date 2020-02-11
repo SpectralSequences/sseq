@@ -122,6 +122,10 @@ pub trait ModuleHomomorphism : Send + Sync + 'static {
     }
 }
 
-pub trait ZeroHomomorphism<S : Module, T : Module> {
+pub trait ZeroHomomorphism<S : Module, T : Module> : ModuleHomomorphism<Source=S, Target=T> {
     fn zero_homomorphism(s : Arc<S>, t : Arc<T>, degree_shift : i32) -> Self;
+}
+
+pub trait IdentityHomomorphism<S : Module> : ModuleHomomorphism<Source=S, Target=S> {
+    fn identity_homomorphism(s : Arc<S>) -> Self;
 }

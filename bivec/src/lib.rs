@@ -38,6 +38,10 @@ impl<T> BiVec<T> {
         }
     }
 
+    pub fn into_vec(self: BiVec<T>) -> Vec<T> {
+        self.data
+    }
+
     pub fn with_capacity(min_degree : i32, capacity : i32) -> Self {
         debug_assert!(capacity >= min_degree);
         Self {
@@ -99,7 +103,7 @@ impl<T> BiVec<T> {
         self.data.iter_mut()
     }
 
-    pub fn iter_enum(&self) -> impl Iterator<Item = (i32, &T)> {
+    pub fn iter_enum(&self) -> impl DoubleEndedIterator<Item = (i32, &T)> {
         let min_degree = self.min_degree;
         self.data.iter().enumerate()
             .map(move |(i, t)| (i as i32 + min_degree, t))
@@ -149,7 +153,6 @@ impl<T> IndexMut<i32> for BiVec<T> {
         &mut (self.data[(i - self.min_degree) as usize])
     }
 }
-
 use std::io;
 use std::io::{Read, Write};
 use saveload::{Save, Load};

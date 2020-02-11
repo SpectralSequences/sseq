@@ -163,7 +163,7 @@ impl<M : Module> FreeModuleHomomorphism<M> {
             outputs_vectors.restore_slice(old_slice);
         }
         self.outputs.push(new_outputs);
-    }    
+    }
 
     pub fn add_generators_from_matrix_rows(&self, lock : &MutexGuard<()>, degree : i32, matrix : &Matrix){
         self.check_mutex(lock);

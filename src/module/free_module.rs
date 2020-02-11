@@ -75,7 +75,6 @@ impl Module for FreeModule {
         let generator_degree = operation_generator.generator_degree; 
         let generator_index  = operation_generator.generator_index;
 
-
         // Now all of the output elements are going to be of the form s * x. Find where such things go in the output vector.
         let num_ops = self.algebra().dimension(module_operation_degree + op_degree, generator_degree);
         let output_block_min = self.operation_generator_to_index(module_operation_degree + op_degree, 0, generator_degree, generator_index);
@@ -278,6 +277,19 @@ impl FreeModule {
         result
     }
 
+    pub fn get_max_generator_degree(&self) -> i32 {
+        let mut max = self.min_degree;
+        // Ideally, we should use rev() here. However, the iterator involves a
+        // flatten().take(), and Flatten doesn't implement ExactSizeIterator (since the sum
+        // of lengths can overflow) and Take<T> doesn't implement DoubleEndedIterator
+        // unless T implements ExactSizeIterator.
+        for (i, table) in self.table.iter_enum() {
+            if table.num_gens > 0 {
+                max = i;
+            }
+        }
+        max
+    }
 }
 
 use std::io;
