@@ -448,7 +448,7 @@ pub trait FpVectorT {
         debug_assert!(self.prime() == other.prime());
         debug_assert!(self.offset() == other.offset());
         debug_assert!(self.dimension() == other.dimension(),
-            format!("self.dim {} not equal to other.dim {}", self.dimension(), other.dimension()));
+            "self.dim {} not equal to other.dim {}", self.dimension(), other.dimension());
         if self.dimension() == 0 {
             return;
         }
@@ -495,7 +495,7 @@ pub trait FpVectorT {
         debug_assert!(self.prime() == other.prime());
         debug_assert!(self.offset() >= other.offset());
         debug_assert!(self.dimension() == other.dimension(),
-            format!("self.dim {} not equal to other.dim {}", self.dimension(), other.dimension()));
+            "self.dim {} not equal to other.dim {}", self.dimension(), other.dimension());
         let p = self.prime();
         debug_assert!(c < *p);
         let offset_shift = self.offset() - other.offset();
@@ -528,7 +528,7 @@ pub trait FpVectorT {
         if i > 0 {
             let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], (source_limb_masked << (offset_shift + zero_bits)) >> zero_bits, c);
+            target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limb_masked << offset_shift, c);
             if number_of_target_limbs > number_of_source_limbs {
                 target_limbs[i + min_target_limb + 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb + 1], source_limb_masked >> tail_shift, c);
             }
@@ -540,7 +540,7 @@ pub trait FpVectorT {
         debug_assert!(self.prime() == other.prime());
         debug_assert!(self.offset() <= other.offset());
         debug_assert!(self.dimension() == other.dimension(),
-            format!("self.dim {} not equal to other.dim {}", self.dimension(), other.dimension()));
+            "self.dim {} not equal to other.dim {}", self.dimension(), other.dimension());
         let p = self.prime();
         debug_assert!(c < *p);
         let offset_shift = other.offset() - self.offset();
@@ -570,7 +570,7 @@ pub trait FpVectorT {
         if i > 0 {
             let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb - 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb - 1], (source_limb_masked << (tail_shift + zero_bits)) >> zero_bits, c);
+            target_limbs[i + min_target_limb - 1] = FpVector::add_limb(p, target_limbs[i + min_target_limb - 1], source_limb_masked << tail_shift, c);
             if number_of_source_limbs == number_of_target_limbs {
                 target_limbs[i + min_target_limb] = FpVector::add_limb(p, target_limbs[i + min_target_limb], source_limb_masked >> offset_shift, c);
             }
