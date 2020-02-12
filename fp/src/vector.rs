@@ -445,10 +445,9 @@ pub trait FpVectorT {
 
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
     fn add(&mut self, other : &FpVector, c : u32){
-        debug_assert!(self.prime() == other.prime());
-        debug_assert!(self.offset() == other.offset());
-        debug_assert!(self.dimension() == other.dimension(),
-            "self.dim {} not equal to other.dim {}", self.dimension(), other.dimension());
+        debug_assert_eq!(self.prime(), other.prime());
+        debug_assert_eq!(self.offset(), other.offset(), "Calling `add` on vectors aligned differently. Use `shift_add` instead");
+        debug_assert_eq!(self.dimension(), other.dimension(), "Adding vectors of different dimensions");
         if self.dimension() == 0 {
             return;
         }
