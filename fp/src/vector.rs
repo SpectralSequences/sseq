@@ -713,7 +713,6 @@ impl FpVectorT for FpVector3 {
     fn vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
 }
 
-
 impl FpVectorT for FpVector5 {
     fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize ){
         let limbs = &mut self.vector_container.limbs;
@@ -735,7 +734,6 @@ impl FpVectorT for FpVector5 {
     fn vector_container (&self) -> &VectorContainer { &self.vector_container }
     fn vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
 }
-
 
 impl FpVectorT for FpVectorGeneric {
     fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize){
@@ -902,6 +900,12 @@ impl FpVector {
             old_slice,
             inner: self
         }
+    }
+}
+
+impl std::ops::AddAssign<&FpVector> for FpVector {
+    fn add_assign(&mut self, other: &FpVector) {
+        self.add(other, 1);
     }
 }
 

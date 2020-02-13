@@ -502,7 +502,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
 
                                 // τ Δ_{i-1}x
                                 square.swap(&mut result, prevd, s + i as u32 - 1, t);
-                                result.add(prevd, 1);
+                                result += prevd;
                             }
 
                             if let Some(m) = &prev_map {
@@ -562,58 +562,40 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
 }
 
 use algebra::AdemAlgebra;
-use module::TensorModule;
 use module::homomorphism::BoundedModuleHomomorphism;
-use serde_json::json;
 #[allow(unreachable_code)]
 pub fn run_test() -> Result<(), Box<dyn Error>> {
-    let p = ValidPrime::new(2);
-    let algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, false, false)));
-    let y_json = r#"{"type" : "finite dimensional module", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1, "x2": 2, "x3": 3}, "actions": ["Sq1 x0 = x1", "Sq1 x2 = x3", "Sq2 x0 = x2", "Sq2 x1 = x3"]}"#;
+    let p = ValidPrime::new(3);
+    let algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, *p != 2, false)));
 
-    let y_module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut serde_json::from_str(y_json)?)?);
-    let y_chain_complex: Arc<CCC> = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&y_module)));
-    let y_resolution = Resolution::new(y_chain_complex, None, None);
+    let mm_json = r#"{"type" : "finite dimensional module", "p": 3, "generic": false, "gens": {"x0.x0": 0, "x0.x1": 1, "x1.x0": 1, "x1.x1": 2}, "actions": ["b x0.x0 = x1.x0 + x0.x1", "b x0.x1 = x1.x1", "b x1.x0 = 2 x1.x1"]}"#;
+    let mm_module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut serde_json::from_str(mm_json)?)?);
+    let mm_chain_complex: Arc<CCC> = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&mm_module)));
+    let mm_resolution = Resolution::new(mm_chain_complex, None, None);
 
-    let yy_module = Arc::new(FiniteModule::from(TensorModule::new(Arc::clone(&y_module), Arc::clone(&y_module)).to_fd_module()));
-    let yy_chain_complex: Arc<CCC> = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&yy_module)));
-    let yy_resolution = Resolution::new(yy_chain_complex, None, None);
-
-    y_resolution.resolve_through_bidegree(1, 6);
-    yy_resolution.resolve_through_bidegree(1, 6);
-
-    if let FiniteModule::FDModule(m) = &*yy_module {
-        let output_json = json!({
-            "p" : 2,
-            "generic" : false,
-            "type": "finite dimensional module",
-            "adem_actions": m.actions_to_json(),
-            "gens": m.gens_to_json(),
-        });
-        println!("{}", output_json.to_string());
-    }
+    mm_resolution.resolve_through_bidegree(1, 6);
 
     let hom = BoundedModuleHomomorphism::from_matrices(
-        yy_module,
-        y_module,
+        Arc::clone(&mm_module),
+        mm_module,
         0,
         BiVec::from_vec(0, vec![
             Matrix::from_vec(p, &[vec![1]]),
-            Matrix::from_vec(p, &[vec![0], vec![1]]),
-            Matrix::from_vec(p, &[vec![0], vec![0], vec![1]]),
-            Matrix::from_vec(p, &[vec![0], vec![0], vec![0], vec![1]]),
+            Matrix::from_vec(p, &[vec![0, 1],
+                                  vec![1, 0]]),
+            Matrix::from_vec(p, &[vec![1]]),
         ])
     );
     let res_hom = ResolutionHomomorphism::from_module_homomorphism(
         "".to_string(),
-        Arc::clone(&yy_resolution.inner),
-        Arc::clone(&y_resolution.inner),
+        Arc::clone(&mm_resolution.inner),
+        Arc::clone(&mm_resolution.inner),
         &FiniteModuleHomomorphism::from(hom)
     );
 
     res_hom.extend(1, 6);
-    let mut result = FpVector::new(p, 3);
-    res_hom.act(&mut result, 1, 6, 0);
+    let mut result = FpVector::new(p, 1);
+    res_hom.act(&mut result, 1, 4, 0);
     println!("{}", result);
 
     Ok(())
