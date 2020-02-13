@@ -18,7 +18,7 @@ fn main() {
             result = run_define_module();
         },
         ("test", Some(_sub_m)) => {
-            run_test().unwrap();
+            run_test(&get_config(matches)).unwrap();
             return;
         },
         ("yoneda", Some(_sub_m)) => {

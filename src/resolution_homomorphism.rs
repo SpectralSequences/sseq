@@ -7,7 +7,7 @@ use crate::module::Module;
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::chain_complex::{AugmentedChainComplex, FreeChainComplex};
 use crate::resolution::ResolutionInner;
-use crate::CCC;
+use crate::CCC; 
 
 pub struct ResolutionHomomorphism<CC1, CC2>
 where CC1: FreeChainComplex,
