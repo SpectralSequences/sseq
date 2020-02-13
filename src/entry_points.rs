@@ -480,7 +480,7 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
 
                                 // τ Δ_{i-1}x
                                 square.swap(&mut result, prevd, s + i as u32 - 1, t);
-                                result.add(prevd, 1);
+                                result += prevd;
                             }
 
                             if let Some(m) = &prev_map {
@@ -540,7 +540,6 @@ pub fn run_steenrod() -> Result<String, Box<dyn Error>> {
 }
 
 
-
 pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {
     let mut result = None;
     for path in &config.module_paths {
@@ -567,6 +566,7 @@ impl std::fmt::Display for ModuleFileNotFoundError {
         write!(f, "Module file '{}' not found on path", &self.name)
     }
 }
+
 
 impl Error for ModuleFileNotFoundError {
     fn description(&self) -> &str {

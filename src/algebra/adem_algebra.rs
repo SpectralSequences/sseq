@@ -677,7 +677,7 @@ impl AdemAlgebra {
                 // Since we're doing the first squares in decreasing order and x + y - j > x, 
                 // we already calculated this.
                 let source = &table[(x + y - j) as usize][i];
-                result.add(source, 1);
+                result += source;
             }
         }
         result

@@ -353,7 +353,7 @@ impl FreeModule {
             return;
         }
         if op_degree == 0 {
-            result.add(input, 1);
+            *result += input;
         }
         let op = algebra.basis_element_from_index(op_degree, op_index);
         let p_part = &op.p_part;

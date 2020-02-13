@@ -75,7 +75,7 @@ fn evaluate_algebra_tree_helper(
         AlgebraParseNode::Sum(left, right) => {
             let (degree_left, mut output_left) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, output_degree, *left)?;
             let (_degree_right, output_right) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, Some(degree_left), *right)?;
-            output_left.add(&output_right, 1);
+            output_left += &output_right;
             Ok((degree_left, output_left))
         }
         AlgebraParseNode::Product(left, right) => {
@@ -196,7 +196,7 @@ fn evaluate_module_tree_helper<M : Module>(
         ModuleParseNode::Sum(left, right) => {
             let (degree_left, mut output_left) = evaluate_module_tree_helper(adem_algebra, milnor_algebra, module, basis_elt_lookup, output_degree, *left)?;
             let (_degree_right, output_right) = evaluate_module_tree_helper(adem_algebra, milnor_algebra, module, basis_elt_lookup, Some(degree_left), *right)?;
-            output_left.add(&output_right, 1);
+            output_left += &output_right;
             Ok((degree_left, output_left))
         }
         ModuleParseNode::Act(left, right) => {
