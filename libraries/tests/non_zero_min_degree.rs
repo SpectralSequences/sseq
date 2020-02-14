@@ -1,4 +1,4 @@
-use rust_ext::construct_from_json;
+use rust_ext::utils::construct_from_json;
 
 #[test]
 fn negative_min_degree() {

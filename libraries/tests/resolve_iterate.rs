@@ -1,6 +1,6 @@
-use rust_ext::Config;
-use rust_ext::construct_from_json;
-use rust_ext::load_module_from_file;
+use rust_ext::utils::Config;
+use rust_ext::utils::construct_from_json;
+use rust_ext::utils::load_module_from_file;
 use serde_json::Value;
 
 #[test]

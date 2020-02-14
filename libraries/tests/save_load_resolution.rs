@@ -1,6 +1,6 @@
 use saveload::{Save, Load};
 use std::io::{Read, Cursor, SeekFrom, Seek};
-use rust_ext::{resolution::Resolution, construct_from_json};
+use rust_ext::{resolution::Resolution, utils::construct_from_json};
 
 #[test]
 fn test_save_load() {

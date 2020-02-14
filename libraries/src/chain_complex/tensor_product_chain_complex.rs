@@ -433,7 +433,7 @@ mod tests {
     use super::*;
 
     use fp::prime::ValidPrime;
-    use crate::construct_from_json;
+    use crate::utils::construct_from_json;
     use crate::resolution_homomorphism::ResolutionHomomorphism;
     use crate::yoneda::yoneda_representative_element;
 

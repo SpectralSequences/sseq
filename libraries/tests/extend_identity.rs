@@ -1,5 +1,4 @@
-use rust_ext::Config;
-use rust_ext::{construct, construct_from_json};
+use rust_ext::utils::{Config, construct, construct_from_json};
 use fp::matrix::Matrix;
 use rust_ext::module::Module;
 use rust_ext::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphism};

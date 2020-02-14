@@ -25,28 +25,40 @@ install:
     - rustup component add clippy
 
 script:
+    - cd libraries
     - cargo test --verbose --workspace
-    - cargo test --features cache-multiplication --verbose --workspace
+    - cargo test --features "cache-multiplication" --verbose --workspace
     - cargo check --features "prime-two concurrent" --workspace
     - cargo clippy --workspace --all-targets -- -D warnings
     - cargo clippy --workspace --features "cache-multiplication concurrent" --all-targets -- -D warnings -A unused_imports
-    - cd ext-websocket; npm run build; cd ..
+    - cd ..
+    - cd binaries
+    - cargo test --verbose --workspace
+    - cargo test --features "cache-multiplication" --verbose --workspace
+    - cargo check --features "prime-two concurrent" --workspace
+    - cargo clippy --workspace --all-targets -- -D warnings
+    - cargo clippy --workspace --features "cache-multiplication concurrent" --all-targets -- -D warnings -A unused_imports
+    - cd ext-websocket
+    - npm run build
+    - cd ../..
 
 cache:
     cargo: true
     directories:
-        - ext-websocket/node_modules
+        - libraries/target
+        - binaries/target
+        - binaries/ext-websocket/node_modules
 
 before_deploy:
-    - sh gen_doc.sh
-    - cp -r target/doc/ ext-websocket/dist/
+    - cd libraries; sh gen_doc.sh; cd ..
+    - cp -r libraries/target/doc/ binaries/ext-websocket/dist/
 
 deploy:
   provider: pages
   skip_cleanup: true
   github_token: $GITHUB_TOKEN  # Set in the settings page of your repository, as a secure variable
   keep_history: true
-  local_dir: ext-websocket/dist/
+  local_dir: binaries/ext-websocket/dist/
   on:
       branch: master
       condition: "$TRAVIS_RUST_VERSION = stable"

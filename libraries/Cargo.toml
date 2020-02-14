@@ -36,8 +36,7 @@ opt-level = 3
 debug = true
 
 [workspace]
-default-members = ["binary"]
-members = ["ext-websocket", "bivec", "compressor", "once", "thread-token", "saveload", "fp", "binary"]
+members = ["bivec", "once", "thread-token", "saveload", "fp"]
 
 [features]
 cache-multiplication = []
