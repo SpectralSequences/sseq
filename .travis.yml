@@ -21,7 +21,7 @@ matrix:
 
 install:
     - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh 
-    - cd ext-websocket; npm install; cd ..
+    - cd binaries/ext-websocket; npm install; cd ../..
     - rustup component add clippy
 
 script:
