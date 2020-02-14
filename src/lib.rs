@@ -20,16 +20,12 @@ pub mod module;
 pub mod chain_complex;
 pub mod resolution;
 pub mod resolution_homomorphism;
-mod cli_module_loaders;
-mod yoneda;
+pub mod cli_module_loaders;
+pub mod yoneda;
 
 use crate::chain_complex::FiniteChainComplex;
 use crate::module::FiniteModule;
 use crate::module::homomorphism::FiniteModuleHomomorphism;
 pub type CCC = FiniteChainComplex<FiniteModule, FiniteModuleHomomorphism<FiniteModule>>;
 
-mod entry_points;
-pub use entry_points::*;
-
-mod test_entry_point;
-pub use test_entry_point::*;
+pub mod utils;
