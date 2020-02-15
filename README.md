@@ -1,10 +1,45 @@
 [![Build Status](https://travis-ci.org/hoodmane/rust_ext.svg?branch=master)](https://travis-ci.org/hoodmane/rust_ext)
 
 # Overview
-The main crate provides a library for computing Ext resolutions. It produces a
-binary that displays the result in an ASCII graph. This is mainly used for
-testing purposes. It also comes with a CLI interface for defining Steenrod
-modules, which may be used "in production".
+The purpose of this repository is to compute Ext over the Steenrod algebra, and
+facilitate the computation of the corresponding Adams spectral sequence. The
+library is written in a way that makes it easy to adapt this to compute Ext
+over other algebras.
+
+The repository is separated into two distinct workspaces. `libraries` contains
+helper crates and all the homological algebra logic. `binaries` provide several
+binaries on top of this, which is mostly glue around the `libraries`. The
+reason is that when we use the binary for calculations, we often have to edit
+the binary and recompile. Structuring the repository this way allows us to
+compile the library with -O3 and the binary with -O0. This massively improves
+the compile time with a much smaller runtime overhead.
+
+# Libraries
+## Top-level crate
+The main crate implements most of the homolgoical algebra.
+
+## fp
+This implements linear algebra over Fp, as well as general helper functions
+about primes.
+
+## bivec
+This is a small crate that provides `BiVec` - a variant of `Vec` indexed by an
+`i32` whose starting index may be non-zero.
+
+## once
+This is a small crate that provides `OnceVec` and `OnceBiVec`, a wrapper around `UnsafeCell<Vec>` (or `BiVec`) that models a `Vec` whose only way of modification is `push`. This models some partially computed infinite data structure, and we think of pushing as simply finding out more of this infinite data structure instead of genuinely mutating it.
+
+## query
+This contains some helper functions for a command line interface.
+
+## saveload
+This provides an interface for saving and loading resolutions and other data.
+
+# Binaries
+## Top-level crate
+By default, the binary computes Ext and displays the result in an ASCII graph.
+This is mainly used for testing purposes. It also comes with a CLI interface
+for defining Steenrod modules, which may be used "in production".
 
 At the moment, it also has an interface for calculating Steenrod operations in
 Ext using the algorithm described in
@@ -14,7 +49,10 @@ expose this via `ext-websocket` once it is sufficiently presentable (the
 current algorithm can be very slow, and the speed cannot be easily determined
 a priori).
 
-There are a few further sub-crates.
+There is also an alternative entry point, `cargo run test`, which runs
+custom-written code in `binaries/src/test.rs`. This is used for ad hoc
+calculations, and the content of the this file is probably what the author
+happened to be working on when they had to commit something else.
 
 ## ext-websocket
 This is what you should use in general.
@@ -45,21 +83,12 @@ will be saved at `compressor/new.hist`.
 This program is multithreaded, and to change the number of threads used, edit
 the `NUM_THREAD` variable in `compressor/src/main.rs`.
 
-## bivec
-This is a small crate that provides `BiVec` - a variant of `Vec` indexed by an
-`i32` whose starting index may be non-zero.
-
-## once
-This is a small crate that provides `OnceVec` and `OnceBiVec`, a wrapper around `UnsafeCell<Vec>` (or `BiVec`) that models a `Vec` whose only way of modification is `push`. This models some partially computed infinite data structure, and we think of pushing as simply finding out more of this infinite data structure instead of genuinely mutating it.
-
-## query
-This contains some helper functions for a command line interface.
-
-## saveload
-This provides an interface for saving and loading resolutions and other data.
-
 # Compilation
-To compile the main crate, simply run
+Most users will have no reason to compile the `libraries` crate apart from
+running `cargo test`, `cargo doc` and `cargo clippy` when editing the code.
+
+In general, you will want to work in the `binaries` directory. To compile the
+main binary, simply run
 ```
 $ cargo build
 ```
