@@ -313,7 +313,10 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> TensorChainMap<CC1, CC2> {
 
             // Compute d (x) 1
             let mut target_offset = 0;
-            let mut row_count = match &self.source.modules[0 as usize] { m => m.left.dimension(left_t) * m.right.dimension(right_t) };
+            let mut row_count = {
+                let m = &self.source.modules[0 as usize];
+                m.left.dimension(left_t) * m.right.dimension(right_t)
+            };
             for s in 1 ..= self.source_s {
                 let source_module = &self.source.modules[s as usize]; // C_s (x) D_{source_s - s}
                 let target_module = &self.target.modules[s as usize - 1]; // C_{s - 1} (x) D_{source_s - s}
@@ -363,7 +366,10 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> TensorChainMap<CC1, CC2> {
                             let mut entries = Vec::new();
                             let mut offset = 0;
                             for s_ in 0 ..= self.source_s as usize {
-                                let dim = match &self.source.modules[s_] { m => m.left.dimension(left_t) * m.right.dimension(right_t) };
+                                let dim = {
+                                    let m = &self.source.modules[s_];
+                                    m.left.dimension(left_t) * m.right.dimension(right_t)
+                                };
                                 if dim == 0 { continue; }
 
                                 matrix[row].set_slice(padded_target_dim + offset, padded_target_dim + offset + dim);

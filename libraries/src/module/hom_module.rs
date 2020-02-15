@@ -152,7 +152,6 @@ mod tests {
     use crate::algebra::AdemAlgebra;
     use crate::module::{Module, FreeModule, FDModule};
     use crate::module::homomorphism::ModuleHomomorphism;
-    use serde_json;
 
     use fp::prime::ValidPrime;
 

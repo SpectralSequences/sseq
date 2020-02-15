@@ -98,7 +98,6 @@ mod tests {
     use fp::matrix::Matrix;
     use crate::module::FDModule;
     use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra};
-    use serde_json;
 
     #[allow(non_snake_case)]
     #[test]
