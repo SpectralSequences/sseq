@@ -359,7 +359,7 @@ impl FiniteDimensionalModule {
                     let output_name = basis_elt["gen"].as_str().unwrap();
                     let output_idx = gen_to_idx[output_name].1;
                     let output_coeff = basis_elt["coeff"].as_u64().unwrap() as u32;
-                    output_vec.set_entry(output_idx, output_coeff);
+                    output_vec.add_basis_element(output_idx, output_coeff);
                 }
             }
         }
