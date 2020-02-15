@@ -658,6 +658,22 @@ impl<CC : ChainComplex> Resolution<CC> {
         *self.next_s.lock() - 1
     }
 
+    pub fn graded_dimension_vec(&self) -> Vec<Vec<usize>> {
+        let min_degree = self.min_degree();
+        let max_degree = self.max_computed_degree();
+        let max_hom_deg = self.max_computed_homological_degree();
+        let mut result = Vec::with_capacity(max_hom_deg as usize + 1);
+        for i in (0 ..= max_hom_deg).rev() {
+            let module = self.module(i);
+            result.push(
+                (min_degree + i as i32 ..= max_degree)
+                    .map(|j| module.number_of_gens_in_degree(j))
+                    .collect::<Vec<_>>()
+            );
+        }
+        result
+    }
+
     pub fn graded_dimension_string(&self) -> String {
         let mut result = String::new();
         let min_degree = self.min_degree();
