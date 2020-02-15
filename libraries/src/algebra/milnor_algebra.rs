@@ -465,7 +465,7 @@ impl MilnorAlgebra {
             } else if self.profile.truncated {
                 profile_list.push(0);
             } else {
-                profile_list.push(!0); // A super large number.
+                profile_list.push(std::u32::MAX);
             }
         }
         for d in (old_deg + 1) ..= new_deg {
