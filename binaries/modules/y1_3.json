@@ -1,0 +1,18 @@
+{
+    "type" : "finite dimensional module",
+    "name": "$y(1)_{(3)}",
+    "file_name": "y1_3",
+    "algebra": ["milnor"],
+    "profile": {
+        "q_part": 65534,
+        "p_part": [0],
+        "truncated": false
+    },
+    "p": 3, "generic": true,
+    "gens": {"x0": 0},
+    "actions": [],
+    "products" : [
+        { "hom_deg" : 1, "int_deg" : 5, "class" : [1], "name" : "v_1" },
+        { "hom_deg" : 1, "int_deg" : 17, "class" : [1], "name" : "v_2" }
+    ]
+}
