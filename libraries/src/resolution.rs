@@ -210,6 +210,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // work out what dX should to to each of them.
         let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, matrix.end[0], &pivots);
         let cc_new_gens = new_generators.len();
+
         let mut res_new_gens = 0;
 
         let mut middle_rows = Vec::with_capacity(cc_new_gens);
@@ -232,7 +233,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                     // Keep the rows we produced because we have to row reduce to re-compute
                     // the kernel later, but these rows are the images of the generators, so we
                     // still need them.
-                    middle_rows.push(matrix[i].clone());
+                    middle_rows.push(matrix[first_new_row + i].clone());
                 }
                 // Row reduce again since our activity may have changed the image of dX.
                 matrix.row_reduce(&mut pivots);
