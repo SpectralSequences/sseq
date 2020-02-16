@@ -295,8 +295,9 @@ impl Matrix {
         self.vectors.swap(i + self.slice_row_start, j + self.slice_row_start);
     }
 
-    pub fn row_op(&mut self, target : usize, source : usize, coeff : u32){
-    unsafe {
+    pub fn row_op(&mut self, target : usize, source : usize, coeff : u32) {
+        assert!(target != source);
+        unsafe {
             // Can't take two mutable borrows from one vector, so instead just cast
             // them to their raw pointers to do the swap
             let ptarget: *mut FpVector = &mut self[target];
