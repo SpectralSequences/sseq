@@ -6,6 +6,7 @@
 
 import sys
 import json
+import os.path
 
 if len(sys.argv) != 2:
     sys.exit("Run command with input filename as unique argument")
@@ -19,7 +20,7 @@ obj = {
         "type": "finite dimensional module",
         "p": 2,
         "generic": False,
-        "file_name": sys.argv[1],
+        "file_name": os.path.basename(sys.argv[1]),
         "algebra": ["milnor"],
         "gens": {},
         "actions": []
@@ -28,14 +29,7 @@ obj = {
 def isPowerOfTwo(n):
     return (n != 0) and (n & (n - 1) == 0)
 
-def skipEmptyLines(f):
-    for line in f:
-        line = line.strip()
-        if line == "":
-            continue;
-        yield line
-
-f = skipEmptyLines(f)
+f = filter(lambda x: x != "", map(str.strip, iter(f)))
 
 try:
     dim = int(next(f))
