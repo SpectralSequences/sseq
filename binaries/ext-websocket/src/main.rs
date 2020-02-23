@@ -2,6 +2,7 @@ use std::{fs, thread};
 use std::sync::mpsc;
 use ws::{listen, Handler, Request, Response, Sender as WsSender, Result as WsResult};
 use textwrap::Wrapper;
+use time::OffsetDateTime;
 
 use ext_websocket::actions::*;
 use ext_websocket::managers::*;
@@ -26,7 +27,7 @@ const FILE_LIST : [(&str, &str, &[u8]); 16] = [
     ("/common.css", "common.css", b"text/css"),
     ("/bundle.js", "bundle.js", b"text/javascript")];
 
-fn ms_to_string(time : i64) -> String {
+fn ms_to_string(time : i128) -> String {
     if time < 1000 {
         format!("{}ms", time)
     } else if time < 10000 {
@@ -67,14 +68,14 @@ impl Manager {
 
             for msg in res_receiver {
                 let action_string = format!("{}", msg);
-                let start = time::now();
-                println!("{}\n", wrapper.fill(&format!("{} ResolutionManager: Processing {}", start.strftime("%F %T").unwrap(), action_string)));
+                let start = OffsetDateTime::now_local();
+                println!("{}\n", wrapper.fill(&format!("{} ResolutionManager: Processing {}", start.format("%F %T"), action_string)));
 
                 resolution_manager.process_message(msg).unwrap();
 
-                let end = time::now();
-                let time_diff = (end - start).num_milliseconds();
-                println!("{}\n", wrapper.fill(&format!("{} ResolutionManager: Completed in {}", end.strftime("%F %T").unwrap(), ms_to_string(time_diff))));
+                let end = OffsetDateTime::now_local();
+                let time_diff = (end - start).whole_milliseconds();
+                println!("{}\n", wrapper.fill(&format!("{} ResolutionManager: Completed in {}", end.format("%F %T"), ms_to_string(time_diff))));
             }
         });
 
@@ -89,18 +90,18 @@ impl Manager {
             for msg in sseq_receiver {
                 let action_string = format!("{}", msg);
                 let user = SseqManager::is_user(&msg.action);
-                let start = time::now();
+                let start = OffsetDateTime::now_local();
 
                 if user {
-                    println!("{}\n", wrapper.fill(&format!("{} SseqManager: Processing {}", start.strftime("%F %T").unwrap(), action_string)));
+                    println!("{}\n", wrapper.fill(&format!("{} SseqManager: Processing {}", start.format("%F %T"), action_string)));
                 }
 
                 sseq_manager.process_message(msg).unwrap();
 
                 if user {
-                    let end = time::now();
-                    let time_diff = (end - start).num_milliseconds();
-                    println!("{}\n", wrapper.fill(&format!("{} SseqManager: Completed in {}", end.strftime("%F %T").unwrap(), ms_to_string(time_diff))));
+                    let end = OffsetDateTime::now_local();
+                    let time_diff = (end - start).whole_milliseconds();
+                    println!("{}\n", wrapper.fill(&format!("{} SseqManager: Completed in {}", end.format("%F %T"), ms_to_string(time_diff))));
                 }
             }
         });

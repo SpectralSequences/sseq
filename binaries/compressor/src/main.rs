@@ -7,9 +7,11 @@ use zopfli::{Format, compress};
 use std::sync::mpsc;
 use std::thread;
 
+use time::OffsetDateTime;
+
 const NUM_THREAD : usize = 2;
 
-fn ms_to_string(time : i64) -> String {
+fn ms_to_string(time : i128) -> String {
     if time < 1000 {
         format!("{}ms", time)
     } else if time < 10000 {
@@ -20,7 +22,7 @@ fn ms_to_string(time : i64) -> String {
 }
 
 fn main() {
-    let init = time::now();
+    let init = OffsetDateTime::now();
 
     let mut source = File::open("old.hist").unwrap();
     let mut output = File::create("new.hist").unwrap();
@@ -46,12 +48,12 @@ fn main() {
 
         let (sender, receiver) = mpsc::channel();
         thread::spawn(move || {
-            let start = time::now();
+            let start = OffsetDateTime::now();
 
             let mut cursor = Cursor::new(Vec::new());
             compress(&Default::default(), &Format::Zlib, &inflated, &mut cursor).unwrap();
 
-            let time_diff = (time::now() - start).num_milliseconds();
+            let time_diff = (OffsetDateTime::now() - start).whole_milliseconds();
             println!("Encoded {}/{} in {}", c, num_lines, ms_to_string(time_diff));
             sender.send(cursor.into_inner()).unwrap();
         });
@@ -93,6 +95,6 @@ fn main() {
 
     println!("Original size: {}, New size: {}, Compression: {}%", orig_size, final_size, (100.0 * final_size as f64 / orig_size as f64).round());
 
-    let time_diff = (time::now() - init).num_milliseconds();
+    let time_diff = (OffsetDateTime::now() - init).whole_milliseconds();
     println!("Total time: {}", ms_to_string(time_diff));
 }
