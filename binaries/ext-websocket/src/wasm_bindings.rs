@@ -4,8 +4,7 @@ use crate::actions::*;
 use crate::managers::*;
 use wasm_bindgen::prelude::*;
 use std::error::Error;
-use std::rc::Rc;
-use rust_ext::steenrod_evaluator;
+use rust_ext::steenrod_evaluator::SteenrodCalculator as SteenrodCalculator_;
 
 #[derive(Clone)]
 pub struct Sender {
@@ -79,41 +78,23 @@ impl Sseq {
 
 
 #[wasm_bindgen]
-pub struct SteenrodCalculator {
-    pimpl : *const steenrod_evaluator::SteenrodCalculator,
-
-}
+pub struct SteenrodCalculator(SteenrodCalculator_);
 
 #[wasm_bindgen]
 impl SteenrodCalculator {
     pub fn new(p : u32) -> Self {
-        let calculator = steenrod_evaluator::SteenrodCalculator::new(ValidPrime::new(p));
-        let boxed_calculator = Rc::new(calculator);
-        Self {
-            pimpl : Rc::into_raw(boxed_calculator)
-        }
+        Self(SteenrodCalculator_::new(ValidPrime::new(p)))
     }
 
     pub fn compute_basis(&self, degree : i32) {
-        self.to_calculator().compute_basis(degree);
-    }
-
-    fn to_calculator(&self) -> Rc<steenrod_evaluator::SteenrodCalculator> {
-        let raw = unsafe { Rc::from_raw(self.pimpl) };
-        let clone = Rc::clone(&raw);
-        std::mem::forget(raw);
-        clone
+        self.0.compute_basis(degree);
     }
 
     pub fn evaluate_adem(&self, input : &str) -> Result<String, JsValue> {
-        self.to_calculator().evaluate_adem_to_string(input).map_err(|err| JsValue::from(err.to_string()))
+        self.0.evaluate_adem_to_string(input).map_err(|err| JsValue::from(err.to_string()))
     }
 
     pub fn evaluate_milnor(&self, input : &str) -> Result<String, JsValue> {
-        self.to_calculator().evaluate_milnor_to_string(input).map_err(|err| JsValue::from(err.to_string()))
-    }    
-
-    pub fn free(self) {
-        let _drop_me = unsafe { Rc::from_raw(self.pimpl) };
+        self.0.evaluate_milnor_to_string(input).map_err(|err| JsValue::from(err.to_string()))
     }
 }
