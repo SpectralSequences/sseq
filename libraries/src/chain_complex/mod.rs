@@ -193,12 +193,9 @@ pub trait CochainComplex: Send + Sync + 'static {
 /// usually think of C as a resolution of D. The chain map must be a map of degree shift 0.
 pub trait AugmentedChainComplex: ChainComplex {
     type TargetComplex: ChainComplex<Algebra = Self::Algebra>;
-    // The ChainMap part forces the TargetComplex to have the same algebra as ourself, but it
-    // would be nice to impose this directly. ChainComplex<Module::Algebra = ...> doesn't seem to
-    // work
     type ChainMap: ModuleHomomorphism<
         Source = Self::Module,
-        Target = <<Self as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
+        Target = <Self::TargetComplex as ChainComplex>::Module,
     >;
 
     fn target(&self) -> Arc<Self::TargetComplex>;
