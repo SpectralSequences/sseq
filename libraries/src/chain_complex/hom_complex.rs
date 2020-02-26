@@ -3,44 +3,58 @@
 #![allow(dead_code)]
 
 use crate::algebra::Field;
-use fp::matrix::{Matrix, Subspace, QuasiInverse};
-use crate::module::homomorphism::{ModuleHomomorphism, BoundedModuleHomomorphism, FiniteModuleHomomorphism};
-use crate::module::{Module, ZeroModule, SumModule, TensorModule, FiniteModule, HomModule, BoundedModule };
-use fp::vector::{FpVector, FpVectorT};
-use crate::block_structure::{BlockStructure,BlockStart};
-use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FiniteAugmentedChainComplex, FreeChainComplex};
+use crate::block_structure::{BlockStart, BlockStructure};
+use crate::chain_complex::{
+    AugmentedChainComplex, ChainComplex, FiniteAugmentedChainComplex, FiniteChainComplex,
+    FreeChainComplex,
+};
+use crate::module::homomorphism::{
+    BoundedModuleHomomorphism, FiniteModuleHomomorphism, ModuleHomomorphism,
+};
+use crate::module::{
+    BoundedModule, FiniteModule, HomModule, Module, SumModule, TensorModule, ZeroModule,
+};
 use crate::CCC;
-use std::sync::Arc;
+use fp::matrix::{Matrix, QuasiInverse, Subspace};
+use fp::vector::{FpVector, FpVectorT};
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use bivec::BiVec;
-use once::{OnceVec, OnceBiVec};
+use once::{OnceBiVec, OnceVec};
 
 pub type SHM<M> = SumModule<HomModule<M>>;
 
 pub struct HomChainComplex<
-    CC1 : FreeChainComplex<Algebra = M::Algebra>,
-    M : BoundedModule,
-    F : ModuleHomomorphism<Source=M, Target=M>
+    CC1: FreeChainComplex<Algebra = M::Algebra>,
+    M: BoundedModule,
+    F: ModuleHomomorphism<Source = M, Target = M>,
 > {
-    lock : Mutex<()>,
-    source_cc : Arc<CC1>,
-    target_cc : Arc<FiniteChainComplex<M, F>>,
-    modules : OnceVec<Arc<SHM<M>>>,
-    zero_module : Arc<SHM<M>>,
-    differentials : OnceVec<Arc<HomChainMap<CC1, M, F>>>
+    lock: Mutex<()>,
+    source_cc: Arc<CC1>,
+    target_cc: Arc<FiniteChainComplex<M, F>>,
+    modules: OnceVec<Arc<SHM<M>>>,
+    zero_module: Arc<SHM<M>>,
+    differentials: OnceVec<Arc<HomChainMap<CC1, M, F>>>,
 }
 
-impl<CC1 : FreeChainComplex<Algebra = M::Algebra>, M : BoundedModule, F : ModuleHomomorphism<Source=M, Target=M>>
-    HomChainComplex<CC1, M, F>
+impl<
+        CC1: FreeChainComplex<Algebra = M::Algebra>,
+        M: BoundedModule,
+        F: ModuleHomomorphism<Source = M, Target = M>,
+    > HomChainComplex<CC1, M, F>
 {
-    pub fn new(source_cc : Arc<CC1>, target_cc : Arc<FiniteChainComplex<M, F>>) -> Self {
+    pub fn new(source_cc: Arc<CC1>, target_cc: Arc<FiniteChainComplex<M, F>>) -> Self {
         Self {
-            lock : Mutex::new(()),
-            modules : OnceVec::new(),
-            differentials : OnceVec::new(),
-            zero_module : Arc::new(SumModule::zero_module(Arc::new(Field::new(source_cc.prime())), 0)), //source_cc.min_degree() + target_cc.max_degree())),
-            source_cc, target_cc
+            lock: Mutex::new(()),
+            modules: OnceVec::new(),
+            differentials: OnceVec::new(),
+            zero_module: Arc::new(SumModule::zero_module(
+                Arc::new(Field::new(source_cc.prime())),
+                0,
+            )), //source_cc.min_degree() + target_cc.max_degree())),
+            source_cc,
+            target_cc,
         }
     }
 
@@ -52,7 +66,6 @@ impl<CC1 : FreeChainComplex<Algebra = M::Algebra>, M : BoundedModule, F : Module
         Arc::clone(&self.target_cc)
     }
 }
-
 
 // impl<CC1 : FreeChainComplex, CC2 : FiniteChainComplex> ChainComplex for HomChainComplex<CC1, CC2> {
 //     type Module = SHM<CC2::Module>;
@@ -126,16 +139,25 @@ impl<CC1 : FreeChainComplex<Algebra = M::Algebra>, M : BoundedModule, F : Module
 //     fn max_homology_degree(&self, _homological_degree : u32) -> i32 { unimplemented!() }
 // }
 
-pub struct HomChainMap<CC1 : FreeChainComplex<Algebra = M::Algebra>, M : BoundedModule, F : ModuleHomomorphism<Source=M, Target=M>> {
-    source_cc : Arc<CC1>,
-    target_cc : Arc<FiniteChainComplex<M, F>>,
-    lock : Mutex<()>,
-    source : Arc<SHM<M>>,
-    target : Arc<SHM<M>>,
-    quasi_inverses : OnceBiVec<Vec<Option<Vec<(usize, usize, FpVector)>>>>
+pub struct HomChainMap<
+    CC1: FreeChainComplex<Algebra = M::Algebra>,
+    M: BoundedModule,
+    F: ModuleHomomorphism<Source = M, Target = M>,
+> {
+    source_cc: Arc<CC1>,
+    target_cc: Arc<FiniteChainComplex<M, F>>,
+    lock: Mutex<()>,
+    source: Arc<SHM<M>>,
+    target: Arc<SHM<M>>,
+    quasi_inverses: OnceBiVec<Vec<Option<Vec<(usize, usize, FpVector)>>>>,
 }
 
-impl<CC1 : FreeChainComplex<Algebra = M::Algebra>, M : BoundedModule, F : ModuleHomomorphism<Source=M, Target=M>> HomChainMap<CC1, M, F> {
+impl<
+        CC1: FreeChainComplex<Algebra = M::Algebra>,
+        M: BoundedModule,
+        F: ModuleHomomorphism<Source = M, Target = M>,
+    > HomChainMap<CC1, M, F>
+{
     // fn pullback_basis_element(&self, result : &mut FpVector, coeff : u32, hom_deg : i32, int_deg : i32, fn_idx : usize) {
     //     println!("fn_deg : {}, fn_idx : {}", fn_degree, fn_idx);
     //     let hom_deg_output = 0; // TODO: Figure out hom_deg_output from fn_idx.
@@ -165,34 +187,46 @@ impl<CC1 : FreeChainComplex<Algebra = M::Algebra>, M : BoundedModule, F : Module
     // }
 }
 
-impl<CC1 : FreeChainComplex<Algebra = M::Algebra>, M : BoundedModule, F : ModuleHomomorphism<Source=M, Target=M>> ModuleHomomorphism
-for HomChainMap<CC1, M, F> {
+impl<
+        CC1: FreeChainComplex<Algebra = M::Algebra>,
+        M: BoundedModule,
+        F: ModuleHomomorphism<Source = M, Target = M>,
+    > ModuleHomomorphism for HomChainMap<CC1, M, F>
+{
     type Source = SHM<M>;
     type Target = SHM<M>;
 
-    fn source(&self) -> Arc<Self::Source> { Arc::clone(&self.source) }
-    fn target(&self) -> Arc<Self::Target> { Arc::clone(&self.target) }
-    fn degree_shift(&self) -> i32 { 0 }
-
-
-    /// At the moment, this is off by a sign. However, we only use this for p = 2
-    fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, degree : i32, input_idx : usize) {
-        // Source is of the form ⊕_i L_i ⊗ R_(s - i). This i indexes the s degree. First figure out
-        // which i this belongs to.
-
+    fn source(&self) -> Arc<Self::Source> {
+        Arc::clone(&self.source)
+    }
+    fn target(&self) -> Arc<Self::Target> {
+        Arc::clone(&self.target)
+    }
+    fn degree_shift(&self) -> i32 {
+        0
     }
 
+    /// At the moment, this is off by a sign. However, we only use this for p = 2
+    fn apply_to_basis_element(
+        &self,
+        result: &mut FpVector,
+        coeff: u32,
+        degree: i32,
+        input_idx: usize,
+    ) {
+        // Source is of the form ⊕_i L_i ⊗ R_(s - i). This i indexes the s degree. First figure out
+        // which i this belongs to.
+    }
 
-
-    fn kernel(&self, _degree : i32) -> &Subspace {
+    fn kernel(&self, _degree: i32) -> &Subspace {
         panic!("Kernels not calculated for TensorChainMap");
     }
 
-    fn quasi_inverse(&self, _degree : i32) -> &QuasiInverse {
+    fn quasi_inverse(&self, _degree: i32) -> &QuasiInverse {
         panic!("Use apply_quasi_inverse instead");
     }
 
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
+    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32) {
         let next_degree = self.quasi_inverses.len();
         if next_degree > degree {
             return;
@@ -200,19 +234,21 @@ for HomChainMap<CC1, M, F> {
 
         let _lock = self.lock.lock();
 
-        for i in next_degree ..= degree {
+        for i in next_degree..=degree {
             self.calculate_quasi_inverse(i);
         }
     }
 
-    fn apply_quasi_inverse(&self, result : &mut FpVector, degree : i32, input : &FpVector) {
+    fn apply_quasi_inverse(&self, result: &mut FpVector, degree: i32, input: &FpVector) {
         let qis = &self.quasi_inverses[degree];
         assert_eq!(input.dimension(), qis.len());
 
         let old_slice = result.slice();
 
         for (i, x) in input.iter().enumerate() {
-            if x == 0 { continue; }
+            if x == 0 {
+                continue;
+            }
             if let Some(qi) = &qis[i] {
                 for (offset_start, offset_end, data) in qi.iter() {
                     result.set_slice(*offset_start, *offset_end);
