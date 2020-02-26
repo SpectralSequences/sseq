@@ -3,6 +3,7 @@ use std::sync::{Weak, Arc};
 use once::OnceVec;
 use fp::vector::{ FpVector, FpVectorT };
 use fp::matrix::Matrix;
+use crate::algebra::SteenrodAlgebra;
 use crate::module::Module;
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::chain_complex::{AugmentedChainComplex, FreeChainComplex};
@@ -10,7 +11,7 @@ use crate::resolution::ResolutionInner;
 use crate::CCC; 
 
 pub struct ResolutionHomomorphism<CC1, CC2>
-where CC1: FreeChainComplex,
+where CC1: FreeChainComplex<Algebra = <CC2::Module as Module>::Algebra>,
       CC2: AugmentedChainComplex
 {
     #[allow(dead_code)]
@@ -23,7 +24,7 @@ where CC1: FreeChainComplex,
 }
 
 impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
-where CC1: FreeChainComplex,
+where CC1: FreeChainComplex<Algebra = <CC2::Module as Module>::Algebra>,
       CC2: AugmentedChainComplex
 {
     pub fn new(
@@ -154,11 +155,12 @@ use crate::chain_complex::{ChainComplex, BoundedChainComplex};
 use crate::module::homomorphism::FiniteModuleHomomorphism;
 use crate::module::{BoundedModule, FiniteModule};
 
-impl<ACC, TCC> ResolutionHomomorphism<ResolutionInner<CCC>, ACC>
-where ACC: AugmentedChainComplex<TargetComplex=TCC>,
-      TCC: BoundedChainComplex,
+impl<M, ACC, TCC> ResolutionHomomorphism<ResolutionInner<CCC>, ACC>
+where M: Module<Algebra = SteenrodAlgebra>,
+      ACC: AugmentedChainComplex<Algebra = SteenrodAlgebra, TargetComplex=TCC>,
+      TCC: BoundedChainComplex<Algebra = SteenrodAlgebra, Module=M>,
 {
-    pub fn from_module_homomorphism(name: String, source: Arc<ResolutionInner<CCC>>, target: Arc<ACC>, f: &FiniteModuleHomomorphism<TCC::Module>) -> Self {
+    pub fn from_module_homomorphism(name: String, source: Arc<ResolutionInner<CCC>>, target: Arc<ACC>, f: &FiniteModuleHomomorphism<M>) -> Self {
         assert_eq!(source.target().max_s(), 1);
         assert_eq!(target.target().max_s(), 1);
 
@@ -216,7 +218,7 @@ where ACC: AugmentedChainComplex<TargetComplex=TCC>,
 
 impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
 where CC1: FreeChainComplex,
-      CC2: AugmentedChainComplex + FreeChainComplex
+      CC2: AugmentedChainComplex + FreeChainComplex<Algebra = CC1::Algebra>
 {
     pub fn act(&self, result: &mut FpVector, s: u32, t: i32, idx: usize) {
         let source_s = s - self.homological_degree_shift;
@@ -235,4 +237,4 @@ where CC1: FreeChainComplex,
         }
     }
 }
-pub type ResolutionHomomorphismToUnit<CC> = ResolutionHomomorphism<ResolutionInner<CC>, ResolutionInner<CCC>>;
+pub type ResolutionHomomorphismToUnit<CC> = ResolutionHomomorphism<ResolutionInner<CC>, ResolutionInner<CC>>;

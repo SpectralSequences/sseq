@@ -1,4 +1,4 @@
-use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra};
+use crate::algebra::{Algebra, SteenrodAlgebra, AdemAlgebra};
 use crate::chain_complex::{ChainComplex, AugmentedChainComplex, FiniteAugmentedChainComplex, BoundedChainComplex, ChainMap};
 use fp::vector::{FpVector, FpVectorT};
 use fp::matrix::{Matrix, Subspace};
@@ -22,10 +22,10 @@ pub type Yoneda<CC> = FiniteAugmentedChainComplex<
     >;
 
 #[allow(clippy::single_match)]
-fn rate_operation(algebra : &Arc<AlgebraAny>, op_deg : i32, op_idx : usize) -> i32 {
+fn rate_operation(algebra : &Arc<SteenrodAlgebra>, op_deg : i32, op_idx : usize) -> i32 {
     let mut pref = 0;
     match &**algebra {
-        AlgebraAny::AdemAlgebra(a) => pref += rate_adem_operation(a, op_deg, op_idx),
+        SteenrodAlgebra::AdemAlgebra(a) => pref += rate_adem_operation(a, op_deg, op_idx),
         _ => ()
     };
     pref
@@ -73,9 +73,9 @@ fn split_mut_borrow<T> (v : &mut Vec<T>, i : usize, j : usize) -> (&mut T, &mut 
 }
 
 pub fn yoneda_representative_element<TCM, TC, CC>(cc : Arc<CC>, s : u32, t : i32, idx : usize) -> Yoneda<CC>
-where TCM : BoundedModule,
-      TC : ChainComplex<Module=TCM> + BoundedChainComplex,
-      CC : AugmentedChainComplex<TargetComplex=TC, Module=FreeModule, ChainMap=FreeModuleHomomorphism<TCM>> {
+where TCM : BoundedModule<Algebra = SteenrodAlgebra>,
+      TC : BoundedChainComplex<Algebra = SteenrodAlgebra, Module=TCM>,
+      CC : AugmentedChainComplex<Algebra = SteenrodAlgebra, TargetComplex=TC, Module=FreeModule<SteenrodAlgebra>, ChainMap=FreeModuleHomomorphism<TCM>> {
     let p = cc.prime();
 
     let target = FDModule::new(cc.algebra(), "".to_string(), BiVec::from_vec(0, vec![1]));
@@ -96,13 +96,13 @@ where TCM : BoundedModule,
 
 /// This function produces a quasi-isomorphic quotient of `cc` (as an augmented chain complex) that `map` factors through
 pub fn yoneda_representative<TCM, TC, CC, CMM>(cc : Arc<CC>, map : ChainMap<FreeModuleHomomorphism<CMM>>) -> Yoneda<CC>
-where TCM : BoundedModule,
-      TC : ChainComplex<Module=TCM> + BoundedChainComplex,
-      CC : AugmentedChainComplex<TargetComplex=TC, Module=FreeModule, ChainMap=FreeModuleHomomorphism<TCM>>,
-      CMM : BoundedModule
+where TCM : BoundedModule<Algebra = SteenrodAlgebra>,
+      TC : BoundedChainComplex<Algebra = SteenrodAlgebra, Module=TCM>,
+      CC : AugmentedChainComplex<Algebra = SteenrodAlgebra, TargetComplex=TC, Module=FreeModule<SteenrodAlgebra>, ChainMap=FreeModuleHomomorphism<TCM>>,
+      CMM : BoundedModule<Algebra = SteenrodAlgebra>,
 {
     yoneda_representative_with_strategy(cc, map,
-        |module : &FreeModule, subspace : &Subspace, t : i32, i : usize| {
+        |module : &FreeModule<SteenrodAlgebra>, subspace : &Subspace, t : i32, i : usize| {
             let opgen = module.index_to_op_gen(t, i);
 
             let mut pref = rate_operation(&module.algebra(), opgen.operation_degree, opgen.operation_index);
@@ -118,10 +118,10 @@ where TCM : BoundedModule,
 
 #[allow(clippy::cognitive_complexity)]
 pub fn yoneda_representative_with_strategy<TCM, TC, CC, CMM, F>(cc : Arc<CC>, map : ChainMap<FreeModuleHomomorphism<CMM>>, strategy : F) -> Yoneda<CC>
-where TCM : BoundedModule,
-      TC : ChainComplex<Module=TCM> + BoundedChainComplex,
-      CC : AugmentedChainComplex<TargetComplex=TC, Module=FreeModule, ChainMap=FreeModuleHomomorphism<TCM>>,
-      CMM : BoundedModule,
+where TCM : BoundedModule<Algebra = SteenrodAlgebra>,
+      TC : BoundedChainComplex<Algebra = SteenrodAlgebra, Module=TCM>,
+      CC : AugmentedChainComplex<Algebra = SteenrodAlgebra, TargetComplex=TC, Module=FreeModule<SteenrodAlgebra>, ChainMap=FreeModuleHomomorphism<TCM>>,
+      CMM : BoundedModule<Algebra = SteenrodAlgebra>,
       F : Fn(&CC::Module, &Subspace, i32, usize) -> i32 {
     let p = cc.prime();
     let target_cc = cc.target();
@@ -578,7 +578,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(ValidPrime::new(2), false, false)));
+        let algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(ValidPrime::new(2), false, false)));
         let module = Arc::new(FiniteModule::from(FDModule::new(algebra, "".to_string(), BiVec::from_vec(0, vec![1]))));
         let chain_complex : Arc<CCC> = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
         let resolution = Resolution::new(chain_complex, None, None);
@@ -625,7 +625,7 @@ mod tests {
     }
 }
 //static mut MEMOIZED_SIZE : Option<once::OnceVec<Vec<u32>>> = None;
-//unsafe fn compute_size(algebra : &Arc<AlgebraAny>, deg : i32) {
+//unsafe fn compute_size(algebra : &Arc<SteenrodAlgebra>, deg : i32) {
 //    if MEMOIZED_SIZE.is_none() {
 //        MEMOIZED_SIZE = Some(once::OnceVec::new());
 //    }

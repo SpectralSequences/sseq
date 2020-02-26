@@ -3,18 +3,15 @@ use std::sync::{Arc, Weak};
 use parking_lot::{RwLock, Mutex};
 use std::collections::HashSet;
 
-use bivec::BiVec;
-
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use fp::matrix::{Matrix, Subspace, AugmentedMatrix3};
-use crate::algebra::{Algebra, AlgebraAny};
-use crate::module::{Module, FiniteModule, FDModule, FreeModule};
+use crate::algebra::Algebra;
+use crate::module::{Module, FreeModule};
 use once::{OnceVec, OnceBiVec};
 use crate::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
-use crate::chain_complex::{ChainComplex, AugmentedChainComplex, FiniteChainComplex};
+use crate::chain_complex::{ChainComplex, AugmentedChainComplex, UnitChainComplex};
 use crate::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorphismToUnit};
-use crate::CCC;
 
 #[cfg(feature = "concurrent")]
 use std::{thread, sync::mpsc};
@@ -30,10 +27,10 @@ use thread_token::TokenBucket;
 /// Send + Sync. In particular, we don't need the callback functions to be Send + Sync.
 pub struct ResolutionInner<CC : ChainComplex> {
     complex : Arc<CC>,
-    modules : OnceVec<Arc<FreeModule>>,
-    zero_module : Arc<FreeModule>,
+    modules : OnceVec<Arc<FreeModule<<CC::Module as Module>::Algebra>>>,
+    zero_module : Arc<FreeModule<<CC::Module as Module>::Algebra>>,
     chain_maps : OnceVec<Arc<FreeModuleHomomorphism<CC::Module>>>,
-    differentials : OnceVec<Arc<FreeModuleHomomorphism<FreeModule>>>,
+    differentials : OnceVec<Arc<FreeModuleHomomorphism<FreeModule<<CC::Module as Module>::Algebra>>>>,
     kernels : OnceBiVec<Mutex<Option<Subspace>>>
 }
 
@@ -180,7 +177,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // Later we're going to write into this same matrix an isomorphism source/image + new vectors --> kernel
         // This has size target_dimension x (2*target_dimension).
         // This latter matrix may be used to find a preimage of an element under the differential.
-        let source_dimension = FreeModule::dimension_with_table(&source_module_table);
+        let source_dimension = FreeModule::<CC::Algebra>::dimension_with_table(&source_module_table);
         let target_cc_dimension = target_cc.dimension(t);
         let target_res_dimension = target_res.dimension(t);
 
@@ -308,10 +305,11 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
 }
 
 impl<CC : ChainComplex> ChainComplex for ResolutionInner<CC> {
-    type Module = FreeModule;
-    type Homomorphism = FreeModuleHomomorphism<FreeModule>;
+    type Algebra = CC::Algebra;
+    type Module = FreeModule<Self::Algebra>;
+    type Homomorphism = FreeModuleHomomorphism<FreeModule<Self::Algebra>>;
 
-    fn algebra(&self) -> Arc<AlgebraAny> {
+    fn algebra(&self) -> Arc<Self::Algebra> {
         self.complex().algebra()
     }
 
@@ -407,7 +405,7 @@ pub type AddStructlineFn = Box<dyn Fn(
 ///  * `kernels` - For each *internal* degree, store the kernel of the most recently calculated
 ///  chain map as returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
 ///  resolve_through_degree again.
-pub struct Resolution<CC : ChainComplex> {
+pub struct Resolution<CC : UnitChainComplex> {
     pub inner : Arc<ResolutionInner<CC>>,
 
     next_s : Mutex<u32>,
@@ -418,8 +416,8 @@ pub struct Resolution<CC : ChainComplex> {
     filtration_one_products : Vec<(String, i32, usize)>,
 
     // Products
-    pub unit_resolution : Option<Weak<RwLock<Resolution<CCC>>>>,
-    pub unit_resolution_owner : Option<Arc<RwLock<Resolution<CCC>>>>,
+    pub unit_resolution : Option<Weak<RwLock<Resolution<CC>>>>,
+    pub unit_resolution_owner : Option<Arc<RwLock<Resolution<CC>>>>,
     product_names : HashSet<String>,
     product_list : Vec<Cocycle>,
     // s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
@@ -431,7 +429,7 @@ pub struct Resolution<CC : ChainComplex> {
     pub self_maps : Vec<SelfMap<CC>>
 }
 
-impl<CC : ChainComplex> Resolution<CC> {
+impl<CC : UnitChainComplex> Resolution<CC> {
     pub fn new(
         complex : Arc<CC>,
         add_class : Option<AddClassFn>,
@@ -703,9 +701,7 @@ impl<CC : ChainComplex> Resolution<CC> {
 }
 
 // Product algorithms
-impl<CC> Resolution<CC> where
-    CC : ChainComplex
-{
+impl<CC: UnitChainComplex> Resolution<CC> {
     /// This function computes the products between the element most recently added to product_list
     /// and the parts of Ext that have already been computed. This function should be called right
     /// after `add_product`, unless `resolve_through_degree`/`resolve_through_bidegree` has never been
@@ -755,15 +751,14 @@ impl<CC> Resolution<CC> where
 
     pub fn construct_unit_resolution(&mut self) {
         if self.unit_resolution.is_none() {
-            let unit_module = Arc::new(FiniteModule::from(FDModule::new(self.algebra(), String::from("unit"), BiVec::from_vec(0, vec![1]))));
-            let ccdz = Arc::new(FiniteChainComplex::ccdz(unit_module));
+            let ccdz = Arc::new(CC::unit_chain_complex(self.algebra()));
             let unit_resolution = Arc::new(RwLock::new(Resolution::new(ccdz, None, None)));
             self.unit_resolution = Some(Arc::downgrade(&unit_resolution));
             self.unit_resolution_owner = Some(unit_resolution);
         }
     }
 
-    pub fn set_unit_resolution(&mut self, unit_res : Weak<RwLock<Resolution<CCC>>>) {
+    pub fn set_unit_resolution(&mut self, unit_res : Weak<RwLock<Resolution<CC>>>) {
         if !self.chain_maps_to_unit_resolution.is_empty() {
             panic!("Cannot change unit resolution after you start computing products");
         }
@@ -880,7 +875,7 @@ impl<CC> Resolution<CC> where
 }
 
 // Self map algorithms
-impl<CC : ChainComplex> Resolution<CC> {
+impl<CC : UnitChainComplex> Resolution<CC> {
     /// The return value is whether the self map was actually added. If the self map is already
     /// present, we do nothing.
     pub fn add_self_map(&mut self, s : u32, t : i32, name : &str, map_data : Matrix) -> bool {
@@ -937,9 +932,9 @@ impl<CC : ChainComplex> Resolution<CC> {
     }
 }
 
-impl<CC : ChainComplex> Resolution<CC>
+impl<CC : UnitChainComplex> Resolution<CC>
 {
-    pub fn algebra(&self) -> Arc<AlgebraAny> {
+    pub fn algebra(&self) -> Arc<<CC::Module as Module>::Algebra> {
         self.inner.complex().algebra()
     }
 
@@ -947,7 +942,7 @@ impl<CC : ChainComplex> Resolution<CC>
         self.inner.prime()
     }
 
-    pub fn module(&self, homological_degree : u32) -> Arc<FreeModule> {
+    pub fn module(&self, homological_degree : u32) -> Arc<FreeModule<<CC::Module as Module>::Algebra>> {
         self.inner.module(homological_degree)
     }
 
@@ -955,7 +950,7 @@ impl<CC : ChainComplex> Resolution<CC>
         self.inner.complex().min_degree()
     }
 
-    pub fn differential(&self, s : u32) -> Arc<FreeModuleHomomorphism<FreeModule>> {
+    pub fn differential(&self, s : u32) -> Arc<FreeModuleHomomorphism<FreeModule<<CC::Module as Module>::Algebra>>> {
         self.inner.differential(s)
     }
 }
@@ -995,7 +990,7 @@ impl<CC : ChainComplex> Load for ResolutionInner<CC> {
 
         result.differentials.push(Load::load(buffer, &(result.module(0), result.zero_module(), 0))?);
         for s in 1 .. max_s as u32 {
-            let d : Arc<FreeModuleHomomorphism<FreeModule>> = Load::load(buffer, &(result.module(s), result.module(s - 1), 0))?;
+            let d : Arc<FreeModuleHomomorphism<FreeModule<CC::Algebra>>> = Load::load(buffer, &(result.module(s), result.module(s - 1), 0))?;
             result.differentials.push(d);
         }
 
@@ -1011,7 +1006,7 @@ impl<CC : ChainComplex> Load for ResolutionInner<CC> {
     }
 }
 
-impl<CC : ChainComplex> Save for Resolution<CC> {
+impl<CC : UnitChainComplex> Save for Resolution<CC> {
     fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
         let algebra_dim = *self.next_t.lock() - self.min_degree() - 1;
         algebra_dim.save(buffer)?;
@@ -1019,7 +1014,7 @@ impl<CC : ChainComplex> Save for Resolution<CC> {
     }
 }
 
-impl<CC : ChainComplex> Load for Resolution<CC> {
+impl<CC : UnitChainComplex> Load for Resolution<CC> {
     type AuxData = Arc<CC>;
 
     fn load(buffer : &mut impl Read, cc : &Self::AuxData) -> io::Result<Self> {

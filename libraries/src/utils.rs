@@ -4,7 +4,7 @@ use parking_lot::RwLock;
 use serde_json::value::Value;
 
 use std::path::PathBuf;
-use crate::algebra::{Algebra, AlgebraAny};
+use crate::algebra::{Algebra, SteenrodAlgebra};
 use crate::module::{FiniteModule, Module, BoundedModule};
 use crate::module::homomorphism::FreeModuleHomomorphism;
 use fp::matrix::Matrix;
@@ -36,7 +36,7 @@ pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle, Box<dyn Err
 }
 
 pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<AlgebraicObjectsBundle, Box<dyn Error>> {
-    let algebra = Arc::new(AlgebraAny::from_json(&json, algebra_name)?);
+    let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra_name)?);
     let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut json)?);
     let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
     let mut resolution = Resolution::new(Arc::clone(&chain_complex), None, None);

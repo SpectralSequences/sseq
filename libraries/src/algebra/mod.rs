@@ -29,7 +29,7 @@ use enum_dispatch::enum_dispatch;
 /// necessarily basis elements. It gives us a simpler way of describing finite modules by only
 /// specifying the action of the generators.
 #[enum_dispatch]
-pub trait Algebra {
+pub trait Algebra : Send + Sync + 'static {
     /// The "type" of the algebra, which is "adem" or "milnor". When reading module definitions,
     /// this informs whether we should look at adem_actions or milnor_actions.
     fn algebra_type(&self) -> &str;
@@ -159,26 +159,23 @@ pub trait Algebra {
 }
 
 #[enum_dispatch(Algebra)]
-pub enum AlgebraAny {
+pub enum SteenrodAlgebra {
     AdemAlgebra,
     MilnorAlgebra,
-    Field
 }
 
-impl Bialgebra for AlgebraAny {
+impl Bialgebra for SteenrodAlgebra {
     fn decompose (&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize)> {
         match self {
-            AlgebraAny::AdemAlgebra(a) => a.decompose(op_deg, op_idx),
-            AlgebraAny::MilnorAlgebra(a) => a.decompose(op_deg, op_idx),
-            AlgebraAny::Field(a) => a.decompose(op_deg, op_idx)
+            SteenrodAlgebra::AdemAlgebra(a) => a.decompose(op_deg, op_idx),
+            SteenrodAlgebra::MilnorAlgebra(a) => a.decompose(op_deg, op_idx),
         }
     }
 
     fn coproduct (&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize, i32, usize)> {
         match self {
-            AlgebraAny::AdemAlgebra(a) => a.coproduct(op_deg, op_idx),
-            AlgebraAny::MilnorAlgebra(a) => a.coproduct(op_deg, op_idx),
-            AlgebraAny::Field(a) => a.coproduct(op_deg, op_idx)
+            SteenrodAlgebra::AdemAlgebra(a) => a.coproduct(op_deg, op_idx),
+            SteenrodAlgebra::MilnorAlgebra(a) => a.coproduct(op_deg, op_idx),
         }
     }
 }
@@ -198,8 +195,8 @@ struct AlgebraSpec {
     profile : Option<MilnorProfileOption>
 }
 
-impl AlgebraAny {
-    pub fn from_json(json : &Value, mut algebra_name : String) -> Result<AlgebraAny, Box<dyn Error>> {
+impl SteenrodAlgebra {
+    pub fn from_json(json : &Value, mut algebra_name : String) -> Result<SteenrodAlgebra, Box<dyn Error>> {
         let spec : AlgebraSpec = serde_json::from_value(json.clone())?;
 
         let p = ValidPrime::new(spec.p);
@@ -211,9 +208,9 @@ impl AlgebraAny {
             }
         }
 
-        let algebra : AlgebraAny;
+        let algebra : SteenrodAlgebra;
         match algebra_name.as_ref() {
-            "adem" => algebra = AlgebraAny::from(AdemAlgebra::new(p, *p != 2, false)),
+            "adem" => algebra = SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false)),
             "milnor" => {
                 let mut algebra_inner = MilnorAlgebra::new(p);
                 if let Some(profile) = spec.profile {
@@ -227,7 +224,7 @@ impl AlgebraAny {
                         algebra_inner.profile.p_part = p_part;
                     }
                 }
-                algebra = AlgebraAny::from(algebra_inner);
+                algebra = SteenrodAlgebra::from(algebra_inner);
             }
             _ => { return Err(Box::new(InvalidAlgebraError { name : algebra_name })); }
         };

@@ -12,7 +12,7 @@ use query::*;
 use bivec::BiVec;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector,FpVectorT};
-use crate::algebra::{Algebra, AlgebraAny, MilnorAlgebra, AdemAlgebra};
+use crate::algebra::{Algebra, SteenrodAlgebra, MilnorAlgebra, AdemAlgebra};
 use crate::module::{Module, FreeModule, FDModule, FPModule};
 use crate::steenrod_evaluator::evaluate_module;
 
@@ -162,7 +162,7 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
 
 pub fn interactive_module_define_fdmodule(mut output_json : Value, p : ValidPrime, generic : bool) -> Result<Value, Box<dyn Error>>{
     output_json["type"] = Value::from("finite dimensional module");
-    let algebra = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
+    let algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, generic, false)));
     let min_degree = 0i32;
     let gens = get_gens(min_degree)?;
     let gens_json = gens_to_json(&gens);    
@@ -219,7 +219,7 @@ pub fn interactive_module_define_fdmodule(mut output_json : Value, p : ValidPrim
     Ok(output_json)
 }
 
-fn get_relation(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, module : &FreeModule, basis_elt_lookup : &HashMap<String, (i32, usize)>) -> Result<(i32, FpVector), String> {
+fn get_relation(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, module : &FreeModule<SteenrodAlgebra>, basis_elt_lookup : &HashMap<String, (i32, usize)>) -> Result<(i32, FpVector), String> {
     let relation : String = query("Relation", Ok);
     if relation == "" {
         return Err("".to_string());
@@ -234,7 +234,7 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : ValidPrim
     let gens_json = gens_to_json(&gens);    
     let max_degree = 20;
 
-    let adem_algebra_rc = Arc::new(AlgebraAny::from(AdemAlgebra::new(p, generic, false)));
+    let adem_algebra_rc = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, generic, false)));
     let adem_algebra = AdemAlgebra::new(p, generic, false);
     let milnor_algebra = MilnorAlgebra::new(p);
     adem_algebra_rc.compute_basis(max_degree);

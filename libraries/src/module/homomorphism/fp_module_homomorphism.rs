@@ -1,16 +1,21 @@
 use std::sync::Arc;
 
+use crate::algebra::Algebra;
+use crate::module::homomorphism::{
+    FreeModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism, ZeroHomomorphism,
+};
+use crate::module::{FPModule, FreeModule, Module};
+use fp::matrix::{Matrix, QuasiInverse, Subspace};
 use fp::vector::{FpVector, FpVectorT};
-use fp::matrix::{Matrix, Subspace, QuasiInverse};
-use crate::module::{Module, FPModule, FreeModule};
-use crate::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism, ZeroHomomorphism, IdentityHomomorphism};
 
-pub struct FPModuleHomomorphism<N: FPModuleT, M : Module> {
-    source : Arc<N>,
-    underlying_map : Arc<FreeModuleHomomorphism<M>>
+pub struct FPModuleHomomorphism<N: FPModuleT, M: Module<Algebra = N::Algebra>> {
+    source: Arc<N>,
+    underlying_map: Arc<FreeModuleHomomorphism<M>>,
 }
 
-impl<N : FPModuleT, M : Module> ModuleHomomorphism for FPModuleHomomorphism<N, M> {
+impl<N: FPModuleT, M: Module<Algebra = N::Algebra>> ModuleHomomorphism
+    for FPModuleHomomorphism<N, M>
+{
     type Source = N;
     type Target = M;
 
@@ -26,27 +31,34 @@ impl<N : FPModuleT, M : Module> ModuleHomomorphism for FPModuleHomomorphism<N, M
         self.underlying_map.degree_shift()
     }
 
-    fn apply_to_basis_element(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_index : usize){
+    fn apply_to_basis_element(
+        &self,
+        result: &mut FpVector,
+        coeff: u32,
+        input_degree: i32,
+        input_index: usize,
+    ) {
         let idx = self.source.fp_idx_to_gen_idx(input_degree, input_index);
         self.underlying_map.extend_by_zero_safe(input_degree);
-        self.underlying_map.apply_to_basis_element(result, coeff, input_degree, idx);
+        self.underlying_map
+            .apply_to_basis_element(result, coeff, input_degree, idx);
     }
 
-    fn quasi_inverse(&self, degree : i32) -> &QuasiInverse {
+    fn quasi_inverse(&self, degree: i32) -> &QuasiInverse {
         &self.underlying_map.quasi_inverse[degree]
     }
 
-    fn kernel(&self, degree : i32) -> &Subspace {
+    fn kernel(&self, degree: i32) -> &Subspace {
         &self.underlying_map.kernel[degree]
     }
 
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree : i32) {
+    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32) {
         let _lock = self.underlying_map.lock();
 
         let kernel_len = self.underlying_map.kernel.len();
         let qi_len = self.underlying_map.quasi_inverse.len();
         assert_eq!(kernel_len, qi_len);
-        for i in kernel_len ..= degree {
+        for i in kernel_len..=degree {
             let (kernel, qi) = self.kernel_and_quasi_inverse(i);
             self.underlying_map.kernel.push(kernel);
             self.underlying_map.quasi_inverse.push(qi);
@@ -54,23 +66,34 @@ impl<N : FPModuleT, M : Module> ModuleHomomorphism for FPModuleHomomorphism<N, M
     }
 }
 
-impl<N: FPModuleT, M : Module> ZeroHomomorphism<N, M> for FPModuleHomomorphism<N, M> {
-    fn zero_homomorphism(source : Arc<N>, target : Arc<M>, degree_shift : i32) -> Self {
-        let underlying_map = Arc::new(FreeModuleHomomorphism::new(Arc::clone(source.generators()), target, degree_shift));
+impl<N: FPModuleT, M: Module<Algebra = N::Algebra>> ZeroHomomorphism<N, M>
+    for FPModuleHomomorphism<N, M>
+{
+    fn zero_homomorphism(source: Arc<N>, target: Arc<M>, degree_shift: i32) -> Self {
+        let underlying_map = Arc::new(FreeModuleHomomorphism::new(
+            Arc::clone(source.generators()),
+            target,
+            degree_shift,
+        ));
         FPModuleHomomorphism {
-            source, underlying_map
+            source,
+            underlying_map,
         }
     }
 }
 
 impl<N: FPModuleT> IdentityHomomorphism<N> for FPModuleHomomorphism<N, N> {
-    fn identity_homomorphism(source : Arc<N>) -> Self {
+    fn identity_homomorphism(source: Arc<N>) -> Self {
         let p = source.prime();
         let source_gen = source.generators();
 
-        let underlying_map = Arc::new(FreeModuleHomomorphism::new(Arc::clone(source_gen), Arc::clone(&source), 0));
+        let underlying_map = Arc::new(FreeModuleHomomorphism::new(
+            Arc::clone(source_gen),
+            Arc::clone(&source),
+            0,
+        ));
         let lock = underlying_map.lock();
-        for t in source_gen.min_degree()..= source_gen.max_computed_degree() {
+        for t in source_gen.min_degree()..=source_gen.max_computed_degree() {
             let num_gens = source_gen.number_of_gens_in_degree(t);
             if num_gens == 0 {
                 underlying_map.extend_by_zero(&lock, t);
@@ -80,7 +103,7 @@ impl<N: FPModuleT> IdentityHomomorphism<N> for FPModuleHomomorphism<N, N> {
             let dim = source.dimension(t);
             let mut matrix = Matrix::new(p, num_gens, dim);
             let offset = source_gen.generator_offset(t, t, 0);
-            for j in 0 .. num_gens {
+            for j in 0..num_gens {
                 let idx = source.gen_idx_to_fp_idx(t, offset + j);
                 if idx >= 0 {
                     matrix[j].set_entry(idx as usize, 1);
@@ -91,26 +114,27 @@ impl<N: FPModuleT> IdentityHomomorphism<N> for FPModuleHomomorphism<N, N> {
         drop(lock);
 
         FPModuleHomomorphism {
-            source, underlying_map
+            source,
+            underlying_map,
         }
     }
 }
 
-pub trait FPModuleT : Module {
-    fn gen_idx_to_fp_idx(&self, degree : i32, index : usize) -> isize;
-    fn fp_idx_to_gen_idx(&self, degree : i32, index : usize) -> usize;
-    fn generators(&self) -> &Arc<FreeModule>;
+pub trait FPModuleT: Module {
+    fn gen_idx_to_fp_idx(&self, degree: i32, index: usize) -> isize;
+    fn fp_idx_to_gen_idx(&self, degree: i32, index: usize) -> usize;
+    fn generators(&self) -> &Arc<FreeModule<Self::Algebra>>;
 }
 
-impl FPModuleT for FPModule {
-    fn fp_idx_to_gen_idx(&self, degree : i32, index : usize) -> usize {
+impl<A: Algebra> FPModuleT for FPModule<A> {
+    fn fp_idx_to_gen_idx(&self, degree: i32, index: usize) -> usize {
         self.fp_idx_to_gen_idx(degree, index)
     }
-    fn gen_idx_to_fp_idx(&self, degree : i32, index : usize) -> isize {
+    fn gen_idx_to_fp_idx(&self, degree: i32, index: usize) -> isize {
         self.gen_idx_to_fp_idx(degree, index)
     }
 
-    fn generators(&self) -> &Arc<FreeModule> {
+    fn generators(&self) -> &Arc<FreeModule<A>> {
         &self.generators
     }
 }

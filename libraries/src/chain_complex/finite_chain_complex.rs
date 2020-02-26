@@ -1,4 +1,3 @@
-use crate::algebra::AlgebraAny;
 use crate::module::{Module, ZeroModule};
 use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex, BoundedChainComplex};
@@ -54,10 +53,11 @@ where M : Module + ZeroModule,
 impl<M, F> ChainComplex for FiniteChainComplex<M, F>
 where M : Module,
       F : ModuleHomomorphism<Source=M, Target=M> {
+    type Algebra = M::Algebra;
     type Module = M;
     type Homomorphism = F;
 
-    fn algebra(&self) -> Arc<AlgebraAny> {
+    fn algebra(&self) -> Arc<Self::Algebra> {
         self.zero_module.algebra()
     }
     fn min_degree(&self) -> i32 {
@@ -104,7 +104,7 @@ where M : Module,
 
 pub struct FiniteAugmentedChainComplex<M, F1, F2, CC>
 where M : Module,
-      CC : ChainComplex,
+      CC : ChainComplex<Algebra = M::Algebra>,
       F1 : ModuleHomomorphism<Source=M, Target=M>,
       F2 : ModuleHomomorphism<Source=M, Target=CC::Module> {
     pub modules : Vec<Arc<M>>,
@@ -116,13 +116,14 @@ where M : Module,
 
 impl<M, F1, F2, CC> ChainComplex for FiniteAugmentedChainComplex<M, F1, F2, CC>
 where M : Module,
-      CC : ChainComplex,
+      CC : ChainComplex<Algebra = M::Algebra>,
       F1 : ModuleHomomorphism<Source=M, Target=M>,
       F2 : ModuleHomomorphism<Source=M, Target=CC::Module> {
+    type Algebra = M::Algebra;
     type Module = M;
     type Homomorphism = F1;
 
-    fn algebra(&self) -> Arc<AlgebraAny> {
+    fn algebra(&self) -> Arc<M::Algebra> {
         self.zero_module.algebra()
     }
     fn min_degree(&self) -> i32 {
@@ -157,7 +158,7 @@ where M : Module,
 
 impl<M, F1, F2, CC> AugmentedChainComplex for FiniteAugmentedChainComplex<M, F1, F2, CC>
 where M : Module,
-      CC : ChainComplex,
+      CC : ChainComplex<Algebra = M::Algebra>,
       F1 : ModuleHomomorphism<Source=M, Target=M>,
       F2 : ModuleHomomorphism<Source=M, Target=CC::Module> {
     type TargetComplex = CC;
@@ -175,7 +176,7 @@ where M : Module,
 
 impl<M, F1, F2, CC> From<FiniteAugmentedChainComplex<M, F1, F2, CC>> for FiniteChainComplex<M, F1>
 where M : Module,
-      CC : ChainComplex,
+      CC : ChainComplex<Algebra = M::Algebra>,
       F1 : ModuleHomomorphism<Source=M, Target=M>,
       F2 : ModuleHomomorphism<Source=M, Target=CC::Module> {
 
@@ -189,7 +190,7 @@ where M : Module,
 }
 impl<M, F1, F2, CC> BoundedChainComplex for FiniteAugmentedChainComplex<M, F1, F2, CC>
 where M : Module,
-      CC : ChainComplex,
+      CC : ChainComplex<Algebra = M::Algebra>,
       F1 : ModuleHomomorphism<Source=M, Target=M>,
       F2 : ModuleHomomorphism<Source=M, Target=CC::Module> {
 

@@ -5,9 +5,11 @@ mod tensor_product_chain_complex;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use fp::matrix::Subspace;
-use crate::algebra::{Algebra, AlgebraAny};
-use crate::module::Module;
-use crate::module::homomorphism::ModuleHomomorphism;
+use crate::CCC;
+use crate::algebra::Algebra;
+use crate::module::{Module, FreeModule, FiniteModule, FDModule};
+use bivec::BiVec;
+use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use std::sync::Arc;
 
 // pub use hom_complex::HomComplex;
@@ -20,27 +22,28 @@ pub enum ChainComplexGrading {
 }
 
 pub trait FreeChainComplex : ChainComplex<
-    Module = crate::module::FreeModule,
-    Homomorphism = crate::module::homomorphism::FreeModuleHomomorphism<crate::module::FreeModule>
+    Module = FreeModule<<Self as ChainComplex>::Algebra>,
+    Homomorphism = FreeModuleHomomorphism<FreeModule<<Self as ChainComplex>::Algebra>>
 > {}
 
 impl<CC> FreeChainComplex for CC where
     CC: ChainComplex<
-    Module = crate::module::FreeModule, 
-    Homomorphism = crate::module::homomorphism::FreeModuleHomomorphism<crate::module::FreeModule>
+    Module = FreeModule<Self::Algebra>,
+    Homomorphism = FreeModuleHomomorphism<FreeModule<Self::Algebra>>
 > {}
 
 /// A chain complex is defined to start in degree 0. The min_degree is the min_degree of the
 /// modules in the chain complex, all of which must be the same.
 pub trait ChainComplex : Send + Sync + 'static {
-    type Module : Module;
+    type Algebra: Algebra;
+    type Module : Module<Algebra = Self::Algebra>;
     type Homomorphism : ModuleHomomorphism<Source=Self::Module, Target=Self::Module>;
 
     fn prime(&self) -> ValidPrime {
         self.algebra().prime()
     }
 
-    fn algebra(&self) -> Arc<AlgebraAny>;
+    fn algebra(&self) -> Arc<Self::Algebra>;
     fn min_degree(&self) -> i32;
     fn zero_module(&self) -> Arc<Self::Module>;
     fn module(&self, homological_degree : u32) -> Arc<Self::Module>;
@@ -85,13 +88,14 @@ pub trait ChainComplex : Send + Sync + 'static {
 }
 
 pub trait CochainComplex : Send + Sync + 'static {
-    type Module : Module;
+    type Algebra: Algebra;
+    type Module : Module<Algebra = Self::Algebra>;
     type Homomorphism : ModuleHomomorphism<Source=Self::Module, Target=Self::Module>;
 
     fn prime(&self) -> ValidPrime {
         self.algebra().prime()
     }
-    fn algebra(&self) -> Arc<AlgebraAny>;
+    fn algebra(&self) -> Arc<<Self::Module as Module>::Algebra>;
     fn min_degree(&self) -> i32;
     fn zero_module(&self) -> Arc<Self::Module>;
     fn module(&self, homological_degree : u32) -> Arc<Self::Module>;
@@ -137,7 +141,10 @@ pub trait CochainComplex : Send + Sync + 'static {
 /// An augmented chain complex is a map of chain complexes C -> D that is a *quasi-isomorphism*. We
 /// usually think of C as a resolution of D. The chain map must be a map of degree shift 0.
 pub trait AugmentedChainComplex : ChainComplex {
-    type TargetComplex : ChainComplex;
+    type TargetComplex : ChainComplex<Algebra = Self::Algebra>;
+    // The ChainMap part forces the TargetComplex to have the same algebra as ourself, but it
+    // would be nice to impose this directly. ChainComplex<Module::Algebra = ...> doesn't seem to
+    // work
     type ChainMap : ModuleHomomorphism<Source=Self::Module, Target=<<Self as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module>;
 
     fn target(&self) -> Arc<Self::TargetComplex>;
@@ -154,4 +161,15 @@ pub trait BoundedChainComplex : ChainComplex {
 pub struct ChainMap<F : ModuleHomomorphism> {
     pub s_shift : u32,
     pub chain_maps : Vec<F>
+}
+
+pub trait UnitChainComplex: ChainComplex {
+    fn unit_chain_complex(algebra: Arc<Self::Algebra>) -> Self;
+}
+
+impl UnitChainComplex for CCC {
+    fn unit_chain_complex(algebra: Arc<Self::Algebra>) -> Self {
+        let unit_module = Arc::new(FiniteModule::FDModule(FDModule::new(algebra, String::from("unit"), BiVec::from_vec(0, vec![1]))));
+        FiniteChainComplex::ccdz(unit_module)
+    }
 }

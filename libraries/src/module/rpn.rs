@@ -1,9 +1,11 @@
-
-use fp::prime::ValidPrime;
-use fp::vector::{FpVector, FpVectorT};
-use crate::algebra::{Algebra, AlgebraAny, AdemAlgebra, adem_algebra::AdemBasisElement, MilnorAlgebra, milnor_algebra::MilnorBasisElement};
+use crate::algebra::{
+    adem_algebra::AdemBasisElement, milnor_algebra::MilnorBasisElement, AdemAlgebra, Algebra,
+    SteenrodAlgebra, MilnorAlgebra,
+};
 use crate::module::{Module, ZeroModule};
+use fp::prime::ValidPrime;
 use fp::prime::{binomial, multinomial};
+use fp::vector::{FpVector, FpVectorT};
 
 use std::sync::Arc;
 
@@ -18,27 +20,28 @@ use serde_json::Value;
 /// \mathbb{RP}_{-\infty}^n$, c.f. Proposition 2.2 of Bailey and Ricka. Note that this quotient
 /// always has minimum degree -1 mod 8.
 pub struct RealProjectiveSpace {
-    algebra : Arc<AlgebraAny>,
-    min : i32,
+    algebra: Arc<SteenrodAlgebra>,
+    min: i32,
     clear_bottom: bool,
-    max : Option<i32>, // If None,  then RP^oo
+    max: Option<i32>, // If None,  then RP^oo
 }
 
 impl PartialEq for RealProjectiveSpace {
-    fn eq(&self, other : &Self) -> bool {
-        self.min == other.min &&
-            self.max == other.max
+    fn eq(&self, other: &Self) -> bool {
+        self.min == other.min && self.max == other.max
     }
 }
 
 impl Eq for RealProjectiveSpace {}
 
 impl Module for RealProjectiveSpace {
+    type Algebra = SteenrodAlgebra;
+
     fn name(&self) -> &str {
         &"real projective space"
     }
 
-    fn algebra(&self) -> Arc<AlgebraAny> {
+    fn algebra(&self) -> Arc<SteenrodAlgebra> {
         Arc::clone(&self.algebra)
     }
 
@@ -46,7 +49,7 @@ impl Module for RealProjectiveSpace {
         self.min
     }
 
-    fn dimension(&self, degree : i32) -> usize {
+    fn dimension(&self, degree: i32) -> usize {
         if degree < self.min {
             return 0;
         }
@@ -56,24 +59,32 @@ impl Module for RealProjectiveSpace {
             }
         }
 
-        if self.clear_bottom &&
-            ( degree == self.min + 1 ||
-              degree == self.min + 1 + 1 ||
-              degree == self.min + 1 + 2 ||
-              degree == self.min + 1 + 4 ||
-              degree == self.min + 1 + 8
-            ) {
-                return 0;
+        if self.clear_bottom
+            && (degree == self.min + 1
+                || degree == self.min + 1 + 1
+                || degree == self.min + 1 + 2
+                || degree == self.min + 1 + 4
+                || degree == self.min + 1 + 8)
+        {
+            return 0;
         }
         1
     }
 
-    fn basis_element_to_string(&self, degree : i32, _idx : usize) -> String {
+    fn basis_element_to_string(&self, degree: i32, _idx: usize) -> String {
         // It is an error to call the function if self.dimension(degree) == 0
         format!("x^{{{}}}", degree)
     }
 
-    fn act_on_basis(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, mod_degree : i32, mod_index : usize){
+    fn act_on_basis(
+        &self,
+        result: &mut FpVector,
+        coeff: u32,
+        op_degree: i32,
+        op_index: usize,
+        mod_degree: i32,
+        mod_index: usize,
+    ) {
         assert!(op_index < self.algebra().dimension(op_degree, mod_degree));
         assert!(mod_index < self.dimension(mod_degree));
 
@@ -84,9 +95,8 @@ impl Module for RealProjectiveSpace {
         }
 
         if match &*self.algebra {
-            AlgebraAny::AdemAlgebra(a) => coef_adem(a, op_degree, op_index, mod_degree),
-            AlgebraAny::MilnorAlgebra(a) => coef_milnor(a, op_degree, op_index, mod_degree),
-            AlgebraAny::Field(_) => true, // For a field, the only operation is the identity.
+            SteenrodAlgebra::AdemAlgebra(a) => coef_adem(a, op_degree, op_index, mod_degree),
+            SteenrodAlgebra::MilnorAlgebra(a) => coef_milnor(a, op_degree, op_index, mod_degree),
         } {
             result.add_basis_element(0, 1);
         }
@@ -94,8 +104,8 @@ impl Module for RealProjectiveSpace {
 }
 
 // Compute the coefficient of the operation on x^j.
-fn coef_adem(algebra : &AdemAlgebra, op_deg : i32, op_idx : usize, mut j : i32) -> bool {
-    let elt : &AdemBasisElement = algebra.basis_element_from_index(op_deg, op_idx);
+fn coef_adem(algebra: &AdemAlgebra, op_deg: i32, op_idx: usize, mut j: i32) -> bool {
+    let elt: &AdemBasisElement = algebra.basis_element_from_index(op_deg, op_idx);
     // Apply Sq^i to x^j and see if it is zero
     for i in elt.ps.iter().rev() {
         let c = if j >= 0 {
@@ -112,14 +122,14 @@ fn coef_adem(algebra : &AdemAlgebra, op_deg : i32, op_idx : usize, mut j : i32) 
     true
 }
 
-fn coef_milnor(algebra : &MilnorAlgebra, op_deg : i32, op_idx : usize, mut mod_degree : i32) -> bool {
+fn coef_milnor(algebra: &MilnorAlgebra, op_deg: i32, op_idx: usize, mut mod_degree: i32) -> bool {
     if mod_degree == 0 {
         return false;
     }
 
-    let elt : &MilnorBasisElement = algebra.basis_element_from_index(op_deg, op_idx);
+    let elt: &MilnorBasisElement = algebra.basis_element_from_index(op_deg, op_idx);
 
-    let sum : u32 = elt.p_part.iter().sum();
+    let sum: u32 = elt.p_part.iter().sum();
     if mod_degree < 0 {
         mod_degree = sum as i32 - mod_degree - 1;
     } else if mod_degree < sum as i32 {
@@ -136,29 +146,37 @@ fn coef_milnor(algebra : &MilnorAlgebra, op_deg : i32, op_idx : usize, mut mod_d
 }
 
 impl ZeroModule for RealProjectiveSpace {
-    fn zero_module(algebra : Arc<AlgebraAny>, min_degree : i32) -> Self {
+    fn zero_module(algebra: Arc<SteenrodAlgebra>, min_degree: i32) -> Self {
         Self::new(algebra, min_degree, Some(min_degree - 1), false)
     }
 }
 
 #[derive(Deserialize, Debug)]
 struct RPSpec {
-    min : i32,
+    min: i32,
     clear_bottom: Option<bool>,
-    max : Option<i32>,
+    max: Option<i32>,
 }
 
 impl RealProjectiveSpace {
-    pub fn new(algebra : Arc<AlgebraAny>, min : i32, max : Option<i32>, clear_bottom: bool) -> Self {
+    pub fn new(algebra: Arc<SteenrodAlgebra>, min: i32, max: Option<i32>, clear_bottom: bool) -> Self {
         assert_eq!(*algebra.prime(), 2);
         if let Some(max) = max {
             assert!(max >= min);
         }
-        Self { algebra, min, max, clear_bottom }
+        Self {
+            algebra,
+            min,
+            max,
+            clear_bottom,
+        }
     }
 
-    pub fn from_json(algebra : Arc<AlgebraAny>, json : &mut Value) -> Result<Self, Box<dyn std::error::Error>> {
-        let spec : RPSpec = serde_json::from_value(json.clone())?;
+    pub fn from_json(
+        algebra: Arc<SteenrodAlgebra>,
+        json: &mut Value,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        let spec: RPSpec = serde_json::from_value(json.clone())?;
         let clear_bottom = spec.clear_bottom.unwrap_or(false);
         let mut min = spec.min;
         if clear_bottom {
@@ -172,7 +190,7 @@ impl RealProjectiveSpace {
             algebra,
             min,
             clear_bottom,
-            max : spec.max,
+            max: spec.max,
         })
     }
 }

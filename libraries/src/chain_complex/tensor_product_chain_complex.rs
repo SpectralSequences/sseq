@@ -1,4 +1,4 @@
-use crate::algebra::AlgebraAny;
+use crate::algebra::{Algebra, Bialgebra, SteenrodAlgebra};
 use fp::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::homomorphism::{ModuleHomomorphism, BoundedModuleHomomorphism, FiniteModuleHomomorphism};
 use crate::module::{Module, ZeroModule, SumModule, TensorModule, FiniteModule};
@@ -13,18 +13,26 @@ use once::{OnceVec, OnceBiVec};
 
 pub type STM<M, N> = SumModule<TensorModule<M, N>>;
 
-pub type TensorSquareCC<C> = TensorChainComplex<C, C>;
+pub type TensorSquareCC<A, C> = TensorChainComplex<A, C, C>;
 
-pub struct TensorChainComplex<CC1 : ChainComplex, CC2 : ChainComplex> {
+pub struct TensorChainComplex<A, CC1, CC2> 
+    where A: Algebra + Bialgebra,
+          CC1: ChainComplex<Algebra = A>,
+          CC2: ChainComplex<Algebra = A>,
+{
     lock : Mutex<()>,
     left_cc : Arc<CC1>,
     right_cc : Arc<CC2>,
     modules : OnceVec<Arc<STM<CC1::Module, CC2::Module>>>,
     zero_module : Arc<STM<CC1::Module, CC2::Module>>,
-    differentials : OnceVec<Arc<TensorChainMap<CC1, CC2>>>
+    differentials : OnceVec<Arc<TensorChainMap<A, CC1, CC2>>>
 }
 
-impl<CC1 : ChainComplex, CC2 : ChainComplex> TensorChainComplex<CC1, CC2> {
+impl<A, CC1, CC2> TensorChainComplex<A, CC1, CC2>
+    where A: Algebra + Bialgebra,
+          CC1: ChainComplex<Algebra = A>,
+          CC2: ChainComplex<Algebra = A>,
+{
     pub fn new(left_cc : Arc<CC1>, right_cc : Arc<CC2>) -> Self {
         Self {
             lock : Mutex::new(()),
@@ -44,7 +52,10 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> TensorChainComplex<CC1, CC2> {
     }
 }
 
-impl<CC : ChainComplex> TensorChainComplex<CC, CC> {
+impl<A, CC> TensorChainComplex<A, CC, CC>
+    where A: Algebra + Bialgebra,
+          CC: ChainComplex<Algebra = A>,
+{
     /// This function sends a (x) b to b (x) a. This makes sense only if left_cc and right_cc are
     /// equal, but we don't check that.
     pub fn swap(&self, result : &mut FpVector, vec : &FpVector, s : u32, t : i32) {
@@ -83,11 +94,16 @@ impl<CC : ChainComplex> TensorChainComplex<CC, CC> {
     }
 }
 
-impl<CC1 : ChainComplex, CC2 : ChainComplex> ChainComplex for TensorChainComplex<CC1, CC2> {
+impl<A, CC1, CC2> ChainComplex for TensorChainComplex<A, CC1, CC2>
+    where A: Algebra + Bialgebra,
+          CC1: ChainComplex<Algebra = A>,
+          CC2: ChainComplex<Algebra = A>,
+{
+    type Algebra = A;
     type Module = STM<CC1::Module,CC2::Module>;
-    type Homomorphism = TensorChainMap<CC1, CC2>;
+    type Homomorphism = TensorChainMap<A, CC1, CC2>;
 
-    fn algebra(&self) -> Arc<AlgebraAny> {
+    fn algebra(&self) -> Arc<A> {
         self.left_cc.algebra()
     }
 
@@ -155,7 +171,11 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ChainComplex for TensorChainComplex
     fn max_homology_degree(&self, _homological_degree : u32) -> i32 { unimplemented!() }
 }
 
-pub struct TensorChainMap<CC1 : ChainComplex, CC2 : ChainComplex> {
+pub struct TensorChainMap<A, CC1, CC2>
+    where A: Algebra + Bialgebra,
+          CC1: ChainComplex<Algebra = A>,
+          CC2: ChainComplex<Algebra = A>,
+          {
     left_cc : Arc<CC1>,
     right_cc : Arc<CC2>,
     source_s : u32,
@@ -165,7 +185,11 @@ pub struct TensorChainMap<CC1 : ChainComplex, CC2 : ChainComplex> {
     quasi_inverses : OnceBiVec<Vec<Option<Vec<(usize, usize, FpVector)>>>>
 }
 
-impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainMap<CC1, CC2> {
+impl<A, CC1, CC2> ModuleHomomorphism for TensorChainMap<A, CC1, CC2>
+    where A: Algebra + Bialgebra,
+          CC1: ChainComplex<Algebra = A>,
+          CC2: ChainComplex<Algebra = A>,
+{
     type Source = STM<CC1::Module, CC2::Module>;
     type Target = STM<CC1::Module, CC2::Module>;
 
@@ -262,7 +286,11 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> ModuleHomomorphism for TensorChainM
     }
 }
 
-impl<CC1 : ChainComplex, CC2 : ChainComplex> TensorChainMap<CC1, CC2> {
+impl<A, CC1, CC2> TensorChainMap<A, CC1, CC2>
+    where A: Algebra + Bialgebra,
+          CC1: ChainComplex<Algebra = A>,
+          CC2: ChainComplex<Algebra = A>,
+{
     #[allow(clippy::range_minus_one)]
     fn calculate_quasi_inverse(&self, degree : i32) {
         let p = self.prime();
@@ -402,6 +430,7 @@ impl<CC1 : ChainComplex, CC2 : ChainComplex> TensorChainMap<CC1, CC2> {
 /// This implementation assumes the target of the augmentation is k, which is the only case we need
 /// for Steenrod operations.
 impl AugmentedChainComplex for TensorSquareCC<
+    SteenrodAlgebra,
     FiniteAugmentedChainComplex<
         FiniteModule,
         FiniteModuleHomomorphism<FiniteModule>,

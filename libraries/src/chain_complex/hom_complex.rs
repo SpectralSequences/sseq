@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-use crate::algebra::AlgebraAny;
+use crate::algebra::Field;
 use fp::matrix::{Matrix, Subspace, QuasiInverse};
 use crate::module::homomorphism::{ModuleHomomorphism, BoundedModuleHomomorphism, FiniteModuleHomomorphism};
 use crate::module::{Module, ZeroModule, SumModule, TensorModule, FiniteModule, HomModule, BoundedModule };
@@ -19,7 +19,7 @@ use once::{OnceVec, OnceBiVec};
 pub type SHM<M> = SumModule<HomModule<M>>;
 
 pub struct HomChainComplex<
-    CC1 : FreeChainComplex,
+    CC1 : FreeChainComplex<Algebra = M::Algebra>,
     M : BoundedModule,
     F : ModuleHomomorphism<Source=M, Target=M>
 > {
@@ -31,7 +31,7 @@ pub struct HomChainComplex<
     differentials : OnceVec<Arc<HomChainMap<CC1, M, F>>>
 }
 
-impl<CC1 : FreeChainComplex, M : BoundedModule, F : ModuleHomomorphism<Source=M, Target=M>>
+impl<CC1 : FreeChainComplex<Algebra = M::Algebra>, M : BoundedModule, F : ModuleHomomorphism<Source=M, Target=M>>
     HomChainComplex<CC1, M, F>
 {
     pub fn new(source_cc : Arc<CC1>, target_cc : Arc<FiniteChainComplex<M, F>>) -> Self {
@@ -39,7 +39,7 @@ impl<CC1 : FreeChainComplex, M : BoundedModule, F : ModuleHomomorphism<Source=M,
             lock : Mutex::new(()),
             modules : OnceVec::new(),
             differentials : OnceVec::new(),
-            zero_module : Arc::new(SumModule::zero_module(source_cc.algebra(), 0)), //source_cc.min_degree() + target_cc.max_degree())),
+            zero_module : Arc::new(SumModule::zero_module(Arc::new(Field::new(source_cc.prime())), 0)), //source_cc.min_degree() + target_cc.max_degree())),
             source_cc, target_cc
         }
     }
@@ -58,7 +58,7 @@ impl<CC1 : FreeChainComplex, M : BoundedModule, F : ModuleHomomorphism<Source=M,
 //     type Module = SHM<CC2::Module>;
 //     type Homomorphism = HomChainMap<CC1, CC2>;
 
-//     fn algebra(&self) -> Arc<AlgebraAny> {
+//     fn algebra(&self) -> Arc<SteenrodAlgebra> {
 //         self.left_cc.algebra()
 //     }
 
@@ -126,7 +126,7 @@ impl<CC1 : FreeChainComplex, M : BoundedModule, F : ModuleHomomorphism<Source=M,
 //     fn max_homology_degree(&self, _homological_degree : u32) -> i32 { unimplemented!() }
 // }
 
-pub struct HomChainMap<CC1 : FreeChainComplex, M : BoundedModule, F : ModuleHomomorphism<Source=M, Target=M>> {
+pub struct HomChainMap<CC1 : FreeChainComplex<Algebra = M::Algebra>, M : BoundedModule, F : ModuleHomomorphism<Source=M, Target=M>> {
     source_cc : Arc<CC1>,
     target_cc : Arc<FiniteChainComplex<M, F>>,
     lock : Mutex<()>,
@@ -135,7 +135,7 @@ pub struct HomChainMap<CC1 : FreeChainComplex, M : BoundedModule, F : ModuleHomo
     quasi_inverses : OnceBiVec<Vec<Option<Vec<(usize, usize, FpVector)>>>>
 }
 
-impl<CC1 : FreeChainComplex, M : BoundedModule, F : ModuleHomomorphism<Source=M, Target=M>> HomChainMap<CC1, M, F> {
+impl<CC1 : FreeChainComplex<Algebra = M::Algebra>, M : BoundedModule, F : ModuleHomomorphism<Source=M, Target=M>> HomChainMap<CC1, M, F> {
     // fn pullback_basis_element(&self, result : &mut FpVector, coeff : u32, hom_deg : i32, int_deg : i32, fn_idx : usize) {
     //     println!("fn_deg : {}, fn_idx : {}", fn_degree, fn_idx);
     //     let hom_deg_output = 0; // TODO: Figure out hom_deg_output from fn_idx.
@@ -165,7 +165,7 @@ impl<CC1 : FreeChainComplex, M : BoundedModule, F : ModuleHomomorphism<Source=M,
     // }
 }
 
-impl<CC1 : FreeChainComplex, M : BoundedModule, F : ModuleHomomorphism<Source=M, Target=M>> ModuleHomomorphism
+impl<CC1 : FreeChainComplex<Algebra = M::Algebra>, M : BoundedModule, F : ModuleHomomorphism<Source=M, Target=M>> ModuleHomomorphism
 for HomChainMap<CC1, M, F> {
     type Source = SHM<M>;
     type Target = SHM<M>;
