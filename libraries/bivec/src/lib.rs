@@ -123,6 +123,10 @@ impl<T> BiVec<T> {
              }
         }
     }
+
+    pub fn reserve(&mut self, num: usize) {
+        self.data.reserve(num);
+    }
 }
 
 impl<T : Serialize> Serialize for BiVec<T> {

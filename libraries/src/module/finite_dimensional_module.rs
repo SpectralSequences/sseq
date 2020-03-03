@@ -272,10 +272,6 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
             BiVec::with_capacity(min_degree, max_degree);
 
         for input_degree in min_degree..max_degree {
-            if graded_dimension[input_degree] == 0 {
-                result.push(BiVec::new(input_degree));
-                continue;
-            }
             let mut outputs_vec: BiVec<Vec<Vec<FpVector>>> =
                 BiVec::with_capacity(input_degree, max_degree);
             // We assume our algebra is connected, so we can manually fill in the first entry.
@@ -294,23 +290,102 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                 let number_of_inputs = graded_dimension[input_degree];
                 let number_of_outputs = graded_dimension[output_degree];
 
-                if number_of_outputs == 0 {
-                    outputs_vec.push(Vec::new());
-                } else {
-                    outputs_vec.push(vec![
-                        vec![
-                            FpVector::new(algebra.prime(), number_of_outputs);
-                            number_of_inputs
-                        ];
-                        number_of_operations
-                    ]);
-                }
+                outputs_vec.push(vec![
+                    vec![
+                        FpVector::new(algebra.prime(), number_of_outputs);
+                        number_of_inputs
+                    ];
+                    number_of_operations
+                ]);
             }
             assert!(outputs_vec.len() == max_degree);
             result.push(outputs_vec);
         }
         assert!(result.len() == max_degree);
         result
+    }
+
+    pub fn add_generator(&mut self, degree: i32, name: String) {
+        let old_max_degree = self.max_degree();
+        let algebra = self.algebra();
+
+        self.graded_dimension.extend_with(degree, |_| 0);
+        self.graded_dimension[degree] += 1;
+
+        self.gen_names.extend_with(degree, |_| Vec::new());
+        self.gen_names[degree].push(name);
+
+        let min_degree = self.graded_dimension.min_degree();
+        let max_degree = self.graded_dimension.len();
+
+        // Now allocate actions
+        if old_max_degree < degree {
+            self.actions.reserve(degree - old_max_degree);
+            for input_degree in min_degree..max_degree {
+                if input_degree <= old_max_degree {
+                    self.actions[input_degree].reserve((degree - old_max_degree) as usize);
+                } else {
+                    self.actions
+                        .push(BiVec::with_capacity(input_degree, max_degree));
+
+                    // We assume our algebra is connected, so we can manually fill in the first entry.
+                    let number_of_inputs = self.dimension(input_degree);
+                    let mut ops_vec: Vec<Vec<FpVector>> =
+                        vec![Vec::with_capacity(number_of_inputs)];
+                    for i in 0..number_of_inputs {
+                        let mut result = FpVector::new(algebra.prime(), number_of_inputs);
+                        result.set_entry(i, 1);
+                        ops_vec[0].push(result);
+                    }
+                    self.actions[input_degree].push(ops_vec);
+                }
+
+                for output_degree in std::cmp::max(input_degree + 1, old_max_degree + 1)..max_degree
+                {
+                    // This code is copied from allocate_actions
+                    let op_deg = output_degree - input_degree;
+                    let number_of_operations = algebra.dimension(op_deg, min_degree + input_degree);
+                    let number_of_inputs = self.dimension(input_degree);
+                    let number_of_outputs = self.dimension(output_degree);
+
+                    self.actions[input_degree].push(vec![
+                        vec![
+                            FpVector::new(
+                                algebra.prime(),
+                                number_of_outputs
+                            );
+                            number_of_inputs
+                        ];
+                        number_of_operations
+                    ]);
+                }
+            }
+        } else {
+            let new_dim = self.dimension(degree);
+
+            // input_degree = degree
+            for output_degree in min_degree..max_degree {
+                let number_of_outputs = self.dimension(output_degree);
+                // iterate over operations
+                for v in &mut self.actions[degree][output_degree] {
+                    v.push(FpVector::new(algebra.prime(), number_of_outputs));
+                }
+            }
+            // output_degree = degree
+            for input_degree in min_degree..max_degree {
+                // iterate over operations
+                for v in &mut self.actions[input_degree][degree] {
+                    // Iterate over input index
+                    for w in v {
+                        w.extend_dimension(new_dim);
+                    }
+                }
+            }
+
+            // input_degree = output_degree = degree. We already extend everything to the right
+            // dimension. We just need to set the identity action
+            self.actions[degree][degree][0][new_dim - 1].set_entry(new_dim - 1, 1);
+        }
     }
 
     pub fn set_action_vector(
