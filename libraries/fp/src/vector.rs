@@ -622,6 +622,10 @@ impl PartialEq for FpVector {
             return false;
         }
 
+        if number_of_limbs == 0 {
+            return true;
+        }
+
         let self_limbs = self.limbs();
         let other_limbs = other.limbs();
         for i in 1 .. number_of_limbs-1 {
