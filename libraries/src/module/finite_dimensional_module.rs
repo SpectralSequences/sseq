@@ -270,17 +270,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         let max_degree = graded_dimension.len();
         let mut result: BiVec<BiVec<Vec<Vec<FpVector>>>> =
             BiVec::with_capacity(min_degree, max_degree);
-        // Count number of triples (x, y, op) with |x| + |op| = |y|.
-        // The amount of memory we need to allocate is:
-        // # of input_degrees  * sizeof(***Vector)
-        // + # of nonempty input degrees * # of output degrees * sizeof(**Vector)
-        // + Sum over (nonempty in_deg < nonempty out_deg) of (
-        //              # of operations in (out_deg - in_deg) * sizeof(*Vector)
-        //              # of operations in (out_deg - in_deg) * # of gens in degree in_degree * sizeof(Vector)
-        //              # of operations in (out_deg - in_deg) * # of gens in degree in_degree * # of gens in degree out_degree * sizeof(uint)
-        // )
-        // (in_deg) -> (out_deg) -> (op_index) -> (in_index) -> (out_index) -> value
-        //  ****    -> ***       -> **Vector   -> *Vector    -> Vector -> uint
+
         for input_degree in min_degree..max_degree {
             if graded_dimension[input_degree] == 0 {
                 result.push(BiVec::new(input_degree));
@@ -299,25 +289,22 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
             outputs_vec.push(ops_vec);
 
             for output_degree in input_degree + 1..max_degree {
-                if graded_dimension[output_degree] == 0 {
-                    outputs_vec.push(Vec::with_capacity(0));
-                    continue;
-                }
                 let op_deg = output_degree - input_degree;
                 let number_of_operations = algebra.dimension(op_deg, min_degree + input_degree);
                 let number_of_inputs = graded_dimension[input_degree];
                 let number_of_outputs = graded_dimension[output_degree];
-                let mut ops_vec: Vec<Vec<FpVector>> = Vec::with_capacity(number_of_operations);
-                for _ in 0..number_of_operations {
-                    let mut in_idx_vec: Vec<FpVector> = Vec::with_capacity(number_of_inputs);
-                    for _ in 0..number_of_inputs {
-                        in_idx_vec.push(FpVector::new(algebra.prime(), number_of_outputs));
-                    }
-                    assert!(in_idx_vec.len() == number_of_inputs);
-                    ops_vec.push(in_idx_vec);
+
+                if number_of_outputs == 0 {
+                    outputs_vec.push(Vec::new());
+                } else {
+                    outputs_vec.push(vec![
+                        vec![
+                            FpVector::new(algebra.prime(), number_of_outputs);
+                            number_of_inputs
+                        ];
+                        number_of_operations
+                    ]);
                 }
-                assert!(ops_vec.len() == number_of_operations);
-                outputs_vec.push(ops_vec);
             }
             assert!(outputs_vec.len() == max_degree);
             result.push(outputs_vec);
