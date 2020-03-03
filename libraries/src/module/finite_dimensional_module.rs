@@ -2,22 +2,23 @@ use bivec::BiVec;
 
 use crate::algebra::Algebra;
 use crate::module::{BoundedModule, Module, ModuleFailedRelationError, ZeroModule};
+use crate::utils::GenericError;
 use fp::vector::{FpVector, FpVectorT};
 
 use serde_json::json;
 use serde_json::value::Value;
 
 use std::collections::HashMap;
-use std::error::Error;
 use std::str::FromStr;
 use std::sync::Arc;
 
 use nom::{
     branch::alt,
     bytes::complete::{is_not, take},
-    character::complete::{digit1, space0, space1},
+    character::complete::{char, digit1, space0, space1},
     combinator::map,
     multi::separated_list,
+    sequence::delimited,
     sequence::tuple,
     IResult,
 };
@@ -29,6 +30,18 @@ pub struct FiniteDimensionalModule<A: Algebra> {
     gen_names: BiVec<Vec<String>>,
     // This goes input_degree --> output_degree --> operation --> input_index --> Vector
     actions: BiVec<BiVec<Vec<Vec<FpVector>>>>,
+}
+
+impl<A: Algebra> Clone for FiniteDimensionalModule<A> {
+    fn clone(&self) -> Self {
+        Self {
+            algebra: Arc::clone(&self.algebra),
+            name: self.name.clone(),
+            graded_dimension: self.graded_dimension.clone(),
+            gen_names: self.gen_names.clone(),
+            actions: self.actions.clone(),
+        }
+    }
 }
 
 impl<A: Algebra> PartialEq for FiniteDimensionalModule<A> {
@@ -320,7 +333,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
 
         // Now allocate actions
         if old_max_degree < degree {
-            self.actions.reserve(degree - old_max_degree);
+            self.actions.reserve((degree - old_max_degree) as usize);
             for input_degree in min_degree..max_degree {
                 if input_degree <= old_max_degree {
                     self.actions[input_degree].reserve((degree - old_max_degree) as usize);
@@ -462,7 +475,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
 
         if let Ok(actions) = serde_json::from_value::<Vec<String>>(json["actions"].take()) {
             for action in actions {
-                result.parse_action(&gen_to_idx, &action);
+                result.parse_action(&gen_to_idx, &action, false).unwrap();
             }
             for input_degree in (result.min_degree()..=result.max_degree()).rev() {
                 for output_degree in input_degree + 1..=result.max_degree() {
@@ -504,7 +517,12 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         json["actions"] = self.actions_to_json();
     }
 
-    fn parse_action(&mut self, gen_to_idx: &HashMap<String, (i32, usize)>, entry_: &str) {
+    pub fn parse_action(
+        &mut self,
+        gen_to_idx: &HashMap<String, (i32, usize)>,
+        entry_: &str,
+        overwrite: bool,
+    ) -> Result<(), GenericError> {
         let algebra = self.algebra();
         let lhs = tuple((
             |e| algebra.string_to_generator(e),
@@ -517,20 +535,31 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         let (input_deg, input_idx) = gen_to_idx[gen.trim()];
         let row = self.action_mut(op_deg, op_idx, input_deg, input_idx);
 
+        if overwrite {
+            row.set_to_zero_pure();
+        }
+
+        if let IResult::<_, _>::Ok(("", _)) = delimited(space0, char('0'), space0)(entry) {
+            return Ok(());
+        }
+
         // Need explicit type here
         let (_, values) = <IResult<_, _>>::unwrap(separated_list(take(1usize), is_not("+"))(entry));
 
         for value in values {
-            let (_, (coef, gen)) =
-                Self::parse_element(value).unwrap_or_else(|_| panic!("Invalid action: {}", entry_));
+            let (_, (coef, gen)) = Self::parse_element(value)
+                .map_err(|_| GenericError(format!("Invalid action: {}", entry_)))?;
 
             let (deg, idx) = *gen_to_idx
                 .get(gen)
-                .unwrap_or_else(|| panic!("Invalid generator: {}", gen));
-            assert!(deg == input_deg + op_deg, "Invalid action: {}", entry_);
+                .ok_or_else(|| GenericError(format!("Invalid generator: {}", gen)))?;
+            if deg != input_deg + op_deg {
+                return Err(GenericError(format!("Invalid action: {}", entry_)));
+            }
 
             row.add_basis_element(idx, coef);
         }
+        Ok(())
     }
 
     fn parse_element(i: &str) -> IResult<&str, (u32, &str)> {
@@ -543,7 +572,11 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         alt((coef_gen, o_gen))(i)
     }
 
-    pub fn check_validity(&self, input_deg: i32, output_deg: i32) -> Result<(), Box<dyn Error>> {
+    pub fn check_validity(
+        &self,
+        input_deg: i32,
+        output_deg: i32,
+    ) -> Result<(), ModuleFailedRelationError> {
         assert!(output_deg > input_deg);
         let p = self.prime();
         let algebra = self.algebra();
@@ -587,10 +620,10 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                     }
 
                     let value_string = self.element_to_string(output_deg as i32, &output_vec);
-                    return Err(Box::new(ModuleFailedRelationError {
+                    return Err(ModuleFailedRelationError {
                         relation: relation_string,
                         value: value_string,
-                    }));
+                    });
                 }
             }
         }
