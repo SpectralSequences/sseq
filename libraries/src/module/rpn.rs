@@ -1,6 +1,6 @@
 use crate::algebra::{
     adem_algebra::AdemBasisElement, milnor_algebra::MilnorBasisElement, AdemAlgebra, Algebra,
-    SteenrodAlgebra, MilnorAlgebra,
+    MilnorAlgebra, SteenrodAlgebra,
 };
 use crate::module::{Module, ZeroModule};
 use fp::prime::ValidPrime;
@@ -159,7 +159,12 @@ struct RPSpec {
 }
 
 impl RealProjectiveSpace {
-    pub fn new(algebra: Arc<SteenrodAlgebra>, min: i32, max: Option<i32>, clear_bottom: bool) -> Self {
+    pub fn new(
+        algebra: Arc<SteenrodAlgebra>,
+        min: i32,
+        max: Option<i32>,
+        clear_bottom: bool,
+    ) -> Self {
         assert_eq!(*algebra.prime(), 2);
         if let Some(max) = max {
             assert!(max >= min);
@@ -192,5 +197,17 @@ impl RealProjectiveSpace {
             clear_bottom,
             max: spec.max,
         })
+    }
+
+    pub fn to_json(&self, json: &mut Value) {
+        json["name"] = Value::String(self.name().to_string());
+        json["type"] = Value::from("real projective space");
+        json["min"] = Value::from(self.min);
+        if let Some(max) = self.max {
+            json["max"] = Value::from(max);
+        }
+        if self.clear_bottom {
+            json["clear_bottom"] = Value::Bool(true);
+        }
     }
 }

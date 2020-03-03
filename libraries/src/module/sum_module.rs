@@ -136,7 +136,7 @@ mod tests {
 
     use super::*;
 
-    use crate::algebra::{SteenrodAlgebra, AdemAlgebra};
+    use crate::algebra::{AdemAlgebra, SteenrodAlgebra};
     use crate::module::FiniteModule;
 
     #[test]

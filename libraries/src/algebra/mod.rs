@@ -230,6 +230,33 @@ impl SteenrodAlgebra {
         };
         Ok(algebra)
     }
+
+    pub fn to_json(&self, json: &mut Value) {
+        match self {
+            SteenrodAlgebra::MilnorAlgebra(a) => {
+                json["p"] = Value::from(*a.prime());
+                json["generic"] = Value::from(a.generic);
+
+                if !a.profile.is_trivial() {
+                    json["algebra"] = Value::from(vec!["milnor"]);
+                    json["profile"] = Value::Object(serde_json::map::Map::with_capacity(3));
+                    if a.profile.truncated {
+                        json["profile"]["truncated"] = Value::Bool(true);
+                    }
+                    if a.profile.q_part != !0 {
+                        json["profile"]["q_part"] = Value::from(a.profile.q_part);
+                    }
+                    if !a.profile.p_part.is_empty() {
+                        json["profile"]["p_part"] = Value::from(a.profile.p_part.clone());
+                    }
+                }
+            }
+            SteenrodAlgebra::AdemAlgebra(a) => {
+                json["p"] = Value::from(*a.prime());
+                json["generic"] = Value::Bool(a.generic);
+            }
+        }
+    }
 }
 
 #[derive(Debug)]

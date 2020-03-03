@@ -429,6 +429,19 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         result
     }
 
+    pub fn to_json(&self, json: &mut Value) {
+        json["name"] = Value::String(self.name().to_string());
+        json["type"] = Value::from("finite dimensional module");
+        json["gens"] = json!({});
+        for (i, deg_i_gens) in self.gen_names.iter_enum() {
+            for gen in deg_i_gens {
+                json["gens"][gen] = Value::from(i);
+            }
+        }
+
+        json["actions"] = self.actions_to_json();
+    }
+
     fn parse_action(&mut self, gen_to_idx: &HashMap<String, (i32, usize)>, entry_: &str) {
         let algebra = self.algebra();
         let lhs = tuple((
@@ -646,7 +659,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::algebra::{SteenrodAlgebra, AdemAlgebra};
+    use crate::algebra::{AdemAlgebra, SteenrodAlgebra};
     use bivec::BiVec;
 
     #[test]

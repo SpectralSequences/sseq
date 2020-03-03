@@ -28,7 +28,7 @@ pub struct FreeModule<A: Algebra> {
     pub name: String,
     pub min_degree: i32,
     lock: Mutex<()>,
-    gen_names: OnceBiVec<Vec<String>>,
+    pub gen_names: OnceBiVec<Vec<String>>,
     gen_deg_idx_to_internal_idx: OnceBiVec<usize>,
     pub table: OnceBiVec<FreeModuleTableEntry>,
 }
@@ -611,7 +611,7 @@ mod tests {
 
     use super::*;
 
-    use crate::algebra::{SteenrodAlgebra, AdemAlgebra};
+    use crate::algebra::{AdemAlgebra, SteenrodAlgebra};
     use fp::prime::ValidPrime;
 
     #[test]

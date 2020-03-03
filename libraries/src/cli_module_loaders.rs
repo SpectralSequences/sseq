@@ -143,15 +143,12 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
     let file_name = output_path_buf.file_stem().unwrap();    
     let mut output_json = json!({
         "file_name" : file_name.to_str(),
-        "name" : name,
-        "p" : p,
-        "generic" : generic,
     });
 
     println!("module_type : {}", module_type);
     match module_type {
-        0 => {output_json = interactive_module_define_fdmodule(output_json, p, generic)?},
-        1 => {output_json = interactive_module_define_fpmodule(output_json, p, generic)?},
+        0 => interactive_module_define_fdmodule(&mut output_json, p, generic, name)?,
+        1 => interactive_module_define_fpmodule(&mut output_json, p, generic, name)?,
         _ => unreachable!()
     }
     std::fs::write(&output_path_buf, output_json.to_string())?;
@@ -160,12 +157,11 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
 }
 
 
-pub fn interactive_module_define_fdmodule(mut output_json : Value, p : ValidPrime, generic : bool) -> Result<Value, Box<dyn Error>>{
-    output_json["type"] = Value::from("finite dimensional module");
+pub fn interactive_module_define_fdmodule(output_json : &mut Value, p : ValidPrime, generic : bool, name: String) -> Result<(), Box<dyn Error>>{
     let algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, generic, false)));
+
     let min_degree = 0i32;
     let gens = get_gens(min_degree)?;
-    let gens_json = gens_to_json(&gens);    
     let max_degree = (gens.len() + 1) as i32 + min_degree;
     
     algebra.compute_basis(max_degree);
@@ -175,7 +171,7 @@ pub fn interactive_module_define_fdmodule(mut output_json : Value, p : ValidPrim
         graded_dim.push(i);
     }
 
-    let mut module = FDModule::new(Arc::clone(&algebra), "".to_string(), graded_dim);
+    let mut module = FDModule::new(Arc::clone(&algebra), name, graded_dim);
 
     for (i, deg_i_gens) in gens.iter_enum() {
         for (j, gen) in deg_i_gens.iter().enumerate() {
@@ -212,11 +208,9 @@ pub fn interactive_module_define_fdmodule(mut output_json : Value, p : ValidPrim
         }
     }
 
-    let actions = module.actions_to_json();
-    
-    output_json["gens"] = gens_json;
-    output_json["actions"] = actions;
-    Ok(output_json)
+    algebra.to_json(output_json);
+    module.to_json(output_json);
+    Ok(())
 }
 
 fn get_relation(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, module : &FreeModule<SteenrodAlgebra>, basis_elt_lookup : &HashMap<String, (i32, usize)>) -> Result<(i32, FpVector), String> {
@@ -227,27 +221,27 @@ fn get_relation(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, mo
     evaluate_module(adem_algebra, milnor_algebra, module, basis_elt_lookup, &relation).map_err(|err| err.to_string())
 }
 
-pub fn interactive_module_define_fpmodule(mut output_json : Value, p : ValidPrime, generic : bool) -> Result<Value, Box<dyn Error>>{
+pub fn interactive_module_define_fpmodule(output_json : &mut Value, p : ValidPrime, generic : bool, name : String) -> Result<(), Box<dyn Error>>{
     output_json["type"] = Value::from("finitely presented module");
+
     let min_degree = 0i32;
     let gens = get_gens(min_degree)?;
-    let gens_json = gens_to_json(&gens);    
     let max_degree = 20;
 
-    let adem_algebra_rc = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, generic, false)));
+    let steenrod_algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, generic, false)));
     let adem_algebra = AdemAlgebra::new(p, generic, false);
     let milnor_algebra = MilnorAlgebra::new(p);
-    adem_algebra_rc.compute_basis(max_degree);
+
+    steenrod_algebra.compute_basis(max_degree);
     adem_algebra.compute_basis(max_degree);
     milnor_algebra.compute_basis(max_degree);
-    
+
     let mut graded_dim = BiVec::with_capacity(min_degree, max_degree);
     for i in gens.iter().map(Vec::len) {
         graded_dim.push(i);
     }
 
-    let adem_module = FPModule::new(Arc::clone(&adem_algebra_rc), "".to_string(), min_degree);
-
+    let adem_module = FPModule::new(Arc::clone(&steenrod_algebra), name, min_degree);
     
     for (i, deg_i_gens) in gens.iter_enum() {
         adem_module.add_generators(i, deg_i_gens.clone());
@@ -311,8 +305,7 @@ pub fn interactive_module_define_fpmodule(mut output_json : Value, p : ValidPrim
         }
         adem_module.add_relations(i, &mut matrix);
     }
-    output_json["gens"] = gens_json;
-    output_json["adem_relations"] = adem_module.relations_to_json();
-
-    Ok(output_json)
+    steenrod_algebra.to_json(output_json);
+    adem_module.to_json(output_json);
+    Ok(())
 }

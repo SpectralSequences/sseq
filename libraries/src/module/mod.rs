@@ -29,6 +29,7 @@ pub use tensor_module::TensorModule;
 pub use truncated_module::TruncatedModule;
 
 use bivec::BiVec;
+use serde_json::Value;
 
 pub trait BoundedModule: Module {
     /// `max_degree` is the a degree such that if t > `max_degree`, then `self.dimension(t) = 0`.
@@ -512,6 +513,14 @@ impl FiniteModule {
             _ => Err(Box::new(UnknownModuleTypeError {
                 module_type: (*module_type).to_string(),
             })),
+        }
+    }
+
+    pub fn to_json(&self, json: &mut Value) {
+        match self {
+            Self::FDModule(m) => m.to_json(json),
+            Self::FPModule(m) => m.to_json(json),
+            Self::RealProjectiveSpace(m) => m.to_json(json),
         }
     }
 

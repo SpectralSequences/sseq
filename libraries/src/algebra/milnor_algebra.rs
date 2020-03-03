@@ -23,6 +23,12 @@ pub struct MilnorProfile {
     pub p_part : Vec<u32>
 }
 
+impl MilnorProfile {
+    pub fn is_trivial(&self) -> bool {
+        !self.truncated && self.q_part == !0 && self.p_part.is_empty()
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct QPart {
     degree : i32,
