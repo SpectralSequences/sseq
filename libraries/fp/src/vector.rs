@@ -783,6 +783,22 @@ impl FpVector {
         }
     }
 
+    /// This function ensures the length of the vector is at least `len`. This *must* be applied on
+    /// an unsliced vector and returns an unsliced vector. See also `set_scratch_vector_size`.
+    pub fn extend_dimension(&mut self, len: usize) {
+        let p = self.prime();
+        let container = self.vector_container_mut();
+        assert_eq!((container.slice_start, container.slice_end), (0, container.dimension));
+
+        if len <= container.dimension {
+            return;
+        }
+        container.dimension = len;
+        container.slice_end = len;
+        let num_limbs = Self::number_of_limbs(p, len);
+        container.limbs.resize(num_limbs, 0);
+    }
+
     pub fn from_vec(p : ValidPrime, vec : &[u32]) -> FpVector {
         let mut result = FpVector::new(p, vec.len());
         result.pack(&vec);
@@ -810,22 +826,10 @@ impl FpVector {
         ((dimension + entries_per_limb - 1)/entries_per_limb)*entries_per_limb
     }
 
-    pub fn scratch_vector(p : ValidPrime, dimension : usize) -> Self {
-        let mut result = FpVector::new(p, FpVector::padded_dimension(p, dimension));
-        result.set_slice(0, dimension);
-        result
-    }
-
-    pub fn set_scratch_vector_size(mut self, dimension : usize) -> Self {
-        let p = self.prime();
+    pub fn set_scratch_vector_size(&mut self, dimension : usize) {
         self.clear_slice();
-        let mut result = if dimension <= self.dimension() {
-            self
-        } else {
-            FpVector::scratch_vector(p, dimension)
-        };
-        result.set_slice(0, dimension);
-        result
+        self.extend_dimension(dimension);
+        self.set_slice(0, dimension);
     }
 
     pub fn iter(&self) -> FpVectorIterator {

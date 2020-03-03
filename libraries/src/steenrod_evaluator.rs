@@ -274,21 +274,22 @@ fn bockstein_or_sq_to_adem_basis_elt(e : &BocksteinOrSq, q : i32) -> AdemBasisEl
 fn evaluate_p_or_b_list(adem_algebra : &AdemAlgebra, list : &[BocksteinOrSq]) -> (i32, FpVector) {
     let p = adem_algebra.prime();
     let q = if adem_algebra.generic { 2*(*p) as i32 - 2} else { 1 };
-    let mut tmp_vector_a = FpVector::scratch_vector(p, 1);
-    let mut tmp_vector_b = FpVector::scratch_vector(p, 1);
     let first_elt = bockstein_or_sq_to_adem_basis_elt(&list[0], q);
     let mut total_degree = first_elt.degree;
     adem_algebra.compute_basis(total_degree);
     let idx = adem_algebra.basis_element_to_index(&first_elt);
     let cur_dim = adem_algebra.dimension(total_degree, -1);
-    tmp_vector_a = tmp_vector_a.set_scratch_vector_size(cur_dim);
+
+    let mut tmp_vector_a = FpVector::new(p, cur_dim);
+    let mut tmp_vector_b = FpVector::new(p, 0);
+
     tmp_vector_a.set_entry(idx, 1);
 
     for item in &list[1..] {
         let cur_elt = bockstein_or_sq_to_adem_basis_elt(&item, q);
         let idx = adem_algebra.basis_element_to_index(&cur_elt);
         let cur_dim = adem_algebra.dimension(total_degree + cur_elt.degree, -1);
-        tmp_vector_b = tmp_vector_b.set_scratch_vector_size(cur_dim);
+        tmp_vector_b.set_scratch_vector_size(cur_dim);
         adem_algebra.multiply_element_by_basis_element(&mut tmp_vector_b, 1, total_degree, &tmp_vector_a, cur_elt.degree, idx, -1);
         total_degree += cur_elt.degree;
         std::mem::swap(&mut tmp_vector_a, &mut tmp_vector_b);

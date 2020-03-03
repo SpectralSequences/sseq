@@ -17,8 +17,6 @@ pub fn adem_to_milnor_on_basis(
         result.set_entry(0, coeff);
         return;
     }    
-    let mut tmp_vector_a = FpVector::scratch_vector(p, dim);
-    let mut tmp_vector_b = FpVector::scratch_vector(p, dim);
     let mut bocksteins = elt.bocksteins;
     let mbe = MilnorBasisElement {
         degree : (q * elt.ps[0] + (bocksteins & 1)) as i32,
@@ -29,7 +27,9 @@ pub fn adem_to_milnor_on_basis(
     let idx = milnor_algebra.basis_element_to_index(&mbe);
     let mut total_degree = mbe.degree;
     let cur_dim = milnor_algebra.dimension(total_degree, -1);
-    tmp_vector_a = tmp_vector_a.set_scratch_vector_size(cur_dim);
+
+    let mut tmp_vector_a = FpVector::new(p, cur_dim);
+    let mut tmp_vector_b = FpVector::new(p, 0);
     tmp_vector_a.set_entry(idx, 1);
 
     for i in 1 .. elt.ps.len() {
@@ -41,7 +41,7 @@ pub fn adem_to_milnor_on_basis(
         let idx = milnor_algebra.basis_element_to_index(&mbe);
         bocksteins >>= 1;
         let cur_dim = milnor_algebra.dimension(total_degree + mbe.degree, -1);
-        tmp_vector_b = tmp_vector_b.set_scratch_vector_size(cur_dim);
+        tmp_vector_b.set_scratch_vector_size(cur_dim);
         milnor_algebra.multiply_element_by_basis_element(&mut tmp_vector_b, 1, total_degree, &tmp_vector_a, mbe.degree, idx, -1);
         total_degree += mbe.degree;
         std::mem::swap(&mut tmp_vector_a, &mut tmp_vector_b);
