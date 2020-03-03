@@ -3,31 +3,31 @@ use fp::vector::FpVector;
 use std::sync::Arc;
 
 /// A module M where we quotient out everything above degree `truncation`
-pub struct TruncatedModule<M: Module> {
+pub struct TruncatedModule<M: Module + ?Sized> {
     pub module: Arc<M>,
     pub truncation: i32,
 }
 
-impl<M: Module> TruncatedModule<M> {
+impl<M: Module + ?Sized> TruncatedModule<M> {
     pub fn new(module: Arc<M>, truncation: i32) -> Self {
         TruncatedModule { module, truncation }
     }
 }
 
-impl<M: Module> BoundedModule for TruncatedModule<M> {
+impl<M: Module + ?Sized> BoundedModule for TruncatedModule<M> {
     fn max_degree(&self) -> i32 {
         self.truncation
     }
 }
 
-impl<M: Module> Module for TruncatedModule<M> {
+impl<M: Module + ?Sized> Module for TruncatedModule<M> {
     type Algebra = M::Algebra;
 
     fn algebra(&self) -> Arc<Self::Algebra> {
         self.module.algebra()
     }
-    fn name(&self) -> &str {
-        ""
+    fn name(&self) -> String {
+        format!("{}", self.module.name())
     }
 
     fn min_degree(&self) -> i32 {

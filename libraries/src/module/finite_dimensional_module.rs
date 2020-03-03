@@ -24,7 +24,7 @@ use nom::{
 
 pub struct FiniteDimensionalModule<A: Algebra> {
     algebra: Arc<A>,
-    name: String,
+    pub name: String,
     graded_dimension: BiVec<usize>,
     gen_names: BiVec<Vec<String>>,
     // This goes input_degree --> output_degree --> operation --> input_index --> Vector
@@ -117,8 +117,8 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
 impl<A: Algebra> Module for FiniteDimensionalModule<A> {
     type Algebra = A;
 
-    fn name(&self) -> &str {
-        &self.name
+    fn name(&self) -> String {
+        self.name.clone()
     }
 
     fn algebra(&self) -> Arc<Self::Algebra> {

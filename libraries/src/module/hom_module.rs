@@ -111,8 +111,8 @@ impl<M: BoundedModule> Module for HomModule<M> {
         Arc::clone(&self.algebra)
     }
 
-    fn name(&self) -> &str {
-        &""
+    fn name(&self) -> String {
+        format!("Hom({}, {})", self.source.name(), self.target.name())
     }
 
     fn min_degree(&self) -> i32 {

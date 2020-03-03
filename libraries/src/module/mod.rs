@@ -52,7 +52,7 @@ pub trait BoundedModule: Module {
         for t in min_degree..=max_degree {
             graded_dimension.push(self.dimension(t));
         }
-        let mut result = FDModule::new(self.algebra(), self.name().to_string(), graded_dimension);
+        let mut result = FDModule::new(self.algebra(), self.name(), graded_dimension);
         for t in min_degree..=max_degree {
             for idx in 0..result.dimension(t) {
                 result.set_basis_element_name(t, idx, self.basis_element_to_string(t, idx));
@@ -92,7 +92,7 @@ pub trait Module: Send + Sync + 'static {
     type Algebra: Algebra;
 
     fn algebra(&self) -> Arc<Self::Algebra>;
-    fn name(&self) -> &str;
+    fn name(&self) -> String;
     fn min_degree(&self) -> i32;
     fn compute_basis(&self, _degree: i32) {}
     fn dimension(&self, degree: i32) -> usize;
@@ -213,6 +213,15 @@ pub trait Module: Send + Sync + 'static {
         }
         result
     }
+
+    /// This truncates the module to `max_dim` and represents it as an `FDModule`. This retains the
+    /// original name of the module
+    fn truncate_to_fd_module(self: Arc<Self>, max_deg: i32) -> FDModule<Self::Algebra> {
+        let name = self.name();
+        let mut m = TruncatedModule::new(self, max_deg).to_fd_module();
+        m.name = name;
+        m
+    }
 }
 
 impl<A: Algebra> Module for Arc<dyn Module<Algebra = A>> {
@@ -222,7 +231,7 @@ impl<A: Algebra> Module for Arc<dyn Module<Algebra = A>> {
         (&**self).algebra()
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> String {
         (&**self).name()
     }
 
@@ -335,7 +344,7 @@ impl Module for FiniteModule {
         }
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> String {
         match self {
             FiniteModule::FDModule(m) => m.name(),
             FiniteModule::FPModule(m) => m.name(),

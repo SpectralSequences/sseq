@@ -92,8 +92,8 @@ impl<M: Module> Module for QuotientModule<M> {
     fn algebra(&self) -> Arc<Self::Algebra> {
         self.module.algebra()
     }
-    fn name(&self) -> &str {
-        ""
+    fn name(&self) -> String {
+        format!("Quotient of {}", self.module.name())
     }
 
     fn min_degree(&self) -> i32 {

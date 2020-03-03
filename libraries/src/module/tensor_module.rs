@@ -176,8 +176,8 @@ where
         self.left.algebra()
     }
 
-    fn name(&self) -> &str {
-        "" // Concatenating &str's is hard
+    fn name(&self) -> String {
+        format!("{} (x) {}", self.left.name(), self.right.name())
     }
 
     fn min_degree(&self) -> i32 {

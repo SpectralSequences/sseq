@@ -37,8 +37,13 @@ impl Eq for RealProjectiveSpace {}
 impl Module for RealProjectiveSpace {
     type Algebra = SteenrodAlgebra;
 
-    fn name(&self) -> &str {
-        &"real projective space"
+    fn name(&self) -> String {
+        let clear = if self.clear_bottom { " (clear_bottom)" } else { "" };
+        if let Some(max) = self.max {
+            format!("RP^{}_{}{}", max, self.min, clear)
+        } else {
+            format!("RP_{}{}", self.min, clear)
+        }
     }
 
     fn algebra(&self) -> Arc<SteenrodAlgebra> {

@@ -46,8 +46,16 @@ impl<M: Module> Module for SumModule<M> {
         Arc::clone(&self.algebra)
     }
 
-    fn name(&self) -> &str {
-        "" // Concatenating &str's is hard
+    fn name(&self) -> String {
+        if self.modules.len() == 0 {
+            String::from("0")
+        } else {
+            let mut name = self.modules[0].name();
+            for n in self.modules[1..].iter().map(|m| m.name()) {
+                name.push_str(&n)
+            }
+            name
+        }
     }
 
     fn min_degree(&self) -> i32 {

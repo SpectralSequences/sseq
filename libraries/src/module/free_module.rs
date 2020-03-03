@@ -36,8 +36,8 @@ pub struct FreeModule<A: Algebra> {
 impl<A: Algebra> Module for FreeModule<A> {
     type Algebra = A;
 
-    fn name(&self) -> &str {
-        &self.name
+    fn name(&self) -> String {
+        self.name.clone()
     }
 
     fn algebra(&self) -> Arc<A> {
