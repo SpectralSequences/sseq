@@ -214,7 +214,7 @@ pub trait Module: Send + Sync + 'static {
     }
 }
 
-impl<A: Algebra> Module for Box<dyn Module<Algebra = A>> {
+impl<A: Algebra> Module for Arc<dyn Module<Algebra = A>> {
     type Algebra = A;
 
     fn algebra(&self) -> Arc<Self::Algebra> {
