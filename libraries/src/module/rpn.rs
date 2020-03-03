@@ -205,7 +205,7 @@ impl RealProjectiveSpace {
     }
 
     pub fn to_json(&self, json: &mut Value) {
-        json["name"] = Value::String(self.name().to_string());
+        json["name"] = Value::String(self.name());
         json["type"] = Value::from("real projective space");
         json["min"] = Value::from(self.min);
         if let Some(max) = self.max {

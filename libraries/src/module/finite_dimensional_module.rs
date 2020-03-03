@@ -417,7 +417,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
     }
 
     pub fn to_json(&self, json: &mut Value) {
-        json["name"] = Value::String(self.name().to_string());
+        json["name"] = Value::String(self.name());
         json["type"] = Value::from("finite dimensional module");
         json["gens"] = json!({});
         for (i, deg_i_gens) in self.gen_names.iter_enum() {

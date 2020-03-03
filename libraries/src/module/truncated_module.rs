@@ -27,7 +27,7 @@ impl<M: Module + ?Sized> Module for TruncatedModule<M> {
         self.module.algebra()
     }
     fn name(&self) -> String {
-        format!("{}", self.module.name())
+        format!("Truncation of {}", self.module.name())
     }
 
     fn min_degree(&self) -> i32 {

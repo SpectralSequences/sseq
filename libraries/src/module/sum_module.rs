@@ -47,7 +47,7 @@ impl<M: Module> Module for SumModule<M> {
     }
 
     fn name(&self) -> String {
-        if self.modules.len() == 0 {
+        if self.modules.is_empty() {
             String::from("0")
         } else {
             let mut name = self.modules[0].name();
