@@ -702,7 +702,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
 
     pub fn to_minimal_json(&self) -> Value {
         json!({
-            "p": self.prime(),
+            "p": *self.prime(),
             "algebra": self.algebra().algebra_type(),
             "min_degree": self.min_degree(),
             "graded_dimension": self.graded_dimension,

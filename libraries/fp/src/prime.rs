@@ -2,6 +2,7 @@ pub const NUM_PRIMES : usize = 8;
 pub const MAX_PRIME : usize = 19;
 const NOT_A_PRIME : usize = !1;
 pub const MAX_MULTINOMIAL_LEN : usize = 10;
+#[cfg(feature = "json")]
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -56,6 +57,7 @@ impl std::fmt::Display for ValidPrime {
     }
 }
 
+#[cfg(feature = "json")]
 impl Serialize for ValidPrime {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S : Serializer,
@@ -64,6 +66,7 @@ impl Serialize for ValidPrime {
     }
 }
 
+#[cfg(feature = "json")]
 impl<'de> Deserialize<'de> for ValidPrime {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D : Deserializer<'de>

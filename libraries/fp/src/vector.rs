@@ -25,6 +25,7 @@
 use std::cmp::Ordering;
 use std::sync::Once;
 use std::fmt;
+#[cfg(feature = "json")]
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use enum_dispatch::enum_dispatch;
 
@@ -1035,6 +1036,7 @@ impl fmt::Display for FpVector {
     }
 }
 
+#[cfg(feature = "json")]
 impl Serialize for FpVector {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S : Serializer,
@@ -1043,11 +1045,13 @@ impl Serialize for FpVector {
     }
 }
 
+#[cfg(feature = "json")]
 impl<'de> Deserialize<'de> for FpVector {
     fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
         where D : Deserializer<'de>
     {
-        Ok(FpVector::new(ValidPrime::new(2), 0)) // Implement this? This would require proper deserializing
+        panic!("Deserializing FpVector not supported");
+        // This is needed for ext-websocket/actions to be happy
     }
 }
 
