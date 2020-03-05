@@ -23,10 +23,11 @@ pub use sum_module::SumModule;
 pub use tensor_module::TensorModule;
 pub use truncated_module::TruncatedModule;
 
-use crate::algebra::{Algebra, SteenrodAlgebra};
 use bivec::BiVec;
+use crate::algebra::{Algebra, SteenrodAlgebra};
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
+use std::error::Error;
 use std::sync::Arc;
 
 pub trait Module: Send + Sync + 'static {
@@ -332,5 +333,27 @@ pub trait ZeroModule: Module {
 impl ZeroModule for FiniteModule {
     fn zero_module(algebra: Arc<SteenrodAlgebra>, min_degree: i32) -> Self {
         FiniteModule::FDModule(FDModule::zero_module(algebra, min_degree))
+    }
+}
+
+#[derive(Debug)]
+pub struct ModuleFailedRelationError {
+    pub relation: String,
+    pub value: String,
+}
+
+impl std::fmt::Display for ModuleFailedRelationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Relation failed:\n    {}  !=  0\nInstead it is equal to {}\n",
+            &self.relation, &self.value
+        )
+    }
+}
+
+impl Error for ModuleFailedRelationError {
+    fn description(&self) -> &str {
+        "Module failed a relation"
     }
 }
