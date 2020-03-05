@@ -6,7 +6,7 @@ use crate::module::homomorphism::{
     BoundedModuleHomomorphism, FPModuleHomomorphism, GenericZeroHomomorphism, IdentityHomomorphism,
     ModuleHomomorphism, ZeroHomomorphism,
 };
-use crate::module::{BoundedModule, FiniteModule, FreeModule, Module, SteenrodModule};
+use crate::module::{BoundedModule, FiniteModule, FreeModule, SteenrodModule};
 use fp::matrix::{QuasiInverse, Subspace};
 use fp::vector::FpVector;
 
@@ -15,7 +15,13 @@ impl BoundedModule for FiniteModule {
         match self {
             FiniteModule::FDModule(m) => m.max_degree(),
             FiniteModule::FPModule(_) => panic!("Finitely Presented Module is not bounded"),
-            FiniteModule::RealProjectiveSpace(_) => panic!("Real Projective Space is not bounded"),
+            FiniteModule::RealProjectiveSpace(m) => {
+                if let Some(x) = m.max_degree() {
+                    x
+                } else {
+                    panic!("Real Projective Space is not bounded")
+                }
+            }
         }
     }
 }
@@ -88,7 +94,7 @@ enum FMHI<M: SteenrodModule> {
     RP(GenericZeroHomomorphism<FiniteModule, M>),
 }
 
-pub struct FiniteModuleHomomorphism<M: Module<Algebra = SteenrodAlgebra>> {
+pub struct FiniteModuleHomomorphism<M: SteenrodModule> {
     source: Arc<FiniteModule>,
     target: Arc<M>,
     map: FMHI<M>,

@@ -186,6 +186,10 @@ impl RealProjectiveSpace {
         }
     }
 
+    pub fn max_degree(&self) -> Option<i32> {
+        self.max
+    }
+
     pub fn from_json(
         algebra: Arc<SteenrodAlgebra>,
         json: &mut Value,

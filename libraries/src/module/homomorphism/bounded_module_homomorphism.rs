@@ -18,6 +18,21 @@ pub struct BoundedModuleHomomorphism<S: BoundedModule, T: Module<Algebra = S::Al
     pub quasi_inverses: OnceBiVec<QuasiInverse>,
     pub kernels: OnceBiVec<Subspace>,
 }
+
+impl<S: BoundedModule, T: Module<Algebra=S::Algebra>> Clone for BoundedModuleHomomorphism<S, T> {
+    fn clone(&self) -> Self {
+        Self {
+            lock: Mutex::new(()),
+            source: Arc::clone(&self.source),
+            target: Arc::clone(&self.target),
+            degree_shift: self.degree_shift,
+            matrices: self.matrices.clone(),
+            quasi_inverses: self.quasi_inverses.clone(),
+            kernels: self.kernels.clone()
+        }
+    }
+}
+
 impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
     for BoundedModuleHomomorphism<S, T>
 {
@@ -78,6 +93,26 @@ where
     S: BoundedModule<Algebra = A>,
     T: Module<Algebra = A>,
 {
+    pub fn new(
+        source: Arc<S>,
+        target: Arc<T>,
+        degree_shift: i32,
+    ) -> Self {
+        let p = source.prime();
+        let min_degree = source.min_degree();
+        let max_degree = source.max_degree();
+        source.compute_basis(max_degree);
+        target.compute_basis(max_degree + degree_shift);
+
+        let mut matrices = BiVec::with_capacity(min_degree, max_degree + 1);
+
+        for i in min_degree..=max_degree {
+            let matrix = Matrix::new(p, source.dimension(i), target.dimension(i + degree_shift));
+            matrices.push(matrix);
+        }
+        Self::from_matrices(source, target, degree_shift, matrices)
+    }
+
     pub fn from_matrices(
         source: Arc<S>,
         target: Arc<T>,
@@ -199,14 +234,6 @@ impl<S: BoundedModule> IdentityHomomorphism<S> for BoundedModuleHomomorphism<S, 
             matrices.push(matrix);
         }
 
-        BoundedModuleHomomorphism {
-            source: Arc::clone(&source),
-            target: source,
-            degree_shift: 0,
-            lock: Mutex::new(()),
-            matrices,
-            quasi_inverses: OnceBiVec::new(min_degree),
-            kernels: OnceBiVec::new(min_degree),
-        }
+        Self::from_matrices(Arc::clone(&source), source, 0, matrices)
     }
 }

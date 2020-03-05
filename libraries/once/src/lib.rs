@@ -9,6 +9,15 @@ pub struct OnceVec<T> {
     data : UnsafeCell<Vec<Vec<T>>>
 }
 
+// TODO: This is not safe until we have some sort of write lock.
+impl<T: Clone> Clone for OnceVec<T> {
+    fn clone(&self) -> Self {
+        Self {
+            data: UnsafeCell::new(unsafe { (&*self.data.get()).clone() })
+        }
+    }
+}
+
 impl<T> Default for OnceVec<T> {
     fn default() -> Self {
         Self::new()
@@ -201,7 +210,7 @@ impl<T : Load> Load for OnceVec<T> {
     }
 }
 
-#[derive(PartialEq, Eq)] // Clone?
+#[derive(Clone, PartialEq, Eq)]
 pub struct OnceBiVec<T> {
     pub data : OnceVec<T>,
     min_degree : i32

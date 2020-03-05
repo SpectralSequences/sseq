@@ -401,6 +401,17 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         }
     }
 
+    pub fn string_to_basis_element(&self, string: &str) -> Option<(i32, usize)> {
+        for (i, v) in self.gen_names.iter_enum() {
+            for (j, n) in v.iter().enumerate() {
+                if n == string {
+                    return Some((i as i32, j));
+                }
+            }
+        }
+        None
+    }
+
     pub fn set_action_vector(
         &mut self,
         operation_degree: i32,
@@ -547,7 +558,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         let (_, values) = <IResult<_, _>>::unwrap(separated_list(take(1usize), is_not("+"))(entry));
 
         for value in values {
-            let (_, (coef, gen)) = Self::parse_element(value)
+            let (_, (coef, gen)) = Self::take_element(value)
                 .map_err(|_| GenericError(format!("Invalid action: {}", entry_)))?;
 
             let (deg, idx) = *gen_to_idx
@@ -562,7 +573,25 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         Ok(())
     }
 
-    fn parse_element(i: &str) -> IResult<&str, (u32, &str)> {
+    pub fn parse_element(&self, entry: &str, degree: i32, result: &mut FpVector) -> Result<(), GenericError> {
+        if let IResult::<_, _>::Ok(("", _)) = delimited(space0, char('0'), space0)(entry) {
+            return Ok(());
+        }
+        for elt in entry.split('+') {
+             if let Ok(("", (coef, gen))) = Self::take_element(elt.trim_end()) {
+                if let Some(idx)  = self.gen_names[degree].iter().position(|x| x == gen) {
+                    result.add_basis_element(idx, coef);
+                } else {
+                    return Err(GenericError(format!("Invalid generator: {}", elt)));
+                }
+             } else {
+                 return Err(GenericError(format!("Invalid term: {}", elt)));
+             }
+        }
+        Ok(())
+    }
+
+    fn take_element(i: &str) -> IResult<&str, (u32, &str)> {
         // coefficient, name
         let coef_gen = map(
             tuple((space0, digit1, space1, is_not(" "))),

@@ -664,7 +664,7 @@ impl Subspace {
 ///  everything (with the standard basis).
 ///  * `preimage` - The actual quasi-inverse, where the basis of the image is that given by
 ///  `image`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QuasiInverse {
     pub image : Option<Subspace>,
     pub preimage : Matrix

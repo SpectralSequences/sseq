@@ -16,11 +16,11 @@ where CC1: FreeChainComplex<Algebra = <CC2::Module as Module>::Algebra>,
 {
     #[allow(dead_code)]
     name : String,
-    source : Weak<CC1>,
-    target : Weak<CC2>,
+    pub source : Weak<CC1>,
+    pub target : Weak<CC2>,
     maps : OnceVec<FreeModuleHomomorphism<CC2::Module>>,
-    homological_degree_shift : u32,
-    internal_degree_shift : i32
+    pub homological_degree_shift : u32,
+    pub internal_degree_shift : i32
 }
 
 impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
@@ -61,6 +61,7 @@ where CC1: FreeChainComplex<Algebra = <CC2::Module as Module>::Algebra>,
     /// Extend the resolution homomorphism such that it is defined on degrees
     /// (`source_homological_degree`, `source_degree`).
     pub fn extend(&self, source_homological_degree : u32, source_degree : i32){
+        self.source.upgrade().unwrap().compute_through_bidegree(source_homological_degree, source_degree);
         self.target.upgrade().unwrap().compute_through_bidegree(source_homological_degree - self.homological_degree_shift, source_degree - self.internal_degree_shift);
         for i in self.homological_degree_shift ..= source_homological_degree {
             let f_cur = self.get_map_ensure_length(i - self.homological_degree_shift);
