@@ -1,7 +1,7 @@
 use bivec::BiVec;
 
 use crate::algebra::Algebra;
-use crate::module::{BoundedModule, Module, ModuleFailedRelationError, ZeroModule};
+use crate::module::{BoundedModule, Module, ZeroModule};
 use crate::utils::GenericError;
 use fp::vector::{FpVector, FpVectorT};
 
@@ -9,6 +9,7 @@ use serde_json::json;
 use serde_json::value::Value;
 
 use std::collections::HashMap;
+use std::error::Error;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -748,6 +749,28 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
             }
         }
         gens
+    }
+}
+
+#[derive(Debug)]
+pub struct ModuleFailedRelationError {
+    pub relation: String,
+    pub value: String,
+}
+
+impl std::fmt::Display for ModuleFailedRelationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Relation failed:\n    {}  !=  0\nInstead it is equal to {}\n",
+            &self.relation, &self.value
+        )
+    }
+}
+
+impl Error for ModuleFailedRelationError {
+    fn description(&self) -> &str {
+        "Module failed a relation"
     }
 }
 

@@ -1,11 +1,5 @@
-use std::error::Error;
-use std::sync::Arc;
-
-use crate::algebra::{Algebra, SteenrodAlgebra};
-use fp::prime::ValidPrime;
-use fp::vector::{FpVector, FpVectorT};
-
 mod finite_dimensional_module;
+mod finite_module;
 mod finitely_presented_module;
 mod free_module;
 mod hom_module;
@@ -18,6 +12,7 @@ mod truncated_module;
 pub mod homomorphism;
 
 pub use finite_dimensional_module::FiniteDimensionalModule as FDModule;
+pub use finite_module::FiniteModule;
 pub use finitely_presented_module::FinitelyPresentedModule as FPModule;
 pub use free_module::FreeModule;
 pub use free_module::FreeModuleTableEntry;
@@ -28,65 +23,11 @@ pub use sum_module::SumModule;
 pub use tensor_module::TensorModule;
 pub use truncated_module::TruncatedModule;
 
+use crate::algebra::{Algebra, SteenrodAlgebra};
 use bivec::BiVec;
-use serde_json::Value;
-
-pub trait BoundedModule: Module {
-    /// `max_degree` is the a degree such that if t > `max_degree`, then `self.dimension(t) = 0`.
-    fn max_degree(&self) -> i32;
-
-    fn total_dimension(&self) -> usize {
-        let mut sum = 0;
-        for i in 0..=self.max_degree() {
-            sum += self.dimension(i);
-        }
-        sum
-    }
-
-    fn to_fd_module(&self) -> FDModule<Self::Algebra> {
-        let min_degree = self.min_degree();
-        let max_degree = self.max_degree();
-        self.compute_basis(max_degree);
-
-        let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree + 1);
-        for t in min_degree..=max_degree {
-            graded_dimension.push(self.dimension(t));
-        }
-        let mut result = FDModule::new(self.algebra(), self.name(), graded_dimension);
-        for t in min_degree..=max_degree {
-            for idx in 0..result.dimension(t) {
-                result.set_basis_element_name(t, idx, self.basis_element_to_string(t, idx));
-            }
-        }
-
-        let algebra = self.algebra();
-        for input_degree in min_degree..=max_degree {
-            for output_degree in (input_degree + 1)..=max_degree {
-                let output_dimension = result.dimension(output_degree);
-                if output_dimension == 0 {
-                    continue;
-                }
-                let op_degree = output_degree - input_degree;
-
-                for input_idx in 0..result.dimension(input_degree) {
-                    for op_idx in 0..algebra.dimension(op_degree, -1) {
-                        let output_vec: &mut FpVector =
-                            result.action_mut(op_degree, op_idx, input_degree, input_idx);
-                        self.act_on_basis(
-                            output_vec,
-                            1,
-                            op_degree,
-                            op_idx,
-                            input_degree,
-                            input_idx,
-                        );
-                    }
-                }
-            }
-        }
-        result
-    }
-}
+use fp::prime::ValidPrime;
+use fp::vector::{FpVector, FpVectorT};
+use std::sync::Arc;
 
 pub trait Module: Send + Sync + 'static {
     type Algebra: Algebra;
@@ -107,7 +48,8 @@ pub trait Module: Send + Sync + 'static {
     );
 
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
-    // Whether this is the unit module.
+
+    /// Whether this is the unit module.
     fn is_unit(&self) -> bool {
         false
     }
@@ -322,277 +264,66 @@ impl<A: Algebra> Module for Arc<dyn Module<Algebra = A>> {
     }
 }
 
+pub trait BoundedModule: Module {
+    /// `max_degree` is the a degree such that if t > `max_degree`, then `self.dimension(t) = 0`.
+    fn max_degree(&self) -> i32;
+
+    fn total_dimension(&self) -> usize {
+        let mut sum = 0;
+        for i in 0..=self.max_degree() {
+            sum += self.dimension(i);
+        }
+        sum
+    }
+
+    fn to_fd_module(&self) -> FDModule<Self::Algebra> {
+        let min_degree = self.min_degree();
+        let max_degree = self.max_degree();
+        self.compute_basis(max_degree);
+
+        let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree + 1);
+        for t in min_degree..=max_degree {
+            graded_dimension.push(self.dimension(t));
+        }
+        let mut result = FDModule::new(self.algebra(), self.name(), graded_dimension);
+        for t in min_degree..=max_degree {
+            for idx in 0..result.dimension(t) {
+                result.set_basis_element_name(t, idx, self.basis_element_to_string(t, idx));
+            }
+        }
+
+        let algebra = self.algebra();
+        for input_degree in min_degree..=max_degree {
+            for output_degree in (input_degree + 1)..=max_degree {
+                let output_dimension = result.dimension(output_degree);
+                if output_dimension == 0 {
+                    continue;
+                }
+                let op_degree = output_degree - input_degree;
+
+                for input_idx in 0..result.dimension(input_degree) {
+                    for op_idx in 0..algebra.dimension(op_degree, -1) {
+                        let output_vec: &mut FpVector =
+                            result.action_mut(op_degree, op_idx, input_degree, input_idx);
+                        self.act_on_basis(
+                            output_vec,
+                            1,
+                            op_degree,
+                            op_idx,
+                            input_degree,
+                            input_idx,
+                        );
+                    }
+                }
+            }
+        }
+        result
+    }
+}
+
 // Poor man's trait alias
 pub trait SteenrodModule: Module<Algebra = SteenrodAlgebra> {}
 impl<M: Module<Algebra = SteenrodAlgebra>> SteenrodModule for M {}
-
-#[derive(PartialEq, Eq)]
-pub enum FiniteModule {
-    FDModule(FDModule<SteenrodAlgebra>),
-    FPModule(FPModule<SteenrodAlgebra>),
-    RealProjectiveSpace(RealProjectiveSpace),
-}
-
-impl Module for FiniteModule {
-    type Algebra = SteenrodAlgebra;
-
-    fn algebra(&self) -> Arc<Self::Algebra> {
-        match self {
-            FiniteModule::FDModule(m) => m.algebra(),
-            FiniteModule::FPModule(m) => m.algebra(),
-            FiniteModule::RealProjectiveSpace(m) => m.algebra(),
-        }
-    }
-
-    fn name(&self) -> String {
-        match self {
-            FiniteModule::FDModule(m) => m.name(),
-            FiniteModule::FPModule(m) => m.name(),
-            FiniteModule::RealProjectiveSpace(m) => m.name(),
-        }
-    }
-
-    fn min_degree(&self) -> i32 {
-        match self {
-            FiniteModule::FDModule(m) => m.min_degree(),
-            FiniteModule::FPModule(m) => m.min_degree(),
-            FiniteModule::RealProjectiveSpace(m) => m.min_degree(),
-        }
-    }
-    fn compute_basis(&self, degree: i32) {
-        match self {
-            FiniteModule::FDModule(m) => m.compute_basis(degree),
-            FiniteModule::FPModule(m) => m.compute_basis(degree),
-            FiniteModule::RealProjectiveSpace(m) => m.compute_basis(degree),
-        }
-    }
-
-    fn dimension(&self, degree: i32) -> usize {
-        match self {
-            FiniteModule::FDModule(m) => m.dimension(degree),
-            FiniteModule::FPModule(m) => m.dimension(degree),
-            FiniteModule::RealProjectiveSpace(m) => m.dimension(degree),
-        }
-    }
-
-    fn act_on_basis(
-        &self,
-        result: &mut FpVector,
-        coeff: u32,
-        op_degree: i32,
-        op_index: usize,
-        mod_degree: i32,
-        mod_index: usize,
-    ) {
-        match self {
-            FiniteModule::FDModule(m) => {
-                m.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index)
-            }
-            FiniteModule::FPModule(m) => {
-                m.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index)
-            }
-            FiniteModule::RealProjectiveSpace(m) => {
-                m.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index)
-            }
-        }
-    }
-
-    // Dispatch these as well so that we don't have to match on the type every loop.
-    // Experimentally, not doing so causes a significant performance on some runs (while having no
-    // impact on the others)
-    fn act(
-        &self,
-        result: &mut FpVector,
-        coeff: u32,
-        op_degree: i32,
-        op_index: usize,
-        input_degree: i32,
-        input: &FpVector,
-    ) {
-        match self {
-            FiniteModule::FDModule(m) => {
-                m.act(result, coeff, op_degree, op_index, input_degree, input)
-            }
-            FiniteModule::FPModule(m) => {
-                m.act(result, coeff, op_degree, op_index, input_degree, input)
-            }
-            FiniteModule::RealProjectiveSpace(m) => {
-                m.act(result, coeff, op_degree, op_index, input_degree, input)
-            }
-        }
-    }
-
-    fn act_by_element(
-        &self,
-        result: &mut FpVector,
-        coeff: u32,
-        op_degree: i32,
-        op: &FpVector,
-        input_degree: i32,
-        input: &FpVector,
-    ) {
-        match self {
-            FiniteModule::FDModule(m) => {
-                m.act_by_element(result, coeff, op_degree, op, input_degree, input)
-            }
-            FiniteModule::FPModule(m) => {
-                m.act_by_element(result, coeff, op_degree, op, input_degree, input)
-            }
-            FiniteModule::RealProjectiveSpace(m) => {
-                m.act_by_element(result, coeff, op_degree, op, input_degree, input)
-            }
-        }
-    }
-
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
-        match self {
-            FiniteModule::FDModule(m) => m.basis_element_to_string(degree, idx),
-            FiniteModule::FPModule(m) => m.basis_element_to_string(degree, idx),
-            FiniteModule::RealProjectiveSpace(m) => m.basis_element_to_string(degree, idx),
-        }
-    }
-
-    fn is_unit(&self) -> bool {
-        match self {
-            FiniteModule::FDModule(m) => m.is_unit(),
-            _ => false,
-        }
-    }
-
-    fn prime(&self) -> ValidPrime {
-        self.algebra().prime()
-    }
-
-    /// Whether act_on_basis_borrow is available.
-    fn borrow_output(&self) -> bool {
-        match self {
-            FiniteModule::FDModule(_) => true,
-            _ => false,
-        }
-    }
-
-    fn act_on_basis_borrow(
-        &self,
-        op_degree: i32,
-        op_index: usize,
-        mod_degree: i32,
-        mod_index: usize,
-    ) -> &FpVector {
-        match self {
-            FiniteModule::FDModule(m) => {
-                m.act_on_basis_borrow(op_degree, op_index, mod_degree, mod_index)
-            }
-            _ => unimplemented!(),
-        }
-    }
-}
-
-impl From<FPModule<SteenrodAlgebra>> for FiniteModule {
-    fn from(m: FPModule<SteenrodAlgebra>) -> Self {
-        Self::FPModule(m)
-    }
-}
-impl From<FDModule<SteenrodAlgebra>> for FiniteModule {
-    fn from(m: FDModule<SteenrodAlgebra>) -> Self {
-        Self::FDModule(m)
-    }
-}
-impl From<RealProjectiveSpace> for FiniteModule {
-    fn from(m: RealProjectiveSpace) -> Self {
-        Self::RealProjectiveSpace(m)
-    }
-}
-
-impl FiniteModule {
-    pub fn from_json(
-        algebra: Arc<SteenrodAlgebra>,
-        json: &mut serde_json::Value,
-    ) -> Result<Self, Box<dyn Error>> {
-        let module_type = &json["type"].as_str().unwrap();
-        match *module_type {
-            "real projective space" => Ok(FiniteModule::from(RealProjectiveSpace::from_json(
-                algebra, json,
-            )?)),
-            "finite dimensional module" => {
-                Ok(FiniteModule::from(FDModule::from_json(algebra, json)))
-            }
-            "finitely presented module" => {
-                Ok(FiniteModule::from(FPModule::from_json(algebra, json)))
-            }
-            _ => Err(Box::new(UnknownModuleTypeError {
-                module_type: (*module_type).to_string(),
-            })),
-        }
-    }
-
-    pub fn to_json(&self, json: &mut Value) {
-        match self {
-            Self::FDModule(m) => m.to_json(json),
-            Self::FPModule(m) => m.to_json(json),
-            Self::RealProjectiveSpace(m) => m.to_json(json),
-        }
-    }
-
-    pub fn into_real_projective_space(self) -> Option<RealProjectiveSpace> {
-        match self {
-            FiniteModule::RealProjectiveSpace(m) => Some(m),
-            _ => None,
-        }
-    }
-
-    pub fn into_fp_module(self) -> Option<FPModule<SteenrodAlgebra>> {
-        match self {
-            FiniteModule::FPModule(m) => Some(m),
-            _ => None,
-        }
-    }
-
-    pub fn into_fd_module(self) -> Option<FDModule<SteenrodAlgebra>> {
-        match self {
-            FiniteModule::FDModule(m) => Some(m),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct UnknownModuleTypeError {
-    pub module_type: String,
-}
-
-impl std::fmt::Display for UnknownModuleTypeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Unknown module type: {}", &self.module_type)
-    }
-}
-
-impl Error for UnknownModuleTypeError {
-    fn description(&self) -> &str {
-        "Unknown module type"
-    }
-}
-
-#[derive(Debug)]
-pub struct ModuleFailedRelationError {
-    pub relation: String,
-    pub value: String,
-}
-
-impl std::fmt::Display for ModuleFailedRelationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Relation failed:\n    {}  !=  0\nInstead it is equal to {}\n",
-            &self.relation, &self.value
-        )
-    }
-}
-
-impl Error for ModuleFailedRelationError {
-    fn description(&self) -> &str {
-        "Module failed a relation"
-    }
-}
 
 pub trait ZeroModule: Module {
     fn zero_module(algebra: Arc<Self::Algebra>, min_degree: i32) -> Self;

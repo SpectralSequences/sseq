@@ -38,7 +38,11 @@ impl Module for RealProjectiveSpace {
     type Algebra = SteenrodAlgebra;
 
     fn name(&self) -> String {
-        let clear = if self.clear_bottom { " (clear_bottom)" } else { "" };
+        let clear = if self.clear_bottom {
+            " (clear_bottom)"
+        } else {
+            ""
+        };
         if let Some(max) = self.max {
             format!("RP^{}_{}{}", max, self.min, clear)
         } else {
