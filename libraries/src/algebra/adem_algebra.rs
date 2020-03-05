@@ -1148,6 +1148,12 @@ impl AdemAlgebra {
     }
 
     pub fn beps_pn(&self, e : u32, x : u32) -> (i32, usize) {
+        if x == 0 && e == 1 {
+            return (1, 0);
+        } else if x == 0 {
+            return (0, 0);
+        }
+
         let p = *self.prime();
         let q = if self.generic { 2 * p - 2} else { 1 };
         let degree = (x * q + e) as i32;
@@ -1197,20 +1203,46 @@ impl AdemAlgebra {
 impl Bialgebra for AdemAlgebra {
     fn decompose(&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize)> {
         if self.generic {
-            unimplemented!();
-        }
+            let elt = &self.basis_table[op_deg as usize][op_idx];
 
-        let elt = &self.basis_table[op_deg as usize][op_idx];
-        elt.ps.iter().rev().map(|i| (*i as i32, 0 as usize)).collect::<Vec<_>>()
+            let mut result: Vec<(i32, usize)> = Vec::with_capacity(elt.ps.len() * 2 + 1);
+            let mut bockstein = elt.bocksteins;
+            for item in &elt.ps {
+                if bockstein & 1 == 1 {
+                    result.push((1, 0));
+                }
+                bockstein >>= 1;
+                result.push(self.beps_pn(0, *item));
+            }
+            if bockstein & 1 == 1 {
+                result.push((1, 0));
+            }
+            result
+        } else {
+            let elt = &self.basis_table[op_deg as usize][op_idx];
+            elt.ps.iter().rev().map(|i| (*i as i32, 0 as usize)).collect::<Vec<_>>()
+        }
     }
 
     fn coproduct(&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize, i32, usize)> {
         if self.generic {
-            unimplemented!();
-        }
-        assert_eq!(op_idx, 0);
+            if op_deg == 1 {
+                vec![(1, 0, 0, 0), (0, 0, 1, 0)]
+            } else {
+                let q = *self.prime() * 2 - 2;
+                let op_deg = op_deg as u32;
+                assert_eq!(op_deg % q, 0);
 
-        (0 ..= op_deg).map(|j| (j, 0 as usize, op_deg - j, 0 as usize)).collect::<Vec<_>>()
+                (0 ..= op_deg / q).map(|j| {
+                    let first = self.beps_pn(0, j);
+                    let last = self.beps_pn(0, op_deg / q - j);
+                    (first.0, first.1, last.0, last.1)
+                }).collect::<Vec<_>>()
+            }
+        } else {
+            assert_eq!(op_idx, 0);
+            (0 ..= op_deg).map(|j| (j, 0 as usize, op_deg - j, 0 as usize)).collect::<Vec<_>>()
+        }
     }
 }
 

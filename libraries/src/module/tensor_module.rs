@@ -258,7 +258,6 @@ where
         let algebra = self.algebra();
         let p = self.prime();
         let decomposition = algebra.decompose(op_degree, op_index);
-
         match decomposition.len() {
             0 => panic!("Decomposition has length 0"),
             1 => self.act_helper(result, coeff, op_degree, op_index, mod_degree, input),

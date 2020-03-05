@@ -141,7 +141,7 @@ pub trait Module: Send + Sync + 'static {
             }
             zero = false;
             if value != 1 {
-                result.push_str(&format!("{} * ", value));
+                result.push_str(&format!("{} ", value));
             }
             let b = self.basis_element_to_string(degree, idx);
             result.push_str(&format!("{} + ", b));
