@@ -5,6 +5,7 @@ use crate::algebra::{Algebra, Bialgebra};
 use crate::block_structure::BlockStructure;
 use crate::module::{BoundedModule, Module, ZeroModule};
 use fp::vector::{FpVector, FpVectorT};
+use fp::prime::minus_one_to_the_n;
 
 use std::sync::Arc;
 
@@ -105,7 +106,7 @@ where
                             }
                             result.add_tensor(
                                 self.offset(output_degree, left_deg + op_deg_l),
-                                coeff * entry,
+                                coeff * entry * minus_one_to_the_n(*self.prime(), op_deg_r * left_deg),
                                 &left_result,
                                 &right_result,
                             );
@@ -150,7 +151,7 @@ where
                             }
                             result.add_tensor(
                                 self.offset(output_degree, left_deg + op_deg_l),
-                                1,
+                                minus_one_to_the_n(*self.prime(), op_deg_r * left_deg),
                                 &left_result,
                                 &right_result,
                             );

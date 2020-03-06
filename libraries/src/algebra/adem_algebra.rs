@@ -1217,6 +1217,7 @@ impl Bialgebra for AdemAlgebra {
             if bockstein & 1 == 1 {
                 result.push((1, 0));
             }
+            result.reverse();
             result
         } else {
             let elt = &self.basis_table[op_deg as usize][op_idx];

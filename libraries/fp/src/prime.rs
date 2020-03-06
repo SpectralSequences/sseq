@@ -93,7 +93,7 @@ pub fn inverse(p : ValidPrime, k : u32) -> u32 {
     unsafe { *INVERSE_TABLE[PRIME_TO_INDEX_MAP[*p as usize]].get_unchecked(k as usize) }
 }
 
-pub fn minus_one_to_the_n(p : u32, i : u32) -> u32 {
+pub fn minus_one_to_the_n(p : u32, i : i32) -> u32 {
     if i % 2 == 0 { 1 } else { p - 1 }
 }
 

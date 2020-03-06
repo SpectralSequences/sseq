@@ -50,7 +50,7 @@ pub fn adem_relation_coefficient(p : ValidPrime, x : u32, y : u32, j : u32, e1 :
     if c == 0 { 
         return 0; 
     }
-    c *= minus_one_to_the_n(*p, ((x + j) + e2) as u32);
+    c *= minus_one_to_the_n(*p, (x + j) + e2);
     c % *p
 }
 
