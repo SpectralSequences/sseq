@@ -12,9 +12,10 @@ serde_json = "1.0.0"
 serde = { version = "1.0.0", features = ["derive"] }
 enum_dispatch = "0.2.0"
 
-saveload = { path = "../../libraries/saveload" }
-fp = { path = "../../libraries/fp" }
-algebra = { path = "../../libraries/algebra" }
+saveload = { path = "../../../libraries/saveload" }
+fp = { path = "../../../libraries/fp" }
+algebra = { path = "../../../libraries/algebra" }
+
 python_fp = { path = "../python_fp" }
 python_utils = { path = "../python_utils" }
 
