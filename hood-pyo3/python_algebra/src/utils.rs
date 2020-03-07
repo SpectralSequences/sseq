@@ -94,10 +94,10 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
 
     impl $algebra {
         fn check_degree(&self, degree : i32) -> PyResult<()> {
-            let next_degree = self.inner_unchkd().next_degree();
-            if degree >= next_degree {
+            let max_degree = self.inner_unchkd().max_degree();
+            if degree > max_degree {
                 Err(exceptions::IndexError::py_err(
-                    format!("Degree {} too large: maximum degree of algebra is {}", degree, next_degree - 1)
+                    format!("Degree {} too large: maximum degree of algebra is {}", degree, max_degree - 1)
                 ))
             } else {
                 Ok(())

@@ -2,8 +2,8 @@ use pyo3::prelude::*;
 use pyo3::{wrap_pymodule};
 
 use python_utils;
-use fp_python::PyInit_python_fp;
-use algebra_python::PyInit_python_algebra;
+use python_fp::PyInit_python_fp;
+use python_algebra::PyInit_python_algebra;
 
 
 #[pymodule]

@@ -8,9 +8,9 @@ use python_utils::{py_repr, wrapper_type, immutable_wrapper_type};
 use python_fp::vector::FpVector;
 use python_fp::prime::new_valid_prime;
 
-use rust_ext::algebra::AdemAlgebra as AdemAlgebraRust;
-use rust_ext::algebra::adem_algebra::AdemBasisElement as AdemBasisElementRust;
-use rust_ext::algebra::Algebra;
+use algebra::AdemAlgebra as AdemAlgebraRust;
+use algebra::adem_algebra::AdemBasisElement as AdemBasisElementRust;
+use algebra::Algebra;
 
 use crate::utils::{ self, PVector };
 

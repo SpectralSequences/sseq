@@ -11,6 +11,7 @@ license = "(MIT OR Apache-2.0)"
 saveload = { path = "../libraries/saveload" }
 bivec = { path = "../libraries/bivec" }
 fp = { path = "../libraries/fp" }
+algebra = { path = "../libraries/algebra" }
 
 python_algebra = { path = "python_algebra" }
 python_fp = { path = "python_fp" }

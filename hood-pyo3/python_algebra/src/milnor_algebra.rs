@@ -8,10 +8,10 @@ use python_utils::{py_repr, wrapper_type, immutable_wrapper_type};
 use python_fp::vector::FpVector;
 use python_fp::prime::new_valid_prime;
 
-use rust_ext::algebra::MilnorAlgebra as MilnorAlgebraRust;
-use rust_ext::algebra::milnor_algebra::MilnorBasisElement as MilnorBasisElementRust;
-use rust_ext::algebra::milnor_algebra::MilnorProfile as MilnorProfileRust;
-use rust_ext::algebra::Algebra;
+use algebra::MilnorAlgebra as MilnorAlgebraRust;
+use algebra::milnor_algebra::MilnorBasisElement as MilnorBasisElementRust;
+use algebra::milnor_algebra::MilnorProfile as MilnorProfileRust;
+use algebra::Algebra;
 
 use crate::utils::{ self, PVector };
 

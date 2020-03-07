@@ -14,7 +14,7 @@ enum_dispatch = "0.2.0"
 
 saveload = { path = "../../libraries/saveload" }
 fp = { path = "../../libraries/fp" }
-rust_ext = { path = "../../libraries/" }
+algebra = { path = "../../libraries/algebra" }
 python_fp = { path = "../python_fp" }
 python_utils = { path = "../python_utils" }
 
