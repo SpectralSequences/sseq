@@ -184,6 +184,10 @@ impl Algebra for AdemAlgebra {
             .collect()
     }
 
+    fn max_degree(&self) -> i32 {
+        *self.next_degree.lock() - 1
+    }
+
     fn compute_basis(&self, max_degree : i32) {
         let mut next_degree = self.next_degree.lock();
         if max_degree < *next_degree {

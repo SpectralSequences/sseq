@@ -44,6 +44,8 @@ pub trait Algebra : Send + Sync + 'static {
     /// little overhead when calling `compute_basis(degree)` multiple times with the same `degree`.
     fn compute_basis(&self, degree : i32);
 
+    fn max_degree(&self) -> i32;
+
     /// Gets the dimension of the algebra in degree `degree`.
     fn dimension(&self, degree : i32, excess : i32) -> usize;
 

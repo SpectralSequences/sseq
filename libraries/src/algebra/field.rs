@@ -31,6 +31,10 @@ impl Algebra for Field {
         &"field"
     }
 
+    fn max_degree(&self) -> i32 {
+        i32::max_value()
+    }
+
     fn compute_basis(&self, _degree : i32){}
 
     /// Gets the dimension of the algebra in degree `degree`.
