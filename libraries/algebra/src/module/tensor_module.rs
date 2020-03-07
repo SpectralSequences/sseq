@@ -2,7 +2,7 @@ use bivec::BiVec;
 use once::OnceBiVec;
 
 use crate::algebra::{Algebra, Bialgebra};
-use crate::block_structure::BlockStructure;
+use crate::module::block_structure::BlockStructure;
 use crate::module::{BoundedModule, Module, ZeroModule};
 use fp::vector::{FpVector, FpVectorT};
 use fp::prime::minus_one_to_the_n;

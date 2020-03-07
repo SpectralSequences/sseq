@@ -2,10 +2,10 @@ use serde_json::value::Value;
 use std::collections::HashMap;
 use parking_lot::Mutex;
 
-use crate::combinatorics;
+use once::OnceVec;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
-use once::OnceVec;
+use crate::algebra::combinatorics;
 use crate::algebra::{Algebra, Bialgebra};
 
 use nom::{

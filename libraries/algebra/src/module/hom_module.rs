@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bivec::BiVec;
 
 use crate::algebra::{Algebra, Field};
-use crate::block_structure::BlockStructure;
+use crate::module::block_structure::BlockStructure;
 use crate::module::homomorphism::FreeModuleHomomorphism;
 use crate::module::{BoundedModule, FreeModule, Module};
 use fp::vector::{FpVector, FpVectorT};

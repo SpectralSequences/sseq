@@ -5,8 +5,7 @@ use std::format;
 use parking_lot::Mutex;
 
 use once::OnceVec;
-use crate::combinatorics;
-use crate::combinatorics::MAX_XI_TAU;
+use crate::algebra::combinatorics::{self, MAX_XI_TAU};
 use crate::algebra::{Algebra, Bialgebra};
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};

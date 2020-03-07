@@ -127,7 +127,7 @@ fn evaluate_basis_element(
             result = degree_result.1;
         }
         AlgebraBasisElt::PList(p_list) => {
-            let xi_degrees = crate::combinatorics::xi_degrees(p);
+            let xi_degrees = crate::algebra::combinatorics::xi_degrees(p);
             let mut temp_deg = 0;
             for (i, v) in p_list.iter().enumerate() {
                 temp_deg += *v * q * xi_degrees[i] as u32;
@@ -149,7 +149,7 @@ fn evaluate_basis_element(
             result.set_entry(idx, 1);
         }
         AlgebraBasisElt::Q(x) => {
-            let tau_degrees = crate::combinatorics::tau_degrees(p);
+            let tau_degrees = crate::algebra::combinatorics::tau_degrees(p);
             degree = tau_degrees[x as usize];
             adem_algebra.compute_basis(degree);
             milnor_algebra.compute_basis(degree);            

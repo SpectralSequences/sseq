@@ -164,7 +164,7 @@ pub fn adem_q(
     result : &mut FpVector, coeff : u32, qi : u32
 ){
     let p = adem_algebra.prime();
-    let degree = crate::combinatorics::tau_degrees(p)[qi as usize];
+    let degree = crate::algebra::combinatorics::tau_degrees(p)[qi as usize];
     let mbe = if adem_algebra.generic {
         MilnorBasisElement {
             degree,

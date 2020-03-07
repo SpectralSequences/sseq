@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use crate::block_structure::BlockStart;
+use crate::module::block_structure::BlockStart;
 use fp::matrix::{QuasiInverse, Subspace};
 use fp::vector::{FpVector, FpVectorT};
 use once::OnceBiVec;
-// use crate::block_structure::BlockStructure;
 // use crate::algebra::SteenrodAlgebra;
 // use crate::field::Field;
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};

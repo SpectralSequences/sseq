@@ -2,16 +2,16 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-use crate::algebra::Field;
+use algebra::Field;
 use crate::block_structure::{BlockStart, BlockStructure};
 use crate::chain_complex::{
     AugmentedChainComplex, ChainComplex, FiniteAugmentedChainComplex, FiniteChainComplex,
     FreeChainComplex,
 };
-use crate::module::homomorphism::{
+use algebra::module::homomorphism::{
     BoundedModuleHomomorphism, FiniteModuleHomomorphism, ModuleHomomorphism,
 };
-use crate::module::{
+use algebra::module::{
     BoundedModule, FiniteModule, HomModule, Module, SumModule, TensorModule, ZeroModule,
 };
 use crate::CCC;

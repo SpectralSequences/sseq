@@ -1,7 +1,7 @@
 use bivec::BiVec;
 use once::OnceBiVec;
 
-use crate::block_structure::{BlockStart, BlockStructure, GeneratorBasisEltPair};
+use crate::module::block_structure::{BlockStart, BlockStructure, GeneratorBasisEltPair};
 use crate::module::{BoundedModule, Module, ZeroModule};
 use fp::vector::FpVector;
 

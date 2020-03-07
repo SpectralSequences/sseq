@@ -8,6 +8,7 @@ mod rpn;
 mod sum_module;
 mod tensor_module;
 mod truncated_module;
+pub mod block_structure;
 
 pub mod homomorphism;
 

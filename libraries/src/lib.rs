@@ -10,17 +10,18 @@
 #![warn(clippy::explicit_iter_loop)]
 #![warn(clippy::explicit_into_iter_loop)]
 
-pub mod combinatorics;
-pub mod block_structure;
-pub mod algebra;
-pub mod change_of_basis;
-pub mod steenrod_parser;
-pub mod steenrod_evaluator;
-pub mod module;
+pub use algebra::combinatorics;
+pub use algebra::module::block_structure;
+pub use algebra;
+pub use algebra::change_of_basis;
+pub use algebra::steenrod_parser;
+pub use algebra::steenrod_evaluator;
+pub use algebra::module;
+pub use algebra::cli_module_loaders;
+
 pub mod chain_complex;
 pub mod resolution;
 pub mod resolution_homomorphism;
-pub mod cli_module_loaders;
 pub mod yoneda;
 
 use crate::chain_complex::FiniteChainComplex;

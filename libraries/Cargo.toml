@@ -8,6 +8,7 @@ repository = "https://github.com/hoodmane/rust_ext/"
 license = "(MIT OR Apache-2.0)"
 
 [dependencies]
+algebra = { path = "algebra" }
 bivec = { path = "bivec"}
 enum_dispatch = "0.2.0"
 fp = { path = "fp" }
@@ -36,7 +37,7 @@ opt-level = 3
 debug = true
 
 [workspace]
-members = ["bivec", "once", "thread-token", "saveload", "fp"]
+members = ["algebra", "bivec", "fp",  "once", "saveload", "thread-token"]
 
 [features]
 cache-multiplication = []

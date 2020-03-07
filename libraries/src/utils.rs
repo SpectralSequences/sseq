@@ -4,9 +4,9 @@ use parking_lot::RwLock;
 use serde_json::value::Value;
 
 use std::path::PathBuf;
-use crate::algebra::{Algebra, SteenrodAlgebra};
-use crate::module::{FiniteModule, Module, BoundedModule};
-use crate::module::homomorphism::FreeModuleHomomorphism;
+use algebra::{Algebra, SteenrodAlgebra};
+use algebra::module::{FiniteModule, Module, BoundedModule};
+use algebra::module::homomorphism::FreeModuleHomomorphism;
 use fp::matrix::Matrix;
 use fp::vector::FpVectorT;
 use crate::chain_complex::{FiniteChainComplex, ChainMap};
@@ -144,14 +144,5 @@ impl std::fmt::Display for ModuleFileNotFoundError {
 impl Error for ModuleFileNotFoundError {
     fn description(&self) -> &str {
         "Module file not found"
-    }
-}
-
-#[derive(Debug)]
-pub struct GenericError(pub String);
-
-impl std::fmt::Display for GenericError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", &self.0)
     }
 }
