@@ -5,8 +5,8 @@ use pyo3::exceptions;
 use python_utils;
 use python_utils::{py_repr, wrapper_type, immutable_wrapper_type};
 
-use fp_python::vector::FpVector;
-use fp_python::prime::new_valid_prime;
+use python_fp::vector::FpVector;
+use python_fp::prime::new_valid_prime;
 
 use rust_ext::algebra::AdemAlgebra as AdemAlgebraRust;
 use rust_ext::algebra::adem_algebra::AdemBasisElement as AdemBasisElementRust;

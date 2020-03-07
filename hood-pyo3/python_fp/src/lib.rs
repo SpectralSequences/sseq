@@ -9,7 +9,7 @@ pub mod matrix;
 use pyo3::prelude::*;
 
 #[pymodule]
-fn fp_python(_py: Python, m: &PyModule) -> PyResult<()> {
+fn python_fp(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<vector::FpVector>()?;
     m.add_class::<matrix::PivotVecWrapper>()?;
     m.add_class::<matrix::Matrix>()?;

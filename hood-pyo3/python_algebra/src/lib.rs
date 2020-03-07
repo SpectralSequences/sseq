@@ -9,7 +9,7 @@ mod milnor_algebra;
 use pyo3::prelude::*;
 
 #[pymodule]
-fn algebra_python(_py: Python, m: &PyModule) -> PyResult<()> {
+fn python_algebra(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<utils::PVector>()?;
     m.add_class::<adem_algebra::AdemBasisElement>()?;
     m.add_class::<adem_algebra::AdemAlgebra>()?;

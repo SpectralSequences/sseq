@@ -12,8 +12,8 @@ saveload = { path = "../libraries/saveload" }
 bivec = { path = "../libraries/bivec" }
 fp = { path = "../libraries/fp" }
 
-algebra_python = { path = "algebra_python" }
-fp_python = { path = "fp_python" }
+python_algebra = { path = "python_algebra" }
+python_fp = { path = "python_fp" }
 python_utils = { path = "python_utils" }
 
 enum_dispatch = "0.2.0"
@@ -38,7 +38,7 @@ opt-level = 3
 debug = true
 
 [workspace]
-members = ["python_utils", "fp_python", "algebra_python"]
+members = ["python_utils", "python_fp", "python_algebra"]
 
 [features]
 cache-multiplication = []
