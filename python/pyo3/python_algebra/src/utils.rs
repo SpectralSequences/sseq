@@ -168,7 +168,6 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
         #[args(excess=0)]
         pub fn dimension(&self, degree : i32, excess : i32) -> PyResult<usize> {
             self.check_not_null()?;
-            self.check_degree(degree)?;
             Ok(self.inner_unchkd().dimension(degree, excess))
         }
 
