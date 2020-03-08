@@ -17,11 +17,22 @@ pub fn reduce_coefficient(p : u32, c : i32) -> u32 {
     (((c % p) + p) % p) as u32
 }
 
+pub fn null_ptr_exception() -> pyo3::PyErr {
+    exceptions::ReferenceError::py_err(
+        "Null pointer!"
+    )
+}
+
+pub fn null_ptr_exception_if_none<T>(opt : Option<T>) -> pyo3::PyResult<()> {
+    opt.map_or_else(
+        || Err(null_ptr_exception()),
+        |_x| Ok(())
+    )
+}
+
 pub fn check_not_null<T>(ptr : *mut T) -> pyo3::PyResult<()> {
     if ptr.is_null() {
-        Err(exceptions::ReferenceError::py_err(
-            "Null pointer!"
-        ))
+        Err(null_ptr_exception())
     } else {
         Ok(())
     }
@@ -52,6 +63,11 @@ pub fn check_index(dimension : usize, index : isize, dim_or_len : &str,  type_to
     }
 }
 
+use std::sync::Weak;
+pub fn weak_ptr_to_final<T>(ptr : Weak<T>) -> Weak<()> {
+    unsafe { std::mem::transmute(ptr) }
+}
+
 #[macro_export]
 macro_rules! py_repr {
     ( $wrapper : ty, $freed_str : expr, $repr_block : block) => {
@@ -77,10 +93,10 @@ macro_rules! common_wrapper_type {
         pub struct $outer {
             inner : *mut $inner,
             // If we are the owner, we hold onto an Rc to keep it alive. Replace with None on free.
-            owned : Option<std::rc::Rc<()>>, 
+            owned : Option<std::sync::Arc<()>>, 
             // To check if we are freed, we test whether or not this weak pointer is still valid.
             // When our owner is freed, this Weak pointer will become invalid.
-            freed : std::rc::Weak<()>
+            freed : std::sync::Weak<()>
         }
 
         impl $outer {
@@ -98,8 +114,8 @@ macro_rules! common_wrapper_type {
         
             pub fn box_and_wrap(inner : $inner) -> Self {
                 let inner_box = Box::new(inner);
-                let owned = std::rc::Rc::new(());
-                let freed = std::rc::Rc::downgrade(&owned);
+                let owned = std::sync::Arc::new(());
+                let freed = std::sync::Arc::downgrade(&owned);
                 Self {
                     inner : Box::into_raw(inner_box),
                     owned : Some(owned),
@@ -107,15 +123,13 @@ macro_rules! common_wrapper_type {
                 }
             }
 
-            pub fn owner(&self) -> std::rc::Weak<()> {
+            pub fn owner(&self) -> std::sync::Weak<()> {
                 self.freed.clone()
             }
         
             pub fn check_not_null(&self) -> PyResult<()> {
                 if self.is_null() {
-                    Err(exceptions::ReferenceError::py_err(
-                        "Null pointer!"
-                    ))
+                    Err(python_utils::null_ptr_exception())
                 } else {
                     Ok(())
                 }                
@@ -178,10 +192,10 @@ macro_rules! immutable_wrapper_type {
         python_utils::common_wrapper_type!($outer, $inner);
 
         impl $outer {
-            pub fn wrap<T>(vec : &$inner, owner : std::rc::Weak<T> ) -> Self {
+            pub fn wrap<T>(vec : &$inner, owner : std::sync::Weak<T> ) -> Self {
                 let ptr = vec as *const $inner;
                 let ptr : *mut $inner = unsafe { std::mem::transmute(ptr)};
-                let owner : std::rc::Weak<()> = unsafe { std::mem::transmute(owner) };
+                let owner : std::sync::Weak<()> = python_utils::weak_ptr_to_final(owner);
                 Self {
                     inner : ptr,
                     owned : None,
@@ -206,8 +220,8 @@ macro_rules! wrapper_type {
         impl $outer {
             // type Inner = $inner; // ==> "associated types are not yet supported in inherent imples" =(
     
-            pub fn wrap<T>(vec : &mut $inner, owner : std::rc::Weak<T>) -> Self {
-                let owner : std::rc::Weak<()> = unsafe { std::mem::transmute(owner) };
+            pub fn wrap<T>(vec : &mut $inner, owner : std::sync::Weak<T>) -> Self {
+                let owner : std::sync::Weak<()> = unsafe { std::mem::transmute(owner) };
                 Self {
                     inner : vec as *mut $inner,
                     owned : None,
@@ -228,7 +242,7 @@ macro_rules! wrapper_type {
                 self.check_not_null()?;
                 self.check_owned()?;
                 // Replace owned so other references are marked dead.
-                self.owned = Some(std::rc::Rc::new(())); 
+                self.owned = Some(std::sync::Arc::new(())); 
                 let ptr = self.inner;
                 self.inner = std::ptr::null_mut();
                 Ok(unsafe { Box::from_raw(ptr) })
@@ -238,6 +252,93 @@ macro_rules! wrapper_type {
         impl Clone for $outer {
             fn clone(&self) -> $outer {
                 $outer::wrap(self.inner_mut_unchkd(), self.freed.clone())
+            }
+        }
+    }
+}
+
+
+
+
+#[macro_export]
+macro_rules! rc_wrapper_type {
+    ( $outer:ident, $inner:ty ) => {
+
+        #[pyclass(dict)]
+        #[derive(Clone)]
+        #[repr(transparent)]
+        pub struct $outer {
+            inner : Option<std::sync::Arc<$inner>>
+        }
+
+        impl $outer {
+            // type Inner = $inner; // ==> "associated types are not yet supported in inherent imples" =(
+
+            #![allow(dead_code)]
+            pub fn inner(&self) -> PyResult<&std::sync::Arc<$inner>> {
+                self.inner.as_ref().ok_or_else(
+                    || python_utils::null_ptr_exception()
+                )
+            }
+        
+            pub fn inner_unchkd(&self) -> &std::sync::Arc<$inner> {
+                self.inner().unwrap()
+            }
+        
+            pub fn box_and_wrap(inner : $inner) -> Self {
+                Self {
+                    inner : Some(std::sync::Arc::new(inner))
+                }
+            }
+
+            pub fn owner(&self) -> std::sync::Weak<()> {
+                self.inner.as_ref().map(|ptr| 
+                    python_utils::weak_ptr_to_final(std::sync::Arc::downgrade(ptr))
+                ).unwrap_or_else(|| std::sync::Weak::new()) 
+                    // TODO: this else behavior may not be right...
+            }
+
+            pub fn is_null(&self) -> bool {
+                self.inner.is_none()
+            }
+
+            pub fn check_not_null(&self) -> PyResult<()> {
+                python_utils::null_ptr_exception_if_none(self.inner.as_ref())
+            }
+        
+            pub fn is_owned(&self) -> bool {
+                true
+            }
+
+            pub fn check_owned(&self) -> PyResult<()>{
+                Ok(())
+            }
+        }
+
+        #[pymethods]
+        impl $outer {
+            pub fn free(&mut self) -> PyResult<()> {
+                python_utils::null_ptr_exception_if_none(self.inner.take())?;
+                Ok(())
+            }
+
+            #[getter]
+            pub fn get_owned(&self) -> bool {
+                true
+            }
+        }
+
+        impl $outer {
+            // type Inner = $inner; // ==> "associated types are not yet supported in inherent imples" =(
+    
+            pub fn wrap<T>(inner : std::sync::Arc<$inner>) -> Self {
+                Self {
+                    inner : Some(inner),
+                }
+            }
+
+            pub fn take_box(&mut self) -> PyResult<std::sync::Arc<$inner>> {
+                self.inner.take().ok_or_else(|| python_utils::null_ptr_exception())
             }
         }
     }

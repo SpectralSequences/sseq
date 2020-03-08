@@ -3,7 +3,12 @@ use pyo3::PyObjectProtocol;
 use pyo3::exceptions;
 
 use python_utils;
-use python_utils::{py_repr, wrapper_type, immutable_wrapper_type};
+use python_utils::{
+    py_repr, 
+    rc_wrapper_type, 
+    // wrapper_type, 
+    immutable_wrapper_type
+};
 
 use python_fp::vector::FpVector;
 use python_fp::prime::new_valid_prime;
@@ -63,7 +68,7 @@ impl AdemBasisElement {
     // }
 }
 
-wrapper_type!(AdemAlgebra, AdemAlgebraRust);
+rc_wrapper_type!(AdemAlgebra, AdemAlgebraRust);
 
 py_repr!(AdemAlgebra, "FreedAdemAlgebra", {
     Ok(format!(
@@ -73,6 +78,7 @@ py_repr!(AdemAlgebra, "FreedAdemAlgebra", {
 });
 
 crate::algebra_bindings!(AdemAlgebra, AdemElement, "AdemElement");
+
 
 #[pymethods]
 impl AdemAlgebra {

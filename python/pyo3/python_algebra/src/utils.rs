@@ -137,16 +137,16 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
 
     #[pymethods]
     impl $algebra {
-        pub fn algebra_type(&self) -> PyResult<&str> {
-            Ok(self.inner()?.algebra_type())
+        pub fn algebra_type(&self) -> PyResult<String> {
+            Ok(self.inner()?.algebra_type().to_string())
         }
 
         pub fn prime(&self) -> PyResult<u32> {
             Ok(*self.inner()?.prime())
         }
 
-        pub fn name(&self) -> PyResult<&str> {
-            Ok(self.inner()?.name())
+        pub fn name(&self) -> PyResult<String> {
+            Ok(self.inner()?.name().to_string())
         }
 
         pub fn compute_basis(&self, max_degree : i32) -> PyResult<()> {
@@ -308,6 +308,21 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
         fn get_vec(&self) -> FpVector {
             self.element.clone()
         }
+
+        #[getter]
+        fn get_algebra(&self) -> $algebra {
+            self.algebra.clone()
+        }
+
+        #[getter]
+        fn get_degree(&self) -> i32 {
+            self.degree
+        }
+
+        #[getter]
+        fn get_dimension(&self) -> PyResult<usize> {
+            self.element.dimension()
+        }
     
         fn add(&mut self, other : PyObject, c : i32) -> PyResult<()> {
             self.element.add(&$element::obj_to_vec(other, "other")?, c)
@@ -340,5 +355,5 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
                 element : v.clone()
             })
         }
-    }    
+    }
 }}
