@@ -401,6 +401,9 @@ pub trait FpVectorT {
         debug_assert!(self.dimension() <= target.len());
         let p = self.prime();
         let dimension = self.dimension();
+        if dimension == 0 {
+            return;
+        }
         let offset = self.offset();
         let limbs = self.limbs();
         let mut target_idx = 0;
@@ -875,6 +878,7 @@ impl FpVector {
         idx
     }
 
+    // Panics on arithmetic overflow from "bits_needed_for_entire_vector - 1" if dimension == 0.
     fn unpack_limb(p : ValidPrime, dimension : usize, offset : usize, limb_array : &mut [u32], limbs : &[u64], limb_idx : usize) -> usize {
         let bit_length = bit_length(p);
         let entries_per_64_bits = entries_per_64_bits(p);
