@@ -273,7 +273,6 @@ impl Algebra for MilnorAlgebra {
         if degree < 0 {
             return 0;
         }
-        println!("MilnorAlgebra.dimension(degree : {})", degree);
         self.basis_table[degree as usize].len()
     }
 

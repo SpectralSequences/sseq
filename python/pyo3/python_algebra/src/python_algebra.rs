@@ -24,7 +24,8 @@ pub struct PythonAlgebraRust {
     prime : ValidPrime,
     compute_basis : PyObject,
     get_dimension : PyObject,
-    multiply_basis_elements : PyObject
+    multiply_basis_elements : PyObject,
+    basis_element_to_string : PyObject
 }
 
 use python_utils::{
@@ -61,7 +62,8 @@ impl PythonAlgebra {
             prime : new_valid_prime(p)?,
             compute_basis,
             get_dimension,
-            multiply_basis_elements
+            multiply_basis_elements,
+            basis_element_to_string
         }))
     }
 }
@@ -76,9 +78,20 @@ impl Algebra for PythonAlgebraRust {
     }
     
     fn compute_basis(&self, degree : i32) {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        drop(self.compute_basis.call1(py, (degree,)));
+        if self.compute_basis.is_none(){
+            return;
+        } else {
+            let gil = Python::acquire_gil();
+            let py = gil.python();            
+            let result = self.compute_basis.call1(py, (degree,));
+            if let Err(e) = result {
+                eprintln!("Error occurred in call compute_basis({}):",
+                    degree
+                );
+                e.print(py);
+                panic!();
+            }
+        }
     }
 
     fn max_degree(&self) -> i32 {
@@ -88,23 +101,53 @@ impl Algebra for PythonAlgebraRust {
     fn dimension(&self, degree : i32, excess : i32) -> usize {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        self.get_dimension.call1(py, (degree,excess)).unwrap()
-            .extract(py).unwrap()
+        let result = self.get_dimension.call1(py, (degree,excess)).unwrap()
+            .extract(py);
+        match result {
+            Err(e) => {
+                eprintln!("Error occurred in call dimension({}, {}):",
+                    degree, excess
+                );
+                e.print(py);
+                panic!();
+            },
+            Ok(value) => value
+        }
     }
 
     fn multiply_basis_elements(&self, result : &mut FpVectorRust, coeff : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32){
         let gil = Python::acquire_gil();
         let py = gil.python();
         let temp_arc = Arc::new(());
-        self.multiply_basis_elements.call1(py,
+        let result = self.multiply_basis_elements.call1(py,
                 (FpVector::wrap(result, Arc::downgrade(&temp_arc)), coeff, r_degree, r_idx, s_degree, s_idx, excess)
-            ).unwrap();
+            );
+        if let Err(e) = result {
+            eprintln!("Error occurred in call multiply_basis_elements(result, {}, {}, {}, {}, {}, {}):",
+                coeff, r_degree, r_idx, s_degree, s_idx, excess
+            );
+            e.print(py);
+            panic!();
+        }
     }
 
     fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> { Vec::new() }
 
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
-        format!("a_{{{}, {}}}", degree, idx)
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let result = self.basis_element_to_string.call1(py, (degree, idx))
+            .and_then(|r| r.extract::<String>(py));
+        match result {
+            Err(e) => {
+                eprintln!("Error occurred in call basis_element_to_string({}, {}):",
+                    degree, idx
+                );
+                e.print(py);
+                panic!();
+            },
+            Ok(value) => value
+        }
     }
 
 }

@@ -194,15 +194,34 @@ impl FpVector {
         Ok(vec.into_py(py))
     }
 
+
+}
+
+fn vec_from_pyobj(p : u32, l : PyObject) -> PyResult<Vec<u32>> {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let vec : Vec<i32> = l.extract(py)?;
+    let mut result : Vec<u32> = Vec::with_capacity(vec.len());
+    for i in 0..vec.len() {
+        result.push(python_utils::reduce_coefficient(p, vec[i]));
+    }
+    Ok(result)
+}
+
+#[pymethods]
+impl FpVector {
     #[staticmethod]
     pub fn from_list(p : u32, l : PyObject) -> PyResult<Self> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut vec : Vec<u32> = l.extract(py)?;
-        for i in 0..vec.len() {
-            vec[i] = ((vec[i] % p) + p) % p;
-        }
+        let vec = vec_from_pyobj(p, l)?;
         Ok(FpVector::box_and_wrap(FpVectorRust::from_vec(new_valid_prime(p)?, &vec)))
+    }
+
+    
+    pub fn pack(&self, l : PyObject) -> PyResult<()> {
+        let inner = self.inner_mut()?;
+        let vec = vec_from_pyobj(*inner.prime(), l)?;
+        inner.pack(&vec);
+        Ok(())
     }
 
     #[args(c=1)]
