@@ -62,19 +62,23 @@ impl FpVector {
         Ok(FpVector::box_and_wrap(FpVectorRust::new(new_valid_prime(p)?, dimension)))
     }
 
-    pub fn prime(&self) -> PyResult<u32> {
+    #[getter]
+    pub fn get_prime(&self) -> PyResult<u32> {
         Ok(*self.inner()?.prime())
     }
 
-    pub fn dimension(&self) -> PyResult<usize> {
+    #[getter]
+    pub fn get_dimension(&self) -> PyResult<usize> {
         Ok(self.inner()?.dimension())
     }
 
-    pub fn offset(&self) -> PyResult<usize> {
+    #[getter]
+    pub fn get_offset(&self) -> PyResult<usize> {
         Ok(self.inner()?.offset())
     }
 
-    pub fn min_index(&self) -> PyResult<usize> {
+    #[getter]
+    pub fn get_min_index(&self) -> PyResult<usize> {
         Ok(self.inner()?.min_index())
     }
 
@@ -166,6 +170,7 @@ impl FpVector {
         self.inner_mut_unchkd().set_entry(index, value);
     }
 
+    #[args(c=1)]
     pub fn add_basis_element(&mut self, index : isize, c : i32)  -> PyResult<()> {
         self.check_not_null()?;
         let index = self.handle_index(index)?;
@@ -200,6 +205,7 @@ impl FpVector {
         Ok(FpVector::box_and_wrap(FpVectorRust::from_vec(new_valid_prime(p)?, &vec)))
     }
 
+    #[args(c=1)]
     pub fn add(&mut self, other : &FpVector, c : i32) -> PyResult<()> {
         self.check_not_null()?;
         other.check_not_null()?;

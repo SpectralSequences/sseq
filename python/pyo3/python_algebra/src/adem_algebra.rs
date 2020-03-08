@@ -1,13 +1,17 @@
-use pyo3::prelude::*;
-use pyo3::PyObjectProtocol;
-use pyo3::exceptions;
+use pyo3::{
+    prelude::*,
+    exceptions,
+    PyObjectProtocol,
+    types::PyDict
+};
 
-use python_utils;
 use python_utils::{
+    self,
     py_repr, 
     rc_wrapper_type, 
     // wrapper_type, 
-    immutable_wrapper_type
+    immutable_wrapper_type,
+    get_from_kwargs
 };
 
 use python_fp::vector::FpVector;
@@ -71,9 +75,24 @@ impl AdemBasisElement {
 rc_wrapper_type!(AdemAlgebra, AdemAlgebraRust);
 
 py_repr!(AdemAlgebra, "FreedAdemAlgebra", {
+    let p = *inner.prime();
+    let mut generic_str = "";    
+    if inner.generic != (p!=2) {
+        if inner.generic {
+            generic_str = ", generic=True";
+        } else {
+            generic_str = ", generic=False";
+        }
+    }
+    let mut unstable_str = "";
+    if inner.unstable {
+        unstable_str = ", unstable=True";
+    }    
     Ok(format!(
-        "{}",
-        inner.name()
+        "AdemAlgebra(p={}{}{})",
+        inner.prime(),
+        generic_str,
+        unstable_str
     ))
 });
 
@@ -83,8 +102,25 @@ crate::algebra_bindings!(AdemAlgebra, AdemElement, "AdemElement");
 #[pymethods]
 impl AdemAlgebra {
     #[new]
-    pub fn new(p : u32, generic : bool, unstable : bool) -> PyResult<Self> {
+    #[args("*", unstable=false, kwargs="**")]
+    pub fn new(p : u32,  unstable : bool, kwargs: Option<&PyDict>) -> PyResult<Self> {
+        let generic : bool = get_from_kwargs(kwargs, "generic", p!=2)?;
+        if unstable {
+            return Err(exceptions::NotImplementedError::py_err(
+                "Unstable Adem algebras not yet implemented."
+            ));
+        }
         Ok(Self::box_and_wrap(AdemAlgebraRust::new(new_valid_prime(p)?, generic, unstable)))
+    }
+
+    #[getter]
+    pub fn get_generic(&self) -> PyResult<bool> {
+        Ok(self.inner()?.generic)
+    }
+
+    #[getter]
+    pub fn get_unstable(&self) -> PyResult<bool> {
+        Ok(self.inner()?.unstable)
     }
 
     pub fn basis_element_from_index(&self, degree : i32, idx : usize) -> PyResult<AdemBasisElement> {

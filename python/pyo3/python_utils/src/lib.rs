@@ -1,8 +1,11 @@
 #![macro_use]
 
-use pyo3::prelude::*;
-use pyo3::exceptions;
-use pyo3::ObjectProtocol;
+use pyo3::{
+    prelude::*,
+    exceptions,
+    ObjectProtocol,
+    types::{PyDict, PyAny}
+};
 
 pub fn rename_submodule(module : &PyModule, name : &str, new_name : &str) -> PyResult<()> {
     let submodule = module.get(name)?;
@@ -66,6 +69,21 @@ pub fn check_index(dimension : usize, index : isize, dim_or_len : &str,  type_to
 use std::sync::Weak;
 pub fn weak_ptr_to_final<T>(ptr : Weak<T>) -> Weak<()> {
     unsafe { std::mem::transmute(ptr) }
+}
+
+// pub fn get_from_kwargs<'a, T : pyo3::FromPyObject<'a>>(
+//     kwargs : Option<&'a PyDict>, argument : &str
+// ) -> Option<PyResult<T>> {
+//     kwargs.and_then(|dict| dict.get_item(argument))
+//           .map(|value| PyAny::extract::<T>(value))
+// }
+
+pub fn get_from_kwargs<'a, T : pyo3::FromPyObject<'a>>(
+    kwargs : Option<&'a PyDict>, argument : &str, default : T
+) -> PyResult<T> {
+    kwargs.and_then(|dict| dict.get_item(argument))
+          .map(|value| PyAny::extract::<T>(value))
+          .unwrap_or(Ok(default))
 }
 
 #[macro_export]

@@ -1,9 +1,18 @@
-use pyo3::prelude::*;
-use pyo3::PyObjectProtocol;
-use pyo3::exceptions;
+use pyo3::{
+    prelude::*,
+    PyObjectProtocol,
+    exceptions,
+    types::{PyDict, PyAny, },
+};
 
 use python_utils;
-use python_utils::{py_repr, wrapper_type, immutable_wrapper_type};
+use python_utils::{
+    py_repr, 
+    rc_wrapper_type,
+    // wrapper_type, 
+    immutable_wrapper_type,
+    get_from_kwargs,
+};
 
 use python_fp::vector::FpVector;
 use python_fp::prime::new_valid_prime;
@@ -46,8 +55,8 @@ impl MilnorBasisElement {
     }
 
     #[getter]
-    pub fn get_qpart(&self) -> PyResult<u32> {
-        Ok(self.inner()?.q_part)
+    pub fn get_qpart(&self) -> PyResult<PVector> {
+        Ok(PVector::box_and_wrap(utils::bitmask_u32_to_vec(self.inner()?.q_part)))
     }
 
     #[getter]
@@ -63,10 +72,7 @@ impl MilnorBasisElement {
 immutable_wrapper_type!(MilnorProfile, MilnorProfileRust);
 
 py_repr!(MilnorProfile, "FreedMilnorProfile", {
-    Ok(format!(
-        "MilnorBasisElement()",
-        // inner
-    ))
+    self.name()
 });
 
 
@@ -81,6 +87,34 @@ impl MilnorProfile {
             q_part,
             p_part
         }))
+    }
+
+    pub fn name(&self) -> PyResult<String> {
+        let inner = self.inner()?;
+        if inner.is_trivial() {
+            return Ok("MilnorProfile()".to_string())
+        }
+        let mut p_part_str = "".to_string(); 
+        if !inner.p_part.is_empty() {
+            p_part_str = format!(", p_part={:?}", inner.p_part)
+        } 
+        let mut q_part_str = "".to_string(); 
+        if inner.q_part != !0 {
+            q_part_str = format!(", q_part={:?}", utils::bitmask_u32_to_vec(inner.q_part))
+        }
+        let truncated_str = 
+            if inner.truncated {
+                "truncated=True"
+            } else {
+                "truncated=False"
+            };
+    
+        Ok(format!(
+            "MilnorProfile({}{}{})",
+            truncated_str,
+            p_part_str,
+            q_part_str
+        ))
     }
 
     #[getter]
@@ -99,22 +133,81 @@ impl MilnorProfile {
     }
 }
 
-wrapper_type!(MilnorAlgebra, MilnorAlgebraRust);
+rc_wrapper_type!(MilnorAlgebra, MilnorAlgebraRust);
 
 py_repr!(MilnorAlgebra, "FreedMilnorAlgebra", {
+    let p = *inner.prime();
+    let mut generic_str = "";
+    if inner.generic != (p!=2) {
+        if inner.generic {
+            generic_str = ", generic=True";
+        } else {
+            generic_str = ", generic=False";
+        }
+    }
+    let mut profile_str = "".to_string();
+    if !inner.profile.is_trivial() {
+        profile_str = format!(", {}", 
+            MilnorProfile::wrap(&inner.profile, self.owner()).name()?
+        );
+    }
     Ok(format!(
-        "{}",
-        inner.name()
+        "MilnorAlgebra(p={}{}{})",
+        p,
+        generic_str,
+        profile_str
     ))
 });
+
+pub fn get_profile_from_kwargs(p : u32, kwargs : Option<&PyDict>) -> PyResult<MilnorProfileRust> {
+    let truncated = get_from_kwargs(kwargs, "truncated", false)?;
+    let mut q_part = !0;
+    let p_part : Vec<u32>;
+    if p == 2 {
+        p_part = get_from_kwargs(kwargs, "profile", vec![])?;
+    } else if let Some(x) = 
+            kwargs.and_then(|dict| dict.get_item("profile"))
+                  .map(|value| PyAny::extract::<Vec<Vec<u32>>>(value)) 
+    {
+        let profile = x?;
+        if profile.len() != 2 {
+            return Err(exceptions::ValueError::py_err(
+                "For generic MilnorAlgebra profile argument should be a pair of lists [p_part, q_part]."
+            ));
+        }
+        p_part = profile[0].clone();
+        q_part = utils::bitmask_u32_from_vec(&profile[1]);
+    } else {
+        p_part = vec![];
+    }
+    Ok(MilnorProfileRust {
+        truncated,
+        q_part,
+        p_part
+    })
+}
 
 
 #[pymethods]
 impl MilnorAlgebra {
     #[new]
-    pub fn new(p : u32) -> PyResult<Self> {
-        Ok(Self::box_and_wrap(MilnorAlgebraRust::new(new_valid_prime(p)?)))
+    #[args(kwargs="**")]
+    pub fn new(p : u32, kwargs : Option<&PyDict>) -> PyResult<Self> {
+        let mut algebra = MilnorAlgebraRust::new(new_valid_prime(p)?);
+        let profile = get_profile_from_kwargs(p, kwargs)?;
+        algebra.profile = profile;
+        Ok(Self::box_and_wrap(algebra))
     }
+
+    #[getter]
+    pub fn get_truncated(&self) -> PyResult<bool> {
+        Ok(self.inner()?.profile.truncated)
+    }
+
+    #[getter]
+    pub fn get_profile(&self) -> PyResult<MilnorProfile> {
+        Ok(MilnorProfile::wrap(&self.inner()?.profile, self.owner()))
+    }    
 
     pub fn basis_element_from_index(&self, degree : i32, idx : usize) -> PyResult<MilnorBasisElement> {
         self.check_not_null()?;

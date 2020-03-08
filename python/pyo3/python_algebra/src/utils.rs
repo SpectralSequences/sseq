@@ -34,17 +34,31 @@ pub fn vecu32_from_py_object(obj : PyObject, argument_name : &str) -> PyResult<V
     })
 }
 
+pub fn bitmask_u32_from_vec(vec : &Vec<u32>) -> u32 {
+    let mut result = 0;
+    // TODO: make sure we get ordering correct here
+    for (idx, b) in vec.iter().enumerate() {
+        result |= if *b != 0 { 1 << idx } else { 0 };
+    }
+    result
+}
+
+pub fn bitmask_u32_to_vec(mut bitmask : u32) -> Vec<u32> {
+    let mut result = Vec::new();
+    // TODO: make sure we get ordering correct here
+    while bitmask != 0 {
+        result.push(bitmask & 1);
+        bitmask >>= 1;
+    }
+    result
+}
+
+
 pub fn bitmask_u32_from_py_object(obj : PyObject, argument_name : &str) -> PyResult<u32> {
     let gil = Python::acquire_gil();
     let py = gil.python();
     obj.extract::<u32>(py).or_else(|_err| {
-        let a : Vec<u32> = obj.extract(py)?;
-        let mut result = 0;
-        // TODO: make sure we get ordering correct here
-        for (idx, b) in a.iter().enumerate() {
-            result |= if *b != 0 { 1 << idx } else { 0 };
-        }
-        Ok(result)
+        Ok(bitmask_u32_from_vec(&obj.extract(py)?))
     }).map_err(|_err : PyErr| {
         exceptions::ValueError::py_err(format!(
             "Argument \"{}\" expected to be either a single integer or a list of integers.",
@@ -106,7 +120,7 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
 
         fn check_dimension(&self, degree : i32, vec : &FpVector) -> PyResult<()> {
             let what_the_dimension_should_be = self.inner_unchkd().dimension(degree, -1);
-            let the_dimension = vec.dimension()?;
+            let the_dimension = vec.get_dimension()?;
             if the_dimension == what_the_dimension_should_be {
                 Ok(())
             } else {
@@ -141,12 +155,9 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
             Ok(self.inner()?.algebra_type().to_string())
         }
 
-        pub fn prime(&self) -> PyResult<u32> {
+        #[getter]
+        pub fn get_prime(&self) -> PyResult<u32> {
             Ok(*self.inner()?.prime())
-        }
-
-        pub fn name(&self) -> PyResult<String> {
-            Ok(self.inner()?.name().to_string())
         }
 
         pub fn compute_basis(&self, max_degree : i32) -> PyResult<()> {
@@ -154,12 +165,14 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
             Ok(())
         }
 
+        #[args(excess=0)]
         pub fn dimension(&self, degree : i32, excess : i32) -> PyResult<usize> {
             self.check_not_null()?;
             self.check_degree(degree)?;
             Ok(self.inner_unchkd().dimension(degree, excess))
         }
 
+        #[args(excess=0)]
         pub fn multiply_basis_elements(&self, 
             result : &mut FpVector, coeff : u32, 
             r_degree : i32, r_index : usize, 
@@ -173,6 +186,7 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
             Ok(())
         }
 
+        #[args(excess=0)]
         pub fn multiply_basis_element_by_element(&self, 
             result : &mut FpVector, coeff : u32, 
             r_degree : i32, r_index : usize, 
@@ -192,6 +206,7 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
             Ok(())
         }
 
+        #[args(excess=0)]
         pub fn multiply_element_by_basis_element(&self, 
             result : &mut FpVector, coeff : u32, 
             r_degree : i32, r : &FpVector, 
@@ -211,6 +226,7 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
             Ok(())
         }
 
+        #[args(excess=0)]
         pub fn multiply_element_by_element(&self, 
             result : &mut FpVector, coeff : u32, 
             r_degree : i32, r : &FpVector, 
@@ -321,15 +337,17 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
 
         #[getter]
         fn get_dimension(&self) -> PyResult<usize> {
-            self.element.dimension()
+            self.element.get_dimension()
         }
     
+        #[args(c=1)]
         fn add(&mut self, other : PyObject, c : i32) -> PyResult<()> {
             self.element.add(&$element::obj_to_vec(other, "other")?, c)
         }
     
+        #[args(coeff=1)]
         fn multiply_add(&mut self, left : &$element, right : &$element, coeff : i32) -> PyResult<()> {
-            let coeff = python_utils::reduce_coefficient(self.algebra.prime()?, coeff);
+            let coeff = python_utils::reduce_coefficient(self.algebra.get_prime()?, coeff);
             self.algebra.multiply_element_by_element(&mut self.element, coeff, 
                 left.degree, &left.element, 
                 right.degree, &right.element, 
@@ -344,7 +362,7 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
             Ok($element {
                 algebra : self.clone(),
                 degree,
-                element : FpVector::new(self.prime()?, self.dimension(degree, -1)?)?
+                element : FpVector::new(self.get_prime()?, self.dimension(degree, -1)?)?
             })
         }
     
