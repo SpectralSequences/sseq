@@ -270,6 +270,9 @@ impl Algebra for MilnorAlgebra {
     }
 
     fn dimension(&self, degree : i32, _excess : i32) -> usize {
+        if degree < 0 {
+            return 0;
+        }
         self.basis_table[degree as usize].len()
     }
 
