@@ -18,14 +18,15 @@ use algebra::Algebra;
 
 use python_fp::prime::new_valid_prime;
 use python_fp::vector::FpVector;
+use crate::algebra::AlgebraRust;
 
 
 pub struct PythonAlgebraRust {
-    prime : ValidPrime,
-    compute_basis : PyObject,
-    get_dimension : PyObject,
-    multiply_basis_elements : PyObject,
-    basis_element_to_string : PyObject
+    pub prime : ValidPrime,
+    pub compute_basis : PyObject,
+    pub get_dimension : PyObject,
+    pub multiply_basis_elements : PyObject,
+    pub basis_element_to_string : PyObject
 }
 
 use python_utils::{
@@ -37,16 +38,14 @@ use python_utils::{
     // get_from_kwargs
 };
 
-rc_wrapper_type!(PythonAlgebra, PythonAlgebraRust);
-
-py_repr!(PythonAlgebra, "FreedPythonAlgebra", {
+py_algebra_repr!(PythonAlgebra, "FreedPythonAlgebra", {
     Ok(format!(
         "PythonAlgebra(p={})",
         *inner.prime
     ))
 });
 
-crate::algebra_bindings!(PythonAlgebra, PythonElement, "PythonElement");
+crate::algebra_bindings!(PythonAlgebra, PythonAlgebraRust, PythonElement, "PythonElement");
 
 #[pymethods]
 impl PythonAlgebra {
@@ -58,13 +57,14 @@ impl PythonAlgebra {
         multiply_basis_elements : PyObject,
         basis_element_to_string : PyObject
     ) -> PyResult<Self> {
-        Ok(Self::box_and_wrap(PythonAlgebraRust {
+        let algebra = PythonAlgebraRust {
             prime : new_valid_prime(p)?,
             compute_basis,
             get_dimension,
             multiply_basis_elements,
             basis_element_to_string
-        }))
+        };
+        Ok(Self::box_and_wrap(AlgebraRust::PythonAlgebraRust(algebra)))
     }
 }
 

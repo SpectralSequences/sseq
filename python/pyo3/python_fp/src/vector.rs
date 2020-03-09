@@ -20,15 +20,15 @@ python_utils::py_repr!(FpVector, "FreedVector", {
 
 
 impl FpVector {
-    fn reduce_coefficient(&self, c : i32) -> u32 {
+    pub fn reduce_coefficient(&self, c : i32) -> u32 {
         python_utils::reduce_coefficient(*self.inner_unchkd().prime(), c)
     }
 
-    fn handle_index(&self, index : isize) -> PyResult<usize> {
+    pub fn handle_index(&self, index : isize) -> PyResult<usize> {
         python_utils::handle_index(self.inner_unchkd().dimension(), index, "dimension", "vector")
     }
 
-    fn check_index(&self, index : isize) -> PyResult<()> {
+    pub fn check_index(&self, index : isize) -> PyResult<()> {
         python_utils::check_index(self.inner_unchkd().dimension(), index, "dimension", "vector")
     }
 

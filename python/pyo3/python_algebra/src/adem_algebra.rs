@@ -14,6 +14,7 @@ use python_utils::{
     get_from_kwargs
 };
 
+use fp::vector::FpVectorT;
 use python_fp::vector::FpVector;
 use python_fp::prime::new_valid_prime;
 
@@ -22,6 +23,7 @@ use algebra::adem_algebra::AdemBasisElement as AdemBasisElementRust;
 use algebra::Algebra;
 
 use crate::utils::{ self, PVector };
+use crate::algebra::AlgebraRust;
 
 immutable_wrapper_type!(AdemBasisElement, AdemBasisElementRust);
 
@@ -72,9 +74,10 @@ impl AdemBasisElement {
     // }
 }
 
-rc_wrapper_type!(AdemAlgebra, AdemAlgebraRust);
 
-py_repr!(AdemAlgebra, "FreedAdemAlgebra", {
+crate::algebra_bindings!(AdemAlgebra, AdemAlgebraRust, AdemElement, "AdemElement");
+
+py_algebra_repr!(AdemAlgebra, "FreedAdemAlgebra", {
     let p = *inner.prime();
     let mut generic_str = "";    
     if inner.generic != (p!=2) {
@@ -96,7 +99,6 @@ py_repr!(AdemAlgebra, "FreedAdemAlgebra", {
     ))
 });
 
-crate::algebra_bindings!(AdemAlgebra, AdemElement, "AdemElement");
 
 
 #[pymethods]
@@ -110,31 +112,32 @@ impl AdemAlgebra {
                 "Unstable Adem algebras not yet implemented."
             ));
         }
-        Ok(Self::box_and_wrap(AdemAlgebraRust::new(new_valid_prime(p)?, generic, unstable)))
+        let algebra = AdemAlgebraRust::new(new_valid_prime(p)?, generic, unstable);
+        Ok(Self::box_and_wrap(AlgebraRust::AdemAlgebraRust(algebra)))
     }
 
     #[getter]
     pub fn get_generic(&self) -> PyResult<bool> {
-        Ok(self.inner()?.generic)
+        Ok(self.inner_algebra()?.generic)
     }
 
     #[getter]
     pub fn get_unstable(&self) -> PyResult<bool> {
-        Ok(self.inner()?.unstable)
+        Ok(self.inner_algebra()?.unstable)
     }
 
     pub fn basis_element_from_index(&self, degree : i32, idx : usize) -> PyResult<AdemBasisElement> {
         self.check_not_null()?;
         self.check_degree(degree)?;
         self.check_index(degree, idx)?;
-        Ok(AdemBasisElement::wrap(self.inner_unchkd().basis_element_from_index(degree, idx), self.owner()))
+        Ok(AdemBasisElement::wrap(self.inner_algebra_unchkd().basis_element_from_index(degree, idx), self.owner()))
     }
 
     pub fn basis_element_to_index(&self, elt: &AdemBasisElement) -> PyResult<usize> {
         let abe_inner = elt.inner()?;
         self.check_not_null()?;
         self.check_degree(abe_inner.degree)?;
-        self.inner_unchkd().try_basis_element_to_index(abe_inner)
+        self.inner_algebra_unchkd().try_basis_element_to_index(abe_inner)
             .ok_or_else(|| 
                 exceptions::ValueError::py_err(format!(
                     "AdemBasisElement({}) is not a valid basis element.", 
@@ -151,8 +154,8 @@ impl AdemAlgebra {
         self.check_degree(monomial_inner.degree)?;
         // TODO: this is insufficient to prevent a panic: we would need validity checking on monomial.
         // What if it is lying about its degree?
-        // Should add check_reduced_monomial() and check_not_necessarily_reduced_monomial()
-        self.inner_unchkd().make_mono_admissible(result.inner_mut()?, coeff, &mut monomial_inner, excess);
+        // Should add check_reduced_monomial() and check_not_necessarily_reduced_monomial()?
+        self.inner_algebra_unchkd().make_mono_admissible(result.inner_mut()?, coeff, &mut monomial_inner, excess);
         Ok(())
     }
 }

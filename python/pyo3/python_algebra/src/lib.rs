@@ -3,9 +3,11 @@
 // #![feature(core_intrinsics)]
 
 mod utils;
+mod algebra;
 mod adem_algebra;
 mod milnor_algebra;
 mod python_algebra;
+mod module;
 
 use pyo3::prelude::*;
 
@@ -19,5 +21,7 @@ fn python_algebra(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<milnor_algebra::MilnorBasisElement>()?;
     m.add_class::<milnor_algebra::MilnorElement>()?;
     m.add_class::<python_algebra::PythonAlgebra>()?;
+    m.add_class::<python_algebra::PythonElement>()?;
+    m.add_class::<module::FDModule>()?;
     Ok(())
 }

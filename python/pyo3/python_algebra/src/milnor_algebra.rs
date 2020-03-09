@@ -14,6 +14,7 @@ use python_utils::{
     get_from_kwargs,
 };
 
+use fp::vector::FpVectorT;
 use python_fp::vector::FpVector;
 use python_fp::prime::new_valid_prime;
 
@@ -22,8 +23,9 @@ use algebra::milnor_algebra::MilnorBasisElement as MilnorBasisElementRust;
 use algebra::milnor_algebra::MilnorProfile as MilnorProfileRust;
 use algebra::Algebra;
 
-use crate::utils::{ self, PVector };
 
+use crate::utils::{ self, PVector };
+use crate::algebra::AlgebraRust;
 
 immutable_wrapper_type!(MilnorBasisElement, MilnorBasisElementRust);
 
@@ -133,9 +135,10 @@ impl MilnorProfile {
     }
 }
 
-rc_wrapper_type!(MilnorAlgebra, MilnorAlgebraRust);
 
-py_repr!(MilnorAlgebra, "FreedMilnorAlgebra", {
+crate::algebra_bindings!(MilnorAlgebra, MilnorAlgebraRust, MilnorElement, "MilnorElement");
+
+py_algebra_repr!(MilnorAlgebra, "FreedMilnorAlgebra", {
     let p = *inner.prime();
     let mut generic_str = "";
     if inner.generic != (p!=2) {
@@ -196,31 +199,31 @@ impl MilnorAlgebra {
         let mut algebra = MilnorAlgebraRust::new(new_valid_prime(p)?);
         let profile = get_profile_from_kwargs(p, kwargs)?;
         algebra.profile = profile;
-        Ok(Self::box_and_wrap(algebra))
+        Ok(Self::box_and_wrap(AlgebraRust::MilnorAlgebraRust(algebra)))
     }
 
     #[getter]
     pub fn get_truncated(&self) -> PyResult<bool> {
-        Ok(self.inner()?.profile.truncated)
+        Ok(self.inner_algebra()?.profile.truncated)
     }
 
     #[getter]
     pub fn get_profile(&self) -> PyResult<MilnorProfile> {
-        Ok(MilnorProfile::wrap(&self.inner()?.profile, self.owner()))
+        Ok(MilnorProfile::wrap(&self.inner_algebra()?.profile, self.owner()))
     }    
 
     pub fn basis_element_from_index(&self, degree : i32, idx : usize) -> PyResult<MilnorBasisElement> {
         self.check_not_null()?;
         self.check_degree(degree)?;
         self.check_index(degree, idx)?;
-        Ok(MilnorBasisElement::wrap(self.inner_unchkd().basis_element_from_index(degree, idx), self.owner()))
+        Ok(MilnorBasisElement::wrap(self.inner_algebra_unchkd().basis_element_from_index(degree, idx), self.owner()))
     }
 
     pub fn basis_element_to_index(&self, elt: &MilnorBasisElement) -> PyResult<usize> {
         let mbe_inner = elt.inner()?;
         self.check_not_null()?;
         self.check_degree(mbe_inner.degree)?;
-        self.inner_unchkd().try_basis_element_to_index(mbe_inner)
+        self.inner_algebra_unchkd().try_basis_element_to_index(mbe_inner)
             .ok_or_else(|| 
                 exceptions::ValueError::py_err(format!(
                     "MilnorBasisElement({}) is not a valid basis element.", 
@@ -229,5 +232,3 @@ impl MilnorAlgebra {
             )
     }
 }
-
-crate::algebra_bindings!(MilnorAlgebra, MilnorElement, "MilnorElement");

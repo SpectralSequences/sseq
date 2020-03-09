@@ -104,11 +104,48 @@ impl PySequenceProtocol for PVector {
 
 
 #[macro_export]
-macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name : expr ) => {
+macro_rules! py_algebra_repr {
+    ( $wrapper : ty, $freed_str : expr, $repr_block : block) => {
+        #[pyproto]
+        #[allow(unused_variables)]
+        impl PyObjectProtocol for $wrapper {
+            fn __repr__(&self) -> PyResult<String> {
+                if self.is_null() {
+                    Ok(format!($freed_str))
+                } else {
+                    let inner = self.inner_algebra_unchkd();
+                    $repr_block
+                }
+            }
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element : ident, $element_name : expr ) => {
+    rc_wrapper_type!($algebra, AlgebraRust);
+
+    impl $algebra {
+        pub fn inner_algebra(&self) -> PyResult<&$algebra_rust> {
+            match &**self.inner()? {
+                AlgebraRust::$algebra_rust(alg) => Ok(&alg),
+                _ => panic!()
+            }
+        }
+    }
+
+    impl $algebra {
+        pub fn inner_algebra_unchkd(&self) -> &$algebra_rust {
+            match &**self.inner_unchkd() {
+                AlgebraRust::$algebra_rust(alg) => &alg,
+                _ => panic!()
+            }
+        }
+    }    
 
     impl $algebra {
         fn check_degree(&self, degree : i32) -> PyResult<()> {
-            let max_degree = self.inner_unchkd().max_degree();
+            let max_degree = self.inner_algebra_unchkd().max_degree();
             if degree > max_degree {
                 Err(exceptions::IndexError::py_err(
                     format!("Degree {} too large: maximum degree of algebra is {}", degree, max_degree - 1)
@@ -119,7 +156,7 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
         }
 
         fn check_dimension(&self, degree : i32, vec : &FpVector) -> PyResult<()> {
-            let what_the_dimension_should_be = self.inner_unchkd().dimension(degree, -1);
+            let what_the_dimension_should_be = self.inner_algebra_unchkd().dimension(degree, -1);
             let the_dimension = vec.get_dimension()?;
             if the_dimension == what_the_dimension_should_be {
                 Ok(())
@@ -134,7 +171,7 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
         }
 
         fn check_index(&self, degree : i32, idx : usize) -> PyResult<()> {
-            let dimension = self.inner_unchkd().dimension(degree, -1);
+            let dimension = self.inner_algebra_unchkd().dimension(degree, -1);
             if idx < dimension {
                 Ok(())
             } else {
@@ -152,23 +189,23 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
     #[pymethods]
     impl $algebra {
         pub fn algebra_type(&self) -> PyResult<String> {
-            Ok(self.inner()?.algebra_type().to_string())
+            Ok(self.inner_algebra()?.algebra_type().to_string())
         }
 
         #[getter]
         pub fn get_prime(&self) -> PyResult<u32> {
-            Ok(*self.inner()?.prime())
+            Ok(*self.inner_algebra()?.prime())
         }
 
         pub fn compute_basis(&self, max_degree : i32) -> PyResult<()> {
-            self.inner()?.compute_basis(max_degree);
+            self.inner_algebra()?.compute_basis(max_degree);
             Ok(())
         }
 
         #[args(excess=0)]
         pub fn dimension(&self, degree : i32, excess : i32) -> PyResult<usize> {
             self.check_not_null()?;
-            Ok(self.inner_unchkd().dimension(degree, excess))
+            Ok(self.inner_algebra_unchkd().dimension(degree, excess))
         }
 
         #[args(excess=0)]
@@ -181,7 +218,7 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
             self.check_degree(r_degree + s_degree)?;
             self.check_index(r_degree, r_index)?;
             self.check_index(s_degree, s_index)?;
-            self.inner_unchkd().multiply_basis_elements(result.inner_mut()?, coeff, r_degree, r_index, s_degree, s_index, excess);
+            self.inner_algebra_unchkd().multiply_basis_elements(result.inner_mut()?, coeff, r_degree, r_index, s_degree, s_index, excess);
             Ok(())
         }
 
@@ -196,7 +233,7 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
             self.check_degree(r_degree + s_degree)?;
             self.check_index(r_degree, r_index)?;
             self.check_dimension(s_degree, s)?;
-            self.inner_unchkd().multiply_basis_element_by_element(
+            self.inner_algebra_unchkd().multiply_basis_element_by_element(
                 result.inner_mut()?, coeff, 
                 r_degree, r_index,
                 s_degree, s.inner()?,
@@ -216,7 +253,7 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
             self.check_degree(r_degree + s_degree)?;
             self.check_dimension(r_degree, r)?;
             self.check_index(s_degree, s_index)?;
-            self.inner_unchkd().multiply_element_by_basis_element(
+            self.inner_algebra_unchkd().multiply_element_by_basis_element(
                 result.inner_mut()?, coeff, 
                 r_degree, r.inner()?,
                 s_degree, s_index,
@@ -236,7 +273,7 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
             self.check_degree(r_degree + s_degree)?;
             self.check_dimension(r_degree, r)?;
             self.check_dimension(s_degree, s)?;
-            self.inner_unchkd().multiply_element_by_element(
+            self.inner_algebra_unchkd().multiply_element_by_element(
                 result.inner_mut()?, coeff, 
                 r_degree, r.inner()?,
                 s_degree, s.inner()?,
@@ -248,14 +285,14 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
         pub fn default_filtration_one_products(&self) -> PyResult<PyObject> {
             let gil = Python::acquire_gil();
             let py = gil.python();
-            Ok(self.inner()?.default_filtration_one_products().into_py(py))
+            Ok(self.inner_algebra()?.default_filtration_one_products().into_py(py))
         }
 
         pub fn basis_element_to_string(&self, degree : i32, idx : usize) -> PyResult<String> {
             self.check_not_null()?;
             self.check_degree(degree)?;
             self.check_index(degree, idx)?;
-            Ok(self.inner_unchkd().basis_element_to_string(degree, idx))
+            Ok(self.inner_algebra_unchkd().basis_element_to_string(degree, idx))
         }
         
         pub fn element_to_string(&self, degree : i32, element : &FpVector) -> PyResult<String> {
@@ -263,7 +300,7 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
             self.check_degree(degree)?;
             element.check_not_null()?;
             self.check_dimension(degree, element)?;
-            Ok(self.inner_unchkd().element_to_string(degree, element.inner_unchkd()))
+            Ok(self.inner_algebra_unchkd().element_to_string(degree, element.inner_unchkd()))
         }
         
         // fn generator_to_string(&self, degree: i32, idx: usize) -> String
@@ -275,7 +312,7 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
             self.check_index(degree, idx)?;
             let gil = Python::acquire_gil();
             let py = gil.python();
-            Ok(self.inner_unchkd().decompose_basis_element(degree, idx).into_py(py))
+            Ok(self.inner_algebra_unchkd().decompose_basis_element(degree, idx).into_py(py))
         }
 
         pub fn relations_to_check(&self, degree : i32) -> PyResult<PyObject> {
@@ -283,7 +320,7 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
             self.check_degree(degree)?;            
             let gil = Python::acquire_gil();
             let py = gil.python();
-            Ok(self.inner_unchkd().relations_to_check(degree).into_py(py))
+            Ok(self.inner_algebra_unchkd().relations_to_check(degree).into_py(py))
         }
     }
 
@@ -298,6 +335,26 @@ macro_rules! algebra_bindings { ( $algebra:ty, $element : ident, $element_name :
     impl PyObjectProtocol for $element {
         fn __repr__(&self) -> PyResult<String> {
             self.algebra.element_to_string(self.degree, &self.element)
+        }
+    }
+
+    #[pyproto]
+    impl pyo3::PySequenceProtocol for $element {
+        fn __len__(self) -> PyResult<usize> {
+            self.element.get_dimension()
+        }
+
+        fn __getitem__(self, index : isize) -> PyResult<u32> {
+            self.element.check_not_null()?;
+            self.element.check_index(index)?;
+            Ok(self.element.inner_unchkd().entry(index as usize))
+        }
+
+        fn __setitem__(mut self, index : isize, value : i32) -> PyResult<()> {
+            self.element.check_not_null()?;
+            self.element.check_index(index)?;
+            self.element.inner_mut_unchkd().set_entry(index as usize, self.element.reduce_coefficient(value));
+            Ok(())
         }
     }
     
