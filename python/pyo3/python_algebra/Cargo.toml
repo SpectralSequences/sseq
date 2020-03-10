@@ -12,6 +12,7 @@ serde_json = "1.0.0"
 serde = { version = "1.0.0", features = ["derive"] }
 enum_dispatch = "0.2.0"
 nom = "5.0.0"
+parking_lot = "0.10"
 
 saveload = { path = "../../../libraries/saveload" }
 bivec = { path = "../../../libraries/bivec" }

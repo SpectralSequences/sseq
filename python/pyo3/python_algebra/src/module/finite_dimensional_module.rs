@@ -21,6 +21,8 @@ use python_utils::{
     // get_from_kwargs
 };
 
+use crate::module_methods;
+
 use bivec::BiVec;
 use algebra::Algebra as AlgebraT;
 use algebra::module::{FDModule as FDModuleRust, Module, BoundedModule};
@@ -169,37 +171,13 @@ impl FDModule {
         Ok(json.to_string())
     }
 
-    fn dimension(&self, degree: i32) -> PyResult<usize> {
-        Ok(self.inner()?.dimension(degree))
-    }
-
-    #[getter]
-    fn get_min_degree(&self) -> PyResult<i32> {
-        Ok(self.inner()?.min_degree())
-    }
-
     #[getter]
     fn get_max_degree(&self) -> PyResult<i32> {
         Ok(self.inner()?.max_degree())
     }
-
-    #[getter]
-    fn get_algebra(&self) -> PyResult<PyObject> {
-        Ok(algebra_into_py_object(self.inner()?.algebra()))
-    }
-
-    fn compute_basis(&self, degree: i32) -> PyResult<()>  {
-        Ok(self.inner()?.compute_basis(degree))
-    }
-
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> PyResult<String> {
-        Ok(self.inner()?.basis_element_to_string(degree, idx))
-    }
-
-    fn is_unit(&self) -> PyResult<bool> {
-        Ok(self.inner()?.is_unit())
-    }
 }
+
+module_methods!(FDModule);
 
 impl FDModule {
     fn check_degree(&self, degree : i32) -> PyResult<()> {
