@@ -9,7 +9,7 @@ use bivec::BiVec;
 use fp::vector::{FpVector, FpVectorT};
 use once::OnceBiVec;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct OperationGeneratorPair {
     pub operation_degree: i32,
     pub operation_index: usize,
@@ -17,6 +17,7 @@ pub struct OperationGeneratorPair {
     pub generator_index: usize,
 }
 
+#[derive(Clone)]
 pub struct FreeModuleTableEntry {
     pub num_gens: usize,
     pub basis_element_to_opgen: Vec<OperationGeneratorPair>,
