@@ -349,7 +349,7 @@ macro_rules! rc_wrapper_type {
         impl $outer {
             // type Inner = $inner; // ==> "associated types are not yet supported in inherent imples" =(
     
-            pub fn wrap<T>(inner : std::sync::Arc<$inner>) -> Self {
+            pub fn wrap(inner : std::sync::Arc<$inner>) -> Self {
                 Self {
                     inner : Some(inner),
                 }

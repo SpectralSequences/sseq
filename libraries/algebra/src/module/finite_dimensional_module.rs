@@ -189,6 +189,7 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
     fn borrow_output(&self) -> bool {
         true
     }
+
     fn act_on_basis_borrow(
         &self,
         op_degree: i32,
@@ -541,7 +542,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
             take(1usize),
         ));
 
-        let (entry, ((op_deg, op_idx), gen, _)) = lhs(entry_).unwrap();
+        let (entry, ((op_deg, op_idx), gen, _)) = lhs(entry_).map_err(|_err| GenericError(format!("Invalid action: {}", entry_)))?;
 
         let (input_deg, input_idx) = gen_to_idx[gen.trim()];
         let row = self.action_mut(op_deg, op_idx, input_deg, input_idx);

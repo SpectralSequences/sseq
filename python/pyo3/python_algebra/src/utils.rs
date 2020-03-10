@@ -148,7 +148,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             let max_degree = self.inner_algebra_unchkd().max_degree();
             if degree > max_degree {
                 Err(exceptions::IndexError::py_err(
-                    format!("Degree {} too large: maximum degree of algebra is {}", degree, max_degree - 1)
+                    format!("Degree {} too large: maximum degree of algebra is {}", degree, max_degree)
                 ))
             } else {
                 Ok(())
@@ -205,6 +205,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
         #[args(excess=0)]
         pub fn dimension(&self, degree : i32, excess : i32) -> PyResult<usize> {
             self.check_not_null()?;
+            self.check_degree(degree)?;
             Ok(self.inner_algebra_unchkd().dimension(degree, excess))
         }
 
