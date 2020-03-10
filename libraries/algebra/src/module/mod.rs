@@ -20,7 +20,7 @@ pub use finite_dimensional_module::FiniteDimensionalModule as FDModule;
 pub use finite_module::FiniteModule;
 pub use finitely_presented_module::FinitelyPresentedModule as FPModule;
 pub use free_module::FreeModule;
-pub use free_module::FreeModuleTableEntry;
+pub use free_module::{FreeModuleTableEntry, OperationGeneratorPair};
 pub use hom_module::HomModule;
 pub use quotient_module::QuotientModule;
 pub use rpn::RealProjectiveSpace;
