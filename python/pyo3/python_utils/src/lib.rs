@@ -260,7 +260,7 @@ macro_rules! wrapper_type {
                 self.check_not_null()?;
                 self.check_owned()?;
                 // Replace owned so other references are marked dead.
-                self.owned = Some(std::sync::Arc::new(())); 
+                self.owned = None; 
                 let ptr = self.inner;
                 self.inner = std::ptr::null_mut();
                 Ok(unsafe { Box::from_raw(ptr) })

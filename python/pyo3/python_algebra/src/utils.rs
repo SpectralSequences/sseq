@@ -147,9 +147,10 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
         fn check_degree(&self, degree : i32) -> PyResult<()> {
             let max_degree = self.inner_algebra_unchkd().max_degree();
             if degree > max_degree {
-                Err(exceptions::IndexError::py_err(
-                    format!("Degree {} too large: maximum degree of algebra is {}", degree, max_degree)
-                ))
+                Err(exceptions::IndexError::py_err(format!(
+                    "Degree {} too large: maximum degree of algebra is {}. Run algebra.compute_basis({}) first.", 
+                    degree, max_degree, degree
+                )))
             } else {
                 Ok(())
             }

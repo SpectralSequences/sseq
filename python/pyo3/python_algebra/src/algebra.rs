@@ -48,7 +48,7 @@ pub fn algebra_from_py_object(algebra : PyObject) -> PyResult<Arc<AlgebraRust>> 
 }
 
 macro_rules! because_enum_dispatch_doesnt_work_for_me {
-    ($self_ : expr, $method : ident, $( $args : ident ),*) => {
+    ($method : ident, $self_ : expr, $( $args : ident ),*) => {
         match $self_ {
             AlgebraRust::AdemAlgebraRust(alg) => alg.$method($($args),*),
             AlgebraRust::MilnorAlgebraRust(alg) => alg.$method($($args),*),
@@ -59,23 +59,23 @@ macro_rules! because_enum_dispatch_doesnt_work_for_me {
 
 impl Algebra for AlgebraRust {
     fn algebra_type(&self) -> &str {
-        because_enum_dispatch_doesnt_work_for_me!(self, algebra_type,)
+        because_enum_dispatch_doesnt_work_for_me!(algebra_type, self,)
     }
 
     fn prime(&self) -> fp::prime::ValidPrime {
-        because_enum_dispatch_doesnt_work_for_me!(self, prime,)
+        because_enum_dispatch_doesnt_work_for_me!(prime, self, )
     }
 
     fn compute_basis(&self, degree : i32) {
-        because_enum_dispatch_doesnt_work_for_me!(self, compute_basis, degree)
+        because_enum_dispatch_doesnt_work_for_me!(compute_basis, self, degree)
     }
 
     fn max_degree(&self) -> i32 {
-        because_enum_dispatch_doesnt_work_for_me!(self, max_degree, )
+        because_enum_dispatch_doesnt_work_for_me!(max_degree, self, )
     }
 
     fn dimension(&self, degree : i32, excess : i32) -> usize {
-        because_enum_dispatch_doesnt_work_for_me!(self, dimension, degree, excess)
+        because_enum_dispatch_doesnt_work_for_me!(dimension, self, degree, excess)
     }
 
     fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, 
@@ -83,36 +83,36 @@ impl Algebra for AlgebraRust {
         s_deg : i32, s_idx : usize,
         excess : i32
     ){
-        because_enum_dispatch_doesnt_work_for_me!(self, multiply_basis_elements, result, coeff, r_deg, r_idx, s_deg, s_idx, excess)
+        because_enum_dispatch_doesnt_work_for_me!(multiply_basis_elements, self, result, coeff, r_deg, r_idx, s_deg, s_idx, excess)
     }
 
     fn json_to_basis(&self, json : Value) -> (i32, usize) {
-        because_enum_dispatch_doesnt_work_for_me!(self, json_to_basis, json)
+        because_enum_dispatch_doesnt_work_for_me!(json_to_basis, self, json)
     }
 
     fn json_from_basis(&self, degree : i32, idx : usize) -> Value {
-        because_enum_dispatch_doesnt_work_for_me!(self, json_from_basis, degree, idx)
+        because_enum_dispatch_doesnt_work_for_me!(json_from_basis, self, degree, idx)
     }
 
     fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
-        because_enum_dispatch_doesnt_work_for_me!(self, basis_element_to_string, degree, idx)
+        because_enum_dispatch_doesnt_work_for_me!(basis_element_to_string, self, degree, idx)
     }
 
     fn generators(&self, degree : i32) -> Vec<usize> { 
-        because_enum_dispatch_doesnt_work_for_me!(self, generators, degree)
+        because_enum_dispatch_doesnt_work_for_me!(generators, self, degree)
     }
 
     fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> { 
-        because_enum_dispatch_doesnt_work_for_me!(self, string_to_generator, input)
+        because_enum_dispatch_doesnt_work_for_me!(string_to_generator, self, input)
     }
 
     fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
-        because_enum_dispatch_doesnt_work_for_me!(self, decompose_basis_element, degree, idx)
+        because_enum_dispatch_doesnt_work_for_me!(decompose_basis_element, self, degree, idx)
     }
 
     
     fn relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> { 
-        because_enum_dispatch_doesnt_work_for_me!(self, relations_to_check, degree)
+        because_enum_dispatch_doesnt_work_for_me!(relations_to_check, self, degree)
     }
 
     
