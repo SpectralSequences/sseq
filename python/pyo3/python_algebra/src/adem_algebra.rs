@@ -77,7 +77,7 @@ impl AdemBasisElement {
 
 crate::algebra_bindings!(AdemAlgebra, AdemAlgebraRust, AdemElement, "AdemElement");
 
-py_algebra_repr!(AdemAlgebra, "FreedAdemAlgebra", {
+py_repr!(AdemAlgebra, "FreedAdemAlgebra", {
     let p = *inner.prime();
     let mut generic_str = "";    
     if inner.generic != (p!=2) {
@@ -113,31 +113,31 @@ impl AdemAlgebra {
             ));
         }
         let algebra = AdemAlgebraRust::new(new_valid_prime(p)?, generic, unstable);
-        Ok(Self::box_and_wrap(AlgebraRust::AdemAlgebraRust(algebra)))
+        Ok(Self::box_and_wrap(algebra))
     }
 
     #[getter]
     pub fn get_generic(&self) -> PyResult<bool> {
-        Ok(self.inner_algebra()?.generic)
+        Ok(self.inner()?.generic)
     }
 
     #[getter]
     pub fn get_unstable(&self) -> PyResult<bool> {
-        Ok(self.inner_algebra()?.unstable)
+        Ok(self.inner()?.unstable)
     }
 
     pub fn basis_element_from_index(&self, degree : i32, idx : usize) -> PyResult<AdemBasisElement> {
         self.check_not_null()?;
         self.check_degree(degree)?;
         self.check_index(degree, idx)?;
-        Ok(AdemBasisElement::wrap(self.inner_algebra_unchkd().basis_element_from_index(degree, idx), self.owner()))
+        Ok(AdemBasisElement::wrap(self.inner_unchkd().basis_element_from_index(degree, idx), self.owner()))
     }
 
     pub fn basis_element_to_index(&self, elt: &AdemBasisElement) -> PyResult<usize> {
         let abe_inner = elt.inner()?;
         self.check_not_null()?;
         self.check_degree(abe_inner.degree)?;
-        self.inner_algebra_unchkd().try_basis_element_to_index(abe_inner)
+        self.inner_unchkd().try_basis_element_to_index(abe_inner)
             .ok_or_else(|| 
                 exceptions::ValueError::py_err(format!(
                     "AdemBasisElement({}) is not a valid basis element.", 
@@ -155,7 +155,7 @@ impl AdemAlgebra {
         // TODO: this is insufficient to prevent a panic: we would need validity checking on monomial.
         // What if it is lying about its degree?
         // Should add check_reduced_monomial() and check_not_necessarily_reduced_monomial()?
-        self.inner_algebra_unchkd().make_mono_admissible(result.inner_mut()?, coeff, &mut monomial_inner, excess);
+        self.inner_unchkd().make_mono_admissible(result.inner_mut()?, coeff, &mut monomial_inner, excess);
         Ok(())
     }
 }

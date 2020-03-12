@@ -38,7 +38,7 @@ use python_utils::{
     // get_from_kwargs
 };
 
-py_algebra_repr!(PythonAlgebra, "FreedPythonAlgebra", {
+py_repr!(PythonAlgebra, "FreedPythonAlgebra", {
     Ok(format!(
         "PythonAlgebra(p={})",
         *inner.prime
@@ -64,7 +64,7 @@ impl PythonAlgebra {
             multiply_basis_elements,
             basis_element_to_string
         };
-        Ok(Self::box_and_wrap(AlgebraRust::PythonAlgebraRust(algebra)))
+        Ok(Self::box_and_wrap(algebra))
     }
 }
 

@@ -1,110 +1,7 @@
 #![macro_use]
 
-use pyo3::prelude::*;
-use pyo3::{PySequenceProtocol, PyObjectProtocol};
-use pyo3::exceptions;
-
-// use fp::vector::FpVectorT;
-
-use python_utils;
-use python_utils::immutable_wrapper_type;
-
-immutable_wrapper_type!(PVector, Vec<u32>);
-
-
-python_utils::py_repr!(PVector, "FreedPVector", {
-    Ok(format!(
-        "PVector({:?})",
-        inner
-    ))
-});
-
-
-pub fn vecu32_from_py_object(obj : PyObject, argument_name : &str) -> PyResult<Vec<u32>> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    obj.extract(py).or_else(|_err| {
-        let result : &PVector = obj.extract(py)?;
-        Ok(result.inner()?.clone())
-    }).map_err(|_err : PyErr| {
-        exceptions::ValueError::py_err(format!(
-            "Argument \"{}\" expected to be either a list of integers or a PVector.",
-            argument_name
-        ))
-    })
-}
-
-pub fn bitmask_u32_from_vec(vec : &Vec<u32>) -> u32 {
-    let mut result = 0;
-    // TODO: make sure we get ordering correct here
-    for (idx, b) in vec.iter().enumerate() {
-        result |= if *b != 0 { 1 << idx } else { 0 };
-    }
-    result
-}
-
-pub fn bitmask_u32_to_vec(mut bitmask : u32) -> Vec<u32> {
-    let mut result = Vec::new();
-    // TODO: make sure we get ordering correct here
-    while bitmask != 0 {
-        result.push(bitmask & 1);
-        bitmask >>= 1;
-    }
-    result
-}
-
-
-pub fn bitmask_u32_from_py_object(obj : PyObject, argument_name : &str) -> PyResult<u32> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    obj.extract::<u32>(py).or_else(|_err| {
-        Ok(bitmask_u32_from_vec(&obj.extract(py)?))
-    }).map_err(|_err : PyErr| {
-        exceptions::ValueError::py_err(format!(
-            "Argument \"{}\" expected to be either a single integer or a list of integers.",
-            argument_name
-        ))
-    })
-}
-
-
-#[pymethods]
-impl PVector {
-    #[new]
-    fn new(l : PyObject) -> PyResult<Self> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let vec : Vec<u32> = l.extract(py)?;
-        Ok(Self::box_and_wrap(vec))
-    }
-
-    fn to_list(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(self.inner()?.clone().into_py(py))
-    }
-
-    fn check_index(&self, index : isize) -> PyResult<()> {
-        python_utils::check_index(self.inner_unchkd().len(), index, "length", "PVector")
-    }
-}
-
-#[pyproto]
-impl PySequenceProtocol for PVector {
-    fn __len__(self) -> PyResult<usize> {
-        Ok(self.inner()?.len())
-    }
-
-    fn __getitem__(self, index : isize) -> PyResult<u32> {
-        self.check_not_null()?;
-        self.check_index(index)?;
-        Ok(self.inner_unchkd()[index as usize])
-    }
-}
-
-
 #[macro_export]
-macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element : ident, $element_name : expr ) => {
+macro_rules! module_bindings { ( $algebra:ident, $algebra_rust:ident, $element : ident, $element_name : expr ) => {
 
 
     #[pyclass(dict)]
@@ -115,6 +12,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
     }
 
     impl $algebra {
+        // type Inner = $inner; // ==> "associated types are not yet supported in inherent imples" =(
 
         #![allow(dead_code)]
         pub fn inner_rc(&self) -> PyResult<&std::sync::Arc<AlgebraRust>> {
@@ -123,19 +21,19 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             )
         }
     
-        pub fn inner_rc_unchkd(&self) -> &std::sync::Arc<AlgebraRust> {
-            self.inner.as_ref().unwrap()
+        pub fn inner_rc_unchkd(&self) -> &std::sync::Arc<$inner> {
+            self.inner().unwrap()
         }
 
         pub fn inner(&self) -> PyResult<&$algebra_rust> {
-            match &**self.inner_rc()? {
+            match &**self.inner()? {
                 AlgebraRust::$algebra_rust(alg) => Ok(&alg),
                 _ => panic!()
             }
         }
 
         pub fn inner_unchkd(&self) -> &$algebra_rust {
-            match &**self.inner_rc_unchkd() {
+            match &**self.inner_unchkd() {
                 AlgebraRust::$algebra_rust(alg) => &alg,
                 _ => panic!()
             }
@@ -185,6 +83,8 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
     }
 
     impl $algebra {
+        // type Inner = $inner; // ==> "associated types are not yet supported in inherent imples" =(
+
         pub fn wrap(inner : std::sync::Arc<AlgebraRust>) -> Self {
             Self {
                 inner : Some(inner),

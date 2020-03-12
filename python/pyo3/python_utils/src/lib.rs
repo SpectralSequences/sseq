@@ -300,7 +300,7 @@ macro_rules! rc_wrapper_type {
             }
         
             pub fn inner_unchkd(&self) -> &std::sync::Arc<$inner> {
-                self.inner().unwrap()
+                self.inner.as_ref().unwrap()
             }
         
             pub fn box_and_wrap(inner : $inner) -> Self {

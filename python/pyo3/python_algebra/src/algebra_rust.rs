@@ -37,9 +37,9 @@ impl AlgebraRust {
     pub fn algebra_from_py_object(algebra : PyObject) -> PyResult<Arc<AlgebraRust>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        algebra.extract::<&AdemAlgebra>(py).and_then(|a| a.inner())
-                .or_else(|_err : PyErr| Ok(algebra.extract::<&MilnorAlgebra>(py)?.inner()?))
-                .or_else(|_err : PyErr| Ok(algebra.extract::<&PythonAlgebra>(py)?.inner()?))
+        algebra.extract::<&AdemAlgebra>(py).and_then(|a| a.inner_rc())
+                .or_else(|_err : PyErr| Ok(algebra.extract::<&MilnorAlgebra>(py)?.inner_rc()?))
+                .or_else(|_err : PyErr| Ok(algebra.extract::<&PythonAlgebra>(py)?.inner_rc()?))
                 .map( |a| a.clone())
                 .map_err(|_err : PyErr| {
                     exceptions::ValueError::py_err(format!(
