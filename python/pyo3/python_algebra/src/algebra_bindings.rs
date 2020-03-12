@@ -171,7 +171,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             }
         }
 
-        fn check_index(&self, degree : i32, idx : usize) -> PyResult<()> {
+        pub fn check_index(&self, degree : i32, idx : usize) -> PyResult<()> {
             let dimension = self.inner_algebra_unchkd().dimension(degree, -1);
             if idx < dimension {
                 Ok(())
@@ -220,6 +220,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             self.check_degree(r_degree + s_degree)?;
             self.check_index(r_degree, r_index)?;
             self.check_index(s_degree, s_index)?;
+            self.check_dimension(r_degree + s_degree, result)?;
             self.inner_algebra_unchkd().multiply_basis_elements(result.inner_mut()?, coeff, r_degree, r_index, s_degree, s_index, excess);
             Ok(())
         }
@@ -235,6 +236,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             self.check_degree(r_degree + s_degree)?;
             self.check_index(r_degree, r_index)?;
             self.check_dimension(s_degree, s)?;
+            self.check_dimension(r_degree + s_degree, result)?;
             self.inner_algebra_unchkd().multiply_basis_element_by_element(
                 result.inner_mut()?, coeff, 
                 r_degree, r_index,
@@ -255,6 +257,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             self.check_degree(r_degree + s_degree)?;
             self.check_dimension(r_degree, r)?;
             self.check_index(s_degree, s_index)?;
+            self.check_dimension(r_degree + s_degree, result)?;
             self.inner_algebra_unchkd().multiply_element_by_basis_element(
                 result.inner_mut()?, coeff, 
                 r_degree, r.inner()?,
@@ -275,6 +278,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             self.check_degree(r_degree + s_degree)?;
             self.check_dimension(r_degree, r)?;
             self.check_dimension(s_degree, s)?;
+            self.check_dimension(r_degree + s_degree, result)?;
             self.inner_algebra_unchkd().multiply_element_by_element(
                 result.inner_mut()?, coeff, 
                 r_degree, r.inner()?,

@@ -12,9 +12,11 @@ use python_utils::{
     py_repr, 
     rc_wrapper_type, 
     wrapper_type, 
-    // immutable_wrapper_type,
+    immutable_wrapper_type,
     // get_from_kwargs
 };
+
+use algebra::Algebra as AlgebraT;
 
 use algebra::module::{
     Module, 
@@ -24,21 +26,29 @@ use algebra::module::{
 };
 
 use python_fp::vector::FpVector;
-use crate::algebra::{AlgebraRust, algebra_from_py_object, algebra_into_py_object};
+use crate::algebra_rust::AlgebraRust;
 use crate::module_methods;
 
 // wrapper_type!(FreeModuleLock, MutexGuard<()>); // causes Lifetime specifier problem
+immutable_wrapper_type!(OperationGeneratorPair, OperationGeneratorPairRust);
 wrapper_type!(FreeModuleTableEntry, FreeModuleTableEntryRust);
 
 rc_wrapper_type!(FreeModule, FreeModuleRust<AlgebraRust>);
 
 module_methods!(FreeModule);
 
+py_repr!(FreeModule, "FreedFreeModule", {
+    Ok(format!(
+        "FreeModule(p={})",
+        inner.prime()
+    ))
+});
+
 #[pymethods]
 impl FreeModule {
     #[new]
     pub fn new(algebra: PyObject, name: String, min_degree: i32) -> PyResult<Self> {
-        Ok(Self::box_and_wrap(FreeModuleRust::new(algebra_from_py_object(algebra)?, name, min_degree)))
+        Ok(Self::box_and_wrap(FreeModuleRust::new(AlgebraRust::algebra_from_py_object(algebra)?, name, min_degree)))
     }
 
     // pub fn lock(&self) -> FreeModuleLock {
@@ -73,7 +83,7 @@ impl FreeModule {
     }
 
     pub fn generator_offset(&self, degree: i32, gen_deg: i32, gen_idx: usize) -> PyResult<usize> {
-        self.inner()?.generator_offset(degree, gen_deg, gen_idx)
+        Ok(self.inner()?.generator_offset(degree, gen_deg, gen_idx))
     }
 
     pub fn operation_generator_to_index(
@@ -83,11 +93,29 @@ impl FreeModule {
         gen_deg: i32,
         gen_idx: usize,
     ) -> PyResult<usize> {
-        self.inner()?.operation_generator_to_index(op_deg, op_idx, gen_deg, gen_idx)
+        Ok(self.inner()?.operation_generator_to_index(op_deg, op_idx, gen_deg, gen_idx))
     }
 
-    pub fn operation_generator_pair_to_idx(&self, op_gen: &OperationGeneratorPair) -> usize {
-        self.inner()?.operation_generator_pair_to_idx(op_gen.inner()?);
+    pub fn operation_generator_pair_to_idx(&self, op_gen: &OperationGeneratorPair) -> PyResult<usize> {
+        Ok(self.inner()?.operation_generator_pair_to_idx(op_gen.inner()?))
+    }
+
+    pub fn index_to_op_gen(&self, degree: i32, index: usize) -> PyResult<OperationGeneratorPair> {
+        Ok(OperationGeneratorPair::wrap(self.inner()?.index_to_op_gen(degree, index), self.owner()))
+    }
+
+    pub fn element_to_json(&self, degree: i32, elt: &FpVector) -> PyResult<String> {
+        Ok(self.inner()?.element_to_json(degree, elt.inner()?).to_string())
+    }
+
+    pub fn add_generators_immediate(
+        &self,
+        degree: i32,
+        num_gens: usize,
+        gen_names: Option<Vec<String>>,
+    ) -> PyResult<()> {
+        self.inner()?.add_generators_immediate(degree, num_gens, gen_names);
+        Ok(())
     }
     
 }

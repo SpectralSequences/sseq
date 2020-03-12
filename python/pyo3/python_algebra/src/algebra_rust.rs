@@ -23,28 +23,42 @@ pub enum AlgebraRust {
     PythonAlgebraRust
 }
 
-pub fn algebra_into_py_object(algebra : Arc<AlgebraRust>) -> PyObject {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    match *algebra {
-        AlgebraRust::AdemAlgebraRust(_) => AdemAlgebra::wrap(algebra).into_py(py),
-        AlgebraRust::MilnorAlgebraRust(_) => MilnorAlgebra::wrap(algebra).into_py(py),
-        AlgebraRust::PythonAlgebraRust(_) => PythonAlgebra::wrap(algebra).into_py(py),
+impl AlgebraRust {
+    pub fn algebra_into_py_object(algebra : Arc<AlgebraRust>) -> PyObject {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        match *algebra {
+            AlgebraRust::AdemAlgebraRust(_) => AdemAlgebra::wrap(algebra).into_py(py),
+            AlgebraRust::MilnorAlgebraRust(_) => MilnorAlgebra::wrap(algebra).into_py(py),
+            AlgebraRust::PythonAlgebraRust(_) => PythonAlgebra::wrap(algebra).into_py(py),
+        }
+    }
+    
+    pub fn algebra_from_py_object(algebra : PyObject) -> PyResult<Arc<AlgebraRust>> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        algebra.extract::<&AdemAlgebra>(py).and_then(|a| a.inner())
+                .or_else(|_err : PyErr| Ok(algebra.extract::<&MilnorAlgebra>(py)?.inner()?))
+                .or_else(|_err : PyErr| Ok(algebra.extract::<&PythonAlgebra>(py)?.inner()?))
+                .map( |a| a.clone())
+                .map_err(|_err : PyErr| {
+                    exceptions::ValueError::py_err(format!(
+                        "Invalid algebra!"
+                    ))
+                })
     }
 }
 
-pub fn algebra_from_py_object(algebra : PyObject) -> PyResult<Arc<AlgebraRust>> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    algebra.extract::<&AdemAlgebra>(py).and_then(|a| a.inner())
-            .or_else(|_err : PyErr| Ok(algebra.extract::<&MilnorAlgebra>(py)?.inner()?))
-            .or_else(|_err : PyErr| Ok(algebra.extract::<&PythonAlgebra>(py)?.inner()?))
-            .map( |a| a.clone())
-            .map_err(|_err : PyErr| {
-                exceptions::ValueError::py_err(format!(
-                    "Invalid algebra!"
-                ))
-            })
+
+
+macro_rules! because_enum_dispatch_doesnt_work_for_me {
+    ($method : ident, $self_ : expr, $( $args : ident ),*) => {
+        match $self_ {
+            AlgebraRust::AdemAlgebraRust(alg) => alg.$method($($args),*),
+            AlgebraRust::MilnorAlgebraRust(alg) => alg.$method($($args),*),
+            AlgebraRust::PythonAlgebraRust(alg) => alg.$method($($args),*)
+        }
+    };
 }
 
 macro_rules! because_enum_dispatch_doesnt_work_for_me {

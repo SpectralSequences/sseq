@@ -28,7 +28,7 @@ use algebra::Algebra as AlgebraT;
 use algebra::module::{FDModule as FDModuleRust, Module, BoundedModule};
 
 use python_fp::vector::FpVector;
-use crate::algebra::{AlgebraRust, algebra_into_py_object, algebra_from_py_object};
+use crate::algebra_rust::AlgebraRust;
 
 
 rc_wrapper_type!(FDModuleFrozen, FDModuleRust<AlgebraRust>);
@@ -140,7 +140,7 @@ impl FDModule {
     fn new(algebra: PyObject, name: String, min_degree : i32) -> PyResult<Self> {
         let graded_dimension = BiVec::new(min_degree);
         Ok(Self::mutable_from_rust(
-            FDModuleRust::new(algebra_from_py_object(algebra)?, name, graded_dimension)
+            FDModuleRust::new(AlgebraRust::algebra_from_py_object(algebra)?, name, graded_dimension)
         ))
     }
 
@@ -177,21 +177,13 @@ impl FDModule {
     }
 }
 
-module_methods!(FDModule);
-
 impl FDModule {
-    fn check_degree(&self, degree : i32) -> PyResult<()> {
-        let max_degree = self.inner()?.algebra().max_degree();
-        if degree > max_degree {
-            Err(exceptions::IndexError::py_err(format!(
-                "Degree {} too large: maximum degree of algebra is {}. Run algebra.compute_basis({}) first.", 
-                degree, max_degree, degree
-            )))
-        } else {
-            Ok(())
-        }
+    pub fn max_computed_degree(&self) -> PyResult<i32> {
+        Ok(i32::max_value())
     }
 }
+
+module_methods!(FDModule);
 
 #[pymethods]
 impl FDModule {

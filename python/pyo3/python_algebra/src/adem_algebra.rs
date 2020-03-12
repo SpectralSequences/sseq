@@ -22,8 +22,8 @@ use algebra::AdemAlgebra as AdemAlgebraRust;
 use algebra::adem_algebra::AdemBasisElement as AdemBasisElementRust;
 use algebra::Algebra;
 
-use crate::utils::{ self, PVector };
-use crate::algebra::AlgebraRust;
+use crate::algebra_bindings::{ self, PVector };
+use crate::algebra_rust::AlgebraRust;
 
 immutable_wrapper_type!(AdemBasisElement, AdemBasisElementRust);
 
@@ -38,8 +38,8 @@ py_repr!(AdemBasisElement, "FreedAdemBasisElement", {
 impl AdemBasisElement {
     #[new]
     fn new(degree : i32, excess : i32, bocksteins : PyObject, ps : PyObject) -> PyResult<Self> {
-        let bs = utils::bitmask_u32_from_py_object(bocksteins, "bocksteins")?;
-        let ps_vec = utils::vecu32_from_py_object(ps, "ps")?;
+        let bs = algebra_bindings::bitmask_u32_from_py_object(bocksteins, "bocksteins")?;
+        let ps_vec = algebra_bindings::vecu32_from_py_object(ps, "ps")?;
 
         Ok(Self::box_and_wrap(AdemBasisElementRust {
             degree,

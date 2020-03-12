@@ -24,8 +24,8 @@ use algebra::milnor_algebra::MilnorProfile as MilnorProfileRust;
 use algebra::Algebra;
 
 
-use crate::utils::{ self, PVector };
-use crate::algebra::AlgebraRust;
+use crate::algebra_bindings::{ self, PVector };
+use crate::algebra_rust::AlgebraRust;
 
 immutable_wrapper_type!(MilnorBasisElement, MilnorBasisElementRust);
 
@@ -41,8 +41,8 @@ py_repr!(MilnorBasisElement, "FreedMilnorBasisElement", {
 impl MilnorBasisElement {
     #[new]
     fn new(degree : i32, qs : PyObject, ps : PyObject) -> PyResult<Self> {
-        let q_part = utils::bitmask_u32_from_py_object(qs, "qs")?;
-        let p_part = utils::vecu32_from_py_object(ps, "ps")?;
+        let q_part = algebra_bindings::bitmask_u32_from_py_object(qs, "qs")?;
+        let p_part = algebra_bindings::vecu32_from_py_object(ps, "ps")?;
 
         Ok(Self::box_and_wrap(MilnorBasisElementRust {
             degree,
@@ -58,7 +58,7 @@ impl MilnorBasisElement {
 
     #[getter]
     pub fn get_qpart(&self) -> PyResult<PVector> {
-        Ok(PVector::box_and_wrap(utils::bitmask_u32_to_vec(self.inner()?.q_part)))
+        Ok(PVector::box_and_wrap(algebra_bindings::bitmask_u32_to_vec(self.inner()?.q_part)))
     }
 
     #[getter]
@@ -82,8 +82,8 @@ py_repr!(MilnorProfile, "FreedMilnorProfile", {
 impl MilnorProfile {
     #[new]
     fn new(truncated : bool, qs : PyObject, ps : PyObject) -> PyResult<Self> {
-        let q_part = utils::bitmask_u32_from_py_object(qs, "qs")?;
-        let p_part = utils::vecu32_from_py_object(ps, "ps")?;
+        let q_part = algebra_bindings::bitmask_u32_from_py_object(qs, "qs")?;
+        let p_part = algebra_bindings::vecu32_from_py_object(ps, "ps")?;
         Ok(Self::box_and_wrap(MilnorProfileRust {
             truncated,
             q_part,
@@ -102,7 +102,7 @@ impl MilnorProfile {
         } 
         let mut q_part_str = "".to_string(); 
         if inner.q_part != !0 {
-            q_part_str = format!(", q_part={:?}", utils::bitmask_u32_to_vec(inner.q_part))
+            q_part_str = format!(", q_part={:?}", algebra_bindings::bitmask_u32_to_vec(inner.q_part))
         }
         let truncated_str = 
             if inner.truncated {
@@ -179,7 +179,7 @@ pub fn get_profile_from_kwargs(p : u32, kwargs : Option<&PyDict>) -> PyResult<Mi
             ));
         }
         p_part = profile[0].clone();
-        q_part = utils::bitmask_u32_from_vec(&profile[1]);
+        q_part = algebra_bindings::bitmask_u32_from_vec(&profile[1]);
     } else {
         p_part = vec![];
     }
