@@ -6,7 +6,7 @@ use pyo3::exceptions;
 use fp::matrix::{ Matrix as MatrixRust, Subspace as SubspaceRust, QuasiInverse as QuasiInverseRust };
 
 use python_utils as util;
-use python_utils::{ py_repr, wrapper_type, immutable_wrapper_type };
+use python_utils::{ py_repr, wrapper_type};
 use crate::prime::new_valid_prime;
 use crate::vector::FpVector;
 
@@ -169,7 +169,7 @@ impl PySequenceProtocol for Matrix {
 }
 
 
-immutable_wrapper_type!(Subspace, SubspaceRust);
+wrapper_type!(Subspace, SubspaceRust);
 
 
 py_repr!(Subspace, "FreedSubspace", {
@@ -227,39 +227,39 @@ impl Subspace {
         Err(exceptions::NotImplementedError::py_err("basis not yet implemented."))
     }
 
-    // pub fn add_vector(&mut self, row : &FpVector) -> PyResult<()> { 
-    //     self.inner_mut()?.add_vector(row.inner()?);
-    //     Ok(())
-    // }
+    pub fn add_vector(&mut self, row : &FpVector) -> PyResult<()> { 
+        self.inner_mut()?.add_vector(row.inner()?);
+        Ok(())
+    }
 
-    // // TODO: Another place where we could wrap Vec<usize>...
-    // pub fn add_basis_elements(&mut self, _rows : PyObject) -> PyResult<()> { 
-    //     return Err(exceptions::NotImplementedError::py_err(""));
-    //     // let gil = Python::acquire_gil();
-    //     // let py = gil.python();
-    //     // let rows : Vec<usize> = rows.extract(py)?;
-    //     // drop(gil);
-    //     // // Why it no work?
-    //     // self.inner_mut()?.add_basis_elements(rows.iter());
-    //     // Ok(())
-    // }
+    // TODO: Another place where we could wrap Vec<usize>...
+    pub fn add_basis_elements(&mut self, _rows : PyObject) -> PyResult<()> { 
+        return Err(exceptions::NotImplementedError::py_err(""));
+        // let gil = Python::acquire_gil();
+        // let py = gil.python();
+        // let rows : Vec<usize> = rows.extract(py)?;
+        // drop(gil);
+        // // Why it no work?
+        // self.inner_mut()?.add_basis_elements(rows.iter());
+        // Ok(())
+    }
 
 
-    // pub fn row_reduce(&mut self) -> PyResult<()> {  
-    //     self.inner_mut()?.row_reduce();
-    //     Ok(())
-    // }    
+    pub fn row_reduce(&mut self) -> PyResult<()> {  
+        self.inner_mut()?.row_reduce();
+        Ok(())
+    }    
 
-    // pub fn set_to_zero(&mut self) -> PyResult<()> {
-    //     Ok(self.inner_mut()?.set_to_zero())
-    // }
+    pub fn set_to_zero(&mut self) -> PyResult<()> {
+        Ok(self.inner_mut()?.set_to_zero())
+    }
 
-    // pub fn set_to_entire(&mut self) -> PyResult<()> {
-    //     Ok(self.inner_mut()?.set_to_entire())
-    // }
+    pub fn set_to_entire(&mut self) -> PyResult<()> {
+        Ok(self.inner_mut()?.set_to_entire())
+    }
 }
 
-immutable_wrapper_type!(QuasiInverse, QuasiInverseRust);
+wrapper_type!(QuasiInverse, QuasiInverseRust);
 
 py_repr!(QuasiInverse, "FreedQuasiInverse", {
     Ok(format!(

@@ -8,6 +8,7 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+paste = "0.1"
 
 [dev-dependencies]
 

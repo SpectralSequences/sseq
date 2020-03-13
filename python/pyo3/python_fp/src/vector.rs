@@ -123,7 +123,7 @@ impl FpVector {
     pub fn assign(&mut self, other : &FpVector) -> PyResult<()> {
         self.check_not_null()?;
         other.check_not_null()?;
-        if self.inner == other.inner {
+        if self.equal(other) {
             return Ok(());
         }
         self.check_primes_match(other, "")?;
@@ -228,7 +228,7 @@ impl FpVector {
     pub fn add(&mut self, other : &FpVector, c : i32) -> PyResult<()> {
         self.check_not_null()?;
         other.check_not_null()?;
-        if self.inner == other.inner {
+        if self.equal(other) {
             self.scale(c + 1)?;
             return Ok(());
         }        
