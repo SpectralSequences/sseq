@@ -1,3 +1,3 @@
-mod free_module_homomorphism
+mod free_module_homomorphism;
 
 // pub use free_module_homomorphism::FreeModuleHomomorphism;

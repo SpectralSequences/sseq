@@ -1,3 +1,5 @@
+#![allow(unused_macros)]
+
 use enum_dispatch::enum_dispatch;
 use nom::IResult;
 use std::sync::Arc;
@@ -24,7 +26,7 @@ pub enum AlgebraRust {
 }
 
 impl AlgebraRust {
-    pub fn algebra_into_py_object(algebra : Arc<AlgebraRust>) -> PyObject {
+    pub fn into_py_object(algebra : Arc<AlgebraRust>) -> PyObject {
         let gil = Python::acquire_gil();
         let py = gil.python();
         match *algebra {
@@ -34,7 +36,7 @@ impl AlgebraRust {
         }
     }
     
-    pub fn algebra_from_py_object(algebra : PyObject) -> PyResult<Arc<AlgebraRust>> {
+    pub fn from_py_object(algebra : PyObject) -> PyResult<Arc<AlgebraRust>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         algebra.extract::<&AdemAlgebra>(py).and_then(|a| a.inner_rc())

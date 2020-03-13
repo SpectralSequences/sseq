@@ -7,7 +7,7 @@ use pyo3::exceptions;
 // use fp::vector::FpVectorT;
 
 use python_utils;
-use python_utils::immutable_wrapper_type;
+use python_utils::{immutable_wrapper_type}; //, rc_inner_wrapper_type};
 
 immutable_wrapper_type!(PVector, Vec<u32>);
 
@@ -106,27 +106,9 @@ impl PySequenceProtocol for PVector {
 #[macro_export]
 macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element : ident, $element_name : expr ) => {
 
-
-    #[pyclass(dict)]
-    #[derive(Clone)]
-    #[repr(transparent)]
-    pub struct $algebra {
-        inner : Option<std::sync::Arc<AlgebraRust>>
-    }
+    python_utils::rc_inner_wrapper_type!($algebra, AlgebraRust);
 
     impl $algebra {
-
-        #![allow(dead_code)]
-        pub fn inner_rc(&self) -> PyResult<&std::sync::Arc<AlgebraRust>> {
-            self.inner.as_ref().ok_or_else(
-                || python_utils::null_ptr_exception()
-            )
-        }
-    
-        pub fn inner_rc_unchkd(&self) -> &std::sync::Arc<AlgebraRust> {
-            self.inner.as_ref().unwrap()
-        }
-
         pub fn inner(&self) -> PyResult<&$algebra_rust> {
             match &**self.inner_rc()? {
                 AlgebraRust::$algebra_rust(alg) => Ok(&alg),
@@ -142,64 +124,14 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
         }        
     
         pub fn box_and_wrap(inner : $algebra_rust) -> Self {
-            Self {
-                inner : Some(std::sync::Arc::new(AlgebraRust::$algebra_rust(inner)))
-            }
-        }
-
-        pub fn owner(&self) -> std::sync::Weak<()> {
-            self.inner.as_ref().map(|ptr| 
-                python_utils::weak_ptr_to_final(std::sync::Arc::downgrade(ptr))
-            ).unwrap_or_else(|| std::sync::Weak::new()) 
-                // TODO: this else behavior may not be right...
-        }
-
-        pub fn is_null(&self) -> bool {
-            self.inner.is_none()
-        }
-
-        pub fn check_not_null(&self) -> PyResult<()> {
-            python_utils::null_ptr_exception_if_none(self.inner.as_ref())
-        }
-    
-        pub fn is_owned(&self) -> bool {
-            true
-        }
-
-        pub fn check_owned(&self) -> PyResult<()>{
-            Ok(())
-        }
-    }
-
-    #[pymethods]
-    impl $algebra {
-        pub fn free(&mut self) -> PyResult<()> {
-            python_utils::null_ptr_exception_if_none(self.inner.take())?;
-            Ok(())
-        }
-
-        #[getter]
-        pub fn get_owned(&self) -> bool {
-            true
-        }
-    }
-
-    impl $algebra {
-        pub fn wrap(inner : std::sync::Arc<AlgebraRust>) -> Self {
-            Self {
-                inner : Some(inner),
-            }
-        }
-
-        pub fn take_box(&mut self) -> PyResult<std::sync::Arc<AlgebraRust>> {
-            self.inner.take().ok_or_else(|| python_utils::null_ptr_exception())
+            Self::box_and_wrap_rc(AlgebraRust::$algebra_rust(inner))
         }
     }
 
 
     impl $algebra {
         fn check_degree(&self, degree : i32) -> PyResult<()> {
-            let max_degree = self. inner_unchkd().max_degree();
+            let max_degree = self.inner_unchkd().max_degree();
             if degree > max_degree {
                 Err(exceptions::IndexError::py_err(format!(
                     "Degree {} too large: maximum degree of algebra is {}. Run algebra.compute_basis({}) first.", 
@@ -211,7 +143,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
         }
 
         fn check_dimension(&self, degree : i32, vec : &FpVector) -> PyResult<()> {
-            let what_the_dimension_should_be = self. inner_unchkd().dimension(degree, -1);
+            let what_the_dimension_should_be = self.inner_unchkd().dimension(degree, -1);
             let the_dimension = vec.get_dimension()?;
             if the_dimension == what_the_dimension_should_be {
                 Ok(())
@@ -226,7 +158,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
         }
 
         pub fn check_index(&self, degree : i32, idx : usize) -> PyResult<()> {
-            let dimension = self. inner_unchkd().dimension(degree, -1);
+            let dimension = self.inner_unchkd().dimension(degree, -1);
             if idx < dimension {
                 Ok(())
             } else {

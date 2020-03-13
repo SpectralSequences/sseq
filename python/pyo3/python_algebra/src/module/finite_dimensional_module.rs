@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use pyo3::{
     prelude::*,
     exceptions,
@@ -29,93 +31,15 @@ use algebra::module::{FDModule as FDModuleRust, Module, BoundedModule};
 
 use python_fp::vector::FpVector;
 use crate::algebra_rust::AlgebraRust;
+use crate::module::module_rust::ModuleRust;
 
-
-rc_wrapper_type!(FDModuleFrozen, FDModuleRust<AlgebraRust>);
-wrapper_type!(FDModuleMutable, FDModuleRust<AlgebraRust>);
-
-pub enum FDModuleInner2 {
-    FDModuleFrozen(FDModuleFrozen),
-    FDModuleMutable(FDModuleMutable)
-}
-
-wrapper_type!(FDModuleInner1, FDModuleInner2);
-
-#[pyclass(dict)]
-#[repr(transparent)]
-pub struct FDModule {
-    inner : FDModuleInner1
-}
-
-
-py_repr!(FDModule, "FreedFDModule", {
-    Ok(format!(
-        "FDModule({})",
-        inner.prime()
-    ))
-});
+crate::module_bindings!(FDModule);
 
 impl FDModule {
-    fn box_and_wrap(inner : FDModuleInner2) -> Self {
-        Self {
-            inner : FDModuleInner1::box_and_wrap(inner)
-        }
-    }
-
-    fn is_null(&self) -> bool {
-        self.inner().is_err()
-    }
-
-    fn mutable_from_rust(module : FDModuleRust<AlgebraRust>) -> Self {
-        FDModule::box_and_wrap(FDModuleInner2::FDModuleMutable(FDModuleMutable::box_and_wrap(module)))
-    }
-
-    fn immutable_from_rust(module : FDModuleRust<AlgebraRust>) -> Self {
-        FDModule::box_and_wrap(FDModuleInner2::FDModuleFrozen(FDModuleFrozen::box_and_wrap(module)))
-    }
-
-    fn immutable_from_arc(module : Arc<FDModuleRust<AlgebraRust>>) -> Self {
-        FDModule::box_and_wrap(FDModuleInner2::FDModuleFrozen(FDModuleFrozen::wrap(module)))
-    }
-
-    fn ensure_immutable(&mut self) -> PyResult<()> {
-        match self.inner.inner_mut()? {
-            FDModuleInner2::FDModuleFrozen(_module) => {}
-            FDModuleInner2::FDModuleMutable(module) => {
-                self.inner = FDModule::immutable_from_arc(Arc::from(module.take_box()?)).inner;
-            }
-        }
-        Ok(())
-    }
-
-    fn owner(&self) -> Weak<()> {
-        self.inner.owner()
-    }
-
-    fn inner(&self) -> PyResult<&FDModuleRust<AlgebraRust>> {
-        // let a : () = self.inner()?;
-        Ok(match self.inner.inner()? {
-            FDModuleInner2::FDModuleFrozen(module) => module.inner()?,
-            FDModuleInner2::FDModuleMutable(module) => module.inner()?
-        })
-    }
-
-    fn inner_unchkd(&self) -> &FDModuleRust<AlgebraRust> {
-        // let a : () = self.inner()?;
-        match self.inner.inner().unwrap() {
-            FDModuleInner2::FDModuleFrozen(module) => module.inner().unwrap(),
-            FDModuleInner2::FDModuleMutable(module) => module.inner().unwrap()
-        }
-    }
-
-    fn inner_mut(&self) -> PyResult<&mut FDModuleRust<AlgebraRust>> {
-        // let a : () = self.inner()?;
-        match self.inner.inner()? {
-            FDModuleInner2::FDModuleFrozen(_module) => Err(exceptions::ValueError::py_err(format!(
-                "Immutable, cannot apply mutable operation."
-            ))),
-            FDModuleInner2::FDModuleMutable(module) => Ok(module.inner_mut()?)
-        }
+    fn max_computed_degree(&self) -> PyResult<i32> {
+        self.check_degree(20)?;
+        Ok(i32::max_value())
+        // Ok(self.inner()?.max_degree())
     }
 }
 
@@ -140,7 +64,7 @@ impl FDModule {
     fn new(algebra: PyObject, name: String, min_degree : i32) -> PyResult<Self> {
         let graded_dimension = BiVec::new(min_degree);
         Ok(Self::mutable_from_rust(
-            FDModuleRust::new(AlgebraRust::algebra_from_py_object(algebra)?, name, graded_dimension)
+            FDModuleRust::new(AlgebraRust::from_py_object(algebra)?, name, graded_dimension)
         ))
     }
 
@@ -177,17 +101,10 @@ impl FDModule {
     }
 }
 
-impl FDModule {
-    pub fn max_computed_degree(&self) -> PyResult<i32> {
-        Ok(i32::max_value())
-    }
-}
-
-module_methods!(FDModule);
 
 #[pymethods]
 impl FDModule {
-    pub fn add_generator(&self, degree: i32, name: String) -> PyResult<()> {
+    pub fn add_generator(&mut self, degree: i32, name: String) -> PyResult<()> {
         self.check_degree(degree)?;
         let inner = self.inner_mut()?; 
         if degree < inner.max_degree() {
@@ -219,7 +136,8 @@ impl FDModule {
         input_degree: i32,
         input_idx: usize,
     ) -> PyResult<FpVector> {
-        Ok(FpVector::wrap(self.inner_mut()?.action_mut(operation_degree, operation_idx, input_degree, input_idx), self.owner()))
+        let owner = self.owner();
+        Ok(FpVector::wrap(self.inner_mut()?.action_mut(operation_degree, operation_idx, input_degree, input_idx), owner))
     }
 
     #[args(overwrite=true)]

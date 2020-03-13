@@ -4,7 +4,7 @@ use pyo3::{
     prelude::*,
     exceptions,
     PyObjectProtocol,
-    types::PyDict
+    // types::PyDict
 };
 
 use python_utils::{
@@ -27,15 +27,12 @@ use algebra::module::{
 
 use python_fp::vector::FpVector;
 use crate::algebra_rust::AlgebraRust;
-use crate::module_methods;
 
 // wrapper_type!(FreeModuleLock, MutexGuard<()>); // causes Lifetime specifier problem
 immutable_wrapper_type!(OperationGeneratorPair, OperationGeneratorPairRust);
 wrapper_type!(FreeModuleTableEntry, FreeModuleTableEntryRust);
 
 rc_wrapper_type!(FreeModule, FreeModuleRust<AlgebraRust>);
-
-module_methods!(FreeModule);
 
 py_repr!(FreeModule, "FreedFreeModule", {
     Ok(format!(
@@ -44,11 +41,13 @@ py_repr!(FreeModule, "FreedFreeModule", {
     ))
 });
 
+crate::module_methods!(FreeModule);
+
 #[pymethods]
 impl FreeModule {
     #[new]
     pub fn new(algebra: PyObject, name: String, min_degree: i32) -> PyResult<Self> {
-        Ok(Self::box_and_wrap(FreeModuleRust::new(AlgebraRust::algebra_from_py_object(algebra)?, name, min_degree)))
+        Ok(Self::box_and_wrap(FreeModuleRust::new(AlgebraRust::from_py_object(algebra)?, name, min_degree)))
     }
 
     // pub fn lock(&self) -> FreeModuleLock {

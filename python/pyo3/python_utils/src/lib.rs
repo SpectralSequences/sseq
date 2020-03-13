@@ -279,7 +279,7 @@ macro_rules! wrapper_type {
 
 
 #[macro_export]
-macro_rules! rc_wrapper_type {
+macro_rules! rc_inner_wrapper_type {
     ( $outer:ident, $inner:ty ) => {
 
         #[pyclass(dict)]
@@ -293,17 +293,17 @@ macro_rules! rc_wrapper_type {
             // type Inner = $inner; // ==> "associated types are not yet supported in inherent imples" =(
 
             #![allow(dead_code)]
-            pub fn inner(&self) -> PyResult<&std::sync::Arc<$inner>> {
+            pub fn inner_rc(&self) -> PyResult<&std::sync::Arc<$inner>> {
                 self.inner.as_ref().ok_or_else(
                     || python_utils::null_ptr_exception()
                 )
             }
         
-            pub fn inner_unchkd(&self) -> &std::sync::Arc<$inner> {
+            pub fn inner_rc_unchkd(&self) -> &std::sync::Arc<$inner> {
                 self.inner.as_ref().unwrap()
             }
         
-            pub fn box_and_wrap(inner : $inner) -> Self {
+            pub fn box_and_wrap_rc(inner : $inner) -> Self {
                 Self {
                     inner : Some(std::sync::Arc::new(inner))
                 }
@@ -358,6 +358,31 @@ macro_rules! rc_wrapper_type {
             pub fn take_box(&mut self) -> PyResult<std::sync::Arc<$inner>> {
                 self.inner.take().ok_or_else(|| python_utils::null_ptr_exception())
             }
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! rc_wrapper_type {
+    ( $outer:ident, $inner:ty ) => {
+        python_utils::rc_inner_wrapper_type!($outer, $inner);
+
+        impl $outer {
+            // type Inner = $inner; // ==> "associated types are not yet supported in inherent imples" =(
+
+            #![allow(dead_code)]
+            pub fn inner(&self) -> PyResult<&std::sync::Arc<$inner>> {
+                self.inner_rc()
+            }
+        
+            pub fn inner_unchkd(&self) -> &std::sync::Arc<$inner> {
+                self.inner_rc_unchkd()
+            }
+        
+            pub fn box_and_wrap(inner : $inner) -> Self {
+                Self::box_and_wrap_rc(inner)
+            }
+            
         }
     }
 }

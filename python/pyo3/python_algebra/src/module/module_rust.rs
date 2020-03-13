@@ -1,5 +1,7 @@
 use crate::algebra_rust::AlgebraRust;
-pub use crate::module::FDModule;
+use crate::module::FDModule;
+use pyo3::{prelude::*};//, exceptions, PyErr};
+
 
 use std::sync::Arc;
 
@@ -24,6 +26,17 @@ macro_rules! because_enum_dispatch_doesnt_work_for_me {
             // AlgebraRust::PythonModuleRust(alg) => alg.$method($($args),*)
         }
     };
+}
+
+impl ModuleRust {
+    pub fn into_py_object(module : Arc<ModuleRust>) -> PyObject {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        match *module {
+            ModuleRust::FDModule(_) => FDModule::immutable_from_arc(module).into_py(py),
+            _ => unimplemented!()
+        }
+    }
 }
 
 impl ModuleT for ModuleRust {
