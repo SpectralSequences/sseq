@@ -10,7 +10,7 @@ use python_utils::{
     py_repr, 
     // rc_wrapper_type,
     // wrapper_type, 
-    immutable_wrapper_type,
+    wrapper_type,
     get_from_kwargs,
 };
 
@@ -27,7 +27,7 @@ use algebra::Algebra;
 use crate::algebra_bindings::{ self, PVector };
 use crate::algebra_rust::AlgebraRust;
 
-immutable_wrapper_type!(MilnorBasisElement, MilnorBasisElementRust);
+wrapper_type!(MilnorBasisElement, MilnorBasisElementRust);
 
 py_repr!(MilnorBasisElement, "FreedMilnorBasisElement", {
     Ok(format!(
@@ -63,7 +63,7 @@ impl MilnorBasisElement {
 
     #[getter]
     pub fn get_ppart(&self) -> PyResult<PVector>{
-        Ok(PVector::wrap(&self.inner()?.p_part, self.owner()))
+        Ok(PVector::wrap_immutable(&self.inner()?.p_part, self.owner()))
     }
 
     // pub fn to_python(&self) -> PyResult<PyObject> {
@@ -71,7 +71,7 @@ impl MilnorBasisElement {
     // }
 }
 
-immutable_wrapper_type!(MilnorProfile, MilnorProfileRust);
+wrapper_type!(MilnorProfile, MilnorProfileRust);
 
 py_repr!(MilnorProfile, "FreedMilnorProfile", {
     self.name()
@@ -131,7 +131,7 @@ impl MilnorProfile {
 
     #[getter]
     pub fn get_ppart(&self) -> PyResult<PVector>{
-        Ok(PVector::wrap(&self.inner()?.p_part, self.owner()))
+        Ok(PVector::wrap_immutable(&self.inner()?.p_part, self.owner()))
     }
 }
 
@@ -151,7 +151,7 @@ py_repr!(MilnorAlgebra, "FreedMilnorAlgebra", {
     let mut profile_str = "".to_string();
     if !inner.profile.is_trivial() {
         profile_str = format!(", {}", 
-            MilnorProfile::wrap(&inner.profile, self.owner()).name()?
+            MilnorProfile::wrap_immutable(&inner.profile, self.owner()).name()?
         );
     }
     Ok(format!(
@@ -209,14 +209,14 @@ impl MilnorAlgebra {
 
     #[getter]
     pub fn get_profile(&self) -> PyResult<MilnorProfile> {
-        Ok(MilnorProfile::wrap(&self.inner()?.profile, self.owner()))
+        Ok(MilnorProfile::wrap_immutable(&self.inner()?.profile, self.owner()))
     }    
 
     pub fn basis_element_from_index(&self, degree : i32, idx : usize) -> PyResult<MilnorBasisElement> {
         self.check_not_null()?;
         self.check_degree(degree)?;
         self.check_index(degree, idx)?;
-        Ok(MilnorBasisElement::wrap(self.inner_unchkd().basis_element_from_index(degree, idx), self.owner()))
+        Ok(MilnorBasisElement::wrap_immutable(self.inner_unchkd().basis_element_from_index(degree, idx), self.owner()))
     }
 
     pub fn basis_element_to_index(&self, elt: &MilnorBasisElement) -> PyResult<usize> {

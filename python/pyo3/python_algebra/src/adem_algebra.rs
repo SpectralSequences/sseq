@@ -10,7 +10,7 @@ use python_utils::{
     py_repr, 
     // rc_wrapper_type, 
     // wrapper_type, 
-    immutable_wrapper_type,
+    wrapper_type,
     get_from_kwargs
 };
 
@@ -25,7 +25,7 @@ use algebra::Algebra;
 use crate::algebra_bindings::{ self, PVector };
 use crate::algebra_rust::AlgebraRust;
 
-immutable_wrapper_type!(AdemBasisElement, AdemBasisElementRust);
+wrapper_type!(AdemBasisElement, AdemBasisElementRust);
 
 py_repr!(AdemBasisElement, "FreedAdemBasisElement", {
     Ok(format!(
@@ -66,7 +66,7 @@ impl AdemBasisElement {
 
     #[getter]
     pub fn get_ps(&self) -> PyResult<PVector>{
-        Ok(PVector::wrap(&self.inner()?.ps, self.owner()))
+        Ok(PVector::wrap_immutable(&self.inner()?.ps, self.owner()))
     }
 
     // pub fn to_python(&self) -> PyResult<PyObject> {
@@ -130,7 +130,7 @@ impl AdemAlgebra {
         self.check_not_null()?;
         self.check_degree(degree)?;
         self.check_index(degree, idx)?;
-        Ok(AdemBasisElement::wrap(self.inner_unchkd().basis_element_from_index(degree, idx), self.owner()))
+        Ok(AdemBasisElement::wrap_immutable(self.inner_unchkd().basis_element_from_index(degree, idx), self.owner()))
     }
 
     pub fn basis_element_to_index(&self, elt: &AdemBasisElement) -> PyResult<usize> {

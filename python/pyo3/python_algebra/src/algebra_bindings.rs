@@ -7,9 +7,9 @@ use pyo3::exceptions;
 // use fp::vector::FpVectorT;
 
 use python_utils;
-use python_utils::{immutable_wrapper_type}; //, rc_inner_wrapper_type};
+use python_utils::{wrapper_type}; //, rc_inner_wrapper_type};
 
-immutable_wrapper_type!(PVector, Vec<u32>);
+wrapper_type!(PVector, Vec<u32>);
 
 
 python_utils::py_repr!(PVector, "FreedPVector", {

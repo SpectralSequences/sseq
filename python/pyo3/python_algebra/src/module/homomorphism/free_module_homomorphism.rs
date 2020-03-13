@@ -94,12 +94,12 @@ impl FreeModuleHomomorphism {
     }
 
     fn quasi_inverse(&self, degree: i32) -> PyResult<QuasiInverse> {
-        Ok(QuasiInverse::wrap(fmh_dispatch!(quasi_inverse, self.inner()?, degree), self.owner()))
+        Ok(QuasiInverse::wrap_immutable(fmh_dispatch!(quasi_inverse, self.inner()?, degree), self.owner()))
     }
 
     fn kernel(&self, degree: i32) -> PyResult<Subspace> {
-        Ok(Subspace::wrap(fmh_dispatch!(kernel, self.inner()?, degree), self.owner()))
+        Ok(Subspace::wrap_immutable(fmh_dispatch!(kernel, self.inner()?, degree), self.owner()))
     }
 
-        
+
 }

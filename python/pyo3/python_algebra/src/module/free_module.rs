@@ -12,7 +12,6 @@ use python_utils::{
     py_repr, 
     rc_wrapper_type, 
     wrapper_type, 
-    immutable_wrapper_type,
     // get_from_kwargs
 };
 
@@ -29,7 +28,7 @@ use python_fp::vector::FpVector;
 use crate::algebra_rust::AlgebraRust;
 
 // wrapper_type!(FreeModuleLock, MutexGuard<()>); // causes Lifetime specifier problem
-immutable_wrapper_type!(OperationGeneratorPair, OperationGeneratorPairRust);
+wrapper_type!(OperationGeneratorPair, OperationGeneratorPairRust);
 wrapper_type!(FreeModuleTableEntry, FreeModuleTableEntryRust);
 
 rc_wrapper_type!(FreeModule, FreeModuleRust<AlgebraRust>);
@@ -100,7 +99,7 @@ impl FreeModule {
     }
 
     pub fn index_to_op_gen(&self, degree: i32, index: usize) -> PyResult<OperationGeneratorPair> {
-        Ok(OperationGeneratorPair::wrap(self.inner()?.index_to_op_gen(degree, index), self.owner()))
+        Ok(OperationGeneratorPair::wrap_immutable(self.inner()?.index_to_op_gen(degree, index), self.owner()))
     }
 
     pub fn element_to_json(&self, degree: i32, elt: &FpVector) -> PyResult<String> {
