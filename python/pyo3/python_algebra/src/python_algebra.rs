@@ -64,7 +64,9 @@ impl PythonAlgebra {
             multiply_basis_elements,
             basis_element_to_string
         };
-        Ok(Self::box_and_wrap(algebra))
+        let mut result = Self::box_and_wrap(algebra);
+        result.freeze().unwrap_or_else(|_err| unreachable!());
+        Ok(result)
     }
 }
 

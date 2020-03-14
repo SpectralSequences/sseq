@@ -32,11 +32,12 @@ use algebra::module::{
 
 use python_fp::{
     vector::FpVector,
-    matrix::{QuasiInverse, Subspace}
+    matrix::{Matrix, QuasiInverse, Subspace}
 };
 use crate::algebra_rust::AlgebraRust;
 use crate::module::module_rust::ModuleRust;
 use crate::module::FreeModule;
+use crate::module::free_module::FreeModuleTableEntry;
 
 pub enum FreeModuleHomomorphismInner {
     ToFree(Arc<FreeModuleHomomorphismRust<FreeModuleRust<AlgebraRust>>>),
@@ -100,6 +101,27 @@ impl FreeModuleHomomorphism {
     fn kernel(&self, degree: i32) -> PyResult<Subspace> {
         Ok(Subspace::wrap_immutable(fmh_dispatch!(kernel, self.inner()?, degree), self.owner()))
     }
+
+    pub fn get_matrix(&self, matrix: &mut Matrix, degree: i32) -> PyResult<()> {
+        fmh_dispatch!(get_matrix, self.inner()?, matrix.inner_mut()?, degree);
+        Ok(())
+    }
+
+    pub fn get_matrix_with_table(
+        &self,
+        matrix: &mut Matrix,
+        table: &FreeModuleTableEntry,
+        degree: i32,
+    ) -> PyResult<()> {
+        fmh_dispatch!(get_matrix_with_table, self.inner()?, matrix.inner_mut()?, table.inner()?, degree);
+        Ok(())
+    }
+
+    // pub fn set_kernel(&self, degree: i32, kernel: Subspace) {
+    //     let inner = self.inner()?;
+
+    // }
+
 
 
 }

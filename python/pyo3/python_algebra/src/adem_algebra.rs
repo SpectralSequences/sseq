@@ -113,7 +113,9 @@ impl AdemAlgebra {
             ));
         }
         let algebra = AdemAlgebraRust::new(new_valid_prime(p)?, generic, unstable);
-        Ok(Self::box_and_wrap(algebra))
+        let mut result = Self::box_and_wrap(algebra);
+        result.freeze().unwrap_or_else(|_err| unreachable!());
+        Ok(result)
     }
 
     #[getter]

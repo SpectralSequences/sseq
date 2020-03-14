@@ -199,7 +199,9 @@ impl MilnorAlgebra {
         let mut algebra = MilnorAlgebraRust::new(new_valid_prime(p)?);
         let profile = get_profile_from_kwargs(p, kwargs)?;
         algebra.profile = profile;
-        Ok(Self::box_and_wrap(algebra))
+        let mut result = Self::box_and_wrap(algebra);
+        result.freeze().unwrap_or_else(|_err| unreachable!());
+        Ok(result)
     }
 
     #[getter]
