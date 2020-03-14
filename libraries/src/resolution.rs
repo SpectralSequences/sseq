@@ -302,6 +302,31 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
     pub fn prime(&self) -> ValidPrime {
         self.complex.prime()
     }
+
+    pub fn graded_dimension_string(&self, max_degree : i32 , max_hom_deg : u32) -> String {
+        let mut result = String::new();
+        let min_degree = self.complex().min_degree();
+        for i in (0 ..= max_hom_deg).rev() {
+            for j in min_degree + i as i32 ..= max_degree {
+                let n = self.module(i).number_of_gens_in_degree(j);
+                match n {
+                    0 => result.push_str("  "),
+                    1 => result.push_str("· "),
+                    2 => result.push_str(": "),
+                    3 => result.push_str("∴ "),
+                    4 => result.push_str("⁘ "),
+                    5 => result.push_str("⁙ "),
+                    _ => result.push_str(&format!("{} ", n))
+                }
+            }
+            result.push_str("\n");
+            // If it is empty so far, don't print anything
+            if result.trim_start().is_empty() {
+                result = String::new();
+            }
+        }
+        result
+    }
 }
 
 impl<CC : ChainComplex> ChainComplex for ResolutionInner<CC> {
@@ -673,30 +698,7 @@ impl<CC : UnitChainComplex> Resolution<CC> {
     }
 
     pub fn graded_dimension_string(&self) -> String {
-        let mut result = String::new();
-        let min_degree = self.min_degree();
-        let max_degree = self.max_computed_degree();
-        let max_hom_deg = self.max_computed_homological_degree(); //(max_degree - min_degree) as u32 / (self.prime() + 1); //self.get_max_hom_deg();
-        for i in (0 ..= max_hom_deg).rev() {
-            for j in min_degree + i as i32 ..= max_degree {
-                let n = self.module(i).number_of_gens_in_degree(j);
-                match n {
-                    0 => result.push_str("  "),
-                    1 => result.push_str("· "),
-                    2 => result.push_str(": "),
-                    3 => result.push_str("∴ "),
-                    4 => result.push_str("⁘ "),
-                    5 => result.push_str("⁙ "),
-                    _ => result.push_str(&format!("{} ", n))
-                }
-            }
-            result.push_str("\n");
-            // If it is empty so far, don't print anything
-            if result.trim_start().is_empty() {
-                result = String::new();
-            }
-        }
-        result
+        self.inner.graded_dimension_string(self.max_computed_degree(), self.max_computed_homological_degree())
     }
 }
 
