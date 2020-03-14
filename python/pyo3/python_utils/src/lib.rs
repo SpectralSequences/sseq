@@ -33,11 +33,46 @@ pub fn null_ptr_exception_if_none<T>(opt : Option<T>) -> pyo3::PyResult<()> {
     )
 }
 
-pub fn mutability_exception() -> pyo3::PyErr {
-    exceptions::ReferenceError::py_err(
+#[macro_export]
+macro_rules! exception {
+    ($error_type : ident ) => {         
+        pyo3::exceptions::$error_type::py_err("") 
+    };
+    ($error_type : ident, $msg:expr) => {  
+        pyo3::exceptions::$error_type::py_err($msg)
+    };
+    ($error_type : ident, $msg:expr,) => { 
+        pyo3::exceptions::$error_type::py_err($msg)
+    };
+    ($error_type : ident, $fmt:expr, $($arg:tt)+) => { 
+        pyo3::exceptions::$error_type::py_err(format!($fmt, $($args),*))
+    };    
+}
+
+pub fn must_be_immutable_exception() -> pyo3::PyErr {
+    exception!(
+        ReferenceError,
         "Attempted to mutate immutable reference!"
     )
 }
+
+pub fn must_be_mutable_exception() -> pyo3::PyErr {
+    exception!(
+        ReferenceError,
+        "Reference must be mutable for desired operation!"
+    )
+}
+
+#[macro_export]
+macro_rules! must_be_mutable_panic {
+    () => { panic!( "Attempted to mutate immutable reference!" ) }
+}
+
+#[macro_export]
+macro_rules! must_be_immutable_panic {
+    () => { panic!("Reference must be immutable for desired operation!") }
+}
+
 
 pub fn check_not_null<T>(ptr : *mut T) -> pyo3::PyResult<()> {
     if ptr.is_null() {
@@ -110,9 +145,60 @@ macro_rules! py_repr {
     }
 }
 
+#[macro_export]
+macro_rules! wrapper_outer_defs {
+    ($outer : ident, $inner : ty) => {        
+        impl $outer {
+            // #![allow(dead_code)]
+            pub fn inner(&self) -> PyResult<&$inner> {
+                self.inner1()
+            }
+        
+            pub fn inner_unchkd(&self) -> &$inner {
+                self.inner_unchkd1()
+            }
+
+            pub fn inner_mut(&self) -> PyResult<&mut $inner> {
+                self.inner_mut1()
+            }
+        
+            pub fn inner_mut_unchkd(&self) -> &mut $inner {
+                self.inner_mut_unchkd1()
+            }            
+        
+            pub fn box_and_wrap(inner : $inner) -> Self {
+                Self::box_and_wrap1(inner)
+            }
+
+            pub fn wrap<T>(to_wrap : &mut $inner, owner : std::sync::Weak<T>) -> Self {
+                Self::wrap1(to_wrap, owner)
+            }
+
+            pub fn take_box(&mut self) -> PyResult<Box<$inner>> {
+                self.take_box1()
+            }
+        }
+    }
+}
+
 
 #[macro_export]
 macro_rules! wrapper_type {
+    ( $outer:ident, $inner:ty ) => {
+        paste::item!{
+            python_utils::wrapper_type_helper!($outer, [<$outer Enum>], $inner);
+            python_utils::wrapper_outer_defs!($outer, $inner);
+            impl $outer {
+                pub fn wrap_immutable<T>(to_wrap : &$inner, owner : std::sync::Weak<T> ) -> Self {
+                    Self::wrap_immutable1(to_wrap, owner)
+                }
+            }
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! wrapper_type_inner {
     ( $outer:ident, $inner:ty ) => {
         paste::item!{
             python_utils::wrapper_type_helper!($outer, [<$outer Enum>], $inner);
@@ -138,6 +224,15 @@ macro_rules! wrapper_type_helper {
             Immut(*mut $inner)
         }
 
+        impl $enum_name {
+            fn take(self) -> *mut $inner {
+                match self {
+                    $enum_name::Mut(ptr) => ptr,
+                    $enum_name::Immut(ptr) => ptr
+                }
+            }
+        }
+
         impl $outer {
             pub fn is_null(&self) -> bool {
                 self.freed.upgrade().is_none()
@@ -151,14 +246,14 @@ macro_rules! wrapper_type_helper {
                 }
             }
 
-            pub fn set_to_null(&mut self) {
-                self.inner = $enum_name::Mut(std::ptr::null_mut());
+            fn replace_with_null(&mut self) -> $enum_name {
+                std::mem::replace(&mut self.inner, $enum_name::Mut(std::ptr::null_mut()))
             }
 
             pub fn is_mutable(&self) -> bool {
-                match self.inner {
-                    $enum_name::Mut(ptr) => true,
-                    $enum_name::Immut(ptr) => false
+                match &self.inner {
+                    $enum_name::Mut(_) => true,
+                    $enum_name::Immut(_) => false
                 }
             }            
 
@@ -166,48 +261,83 @@ macro_rules! wrapper_type_helper {
                 if self.is_mutable() {
                     Ok(())
                 } else {
-                    Err(python_utils::mutability_exception())
+                    Err(python_utils::must_be_mutable_exception())
                 }
             }
 
-            fn ptr_to_mut(&self) -> *mut $inner {
+            pub fn check_immutable(&self) -> PyResult<()> {
+                if self.is_mutable() {
+                    Ok(())
+                } else {
+                    Err(python_utils::must_be_immutable_exception())
+                }
+            }    
+
+            pub fn ensure_immutable(&mut self) -> PyResult<()> {
+                match &mut self.inner {
+                    $enum_name::Immut(_) => {}
+                    $enum_name::Mut(ptr) => {
+                        self.inner = Self::wrap_immutable1(
+                            unsafe { &**ptr },
+                            self.owner()
+                        ).replace_with_null();
+                    }
+                }
+                Ok(())
+            }
+
+            fn to_ptr(&self) -> *const $inner {
                 match self.inner {
                     $enum_name::Mut(ptr) => ptr,
                     $enum_name::Immut(ptr) => ptr
                 }
             }
 
+            // This duplicates "inner" but has a more systematic name...
+            // TODO: keep this one? keep both? 
+            fn to_ref(&self) -> &$inner {
+                unsafe { &*self.to_ptr() }
+            }
+
+            fn to_ptr_mut(&self) -> *mut $inner {
+                match self.inner {
+                    $enum_name::Mut(ptr) => ptr,
+                    $enum_name::Immut(ptr) => python_utils::must_be_mutable_panic!()
+                }
+            }
+
+            fn to_ref_mut(&self) -> &mut $inner {
+                unsafe { &mut *self.to_ptr_mut() }
+            }
+
             pub fn equal(&self, other : &$outer) -> bool {
                 std::mem::discriminant(self) == std::mem::discriminant(other) 
-                && self.ptr_to_mut() == other.ptr_to_mut()
+                && self.to_ptr() == other.to_ptr()
             }
 
             // type Inner = $inner; // ==> "associated types are not yet supported in inherent imples" =(
 
             // #![allow(dead_code)]
-            pub fn inner(&self) -> PyResult<&$inner> {
+            pub fn inner1(&self) -> PyResult<&$inner> {
                 self.check_not_null()?;
-                Ok(unsafe { &*self.ptr_to_mut()})
+                Ok(unsafe { &*self.to_ptr()})
             }
         
-            pub fn inner_unchkd(&self) -> &$inner {
-                unsafe { &*self.ptr_to_mut() }
+            pub fn inner_unchkd1(&self) -> &$inner {
+                unsafe { &*self.to_ptr() }
             }
 
-            pub fn inner_mut(&self) -> PyResult<&mut $inner> {
+            pub fn inner_mut1(&self) -> PyResult<&mut $inner> {
                 self.check_not_null()?;
                 self.check_mutable()?;
-                Ok(unsafe { &mut *self.ptr_to_mut() })
+                Ok(unsafe { &mut *self.to_ptr_mut() })
             }
         
-            pub fn inner_mut_unchkd(&self) -> &mut $inner {
-                if !self.is_mutable() {
-                    panic!("Attempting to mutate immutable object.");
-                }
-                unsafe { &mut *self.ptr_to_mut() }
+            pub fn inner_mut_unchkd1(&self) -> &mut $inner {
+                unsafe { &mut *self.to_ptr_mut() }
             }            
         
-            pub fn box_and_wrap(inner : $inner) -> Self {
+            pub fn box_and_wrap1(inner : $inner) -> Self {
                 let inner_box = Box::new(inner);
                 let owned = std::sync::Arc::new(());
                 let freed = std::sync::Arc::downgrade(&owned);
@@ -242,20 +372,19 @@ macro_rules! wrapper_type_helper {
                 self.check_not_null()?;
                 self.check_owned()?;
                 self.owned = None;
-                let ptr = self.ptr_to_mut();
-                self.set_to_null();
+                let ptr = self.replace_with_null().take();
                 drop(unsafe { Box::from_raw(ptr) });
                 Ok(())
             }
 
             #[getter]
             pub fn get_owned(&self) -> bool {
-                self.owned.is_some()
+                self.is_owned()
             }
         }
 
         impl $outer {
-            pub fn wrap<T>(to_wrap : &mut $inner, owner : std::sync::Weak<T>) -> Self {
+            pub fn wrap1<T>(to_wrap : &mut $inner, owner : std::sync::Weak<T>) -> Self {
                 let inner = to_wrap as *mut $inner;
                 let freed = python_utils::weak_ptr_to_final(owner);
                 Self {
@@ -265,7 +394,7 @@ macro_rules! wrapper_type_helper {
                 }
             }
 
-            pub fn wrap_immutable<T>(to_wrap : &$inner, owner : std::sync::Weak<T> ) -> Self {
+            pub fn wrap_immutable1<T>(to_wrap : &$inner, owner : std::sync::Weak<T> ) -> Self {
                 let ptr = to_wrap as *const $inner;
                 let inner : *mut $inner = unsafe { std::mem::transmute(ptr)};
                 let freed = python_utils::weak_ptr_to_final(owner);
@@ -279,25 +408,23 @@ macro_rules! wrapper_type_helper {
             // This is nearly the same as free except:
             // (1) Here we check_mutable()?;
             // (2) we return the box instead of dropping it.
-            pub fn take_box(&mut self) -> PyResult<Box<$inner>> {
+            pub fn take_box1(&mut self) -> PyResult<Box<$inner>> {
                 self.check_not_null()?;
                 self.check_owned()?;
                 self.check_mutable()?;
                 // Replace owned so other references are marked dead.
                 self.owned = None; 
-                let ptr = self.ptr_to_mut();
-                self.set_to_null();
+                let ptr = self.replace_with_null().take();
                 Ok(unsafe { Box::from_raw(ptr) })
             }
         }
 
         impl Clone for $outer {
             fn clone(&self) -> $outer {
-                let to_wrap = unsafe { &mut *self.ptr_to_mut() };
                 let owner = self.freed.clone();
-                match self.inner {
-                    $enum_name::Mut(_) => $outer::wrap(to_wrap, owner),
-                    $enum_name::Immut(_) => $outer::wrap_immutable(to_wrap, owner)
+                match &self.inner {
+                    $enum_name::Mut(_) => $outer::wrap(self.to_ref_mut(), owner),
+                    $enum_name::Immut(_) => $outer::wrap_immutable1(self.to_ref(), owner)
                 }
             }
         }        
@@ -318,112 +445,289 @@ macro_rules! wrapper_type_helper {
 }
 
 
+#[macro_export]
+macro_rules! rc_wrapper_type {
+    ( $outer:ident, $inner:ty ) => {
+        paste::item!{
+            python_utils::rc_wrapper_type_helper!($outer, [<$outer Enum>], [<$outer Wrapper>], $inner);
+            python_utils::wrapper_outer_defs!($outer, $inner);
+            impl $outer {
+                pub fn wrap_immutable(to_wrap : std::sync::Arc<$inner>) -> Self {
+                    Self::wrap_immutable1(to_wrap)
+                }
+            }            
+        }
+    }
+}
 
 #[macro_export]
-macro_rules! rc_inner_wrapper_type {
+macro_rules! rc_wrapper_type_inner {
     ( $outer:ident, $inner:ty ) => {
+        paste::item!{
+            python_utils::rc_wrapper_type_helper!($outer, [<$outer Enum>], [<$outer Wrapper>], $inner);
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! rc_wrapper_type_helper {
+    ( $outer:ident, $enum_name : ident, $mut_wrapper : ident,  $inner:ty ) => {
 
         #[pyclass(dict)]
-        #[derive(Clone)]
         #[repr(transparent)]
         pub struct $outer {
-            inner : Option<std::sync::Arc<$inner>>
+            inner : $enum_name
+        }
+        
+
+        enum $enum_name {
+            Mut($mut_wrapper),
+            Immut(std::sync::Arc<$inner>)
+        }
+
+        pub struct $mut_wrapper {
+            ptr : *mut $inner,
+            // If we are the owner, we hold onto an Arc to keep it alive. Replace with None on free.
+            owned : Option<std::sync::Arc<()>>, 
+            // To check if we are freed, we test whether or not this weak pointer is still valid.
+            // When our owner is freed, this Weak pointer will become invalid.
+            freed : std::sync::Weak<()>
         }
 
         impl $outer {
-            // type Inner = $inner; // ==> "associated types are not yet supported in inherent imples" =(
+            pub fn is_null(&self) -> bool {
+                match &self.inner {
+                    $enum_name::Mut(wrapper) => { wrapper.freed.upgrade().is_none() }
+                    $enum_name::Immut(_) => true
+                }
+            }
+            
+            pub fn check_not_null(&self) -> PyResult<()> {
+                if self.is_null() {
+                    Err(python_utils::null_ptr_exception())
+                } else {
+                    Ok(())
+                }
+            }
 
-            #![allow(dead_code)]
-            pub fn inner_rc(&self) -> PyResult<&std::sync::Arc<$inner>> {
-                self.inner.as_ref().ok_or_else(
-                    || python_utils::null_ptr_exception()
+            fn replace_with_null(&mut self) -> $enum_name {
+                std::mem::replace(&mut self.inner,
+                    $enum_name::Mut($mut_wrapper {
+                        ptr : std::ptr::null_mut(),
+                        owned : None,
+                        freed : std::sync::Weak::new()
+                    })
                 )
             }
-        
-            pub fn inner_rc_unchkd(&self) -> &std::sync::Arc<$inner> {
-                self.inner.as_ref().unwrap()
+
+            pub fn is_mutable(&self) -> bool {
+                match self.inner {
+                    $enum_name::Mut(_) => true,
+                    $enum_name::Immut(_) => false
+                }
+            }            
+
+            pub fn check_mutable(&self) -> PyResult<()> {
+                if self.is_mutable() {
+                    Ok(())
+                } else {
+                    Err(python_utils::must_be_mutable_exception())
+                }
+            }
+
+            pub fn check_immutable(&self) -> PyResult<()> {
+                if self.is_mutable() {
+                    Err(python_utils::must_be_immutable_exception())
+                } else {
+                    Ok(())
+                }
+            }    
+
+            pub fn ensure_immutable(&mut self) -> PyResult<()> {
+                match &mut self.inner {
+                    $enum_name::Immut(_) => {}
+                    $enum_name::Mut(wrapper) => {
+                        self.inner = Self::wrap_immutable1(
+                            std::sync::Arc::from(
+                                unsafe { Box::from_raw(wrapper.ptr) }
+                            )
+                        ).replace_with_null();
+                    }
+                }
+                Ok(())
+            }
+
+            pub fn to_arc(&self) -> PyResult<&std::sync::Arc<$inner>> {
+                self.check_not_null()?;
+                self.check_immutable()?;
+                match &self.inner {
+                    $enum_name::Mut(_) => unreachable!(),
+                    $enum_name::Immut(arc) => Ok(arc)
+                }                
+            }
+
+            // type Inner = $inner; // ==> "associated types are not yet supported in inherent imples" =(
+
+            // #![allow(dead_code)]
+            pub fn inner1(&self) -> PyResult<&$inner> {
+                self.check_not_null()?;
+                Ok(match &self.inner {
+                    $enum_name::Mut(wrapper) => { unsafe { &*wrapper.ptr } }
+                    $enum_name::Immut(arc) => &*arc
+                })
             }
         
-            pub fn box_and_wrap_rc(inner : $inner) -> Self {
+            pub fn inner_unchkd1(&self) -> &$inner {
+                match &self.inner {
+                    $enum_name::Mut(wrapper) => { unsafe { &*wrapper.ptr } }
+                    $enum_name::Immut(arc) => &*arc
+                }
+            }
+
+            pub fn inner_mut1(&self) -> PyResult<&mut $inner> {
+                self.check_not_null()?;
+                self.check_mutable()?;
+                Ok(match &self.inner {
+                    $enum_name::Mut(wrapper) => { unsafe { &mut *wrapper.ptr } }
+                    _ => { unreachable!() }
+                })
+            }
+        
+            pub fn inner_mut_unchkd1(&self) -> &mut $inner {
+                match &self.inner {
+                    $enum_name::Mut(wrapper) => { unsafe { &mut *wrapper.ptr } }
+                    _ => { python_utils::must_be_mutable_panic!() }
+                }
+            }            
+        
+            pub fn box_and_wrap1(inner : $inner) -> Self {
+                let inner_box = Box::new(inner);
+                let owned = std::sync::Arc::new(());
+                let freed = std::sync::Arc::downgrade(&owned);
+                let wrapper = $mut_wrapper {
+                    ptr : Box::into_raw(inner_box),
+                    owned : Some(owned),
+                    freed 
+                };
                 Self {
-                    inner : Some(std::sync::Arc::new(inner))
+                    inner : $enum_name::Mut(wrapper)
                 }
             }
 
             pub fn owner(&self) -> std::sync::Weak<()> {
-                self.inner.as_ref().map(|ptr| 
-                    python_utils::weak_ptr_to_final(std::sync::Arc::downgrade(ptr))
-                ).unwrap_or_else(|| std::sync::Weak::new()) 
-                    // TODO: this else behavior may not be right...
-            }
-
-            pub fn is_null(&self) -> bool {
-                self.inner.is_none()
-            }
-
-            pub fn check_not_null(&self) -> PyResult<()> {
-                python_utils::null_ptr_exception_if_none(self.inner.as_ref())
+                match &self.inner {
+                    $enum_name::Mut(wrapper) => { wrapper.freed.clone() },
+                    $enum_name::Immut(arc) => {
+                        python_utils::weak_ptr_to_final(std::sync::Arc::downgrade(&arc))
+                    }
+                }
             }
         
             pub fn is_owned(&self) -> bool {
-                true
+                match &self.inner {
+                    $enum_name::Mut(wrapper) => wrapper.owned.is_some(),
+                    $enum_name::Immut(arc) => true   
+                }
             }
 
             pub fn check_owned(&self) -> PyResult<()>{
-                Ok(())
+                if self.is_owned() {
+                    Ok(())
+                } else {
+                    return Err(pyo3::exceptions::ValueError::py_err(
+                        "Illegal operation on reference that doesn't own its data."));
+                }
             }
         }
 
         #[pymethods]
         impl $outer {
             pub fn free(&mut self) -> PyResult<()> {
-                python_utils::null_ptr_exception_if_none(self.inner.take())?;
+                self.check_not_null()?;
+                self.check_owned()?;
+                let inner = self.replace_with_null();
+                match inner {
+                    $enum_name::Mut(wrapper) => {
+                        drop(unsafe { Box::from_raw(wrapper.ptr) });
+                    },
+                    _ => {}
+                }
                 Ok(())
             }
 
             #[getter]
             pub fn get_owned(&self) -> bool {
-                true
+                self.is_owned()
             }
         }
 
         impl $outer {
-            // type Inner = $inner; // ==> "associated types are not yet supported in inherent imples" =(
-    
-            pub fn wrap(inner : std::sync::Arc<$inner>) -> Self {
+            pub fn wrap1<T>(to_wrap : &mut $inner, owner : std::sync::Weak<T>) -> Self {
+                let inner = to_wrap as *mut $inner;
+                let freed = python_utils::weak_ptr_to_final(owner);
+                let wrapper = $mut_wrapper {
+                    ptr : inner,
+                    owned : None,
+                    freed
+                };
                 Self {
-                    inner : Some(inner),
+                    inner : $enum_name::Mut(wrapper)
                 }
             }
 
-            pub fn take_box(&mut self) -> PyResult<std::sync::Arc<$inner>> {
-                self.inner.take().ok_or_else(|| python_utils::null_ptr_exception())
+            pub fn wrap_immutable1(to_wrap : std::sync::Arc<$inner>) -> Self {
+                Self {
+                    inner : $enum_name::Immut(to_wrap)
+                }
+            }
+
+            // This is nearly the same as free except:
+            // (1) Here we check_mutable()?;
+            // (2) we return the box instead of dropping it.
+            pub fn take_box1(&mut self) -> PyResult<Box<$inner>> {
+                self.check_not_null()?;
+                self.check_owned()?;
+                self.check_mutable()?;
+                let inner = self.replace_with_null();
+                match inner {
+                    $enum_name::Mut(wrapper) => {
+                        Ok(unsafe { Box::from_raw(wrapper.ptr) })
+                    },
+                    _ => { unreachable!() }
+                }
             }
         }
-    }
-}
 
-#[macro_export]
-macro_rules! rc_wrapper_type {
-    ( $outer:ident, $inner:ty ) => {
-        python_utils::rc_inner_wrapper_type!($outer, $inner);
+        impl Clone for $outer {
+            fn clone(&self) -> Self {
+                match &self.inner {
+                    $enum_name::Mut(wrapper) => {
+                        let new_wrapper = $mut_wrapper {
+                            ptr : wrapper.ptr,
+                            owned : None,
+                            freed : wrapper.freed.clone()
+                        };
+                        let new_enum = $enum_name::Mut(new_wrapper);
+                        Self {
+                            inner : new_enum
+                        }
+                    }
+                    $enum_name::Immut(arc) => $outer::wrap_immutable1(arc.clone())
+                }
+            }
+        }        
 
-        impl $outer {
-            // type Inner = $inner; // ==> "associated types are not yet supported in inherent imples" =(
-
-            #![allow(dead_code)]
-            pub fn inner(&self) -> PyResult<&std::sync::Arc<$inner>> {
-                self.inner_rc()
+        impl Drop for $outer {
+            fn drop(&mut self){
+                drop(self.free()); // drop because I don't want to handle the Result of self.free()
+                // println!("Dropping {}! ", std::intrinsics::type_name::<$outer>());
+                // if self.is_owned() {
+                //     println!("  An owned reference");
+                //     // if self.is_null()
+                // } else {
+                //     println!("  An unowned reference");
+                // }
             }
-        
-            pub fn inner_unchkd(&self) -> &std::sync::Arc<$inner> {
-                self.inner_rc_unchkd()
-            }
-        
-            pub fn box_and_wrap(inner : $inner) -> Self {
-                Self::box_and_wrap_rc(inner)
-            }
-            
         }
     }
 }

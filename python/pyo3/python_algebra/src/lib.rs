@@ -4,7 +4,7 @@ mod algebra_rust;
 mod adem_algebra;
 mod milnor_algebra;
 mod python_algebra;
-mod module;
+// mod module;
 
 
 use pyo3::prelude::*;
@@ -21,6 +21,6 @@ fn python_algebra(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<python_algebra::PythonAlgebra>()?;
     m.add_class::<python_algebra::PythonElement>()?;
     // m.add_class::<module::FDModule>()?;
-    m.add_class::<module::FreeModule>()?;
+    // m.add_class::<module::FreeModule>()?;
     Ok(())
 }

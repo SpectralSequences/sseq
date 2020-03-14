@@ -61,7 +61,7 @@ macro_rules! fmh_dispatch {
 #[pymethods]
 impl FreeModuleHomomorphism {
     fn source(&self) -> PyResult<FreeModule> {
-        Ok(FreeModule::wrap(fmh_dispatch!(source, self.inner()?, )))
+        Ok(FreeModule::wrap_immutable(fmh_dispatch!(source, self.inner()?, )))
     }
 
     fn target(&self) -> PyResult<PyObject> {
@@ -69,7 +69,7 @@ impl FreeModuleHomomorphism {
         let py = gil.python();
         match self.inner()? {
             FreeModuleHomomorphismInner::ToFree(morphism) => {
-                Ok(FreeModule::wrap(morphism.target()).into_py(py))
+                Ok(FreeModule::wrap_immutable(morphism.target()).into_py(py))
             },
             FreeModuleHomomorphismInner::ToOther(morphism) => {
                 Ok(ModuleRust::into_py_object(morphism.target()))

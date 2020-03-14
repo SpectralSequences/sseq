@@ -30,18 +30,18 @@ impl AlgebraRust {
         let gil = Python::acquire_gil();
         let py = gil.python();
         match *algebra {
-            AlgebraRust::AdemAlgebraRust(_) => AdemAlgebra::wrap(algebra).into_py(py),
-            AlgebraRust::MilnorAlgebraRust(_) => MilnorAlgebra::wrap(algebra).into_py(py),
-            AlgebraRust::PythonAlgebraRust(_) => PythonAlgebra::wrap(algebra).into_py(py),
+            AlgebraRust::AdemAlgebraRust(_) => AdemAlgebra::wrap_immutable1(algebra).into_py(py),
+            AlgebraRust::MilnorAlgebraRust(_) => MilnorAlgebra::wrap_immutable1(algebra).into_py(py),
+            AlgebraRust::PythonAlgebraRust(_) => PythonAlgebra::wrap_immutable1(algebra).into_py(py),
         }
     }
     
     pub fn from_py_object(algebra : PyObject) -> PyResult<Arc<AlgebraRust>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        algebra.extract::<&AdemAlgebra>(py).and_then(|a| a.inner_rc())
-                .or_else(|_err : PyErr| Ok(algebra.extract::<&MilnorAlgebra>(py)?.inner_rc()?))
-                .or_else(|_err : PyErr| Ok(algebra.extract::<&PythonAlgebra>(py)?.inner_rc()?))
+        algebra.extract::<&AdemAlgebra>(py).and_then(|a| a.to_arc())
+                .or_else(|_err : PyErr| Ok(algebra.extract::<&MilnorAlgebra>(py)?.to_arc()?))
+                .or_else(|_err : PyErr| Ok(algebra.extract::<&PythonAlgebra>(py)?.to_arc()?))
                 .map( |a| a.clone())
                 .map_err(|_err : PyErr| {
                     exceptions::ValueError::py_err(format!(
