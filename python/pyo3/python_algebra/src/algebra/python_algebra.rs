@@ -6,7 +6,6 @@ use pyo3::{
     prelude::*,
     PyObjectProtocol,
     PyObject,
-    exceptions,
     types::{PyDict, PyAny, },
 };
 

@@ -1,6 +1,5 @@
 use pyo3::prelude::*;
 use pyo3::{PyObjectProtocol, PySequenceProtocol };
-use pyo3::exceptions;
 
 use fp::vector::{FpVector as FpVectorRust, FpVectorT};
 
@@ -36,8 +35,8 @@ impl FpVector {
         let p = self.inner_unchkd().prime();
         let q = other.inner_unchkd().prime(); 
         if p != q {
-            return Err(exceptions::ValueError::py_err(
-                format!("Primes {} and {} are not equal{}.", p, q, extra_messsage)
+            return Err(python_utils::exception!(ValueError,
+                "Primes {} and {} are not equal{}.", p, q, extra_messsage
             ))
         } else {
             Ok(())
@@ -46,7 +45,7 @@ impl FpVector {
 
     pub fn check_dimensions_match(&self, other : &FpVector, message : &str) -> PyResult<()> {
         if self.inner_unchkd().dimension() != other.inner_unchkd().dimension() {
-            return Err(exceptions::ValueError::py_err(
+            return Err(python_utils::exception!(ValueError,
                 format!("{}", message)
             ))
         } else {

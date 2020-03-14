@@ -2,7 +2,6 @@
 
 use pyo3::{
     prelude::*,
-    exceptions,
     ObjectProtocol,
     types::{PyDict, PyAny}
 };
@@ -21,9 +20,7 @@ pub fn reduce_coefficient(p : u32, c : i32) -> u32 {
 }
 
 pub fn null_ptr_exception() -> pyo3::PyErr {
-    exceptions::ReferenceError::py_err(
-        "Null pointer!"
-    )
+    exception!(ReferenceError, "Null pointer!")
 }
 
 pub fn null_ptr_exception_if_none<T>(opt : Option<T>) -> pyo3::PyResult<()> {
@@ -45,8 +42,15 @@ macro_rules! exception {
         pyo3::exceptions::$error_type::py_err($msg)
     };
     ($error_type : ident, $fmt:expr, $($arg:tt)+) => { 
-        pyo3::exceptions::$error_type::py_err(format!($fmt, $($args),*))
+        pyo3::exceptions::$error_type::py_err(format!($fmt, $($arg)*))
     };    
+}
+
+#[macro_export]
+macro_rules! not_implemented_error {
+    () => {
+        python_utils::exception!(NotImplementedError, "Not implemented.")
+    };
 }
 
 pub fn must_be_immutable_exception() -> pyo3::PyErr {
@@ -95,12 +99,12 @@ pub fn handle_index(dimension : usize, index : isize, dim_or_len : &str,  type_t
 
 pub fn check_index(dimension : usize, index : isize, dim_or_len : &str,  type_to_index : &str) -> PyResult<()> {
     if index >= dimension as isize {
-        Err(exceptions::IndexError::py_err(
-            format!("Index {} is greater than or equal to {} {} of {}.", index, dim_or_len, dimension, type_to_index)
+        Err(exception!(IndexError,
+            "Index {} is greater than or equal to {} {} of {}.", index, dim_or_len, dimension, type_to_index
         ))
     } else if index < 0 {
-        Err(exceptions::IndexError::py_err(
-            format!("Index {} is greater than {} {} of {}.", index - dimension as isize, dim_or_len, dimension, type_to_index)
+        Err(exception!(IndexError,
+            "Index {} is greater than {} {} of {}.", index - dimension as isize, dim_or_len, dimension, type_to_index
         ))
     } else {
         Ok(())
@@ -410,7 +414,7 @@ macro_rules! wrapper_type_helper {
                 if self.is_owned() {
                     Ok(())
                 } else {
-                    return Err(pyo3::exceptions::ValueError::py_err(
+                    return Err(python_utils::exception!(ValueError,
                         "Illegal operation on reference that doesn't own its data."));
                 }
             }
@@ -679,7 +683,7 @@ macro_rules! rc_wrapper_type_helper {
                 if self.is_owned() {
                     Ok(())
                 } else {
-                    return Err(pyo3::exceptions::ValueError::py_err(
+                    return Err(python_utils::exception!(ValueError,
                         "Illegal operation on reference that doesn't own its data."));
                 }
             }

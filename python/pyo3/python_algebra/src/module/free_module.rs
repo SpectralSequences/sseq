@@ -1,10 +1,6 @@
-// use parking_lot::{Mutex, MutexGuard};
-
 use pyo3::{
     prelude::*,
-    exceptions,
     PyObjectProtocol,
-    // types::PyDict
 };
 
 use python_utils::{
@@ -12,7 +8,6 @@ use python_utils::{
     py_repr, 
     rc_wrapper_type, 
     wrapper_type, 
-    // get_from_kwargs
 };
 
 use algebra::Algebra as AlgebraT;

@@ -53,7 +53,9 @@ impl FDModule {
 impl FDModule {
     fn from_json_inner(mut json: Value) -> PyResult<Self> {
         let algebra = AlgebraRust::from_json(&json, "adem".to_string())
-            .map_err(|e| exceptions::ValueError::py_err(format!("Failed to construct algebra: {}", e)))?;
+            .map_err(|e| 
+                python_utils::exception!(ValueError, "Failed to construct algebra: {}", e)
+            )?;
         let algebra = Arc::new(algebra);
         let module = FDModuleRust::from_json(algebra, &mut json);
         // .map_err(|e| {
@@ -77,10 +79,14 @@ impl FDModule {
     #[staticmethod]
     fn from_file(path: String) -> PyResult<Self> {
         let f =
-            File::open(path).map_err(|e| exceptions::IOError::py_err(format!("Failed to open file: {}", e)))?;
+            File::open(path).map_err(|e| 
+                python_utils::exception!(IOError, "Failed to open file: {}", e)
+            )?;
 
         let json = serde_json::from_reader(BufReader::new(f))
-            .map_err(|e| exceptions::ValueError::py_err(format!("Failed to parse json: {}", e)))?;
+            .map_err(|e| 
+                python_utils::exception!(ValueError, "Failed to parse json: {}", e)
+            )?;
 
         Self::from_json_inner(json)
     }
@@ -88,7 +94,9 @@ impl FDModule {
     #[staticmethod]
     fn from_json(json: String) -> PyResult<Self> {
         let json = serde_json::from_str(&json)
-            .map_err(|e| exceptions::ValueError::py_err(format!("Failed to parse json: {}", e)))?;
+            .map_err(|e| 
+                python_utils::exception!(ValueError, "Failed to parse json: {}", e)
+            )?;
 
         Self::from_json_inner(json)
     }
@@ -114,10 +122,10 @@ impl FDModule {
         self.check_degree(degree)?;
         let inner = self.inner_mut()?; 
         if degree < inner.max_degree() {
-            Err(exceptions::ValueError::py_err(format!(
+            Err(python_utils::exception!(ValueError,
                 "Degree {} is less than max_degree {}. Must add generators in increasing order of degree.",
                 degree, inner.max_degree()
-            )))
+            ))
         } else {
             Ok(inner.add_generator(degree, name))
         }
@@ -171,8 +179,8 @@ impl FDModule {
             gen_to_idx = gen_to_idx_from_py.extract(py)?;
         }
         inner.parse_action(&gen_to_idx, entry_, overwrite)
-            .map_err(|err| exceptions::ValueError::py_err(
-                format!("Error parsing: {}", err)
+            .map_err(|err| python_utils::exception!(ValueError,
+                "Error parsing: {}", err
             ))
     }
 
@@ -187,9 +195,9 @@ impl FDModule {
         output_deg: i32,
     ) -> PyResult<()> {
         self.inner()?.check_validity(input_deg, output_deg)
-            .map_err(|err| exceptions::ValueError::py_err(format!(
+            .map_err(|err| python_utils::exception!(ValueError,
                 "{}", err
-            )))
+            ))
     }
 
     pub fn check_validity(&self) -> PyResult<()> {

@@ -1,8 +1,10 @@
 #![macro_use]
 
-use pyo3::prelude::*;
-use pyo3::{PySequenceProtocol, PyObjectProtocol};
-use pyo3::exceptions;
+use pyo3::{
+    prelude::*,
+    PySequenceProtocol, 
+    PyObjectProtocol
+};
 
 // use fp::vector::FpVectorT;
 
@@ -27,10 +29,10 @@ pub fn vecu32_from_py_object(obj : PyObject, argument_name : &str) -> PyResult<V
         let result : &PVector = obj.extract(py)?;
         Ok(result.inner()?.clone())
     }).map_err(|_err : PyErr| {
-        exceptions::ValueError::py_err(format!(
+        python_utils::exception!(ValueError,
             "Argument \"{}\" expected to be either a list of integers or a PVector.",
             argument_name
-        ))
+        )
     })
 }
 
@@ -60,10 +62,10 @@ pub fn bitmask_u32_from_py_object(obj : PyObject, argument_name : &str) -> PyRes
     obj.extract::<u32>(py).or_else(|_err| {
         Ok(bitmask_u32_from_vec(&obj.extract(py)?))
     }).map_err(|_err : PyErr| {
-        exceptions::ValueError::py_err(format!(
+        python_utils::exception!(TypeError,
             "Argument \"{}\" expected to be either a single integer or a list of integers.",
             argument_name
-        ))
+        )
     })
 }
 
@@ -113,10 +115,10 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
         fn check_degree(&self, degree : i32) -> PyResult<()> {
             let max_degree = self.inner_unchkd().max_degree();
             if degree > max_degree {
-                Err(exceptions::IndexError::py_err(format!(
+                Err(python_utils::exception!(IndexError,
                     "Degree {} too large: maximum degree of algebra is {}. Run algebra.compute_basis({}) first.", 
                     degree, max_degree, degree
-                )))
+                ))
             } else {
                 Ok(())
             }
@@ -128,12 +130,12 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             if the_dimension == what_the_dimension_should_be {
                 Ok(())
             } else {
-                Err(exceptions::ValueError::py_err(format!(
+                Err(python_utils::exception!(IndexError,
                     "Dimension of vector is {} but the dimension of the algebra in degree {} is {}.",
                     the_dimension,
                     degree,
                     what_the_dimension_should_be
-                )))
+                ))
             }
         }
 
@@ -142,12 +144,12 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             if idx < dimension {
                 Ok(())
             } else {
-                Err(exceptions::IndexError::py_err(format!(
+                Err(python_utils::exception!(IndexError,
                     "Index {} is larger than dimension {} of the algebra in degree {}.",
                     idx,
                     dimension,
                     degree,
-                )))                
+                ))
             }
             
         }
@@ -337,11 +339,11 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             Ok(obj.extract::<&FpVector>(py).or_else(|_err| {
                 Ok(&obj.extract::<&$element>(py)?.element)
             }).map_err(|_err : PyErr| {
-                exceptions::ValueError::py_err(format!(
+                python_utils::exception!(TypeError,
                     "Argument \"{}\" expected to be either an {} or an FpVector.",
                     $element_name,
                     argument_name
-                ))
+                )
             })?.clone())
         }
     }

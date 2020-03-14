@@ -1,6 +1,5 @@
 use pyo3::prelude::*;
 use pyo3::{PyObjectProtocol, PySequenceProtocol };
-use pyo3::exceptions;
 
 // use fp::vector::{FpVector as FpVectorRust, FpVectorT};
 use fp::matrix::{ Matrix as MatrixRust, Subspace as SubspaceRust, QuasiInverse as QuasiInverseRust };
@@ -149,11 +148,11 @@ impl Matrix {
 
     // TODO: What are the right method signatures for these? Do we need a type PermutationWrapper?
     pub fn find_pivots_permutation(&mut self, _permutation : PyObject) -> PyResult<PyObject> {
-        Err(exceptions::NotImplementedError::py_err("Not implemented."))
+        Err(python_utils::not_implemented_error!())
     }
 
     pub fn row_reduce_permutation(&mut self, _permutation : PyObject) -> PyResult<PyObject> {
-        Err(exceptions::NotImplementedError::py_err("Not implemented."))
+        Err(python_utils::not_implemented_error!())
     }
 }
 
@@ -224,7 +223,7 @@ impl Subspace {
     // TODO: basis is supposed to return a read only view.
     // Do we copy? Make a read only vector type? Return a mutable view?
     pub fn basis(&self) -> PyResult<PyObject> { 
-        Err(exceptions::NotImplementedError::py_err("basis not yet implemented."))
+        Err(python_utils::not_implemented_error!())
     }
 
     pub fn add_vector(&mut self, row : &FpVector) -> PyResult<()> { 
@@ -234,7 +233,7 @@ impl Subspace {
 
     // TODO: Another place where we could wrap Vec<usize>...
     pub fn add_basis_elements(&mut self, _rows : PyObject) -> PyResult<()> { 
-        return Err(exceptions::NotImplementedError::py_err(""));
+        return Err(python_utils::not_implemented_error!());
         // let gil = Python::acquire_gil();
         // let py = gil.python();
         // let rows : Vec<usize> = rows.extract(py)?;

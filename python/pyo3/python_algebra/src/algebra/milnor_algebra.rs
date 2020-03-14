@@ -1,7 +1,6 @@
 use pyo3::{
     prelude::*,
     PyObjectProtocol,
-    exceptions,
     types::{PyDict, PyAny, },
 };
 
@@ -175,7 +174,7 @@ pub fn get_profile_from_kwargs(p : u32, kwargs : Option<&PyDict>) -> PyResult<Mi
     {
         let profile = x?;
         if profile.len() != 2 {
-            return Err(exceptions::ValueError::py_err(
+            return Err(python_utils::exception!(ValueError,
                 "For generic MilnorAlgebra profile argument should be a pair of lists [p_part, q_part]."
             ));
         }
@@ -228,10 +227,10 @@ impl MilnorAlgebra {
         self.check_degree(mbe_inner.degree)?;
         self.inner_unchkd().try_basis_element_to_index(mbe_inner)
             .ok_or_else(|| 
-                exceptions::ValueError::py_err(format!(
+                python_utils::exception!(ValueError,
                     "MilnorBasisElement({}) is not a valid basis element.", 
                     mbe_inner
-                ))
+                )
             )
     }
 }

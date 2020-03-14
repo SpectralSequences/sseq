@@ -11,10 +11,10 @@ macro_rules! module_methods {
             fn check_degree(&self, degree : i32) -> PyResult<()> {
                 let max_degree = self.max_computed_degree()?;
                 if degree > max_degree {
-                    Err(exceptions::IndexError::py_err(format!(
+                    Err(python_utils::exception!(IndexError,
                         "Degree {} too large: maximum degree of module is {}.", 
                         degree, max_degree
-                    )))
+                    ))
                 } else {
                     Ok(())
                 }
@@ -26,12 +26,12 @@ macro_rules! module_methods {
                 if the_dimension == what_the_dimension_should_be {
                     Ok(())
                 } else {
-                    Err(exceptions::ValueError::py_err(format!(
+                    Err(python_utils::exception!(ValueError,
                         "Dimension of vector is {} but the dimension of the module in degree {} is {}.",
                         the_dimension,
                         degree,
                         what_the_dimension_should_be
-                    )))
+                    ))
                 }
             }
     
@@ -40,22 +40,22 @@ macro_rules! module_methods {
                 if idx < dimension {
                     Ok(())
                 } else {
-                    Err(exceptions::IndexError::py_err(format!(
+                    Err(python_utils::exception!(IndexError,
                         "Index {} is larger than dimension {} of the module in degree {}.",
                         idx,
                         dimension,
                         degree,
-                    )))                
+                    ))
                 }
             }
     
             fn check_algebra_degree(&self, degree : i32) -> PyResult<()> {
                 let max_degree = self.inner_unchkd().algebra().max_degree();
                 if degree > max_degree {
-                    Err(exceptions::IndexError::py_err(format!(
+                    Err(python_utils::exception!(IndexError,
                         "Degree {} too large: maximum degree of algebra is {}. Run \"algebra.compute_basis({})\" first", 
                         degree, max_degree, degree
-                    )))
+                    ))
                 } else {
                     Ok(())
                 }
@@ -68,12 +68,12 @@ macro_rules! module_methods {
                 if the_dimension == what_the_dimension_should_be {
                     Ok(())
                 } else {
-                    Err(exceptions::ValueError::py_err(format!(
+                    Err(python_utils::exception!(ValueError,
                         "Dimension of vector is {} but the dimension of the module in degree {} is {}.",
                         the_dimension,
                         degree,
                         what_the_dimension_should_be
-                    )))
+                    ))
                 }
             }
     
@@ -82,12 +82,12 @@ macro_rules! module_methods {
                 if idx < dimension {
                     Ok(())
                 } else {
-                    Err(exceptions::IndexError::py_err(format!(
+                    Err(python_utils::exception!(IndexError,
                         "Index {} is larger than dimension {} of the module in degree {}.",
                         idx,
                         dimension,
                         degree,
-                    )))                
+                    ))
                 }
                 
             }        
@@ -295,11 +295,11 @@ macro_rules! module_bindings { ( $module : ident, $module_rust : ident) => {
     //         Ok(obj.extract::<&FpVector>(py).or_else(|_err| {
     //             Ok(&obj.extract::<&$element>(py)?.element)
     //         }).map_err(|_err : PyErr| {
-    //             exceptions::ValueError::py_err(format!(
+    //             Err(python_utils::exception!(ValueError,
     //                 "Argument \"{}\" expected to be either an {} or an FpVector.",
     //                 $element_name,
     //                 argument_name
-    //             ))
+    //             )
     //         })?.clone())
     //     }
     // }

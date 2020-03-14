@@ -18,7 +18,10 @@ use crate::algebra::{
     PythonAlgebraRust
 };
 
-use pyo3::{prelude::*, exceptions, PyErr};
+use pyo3::{
+    prelude::*,
+    PyErr
+};
 
 // For some reason the enum_dispatch doesn't work right?
 #[enum_dispatch(Algebra)]
@@ -48,9 +51,9 @@ impl AlgebraRust {
                 .or_else(|_err : PyErr| Ok(algebra.extract::<&PythonAlgebra>(py)?.to_arc()?))
                 .map( |a| a.clone())
                 .map_err(|_err : PyErr| {
-                    exceptions::ValueError::py_err(format!(
+                    python_utils::exception!(TypeError,
                         "Invalid algebra!"
-                    ))
+                    )
                 })
     }
 }

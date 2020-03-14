@@ -1,6 +1,5 @@
 use pyo3::{
     prelude::*,
-    exceptions,
     PyObjectProtocol,
     types::PyDict
 };
@@ -110,7 +109,7 @@ impl AdemAlgebra {
     pub fn new(p : u32,  unstable : bool, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let generic : bool = get_from_kwargs(kwargs, "generic", p!=2)?;
         if unstable {
-            return Err(exceptions::NotImplementedError::py_err(
+            return Err(python_utils::exception!(NotImplementedError,
                 "Unstable Adem algebras not yet implemented."
             ));
         }
@@ -143,10 +142,10 @@ impl AdemAlgebra {
         self.check_degree(abe_inner.degree)?;
         self.inner_unchkd().try_basis_element_to_index(abe_inner)
             .ok_or_else(|| 
-                exceptions::ValueError::py_err(format!(
+                python_utils::exception!(ValueError,
                     "AdemBasisElement({}) is not a valid basis element.", 
                     abe_inner
-                ))
+                )
             )
     }
 
