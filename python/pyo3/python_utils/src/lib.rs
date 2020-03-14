@@ -52,7 +52,7 @@ macro_rules! exception {
 pub fn must_be_immutable_exception() -> pyo3::PyErr {
     exception!(
         ReferenceError,
-        "Attempted to mutate immutable reference!"
+        "Reference must be immutable for desired operation!"
     )
 }
 
@@ -317,9 +317,9 @@ macro_rules! wrapper_type_helper {
 
             pub fn check_immutable(&self) -> PyResult<()> {
                 if self.is_mutable() {
-                    Ok(())
-                } else {
                     Err(python_utils::must_be_immutable_exception())
+                } else {
+                    Ok(())
                 }
             }    
 
@@ -543,7 +543,7 @@ macro_rules! rc_wrapper_type_helper {
             pub fn is_null(&self) -> bool {
                 match &self.inner {
                     $enum_name::Mut(wrapper) => { wrapper.freed.upgrade().is_none() }
-                    $enum_name::Immut(_) => true
+                    $enum_name::Immut(_) => false
                 }
             }
             
@@ -698,6 +698,15 @@ macro_rules! rc_wrapper_type_helper {
                     _ => {}
                 }
                 Ok(())
+            }
+
+            pub fn freeze(&mut self) -> PyResult<()> {
+                self.ensure_immutable()
+            }
+
+            #[getter]
+            pub fn get_mutable(&self) -> bool {
+                self.is_mutable()
             }
 
             #[getter]

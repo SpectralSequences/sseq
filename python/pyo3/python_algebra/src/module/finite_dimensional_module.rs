@@ -35,9 +35,15 @@ use crate::module::module_rust::ModuleRust;
 
 crate::module_bindings!(FDModule, FDModuleRust);
 
+py_repr!(FDModule, "FreedFDModule", {
+    Ok(format!(
+        "FDModule(p={})",
+        inner.prime(),
+    ))
+});
+
 impl FDModule {
     fn max_computed_degree(&self) -> PyResult<i32> {
-        self.check_degree(20)?;
         Ok(i32::max_value())
         // Ok(self.inner()?.max_degree())
     }
@@ -209,9 +215,5 @@ impl FDModule {
             }
         }
         Ok(())
-    }
-    
-    pub fn freeze(&mut self) -> PyResult<()> {
-        self.ensure_immutable()
     }
 }
