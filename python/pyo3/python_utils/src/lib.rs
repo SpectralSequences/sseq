@@ -243,11 +243,6 @@ macro_rules! wrapper_type {
         paste::item!{
             python_utils::wrapper_type_helper!($outer, [<$outer Enum>], $inner);
             python_utils::wrapper_outer_defs!($outer, $inner);
-            impl $outer {
-                pub fn wrap_immutable<T>(to_wrap : &$inner, owner : std::sync::Weak<T> ) -> Self {
-                    Self::wrap_immutable1(to_wrap, owner)
-                }
-            }
         }
     }
 }
@@ -332,7 +327,7 @@ macro_rules! wrapper_type_helper {
                 match &mut self.inner {
                     $enum_name::Immut(_) => {}
                     $enum_name::Mut(ptr) => {
-                        self.inner = Self::wrap_immutable1(
+                        self.inner = Self::wrap_immutable(
                             unsafe { &**ptr },
                             self.owner()
                         ).replace_with_null();
@@ -449,7 +444,7 @@ macro_rules! wrapper_type_helper {
                 }
             }
 
-            pub fn wrap_immutable1<T>(to_wrap : &$inner, owner : std::sync::Weak<T> ) -> Self {
+            pub fn wrap_immutable<T>(to_wrap : &$inner, owner : std::sync::Weak<T> ) -> Self {
                 let ptr = to_wrap as *const $inner;
                 let inner : *mut $inner = unsafe { std::mem::transmute(ptr)};
                 let freed = python_utils::weak_ptr_to_final(owner);
@@ -479,7 +474,7 @@ macro_rules! wrapper_type_helper {
                 let owner = self.freed.clone();
                 match &self.inner {
                     $enum_name::Mut(_) => $outer::wrap(self.to_ref_mut(), owner),
-                    $enum_name::Immut(_) => $outer::wrap_immutable1(self.to_ref(), owner)
+                    $enum_name::Immut(_) => $outer::wrap_immutable(self.to_ref(), owner)
                 }
             }
         }        
@@ -506,11 +501,6 @@ macro_rules! rc_wrapper_type {
         paste::item!{
             python_utils::rc_wrapper_type_helper!($outer, [<$outer Enum>], [<$outer Wrapper>], $inner);
             python_utils::wrapper_outer_defs!($outer, $inner);
-            impl $outer {
-                pub fn wrap_immutable(to_wrap : std::sync::Arc<$inner>) -> Self {
-                    Self::wrap_immutable1(to_wrap)
-                }
-            }            
         }
     }
 }
@@ -602,7 +592,7 @@ macro_rules! rc_wrapper_type_helper {
                 match &mut self.inner {
                     $enum_name::Immut(_) => {}
                     $enum_name::Mut(wrapper) => {
-                        self.inner = Self::wrap_immutable1(
+                        self.inner = Self::wrap_immutable(
                             std::sync::Arc::from(
                                 unsafe { Box::from_raw(wrapper.ptr) }
                             )
@@ -730,7 +720,7 @@ macro_rules! rc_wrapper_type_helper {
                 }
             }
 
-            pub fn wrap_immutable1(to_wrap : std::sync::Arc<$inner>) -> Self {
+            pub fn wrap_immutable(to_wrap : std::sync::Arc<$inner>) -> Self {
                 Self {
                     inner : $enum_name::Immut(to_wrap)
                 }
@@ -767,7 +757,7 @@ macro_rules! rc_wrapper_type_helper {
                             inner : new_enum
                         }
                     }
-                    $enum_name::Immut(arc) => $outer::wrap_immutable1(arc.clone())
+                    $enum_name::Immut(arc) => $outer::wrap_immutable(arc.clone())
                 }
             }
         }        

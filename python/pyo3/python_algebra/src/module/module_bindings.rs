@@ -9,14 +9,7 @@ use pyo3::{
     // types::PyDict
 };
 
-#[macro_export]
-macro_rules! module_bindings {
-    ( $module : ident ) => {
-        paste::item!{
-            module_bindings_helper!($module, [<$module Inner>], [<$module Rust>]);
-        }
-    }
-}
+
 
 #[macro_export]
 macro_rules! module_methods {
@@ -232,177 +225,42 @@ macro_rules! module_methods {
 
 
 
-python_utils::rc_wrapper_type!(ModuleRustFrozenWrapper, ModuleRust);
-python_utils::wrapper_type!(ModuleRustMutableWrapper, ModuleRust);
-
 #[macro_export]
-macro_rules! module_bindings_helper { ( $module : ident, $module_inner : ident, $module_rust : ident) => {
+macro_rules! module_bindings { ( $module : ident, $module_rust : ident) => {
 
-    #[pyclass(dict)]
-    #[repr(transparent)]
-    pub struct $module {
-        inner : $module_inner
-    }
-
-    enum $module_inner {
-        ModuleFrozen(crate::module::module_bindings::ModuleRustFrozenWrapper),
-        ModuleMutable(crate::module::module_bindings::ModuleRustMutableWrapper)
-    }
+    python_utils::rc_wrapper_type_inner!($module, ModuleRust);
+    python_utils::wrapper_outer_defs_dispatch_to_enum_variant!($module, ModuleRust, $module, $module_rust<AlgebraRust>);
 
     module_methods!($module);
 
-    #[allow(dead_code)]
-    impl $module {
-        fn wrap_module_rust_frozen(inner : crate::module::module_bindings::ModuleRustFrozenWrapper) -> Self {
-            Self {
-                inner : $module_inner::ModuleFrozen(inner)
-            }
-        }
+        // fn wrap_module_rust_frozen(inner : crate::module::module_bindings::ModuleRustFrozenWrapper) -> Self {
+        //     Self {
+        //         inner : $module_inner::ModuleFrozen(inner)
+        //     }
+        // }
 
-        fn wrap_module_rust_mutable(inner : crate::module::module_bindings::ModuleRustMutableWrapper) -> Self {
-            Self {
-                inner : $module_inner::ModuleMutable(inner)
-            }
-        }
-
-        pub fn inner(&self) -> PyResult<&$module_rust<AlgebraRust>> {
-            let module = match &self.inner {
-                $module_inner::ModuleFrozen(module) => module.inner()?,
-                $module_inner::ModuleMutable(module) => module.inner()?
-            };
-            match module {
-                ModuleRust::$module(m) => Ok(&m),
-                _ => panic!()
-            }
-        }
-    
-        pub fn inner_unchkd(&self) -> &$module_rust<AlgebraRust> {
-            let module = match &self.inner {
-                $module_inner::ModuleFrozen(module) => module.inner_unchkd(),
-                $module_inner::ModuleMutable(module) => module.inner_unchkd()
-            };
-            match module {
-                ModuleRust::$module(m) => &m,
-                _ => panic!()
-            }
-        }
-
-        pub fn inner_mut(&mut self) -> PyResult<&mut $module_rust<AlgebraRust>> {
-            let module = match &mut self.inner {
-                $module_inner::ModuleFrozen(_) => {
-                    return Err(exceptions::ValueError::py_err(format!(
-                        "Immutable, cannot apply mutable operation."
-                    )))
-                },
-                $module_inner::ModuleMutable(module) => module.inner_mut()?
-            };
-            match module {
-                ModuleRust::$module(m) => Ok(m),
-                _ => panic!()
-            }
-        }
-    
-        pub fn inner_mut_unchkd(&mut self) -> &mut $module_rust<AlgebraRust> {
-            let module = match &mut self.inner {
-                $module_inner::ModuleFrozen(_) => {
-                    panic!("Immutable, cannot apply mutable operation.")
-                },
-                $module_inner::ModuleMutable(module) => module.inner_mut_unchkd()
-            };
-            match module {
-                ModuleRust::$module(m) => m,
-                _ => panic!()
-            }
-        }
-    
-        pub fn box_and_wrap(module : $module_rust<AlgebraRust>) -> Self {
-            Self::wrap_module_rust_mutable(crate::module::module_bindings::ModuleRustMutableWrapper::box_and_wrap(
-                ModuleRust::$module(module)
-            ))
-        }
-
-        pub fn mutable_from_rust(module : $module_rust<AlgebraRust>) -> Self {
-            Self::wrap_module_rust_mutable(crate::module::module_bindings::ModuleRustMutableWrapper::box_and_wrap(
-                ModuleRust::$module(module)
-            ))
-        }
-
-        pub fn immutable_from_rust(module : $module_rust<AlgebraRust>) -> Self {
-            Self::wrap_module_rust_frozen(crate::module::module_bindings::ModuleRustFrozenWrapper::box_and_wrap(
-                ModuleRust::$module(module)
-            ))
-        }
-
-        pub fn immutable_from_arc(module : Arc<ModuleRust>) -> Self {
-            Self::wrap_module_rust_frozen(crate::module::module_bindings::ModuleRustFrozenWrapper::wrap(module))
-        }
-
-        pub fn ensure_immutable(&mut self) -> PyResult<()> {
-            match &mut self.inner {
-                $module_inner::ModuleFrozen(_) => {}
-                $module_inner::ModuleMutable(module) => {
-                    self.inner = Self::immutable_from_arc(Arc::from(module.take_box()?)).inner;
-                }
-            }
-            Ok(())
-        }
+        // fn wrap_module_rust_mutable(inner : crate::module::module_bindings::ModuleRustMutableWrapper) -> Self {
+        //     Self {
+        //         inner : $module_inner::ModuleMutable(inner)
+        //     }
+        // }
 
 
-        pub fn owner(&self) -> std::sync::Weak<()> {
-            match &self.inner {
-                $module_inner::ModuleFrozen(module) => module.owner(),
-                $module_inner::ModuleMutable(module) => module.owner()
-            }
-        }
-    
-        pub fn check_not_null(&self) -> PyResult<()> {
-            if self.is_null() {
-                Err(python_utils::null_ptr_exception())
-            } else {
-                Ok(())
-            }                
-        }
+        // pub fn mutable_from_rust(module : $module_rust<AlgebraRust>) -> Self {
+        //     Self::wrap_module_rust_mutable(crate::module::module_bindings::ModuleRustMutableWrapper::box_and_wrap(
+        //         ModuleRust::$module(module)
+        //     ))
+        // }
 
-        pub fn is_null(&self) -> bool {
-            match &self.inner {
-                $module_inner::ModuleFrozen(module) => module.is_null(),
-                $module_inner::ModuleMutable(module) => module.is_null()
-            }
-        }
-    
-        pub fn is_owned(&self) -> bool {
-            match &self.inner {
-                $module_inner::ModuleFrozen(module) => module.is_owned(),
-                $module_inner::ModuleMutable(module) => module.is_owned()
-            }
-        }
+        // pub fn immutable_from_rust(module : $module_rust<AlgebraRust>) -> Self {
+        //     Self::wrap_module_rust_frozen(crate::module::module_bindings::ModuleRustFrozenWrapper::box_and_wrap(
+        //         ModuleRust::$module(module)
+        //     ))
+        // }
 
-        pub fn check_owned(&self) -> PyResult<()>{
-            match &self.inner {
-                $module_inner::ModuleFrozen(module) => module.check_owned(),
-                $module_inner::ModuleMutable(module) => module.check_owned()
-            }
-        }
-    }
-
-    #[pymethods]
-    impl $module {
-        pub fn free(&mut self) -> PyResult<()> {
-            match &mut self.inner {
-                $module_inner::ModuleFrozen(module) => module.free(),
-                $module_inner::ModuleMutable(module) => module.free()
-            }
-        }
-
-        #[getter]
-        pub fn get_owned(&self) -> bool {
-            match &self.inner {
-                $module_inner::ModuleFrozen(module) => module.get_owned(),
-                $module_inner::ModuleMutable(module) => module.get_owned()
-            }
-        }
-    }
-
+        // pub fn immutable_from_arc(module : Arc<ModuleRust>) -> Self {
+        //     Self::wrap_module_rust_frozen(crate::module::module_bindings::ModuleRustFrozenWrapper::wrap(module))
+        // }
 
 
     // #[pyclass(dict)]

@@ -33,7 +33,7 @@ impl ModuleRust {
         let gil = Python::acquire_gil();
         let py = gil.python();
         match *module {
-            ModuleRust::FDModule(_) => FDModule::immutable_from_arc(module).into_py(py),
+            ModuleRust::FDModule(_) => FDModule::wrap_immutable(module).into_py(py),
             _ => unimplemented!()
         }
     }

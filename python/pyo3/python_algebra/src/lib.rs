@@ -4,7 +4,7 @@ mod algebra_rust;
 mod adem_algebra;
 mod milnor_algebra;
 mod python_algebra;
-// mod module;
+mod module;
 
 
 use pyo3::prelude::*;

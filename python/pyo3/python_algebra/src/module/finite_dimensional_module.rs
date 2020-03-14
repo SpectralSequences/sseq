@@ -33,7 +33,7 @@ use python_fp::vector::FpVector;
 use crate::algebra_rust::AlgebraRust;
 use crate::module::module_rust::ModuleRust;
 
-crate::module_bindings!(FDModule);
+crate::module_bindings!(FDModule, FDModuleRust);
 
 impl FDModule {
     fn max_computed_degree(&self) -> PyResult<i32> {
@@ -53,7 +53,7 @@ impl FDModule {
         // .map_err(|e| {
         //     ValueError::py_err(format!("Failed to construct module: {}", e))
         // })?;
-        Ok(Self::mutable_from_rust(module))
+        Ok(Self::box_and_wrap(module))
     }
 }
 
@@ -63,7 +63,7 @@ impl FDModule {
     #[args(min_degree=0)]
     fn new(algebra: PyObject, name: String, min_degree : i32) -> PyResult<Self> {
         let graded_dimension = BiVec::new(min_degree);
-        Ok(Self::mutable_from_rust(
+        Ok(Self::box_and_wrap(
             FDModuleRust::new(AlgebraRust::from_py_object(algebra)?, name, graded_dimension)
         ))
     }

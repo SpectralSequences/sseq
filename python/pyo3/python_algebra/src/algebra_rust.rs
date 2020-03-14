@@ -30,9 +30,9 @@ impl AlgebraRust {
         let gil = Python::acquire_gil();
         let py = gil.python();
         match *algebra {
-            AlgebraRust::AdemAlgebraRust(_) => AdemAlgebra::wrap_immutable1(algebra).into_py(py),
-            AlgebraRust::MilnorAlgebraRust(_) => MilnorAlgebra::wrap_immutable1(algebra).into_py(py),
-            AlgebraRust::PythonAlgebraRust(_) => PythonAlgebra::wrap_immutable1(algebra).into_py(py),
+            AlgebraRust::AdemAlgebraRust(_) => AdemAlgebra::wrap_immutable(algebra).into_py(py),
+            AlgebraRust::MilnorAlgebraRust(_) => MilnorAlgebra::wrap_immutable(algebra).into_py(py),
+            AlgebraRust::PythonAlgebraRust(_) => PythonAlgebra::wrap_immutable(algebra).into_py(py),
         }
     }
     
