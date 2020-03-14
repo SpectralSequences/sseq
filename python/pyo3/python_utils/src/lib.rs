@@ -183,6 +183,61 @@ macro_rules! wrapper_outer_defs {
 
 
 #[macro_export]
+macro_rules! wrapper_outer_defs_dispatch_to_enum_variant {
+    ($outer : ident, $enum_name : ident, $enum_variant : ident,  $inner : ty) => {    
+        
+        impl $outer {
+            pub fn inner(&self) -> PyResult<&$inner> {
+                match self.inner1()? {
+                    $enum_name::$enum_variant(inner) => Ok(inner),
+                    _ => panic!()
+                }
+            }
+    
+            pub fn inner_unchkd(&self) -> &$inner {
+                match self.inner_unchkd1() {
+                    $enum_name::$enum_variant(inner) => inner,
+                    _ => panic!()
+                }
+            }        
+
+            pub fn inner_mut(&mut self) -> PyResult<&mut $inner> {
+                match self.inner_mut1()? {
+                    $enum_name::$enum_variant(inner) => Ok(inner),
+                    _ => panic!()
+                }
+            }
+    
+            pub fn inner_mut_unchkd(&mut self) -> &mut $inner {
+                match self.inner_mut_unchkd1() {
+                    $enum_name::$enum_variant(inner) => inner,
+                    _ => panic!()
+                }
+            }
+
+            pub fn box_and_wrap(inner : $inner) -> Self {
+                Self::box_and_wrap1($enum_name::$enum_variant(inner))
+            }
+
+            // pub fn wrap<T>(to_wrap : &mut $inner, owner : std::sync::Weak<T>) -> Self {
+            //     Self::wrap1(&mut $enum_name::$enum_variant(to_wrap), owner)
+            // }
+
+            // pub fn take_box(&mut self) -> PyResult<Box<$inner>> {
+            //     let enum_inner = self.take_box1();
+            //     match enum_inner {
+            //         $enum_name::$enum_variant(inner) => Ok(inner),
+            //         _ => panic!()
+            //     }                
+            // }
+        }
+    }
+}
+
+
+
+
+#[macro_export]
 macro_rules! wrapper_type {
     ( $outer:ident, $inner:ty ) => {
         paste::item!{

@@ -107,29 +107,7 @@ impl PySequenceProtocol for PVector {
 macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element : ident, $element_name : expr ) => {
 
     python_utils::rc_wrapper_type_inner!($algebra, AlgebraRust);
-
-    impl $algebra {
-        pub fn inner(&self) -> PyResult<&$algebra_rust> {
-            match self.inner1()? {
-                AlgebraRust::$algebra_rust(alg) => Ok(&alg),
-                _ => panic!()
-            }
-        }
-
-        pub fn inner_unchkd(&self) -> &$algebra_rust {
-            match self.inner_unchkd1() {
-                AlgebraRust::$algebra_rust(alg) => &alg,
-                _ => panic!()
-            }
-        }        
-    
-        pub fn box_and_wrap(inner : $algebra_rust) -> Self {
-            Self::box_and_wrap1(AlgebraRust::$algebra_rust(inner))
-        }
-
-        
-    }
-
+    python_utils::wrapper_outer_defs_dispatch_to_enum_variant!($algebra, AlgebraRust, $algebra_rust, $algebra_rust);
 
     impl $algebra {
         fn check_degree(&self, degree : i32) -> PyResult<()> {
