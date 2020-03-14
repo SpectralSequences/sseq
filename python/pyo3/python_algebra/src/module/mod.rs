@@ -7,4 +7,4 @@ mod free_module;
 pub use finite_dimensional_module::FDModule;
 pub use free_module::*;
 pub use module_rust::ModuleRust;
-mod homomorphism;
+pub mod homomorphism;

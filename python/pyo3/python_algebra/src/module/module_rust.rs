@@ -5,12 +5,15 @@ use fp::vector::FpVector;
 use algebra::module::{
     Module as ModuleT,
     FDModule as FDModuleRust,
-    FPModule as FPModuleRust
+    FPModule as FPModuleRust,
+    ZeroModule
 };
 
 use pyo3::{prelude::*};//, exceptions, PyErr};
 use crate::algebra::AlgebraRust;
-use crate::module::FDModule;
+use crate::module::{
+    FDModule
+};
 
 #[allow(dead_code)]
 pub enum ModuleRust {
@@ -38,6 +41,13 @@ impl ModuleRust {
         }
     }
 }
+
+impl ZeroModule for ModuleRust {
+    fn zero_module(algebra: Arc<AlgebraRust>, min_degree: i32) -> Self {
+        ModuleRust::FDModule(FDModuleRust::zero_module(algebra, min_degree))
+    }
+}
+
 
 impl ModuleT for ModuleRust {
     type Algebra = AlgebraRust;

@@ -1,6 +1,6 @@
 
-mod algebra;
-mod module;
+pub mod algebra;
+pub mod module;
 
 
 use pyo3::prelude::*;

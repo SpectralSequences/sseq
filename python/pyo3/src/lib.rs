@@ -1,3 +1,5 @@
+pub mod resolution;
+
 use pyo3::prelude::*;
 use pyo3::{wrap_pymodule};
 
@@ -12,5 +14,6 @@ fn rust_algebra(_py: Python, m: &PyModule) -> PyResult<()> {
     python_utils::rename_submodule(m, "python_fp", "fp")?;
     m.add_wrapped(wrap_pymodule!(python_algebra))?;
     python_utils::rename_submodule(m, "python_algebra", "algebra")?;
+    m.add_class::<resolution::Resolution>()?;
     Ok(())
 }

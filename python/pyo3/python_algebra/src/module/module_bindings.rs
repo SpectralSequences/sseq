@@ -224,36 +224,6 @@ macro_rules! module_bindings { ( $module : ident, $module_rust : ident) => {
 
     module_methods!($module);
 
-        // fn wrap_module_rust_frozen(inner : crate::module::module_bindings::ModuleRustFrozenWrapper) -> Self {
-        //     Self {
-        //         inner : $module_inner::ModuleFrozen(inner)
-        //     }
-        // }
-
-        // fn wrap_module_rust_mutable(inner : crate::module::module_bindings::ModuleRustMutableWrapper) -> Self {
-        //     Self {
-        //         inner : $module_inner::ModuleMutable(inner)
-        //     }
-        // }
-
-
-        // pub fn mutable_from_rust(module : $module_rust<AlgebraRust>) -> Self {
-        //     Self::wrap_module_rust_mutable(crate::module::module_bindings::ModuleRustMutableWrapper::box_and_wrap(
-        //         ModuleRust::$module(module)
-        //     ))
-        // }
-
-        // pub fn immutable_from_rust(module : $module_rust<AlgebraRust>) -> Self {
-        //     Self::wrap_module_rust_frozen(crate::module::module_bindings::ModuleRustFrozenWrapper::box_and_wrap(
-        //         ModuleRust::$module(module)
-        //     ))
-        // }
-
-        // pub fn immutable_from_arc(module : Arc<ModuleRust>) -> Self {
-        //     Self::wrap_module_rust_frozen(crate::module::module_bindings::ModuleRustFrozenWrapper::wrap(module))
-        // }
-
-
     // #[pyclass(dict)]
     // pub struct $element {
     //     module : $module,
