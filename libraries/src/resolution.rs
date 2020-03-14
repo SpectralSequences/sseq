@@ -54,7 +54,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
     /// This function prepares the ResolutionInner object to perform computations up to the
     /// specified s degree. It does *not* perform any computations by itself. It simply lengthens
     /// the `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
-    fn extend_through_degree(&self, mut next_s : u32, max_s : u32, next_t : i32, max_t : i32) {
+    pub fn extend_through_degree(&self, mut next_s : u32, max_s : u32, next_t : i32, max_t : i32) {
         let min_degree = self.min_degree();
 
         for i in next_s ..= max_s {
