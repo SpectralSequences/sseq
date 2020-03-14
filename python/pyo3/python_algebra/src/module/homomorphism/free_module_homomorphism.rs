@@ -34,7 +34,7 @@ use python_fp::{
     vector::FpVector,
     matrix::{Matrix, QuasiInverse, Subspace}
 };
-use crate::algebra_rust::AlgebraRust;
+use crate::algebra::AlgebraRust;
 use crate::module::module_rust::ModuleRust;
 use crate::module::FreeModule;
 use crate::module::free_module::FreeModuleTableEntry;

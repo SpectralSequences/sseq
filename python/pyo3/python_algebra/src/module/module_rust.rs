@@ -1,8 +1,3 @@
-use crate::algebra_rust::AlgebraRust;
-use crate::module::FDModule;
-use pyo3::{prelude::*};//, exceptions, PyErr};
-
-
 use std::sync::Arc;
 
 use fp::prime::ValidPrime;
@@ -13,6 +8,11 @@ use algebra::module::{
     FPModule as FPModuleRust
 };
 
+use pyo3::{prelude::*};//, exceptions, PyErr};
+use crate::algebra::AlgebraRust;
+use crate::module::FDModule;
+
+#[allow(dead_code)]
 pub enum ModuleRust {
     FDModule(FDModuleRust<AlgebraRust>),
     FPModule(FPModuleRust<AlgebraRust>)

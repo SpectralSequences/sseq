@@ -25,7 +25,7 @@ use algebra::module::{
 };
 
 use python_fp::vector::FpVector;
-use crate::algebra_rust::AlgebraRust;
+use crate::algebra::AlgebraRust;
 
 // wrapper_type!(FreeModuleLock, MutexGuard<()>); // causes Lifetime specifier problem
 wrapper_type!(OperationGeneratorPair, OperationGeneratorPairRust);

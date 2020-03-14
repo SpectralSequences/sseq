@@ -18,7 +18,7 @@ use algebra::Algebra;
 
 use python_fp::prime::new_valid_prime;
 use python_fp::vector::FpVector;
-use crate::algebra_rust::AlgebraRust;
+use crate::algebra::AlgebraRust;
 
 
 pub struct PythonAlgebraRust {

@@ -11,11 +11,14 @@ use algebra::{
     MilnorAlgebra as MilnorAlgebraRust
 };
 
-use crate::{adem_algebra::AdemAlgebra, milnor_algebra::MilnorAlgebra, python_algebra::PythonAlgebra};
+use crate::algebra::{
+    AdemAlgebra, 
+    MilnorAlgebra,
+    PythonAlgebra,
+    PythonAlgebraRust
+};
 
 use pyo3::{prelude::*, exceptions, PyErr};
-
-use crate::python_algebra::PythonAlgebraRust;
 
 // For some reason the enum_dispatch doesn't work right?
 #[enum_dispatch(Algebra)]

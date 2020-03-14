@@ -22,8 +22,10 @@ use algebra::AdemAlgebra as AdemAlgebraRust;
 use algebra::adem_algebra::AdemBasisElement as AdemBasisElementRust;
 use algebra::Algebra;
 
-use crate::algebra_bindings::{ self, PVector };
-use crate::algebra_rust::AlgebraRust;
+use crate::algebra::{
+    algebra_bindings::{ self, PVector },
+    algebra_rust::AlgebraRust
+};
 
 wrapper_type!(AdemBasisElement, AdemBasisElementRust);
 

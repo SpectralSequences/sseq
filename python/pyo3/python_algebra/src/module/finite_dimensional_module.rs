@@ -30,7 +30,7 @@ use algebra::Algebra as AlgebraT;
 use algebra::module::{FDModule as FDModuleRust, Module, BoundedModule};
 
 use python_fp::vector::FpVector;
-use crate::algebra_rust::AlgebraRust;
+use crate::algebra::AlgebraRust;
 use crate::module::module_rust::ModuleRust;
 
 crate::module_bindings!(FDModule, FDModuleRust);

@@ -23,9 +23,10 @@ use algebra::milnor_algebra::MilnorBasisElement as MilnorBasisElementRust;
 use algebra::milnor_algebra::MilnorProfile as MilnorProfileRust;
 use algebra::Algebra;
 
-
-use crate::algebra_bindings::{ self, PVector };
-use crate::algebra_rust::AlgebraRust;
+use crate::algebra::{
+    algebra_bindings::{ self, PVector },
+    algebra_rust::AlgebraRust
+};
 
 wrapper_type!(MilnorBasisElement, MilnorBasisElementRust);
 
