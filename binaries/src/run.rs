@@ -9,7 +9,7 @@ use std::time::Instant;
 use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
-use rust_ext::chain_complex::{ChainComplex, TensorChainComplex};
+use rust_ext::chain_complex::{ChainComplex, TensorChainComplex, FreeChainComplex};
 use rust_ext::module::homomorphism::{
     FiniteModuleHomomorphism, FreeModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
 };
