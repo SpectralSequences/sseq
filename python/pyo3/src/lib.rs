@@ -1,4 +1,5 @@
 pub mod resolution;
+pub mod resolution_homomorphism;
 
 use pyo3::prelude::*;
 use pyo3::{wrap_pymodule};

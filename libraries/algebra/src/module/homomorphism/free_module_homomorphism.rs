@@ -135,6 +135,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         let lock = self.lock();
         self.extend_by_zero(&lock, degree);
     }
+    
     pub fn extend_by_zero(&self, lock: &MutexGuard<()>, degree: i32) {
         self.check_mutex(lock);
 

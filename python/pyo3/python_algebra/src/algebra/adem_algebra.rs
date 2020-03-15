@@ -69,7 +69,6 @@ impl AdemBasisElement {
     pub fn get_ps(&self) -> PyResult<PVector>{
         Ok(PVector::wrap_immutable(&self.inner()?.ps, self.owner()))
     }
-
     // pub fn to_python(&self) -> PyResult<PyObject> {
 
     // }
@@ -161,4 +160,5 @@ impl AdemAlgebra {
         self.inner_unchkd().make_mono_admissible(result.inner_mut()?, coeff, &mut monomial_inner, excess);
         Ok(())
     }
+
 }

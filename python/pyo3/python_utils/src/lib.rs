@@ -111,9 +111,13 @@ pub fn check_index(dimension : usize, index : isize, dim_or_len : &str,  type_to
     }
 }
 
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 pub fn weak_ptr_to_final<T>(ptr : Weak<T>) -> Weak<()> {
     unsafe { std::mem::transmute(ptr) }
+}
+
+pub fn arc_to_final<T>(ptr : &Arc<T>) -> Weak<()> {
+    weak_ptr_to_final(Arc::downgrade(ptr))
 }
 
 // pub fn get_from_kwargs<'a, T : pyo3::FromPyObject<'a>>(
@@ -667,7 +671,7 @@ macro_rules! rc_wrapper_type_helper {
                 match &self.inner {
                     $enum_name::Mut(wrapper) => { wrapper.freed.clone() },
                     $enum_name::Immut(arc) => {
-                        python_utils::weak_ptr_to_final(std::sync::Arc::downgrade(&arc))
+                        python_utils::arc_to_final(&arc)
                     }
                 }
             }

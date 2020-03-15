@@ -6,10 +6,17 @@ use rust_ext::resolution::ResolutionInner as ResolutionRust;
 use rust_ext::chain_complex::{ChainComplex, FiniteChainComplex};//, ChainMap};
 
 use python_algebra::module::ModuleRust;
-use python_algebra::module::FDModule;
-use python_algebra::module::homomorphism::ModuleHomomorphismRust;
+use python_algebra::module::{
+    FDModule, 
+    FreeModule,
+    homomorphism::{
+        FreeModuleHomomorphism,
+        ModuleHomomorphismRust
+    }
+};
 
-python_utils::wrapper_type!(Resolution, ResolutionRust<FiniteChainComplex<ModuleRust, ModuleHomomorphismRust>>);
+pub type CCRust = FiniteChainComplex<ModuleRust, ModuleHomomorphismRust>;
+python_utils::rc_wrapper_type!(Resolution, ResolutionRust<CCRust>);
 
 #[pymethods]
 impl Resolution {
@@ -48,4 +55,18 @@ impl Resolution {
     pub fn prime(&self) -> PyResult<u32> {
         Ok(*self.inner()?.complex().prime())
     }
+
+    pub fn module(&self, homological_degree : u32) -> PyResult<FreeModule> {
+        Ok(FreeModule::wrap_immutable(self.inner()?.module(homological_degree)))
+    }
+
+    #[getter]
+    pub fn get_min_degree(&self) -> PyResult<i32> {
+        Ok(self.inner()?.min_degree())
+    }
+
+    pub fn differential(&self, s : u32) -> PyResult<FreeModuleHomomorphism> {
+        Ok(FreeModuleHomomorphism::wrap_to_free(self.inner()?.differential(s)))
+    }
+
 }
