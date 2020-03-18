@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/hoodmane/rust_ext.svg?branch=master)](https://travis-ci.org/hoodmane/rust_ext)
+[![Build Status](https://travis-ci.org/SpectralSequences/rust_ext.svg?branch=master)](https://travis-ci.org/SpectralSequences/rust_ext)
 
 # Overview
 The purpose of this repository is to compute Ext over the Steenrod algebra, and
@@ -69,7 +69,7 @@ better idea.
 There is also a version that compiles all the rust code into wasm and lets
 everything run in the browser. A live and cutting-edge version of this can be
 found at
-[https://hoodmane.github.io/rust_ext/](https://hoodmane.github.io/rust_ext/).
+[https://spectralsequences.github.io/ext/](https://spectralsequences.github.io/ext/).
 
 Read the README file in `ext-websocket/` for more details.
 
@@ -129,4 +129,4 @@ To view the docuemntation, run
 ```
 $ cargo doc --no-deps --open
 ```
-As usual, the latter command triggers the former if needed. This can also be viewed on [https://hoodmane.github.io/rust_ext/doc/rust_ext/](https://hoodmane.github.io/rust_ext/doc/rust_ext/)
+As usual, the latter command triggers the former if needed. This can also be viewed on [https://spectralsequences.github.io/ext/doc/rust_ext/](https://spectralsequences.github.io/rust_ext/doc/ext/)
