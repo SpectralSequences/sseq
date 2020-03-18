@@ -17,6 +17,7 @@ pub enum SteenrodAlgebra {
     MilnorAlgebra,
 }
 
+
 impl Bialgebra for SteenrodAlgebra {
     fn decompose (&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize)> {
         match self {

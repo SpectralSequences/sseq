@@ -17,6 +17,6 @@ pub mod steenrod_evaluator;
 pub mod module;
 pub mod cli_module_loaders;
 
-pub use algebra::{combinatorics, Algebra, Bialgebra, SteenrodAlgebra, Field, AdemAlgebra};
+pub use algebra::*;
 
 pub mod utils;

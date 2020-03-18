@@ -121,7 +121,7 @@ pub struct AdemAlgebra {
     p : ValidPrime,
     name : String,
     pub generic : bool,
-    unstable : bool,
+    pub unstable : bool,
     next_degree : Mutex<i32>,
     even_basis_table : OnceVec<Vec<AdemBasisElement>>,
     basis_table : OnceVec<Vec<AdemBasisElement>>, // degree -> index -> AdemBasisElement
