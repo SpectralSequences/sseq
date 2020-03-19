@@ -10,7 +10,7 @@ mod tensor_module;
 mod truncated_module;
 mod zero_module;
 mod bounded_module;
-mod module;
+mod module_trait;
 pub mod block_structure;
 
 pub mod homomorphism;
@@ -29,7 +29,7 @@ pub use tensor_module::TensorModule;
 pub use truncated_module::TruncatedModule;
 pub use zero_module::ZeroModule;
 pub use bounded_module::BoundedModule;
-pub use module::{Module, ModuleFailedRelationError};
+pub use module_trait::{Module, ModuleFailedRelationError};
 
 use crate::algebra::SteenrodAlgebra;
 
