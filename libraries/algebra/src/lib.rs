@@ -17,6 +17,6 @@ pub mod steenrod_evaluator;
 pub mod module;
 pub mod cli_module_loaders;
 
-pub use algebra::*;
+pub use crate::algebra::*;
 
 pub mod utils;
