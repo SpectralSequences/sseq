@@ -1,3 +1,4 @@
 virtualenv
 usr
 **/__pycache__
+scraps

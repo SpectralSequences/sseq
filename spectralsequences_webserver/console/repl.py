@@ -27,7 +27,6 @@ import utils
 
 logger = logging.getLogger("hi")
 
-
 def _lex_python_traceback(tb):
     " Return token list for traceback string. "
     lexer = PythonTracebackLexer()
@@ -42,12 +41,12 @@ def _lex_python_result(tb):
 @monkey_patch(PythonInput)
 def get_compiler_flags(self):
     return ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
-
+ 
 repl = None
 def configure_repl(r):
     global repl
     repl = r 
-    utils.bind(repl.app, exit) 
+    # utils.bind(repl.app, exit) 
 
 
 def exit(
@@ -56,15 +55,6 @@ def exit(
     exception = None,
     style: str = "", 
 ) -> None:
-    """
-    Exit application.
-    :param result: Set this result for the application.
-    :param exception: Set this exception as the result for an application. For
-        a prompt, this is often `EOFError` or `KeyboardInterrupt`.
-    :param style: Apply this style on the whole content when quitting,
-        often this is 'class:exiting' for a prompt. (Used when
-        `erase_when_done` is not set.)
-    """
     assert result is None or exception is None
 
     if self.future is None:
@@ -95,9 +85,9 @@ def shutdown():
 async def make_repl(globals, locals, **kwargs):
     try:
         await embed(globals, locals, return_asyncio_coroutine=True, patch_stdout=True, configure=configure_repl, **kwargs)
-    except EOFError:
-    # Stop the loop when quitting the repl. (Ctrl-D press.)
-        asyncio.get_event_loop().stop()
+    except (EOFError, KeyboardInterrupt):
+        print("Press ^C again...")
+        shutdown()
 
 
 @monkey_patch(PythonRepl)
@@ -182,16 +172,21 @@ async def eval_code(self, line):
         return await result
     else:
         return result
-
+ 
 @monkey_patch(PythonRepl)
 async def exec_code(self, lines):
-    tree = _ast_asyncify(lines, 'async-def-wrapper')
-    mod = ast.Module(tree.body, [])
+    mod = _asyncify(lines)
     async_wrapper_code = self.compile_with_flags(mod, 'exec')
-    exec(async_wrapper_code, self.get_globals(), self.get_locals())
-    async_code = removed_co_newlocals(self.get_locals().pop('async-def-wrapper')).__code__    
-    result = await eval(async_code, self.get_globals(), self.get_locals())
-    globals().update(result)
+    exec(async_wrapper_code, self.get_globals(), self.get_locals()) 
+    do_the_thing = self.compile_with_flags("await __async_def_wrapper__()", "eval")
+    try:
+        result = await eval(do_the_thing, self.get_globals(), self.get_locals())
+    except:
+        print(sys.exc_info()[2].tb_frame)
+        raise sys.exc_info()[1].with_traceback(sys.exc_info()[2].tb_next.tb_next)
+        # raise
+        # raise Exception from (exc_info[0], exc_info[1], exc_info[2].tb_next.tb_next)
+    self.get_globals().update(result)
 
 
 def _asyncify(code: str) -> str:
@@ -201,42 +196,12 @@ def _asyncify(code: str) -> str:
     # Hood: do not mess with the indentation of this string. It will break.
     res = dedent(
         """
-        async def __wrapper__():
-            # global c
-            try:
-        {usercode}
-            finally:
-                return locals()
+async def __async_def_wrapper__():
+{usercode}
+        return locals() 
         """
     ).format(usercode=indent(code, " " * 8)) 
     return res
-
-def _ast_asyncify(cell:str, wrapper_name:str) -> ast.Module:
-    from ast import Expr, Await, Return
-    tree = ast.parse(_asyncify(cell))
-    function_def = tree.body[0]
-    function_def.name = wrapper_name
-    # try_block = function_def.body[0]
-    # lastexpr = try_block.body[-1]
-    # if isinstance(lastexpr, (Expr, Await)):
-    #     try_block.body[-1] = Return(lastexpr.value)
-    # ast.fix_missing_locations(tree)
-    return tree
-
-def removed_co_newlocals(function:types.FunctionType) -> types.FunctionType:
-    """Return a function that do not create a new local scope. 
-    Given a function, create a clone of this function where the co_newlocal flag
-    has been removed, making this function code actually run in the sourounding
-    scope. 
-    We need this in order to run asynchronous code in user level namespace.
-    """
-    from types import CodeType, FunctionType
-    CO_NEWLOCALS = 0x0002
-    code = function.__code__
-    new_co_flags = code.co_flags & ~CO_NEWLOCALS
-    new_code = code.replace(co_flags=new_co_flags)
-    return FunctionType(new_code, globals(), function.__name__, function.__defaults__)
-
 
 
 
