@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Spectral Sequence Chart {{ channel_name }}</title>
+        <meta charset="utf-8"/>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.css" integrity="sha384-+MsSfd29vjUzcyqYURxcmpWGtqoSHBy+QdEJNLEslXQftxojQv0k6BGDqUNp9GtA" crossorigin="anonymous">
+        
+
+
+        <style>
+            html, body {
+              height: 100%;
+              min-height: 100%;
+              overflow: hidden;
+            }
+            
+            #main {
+                    height: 100%;
+                    min-height: 100%;
+                    overflow: hidden;
+                    position: relative;
+            }
+            
+            #main-svg {
+                    width: 100%;
+                    height: 100%;
+            }
+            
+            #status {
+                    position: absolute;
+                    left: 20px;
+                    bottom: 20px;
+                    z-index: 1000;
+            }
+            div.tooltip {	
+                text-align: center;
+                padding: 5px;
+                font: 12px sans-serif;		
+                background: lightsteelblue;
+                border: 0px;
+                border-radius: 8px;
+                pointer-events: none;
+            }
+            .class {
+                pointer-events: fill;
+            }
+            
+            hr { height:2px; visibility:hidden; margin-bottom:-1px; }
+            </style>
+    </head>
+    <body>
+        <script src="/static/basic_webclient" type="text/javascript"></script>
+        <div id="main"></div>
+<script>
+"use strict";
+let display;
+let sseq;
+let ws = new WebSocket("ws://localhost:{{ PORT }}/subscribe_sseq/{{ channel_name }}");
+ws.onopen = function(){
+    send_message({"cmd" : "new_user"});
+}
+
+
+function send_message(msg) {
+    let json_str = JSON.stringify(msg);
+    console.log(json_str);
+    ws.send(String(json_str));
+}
+
+ws.onmessage = function(event) {
+    let msg = JSON.parse(event.data);
+    console.log(msg);
+    let succeeded = true;
+    let error;
+    try {
+        if(event_handlers[msg.cmd] === undefined) {
+            throw new UnknownCommandError(`Console sent unknown command "${msg.cmd}".`);
+        } else {
+            event_handlers[msg.cmd](msg);
+        }
+    } catch(err) {
+        succeeded = false;
+        error = err;
+    }
+
+    if(msg.request_handshake) {
+        send_handshake(msg, succeeded, error);
+    } else if(!succeeded) {
+        send_error(msg, error)
+    }
+};
+
+class BadMessageError extends Error {
+    constructor(...args) {
+        super(...args)
+        this.name = this.constructor.name;
+        this.stack = this.stack.split("\n").slice(1).join("\n")
+    }
+}
+
+class UnknownCommandError extends BadMessageError {
+    constructor(...args) {
+        super(...args)
+        this.name = this.constructor.name;
+        this.stack = this.stack.split("\n").slice(1).join("\n")
+    }
+}
+
+
+
+function send_handshake(orig_msg, succeeded, error) {
+    send_message({
+        "server_cmd" : "send_to_channel", 
+        "cmd" : "handshake", 
+        "orig_msg" : orig_msg,
+        "ok" : succeeded,
+        "error" : String(error)
+    });
+    if(!succeeded) {
+        console.error(error);
+        // console.error(`Message md5: ${msg_md5}`);
+    }
+}
+
+function send_error(orig_msg, error) {
+    send_message({
+        "server_cmd" : "send_to_channel", 
+        "cmd" : "client_error", 
+        "orig_msg" : orig_msg,
+        "error" : String(error)
+    });
+    console.error(error);
+    // console.error(`Message md5: ${msg_md5}`);
+}
+
+
+
+let event_handlers = {
+    "accept_user" : function(msg) {
+        console.log("accepted user:", msg);
+        sseq = SpectralSequenceChart.from_JSON(msg.state);
+        display = new BasicDisplay("#main", sseq);
+        // let sseq = new SpectralSequenceChart();
+        // Object.assign(sseq, msg.state)
+    },
+
+    "add_class" : function(msg) {
+        sseq.add_class(msg.data);
+        display.update();
+    },
+
+    "add_edge" : function(msg) {
+        sseq.add_edge(msg.data);
+        display.update();
+    }    
+};
+</script>        
+    </body>
+</html>
+
+</body>
