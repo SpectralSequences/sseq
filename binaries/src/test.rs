@@ -3,9 +3,9 @@
 use std::error::Error;
 use std::sync::Arc;
 
-use rust_ext::chain_complex::ChainComplex;
-use rust_ext::utils::construct;
-use rust_ext::utils::Config;
+use ext::chain_complex::ChainComplex;
+use ext::utils::construct;
+use ext::utils::Config;
 
 // use algebra::AdemAlgebra;
 // use module::TensorModule;

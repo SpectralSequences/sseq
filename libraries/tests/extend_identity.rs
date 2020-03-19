@@ -1,10 +1,10 @@
-use rust_ext::utils::{Config, construct, construct_from_json};
+use ext::utils::{Config, construct, construct_from_json};
 use fp::matrix::Matrix;
-use rust_ext::module::Module;
-use rust_ext::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphism};
-use rust_ext::resolution_homomorphism::ResolutionHomomorphism;
+use ext::module::Module;
+use ext::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphism};
+use ext::resolution_homomorphism::ResolutionHomomorphism;
 use fp::vector::{FpVectorT, FpVector};
-use rust_ext::chain_complex::{ChainComplex, AugmentedChainComplex};
+use ext::chain_complex::{ChainComplex, AugmentedChainComplex};
 use std::sync::Arc;
 
 #[test]

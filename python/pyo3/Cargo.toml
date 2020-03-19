@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dexter@math.harvard.edu>"]
 edition = "2018"
 description = "Rust Algebra"
-repository = "https://github.com/hoodmane/rust_ext/"
+repository = "https://github.com/SpectralSequences/ext/"
 license = "(MIT OR Apache-2.0)"
 
 [dependencies]
@@ -12,7 +12,7 @@ saveload = { path = "../../libraries/saveload" }
 bivec = { path = "../../libraries/bivec" }
 fp = { path = "../../libraries/fp" }
 algebra = { path = "../../libraries/algebra" }
-rust_ext = { path = "../../libraries/" }
+ext = { path = "../../libraries/" }
 
 python_algebra = { path = "python_algebra" }
 python_fp = { path = "python_fp" }

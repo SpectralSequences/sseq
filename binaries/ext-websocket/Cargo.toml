@@ -11,7 +11,7 @@ bivec = { path = "../../libraries/bivec" }
 enum_dispatch = "0.2.0"
 fp = { path = "../../libraries/fp", features = ["json"] }
 parking_lot = "0.10"
-rust_ext = { path = "../../libraries/" }
+ext = { path = "../../libraries/" }
 serde_json = "1.0.0"
 serde = { version = "1.0.0", features = ["derive"] }
 thread-token = { path = "../../libraries/thread-token", optional = true }
@@ -27,9 +27,9 @@ js-sys = "0.3.0"
 
 [features]
 default = []
-cache-multiplication = ["rust_ext/cache-multiplication"]
-concurrent = ["thread-token", "rust_ext/concurrent"]
-prime-two = ["fp/prime-two", "rust_ext/prime-two"]
+cache-multiplication = ["ext/cache-multiplication"]
+concurrent = ["thread-token", "ext/concurrent"]
+prime-two = ["fp/prime-two", "ext/prime-two"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

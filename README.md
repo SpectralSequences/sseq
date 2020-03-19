@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/SpectralSequences/rust_ext.svg?branch=master)](https://travis-ci.org/SpectralSequences/rust_ext)
+[![Build Status](https://travis-ci.org/SpectralSequences/ext.svg?branch=master)](https://travis-ci.org/SpectralSequences/ext)
 
 # Overview
 The purpose of this repository is to compute Ext over the Steenrod algebra, and
@@ -93,9 +93,9 @@ main binary, simply run
 $ cargo build
 ```
 This will automatically download and manage the dependencies, and the compiled
-binary can be found at `target/debug/rust_ext`.
+binary can be found at `target/debug/binary`.
 
-This by default resolves the sphere at p = 2 to degree 30. See `rust_ext
+This by default resolves the sphere at p = 2 to degree 30. See `binary
 --help` for more configuration options.
 
 Once can also run the resolver directly via

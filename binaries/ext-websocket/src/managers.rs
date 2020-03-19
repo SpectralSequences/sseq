@@ -1,12 +1,12 @@
 use crate::actions::*;
 use crate::sseq::Sseq;
 
-use rust_ext::utils::Config;
-use rust_ext::utils::AlgebraicObjectsBundle;
-use rust_ext::CCC;
-use rust_ext::module::{Module, FiniteModule, FDModule};
-use rust_ext::resolution::Resolution;
-use rust_ext::chain_complex::{FiniteChainComplex, ChainComplex};
+use ext::utils::Config;
+use ext::utils::AlgebraicObjectsBundle;
+use ext::CCC;
+use ext::module::{Module, FiniteModule, FDModule};
+use ext::resolution::Resolution;
+use ext::chain_complex::{FiniteChainComplex, ChainComplex};
 use bivec::BiVec;
 use std::error::Error;
 
@@ -97,7 +97,7 @@ impl ResolutionManager {
     fn construct_json(&mut self, action : ConstructJson) -> Result<(), Box<dyn Error>> {
         let json_data = serde_json::from_str(&action.data)?;
 
-        let bundle = rust_ext::utils::construct_from_json(json_data, action.algebra_name).unwrap();
+        let bundle = ext::utils::construct_from_json(json_data, action.algebra_name).unwrap();
 
         self.process_bundle(bundle);
 
@@ -110,7 +110,7 @@ impl ResolutionManager {
         dir.pop(); dir.pop(); dir.pop();
         dir.push("modules");
 
-        let bundle = rust_ext::utils::construct(&Config {
+        let bundle = ext::utils::construct(&Config {
              module_paths : vec![dir],
              module_file_name : format!("{}.json", action.module_name),
              algebra_name : action.algebra_name,

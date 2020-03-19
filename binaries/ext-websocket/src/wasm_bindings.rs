@@ -4,7 +4,7 @@ use crate::actions::*;
 use crate::managers::*;
 use wasm_bindgen::prelude::*;
 use std::error::Error;
-use rust_ext::steenrod_evaluator::SteenrodCalculator as SteenrodCalculator_;
+use ext::steenrod_evaluator::SteenrodCalculator as SteenrodCalculator_;
 
 #[derive(Clone)]
 pub struct Sender {

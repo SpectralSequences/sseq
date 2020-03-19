@@ -1,8 +1,8 @@
 use crate::sseq::{Sseq, ProductItem, ClassState, INFINITY};
-use rust_ext::resolution::Resolution;
+use ext::resolution::Resolution;
 use fp::vector::FpVector;
-use rust_ext::module::Module;
-use rust_ext::CCC;
+use ext::module::Module;
+use ext::CCC;
 use bivec::BiVec;
 use parking_lot::RwLock;
 use std::sync::Arc;

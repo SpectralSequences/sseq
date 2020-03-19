@@ -9,15 +9,15 @@ use std::time::Instant;
 use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
-use rust_ext::chain_complex::{ChainComplex, TensorChainComplex, FreeChainComplex};
-use rust_ext::module::homomorphism::{
+use ext::chain_complex::{ChainComplex, TensorChainComplex};
+use ext::module::homomorphism::{
     FiniteModuleHomomorphism, FreeModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
 };
-use rust_ext::module::{BoundedModule, FiniteModule, Module};
-use rust_ext::resolution::Resolution;
-use rust_ext::resolution_homomorphism::ResolutionHomomorphism;
-use rust_ext::utils::{construct, construct_from_json, Config};
-use rust_ext::yoneda::yoneda_representative_element;
+use ext::module::{BoundedModule, FiniteModule, Module};
+use ext::resolution::Resolution;
+use ext::resolution_homomorphism::ResolutionHomomorphism;
+use ext::utils::{construct, construct_from_json, Config};
+use ext::yoneda::yoneda_representative_element;
 
 use bivec::BiVec;
 use query::*;
@@ -32,7 +32,7 @@ use thread_token::TokenBucket;
 pub use crate::test::test;
 
 pub fn define_module() -> Result<String, Box<dyn Error>> {
-    rust_ext::cli_module_loaders::interactive_module_define()
+    ext::cli_module_loaders::interactive_module_define()
 }
 
 pub fn resolve(config: &Config) -> Result<String, Box<dyn Error>> {

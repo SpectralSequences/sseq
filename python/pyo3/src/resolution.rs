@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use pyo3::prelude::*;
 
-use rust_ext::resolution::ResolutionInner as ResolutionRust;
-use rust_ext::chain_complex::{ChainComplex, FiniteChainComplex};//, ChainMap};
+use ext::resolution::ResolutionInner as ResolutionRust;
+use ext::chain_complex::{ChainComplex, FiniteChainComplex};//, ChainMap};
 
 use python_algebra::module::ModuleRust;
 use python_algebra::module::{

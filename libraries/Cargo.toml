@@ -1,10 +1,10 @@
 [package]
-name = "rust_ext"
+name = "ext"
 version = "0.1.0"
 authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dexter@math.harvard.edu>"]
 edition = "2018"
 description = "Compute Ext over the Steenrod algebra"
-repository = "https://github.com/hoodmane/rust_ext/"
+repository = "https://github.com/SpectralSequences/ext/"
 license = "(MIT OR Apache-2.0)"
 
 [dependencies]

@@ -1,5 +1,5 @@
-use rust_ext::utils::construct;
-use rust_ext::utils::Config;
+use ext::utils::construct;
+use ext::utils::Config;
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 

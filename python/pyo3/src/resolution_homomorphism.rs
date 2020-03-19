@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use rust_ext::resolution_homomorphism::{
+use ext::resolution_homomorphism::{
     ResolutionHomomorphism as ResolutionHomomorphismRust, 
     ResolutionHomomorphismToUnit as ResolutionHomomorphismToUnitRust
 };

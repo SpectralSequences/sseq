@@ -14,7 +14,7 @@ mod run;
 mod test;
 
 use clap::{load_yaml, value_t, App};
-use rust_ext::utils::Config;
+use ext::utils::Config;
 
 const BOLD_ANSI_CODE: &str = "\x1b[1m";
 
