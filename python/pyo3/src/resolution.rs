@@ -3,7 +3,7 @@ use std::sync::Arc;
 use pyo3::prelude::*;
 
 use ext::resolution::ResolutionInner as ResolutionRust;
-use ext::chain_complex::{ChainComplex, FiniteChainComplex};//, ChainMap};
+use ext::chain_complex::{ChainComplex, FiniteChainComplex, FreeChainComplex};//, ChainMap};
 
 use python_algebra::module::ModuleRust;
 use python_algebra::module::{
