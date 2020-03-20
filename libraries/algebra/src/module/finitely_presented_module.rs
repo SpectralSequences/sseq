@@ -118,7 +118,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
         (graded_dimension, gen_names, gen_to_idx)
     }
 
-    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> error::Result<Self> {
         let p = algebra.prime();
         let name = json["name"].as_str().unwrap_or("").to_string();
         let gens = json["gens"].take();

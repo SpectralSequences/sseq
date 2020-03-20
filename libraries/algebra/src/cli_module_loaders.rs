@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::io::{stdout, Write};
 use std::sync::Arc;
 use std::path::PathBuf;
@@ -16,7 +15,7 @@ use crate::algebra::{Algebra, SteenrodAlgebra, MilnorAlgebra, AdemAlgebra};
 use crate::module::{Module, FreeModule, FDModule, FPModule};
 use crate::steenrod_evaluator::evaluate_module;
 
-pub fn get_gens(min_degree : i32) -> Result<BiVec<Vec<String>>, Box<dyn Error>>{
+pub fn get_gens(min_degree : i32) -> error::Result<BiVec<Vec<String>>>{
     // Query for generators
     println!("Input generators. Press return to finish.");
     stdout().flush()?;
@@ -115,7 +114,7 @@ where
     }
 }
 
-pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
+pub fn interactive_module_define() -> error::Result<String>{
     let output_path = query("Output file name", |result : String|
         if result.is_empty() {
             Err("Output file name cannot be empty".to_string())
@@ -157,7 +156,7 @@ pub fn interactive_module_define() -> Result<String, Box<dyn Error>>{
 }
 
 
-pub fn interactive_module_define_fdmodule(output_json : &mut Value, p : ValidPrime, generic : bool, name: String) -> Result<(), Box<dyn Error>>{
+pub fn interactive_module_define_fdmodule(output_json : &mut Value, p : ValidPrime, generic : bool, name: String) -> error::Result<()>{
     let algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, generic, false)));
 
     let min_degree = 0i32;
@@ -221,7 +220,7 @@ fn get_relation(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, mo
     evaluate_module(adem_algebra, milnor_algebra, module, basis_elt_lookup, &relation).map_err(|err| err.to_string())
 }
 
-pub fn interactive_module_define_fpmodule(output_json : &mut Value, p : ValidPrime, generic : bool, name : String) -> Result<(), Box<dyn Error>>{
+pub fn interactive_module_define_fpmodule(output_json : &mut Value, p : ValidPrime, generic : bool, name : String) -> error::Result<()>{
     output_json["type"] = Value::from("finitely presented module");
 
     let min_degree = 0i32;

@@ -11,7 +11,6 @@ use nom::{
   sequence::{delimited, pair, tuple}
 };
 
-use std::error::Error;
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -250,23 +249,23 @@ fn module_expr(i: &str) -> IResult<&str, ModuleParseNode> {
   )(i)
 }
 
-pub fn parse_algebra(i : &str) -> Result<AlgebraParseNode, Box<dyn std::error::Error>> {
+pub fn parse_algebra(i : &str) -> Result<AlgebraParseNode, ParseError> {
     let (rest, parse_tree) = algebra_expr(i)
-        .or_else(|err| Err(Box::new(ParseError{info : format!("{:#?}", err) })))?;
+        .or_else(|err| Err(ParseError{info : format!("{:#?}", err) }))?;
     if rest.is_empty() {
         Ok(parse_tree)
     } else {
-        Err(Box::new(ParseError {info : "Failed to consume all of input".to_string()}))
+        Err(ParseError {info : "Failed to consume all of input".to_string()})
     }
 }
 
-pub fn parse_module(i : &str) -> Result<ModuleParseNode, Box<dyn std::error::Error>> {
+pub fn parse_module(i : &str) -> Result<ModuleParseNode, ParseError> {
     let (rest, parse_tree) = module_expr(i)
-        .or_else(|err| Err(Box::new(ParseError{info : format!("{:#?}", err) })))?;
+        .or_else(|err| Err(ParseError{info : format!("{:#?}", err) }))?;
     if rest.is_empty() {
         Ok(parse_tree)
     } else {
-        Err(Box::new(ParseError {info : "Failed to consume all of input".to_string()}))
+        Err(ParseError {info : "Failed to consume all of input".to_string()})
     }
 }
 
@@ -281,7 +280,7 @@ impl std::fmt::Display for ParseError {
     }
 }
 
-impl Error for ParseError {
+impl std::error::Error for ParseError {
     fn description(&self) -> &str {
         "Parse error"
     }

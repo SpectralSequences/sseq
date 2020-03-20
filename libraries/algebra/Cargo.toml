@@ -16,11 +16,12 @@ nom = "5.0.0"
 lazy_static = "1.2.0"
 lock_api = "0.3"
 
-saveload = { path = "../saveload" }
-query = { path = "../query" }
-fp = { path = "../fp" }
 bivec = { path = "../bivec"}
+error = { path = "../error" }
+fp = { path = "../fp" }
 once = { path = "../once" }
+query = { path = "../query" }
+saveload = { path = "../saveload" }
 
 [dev-dependencies]
 rand = "0.7.0"

@@ -18,5 +18,3 @@ pub mod module;
 pub mod cli_module_loaders;
 
 pub use crate::algebra::*;
-
-pub mod utils;

@@ -1,6 +1,5 @@
 use serde_json::value::Value;
 use std::collections::HashMap;
-use std::error::Error;
 use parking_lot::Mutex;
 
 use once::OnceVec;
@@ -287,7 +286,7 @@ impl Algebra for MilnorAlgebra {
         result.shift_add(&self.multiplication_table[r_degree as usize][s_degree as usize][r_idx][s_idx], coef);
     }
 
-    fn json_to_basis(&self, json : Value) -> Result<(i32, usize), Box<dyn Error>> {
+    fn json_to_basis(&self, json : Value) -> error::Result<(i32, usize)> {
         let xi_degrees = combinatorics::xi_degrees(self.prime());
         let tau_degrees = combinatorics::tau_degrees(self.prime());
 

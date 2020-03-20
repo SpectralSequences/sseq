@@ -53,7 +53,7 @@ impl Algebra for Field {
     /// Converts a JSON object into a basis element. The way basis elements are represented by JSON
     /// objects is to be specified by the algebra itself, and will be used by module
     /// specifications.
-    fn json_to_basis(&self, _json : Value) -> Result<(i32, usize), Box<dyn std::error::Error>> {
+    fn json_to_basis(&self, _json : Value) -> error::Result<(i32, usize)> {
         Ok((0, 0))
     }
 

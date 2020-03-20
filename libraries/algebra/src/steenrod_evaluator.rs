@@ -6,7 +6,6 @@ use crate::steenrod_parser::BocksteinOrSq;
 use crate::module::Module;
 use crate::steenrod_parser::*;
 use crate::change_of_basis;
-use std::error::Error;
 use std::collections::HashMap;
 
 pub struct SteenrodCalculator {
@@ -27,30 +26,30 @@ impl SteenrodCalculator {
         self.milnor_algebra.compute_basis(degree);
     }
 
-    pub fn evaluate_adem_to_string(&self, input : &str) -> Result<String, Box<dyn Error>>{
+    pub fn evaluate_adem_to_string(&self, input : &str) -> error::Result<String>{
         self.evaluate_adem(input).map(|(d, vect)| self.adem_algebra.element_to_string(d, &vect))
     }
 
-    pub fn evaluate_milnor_to_string(&self, input : &str) -> Result<String, Box<dyn Error>>{
+    pub fn evaluate_milnor_to_string(&self, input : &str) -> error::Result<String>{
         self.evaluate_milnor(input).map(|(d, vect)| self.milnor_algebra.element_to_string(d, &vect))//
     }
 
-    pub fn evaluate_adem(&self, input : &str) -> Result<(i32, FpVector), Box<dyn Error>> {
+    pub fn evaluate_adem(&self, input : &str) -> error::Result<(i32, FpVector)> {
         evaluate_algebra_adem(&self.adem_algebra, &self.milnor_algebra, input)
     }
 
-    pub fn evaluate_milnor(&self, input : &str) -> Result<(i32, FpVector), Box<dyn Error>> {
+    pub fn evaluate_milnor(&self, input : &str) -> error::Result<(i32, FpVector)> {
         evaluate_algebra_milnor(&self.adem_algebra, &self.milnor_algebra, input)
     }
 }
 
 // Outputs in the Adem basis.
-pub fn evaluate_algebra_adem(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, input : &str) -> Result<(i32, FpVector), Box<dyn Error>> {
+pub fn evaluate_algebra_adem(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, input : &str) -> error::Result<(i32, FpVector)> {
     evaluate_algebra_tree(adem_algebra, milnor_algebra, parse_algebra(input)?)
 }
 
 // Outputs in the Milnor basis
-pub fn evaluate_algebra_milnor(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, input : &str) -> Result<(i32, FpVector), Box<dyn Error>> {
+pub fn evaluate_algebra_milnor(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, input : &str) -> error::Result<(i32, FpVector)> {
     let adem_result = evaluate_algebra_adem(adem_algebra, milnor_algebra, input);
     if let Ok((degree, adem_vector)) = adem_result {
         let mut milnor_vector = FpVector::new(adem_vector.prime(), adem_vector.dimension());
@@ -61,7 +60,7 @@ pub fn evaluate_algebra_milnor(adem_algebra : &AdemAlgebra, milnor_algebra : &Mi
     }
 }
 
-fn evaluate_algebra_tree(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, tree : AlgebraParseNode) -> Result<(i32, FpVector), Box<dyn Error>> {
+fn evaluate_algebra_tree(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, tree : AlgebraParseNode) -> error::Result<(i32, FpVector)> {
     evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, None, tree)
 }
 
@@ -69,7 +68,7 @@ fn evaluate_algebra_tree_helper(
     adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, 
     mut output_degree : Option<i32>, 
     tree : AlgebraParseNode
-) -> Result<(i32, FpVector), Box<dyn Error>> {
+) -> error::Result<(i32, FpVector)> {
     let p = adem_algebra.prime();
     match tree {
         AlgebraParseNode::Sum(left, right) => {
@@ -82,7 +81,7 @@ fn evaluate_algebra_tree_helper(
             let (degree_left, output_left) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, None, *left)?;
             if let Some(degree) = output_degree {
                 if degree < degree_left {
-                    return Err(Box::new(DegreeError{}));
+                    return Err(DegreeError{}.into());
                 }
                 output_degree = Some(degree - degree_left);
             }
@@ -100,7 +99,7 @@ fn evaluate_algebra_tree_helper(
         AlgebraParseNode::Scalar(x) => {
             if let Some(degree) = output_degree {
                 if degree != 0 {
-                    return Err(Box::new(DegreeError{}));
+                    return Err(DegreeError{}.into());
                 }
             }
             let mut result = FpVector::new(p, 1);
@@ -115,7 +114,7 @@ fn evaluate_basis_element(
     adem_algebra : &AdemAlgebra, 
     milnor_algebra : &MilnorAlgebra, 
     output_degree : Option<i32>, basis_elt : AlgebraBasisElt
-) -> Result<(i32, FpVector), Box<dyn Error>> {
+) -> error::Result<(i32, FpVector)> {
     let p = adem_algebra.prime();
     let q = if adem_algebra.generic { 2 * (*p) - 2 } else { 1 };
     let degree : i32;
@@ -159,7 +158,7 @@ fn evaluate_basis_element(
     }
     if let Some(requested_degree) = output_degree {
         if degree != requested_degree {
-            return Err(Box::new(DegreeError{}));
+            return Err(DegreeError{}.into());
         }
     }
     Ok((degree, result))
@@ -171,7 +170,7 @@ pub fn evaluate_module<M : Module>(
     module : &M, 
     basis_elt_lookup : &HashMap<String, (i32, usize)>, 
     input : &str
-) -> Result<(i32, FpVector), Box<dyn Error>> {
+) -> error::Result<(i32, FpVector)> {
     evaluate_module_tree(adem_algebra, milnor_algebra, module, basis_elt_lookup, parse_module(input)?)
 }
 
@@ -180,7 +179,7 @@ fn evaluate_module_tree<M : Module>(
     module : &M, 
     basis_elt_lookup : &HashMap<String, (i32, usize)>, 
     tree : ModuleParseNode
-) -> Result<(i32, FpVector), Box<dyn Error>> {
+) -> error::Result<(i32, FpVector)> {
     evaluate_module_tree_helper(adem_algebra, milnor_algebra, module, basis_elt_lookup, None, tree)
 }
 
@@ -190,7 +189,7 @@ fn evaluate_module_tree_helper<M : Module>(
     basis_elt_lookup : &HashMap<String, (i32, usize)>,    
     mut output_degree : Option<i32>, 
     tree : ModuleParseNode
-) -> Result<(i32, FpVector), Box<dyn Error>> {
+) -> error::Result<(i32, FpVector)> {
     let p = adem_algebra.prime();
     match tree {
         ModuleParseNode::Sum(left, right) => {
@@ -203,7 +202,7 @@ fn evaluate_module_tree_helper<M : Module>(
             let (degree_left, output_left) = evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, None, *left)?;
             if let Some(degree) = output_degree {
                 if degree < degree_left {
-                    return Err(Box::new(DegreeError{}));
+                    return Err(DegreeError{}.into());
                 }
                 output_degree = Some(degree - degree_left);
             }
@@ -225,19 +224,19 @@ fn evaluate_module_basis_element<M : Module>(
     module : &M,
     basis_elt_lookup : &HashMap<String, (i32, usize)>, 
     output_degree : Option<i32>, basis_elt : String
-) -> Result<(i32, FpVector), Box<dyn Error>> {
+) -> error::Result<(i32, FpVector)> {
     let p = adem_algebra.prime();
     let entry = basis_elt_lookup.get(&basis_elt);
     let degree;
     let idx;
     match entry {
         Some(tuple) => {degree = tuple.0; idx = tuple.1;},
-        None => return Err(Box::new(UnknownBasisElementError { name : basis_elt })) // Should be basis element not found error or something.
+        None => return Err(UnknownBasisElementError { name : basis_elt }.into()) // Should be basis element not found error or something.
     }
     
     if let Some(requested_degree) = output_degree {
         if degree != requested_degree {
-            return Err(Box::new(DegreeError{}));
+            return Err(DegreeError{}.into());
         }
     }
     let mut result = FpVector::new(p, module.dimension(degree));
@@ -307,11 +306,7 @@ impl std::fmt::Display for DegreeError {
     }
 }
 
-impl Error for DegreeError {
-    fn description(&self) -> &str {
-        "Encountered inhomogenous sum"
-    }
-}
+impl std::error::Error for DegreeError {}
 
 #[derive(Debug)]
 pub struct UnknownBasisElementError {
@@ -324,11 +319,7 @@ impl std::fmt::Display for UnknownBasisElementError {
     }
 }
 
-impl Error for UnknownBasisElementError {
-    fn description(&self) -> &str {
-        "Uknown basis element"
-    }
-}
+impl std::error::Error for UnknownBasisElementError {}
 
 #[cfg(test)]
 mod tests {

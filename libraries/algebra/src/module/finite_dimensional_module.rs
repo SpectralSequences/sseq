@@ -2,7 +2,7 @@ use bivec::BiVec;
 
 use crate::algebra::Algebra;
 use crate::module::{BoundedModule, Module, ModuleFailedRelationError, ZeroModule};
-use crate::utils::GenericError;
+use error::GenericError;
 use fp::vector::{FpVector, FpVectorT};
 
 use serde::Deserialize;
@@ -10,7 +10,6 @@ use serde_json::json;
 use serde_json::value::Value;
 
 use std::collections::HashMap;
-use std::error::Error;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -475,7 +474,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         &mut self.actions[input_degree][output_degree][operation_idx][input_idx]
     }
 
-    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> Result<Self, Box<dyn Error>> {
+    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> error::Result<Self> {
         let gens = json["gens"].take();
         let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(gens);
         let name = json["name"].as_str().unwrap_or("").to_string();
@@ -549,7 +548,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         gen_to_idx: &HashMap<String, (i32, usize)>,
         entry_: &str,
         overwrite: bool,
-    ) -> Result<(), GenericError> {
+    ) -> error::Result<()> {
         let algebra = self.algebra();
         let lhs = tuple((
             |e| algebra.string_to_generator(e),
@@ -582,7 +581,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                 .get(gen)
                 .ok_or_else(|| GenericError::new(format!("Invalid generator: {}", gen)))?;
             if deg != input_deg + op_deg {
-                return Err(GenericError::new(format!("Invalid action: {}", entry_)));
+                return Err(GenericError::new(format!("Invalid action: {}", entry_)).into());
             }
 
             row.add_basis_element(idx, coef);
@@ -595,7 +594,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         entry: &str,
         degree: i32,
         result: &mut FpVector,
-    ) -> Result<(), GenericError> {
+    ) -> error::Result<()> {
         if let IResult::<_, _>::Ok(("", _)) = delimited(space0, char('0'), space0)(entry) {
             return Ok(());
         }
@@ -604,10 +603,10 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                 if let Some(idx) = self.gen_names[degree].iter().position(|x| x == gen) {
                     result.add_basis_element(idx, coef);
                 } else {
-                    return Err(GenericError::new(format!("Invalid generator: {}", elt)));
+                    return Err(GenericError::new(format!("Invalid generator: {}", elt)).into());
                 }
             } else {
-                return Err(GenericError::new(format!("Invalid term: {}", elt)));
+                return Err(GenericError::new(format!("Invalid term: {}", elt)).into());
             }
         }
         Ok(())

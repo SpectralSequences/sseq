@@ -193,7 +193,7 @@ impl RealProjectiveSpace {
     pub fn from_json(
         algebra: Arc<SteenrodAlgebra>,
         json: &mut Value,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    ) -> error::Result<Self> {
         let spec: RPSpec = serde_json::from_value(json.clone())?;
         let clear_bottom = spec.clear_bottom.unwrap_or(false);
         let mut min = spec.min;

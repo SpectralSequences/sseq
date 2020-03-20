@@ -9,7 +9,6 @@ use enum_dispatch::enum_dispatch;
 use nom::IResult;
 use serde::Deserialize;
 use serde_json::Value;
-use std::error::Error;
 
 #[enum_dispatch(Algebra)]
 pub enum SteenrodAlgebra {
@@ -49,7 +48,7 @@ struct AlgebraSpec {
 }
 
 impl SteenrodAlgebra {
-    pub fn from_json(json : &Value, mut algebra_name : String) -> Result<SteenrodAlgebra, Box<dyn Error>> {
+    pub fn from_json(json : &Value, mut algebra_name : String) -> error::Result<SteenrodAlgebra> {
         let spec : AlgebraSpec = serde_json::from_value(json.clone())?;
 
         let p = ValidPrime::new(spec.p);
@@ -79,7 +78,7 @@ impl SteenrodAlgebra {
                 }
                 algebra = SteenrodAlgebra::from(algebra_inner);
             }
-            _ => { return Err(Box::new(InvalidAlgebraError { name : algebra_name })); }
+            _ => { return Err(InvalidAlgebraError { name : algebra_name }.into()); }
         };
         Ok(algebra)
     }
@@ -123,7 +122,7 @@ impl std::fmt::Display for InvalidAlgebraError {
     }
 }
 
-impl Error for InvalidAlgebraError {
+impl std::error::Error for InvalidAlgebraError {
     fn description(&self) -> &str {
         "Invalid algebra supplied"
     }

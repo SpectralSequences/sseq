@@ -220,7 +220,7 @@ impl Algebra for AdemAlgebra {
         self.multiply(result, coeff, r_degree, r_index, s_degree, s_index, excess);
     }
 
-    fn json_to_basis(&self, json : Value) -> Result<(i32, usize), Box<dyn std::error::Error>> {
+    fn json_to_basis(&self, json : Value) -> error::Result<(i32, usize)> {
         let op : Vec<u32> = serde_json::from_value(json)?;
         let p = *self.prime();
 

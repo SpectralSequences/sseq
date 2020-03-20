@@ -3,7 +3,6 @@ use fp::prime::ValidPrime;
 #[allow(unused_imports)]
 use fp::vector::{FpVector, FpVectorT};
 
-use std::error::Error;
 use std::sync::Arc;
 
 
@@ -264,7 +263,7 @@ impl std::fmt::Display for ModuleFailedRelationError {
     }
 }
 
-impl Error for ModuleFailedRelationError {
+impl std::error::Error for ModuleFailedRelationError {
     fn description(&self) -> &str {
         "Module failed a relation"
     }

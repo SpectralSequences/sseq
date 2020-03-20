@@ -3,7 +3,6 @@ use crate::module::{FDModule, FPModule, Module, RealProjectiveSpace};
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use serde_json::Value;
-use std::error::Error;
 use std::sync::Arc;
 
 #[derive(PartialEq, Eq)]
@@ -188,7 +187,7 @@ impl FiniteModule {
     pub fn from_json(
         algebra: Arc<SteenrodAlgebra>,
         json: &mut serde_json::Value,
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> error::Result<Self> {
         match json["type"].as_str() {
             Some("real projective space") => Ok(FiniteModule::from(RealProjectiveSpace::from_json(
                 algebra, json,
@@ -199,9 +198,9 @@ impl FiniteModule {
             Some("finitely presented module") => {
                 Ok(FiniteModule::from(FPModule::from_json(algebra, json)?))
             }
-            x => Err(Box::new(UnknownModuleTypeError {
+            x => Err(UnknownModuleTypeError {
                 module_type: x.map(str::to_string),
-            })),
+            }.into()),
         }
     }
 
@@ -300,4 +299,4 @@ impl std::fmt::Display for UnknownModuleTypeError {
     }
 }
 
-impl Error for UnknownModuleTypeError {}
+impl std::error::Error for UnknownModuleTypeError {}
