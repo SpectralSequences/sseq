@@ -1,14 +1,16 @@
 use bivec::BiVec;
 
 use crate::algebra::Algebra;
-use crate::module::{BoundedModule, Module, ZeroModule, ModuleFailedRelationError};
+use crate::module::{BoundedModule, Module, ModuleFailedRelationError, ZeroModule};
 use crate::utils::GenericError;
 use fp::vector::{FpVector, FpVectorT};
 
+use serde::Deserialize;
 use serde_json::json;
 use serde_json::value::Value;
 
 use std::collections::HashMap;
+use std::error::Error;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -473,7 +475,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         &mut self.actions[input_degree][output_degree][operation_idx][input_idx]
     }
 
-    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> Self {
+    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> Result<Self, Box<dyn Error>> {
         let gens = json["gens"].take();
         let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(gens);
         let name = json["name"].as_str().unwrap_or("").to_string();
@@ -487,33 +489,46 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
 
         if let Ok(actions) = serde_json::from_value::<Vec<String>>(json["actions"].take()) {
             for action in actions {
-                result.parse_action(&gen_to_idx, &action, false).unwrap();
+                result.parse_action(&gen_to_idx, &action, false)?;
             }
             for input_degree in (result.min_degree()..=result.max_degree()).rev() {
                 for output_degree in input_degree + 1..=result.max_degree() {
                     result.extend_actions(input_degree, output_degree);
-                    result.check_validity(input_degree, output_degree).unwrap();
+                    result.check_validity(input_degree, output_degree)?;
                 }
             }
         } else {
-            let mut actions_value = json[algebra.algebra_type().to_owned() + "_actions"].take();
-            let actions = actions_value.as_array_mut().unwrap();
-            for action in actions.iter_mut() {
-                let op = action["op"].take();
-                let (degree, idx) = algebra.json_to_basis(op);
-                let input_name = action["input"].as_str().unwrap();
-                let (input_degree, input_idx) = gen_to_idx[input_name];
+            #[derive(Deserialize)]
+            struct OutputStruct {
+                gen: String,
+                coeff: u32,
+            };
+            #[derive(Deserialize)]
+            struct ActionStruct {
+                op: Value,
+                input: String,
+                output: Vec<OutputStruct>,
+            };
+
+            let actions_value = json[format!("{}_actions", algebra.algebra_type())].take();
+            let actions: Vec<ActionStruct> = serde_json::from_value(actions_value)?;
+            for action in actions {
+                let (degree, idx) = algebra.json_to_basis(action.op)?;
+                let input = action.input;
+                let (input_degree, input_idx) = *gen_to_idx
+                    .get(&input)
+                    .ok_or_else(|| GenericError::new(format!("Invalid generator: {}", input)))?;
                 let output_vec = result.action_mut(degree, idx, input_degree, input_idx);
-                let outputs = action["output"].as_array().unwrap();
-                for basis_elt in outputs {
-                    let output_name = basis_elt["gen"].as_str().unwrap();
-                    let output_idx = gen_to_idx[output_name].1;
-                    let output_coeff = basis_elt["coeff"].as_u64().unwrap() as u32;
-                    output_vec.add_basis_element(output_idx, output_coeff);
+                for basis_elt in action.output {
+                    let gen = basis_elt.gen;
+                    let (_, output_idx) = *gen_to_idx.get(&gen).ok_or_else(move || {
+                        GenericError::new(format!("Invalid generator: {}", gen))
+                    })?;
+                    output_vec.add_basis_element(output_idx, basis_elt.coeff);
                 }
             }
         }
-        result
+        Ok(result)
     }
 
     pub fn to_json(&self, json: &mut Value) {
@@ -542,7 +557,8 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
             take(1usize),
         ));
 
-        let (entry, ((op_deg, op_idx), gen, _)) = lhs(entry_).map_err(|_err| GenericError(format!("Invalid action: {}", entry_)))?;
+        let (entry, ((op_deg, op_idx), gen, _)) =
+            lhs(entry_).map_err(|_err| GenericError::new(format!("Invalid action: {}", entry_)))?;
 
         let (input_deg, input_idx) = gen_to_idx[gen.trim()];
         let row = self.action_mut(op_deg, op_idx, input_deg, input_idx);
@@ -560,13 +576,13 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
 
         for value in values {
             let (_, (coef, gen)) = Self::take_element(value)
-                .map_err(|_| GenericError(format!("Invalid action: {}", entry_)))?;
+                .map_err(|_| GenericError::new(format!("Invalid action: {}", entry_)))?;
 
             let (deg, idx) = *gen_to_idx
                 .get(gen)
-                .ok_or_else(|| GenericError(format!("Invalid generator: {}", gen)))?;
+                .ok_or_else(|| GenericError::new(format!("Invalid generator: {}", gen)))?;
             if deg != input_deg + op_deg {
-                return Err(GenericError(format!("Invalid action: {}", entry_)));
+                return Err(GenericError::new(format!("Invalid action: {}", entry_)));
             }
 
             row.add_basis_element(idx, coef);
@@ -574,20 +590,25 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         Ok(())
     }
 
-    pub fn parse_element(&self, entry: &str, degree: i32, result: &mut FpVector) -> Result<(), GenericError> {
+    pub fn parse_element(
+        &self,
+        entry: &str,
+        degree: i32,
+        result: &mut FpVector,
+    ) -> Result<(), GenericError> {
         if let IResult::<_, _>::Ok(("", _)) = delimited(space0, char('0'), space0)(entry) {
             return Ok(());
         }
         for elt in entry.split('+') {
-             if let Ok(("", (coef, gen))) = Self::take_element(elt.trim_end()) {
-                if let Some(idx)  = self.gen_names[degree].iter().position(|x| x == gen) {
+            if let Ok(("", (coef, gen))) = Self::take_element(elt.trim_end()) {
+                if let Some(idx) = self.gen_names[degree].iter().position(|x| x == gen) {
                     result.add_basis_element(idx, coef);
                 } else {
-                    return Err(GenericError(format!("Invalid generator: {}", elt)));
+                    return Err(GenericError::new(format!("Invalid generator: {}", elt)));
                 }
-             } else {
-                 return Err(GenericError(format!("Invalid term: {}", elt)));
-             }
+            } else {
+                return Err(GenericError::new(format!("Invalid term: {}", elt)));
+            }
         }
         Ok(())
     }

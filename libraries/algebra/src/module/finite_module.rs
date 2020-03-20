@@ -189,19 +189,18 @@ impl FiniteModule {
         algebra: Arc<SteenrodAlgebra>,
         json: &mut serde_json::Value,
     ) -> Result<Self, Box<dyn Error>> {
-        let module_type = &json["type"].as_str().unwrap();
-        match *module_type {
-            "real projective space" => Ok(FiniteModule::from(RealProjectiveSpace::from_json(
+        match json["type"].as_str() {
+            Some("real projective space") => Ok(FiniteModule::from(RealProjectiveSpace::from_json(
                 algebra, json,
             )?)),
-            "finite dimensional module" => {
-                Ok(FiniteModule::from(FDModule::from_json(algebra, json)))
+            Some("finite dimensional module") => {
+                Ok(FiniteModule::from(FDModule::from_json(algebra, json)?))
             }
-            "finitely presented module" => {
-                Ok(FiniteModule::from(FPModule::from_json(algebra, json)))
+            Some("finitely presented module") => {
+                Ok(FiniteModule::from(FPModule::from_json(algebra, json)?))
             }
-            _ => Err(Box::new(UnknownModuleTypeError {
-                module_type: (*module_type).to_string(),
+            x => Err(Box::new(UnknownModuleTypeError {
+                module_type: x.map(str::to_string),
             })),
         }
     }
@@ -289,17 +288,16 @@ impl FiniteModule {
 
 #[derive(Debug)]
 pub struct UnknownModuleTypeError {
-    pub module_type: String,
+    pub module_type: Option<String>,
 }
 
 impl std::fmt::Display for UnknownModuleTypeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Unknown module type: {}", &self.module_type)
+        match &self.module_type {
+            Some(s) => write!(f, "Unknown module type: {}", s),
+            None => write!(f, "Missing module type"),
+        }
     }
 }
 
-impl Error for UnknownModuleTypeError {
-    fn description(&self) -> &str {
-        "Unknown module type"
-    }
-}
+impl Error for UnknownModuleTypeError {}

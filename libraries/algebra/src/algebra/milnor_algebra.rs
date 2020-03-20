@@ -1,5 +1,6 @@
 use serde_json::value::Value;
 use std::collections::HashMap;
+use std::error::Error;
 use parking_lot::Mutex;
 
 use once::OnceVec;
@@ -286,7 +287,7 @@ impl Algebra for MilnorAlgebra {
         result.shift_add(&self.multiplication_table[r_degree as usize][s_degree as usize][r_idx][s_idx], coef);
     }
 
-    fn json_to_basis(&self, json : Value) -> (i32, usize) {
+    fn json_to_basis(&self, json : Value) -> Result<(i32, usize), Box<dyn Error>> {
         let xi_degrees = combinatorics::xi_degrees(self.prime());
         let tau_degrees = combinatorics::tau_degrees(self.prime());
 
@@ -295,31 +296,27 @@ impl Algebra for MilnorAlgebra {
         let mut degree = 0;
 
         if self.generic {
-            let p_list = json[1].as_array().unwrap();
-            let q_list = json[0].as_array().unwrap();
+            let (q_list, p_list): (Vec<u8>, Vec<u32>) = serde_json::from_value(json)?;
             let q = (2 * (*self.prime()) - 2) as i32;
 
-            for i in 0..p_list.len() {
-                let val = p_list[i].as_u64().unwrap();
-                p_part.push(val as u32);
+            for (i, val) in p_list.into_iter().enumerate() {
+                p_part.push(val);
                 degree += (val as i32) * xi_degrees[i] * q;
             }
 
-            for i in q_list {
-                let k = i.as_u64().unwrap();
+            for k in q_list {
                 q_part |= 1 << k;
                 degree += tau_degrees[k as usize];
             }
         } else {
-            let p_list = json.as_array().unwrap();
-            for i in 0..p_list.len() {
-                let val = p_list[i].as_u64().unwrap();
-                p_part.push(val as u32);
+            let p_list: Vec<u32> = serde_json::from_value(json)?;
+            for (i, val) in p_list.into_iter().enumerate() {
+                p_part.push(val);
                 degree += (val as i32) * xi_degrees[i];
             }
         }
         let m = MilnorBasisElement { p_part, q_part, degree };
-        (degree, self.basis_element_to_index(&m))
+        Ok((degree, self.basis_element_to_index(&m)))
     }
 
     fn json_from_basis(&self, degree : i32, index : usize) -> Value {
@@ -1002,7 +999,7 @@ mod tests {
                 let b = algebra.basis_element_from_index(i, j);
                 assert_eq!(algebra.basis_element_to_index(&b), j);
                 let json = algebra.json_from_basis(i, j);
-                let new_b = algebra.json_to_basis(json);
+                let new_b = algebra.json_to_basis(json).unwrap();
                 assert_eq!(new_b, (i, j));
             }
         }

@@ -118,7 +118,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
         (graded_dimension, gen_names, gen_to_idx)
     }
 
-    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> Self {
+    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> Result<Self, Box<dyn std::error::Error>> {
         let p = algebra.prime();
         let name = json["name"].as_str().unwrap_or("").to_string();
         let gens = json["gens"].take();
@@ -137,7 +137,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
                     .iter_mut()
                     .map(|term| {
                         let op = term["op"].take();
-                        let (op_deg, op_idx) = algebra.json_to_basis(op);
+                        let (op_deg, op_idx) = algebra.json_to_basis(op).unwrap();
                         let gen_name = term["gen"].as_str().unwrap();
                         let (gen_deg, gen_idx) = gen_to_deg_idx[gen_name];
                         let coeff = term["coeff"].as_u64().unwrap() as u32;
@@ -190,7 +190,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
             }
             result.add_relations(i, &mut relations_matrix);
         }
-        result
+        Ok(result)
     }
 
     pub fn to_json(&self, json: &mut Value) {

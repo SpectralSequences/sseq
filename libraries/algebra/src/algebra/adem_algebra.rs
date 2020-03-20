@@ -220,8 +220,8 @@ impl Algebra for AdemAlgebra {
         self.multiply(result, coeff, r_degree, r_index, s_degree, s_index, excess);
     }
 
-    fn json_to_basis(&self, json : Value) -> (i32, usize) {
-        let op : Vec<u32> = serde_json::from_value(json).unwrap();
+    fn json_to_basis(&self, json : Value) -> Result<(i32, usize), Box<dyn std::error::Error>> {
+        let op : Vec<u32> = serde_json::from_value(json)?;
         let p = *self.prime();
 
         let b = if self.generic {
@@ -251,7 +251,7 @@ impl Algebra for AdemAlgebra {
                 ps : op,
             }
         };
-        (b.degree, self.basis_element_to_index(&b))
+        Ok((b.degree, self.basis_element_to_index(&b)))
     }
 
     fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> {
@@ -1293,7 +1293,7 @@ mod tests {
                 let b = algebra.basis_element_from_index(i, j);
                 assert_eq!(algebra.basis_element_to_index(&b), j);
                 let json = algebra.json_from_basis(i, j);
-                let new_b = algebra.json_to_basis(json);
+                let new_b = algebra.json_to_basis(json).unwrap();
                 assert_eq!(new_b, (i, j));
             }
         }
