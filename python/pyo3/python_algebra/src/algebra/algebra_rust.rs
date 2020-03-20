@@ -70,16 +70,6 @@ macro_rules! because_enum_dispatch_doesnt_work_for_me {
     };
 }
 
-macro_rules! because_enum_dispatch_doesnt_work_for_me {
-    ($method : ident, $self_ : expr, $( $args : ident ),*) => {
-        match $self_ {
-            AlgebraRust::AdemAlgebraRust(alg) => alg.$method($($args),*),
-            AlgebraRust::MilnorAlgebraRust(alg) => alg.$method($($args),*),
-            AlgebraRust::PythonAlgebraRust(alg) => alg.$method($($args),*)
-        }
-    };
-}
-
 impl Algebra for AlgebraRust {
     fn algebra_type(&self) -> &str {
         because_enum_dispatch_doesnt_work_for_me!(algebra_type, self,)
@@ -109,7 +99,7 @@ impl Algebra for AlgebraRust {
         because_enum_dispatch_doesnt_work_for_me!(multiply_basis_elements, self, result, coeff, r_deg, r_idx, s_deg, s_idx, excess)
     }
 
-    fn json_to_basis(&self, json : Value) -> (i32, usize) {
+    fn json_to_basis(&self, json : Value) -> Result<(i32, usize), std::boxed::Box<(dyn std::error::Error + 'static)>> {
         because_enum_dispatch_doesnt_work_for_me!(json_to_basis, self, json)
     }
 

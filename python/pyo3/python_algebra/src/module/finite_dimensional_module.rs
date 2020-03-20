@@ -57,10 +57,10 @@ impl FDModule {
                 python_utils::exception!(ValueError, "Failed to construct algebra: {}", e)
             )?;
         let algebra = Arc::new(algebra);
-        let module = FDModuleRust::from_json(algebra, &mut json);
-        // .map_err(|e| {
-        //     ValueError::py_err(format!("Failed to construct module: {}", e))
-        // })?;
+        let module = FDModuleRust::from_json(algebra, &mut json)
+            .map_err(|e| {
+                python_utils::exception!(ValueError, "Failed to construct module: {}", e)
+            })?;
         Ok(Self::box_and_wrap(module))
     }
 }
