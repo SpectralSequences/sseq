@@ -1,17 +1,17 @@
 import pathlib
-import config
+from .. import config
 
 import asyncio
 import logging
 import functools
 import signal
 
-import server
+from .. import server
 
-from console import repl 
-import utils
+from . import repl 
+from .. import utils
 
-from console import resolution
+from . import resolution
 
 logger = logging.getLogger("temp")
 logger.setLevel(logging.INFO)

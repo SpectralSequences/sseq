@@ -1,9 +1,9 @@
 import json
 from starlette.websockets import WebSocketDisconnect
 
-from decorators import handler_class, handler
-import utils
-from channel import Channel
+from .decorators import handler_class, handler
+from . import utils
+from .channel import Channel
 
 import logging
 

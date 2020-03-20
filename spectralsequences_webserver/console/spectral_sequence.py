@@ -1,13 +1,13 @@
 import asyncio
 import datetime
 import json
-import config
 from prompt_toolkit import HTML
  
-from decorators import handler_class, handler
-import utils
-from console import basic_spectral_sequence
-from channel import Channel
+from .. import config
+from ..decorators import handler_class, handler
+from .. import utils
+from . import basic_spectral_sequence
+from ..channel import Channel
 
 @handler_class 
 class SpectralSequenceChart(Channel):

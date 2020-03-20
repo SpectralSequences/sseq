@@ -1,4 +1,4 @@
-import utils
+from .. import utils
 
 class ChartClass:
     def __init__(self, sseq, **kwargs):

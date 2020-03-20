@@ -1,7 +1,7 @@
 import asyncio
 
-from decorators import handler_class, handler
-import utils
+from .decorators import handler_class, handler
+from . import utils
 
 @handler_class
 class Channel:

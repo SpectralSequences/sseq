@@ -22,8 +22,8 @@ from pygments.lexers import PythonLexer, PythonTracebackLexer
 
 # from uvicorn.lifespan.on import shutdown
 
-from decorators import monkey_patch
-import utils
+from ..decorators import monkey_patch
+from .. import utils
 
 logger = logging.getLogger("hi")
 

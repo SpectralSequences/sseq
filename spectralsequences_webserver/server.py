@@ -1,4 +1,4 @@
-import config
+from . import config
 
 import asyncio
 from fastapi import FastAPI, Request, WebSocket
@@ -7,19 +7,19 @@ from fastapi.templating import Jinja2Templates
 import json
 from starlette.websockets import WebSocketDisconnect
 
-from console import start_console
-from channel import Channel
-from user import User
+from .console import start_console
+from .channel import Channel
+from .user import User
 
-from console.spectral_sequence import SpectralSequenceChart
-from decorators import *
+from .console.spectral_sequence import SpectralSequenceChart
+from .decorators import *
 
-import utils
+from . import utils
 
 start_console.main()
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 
 class JSResponse(Response):
     media_type = "application/javascript"
@@ -44,9 +44,3 @@ async def websocket_subscribe_sseq(websocket: WebSocket, channel_name : str):
 async def websocket_publish_sseq(websocket: WebSocket, channel_name : str):
     channel = Channel(channel_name, websocket)
     await channel.run()
-
-
-
-    
-
-
