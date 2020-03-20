@@ -1,11 +1,22 @@
-use pyo3::prelude::*;
-use pyo3::{PyObjectProtocol, PySequenceProtocol };
+use pyo3::{
+    prelude::*,
+    PyObjectProtocol, 
+    PySequenceProtocol,
+    types::PyTuple
+};
 
 // use fp::vector::{FpVector as FpVectorRust, FpVectorT};
-use fp::matrix::{ Matrix as MatrixRust, Subspace as SubspaceRust, QuasiInverse as QuasiInverseRust };
+use fp::matrix::{ 
+    Matrix as MatrixRust, 
+    Subspace as SubspaceRust, 
+    QuasiInverse as QuasiInverseRust 
+};
 
-use python_utils as util;
-use python_utils::{ py_repr, wrapper_type};
+use python_utils::{ 
+    self,
+    py_repr, 
+    wrapper_type
+};
 use crate::prime::new_valid_prime;
 use crate::vector::FpVector;
 
@@ -50,7 +61,7 @@ py_repr!(Matrix, "FreedMatrix", {
 
 impl Matrix { 
     fn handle_index(&self, index : isize) -> PyResult<usize> {
-        util::handle_index(self.inner_unchkd().rows(), index, "the number of rows", "matrix")
+        python_utils::handle_index(self.inner_unchkd().rows(), index, "the number of rows", "matrix")
     }
 }
 
@@ -128,21 +139,36 @@ impl Matrix {
     }
 
     pub fn row_reduce_into_vec(&mut self, pivots : &mut PivotVecWrapper) -> PyResult<()> {
-        self.inner_mut()?.row_reduce(pivots.inner_mut()?);
-        Ok(())
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let self_inner = self.inner_mut()?;
+        let pivots_inner = pivots.inner_mut()?;
+        py.allow_threads(move || -> PyResult<()> {
+            self_inner.row_reduce(pivots_inner);
+            Ok(())
+        })
     }
 
     pub fn row_reduce(&mut self) -> PyResult<PyObject> {
-        let inner = self.inner_mut()?;
-        let mut vec = vec![0; inner.columns()];
-        inner.row_reduce(&mut vec);        
         let gil = Python::acquire_gil();
         let py = gil.python();
+        let self_inner = self.inner_mut()?;
+        let vec = py.allow_threads(move ||  {
+            let mut vec = vec![0; self_inner.columns()];
+            self_inner.row_reduce(&mut vec);
+            vec
+        });
         Ok(vec.into_py(py))
     }    
 
     pub fn row_reduce_offset_into_vec(&mut self, pivots : &mut PivotVecWrapper, offset : usize) -> PyResult<()> {
-        self.inner_mut()?.row_reduce_offset(pivots.inner_mut()?, offset);
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let self_inner = self.inner_mut()?;
+        let pivots_inner = pivots.inner_mut()?;
+        py.allow_threads(move ||  {
+            self_inner.row_reduce_offset(pivots_inner, offset);
+        });
         Ok(())
     }
 
@@ -245,7 +271,8 @@ impl Subspace {
 
 
     pub fn row_reduce(&mut self) -> PyResult<()> {  
-        self.inner_mut()?.row_reduce();
+        let self_inner = self.inner_mut()?;
+        python_utils::release_gil!(self_inner.row_reduce());
         Ok(())
     }    
 
@@ -311,7 +338,11 @@ impl Matrix {
     }
 
     pub fn get_image(&mut self, image_rows : usize, target_dimension : usize, pivots : &PivotVecWrapper) -> PyResult<Subspace> {
-        Ok(Subspace::box_and_wrap(self.inner_mut()?.get_image(image_rows, target_dimension, pivots.inner()?)))
+        let self_inner = self.inner_mut()?;
+        let pivots_inner = pivots.inner()?;
+        Ok(Subspace::box_and_wrap(python_utils::release_gil!(
+            self_inner.get_image(image_rows, target_dimension, pivots_inner)
+        )))
     }
 
    
@@ -320,7 +351,11 @@ impl Matrix {
         start_column : usize, end_column : usize,
         current_pivots : &PivotVecWrapper
     ) -> PyResult<Vec<usize>> { 
-        Ok(self.inner_mut()?.extend_to_surjection(first_empty_row, start_column, end_column, current_pivots.inner()?))
+        let self_inner = self.inner_mut()?;
+        let current_pivots_inner = current_pivots.inner()?;
+        Ok(python_utils::release_gil!(
+            self_inner.extend_to_surjection(first_empty_row, start_column, end_column, current_pivots_inner)
+        ))
     }
 
     pub fn extend_image_to_desired_image(&mut self,
@@ -328,23 +363,45 @@ impl Matrix {
         start_column : usize, end_column : usize,
         current_pivots : &PivotVecWrapper, desired_image : &Subspace
     ) -> PyResult<Vec<usize>> { 
-        Ok(self.inner_mut()?.extend_image_to_desired_image(
-            first_empty_row, start_column, end_column, current_pivots.inner()?, desired_image.inner()?
+        let self_inner = self.inner_mut()?;
+        let current_pivots_inner = current_pivots.inner()?;
+        let desired_image_inner = desired_image.inner()?;
+        Ok(python_utils::release_gil!( 
+            self_inner.extend_image_to_desired_image(
+                first_empty_row, start_column, end_column, current_pivots_inner, desired_image_inner
+            )
         ))
     }
 
-    // TODO: how to create Python optional arguments?
+    #[args(pyargs="*")]
+    pub fn extend_image(&mut self,
+        first_empty_row : usize,
+        start_column : usize, end_column : usize,
+        current_pivots : &PivotVecWrapper, 
+        pyargs : &PyTuple
+    ) -> PyResult<Vec<usize>> {  
+        python_utils::check_number_of_positional_arguments!("extend_image", 5, 6, 5 + pyargs.len())?;
+        let self_inner = self.inner_mut()?;
+        let current_pivots_inner = current_pivots.inner()?;
+        let desired_image : Option<&SubspaceRust> = 
+            if pyargs.is_empty() {
+                None
+            } else {
+                Some(
+                    pyargs.get_item(0)
+                          .extract::<&Subspace>()?
+                          .inner()?
+                )
+            };
 
-    // pub fn extend_image(&mut self,
-    //     first_empty_row : usize,
-    //     start_column : usize, end_column : usize,
-    //     current_pivots : &PivotVecWrapper, desired_image : &Option<Subspace>
-    // ) -> PyResult<Vec<usize>> {  
-    //     Ok(self.inner_mut()?.extend_image(
-    //         first_empty_row, start_column, end_column, current_pivots.inner()?, 
-    //         desired_image.map_or::<PyResult<Option<&SubspaceRust>>,_>(Ok(None), |s| Ok(Some(s.inner()?)))?
-    //     ))           
-    // }
+        Ok(python_utils::release_gil!(
+            self_inner.extend_image(
+                first_empty_row, start_column, end_column, 
+                current_pivots_inner, 
+                desired_image
+            )
+        ))
+    }
 
     pub fn apply(&self, result : &mut FpVector, coeff : u32, input : &FpVector) -> PyResult<()> {
         self.inner()?.apply(result.inner_mut()?, coeff, input.inner()?);

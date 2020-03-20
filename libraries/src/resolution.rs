@@ -236,7 +236,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                 matrix.row_reduce(&mut pivots);
             }
             // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
-            res_new_gens = matrix.inner.extend_image(first_new_row + cc_new_gens, matrix.start[1], matrix.end[1], &pivots, &old_kernel).len();
+            res_new_gens = matrix.inner.extend_image(first_new_row + cc_new_gens, matrix.start[1], matrix.end[1], &pivots, old_kernel.as_ref()).len();
 
             if cc_new_gens > 0 {
                 // Now restore the middle rows.

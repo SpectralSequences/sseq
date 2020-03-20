@@ -167,7 +167,8 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
         }
 
         pub fn compute_basis(&self, max_degree : i32) -> PyResult<()> {
-            self.inner()?.compute_basis(max_degree);
+            let self_inner = self.inner()?;
+            python_utils::release_gil!(self_inner.compute_basis(max_degree));
             Ok(())
         }
 

@@ -47,6 +47,44 @@ macro_rules! exception {
 }
 
 #[macro_export]
+macro_rules! check_number_of_positional_arguments {
+    ($f : expr, $args_expected : expr, $args_provided : expr) => {
+        python_utils::check_number_of_positional_arguments($f, $args_expected, $args_expected, $args_provided)
+    };
+    ($f : expr, $min_args_expected : expr, $max_args_expected : expr, $args_provided : expr) => {
+        if $args_provided > $max_args_expected {
+            let args_expected = if $min_args_expected == $max_args_expected {
+                format!("{}",$max_args_expected)
+            } else {
+                format!("from {} to {}", $min_args_expected, $max_args_expected)
+            };
+            let args_given = if $args_provided == 1 {
+                format!("1 was given")
+            } else {
+                format!("{} were given", $args_provided)
+            };
+            Err(python_utils::exception!(TypeError,
+                "{}() takes {} postional arguments but {}", $f, args_expected, args_given
+            ))
+        } else {
+            Ok(())
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! release_gil {
+    ($block : block) => {{
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        py.allow_threads(move || $block)
+    }};    
+    ($expr : expr) => {
+        python_utils::release_gil!({$expr})
+    };
+}
+
+#[macro_export]
 macro_rules! not_implemented_error {
     () => {
         python_utils::exception!(NotImplementedError, "Not implemented.")

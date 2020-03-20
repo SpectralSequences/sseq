@@ -36,7 +36,8 @@ impl Resolution {
     } 
 
     pub fn step_resolution(&self, s : u32, t : i32) -> PyResult<()> {
-        self.inner()?.step_resolution(s, t);
+        let self_inner = self.inner()?;
+        python_utils::release_gil!(self_inner.step_resolution(s, t));
         Ok(())
     }
 

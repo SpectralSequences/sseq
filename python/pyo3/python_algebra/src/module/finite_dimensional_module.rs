@@ -4,7 +4,7 @@ use pyo3::{
     prelude::*,
     exceptions,
     PyObjectProtocol,
-    // types::PyDict
+    types::PyTuple
 };
 
 use std::fs::File;
@@ -154,16 +154,18 @@ impl FDModule {
         Ok(FpVector::wrap(self.inner_mut()?.action_mut(operation_degree, operation_idx, input_degree, input_idx), owner))
     }
 
-    #[args(overwrite=true)]
+    
+    #[args(overwrite=true, pyargs="*")]
     pub fn parse_action(
-        &mut self,
-        entry_: &str,
-        gen_to_idx_from_py : PyObject, // How can I make this default to PyNone?        
-        overwrite: bool,
+        &mut self,          
+        entry_: &str,    // mandatory
+        overwrite: bool, // default = True
+        pyargs : &PyTuple// gen_to_idx_from_py : PyDict { str => (int, int) }
     ) -> PyResult<()> {
+        python_utils::check_number_of_positional_arguments!("parse_action", 2, 4, 3+pyargs.len())?;
         let inner = self.inner_mut()?;
         let mut gen_to_idx : HashMap<String, (i32, usize)>;
-        if gen_to_idx_from_py.is_none() {
+        if pyargs.is_empty() {
             gen_to_idx = HashMap::new();
             for degree in inner.min_degree()..=inner.max_degree() {
                 for idx in 0 .. inner.dimension(degree){
@@ -174,9 +176,10 @@ impl FDModule {
                 }
             }
         } else {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
-            gen_to_idx = gen_to_idx_from_py.extract(py)?;
+            gen_to_idx = pyargs.get_item(0).extract()
+                        .map_err(|_err| python_utils::exception!(TypeError,
+                            "gen_to_idx_from_py is expected to be a dictionary of type {{ str : (int, str) }}",
+                        ))?;
         }
         inner.parse_action(&gen_to_idx, entry_, overwrite)
             .map_err(|err| python_utils::exception!(ValueError,
