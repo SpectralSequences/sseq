@@ -3,20 +3,38 @@ pub mod algebra;
 pub mod module;
 
 
-use pyo3::prelude::*;
+use pyo3::{
+    prelude::*,
+    wrap_pymodule
+};
 
 #[pymodule]
-fn python_algebra(_py: Python, m: &PyModule) -> PyResult<()> {
+fn algebra(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<algebra::PVector>()?;
+    
     m.add_class::<algebra::AdemAlgebra>()?;
     m.add_class::<algebra::AdemBasisElement>()?;
     m.add_class::<algebra::AdemElement>()?;
+
     m.add_class::<algebra::MilnorAlgebra>()?;
     m.add_class::<algebra::MilnorBasisElement>()?;
     m.add_class::<algebra::MilnorElement>()?;
+    
     m.add_class::<algebra::PythonAlgebra>()?;
     m.add_class::<algebra::PythonElement>()?;
+    Ok(())
+}
+
+#[pymodule]
+fn module(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<module::FDModule>()?;
     // m.add_class::<module::FreeModule>()?;
+    Ok(())
+}
+
+#[pymodule]
+fn python_algebra(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pymodule!(algebra))?;
+    m.add_wrapped(wrap_pymodule!(module))?;
     Ok(())
 }

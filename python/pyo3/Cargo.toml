@@ -1,22 +1,22 @@
 [package]
-name = "rust_algebra"
+name = "rust_ext"
 version = "0.1.0"
 authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dexter@math.harvard.edu>"]
 edition = "2018"
-description = "Rust Algebra"
+description = "Python wrappers for rust ext code"
 repository = "https://github.com/SpectralSequences/ext/"
 license = "(MIT OR Apache-2.0)"
 
 [dependencies]
-saveload = { path = "../../libraries/saveload" }
-bivec = { path = "../../libraries/bivec" }
-fp = { path = "../../libraries/fp" }
-algebra = { path = "../../libraries/algebra" }
-ext = { path = "../../libraries/" }
+saveload = { path = "../../libraries/saveload", version = "0.1.0"  }
+bivec = { path = "../../libraries/bivec", version = "0.1.0"  }
+fp = { path = "../../libraries/fp", version = "0.1.0"  }
+algebra = { path = "../../libraries/algebra", version = "0.1.0"  }
+ext = { path = "../../libraries/", version = "0.1.0"  }
 
-python_algebra = { path = "python_algebra" }
-python_fp = { path = "python_fp" }
-python_utils = { path = "python_utils" }
+python_algebra = { path = "python_algebra", version = "0.1.0"  }
+python_fp = { path = "python_fp", version = "0.1.0"  }
+python_utils = { path = "python_utils", version = "0.1.0"  }
 
 enum_dispatch = "0.2.0"
 lazy_static = "1.2.0"
