@@ -1,27 +1,41 @@
-import pathlib
-from .. import config
-
 import asyncio
-import logging
-import functools
-import signal
+import os
+import pathlib
 
-from .. import server
 
+from .. import config
 from . import repl 
 from .. import utils
-
+from .spectral_sequence import SpectralSequenceChart
 from . import resolution
+import rust_algebra 
+from . import rust_algebra_wrappers
 
-logger = logging.getLogger("temp")
-logger.setLevel(logging.INFO)
+
+def add_stuff_to_console_namespace():
+    config.REPL_GLOBALS["AdemAlgebra"] = rust_algebra_wrappers.AdemAlgebra
+    config.REPL_GLOBALS["MilnorAlgebra"] = rust_algebra_wrappers.MilnorAlgebra
+    config.REPL_GLOBALS["FDModule"] = rust_algebra.algebra.FDModule
+    config.REPL_GLOBALS["Resolution"] = resolution.Resolution
+    config.REPL_GLOBALS["SpectralSequenceChart"] = SpectralSequenceChart
 
 def main():
-    # asyncio.get_event_loop().set_exception_handler(handle_loop_exception)
-    utils.exec_file_if_exists(config.USER_DIR / "initialize_console.py", globals(), locals()) 
-    f = repl.make_repl(globals(), locals(), history_filename=str(config.USER_DIR / "console.hist"))
+    add_stuff_to_console_namespace()
+    utils.exec_file_if_exists(config.USER_DIR / "on_console_init.py", config.REPL_GLOBALS, config.REPL_GLOBALS)
+    os.chdir(config.WORKING_DIRECTORY)
+    for arg in config.SCRIPT_ARGS.split():
+        path = pathlib.Path(arg)
+        if path.is_file():
+            utils.exec_file(path, config.REPL_GLOBALS, config.REPL_GLOBALS)
+        else:
+            utils.print_warning(f"""Cannot find file "{arg}". Ignoring it!""")
+    f = repl.make_repl(config.REPL_GLOBALS, locals(), history_filename=str(config.USER_DIR / "console.hist"))
     task = asyncio.ensure_future(f) 
     task.add_done_callback(handle_task_exception)
+    add_stuff_to_console_namespace()
+
+
+
         
 def handle_task_exception(f):
     try:

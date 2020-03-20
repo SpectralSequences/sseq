@@ -1,0 +1,21 @@
+chart = SpectralSequenceChart("RP8")
+chart.set_initial_x_range(0, 40)
+chart.set_initial_y_range(0, 20)
+chart.set_x_range(0, 80)
+chart.set_y_range(0, 40)
+chart.start()
+
+A = AdemAlgebra(2)
+A.compute_basis(20)
+M = FDModule(A, "RP8")
+for i in range(1, 9):
+    M.add_generator(i, f"x{i}")
+for i in range(1, 9, 2):
+    M.parse_action(f"Sq1 x{i} = x{i+1}", None)
+M.parse_action(f"Sq2 x2 = x4", None)
+M.parse_action(f"Sq2 x3 = x5", None)
+M.parse_action(f"Sq2 x6 = x8", None)
+M.parse_action(f"Sq4 x4 = x8", None)
+M.extend_actions()
+M.freeze()
+res_c2 = Resolution("RP^8", chart=chart, module=M)

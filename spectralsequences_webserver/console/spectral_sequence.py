@@ -17,9 +17,8 @@ class SpectralSequenceChart(Channel):
         if sseq:
             self.sseq = sseq
         else:
-            self.sseq = basic_spectral_sequence.BasicSpectralSequenceChart("test")
-        self.handshakes = set()
-        self.start()
+            self.sseq = basic_spectral_sequence.BasicSpectralSequenceChart(name)
+        # self.handshakes = set()
 
     
     @handler
@@ -40,10 +39,10 @@ class SpectralSequenceChart(Channel):
 
     def print_started_msg(self):
         colored_url = f"<blue>http://localhost:{config.PORT}/sseq/{self.name}</blue>"
-        utils.print_formatted_text(HTML(
+        utils.format_and_print_text(
                 f"""<green>Started spectral sequence "{self.name}".\n""" +\
                 f"""Visit "{colored_url}" to view.</green>"""
-        ))
+        )
 
     async def add_class(self, x : int, y : int, **kwargs):
         kwargs.update({"x" : x, "y" : y, "node_list" : [0]})
@@ -68,4 +67,18 @@ class SpectralSequenceChart(Channel):
 
     def get_classes_in_bidegree(self, x, y):
         return self.sseq._classes_by_bidegree.get((x,y), [])
+
+    def set_x_range(self, x_min, x_max):
+        self.sseq.xRange = [x_min, x_max]
+
+    def set_y_range(self, y_min, y_max):
+        self.sseq.yRange = [y_min, y_max]
+
+    def set_initial_x_range(self, x_min, x_max):
+        self.sseq.initialxRange = [x_min, x_max]        
+
+    def set_initial_y_range(self, y_min, y_max):
+        self.sseq.initialyRange = [y_min, y_max]
+
+
         

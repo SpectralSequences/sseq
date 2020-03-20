@@ -33,7 +33,7 @@ async def get(request: Request, sseq_name : str):
 
 @app.get("/static/basic_webclient", response_class=JSResponse)
 async def get():
-    return config.BASIC_WEBCLIENT_JS_FILE.read_text()
+    return config.SSEQ_BASIC_WEBCLIENT_JS_FILE.read_text()
 
 @app.websocket("/subscribe_sseq/{channel_name}")
 async def websocket_subscribe_sseq(websocket: WebSocket, channel_name : str):

@@ -1,4 +1,4 @@
 virtualenv
-usr
 **/__pycache__
 scraps
+user_local
