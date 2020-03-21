@@ -3,7 +3,6 @@ use fp::prime::ValidPrime;
 use crate::actions::*;
 use crate::managers::*;
 use wasm_bindgen::prelude::*;
-use std::error::Error;
 use ext::steenrod_evaluator::SteenrodCalculator as SteenrodCalculator_;
 
 #[derive(Clone)]
@@ -18,7 +17,7 @@ impl Sender {
 
     pub fn send(&self, msg : Message) -> error::Result<()>{
         let s = serde_json::to_string(&msg)?;
-        self.f.call1(&JsValue::NULL, &JsValue::from(s))?;
+        self.f.call1(&JsValue::NULL, &JsValue::from(s)).unwrap();
         Ok(())
     }
 }
