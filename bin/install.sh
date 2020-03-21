@@ -1,18 +1,19 @@
-#!/bin/bash
-export BIN="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-export REPOSITORY_ROOT="$(dirname "$BIN")"
-export WORKING_DIRECTORY="$(pwd)"
-export EXT_REPOSITORY=$($BIN/_find_ext_repository.sh $1)
+#!/bin/sh
 
-if [ -z "$EXT_REPOSITORY" ]; then
-    ./_query_clone_ext_repository.sh
-else
-    ln -s $EXT_REPOSITORY $REPOSITORY_ROOT/ext
+WORKING_DIRECTORY="$(pwd)"
+
+cd "$( dirname $0 )"
+cd ..
+
+if ! [ -d "ext" ]; then
+    echo "Downloading ext from https://github.com/spectralsequences/ext into $(pwd)/ext. If you have a local copy of ext, you may wish to replace this with a symlink"
+    git clone --depth 1 https://github.com/spectralsequences/ext
 fi
 
 echo "Installing wasm-bindgen-cli"
 cargo install wasm-bindgen-cli
-echo "Installing wasm-opt"
-$BIN/install-wasm-opt.sh
+
 echo "Installing rustup target wasm32-unknown-unknown"
 rustup target add wasm32-unknown-unknown
+
+cd $WORKING_DIRECTORY

@@ -16,11 +16,9 @@ matrix:
     fast_finish: true
 
 install:
-    - export PATH="$HOME/bin:$HOME/.cargo/bin:$PATH"
-    - cargo install wasm-bindgen-cli
-    - ./install-wasm-opt.sh
+    - ./bin/install.sh
+    - ./bin/install-wasm-opt.sh
     - rustup component add clippy
-    - git clone --depth 1 https://github.com/SpectralSequences/ext/
 
 script:
     - cargo clippy -- -D warnings
