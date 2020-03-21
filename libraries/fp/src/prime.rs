@@ -1,5 +1,6 @@
 pub const NUM_PRIMES : usize = 8;
 pub const MAX_PRIME : usize = 19;
+#[cfg(not(feature = "prime-two"))]
 const NOT_A_PRIME : usize = !1;
 pub const MAX_MULTINOMIAL_LEN : usize = 10;
 #[cfg(feature = "json")]

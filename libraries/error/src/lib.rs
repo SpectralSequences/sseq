@@ -8,9 +8,11 @@ pub struct Error {
     backtrace: backtrace::Backtrace,
 }
 
-impl Error {
-    pub fn to_string(&self) -> String {
-        self.error.to_string()
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", self.error)?;
+        writeln!(f, "{:?}", self.backtrace)?;
+        Ok(())
     }
 }
 
