@@ -43,7 +43,7 @@ opt-level = 3
 debug = true
 
 [workspace]
-members = ["algebra", "bivec", "fp",  "once", "saveload", "thread-token", "error"]
+members = ["algebra", "bivec", "fp",  "once", "saveload", "thread-token", "error", "ext_webserver", "compressor"]
 
 [features]
 cache-multiplication = []

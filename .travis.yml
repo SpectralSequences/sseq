@@ -26,19 +26,12 @@ install:
 #    - pip3 install --user maturin
 
 script:
-    - cd libraries
     - cargo test --verbose --workspace
     - cargo test --features "cache-multiplication" --verbose --workspace
     - cargo check --features "prime-two concurrent" --workspace
     - cargo clippy --workspace --all-targets -- -D warnings
     - cargo clippy --workspace --features "cache-multiplication concurrent" --all-targets -- -D warnings -A unused_imports
-    - cd ..
-    - cd webserver
-    - cargo test --verbose --workspace
-    - cargo test --features "cache-multiplication" --verbose --workspace
-    - cargo check --features "prime-two concurrent" --workspace
-    - cargo clippy --workspace --all-targets -- -D warnings
-    - cargo clippy --workspace --features "cache-multiplication concurrent" --all-targets -- -D warnings -A unused_imports
+    - cd ext_webserver
     - npm run build
     - cd ..
 #    - cd python/pyo3
@@ -49,20 +42,18 @@ script:
 cache:
     cargo: true
     directories:
-        - libraries/target
-        - webserver/target
-        - webserver/node_modules
+        - ext_webserver/node_modules
 
 before_deploy:
-    - cd libraries; sh gen_doc.sh; cd ..
-    - cp -r libraries/target/doc/ webserver/dist/
+    - sh gen_doc.sh
+    - cp -r target/doc/ ext_webserver/dist/
 
 deploy:
   provider: pages
   skip_cleanup: true
   github_token: $GITHUB_TOKEN  # Set in the settings page of your repository, as a secure variable
   keep_history: true
-  local_dir: webserver/dist/
+  local_dir: ext_webserver/dist/
   on:
       branch: master
       condition: "$TRAVIS_RUST_VERSION = stable"
