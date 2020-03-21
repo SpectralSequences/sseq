@@ -54,8 +54,8 @@ class Resolution:
             for j in range(n):
                 for i in range(n):
                     self.rust_res.step_resolution(i,j)
-                    # f = asyncio.run_coroutine_threadsafe(self.after_step(i, j), self.loop)
-                    # f.result()
+                    f = asyncio.run_coroutine_threadsafe(self.after_step(i, j), self.loop)
+                    f.result()
             t1 = time.time()
             time_elapsed = t1 - t0
             print("Time taken to resolve %s stems:" % n,  time_elapsed)
