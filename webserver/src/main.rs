@@ -4,9 +4,9 @@ use ws::{listen, Handler, Request, Response, Sender as WsSender, Result as WsRes
 use textwrap::Wrapper;
 use time::OffsetDateTime;
 
-use ext_websocket::actions::*;
-use ext_websocket::managers::*;
-use ext_websocket::Sender;
+use ext_webserver::actions::*;
+use ext_webserver::managers::*;
+use ext_webserver::Sender;
 
 /// List of files that our webserver will serve to the user
 const FILE_LIST : [(&str, &str, &[u8]); 16] = [
@@ -194,7 +194,7 @@ impl Server {
         let request_path = request_path.split('?').collect::<Vec<&str>>()[0]; // Ignore ?...
         let mut dir = std::env::current_exe().unwrap();
         dir.pop(); dir.pop(); dir.pop();
-        dir.push("ext-websocket/interface");
+        dir.push("interface");
 
         for (path, file, mime) in &FILE_LIST {
             if request_path == *path {

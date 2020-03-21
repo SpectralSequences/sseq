@@ -1,5 +1,5 @@
 [package]
-name = "ext-websocket"
+name = "ext_webserver"
 version = "0.1.0"
 authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dalcde@yahoo.com.hk>"]
 edition = "2018"
@@ -7,15 +7,15 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bivec = { path = "../../libraries/bivec" }
+bivec = { path = "../libraries/bivec" }
 enum_dispatch = "0.2.0"
-error = { path = "../../libraries/error" }
-fp = { path = "../../libraries/fp", features = ["json"] }
+error = { path = "../libraries/error" }
+fp = { path = "../libraries/fp", features = ["json"] }
 parking_lot = "0.10"
-ext = { path = "../../libraries/" }
+ext = { path = "../libraries/" }
 serde_json = "1.0.0"
 serde = { version = "1.0.0", features = ["derive"] }
-thread-token = { path = "../../libraries/thread-token", optional = true }
+thread-token = { path = "../libraries/thread-token", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 time = "0.2.7"
@@ -32,5 +32,5 @@ cache-multiplication = ["ext/cache-multiplication"]
 concurrent = ["thread-token", "ext/concurrent"]
 prime-two = ["fp/prime-two", "ext/prime-two"]
 
-[lib]
-crate-type = ["cdylib", "rlib"]
+[workspace]
+members = ["compressor"]

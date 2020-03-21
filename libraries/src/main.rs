@@ -11,7 +11,6 @@
 #![warn(clippy::explicit_into_iter_loop)]
 
 mod run;
-mod test;
 
 use clap::{load_yaml, value_t, App};
 use ext::utils::Config;
@@ -19,35 +18,28 @@ use ext::utils::Config;
 const BOLD_ANSI_CODE: &str = "\x1b[1m";
 
 #[allow(unreachable_code)]
-fn main() {
+fn main() -> error::Result<()> {
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml).get_matches();
-    let result;
-    match matches.subcommand() {
-        ("module", Some(_sub_m)) => {
-            result = run::define_module();
+    let result = match matches.subcommand() {
+        ("module", Some(_)) => {
+            run::define_module()?
         }
-        ("test", Some(_sub_m)) => {
-            run::test(&get_config(matches)).unwrap();
-            return;
+        ("test", Some(_)) => {
+            run::test(&get_config(matches))?
         }
-        ("yoneda", Some(_sub_m)) => {
-            result = run::yoneda(&get_config(matches));
+        ("yoneda", Some(_)) => {
+            run::yoneda(&get_config(matches))?
         }
         ("steenrod", Some(_)) => {
-            result = run::steenrod();
+            run::steenrod()?
         }
         (_, _) => {
-            result = run::resolve(&get_config(matches));
+            run::resolve(&get_config(matches))?
         }
-    }
-    match result {
-        Ok(string) => println!("{}{}", BOLD_ANSI_CODE, string),
-        Err(e) => {
-            eprintln!("Application error: {}", e);
-            std::process::exit(1);
-        }
-    }
+    };
+    println!("{}{}", BOLD_ANSI_CODE, result);
+    Ok(())
 }
 
 fn get_config(matches: clap::ArgMatches<'_>) -> Config {

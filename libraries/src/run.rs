@@ -1,3 +1,5 @@
+//! This file contains code used by main.rs
+
 use serde_json::value::Value;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
@@ -27,8 +29,6 @@ use std::{sync::mpsc, thread, thread::JoinHandle};
 
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
-
-pub use crate::test::test;
 
 pub fn define_module() -> error::Result<String> {
     ext::cli_module_loaders::interactive_module_define()
@@ -498,4 +498,8 @@ pub fn steenrod() -> error::Result<String> {
 
         println!("Computing Steenrod operations: {:?}", start.elapsed());
     }
+}
+
+pub fn test(_config: &Config) -> error::Result<String> {
+    Ok(String::new())
 }

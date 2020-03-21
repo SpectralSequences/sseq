@@ -21,7 +21,7 @@ matrix:
 
 install:
     - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
-    - cd binaries/ext-websocket; npm install; cd ../..
+    - cd webserver; npm install; cd ..
     - rustup component add clippy
 #    - pip3 install --user maturin
 
@@ -33,15 +33,14 @@ script:
     - cargo clippy --workspace --all-targets -- -D warnings
     - cargo clippy --workspace --features "cache-multiplication concurrent" --all-targets -- -D warnings -A unused_imports
     - cd ..
-    - cd binaries
+    - cd webserver
     - cargo test --verbose --workspace
     - cargo test --features "cache-multiplication" --verbose --workspace
     - cargo check --features "prime-two concurrent" --workspace
     - cargo clippy --workspace --all-targets -- -D warnings
     - cargo clippy --workspace --features "cache-multiplication concurrent" --all-targets -- -D warnings -A unused_imports
-    - cd ext-websocket
     - npm run build
-    - cd ../..
+    - cd ..
 #    - cd python/pyo3
 #    - virtualenv -p /usr/bin/python3.6 ../virtualenv
 #    - source ../virtualenv/bin/activate
@@ -51,19 +50,19 @@ cache:
     cargo: true
     directories:
         - libraries/target
-        - binaries/target
-        - binaries/ext-websocket/node_modules
+        - webserver/target
+        - webserver/node_modules
 
 before_deploy:
     - cd libraries; sh gen_doc.sh; cd ..
-    - cp -r libraries/target/doc/ binaries/ext-websocket/dist/
+    - cp -r libraries/target/doc/ webserver/dist/
 
 deploy:
   provider: pages
   skip_cleanup: true
   github_token: $GITHUB_TOKEN  # Set in the settings page of your repository, as a secure variable
   keep_history: true
-  local_dir: binaries/ext-websocket/dist/
+  local_dir: webserver/dist/
   on:
       branch: master
       condition: "$TRAVIS_RUST_VERSION = stable"
