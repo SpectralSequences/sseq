@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/SpectralSequences/ext.svg?branch=master)](https://travis-ci.org/SpectralSequences/ext)
+[![Build Status](https://travis-ci.com/SpectralSequences/ext.svg?branch=master)](https://travis-ci.com/SpectralSequences/ext)
 
 # Overview
 The purpose of this repository is to compute Ext over the Steenrod algebra, and
