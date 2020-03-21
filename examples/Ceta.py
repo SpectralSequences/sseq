@@ -3,7 +3,6 @@ chart.set_initial_x_range(0, 40)
 chart.set_initial_y_range(0, 20)
 chart.set_x_range(0, 80)
 chart.set_y_range(0, 40)
-chart.start()
 
 A = AdemAlgebra(2)
 A.compute_basis(20)

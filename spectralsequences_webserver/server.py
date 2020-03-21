@@ -7,18 +7,17 @@ from fastapi.templating import Jinja2Templates
 import json
 from starlette.websockets import WebSocketDisconnect
 
-from .console import start_console
+from .repl import start_repl
 from .channel import Channel
 from .user import User
 
-from .console.spectral_sequence import SpectralSequenceChart
 from .decorators import *
 
 from . import utils
 
-start_console.main()
-
+start_repl()
 app = FastAPI()
+
 templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 
 class JSResponse(Response):

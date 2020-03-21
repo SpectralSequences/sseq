@@ -20,11 +20,6 @@ class SpectralSequenceChart(Channel):
             self.sseq = basic_spectral_sequence.BasicSpectralSequenceChart(name)
         # self.handshakes = set()
 
-    
-    @handler
-    async def handle_get_state(self, data, text):
-        pass
-
     @handler
     async def handle_new_user(self, data, text):
         await self.send_to_user(data["user_id"], utils.json_stringify({
