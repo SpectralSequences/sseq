@@ -8,21 +8,21 @@ repository = "https://github.com/SpectralSequences/ext/"
 license = "(MIT OR Apache-2.0)"
 
 [dependencies]
-algebra = { path = "algebra" }
-bivec = { path = "bivec"}
+algebra = { path = "crates/algebra" }
+bivec = { path = "crates/bivec"}
 enum_dispatch = "0.2.0"
-error = { path = "error"}
-fp = { path = "fp" }
+error = { path = "crates/error"}
+fp = { path = "crates/fp" }
 lazy_static = "1.2.0"
 lock_api = "0.3"
 nom = "5.0.0"
-once = { path = "once"}
+once = { path = "crates/once"}
 parking_lot = "0.10"
-query = { path = "query" }
-saveload = { path = "saveload" }
+saveload = { path = "crates/saveload" }
+query = { path = "crates/query" }
 serde_json = "1.0.0"
 serde = { version = "1.0.0", features = ["derive"] }
-thread-token = { path = "thread-token", optional = true }
+thread-token = { path = "crates/thread-token", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32-unknown-unknown"))'.dependencies.clap]
 version = "2.33.0"
@@ -42,8 +42,6 @@ lto = true
 opt-level = 3
 debug = true
 
-[workspace]
-members = ["algebra", "bivec", "fp",  "once", "saveload", "thread-token", "error", "ext_webserver", "compressor"]
 
 [features]
 cache-multiplication = []

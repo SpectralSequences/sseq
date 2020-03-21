@@ -1,0 +1,12 @@
+[workspace]
+members = [
+    "algebra", 
+    "bivec", 
+    "fp",  
+    "once", 
+    "saveload", 
+    "thread-token", 
+    "error", 
+    "ext_webserver", 
+    "compressor"
+]
