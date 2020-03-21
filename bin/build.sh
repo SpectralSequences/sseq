@@ -1,4 +1,10 @@
-#!/bin/sh
+#!/bin/bash
+export BIN="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+export REPOSITORY_ROOT="$(dirname "$BIN")"
+export WORKING_DIRECTORY="$(pwd)"
+
+cd $REPOSITORY_ROOT
+
 
 TARGET="wasm32-unknown-unknown"
 NAME="steenrod_calculator"
