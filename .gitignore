@@ -2,3 +2,5 @@ virtualenv
 **/__pycache__
 scraps
 user_local
+ext
+basic_webclient

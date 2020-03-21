@@ -10,6 +10,7 @@ REPOSITORY_ROOT = pathlib.Path(os.environ["REPOSITORY_ROOT"])
 PACKAGE_ROOT = REPOSITORY_ROOT / "spectralsequences_webserver"
 LOCAL_USER_DIR = REPOSITORY_ROOT / "user_local"
 REPO_USER_DIR = REPOSITORY_ROOT / "user"
+EXT_REPOSITORY_ROOT = REPOSITORY_ROOT / "ext"
 
 if LOCAL_USER_DIR.is_dir():
     USER_DIR = LOCAL_USER_DIR
@@ -37,17 +38,17 @@ if "GET_CONFIG_VARS" not in os.environ:
         import ext
     except ImportError:
         try:
-            EXT_PYTHON = EXT_REPOSITORY / "python"
+            EXT_PYTHON = EXT_REPOSITORY_ROOT / "python"
             sys.path.append(str(EXT_PYTHON.absolute()))
             import ext
         except NameError:
             utils.print_error("""Could not import ext.""")
-            utils.print_error("""Add "EXT_REPOSITORY = 'path/to/ext_repository'" to user/config.py""")
+            utils.print_error("""Add "EXT_REPOSITORY_ROOT = 'path/to/ext_repository'" to user/config.py""")
             utils.print_error("""Quitting.""")
             sys.exit()
         except ImportError:
             utils.print_error("""Could not import ext.""")
-            utils.print_error("""Check the path "EXT_REPOSITORY = 'path/to/ext_repository'" in user/config.py""")
+            utils.print_error("""Check the path "EXT_REPOSITORY_ROOT = 'path/to/ext_repository'" in user/config.py""")
             utils.print_error("""Quitting.""")
             sys.exit()
 
