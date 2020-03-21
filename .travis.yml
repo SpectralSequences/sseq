@@ -1,0 +1,36 @@
+dist: bionic
+
+language: rust
+rust:
+    - stable
+    - beta
+    - nightly
+
+env:
+    - RUST_BACKTRACE=1
+
+matrix:
+    allow_failures:
+        - rust: beta
+        - rust: nightly
+    fast_finish: true
+
+install:
+    - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+    - rustup component add clippy
+
+script:
+    - cargo clippy -- -D warnings
+    - ./build.sh
+
+cache: cargo
+
+deploy:
+  provider: pages
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN  # Set in the settings page of your repository, as a secure variable
+  keep_history: true
+  local_dir: dist/
+  on:
+      branch: master
+      condition: "$TRAVIS_RUST_VERSION = stable"

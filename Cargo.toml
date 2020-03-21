@@ -1,0 +1,17 @@
+[package]
+name = "steenrod_calculator"
+version = "0.1.0"
+authors = ["Dexter Chua <dexter@math.harvard.edu>"]
+edition = "2018"
+
+[dependencies]
+algebra = { path = "ext/algebra" }
+fp = { path = "ext/fp" }
+wasm-bindgen = "0.2.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+lto = true
+opt-level = 3
