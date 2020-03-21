@@ -26,6 +26,7 @@ class Resolution:
             self.M = make_unit_module()
         else:
             self.M = module
+        self.name=""
         self.A = self.M.algebra
         self.rust_res = RustResolution(self.M)
         self.rust_res.extend_through_degree(0,200,0,200)
@@ -33,6 +34,12 @@ class Resolution:
         self.filtration_one_products = self.A.default_filtration_one_products()[:-1] 
         self.class_handlers = []
         self.structline_handlers = []
+
+        self.max_degree = -1
+        self.target_max_degree = -1
+        self.finished_degrees = set()
+        self.unfinished_degrees = {}
+        
         if chart is not None:
             self.set_chart(chart)
 
@@ -50,16 +57,23 @@ class Resolution:
     def _resolve_thread(self, n):
         def run(): 
             self.A.compute_basis(n)
-            t0 = time.time()    
+            self.target_max_degree = n
+            t0 = time.time()
             for j in range(n):
                 for i in range(n):
-                    self.rust_res.step_resolution(i,j)
-                    f = asyncio.run_coroutine_threadsafe(self.after_step(i, j), self.loop)
-                    f.result()
+                    self.step_if_needed(i, j)
             t1 = time.time()
             time_elapsed = t1 - t0
-            print("Time taken to resolve %s stems:" % n,  time_elapsed)
+            print(f"Time taken to resolve {self.name} from stem {self.max_degree + 1} to stem {self.target_max_degree}:",  time_elapsed)
+            self.max_degree = self.target_max_degree
         return run 
+
+    def step_if_needed(self, i, j):
+        if (i, j) not in self.finished_degrees:
+            self.rust_res.step_resolution(i,j)
+            f = asyncio.run_coroutine_threadsafe(self.after_step(i, j), self.loop)
+            f.result()
+            self.finished_degrees.add((i, j))
 
 
     def add_sseq_class_handler(self, chart):
@@ -79,6 +93,7 @@ class Resolution:
 
     def set_chart(self, chart):
         self.chart = chart
+        self.name = chart.name
         self.add_sseq_class_handler(chart)
         self.add_sseq_structline_handler(chart)
 

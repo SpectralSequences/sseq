@@ -6,6 +6,7 @@ function main(){
     # SAME: This next segment is the same in all install scripts
     local BIN="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
     local REPOSITORY_ROOT="$(dirname "$BIN")"
+    echo "REPO_ROOT : $REPOSITORY_ROOT"
     local WORKING_DIRECTORY="$(pwd)"
 
     eval "CHECK_PATH=\${SSEQ_${REPO_NAME^^}_PATH}"
@@ -31,7 +32,7 @@ function main(){
     # END SAME
     ###
     
-    source "$SSEQ_BIN/_make_repository_link.sh" $REPOSITORY_ROOT ext || return 1
+    source "$SSEQ_BIN/_make_repository_link.sh" $REPOSITORY_ROOT ext rust_ext || return 1
 }
 main
 

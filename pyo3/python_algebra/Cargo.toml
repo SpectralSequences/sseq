@@ -15,11 +15,11 @@ enum_dispatch = "0.2.0"
 nom = "5.0.0"
 parking_lot = "0.10"
 
-algebra = { path = "../../../ext/crates/algebra" }
-bivec = { path = "../../../ext/crates/bivec" }
-error = { path = "../../../ext/crates/error" }
-fp = { path = "../../../ext/crates/fp" }
-saveload = { path = "../../../ext/crates/saveload" }
+algebra = { path = "../../rust_ext/crates/algebra" }
+bivec = { path = "../../rust_ext/crates/bivec" }
+error = { path = "../../rust_ext/crates/error" }
+fp = { path = "../../rust_ext/crates/fp" }
+saveload = { path = "../../rust_ext/crates/saveload" }
 
 python_fp = { path = "../python_fp" }
 python_utils = { path = "../python_utils" }
