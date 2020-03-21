@@ -21,7 +21,7 @@ matrix:
 
 install:
     - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
-    - cd webserver; npm install; cd ..
+    - cd ext_webserver; npm install; cd ..
     - rustup component add clippy
 #    - pip3 install --user maturin
 
