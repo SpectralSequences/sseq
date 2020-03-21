@@ -21,7 +21,7 @@ fn extend_identity() {
 
 fn check_algebra (module_name : &str, max_degree : i32, algebra_name: &str) {
     println!("module : {}", module_name);
-    let path = std::path::PathBuf::from("modules");
+    let path = std::path::PathBuf::from("steenrod_modules");
     let a = Config {
         module_paths : vec![path],
         module_file_name : module_name.to_string(),

@@ -14,7 +14,7 @@ fn check_result() {
 
 fn compare(module_name: &str, result: Vec<Vec<usize>>, max_degree: i32) {
     println!("module : {}", module_name);
-    let path = std::path::PathBuf::from("modules");
+    let path = std::path::PathBuf::from("steenrod_modules");
     let a = Config {
         module_paths: vec![path],
         module_file_name: module_name.to_string(),
