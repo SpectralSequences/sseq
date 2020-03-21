@@ -34,3 +34,6 @@ prime-two = ["fp/prime-two", "ext/prime-two"]
 
 [workspace]
 members = ["compressor"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]

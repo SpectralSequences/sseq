@@ -4,7 +4,7 @@
     "Hood Chatham <hood@mit.edu>",
     "Dexter Chua <dexter@math.harvard.edu>"
   ],
-  "name": "ext-websocket",
+  "name": "ext-webserver",
   "description": "Compute ext over the Steenrod algebra",
   "version": "0.1.0",
   "scripts": {
