@@ -23,7 +23,7 @@ install:
     - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
     - cd binaries/ext-websocket; npm install; cd ../..
     - rustup component add clippy
-    - pip install maturin
+    - pip3 install --user maturin
 
 script:
     - cd libraries
