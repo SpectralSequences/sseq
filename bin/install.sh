@@ -32,29 +32,22 @@ function main(){
     ###
     
     source "$SSEQ_BIN/_make_repository_link.sh" $REPOSITORY_ROOT ext || return 1
+    source "$SSEQ_BIN/_make_repository_link.sh" $REPOSITORY_ROOT python_ext || return 1
     source "$SSEQ_BIN/_make_repository_link.sh" $REPOSITORY_ROOT basic_webclient || return 1
+
+    virtualenv -p /usr/bin/python3.8 $BIN/virtualenv
+    source $BIN/virtualenv/bin/activate
+
+    pip install fastapi
+    pip install jinja2
+    pip install maturin
+    pip install pathlib
+    pip install ptpython
+    pip install uvicorn
+    pip install websockets
+
+    # cd $EXT_REPOSITORY
+    # rustup override set nightly-2020-02-29
+    # $BIN/build_rust_ext.sh
 }
 main
-
-
-# export BASIC_WEBCLIENT_REPOSITORY=$($BIN/_find_ext_repository $1)
-# if [ -z "$EXT_REPOSITORY" ]; then
-#     ./_query_clone_repository.sh basic_webclient
-# else
-#     ln -s $EXT_REPOSITORY $REPOSITORY_ROOT/ext
-# fi
-
-# virtualenv -p /usr/bin/python3.8 $BIN/virtualenv
-# source $BIN/virtualenv/bin/activate
-
-# pip install fastapi
-# pip install jinja2
-# pip install maturin
-# pip install pathlib
-# pip install ptpython
-# pip install uvicorn
-# pip install websockets
-
-# cd $EXT_REPOSITORY
-# rustup override set nightly-2020-02-29
-# $BIN/build_rust_ext.sh

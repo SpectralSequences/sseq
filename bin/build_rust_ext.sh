@@ -5,7 +5,6 @@ export WORKING_DIRECTORY="$(pwd)"
 export RUSTFLAGS="-Z macro-backtrace"
 
 source $BIN/virtualenv/bin/activate
-export EXT_REPOSITORY=$(python $BIN/_get_config_vars.py EXT_REPOSITORY)
-cd $EXT_REPOSITORY/python/pyo3
+cd $SSEQ_PYTHON_EXT_PATH/pyo3
 rustup show
 maturin develop
