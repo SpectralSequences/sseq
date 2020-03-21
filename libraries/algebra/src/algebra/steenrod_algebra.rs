@@ -51,7 +51,9 @@ impl SteenrodAlgebra {
     pub fn from_json(json : &Value, mut algebra_name : String) -> error::Result<SteenrodAlgebra> {
         let spec : AlgebraSpec = serde_json::from_value(json.clone())?;
 
-        let p = ValidPrime::new(spec.p);
+        let p = ValidPrime::try_new(spec.p)
+            .ok_or_else(|| error::GenericError::new(format!("Invalid prime: {}", spec.p)))?;
+
         if let Some(mut list) = spec.algebra {
             if !list.contains(&algebra_name) {
                 println!("Module does not support algebra {}", algebra_name);
