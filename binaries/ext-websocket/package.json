@@ -2,7 +2,7 @@
   "author": "Hood Chatham <hood@mit.edu>",
   "contributors": [
     "Hood Chatham <hood@mit.edu>",
-    "Dexter Chua <dexter@maath.harvard.edu>"
+    "Dexter Chua <dexter@math.harvard.edu>"
   ],
   "name": "ext-websocket",
   "description": "Compute ext over the Steenrod algebra",
