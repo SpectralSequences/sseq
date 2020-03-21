@@ -16,18 +16,18 @@ matrix:
     fast_finish: true
 
 install:
-    - ./bin/install.sh
-    - ./bin/install-wasm-opt.sh
+    - bin/install.sh
+    - bin/install-wasm-opt.sh
     - rustup component add clippy
 
 script:
-    - cargo clippy -- -D warnings
-    - ./build.sh
+    - cargo clippy --target wasm32-unknown-unknown -- -D warnings
+    - bin/build.sh
 
 cache:
     cargo: true
     directories:
-        - $HOME/bin
+        - $HOME/.local/bin
 
 deploy:
   provider: pages
