@@ -23,7 +23,7 @@ install:
     - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
     - cd binaries/ext-websocket; npm install; cd ../..
     - rustup component add clippy
-    - pip3 install --user maturin
+#    - pip3 install --user maturin
 
 script:
     - cd libraries
@@ -42,10 +42,10 @@ script:
     - cd ext-websocket
     - npm run build
     - cd ../..
-    - cd python/pyo3
-    - virtualenv -p /usr/bin/python3.6 ../virtualenv
-    - source ../virtualenv/bin/activate
-    - maturin develop
+#    - cd python/pyo3
+#    - virtualenv -p /usr/bin/python3.6 ../virtualenv
+#    - source ../virtualenv/bin/activate
+#    - maturin develop
 
 cache:
     cargo: true
