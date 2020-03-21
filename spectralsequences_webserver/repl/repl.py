@@ -253,6 +253,3 @@ def print_formatted_output(self, formatted_output):
         style_transformation=self.style_transformation,
         include_default_pygments_style=False,
     )
-
-if __name__ == "__main__":
-    pass
