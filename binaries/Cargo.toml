@@ -5,6 +5,7 @@ authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dexter@math.harvard.edu>
 edition = "2018"
 
 [dependencies]
+error = { path = "../libraries/error" }
 ext = { path = "../libraries/" }
 bivec = { path = "../libraries/bivec" }
 fp = { path = "../libraries/fp" }

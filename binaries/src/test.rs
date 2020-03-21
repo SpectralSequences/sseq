@@ -1,6 +1,5 @@
 #![allow(unused_variables)]
 
-use std::error::Error;
 use std::sync::Arc;
 
 use ext::chain_complex::ChainComplex;
@@ -13,7 +12,7 @@ use ext::utils::Config;
 // use serde_json::json;
 // use chain_complex::ChainComplex;
 #[allow(unreachable_code)]
-pub fn test(config: &Config) -> Result<(), Box<dyn Error>> {
+pub fn test(config: &Config) -> error::Result<()> {
     let bundle = construct(config)?;
     let res = bundle.resolution;
     let max_degree = 20; //config.max_degree;

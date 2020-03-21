@@ -11,6 +11,7 @@ license = "(MIT OR Apache-2.0)"
 algebra = { path = "algebra" }
 bivec = { path = "bivec"}
 enum_dispatch = "0.2.0"
+error = { path = "error"}
 fp = { path = "fp" }
 lazy_static = "1.2.0"
 lock_api = "0.3"

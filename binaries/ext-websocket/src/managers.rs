@@ -8,7 +8,6 @@ use ext::module::{Module, FiniteModule, FDModule};
 use ext::resolution::Resolution;
 use ext::chain_complex::{FiniteChainComplex, ChainComplex};
 use bivec::BiVec;
-use std::error::Error;
 
 use std::sync::Arc;
 use parking_lot::RwLock;
@@ -55,7 +54,7 @@ impl ResolutionManager {
     }
 
     /// Reads a message and performs the actions as instructed.
-    pub fn process_message(&mut self, msg : Message) -> Result<(), Box<dyn Error>> {
+    pub fn process_message(&mut self, msg : Message) -> error::Result<()> {
         // If the message is BlockRefresh, SseqManager is responsible for marking
         // it as complete.
         let isblock = match msg.action { Action::BlockRefresh(_) => true, _ => false };
@@ -94,7 +93,7 @@ impl ResolutionManager {
     }
 
     /// Resolves a module defined by a json object. The result is stored in `self.bundle`.
-    fn construct_json(&mut self, action : ConstructJson) -> Result<(), Box<dyn Error>> {
+    fn construct_json(&mut self, action : ConstructJson) -> error::Result<()> {
         let json_data = serde_json::from_str(&action.data)?;
 
         let bundle = ext::utils::construct_from_json(json_data, action.algebra_name).unwrap();
@@ -105,7 +104,7 @@ impl ResolutionManager {
     }
 
     /// Resolves a module specified by `json`. The result is stored in `self.bundle`.
-    fn construct(&mut self, action : Construct) -> Result<(), Box<dyn Error>> {
+    fn construct(&mut self, action : Construct) -> error::Result<()> {
         let mut dir = std::env::current_exe().unwrap();
         dir.pop(); dir.pop(); dir.pop();
         dir.push("modules");
@@ -151,7 +150,7 @@ impl ResolutionManager {
         }
     }
 
-    fn resolve(&self, action : Resolve, sseq : SseqChoice) -> Result<(), Box<dyn Error>> {
+    fn resolve(&self, action : Resolve, sseq : SseqChoice) -> error::Result<()> {
         let resolution = match sseq {
             SseqChoice::Main => &self.resolution,
             SseqChoice::Unit => &self.unit_resolution
@@ -282,7 +281,7 @@ impl SseqManager {
         }
     }
 
-    pub fn process_message(&mut self, msg : Message) -> Result<bool, Box<dyn Error>> {
+    pub fn process_message(&mut self, msg : Message) -> error::Result<bool> {
         let user = Self::is_user(&msg.action);
         let target_sseq = msg.sseq;
 
@@ -315,7 +314,7 @@ impl SseqManager {
         }
     }
 
-    fn resolving(&mut self, msg : Message) -> Result<(), Box<dyn Error>> {
+    fn resolving(&mut self, msg : Message) -> error::Result<()> {
         if let Action::Resolving(m) = &msg.action {
             if self.sseq.is_none() {
                 let sender = self.sender.clone();
@@ -328,7 +327,7 @@ impl SseqManager {
         self.relay(msg)
     }
 
-    fn relay(&self, msg : Message) -> Result<(), Box<dyn Error>> {
+    fn relay(&self, msg : Message) -> error::Result<()> {
         self.sender.send(msg)?;
         Ok(())
     }

@@ -559,7 +559,10 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         let (entry, ((op_deg, op_idx), gen, _)) =
             lhs(entry_).map_err(|_err| GenericError::new(format!("Invalid action: {}", entry_)))?;
 
-        let (input_deg, input_idx) = gen_to_idx[gen.trim()];
+        let (input_deg, input_idx) = *gen_to_idx
+            .get(gen.trim())
+            .ok_or_else(|| GenericError::new(format!("Invalid generator: {}", gen.trim())))?;
+
         let row = self.action_mut(op_deg, op_idx, input_deg, input_idx);
 
         if overwrite {

@@ -16,9 +16,9 @@ impl Sender {
         Sender { f }
     }
 
-    pub fn send(&self, msg : Message) -> Result<(), Box<dyn Error>>{
-        let s = serde_json::to_string(&msg).unwrap();
-        self.f.call1(&JsValue::NULL, &JsValue::from(s)).unwrap();
+    pub fn send(&self, msg : Message) -> error::Result<()>{
+        let s = serde_json::to_string(&msg)?;
+        self.f.call1(&JsValue::NULL, &JsValue::from(s))?;
         Ok(())
     }
 }

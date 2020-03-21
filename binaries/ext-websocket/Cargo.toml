@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 bivec = { path = "../../libraries/bivec" }
 enum_dispatch = "0.2.0"
+error = { path = "../../libraries/error" }
 fp = { path = "../../libraries/fp", features = ["json"] }
 parking_lot = "0.10"
 ext = { path = "../../libraries/" }

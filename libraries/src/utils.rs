@@ -28,14 +28,14 @@ pub struct AlgebraicObjectsBundle {
     pub resolution : Arc<RwLock<Resolution<CCC>>>
 }
 
-pub fn construct(config : &Config) -> Result<AlgebraicObjectsBundle, Box<dyn Error>> {
+pub fn construct(config : &Config) -> error::Result<AlgebraicObjectsBundle> {
     let contents = load_module_from_file(config)?;
     let json = serde_json::from_str(&contents)?;
 
     construct_from_json(json, config.algebra_name.clone())
 }
 
-pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<AlgebraicObjectsBundle, Box<dyn Error>> {
+pub fn construct_from_json(mut json : Value, algebra_name : String) -> error::Result<AlgebraicObjectsBundle> {
     let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra_name)?);
     let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut json)?);
     let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
@@ -114,7 +114,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> Result<Al
     })
 }
 
-pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>> {
+pub fn load_module_from_file(config : &Config) -> error::Result<String> {
     let mut result = None;
     for path in &config.module_paths {
         let mut path = path.clone();
@@ -125,9 +125,9 @@ pub fn load_module_from_file(config : &Config) -> Result<String, Box<dyn Error>>
             break;
         }
     }
-    result.ok_or_else(|| Box::new(ModuleFileNotFoundError {
+    result.ok_or_else(|| ModuleFileNotFoundError {
         name : config.module_file_name.clone()
-    }) as Box<dyn Error>)
+    }.into())
 }
 
 #[derive(Debug)]

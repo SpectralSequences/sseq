@@ -1,5 +1,4 @@
 use serde_json::value::Value;
-use std::error::Error;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
@@ -31,11 +30,11 @@ use thread_token::TokenBucket;
 
 pub use crate::test::test;
 
-pub fn define_module() -> Result<String, Box<dyn Error>> {
+pub fn define_module() -> error::Result<String> {
     ext::cli_module_loaders::interactive_module_define()
 }
 
-pub fn resolve(config: &Config) -> Result<String, Box<dyn Error>> {
+pub fn resolve(config: &Config) -> error::Result<String> {
     let bundle = construct(config)?;
     let res = bundle.resolution.read();
 
@@ -54,7 +53,7 @@ pub fn resolve(config: &Config) -> Result<String, Box<dyn Error>> {
     Ok(res.graded_dimension_string())
 }
 
-pub fn yoneda(config: &Config) -> Result<String, Box<dyn Error>> {
+pub fn yoneda(config: &Config) -> error::Result<String> {
     let bundle = construct(config)?;
     let module = bundle.chain_complex.module(0);
     let resolution = bundle.resolution.read();
@@ -159,14 +158,14 @@ pub fn yoneda(config: &Config) -> Result<String, Box<dyn Error>> {
 
         let mut output_path_buf = PathBuf::from(filename.to_string());
         output_path_buf.set_extension("json");
-        std::fs::write(&output_path_buf, Value::from(module_strings).to_string()).unwrap();
+        std::fs::write(&output_path_buf, Value::from(module_strings).to_string())?;
     }
 }
 
-pub fn steenrod() -> Result<String, Box<dyn Error>> {
+pub fn steenrod() -> error::Result<String> {
     let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
-    let k = serde_json::from_str(k).unwrap();
-    let bundle = construct_from_json(k, "adem".to_string()).unwrap();
+    let k = serde_json::from_str(k)?;
+    let bundle = construct_from_json(k, "adem".to_string())?;
     let mut resolution = &*bundle.resolution.read();
     let module = bundle.chain_complex.module(0);
 
