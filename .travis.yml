@@ -16,14 +16,20 @@ matrix:
     fast_finish: true
 
 install:
-    - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+    - export PATH="$HOME/bin:$HOME/.cargo/bin:$PATH"
+    - cargo install wasm-bindgen-cli
+    - ./install-wasm-opt.sh
     - rustup component add clippy
+    - git clone --depth 1 https://github.com/SpectralSequences/ext/
 
 script:
     - cargo clippy -- -D warnings
     - ./build.sh
 
-cache: cargo
+cache:
+    cargo: true
+    directories:
+        - $HOME/bin
 
 deploy:
   provider: pages
