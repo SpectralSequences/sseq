@@ -9,10 +9,19 @@ if [ -x "$(command -v wasm-opt)" ]; then
 fi
 
 echo "Downloading wasm-opt"
-mkdir -p $HOME/bin
+if [ ! -d $HOME/bin ]; then
+    mkdir $HOME/bin 
+    export SHELL_RESTART="1"
+fi
+
 TMP_DIR=$(mktemp -d)
 cd $TMP_DIR
 wget https://github.com/WebAssembly/binaryen/releases/download/version_"$VERSION"/binaryen-version_"$VERSION"-"$TARGET".tar.gz
 tar -xzf binaryen-version_"$VERSION"-"$TARGET".tar.gz
 echo "Installing wasm-opt to $HOME/bin"
 cp binaryen-version_$VERSION/wasm-opt $HOME/bin
+
+if [ -n "$SHELL_RESTART" ]; then
+    echo "Restart your shell to finish installation."
+fi
+
