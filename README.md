@@ -17,7 +17,7 @@ To setup the build environment, run
 ```
 
 Afterwards, to build and run, simply run
-```
+```console
 $ cargo run --release
 ```
 and then navigate to `http://localhost:8080/`.
