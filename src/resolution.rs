@@ -181,10 +181,27 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let source = self.module(s);
         let target_cc = complex.module(s);
         let target_res = current_differential.target(); // This is self.module(s - 1) unless s = 0.
+        
+        // We might need to open a short-lived lock. We need to do that before acquiring any other locks
+        // to avoid tying up resources while we are waiting for the short-lived one.
+        let mut maybe_target_lock;
+        let target_res_dimension;
+        if t < target_res.max_computed_degree() {
+            maybe_target_lock = None;
+            target_res_dimension = target_res.dimension(t);
+        } else {
+            maybe_target_lock = Some(target_res.lock());
+            if let Some(lock) = &mut maybe_target_lock {
+                target_res.ensure_next_table_entry(t, &mut *lock);
+                target_res_dimension = target_res.dimension_allow_unfinished(t, &*lock);
+            } else {
+                unreachable!();
+            }
+        }
 
-        let source_lock = source.lock();
-        let source_module_table = source.construct_table(t);
-
+        let mut source_lock = source.lock();
+        source.ensure_next_table_entry(t, &mut *source_lock);
+        
         let chain_map_lock = current_chain_map.lock();
         let differential_lock = current_differential.lock();
 
@@ -193,19 +210,29 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // Later we're going to write into this same matrix an isomorphism source/image + new vectors --> kernel
         // This has size target_dimension x (2*target_dimension).
         // This latter matrix may be used to find a preimage of an element under the differential.
-        let source_dimension = FreeModule::<CC::Algebra>::dimension_with_table(&source_module_table);
+        let source_dimension = source.dimension_allow_unfinished(t, &source_lock);
         let target_cc_dimension = target_cc.dimension(t);
-        let target_res_dimension = target_res.dimension(t);
 
         let rows = source_dimension + target_cc_dimension + target_res_dimension;
 
         let mut matrix = AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, source_dimension + rows]);
         let mut pivots = vec![-1;matrix.columns()];
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
-
         matrix.set_row_slice(0, source_dimension);
-        current_chain_map.get_matrix_with_table(&mut *matrix.segment(0,0), &source_module_table, t);
-        current_differential.get_matrix_with_table(&mut *matrix.segment(1,1), &source_module_table, t);
+        let source_module_table = source_lock.as_ref().unwrap();
+        if let Some(lock) = &mut maybe_target_lock {
+            let target_table = &*lock;
+            current_differential.get_matrix_with_source_and_target_table(
+                &mut *matrix.segment(1,1), 
+                source_module_table, 
+                target_table,
+                t
+            );
+        } else {
+            current_differential.get_matrix_with_table(&mut *matrix.segment(1,1), source_module_table,t);
+        }
+        drop(maybe_target_lock);
+        current_chain_map.get_matrix_with_table(&mut *matrix.segment(0,0), source_module_table, t);
         matrix.segment(2,2).set_identity(source_dimension, 0, 0);
 
         // This slices the underling matrix. Be sure to revert this.
@@ -262,12 +289,16 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
             }
         }
         let num_new_gens = cc_new_gens + res_new_gens;
-        source.add_generators(t, &source_lock, source_module_table, num_new_gens, None);
+        source.add_generators(t, &mut source_lock, num_new_gens, None);
         drop(source_lock);
 
         matrix.set_row_slice(first_new_row, rows);
         current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, &*matrix.segment(0, 0));
-        current_differential.add_generators_from_matrix_rows(&differential_lock, t, &*matrix.segment(1, 1));
+        current_differential.add_generators_from_matrix_rows_with_specified_dimension(
+            &differential_lock, t, 
+            &*matrix.segment(1, 1), 
+            target_res_dimension
+        );
         matrix.clear_row_slice();
 
         // Record the quasi-inverses for future use.

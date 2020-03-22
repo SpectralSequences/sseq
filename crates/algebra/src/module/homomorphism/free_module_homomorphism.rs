@@ -192,21 +192,30 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         &self,
         lock: &MutexGuard<()>,
         degree: i32,
+        matrix: &Matrix
+    ) {
+        let target_dimension = self.target.dimension(degree - self.degree_shift);
+        self.add_generators_from_matrix_rows_with_specified_dimension(lock, degree, matrix, target_dimension);
+    }
+
+    pub fn add_generators_from_matrix_rows_with_specified_dimension(
+        &self,
+        lock: &MutexGuard<()>,
+        degree: i32,
         matrix: &Matrix,
+        target_dimension : usize
     ) {
         self.check_mutex(lock);
         assert_eq!(degree, self.outputs.len());
 
         let p = self.prime();
         let new_generators = self.source.number_of_gens_in_degree(degree);
-        let dimension = self.target.dimension(degree - self.degree_shift);
-        assert_eq!(matrix.columns(), dimension);
 
         let mut new_outputs: Vec<FpVector> = Vec::with_capacity(new_generators);
         for _ in 0..new_generators {
-            new_outputs.push(FpVector::new(p, dimension));
+            new_outputs.push(FpVector::new(p, target_dimension));
         }
-        if dimension == 0 {
+        if target_dimension == 0 {
             self.outputs.push(new_outputs);
             return;
         }
@@ -221,6 +230,37 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         result.add(output_on_gen, coeff);
     }
 
+    pub fn apply_to_basis_element_with_source_and_target_table(
+        &self,
+        result: &mut FpVector,
+        coeff: u32,
+        input_degree: i32,
+        source_table: &FreeModuleTableEntry,
+        target_table: &FreeModuleTableEntry,
+        input_index: usize,        
+    ) {
+        assert!(input_degree >= self.source.min_degree);
+        assert!(input_index < table.basis_element_to_opgen.len());
+        let output_degree = input_degree - self.degree_shift;
+        // assert_eq!(self.target.dimension(output_degree), result.dimension());
+        let operation_generator = &table.basis_element_to_opgen[input_index];
+        let operation_degree = operation_generator.operation_degree;
+        let operation_index = operation_generator.operation_index;
+        let generator_degree = operation_generator.generator_degree;
+        let generator_index = operation_generator.generator_index;
+        if generator_degree >= self.min_degree() {
+            let output_on_generator = self.output(generator_degree, generator_index);
+            self.target.act(
+                result,
+                coeff,
+                operation_degree,
+                operation_index,
+                generator_degree - self.degree_shift,
+                output_on_generator,
+            );
+        }        
+    }
+
     pub fn apply_to_basis_element_with_table(
         &self,
         result: &mut FpVector,
@@ -232,7 +272,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         assert!(input_degree >= self.source.min_degree);
         assert!(input_index < table.basis_element_to_opgen.len());
         let output_degree = input_degree - self.degree_shift;
-        assert_eq!(self.target.dimension(output_degree), result.dimension());
+        // assert_eq!(self.target.dimension(output_degree), result.dimension());
         let operation_generator = &table.basis_element_to_opgen[input_index];
         let operation_degree = operation_generator.operation_degree;
         let operation_index = operation_generator.operation_index;
@@ -263,13 +303,45 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         table: &FreeModuleTableEntry,
         degree: i32,
     ) {
-        let source_dimension = FreeModule::<M::Algebra>::dimension_with_table(table);
-        let target_dimension = self.target().dimension(degree);
-        assert_eq!(source_dimension, matrix.rows());
-        assert_eq!(target_dimension, matrix.columns());
+        // let source_dimension = FreeModule::<M::Algebra>::dimension_with_table(table);
+        // let target_dimension = self.target().dimension(degree);
+        // if source_dimension != matrix.rows() {
+        //     panic!(
+        //         "get_matrix_with_table for homomorphism {} -> {} in degree {}: table source dimension {} not equal to number of matrix rows {}.", 
+        //         self.source().name(),
+        //         self.target().name(),
+        //         degree,
+        //         source_dimension, 
+        //         matrix.rows()
+        //     );
+        // }
+        // if target_dimension != matrix.columns() {
+        //     panic!(
+        //         "get_matrix_with_table for homomorphism {} -> {} in degree {}: table target dimension {} not equal to number of matrix columns {}.", 
+        //         self.source().name(),
+        //         self.target().name(),
+        //         degree,
+        //         target_dimension, 
+        //         matrix.columns()
+        //     );
+        // }
 
         for (i, row) in matrix.iter_mut().enumerate() {
             self.apply_to_basis_element_with_table(row, 1, degree, table, i);
+        }
+    }
+
+    /// # Arguments
+    ///  * `degree` - The internal degree of the target of the homomorphism.
+    pub fn get_matrix_with_source_and_target_table(
+        &self,
+        matrix: &mut Matrix,
+        source_table: &FreeModuleTableEntry,
+        target_table: &FreeModuleTableEntry,
+        degree: i32,
+    ) {
+        for (i, row) in matrix.iter_mut().enumerate() {
+            self.apply_to_basis_element_with_source_and_target_table(row, 1, degree, source_table, target_table, i);
         }
     }
 
