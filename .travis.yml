@@ -16,7 +16,7 @@ matrix:
     fast_finish: true
 
 install:
-    - bin/install.sh
+    - bin/setup.sh
     - bin/install-wasm-opt.sh
     - rustup component add clippy
 

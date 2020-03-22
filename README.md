@@ -7,10 +7,10 @@ Steenrod algebra and expresses it in your favorite basis.
 A live version is available at [https://spectralsequences.github.io/steenrod_calculator/](https://spectralsequences.github.io/steenrod_calculator/).
 
 ## Set up
-We assume rust is already installed. Run the installation script in `bin/`:
+We assume rust is already installed. Run the setup script in `bin/`:
 package manager) and clone `ext`:
 ```console
- $ bin/install.sh
+ $ bin/setup.sh
 ```
 
 One can optionally use `wasm-opt` to optimize the resulting binary. To install `wasm-opt`, run
