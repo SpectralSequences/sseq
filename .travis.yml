@@ -1,4 +1,6 @@
-dist: bionic
+os:
+    - linux
+    - osx
 
 language: rust
 rust:
@@ -37,4 +39,4 @@ deploy:
   local_dir: dist/
   on:
       branch: master
-      condition: "$TRAVIS_RUST_VERSION = stable"
+      condition: "$TRAVIS_RUST_VERSION = stable && $TRAVIS_OS_NAME = linux"
