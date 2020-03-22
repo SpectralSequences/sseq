@@ -150,16 +150,15 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
             self.zero_module.extend_by_zero(t);
         }
 
-        let mut old_kernel = self.kernels[t].lock();
         let p = self.prime();
-
+        
         //                           current_chain_map
         //                X_{s, t} --------------------> C_{s, t}
         //                   |                               |
         //                   | current_differential          |
         //                   v                               v
         // old_kernel <= X_{s-1, t} -------------------> C_{s-1, t}
-
+        
         let complex = self.complex();
         complex.compute_through_bidegree(s, t);
 
@@ -183,25 +182,13 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let target_cc = complex.module(s);
         let target_res = current_differential.target(); // This is self.module(s - 1) unless s = 0.
         
-        // We might need to open a short-lived lock. We need to do that before acquiring any other locks
-        // to avoid tying up resources while we are waiting for the short-lived one.
-        let mut maybe_target_lock;
-        let target_table;
-        let target_res_dimension;
-        if t < target_res.max_computed_degree() {
-            maybe_target_lock = None;
-            target_table = None;
-            target_res_dimension = target_res.dimension(t);
-        } else {
-            maybe_target_lock = Some(target_res.lock());
-            if let Some(lock) = &mut maybe_target_lock {
-                target_res.ensure_next_table_entry(t, &mut (**lock));
-                target_res_dimension = target_res.dimension_with_table(t, (**lock).as_ref());
-                target_table = (**lock).as_ref();
-            } else {
-                unreachable!();
-            }
-        }
+        // Calculate how many pivots are missing / gens to add
+        let mut kernel = self.kernels[s].lock();
+        let mut image = self.images[s].lock();
+        let gens_to_add = matrix::count_gens_to_add(kernel, image);
+        
+        // Allocate matrix of size rows: image_dimension + gens_to_add  x columns: source_dim + target_dim
+        // 
 
         let mut source_lock = source.lock();
         source.ensure_next_table_entry(t, &mut *source_lock);
@@ -214,43 +201,28 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // Later we're going to write into this same matrix an isomorphism source/image + new vectors --> kernel
         // This has size target_dimension x (2*target_dimension).
         // This latter matrix may be used to find a preimage of an element under the differential.
-        let source_dimension = source.dimension_with_table(t, source_lock.as_ref());
         let target_cc_dimension = target_cc.dimension(t);
+        let target_res_dimension = target_res.dimension(t);
+        let source_dimension = source.dimension(t, source_lock.as_ref());
 
-        let rows = source_dimension + target_cc_dimension + target_res_dimension;
+        assert!(image.segment(0,0).columns() == target_cc_dimension);
+        assert!(image.segment(1,1).columns() == target_res_dimension)
 
-        let mut matrix = AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, source_dimension + rows]);
-        let mut pivots = vec![-1;matrix.columns()];
-        // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
-        matrix.set_row_slice(0, source_dimension);
-        let source_module_table = source_lock.as_ref().unwrap();
-        current_differential.get_matrix_with_source_and_target_table(
-            &mut *matrix.segment(1,1), 
-            source_module_table,
-            target_table,
-            t
-        );
-        drop(maybe_target_lock);
-        current_chain_map.get_matrix_with_table(&mut *matrix.segment(0,0), source_module_table, t);
-        matrix.segment(2,2).set_identity(source_dimension, 0, 0);
+        let rows = source_dimension + gens_to_add;
 
-        // This slices the underling matrix. Be sure to revert this.
-        matrix.inner.set_slice(0, source_dimension, 0, matrix.start[2] + source_dimension);
-        matrix.row_reduce(&mut pivots);
-        let new_kernel = matrix.inner.compute_kernel(&pivots, matrix.start[2]);
-        matrix.clear_slice();
+        let mut matrix = AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, rows]);
+        let mut pivots = vec![-1;matrix.columns()];        
+    
+        for (i, row) in image.matrix.iter_mut().enumerate() {
+            matrix[i].assign(&*row.borrow_slice(0, matrix.columns() - gens_to_add));
+        }
+        
 
-        let first_new_row = source_dimension;
+        // Copy kernel matrix into kernel
+        for (i, row) in kernel.matrix.iter_mut().enumerate() {
+            row.assign(&*self[first_kernel_row + i].borrow_slice(first_source_column, first_source_column + source_dimension));
+        }
 
-        // Now add generators to surject onto C_{s, t}.
-        // (For now we are just adding the eventual images of the new generators into matrix, we will update
-        // X_{s,t} and f later).
-        // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
-        // work out what dX should to to each of them.
-        let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, matrix.end[0], &pivots);
-        let cc_new_gens = new_generators.len();
-
-        let mut res_new_gens = 0;
 
         let mut middle_rows = Vec::with_capacity(cc_new_gens);
         if s > 0 {
@@ -292,6 +264,66 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                 }
             }
         }
+
+
+
+
+
+
+
+        // We might need to open a short-lived lock. We need to do that before acquiring any other locks
+        // to avoid tying up resources while we are waiting for the short-lived one.
+        let mut maybe_target_lock;
+        let target_table;
+        let target_res_dimension;
+        if t < target_res.max_computed_degree() {
+            maybe_target_lock = None;
+            target_table = None;
+            target_res_dimension = target_res.dimension(t);
+        } else {
+            maybe_target_lock = Some(target_res.lock());
+            if let Some(lock) = &mut maybe_target_lock {
+                target_res.ensure_next_table_entry(t, &mut (**lock));
+                target_res_dimension = target_res.dimension_with_table(t, (**lock).as_ref());
+                target_table = (**lock).as_ref();
+            } else {
+                unreachable!();
+            }
+        }
+
+
+        // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
+        matrix.set_row_slice(0, source_dimension);
+        let source_module_table = source_lock.as_ref().unwrap();
+        current_differential.get_matrix_with_source_and_target_table(
+            &mut *matrix.segment(1,1), 
+            source_module_table,
+            target_table,
+            t
+        );
+        drop(maybe_target_lock);
+        current_chain_map.get_matrix_with_table(&mut *matrix.segment(0,0), source_module_table, t);
+        matrix.segment(2,2).set_identity(source_dimension, 0, 0);
+
+        // This slices the underling matrix. Be sure to revert this.
+        matrix.inner.set_slice(0, source_dimension, 0, matrix.start[2] + source_dimension);
+        matrix.row_reduce(&mut pivots);
+        let new_kernel = matrix.inner.compute_kernel(&pivots, matrix.start[2]);
+        matrix.clear_slice();
+
+        let first_new_row = source_dimension;
+
+        // Now add generators to surject onto C_{s, t}.
+        // (For now we are just adding the eventual images of the new generators into matrix, we will update
+        // X_{s,t} and f later).
+        // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
+        // work out what dX should to to each of them.
+        let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, matrix.end[0], &pivots);
+        let cc_new_gens = new_generators.len();
+
+        let mut res_new_gens = 0;
+
+
         let num_new_gens = cc_new_gens + res_new_gens;
         source.add_generators(t, &mut source_lock, num_new_gens, None);
         drop(source_lock);
