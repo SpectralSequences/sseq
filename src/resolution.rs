@@ -5,7 +5,7 @@ use std::collections::HashSet;
 
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
-use fp::matrix::{Matrix, Subspace, AugmentedMatrix3};
+use fp::matrix::{self, Matrix, Subspace, AugmentedMatrix3};
 use crate::algebra::Algebra;
 use crate::module::{Module, FreeModule};
 use once::{OnceVec, OnceBiVec};
@@ -31,7 +31,8 @@ pub struct ResolutionInner<CC : ChainComplex> {
     zero_module : Arc<FreeModule<<CC::Module as Module>::Algebra>>,
     chain_maps : OnceVec<Arc<FreeModuleHomomorphism<CC::Module>>>,
     differentials : OnceVec<Arc<FreeModuleHomomorphism<FreeModule<<CC::Module as Module>::Algebra>>>>,
-    kernels : OnceBiVec<Mutex<Option<Subspace>>>
+    kernels : OnceVec<Mutex<Option<Subspace>>>,
+    images : OnceVec<Mutex<Option<Subspace>>>
 }
 
 impl<CC : ChainComplex> ResolutionInner<CC> {
@@ -47,12 +48,13 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
             chain_maps : OnceVec::new(),
             modules : OnceVec::new(),
             differentials : OnceVec::new(),
-            kernels : OnceBiVec::new(min_degree)
+            kernels : OnceVec::new(),
+            images : OnceVec::new()
         }
     }
 
-    pub fn extended_degree(&self) -> (u32, i32) {
-        (self.modules.len() as u32, self.kernels.len())
+    pub fn extended_degree(&self) -> u32 {// (u32, usize) {
+        self.modules.len() as u32
     }
 
     /// This function prepares the ResolutionInner object to perform computations up to the
@@ -68,6 +70,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
 
         for _ in next_t ..= max_t {
             self.kernels.push(Mutex::new(None));
+            self.images.push(Mutex::new(None))
         }
 
         if next_s == 0 {
@@ -190,8 +193,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // Allocate matrix of size rows: image_dimension + gens_to_add  x columns: source_dim + target_dim
         // 
 
-        let mut source_lock = source.lock();
-        source.ensure_next_table_entry(t, &mut *source_lock);
+        // source.ensure_next_table_entry(t, &mut *source_lock);
         
         let chain_map_lock = current_chain_map.lock();
         let differential_lock = current_differential.lock();
@@ -203,10 +205,10 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // This latter matrix may be used to find a preimage of an element under the differential.
         let target_cc_dimension = target_cc.dimension(t);
         let target_res_dimension = target_res.dimension(t);
-        let source_dimension = source.dimension(t, source_lock.as_ref());
+        let source_dimension = source.dimension(t);
 
         assert!(image.segment(0,0).columns() == target_cc_dimension);
-        assert!(image.segment(1,1).columns() == target_res_dimension)
+        assert!(image.segment(1,1).columns() == target_res_dimension);
 
         let rows = source_dimension + gens_to_add;
 
@@ -216,7 +218,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         for (i, row) in image.matrix.iter_mut().enumerate() {
             matrix[i].assign(&*row.borrow_slice(0, matrix.columns() - gens_to_add));
         }
-        matrix.segment(2,2).set_identity(gens_to_add, source_dimension);
+        matrix.segment(2,2).set_identity(gens_to_add, source_dimension, source_dimension);
 
         for (i, pivot) in image.pivots.enumerate(){
             pivots[i] = pivot;
@@ -227,6 +229,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // X_{s,t} and f later).
         // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
         // work out what dX should to to each of them.
+        let first_new_row = source_dimension;
         let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, matrix.end[0], &pivots);
         let cc_new_gens = new_generators.len();
         let mut res_new_gens = 0;
@@ -257,7 +260,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                 matrix.row_reduce(&mut pivots);
             }
             // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
-            res_new_gens = matrix.inner.extend_image(first_new_row + cc_new_gens, matrix.start[1], matrix.end[1], &pivots, old_kernel.as_ref()).len();
+            res_new_gens = matrix.inner.extend_image(first_new_row + cc_new_gens, matrix.start[1], matrix.end[1], &pivots, kernel.as_ref()).len();
 
             if cc_new_gens > 0 {
                 // Now restore the middle rows.
@@ -269,8 +272,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
 
 
         let num_new_gens = cc_new_gens + res_new_gens;
-        source.add_generators(t, &source_lock, source_module_table, num_new_gens, None);
-        drop(source_lock);
+        source.add_generators(t, num_new_gens, None);
 
         matrix.set_row_slice(first_new_row, rows);
         current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, &*matrix.segment(0, 0));
@@ -305,9 +307,9 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // Now we are going to investigate the homomorphism in degree t + 1.
 
         // Now need to calculate new_kernel and new_image.
-        (new_kernel, new_image) = calculate_new_kernel_and_new_image(...);
-        *self.kernels[s + 1].lock() = new_kernel;
-        *self.images[s].lock() = new_image;
+        // (new_kernel, new_image) = calculate_new_kernel_and_new_image(...);
+        // *self.kernels[s + 1].lock() = new_kernel;
+        // *self.images[s].lock() = new_image;
 
 
         
@@ -993,7 +995,7 @@ impl<CC : ChainComplex> Load for ResolutionInner<CC> {
         let min_degree = result.min_degree();
 
         result.modules = Load::load(buffer, &(Arc::clone(&algebra), min_degree))?;
-        result.kernels = Load::load(buffer, &(min_degree, Some(p)))?;
+        // result.kernels = Load::load(buffer, &(min_degree, Some(p)))?;
 
         let max_s = result.modules.len();
         assert!(max_s > 0, "cannot load uninitialized resolution");

@@ -2,7 +2,7 @@ use parking_lot::{Mutex, MutexGuard};
 use std::sync::Arc;
 
 use crate::module::homomorphism::ModuleHomomorphism;
-use crate::module::{FreeModule, FreeModuleTableEntry, Module};
+use crate::module::{FreeModule, Module};
 use fp::matrix::{Matrix, QuasiInverse, Subspace};
 use fp::vector::{FpVector, FpVectorT};
 use once::OnceBiVec;
@@ -42,8 +42,25 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
         input_index: usize,
     ) {
         assert!(input_degree >= self.source.min_degree);
-        let table = &self.source.table[input_degree];
-        self.apply_to_basis_element_with_table(result, coeff, input_degree, table, input_index);
+        assert!(input_index < self.source.basis_element_to_opgen[input_degree].len());
+        let output_degree = input_degree - self.degree_shift;
+        assert_eq!(self.target.dimension(output_degree), result.dimension());
+        let operation_generator = &self.source.basis_element_to_opgen[input_degree][input_index];
+        let operation_degree = operation_generator.operation_degree;
+        let operation_index = operation_generator.operation_index;
+        let generator_degree = operation_generator.generator_degree;
+        let generator_index = operation_generator.generator_index;
+        if generator_degree >= self.min_degree() {
+            let output_on_generator = self.output(generator_degree, generator_index);
+            self.target.act(
+                result,
+                coeff,
+                operation_degree,
+                operation_index,
+                generator_degree - self.degree_shift,
+                output_on_generator,
+            );
+        }
     }
 
     fn quasi_inverse(&self, degree: i32) -> &QuasiInverse {
@@ -230,48 +247,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         result.add(output_on_gen, coeff);
     }
 
-    pub fn apply_to_basis_element_with_table(
-        &self,
-        result: &mut FpVector,
-        coeff: u32,
-        input_degree: i32,
-        table: &FreeModuleTableEntry,
-        input_index: usize,
-    ) {
-        assert!(input_degree >= self.source.min_degree);
-        assert!(input_index < table.basis_element_to_opgen.len());
-        let output_degree = input_degree - self.degree_shift;
-        assert_eq!(self.target.dimension(output_degree), result.dimension());
-        let operation_generator = &table.basis_element_to_opgen[input_index];
-        let operation_degree = operation_generator.operation_degree;
-        let operation_index = operation_generator.operation_index;
-        let generator_degree = operation_generator.generator_degree;
-        let generator_index = operation_generator.generator_index;
-        if generator_degree >= self.min_degree() {
-            let output_on_generator = self.output(generator_degree, generator_index);
-            self.target.act(
-                result,
-                coeff,
-                operation_degree,
-                operation_index,
-                generator_degree - self.degree_shift,
-                output_on_generator,
-            );
-        }
-    }
-
     pub fn get_matrix(&self, matrix: &mut Matrix, degree: i32) {
-        self.get_matrix_with_table(matrix, &self.source.table[degree], degree);
-    }
-
-    /// # Arguments
-    ///  * `degree` - The internal degree of the target of the homomorphism.
-    pub fn get_matrix_with_table(
-        &self,
-        matrix: &mut Matrix,
-        table: &FreeModuleTableEntry,
-        degree: i32,
-    ) {
         // let source_dimension = FreeModule::<M::Algebra>::dimension_with_table(table);
         // let target_dimension = self.target().dimension(degree);
         // if source_dimension != matrix.rows() {
@@ -296,7 +272,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         // }
 
         for (i, row) in matrix.iter_mut().enumerate() {
-            self.apply_to_basis_element_with_table(row, 1, degree, table, i);
+            self.apply_to_basis_element(row, 1, degree, i);
         }
     }
 
@@ -326,55 +302,6 @@ impl<M: Module> FreeModuleHomomorphism<M> {
     }
 }
 
-use crate::algebra::Algebra;
-impl<A : Algebra> FreeModuleHomomorphism<FreeModule<A>> {
-    pub fn apply_to_basis_element_with_source_and_target_table(
-        &self,
-        result: &mut FpVector,
-        coeff: u32,
-        input_degree: i32,
-        source_table: &FreeModuleTableEntry,
-        target_table: Option<&FreeModuleTableEntry>,
-        input_index: usize,        
-    ) {
-        assert!(input_degree >= self.source.min_degree);
-        assert!(input_index < source_table.basis_element_to_opgen.len());
-        // let output_degree = input_degree - self.degree_shift;
-        // assert_eq!(self.target.dimension(output_degree), result.dimension());
-        let operation_generator = &source_table.basis_element_to_opgen[input_index];
-        let operation_degree = operation_generator.operation_degree;
-        let operation_index = operation_generator.operation_index;
-        let generator_degree = operation_generator.generator_degree;
-        let generator_index = operation_generator.generator_index;
-        if generator_degree >= self.min_degree() {
-            let output_on_generator = self.output(generator_degree, generator_index);
-            self.target.act_with_table(
-                result,
-                coeff,
-                operation_degree,
-                operation_index,
-                generator_degree - self.degree_shift,
-                output_on_generator,
-                target_table
-            );
-        }        
-    }
-
-
-    /// # Arguments
-    ///  * `degree` - The internal degree of the target of the homomorphism.
-    pub fn get_matrix_with_source_and_target_table(
-        &self,
-        matrix: &mut Matrix,
-        source_table: &FreeModuleTableEntry,
-        target_table: Option<&FreeModuleTableEntry>,
-        degree: i32,
-    ) {
-        for (i, row) in matrix.iter_mut().enumerate() {
-            self.apply_to_basis_element_with_source_and_target_table(row, 1, degree, source_table, target_table, i);
-        }
-    }    
-}
 
 use saveload::{Load, Save};
 use std::io;
