@@ -42,4 +42,4 @@ deploy:
   local_dir: dist/
   on:
       branch: master
-      condition: "$TRAVIS_RUST_VERSION = stable"
+      condition: "$TRAVIS_RUST_VERSION = stable AND $TAVIS_OS_NAME = linux"
