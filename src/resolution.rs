@@ -216,13 +216,20 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         for (i, row) in image.matrix.iter_mut().enumerate() {
             matrix[i].assign(&*row.borrow_slice(0, matrix.columns() - gens_to_add));
         }
-        
+        matrix.segment(2,2).set_identity(gens_to_add, source_dimension);
 
-        // Copy kernel matrix into kernel
-        for (i, row) in kernel.matrix.iter_mut().enumerate() {
-            row.assign(&*self[first_kernel_row + i].borrow_slice(first_source_column, first_source_column + source_dimension));
+        for (i, pivot) in image.pivots.enumerate(){
+            pivots[i] = pivot;
         }
 
+        // Now add generators to surject onto C_{s, t}.
+        // (For now we are just adding the eventual images of the new generators into matrix, we will update
+        // X_{s,t} and f later).
+        // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
+        // work out what dX should to to each of them.
+        let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, matrix.end[0], &pivots);
+        let cc_new_gens = new_generators.len();
+        let mut res_new_gens = 0;
 
         let mut middle_rows = Vec::with_capacity(cc_new_gens);
         if s > 0 {
@@ -250,11 +257,6 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                 matrix.row_reduce(&mut pivots);
             }
             // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
-            if s == 3 && t == 6 {
-                println!("matrix: \n{}\n\n",matrix.inner);
-                println!("old_kernel: \n{}\n\n",old_kernel.as_ref().unwrap().matrix);
-                println!("old_kernel_pivots: \n{:?}\n\n",old_kernel.as_ref().unwrap().column_to_pivot_row);
-            }
             res_new_gens = matrix.inner.extend_image(first_new_row + cc_new_gens, matrix.start[1], matrix.end[1], &pivots, old_kernel.as_ref()).len();
 
             if cc_new_gens > 0 {
@@ -266,75 +268,13 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         }
 
 
-
-
-
-
-
-        // We might need to open a short-lived lock. We need to do that before acquiring any other locks
-        // to avoid tying up resources while we are waiting for the short-lived one.
-        let mut maybe_target_lock;
-        let target_table;
-        let target_res_dimension;
-        if t < target_res.max_computed_degree() {
-            maybe_target_lock = None;
-            target_table = None;
-            target_res_dimension = target_res.dimension(t);
-        } else {
-            maybe_target_lock = Some(target_res.lock());
-            if let Some(lock) = &mut maybe_target_lock {
-                target_res.ensure_next_table_entry(t, &mut (**lock));
-                target_res_dimension = target_res.dimension_with_table(t, (**lock).as_ref());
-                target_table = (**lock).as_ref();
-            } else {
-                unreachable!();
-            }
-        }
-
-
-        // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
-        matrix.set_row_slice(0, source_dimension);
-        let source_module_table = source_lock.as_ref().unwrap();
-        current_differential.get_matrix_with_source_and_target_table(
-            &mut *matrix.segment(1,1), 
-            source_module_table,
-            target_table,
-            t
-        );
-        drop(maybe_target_lock);
-        current_chain_map.get_matrix_with_table(&mut *matrix.segment(0,0), source_module_table, t);
-        matrix.segment(2,2).set_identity(source_dimension, 0, 0);
-
-        // This slices the underling matrix. Be sure to revert this.
-        matrix.inner.set_slice(0, source_dimension, 0, matrix.start[2] + source_dimension);
-        matrix.row_reduce(&mut pivots);
-        let new_kernel = matrix.inner.compute_kernel(&pivots, matrix.start[2]);
-        matrix.clear_slice();
-
-        let first_new_row = source_dimension;
-
-        // Now add generators to surject onto C_{s, t}.
-        // (For now we are just adding the eventual images of the new generators into matrix, we will update
-        // X_{s,t} and f later).
-        // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
-        // work out what dX should to to each of them.
-        let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, matrix.end[0], &pivots);
-        let cc_new_gens = new_generators.len();
-
-        let mut res_new_gens = 0;
-
-
         let num_new_gens = cc_new_gens + res_new_gens;
-        source.add_generators(t, &mut source_lock, num_new_gens, None);
+        source.add_generators(t, &source_lock, source_module_table, num_new_gens, None);
         drop(source_lock);
 
         matrix.set_row_slice(first_new_row, rows);
         current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, &*matrix.segment(0, 0));
-        current_differential.add_generators_from_matrix_rows_with_specified_dimension(
-            &differential_lock, t, 
-            &*matrix.segment(1, 1), 
-            target_res_dimension
-        );
+        current_differential.add_generators_from_matrix_rows(&differential_lock, t, &*matrix.segment(1, 1));
         matrix.clear_row_slice();
 
         // Record the quasi-inverses for future use.
@@ -358,11 +298,19 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         current_differential.set_quasi_inverse(&differential_lock, t, res_qi);
         current_differential.set_kernel(&differential_lock, t, Subspace::new(p, 0, 0));
 
-        if s == 2 && t == 6 {
-            println!("new_kernel: \n{}\n\n",new_kernel.matrix);
-            println!("new_kernel: \n{:?}\n\n",new_kernel.column_to_pivot_row);
-        }
-        *old_kernel = Some(new_kernel);
+        drop(kernel);
+        drop(image);
+
+
+        // Now we are going to investigate the homomorphism in degree t + 1.
+
+        // Now need to calculate new_kernel and new_image.
+        (new_kernel, new_image) = calculate_new_kernel_and_new_image(...);
+        *self.kernels[s + 1].lock() = new_kernel;
+        *self.images[s].lock() = new_image;
+
+
+        
     }
 
     pub fn cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {

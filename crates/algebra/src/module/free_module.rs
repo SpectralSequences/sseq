@@ -20,18 +20,18 @@ pub struct OperationGeneratorPair {
 #[derive(Clone)]
 pub struct FreeModuleTableEntry {
     pub num_gens: usize,
-    pub basis_element_to_opgen: Vec<OperationGeneratorPair>,
-    pub generator_to_index: Vec<usize>,
+    pub basis_element_to_opgen: OnceVec<OperationGeneratorPair>,
+    pub generator_to_index: OnceVec<usize>,
 }
 
 pub struct FreeModule<A: Algebra> {
     pub algebra: Arc<A>,
     pub name: String,
     pub min_degree: i32,
+    max_gen_degree : Mutex<i32>, // max degree of a generator. Use to ensure monotonicity.
     pub gen_names: OnceBiVec<Vec<String>>,
     gen_deg_idx_to_internal_idx: OnceBiVec<usize>,
-    pub table: OnceBiVec<FreeModuleTableEntry>,
-    next_table_entry : Mutex<Option<FreeModuleTableEntry>>
+    pub table: OnceBiVec<FreeModuleTableEntry>
 }
 
 impl<A: Algebra> Module for FreeModule<A> {
@@ -120,7 +120,7 @@ impl<A: Algebra> FreeModule<A> {
         }
     }
 
-    pub fn lock(&self) -> MutexGuard<Option<FreeModuleTableEntry>> {
+    pub fn lock(&self) -> MutexGuard<i32> {
         self.next_table_entry.lock()
     }
 
@@ -135,7 +135,7 @@ impl<A: Algebra> FreeModule<A> {
         self.table[degree].num_gens
     }
 
-    pub fn start_next_table_entry(&self, degree: i32, next_table_entry : &mut Option<FreeModuleTableEntry>) {
+    pub fn start_next_table_entry(&self, degree: i32, max_degree : MutexGuard<i32>) {
         assert!(next_table_entry.is_none());
         let mut basis_element_to_opgen: Vec<OperationGeneratorPair> = Vec::new();
         let mut generator_to_index: Vec<usize> = Vec::new();
