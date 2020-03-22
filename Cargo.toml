@@ -42,7 +42,6 @@ lto = true
 opt-level = 3
 debug = true
 
-
 [features]
 cache-multiplication = []
 concurrent = ["thread-token"]

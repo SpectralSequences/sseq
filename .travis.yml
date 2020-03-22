@@ -1,8 +1,6 @@
-dist: bionic
-addons:
-    apt:
-        packages:
-            - nodejs-dev node-gyp libssl1.0-dev npm python3-pip
+os:
+    - linux
+    - osx
 
 language: rust
 rust:
@@ -20,10 +18,7 @@ matrix:
     fast_finish: true
 
 install:
-    - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
-    - cd ext_webserver; npm install; cd ..
     - rustup component add clippy
-#    - pip3 install --user maturin
 
 script:
     - cargo test --verbose --workspace
@@ -31,29 +26,20 @@ script:
     - cargo check --features "prime-two concurrent" --workspace
     - cargo clippy --workspace --all-targets -- -D warnings
     - cargo clippy --workspace --features "cache-multiplication concurrent" --all-targets -- -D warnings -A unused_imports
-    - cd ext_webserver
-    - npm run build
-    - cd ..
-#    - cd python/pyo3
-#    - virtualenv -p /usr/bin/python3.6 ../virtualenv
-#    - source ../virtualenv/bin/activate
-#    - maturin develop
 
 cache:
     cargo: true
-    directories:
-        - ext_webserver/node_modules
 
 before_deploy:
-    - sh gen_doc.sh
-    - cp -r target/doc/ ext_webserver/dist/
+    - ./gen_doc.sh
+    - cp -r target/doc/* gh-pages/
 
 deploy:
   provider: pages
   skip_cleanup: true
   github_token: $GITHUB_TOKEN  # Set in the settings page of your repository, as a secure variable
   keep_history: true
-  local_dir: ext_webserver/dist/
+  local_dir: gh-pages/
   on:
       branch: master
-      condition: "$TRAVIS_RUST_VERSION = stable"
+      condition: "$TRAVIS_RUST_VERSION = stable && $TRAVIS_OS_NAME = linux"

@@ -54,25 +54,6 @@ custom-written code in `binaries/src/test.rs`. This is used for ad hoc
 calculations, and the content of the this file is probably what the author
 happened to be working on when they had to commit something else.
 
-## ext-websocket
-This is what you should use in general.
-
-The ext-websocket crate uses the rust code as a backend and relays the results
-of the computation to the JS frontend via a websocket. This is intended to be
-run and used locally --- you don't want to expose a web interface that could
-heavily drain your server resources, and relaying the result involves moving a
-lot of data. It is usually somewhat reasonable to run the backend on servers in
-the local network, and the frontend on your computer, but when the network is
-slow, running a browser on the server and using ssh X-forwarding might be a
-better idea.
-
-There is also a version that compiles all the rust code into wasm and lets
-everything run in the browser. A live and cutting-edge version of this can be
-found at
-[https://spectralsequences.github.io/ext/](https://spectralsequences.github.io/ext/).
-
-Read the README file in `ext-websocket/` for more details.
-
 ## compressor
 This is a utility for further compressing the history file constructed by the
 previous interface (again, see the README in `ext-websocket/` for more
@@ -129,4 +110,4 @@ To view the docuemntation, run
 ```
 $ cargo doc --no-deps --open
 ```
-As usual, the latter command triggers the former if needed. This can also be viewed on [https://spectralsequences.github.io/ext/doc/rust_ext/](https://spectralsequences.github.io/rust_ext/doc/ext/)
+As usual, the latter command triggers the former if needed. This can also be viewed on [https://spectralsequences.github.io/ext/ext/](https://spectralsequences.github.io/ext/ext/)

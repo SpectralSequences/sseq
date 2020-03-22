@@ -8,6 +8,11 @@ pub struct Error {
     backtrace: backtrace::Backtrace,
 }
 
+impl Error {
+    pub fn inner(&self) -> &(dyn StdError + Send + Sync + 'static) {
+        &*self.error
+    }
+}
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.error)?;
