@@ -51,6 +51,10 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         }
     }
 
+    pub fn extended_degree(&self) -> (u32, i32) {
+        return (self.modules.len() as u32, self.kernels.len())
+    }
+
     /// This function prepares the ResolutionInner object to perform computations up to the
     /// specified s degree. It does *not* perform any computations by itself. It simply lengthens
     /// the `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
@@ -161,6 +165,14 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let current_differential = self.differential(s);
         let current_chain_map = self.chain_map(s);
         let complex_cur_differential = complex.differential(s);
+
+        if current_differential.next_degree() > t {
+            // Already computed this degree.
+            return
+        } else if current_differential.next_degree() > t {
+            // Haven't computed far enough yet
+            panic!(format!("We're not ready to compute bidegree ({}, {}) yet.", s, t));
+        }
 
         let source = self.module(s);
         let target_cc = complex.module(s);

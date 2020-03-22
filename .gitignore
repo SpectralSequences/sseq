@@ -6,5 +6,3 @@ dist
 package-lock.json
 callgrind*
 resolution.save
-python/virtualenv
-**/__pycache__
