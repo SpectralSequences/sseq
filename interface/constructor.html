@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html style="height: 100%; margin: 0px; padding: 0px;">
+  <head>
+    <meta name="generator" content="HTML Tidy for HTML5 for Linux version 5.7.16">
+    <meta charset="utf-8">
+    <title>Module constructor</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+  </head>
+  <body style="max-width: 600px; margin-left: auto; margin-right: auto; display: flex; align-items: stretch; flex-direction: column; height: 100%; margin-top: 0px; margin-bottom: 0px; padding: 20px 0px 0px 0px;">
+    <form id="header-form">
+      <div style="display: flex;">
+        <div class="input-group mb-3" style="flex: 1; padding: 0px 15px;">
+          <div class="input-group-prepend">
+            <label class="input-group-text">Prime</label>
+          </div>
+          <select class="custom-select" id="prime">
+            <option> 2 </option>
+            <option> 3 </option>
+            <option> 5 </option>
+            <option> 7 </option>
+            <option> 11 </option>
+            <option> 13 </option>
+            <option> 17 </option>
+            <option> 19 </option>
+          </select>
+        </div>
+        <div class="input-group mb-3" style="flex: 1; padding: 0px 15px;">
+          <div class="input-group-prepend">
+            <label class="input-group-text">Basis</label>
+          </div>
+          <select class="custom-select" id="algebra">
+            <option> Any </option>
+            <option> Milnor </option>
+            <option> Adem </option>
+          </select>
+        </div>
+      </div>
+
+      <div id="profile" style="display: flex;">
+        <div class="input-group mb-3" style="flex: 1; padding: 0px 15px;">
+          <div class="input-group-prepend">
+            <label class="input-group-text" title="Enter a profile function for the P (xi) part, e.g. [3, 2, 1] for tmf. Leave empty to allow all P's.">P part</label>
+          </div>
+          <input class="form-control" id="ppart" type="text">
+        </div>
+        <div class="input-group mb-3" style="flex: 1; padding: 0px 15px;">
+          <div class="input-group-prepend">
+            <label class="input-group-text" title="Currently unsupported">Q part</label>
+          </div>
+          <input class="form-control" id="qpart" type="text">
+        </div>
+      </div>
+      <div class="input-group mb-3" style="padding: 0px 15px;">
+        <div class="input-group-prepend">
+          <label class="input-group-text">Module type</label>
+        </div>
+        <select class="custom-select" id="module-type">
+          <option> Finite Dimensional Module </option>
+          <option> Finitely Presented Module </option>
+          <option> Stunted Projective Space </option>
+        </select>
+      </div>
+    </form>
+    <div id="fdmodule" style="flex: 1; padding: 0; display: flex; flex-direction: column; align-items: stretch;">
+      <form id="fdmodule-form">
+        <div style="display: flex;">
+          <div class="input-group mb-3" style="flex: 1; padding: 0px 15px;">
+            <div class="input-group-prepend">
+              <label class="input-group-text">Min degree</label>
+            </div>
+            <input id="min-degree" type="number" min="0" class="form-control" value="0">
+          </div>
+          <div class="input-group mb-3" style="flex: 1; padding: 0px 15px;">
+            <div class="input-group-prepend">
+              <label class="input-group-text">Max degree</label>
+            </div>
+            <input id="max-degree" type="number" min="0" class="form-control" value="10">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: center;">
+          <div id="mode-radio" class="btn-group btn-group-toggle">
+            <label class="btn btn-primary"><input type="radio" name="mode" value="add" id="mode-add" checked>Add generator</label>
+            <label class="btn btn-primary"><input type="radio" name="mode" value="rm" id= "mode-rm">Remove generator</label>
+            <label class="btn btn-primary"><input type="radio" name="mode" value="action" id= "mode-action">Set actions</label>
+          </div>
+        </div>
+      </form>
+
+      <canvas id="fdmodule-canvas" style="flex: 1; padding: 0; margin: 0;">
+      </canvas>
+    </div>
+    <div id="fpmodule" style="flex: 1; padding: 0; display: flex; flex-direction: column; align-items: stretch;">
+      TODO: fpmodule
+    </div>
+    <div id="rpn" style="flex: 1; padding: 0; display: flex; flex-direction: column; align-items: stretch;">
+      This defines the stunted projective space P<sup>n</sup><sub>m</sub>.
+      <div class="input-group mb-3" style="padding: 0px 15px;">
+        <div class="input-group-prepend">
+          <label class="input-group-text">n</label>
+        </div>
+        <input id="n" type="number" class="form-control" value="1">
+      </div>
+      <div class="input-group mb-3" style="padding: 0px 15px;">
+        <div class="input-group-prepend">
+          <label class="input-group-text">m</label>
+        </div>
+        <input id="m" type="number" class="form-control" value="1">
+      </div>
+
+      TODO: rpn
+    </div>
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+      <button style="margin-right: 20px" class="btn btn-primary" type="submit" id="resolve">Resolve</button>
+      <button class="btn btn-primary" type="submit" id="download">Download</button>
+    </div>
+    <script src="constructor.js" type="module"></script>
+    <script src="pako.js" type="module"></script>
+  </body>
+</html>
