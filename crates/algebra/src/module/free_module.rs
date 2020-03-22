@@ -87,36 +87,7 @@ impl<A: Algebra> Module for FreeModule<A> {
         mod_degree: i32,
         mod_index: usize,
     ) {
-        // assert!(op_index < self.algebra().dimension(op_degree, mod_degree));
-        // assert!(self.dimension(op_degree + mod_degree) <= result.dimension());
-        let operation_generator = self.index_to_op_gen(mod_degree, mod_index);
-        let module_operation_degree = operation_generator.operation_degree;
-        let module_operation_index = operation_generator.operation_index;
-        let generator_degree = operation_generator.generator_degree;
-        let generator_index = operation_generator.generator_index;
-
-        // Now all of the output elements are going to be of the form s * x. Find where such things go in the output vector.
-        let num_ops = self
-            .algebra()
-            .dimension(module_operation_degree + op_degree, generator_degree);
-        let output_block_min = self.operation_generator_to_index(
-            module_operation_degree + op_degree,
-            0,
-            generator_degree,
-            generator_index,
-        );
-        let output_block_max = output_block_min + num_ops;
-
-        // Now we multiply s * r and write the result to the appropriate position.
-        self.algebra().multiply_basis_elements(
-            &mut *result.borrow_slice(output_block_min, output_block_max),
-            coeff,
-            op_degree,
-            op_index,
-            module_operation_degree,
-            module_operation_index,
-            0,
-        );
+        self.act_on_basis_with_table(result, coeff, op_degree, op_index, mod_degree, mod_index, None)
     }
 
     // Will need specialization
@@ -231,12 +202,12 @@ impl<A: Algebra> FreeModule<A> {
         }
     }
 
-    pub fn dimension_allow_unfinished(&self, degree : i32, 
-        next_table_entry : &Option<FreeModuleTableEntry>
+    pub fn dimension_with_table(&self, degree : i32, 
+        next_table_entry : Option<&FreeModuleTableEntry>
     ) -> usize {
         assert!(degree <= self.table.len());
         if degree == self.table.len() {
-            if let Some(table) = &*next_table_entry  {
+            if let Some(table) = next_table_entry  {
                 table.basis_element_to_opgen.len()
             } else {
                 panic!()
@@ -315,11 +286,34 @@ impl<A: Algebra> FreeModule<A> {
         gen_deg: i32,
         gen_idx: usize,
     ) -> usize {
+        self.operation_generator_to_index_with_table(op_deg, op_idx, gen_deg, gen_idx, None)
+    }
+
+    pub fn operation_generator_to_index_with_table(
+        &self,
+        op_deg: i32,
+        op_idx: usize,
+        gen_deg: i32,
+        gen_idx: usize,
+        next_degree_table : Option<&FreeModuleTableEntry>
+    ) -> usize {
         assert!(op_deg >= 0);
         assert!(gen_deg >= self.min_degree);
         let internal_gen_idx = self.gen_deg_idx_to_internal_idx[gen_deg] + gen_idx;
         assert!(internal_gen_idx <= self.gen_deg_idx_to_internal_idx[gen_deg + 1]);
-        self.table[op_deg + gen_deg].generator_to_index[internal_gen_idx] + op_idx
+        let table = 
+            if op_deg + gen_deg < self.table.len() {
+                &self.table[op_deg + gen_deg]
+            } else if op_deg + gen_deg == self.table.len() {
+                if let Some(t) = &next_degree_table {
+                    t
+                } else {
+                    panic!()
+                }
+            } else {
+                panic!()
+            };
+        table.generator_to_index[internal_gen_idx] + op_idx
     }
 
     pub fn operation_generator_pair_to_idx(&self, op_gen: &OperationGeneratorPair) -> usize {
@@ -404,6 +398,77 @@ impl<A: Algebra> FreeModule<A> {
         }
         max
     }
+
+    pub fn act_with_table(
+        &self,
+        result: &mut FpVector,
+        coeff: u32,
+        op_degree: i32,
+        op_index: usize,
+        input_degree: i32,
+        input: &FpVector,
+        next_degree_table : Option<&FreeModuleTableEntry>
+    ) {
+        // assert_eq!(input.dimension(), self.dimension_with_table(input_degree, next_degree_table));
+        let p = self.prime();
+        for (i, v) in input.iter().enumerate() {
+            if v == 0 {
+                continue;
+            }
+            self.act_on_basis_with_table(
+                result,
+                (coeff * v) % *p,
+                op_degree,
+                op_index,
+                input_degree,
+                i,
+                next_degree_table
+            );
+        }
+    }
+
+    pub fn act_on_basis_with_table(
+        &self,
+        result: &mut FpVector,
+        coeff: u32,
+        op_degree: i32,
+        op_index: usize,
+        mod_degree: i32,
+        mod_index: usize,
+        next_degree_table : Option<&FreeModuleTableEntry>
+    ) {
+        // assert!(op_index < self.algebra().dimension(op_degree, mod_degree));
+        // assert!(self.dimension(op_degree + mod_degree) <= result.dimension());
+        let operation_generator = self.index_to_op_gen(mod_degree, mod_index);
+        let module_operation_degree = operation_generator.operation_degree;
+        let module_operation_index = operation_generator.operation_index;
+        let generator_degree = operation_generator.generator_degree;
+        let generator_index = operation_generator.generator_index;
+
+        // Now all of the output elements are going to be of the form s * x. Find where such things go in the output vector.
+        let num_ops = self
+            .algebra()
+            .dimension(module_operation_degree + op_degree, generator_degree);
+        let output_block_min = self.operation_generator_to_index_with_table(
+            module_operation_degree + op_degree,
+            0,
+            generator_degree,
+            generator_index,
+            next_degree_table
+        );
+        let output_block_max = output_block_min + num_ops;
+
+        // Now we multiply s * r and write the result to the appropriate position.
+        self.algebra().multiply_basis_elements(
+            &mut *result.borrow_slice(output_block_min, output_block_max),
+            coeff,
+            op_degree,
+            op_index,
+            module_operation_degree,
+            module_operation_index,
+            0,
+        );
+    }    
 }
 
 use saveload::{Load, Save};

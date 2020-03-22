@@ -145,6 +145,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
     ///  * `s` - The s degree to calculate
     ///  * `t` - The t degree to calculate
     pub fn step_resolution(&self, s : u32, t : i32) {
+        println!("s: {}, t: {} || x: {}, y: {}", s, t, t-s as i32, s);
         if s == 0 {
             self.zero_module.extend_by_zero(t);
         }
@@ -185,15 +186,18 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // We might need to open a short-lived lock. We need to do that before acquiring any other locks
         // to avoid tying up resources while we are waiting for the short-lived one.
         let mut maybe_target_lock;
+        let target_table;
         let target_res_dimension;
         if t < target_res.max_computed_degree() {
             maybe_target_lock = None;
+            target_table = None;
             target_res_dimension = target_res.dimension(t);
         } else {
             maybe_target_lock = Some(target_res.lock());
             if let Some(lock) = &mut maybe_target_lock {
-                target_res.ensure_next_table_entry(t, &mut *lock);
-                target_res_dimension = target_res.dimension_allow_unfinished(t, &*lock);
+                target_res.ensure_next_table_entry(t, &mut (**lock));
+                target_res_dimension = target_res.dimension_with_table(t, (**lock).as_ref());
+                target_table = (**lock).as_ref();
             } else {
                 unreachable!();
             }
@@ -210,7 +214,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // Later we're going to write into this same matrix an isomorphism source/image + new vectors --> kernel
         // This has size target_dimension x (2*target_dimension).
         // This latter matrix may be used to find a preimage of an element under the differential.
-        let source_dimension = source.dimension_allow_unfinished(t, &source_lock);
+        let source_dimension = source.dimension_with_table(t, source_lock.as_ref());
         let target_cc_dimension = target_cc.dimension(t);
 
         let rows = source_dimension + target_cc_dimension + target_res_dimension;
@@ -220,17 +224,12 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
         matrix.set_row_slice(0, source_dimension);
         let source_module_table = source_lock.as_ref().unwrap();
-        if let Some(lock) = &mut maybe_target_lock {
-            let target_table = &*lock;
-            current_differential.get_matrix_with_source_and_target_table(
-                &mut *matrix.segment(1,1), 
-                source_module_table, 
-                target_table,
-                t
-            );
-        } else {
-            current_differential.get_matrix_with_table(&mut *matrix.segment(1,1), source_module_table,t);
-        }
+        current_differential.get_matrix_with_source_and_target_table(
+            &mut *matrix.segment(1,1), 
+            source_module_table,
+            target_table,
+            t
+        );
         drop(maybe_target_lock);
         current_chain_map.get_matrix_with_table(&mut *matrix.segment(0,0), source_module_table, t);
         matrix.segment(2,2).set_identity(source_dimension, 0, 0);
@@ -279,6 +278,11 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                 matrix.row_reduce(&mut pivots);
             }
             // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
+            if s == 3 && t == 6 {
+                println!("matrix: \n{}\n\n",matrix.inner);
+                println!("old_kernel: \n{}\n\n",old_kernel.as_ref().unwrap().matrix);
+                println!("old_kernel_pivots: \n{:?}\n\n",old_kernel.as_ref().unwrap().column_to_pivot_row);
+            }
             res_new_gens = matrix.inner.extend_image(first_new_row + cc_new_gens, matrix.start[1], matrix.end[1], &pivots, old_kernel.as_ref()).len();
 
             if cc_new_gens > 0 {
@@ -322,6 +326,10 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         current_differential.set_quasi_inverse(&differential_lock, t, res_qi);
         current_differential.set_kernel(&differential_lock, t, Subspace::new(p, 0, 0));
 
+        if s == 2 && t == 6 {
+            println!("new_kernel: \n{}\n\n",new_kernel.matrix);
+            println!("new_kernel: \n{:?}\n\n",new_kernel.column_to_pivot_row);
+        }
         *old_kernel = Some(new_kernel);
     }
 
