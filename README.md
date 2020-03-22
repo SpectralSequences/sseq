@@ -37,8 +37,8 @@ To setup the build environment, run
 
 Afterwards, build and serve with
 ```console
- $ bin/build.sh
- $ bin/serve.sh [port]
+ $ bin/build-wasm.sh
+ $ bin/serve-wasm.sh [port]
 ```
 This serves the website at `localhost:[port]`. The `[port]` argument is optional and defaults to `8000`.
 
