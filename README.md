@@ -8,13 +8,8 @@ The javascript client code is in [this respository](https://github.com/SpectralS
 
 Installation
 ------------
-If you are running windows 10, you should first [install windows system linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10). If you are running linux, this hopefully should work fine. Probably on mac you will need to figure out how to fix the build scripts. If you are trying to build this on a mac let me know.
- 
-1. Clone `SpectralSequences/sseq` and run `source sseq/bin/install.sh`.
-2. [Install Rust](https://www.rust-lang.org/tools/install) if you dont already have it. For convenience, you can install rust with the script `sseq/bin/install_rust.sh` if you are on linux (or windows system linux).
-3. Install python 3.8. Python 3.8 is so new that it is not present on many package managers. If you are using linux or Windows system linux, you can use the install script in `./bin/install_python3.8.sh`. Here are [mac installation instructions](https://installvirtual.com/install-python-3-8-on-mac/).
-4. Clone `SpectralSequences/ext`, `SpectralSequences/basic_webclient`. For each, run `source bin/install.sh`.
-5. Clone `SpectralSequences/webserver`. Run `webserver/bin/install.sh`
+You will first need to install Python 3.8 and Rust.
+Run `bin/setup.sh` to install.
 
 Run
 ---
