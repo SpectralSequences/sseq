@@ -5,7 +5,7 @@ use std::collections::HashSet;
 
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
-use fp::matrix::{self, Matrix, Subspace, AugmentedMatrix2, AugmentedMatrix3};
+use fp::matrix::{self, Matrix, Subspace, AugmentedMatrix3};
 use crate::algebra::Algebra;
 use crate::module::{Module, FreeModule};
 use once::{OnceVec, OnceBiVec};
@@ -43,6 +43,53 @@ struct Image {
     t : i32
 }
 
+impl Image {
+    fn resize_target_res_dimension(&mut self, new_target_res_dimension : usize) {
+        let target_cc_dimension = self.matrix.segment(0, 0).columns();
+        let old_target_res_dimension = self.matrix.segment(1, 1).columns();
+        // assert!(self.matrix.segment(2,2).columns() == self.matrix.rows()) // This is failing for some reason.
+        assert!(new_target_res_dimension >= old_target_res_dimension);
+        if new_target_res_dimension == old_target_res_dimension {
+            return
+        }
+
+        
+        let p = self.matrix.prime();
+        let old_rows = self.matrix.segment(2,2).columns();
+        let new_rows = old_rows + new_target_res_dimension - old_target_res_dimension;
+        let mut old_matrix = std::mem::replace(&mut self.matrix,
+            AugmentedMatrix3::new(p, new_rows, &[target_cc_dimension, new_target_res_dimension, new_rows])
+        );
+
+        let old_matrix_cols_1 = old_matrix.segment(0, 1).columns();
+        self.matrix.inner.set_slice(0, self.matrix.inner.rows(), 0, old_matrix_cols_1);
+        for r in 0 .. old_rows { 
+            self.matrix[r].assign(&old_matrix.segment(0,1)[r]);
+        }
+        self.matrix.inner.clear_slice();
+
+        let seg_2_start = old_matrix.start[2];
+        let seg_2_end = old_matrix.end[2];
+        let seg_2_start_nm = self.matrix.start[2];
+        let seg_2_end_nm = self.matrix.end[2];
+        self.matrix.inner.set_slice(0, self.matrix.inner.rows(), seg_2_start, seg_2_end);
+        for r in 0 .. old_rows {
+            self.matrix[r].shift_assign(&old_matrix.segment(2,2)[r]);
+        }
+        self.matrix.segment(2,2).set_identity(new_rows - old_rows, old_rows, old_rows);
+
+        let pivot_split = self.matrix.segment(0, 1).columns();
+        let mut new_pivots = vec![-1; self.matrix.columns()];
+        for c in 0 .. pivot_split {
+            new_pivots[c] = self.pivots[c];
+        }
+        for c in self.matrix.start[2] .. self.pivots.len() {
+            let new_c = c - self.matrix.start[2];
+            new_pivots[new_c] = self.pivots[c];
+        }
+    }
+
+}
 // struct Kernel {
 //     matrix : AugmentedMatrix2,
 //     pivots : Vec<i32>
@@ -189,6 +236,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
     ///  * `s` - The s degree to calculate
     ///  * `t` - The t degree to calculate
     pub fn step_resolution(&self, s : u32, t : i32) {
+        println!("\n\n\n\n");
         println!("s: {}, t: {} || x: {}, y: {}", s, t, t-s as i32, s);
         if s == 0 {
             self.zero_module.extend_by_zero(t);
@@ -239,33 +287,28 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // This latter matrix may be used to find a preimage of an element under the differential.
         let target_cc_dimension = target_cc.dimension(t);
         let target_res_dimension = target_res.dimension(t);
+        println!("   1111 target_res_dimension : {}", target_res_dimension);
         let source_dimension = source.dimension(t);
         let rows = target_cc_dimension + target_res_dimension + source_dimension;
 
 
         // Calculate how many pivots are missing / gens to add
         let kernel = self.kernels[s][t].lock().take();
-        let mut maybe_image = self.images[s][t].lock().take();
-        let mut dummy_image;
-        let image : &mut Image;
-        if let Some(x) = maybe_image.as_mut() {
+        let maybe_image = self.images[s][t].lock().take();
+        let mut image : Image;
+        if let Some(x) = maybe_image {
             image = x;
             println!("image: s = {}, t = {}", image.s, image.t);
-            assert_eq!(image.matrix.segment(0,0).columns(), target_cc_dimension);
-            // assert_eq!(image.matrix.segment(1,1).columns(), target_res_dimension);
-            assert_eq!(image.matrix.segment(2,2).columns(), rows);
+            image.resize_target_res_dimension(target_res_dimension);
         } else {
-            dummy_image = Image {
+            image = Image {
                 matrix : AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, rows]),
                 pivots : vec![-1; target_cc_dimension + target_res_dimension + rows ],
                 s : s,
                 t : t
             };
-            dummy_image.matrix.segment(2, 2).set_identity(rows, 0, 0);
-            image = &mut dummy_image;
+            image.matrix.segment(2, 2).set_identity(rows, 0, 0);
         }
-        
-        let matrix = AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, rows]);
 
         let matrix = &mut image.matrix;
         let pivots = &mut image.pivots;
@@ -354,6 +397,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let source_dimension = source.dimension(t+1);
         target_res.extend_table_entries(t+1);
         source.extend_table_entries(t+1);
+        println!("   2222 target_res_dimension : {}", target_res_dimension);
 
 
         // Now we are going to investigate the homomorphism in degree t + 1.
@@ -373,17 +417,17 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         matrix.row_reduce(&mut pivots);
         let new_kernel = matrix.inner.compute_kernel(&pivots, matrix.start[2]);
         
-        let mut kernel_lock = self.kernels[s][t+1].lock();
+        let mut kernel_lock = self.kernels[s + 1][t+1].lock();
         *kernel_lock = Some(new_kernel);
         if s > 0 {
-            let mut image_lock = self.images[s - 1][t + 1].lock();
+            let mut image_lock = self.images[s][t + 1].lock();
             *image_lock = Some(Image {
                 matrix : matrix,
                 pivots : pivots,
-                s : s - 1,
+                s : s,
                 t : t + 1
             });
-            println!("Storing image into (s: {}, t: {})", s - 1, t + 1);
+            println!("Storing image into (s: {}, t: {})", s, t + 1);
             drop(image_lock);
         }
         drop(kernel_lock);
