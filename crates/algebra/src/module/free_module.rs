@@ -1,4 +1,4 @@
-use parking_lot::{Mutex, MutexGuard};
+// use parking_lot::{Mutex, MutexGuard};
 use serde_json::json;
 use serde_json::Value;
 use std::sync::Arc;
@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::algebra::Algebra;
 use crate::module::Module;
 use bivec::BiVec;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector};
 use once::{OnceVec, OnceBiVec};
 
 #[derive(Clone, Debug)]

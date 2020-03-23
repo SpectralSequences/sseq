@@ -47,7 +47,7 @@ fn get_config(matches: clap::ArgMatches<'_>) -> Config {
     static_modules_path.pop();
     static_modules_path.pop();
     static_modules_path.pop();
-    static_modules_path.push("modules");
+    static_modules_path.push("steenrod_modules");
     let current_dir = std::env::current_dir().unwrap();
     Config {
         module_paths: vec![current_dir, static_modules_path],

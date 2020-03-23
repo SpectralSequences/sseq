@@ -5,7 +5,7 @@ use std::collections::HashSet;
 
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
-use fp::matrix::{self, Matrix, Subspace, AugmentedMatrix3};
+use fp::matrix::{Matrix, Subspace, AugmentedMatrix3};
 use crate::algebra::Algebra;
 use crate::module::{Module, FreeModule};
 use once::{OnceVec, OnceBiVec};
@@ -68,8 +68,6 @@ impl Image {
 
         let seg_2_start = old_matrix.start[2];
         let seg_2_end = old_matrix.end[2];
-        let seg_2_start_nm = self.matrix.start[2];
-        let seg_2_end_nm = self.matrix.end[2];
         self.matrix.inner.set_slice(0, self.matrix.inner.rows(), seg_2_start, seg_2_end);
         for r in 0 .. old_rows {
             self.matrix[r].shift_assign(&old_matrix.segment(2,2)[r]);
@@ -118,6 +116,8 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
     /// the `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
     pub fn extend_through_degree(&self, mut next_s : u32, max_s : u32, next_t : i32, max_t : i32) {
         let min_degree = self.min_degree();
+        let max_s = max_s + 2;
+        let max_t = max_t + 2;
 
         for i in next_s ..= max_s {
             self.modules.push(Arc::new(FreeModule::new(Arc::clone(&self.algebra()), format!("F{}", i), min_degree + (i as i32) * self.connectivity)));
@@ -152,7 +152,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // println!("max_s : {}, max_t : {}", max_s, max_t);
         // print!("  kernels: ");
         // for k in self.kernels.iter() {
-            // print!("{}, ", k.len());
+        //     print!("{}, ", k.len());
         // }
         // println!("");
 
@@ -232,6 +232,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
     ///  * `t` - The t degree to calculate
     pub fn step_resolution(&self, s : u32, t : i32) {
         // println!("\n\n\n\n");
+        // println!("s: {}, t: {} || x: {}, y: {}", s, t, t-s as i32, s);
         // println!("s: {}, t: {} || x: {}, y: {}", s, t, t-s as i32, s);
         if s == 0 {
             self.zero_module.extend_by_zero(t);
@@ -412,7 +413,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
 
         matrix.row_reduce(&mut pivots);
         let new_kernel = matrix.inner.compute_kernel(&pivots, matrix.start[2]);
-        
+
         let mut kernel_lock = self.kernels[s + 1][t+1].lock();
         *kernel_lock = Some(new_kernel);
         if s > 0 {
@@ -702,7 +703,7 @@ impl<CC : UnitChainComplex> Resolution<CC> {
 
         self.inner.complex().compute_through_bidegree(max_s, max_t);
         self.inner.extend_through_degree(*next_s, max_s, *next_t, max_t);
-        self.algebra().compute_basis(max_t - min_degree);
+        self.algebra().compute_basis(max_t - min_degree + self.inner.connectivity);
 
         if let Some(unit_res) = &self.unit_resolution {
             let unit_res = unit_res.upgrade().unwrap();
