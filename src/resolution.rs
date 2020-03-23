@@ -38,9 +38,7 @@ pub struct ResolutionInner<CC : ChainComplex> {
 
 struct Image {
     matrix : AugmentedMatrix3,
-    pivots : Vec<isize>,
-    s : u32,
-    t : i32
+    pivots : Vec<isize>
 }
 
 impl Image {
@@ -90,10 +88,7 @@ impl Image {
     }
 
 }
-// struct Kernel {
-//     matrix : AugmentedMatrix2,
-//     pivots : Vec<i32>
-// }
+
 
 impl<CC : ChainComplex> ResolutionInner<CC> {
     pub fn new(complex : Arc<CC>) -> Self {
@@ -154,12 +149,12 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
             }
         }
 
-        println!("max_s : {}, max_t : {}", max_s, max_t);
-        print!("  kernels: ");
-        for k in self.kernels.iter() {
-            print!("{}, ", k.len());
-        }
-        println!("");
+        // println!("max_s : {}, max_t : {}", max_s, max_t);
+        // print!("  kernels: ");
+        // for k in self.kernels.iter() {
+            // print!("{}, ", k.len());
+        // }
+        // println!("");
 
         if next_s == 0 {
             self.differentials.push(Arc::new(FreeModuleHomomorphism::new(Arc::clone(&self.modules[0u32]), Arc::clone(&self.zero_module), 0)));
@@ -236,8 +231,8 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
     ///  * `s` - The s degree to calculate
     ///  * `t` - The t degree to calculate
     pub fn step_resolution(&self, s : u32, t : i32) {
-        println!("\n\n\n\n");
-        println!("s: {}, t: {} || x: {}, y: {}", s, t, t-s as i32, s);
+        // println!("\n\n\n\n");
+        // println!("s: {}, t: {} || x: {}, y: {}", s, t, t-s as i32, s);
         if s == 0 {
             self.zero_module.extend_by_zero(t);
         }
@@ -287,7 +282,6 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // This latter matrix may be used to find a preimage of an element under the differential.
         let target_cc_dimension = target_cc.dimension(t);
         let target_res_dimension = target_res.dimension(t);
-        println!("   1111 target_res_dimension : {}", target_res_dimension);
         let source_dimension = source.dimension(t);
         let rows = target_cc_dimension + target_res_dimension + source_dimension;
 
@@ -296,17 +290,17 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let kernel = self.kernels[s][t].lock().take();
         let maybe_image = self.images[s][t].lock().take();
         let mut image : Image;
+        // let old_rows;
         if let Some(x) = maybe_image {
             image = x;
-            println!("image: s = {}, t = {}", image.s, image.t);
+            // old_rows = image.matrix.segment(2,2).columns();
             image.resize_target_res_dimension(target_res_dimension);
         } else {
             image = Image {
                 matrix : AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, rows]),
-                pivots : vec![-1; target_cc_dimension + target_res_dimension + rows ],
-                s : s,
-                t : t
+                pivots : vec![-1; target_cc_dimension + target_res_dimension + rows ]
             };
+            // old_rows = rows;
             image.matrix.segment(2, 2).set_identity(rows, 0, 0);
         }
 
@@ -319,7 +313,6 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // We record which pivots exactly we added so that we can walk over the added generators in a moment and
         // work out what dX should to to each of them.
         let first_new_row = source_dimension;
-        println!("   target_cc_dimension : {}", target_cc_dimension);
         let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, target_cc_dimension, &pivots);
         let cc_new_gens = new_generators.len();
         let mut res_new_gens = 0;
@@ -351,7 +344,11 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
             }
             // println!("matrix.seg(1) : {}", *matrix.segment(1,1));
             // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
-            res_new_gens = matrix.inner.extend_image(first_new_row + cc_new_gens, matrix.start[1], matrix.end[1], pivots, kernel.as_ref()).len();
+            res_new_gens = matrix.inner.extend_image(
+                first_new_row + cc_new_gens, 
+                matrix.start[1], matrix.end[1],
+                pivots, kernel.as_ref()
+            ).len();
 
             if cc_new_gens > 0 {
                 // Now restore the middle rows.
@@ -361,7 +358,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
             }
         }
 
-        println!("cc_new_gens : {}, res_new_gens: {}", cc_new_gens, res_new_gens);
+        // println!("cc_new_gens : {}, res_new_gens: {}", cc_new_gens, res_new_gens);
         let num_new_gens = cc_new_gens + res_new_gens;
         source.add_generators(t, num_new_gens, None);
 
@@ -397,7 +394,6 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let source_dimension = source.dimension(t+1);
         target_res.extend_table_entries(t+1);
         source.extend_table_entries(t+1);
-        println!("   2222 target_res_dimension : {}", target_res_dimension);
 
 
         // Now we are going to investigate the homomorphism in degree t + 1.
@@ -423,11 +419,8 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
             let mut image_lock = self.images[s][t + 1].lock();
             *image_lock = Some(Image {
                 matrix : matrix,
-                pivots : pivots,
-                s : s,
-                t : t + 1
+                pivots : pivots
             });
-            println!("Storing image into (s: {}, t: {})", s, t + 1);
             drop(image_lock);
         }
         drop(kernel_lock);

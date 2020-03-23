@@ -977,10 +977,10 @@ impl Matrix {
         // println!("==    kernel : {}", desired_image.matrix);
         // println!("==    current_pivots : {:?}, desired_pivots : {:?}", current_pivots, desired_pivots);
         for i in start_column .. early_end_column {
-            debug_assert!(current_pivots[i] < 0 || desired_pivots[i - start_column] >= 0,
-                format!("i : {} current_pivots[i] : {} desired_pivots[i - start_column] : {}\
-                         \ncurrent_pivots : {:?}\
-                         \ndesired_pivots : {:?}", i, current_pivots[i], desired_pivots[i], current_pivots, desired_pivots));
+            // debug_assert!(current_pivots[i] < 0 || desired_pivots[i - start_column] >= 0,
+            //     format!("i : {} current_pivots[i] : {} desired_pivots[i - start_column] : {}\
+            //              \ncurrent_pivots : {:?}\
+            //              \ndesired_pivots : {:?}", i, current_pivots[i], desired_pivots[i], current_pivots, desired_pivots));
             if current_pivots[i] >= 0 || desired_pivots[i - start_column] < 0 {
                 continue;
             }
