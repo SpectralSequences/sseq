@@ -928,6 +928,8 @@ impl Matrix {
         start_column : usize, end_column : usize,
         current_pivots : &[isize]
     ) -> Vec<usize> {
+        println!("   == extend to surjection");
+        println!("   ==    current_pivots : {:?}", current_pivots);
         let mut added_pivots = Vec::new();
         for (i, &pivot) in current_pivots[start_column .. end_column].iter().enumerate() {
             if pivot >= 0 {
@@ -943,6 +945,22 @@ impl Matrix {
         }
         added_pivots
     }
+
+    pub fn count_gens_to_extend_to_surjection(
+        start_column : usize, end_column : usize,
+        current_pivots : &[isize]
+    ) -> usize {
+        let mut result=0;
+        for (i, &pivot) in current_pivots[start_column .. end_column].iter().enumerate() {
+            if pivot >= 0 {
+                continue;
+            }
+            result += 1;
+        }
+        result
+    }
+
+
 
     /// Given a matrix in rref, say [A|B|C], where B lies between columns `start_column` and
     /// `end_columns`, and a subspace of the image of B, add rows to the matrix such that the image
@@ -970,6 +988,9 @@ impl Matrix {
         let mut added_pivots = Vec::new();
         let desired_pivots = &desired_image.column_to_pivot_row;
         let early_end_column = std::cmp::min(end_column, desired_pivots.len() + start_column);
+        println!("== extend_image_to_desired_image");
+        println!("==    kernel : {}", desired_image.matrix);
+        println!("==    current_pivots : {:?}, desired_pivots : {:?}", current_pivots, desired_pivots);
         for i in start_column .. early_end_column {
             debug_assert!(current_pivots[i] < 0 || desired_pivots[i - start_column] >= 0,
                 format!("current_pivots : {:?}, desired_pivots : {:?}", current_pivots, desired_pivots));
@@ -989,6 +1010,26 @@ impl Matrix {
             first_empty_row += 1;
         }
         added_pivots
+    }    
+
+
+    pub fn count_gens_to_extend_image_to_desired_image(
+        start_column : usize, end_column : usize,
+        current_pivots : &[isize], desired_image : &Subspace
+    ) -> usize {
+        let mut result = 0;
+        let desired_pivots = &desired_image.column_to_pivot_row;
+        let early_end_column = std::cmp::min(end_column, desired_pivots.len() + start_column);
+        for i in start_column .. early_end_column {
+            debug_assert!(current_pivots[i] < 0 || desired_pivots[i - start_column] >= 0,
+                format!("current_pivots : {:?}, desired_pivots : {:?}", current_pivots, desired_pivots));
+            if current_pivots[i] >= 0 || desired_pivots[i - start_column] < 0 {
+                continue;
+            }
+            // Look up the cycle that we're missing and add a generator hitting it.
+            result += 1;
+        }
+        result
     }
 
     /// Extends the image of a matrix to either the whole codomain, or the desired image specified
@@ -1006,6 +1047,17 @@ impl Matrix {
             self.extend_to_surjection(first_empty_row, start_column, end_column, current_pivots)
         }
     }
+
+    pub fn count_gens_to_extend_image(
+        start_column : usize, end_column : usize,
+        current_pivots : &[isize], desired_image : Option<&Subspace>
+    ) -> usize {
+        if let Some(image) = desired_image.as_ref() {
+            Matrix::count_gens_to_extend_image_to_desired_image(start_column, end_column, current_pivots, image)
+        } else {
+            Matrix::count_gens_to_extend_to_surjection(start_column, end_column, current_pivots)
+        }
+    }    
 
     /// Applies a matrix to a vector.
     ///

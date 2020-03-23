@@ -67,7 +67,7 @@ impl<A: Algebra> Module for FreeModule<A> {
             return 0;
         }
         assert!(
-            degree < self.num_gens.len(),
+            degree < self.basis_element_to_opgen.len(),
             "Free Module {} not computed through degree {}",
             self.name(),
             degree
@@ -167,7 +167,13 @@ impl<A: Algebra> FreeModule<A> {
         self.num_gens[degree]
     }
 
-    pub fn start_next_table_entry(&self, degree: i32) {
+    pub fn extend_table_entries(&self, degree: i32) {
+        for i in self.basis_element_to_opgen.len() ..= degree {
+            self.extend_table_entry_step(i);
+        }
+    }
+
+    fn extend_table_entry_step(&self, degree: i32) {
         assert!(self.basis_element_to_opgen.len() == degree);
         self.basis_element_to_opgen.push(OnceVec::new());
         self.generator_to_index.push(OnceVec::new());
@@ -204,6 +210,7 @@ impl<A: Algebra> FreeModule<A> {
     ) {
         assert!(degree >= self.min_degree);
         assert_eq!(self.num_gens.len(), degree);
+        // println!("add_gens == degree : {}, num_gens : {}", degree, num_gens);
         // self.ensure_next_table_entry(degree);
         let mut gen_names;
         if let Some(names_vec) = names {
@@ -227,10 +234,10 @@ impl<A: Algebra> FreeModule<A> {
             let mut offset = self.basis_element_to_opgen[total_degree].len();
             let num_ops = self.algebra().dimension(op_deg, gen_deg);
             for gen_idx in 0..num_gens {
-                self.generator_to_index[degree].push(offset);
+                self.generator_to_index[total_degree].push(offset);
                 offset += num_ops;
                 for op_idx in 0..num_ops {
-                    self.basis_element_to_opgen[degree].push(OperationGeneratorPair {
+                    self.basis_element_to_opgen[total_degree].push(OperationGeneratorPair {
                         generator_degree: gen_deg,
                         generator_index: gen_idx,
                         operation_degree: op_deg,
@@ -608,18 +615,20 @@ mod tests {
         let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false)));
         A.compute_basis(10);
         let M = FreeModule::new(Arc::clone(&A), "".to_string(), 0);
-        let lock = M.lock();
-        let table = M.construct_table(0);
-        M.add_generators(0, &lock, table, 1, None);
-        let table = M.construct_table(1);
-        M.add_generators(1, &lock, table, 1, None);
-        for i in 2..10 {
-            let table = M.construct_table(i);
-            M.add_generators(i, &lock, table, 0, None);
-        }
+        M.extend_table_entries(10);
+        println!("dim 0 : {}", M.dimension(0));
+        M.add_generators(0, 1, None);
+        println!("dim 0 : {}", M.dimension(0));
+        println!("{:?}", M.basis_element_to_opgen);
+        M.add_generators(1, 1, None);
+        println!("dim 0 : {}", M.dimension(0));
+        // for i in 2..10 {
+        //     M.add_generators(i, &lock, table, 0, None);
+        // }
         let output_deg = 6;
         let output_dim = M.dimension(output_deg);
         for i in 0..9 {
+            println!("i : {}", i);
             assert_eq!(M.dimension(i), A.dimension(i, 0) + A.dimension(i - 1, 1));
         }
 

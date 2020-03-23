@@ -5,7 +5,7 @@ use std::collections::HashSet;
 
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
-use fp::matrix::{self, Matrix, Subspace, AugmentedMatrix3};
+use fp::matrix::{self, Matrix, Subspace, AugmentedMatrix2, AugmentedMatrix3};
 use crate::algebra::Algebra;
 use crate::module::{Module, FreeModule};
 use once::{OnceVec, OnceBiVec};
@@ -31,9 +31,22 @@ pub struct ResolutionInner<CC : ChainComplex> {
     zero_module : Arc<FreeModule<<CC::Module as Module>::Algebra>>,
     chain_maps : OnceVec<Arc<FreeModuleHomomorphism<CC::Module>>>,
     differentials : OnceVec<Arc<FreeModuleHomomorphism<FreeModule<<CC::Module as Module>::Algebra>>>>,
-    kernels : OnceVec<Mutex<Option<Subspace>>>,
-    images : OnceVec<Mutex<Option<Subspace>>>
+    kernels : OnceVec<OnceBiVec<Mutex<Option<Subspace>>>>,
+    images : OnceVec<OnceBiVec<Mutex<Option<Image>>>>,
+    connectivity : i32
 }
+
+struct Image {
+    matrix : AugmentedMatrix3,
+    pivots : Vec<isize>,
+    s : u32,
+    t : i32
+}
+
+// struct Kernel {
+//     matrix : AugmentedMatrix2,
+//     pivots : Vec<i32>
+// }
 
 impl<CC : ChainComplex> ResolutionInner<CC> {
     pub fn new(complex : Arc<CC>) -> Self {
@@ -49,7 +62,8 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
             modules : OnceVec::new(),
             differentials : OnceVec::new(),
             kernels : OnceVec::new(),
-            images : OnceVec::new()
+            images : OnceVec::new(),
+            connectivity : 1
         }
     }
 
@@ -64,14 +78,41 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let min_degree = self.min_degree();
 
         for i in next_s ..= max_s {
-            self.modules.push(Arc::new(FreeModule::new(Arc::clone(&self.algebra()), format!("F{}", i), min_degree)));
+            self.modules.push(Arc::new(FreeModule::new(Arc::clone(&self.algebra()), format!("F{}", i), min_degree + (i as i32) * self.connectivity)));
             self.chain_maps.push(Arc::new(FreeModuleHomomorphism::new(Arc::clone(&self.modules[i]), Arc::clone(&self.complex.module(i)), 0)));
         }
 
-        for _ in next_t ..= max_t {
-            self.kernels.push(Mutex::new(None));
-            self.images.push(Mutex::new(None))
+        if next_s == 0 {
+            self.kernels.push(OnceBiVec::new(min_degree));
+            self.images.push(OnceBiVec::new(min_degree));
+            self.kernels[next_s].push(Mutex::new(None));
+            self.kernels[next_s].push(Mutex::new(None));
+            self.images[next_s].push(Mutex::new(None));
+            self.images[next_s].push(Mutex::new(None));
         }
+
+        for s in 0 .. next_s + 1 {
+            for _ in next_t + 2 .. max_t {
+                self.kernels[s].push(Mutex::new(None));
+                self.images[s].push(Mutex::new(None));
+            }
+        }
+
+        for s in next_s + 1 ..= max_s {
+            self.kernels.push(OnceBiVec::new(min_degree));
+            self.images.push(OnceBiVec::new(min_degree));
+            for _ in min_degree .. max_t + 2 {
+                self.kernels[s].push(Mutex::new(None));
+                self.images[s].push(Mutex::new(None));
+            }
+        }
+
+        println!("max_s : {}, max_t : {}", max_s, max_t);
+        print!("  kernels: ");
+        for k in self.kernels.iter() {
+            print!("{}, ", k.len());
+        }
+        println!("");
 
         if next_s == 0 {
             self.differentials.push(Arc::new(FreeModuleHomomorphism::new(Arc::clone(&self.modules[0u32]), Arc::clone(&self.zero_module), 0)));
@@ -163,7 +204,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // old_kernel <= X_{s-1, t} -------------------> C_{s-1, t}
         
         let complex = self.complex();
-        complex.compute_through_bidegree(s, t);
+        complex.compute_through_bidegree(s, t + 1);
 
         let current_differential = self.differential(s);
         let current_chain_map = self.chain_map(s);
@@ -184,20 +225,13 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let source = self.module(s);
         let target_cc = complex.module(s);
         let target_res = current_differential.target(); // This is self.module(s - 1) unless s = 0.
-        
-        // Calculate how many pivots are missing / gens to add
-        let mut kernel = self.kernels[s].lock();
-        let mut image = self.images[s].lock();
-        let gens_to_add = matrix::count_gens_to_add(kernel, image);
-        
-        // Allocate matrix of size rows: image_dimension + gens_to_add  x columns: source_dim + target_dim
-        // 
+        source.extend_table_entries(t+1);
+        target_res.extend_table_entries(t+1);
 
-        // source.ensure_next_table_entry(t, &mut *source_lock);
-        
+
         let chain_map_lock = current_chain_map.lock();
         let differential_lock = current_differential.lock();
-
+        
         // The Homomorphism matrix has size source_dimension x target_dimension, but we are going to augment it with an
         // identity matrix so that gives a matrix with dimensions source_dimension x (target_dimension + source_dimension).
         // Later we're going to write into this same matrix an isomorphism source/image + new vectors --> kernel
@@ -206,31 +240,44 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let target_cc_dimension = target_cc.dimension(t);
         let target_res_dimension = target_res.dimension(t);
         let source_dimension = source.dimension(t);
+        let rows = target_cc_dimension + target_res_dimension + source_dimension;
 
-        assert!(image.segment(0,0).columns() == target_cc_dimension);
-        assert!(image.segment(1,1).columns() == target_res_dimension);
 
-        let rows = source_dimension + gens_to_add;
-
-        let mut matrix = AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, rows]);
-        let mut pivots = vec![-1;matrix.columns()];        
-    
-        for (i, row) in image.matrix.iter_mut().enumerate() {
-            matrix[i].assign(&*row.borrow_slice(0, matrix.columns() - gens_to_add));
+        // Calculate how many pivots are missing / gens to add
+        let kernel = self.kernels[s][t].lock().take();
+        let mut maybe_image = self.images[s][t].lock().take();
+        let mut dummy_image;
+        let image : &mut Image;
+        if let Some(x) = maybe_image.as_mut() {
+            image = x;
+            println!("image: s = {}, t = {}", image.s, image.t);
+            assert_eq!(image.matrix.segment(0,0).columns(), target_cc_dimension);
+            // assert_eq!(image.matrix.segment(1,1).columns(), target_res_dimension);
+            assert_eq!(image.matrix.segment(2,2).columns(), rows);
+        } else {
+            dummy_image = Image {
+                matrix : AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, rows]),
+                pivots : vec![-1; target_cc_dimension + target_res_dimension + rows ],
+                s : s,
+                t : t
+            };
+            dummy_image.matrix.segment(2, 2).set_identity(rows, 0, 0);
+            image = &mut dummy_image;
         }
-        matrix.segment(2,2).set_identity(gens_to_add, source_dimension, source_dimension);
+        
+        let matrix = AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, rows]);
 
-        for (i, pivot) in image.pivots.enumerate(){
-            pivots[i] = pivot;
-        }
+        let matrix = &mut image.matrix;
+        let pivots = &mut image.pivots;
 
         // Now add generators to surject onto C_{s, t}.
         // (For now we are just adding the eventual images of the new generators into matrix, we will update
         // X_{s,t} and f later).
-        // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
+        // We record which pivots exactly we added so that we can walk over the added generators in a moment and
         // work out what dX should to to each of them.
         let first_new_row = source_dimension;
-        let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, matrix.end[0], &pivots);
+        println!("   target_cc_dimension : {}", target_cc_dimension);
+        let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, target_cc_dimension, &pivots);
         let cc_new_gens = new_generators.len();
         let mut res_new_gens = 0;
 
@@ -257,10 +304,11 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                     middle_rows.push(matrix[first_new_row + i].clone());
                 }
                 // Row reduce again since our activity may have changed the image of dX.
-                matrix.row_reduce(&mut pivots);
+                matrix.row_reduce(pivots);
             }
+            // println!("matrix.seg(1) : {}", *matrix.segment(1,1));
             // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
-            res_new_gens = matrix.inner.extend_image(first_new_row + cc_new_gens, matrix.start[1], matrix.end[1], &pivots, kernel.as_ref()).len();
+            res_new_gens = matrix.inner.extend_image(first_new_row + cc_new_gens, matrix.start[1], matrix.end[1], pivots, kernel.as_ref()).len();
 
             if cc_new_gens > 0 {
                 // Now restore the middle rows.
@@ -270,10 +318,11 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
             }
         }
 
-
+        println!("cc_new_gens : {}, res_new_gens: {}", cc_new_gens, res_new_gens);
         let num_new_gens = cc_new_gens + res_new_gens;
         source.add_generators(t, num_new_gens, None);
 
+        let rows = matrix.rows();
         matrix.set_row_slice(first_new_row, rows);
         current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, &*matrix.segment(0, 0));
         current_differential.add_generators_from_matrix_rows(&differential_lock, t, &*matrix.segment(1, 1));
@@ -300,18 +349,44 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         current_differential.set_quasi_inverse(&differential_lock, t, res_qi);
         current_differential.set_kernel(&differential_lock, t, Subspace::new(p, 0, 0));
 
-        drop(kernel);
-        drop(image);
+        let target_cc_dimension = target_cc.dimension(t+1);
+        let target_res_dimension = target_res.dimension(t+1);
+        let source_dimension = source.dimension(t+1);
+        target_res.extend_table_entries(t+1);
+        source.extend_table_entries(t+1);
 
 
         // Now we are going to investigate the homomorphism in degree t + 1.
 
         // Now need to calculate new_kernel and new_image.
-        // (new_kernel, new_image) = calculate_new_kernel_and_new_image(...);
-        // *self.kernels[s + 1].lock() = new_kernel;
-        // *self.images[s].lock() = new_image;
 
+        let rows = source_dimension + target_cc_dimension + target_res_dimension;
+        let mut matrix = AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, rows]);
+        let mut pivots = vec![-1;matrix.columns()];
+        // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
 
+        matrix.set_row_slice(0, source_dimension);
+        current_chain_map.get_matrix(&mut *matrix.segment(0,0), t + 1);
+        current_differential.get_matrix(&mut *matrix.segment(1,1), t + 1);
+        matrix.segment(2,2).set_identity(rows, 0, 0);
+
+        matrix.row_reduce(&mut pivots);
+        let new_kernel = matrix.inner.compute_kernel(&pivots, matrix.start[2]);
+        
+        let mut kernel_lock = self.kernels[s][t+1].lock();
+        *kernel_lock = Some(new_kernel);
+        if s > 0 {
+            let mut image_lock = self.images[s - 1][t + 1].lock();
+            *image_lock = Some(Image {
+                matrix : matrix,
+                pivots : pivots,
+                s : s - 1,
+                t : t + 1
+            });
+            println!("Storing image into (s: {}, t: {})", s - 1, t + 1);
+            drop(image_lock);
+        }
+        drop(kernel_lock);
         
     }
 
@@ -977,7 +1052,7 @@ use saveload::{Save, Load};
 impl<CC : ChainComplex> Save for ResolutionInner<CC> {
     fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
         self.modules.save(buffer)?;
-        self.kernels.save(buffer)?;
+        // self.kernels.save(buffer)?;
         self.differentials.save(buffer)?;
         self.chain_maps.save(buffer)?;
         Ok(())

@@ -211,23 +211,13 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         degree: i32,
         matrix: &Matrix
     ) {
-        let target_dimension = self.target.dimension(degree - self.degree_shift);
-        self.add_generators_from_matrix_rows_with_specified_dimension(lock, degree, matrix, target_dimension);
-    }
-
-    pub fn add_generators_from_matrix_rows_with_specified_dimension(
-        &self,
-        lock: &MutexGuard<()>,
-        degree: i32,
-        matrix: &Matrix,
-        target_dimension : usize
-    ) {
         self.check_mutex(lock);
         assert_eq!(degree, self.outputs.len());
-
+        
         let p = self.prime();
         let new_generators = self.source.number_of_gens_in_degree(degree);
-
+        let target_dimension = self.target.dimension(degree - self.degree_shift);
+        
         let mut new_outputs: Vec<FpVector> = Vec::with_capacity(new_generators);
         for _ in 0..new_generators {
             new_outputs.push(FpVector::new(p, target_dimension));
