@@ -52,7 +52,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
     }
 
     pub fn extended_degree(&self) -> (u32, i32) {
-        return (self.modules.len() as u32, self.kernels.len())
+        (self.modules.len() as u32, self.kernels.len())
     }
 
     /// This function prepares the ResolutionInner object to perform computations up to the
@@ -166,13 +166,17 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let current_chain_map = self.chain_map(s);
         let complex_cur_differential = complex.differential(s);
 
-        if current_differential.next_degree() > t {
-            // Already computed this degree.
-            return
-        } else if current_differential.next_degree() > t {
-            // Haven't computed far enough yet
-            panic!(format!("We're not ready to compute bidegree ({}, {}) yet.", s, t));
-        }
+        match current_differential.next_degree().cmp(&t) {
+            std::cmp::Ordering::Greater => {
+                // Already computed this degree.
+                return;
+            }
+            std::cmp::Ordering::Less => {
+                // Haven't computed far enough yet
+                panic!("We're not ready to compute bidegree ({}, {}) yet.", s, t);
+            }
+            std::cmp::Ordering::Equal => ()
+        };
 
         let source = self.module(s);
         let target_cc = complex.module(s);
