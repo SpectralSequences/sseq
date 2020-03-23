@@ -35,7 +35,8 @@ impl ResolutionHomomorphism {
     // }
 
     pub fn extend(&self, source_homological_degree : u32, source_degree : i32) -> PyResult<()> {
-        self.inner()?.extend(source_homological_degree, source_degree);
+        let self_inner = self.inner()?;
+        python_utils::release_gil!(self_inner.extend(source_homological_degree, source_degree));
         Ok(())
     }
 
@@ -55,7 +56,8 @@ impl ResolutionHomomorphism {
                         })?.inner()?
                 )
             };
-        self.inner()?.extend_step(source_homological_degree, source_degree, extra_images_rust);
+        let self_inner = self.inner()?;
+        python_utils::release_gil!(self_inner.extend_step(source_homological_degree, source_degree, extra_images_rust));
         Ok(())
     }
 

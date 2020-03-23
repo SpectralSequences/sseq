@@ -16,7 +16,6 @@ use algebra::module::{
     Module, 
     FreeModule as FreeModuleRust, 
     OperationGeneratorPair as OperationGeneratorPairRust,
-    FreeModuleTableEntry as FreeModuleTableEntryRust
 };
 
 use python_fp::vector::FpVector;
@@ -24,7 +23,6 @@ use crate::algebra::AlgebraRust;
 
 // wrapper_type!(FreeModuleLock, MutexGuard<()>); // causes Lifetime specifier problem
 wrapper_type!(OperationGeneratorPair, OperationGeneratorPairRust);
-wrapper_type!(FreeModuleTableEntry, FreeModuleTableEntryRust);
 
 rc_wrapper_type!(FreeModule, FreeModuleRust<AlgebraRust>);
 
@@ -49,31 +47,31 @@ impl FreeModule {
     // }
 
     pub fn max_computed_degree(&self) -> PyResult<i32> {
-        Ok(self.inner()?.max_computed_degree())
+        Ok(self.inner()?.max_table_degree())
     }
 
     pub fn number_of_gens_in_degree(&self, degree: i32) -> PyResult<usize> {
         Ok(self.inner()?.number_of_gens_in_degree(degree))
     }
 
-    pub fn construct_table(&self, degree: i32) -> PyResult<FreeModuleTableEntry> {
-        Ok(FreeModuleTableEntry::box_and_wrap(self.inner()?.construct_table(degree)))
-    }
+    // pub fn construct_table(&self, degree: i32) -> PyResult<FreeModuleTableEntry> {
+    //     Ok(FreeModuleTableEntry::box_and_wrap(self.inner()?.construct_table(degree)))
+    // }
 
 
-    pub fn add_generators(
-        &self,
-        degree: i32,
-        table: &FreeModuleTableEntry,
-        num_gens: usize,
-        names: Option<Vec<String>>,
-    ) -> PyResult<()> {
-        let inner = self.inner()?;
-        let lock = inner.lock();
-        let table_inner = table.inner()?.clone();
-        inner.add_generators(degree, &lock, table_inner, num_gens, names);
-        Ok(())
-    }
+    // pub fn add_generators(
+    //     &self,
+    //     degree: i32,
+    //     table: &FreeModuleTableEntry,
+    //     num_gens: usize,
+    //     names: Option<Vec<String>>,
+    // ) -> PyResult<()> {
+    //     let inner = self.inner()?;
+    //     let lock = inner.lock();
+    //     let table_inner = table.inner()?.clone();
+    //     inner.add_generators(degree, &lock, table_inner, num_gens, names);
+    //     Ok(())
+    // }
 
     pub fn generator_offset(&self, degree: i32, gen_deg: i32, gen_idx: usize) -> PyResult<usize> {
         Ok(self.inner()?.generator_offset(degree, gen_deg, gen_idx))

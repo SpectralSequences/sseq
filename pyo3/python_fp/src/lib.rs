@@ -11,9 +11,9 @@ use pyo3::prelude::*;
 #[pymodule]
 fn python_fp(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<vector::FpVector>()?;
-    // m.add_class::<matrix::PivotVecWrapper>()?;
-    // m.add_class::<matrix::Matrix>()?;
-    // m.add_class::<matrix::Subspace>()?;
-    // m.add_class::<matrix::QuasiInverse>()?;
+    m.add_class::<matrix::PivotVecWrapper>()?;
+    m.add_class::<matrix::Matrix>()?;
+    m.add_class::<matrix::Subspace>()?;
+    m.add_class::<matrix::QuasiInverse>()?;
     Ok(())
 }

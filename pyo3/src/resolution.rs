@@ -26,17 +26,40 @@ impl Resolution {
         Ok(Resolution::box_and_wrap(ResolutionRust::new(Arc::clone(&chain_complex))))
     }
 
-    pub fn extend_through_degree(&self, next_s : u32, max_s : u32, next_t : i32, max_t : i32) -> PyResult<()> {
-        self.inner()?.extend_through_degree(next_s, max_s, next_t, max_t);
+    pub fn extended_degree(&self) -> PyResult<u32> {
+        Ok(self.inner()?.extended_degree())
+    }
+
+    pub fn extend_through_degree(&self, max_s : u32) -> PyResult<()> {
+        let old_max_s = self.extended_degree()?;
+        self.inner()?.extend_through_degree(old_max_s, max_s, old_max_s as i32, max_s as i32);
         Ok(())
     }
+    
 
     pub fn graded_dimension_string(&self, max_degree : i32 , max_hom_deg : u32) -> PyResult<String> {
         Ok(self.inner()?.graded_dimension_string(max_degree, max_hom_deg))
-    } 
+    }
 
     pub fn step_resolution(&self, s : u32, t : i32) -> PyResult<()> {
         let self_inner = self.inner()?;
+        let max_s = self_inner.extended_degree();
+        if max_s <= s { //|| max_t <= t {
+            return Err(python_utils::exception!(ValueError,
+                "You need to run res.extend_degree(>={}, >={}) before res.step_resolution({}, {})",
+                s,t,s,t
+            ));
+        }
+        let next_t = self_inner.differential(s).next_degree();
+        if next_t > t {
+            // Already computed this degree.
+            return Ok(())
+        } 
+        // if next_t < t {
+        //     return Err(python_utils::exception!(ValueError,
+        //         "Out of order step_resolution."
+        //     ))
+        // }
         python_utils::release_gil!(self_inner.step_resolution(s, t));
         Ok(())
     }

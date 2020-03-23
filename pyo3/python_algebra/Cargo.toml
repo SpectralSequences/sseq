@@ -16,10 +16,10 @@ nom = "5.0.0"
 parking_lot = "0.10"
 
 algebra = { path = "../../rust_ext/crates/algebra" }
+saveload = { path = "../../rust_ext/crates/saveload" }
 bivec = { path = "../../rust_ext/crates/bivec" }
 error = { path = "../../rust_ext/crates/error" }
 fp = { path = "../../rust_ext/crates/fp" }
-saveload = { path = "../../rust_ext/crates/saveload" }
 
 python_fp = { path = "../python_fp" }
 python_utils = { path = "../python_utils" }

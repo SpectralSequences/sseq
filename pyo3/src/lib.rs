@@ -2,8 +2,8 @@ pub mod resolution;
 pub mod resolution_homomorphism;
 
 use pyo3::prelude::*;
-use pyo3::{wrap_pymodule, wrap_pyfunction};
-use pyo3::types::PyTuple;
+use pyo3::{wrap_pymodule};//, wrap_pyfunction};
+// use pyo3::types::PyTuple;
 
 use python_utils;
 use python_fp::PyInit_python_fp;
@@ -19,6 +19,6 @@ fn rust_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(module))?;
     // python_utils::rename_submodule(m, "python_algebra", "algebra")?;
     m.add_class::<resolution::Resolution>()?;
-    // m.add_class::<resolution::resolution_homomorphism::ResolutionHomomorphism>()?;
+    m.add_class::<resolution_homomorphism::ResolutionHomomorphism>()?;
     Ok(())
 }
