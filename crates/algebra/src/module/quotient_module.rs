@@ -111,6 +111,10 @@ impl<M: Module> Module for QuotientModule<M> {
         }
     }
 
+    fn max_computed_degree(&self) -> i32 {
+        self.subspaces.len()
+    }
+
     fn dimension(&self, degree: i32) -> usize {
         self.module.dimension(degree) - self.subspaces[degree].dimension()
     }

@@ -143,6 +143,10 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
         self.graded_dimension.min_degree()
     }
 
+    fn max_computed_degree(&self) -> i32 {
+        i32::max_value()
+    }
+    
     fn compute_basis(&self, _degree: i32) {}
 
     fn dimension(&self, degree: i32) -> usize {

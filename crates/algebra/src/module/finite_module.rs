@@ -47,6 +47,14 @@ impl Module for FiniteModule {
         }
     }
 
+    fn max_computed_degree(&self) -> i32 {
+        match self {
+            FiniteModule::FDModule(m) => m.max_computed_degree(),
+            FiniteModule::FPModule(m) => m.max_computed_degree(),
+            FiniteModule::RealProjectiveSpace(m) => m.max_computed_degree(),
+        }
+    }
+
     fn dimension(&self, degree: i32) -> usize {
         match self {
             FiniteModule::FDModule(m) => m.dimension(degree),

@@ -18,6 +18,7 @@ pub trait Module: Send + Sync + 'static {
     fn name(&self) -> String;
     fn min_degree(&self) -> i32;
     fn compute_basis(&self, _degree: i32) {}
+    fn max_computed_degree(&self) -> i32;
     fn dimension(&self, degree: i32) -> usize;
     fn act_on_basis(
         &self,
@@ -161,6 +162,10 @@ impl<A: Algebra> Module for Arc<dyn Module<Algebra = A>> {
 
     fn min_degree(&self) -> i32 {
         (&**self).min_degree()
+    }
+
+    fn max_computed_degree(&self) -> i32 {
+        (&**self).max_computed_degree()
     }
 
     fn compute_basis(&self, degree: i32) {

@@ -49,6 +49,10 @@ impl<A: Algebra> Module for FreeModule<A> {
         self.min_degree
     }
 
+    fn max_computed_degree(&self) -> i32 {
+        self.table.len()
+    }
+
     fn dimension(&self, degree: i32) -> usize {
         if degree < self.min_degree {
             return 0;

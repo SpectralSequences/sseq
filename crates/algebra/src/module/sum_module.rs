@@ -74,6 +74,10 @@ impl<M: Module> Module for SumModule<M> {
         }
     }
 
+    fn max_computed_degree(&self) -> i32 {
+        self.block_structures.len()
+    }
+
     fn dimension(&self, degree: i32) -> usize {
         match self.block_structures.get(degree) {
             Some(x) => x.total_dimension,

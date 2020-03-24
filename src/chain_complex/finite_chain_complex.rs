@@ -115,6 +115,10 @@ where
         }
     }
 
+    fn has_computed_bidegree(&self, s : u32, t : i32) -> bool {
+        s > self.modules.len() as u32 || t < self.module(s).max_computed_degree()
+    }
+
     fn set_homology_basis(
         &self,
         _homological_degree: u32,
@@ -169,8 +173,13 @@ where
     fn algebra(&self) -> Arc<M::Algebra> {
         self.zero_module.algebra()
     }
+
     fn min_degree(&self) -> i32 {
         self.zero_module.min_degree()
+    }
+    
+    fn has_computed_bidegree(&self, _s : u32, _t : i32) -> bool {
+        unimplemented!()
     }
 
     fn zero_module(&self) -> Arc<Self::Module> {

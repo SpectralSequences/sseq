@@ -34,6 +34,15 @@ impl<M: Module + ?Sized> Module for TruncatedModule<M> {
         self.module.min_degree()
     }
 
+    fn max_computed_degree(&self) -> i32 {
+        let inner_max_degree = self.module.max_computed_degree();
+        if inner_max_degree >= self.truncation {
+            i32::max_value()
+        } else {
+            inner_max_degree
+        }
+    }
+
     fn compute_basis(&self, degree: i32) {
         self.module
             .compute_basis(std::cmp::min(degree, self.truncation));

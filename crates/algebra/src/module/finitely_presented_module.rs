@@ -245,6 +245,10 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
         self.name.clone()
     }
 
+    fn max_computed_degree(&self) -> i32 {
+        self.generators.max_computed_degree()
+    }
+
     fn compute_basis(&self, degree: i32) {
         self.algebra().compute_basis(degree);
         self.generators.extend_by_zero(degree);

@@ -185,6 +185,10 @@ where
         self.left.min_degree() + self.right.min_degree()
     }
 
+    fn max_computed_degree(&self) -> i32 {
+        self.block_structures.len()
+    }
+
     fn compute_basis(&self, degree: i32) {
         self.left.compute_basis(degree - self.right.min_degree());
         self.right.compute_basis(degree - self.left.min_degree());

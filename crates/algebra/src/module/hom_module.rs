@@ -119,6 +119,10 @@ impl<M: BoundedModule> Module for HomModule<M> {
         self.block_structures.min_degree()
     }
 
+    fn max_computed_degree(&self) -> i32 {
+        unimplemented!()
+    }
+
     fn compute_basis(&self, degree: i32) {
         // assertion about source:
         // self.source.compute_basis(degree + self.target.max_degree());

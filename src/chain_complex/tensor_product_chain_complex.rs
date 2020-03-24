@@ -129,6 +129,10 @@ where
         Arc::clone(&self.zero_module)
     }
 
+    fn has_computed_bidegree(&self, _s : u32, _t : i32) -> bool {
+        unimplemented!()
+    }
+
     fn module(&self, s: u32) -> Arc<Self::Module> {
         Arc::clone(&self.modules[s as usize])
     }

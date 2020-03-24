@@ -80,6 +80,9 @@ pub trait ChainComplex: Send + Sync + 'static {
     // This returns the differential starting from the sth module.
     fn differential(&self, homological_degree: u32) -> Arc<Self::Homomorphism>;
     fn compute_through_bidegree(&self, homological_degree: u32, internal_degree: i32);
+    fn has_computed_bidegree(&self, homological_degree : u32, internal_degree : i32) -> bool; //{
+        // true
+    // }
 
     fn set_homology_basis(
         &self,

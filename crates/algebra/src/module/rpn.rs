@@ -58,6 +58,10 @@ impl Module for RealProjectiveSpace {
         self.min
     }
 
+    fn max_computed_degree(&self) -> i32 {
+        i32::max_value()
+    }
+
     fn dimension(&self, degree: i32) -> usize {
         if degree < self.min {
             return 0;

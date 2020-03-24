@@ -341,6 +341,10 @@ impl<CC : ChainComplex> ChainComplex for ResolutionInner<CC> {
         self.complex().min_degree()
     }
 
+    fn has_computed_bidegree(&self, s : u32, t : i32) -> bool {
+        self.differentials.len() > s as usize && self.differential(s).next_degree() > t
+    }
+
     fn set_homology_basis(&self, _homological_degree : u32, _internal_degree : i32, _homology_basis : Vec<usize>){
         unimplemented!()
     }
