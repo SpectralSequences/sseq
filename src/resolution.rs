@@ -261,10 +261,14 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
             }
             std::cmp::Ordering::Less => {
                 // Haven't computed far enough yet
-                panic!("We're not ready to compute bidegree ({}, {}) yet.", s, t);
+                panic!("We need to compute bidegree ({}, {}) before we are ready to compute bidegree ({}, {}).", s, t-1, s, t);
             }
             std::cmp::Ordering::Equal => ()
         };
+
+        if s > 0 && self.differential(s-1).next_degree() < t - 1 {
+            panic!("We need to compute bidegree ({}, {}) before we are ready to compute bidegree ({}, {}).", s-1, t-1, s, t);
+        }
 
         let source = self.module(s);
         let target_cc = complex.module(s);
