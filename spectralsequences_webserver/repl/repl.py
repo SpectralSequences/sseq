@@ -1,15 +1,17 @@
+from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
+import asyncio
+# import logging
+import pathlib
+from textwrap import dedent, indent
+import types
+from typing import overload
 import os
 import sys
 
-import ast
-import asyncio
-import logging
-import types
-from typing import overload
-from textwrap import dedent, indent
 
-from ptpython.repl import embed, PythonRepl
-from ptpython.python_input import PythonInput
+from ..decorators import monkey_patch
+from .. import utils
+
 
 from prompt_toolkit.formatted_text import (
     FormattedText,
@@ -18,14 +20,12 @@ from prompt_toolkit.formatted_text import (
 )
 from prompt_toolkit.formatted_text.utils import fragment_list_width
 from prompt_toolkit.shortcuts import print_formatted_text
+from ptpython.repl import embed, PythonRepl
+from ptpython.python_input import PythonInput
 from pygments.lexers import PythonLexer, PythonTracebackLexer
 
-# from uvicorn.lifespan.on import shutdown
 
-from ..decorators import monkey_patch
-from .. import utils
-
-logger = logging.getLogger("hi")
+# logger = logging.getLogger("hi")
 
 def _lex_python_traceback(tb):
     " Return token list for traceback string. "
@@ -37,17 +37,12 @@ def _lex_python_result(tb):
     lexer = PythonLexer()
     return lexer.get_tokens(tb)
 
+def shutdown():
+    pass
 
 @monkey_patch(PythonInput)
 def get_compiler_flags(self):
-    return ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
- 
-repl = None
-def configure_repl(r):
-    global repl
-    repl = r 
-    # utils.bind(repl.app, exit) 
-
+    return PyCF_ALLOW_TOP_LEVEL_AWAIT
 
 def exit(
     self,
@@ -73,22 +68,12 @@ def exit(
     else:
         self.future.set_result(result)
 
-def shutdown():
-    pass
-    # os.system("""pgrep uvicorn | xargs kill -9""")
-    # sys.exec()
-    # for t in asyncio.Task.all_tasks():
-    #     if str(t).find("Server") >= 0:
-    #         task = t
-    # task.cancel()
-
 async def make_repl(globals, locals, **kwargs):
     try:
-        await embed(globals, locals, return_asyncio_coroutine=True, patch_stdout=True, configure=configure_repl, **kwargs)
+        await embed(globals, locals, return_asyncio_coroutine=True, patch_stdout=True, **kwargs)
     except (EOFError, KeyboardInterrupt):
         print("Press ^C again...")
         shutdown()
-
 
 @monkey_patch(PythonRepl)
 async def run_async(self) -> None:
@@ -154,17 +139,6 @@ def compile_with_flags(self, code: str, mode: str):
     )
 
 @monkey_patch(PythonRepl)
-def compile_with_flags(self, code: str, mode: str):
-    " Compile code with the right compiler flags. "
-    return compile(
-        code,
-        "<stdin>",
-        mode,
-        flags=self.get_compiler_flags(),
-        dont_inherit=True,
-    )
-
-@monkey_patch(PythonRepl)
 async def eval_code(self, line):
     code = self.compile_with_flags(line, "eval")
     result = eval(code, self.get_globals(), self.get_locals())
@@ -172,7 +146,12 @@ async def eval_code(self, line):
         return await result
     else:
         return result
- 
+
+@monkey_patch(PythonRepl)
+async def exec_file(self, path : pathlib.PosixPath):
+    """ Exectute file."""
+    await self.exec_code(path.read_text())
+
 @monkey_patch(PythonRepl)
 async def exec_code(self, lines):
     mod = _asyncify(lines)

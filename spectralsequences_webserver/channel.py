@@ -30,11 +30,18 @@ class Channel:
     def remove_user(self, user):
         del self.users[user.id]
 
-    async def send_to_user(self, uid, msg):
-        await self.users[uid].send_text(msg)
+    async def send_message_to_user(self, uid, msg):
+        await self.users[uid].send_text(utils.json_stringify(msg))
 
-    async def broadcast(self, cmd, data):
-        msg = utils.json_stringify({"cmd" : cmd, "data" : data})
+    async def broadcast_message(self, msg):
+        # msg = utils.json_stringify({"cmd" : cmd, "data" : data})
         for user in self.users.values():
-            await user.websocket.send_text(msg)
+            await user.websocket.send_text(utils.json_stringify(msg))
 
+    async def broadcast_command(self, cmd, **kwargs):
+        msg = {"cmd" : cmd, **kwargs}
+        await self.broadcast_message(msg)
+        
+    async def send_command_to_user(self, uid, cmd, **kwargs):
+        msg = {"cmd" : cmd, **kwargs}
+        await self.send_message_to_user(uid, msg)

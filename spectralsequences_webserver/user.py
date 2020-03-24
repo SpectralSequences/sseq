@@ -44,7 +44,7 @@ class User:
             if "cmd" not in data:
                 utils.print_error(f"""MissingCommandError: Client sent message missing "cmd" key.""")
             elif self.channel.has_handler(data["cmd"]):
-                await self.channel.handle_message(data["cmd"], data, json_str)
+                await self.channel.handle_message(data["cmd"], data)
             else:
                 utils.print_error(f"""UnknownCommandError: Client sent unrecognized command "{data["cmd"]}".""")
             return True

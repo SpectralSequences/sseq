@@ -33,9 +33,3 @@ TEMPLATE_DIR = PACKAGE_ROOT / "templates"
 utils.exec_file_if_exists(USER_CONFIG_FILE, globals(), locals())
 
 
-REPL_GLOBALS =  {
-    "__name__": "__main__",
-    "__package__": None,
-    "__doc__": None,
-    "__builtins__": builtins,
-}

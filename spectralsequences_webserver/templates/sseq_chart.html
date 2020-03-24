@@ -49,23 +49,50 @@
             hr { height:2px; visibility:hidden; margin-bottom:-1px; }
             </style>
     </head>
-    <body>
-        <script src="/static/basic_webclient" type="text/javascript"></script>
-        <div id="main"></div>
+<body>
+    <script src="/static/basic_webclient" type="text/javascript"></script>
+    <div id="main"></div>
+
 <script>
 "use strict";
 let display;
 let sseq;
 let ws = new WebSocket("ws://localhost:{{ PORT }}/subscribe_sseq/{{ channel_name }}");
 ws.onopen = function(){
-    send_message({"cmd" : "new_user"});
+    send_command("new_user", {});
 }
-
 
 function send_message(msg) {
     let json_str = JSON.stringify(msg);
     console.log(json_str);
     ws.send(String(json_str));
+}
+
+function send_command(cmd, msg) {
+    let obj = { "cmd" : cmd }
+    Object.assign(obj, msg)
+    send_message(obj);
+}
+
+function send_handshake(orig_msg, succeeded, error) {
+    send_command("handshake", {
+        "orig_msg" : orig_msg,
+        "ok" : succeeded,
+        "error" : String(error)
+    });
+    if(!succeeded) {
+        console.error(error);
+        // console.error(`Message md5: ${msg_md5}`);
+    }
+}
+
+function send_error(orig_msg, error) {
+    send_command("client_error", {
+        "orig_msg" : orig_msg,
+        "error" : String(error)
+    });
+    console.error(error);
+    // console.error(`Message md5: ${msg_md5}`);
 }
 
 ws.onmessage = function(event) {
@@ -107,56 +134,84 @@ class UnknownCommandError extends BadMessageError {
     }
 }
 
-
-
-function send_handshake(orig_msg, succeeded, error) {
-    send_message({
-        "server_cmd" : "send_to_channel", 
-        "cmd" : "handshake", 
-        "orig_msg" : orig_msg,
-        "ok" : succeeded,
-        "error" : String(error)
-    });
-    if(!succeeded) {
-        console.error(error);
-        // console.error(`Message md5: ${msg_md5}`);
+class UnknownDisplayCommandError extends UnknownCommandError {
+    constructor(...args) {
+        super(...args)
+        this.name = this.constructor.name;
+        this.stack = this.stack.split("\n").slice(1).join("\n")
     }
 }
 
-function send_error(orig_msg, error) {
-    send_message({
-        "server_cmd" : "send_to_channel", 
-        "cmd" : "client_error", 
-        "orig_msg" : orig_msg,
-        "error" : String(error)
-    });
-    console.error(error);
-    // console.error(`Message md5: ${msg_md5}`);
+
+function click_handler(cls) {
+    if(cls != null){
+        send_command("click", { "class" : cls });
+    }
 }
-
-
 
 let event_handlers = {
     "accept_user" : function(msg) {
         console.log("accepted user:", msg);
         sseq = SpectralSequenceChart.from_JSON(msg.state);
         display = new BasicDisplay("#main", sseq);
+        display.on("click", click_handler)
+        if(msg.display_state) {
+            set_display_settings(msg.display_state);
+        }
         // let sseq = new SpectralSequenceChart();
         // Object.assign(sseq, msg.state)
     },
 
     "add_class" : function(msg) {
-        sseq.add_class(msg.data);
+        sseq.add_class(msg.arguments);
         display.update();
     },
 
     "add_edge" : function(msg) {
-        sseq.add_edge(msg.data);
+        sseq.add_edge(msg.arguments);
         display.update();
-    }    
-};
-</script>        
-    </body>
-</html>
+    },
 
+    "display_setting" : function(msg) {
+        set_display_setting(msg);
+    },
+
+    "alert" : function(msg) {
+        alert(msg.alert_text);
+    }
+};
+
+let display_functions = {
+    "set_background_color" : function(msg) {
+        display.setBackgroundColor(msg.color);
+    },
+}
+
+function set_display_setting(msg){
+    let succeeded = true;
+    let error;
+    try {
+        if(display_functions[msg.display_cmd] === undefined) {
+            throw new UnknownDisplayCommandError(`Console sent unknown display command "${msg.display_cmd}".`);
+        } else {
+            display_functions[msg.display_cmd](msg);
+        }
+    } catch(err) {
+        succeeded = false;
+        error = err;
+    }
+
+    if(!succeeded) {
+        send_error(msg, error)
+    }
+}
+
+function set_display_settings(display_settings) {
+    for(let msg of display_settings) {
+        console.log("set_display_setting:", msg);
+        set_display_setting(msg)
+    }
+}
+</script>        
 </body>
+</html>

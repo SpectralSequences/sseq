@@ -3,6 +3,8 @@ import pathlib
 import prompt_toolkit 
 from prompt_toolkit import HTML
 import sys 
+from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
+
 
 def exec_file_if_exists(path, globals, locals):
     if path.is_file():
@@ -11,7 +13,16 @@ def exec_file_if_exists(path, globals, locals):
 
 def exec_file(path, globals, locals):
     code = compile(path.read_text(), path, "exec")
-    exec(code, globals, locals) 
+    exec(code, globals, locals)
+
+async def async_exec_file_if_exists(path, globals, locals):
+    if path.is_file():
+        code = compile(path.read_text(), path, "exec", flags=PyCF_ALLOW_TOP_LEVEL_AWAIT)
+        await exec(code, globals, locals) 
+
+async def async_exec_file(path, globals, locals):
+    code = compile(path.read_text(), path, "exec", flags=PyCF_ALLOW_TOP_LEVEL_AWAIT)
+    await exec(code, globals, locals)
 
 def append_key_to_json_str(json_str, key, value):
     return json_string[:-1] + f""", "{str(key)}": {str(value)}}}"""

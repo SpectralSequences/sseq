@@ -1,4 +1,26 @@
 from .. import utils
+import copy
+
+class ChartNode:
+    def __init__(self, sseq, **kwargs):
+        self._sseq = sseq
+        utils.assign_fields(self, kwargs, [
+            { "type" : "mandatory", "field" : "shape"},
+            { "type" : "default", "field" : "scale", "default" : 1},
+            { "type" : "optional", "field" : "fill"},
+            { "type" : "optional", "field" : "stroke"},
+            { "type" : "optional", "field" : "color"},
+            { "type" : "optional", "field" : "opacity"},            
+        ]);
+
+    # def update_fields(self, kwargs):
+        # self._sseq
+
+    # def __hash__(self):
+
+    def to_json(self):
+        return utils.public_fields(self)    
+
 
 class ChartClass:
     def __init__(self, sseq, **kwargs):
@@ -23,6 +45,14 @@ class ChartClass:
 
     def to_json(self):
         return utils.public_fields(self)
+
+
+    # def set_node_field_on_page(self, field, value):
+
+    def set_field(self, field, value):
+        # self.
+        self._sseq.add_node(self)
+
 
 class ChartEdge:
     def __init__(self, sseq, edge_type, **kwargs):
@@ -58,7 +88,8 @@ class BasicSpectralSequenceChart:
         self.page_list = [2, 3]
         self.initialxRange = [0, 10]
         self.initialyRange = [0, 10]
-        self.nodes = [{"shape" : "circle"}]
+        self.nodes = [ChartNode(self, shape="circle")]
+        self._nodes_dict = {self.nodes[0] : self.nodes[0]}
         self.classes = []
         self.edges = []
         self._classes_by_bidegree = {}
@@ -84,6 +115,16 @@ class BasicSpectralSequenceChart:
         e.get_source()._edges.append(e)
         e.get_target()._edges.append(e)
         return e
+
+    def has_node(self, node : ChartNode):
+        return node in self._nodes_dict 
+
+    def add_node(self, node : ChartNode):
+        if node in self._nodes_dict:
+            return (False, self._nodes_dict[node])
+        self.nodes.append(node)
+        self._nodes_dict[node] = node
+        return (True, node)
 
     def to_json(self):
         return utils.public_fields(self)

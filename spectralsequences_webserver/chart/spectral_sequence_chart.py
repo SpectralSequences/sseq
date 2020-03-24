@@ -5,8 +5,9 @@ from prompt_toolkit import HTML
  
 from .. import config
 from ..decorators import handler_class, handler
+from .. import handlers
 from .. import utils
-from . import basic_spectral_sequence
+from .basic_spectral_sequence import ChartNode, BasicSpectralSequenceChart
 from ..channel import Channel
 
 @handler_class 
@@ -17,19 +18,32 @@ class SpectralSequenceChart(Channel):
         if sseq:
             self.sseq = sseq
         else:
-            self.sseq = basic_spectral_sequence.BasicSpectralSequenceChart(name)
+            self.sseq = BasicSpectralSequenceChart(name)
+        self.background_color = "#FFFFFF";
+        self.click_handler = handlers.no_op
         # self.handshakes = set()
 
     @handler
-    async def handle_new_user(self, data, text):
-        await self.send_to_user(data["user_id"], utils.json_stringify({
-            "cmd" : "accept_user",
-            "state" : self.sseq
-        }))
+    async def handle_new_user(self, data):
+        await self.send_command_to_user(data["user_id"], "accept_user",
+            state=self.sseq,
+            display_state=[{"display_cmd" : "set_background_color", "color" : self.background_color}]
+        )
 
     @handler
-    async def handle_client_error(self, data, text):
+    async def handle_client_error(self, data):
         utils.print_error("Client sent an error: " + data["error"])
+
+    @handler
+    async def handle_click(self, msg):
+        utils.format_and_print_text(
+            """<orange>click :</orange>"""
+        )
+        print("   ", msg)
+        print("   ", msg["class"])
+        await self.send_command_to_user(msg["user_id"], "alert", 
+            alert_text=(msg["class"]["x"], msg["class"]["y"])
+        )
 
 
     def print_started_msg(self):
@@ -39,11 +53,23 @@ class SpectralSequenceChart(Channel):
                 f"""Visit "{colored_url}" to view.</green>"""
         )
 
+    # async def add_node(self, node : SseqNode):
+
+    async def broadcast_display_command(self, cmd, **kwargs):
+        await self.broadcast_command("display_setting", display_cmd=cmd, **kwargs)
+
+    async def send_display_command_to_user(self, uid, cmd, **kwargs):
+        await self.send_command_to_user(uid, "display_setting", display_cmd=cmd, **kwargs)
+
+    async def set_background_color(self, color):
+        self.background_color = color;
+        await self.broadcast_display_command("set_background_color", color=color)
+
     async def add_class(self, x : int, y : int, **kwargs):
         kwargs.update({"x" : x, "y" : y, "node_list" : [0]})
         c = self.sseq.add_class(**kwargs)
         kwargs.update({"id" : c.id})
-        handshake = await self.broadcast("add_class", kwargs)#, True)
+        handshake = await self.broadcast_command("add_class", arguments=kwargs)#, True)
         # await handshake
         return c  
 
@@ -51,7 +77,7 @@ class SpectralSequenceChart(Channel):
         kwargs.update({"type" : edge_type, "source" : source, "target" : target})
         e = self.sseq.add_edge(edge_type, **kwargs)
         kwargs.update({"id" : e.id, "source" : source.id, "target" : target.id})
-        await self.broadcast("add_edge", kwargs)
+        await self.broadcast_command("add_edge", arguments=kwargs)
         return e
 
     async def add_structline(self, source, target, **kwargs):
