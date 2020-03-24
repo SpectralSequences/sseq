@@ -47,7 +47,7 @@ impl FreeModule {
     // }
 
     pub fn max_computed_degree(&self) -> PyResult<i32> {
-        Ok(self.inner()?.max_table_degree())
+        Ok(self.inner()?.max_computed_degree())
     }
 
     pub fn number_of_gens_in_degree(&self, degree: i32) -> PyResult<usize> {

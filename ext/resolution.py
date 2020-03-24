@@ -95,39 +95,40 @@ class Resolution:
             await self.add_class(s, t, idx)
         await self.compute_filtration_one_products(s, t)
 
-    def resolve_old(self, n):
-        for t in range(n):
-            for s in range(n):
-                # print(s,t, " || ", *st_to_xy(s, t))
-                # print((stem, filtration), " <==> ", xy_to_st(stem,filtration))
-                self.step_if_needed(s,t)
-
     def resolve(self, n):
-        t = threading.Thread(target=self._resolve_thread(n), daemon=True)
+        t = threading.Thread(target=self._resolve_st_rectangle(n), daemon=True)
         t.start()
         # self._resolve_thread(n)()
 
-    def _resolve_thread(self, n):
+    def _resolve_st_rectangle(self, n):
         def run(): 
-            self.A.compute_basis(n + 1)
+            self.A.compute_basis(n)
             self.target_max_degree = n
-            self.rust_res.extend_through_degree(n)
+            self.rust_res.extend_through_degree(n, n)
             t0 = time.time()
-            # for t in range(n):
-            #     for s in range(n):
-            #         self.step_if_needed(s,t)
-            # for t in range(n):
-            #     for s in range(t, n):
-            #         print(s,t, " || ", *st_to_xy(s, t))
-            #         # print((stem, filtration), " <==> ", xy_to_st(stem,filtration))
-            #         self.step_if_needed(s,t)
+            for t in range(n):
+                for s in range(n):
+                    self.step_if_needed(s,t)
+
+            t1 = time.time()
+            time_elapsed = t1 - t0
+            print(f"Time taken to resolve {self.name} from stem {self.max_degree + 1} to stem {self.target_max_degree}:",  time_elapsed)
+            self.max_degree = self.target_max_degree
+        return run 
+
+
+    def _resolve_xy_rectangle(self, n):
+        def run(): 
+            self.A.compute_basis( x + y + 1)
+            self.target_max_degree = n
+            self.rust_res.extend_through_degree( x + y + 2)
+            t0 = time.time()
             for x in range(n):
                 for y in range(n):
-                    # print(*xy_to_st(x,y), " || ", x, y)
                     self.step_if_needed(*xy_to_st(x,y))
             t1 = time.time()
             time_elapsed = t1 - t0
-            # print(f"Time taken to resolve {self.name} from stem {self.max_degree + 1} to stem {self.target_max_degree}:",  time_elapsed)
+            print(f"Time taken to resolve {self.name} from stem {self.max_degree + 1} to stem {self.target_max_degree}:",  time_elapsed)
             self.max_degree = self.target_max_degree
         return run 
 
@@ -137,6 +138,9 @@ class Resolution:
             f = asyncio.run_coroutine_threadsafe(self.after_step(i, j), self.loop)
             f.result()
             self.finished_degrees.add((i, j))
+
+    def cocycle_string(self, x, y, idx):
+        return self.rust_res.cocycle_string(*xy_to_st(x, y), idx)
 
     async def compute_filtration_one_products(self, target_s, target_t):
         if target_s == 0:

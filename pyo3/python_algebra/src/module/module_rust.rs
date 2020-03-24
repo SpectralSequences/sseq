@@ -64,6 +64,10 @@ impl ModuleT for ModuleRust {
         because_enum_dispatch_doesnt_work_for_me!(min_degree, self, )
     }
 
+    fn max_computed_degree(&self) -> i32 {
+        because_enum_dispatch_doesnt_work_for_me!(max_computed_degree, self, )
+    }
+
     fn compute_basis(&self, degree: i32) {
         because_enum_dispatch_doesnt_work_for_me!(compute_basis, self, degree)
     }

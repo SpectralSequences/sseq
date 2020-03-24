@@ -30,6 +30,10 @@ pub fn null_ptr_exception_if_none<T>(opt : Option<T>) -> pyo3::PyResult<()> {
     )
 }
 
+pub fn bidegree_string(s : u32, t : i32) -> String {
+    format!("(s, t) = ({}, {}) <==> (x, y) = ({}, {})", s, t, t-s as i32, s)
+}
+
 #[macro_export]
 macro_rules! exception {
     ($error_type : ident ) => {         
