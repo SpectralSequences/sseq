@@ -25,6 +25,7 @@
 use std::cmp::Ordering;
 use std::sync::Once;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 #[cfg(feature = "json")]
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use enum_dispatch::enum_dispatch;
@@ -660,7 +661,7 @@ impl PartialEq for FpVector {
 
 impl Eq for FpVector {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct VectorContainer {
     dimension : usize,
     slice_start : usize,
@@ -1190,6 +1191,13 @@ impl Load for FpVector {
         };
 
         Ok(result)
+    }
+}
+
+
+impl Hash for FpVector {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.vector_container().hash(state);
     }
 }
 
