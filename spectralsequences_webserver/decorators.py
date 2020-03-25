@@ -46,6 +46,24 @@ def handler(func):
     global_handlers[handler_name] = func
     return func
 
+class Dispatch(dict):
+    def __init__(self, prefix, cmd_name):
+        self.prefix = prefix
+        self.cmd_name = cmd_name
+
+    def handle_event(self, msg):
+        if self.cmd_name not in msg:
+            raise ValueError("Missing command")
+        if msg[self.cmd_name] not in self:
+            raise ValueError("Undefined command")
+        self[msg[self.cmd_name]](msg)
+
+    def __call__(self, func):
+        assert(func.__name__.startswith(self.prefix))
+        handler_name = func.__name__[len(self.prefix):]
+        self[handler_name] = func
+        return func
+
 def monkey_patch(cls):
     def helper(func):
         setattr(cls, func.__name__, func)

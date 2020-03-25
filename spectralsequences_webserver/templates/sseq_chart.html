@@ -55,6 +55,34 @@
 
 <script>
 "use strict";
+class BadMessageError extends Error {
+    constructor(...args) {
+        super(...args)
+        this.name = this.constructor.name;
+        this.stack = this.stack.split("\n").slice(1).join("\n")
+    }
+}
+
+class UnknownCommandError extends BadMessageError {
+    constructor(...args) {
+        super(...args)
+        this.name = this.constructor.name;
+        this.stack = this.stack.split("\n").slice(1).join("\n")
+    }
+}
+
+class UnknownDisplayCommandError extends UnknownCommandError {
+    constructor(...args) {
+        super(...args)
+        this.name = this.constructor.name;
+        this.stack = this.stack.split("\n").slice(1).join("\n")
+    }
+}
+
+
+
+
+
 let display;
 let sseq;
 let ws = new WebSocket("ws://localhost:{{ PORT }}/subscribe_sseq/{{ channel_name }}");
@@ -64,7 +92,6 @@ ws.onopen = function(){
 
 function send_message(msg) {
     let json_str = JSON.stringify(msg);
-    console.log(json_str);
     ws.send(String(json_str));
 }
 
@@ -95,52 +122,44 @@ function send_error(orig_msg, error) {
     // console.error(`Message md5: ${msg_md5}`);
 }
 
-ws.onmessage = function(event) {
-    let msg = JSON.parse(event.data);
-    console.log(msg);
+
+function handle_message_general_dispatch(cmd_name, dispatch, msg){
     let succeeded = true;
     let error;
     try {
-        if(event_handlers[msg.cmd] === undefined) {
-            throw new UnknownCommandError(`Console sent unknown command "${msg.cmd}".`);
+        if(msg[cmd_name] === undefined) {
+            let message_type = dispatch === main_dispatch ? "message" : `${msg.cmd} command`;
+            let command_type = dispatch === main_dispatch ? "command" : "subcommand";
+            throw new UnknownCommandError(`Console sent ${message_type} missing ${command_type}.`);
+        } else if(dispatch[msg[cmd_name]] === undefined) {
+            let command_type = dispatch === main_dispatch ? "command" : `${msg.cmd} subcommand`;
+            throw new UnknownCommandError(`Console sent unknown ${command_type} "${msg[cmd_name]}".`);
         } else {
-            event_handlers[msg.cmd](msg);
+            dispatch[msg[cmd_name]](msg);
         }
     } catch(err) {
         succeeded = false;
         error = err;
     }
 
-    if(msg.request_handshake) {
-        send_handshake(msg, succeeded, error);
-    } else if(!succeeded) {
-        send_error(msg, error)
+    if(!succeeded) {
+        send_error(msg, error);
     }
+}
+
+function handle_message_main_dispatch(msg) {
+    handle_message_general_dispatch("cmd", main_dispatch, msg);
+}
+
+function handle_message_sub_dispatch(dispatch, msg) {
+    handle_message_general_dispatch("subcommand", dispatch, msg);
+}
+
+ws.onmessage = function(event) {
+    let msg = JSON.parse(event.data);
+    handle_message_main_dispatch(msg);
 };
 
-class BadMessageError extends Error {
-    constructor(...args) {
-        super(...args)
-        this.name = this.constructor.name;
-        this.stack = this.stack.split("\n").slice(1).join("\n")
-    }
-}
-
-class UnknownCommandError extends BadMessageError {
-    constructor(...args) {
-        super(...args)
-        this.name = this.constructor.name;
-        this.stack = this.stack.split("\n").slice(1).join("\n")
-    }
-}
-
-class UnknownDisplayCommandError extends UnknownCommandError {
-    constructor(...args) {
-        super(...args)
-        this.name = this.constructor.name;
-        this.stack = this.stack.split("\n").slice(1).join("\n")
-    }
-}
 
 
 function click_handler(cls) {
@@ -149,7 +168,7 @@ function click_handler(cls) {
     }
 }
 
-let event_handlers = {
+let main_dispatch = {
     "accept_user" : function(msg) {
         console.log("accepted user:", msg);
         sseq = SpectralSequenceChart.from_JSON(msg.state);
@@ -162,9 +181,10 @@ let event_handlers = {
         // Object.assign(sseq, msg.state)
     },
 
-    "add_class" : function(msg) {
-        sseq.add_class(msg.arguments);
-        display.update();
+    "class" : function(msg) {
+        handle_message_sub_dispatch(class_dispatch, msg)
+        // do_class_function(msg.arguments);
+        // display.update();
     },
 
     "add_edge" : function(msg) {
@@ -172,8 +192,8 @@ let event_handlers = {
         display.update();
     },
 
-    "display_setting" : function(msg) {
-        set_display_setting(msg);
+    "display" : function(msg) {
+        handle_message_sub_dispatch(display_dispatch, msg);
     },
 
     "alert" : function(msg) {
@@ -181,35 +201,27 @@ let event_handlers = {
     }
 };
 
-let display_functions = {
+let display_dispatch = {
     "set_background_color" : function(msg) {
         display.setBackgroundColor(msg.color);
     },
 }
 
-function set_display_setting(msg){
-    let succeeded = true;
-    let error;
-    try {
-        if(display_functions[msg.display_cmd] === undefined) {
-            throw new UnknownDisplayCommandError(`Console sent unknown display command "${msg.display_cmd}".`);
-        } else {
-            display_functions[msg.display_cmd](msg);
-        }
-    } catch(err) {
-        succeeded = false;
-        error = err;
-    }
-
-    if(!succeeded) {
-        send_error(msg, error)
+let class_dispatch = {
+    "add" : function(msg) {
+        sseq.add_class(msg.arguments);
+        display.update();
+    },
+    "set_name" : function(msg) {
+        sseq.classes_by_degree.get([msg.arguments.x, msg.arguments.y])[msg.arguments.idx].name = msg.arguments.name;
     }
 }
 
+
 function set_display_settings(display_settings) {
     for(let msg of display_settings) {
-        console.log("set_display_setting:", msg);
-        set_display_setting(msg)
+        msg["cmd"] = "display";
+        handle_message_sub_dispatch(display_dispatch, msg);
     }
 }
 </script>        

@@ -4,21 +4,9 @@ import pathlib
 import sys
 
 from . import repl 
+from .namespace import add_stuff_to_repl_namespace
 from .. import utils
 from .. import config
-
-def add_stuff_to_repl_namespace(repl):
-    from ..chart import SpectralSequenceChart
-    import ext
-    repl_globals = repl.get_globals()
-    repl_globals["ext"] = ext
-    repl_globals["algebra"] = ext.algebra
-    repl_globals["module"] = ext.module
-    repl_globals["AdemAlgebra"] = ext.algebra.AdemAlgebra
-    repl_globals["MilnorAlgebra"] = ext.algebra.MilnorAlgebra
-    repl_globals["FDModule"] = ext.module.FDModule
-    repl_globals["Resolution"] = ext.resolution.Resolution
-    repl_globals["SpectralSequenceChart"] = SpectralSequenceChart
 
 def start_repl():
     f = repl.make_repl(
@@ -31,8 +19,8 @@ def start_repl():
     task.add_done_callback(_handle_task_exception)
 
 def configure_repl(r):
-    add_stuff_to_repl_namespace(r)
-    exec_file_if_exists(r, config.USER_DIR / "on_repl_init.py")
+    add_stuff_to_repl_namespace(r.get_globals())
+    exec_file_if_exists(r, config.USER_DIR / "on_repl_init.py", working_directory=config.USER_DIR)
     _handle_script_args(r, config)
 
 def _handle_script_args(r, config):
@@ -44,13 +32,13 @@ def _handle_script_args(r, config):
         else:
             utils.print_warning(f"""Cannot find file "{arg}". Ignoring it!""")
 
-def exec_file(r, path : pathlib.PosixPath):
-    f = asyncio.ensure_future(r.exec_file(path))
+def exec_file(r, path : pathlib.Path, working_directory=None):
+    f = asyncio.ensure_future(r.exec_file(path, working_directory))
     f.add_done_callback(_handle_input_file_exception)
 
-def exec_file_if_exists(r, path):
+def exec_file_if_exists(r, path : pathlib.Path, working_directory=None):
     if path.is_file():
-        exec_file(r, path)
+        exec_file(r, path, working_directory)
 
 def _handle_input_file_exception(f):
     try:

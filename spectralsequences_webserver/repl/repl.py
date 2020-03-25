@@ -2,6 +2,7 @@ from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
 import asyncio
 # import logging
 import pathlib
+from signal import SIGTERM
 from textwrap import dedent, indent
 import types
 from typing import overload
@@ -24,7 +25,6 @@ from ptpython.repl import embed, PythonRepl
 from ptpython.python_input import PythonInput
 from pygments.lexers import PythonLexer, PythonTracebackLexer
 
-
 # logger = logging.getLogger("hi")
 
 def _lex_python_traceback(tb):
@@ -44,42 +44,20 @@ def shutdown():
 def get_compiler_flags(self):
     return PyCF_ALLOW_TOP_LEVEL_AWAIT
 
-def exit(
-    self,
-    result = None,
-    exception = None,
-    style: str = "", 
-) -> None:
-    assert result is None or exception is None
-
-    if self.future is None:
-        raise Exception("Application is not running. Application.exit() failed.")
-
-    if self.future.done():
-        raise Exception("Return value already set. Application.exit() failed.")
-
-    
-    self.exit_style = style
-
-    if exception is not None:
-        utils.print_error("We cannot really quit right now...")
-        # shutdown()
-        # self.future.set_exception(exception)
-    else:
-        self.future.set_result(result)
-
 async def make_repl(globals, locals, **kwargs):
     try:
         await embed(globals, locals, return_asyncio_coroutine=True, patch_stdout=True, **kwargs)
-    except (EOFError, KeyboardInterrupt):
-        print("Press ^C again...")
-        shutdown()
-
+    except EOFError:
+        sys.exit(0)
+        
 @monkey_patch(PythonRepl)
 async def run_async(self) -> None:
     while True:
-        text = await self.app.run_async()
-        await self._process_text(text)
+        try:
+            text = await self.app.run_async()
+            await self._process_text(text)
+        except KeyboardInterrupt:
+            pass
 
 @monkey_patch(PythonRepl)
 async def _process_text(self, line: str) -> None:
@@ -148,23 +126,25 @@ async def eval_code(self, line):
         return result
 
 @monkey_patch(PythonRepl)
-async def exec_file(self, path : pathlib.PosixPath):
-    """ Exectute file."""
-    await self.exec_code(path.read_text())
+async def exec_file(self, path : pathlib.Path, working_directory=None):
+    await self.exec_code(path.read_text(), working_directory)
 
 @monkey_patch(PythonRepl)
-async def exec_code(self, lines):
+async def exec_code(self, lines, working_directory=None):
     mod = _asyncify(lines)
     async_wrapper_code = self.compile_with_flags(mod, 'exec')
     exec(async_wrapper_code, self.get_globals(), self.get_locals()) 
     do_the_thing = self.compile_with_flags("await __async_def_wrapper__()", "eval")
+    save_working_dir = os.getcwd()
+    if working_directory is not None:
+        os.chdir(working_directory)
     try:
         result = await eval(do_the_thing, self.get_globals(), self.get_locals())
     except:
-        print(sys.exc_info()[2].tb_frame)
         raise sys.exc_info()[1].with_traceback(sys.exc_info()[2].tb_next.tb_next)
         # raise
         # raise Exception from (exc_info[0], exc_info[1], exc_info[2].tb_next.tb_next)
+    os.chdir(save_working_dir)
     self.get_globals().update(result)
 
 
