@@ -7,7 +7,7 @@ use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::module::{FDModule, FiniteModule, FreeModule, Module};
 use crate::CCC;
 use bivec::BiVec;
-use fp::matrix::Subspace;
+use fp::matrix::Subquotient;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use std::sync::Arc;
@@ -132,7 +132,7 @@ pub trait ChainComplex: Send + Sync + 'static {
         d_cur.compute_kernels_and_quasi_inverses_through_degree(internal_degree);
         let kernel = d_prev.kernel(internal_degree);
         let image = d_cur.image(internal_degree);
-        let homology_basis = Subspace::subquotient(
+        let homology_basis = Subquotient::subquotient(
             Some(kernel),
             image.as_ref(),
             d_prev.source().dimension(internal_degree),
@@ -205,7 +205,7 @@ pub trait CochainComplex: Send + Sync + 'static {
         d_cur.compute_kernels_and_quasi_inverses_through_degree(internal_degree);
         let kernel = d_prev.kernel(internal_degree);
         let image = d_cur.image(internal_degree);
-        let cohomology_basis = Subspace::subquotient(
+        let cohomology_basis = Subquotient::subquotient(
             Some(kernel),
             image.as_ref(),
             d_prev.source().dimension(internal_degree),

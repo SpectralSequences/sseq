@@ -81,9 +81,8 @@ impl<A: Algebra> Module for FreeModule<A> {
 
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
         let opgen = self.index_to_op_gen(degree, idx);
-        let mut op_str = self
-            .algebra
-            .basis_element_to_string(opgen.operation_degree, opgen.operation_index);
+        let mut op_str = 
+            self.algebra().basis_element_to_string(opgen.operation_degree, opgen.operation_index);
         if &*op_str == "1" {
             op_str = "".to_string();
         } else {
@@ -113,9 +112,8 @@ impl<A: Algebra> Module for FreeModule<A> {
         let generator_index = operation_generator.generator_index;
 
         // Now all of the output elements are going to be of the form s * x. Find where such things go in the output vector.
-        let num_ops = self
-            .algebra()
-            .dimension(module_operation_degree + op_degree, generator_degree);
+        let num_ops = self.algebra()
+                     .dimension(module_operation_degree + op_degree, generator_degree);
         let output_block_min = self.operation_generator_to_index(
             module_operation_degree + op_degree,
             0,
@@ -132,7 +130,7 @@ impl<A: Algebra> Module for FreeModule<A> {
             op_index,
             module_operation_degree,
             module_operation_index,
-            0,
+            generator_degree
         );        
     }
 

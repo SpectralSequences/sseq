@@ -38,35 +38,8 @@ impl Subspace {
         }
     }
 
-    /// Given a chain of subspaces `subspace` < `space` < k^`ambient_dimension`, compute the
-    /// subquotient `space`/`subspace`. The answer is expressed as a list of basis vectors of
-    /// `space` whose image in `space`/`subspace` forms a basis, and a basis vector of `space` is
-    /// described by its index in the list of basis vectors of `space` (not the ambient space).
-    ///
-    /// # Arguments
-    ///  * `space` - If this is None, it is the whole space k^`ambient_dimension`
-    ///  * `subspace` - If this is None, it is empty
-    pub fn subquotient(space : Option<&Subspace>, subspace : Option<&Subspace>, ambient_dimension : usize) -> Vec<usize> {
-        match subspace {
-            None => {
-                if let Some(sp) = space {
-                    sp.pivots().iter().filter( |i| **i >= 0).map(|i| *i as usize).collect()
-                } else {
-                    (0..ambient_dimension).collect()
-                }
-            },
-            Some(subsp) => {
-                if let Some(sp) = space {
-                    sp.pivots().iter().zip(subsp.pivots().iter())
-                      .filter(|(x,y)| {
-                          debug_assert!(**x >= 0 || **y < 0);
-                          **x >= 0 && **y < 0
-                        }).map(|(x,_)| *x as usize).collect()
-                } else {
-                    (0..ambient_dimension).filter( |i| subsp.pivots()[*i] < 0).collect()
-                }
-            }
-        }
+    pub fn empty_space(p : ValidPrime, dim : usize) -> Self {
+        Self::new(p, 0, dim)
     }
 
     pub fn entire_space(p : ValidPrime, dim : usize) -> Self {
@@ -145,6 +118,9 @@ impl Subspace {
     /// that have a 0 in every column where there is a pivot in `matrix`
     pub fn reduce(&self, vector : &mut FpVector){
         assert_eq!(vector.dimension(), self.columns());
+        if self.rows() == 0 {
+            return;
+        }
         let p = self.prime();
         let mut row = 0;
         let columns = vector.dimension();
@@ -215,4 +191,17 @@ impl Subspace {
             self.pivots_mut()[i] = i as isize;
         }
     }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_empty_subspace() {
+
+        z.reduce(elt);
+    }
+
 }

@@ -127,8 +127,8 @@ pub struct AdemAlgebra {
     basis_table : OnceVec<Vec<AdemBasisElement>>, // degree -> index -> AdemBasisElement
     basis_element_to_index_map : OnceVec<HashMap<AdemBasisElement, usize>>, // degree -> AdemBasisElement -> index
     multiplication_table : OnceVec<Vec<Vec<FpVector>>>,// degree -> first square -> admissibile sequence idx -> result vector
-//    excess_table : OnceVec<Vec<u32>>,
-    #[allow(dead_code)]
+    excess_table : OnceVec<Vec<usize>>,
+    // #[allow(dead_code)]
     sort_order : Option<fn(&AdemBasisElement, &AdemBasisElement) -> Ordering>
 }
 
@@ -203,14 +203,25 @@ impl Algebra for AdemAlgebra {
             self.generate_multiplication_table_2(*next_degree, max_degree);
         }
 
+        if self.unstable {
+            self.generate_excess_table(max_degree);
+        }
+
         *next_degree = max_degree + 1;
     }
 
-    fn dimension(&self, degree : i32, _excess : i32) -> usize {
+    fn dimension(&self, degree : i32, excess : i32) -> usize {
         if degree < 0 {
-            return 0;
+            0
+        } else if self.unstable && excess < degree {
+            if excess < 0 {
+                0
+            } else {
+                self.excess_table[degree as usize][excess as usize]
+            }
+        } else {
+            self.basis_table[degree as usize].len()
         }
-        self.basis_table[degree as usize].len()
     }
 
     fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, 
@@ -406,7 +417,10 @@ impl AdemAlgebra {
         let basis_table = OnceVec::new();
         let basis_element_to_index_map = OnceVec::new();
         let multiplication_table = OnceVec::new();
-//        let excess_table = OnceVec::new();
+        let excess_table = OnceVec::new();
+        let sort_order = if unstable { 
+            Some(adem_basis_element_excess_sort_order as fn(&AdemBasisElement, &AdemBasisElement) -> Ordering) 
+        } else { None };
         Self {
             p,
             name : format!("AdemAlgebra(p={})", p),
@@ -417,8 +431,8 @@ impl AdemAlgebra {
             basis_table,
             basis_element_to_index_map,
             multiplication_table,
-//            excess_table,
-            sort_order : None
+            excess_table,
+            sort_order
         }
     }
 
@@ -500,7 +514,12 @@ impl AdemAlgebra {
         self.generate_basis_even(next_degree, max_degree);
         for n in next_degree ..= max_degree {
             let table = &self.even_basis_table[n as usize];
-            self.basis_table.push(table.clone());
+            // Sorting breaks the algorithm above.
+            let mut new_table = table.clone();
+            if let Some(f) = self.sort_order {
+                new_table.sort_by(f);
+            }            
+            self.basis_table.push(new_table);
         }
     }
 
@@ -565,10 +584,10 @@ impl AdemAlgebra {
                 }
             }
         }
+        if let Some(f) = self.sort_order {
+            basis.sort_by(f);
+        }
         self.basis_table.push(basis);
-        // if let Some(f) = self.sort_order {
-            // qsort(basisElementBuffer, cur_basis_len, sizeof(AdemBasisElement), algebra->public_algebra.sort_order);
-        // }
     }
 
     fn generate_basis_element_to_index_map(&self, next_degree : i32, max_degree : i32){
@@ -620,11 +639,11 @@ impl AdemAlgebra {
             let mut table : Vec<Vec<FpVector>> = Vec::with_capacity((n + 1) as usize);
             table.push(Vec::with_capacity(0));
             for x in 1 ..= n {
-                let dimension = self.dimension(n - x, -1);
+                let dimension = self.dimension(n - x, i32::max_value());
                 table.push(Vec::with_capacity(dimension));
             }
             for x in (1 ..= n).rev() {
-                for idx in 0 .. self.dimension(n - x, -1) {
+                for idx in 0 .. self.dimension(n - x, i32::max_value()) {
                     let res = self.generate_multiplication_table_2_step(&table, n, x, idx);
                     table[x as usize].push(res);
                 }
@@ -634,7 +653,7 @@ impl AdemAlgebra {
     }
 
     fn generate_multiplication_table_2_step(&self, table : &[Vec<FpVector>], n : i32, x : i32, idx : usize) -> FpVector {
-        let output_dimension = self.dimension(n, -1);
+        let output_dimension = self.dimension(n, i32::max_value());
         let mut result = FpVector::new(self.prime(), output_dimension);
         let cur_basis_elt = self.basis_element_from_index(n-x, idx);
         let x = x as u32;        
@@ -698,17 +717,17 @@ impl AdemAlgebra {
             for i in 0 ..= n/q {
                 for b in 0 ..= 1 {
                     // This corresponds to x = 2i + b
-                    let dimension = self.dimension(n - q * i - b, -1);
+                    let dimension = self.dimension(n - q * i - b, i32::max_value());
                     table.push(Vec::with_capacity(dimension));
                 }
             }
             for i in (0 ..= n/q).rev() {
-                for idx in 0 .. self.dimension(n - q * i - 1, -1) {
+                for idx in 0 .. self.dimension(n - q * i - 1, i32::max_value()) {
                     let res = self.generate_multiplication_table_generic_step(&table, n, 2 * i + 1, idx);
                     table[1 + 2 * i as usize].push(res);
                 }
                 if i != 0 {
-                    for idx in 0 .. self.dimension(n - q * i, -1) {
+                    for idx in 0 .. self.dimension(n - q * i, i32::max_value()) {
                         let res = self.generate_multiplication_table_generic_step(&table, n, 2 * i, idx);
                         table[2 * i as usize].push(res);
                     }
@@ -731,7 +750,7 @@ impl AdemAlgebra {
 
         let x : u32 = x as u32;
 
-        let output_dimension = self.dimension(n, -1);
+        let output_dimension = self.dimension(n, i32::max_value());
         let mut result = FpVector::new(self.prime(), output_dimension);
 
         // If x is just \beta, this is super easy.
@@ -854,7 +873,7 @@ impl AdemAlgebra {
         if coeff == 0 {
             return;
         }
-        assert!(r_index < self.dimension(r_degree, excess + s_degree));
+        assert!(r_index < self.dimension(r_degree, i32::max_value()));
         assert!(s_index < self.dimension(s_degree, excess));
 
         if s_degree == 0 {
@@ -1056,8 +1075,8 @@ impl AdemAlgebra {
             bocksteins : 0,
             ps : vec![second_sq]
         });
-        let mut out_vec = FpVector::new(ValidPrime::new(2), self.dimension(degree, -1));
-        self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, -1);
+        let mut out_vec = FpVector::new(ValidPrime::new(2), self.dimension(degree, i32::max_value()));
+        self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, i32::max_value());
         out_vec.set_entry(idx, 0);
         let mut result = Vec::new();
         result.push((1, (first_degree, first_idx), (second_degree, second_idx)));
@@ -1132,8 +1151,8 @@ impl AdemAlgebra {
             bocksteins : 0,
             ps : vec![second_sq]
         });
-        let mut out_vec = FpVector::new(p, self.dimension(degree, -1));
-        self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, -1);
+        let mut out_vec = FpVector::new(p, self.dimension(degree, i32::max_value()));
+        self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, i32::max_value());
         let mut result = Vec::new();
         let c = out_vec.entry(idx);
         assert!(c != 0);
@@ -1167,6 +1186,27 @@ impl AdemAlgebra {
             ps : vec![x]
         });
         (degree, index)
+    }
+}
+
+impl AdemAlgebra {
+    fn generate_excess_table(&self, max_degree : i32){
+        for n in self.excess_table.len() as i32 ..= max_degree {
+            let dim = self.dimension(n, i32::max_value());
+            let mut new_entry = Vec::with_capacity(n as usize);
+            let mut cur_excess = 0;
+            for i in 0 .. dim {
+                let elt = self.basis_element_from_index(n, i);
+                for _ in cur_excess .. elt.excess {
+                    new_entry.push(i);
+                }
+                cur_excess = elt.excess;
+            }
+            for _ in cur_excess .. n {
+                new_entry.push(dim);
+            }
+            self.excess_table.push(new_entry);
+        }
     }
 }
 
@@ -1288,7 +1328,7 @@ mod tests {
         let algebra = AdemAlgebra::new(p, *p != 2, false);
         algebra.compute_basis(max_degree);
         for i in 1 ..= max_degree {
-            let dim = algebra.dimension(i, -1);
+            let dim = algebra.dimension(i, i32::max_value());
             for j in 0 .. dim {
                 let b = algebra.basis_element_from_index(i, j);
                 assert_eq!(algebra.basis_element_to_index(&b), j);
@@ -1308,7 +1348,7 @@ mod tests {
         let algebra = AdemAlgebra::new(p, *p != 2, false);
         algebra.compute_basis(max_degree);
         for i in 1 ..= max_degree {
-            let dim = algebra.dimension(i, -1);
+            let dim = algebra.dimension(i, i32::max_value());
             let gens = algebra.generators(i);
             println!("i : {}, gens : {:?}", i, gens);
             let mut out_vec = FpVector::new(p, dim);
@@ -1318,7 +1358,7 @@ mod tests {
                 }
                 for (coeff, (first_degree, first_idx), (second_degree, second_idx)) in algebra.decompose_basis_element(i, j) {
                     print!("{} * {} * {}  +  ", coeff, algebra.basis_element_to_string(first_degree,first_idx), algebra.basis_element_to_string(second_degree, second_idx));
-                    algebra.multiply_basis_elements(&mut out_vec, coeff, first_degree, first_idx, second_degree, second_idx, -1);
+                    algebra.multiply_basis_elements(&mut out_vec, coeff, first_degree, first_idx, second_degree, second_idx, i32::max_value());
                 }
                 assert!(out_vec.entry(j) == 1, 
                     format!("{} != {}", algebra.basis_element_to_string(i, j), algebra.element_to_string(i, &out_vec)));
@@ -1342,7 +1382,7 @@ mod tests {
         let mut output_vec = FpVector::new(p, 0);
         for i in 1 ..= max_degree {
             output_vec.clear_slice();
-            let output_dim = algebra.dimension(i, -1);
+            let output_dim = algebra.dimension(i, i32::max_value());
             if output_dim > output_vec.dimension() {
                 output_vec = FpVector::new(p, output_dim);
             }
@@ -1350,7 +1390,7 @@ mod tests {
             let relations = algebra.relations_to_check(i);
             for relation in relations {
                 for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                    algebra.multiply_basis_elements(&mut output_vec, *coeff, *deg_1, *idx_1, *deg_2, *idx_2, -1);
+                    algebra.multiply_basis_elements(&mut output_vec, *coeff, *deg_1, *idx_1, *deg_2, *idx_2, i32::max_value());
                 }
                 if !output_vec.is_zero() {
                     let mut relation_string = String::new();
