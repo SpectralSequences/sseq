@@ -1,6 +1,6 @@
 use crate::prime::ValidPrime;
 use crate::vector::{FpVector, FpVectorT};
-use super::matrix::Matrix;
+use super::Matrix;
 
 /// A subspace of a vector space.
 /// # Fields
