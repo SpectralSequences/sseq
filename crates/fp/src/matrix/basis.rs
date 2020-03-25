@@ -1,9 +1,9 @@
 use super::{Matrix, Subspace};
 use crate::vector::{FpVector, FpVectorT};
 
-// struct SubquotientBasis {
-//     basis : Matrix,
-//     // quotient : Option<&Subspace>, 
+// struct Subquotient {
+    // basis : Matrix,
+    // quotient : Option<&Subspace>, 
 // }
 
 

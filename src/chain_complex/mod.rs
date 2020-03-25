@@ -119,8 +119,7 @@ pub trait ChainComplex: Send + Sync + 'static {
         result.add(
             &self
                 .differential(homological_degree)
-                .kernel(internal_degree)
-                .matrix[row_index],
+                .kernel(internal_degree)[row_index],
             coeff,
         );
     }
@@ -192,8 +191,7 @@ pub trait CochainComplex: Send + Sync + 'static {
         result.add(
             &self
                 .differential(homological_degree)
-                .kernel(internal_degree)
-                .matrix[row_index],
+                .kernel(internal_degree)[row_index],
             coeff,
         );
     }

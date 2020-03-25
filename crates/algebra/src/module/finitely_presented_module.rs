@@ -261,7 +261,7 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
             let image = qi.image.as_ref().unwrap();
             let mut gen_idx_to_fp_idx = Vec::new();
             let mut fp_idx_to_gen_idx = Vec::new();
-            let pivots = &image.matrix.pivots;
+            let pivots = &image.pivots();
             for (i, &pivot) in pivots.iter().enumerate() {
                 if pivot < 0 {
                     gen_idx_to_fp_idx.push(fp_idx_to_gen_idx.len() as isize);

@@ -475,7 +475,7 @@ where
 
                 for li in 0..target_left_dim {
                     for ri in 0..target_right_dim {
-                        if matrix.pivots[index] >= 0 {
+                        if matrix.pivots()[index] >= 0 {
                             let true_index = self.target.offset(degree, s)
                                 + self.target.modules[s].offset(degree, left_t)
                                 + li * target_right_dim

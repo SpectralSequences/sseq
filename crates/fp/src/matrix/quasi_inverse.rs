@@ -37,7 +37,7 @@ impl QuasiInverse {
         let mut row = 0;
         let columns = input.dimension();
         for i in 0 .. columns {
-            if let Some(image) = &self.image { if image.matrix.pivots[i] < 0 {
+            if let Some(image) = &self.image { if image.pivots()[i] < 0 {
                 continue;
             }}
             let c = input.entry(i);

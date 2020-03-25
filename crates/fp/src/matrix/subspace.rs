@@ -15,6 +15,20 @@ pub struct Subspace {
     pub matrix : Matrix
 }
 
+impl std::ops::Deref for Subspace {
+    type Target = Matrix;
+
+    fn deref(&self) -> &Matrix {
+        &self.matrix
+    }
+}
+
+impl std::ops::DerefMut for Subspace {
+    fn deref_mut(&mut self) -> &mut Matrix {
+        &mut self.matrix
+    }
+}
+
 impl Subspace {
     pub fn new(p : ValidPrime, rows : usize, columns : usize) -> Self {
         let mut matrix = Matrix::new(p, rows, columns);
@@ -36,20 +50,20 @@ impl Subspace {
         match subspace {
             None => {
                 if let Some(sp) = space {
-                    sp.matrix.pivots.iter().filter( |i| **i >= 0).map(|i| *i as usize).collect()
+                    sp.pivots().iter().filter( |i| **i >= 0).map(|i| *i as usize).collect()
                 } else {
                     (0..ambient_dimension).collect()
                 }
             },
             Some(subsp) => {
                 if let Some(sp) = space {
-                    sp.matrix.pivots.iter().zip(subsp.matrix.pivots.iter())
+                    sp.pivots().iter().zip(subsp.pivots().iter())
                       .filter(|(x,y)| {
                           debug_assert!(**x >= 0 || **y < 0);
                           **x >= 0 && **y < 0
                         }).map(|(x,_)| *x as usize).collect()
                 } else {
-                    (0..ambient_dimension).filter( |i| subsp.matrix.pivots[*i] < 0).collect()
+                    (0..ambient_dimension).filter( |i| subsp.pivots()[*i] < 0).collect()
                 }
             }
         }
@@ -58,8 +72,8 @@ impl Subspace {
     pub fn entire_space(p : ValidPrime, dim : usize) -> Self {
         let mut result = Self::new(p, dim, dim);
         for i in 0..dim {
-            result.matrix[i].set_entry(i, 1);
-            result.matrix.pivots[i] = i as isize;
+            result[i].set_entry(i, 1);
+            result.pivots_mut()[i] = i as isize;
         }
         result
     }
@@ -70,8 +84,8 @@ impl Subspace {
     /// when creating the subspace.
     pub fn add_vector(&mut self, row : &FpVector) {
         let last_row = self.matrix.rows() - 1;
-        self.matrix[last_row].assign(row);
-        self.matrix.row_reduce();
+        self[last_row].assign(row);
+        self.row_reduce();
     }
 
     pub fn add_vectors(&mut self, mut rows : impl std::iter::Iterator<Item=FpVector>) {
@@ -79,7 +93,7 @@ impl Subspace {
         'outer: loop {
             let mut first_row = num_rows;
             for i in 0 .. num_rows {
-                if self.matrix[i].is_zero() {
+                if self[i].is_zero() {
                     first_row = i;
                     break;
                 }
@@ -91,7 +105,7 @@ impl Subspace {
             for i in first_row .. num_rows {
                 if let Some(v) = rows.next() {
                     assert_eq!(v.dimension(), self.matrix.columns());
-                    self.matrix[i] = v;
+                    self[i] = v;
                 } else {
                     break 'outer;
                 }
@@ -106,7 +120,7 @@ impl Subspace {
         'outer: loop {
             let mut first_row = num_rows;
             for i in 0 .. num_rows {
-                if self.matrix[i].is_zero() {
+                if self[i].is_zero() {
                     first_row = i;
                     break;
                 }
@@ -117,7 +131,7 @@ impl Subspace {
 
             for i in first_row .. num_rows {
                 if let Some(v) = rows.next() {
-                    self.matrix[i].set_entry(v, 1);
+                    self[i].set_entry(v, 1);
                 } else {
                     break 'outer;
                 }
@@ -130,17 +144,17 @@ impl Subspace {
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
     /// that have a 0 in every column where there is a pivot in `matrix`
     pub fn reduce(&self, vector : &mut FpVector){
-        assert_eq!(vector.dimension(), self.matrix.columns());
-        let p = self.matrix.prime();
+        assert_eq!(vector.dimension(), self.columns());
+        let p = self.prime();
         let mut row = 0;
         let columns = vector.dimension();
         for i in 0 .. columns {
-            if self.matrix.pivots[i] < 0 {
+            if self.pivots()[i] < 0 {
                 continue;
             }
             let c = vector.entry(i);
             if c != 0 {
-                vector.add(&self.matrix[row], *p - c);
+                vector.add(&self[row], *p - c);
             }
             row += 1;
         }
@@ -152,12 +166,12 @@ impl Subspace {
         let mut row = 0;
         let columns = vector.dimension();
         for i in 0 .. columns {
-            if self.matrix.pivots[i] < 0 {
+            if self.matrix.pivots()[i] < 0 {
                 continue;
             }
             let c = vector.entry(i);
             if c != 0 {
-                vector.shift_add(&self.matrix[row], *p - c);
+                vector.shift_add(&self[row], *p - c);
             }
             row += 1;
         }
@@ -174,7 +188,7 @@ impl Subspace {
     }
 
     pub fn dimension(&self) -> usize {
-        self.matrix.pivots.iter().rev()
+        self.matrix.pivots().iter().rev()
             .find(|&&i| i >= 0)
             .map(|&i| i as usize + 1)
             .unwrap_or(0)
@@ -188,7 +202,7 @@ impl Subspace {
     /// Sets the subspace to be the zero subspace.
     pub fn set_to_zero(&mut self) {
         self.matrix.set_to_zero();
-        for x in &mut self.matrix.pivots {
+        for x in self.matrix.pivots_mut() {
             *x = -1;
         }
     }
@@ -197,8 +211,8 @@ impl Subspace {
     pub fn set_to_entire(&mut self) {
         self.matrix.set_to_zero();
         for i in 0..self.matrix.columns() {
-            self.matrix[i].set_entry(i, 1);
-            self.matrix.pivots[i] = i as isize;
+            self[i].set_entry(i, 1);
+            self.pivots_mut()[i] = i as isize;
         }
     }
 }
