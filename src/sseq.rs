@@ -62,7 +62,7 @@ impl Differential {
         let mut matrix = Matrix::new(p, source_dim + 1, source_dim + target_dim);
         matrix.initialize_pivots();
         Differential {
-            matrix : matrix,
+            matrix,
             source_dim,
             target_dim,
             error : false
