@@ -874,6 +874,27 @@ impl std::ops::Mul for &Matrix {
     }
 }
 
+#[allow(clippy::suspicious_op_assign_impl)]
+impl std::ops::MulAssign<u32> for Matrix {
+    fn mul_assign(&mut self, rhs : u32) {
+        let rhs = rhs % *self.p;
+        for row in self.iter_mut() {
+            row.scale(rhs);
+        }
+    }
+}
+
+impl std::ops::AddAssign<&Matrix> for Matrix {
+    fn add_assign(&mut self, rhs : &Matrix) {
+        assert_eq!(self.prime(), rhs.prime());
+        assert_eq!(self.columns(), rhs.columns());
+        assert_eq!(self.rows(), rhs.rows());
+
+        for (i, row) in self.iter_mut().enumerate() {
+            row.add(&rhs[i], 1);
+        }
+    }
+}
 macro_rules! augmented_matrix {
     ( $($N:expr, $name:ident), * ) => {
         $(

@@ -201,7 +201,6 @@ impl<A: Algebra> FreeModule<A> {
                 }
             }
         }
-
     }
 
     pub fn add_generators(
@@ -363,9 +362,7 @@ use std::io::{Read, Write};
 
 impl<A: Algebra> Save for FreeModule<A> {
     fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
-        let num_gens: Vec<usize> = self.num_gens.iter().map(|x| *x).collect::<Vec<_>>();
-        let num_gens: BiVec<usize> = BiVec::from_vec(self.min_degree(), num_gens);
-        num_gens.save(buffer)
+        self.num_gens.save(buffer)
     }
 }
 
@@ -382,6 +379,7 @@ impl<A: Algebra> Load for FreeModule<A> {
         for (degree, num) in num_gens.iter_enum() {
             result.add_num_generators(degree, *num, None);
         }
+        result.extend_table_entries(num_gens.max_degree());
         Ok(result)
     }
 }
