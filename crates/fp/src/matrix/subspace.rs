@@ -6,20 +6,21 @@ use super::matrix::Matrix;
 /// # Fields
 ///  * `matrix` - A matrix in reduced row echelon, whose number of columns is the dimension of the
 ///  ambient space and each row is a basis vector of the subspace.
-///  * `column_to_pivot_row` - If the column is a pivot column, the entry is the row the pivot
+///  * `pivots` - If the column is a pivot column, the entry is the row the pivot
 ///  corresponds to. If the column is not a pivot column, this is some negative number &mdash; not
 ///  necessarily -1!
 #[derive(Debug, Clone)]
+#[repr(transparent)]
 pub struct Subspace {
-    pub matrix : Matrix,
-    pub column_to_pivot_row : Vec<isize>
+    pub matrix : Matrix
 }
 
 impl Subspace {
     pub fn new(p : ValidPrime, rows : usize, columns : usize) -> Self {
+        let mut matrix = Matrix::new(p, rows, columns);
+        matrix.initialize_pivots();
         Self {
-            matrix : Matrix::new(p, rows, columns),
-            column_to_pivot_row : vec![-1; columns]
+            matrix
         }
     }
 
@@ -35,20 +36,20 @@ impl Subspace {
         match subspace {
             None => {
                 if let Some(sp) = space {
-                    sp.column_to_pivot_row.iter().filter( |i| **i >= 0).map(|i| *i as usize).collect()
+                    sp.matrix.pivots.iter().filter( |i| **i >= 0).map(|i| *i as usize).collect()
                 } else {
                     (0..ambient_dimension).collect()
                 }
             },
             Some(subsp) => {
                 if let Some(sp) = space {
-                    sp.column_to_pivot_row.iter().zip(subsp.column_to_pivot_row.iter())
+                    sp.matrix.pivots.iter().zip(subsp.matrix.pivots.iter())
                       .filter(|(x,y)| {
                           debug_assert!(**x >= 0 || **y < 0);
                           **x >= 0 && **y < 0
                         }).map(|(x,_)| *x as usize).collect()
                 } else {
-                    (0..ambient_dimension).filter( |i| subsp.column_to_pivot_row[*i] < 0).collect()
+                    (0..ambient_dimension).filter( |i| subsp.matrix.pivots[*i] < 0).collect()
                 }
             }
         }
@@ -58,7 +59,7 @@ impl Subspace {
         let mut result = Self::new(p, dim, dim);
         for i in 0..dim {
             result.matrix[i].set_entry(i, 1);
-            result.column_to_pivot_row[i] = i as isize;
+            result.matrix.pivots[i] = i as isize;
         }
         result
     }
@@ -70,7 +71,7 @@ impl Subspace {
     pub fn add_vector(&mut self, row : &FpVector) {
         let last_row = self.matrix.rows() - 1;
         self.matrix[last_row].assign(row);
-        self.matrix.row_reduce(&mut self.column_to_pivot_row);
+        self.matrix.row_reduce();
     }
 
     pub fn add_vectors(&mut self, mut rows : impl std::iter::Iterator<Item=FpVector>) {
@@ -134,7 +135,7 @@ impl Subspace {
         let mut row = 0;
         let columns = vector.dimension();
         for i in 0 .. columns {
-            if self.column_to_pivot_row[i] < 0 {
+            if self.matrix.pivots[i] < 0 {
                 continue;
             }
             let c = vector.entry(i);
@@ -151,7 +152,7 @@ impl Subspace {
         let mut row = 0;
         let columns = vector.dimension();
         for i in 0 .. columns {
-            if self.column_to_pivot_row[i] < 0 {
+            if self.matrix.pivots[i] < 0 {
                 continue;
             }
             let c = vector.entry(i);
@@ -163,7 +164,7 @@ impl Subspace {
     }
 
     pub fn row_reduce(&mut self) {
-        self.matrix.row_reduce(&mut self.column_to_pivot_row);
+        self.matrix.row_reduce();
     }
 
     pub fn contains(&self, vector : &FpVector) -> bool {
@@ -173,7 +174,7 @@ impl Subspace {
     }
 
     pub fn dimension(&self) -> usize {
-        self.column_to_pivot_row.iter().rev()
+        self.matrix.pivots.iter().rev()
             .find(|&&i| i >= 0)
             .map(|&i| i as usize + 1)
             .unwrap_or(0)
@@ -187,7 +188,7 @@ impl Subspace {
     /// Sets the subspace to be the zero subspace.
     pub fn set_to_zero(&mut self) {
         self.matrix.set_to_zero();
-        for x in &mut self.column_to_pivot_row {
+        for x in &mut self.matrix.pivots {
             *x = -1;
         }
     }
@@ -197,7 +198,7 @@ impl Subspace {
         self.matrix.set_to_zero();
         for i in 0..self.matrix.columns() {
             self.matrix[i].set_entry(i, 1);
-            self.column_to_pivot_row[i] = i as isize;
+            self.matrix.pivots[i] = i as isize;
         }
     }
 }

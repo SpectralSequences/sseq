@@ -200,7 +200,6 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let rows = source_dimension + target_cc_dimension + target_res_dimension;
 
         let mut matrix = AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, source_dimension + rows]);
-        let mut pivots = vec![-1;matrix.columns()];
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
 
         matrix.set_row_slice(0, source_dimension);
@@ -210,8 +209,10 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
 
         // This slices the underling matrix. Be sure to revert this.
         matrix.inner.set_slice(0, source_dimension, 0, matrix.start[2] + source_dimension);
-        matrix.row_reduce(&mut pivots);
-        let new_kernel = matrix.inner.compute_kernel(&pivots, matrix.start[2]);
+        matrix.initialize_pivots();
+        matrix.row_reduce();
+        let temp = matrix.start[2];
+        let new_kernel = matrix.compute_kernel(temp);
         matrix.clear_slice();
 
         let first_new_row = source_dimension;
@@ -221,7 +222,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // X_{s,t} and f later).
         // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
         // work out what dX should to to each of them.
-        let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, matrix.end[0], &pivots);
+        let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, matrix.end[0]);
         let cc_new_gens = new_generators.len();
 
         let mut res_new_gens = 0;
@@ -249,10 +250,10 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                     middle_rows.push(matrix[first_new_row + i].clone());
                 }
                 // Row reduce again since our activity may have changed the image of dX.
-                matrix.row_reduce(&mut pivots);
+                matrix.row_reduce();
             }
             // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
-            res_new_gens = matrix.inner.extend_image(first_new_row + cc_new_gens, matrix.start[1], matrix.end[1], &pivots, old_kernel.as_ref()).len();
+            res_new_gens = matrix.inner.extend_image(first_new_row + cc_new_gens, matrix.start[1], matrix.end[1], old_kernel.as_ref()).len();
 
             if cc_new_gens > 0 {
                 // Now restore the middle rows.
@@ -280,11 +281,11 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // From now on we only use the underlying matrix. We manipulate slice directly but don't
         // drop matrix so that we can use matrix.start
         matrix.inner.set_slice(0, image_rows, 0, matrix.start[2] + source_dimension + num_new_gens);
-        let mut new_pivots = vec![-1;matrix.columns()];
-        matrix.row_reduce(&mut new_pivots);
+        matrix.initialize_pivots();
+        matrix.row_reduce();
 
         // Should this be a method on AugmentedMatrix3?
-        let (cm_qi, res_qi) = matrix.compute_quasi_inverses(&new_pivots);
+        let (cm_qi, res_qi) = matrix.compute_quasi_inverses();
 
         current_chain_map.set_quasi_inverse(&chain_map_lock, t, cm_qi);
         current_chain_map.set_kernel(&chain_map_lock, t, Subspace::new(p, 0, 0)); // Fill it up with something dummy so that compute_kernels_and... is happy

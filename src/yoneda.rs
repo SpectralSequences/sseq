@@ -163,12 +163,11 @@ where TCM : BoundedModule<Algebra = SteenrodAlgebra>,
                     curr.subspaces[t].reduce(&mut differentials[i]);
                 }
 
-                let mut pivots = vec![-1; curr_orig_dim];
-                differentials.row_reduce(&mut pivots);
+                differentials.initialize_pivots();
+                differentials.row_reduce();
 
                 differential_images.push(Subspace {
-                    matrix : differentials,
-                    column_to_pivot_row : pivots
+                    matrix : differentials
                 });
             }
         }
@@ -340,8 +339,9 @@ where TCM : BoundedModule<Algebra = SteenrodAlgebra>,
             // elements that span the image of the differentials.
             let (mut matrix, mut images) = compute_kernel_image(source, augmentation_map, preserve_map, keep, t);
 
-            let mut pivots = vec![-1; matrix.columns()];
-            matrix.row_reduce(&mut pivots);
+            matrix.initialize_pivots();
+            matrix.row_reduce();
+            let pivots = std::mem::replace(&mut matrix.pivots, Vec::new());
 
             let subspace = &source.subspaces[t];
             let mut pivot_columns : Vec<(i32, usize)> = pivots
@@ -539,16 +539,15 @@ fn compute_kernel_image<M : BoundedModule, F : ModuleHomomorphism, G : ModuleHom
         result.set_entry(padded_source_degree + total_padded_degree + i, 1);
         matrix_rows.push(result);
     }
-    let mut matrix = Matrix::from_rows(p, matrix_rows, total_cols);
-    let mut pivots = vec![-1; total_cols];
-    matrix.row_reduce(&mut pivots);
+    let mut matrix = Matrix::from_rows(p, matrix_rows, total_cols, vec![-1; total_cols]);
+    matrix.row_reduce();
 
-    let first_kernel_row = match &pivots[0..total_padded_degree].iter().rposition(|&i| i >= 0) {
-        Some(n) => pivots[*n] as usize + 1,
+    let first_kernel_row = match &matrix.pivots[0..total_padded_degree].iter().rposition(|&i| i >= 0) {
+        Some(n) => matrix.pivots[*n] as usize + 1,
         None => 0
     };
-    let first_image_row = match &pivots[total_padded_degree .. total_padded_degree + source_orig_dimension].iter().rposition(|&i| i >= 0) {
-        Some(n) => pivots[*n + total_padded_degree] as usize + 1,
+    let first_image_row = match &matrix.pivots[total_padded_degree .. total_padded_degree + source_orig_dimension].iter().rposition(|&i| i >= 0) {
+        Some(n) => matrix.pivots[*n + total_padded_degree] as usize + 1,
         None => first_kernel_row
     };
 
@@ -561,7 +560,7 @@ fn compute_kernel_image<M : BoundedModule, F : ModuleHomomorphism, G : ModuleHom
     for i in first_image_row .. matrix.rows() {
         images.push(matrix[i].clone());
     }
-    let image_matrix = Matrix::from_rows(p, images, source_orig_dimension);
+    let image_matrix = Matrix::from_rows(p, images, source_orig_dimension, Vec::new());
     (matrix, image_matrix)
 }
 

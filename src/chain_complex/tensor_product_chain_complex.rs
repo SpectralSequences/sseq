@@ -462,8 +462,8 @@ where
                 matrix[i].set_entry(padded_target_dim + i, 1);
             }
 
-            let mut pivots = vec![-1; matrix.columns()];
-            matrix.row_reduce(&mut pivots);
+            matrix.initialize_pivots();
+            matrix.row_reduce();
 
             let mut index = 0;
             let mut row = 0;
@@ -475,7 +475,7 @@ where
 
                 for li in 0..target_left_dim {
                     for ri in 0..target_right_dim {
-                        if pivots[index] >= 0 {
+                        if matrix.pivots[index] >= 0 {
                             let true_index = self.target.offset(degree, s)
                                 + self.target.modules[s].offset(degree, left_t)
                                 + li * target_right_dim

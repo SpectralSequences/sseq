@@ -50,7 +50,7 @@ impl<M: Module> QuotientModule<M> {
     fn flush(&mut self, degree: i32) {
         let mut vec = Vec::with_capacity(self.basis_list[degree].len());
         for i in 0..self.module.dimension(degree) {
-            if self.subspaces[degree].column_to_pivot_row[i] < 0 {
+            if self.subspaces[degree].matrix.pivots[i] < 0 {
                 vec.push(i);
             }
         }

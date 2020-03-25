@@ -86,9 +86,9 @@ pub trait ModuleHomomorphism: Send + Sync + 'static {
         self.get_matrix(&mut *matrix.segment(0, 0), degree);
         matrix.segment(1, 1).set_identity(source_dimension, 0, 0);
 
-        let mut pivots = vec![-1; matrix.columns()];
-        matrix.row_reduce(&mut pivots);
-        matrix.compute_quasi_inverse(&pivots)
+        matrix.initialize_pivots();
+        matrix.row_reduce();
+        matrix.compute_quasi_inverse()
     }
 
     fn kernel_and_quasi_inverse(&self, degree: i32) -> (Subspace, QuasiInverse) {
@@ -103,11 +103,11 @@ pub trait ModuleHomomorphism: Send + Sync + 'static {
         self.get_matrix(&mut *matrix.segment(0, 0), degree);
         matrix.segment(1, 1).set_identity(source_dimension, 0, 0);
 
-        let mut pivots = vec![-1; matrix.columns()];
-        matrix.row_reduce(&mut pivots);
+        matrix.initialize_pivots();
+        matrix.row_reduce();
 
-        let quasi_inverse = matrix.compute_quasi_inverse(&pivots);
-        let kernel = matrix.compute_kernel(&pivots);
+        let quasi_inverse = matrix.compute_quasi_inverse();
+        let kernel = matrix.compute_kernel();
         (kernel, quasi_inverse)
     }
 
