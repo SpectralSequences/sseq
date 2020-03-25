@@ -874,6 +874,7 @@ impl std::ops::Mul for &Matrix {
     }
 }
 
+#[allow(clippy::suspicious_op_assign_impl)]
 impl std::ops::MulAssign<u32> for Matrix {
     fn mul_assign(&mut self, rhs : u32) {
         let rhs = rhs % *self.p;

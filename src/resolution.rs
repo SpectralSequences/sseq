@@ -205,10 +205,10 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         current_chain_map.get_matrix(&mut *matrix.segment(0,0), t);
         current_differential.get_matrix(&mut *matrix.segment(1,1), t);
         matrix.segment(2,2).add_identity(source_dimension, 0, 0);
+        matrix.initialize_pivots();
 
         // This slices the underling matrix. Be sure to revert this.
         matrix.inner.set_slice(0, source_dimension, 0, matrix.start[2] + source_dimension);
-        matrix.initialize_pivots();
         matrix.row_reduce();
         let temp = matrix.start[2];
         let new_kernel = matrix.compute_kernel(temp);
