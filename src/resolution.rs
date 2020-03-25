@@ -182,8 +182,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let target_cc = complex.module(s);
         let target_res = current_differential.target(); // This is self.module(s - 1) unless s = 0.
 
-        let source_lock = source.lock();
-        let source_module_table = source.construct_table(t);
+        source.extend_table_entries(t);
 
         let chain_map_lock = current_chain_map.lock();
         let differential_lock = current_differential.lock();
@@ -193,7 +192,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // Later we're going to write into this same matrix an isomorphism source/image + new vectors --> kernel
         // This has size target_dimension x (2*target_dimension).
         // This latter matrix may be used to find a preimage of an element under the differential.
-        let source_dimension = FreeModule::<CC::Algebra>::dimension_with_table(&source_module_table);
+        let source_dimension = source.dimension(t);
         let target_cc_dimension = target_cc.dimension(t);
         let target_res_dimension = target_res.dimension(t);
 
@@ -203,8 +202,8 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
 
         matrix.set_row_slice(0, source_dimension);
-        current_chain_map.get_matrix_with_table(&mut *matrix.segment(0,0), &source_module_table, t);
-        current_differential.get_matrix_with_table(&mut *matrix.segment(1,1), &source_module_table, t);
+        current_chain_map.get_matrix(&mut *matrix.segment(0,0), t);
+        current_differential.get_matrix(&mut *matrix.segment(1,1), t);
         matrix.segment(2,2).add_identity(source_dimension, 0, 0);
 
         // This slices the underling matrix. Be sure to revert this.
@@ -263,8 +262,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
             }
         }
         let num_new_gens = cc_new_gens + res_new_gens;
-        source.add_generators(t, &source_lock, source_module_table, num_new_gens, None);
-        drop(source_lock);
+        source.add_generators(t, num_new_gens, None);
 
         matrix.set_row_slice(first_new_row, rows);
         current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, &*matrix.segment(0, 0));
@@ -294,6 +292,211 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
 
         *old_kernel = Some(new_kernel);
     }
+
+
+    // pub fn step_resolution_by_stem(&self, s : u32, t : i32) {
+    //     // println!("\n\n\n\n");
+    //     // println!("s: {}, t: {} || x: {}, y: {}", s, t, t-s as i32, s);
+    //     // println!("s: {}, t: {} || x: {}, y: {}", s, t, t-s as i32, s);
+    //     if s == 0 {
+    //         self.zero_module.extend_by_zero(t);
+    //     }
+
+    //     let p = self.prime();
+        
+    //     //                           current_chain_map
+    //     //                X_{s, t} --------------------> C_{s, t}
+    //     //                   |                               |
+    //     //                   | current_differential          |
+    //     //                   v                               v
+    //     // old_kernel <= X_{s-1, t} -------------------> C_{s-1, t}
+        
+    //     let complex = self.complex();
+    //     complex.compute_through_bidegree(s, t + 1);
+
+    //     let current_differential = self.differential(s);
+    //     let current_chain_map = self.chain_map(s);
+    //     let complex_cur_differential = complex.differential(s);
+
+    //     match current_differential.next_degree().cmp(&t) {
+    //         std::cmp::Ordering::Greater => {
+    //             // Already computed this degree.
+    //             return;
+    //         }
+    //         std::cmp::Ordering::Less => {
+    //             // Haven't computed far enough yet
+    //             panic!("We need to compute bidegree ({}, {}) before we are ready to compute bidegree ({}, {}).", s, t-1, s, t);
+    //         }
+    //         std::cmp::Ordering::Equal => ()
+    //     };
+
+    //     if s > 0 && self.differential(s-1).next_degree() < t - 1 {
+    //         panic!("We need to compute bidegree ({}, {}) before we are ready to compute bidegree ({}, {}).", s-1, t-1, s, t);
+    //     }
+
+    //     let source = self.module(s);
+    //     let target_cc = complex.module(s);
+    //     let target_res = current_differential.target(); // This is self.module(s - 1) unless s = 0.
+    //     source.extend_table_entries(t+1);
+    //     target_res.extend_table_entries(t+1);
+
+
+    //     let chain_map_lock = current_chain_map.lock();
+    //     let differential_lock = current_differential.lock();
+        
+    //     // The Homomorphism matrix has size source_dimension x target_dimension, but we are going to augment it with an
+    //     // identity matrix so that gives a matrix with dimensions source_dimension x (target_dimension + source_dimension).
+    //     // Later we're going to write into this same matrix an isomorphism source/image + new vectors --> kernel
+    //     // This has size target_dimension x (2*target_dimension).
+    //     // This latter matrix may be used to find a preimage of an element under the differential.
+    //     let target_cc_dimension = target_cc.dimension(t);
+    //     let target_res_dimension = target_res.dimension(t);
+    //     let source_dimension = source.dimension(t);
+    //     let rows = target_cc_dimension + target_res_dimension + source_dimension;
+
+
+    //     // Calculate how many pivots are missing / gens to add
+    //     let kernel = self.kernels[s][t].lock().take();
+    //     let maybe_image = self.images[s][t].lock().take();
+    //     let mut image : Image;
+    //     // let old_rows;
+    //     if let Some(x) = maybe_image {
+    //         image = x;
+    //         // old_rows = image.matrix.segment(2,2).columns();
+    //         image.resize_target_res_dimension(target_res_dimension);
+    //     } else {
+    //         image = Image {
+    //             matrix : AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, rows]),
+    //             pivots : vec![-1; target_cc_dimension + target_res_dimension + rows ]
+    //         };
+    //         // old_rows = rows;
+    //         image.matrix.segment(2, 2).set_identity(rows, 0, 0);
+    //     }
+
+    //     let matrix = &mut image.matrix;
+    //     let pivots = &mut image.pivots;
+
+    //     // Now add generators to surject onto C_{s, t}.
+    //     // (For now we are just adding the eventual images of the new generators into matrix, we will update
+    //     // X_{s,t} and f later).
+    //     // We record which pivots exactly we added so that we can walk over the added generators in a moment and
+    //     // work out what dX should to to each of them.
+    //     let first_new_row = source_dimension;
+    //     let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, target_cc_dimension, &pivots);
+    //     let cc_new_gens = new_generators.len();
+    //     let mut res_new_gens = 0;
+
+    //     let mut middle_rows = Vec::with_capacity(cc_new_gens);
+    //     if s > 0 {
+    //         if cc_new_gens > 0 {
+    //             // Now we need to make sure that we have a chain homomorphism. Each generator x we just added to 
+    //             // X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).
+    //             // So we set dX(x) = f^{-1}(dC(f(x)))
+    //             let prev_chain_map = self.chain_map(s - 1);
+    //             let quasi_inverse = prev_chain_map.quasi_inverse(t);
+
+    //             let dfx_dim = complex_cur_differential.target().dimension(t);
+    //             let mut dfx = FpVector::new(self.prime(), dfx_dim);
+
+    //             for (i, column) in new_generators.into_iter().enumerate() {
+    //                 complex_cur_differential.apply_to_basis_element(&mut dfx, 1, t, column);
+    //                 quasi_inverse.apply(&mut *matrix.row_segment(first_new_row + i, 1, 1), 1, &dfx);
+    //                 dfx.set_to_zero_pure();
+
+    //                 // Keep the rows we produced because we have to row reduce to re-compute
+    //                 // the kernel later, but these rows are the images of the generators, so we
+    //                 // still need them.
+    //                 middle_rows.push(matrix[first_new_row + i].clone());
+    //             }
+    //             // Row reduce again since our activity may have changed the image of dX.
+    //             matrix.row_reduce(pivots);
+    //         }
+    //         // println!("matrix.seg(1) : {}", *matrix.segment(1,1));
+    //         // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
+    //         res_new_gens = matrix.inner.extend_image(
+    //             first_new_row + cc_new_gens, 
+    //             matrix.start[1], matrix.end[1],
+    //             pivots, kernel.as_ref()
+    //         ).len();
+
+    //         if cc_new_gens > 0 {
+    //             // Now restore the middle rows.
+    //             for (i, row) in middle_rows.into_iter().enumerate() {
+    //                 matrix[first_new_row + i] = row;
+    //             }
+    //         }
+    //     }
+
+    //     // println!("cc_new_gens : {}, res_new_gens: {}", cc_new_gens, res_new_gens);
+    //     let num_new_gens = cc_new_gens + res_new_gens;
+    //     source.add_generators(t, num_new_gens, None);
+
+    //     let rows = matrix.rows();
+    //     matrix.set_row_slice(first_new_row, rows);
+    //     current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, &*matrix.segment(0, 0));
+    //     current_differential.add_generators_from_matrix_rows(&differential_lock, t, &*matrix.segment(1, 1));
+    //     matrix.clear_row_slice();
+
+    //     // Record the quasi-inverses for future use.
+    //     // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
+    //     let image_rows = first_new_row + num_new_gens;
+    //     for i in first_new_row .. image_rows {
+    //         matrix.inner[i].set_entry(matrix.start[2] + i, 1);
+    //     }
+
+    //     // From now on we only use the underlying matrix. We manipulate slice directly but don't
+    //     // drop matrix so that we can use matrix.start
+    //     matrix.inner.set_slice(0, image_rows, 0, matrix.start[2] + source_dimension + num_new_gens);
+    //     let mut new_pivots = vec![-1;matrix.columns()];
+    //     matrix.row_reduce(&mut new_pivots);
+
+    //     // Should this be a method on AugmentedMatrix3?
+    //     let (cm_qi, res_qi) = matrix.compute_quasi_inverses(&new_pivots);
+
+    //     current_chain_map.set_quasi_inverse(&chain_map_lock, t, cm_qi);
+    //     current_chain_map.set_kernel(&chain_map_lock, t, Subspace::new(p, 0, 0)); // Fill it up with something dummy so that compute_kernels_and... is happy
+    //     current_differential.set_quasi_inverse(&differential_lock, t, res_qi);
+    //     current_differential.set_kernel(&differential_lock, t, Subspace::new(p, 0, 0));
+
+    //     let target_cc_dimension = target_cc.dimension(t+1);
+    //     let target_res_dimension = target_res.dimension(t+1);
+    //     let source_dimension = source.dimension(t+1);
+    //     target_res.extend_table_entries(t+1);
+    //     source.extend_table_entries(t+1);
+
+
+    //     // Now we are going to investigate the homomorphism in degree t + 1.
+
+    //     // Now need to calculate new_kernel and new_image.
+
+    //     let rows = source_dimension + target_cc_dimension + target_res_dimension;
+    //     let mut matrix = AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, rows]);
+    //     let mut pivots = vec![-1;matrix.columns()];
+    //     // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
+
+    //     matrix.set_row_slice(0, source_dimension);
+    //     current_chain_map.get_matrix(&mut *matrix.segment(0,0), t + 1);
+    //     current_differential.get_matrix(&mut *matrix.segment(1,1), t + 1);
+    //     matrix.segment(2,2).set_identity(rows, 0, 0);
+
+    //     matrix.row_reduce(&mut pivots);
+    //     let new_kernel = matrix.inner.compute_kernel(&pivots, matrix.start[2]);
+
+    //     let mut kernel_lock = self.kernels[s + 1][t+1].lock();
+    //     *kernel_lock = Some(new_kernel);
+    //     if s > 0 {
+    //         let mut image_lock = self.images[s][t + 1].lock();
+    //         *image_lock = Some(Image {
+    //             matrix : matrix,
+    //             pivots : pivots
+    //         });
+    //         drop(image_lock);
+    //     }
+    //     drop(kernel_lock);
+        
+    // }
+
+
 
     pub fn cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
         let p = self.prime();

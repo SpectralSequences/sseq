@@ -68,7 +68,7 @@ pub trait Module: Send + Sync + 'static {
         input_degree: i32,
         input: &FpVector,
     ) {
-        assert!(input.dimension() == self.dimension(input_degree));
+        assert!(input.dimension() <= self.dimension(input_degree));
         let p = self.prime();
         for (i, v) in input.iter().enumerate() {
             if v == 0 {
