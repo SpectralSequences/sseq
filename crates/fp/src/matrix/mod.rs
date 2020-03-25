@@ -8,4 +8,4 @@ pub use quasi_inverse::QuasiInverse;
 pub use subspace::Subspace;
 
 // For rust_webserver
-pub use basis::express_basis;
+// pub use basis::express_basis;

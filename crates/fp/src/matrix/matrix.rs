@@ -51,8 +51,28 @@ impl Matrix {
         }
     }
 
+    pub fn prime(&self) -> ValidPrime {
+        self.p
+    }
+
+    /// Gets the number of rows in the matrix.
+    pub fn rows(&self) -> usize {
+        self.slice_row_end - self.slice_row_start
+    }
+
+    /// Gets the number of columns in the matrix.
+    pub fn columns(&self) -> usize {
+        self.slice_col_end - self.slice_col_start
+    }    
+
     pub fn initialize_pivots(&mut self) {
-        self.pivot_vec = vec![-1; self.columns()];
+        if self.pivot_vec.len() < self.columns() {
+            self.pivot_vec = vec![-1; self.columns()];
+        } else {
+            for i in 0..self.columns(){
+                self.pivot_vec[i] = -1;
+            }
+        }
     }
 
     pub fn pivots(&self) -> &Vec<isize> {
@@ -154,28 +174,26 @@ impl Matrix {
                 m[i].set_entry(j, input[i][j]);
             }
         }
-        m.set_identity(rows, 0, padded_cols);
+        m.add_identity(rows, 0, padded_cols);
         (padded_cols, m)
     }
 
-    pub fn set_identity(&mut self, size : usize, row : usize, column : usize) {
+    pub fn add_identity(&mut self, size : usize, row : usize, column : usize) {
         for i in 0..size {
-            self[row + i].set_entry(column + i, 1);
+            self[row + i].add_basis_element(column + i, 1);
         }
     }
 
-    pub fn prime(&self) -> ValidPrime {
-        self.p
+    pub fn set_to_zero(&mut self) {
+        for i in 0..self.rows() {
+            self[i].set_to_zero();
+        }
     }
 
-    /// Gets the number of rows in the matrix.
-    pub fn rows(&self) -> usize {
-        self.slice_row_end - self.slice_row_start
-    }
-
-    /// Gets the number of columns in the matrix.
-    pub fn columns(&self) -> usize {
-        self.slice_col_end - self.slice_col_start
+    pub fn assign(&mut self, other : &Matrix) {
+        for i in 0..self.rows() {
+            self[i].assign(&other[i]);
+        }
     }
 
     /// Sets the slice on the matrix. Restricts to the submatrix consisting of the rows from
@@ -495,12 +513,6 @@ impl Matrix {
 
 
 impl Matrix {
-    pub fn set_to_zero(&mut self) {
-        for row in 0..self.rows() {
-            self.vectors[row].set_to_zero();
-        }
-    }
-
     pub fn find_first_row_in_block(&self, first_column_in_block : usize) -> usize {
         self.find_first_row_in_block_with_pivots(self.pivots(), first_column_in_block)
     }
