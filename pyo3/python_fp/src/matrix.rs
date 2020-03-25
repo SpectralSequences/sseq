@@ -68,8 +68,13 @@ impl Matrix {
 #[pymethods]
 impl Matrix {
     #[new]
-    fn new(p : u32, rows : usize, columns : usize) -> PyResult<Self> {
+    pub fn new(p : u32, rows : usize, columns : usize) -> PyResult<Self> {
         Ok(Self::box_and_wrap(MatrixRust::new(new_valid_prime(p)?, rows, columns)))
+    }
+
+    pub fn initialize_pivots(&mut self) -> PyResult<()> {
+        self.inner_mut()?.initialize_pivots();
+        Ok(())
     }
 
     pub fn row(&mut self, i : isize) -> PyResult<FpVector> {
@@ -138,38 +143,14 @@ impl Matrix {
         Ok(())
     }
 
-    pub fn row_reduce_into_vec(&mut self, pivots : &mut PivotVecWrapper) -> PyResult<()> {
+    pub fn row_reduce(&mut self) -> PyResult<()> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let self_inner = self.inner_mut()?;
-        let pivots_inner = pivots.inner_mut()?;
         py.allow_threads(move || -> PyResult<()> {
-            self_inner.row_reduce(pivots_inner);
+            self_inner.row_reduce();
             Ok(())
         })
-    }
-
-    pub fn row_reduce(&mut self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let self_inner = self.inner_mut()?;
-        let vec = py.allow_threads(move ||  {
-            let mut vec = vec![0; self_inner.columns()];
-            self_inner.row_reduce(&mut vec);
-            vec
-        });
-        Ok(vec.into_py(py))
-    }    
-
-    pub fn row_reduce_offset_into_vec(&mut self, pivots : &mut PivotVecWrapper, offset : usize) -> PyResult<()> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let self_inner = self.inner_mut()?;
-        let pivots_inner = pivots.inner_mut()?;
-        py.allow_threads(move ||  {
-            self_inner.row_reduce_offset(pivots_inner, offset);
-        });
-        Ok(())
     }
 
     // TODO: What are the right method signatures for these? Do we need a type PermutationWrapper?
@@ -314,26 +295,25 @@ impl Matrix {
         Ok(())
     }
 
-    pub fn find_first_row_in_block(&self, pivots : &PivotVecWrapper, first_column_in_block : usize) -> PyResult<usize> {
-        Ok(self.inner()?.find_first_row_in_block(pivots.inner()?, first_column_in_block))
+    pub fn find_first_row_in_block(&self, first_column_in_block : usize) -> PyResult<usize> {
+        Ok(self.inner()?.find_first_row_in_block(first_column_in_block))
     }
 
-    pub fn compute_kernel(&mut self, column_to_pivot_row : &PivotVecWrapper, first_source_column : usize) -> PyResult<Subspace> { 
-        Ok(Subspace::box_and_wrap(self.inner_mut()?.compute_kernel(column_to_pivot_row.inner()?, first_source_column)))
+    pub fn compute_kernel(&mut self, first_source_column : usize) -> PyResult<Subspace> { 
+        Ok(Subspace::box_and_wrap(self.inner_mut()?.compute_kernel(first_source_column)))
     }
 
-    pub fn compute_quasi_inverse(&mut self, pivots : &PivotVecWrapper, last_target_col : usize, first_source_column : usize) -> PyResult<QuasiInverse> {  
-        Ok(QuasiInverse::box_and_wrap(self.inner_mut()?.compute_quasi_inverse(pivots.inner()?, last_target_col, first_source_column)))
+    pub fn compute_quasi_inverse(&mut self,  last_target_col : usize, first_source_column : usize) -> PyResult<QuasiInverse> {  
+        Ok(QuasiInverse::box_and_wrap(self.inner_mut()?.compute_quasi_inverse(last_target_col, first_source_column)))
     }
 
     pub fn compute_quasi_inverses(
             &mut self, 
-            pivots : &PivotVecWrapper,
             first_res_col : usize, 
             last_res_column : usize,  
             first_source_column : usize
     ) -> PyResult<(QuasiInverse, QuasiInverse)> {
-        let (qi1,qi2) = self.inner_mut()?.compute_quasi_inverses(pivots.inner()?, first_res_col, last_res_column, first_source_column);
+        let (qi1,qi2) = self.inner_mut()?.compute_quasi_inverses(first_res_col, last_res_column, first_source_column);
         Ok((QuasiInverse::box_and_wrap(qi1), QuasiInverse::box_and_wrap(qi2)))
     }
 
@@ -349,26 +329,23 @@ impl Matrix {
     pub fn extend_to_surjection(&mut self,
         first_empty_row : usize,
         start_column : usize, end_column : usize,
-        current_pivots : &PivotVecWrapper
     ) -> PyResult<Vec<usize>> { 
         let self_inner = self.inner_mut()?;
-        let current_pivots_inner = current_pivots.inner()?;
         Ok(python_utils::release_gil!(
-            self_inner.extend_to_surjection(first_empty_row, start_column, end_column, current_pivots_inner)
+            self_inner.extend_to_surjection(first_empty_row, start_column, end_column)
         ))
     }
 
     pub fn extend_image_to_desired_image(&mut self,
         first_empty_row : usize,
         start_column : usize, end_column : usize,
-        current_pivots : &PivotVecWrapper, desired_image : &Subspace
+        desired_image : &Subspace
     ) -> PyResult<Vec<usize>> { 
         let self_inner = self.inner_mut()?;
-        let current_pivots_inner = current_pivots.inner()?;
         let desired_image_inner = desired_image.inner()?;
         Ok(python_utils::release_gil!( 
             self_inner.extend_image_to_desired_image(
-                first_empty_row, start_column, end_column, current_pivots_inner, desired_image_inner
+                first_empty_row, start_column, end_column, desired_image_inner
             )
         ))
     }
@@ -377,12 +354,10 @@ impl Matrix {
     pub fn extend_image(&mut self,
         first_empty_row : usize,
         start_column : usize, end_column : usize,
-        current_pivots : &PivotVecWrapper, 
         pyargs : &PyTuple
     ) -> PyResult<Vec<usize>> {  
         python_utils::check_number_of_positional_arguments!("extend_image", 5, 6, 5 + pyargs.len())?;
         let self_inner = self.inner_mut()?;
-        let current_pivots_inner = current_pivots.inner()?;
         let desired_image : Option<&SubspaceRust> = 
             if pyargs.is_empty() {
                 None
@@ -396,8 +371,7 @@ impl Matrix {
 
         Ok(python_utils::release_gil!(
             self_inner.extend_image(
-                first_empty_row, start_column, end_column, 
-                current_pivots_inner, 
+                first_empty_row, start_column, end_column,  
                 desired_image
             )
         ))
