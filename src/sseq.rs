@@ -54,24 +54,24 @@ pub struct Differential {
     matrix : Matrix,
     source_dim : usize,
     target_dim : usize,
-    column_to_pivots_row : Vec<isize>,
     error : bool,
 }
 
 impl Differential {
     pub fn new(p : ValidPrime, source_dim : usize, target_dim : usize) -> Self {
+        let mut matrix = Matrix::new(p, source_dim + 1, source_dim + target_dim);
+        matrix.initialize_pivots();
         Differential {
-            matrix : Matrix::new(p, source_dim + 1, source_dim + target_dim),
+            matrix : matrix,
             source_dim,
             target_dim,
-            column_to_pivots_row : vec![-1; source_dim + target_dim],
             error : false
         }
     }
 
     pub fn set_to_zero(&mut self) {
         self.matrix.set_to_zero();
-        for x in &mut self.column_to_pivots_row {
+        for x in self.matrix.pivots_mut() {
             *x = -1;
         }
         self.error = false;
@@ -92,11 +92,11 @@ impl Differential {
         };
         last_row.clear_slice();
 
-        self.matrix.row_reduce(&mut self.column_to_pivots_row);
+        self.matrix.row_reduce();
 
         // Check that the differentials are consistent with each other.
         for i in 0 .. self.target_dim {
-            if self.column_to_pivots_row[self.source_dim + i] >= 0 {
+            if self.matrix.pivots()[self.source_dim + i] >= 0 {
                 self.error = true;
             }
         }
@@ -134,11 +134,11 @@ impl Differential {
         self.matrix.clear_slice();
 
         // Knowing that things are zero might fix our previous erroneous differentials.
-        self.matrix.row_reduce(&mut self.column_to_pivots_row);
+        self.matrix.row_reduce();
 
         self.error = false;
         for i in 0 .. self.target_dim {
-            if self.column_to_pivots_row[self.source_dim + i] >= 0 {
+            if self.matrix.pivots()[self.source_dim + i] >= 0 {
                 self.error = true;
             }
         }
@@ -152,7 +152,7 @@ impl Differential {
     /// or neither. Here we assume d(a) = c and d(b) = 0.
     pub fn evaluate(&self, mut source : FpVector, target: &mut FpVector) {
         for i in 0 .. self.source_dim {
-            let row = self.column_to_pivots_row[i];
+            let row = self.matrix.pivots()[i];
             if row < 0 {
                 continue;
             }
@@ -546,8 +546,8 @@ impl Sseq {
         }
 
         let mut matrix = Matrix::from_rows(p, vectors, source_dim);
-        let mut pivots = vec![-1; matrix.columns()];
-        matrix.row_reduce(&mut pivots);
+        matrix.initialize_pivots();
+        matrix.row_reduce();
 
         for i in 0 .. matrix.rows() {
             if matrix[i].is_zero() {
@@ -557,7 +557,7 @@ impl Sseq {
             vec.add(&matrix[i], 1);
             class_list.push(vec);
         }
-        (pivots, class_list)
+        (matrix.take_pivots(), class_list)
     }
 
     /// Compute the classes in next page assuming there might be a differential coming out of the
@@ -606,7 +606,7 @@ impl Sseq {
 
         let mut matrix = Matrix::from_rows(self.p, vectors, source_dim + target_dim);
         let mut pivots = vec![-1; matrix.columns()];
-        matrix.row_reduce_offset(&mut pivots, source_dim);
+        matrix.row_reduce_offset_into_pivots(&mut pivots, source_dim);
 
         let mut first_kernel_row = 0;
         for i in (source_dim .. source_dim + target_dim).rev() {
@@ -618,7 +618,7 @@ impl Sseq {
 
         matrix.set_slice(first_kernel_row as usize, matrix.rows(), 0, source_dim);
         pivots.truncate(source_dim);
-        matrix.row_reduce(&mut pivots);
+        matrix.row_reduce_into_pivots(&mut pivots);
         for i in 0 .. matrix.rows() {
             if matrix[i].is_zero() {
                 break;
