@@ -1,4 +1,4 @@
-use bencher::{Bencher, benchmark_group, benchmark_main};
+use bencher::{Bencher, benchmark_group};
 
 use fp::prime;
 
@@ -27,5 +27,5 @@ fn multinomial_7(bench: &mut Bencher) {
 }
 
 
-benchmark_group!(benches, binomial_3, multinomial_7);
-benchmark_main!(benches);
+benchmark_group!(main, binomial_3, multinomial_7);
+

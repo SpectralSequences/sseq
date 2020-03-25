@@ -50,7 +50,9 @@ impl Matrix {
             pivot_vec : Vec::new()
         }
     }
+}
 
+impl Matrix {
     pub fn prime(&self) -> ValidPrime {
         self.p
     }
@@ -381,8 +383,8 @@ impl Matrix {
     ///               vec![0, 1, 6]];
     ///
     /// let mut m = Matrix::from_vec(p, &input);
-    /// let mut output_pivots_cvec = vec![-1; m.columns()];
-    /// m.row_reduce(&mut output_pivots_cvec);
+    /// m.initialize_pivots();
+    /// m.row_reduce();
     ///
     /// assert_eq!(m, Matrix::from_vec(p, &result));
     /// ```
@@ -554,9 +556,9 @@ impl Matrix {
     ///               vec![2, 2, 0, 2, 1]];
     ///
     /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &input);
-    /// let mut pivots = vec![-1; m.columns()];
-    /// m.row_reduce(&mut pivots);
-    /// let ker = m.compute_kernel(&pivots, padded_cols);
+    /// m.initialize_pivots();
+    /// m.row_reduce();
+    /// let ker = m.compute_kernel(padded_cols);
     ///
     /// let mut target = vec![0; 3];
     /// ker.matrix[0].unpack(&mut target);
@@ -615,15 +617,15 @@ impl Matrix {
     ///               vec![2, 2, 0, 2, 1]];
     ///
     /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &input);
-    /// let mut pivots = vec![-1; m.columns()];
-    /// m.row_reduce(&mut pivots);
-    /// let qi = m.compute_quasi_inverse(&pivots, input[0].len(), padded_cols);
+    /// m.initialize_pivots();
+    /// m.row_reduce();
+    /// let qi = m.compute_quasi_inverse(input[0].len(), padded_cols);
     ///
     /// let image = [vec![1, 0, 2, 1, 1],
     ///              vec![0, 1, 1, 0, 1]];
     /// let computed_image = qi.image.unwrap();
     /// assert_eq!(computed_image.matrix, Matrix::from_vec(p, &image));
-    /// assert_eq!(computed_image.column_to_pivot_row, vec![0, 1, -1, -1, -1]);
+    /// assert_eq!(computed_image.pivots(), &vec![0, 1, -1, -1, -1]);
     ///
     /// let preimage = [vec![0, 1, 0],
     ///                 vec![0, 2, 2]];
@@ -1089,18 +1091,14 @@ mod tests {
             for (i,x) in input.iter().enumerate(){
                 m[i].pack(x);
             }
-            let mut output_pivots_cvec = vec![-1; cols];
-            m.row_reduce(&mut output_pivots_cvec);
+            m.initialize_pivots();
+            m.row_reduce();
             let mut unpacked_row : Vec<u32> = vec![0; cols];
             for i in 0 .. input.len() {
                 m[i].unpack(&mut unpacked_row);
                 assert_eq!(unpacked_row, goal_output[i]);
             }
-            let mut output_pivots_vec = Vec::with_capacity(cols);
-            for &entry in &output_pivots_cvec {
-                output_pivots_vec.push(entry);
-            }
-            assert_eq!(output_pivots_vec, goal_pivots)
+            assert_eq!(m.pivots(), &goal_pivots)
         }
     }
 }

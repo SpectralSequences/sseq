@@ -22,5 +22,5 @@ prime-two = []
 json = ["serde_json", "serde"]
 
 [[bench]]
-name = "multinomial"
+name = "bench"
 harness = false

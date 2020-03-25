@@ -1,13 +1,13 @@
 use crate::prime::ValidPrime;
 use super::{Matrix, AugmentedMatrix2};
 
-struct Basis {
+pub struct Basis {
     matrix : Matrix,
     inverse : AugmentedMatrix2
 }
 
 impl Basis {
-    fn new(p : ValidPrime, dimension : usize) -> Self {
+    pub fn new(p : ValidPrime, dimension : usize) -> Self {
         let mut matrix = Matrix::new(p, dimension, dimension);
         let mut inverse = AugmentedMatrix2::new(p, dimension, &[dimension, dimension]);
         matrix.add_identity(dimension, 0, 0);

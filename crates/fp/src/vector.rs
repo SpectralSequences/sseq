@@ -670,16 +670,19 @@ pub struct VectorContainer {
 }
 
 #[derive(Debug, Clone)]
+#[repr(transparent)]
 pub struct FpVector2 {
     vector_container : VectorContainer
 }
 
 #[derive(Debug, Clone)]
+#[repr(transparent)]
 pub struct FpVector3 {
     vector_container : VectorContainer
 }
 
 #[derive(Debug, Clone)]
+#[repr(transparent)]
 pub struct FpVector5 {
     vector_container : VectorContainer
 }
@@ -695,7 +698,7 @@ impl FpVectorT for FpVector2 {
 
     fn prime(&self) -> ValidPrime { ValidPrime::new(2) }
     fn vector_container (&self) -> &VectorContainer { &self.vector_container }
-    fn vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
+    fn vector_container_mut(&mut self) -> &mut VectorContainer { &mut self.vector_container }
 
     fn add_basis_element(&mut self, index : usize, value : u32){
         let limb_index = limb_bit_index_pair(self.prime(), index + self.min_index());
@@ -769,25 +772,25 @@ impl FpVectorT for FpVectorGeneric {
 }
 
 impl FpVector {
-    pub fn new(p : ValidPrime, dimension : usize) -> FpVector {
-        let slice_start = 0;
-        let slice_end = dimension;
+    pub fn new(p : ValidPrime, dimension : usize) -> Self {
         let number_of_limbs = Self::number_of_limbs(p, dimension);
         let limbs = vec![0; number_of_limbs];
-        let vector_container = VectorContainer {dimension, limbs, slice_start, slice_end };
+        let slice_start = 0;
+        let slice_end = dimension;
+        let vector_container = VectorContainer { dimension, limbs, slice_start, slice_end };
 
         #[cfg(feature = "prime-two")]
         {
-            FpVector::from(FpVector2 { vector_container })
+            Self::from(FpVector2 { vector_container })
         }
 
         #[cfg(not(feature = "prime-two"))]
         {
             match *p  {
-                2 => FpVector::from(FpVector2 { vector_container }),
-                3 => FpVector::from(FpVector3 { vector_container }),
-                5 => FpVector::from(FpVector5 { vector_container }),
-                _ => FpVector::from(FpVectorGeneric { p, vector_container })
+                2 => Self::from(FpVector2 { vector_container }),
+                3 => Self::from(FpVector3 { vector_container }),
+                5 => Self::from(FpVector5 { vector_container }),
+                _ => Self::from(FpVectorGeneric { p, vector_container })
             }
         }
     }
