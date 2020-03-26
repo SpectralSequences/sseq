@@ -21,9 +21,9 @@ use serde_json::Value;
 /// always has minimum degree -1 mod 8.
 pub struct RealProjectiveSpace<A : SteenrodAlgebraT + Algebra> {
     algebra: Arc<A>,
-    min: i32,
-    clear_bottom: bool,
-    max: Option<i32>, // If None,  then RP^oo
+    pub min: i32,
+    pub clear_bottom: bool,
+    pub max: Option<i32>, // If None,  then RP^oo
 }
 
 impl<A : SteenrodAlgebraT + Algebra> PartialEq for RealProjectiveSpace<A> {
