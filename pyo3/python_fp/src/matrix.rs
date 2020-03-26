@@ -97,8 +97,8 @@ impl Matrix {
     // pub fn to_vec(&self) -> Vec<Vec<u32>> {}
     // pub fn augmented_from_vec(p : ValidPrime, input : &[Vec<u32>]) -> (usize, Matrix) {}
 
-    fn set_identity(&mut self, size : usize, row : usize, column : usize) -> PyResult<()> {
-        self.inner_mut()?.set_identity(size, row, column);
+    fn add_identity(&mut self, size : usize, row : usize, column : usize) -> PyResult<()> {
+        self.inner_mut()?.add_identity(size, row, column);
         Ok(())
     }
 
@@ -193,14 +193,14 @@ impl Subspace {
         Ok(Self::box_and_wrap(SubspaceRust::new(new_valid_prime(p)?, rows, columns)))
     }
 
-    #[staticmethod]
-    pub fn subquotient(space : Option<&Subspace>, subspace : Option<&Subspace>, ambient_dimension : usize) -> PyResult<Vec<usize>> { 
-        Ok(SubspaceRust::subquotient(
-            space.map_or::<PyResult<Option<&SubspaceRust>>,_>(Ok(None), |s| Ok(Some(s.inner()?)))?, 
-            subspace.map_or::<PyResult<Option<&SubspaceRust>>,_>(Ok(None), |s| Ok(Some(s.inner()?)))?, 
-            ambient_dimension
-        ))
-    }
+    // #[staticmethod]
+    // pub fn subquotient(space : Option<&Subspace>, subspace : Option<&Subspace>, ambient_dimension : usize) -> PyResult<Vec<usize>> { 
+    //     Ok(SubspaceRust::subquotient(
+    //         space.map_or::<PyResult<Option<&SubspaceRust>>,_>(Ok(None), |s| Ok(Some(s.inner()?)))?, 
+    //         subspace.map_or::<PyResult<Option<&SubspaceRust>>,_>(Ok(None), |s| Ok(Some(s.inner()?)))?, 
+    //         ambient_dimension
+    //     ))
+    // }
 
     #[staticmethod]
     pub fn entire_space(p : u32, dim : usize) -> PyResult<Self> { 

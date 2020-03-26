@@ -6,19 +6,22 @@ use algebra::module::{
     Module as ModuleT,
     FDModule as FDModuleRust,
     FPModule as FPModuleRust,
+    RealProjectiveSpace as RealProjectiveSpaceRust,
     ZeroModule
 };
 
 use pyo3::{prelude::*};//, exceptions, PyErr};
 use crate::algebra::AlgebraRust;
 use crate::module::{
-    FDModule
+    FDModule,
+    RealProjectiveSpace
 };
 
 #[allow(dead_code)]
 pub enum ModuleRust {
     FDModule(FDModuleRust<AlgebraRust>),
-    FPModule(FPModuleRust<AlgebraRust>)
+    FPModule(FPModuleRust<AlgebraRust>),
+    RealProjectiveSpace(RealProjectiveSpaceRust<AlgebraRust>)
 }
 
 macro_rules! because_enum_dispatch_doesnt_work_for_me {
@@ -26,6 +29,7 @@ macro_rules! because_enum_dispatch_doesnt_work_for_me {
         match $self_ {
             ModuleRust::FDModule(module) => module.$method($($args),*),
             ModuleRust::FPModule(module) => module.$method($($args),*),
+            ModuleRust::RealProjectiveSpace(module) => module.$method($($args),*),
             // AlgebraRust::PythonModuleRust(alg) => alg.$method($($args),*)
         }
     };
@@ -37,9 +41,24 @@ impl ModuleRust {
         let py = gil.python();
         match *module {
             ModuleRust::FDModule(_) => FDModule::wrap_immutable(module).into_py(py),
+            ModuleRust::RealProjectiveSpace(_) => RealProjectiveSpace::wrap_immutable(module).into_py(py),
             _ => unimplemented!()
         }
     }
+
+    pub fn from_py_object(module : PyObject) -> PyResult<Arc<ModuleRust>> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        module.extract::<&FDModule>(py).and_then(|a| a.to_arc())
+                .or_else(|_err : PyErr| Ok(module.extract::<&RealProjectiveSpace>(py)?.to_arc()?))
+                // .or_else(|_err : PyErr| Ok(module.extract::<&PythonAlgebra>(py)?.to_arc()?))
+                .map( |a| a.clone())
+                // .map_err(|_err : PyErr| {
+                //     python_utils::exception!(TypeError,
+                //         "Invalid module!"
+                //     )
+                // })
+    }    
 }
 
 impl ZeroModule for ModuleRust {

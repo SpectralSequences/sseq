@@ -125,9 +125,9 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
         }
 
         fn check_dimension(&self, degree : i32, vec : &FpVector) -> PyResult<()> {
-            let what_the_dimension_should_be = self.inner_unchkd().dimension(degree, -1);
+            let what_the_dimension_should_be = self.inner_unchkd().dimension(degree, i32::max_value());
             let the_dimension = vec.get_dimension()?;
-            if the_dimension == what_the_dimension_should_be {
+            if the_dimension <= what_the_dimension_should_be {
                 Ok(())
             } else {
                 Err(python_utils::exception!(IndexError,
@@ -172,14 +172,14 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             Ok(())
         }
 
-        #[args(excess=0)]
+        #[args(excess=2147483647)]
         pub fn dimension(&self, degree : i32, excess : i32) -> PyResult<usize> {
             self.check_not_null()?;
             self.check_degree(degree)?;
             Ok(self.inner_unchkd().dimension(degree, excess))
         }
 
-        #[args(excess=0)]
+        #[args(excess=2147483647)]
         pub fn multiply_basis_elements(&self, 
             result : &mut FpVector, coeff : u32, 
             r_degree : i32, r_index : usize, 
@@ -194,7 +194,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             Ok(())
         }
 
-        #[args(excess=0)]
+        #[args(excess=2147483647)]
         pub fn multiply_basis_element_by_element(&self, 
             result : &mut FpVector, coeff : u32, 
             r_degree : i32, r_index : usize, 
@@ -215,7 +215,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             Ok(())
         }
 
-        #[args(excess=0)]
+        #[args(excess=2147483647)]
         pub fn multiply_element_by_basis_element(&self, 
             result : &mut FpVector, coeff : u32, 
             r_degree : i32, r : &FpVector, 
@@ -236,7 +236,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             Ok(())
         }
 
-        #[args(excess=0)]
+        #[args(excess=2147483647)]
         pub fn multiply_element_by_element(&self, 
             result : &mut FpVector, coeff : u32, 
             r_degree : i32, r : &FpVector, 
@@ -302,7 +302,8 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
     #[pyclass(dict)]
     pub struct $element {
         algebra : $algebra,
-        degree : i32,
+        degree : i32, 
+        excess : i32,
         element : FpVector
     }
     
@@ -312,6 +313,42 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             self.algebra.element_to_string(self.degree, &self.element)
         }
     }
+
+    // #[pyproto]
+    // impl pyo3::PyNumberProtocol for $element {
+    //     fn __add__(self, other: $element) -> PyResult<$element> {
+    //         // if self.algebra != other.algebra {
+    //         //     return Err(python_utils::exception!(TypeError,
+    //         //         "You cannot add elements of different algebras."
+    //         //     ))
+    //         // }
+    //         // if self.degree != other.degree {
+    //         //     return Err(python_utils::exception!(TypeError,
+    //         //         "Elements you are trying to add have different degrees {} and {}. You cannot form inhomogenous sums.",
+    //         //         self.degree, other.degree
+    //         //     ))
+    //         // }
+    //         // let mut result = self.algebra.new_element(self.degree)?;
+    //         // result.assign(&self.element);
+    //         // result.add(&other.element);
+    //         Ok(self)
+    //     }
+
+        // fn __mul__(self, other: $element) -> PyResult<$element> {
+        //     if self.algebra != other.algebra {
+        //         return Err(python_utils::exception!(TypeError,
+        //             "You cannot multiply elements of different algebras."
+        //         ))
+        //     }
+            
+        //     let mut result = self.algebra.new_element(self.degree + other.degree)?;
+        //     result.excess = other.excess;
+        //     self.algebra.multiply_element_by_element(
+        //         &mut result, 1, self.degree, &self.element, other.degree, &other.element, other.excess
+        //     );
+        //     Ok(result)
+        // }        
+    // }    
 
     #[pyproto]
     impl pyo3::PySequenceProtocol for $element {
@@ -382,18 +419,23 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             self.algebra.multiply_element_by_element(&mut self.element, coeff, 
                 left.degree, &left.element, 
                 right.degree, &right.element, 
-                -1
+                right.excess
             )
         }
     }
     
+
     #[pymethods]
     impl $algebra {
-        fn new_element(&self, degree : i32) -> PyResult<$element> {
+        #[args(excess=2147483647)]
+        fn new_element(&self, degree : i32, excess : i32) -> PyResult<$element> {
+            self.check_not_null()?;
+            self.check_degree(degree)?;
             Ok($element {
                 algebra : self.clone(),
                 degree,
-                element : FpVector::new(self.get_prime()?, self.dimension(degree, -1)?)?
+                excess,
+                element : FpVector::new(self.get_prime()?, self.dimension(degree, excess)?)?
             })
         }
     
@@ -401,6 +443,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             Ok($element {
                 algebra : self.clone(),
                 degree,
+                excess : -1,
                 element : v.clone()
             })
         }

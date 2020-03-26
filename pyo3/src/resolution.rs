@@ -7,9 +7,8 @@ use pyo3::prelude::*;
 use ext::resolution::ResolutionInner as ResolutionRust;
 use ext::chain_complex::{ChainComplex, FiniteChainComplex, FreeChainComplex};//, ChainMap};
 
-use python_algebra::module::ModuleRust;
 use python_algebra::module::{
-    FDModule, 
+    ModuleRust,
     FreeModule,
     homomorphism::{
         FreeModuleHomomorphism,
@@ -23,8 +22,12 @@ python_utils::rc_wrapper_type!(Resolution, ResolutionRust<CCRust>);
 #[pymethods]
 impl Resolution {
     #[new]
-    pub fn new(module : &FDModule) -> PyResult<Self> {
-        let chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(module.to_arc()?)));
+    pub fn new(module : PyObject) -> PyResult<Self> {
+        let chain_complex = Arc::new(
+            FiniteChainComplex::ccdz(
+                ModuleRust::from_py_object(module)?
+            )
+        );
         Ok(Resolution::box_and_wrap(ResolutionRust::new(Arc::clone(&chain_complex))))
     }
 

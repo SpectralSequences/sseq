@@ -1,29 +1,18 @@
-#![allow(unused_imports)]
-
 use pyo3::{
     prelude::*,
-    exceptions,
     PyObjectProtocol,
     types::PyTuple
 };
 
-use std::fs::File;
-use std::io::BufReader;
-use std::sync::{Arc, Weak};
+// use std::fs::File;
+// use std::io::BufReader;
+// use std::sync::Arc;
 use std::collections::HashMap;
 
-use serde_json::{json, Value};
+// use serde_json::{json, Value};
 
-use python_utils::{
-    self,
-    py_repr, 
-    rc_wrapper_type, 
-    wrapper_type, 
-    // immutable_wrapper_type,
-    // get_from_kwargs
-};
+use python_utils;
 
-use crate::module_methods;
 
 use bivec::BiVec;
 use algebra::Algebra as AlgebraT;
@@ -35,34 +24,27 @@ use crate::module::module_rust::ModuleRust;
 
 crate::module_bindings!(FDModule, FDModuleRust);
 
-py_repr!(FDModule, "FreedFDModule", {
+python_utils::py_repr!(FDModule, "FreedFDModule", {
     Ok(format!(
         "FDModule(p={})",
         inner.prime(),
     ))
 });
 
-impl FDModule {
-    fn max_computed_degree(&self) -> PyResult<i32> {
-        Ok(i32::max_value())
-        // Ok(self.inner()?.max_degree())
-    }
-}
-
 
 impl FDModule {
-    fn from_json_inner(mut json: Value) -> PyResult<Self> {
-        let algebra = AlgebraRust::from_json(&json, "adem".to_string())
-            .map_err(|e| 
-                python_utils::exception!(ValueError, "Failed to construct algebra: {}", e)
-            )?;
-        let algebra = Arc::new(algebra);
-        let module = FDModuleRust::from_json(algebra, &mut json)
-            .map_err(|e| {
-                python_utils::exception!(ValueError, "Failed to construct module: {}", e)
-            })?;
-        Ok(Self::box_and_wrap(module))
-    }
+    // fn from_json_inner(mut json: Value) -> PyResult<Self> {
+    //     let algebra = AlgebraRust::from_json(&json, "adem".to_string())
+    //         .map_err(|e| 
+    //             python_utils::exception!(ValueError, "Failed to construct algebra: {}", e)
+    //         )?;
+    //     let algebra = Arc::new(algebra);
+    //     let module = FDModuleRust::from_json(algebra, &mut json)
+    //         .map_err(|e| {
+    //             python_utils::exception!(ValueError, "Failed to construct module: {}", e)
+    //         })?;
+    //     Ok(Self::box_and_wrap(module))
+    // }
 }
 
 #[pymethods]
@@ -76,38 +58,38 @@ impl FDModule {
         ))
     }
 
-    #[staticmethod]
-    fn from_file(path: String) -> PyResult<Self> {
-        let f =
-            File::open(path).map_err(|e| 
-                python_utils::exception!(IOError, "Failed to open file: {}", e)
-            )?;
+    // #[staticmethod]
+    // fn from_file(path: String) -> PyResult<Self> {
+    //     let f =
+    //         File::open(path).map_err(|e| 
+    //             python_utils::exception!(IOError, "Failed to open file: {}", e)
+    //         )?;
 
-        let json = serde_json::from_reader(BufReader::new(f))
-            .map_err(|e| 
-                python_utils::exception!(ValueError, "Failed to parse json: {}", e)
-            )?;
+    //     let json = serde_json::from_reader(BufReader::new(f))
+    //         .map_err(|e| 
+    //             python_utils::exception!(ValueError, "Failed to parse json: {}", e)
+    //         )?;
 
-        Self::from_json_inner(json)
-    }
+    //     Self::from_json_inner(json)
+    // }
 
-    #[staticmethod]
-    fn from_json(json: String) -> PyResult<Self> {
-        let json = serde_json::from_str(&json)
-            .map_err(|e| 
-                python_utils::exception!(ValueError, "Failed to parse json: {}", e)
-            )?;
+    // #[staticmethod]
+    // fn from_json(json: String) -> PyResult<Self> {
+    //     let json = serde_json::from_str(&json)
+    //         .map_err(|e| 
+    //             python_utils::exception!(ValueError, "Failed to parse json: {}", e)
+    //         )?;
 
-        Self::from_json_inner(json)
-    }
+    //     Self::from_json_inner(json)
+    // }
 
-    fn to_json(&self) -> PyResult<String> {
-        let mut json = json!({});
-        let inner = self.inner()?;
-        inner.algebra().to_json(&mut json);
-        inner.to_json(&mut json);
-        Ok(json.to_string())
-    }
+    // fn to_json(&self) -> PyResult<String> {
+    //     let mut json = json!({});
+    //     let inner = self.inner()?;
+    //     inner.algebra().to_json(&mut json);
+    //     inner.to_json(&mut json);
+    //     Ok(json.to_string())
+    // }
 
     #[getter]
     fn get_max_degree(&self) -> PyResult<i32> {

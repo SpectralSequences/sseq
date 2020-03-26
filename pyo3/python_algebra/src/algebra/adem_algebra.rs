@@ -107,11 +107,11 @@ impl AdemAlgebra {
     #[args("*", unstable=false, kwargs="**")]
     pub fn new(p : u32,  unstable : bool, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let generic : bool = get_from_kwargs(kwargs, "generic", p!=2)?;
-        if unstable {
-            return Err(python_utils::exception!(NotImplementedError,
-                "Unstable Adem algebras not yet implemented."
-            ));
-        }
+        // if unstable {
+        //     return Err(python_utils::exception!(NotImplementedError,
+        //         "Unstable Adem algebras not yet implemented."
+        //     ));
+        // }
         let algebra = AdemAlgebraRust::new(new_valid_prime(p)?, generic, unstable);
         let mut result = Self::box_and_wrap(algebra);
         result.freeze().unwrap_or_else(|_err| unreachable!());
@@ -160,5 +160,4 @@ impl AdemAlgebra {
         self.inner_unchkd().make_mono_admissible(result.inner_mut()?, coeff, &mut monomial_inner, excess);
         Ok(())
     }
-
 }

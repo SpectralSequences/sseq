@@ -1,7 +1,5 @@
 #![macro_use]
 
-
-
 #[macro_export]
 macro_rules! module_methods {
     ($module : ty) => {
@@ -9,7 +7,7 @@ macro_rules! module_methods {
         #[allow(dead_code)]
         impl $module {
             fn check_degree(&self, degree : i32) -> PyResult<()> {
-                let max_degree = self.max_computed_degree()?;
+                let max_degree = self.inner()?.max_computed_degree();
                 if degree > max_degree {
                     Err(python_utils::exception!(IndexError,
                         "Degree {} too large: maximum degree of module is {}.", 
@@ -20,7 +18,7 @@ macro_rules! module_methods {
                 }
             }
     
-            fn check_dimension(&self, degree : i32, vec : &FpVector) -> PyResult<()> {
+            fn check_dimension(&self, degree : i32, vec : &python_fp::vector::FpVector) -> PyResult<()> {
                 let what_the_dimension_should_be = self.inner_unchkd().dimension(degree);
                 let the_dimension = vec.get_dimension()?;
                 if the_dimension == what_the_dimension_should_be {
@@ -50,7 +48,8 @@ macro_rules! module_methods {
             }
     
             fn check_algebra_degree(&self, degree : i32) -> PyResult<()> {
-                let max_degree = self.inner_unchkd().algebra().max_degree();
+                // let max_degree = self.inner_unchkd().algebra().max_computed_degree();
+                let max_degree = i32::max_value(); // TODO: fix me.
                 if degree > max_degree {
                     Err(python_utils::exception!(IndexError,
                         "Degree {} too large: maximum degree of algebra is {}. Run \"algebra.compute_basis({})\" first", 
@@ -62,7 +61,7 @@ macro_rules! module_methods {
             }
     
     
-            fn check_algebra_dimension(&self, degree : i32, vec : &FpVector) -> PyResult<()> {
+            fn check_algebra_dimension(&self, degree : i32, vec : &python_fp::vector::FpVector) -> PyResult<()> {
                 let what_the_dimension_should_be = self.inner_unchkd().algebra().dimension(degree, 0);
                 let the_dimension = vec.get_dimension()?;
                 if the_dimension == what_the_dimension_should_be {
@@ -129,7 +128,7 @@ macro_rules! module_methods {
     
             pub fn act_on_basis(
                 &self,
-                result: &mut FpVector,
+                result: &mut python_fp::vector::FpVector,
                 coeff: u32,
                 op_degree: i32,
                 op_index: usize,
@@ -150,12 +149,12 @@ macro_rules! module_methods {
 
             fn act(
                 &self,
-                result: &mut FpVector,
+                result: &mut python_fp::vector::FpVector,
                 coeff: u32,
                 op_degree: i32,
                 op_index: usize,
                 input_degree: i32,
-                input: &FpVector,
+                input: &python_fp::vector::FpVector,
             ) -> PyResult<()> {
                 self.check_not_null()?;
                 self.check_degree(op_degree + input_degree)?;
@@ -171,12 +170,12 @@ macro_rules! module_methods {
 
             fn act_by_element(
                 &self,
-                result: &mut FpVector,
+                result: &mut python_fp::vector::FpVector,
                 coeff: u32,
                 op_degree: i32,
-                op: &FpVector,
+                op: &python_fp::vector::FpVector,
                 input_degree: i32,
-                input: &FpVector,
+                input: &python_fp::vector::FpVector,
             ) -> PyResult<()> {
                 self.check_not_null()?;
                 self.check_degree(op_degree + input_degree)?;
@@ -202,7 +201,7 @@ macro_rules! module_methods {
                 Ok(self.inner_unchkd().basis_element_to_string(degree, idx))
             }
             
-            pub fn element_to_string(&self, degree : i32, element : &FpVector) -> PyResult<String> {
+            pub fn element_to_string(&self, degree : i32, element : &python_fp::vector::FpVector) -> PyResult<String> {
                 self.check_not_null()?;
                 self.check_degree(degree)?;
                 element.check_not_null()?;
