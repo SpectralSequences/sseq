@@ -13,7 +13,7 @@ import sys
 from ..decorators import monkey_patch
 from .. import utils
 
-
+from prompt_toolkit import HTML, print_formatted_text
 from prompt_toolkit.formatted_text import (
     FormattedText,
     PygmentsTokens,
@@ -212,3 +212,46 @@ def print_formatted_output(self, formatted_output):
         style_transformation=self.style_transformation,
         include_default_pygments_style=False,
     )
+
+@monkey_patch(PythonRepl)
+def format_and_print_text(self, text):
+    if self.BUFFER_STDOUT:
+        print_formatted_text(HTML(text + "\n"), file=WrappedStdout(sys.stdout))
+    else:
+        print_formatted_text(HTML(text))
+
+@monkey_patch(PythonRepl)
+def print_error(self, err):
+    self.format_and_print_text("<red>" + str(err) + "</red>")
+
+@monkey_patch(PythonRepl)
+def print_warning(self, err):
+    self.format_and_print_text("<orange>" + str(err) + "</orange>")
+
+
+class WrappedStdout:
+    """
+    Proxy object for stdout which captures everything and prints output above
+    the current application.
+    """
+
+    def __init__(
+        self, inner
+    ) -> None:
+        self.inner = inner
+        self.errors = self.inner.errors
+        self.encoding = self.inner.encoding        
+
+    def write(self, data: str) -> int:
+        return self.inner.write(data.decode())
+
+    def flush(self) -> None:
+        return self.inner.flush()
+
+    def fileno(self) -> int:
+        return self.inner.fileno()
+
+    def isatty(self) -> bool:
+        return self.inner.isatty()    
+
+

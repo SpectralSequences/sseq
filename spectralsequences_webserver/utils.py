@@ -1,10 +1,6 @@
 import json
 import pathlib
-import prompt_toolkit 
-from prompt_toolkit import HTML
 import sys 
-from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
-
 
 def exec_file_if_exists(path, globals, locals):
     if path.is_file():
@@ -15,51 +11,8 @@ def exec_file(path, globals, locals):
     code = compile(path.read_text(), path, "exec")
     exec(code, globals, locals)
 
-async def async_exec_file_if_exists(path, globals, locals):
-    if path.is_file():
-        code = compile(path.read_text(), path, "exec", flags=PyCF_ALLOW_TOP_LEVEL_AWAIT)
-        await exec(code, globals, locals) 
-
-async def async_exec_file(path, globals, locals):
-    code = compile(path.read_text(), path, "exec", flags=PyCF_ALLOW_TOP_LEVEL_AWAIT)
-    await exec(code, globals, locals)
-
 def append_key_to_json_str(json_str, key, value):
     return json_string[:-1] + f""", "{str(key)}": {str(value)}}}"""
-
-def print_error(err):
-    format_and_print_text("<red>" + str(err) + "</red>")
-
-def print_warning(err):
-    format_and_print_text("<orange>" + str(err) + "</orange>")
-
-def format_and_print_text(text):
-    prompt_toolkit.print_formatted_text(HTML(text), file=WrappedStdout(sys.stdout))
-
-class WrappedStdout:
-    """
-    Proxy object for stdout which captures everything and prints output above
-    the current application.
-    """
-
-    def __init__(
-        self, inner
-    ) -> None:
-        self.inner = inner
-        self.errors = self.inner.errors
-        self.encoding = self.inner.encoding        
-
-    def write(self, data: str) -> int:
-        return self.inner.write(data.decode())
-
-    def flush(self) -> None:
-        return self.inner.flush()
-
-    def fileno(self) -> int:
-        return self.inner.fileno()
-
-    def isatty(self) -> bool:
-        return self.inner.isatty()    
 
 def stringifier(obj):
     if hasattr(obj, "to_json"):

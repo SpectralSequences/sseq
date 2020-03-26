@@ -12,6 +12,7 @@ from ..channel import Channel
 
 @handler_class 
 class SpectralSequenceChart(Channel):
+    default_background_color = "#FFFFFF"
     def __init__(self, name, sseq=None):
         super().__init__(name) 
         self.name = name
@@ -19,13 +20,14 @@ class SpectralSequenceChart(Channel):
             self.sseq = sseq
         else:
             self.sseq = BasicSpectralSequenceChart(name)
-        self.background_color = "#FFFFFF";
+        self.background_color = SpectralSequenceChart.default_background_color
         self.click_handler = handlers.no_op
         # self.handshakes = set()
 
     def print_started_msg(self):
+        from ..repl import get_repl
         colored_url = f"<blue>http://localhost:{config.PORT}/sseq/{self.name}</blue>"
-        utils.format_and_print_text(
+        get_repl().format_and_print_text(
                 f"""<green>Started spectral sequence "{self.name}".\n""" +\
                 f"""Visit "{colored_url}" to view.</green>"""
         )
@@ -94,7 +96,7 @@ class SpectralSequenceChart(Channel):
 
     @handler
     async def handle_client_error(self, data):
-        utils.print_error("Client sent an error: " + data["error"])
+        REPL.print_error("Client sent an error: " + data["error"])
 
     @handler
     async def handle_click(self, msg):

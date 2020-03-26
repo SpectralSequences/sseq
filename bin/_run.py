@@ -2,12 +2,11 @@ import argparse
 import json
 import os
 from pathlib import Path
+from prompt_toolkit import HTML, print_formatted_text
 import sys
 import uvicorn
 
 sys.path.append(os.environ["REPOSITORY_ROOT"])
-
-from spectralsequences_webserver.utils import print_error
 
 def main():
     parser = argparse.ArgumentParser(description='Spectral sequence webserver')
@@ -16,7 +15,7 @@ def main():
     files = [str(Path(file).absolute()) for file in args.files]
     for file in files:
         if not Path(file).is_file():
-            print_error(f"""Input file "{file}" not found.\nQuitting.""")
+            print_formatted_text(HTML("<red>" + str(err) + "</red>"))
             return
     os.environ["INPUT_FILES"] = json.dumps(files)
 
