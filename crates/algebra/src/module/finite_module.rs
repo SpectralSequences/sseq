@@ -9,7 +9,7 @@ use std::sync::Arc;
 pub enum FiniteModule {
     FDModule(FDModule<SteenrodAlgebra>),
     FPModule(FPModule<SteenrodAlgebra>),
-    RealProjectiveSpace(RealProjectiveSpace),
+    RealProjectiveSpace(RealProjectiveSpace<SteenrodAlgebra>),
 }
 
 impl Module for FiniteModule {
@@ -185,8 +185,8 @@ impl From<FDModule<SteenrodAlgebra>> for FiniteModule {
         Self::FDModule(m)
     }
 }
-impl From<RealProjectiveSpace> for FiniteModule {
-    fn from(m: RealProjectiveSpace) -> Self {
+impl From<RealProjectiveSpace<SteenrodAlgebra>> for FiniteModule {
+    fn from(m: RealProjectiveSpace<SteenrodAlgebra>) -> Self {
         Self::RealProjectiveSpace(m)
     }
 }
@@ -249,7 +249,7 @@ impl FiniteModule {
         }
     }
 
-    pub fn into_real_projective_space(self) -> Option<RealProjectiveSpace> {
+    pub fn into_real_projective_space(self) -> Option<RealProjectiveSpace<SteenrodAlgebra>> {
         match self {
             FiniteModule::RealProjectiveSpace(m) => Some(m),
             _ => None,
@@ -270,7 +270,7 @@ impl FiniteModule {
         }
     }
 
-    pub fn as_real_projective_space(&self) -> Option<&RealProjectiveSpace> {
+    pub fn as_real_projective_space(&self) -> Option<&RealProjectiveSpace<SteenrodAlgebra>> {
         match self {
             FiniteModule::RealProjectiveSpace(m) => Some(&m),
             _ => None,

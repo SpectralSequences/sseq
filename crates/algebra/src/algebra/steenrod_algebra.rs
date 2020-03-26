@@ -6,15 +6,34 @@ use crate::algebra::AdemAlgebra;
 use crate::algebra::MilnorAlgebra;
 
 use enum_dispatch::enum_dispatch;
-use nom::IResult;
 use serde::Deserialize;
 use serde_json::Value;
+
+pub trait SteenrodAlgebraT : Send + Sync + 'static {
+    fn to_steenrod_algebra(&self) -> SteenrodAlgebraBorrow;
+}
+
+pub enum SteenrodAlgebraBorrow<'a> {
+    BorrowAdem(&'a AdemAlgebra),
+    BorrowMilnor(&'a MilnorAlgebra),
+}
 
 #[enum_dispatch(Algebra)]
 pub enum SteenrodAlgebra {
     AdemAlgebra,
     MilnorAlgebra,
 }
+
+impl SteenrodAlgebraT for SteenrodAlgebra {
+    fn to_steenrod_algebra(&self) -> SteenrodAlgebraBorrow {
+        match self {
+            SteenrodAlgebra::AdemAlgebra(a) => SteenrodAlgebraBorrow::BorrowAdem(a),
+            SteenrodAlgebra::MilnorAlgebra(a) => SteenrodAlgebraBorrow::BorrowMilnor(a),
+        }
+    }
+}
+
+
 
 
 impl Bialgebra for SteenrodAlgebra {
@@ -64,7 +83,7 @@ impl SteenrodAlgebra {
 
         let algebra : SteenrodAlgebra;
         match algebra_name.as_ref() {
-            "adem" => algebra = SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false)),
+            "adem" => algebra = SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, *p != 2, false)),
             "milnor" => {
                 let mut algebra_inner = MilnorAlgebra::new(p);
                 if let Some(profile) = spec.profile {
@@ -78,7 +97,7 @@ impl SteenrodAlgebra {
                         algebra_inner.profile.p_part = p_part;
                     }
                 }
-                algebra = SteenrodAlgebra::from(algebra_inner);
+                algebra = SteenrodAlgebra::MilnorAlgebra(algebra_inner);
             }
             _ => { return Err(InvalidAlgebraError { name : algebra_name }.into()); }
         };
