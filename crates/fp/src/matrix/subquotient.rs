@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use super::{Matrix, Subspace};
 use crate::vector::{FpVector, FpVectorT};
 
