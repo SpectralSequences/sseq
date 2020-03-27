@@ -30,7 +30,7 @@ pub use zero_module::ZeroModule;
 pub use bounded_module::BoundedModule;
 pub use module_trait::{Module, ModuleFailedRelationError};
 
-use crate::algebra::{SteenrodAlgebra};
+use crate::algebra::SteenrodAlgebra;
 
 // Poor man's trait alias
 pub trait SteenrodModule: Module<Algebra = SteenrodAlgebra> {}
