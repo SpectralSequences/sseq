@@ -1,4 +1,4 @@
-use super::{Matrix, Subspace};
+use super::Subspace;
 use crate::vector::{FpVector, FpVectorT};
 
 pub struct Subquotient {
