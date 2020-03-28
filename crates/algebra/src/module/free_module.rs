@@ -610,6 +610,7 @@ mod tests {
 
     use crate::algebra::{AdemAlgebra, SteenrodAlgebra};
     use fp::prime::ValidPrime;
+    use fp::vector::FpVectorT;
 
     #[test]
     fn test_free_mod() {

@@ -1,5 +1,5 @@
 use crate::algebra::{
-    adem_algebra::AdemBasisElement, milnor_algebra::MilnorBasisElement, AdemAlgebra, Algebra,
+    adem_algebra::AdemBasisElement, milnor_algebra::MilnorBasisElement, AdemAlgebra,
     MilnorAlgebra, SteenrodAlgebraT, SteenrodAlgebraBorrow
 };
 use crate::module::{Module, ZeroModule};

@@ -21,7 +21,7 @@ use std::fmt;
 /// In general, before one uses a matrix, they must run
 /// `fp_vector::initialize_limb_bit_index_table(p)`. This only has to be done once and will be
 /// omitted from all examples.
-#[derive(PartialEq, Eq, Clone)]
+#[derive(Clone)]
 pub struct Matrix {
     p : ValidPrime,
     rows : usize,
@@ -33,6 +33,18 @@ pub struct Matrix {
     pub vectors : Vec<FpVector>,
     pivot_vec : Vec<isize>
 }
+
+impl PartialEq for Matrix {
+    fn eq(&self, other: &Self) -> bool {
+        self.vectors == other.vectors
+            && self.slice_row_start == other.slice_row_start
+            && self.slice_row_end == other.slice_row_end
+            && self.slice_col_start == other.slice_col_start
+            && self.slice_col_end == other.slice_col_end
+    }
+}
+
+impl Eq for Matrix {}
 
 impl Matrix {
     /// Produces a new matrix over F_p with the specified number of rows and columns, initialized

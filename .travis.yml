@@ -26,9 +26,15 @@ script:
     - cargo check --features "prime-two concurrent" --workspace
     - cargo clippy --workspace --all-targets -- -D warnings
     - cargo clippy --workspace --features "cache-multiplication concurrent" --all-targets -- -D warnings -A unused_imports
+    - cd crates
+    - cargo test --workspace
+    - cargo clippy --workspace --all-targets -- -D warnings
+    - cd ..
 
 cache:
     cargo: true
+    directories:
+        - crates/target/
 
 before_deploy:
     - ./gen_doc.sh

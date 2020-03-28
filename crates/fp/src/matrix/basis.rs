@@ -75,8 +75,8 @@ mod tests {
             vec![1, 0, 1, 1],
             vec![0, 1, 0, 1],
         ];
-        for i in 0..4 {
-            basis.matrix[i].pack(&matrix[i]);
+        for (i, row) in basis.matrix.iter_mut().enumerate() {
+            row.pack(&matrix[i]);
         }
         basis.calculate_inverse();
         println!("inverse: {}", *basis.inverse.segment(1,1));

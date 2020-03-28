@@ -18,8 +18,8 @@ fn row_reduce_2(bencher : &mut bencher::Bencher){
     for m in matrices.iter_mut() {
         m.initialize_pivots();
         for row in 0..rows {
-            for col in 0..cols {
-                vec[col] = rng.gen::<bool>() as u32;
+            for v in vec.iter_mut() {
+                *v = rng.gen::<bool>() as u32;
             }
             m[row].pack(&vec);
         }

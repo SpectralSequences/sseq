@@ -1,4 +1,4 @@
-use bencher::{Bencher, benchmark_group, benchmark_main};
+use bencher::benchmark_main;
 mod multinomial;
 mod row_reduce;
 use crate::multinomial::main as multinomial; 

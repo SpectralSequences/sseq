@@ -192,16 +192,3 @@ impl Subspace {
         }
     }
 }
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_empty_subspace() {
-
-        z.reduce(elt);
-    }
-
-}
