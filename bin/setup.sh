@@ -32,16 +32,16 @@ fi
 
 REPO_NAME="python_ext"
 if ! [ -d "$REPO_NAME" ]; then
-    msg "Downloading python_ext from https://github.com/SpectralSequences/$REPO_NAME into $(pwd)/$REPO_NAME." \
-         "If you have a local copy of $REPO_NAME, you may wish to replace this with a symlink"
+    msg "Downloading $REPO_NAME from https://github.com/SpectralSequences/$REPO_NAME into $(pwd)/$REPO_NAME." \
+         "If you have a local copy of $REPO_NAME, you may wish to replace this with a symlink."
     git clone --depth 1 https://github.com/SpectralSequences/python_ext
     git clone --depth 1 https://github.com/SpectralSequences/ext python_ext/rust_ext
 fi
 
-REPO_NAME="basic_webclient"
-if ! [ -d "basic_webclient" ]; then
-    msg "Downloading basic_webclient from https://github.com/SpectralSequences/basic_webclient into $(pwd)/basic_webclient." \
-         "If you have a local copy of basic_webclient, you may wish to replace this with a symlink"
+REPO_NAME="message_passing"
+if ! [ -d "$REPO_NAME" ]; then
+    msg "Downloading $REPO_NAME from https://github.com/SpectralSequences/$REPO_NAME into $(pwd)/$REPO_NAME." \
+         "If you have a local copy of $REPO_NAME, you may wish to replace this with a symlink."
     git clone --depth 1 https://github.com/SpectralSequences/basic_webclient
 fi
 

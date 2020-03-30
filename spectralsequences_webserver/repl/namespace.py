@@ -2,9 +2,8 @@ import json
 import os
 import pathlib
 
-from .. import chart
+from spectralsequence_chart import SpectralSequenceChart
 import ext
-
 
 def read_file(path):
     return pathlib.Path(path).read_text()
@@ -22,8 +21,8 @@ def add_stuff_to_repl_namespace(repl_namespace):
         ext, ext.algebra, ext.module, ext.fp, ext.fp.FpVector,
         ext.algebra.AdemAlgebra, ext.algebra.MilnorAlgebra,
         ext.module.FDModule,
-        ext.resolution.Resolution,
-        chart.SpectralSequenceChart,
+        # ext.resolution.Resolution,
+        SpectralSequenceChart,
     ]
     for name in to_add:
         add_to_namespace(repl_namespace, name)

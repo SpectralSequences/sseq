@@ -50,180 +50,21 @@
             </style>
     </head>
 <body>
-    <script src="/static/basic_webclient" type="text/javascript"></script>
+    <script src="/static/webclient" type="text/javascript"></script>
     <div id="main"></div>
 
 <script>
 "use strict";
-class BadMessageError extends Error {
-    constructor(...args) {
-        super(...args)
-        this.name = this.constructor.name;
-        this.stack = this.stack.split("\n").slice(1).join("\n")
-    }
+
+let ws = new WebSocket("ws://localhost:{{ PORT }}/ws/sseq/{{ channel_name }}");
+
+function make_display(sseq){
+    return new BasicDisplay("#main", sseq);
 }
 
-class UnknownCommandError extends BadMessageError {
-    constructor(...args) {
-        super(...args)
-        this.name = this.constructor.name;
-        this.stack = this.stack.split("\n").slice(1).join("\n")
-    }
-}
-
-class UnknownDisplayCommandError extends UnknownCommandError {
-    constructor(...args) {
-        super(...args)
-        this.name = this.constructor.name;
-        this.stack = this.stack.split("\n").slice(1).join("\n")
-    }
-}
+let sseq_socket = new SpectralSequenceSocketListener(ws, make_display);
 
 
-
-
-
-let display;
-let sseq;
-let ws = new WebSocket("ws://localhost:{{ PORT }}/subscribe_sseq/{{ channel_name }}");
-ws.onopen = function(){
-    send_command("new_user", {});
-}
-
-function send_message(msg) {
-    let json_str = JSON.stringify(msg);
-    ws.send(String(json_str));
-}
-
-function send_command(cmd, msg) {
-    let obj = { "cmd" : cmd }
-    Object.assign(obj, msg)
-    send_message(obj);
-}
-
-function send_handshake(orig_msg, succeeded, error) {
-    send_command("handshake", {
-        "orig_msg" : orig_msg,
-        "ok" : succeeded,
-        "error" : String(error)
-    });
-    if(!succeeded) {
-        console.error(error);
-        // console.error(`Message md5: ${msg_md5}`);
-    }
-}
-
-function send_error(orig_msg, error) {
-    send_command("client_error", {
-        "orig_msg" : orig_msg,
-        "error" : String(error)
-    });
-    console.error(error);
-    // console.error(`Message md5: ${msg_md5}`);
-}
-
-
-function handle_message_general_dispatch(cmd_name, dispatch, msg){
-    let succeeded = true;
-    let error;
-    try {
-        if(msg[cmd_name] === undefined) {
-            let message_type = dispatch === main_dispatch ? "message" : `${msg.cmd} command`;
-            let command_type = dispatch === main_dispatch ? "command" : "subcommand";
-            throw new UnknownCommandError(`Console sent ${message_type} missing ${command_type}.`);
-        } else if(dispatch[msg[cmd_name]] === undefined) {
-            let command_type = dispatch === main_dispatch ? "command" : `${msg.cmd} subcommand`;
-            throw new UnknownCommandError(`Console sent unknown ${command_type} "${msg[cmd_name]}".`);
-        } else {
-            dispatch[msg[cmd_name]](msg);
-        }
-    } catch(err) {
-        succeeded = false;
-        error = err;
-    }
-
-    if(!succeeded) {
-        send_error(msg, error);
-    }
-}
-
-function handle_message_main_dispatch(msg) {
-    handle_message_general_dispatch("cmd", main_dispatch, msg);
-}
-
-function handle_message_sub_dispatch(dispatch, msg) {
-    handle_message_general_dispatch("subcommand", dispatch, msg);
-}
-
-ws.onmessage = function(event) {
-    let msg = JSON.parse(event.data);
-    handle_message_main_dispatch(msg);
-};
-
-
-
-function click_handler(cls) {
-    if(cls != null){
-        send_command("click", { "class" : cls });
-    }
-}
-
-let main_dispatch = {
-    "accept_user" : function(msg) {
-        console.log("accepted user:", msg);
-        sseq = SpectralSequenceChart.from_JSON(msg.state);
-        display = new BasicDisplay("#main", sseq);
-        display.on("click", click_handler)
-        if(msg.display_state) {
-            set_display_settings(msg.display_state);
-        }
-        // let sseq = new SpectralSequenceChart();
-        // Object.assign(sseq, msg.state)
-    },
-
-    "class" : function(msg) {
-        handle_message_sub_dispatch(class_dispatch, msg)
-        // do_class_function(msg.arguments);
-        // display.update();
-    },
-
-    "add_edge" : function(msg) {
-        sseq.add_edge(msg.arguments);
-        display.update();
-    },
-
-    "display" : function(msg) {
-        handle_message_sub_dispatch(display_dispatch, msg);
-    },
-
-    "alert" : function(msg) {
-        alert(msg.alert_text);
-    }
-};
-
-let display_dispatch = {
-    "set_background_color" : function(msg) {
-        display.setBackgroundColor(msg.color);
-    },
-}
-
-let class_dispatch = {
-    "add" : function(msg) {
-        sseq.add_class(msg.arguments);
-        display.update();
-    },
-    "set_name" : function(msg) {
-        sseq.classes_by_degree.get([msg.arguments.x, msg.arguments.y])[msg.arguments.idx].name = msg.arguments.name;
-    }
-}
-
-
-function set_display_settings(display_settings) {
-    for(let msg of display_settings) {
-        msg["cmd"] = "display";
-        handle_message_sub_dispatch(display_dispatch, msg);
-    }
-}
 </script>        
 </body>
 </html>

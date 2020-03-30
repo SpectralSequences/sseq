@@ -2,8 +2,12 @@ import asyncio
 import os
 import pathlib
 import sys
+import traceback
 
-from . import repl 
+from message_passing_tree.agent import Agent
+
+from . import repl
+from .repl_agent import ReplAgent
 from .namespace import add_stuff_to_repl_namespace
 from .. import utils
 from .. import config
@@ -16,54 +20,51 @@ def start_repl():
         configure=configure_repl
     )
     task = asyncio.ensure_future(f)    
-    task.add_done_callback(_handle_task_exception)
+    task.add_done_callback(handle_task_exception)
 
 REPL=None
 def get_repl():
     return REPL
 
-def configure_repl(r):
+def double_fault_handler(self, exception):
+    global REPL
+    REPL.print_exception(exception)
+
+Agent.double_fault_handler = double_fault_handler
+
+async def configure_repl(r):
     global REPL
     REPL = r
-    add_stuff_to_repl_namespace(r.get_globals())
-    asyncio.ensure_future(turn_on_buffered_stdout())
-    exec_file_if_exists(r, config.USER_DIR / "on_repl_init.py", working_directory=config.USER_DIR)
-    _handle_script_args(r, config)
-    asyncio.ensure_future(turn_off_buffered_stdout())
+    REPL_NAMESPACE = r.get_globals()
+    REPL_AGENT = ReplAgent(r)
+    REPL_NAMESPACE["REPL_AGENT"] = REPL_AGENT
+    REPL_NAMESPACE["REPL"] = r
+    add_stuff_to_repl_namespace(REPL_NAMESPACE)
+    r.turn_on_buffered_stdout()
+    await exec_file_if_exists(r, config.USER_DIR / "on_repl_init.py", working_directory=config.USER_DIR)
+    await handle_script_args(r, config)
+    
+    # r.turn_off_buffered_stdout()
 
-async def turn_on_buffered_stdout():
-    REPL.BUFFER_STDOUT=True
-
-async def turn_off_buffered_stdout():
-    REPL.BUFFER_STDOUT=False
-
-def _handle_script_args(r, config):
+async def handle_script_args(r, config):
     os.chdir(config.WORKING_DIRECTORY)
     for arg in config.INPUT_FILES:
         path = pathlib.Path(arg)
         if path.is_file():
-            exec_file(r, path)
+            await exec_file(r, path)
         else:
             utils.print_warning(f"""Cannot find file "{arg}". Ignoring it!""")
 
-def exec_file(r, path : pathlib.Path, working_directory=None):
-    f = asyncio.ensure_future(r.exec_file(path, working_directory))
-    f.add_done_callback(_handle_input_file_exception)
+async def exec_file(r, path : pathlib.Path, working_directory=None):
+    await r.exec_file(path, working_directory)
 
-def exec_file_if_exists(r, path : pathlib.Path, working_directory=None):
+async def exec_file_if_exists(r, path : pathlib.Path, working_directory=None):
     if path.is_file():
-        exec_file(r, path, working_directory)
+        await exec_file(r, path, working_directory)
 
-def _handle_input_file_exception(f):
+
+def handle_task_exception(f):
     try:
         f.result()
     except Exception as e: 
-        REPL.print_error("Exception while processing input file:")
-        REPL.print_error(str(e))
-
-def _handle_task_exception(f):
-    try:
-        f.result()
-    except Exception as e: 
-        REPL.print_error("Task exception...")
-        REPL.print_error(str(e))
+        REPL.print_exception(e)
