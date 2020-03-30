@@ -47,7 +47,7 @@ class SpectralSequenceSocketListener {
     }
 
     add_message_handlers_from_object(handlers) {
-        for([cmd_filter, handler] in Object.entries(handlers)) {
+        for(let [cmd_filter, handler] of Object.entries(handlers)) {
             this.add_message_handler(cmd_filter, handler);
         }
     }
@@ -62,7 +62,7 @@ class SpectralSequenceSocketListener {
 
     onmessage(event) {
         let msg = JSON.parse(event.data);
-        handle_message_dispatch(msg);
+        this.handle_message_dispatch(msg);
     }
 
 
@@ -187,7 +187,7 @@ class SpectralSequenceSocketListener {
     
             let key = undefined;
             for(let partial_cmd of msg.cmd) {
-                if(this.dispatch[partial_cmd] !== undefined){
+                if(this.message_dispatch[partial_cmd] !== undefined){
                     key = partial_cmd; 
                     break;
                 }
@@ -196,7 +196,7 @@ class SpectralSequenceSocketListener {
             if(key === undefined) {
                 throw new UnknownCommandError(`Console sent unknown command "${msg.cmd[0]}".`);
             }
-            this.dispatch[key](msg.cmd, msg.args, msg.kwargs);
+            this.message_dispatch[key](msg.cmd, msg.args, msg.kwargs);
         } catch(err) {
             succeeded = false;
             error = err;
@@ -220,9 +220,9 @@ let default_message_handlers = {
         for(let c of this.sseq.classes){
             this.sseq._classes_by_uuid[c.uuid] = c;
         }
-        this.display = this.make_display(sseq);
+        this.display = this.make_display(this.sseq);
         this.set_display_state(kwargs.display_state)
-        display.on("click", this.click_handler.bind(this));
+        this.display.on("click", this.display_click_handler.bind(this));
         // if(kwargs.display_state) {
         //     set_display_settings(kwargs.display_state);
         // }
@@ -235,7 +235,8 @@ let default_message_handlers = {
     },
 
     "chart.node.add" : function(cmd, args, kwargs) {
-        this.info(msg);
+        console.log("add node", cmd, kwargs)
+        // this.info(msg);
     },
 
     "chart.class.add" : function(cmd, args, kwargs) {
