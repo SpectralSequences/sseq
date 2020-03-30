@@ -1,7 +1,8 @@
-
 import asyncio
 import time
 import threading
+
+from message_passing_tree import MathAgent
 
 from .fp import Matrix
 from .algebra import AdemAlgebra
@@ -23,7 +24,7 @@ def make_unit_module():
     M.freeze()
     return M
 
-class Resolution:
+class Resolver(MathAgent):
     def __init__(self, name, chart=None, module=None): 
         if module is None:
             self.M = make_unit_module()
@@ -48,52 +49,6 @@ class Resolution:
         
         if chart is not None:
             self.set_chart(chart)
-
-    def add_class_handler(self, handler):
-        self.class_handlers.append(handler)
-
-    def add_structline_handler(self, handler):
-        self.structline_handlers.append(handler)
-
-    def add_sseq_class_handler(self, chart):
-        async def handler(self, x, y, idx): 
-            await chart.add_class(x, y) 
-        self.add_class_handler(handler)
-     
-    def add_sseq_structline_handler(self, chart):
-        async def handler(self, 
-            source_x, source_y, source_idx, 
-            target_x, target_y, target_idx
-        ):
-            source_class = chart.get_class_by_idx(source_x, source_y, source_idx)
-            target_class = chart.get_class_by_idx(target_x, target_y, target_idx)
-            await chart.add_structline(source_class, target_class)
-        self.add_structline_handler(handler)
-
-    def set_chart(self, chart):
-        self.chart = chart
-        self.name = chart.name
-        self.add_sseq_class_handler(chart)
-        self.add_sseq_structline_handler(chart)
-
-    async def add_class(self, s, t, idx):
-        xy = st_to_xy(s, t)
-        for handler in self.class_handlers:
-            await handler(self, *xy, idx)
-    
-    async def add_structline(self, 
-        source_s, source_t, source_idx,
-        target_s, target_t, target_idx
-    ):
-        source_xy = st_to_xy(source_s, source_t)
-        target_xy = st_to_xy(target_s, target_t)
-        for handler in self.structline_handlers:
-            await handler(self, *source_xy, source_idx, *target_xy, target_idx)   
-   
-    async def after_step(self, s, t):
-        for idx in range(self.rust_res.module(s).number_of_gens_in_degree(t)):
-            await self.add_class(s, t, idx)
-        await self.compute_filtration_one_products(s, t)
 
     def resolve(self, n):
         t = threading.Thread(target=self._resolve_st_rectangle(n), daemon=True)
@@ -135,7 +90,10 @@ class Resolution:
     def step_if_needed(self, i, j):
         if (i, j) not in self.finished_degrees:
             self.rust_res.step_resolution(i,j)
-            f = asyncio.run_coroutine_threadsafe(self.after_step(i, j), self.loop)
+            f = asyncio.run_coroutine_threadsafe(
+                self.broadcast(["resolution", "finished_bidegree"], i, j), 
+                self.loop
+            )
             f.result()
             self.finished_degrees.add((i, j))
 
