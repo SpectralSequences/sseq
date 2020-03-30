@@ -12,7 +12,7 @@ exports.EventEmitter = require("events");
 
 exports.interface = require("./interface/mod.js");
 exports.spectralsequences = require("./sseq/mod.js");
-
+exports.SpectralSequenceSocketListener = require("./spectralsequence_socket_listener.js").SseqSocketListener;
 
 
 exports.d3 = require("d3-selection");

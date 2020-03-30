@@ -1,10 +1,10 @@
 {
-  "name": "spectralsequences-basic-webclient",
+  "name": "spectralsequences-webclient",
   "author": "Hood Chatham <hood@mit.edu> (http://math.mit.edu/~hood)",
   "description": "Spectral sequence web client -- a front end for spectral sequence programs.",
   "version": "0.1.0",
   "license": "ISC",
-  "repository": "github:SpectralSequences/basic_webclient",
+  "repository": "github:SpectralSequences/chart/",
   "main": "bundle.js",
   "devDependencies": {
     "browserify": "^16.2.2",
@@ -22,7 +22,7 @@
   },
   "scripts": {
     "start": "budo src/main.js:bundle.js --live -- --debug --standalone sseq_display",
-    "debug": "browserify --debug src/main.js > target/debug/sseq_basic_webclient.js",
-    "build": "browserify -g uglifyify src/main.js > target/release/sseq_basic_webclient.js"
+    "debug": "browserify --debug src/main.js > target/debug/sseq_webclient.js",
+    "build": "browserify -g uglifyify src/main.js > target/release/sseq_webclient.js"
   }
 }

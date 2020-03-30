@@ -25,6 +25,8 @@ window.ChartStructline = webclient.spectralsequences.ChartStructline;
 window.ChartDifferential = webclient.spectralsequences.ChartDifferential;
 window.ChartExtension = webclient.spectralsequences.ChartExtension;
 
+window.SpectralSequenceSocketListener = webclient.SpectralSequenceSocketListener;
+
 
 window.d3 = webclient.d3;
 window.Mousetrap = webclient.Mousetrap;
