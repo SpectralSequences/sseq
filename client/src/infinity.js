@@ -1,0 +1,1 @@
+exports.INFINITY = 65535;
