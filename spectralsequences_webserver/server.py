@@ -9,8 +9,8 @@ from . import config
 
 
 from .repl import start_repl
-from .demo.sseq_demo_channel import SseqDemoChannel
-from spectralsequence_chart import (SseqSocketChannel, SseqSocketReceiver)
+from .channels import (DemoChannel, SseqChannel)
+from spectralsequence_chart import SseqSocketReceiver
 # from spectralsequence_chart.utils import
 
 start_repl()
@@ -61,6 +61,6 @@ def serve_channel(app, channel_cls, cls_dir):
 
 
 
-serve_channel(app, SseqSocketChannel, "sseq")
-serve_channel(app, SseqDemoChannel, "demo")
+serve_channel(app, SseqChannel, "sseq")
+serve_channel(app, DemoChannel, "demo")
 

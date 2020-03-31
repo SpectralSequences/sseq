@@ -14,7 +14,7 @@ templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 
 @subscribe_to("*")
 @collect_transforms(inherit=True)
-class SseqDemoChannel(SocketChannel):
+class DemoChannel(SocketChannel):
     def __init__(self, name, file_path):
         super().__init__(name)
         self.file_path = file_path
