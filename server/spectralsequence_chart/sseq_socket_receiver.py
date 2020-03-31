@@ -12,12 +12,12 @@ class SseqSocketReceiver(SocketReceiver):
 
     @transform_outbound_messages
     async def consume_accept_user(self, source_agent_id, cmd, state):
-        utils.replace_keys(state, [
-            ["x_range", "xRange"], 
-            ["y_range", "yRange"],
-            ["initial_x_range", "initialxRange"],
-            ["initial_y_range", "initialyRange"]
-        ])
+        # utils.replace_keys(state, [
+        #     ["x_range", "xRange"], 
+        #     ["y_range", "yRange"],
+        #     ["initial_x_range", "initialxRange"],
+        #     ["initial_y_range", "initialyRange"]
+        # ])
         await self.send_message_to_socket(cmd, state=state)
 
     @transform_outbound_messages
