@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Spectral Sequence Chart {{ channel_name }}</title>
+        <title>Spectral Sequence Demo {{ channel_name }}</title>
         <meta charset="utf-8"/>
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.css" integrity="sha384-+MsSfd29vjUzcyqYURxcmpWGtqoSHBy+QdEJNLEslXQftxojQv0k6BGDqUNp9GtA" crossorigin="anonymous">
         
-
-
         <style>
             html, body {
               height: 100%;
@@ -56,14 +54,14 @@
 <script>
 "use strict";
 
-let ws = new WebSocket("ws://localhost:{{ PORT }}/ws/sseq/{{ channel_name }}");
+let ws = new WebSocket("ws://localhost:{{ port }}/ws/{{ directory }}/{{ channel_name }}");
 
 function make_display(sseq){
     return new BasicDisplay("#main", sseq);
 }
 
 let sseq_socket = new SpectralSequenceSocketListener(ws, make_display);
-
+Mousetrap.bind("n", () => sseq_socket.send("demo.next", {}));
 
 </script>        
 </body>

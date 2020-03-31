@@ -26,6 +26,8 @@ REPL=None
 def get_repl():
     return REPL
 
+# TODO: Is this the right logic for double_fault_handler?
+# We should probably climb to the root of our tree and use that handler?
 def double_fault_handler(self, exception):
     global REPL
     REPL.print_exception(exception)

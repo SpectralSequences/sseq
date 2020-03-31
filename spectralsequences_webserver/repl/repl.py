@@ -2,7 +2,6 @@ from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
 import asyncio
 # import logging
 import pathlib
-from signal import SIGTERM
 from textwrap import dedent, indent
 import traceback
 import types
@@ -189,10 +188,7 @@ class MyPythonRepl(PythonRepl):
     async def eval_code(self, line):
         code = self.compile_with_flags(line, "eval")
         result = eval(code, self.get_globals(), self.get_locals())
-        if asyncio.iscoroutine(result):
-            return await result
-        else:
-            return result
+        return result
 
     async def exec_file(self, path : pathlib.Path, working_directory=None):
         await self.exec_code(path.read_text(), working_directory, asyncify.FIX_LINE_NUMBER_MARKER + str(path))
@@ -320,7 +316,7 @@ class MyPythonRepl(PythonRepl):
 
 
         if hasattr(exception, "extra_traceback"):
-            tblist.extend(exception.extra_traceback)
+            tb_summary_list.extend(exception.extra_traceback)
 
 
         self.get_globals()["exc"] = tb_summary_list
