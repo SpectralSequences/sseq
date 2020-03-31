@@ -1,8 +1,7 @@
+import asyncio
 import json
 from starlette.websockets import WebSocketDisconnect
 from uuid import UUID, uuid4
-import logging
-logger = logging.getLogger(__name__)
 
 from .exceptions import *
 
@@ -18,20 +17,24 @@ class SocketReceiver(Receiver):
         super().__init__()
         self.socket = ws
         self.uuid = uuid4()
+        self.accepted_connection = asyncio.Event()
         print("new connection")
 
     def get_uid(self) -> UUID:
         return self.uuid
 
     async def send_message_to_socket(self, cmd, *args, **kwargs):
+        await self.accepted_connection.wait()
         msg = { "cmd" : cmd.filter_list, "args" : args, "kwargs" : kwargs }
         await self.socket.send_text(json_stringify(msg))
 
     async def close_connection(self):
         pass
 
-    async def run(self): 
+    async def run(self):
         await self.socket.accept()
+        self.accepted_connection.set()
+        print(self.accepted_connection)
         continue_running = True
         while continue_running:
             try:
@@ -50,9 +53,9 @@ class SocketReceiver(Receiver):
         try:
             json_str = await self.socket.receive_text()
         except WebSocketDisconnect:
-            logger.debug("Disconnect")
+            self.log_info("Disconnect")
             return False 
-        logger.info("User sent: " + str(json_str))
+        self.log_info("User sent: " + str(json_str))
         data = json.loads(json_str)
         if "cmd" not in data:
             raise MessageMissingCommandError(data)

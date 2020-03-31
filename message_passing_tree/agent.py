@@ -150,11 +150,13 @@ class Agent:
     def get_uuid(self) -> UUID:
         return self.uuid
 
-    def add_transformer(cmd : str, transformer, direction, targeted=False):
-        if direction not in TRANSFORMERS:
-            raise ValueError(f"""Direction should be "inward" or "outward" not "{direction}".""")
-        target_str = "targeted" if targeted else "untargeted"   
-        getattr(self, f"{target_str}_{direction}_transformers")[cmd] = transformer
+    def add_transformer(self, cmd : str, direction):
+        if not hasattr(self, f"{direction}ward_transformers"):
+            raise ValueError(f"""Direction should be "in" or "out" not "{direction}".""")
+        def helper(transformer):
+            getattr(self, f"{direction}ward_transformers")[cmd] = transformer
+            return transformer
+        return helper
 
     async def add_child(self, recv):
         logger.debug(f"Adding child {type(recv).__name__} to {type(self).__name__}")
@@ -210,9 +212,9 @@ class Agent:
         if consume:
             return
         if envelope.target_agent_id == self.uuid:
-            raise RuntimeError(f"""Unconsumed message with command "{cmd[0]}" targeted to me.""")
+            raise RuntimeError(f"""Unconsumed message with command "{envelope.msg.cmd.str}" targeted to me.""")
         if self.parent is None:
-            raise RuntimeError(f"""Unconsumed message with command "{cmd[0]}" hit root node.""")
+            raise RuntimeError(f"""Unconsumed message with command "{envelope.msg.cmd.str}" hit root node.""")
         envelope.source_agent_path.append(self.uuid)
         await self.parent.pass_envelope_inward(envelope)        
         

@@ -174,8 +174,8 @@ def get_transform_wrapper(in_or_out, func):
                 source_agent, envelope.msg.cmd,
                 *envelope.msg.args, **envelope.msg.kwargs
             )
-        except TypeError:
-            add_wrapped_func_to_stack_trace_if_necessary(sys.exc_info(), transform_wrapper, func)
+        except TypeError as e:
+            add_wrapped_func_to_stack_trace_if_necessary(e, transform_wrapper, func)
             raise
         envelope.msg.cmd = new_cmd
         envelope.msg.args = new_args
@@ -195,8 +195,8 @@ def get_consume_wrapper(in_or_out, func):
                 source_agent, envelope.msg.cmd,
                 *envelope.msg.args, **envelope.msg.kwargs
             )
-        except TypeError:
-            add_wrapped_func_to_stack_trace_if_necessary(sys.exc_info(), func)
+        except TypeError as e:
+            add_wrapped_func_to_stack_trace_if_necessary(e, consume_wrapper, func)
             raise
         return True
     return consume_wrapper
@@ -219,19 +219,19 @@ class MockFrame:
         self.f_globals = globals()
 
 
-def add_wrapped_func_to_stack_trace_if_necessary(exc_info, wrapper, func):
+def add_wrapped_func_to_stack_trace_if_necessary(exception, wrapper, func):
     """ If either the message is wrong or the argspec of the transformer function is wrong,
         then we might get a TypeError reporting that the wrapped function has incorrect arguments. 
         By default, the resulting stacktrace only mentions "func" leaving the identity of the wrapped 
         function completely unclear.
         If there is an error
     """
-    if traceback.extract_tb(e.__traceback__)[-1].name != wrapper.__name__:
+    if traceback.extract_tb(exception.__traceback__)[-1].name != wrapper.__name__:
         return
-    exc_type, exc_instance, exc_traceback = exc_info
+    # exc_type, exc_instance, exc_traceback = exc_info
     filename = inspect.getsourcefile(func)
     lineno = inspect.getsourcelines(func)[1]
-    exc_instance.extra_traceback = traceback.extract_tb(
+    exception.extra_traceback = traceback.extract_tb(
         MockTraceback(
             tb_lineno=lineno, 
             tb_frame=MockFrame(func.__code__)
