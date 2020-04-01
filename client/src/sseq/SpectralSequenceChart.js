@@ -202,7 +202,7 @@ class SpectralSequenceChart extends EventEmitter {
      */
     getClassNode(c, page) {
         let node_or_idx = c.node_list[c._getPageIndex(page)];
-        if(node_or_idx.constructor = Number) {
+        if(node_or_idx.constructor === Number) {
             node_or_idx = this.nodes[node_or_idx];
         }
         return node_or_idx;
@@ -262,9 +262,8 @@ class SpectralSequenceChart extends EventEmitter {
         for(let c of display_classes) {
             let node = this.getClassNode(c, page);
             if(node === undefined) {
-                console.log(c);
-                console.log(page);
-                throw ReferenceError(`Undefined node for class`);
+                console.error("Undefined node for:", c);
+                throw ReferenceError(`Undefined node on page ${page} for class: ${c}`);
             }
             c._node = node;
         }

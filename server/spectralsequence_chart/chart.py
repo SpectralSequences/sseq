@@ -4,7 +4,7 @@ from readerwriterlock import rwlock
 import threading
 
 from . import utils
-from .chart_elements import ChartNode, ChartClass, ChartEdge
+from .chart_elements import *
 
 from message_passing_tree import Agent
 from message_passing_tree.decorators import (
@@ -20,40 +20,50 @@ class ChartData:
     def __init__(self, agent, name):
         self._agent = agent
         self.name = name
-        self.page_list = [[2, INFINITY], [INFINITY, INFINITY]]
-        self._page_list_lock = threading.Lock()
         self.initial_x_range = [0, 10]
         self.initial_y_range = [0, 10]
+        
+        self.page_list = [[2, INFINITY], [INFINITY, INFINITY]]
+        self._page_list_lock = threading.Lock()
+        self.min_page_idx = 0
         default_node = ChartNode(self, shape="circle")
         default_node.idx = 0
         self.nodes = [default_node]
-        self.classes = []
-        self.edges = []
-        self.min_page_idx = 0
         self._nodes_dict = {hash(default_node) : default_node}
         self._nodes_lock = rwlock.RWLockFair()
+        
+        self.classes = []
         self._classes_by_bidegree = {}
+        
+        self.edges = []
+        
+        self._updated_elements = set()
+        self._updated_elements_lock = threading.Lock()
 
     def to_json(self):
         return utils.public_fields(self)
     
-    # TODO: Add a setting to turn off eager deduping.
-    # In that case, maybe dedup whenever someone calls get_state?
-    # Need to think about batch mode and stuff.
-    async def get_node_a(self, n : ChartNode) -> ChartNode:
-        # if hash(n) in self._nodes_dict:
-            # return self._nodes_dict[hash(n)]
-        with self._nodes_lock.gen_rlock():
-            if hash(n) in self._nodes_dict:
-                return self._nodes_dict[hash(n)]
-        with self._nodes_lock.gen_wlock():
-            # Maybe someone else already put this node in before we got the lock.
-            if hash(n) in self._nodes_dict: 
-                return self._nodes_dict[hash(n)]
-            else:
-                self._nodes_dict[hash(n)] = n
-                await self._agent.add_node_a(n)
-                return n
+    # # TODO: Add a setting to turn off eager deduping.
+    # # In that case, maybe dedup whenever someone calls get_state?
+    # # Need to think about batch mode and stuff.
+    # async def get_node_a(self, n : ChartNode) -> ChartNode:
+    #     # if hash(n) in self._nodes_dict:
+    #         # return self._nodes_dict[hash(n)]
+    #     with self._nodes_lock.gen_rlock():
+    #         if hash(n) in self._nodes_dict:
+    #             return self._nodes_dict[hash(n)]
+    #     with self._nodes_lock.gen_wlock():
+    #         # Maybe someone else already put this node in before we got the lock.
+    #         if hash(n) in self._nodes_dict: 
+    #             return self._nodes_dict[hash(n)]
+    #         else:
+    #             self._nodes_dict[hash(n)] = n
+    #             await self._agent.add_node_a(n)
+    #             return n
+
+    def add_element_to_update(self, e):
+        with self._updated_elements_lock:
+            self._updated_elements.add(e)
 
 
 class DisplayState:
@@ -119,47 +129,48 @@ class SpectralSequenceChart(Agent):
         await self.broadcast_a("chart.class.add", *arguments(new_class=c))
         return c
 
-    async def update_classes_a(self, classes):
-        await self.broadcast_a("chart.class.update", *arguments(to_update=classes))
+    async def update_a(self):
+        with self.data._updated_elements_lock:
+            await self.broadcast_a("chart.class.update", *arguments(
+                to_update=list(self.data._updated_elements)
+            ))
+            self.data._updated_elements = set()
 
     async def set_class_name_a(self, x, y, idx, name):
-        cc = self.get_classes_in_bidegree(x, y)[idx]
-        cc.name = name
-        await self.broadcast("chart.class.set_name", *arguments( 
-            x=x,
-            y=y,
-            idx=idx,
-            name=name
-        ))
+        c = self.get_classes_in_bidegree(x, y)[idx]
+        c.name = name
+        self.data.add_element_to_update(c)
 
-    async def add_edge_a(self, edge_type, source, target, **kwargs):
-        kwargs.update({"type" : edge_type, "source" : source, "target" : target})
-        e = ChartEdge(self.data, edge_type, **kwargs)
+    async def add_edge_a(self, e, **kwargs):
         e.id = len(self.data.edges)
+        source = e.get_source()
+        target = e.get_target()
         self.data.edges.append(e)
-        e.get_source()._edges.append(e)
-        e.get_target()._edges.append(e)
-        kwargs.update({"id" : e.id, "source" : source.id, "target" : target.id})
-        await self.broadcast_a("chart.edge.add", *arguments(**kwargs))
+        source._edges.append(e)
+        target._edges.append(e)
+        await self.broadcast_a("chart.edge.add", *arguments(
+            type = e.type,
+            id = e.id,
+            source = source.id,
+            target = target.id,
+            **kwargs
+        ))
         return e
 
     async def add_structline_a(self, source, target, **kwargs):
-        await self.add_edge_a("structline",source, target, **kwargs)
+        e = ChartStructline(self.data, source=source, target=target, **kwargs)
+        await self.add_edge_a(e, **kwargs)
+        return e
 
     async def add_differential_a(self, page, source, target, auto=True, **kwargs):
         if auto:
-            update_classes = []
-            if await source.add_page(page):
-                update_classes.append(source)
-            if await target.add_page(page):
-                update_classes.append(target)
-            await self.update_classes_a(update_classes)
+            source.add_page(page)
+            target.add_page(page)
             await self.add_page_range_a([page, page])
-        e = await self.add_edge_a("differential", source, target, page=page, **kwargs)
-        e.page = page
-
-    # async def add_differential_interactive_a():
-
+            await self.update_a()
+        e = ChartDifferential(self.data, page=page, source=source, target=target, **kwargs)
+        await self.add_edge_a(e, page=page, **kwargs)
+        return e
 
     @transform_inbound_messages
     async def consume_click_a(self, source_agent_path, cmd, chart_class):
@@ -171,6 +182,22 @@ class SpectralSequenceChart(Agent):
 
     def get_classes_in_bidegree(self, x, y):
         return self.data._classes_by_bidegree.get((x,y), [])
+
+    @property
+    def x_min(self):
+        return self.data.x_range[0]
+
+    @property
+    def x_max(self):
+        return self.data.x_range[1]
+
+    @property
+    def y_min(self):
+        return self.data.y_range[0]
+    
+    @property
+    def y_max(self):
+        return self.data.y_range[1]
 
     async def set_x_range_a(self, x_min, x_max):
         self.data.x_range = [x_min, x_max]

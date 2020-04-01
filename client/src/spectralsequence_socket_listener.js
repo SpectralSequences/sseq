@@ -266,9 +266,6 @@ let default_message_handlers = {
 
     "chart.class.update" : function(cmd, args, kwargs) {
         for(let c of kwargs.to_update) {
-            console.log("Update class...");
-            console.log(this.sseq._classes_by_uuid[c.uuid]);
-            console.log(c);
             Object.assign(this.sseq._classes_by_uuid[c.uuid], c);
         }
         this.display.update();

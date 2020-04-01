@@ -28,5 +28,29 @@ class ChartEdge:
     def get_target(self):
         return self._sseq.classes[self.target]
 
+    def replace_source(self, **kwargs):
+        self._source.replace(**kwargs)
+    
+    def replace_target(self, **kwargs):
+        self._target.replace(**kwargs)
+
+
     def to_json(self):
         return utils.public_fields(self)
+
+class ChartDifferential(ChartEdge):
+    def __init__(self, sseq, page, **kwargs):
+        super().__init__(sseq, "differential", **kwargs)
+        self.page = page
+
+    def replace_source():
+        pass
+
+class ChartStructline(ChartEdge):
+    def __init__(self, sseq, **kwargs):
+        super().__init__(sseq, "structline", **kwargs)
+
+
+class ChartExtension(ChartEdge):
+    def __init__(self, sseq, **kwargs):
+        super().__init__(sseq, "extension", **kwargs)
