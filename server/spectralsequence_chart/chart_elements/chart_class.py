@@ -35,26 +35,26 @@ class ChartClass:
                 return i
         return len(self.transition_pages)
 
-    async def set_node_field_by_idx(self, idx, field, value):
+    async def set_node_field_by_idx_a(self, idx, field, value):
         n = self._sseq.nodes[self.node_list[idx]].copy()
         setattr(n, field, value)
-        n = await self._sseq.get_node(n)
+        n = await self._sseq.get_node_a(n)
         self.node_list[idx] = n.idx
 
 
-    async def set_field(self, field, value):
+    async def set_field_a(self, field, value):
         with self._lock:
             for i in range(len(self.node_list)):
-                await self.set_node_field_by_idx(i, field, value)
+                await self.set_node_field_by_idx_a(i, field, value)
                 return True
 
-    async def set_field_on_page(self, page, field, value):
+    async def set_field_on_page_a(self, page, field, value):
         with self._lock:
             i = self.get_page_idx(page)
-            await self.set_node_field_by_idx(i, field, value)
+            await self.set_node_field_by_idx_a(i, field, value)
             return True
 
-    async def add_page(self, page, node=None):
+    async def add_page_a(self, page, node=None):
         if page in self.transition_pages:
             return False
         with self._lock:

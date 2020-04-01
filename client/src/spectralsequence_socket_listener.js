@@ -44,6 +44,7 @@ class SpectralSequenceSocketListener {
         this.sseq = undefined;
         this.message_dispatch = {};
         this.add_message_handlers_from_object(default_message_handlers);
+        this.debug_mode = false;
     }
 
     add_message_handlers_from_object(handlers) {
@@ -91,6 +92,12 @@ class SpectralSequenceSocketListener {
         let obj = { "cmd" : cmd, "args" : args, "kwargs" : kwargs };
         let json_str = JSON.stringify(obj);
         this.websocket.send(json_str);
+    }
+
+    console_log_if_debug(msg) {
+        if(this.debug_mode) {
+            console.log(msg);
+        }
     }
     
     debug(type, text, orig_msg) {
@@ -159,7 +166,7 @@ class SpectralSequenceSocketListener {
     }
 
     handle_message_dispatch(msg) {
-        console.log(msg);
+        this.console_log_if_debug(msg);
         let succeeded = true;
         let error;
         try {
@@ -192,7 +199,7 @@ class SpectralSequenceSocketListener {
                     break;
                 }
             }
-            console.log("cmd", msg.cmd, "key", key);
+            this.console_log_if_debug("cmd", msg.cmd, "key", key);
             if(key === undefined) {
                 throw new UnknownCommandError(`Console sent unknown command "${msg.cmd[0]}".`);
             }
@@ -203,7 +210,7 @@ class SpectralSequenceSocketListener {
         }
     
         if(!succeeded) {
-            console.log(error);
+            this.console_log_if_debug(error);
             this.log_exception(error, msg);
         }
     }
@@ -212,9 +219,8 @@ class SpectralSequenceSocketListener {
 
 
 let default_message_handlers = {
-    "chart.state" : function(cmd, args, kwargs) {
-        // console.log("accepted user:", msg);
-        console.log(kwargs.state);
+    "initialize.chart.state" : function(cmd, args, kwargs) {
+        this.console_log_if_debug("accepted user:", kwargs.state);
         this.sseq = SpectralSequenceChart.from_JSON(kwargs.state);
         this.sseq._classes_by_uuid = {}
         for(let c of this.sseq.classes){
@@ -223,6 +229,7 @@ let default_message_handlers = {
         this.display = this.make_display(this.sseq);
         this.set_display_state(kwargs.display_state)
         this.display.on("click", this.display_click_handler.bind(this));
+        this.send("initialize.complete", {});
         // if(kwargs.display_state) {
         //     set_display_settings(kwargs.display_state);
         // }
@@ -230,23 +237,38 @@ let default_message_handlers = {
         // Object.assign(sseq, msg.state)
     },
     
+    "chart.set_x_range" : function(cmd, args, kwargs){
+        this.sseq.x_range = [kwargs.x_min, kwargs.x_max];
+    },
+    "chart.set_y_range" : function(cmd, args, kwargs){
+        this.sseq.y_range = [kwargs.y_min, kwargs.y_max];
+    },
+    "chart.set_initial_x_range" : function(cmd, args, kwargs){
+        this.sseq.initial_x_range = [kwargs.x_min, kwargs.x_max];
+    },
+    "chart.set_initial_y_range" : function(cmd, args, kwargs){
+        this.sseq.initial_y_range = [kwargs.y_min, kwargs.y_max];
+    },    
     "chart.insert_page_range" : function(cmd, args, kwargs) {
         this.sseq.page_list.splice(kwargs.idx, 0, kwargs.page_range);
     },
 
     "chart.node.add" : function(cmd, args, kwargs) {
-        console.log("add node", cmd, kwargs)
+        this.console_log_if_debug("add node", cmd, kwargs)
         // this.info(msg);
     },
 
     "chart.class.add" : function(cmd, args, kwargs) {
-        this.sseq.add_class(kwargs.new_class);
-        this.sseq._classes_by_uuid[kwargs.new_class.uuid] = kwargs.new_class;
+        let c = this.sseq.add_class(kwargs.new_class);
+        this.sseq._classes_by_uuid[kwargs.new_class.uuid] = c;
         this.display.update();
     },
 
     "chart.class.update" : function(cmd, args, kwargs) {
         for(let c of kwargs.to_update) {
+            console.log("Update class...");
+            console.log(this.sseq._classes_by_uuid[c.uuid]);
+            console.log(c);
             Object.assign(this.sseq._classes_by_uuid[c.uuid], c);
         }
         this.display.update();
@@ -262,7 +284,7 @@ let default_message_handlers = {
     },
 
     "chart.edge.add" : function(cmd, args, kwargs) {
-        console.log(kwargs);
+        this.console_log_if_debug(kwargs);
         this.sseq.add_edge(kwargs);
         this.display.update();
     },

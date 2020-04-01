@@ -83,10 +83,10 @@ class SpectralSequenceChart extends EventEmitter {
         check_argument_is_integer("x", x);
         check_argument_is_integer("y", y);
         check_argument_is_integer("idx", idx);
-        if(!sseq.class_by_degree.has([x,y])){
+        if(!this.classes_by_degree.has([x,y])){
             throw ValueError(`No classes exist in bidegree (${x}, ${y}).`);
         }
-        let classes = sseq.classes_by_degree.get([x, y]);
+        let classes = this.classes_by_degree.get([x, y]);
         if(idx >= classes.length) {
             throw ValueError(`Fewer than ${idx} classes exist in bidegree (${x}, ${y}).`);
         }
@@ -201,10 +201,14 @@ class SpectralSequenceChart extends EventEmitter {
      * @returns {*}
      */
     getClassNode(c, page) {
-        return this.nodes[c.node_list[c._getPageIndex(page)]];
+        let node_or_idx = c.node_list[c._getPageIndex(page)];
+        if(node_or_idx.constructor = Number) {
+            node_or_idx = this.nodes[node_or_idx];
+        }
+        return node_or_idx;
     }
 
-    getDrawnElements(page, xmin, xmax, ymin, ymax) {
+    getElementsToDraw(page, xmin, xmax, ymin, ymax) {
         // Util.checkArgumentsDefined(SpectralSequenceChart.prototype.getDrawnElements, arguments);
         let pageRange;
         // TODO: clean up pageRange. Probably we should always pass pages as pairs?

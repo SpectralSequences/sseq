@@ -40,7 +40,7 @@ class ChartData:
     # TODO: Add a setting to turn off eager deduping.
     # In that case, maybe dedup whenever someone calls get_state?
     # Need to think about batch mode and stuff.
-    async def get_node(self, n : ChartNode) -> ChartNode:
+    async def get_node_a(self, n : ChartNode) -> ChartNode:
         # if hash(n) in self._nodes_dict:
             # return self._nodes_dict[hash(n)]
         with self._nodes_lock.gen_rlock():
@@ -52,7 +52,7 @@ class ChartData:
                 return self._nodes_dict[hash(n)]
             else:
                 self._nodes_dict[hash(n)] = n
-                await self._agent.add_node(n)
+                await self._agent.add_node_a(n)
                 return n
 
 
@@ -74,18 +74,21 @@ class SpectralSequenceChart(Agent):
     def get_state(self):        
         return self.data
     
+    async def broadcast_a(self, cmd, args, kwargs):
+        await self.send_message_outward_a(cmd, args, kwargs)
+
     @transform_inbound_messages
-    async def consume_new_user(self, source_agent_path, cmd):
-        await self.send_message_outward("chart.state", *arguments(
+    async def consume_new_user_a(self, source_agent_path, cmd):
+        await self.send_message_outward_a("initialize.chart.state", *arguments(
             state=self.data, display_state=self.display_state
         ))
 
-    async def add_node(self, node : ChartNode):
+    async def add_node_a(self, node : ChartNode):
         node.idx = len(self.data.nodes)
         self.data.nodes.append(node)
-        await self.broadcast("chart.node.add", *arguments(node=node))
+        await self.broadcast_a("chart.node.add", *arguments(node=node))
 
-    async def add_page_range(self, page_range):
+    async def add_page_range_a(self, page_range):
         if page_range in self.data.page_list:
             return
         with self.data._page_list_lock:
@@ -98,14 +101,14 @@ class SpectralSequenceChart(Agent):
             else:
                 idx = len(self.data.page_list)
             self.data.page_list.insert(idx, page_range)
-            await self.broadcast("chart.insert_page_range", *arguments(page_range=page_range, idx=idx))
+            await self.broadcast_a("chart.insert_page_range", *arguments(page_range=page_range, idx=idx))
             
 
-    async def add_class(self, x : int, y : int, **kwargs):
+    async def add_class_a(self, x : int, y : int, **kwargs):
         kwargs.update({"x" : x, "y" : y, "node_list" : [0]})
         c = ChartClass(self.data, **kwargs)
         if "color" in kwargs:
-            await c.set_field("color", kwargs["color"])
+            await c.set_field_a("color", kwargs["color"])
         c.id = len(self.data.classes)
         self.data.classes.append(c)
         pos = (c.x, c.y)
@@ -113,13 +116,13 @@ class SpectralSequenceChart(Agent):
             self.data._classes_by_bidegree[pos] = []
         self.data._classes_by_bidegree[pos].append(c)
         kwargs.update({"id" : c.id})
-        await self.broadcast("chart.class.add", *arguments(new_class=c))
+        await self.broadcast_a("chart.class.add", *arguments(new_class=c))
         return c
 
-    async def update_classes(self, classes):
-        await self.broadcast("chart.class.update", *arguments(to_update=classes))
+    async def update_classes_a(self, classes):
+        await self.broadcast_a("chart.class.update", *arguments(to_update=classes))
 
-    async def set_class_name(self, x, y, idx, name):
+    async def set_class_name_a(self, x, y, idx, name):
         cc = self.get_classes_in_bidegree(x, y)[idx]
         cc.name = name
         await self.broadcast("chart.class.set_name", *arguments( 
@@ -129,7 +132,7 @@ class SpectralSequenceChart(Agent):
             name=name
         ))
 
-    async def add_edge(self, edge_type, source, target, **kwargs):
+    async def add_edge_a(self, edge_type, source, target, **kwargs):
         kwargs.update({"type" : edge_type, "source" : source, "target" : target})
         e = ChartEdge(self.data, edge_type, **kwargs)
         e.id = len(self.data.edges)
@@ -137,30 +140,31 @@ class SpectralSequenceChart(Agent):
         e.get_source()._edges.append(e)
         e.get_target()._edges.append(e)
         kwargs.update({"id" : e.id, "source" : source.id, "target" : target.id})
-        await self.broadcast("chart.edge.add", *arguments(**kwargs))
+        await self.broadcast_a("chart.edge.add", *arguments(**kwargs))
         return e
 
-    async def add_structline(self, source, target, **kwargs):
-        await self.add_edge("structline",source, target, **kwargs)
+    async def add_structline_a(self, source, target, **kwargs):
+        await self.add_edge_a("structline",source, target, **kwargs)
 
-    async def add_differential(self, page, source, target, auto=True, **kwargs):
+    async def add_differential_a(self, page, source, target, auto=True, **kwargs):
         if auto:
             update_classes = []
             if await source.add_page(page):
                 update_classes.append(source)
             if await target.add_page(page):
                 update_classes.append(target)
-            await self.update_classes(update_classes)
-            await self.add_page_range([page, page])
-        e = await self.add_edge("differential", source, target, page=page, **kwargs)
+            await self.update_classes_a(update_classes)
+            await self.add_page_range_a([page, page])
+        e = await self.add_edge_a("differential", source, target, page=page, **kwargs)
         e.page = page
 
-    # async def add_differential_interactive():
+    # async def add_differential_interactive_a():
 
 
     @transform_inbound_messages
-    async def consume_click(self, source_agent_path, cmd, chart_class):
-        self.click
+    async def consume_click_a(self, source_agent_path, cmd, chart_class):
+        pass
+        # self.click
 
     def get_class_by_idx(self, x, y, idx):
         return self.get_classes_in_bidegree(x, y)[idx]
@@ -168,25 +172,25 @@ class SpectralSequenceChart(Agent):
     def get_classes_in_bidegree(self, x, y):
         return self.data._classes_by_bidegree.get((x,y), [])
 
-    async def set_x_range(self, x_min, x_max):
+    async def set_x_range_a(self, x_min, x_max):
         self.data.x_range = [x_min, x_max]
-        await self.broadcast("chart.set_x_range", *arguments())
+        await self.broadcast_a("chart.set_x_range", *arguments(x_min=x_min, x_max=x_max))
 
-    async def set_y_range(self, y_min, y_max):
+    async def set_y_range_a(self, y_min, y_max):
         self.data.y_range = [y_min, y_max]
-        await self.broadcast("chart.set_y_range", *arguments())
+        await self.broadcast_a("chart.set_y_range", *arguments(y_min=y_min, y_max=y_max))
 
-    async def set_initial_x_range(self, x_min, x_max):
+    async def set_initial_x_range_a(self, x_min, x_max):
         self.data.initial_x_range = [x_min, x_max]        
-        await self.broadcast("chart.set_initial_x_range", *arguments())
+        await self.broadcast_a("chart.set_initial_x_range", *arguments(x_min=x_min, x_max=x_max))
 
-    async def set_initial_y_range(self, y_min, y_max):
+    async def set_initial_y_range_a(self, y_min, y_max):
         self.data.initial_y_range = [y_min, y_max]
-        await self.broadcast("chart.set_initial_y_range", *arguments())
+        await self.broadcast_a("chart.set_initial_y_range", *arguments(y_min=y_min, y_max=y_max))
 
-    async def set_background_color(self, color):
+    async def set_background_color_a(self, color):
         self.data.background_color = color
-        await self.broadcast("display.set_background_color", *arguments(color=color))
+        await self.broadcast_a("display.set_background_color", *arguments(color=color))
 
     def to_json(self):
         return utils.public_fields(self)

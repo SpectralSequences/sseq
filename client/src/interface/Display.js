@@ -257,7 +257,7 @@ class Display extends EventEmitter {
 
         this.clipContext(ctx);
 
-        let [nodes, edges] = this.sseq.getDrawnElements(
+        let [nodes, edges] = this.sseq.getElementsToDraw(
             this.pageRange, 
             this.xmin - 1, this.xmax + 1, this.ymin - 1, this.ymax + 1
         );
