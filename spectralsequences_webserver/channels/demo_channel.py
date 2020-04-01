@@ -27,15 +27,24 @@ class DemoChannel(SocketChannel):
     async def setup_a(self):
         await self.repl_agent.add_child_a(self)
 
+    def make_demo_take_over_console(self):
+        def closure(demo):
+            self.repl_agent.set_executor(demo.executor)
+        return closure
+
     async def add_subscriber_a(self, websocket):
         executor = Executor()
         
         put_main_class_here = {}
         self.setup_executor_namespace(executor, put_main_class_here)
+        executor.get_globals()["REPL"] = self.repl_agent
         await executor.exec_file_a(self.file_path)
-            
+
         DemoClass = put_main_class_here["main_class"]
-        demo = DemoClass(executor) 
+        demo = DemoClass(executor)
+        executor.get_globals()["demo"] = demo
+
+        demo.take_over_console = self.make_demo_take_over_console()
         await self.add_child_a(demo)
         await demo.setup_a(websocket)
         demo.start_socket()
@@ -115,17 +124,24 @@ class GenericDemo(Agent):
         raise RuntimeError("You must override run!")
 
     async def wait_for_user_a(self, name=None):
-        # print("Waiting for user_next", self.user_next)
         self.user_next.clear()
         self.ready_for_next_signal.set()
         await self.user_next.wait()
     
     @transform_inbound_messages
     async def consume_demo__next_a(self, source_agent_path, cmd):
+        await self.next_a()
+
+    @transform_inbound_messages
+    async def consume_demo__take_over_console_a(self, source_agent_path, cmd):
+        self.take_over_console(self)
+
+    async def next_a(self):
         async with self.next_lock:
             await self.ready_for_next_signal.wait()
             self.ready_for_next_signal.clear()
             self.user_next.set()
+
 
 
 class Demo(GenericDemo):

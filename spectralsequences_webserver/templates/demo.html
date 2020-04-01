@@ -62,7 +62,7 @@ function make_display(sseq){
 
 let sseq_socket = new SpectralSequenceSocketListener(ws, make_display);
 Mousetrap.bind("n", () => sseq_socket.send("demo.next", {}));
-
+Mousetrap.bind("t", () => sseq_socket.send("demo.take_over_console", {}));
 </script>        
 </body>
 </html>

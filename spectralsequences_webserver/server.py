@@ -26,7 +26,6 @@ def run_main(f):
 @run_main
 async def main():
     repl = await start_repl_a()
-    repl_agent = ReplAgent(repl)
     channels = {}
 
     templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
@@ -64,7 +63,7 @@ async def main():
         async def websocket_subscribe_a(websocket: WebSocket, channel_name : str):
             logger.debug(f"ws: {cls_dir}/{channel_name}")
             try:
-                channel = await channel_cls.get_channel_a(channel_name, repl_agent)
+                channel = await channel_cls.get_channel_a(channel_name, repl)
                 if channel is None:
                     # TODO: is this the best way to handle this?
                     # One reasonable reason we could end up here is if the channel closed between the
@@ -74,7 +73,7 @@ async def main():
                 await channel.add_subscriber_a(websocket)
             except Exception as e:
                 await websocket.close(socket_close_codes.INTERNAL_ERROR)
-                repl._handle_exception(e)
+                repl.console_io._handle_exception(e)
 
 
     serve_channel(app, SseqChannel, "sseq")

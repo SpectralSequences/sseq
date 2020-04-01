@@ -6,50 +6,57 @@ import traceback
 
 from message_passing_tree.agent import Agent
 
-from . import repl
+from .console_io import ConsoleIO
+from .executor import Executor
 from .repl_agent import ReplAgent
 from .namespace import add_stuff_to_repl_namespace
 from .. import utils
 from .. import config
 
-put_repl_here = {}
-repl_configured_event = asyncio.Event()
 async def start_repl_a():
-    f = repl.make_repl_a(
-        globals(),
-        locals(),
+    r = ReplAgent(
+        title = "Test",
         history_filename=str(config.USER_DIR / "repl.hist"),
-        configure_a=configure_repl_a
     )
-    task = asyncio.ensure_future(f)
-    task.add_done_callback(handle_task_exception)
-    await repl_configured_event.wait()
-    return put_repl_here["REPL"]
+    REPL_NAMESPACE = globals()
+    executor = Executor(REPL_NAMESPACE)
+    r.set_executor(executor)
 
-async def configure_repl_a(r):
-    put_repl_here["REPL"] = r
-    REPL_NAMESPACE = r.get_globals()
-    REPL_AGENT = ReplAgent(r)
-    REPL_NAMESPACE["REPL_AGENT"] = REPL_AGENT
     REPL_NAMESPACE["REPL"] = r
     add_stuff_to_repl_namespace(REPL_NAMESPACE)
-    r.turn_on_buffered_stdout()
-    await exec_file_if_exists_a(r, config.USER_DIR / "on_repl_init.py", working_directory=config.USER_DIR)
-    await handle_script_args_a(r, config)
-    repl_configured_event.set()
 
-def get_repl():
-    return put_repl_here["REPL"]
+    set_double_fault_handler(r)
+    await read_input_files_a(r)
+    start_repl(r)
+    return r
 
-# TODO: Is this the right logic for double_fault_handler?
-# We should probably climb to the root of our tree and use that handler?
-def double_fault_handler(self, exception):
-    get_repl().print_exception(exception)
+def set_double_fault_handler(r):
+    # TODO: Is this the right logic for double_fault_handler?
+    # We should probably climb to the root of our tree and use that handler?
+    def double_fault_handler(self, exception):
+        r.console_io.print_exception(exception)
 
-Agent.double_fault_handler = double_fault_handler
+    Agent.double_fault_handler = double_fault_handler
 
-    
-    # r.turn_off_buffered_stdout()
+
+async def read_input_files_a(r):
+    r.console_io.turn_on_buffered_stdout()
+    await exec_file_if_exists_a(r.executor, config.USER_DIR / "on_repl_init.py", working_directory=config.USER_DIR)
+    await handle_script_args_a(r.executor, config)
+    r.console_io.turn_off_buffered_stdout()
+
+
+def start_repl(r):
+    def handle_task_exception(f):
+        try:
+            f.result()
+        except Exception as e: 
+            r.console_io.print_exception(e)
+
+    task = asyncio.ensure_future(r.start_a())    
+    task.add_done_callback(handle_task_exception)
+
+
 
 async def handle_script_args_a(r, config):
     os.chdir(config.WORKING_DIRECTORY)
@@ -66,10 +73,3 @@ async def exec_file_a(r, path : pathlib.Path, working_directory=None):
 async def exec_file_if_exists_a(r, path : pathlib.Path, working_directory=None):
     if path.is_file():
         await exec_file_a(r, path, working_directory)
-
-
-def handle_task_exception(f):
-    try:
-        f.result()
-    except Exception as e: 
-        REPL.print_exception(e)

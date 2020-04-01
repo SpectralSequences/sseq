@@ -1,3 +1,4 @@
+import asyncio
 from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
 import os
 import pathlib
@@ -13,7 +14,7 @@ class Executor(Agent):
         super().__init__()
         if globs is None:
             globs = globals()
-        if locals is None:
+        if locs is None:
             locs = locals()
         self.globals = globs
         self.locals = locs
@@ -49,6 +50,19 @@ class Executor(Agent):
             """
         )
 
+    def adjust_traceback(self, tb_summary_list):
+        for (i, tb_summary) in enumerate(tb_summary_list):
+            if tb_summary.filename.startswith(Executor.asyncify_FIX_LINE_NUMBER_MARKER):
+                tb_summary.filename = tb_summary.filename[len(Executor.asyncify_FIX_LINE_NUMBER_MARKER):]
+                tb_summary.lineno -= Executor.asyncify_WRAPPER_LINE_NUMBER_OFFSET
+                # We need to clear the cached "_line" so when we print the exception, 
+                # Python will grab the line from the file again using the updated line number.
+                tb_summary._line = None 
+
+        if len(tb_summary_list) > 1 and tb_summary_list[1].name == Executor.asyncify_WRAPPER_NAME:
+            tb_summary_list[1].name = tb_summary_list[0].name
+
+
     def get_compiler_flags(self):
         return PyCF_ALLOW_TOP_LEVEL_AWAIT
 
@@ -81,6 +95,8 @@ class Executor(Agent):
     async def eval_code_a(self, line):
         code = self.compile_with_flags(line, "eval")
         result = eval(code, self.get_globals(), self.get_locals())
+        if asyncio.iscoroutine(result):
+            result = await result
         return result
 
     async def exec_file_a(self, path : pathlib.Path, working_directory=None):
