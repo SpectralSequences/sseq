@@ -154,52 +154,56 @@ def transform(in_or_out : str, transform_cmd : str = None):
 
 # Given a function named "prefix_cmd__sub_cmd" return "cmd.sub_cmd"
 def get_transform_cmd(func, prefix):
-    if func.__name__.startswith(prefix):
-        result = func.__name__[len(prefix):].replace("__", ".")
-        if result == "_all":
-            return "*"
-        return result
-    raise ValueError(f"""Method name {func.__name__} doesn't start with "{prefix}" so you need to explicitly specify "transform_cmd".""")
+    if not func.__name__.startswith(prefix):
+        raise ValueError(f"""Method name {func.__name__} doesn't start with "{prefix}" so you need to explicitly specify "transform_cmd".""")
+    suffix="_a"
+    if not func.__name__.endswith(suffix):
+        raise ValueError(f"""Method name {func.__name__} should end with "{suffix}".""")
+    result = func.__name__[len(prefix):-len(suffix)].replace("__", ".")
+    
+    if result == "_all":
+        return "*"
+    return result
 
 
-def get_transform_wrapper(in_or_out, func):
-    async def transform_wrapper(self, envelope):
+def get_transform_wrapper(in_or_out, func_a):
+    async def transform_wrapper_a(self, envelope):
         self.log_envelope_task(f"transform_{in_or_out}bound_method", envelope)
         if in_or_out == "in":
             source_agent = envelope.source_agent_path
         else:
             source_agent = envelope.source_agent_id
         try:
-            new_cmd, new_args, new_kwargs = await func(self, 
+            new_cmd, new_args, new_kwargs = await func_a(self, 
                 source_agent, envelope.msg.cmd,
                 *envelope.msg.args, **envelope.msg.kwargs
             )
         except TypeError as e:
-            add_wrapped_func_to_stack_trace_if_necessary(e, transform_wrapper, func)
+            add_wrapped_func_to_stack_trace_if_necessary(e, transform_wrapper_a, func_a)
             raise
         envelope.msg.cmd = new_cmd
         envelope.msg.args = new_args
         envelope.msg.kwargs = new_kwargs
         return False
-    return transform_wrapper
+    return transform_wrapper_a
 
-def get_consume_wrapper(in_or_out, func):
-    async def consume_wrapper(self, envelope):
+def get_consume_wrapper(in_or_out, func_a):
+    async def consume_wrapper_a(self, envelope):
         self.log_envelope_task(f"consume_{in_or_out}bound_method", envelope)
         if in_or_out == "in":
             source_agent = envelope.source_agent_path
         else:
             source_agent = envelope.source_agent_id
         try:
-            await func(self, 
+            await func_a(self, 
                 source_agent, envelope.msg.cmd,
                 *envelope.msg.args, **envelope.msg.kwargs
             )
         except TypeError as e:
-            add_wrapped_func_to_stack_trace_if_necessary(e, consume_wrapper, func)
+            add_wrapped_func_to_stack_trace_if_necessary(e, consume_wrapper_a, func_a)
             raise
         return True
-    return consume_wrapper
+    return consume_wrapper_a
 
 get_wrapper = {
     "transform" : get_transform_wrapper,

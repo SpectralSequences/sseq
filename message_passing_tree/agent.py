@@ -45,6 +45,9 @@ class Command:
         result.append("*")
         return result
 
+    def __repr__(self):
+        return f"""Command("{self.str}")"""
+
 
 
 class Message:
@@ -92,18 +95,18 @@ class Envelope:
         self.target_agent_path = target_agent_path
 
     def info(self):
-        return f"""cmd: {ansi.info(self.msg.cmd.str)} args: {ansi.info(self.msg.args)} kwargs: {ansi.info(self.msg.kwargs)}"""
+        return f"""cmd: {ansi.highlight(self.msg.cmd.str)} args: {ansi.info(self.msg.args)} kwargs: {ansi.info(self.msg.kwargs)}"""
 
 class Agent:
     outward_transformers = None
     inward_transformers = None
     subscriptions = None
 
-    @staticmethod
-    def get_transformer(transform_dict, cmd):
-        for subcmd in cmd.filter_list:
-            if subcmd in transform_dict:
-                return transform_dict[subcmd]
+    @classmethod
+    def get_transformer(cls, transform_dict, cmd):
+        for cmd_filter in cmd.filter_list:
+            if cmd_filter in transform_dict:
+                return transform_dict[cmd_filter]
         return None
 
     def __init__(self):
@@ -137,12 +140,13 @@ class Agent:
         logging.getLogger(cls.__module__).error(msg)
 
     def info(self):
-        return f"mytype: {ansi.info(type(self).__name__)} myuuid: {ansi.info(str(self.uuid)[:8])}"
+        return f"mytype: {ansi.highlight(type(self).__name__)}"
 
     def log_envelope_task(self, name, envelope):
-        self.log_debug(
-            f"""Task: {ansi.info(name)}  self: {self.info()}  envelope: {envelope.info()}"""
-        )
+        self.log_debug(self.envelope_task_info(name, envelope))
+
+    def envelope_task_info(self, name, envelope):
+        return f"""Task: {ansi.highlight(name)}  self: {self.info()}  envelope: {envelope.info()}"""
 
     def handle_leaked_envelope(self, envelope):
         raise RuntimeWarning(f"""Leaked envelope self: {self.info()}  envelope: {envelope.info()}""")
@@ -158,31 +162,32 @@ class Agent:
             return transformer
         return helper
 
-    async def add_child(self, recv):
+    async def add_child_a(self, recv):
         logger.debug(f"Adding child {type(recv).__name__} to {type(self).__name__}")
         recv.has_parent.clear()
         self.children[recv.get_uuid()] = recv
         old_parent = recv.parent
         recv.parent = self
-        await recv.new_parent(old_parent)
+        await recv.new_parent_a(old_parent)
         recv.has_parent.set()
 
-    async def remove_child(self, recv):
+    async def remove_child_a(self, recv):
         recv.has_parent.clear()
         recv.parent = None
         del self.children[recv.get_uuid()]
 
-    async def new_parent(self, old_parent):
+    async def new_parent_a(self, old_parent):
         pass
 
     # TODO: Should this be here?
-    async def run(self):
+    async def run_a(self):
         pass
 
     # TODO: Should this be here?
-    async def shutdown(self):
+    async def shutdown_a(self):
         # print("shutdown")
-        await self.parent.remove_child(self)
+        if self.parent:
+            await self.parent.remove_child_a(self)
 
     def is_subscribed_to(self, cmd):
         for subcmd in reversed(cmd):
@@ -190,25 +195,26 @@ class Agent:
                 return True
         return False
 
-    async def transform_outbound_envelope(self, envelope : Envelope):
-        transform = Agent.get_transformer(self.outward_transformers, envelope.msg.cmd)
-        if transform is None:
-            transform = Agent.get_transformer(type(self).outward_transformers, envelope.msg.cmd)
-        if transform is None:
+    async def transform_outbound_envelope_a(self, envelope : Envelope):
+        self.log_envelope_task("transform_outbound_envelope", envelope)
+        transform_a = self.get_transformer(self.outward_transformers, envelope.msg.cmd)
+        if transform_a is None:
+            transform_a = self.get_transformer(type(self).outward_transformers, envelope.msg.cmd)
+        if transform_a is None:
             return False
-        return await transform(self, envelope)
+        return await transform_a(self, envelope)
 
-    async def transform_inbound_envelope(self, envelope):
-        transform = Agent.get_transformer(self.inward_transformers, envelope.msg.cmd)
-        if transform is None:
-            transform = Agent.get_transformer(type(self).inward_transformers, envelope.msg.cmd)
-        if transform is None:
+    async def transform_inbound_envelope_a(self, envelope):
+        transform_a = Agent.get_transformer(self.inward_transformers, envelope.msg.cmd)
+        if transform_a is None:
+            transform_a = Agent.get_transformer(type(self).inward_transformers, envelope.msg.cmd)
+        if transform_a is None:
             return False
-        return await transform(self, envelope)
+        return await transform_a(self, envelope)
 
-    async def pass_envelope_inward(self, envelope):
+    async def pass_envelope_inward_a(self, envelope):
         self.log_envelope_task("pass_envelope_inward", envelope)
-        consume = await self.transform_inbound_envelope(envelope)
+        consume = await self.transform_inbound_envelope_a(envelope)
         if consume:
             return
         if envelope.target_agent_id == self.uuid:
@@ -216,21 +222,23 @@ class Agent:
         if self.parent is None:
             raise RuntimeError(f"""Unconsumed message with command "{envelope.msg.cmd.str}" hit root node.""")
         envelope.source_agent_path.append(self.uuid)
-        await self.parent.pass_envelope_inward(envelope)        
+        await self.parent.pass_envelope_inward_a(envelope)        
         
-    async def pass_envelope_outward(self, envelope):
+    async def pass_envelope_outward_a(self, envelope):
         self.log_envelope_task("pass_envelope_outward", envelope)
-        consume = await self.transform_outbound_envelope(envelope)
+        consume = await self.transform_outbound_envelope_a(envelope)
         if consume:
             return  
         children_to_pass_to = self.pass_envelope_outward_get_children_to_pass_to(envelope)
+        self.log_debug(f"children_to_pass_to : {children_to_pass_to}")
         if not children_to_pass_to:
-            await self.handle_leaked_envelope(envelope)
+            await self.handle_leaked_envelope_a(envelope)
             # raise RuntimeWarning("Leaked message") # TODO: should be a warning.
         for recv in children_to_pass_to:
-            await recv.pass_envelope_outward(envelope)        
+            await recv.pass_envelope_outward_a(envelope)        
    
     def pass_envelope_outward_get_children_to_pass_to(self,  envelope):
+        # print(list(self.children.values()))
         if envelope.target_agent_path is None:
             return [recv for recv in self.children.values() if recv.is_subscribed_to(envelope.msg.cmd.filter_list)]
         if len(envelope.target_agent_path) == 0:
@@ -241,7 +249,7 @@ class Agent:
         return [self.children[child_uuid]]
 
 
-    async def send_message_inward(self, 
+    async def send_message_inward_a(self, 
         cmd_str, args, kwargs,
         target_agent_id : Optional[AgentID] = None
     ):
@@ -249,9 +257,9 @@ class Agent:
         message = Message(cmd, args, kwargs)
         envelope = Envelope("in", message, source_agent_path = [], target_agent_id = target_agent_id)
         self.log_envelope_task("send_message_inward", envelope)
-        await self.pass_envelope_inward(envelope)
+        await self.pass_envelope_inward_a(envelope)
 
-    async def send_message_outward(self, 
+    async def send_message_outward_a(self, 
         cmd_str, args, kwargs, *,
         target_agent_path : Optional[AgentPath] = None
     ):
@@ -259,42 +267,43 @@ class Agent:
         message = Message(cmd, args, kwargs)
         envelope = Envelope("out", message, source_agent_id = self.uuid, target_agent_path = target_agent_path)
         self.log_envelope_task("send_message_outward", envelope)
-        await self.pass_envelope_outward(envelope)
+        await self.pass_envelope_outward_a(envelope)
     
-    async def broadcast(self, 
+    async def broadcast_a(self, 
         cmd : CmdStr,
         args, kwargs
     ):
-        await self.send_message_outward(cmd, args, kwargs)
+        await self.send_message_outward_a(cmd, args, kwargs)
 
-    async def send_debug(self, msg_type, msg):
+    async def send_debug_a(self, msg_type, msg):
         cmd = "debug"
         if msg_type != "":
             cmd = f"{cmd}.{msg_type}"
-        await self.send_message_inward(cmd, *arguments(msg=msg))
+        await self.send_message_inward_a(cmd, *arguments(msg=msg))
 
-    async def send_info(self, msg_type, msg):
+    async def send_info_a(self, msg_type, msg):
         cmd = "info"
         if msg_type != "":
             cmd = f"{cmd}.{msg_type}"        
-        await self.send_message_inward(cmd, *arguments(msg=msg))
+        await self.send_message_inward_a(cmd, *arguments(msg=msg))
 
-    async def send_warning(self, msg_type, msg):
+    async def send_warning_a(self, msg_type, msg):
         cmd = "warning"
         if msg_type != "":
             cmd = f"{cmd}.{msg_type}"        
-        await self.send_message_inward(cmd, *arguments(msg=msg))
+        await self.send_message_inward_a(cmd, *arguments(msg=msg))
 
-    async def send_error(self, msg_type, msg=None, exception=None):
+    async def send_error_a(self, msg_type, msg=None, exception=None):
         cmd = "error"
         if msg_type != "":
             cmd = f"{cmd}.{msg_type}"
-        await self.send_message_inward(cmd, *arguments(msg=msg, exception=exception))
+        await self.send_message_inward_a(cmd, *arguments(msg=msg, exception=exception))
 
-    async def handle_exception(self, exception):
+    async def handle_exception_a(self, exception):
+        print("handle_exception_a:", exception)
         try:
             # raise RuntimeError("Double fault test")
-            await self.parent.send_error("exception." + type(exception).__name__, exception=exception)
+            await self.parent.send_error_a("exception." + type(exception).__name__, exception=exception)
         except Exception as double_fault:
             if hasattr(self, "double_fault_handler"):
                 self.double_fault_handler(double_fault)

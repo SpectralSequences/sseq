@@ -13,7 +13,7 @@ class SocketChannel(Agent):
         return name in cls.channels
 
     @classmethod
-    def get_channel(cls, name):
+    async def get_channel_a(cls, name, repl):
         """ This is used by server.py to look up what channel a websocket should
             subscribe to. If server receives a requet to /ws/class_directory/{name}
             it will call this function. Return value should be a SocketChannel 
@@ -47,7 +47,7 @@ class SocketChannel(Agent):
         super().__init__()
         self.name = name
         type(self).channels[name] = self
-        asyncio.ensure_future(self.send_start_msg())
+        asyncio.ensure_future(self.send_start_msg_a())
 
     def serving_to(self):
         if self.serving_class_to is None:
@@ -55,13 +55,13 @@ class SocketChannel(Agent):
         else:
             return self.serving_class_to + f"/{self.name}"
 
-    async def handle_leaked_envelope(self, envelope):
+    async def handle_leaked_envelope_a(self, envelope):
         self.log_info(f"""Leaked envelope self: {self.info()}  envelope: {envelope.info()}""")
 
 
-    async def add_subscriber(self, sock_recv):
+    async def add_subscriber_a(self, sock_recv):
         """ For overriding by subclasses. 
             Will be called by server when it gets a request to /ws/class_directory/channel_name.
             Channels are in charge of assembling the connection to the SocketReceiver themselves.
         """
-        await self.add_child(sock_recv)
+        await self.add_child_a(sock_recv)
