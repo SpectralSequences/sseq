@@ -11,11 +11,11 @@ templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 @subscribe_to("*")
 @collect_transforms(inherit=True)
 class SseqChannel(SocketChannel):
-    async def send_start_msg(self):
+    async def send_start_msg_a(self):
         await self.has_parent.wait()
         serving_to = self.serving_to()
         if serving_to is not None:
-            await self.send_info(
+            await self.send_info_a(
                 "channel.opened",
                 f"""Started spectral sequence "<blue>{self.name}</blue>".\n""" +\
                 f"""Visit "<blue>{self.serving_to()}</blue>" to view it."""

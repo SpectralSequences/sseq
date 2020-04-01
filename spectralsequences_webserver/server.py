@@ -5,62 +5,77 @@ from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
+import logging
+logger = logging.getLogger(__name__)
 from . import config
 
-
-from .repl import start_repl
+from .repl import start_repl_a, ReplAgent
 from .channels import (DemoChannel, SseqChannel)
+from . import socket_close_codes
+from message_passing_tree import SocketReceiver
 from spectralsequence_chart import SseqSocketReceiver
 # from spectralsequence_chart.utils import
+print("Starting server")
 
-start_repl()
 app = FastAPI()
 
-print("Starting server")
-channels = {}
+def run_main(f):
+    asyncio.ensure_future(f())
+    return f
 
-templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
+@run_main
+async def main():
+    repl = await start_repl_a()
+    repl_agent = ReplAgent(repl)
+    channels = {}
 
-class JSResponse(Response):
-    media_type = "application/javascript"
+    templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 
-@app.get("/static/webclient", response_class=JSResponse)
-async def get():
-    return config.SSEQ_WEBCLIENT_JS_FILE.read_text()
+    class JSResponse(Response):
+        media_type = "application/javascript"
 
-
-def serve_channel(app, channel_cls, cls_dir):
-    channel_cls.serve_channel_to("localhost",config.PORT, cls_dir)
-
-    @app.get(f"/{cls_dir}/{{channel_name}}")
-    async def get_html(request: Request, channel_name : str):
-        response_data = { 
-            "port" : config.PORT, 
-            "directory" : cls_dir,
-            "channel_name" : channel_name,
-            "request" : request, 
-        }
-        response = channel_cls.http_response(channel_name, request)
-        if response is None:
-            return templates.TemplateResponse("invalid_channel.html", response_data)
-        else:
-            return response
-
-    @app.websocket(f"/ws/{cls_dir}/{{channel_name}}")
-    async def websocket_subscribe(websocket: WebSocket, channel_name : str):
-        print("ws:", channel_name)
-        channel = channel_cls.get_channel(channel_name)
-        print("ws:", channel)
-        if channel is None:
-            pass
-            return # TODO: Reject connection request.
-        print("???")
-        sock_recv = SseqSocketReceiver(websocket)
-        await channel.add_subscriber(sock_recv)
-        await sock_recv.run()
+    @app.get("/static/webclient", response_class=JSResponse)
+    async def get_a():
+        return config.SSEQ_WEBCLIENT_JS_FILE.read_text()
 
 
+    def serve_channel(app, channel_cls, cls_dir):
+        channel_cls.serve_channel_to("localhost",config.PORT, cls_dir)
 
-serve_channel(app, SseqChannel, "sseq")
-serve_channel(app, DemoChannel, "demo")
+        @app.get(f"/{cls_dir}/{{channel_name}}")
+        async def get_html_a(request: Request, channel_name : str):
+            logger.debug(f"get: {cls_dir}/{channel_name}")
+            try:
+                response_data = { 
+                    "port" : config.PORT, 
+                    "directory" : cls_dir,
+                    "channel_name" : channel_name,
+                    "request" : request, 
+                }
+                response = channel_cls.http_response(channel_name, request)
+                if response is None:
+                    return templates.TemplateResponse("invalid_channel.html", response_data)
+                else:
+                    return response
+            except Exception as e:
+                repl._handle_exception(e)
 
+        @app.websocket(f"/ws/{cls_dir}/{{channel_name}}")
+        async def websocket_subscribe_a(websocket: WebSocket, channel_name : str):
+            logger.debug(f"ws: {cls_dir}/{channel_name}")
+            try:
+                channel = await channel_cls.get_channel_a(channel_name, repl_agent)
+                if channel is None:
+                    # TODO: is this the best way to handle this?
+                    # One reasonable reason we could end up here is if the channel closed between the
+                    # get request and now...
+                    # In that case we should respond with GOING_AWAY rather than INTERNAL_ERROR.
+                    raise RuntimeError(f"""No channel available named "{cls_dir}/{channel_name}".""")
+                await channel.add_subscriber_a(websocket)
+            except Exception as e:
+                await websocket.close(socket_close_codes.INTERNAL_ERROR)
+                repl._handle_exception(e)
+
+
+    serve_channel(app, SseqChannel, "sseq")
+    serve_channel(app, DemoChannel, "demo")

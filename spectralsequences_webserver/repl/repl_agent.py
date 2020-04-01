@@ -17,24 +17,24 @@ class ReplAgent(Agent):
         self.repl = repl
 
     @transform_inbound_messages
-    async def consume_debug(self, source_agent_path, cmd, msg):#source, cmd, msg):
+    async def consume_debug_a(self, source_agent_path, cmd, msg):#source, cmd, msg):
         # print("consume_info", args, kwargs)
         self.repl.print_debug(".".join(cmd.part_list[1:]), msg)
 
     @transform_inbound_messages
-    async def consume_info(self, source_agent_path, cmd, msg):
+    async def consume_info_a(self, source_agent_path, cmd, msg):
         # print("consume_info", args, kwargs)
         self.repl.print_info(".".join(cmd.part_list[1:]), msg)
 
     @transform_inbound_messages
-    async def consume_warning(self, source_agent_path, cmd, msg):
+    async def consume_warning_a(self, source_agent_path, cmd, msg):
         self.repl.print_warning(".".join(cmd.part_list[1:]), msg)
 
     @transform_inbound_messages
-    async def consume_error__exception(self, source_agent_path, cmd, msg,  exception):
+    async def consume_error__exception_a(self, source_agent_path, cmd, msg,  exception):
         # do something with cmd?
         self.repl.print_exception(exception)
 
     @transform_inbound_messages
-    async def consume_error__additional_info(self, source_agent_path, cmd, msg, additional_info):
+    async def consume_error__additional_info_a(self, source_agent_path, cmd, msg, additional_info):
         self.repl.print_error(".".join(cmd.part_list[2:]), msg, additional_info)

@@ -3,7 +3,7 @@ import asyncio
 from message_passing_tree import SocketChannel
 from message_passing_tree.prelude import *
 
-from spectralsequence_chart import SpectralSequenceChart
+from spectralsequence_chart import SseqSocketReceiver, SpectralSequenceChart
 
 from ..repl.executor import Executor
 from .. import config
@@ -15,35 +15,46 @@ templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 @subscribe_to("*")
 @collect_transforms(inherit=True)
 class DemoChannel(SocketChannel):
-    def __init__(self, name, file_path):
+    def __init__(self, name, file_path, repl_agent):
         super().__init__(name)
         self.file_path = file_path
-        self.user_next = asyncio.Event()
+        self.repl_agent = repl_agent
 
     channels = {}
-    async def send_start_msg(self):
-        await self.has_parent.wait()
-        serving_to = self.serving_to()
-        if serving_to is not None:
-            await self.send_info(
-                "channel.opened",
-                f"""Started demo spectral sequence "<blue>{self.name}</blue>".\n""" +\
-                f"""Visit "<blue>{self.serving_to()}</blue>" to view it."""
-            )
+    async def send_start_msg_a(self):
+        pass
 
-    async def add_subscriber(self, sock_recv):
-        chart = SpectralSequenceChart("demo")
+    async def setup_a(self):
+        await self.repl_agent.add_child_a(self)
+
+    async def add_subscriber_a(self, websocket):
         executor = Executor()
-        executor.get_globals()["chart"] = chart
-        executor.get_globals()["wait_for_user"] = self.wait_for_user
-        await chart.add_child(sock_recv)
-        await executor.add_child(chart)
-        await self.add_child(chart)
-        asyncio.ensure_future(executor.exec_file(self.file_path))
+        
+        put_main_class_here = {}
+        self.setup_executor_namespace(executor, put_main_class_here)
+        await executor.exec_file_a(self.file_path)
+            
+        DemoClass = put_main_class_here["main_class"]
+        demo = DemoClass(executor) 
+        await self.add_child_a(demo)
+        await demo.setup_a(websocket)
+        demo.start_socket()
+        await demo.start_a()
+        print("END")
 
-    async def wait_for_user(self):
-        await self.user_next.wait()
-        self.user_next.clear()
+    @staticmethod    
+    def setup_executor_namespace(executor, return_by_reference):
+        """ Get the @main decorator into the """
+        def main(cls):
+            return_by_reference["main_class"] = cls
+            return cls
+        globals = executor.get_globals()
+        globals["main"] = main
+        globals["Demo"] = Demo
+        globals["collect_transforms"] = collect_transforms
+        globals["subscribe_to"] = subscribe_to
+        globals["transform_inbound_messages"] = transform_inbound_messages
+        globals["transform_outbound_messages"] = transform_outbound_messages
 
     @classmethod
     def get_file_path(cls, name):
@@ -53,13 +64,15 @@ class DemoChannel(SocketChannel):
         return file_path
 
     @classmethod
-    def get_channel(cls, name):
+    async def get_channel_a(cls, name, repl):
         if name in cls.channels:
             return cls.channels[name]
         file_path = cls.get_file_path(name)
         if file_path:
-            return SseqDemoChannel(name, file_path)
-    
+            new_channel = DemoChannel(name, file_path, repl)
+            await new_channel.setup_a()
+            return new_channel
+
     @classmethod
     def has_channel(cls, name):
         return name in cls.channels or cls.get_file_path(name)
@@ -75,8 +88,54 @@ class DemoChannel(SocketChannel):
         if cls.has_channel(channel_name):
             return templates.TemplateResponse("demo.html", response_data)
 
+@collect_transforms(inherit=False) # Nothing to inherit.
+class GenericDemo(Agent):
+    def __init__(self, executor):
+        super().__init__()
+        self.executor = executor
+        self.breakpoint = -1
+        self.named_breakpoints = {}
+        self.user_next = asyncio.Event()
+        self.ready_for_next_signal = asyncio.Event()
+        self.next_lock = asyncio.Lock()
 
+    async def setup_a(self, websocket):
+        raise RuntimeError("You must override setup!")
+
+    def start_socket(self):
+        raise RuntimeError("You must override start_socket??!!")
+
+    async def start_a(self):
+        try:
+            await self.run_a()
+        except Exception as e:
+            await self.handle_exception_a(e)
+
+    async def run_a(self):
+        raise RuntimeError("You must override run!")
+
+    async def wait_for_user_a(self, name=None):
+        # print("Waiting for user_next", self.user_next)
+        self.user_next.clear()
+        self.ready_for_next_signal.set()
+        await self.user_next.wait()
+    
     @transform_inbound_messages
-    async def consume_demo__next(self, source_agent_path, cmd):
-        print("next!")
-        self.user_next.set()
+    async def consume_demo__next_a(self, source_agent_path, cmd):
+        async with self.next_lock:
+            await self.ready_for_next_signal.wait()
+            self.ready_for_next_signal.clear()
+            self.user_next.set()
+
+
+class Demo(GenericDemo):
+    async def setup_a(self, websocket):
+        self.socket = SseqSocketReceiver(websocket)
+        self.chart = SpectralSequenceChart("demo")
+        await self.chart.add_child_a(self.socket)
+        await self.executor.add_child_a(self.chart)
+        await self.add_child_a(self.executor)
+
+    def start_socket(self):
+        asyncio.ensure_future(self.socket.run_a())
+

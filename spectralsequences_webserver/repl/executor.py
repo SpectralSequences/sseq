@@ -37,7 +37,7 @@ class Executor(Agent):
             usercode=indent(code, " " * 8)
         ) 
 
-    asyncify_WRAPPER_NAME = '__async_def_wrapper__'
+    asyncify_WRAPPER_NAME = '__async_def_wrapper_a__'
     asyncify_WRAPPER_LINE_NUMBER_OFFSET = 2 # Number of lines before user_code in ASYNCIFY_TEMPLATE
     asyncify_FIX_LINE_NUMBER_MARKER = "##FIX_LINE_NUMBER##"
     # Do not mess with indentation of WRAPPER_TEMPLATE.
@@ -52,13 +52,13 @@ class Executor(Agent):
     def get_compiler_flags(self):
         return PyCF_ALLOW_TOP_LEVEL_AWAIT
 
-    async def _execute(self, line: str) -> None:
+    async def _execute_a(self, line: str) -> None:
         """
         Evaluate the line and print the result.
         """
         # Try eval first
         try:
-            result = await self.eval_code(line)
+            result = await self.eval_code_a(line)
             # Do something with result!
             return
             # If not a valid `eval` expression, run using `exec` instead.
@@ -78,19 +78,19 @@ class Executor(Agent):
             dont_inherit=True,
         )
 
-    async def eval_code(self, line):
+    async def eval_code_a(self, line):
         code = self.compile_with_flags(line, "eval")
         result = eval(code, self.get_globals(), self.get_locals())
         return result
 
-    async def exec_file(self, path : pathlib.Path, working_directory=None):
-        await self.exec_code(
+    async def exec_file_a(self, path : pathlib.Path, working_directory=None):
+        await self.exec_code_a(
             path.read_text(), 
             working_directory, 
             Executor.asyncify_FIX_LINE_NUMBER_MARKER + str(path)
         )
 
-    async def exec_code(self, lines, working_directory=None, file="<stdin>"):
+    async def exec_code_a(self, lines, working_directory=None, file="<stdin>"):
         mod = Executor.asyncify(lines)
         async_wrapper_code = self.compile_with_flags(mod, 'exec', file)
         exec(async_wrapper_code, self.get_globals(), self.get_locals()) 

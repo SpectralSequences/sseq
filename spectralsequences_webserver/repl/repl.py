@@ -39,10 +39,10 @@ def _lex_python_result(tb):
 def shutdown():
     pass
 
-async def make_repl(
+async def make_repl_a(
     globals=None,
     locals=None,
-    configure: Optional[Callable] = None,
+    configure_a: Optional[Callable] = None,
     vi_mode: bool = False,
     history_filename: Optional[str] = None,
     title: Optional[str] = None
@@ -64,16 +64,16 @@ async def make_repl(
     if title:
         repl.terminal_title = title
 
-    if configure:
-        await configure(repl)
+    if configure_a:
+        await configure_a(repl)
 
     # Start repl.
     patch_context : ContextManager = patch_stdout_context()
-    async def coroutine():
+    async def coroutine_a():
         with patch_context:
-            await repl.run_async()
+            await repl.run_async_a()
 
-    await coroutine()
+    await coroutine_a()
 
 
 def asyncify(code: str) -> str:
@@ -83,7 +83,7 @@ def asyncify(code: str) -> str:
     res = asyncify.WRAPPER_TEMPLATE.format(ASYNCIFY_WRAPPER_NAME=asyncify.WRAPPER_NAME, usercode=indent(code, " " * 8)) 
     return res
 
-asyncify.WRAPPER_NAME = '__async_def_wrapper__'
+asyncify.WRAPPER_NAME = '__async_def_wrapper_a__'
 asyncify.WRAPPER_LINE_NUMBER_OFFSET = 2 # Number of lines before user_code in ASYNCIFY_TEMPLATE
 asyncify.FIX_LINE_NUMBER_MARKER = "##FIX_LINE_NUMBER##"
 # Do not mess with indentation of WRAPPER_TEMPLATE.
@@ -111,7 +111,7 @@ class MyPythonRepl(PythonRepl):
     def get_compiler_flags(self):
         return PyCF_ALLOW_TOP_LEVEL_AWAIT
 
-    async def run_async(self) -> None:
+    async def run_async_a(self) -> None:
         while True:
             try:
                 text = await self.app.run_async()
@@ -121,15 +121,15 @@ class MyPythonRepl(PythonRepl):
                 # Abort - try again.
                 self.default_buffer.document = Document()
             else:
-                await self._process_text(text)
+                await self._process_text_a(text)
             # except KeyboardInterrupt:
             #     pass
 
-    async def _process_text(self, line: str) -> None:
+    async def _process_text_a(self, line: str) -> None:
         if line and not line.isspace():
             try:
                 # Eval and print.
-                await self._execute(line)
+                await self._execute_a(line)
             except KeyboardInterrupt as e:  # KeyboardInterrupt doesn't inherit from Exception.
                 self._handle_keyboard_interrupt(e)
             except Exception as e:
@@ -142,7 +142,7 @@ class MyPythonRepl(PythonRepl):
             self.current_statement_index += 1
             self.signatures = []
 
-    async def _execute(self, line: str) -> None:
+    async def _execute_a(self, line: str) -> None:
         """
         Evaluate the line and print the result.
         """
@@ -162,7 +162,7 @@ class MyPythonRepl(PythonRepl):
         else:
             # Try eval first
             try:
-                result = await self.eval_code(line)
+                result = await self.eval_code_a(line)
                 formatted_output = self.format_output(result)
                 self.print_formatted_output(formatted_output)
                 output.flush()
@@ -172,7 +172,7 @@ class MyPythonRepl(PythonRepl):
                 # Don't exec_codehere because otherwise if another error occurs later,
                 # the SyntaxError above would be printed in the stack trace.
                 pass 
-            await self.exec_code(line)
+            await self.exec_code_a(line)
             output.flush()
 
     def compile_with_flags(self, code: str, mode: str, file = "<stdin>"):
@@ -185,24 +185,24 @@ class MyPythonRepl(PythonRepl):
             dont_inherit=True,
         )
 
-    async def eval_code(self, line):
+    async def eval_code_a(self, line):
         code = self.compile_with_flags(line, "eval")
         result = eval(code, self.get_globals(), self.get_locals())
         return result
 
-    async def exec_file(self, path : pathlib.Path, working_directory=None):
-        await self.exec_code(path.read_text(), working_directory, asyncify.FIX_LINE_NUMBER_MARKER + str(path))
+    async def exec_file_a(self, path : pathlib.Path, working_directory=None):
+        await self.exec_code_a(path.read_text(), working_directory, asyncify.FIX_LINE_NUMBER_MARKER + str(path))
 
-    async def exec_code(self, lines, working_directory=None, file="<stdin>"):
+    async def exec_code_a(self, lines, working_directory=None, file="<stdin>"):
         mod = asyncify(lines)
         async_wrapper_code = self.compile_with_flags(mod, 'exec', file)
         exec(async_wrapper_code, self.get_globals(), self.get_locals()) 
-        do_the_thing = self.compile_with_flags(f"await {asyncify.WRAPPER_NAME}()", "eval")
+        do_the_thing_a = self.compile_with_flags(f"await {asyncify.WRAPPER_NAME}()", "eval")
         save_working_dir = os.getcwd()
         if working_directory is not None:
             os.chdir(working_directory)
         try:
-            result = await eval(do_the_thing, self.get_globals(), self.get_locals())
+            result = await eval(do_the_thing_a, self.get_globals(), self.get_locals())
         except:
             raise
         os.chdir(save_working_dir)
@@ -302,17 +302,16 @@ class MyPythonRepl(PythonRepl):
                 tb_summary_list = tb_summary_list[line_number:]
                 break
 
-        if len(tb_summary_list) > 1 and tb_summary_list[1].name == asyncify.WRAPPER_NAME:
-            del tb_summary_list[1]
-
-
-        for tb_summary in tb_summary_list:
+        for (i, tb_summary) in enumerate(tb_summary_list):
             if tb_summary.filename.startswith(asyncify.FIX_LINE_NUMBER_MARKER):
                 tb_summary.filename = tb_summary.filename[len(asyncify.FIX_LINE_NUMBER_MARKER):]
                 tb_summary.lineno -= asyncify.WRAPPER_LINE_NUMBER_OFFSET
                 # We need to clear the cached "_line" so when we print the exception, 
                 # Python will grab the line from the file again using the updated line number.
                 tb_summary._line = None 
+
+        if len(tb_summary_list) > 1 and tb_summary_list[1].name == asyncify.WRAPPER_NAME:
+            tb_summary_list[1].name = tb_summary_list[0].name
 
 
         if hasattr(exception, "extra_traceback"):
