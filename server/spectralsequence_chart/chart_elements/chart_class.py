@@ -1,6 +1,7 @@
 import threading
 from uuid import uuid4
 
+from . import ChartNode
 from .. import utils
 
 class ChartClass:
@@ -24,7 +25,13 @@ class ChartClass:
         for (i, n) in enumerate(self.node_list):
             if type(self.node_list[i]) is int:
                 self.node_list[i] = self._sseq.nodes[i].copy()
+            elif type(self.node_list[i]) is dict:
+                self.node_list[i] = ChartNode.from_json(self._sseq, self.node_list[i])
         # self.node_list = [ n.idx for n in self.node_list ]
+
+    @staticmethod
+    def from_json(sseq, json):
+        return ChartClass(sseq, **json)
 
     def __repr__(self):
         return f"ChartClass({self.x},{self.y})"

@@ -222,10 +222,6 @@ let default_message_handlers = {
     "initialize.chart.state" : function(cmd, args, kwargs) {
         this.console_log_if_debug("accepted user:", kwargs.state);
         this.sseq = SpectralSequenceChart.from_JSON(kwargs.state);
-        this.sseq._classes_by_uuid = {}
-        for(let c of this.sseq.classes){
-            this.sseq._classes_by_uuid[c.uuid] = c;
-        }
         this.display = this.make_display(this.sseq);
         this.set_display_state(kwargs.display_state)
         this.display.on("click", this.display_click_handler.bind(this));
@@ -260,13 +256,12 @@ let default_message_handlers = {
 
     "chart.class.add" : function(cmd, args, kwargs) {
         let c = this.sseq.add_class(kwargs.new_class);
-        this.sseq._classes_by_uuid[kwargs.new_class.uuid] = c;
         this.display.update();
     },
 
     "chart.class.update" : function(cmd, args, kwargs) {
         for(let c of kwargs.to_update) {
-            Object.assign(this.sseq._classes_by_uuid[c.uuid], c);
+            Object.assign(this.sseq.classes[c.uuid], c);
         }
         this.display.update();
     },

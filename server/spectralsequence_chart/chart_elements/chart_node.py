@@ -15,6 +15,11 @@ class ChartNode:
             { "type" : "optional", "field" : "opacity"},            
         ])
 
+    @staticmethod
+    def from_json(sseq, json):
+        result = ChartNode(sseq, **json)
+        return result
+
     def copy(self):
         d = {}
         for key in utils.public_keys(self):

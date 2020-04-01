@@ -54,6 +54,7 @@ class SpectralSequenceChart extends EventEmitter {
         this.y_range = [0, 10];
         this.initial_x_range = [0, 10];
         this.initial_y_range = [0, 10];
+        this.next_uuid = 0;
     }
 
     static from_JSON(json) {
@@ -72,8 +73,12 @@ class SpectralSequenceChart extends EventEmitter {
         }        
 
         json.nodes = json.nodes.map(n => new ChartNode(n));
-        json.classes = json.classes.map(c => chart.add_class(c));
-        json.edges = json.edges.map(e => chart.add_edge(e));
+        for([id, c] in json.classes){ // in iterates over object keys.
+            json.classes[id] = chart.add_class(c);
+        }
+        for([id, e] of Object.entries(json.edges)){
+            json.edges[id] = chart.add_edge(e)
+        }
         Object.assign(chart, json);
 
         return chart;
@@ -95,8 +100,14 @@ class SpectralSequenceChart extends EventEmitter {
 
     add_class(kwargs) {
         let c = new ChartClass(this, kwargs);
+        if("uuid" in kwargs){
+            c.uuid = kwargs["uuid"]
+        } else {
+            c.uuid = this.next_uuid;
+            this.next_uuid++;
+        }
         let degree = [c.x, c.y];
-        this.classes.push(c);
+        this.classes[c.uuid] = c;
         filter_dictionary_of_lists(this.classes_by_degree, degree, c => c._valid);
         if(c.idx === undefined){
             c.idx = this.classes_by_degree.get(degree).length;
@@ -109,22 +120,29 @@ class SpectralSequenceChart extends EventEmitter {
     }
 
     add_edge(kwargs) {
-        switch(kwargs["type"]) {
-            case "differential":
+        let edge_type = kwargs["type"];
+        switch(edge_type) {
+            case ChartDifferential.name:
                 return this.add_differential(kwargs);
-            case "structline":
+            case ChartStructline.name:
                 return this.add_structline(kwargs);
-            case "extension":
+            case ChartExtension.name:
                 return this.add_extension(kwargs);
             default:
-                throw TypeError(`Argument "type" expected to contain one of "differential" \
-                                 "structline", or "extension", not "${type}".`);
+                throw TypeError(`Argument "type" expected to contain one of "${ChartDifferential.name}" \
+                                 "${ChartStructline.name}", or "${ChartExtension.name}", not "${edge_type}".`);
         }
     }
 
     add_differential(kwargs) {
         let e = new ChartDifferential(kwargs);
-        this.edges.push(e);
+        if("uuid" in kwargs){
+            e.uuid = kwargs["uuid"];
+        } else {
+            e.uuid = this.next_uuid;
+            this.next_uuid++;
+        }
+        this.edges[e["uuid"]] = e;
         this.emit("differential-added", e);
         this.emit("edge-added", e);
         this.emit("update");
@@ -133,7 +151,13 @@ class SpectralSequenceChart extends EventEmitter {
 
     add_structline(kwargs) {
         let e = new ChartStructline(kwargs);
-        this.edges.push(e);
+        if("uuid" in kwargs){
+            e.uuid = kwargs["uuid"];
+        } else {
+            e.uuid = this.next_uuid;
+            this.next_uuid++;
+        }
+        this.edges[e.uuid] = e;
         this.emit("structline-added", e);
         this.emit("edge-added", e);
         this.emit("update");
@@ -142,7 +166,13 @@ class SpectralSequenceChart extends EventEmitter {
 
     add_extension(kwargs) {
         let e = new ChartExtension(kwargs);
-        this.edges.push(e);
+        if("uuid" in kwargs){
+            e.uuid = kwargs["uuid"];
+        } else {
+            e.uuid = this.next_uuid;
+            this.next_uuid++;
+        }
+        this.edges[e.uuid] = e;
         this.emit("extension-added", e);
         this.emit("edge-added", e);
         this.emit("update");
@@ -218,7 +248,7 @@ class SpectralSequenceChart extends EventEmitter {
         } else {
             pageRange = [page, page];
         }
-        let display_classes = this.classes.filter(c => {
+        let display_classes = Object.values(this.classes).filter(c => {
             if (!c || c.invalid) {
                 return false;
             }
@@ -227,7 +257,7 @@ class SpectralSequenceChart extends EventEmitter {
         });
 
         // Maybe move this elsewhere...
-        for (let e of this.edges) {
+        for (let e of Object.values(this.edges)) {
             e._source = this.classes[e.source];
             e._target = this.classes[e.target];
         }
@@ -237,7 +267,7 @@ class SpectralSequenceChart extends EventEmitter {
         // 2) e is supposed to be drawn on the current pageRange.
         // 3) e.source and e.target are supposed to be drawn on the current pageRange
         // 4) At least one of the source or target is in bounds.
-        let display_edges = this.edges.filter(e =>
+        let display_edges = Object.values(this.edges).filter(e =>
             e && !e.invalid && 
             SpectralSequenceChart._drawEdgeOnPageQ(e, pageRange)
             && SpectralSequenceChart._drawClassOnPageQ(e._source, page) 
