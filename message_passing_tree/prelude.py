@@ -5,3 +5,4 @@ from .decorators import (
     transform_inbound_messages,
     transform_outbound_messages
 )
+from message_passing_tree.utils import arguments

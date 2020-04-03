@@ -62,6 +62,12 @@ class Message:
         self.cmd = cmd
         self.args = args
         self.kwargs = kwargs
+    
+    def to_json(self):
+        return { "cmd" : self.cmd.filter_list, "args" : self.args, "kwargs" : self.kwargs }
+
+    def __repr__(self):
+        return f"""Message(cmd: "{self.cmd.str}", "args": {self.args}, "kwargs": {self.kwargs})"""
 
 class Envelope:
     def __init__(self, direction, msg, *, 
@@ -122,6 +128,10 @@ class Agent:
         self.children = {}
         self.outward_transformers = {}
         self.inward_transformers = {}
+        # self.inward_responses_expected = []
+        # self.inward_responses_expected_lock = asyncio.Lock()
+        # self.outward_responses_expected = []
+        # self.outward_responses_expected_lock = asyncio.Lock()        
 
     @classmethod
     def log_debug(cls, msg):
@@ -205,6 +215,10 @@ class Agent:
         return await transform_a(self, envelope)
 
     async def transform_inbound_envelope_a(self, envelope):
+        # async with self.inward_responses_expected_lock:
+            # for (i, (cmd_filter, evt)) in enumerate(self.inward_responses_expected):
+                # if cmd_filter in envelope.msg.cmd.filter_list:
+                    # return True
         transform_a = Agent.get_transformer(self.inward_transformers, envelope.msg.cmd)
         if transform_a is None:
             transform_a = Agent.get_transformer(type(self).inward_transformers, envelope.msg.cmd)
@@ -238,7 +252,6 @@ class Agent:
             await recv.pass_envelope_outward_a(envelope)        
    
     def pass_envelope_outward_get_children_to_pass_to(self,  envelope):
-        # print(list(self.children.values()))
         if envelope.target_agent_path is None:
             return [recv for recv in self.children.values() if recv.is_subscribed_to(envelope.msg.cmd.filter_list)]
         if len(envelope.target_agent_path) == 0:
@@ -274,6 +287,13 @@ class Agent:
         args, kwargs
     ):
         await self.send_message_outward_a(cmd, args, kwargs)
+
+    # async def get_response_a(self, cmd_filter):
+        # async with self.inward_responses_expected_lock:
+            # event = asyncio.Event()
+            # self.inward_responses_expected.append((cmd_filter, event))
+        # return event.wait()
+
 
     async def send_debug_a(self, msg_type, msg):
         cmd = "debug"

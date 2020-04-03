@@ -1,6 +1,8 @@
 import asyncio
 import json
 from starlette.websockets import WebSocketDisconnect
+from websockets.exceptions import ConnectionClosedOK
+
 from uuid import UUID, uuid4
 
 from .exceptions import *
@@ -30,28 +32,42 @@ class SocketReceiver(Receiver):
             return
         if not self.initialized_client.is_set() and cmd.part_list[0] != "initialize":
             # Try again and hope for the best?
+            # Maybe we should queue these so they don't get reordered.
+            # Usually this case won't happen, but when it does it might happen many times in a row.
             asyncio.ensure_future(self.send_message_to_socket_a(cmd, *args, **kwargs))
             return
         msg = { "cmd" : cmd.filter_list, "args" : args, "kwargs" : kwargs }
-        await self.socket.send_text(json_stringify(msg))
+        try:
+            await self.socket.send_text(json_stringify(msg))
+        except ConnectionClosedOK:
+            self.log_warning("Connection closed while trying to send message to socket.")
+            self.log_warning(f"Message: {msg}")
 
     async def close_connection_a(self):
         pass
 
+    async def start_a(self):
+        await self.run_a()
+
     async def run_a(self):
         if self.accepted_connection.is_set():
-            print("Already accepted connection for some reason? This maybe should be an error.")
+            self.log_warning("Already accepted connection for some reason? This will become an error when I have time to fix it.")
             return
         else:
             await self.socket.accept()
             self.accepted_connection.set()
         continue_running = True
+        consecutive_failed_passes = 0
         while continue_running:
             try:
                 continue_running = await self.main_loop_a()
+                consecutive_failed_passes = 0
             except Exception as e:
+                consecutive_failed_passes += 1
                 await self.handle_exception_a(e)
-                break
+                # TODO: what's the right threshold?
+                if consecutive_failed_passes > 1: 
+                    return
         await self.shutdown_a()
 
 
@@ -85,6 +101,10 @@ class SocketReceiver(Receiver):
 
     @transform_outbound_messages
     async def consume_initialize_a(self, source_agent_id, cmd, **kwargs):
+        await self.send_message_to_socket_a(cmd, **kwargs)
+
+    @transform_outbound_messages
+    async def consume_interact_a(self, source_agent_id, cmd, **kwargs):
         await self.send_message_to_socket_a(cmd, **kwargs)
 
     @transform_inbound_messages
