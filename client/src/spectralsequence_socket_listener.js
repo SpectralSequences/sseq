@@ -57,7 +57,21 @@ class SpectralSequenceSocketListener {
         this.message_dispatch[cmd_filter] = handler.bind(this);
     }
 
+    start() {
+        this.client_ready = true;
+        if(this.socket_ready) {
+            this.send_introduction_message();
+        }
+    }
+
     onopen(event) {
+        this.socket_ready = true;
+        if(this.client_ready){
+            this.send_introduction_message();
+        }
+    }
+
+    send_introduction_message(){
         this.send("new_user", {});
     }
 
@@ -67,10 +81,8 @@ class SpectralSequenceSocketListener {
     }
 
 
-    display_click_handler(cls) {
-        if(cls != null){
-            this.send("click", { "chart_class" : cls });
-        }
+    display_click_handler(cls, x, y) { 
+        this.send("click", { "chart_class" : cls, "x" : x, "y" : y });
     }
     
 
@@ -213,8 +225,7 @@ class SpectralSequenceSocketListener {
             this.console_log_if_debug(error);
             this.log_exception(error, msg);
         }
-    }
-    
+    }    
 }
 
 
@@ -232,7 +243,30 @@ let default_message_handlers = {
         // let sseq = new SpectralSequenceChart();
         // Object.assign(sseq, msg.state)
     },
+
+    "chart.batched" : function(cmd, args, kwargs) {
+        for(msg of kwargs.messages) {
+            this.handle_message_dispatch(msg);
+        }
+        this.display.update()
+    },
     
+    "chart.state.reset" : function(cmd, args, kwargs) {
+        this.console_log_if_debug("accepted user:", kwargs.state);
+        this.sseq = SpectralSequenceChart.from_JSON(kwargs.state);
+        if(kwargs.display_state !== undefined){
+            this.set_display_state(kwargs.display_state);
+        }
+        this.display.setSseq(this.sseq);
+        // this.display.on("click", this.display_click_handler.bind(this));
+        // this.send("initialize.complete", {});
+        // if(kwargs.display_state) {
+        //     set_display_settings(kwargs.display_state);
+        // }
+        // let sseq = new SpectralSequenceChart();
+        // Object.assign(sseq, msg.state)
+    },
+
     "chart.set_x_range" : function(cmd, args, kwargs){
         this.sseq.x_range = [kwargs.x_min, kwargs.x_max];
     },
@@ -260,10 +294,9 @@ let default_message_handlers = {
     },
 
     "chart.class.update" : function(cmd, args, kwargs) {
-        for(let c of kwargs.to_update) {
-            Object.assign(this.sseq.classes[c.uuid], c);
-        }
-        this.display.update();
+        let c = kwargs.class_to_update;
+        Object.assign(this.sseq.classes[c.uuid], c);
+        // this.display.update();
     },
 
     "chart.class.set_name" : function(cmd, args, kwargs) {
@@ -278,15 +311,26 @@ let default_message_handlers = {
     "chart.edge.add" : function(cmd, args, kwargs) {
         this.console_log_if_debug(kwargs);
         this.sseq.add_edge(kwargs);
-        this.display.update();
+        // this.display.update();
+    },
+
+    "chart.edge.update" : function(cmd, args, kwargs) {
+        this.console_log_if_debug(kwargs);
+        let e = kwargs.edge_to_update;
+        Object.assign(this.sseq.edges[e.uuid], e);
+        // this.display.update();
     },
 
     "display.set_background_color" : function(cmd, args, kwargs) {
         this.display.setBackgroundColor(kwargs.color);
     },
 
-    "alert" : function(cmd, args, kwargs) {
-        alert(kwargs.alert_text);
+    "interact.alert" : function(cmd, args, kwargs) {
+        alert(kwargs.msg);
+    },
+    "interact.prompt" : function(cmd, args, kwargs) {
+        let result = prompt(kwargs.msg, kwargs.default);
+        this.send("interact.result", {"result" : result});
     }
 };
 

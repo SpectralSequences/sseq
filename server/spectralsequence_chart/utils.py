@@ -21,6 +21,10 @@ def assign_fields(obj, kwargs, fields):
             field_type = field["type"]
             raise ValueError(f"Unknown field type {field_type}")
 
+def copy_fields_from_kwargs(obj, kwargs):
+    for [k, v] in kwargs.items():
+        setattr(obj, k, v)
+
 def assign_kwarg_mandatory(obj, kwargs, field):
     if field in kwargs:
         setattr(obj,field, kwargs[field])
@@ -65,6 +69,3 @@ def reverse_replace_keys(d, replace_keys):
         if hasattr(d, key):
             setattr(d, replacement, getattr(d, key))
             delattr(d, key)
-
-# def append_key_to_json_str(json_str, key, value):
-#     return json_string[:-1] + f""", "{str(key)}": {str(value)}}}"""

@@ -3,19 +3,15 @@ import asyncio
 import json
 from readerwriterlock import rwlock
 import threading
+from uuid import uuid4
 
 from . import utils
 from .chart_elements import *
 
 
 
-from message_passing_tree import Agent
-from message_passing_tree.decorators import (
-    collect_transforms, 
-    subscribe_to, 
-    transform_inbound_messages
-)
-from message_passing_tree.utils import arguments
+from message_passing_tree.prelude import *
+from message_passing_tree import Command, Message
 
 INFINITY = 65535
 
@@ -40,66 +36,89 @@ class ChartData:
         
         self.edges = {}
         
-        self._updated_elements = set()
-        self._updated_elements_lock = threading.Lock()
+        self._batched_messages = []
+        self._batched_messages_lock = threading.Lock()
 
     def to_json(self):
         return utils.public_fields(self)
 
     @staticmethod
-    def from_json(agent, json):
-        result = ChartData(agent)
-        result.name = json["name"]
-        result.initial_x_range = json["initial_x_range"]
-        result.initial_x_range = json["initial_x_range"]
-        result.x_range = json["x_range"]
-        result.y_range = json["y_range"]
-        result.min_page_idx = json["min_page_idx"]
-        for n in json["nodes"]:
-            result.nodes.append(ChartNode.from_json(self, json))
-        for c in json["classes"]:
-            result.classes[c["uuid"]].append(
-                ChartClass.from_json(self, c)
-            )
+    def from_json(chart, json):
+        result = ChartData(chart, json["name"])
+        utils.copy_fields_from_kwargs(result, json)
+
+        result.nodes = []
+        result.classes = {}
+        result.edges = {}
+        for node in json["nodes"]:
+            result.nodes.append(ChartNode.from_json(result, node))
+
+        for c in json["classes"].values():
+            result.classes[c["uuid"]] = ChartClass.from_json(result, c)
+
+        for e in json["edges"].values():
+            result.edges[e["uuid"]] = ChartEdge.from_json(result, e)
+
+        # We need to replace the uuids so that they are actually unique.
+        for node in result.nodes:
+            node.uuid = str(uuid4())
+
+        for chart_class in list(result.classes.values()):
+            del result.classes[chart_class.uuid]
+            chart_class.uuid = str(uuid4())
+            result.classes[chart_class.uuid] = chart_class
+
+        for edge in list(result.edges.values()):
+            del result.edges[edge.uuid]
+            edge.uuid = str(uuid4())
+            result.edges[edge.uuid] = edge
+            edge.source = edge._source.uuid
+            edge.target = edge._target.uuid
+        
+        return result
         
 
     def add_class(self, **kwargs):
         c = ChartClass(self, **kwargs)
         if "color" in kwargs:
             c.set_field("color", kwargs["color"])
-        self.classes[c.uuid] = c
-        pos = (c.x, c.y)
-        if pos not in self._classes_by_bidegree:
-            self._classes_by_bidegree[pos] = []
-        self._classes_by_bidegree[pos].append(c)
         return c
-
-    def add_structline(self, source, target, **kwargs):
-        e = ChartStructline(self, source=source, target=target, **kwargs)
-        self.add_edge_common_code(e)
-        return e
-
-    def add_extension(self, source, target, **kwargs):
-        e = ChartExtension(self, source=source, target=target, **kwargs)
-        self.add_edge_common_code(e)
-        return e
 
 
     def add_differential(self, page, source, target, auto, **kwargs):
         e = ChartDifferential(self, page=page, source=source, target=target, **kwargs)
-        self.add_edge_common_code(e)
+        self.edges[e.uuid] = e
         if auto:
             source.add_page(page)
             target.add_page(page)
+            self.add_page_range([page,page])
         return e
 
-    def add_edge_common_code(self, e):
-        source = e.get_source()
-        target = e.get_target()
+    def add_structline(self, source, target, **kwargs):
+        e = ChartStructline(self, source=source, target=target, **kwargs)
         self.edges[e.uuid] = e
-        source._edges.append(e)
-        target._edges.append(e)
+        return e
 
+    def add_extension(self, source, target, **kwargs):
+        e = ChartExtension(self, source=source, target=target, **kwargs)
+        self.edges[e.uuid] = e
+        return e
+
+
+    def add_page_range(self, page_range):
+        if page_range in self.page_list:
+            return
+        with self._page_list_lock:
+            if page_range in self.page_list:
+                return
+            for (i, p) in enumerate(self.page_list):
+                if p[0] > page_range[0]:
+                    idx = i
+                    break
+            else:
+                idx = len(self.page_list)
+            self.page_list.insert(idx, page_range)
+            self.add_batched_message("chart.insert_page_range", *arguments(page_range=page_range, idx=idx))
     
 
     # # TODO: Add a setting to turn off eager deduping.
@@ -120,10 +139,21 @@ class ChartData:
     #             await self._agent.add_node_a(n)
     #             return n
 
-    def add_element_to_update(self, e):
-        with self._updated_elements_lock:
-            self._updated_elements.add(e)
+    def add_class_to_update(self, c):
+        self.add_batched_message("chart.class.update", *arguments(
+            class_to_update=c
+        ))
 
+    def add_edge_to_update(self, c):
+        self.add_batched_message("chart.edge.update", *arguments(
+            edge_to_update=c
+        ))
+
+    def add_batched_message(self, cmd, args, kwargs):
+        cmd = Command().set_str(cmd)
+        message = Message(cmd, args, kwargs)
+        with self._batched_messages_lock:
+            self._batched_messages.append(message)
 
 class DisplayState:
     def __init__(self):
@@ -143,11 +173,23 @@ class SpectralSequenceChart(Agent):
     def get_state(self):        
         return self.data
     
-    def load_json(self, json):
-        self.data = ChartData.from_json(self, json)
+    def load_json(self, json_obj):
+        if type(json_obj) is str:
+            json_obj = json.loads(json_obj)
+        self.data = ChartData.from_json(self, json_obj)
 
-    async def broadcast_a(self, cmd, args, kwargs):
-        await self.send_message_outward_a(cmd, args, kwargs)
+    async def reset_state_a(self):
+        await self.send_message_outward_a("chart.state.reset", *arguments(state = self.data))
+
+    async def send_batched_messages_a(self):
+        with self.data._batched_messages_lock:
+            await self.send_message_outward_a("chart.batched", *arguments(
+                messages = self.data._batched_messages
+            ))
+            self.data._batched_messages = []
+
+    async def update_a(self):
+        await self.send_batched_messages_a()
 
     @transform_inbound_messages
     async def consume_new_user_a(self, source_agent_path, cmd):
@@ -160,35 +202,20 @@ class SpectralSequenceChart(Agent):
         self.data.nodes.append(node)
         await self.broadcast_a("chart.node.add", *arguments(node=node))
 
-    async def add_page_range_a(self, page_range):
-        if page_range in self.data.page_list:
-            return
-        with self.data._page_list_lock:
-            if page_range in self.data.page_list:
-                return
-            for (i, p) in enumerate(self.data.page_list):
-                if p[0] > page_range[0]:
-                    idx = i
-                    break
-            else:
-                idx = len(self.data.page_list)
-            self.data.page_list.insert(idx, page_range)
-            await self.broadcast_a("chart.insert_page_range", *arguments(page_range=page_range, idx=idx))
             
+    # async def add_class_a(self, x : int, y : int, **kwargs):
+    #     """ Add class immediate """
+    #     kwargs.update({"x" : x, "y" : y, "node_list" : [0]})
+    #     c = self.data.add_class(**kwargs)
+    #     await self.broadcast_a("chart.class.add", *arguments(new_class=c))
+    #     return c
 
-    async def add_class_a(self, x : int, y : int, **kwargs):
+    def add_class(self, x : int, y : int, **kwargs):
+        """ Add class batched """
         kwargs.update({"x" : x, "y" : y, "node_list" : [0]})
         c = self.data.add_class(**kwargs)
-        kwargs.update({"uuid" : c.uuid})
-        await self.broadcast_a("chart.class.add", *arguments(new_class=c))
+        self.data.add_batched_message("chart.class.add", *arguments(new_class=c))
         return c
-
-    async def update_a(self):
-        with self.data._updated_elements_lock:
-            await self.broadcast_a("chart.class.update", *arguments(
-                to_update=list(self.data._updated_elements)
-            ))
-            self.data._updated_elements = set()
 
     async def set_class_name_a(self, x, y, idx, name):
         c = self.get_classes_in_bidegree(x, y)[idx]
@@ -196,9 +223,9 @@ class SpectralSequenceChart(Agent):
         self.data.add_element_to_update(c)
 
 
-    async def add_structline_a(self, source, target, **kwargs):
+    def add_structline(self, source, target, **kwargs):
         e = self.data.add_structline(source, target, **kwargs)
-        await self.broadcast_a("chart.edge.add", *arguments(
+        self.data.add_batched_message("chart.edge.add", *arguments(
             type = e.type,
             uuid = e.uuid,
             source = source.uuid,
@@ -207,12 +234,25 @@ class SpectralSequenceChart(Agent):
         ))
         return e
 
-    async def add_differential_a(self, page, source, target, auto=True, **kwargs):
+    def add_extension(self, source, target, **kwargs):
+        e = self.data.add_extension(source, target, **kwargs)
+        self.data.add_batched_message("chart.edge.add", *arguments(
+            type = e.type,
+            uuid = e.uuid,
+            source = source.uuid,
+            target = target.uuid,
+            **kwargs
+        ))
+        return e
+
+
+    def add_differential_main(self, page, source, target, auto=True, **kwargs):
         e = self.data.add_differential(page=page, source=source, target=target, auto=auto, **kwargs)
-        if auto:
-            await self.add_page_range_a([page, page])
-            await self.update_a()
-        await self.broadcast_a("chart.edge.add", *arguments(
+        self.data.add_page_range([page, page])
+        # if auto:
+        #     
+        #     await self.update_a()
+        return (e, "chart.edge.add", *arguments(
             page = page,
             type = e.type,
             uuid = e.uuid,
@@ -220,12 +260,16 @@ class SpectralSequenceChart(Agent):
             target = target.uuid,
             **kwargs
         ))
+
+    def add_differential(self, page, source, target, **kwargs):
+        (e, *rest) = self.add_differential_main(page, source, target, **kwargs)
+        self.data.add_batched_message(*rest)
         return e
 
-    @transform_inbound_messages
-    async def consume_click_a(self, source_agent_path, cmd, chart_class):
-        pass
-        # self.click
+    # async def add_differential_a(self, source, target, **kwargs):
+    #     (e, *rest) = self.add_differential_main(source, target, **kwargs)
+    #     await self.broadcast_a(*rest)
+    #     return e
 
     def get_class_by_idx(self, x, y, idx):
         return self.get_classes_in_bidegree(x, y)[idx]
@@ -268,7 +312,3 @@ class SpectralSequenceChart(Agent):
     async def set_background_color_a(self, color):
         self.data.background_color = color
         await self.broadcast_a("display.set_background_color", *arguments(color=color))
-
-    def to_json(self):
-        return utils.public_fields(self)
-

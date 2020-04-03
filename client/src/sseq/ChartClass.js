@@ -7,21 +7,24 @@ class ChartClass {
         this._valid = true;
         this._x_offset = 0;
         this._y_offset = 0;
-
-        utils.assign_fields(this, kwargs, [
-            { "type" : "mandatory", "field" : "x" },
-            { "type" : "mandatory", "field" : "y" },
-            { "type" : "optional", "field" : "idx" },
-            { "type" : "default",   "field" : "name",             "default" : "" },
-            { "type" : "default",   "field" : "transition_pages", "default" : [] },
-            { "type" : "mandatory", "field" : "node_list" },
-            { "type" : "default",   "field" : "transition_pages", "default" : [] },
-            { "type" : "default",   "field" : "visible",          "default" : true },
-            { "type" : "optional",  "field" : "xoffset" },
-            { "type" : "optional",  "field" : "yoffset" },
-            { "type" : "optional",  "field" : "tooltip" },
-            { "type" : "optional",  "field" : "uuid" },
-        ]);
+        
+        // utils.assign_fields(this, kwargs, [
+        //     { "type" : "mandatory", "field" : "x" },
+        //     { "type" : "mandatory", "field" : "y" },
+        //     { "type" : "optional", "field" : "idx" },
+        //     { "type" : "default",   "field" : "name",             "default" : "" },
+        //     { "type" : "default",   "field" : "transition_pages", "default" : [] },
+        //     { "type" : "mandatory", "field" : "node_list" },
+        //     { "type" : "default",   "field" : "transition_pages", "default" : [] },
+        //     { "type" : "default",   "field" : "visible",          "default" : true },
+        //     { "type" : "optional",  "field" : "xoffset" },
+        //     { "type" : "optional",  "field" : "yoffset" },
+        //     { "type" : "optional",  "field" : "tooltip" },
+        //     { "type" : "optional",  "field" : "uuid" },
+        // ]);
+        
+        // TODO: new utils function that ensures no "_" fields present, raises error "bad serialized class".
+        Object.assign(this, kwargs);
     }
 
     setPosition(x, y, size) {
@@ -79,6 +82,10 @@ class ChartClass {
         return this.node_list[idx] != null && this.visible;
     }
 
+    _inRangeQ(xmin, xmax, ymin, ymax){
+        return xmin <= this.x && this.x <= xmax && ymin <= this.y && this.y <= ymax;
+    }
+
     _getPageIndex(page){
         if( page === undefined ) {
             return this.node_list.length - 1;
@@ -107,11 +114,26 @@ class ChartClass {
     }
 
     getXOffset() {
-        return this._x_offset;
+        let x_offset;
+        let classes = this._sseq.classes_by_degree.get([this.x, this.y]);
+        let num_classes = classes.length;
+        let idx = this.idx;
+        let out = (idx - (num_classes - 1) / 2) * this._sseq.offset_size;
+        if (isNaN(out)) {
+            console.error("Invalid offset for class:", this);
+            x_offset = 0;
+        } else {
+            x_offset = out; 
+        }
+
+        let x_nudge = this.x_nudge ? this.x_nudge : 0;
+        return x_offset + x_nudge;
     }
 
     getYOffset() {
-        return this._y_offset;
+        let y_offset = 0;
+        let y_nudge = this.y_nudge ? this.y_nudge : 0;
+        return y_offset + y_nudge;
     }
 
     toJSON() {

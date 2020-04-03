@@ -504,17 +504,20 @@ class Display extends EventEmitter {
 
     _drawEdges(context, edges){        
         for (let e of edges) {
-            if(!e || e.invalid || !e.visible){ // TODO: should probably log some of the cases where we skip an edge...
+            if(!e) {
+                throw ValueError("Undefined edge.");
+            }
+            if(e.invalid || !e.visible){
                 continue;
             }
-            if (e.type == "Structline" && this.hiddenStructlines.has(e.mult)) {
+            if (e.type === "Structline" && this.hiddenStructlines.has(e.mult)) {
                 continue;
             }
 
             let source_node = e._source;
             let target_node = e._target;
             if(!source_node || ! target_node){
-                continue;
+                throw ValueError(`Edge ${e} has undefined source or target node`);
             }
 
             e._sourceOffset = e.sourceOffset || {x: 0, y: 0};
@@ -529,7 +532,7 @@ class Display extends EventEmitter {
                 context.globalAlpha = e.opacity;
             }
             if(e.dash){
-                context.setLineDash(e.dash)
+                context.setLineDash(e.dash);
             }
 
             let sourceX = source_node._canvas_x + e._sourceOffset.x;
@@ -562,7 +565,9 @@ class Display extends EventEmitter {
     }
 
     _onClick(e) {
-        this.emit("click", this.mouseover_node, e);
+        let x = this.xScale.invert(e.layerX);
+        let y = this.yScale.invert(e.layerY);
+        this.emit("click", this.mouseover_node, x, y, e);
     }
 
     _onMousemove(e) {

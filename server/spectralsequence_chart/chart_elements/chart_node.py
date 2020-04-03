@@ -5,7 +5,7 @@ from .. import utils
 class ChartNode:
     def __init__(self, sseq, **kwargs):
         self._sseq = sseq
-        self.uuid = uuid4()
+        self.uuid = str(uuid4())
         utils.assign_fields(self, kwargs, [
             { "type" : "mandatory", "field" : "shape"},
             { "type" : "default", "field" : "scale", "default" : 1},
@@ -17,7 +17,11 @@ class ChartNode:
 
     @staticmethod
     def from_json(sseq, json):
-        result = ChartNode(sseq, **json)
+        try:
+            result = ChartNode(sseq, **json)
+        except:
+            print(json)
+            raise
         return result
 
     def copy(self):

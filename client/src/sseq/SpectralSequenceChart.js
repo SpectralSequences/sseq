@@ -70,16 +70,25 @@ class SpectralSequenceChart extends EventEmitter {
 
         if(json.edges === undefined) {
             throw ReferenceError("json.edges is undefined.");
-        }        
-
-        json.nodes = json.nodes.map(n => new ChartNode(n));
-        for([id, c] in json.classes){ // in iterates over object keys.
-            json.classes[id] = chart.add_class(c);
         }
-        for([id, e] of Object.entries(json.edges)){
-            json.edges[id] = chart.add_edge(e)
-        }
+        
+        // Make sure to assign fields to chart first in case they are used in process of add_class, add_edge.
         Object.assign(chart, json);
+
+        chart.nodes = chart.nodes.map(n => new ChartNode(n));
+        let json_classes = chart.classes;
+        let json_edges = chart.edges;
+        chart.classes = {};
+        chart.edges = {};
+        
+
+        for(let [id, c] of Object.entries(json_classes)){ // in iterates over object keys.
+            chart.classes[id] = chart.add_class(c);
+        }
+        for(let [id, e] of Object.entries(json_edges)){
+            chart.edges[id] = chart.add_edge(e)
+        }
+        
 
         return chart;
     }
@@ -89,11 +98,11 @@ class SpectralSequenceChart extends EventEmitter {
         check_argument_is_integer("y", y);
         check_argument_is_integer("idx", idx);
         if(!this.classes_by_degree.has([x,y])){
-            throw ValueError(`No classes exist in bidegree (${x}, ${y}).`);
+            throw Error(`No classes exist in bidegree (${x}, ${y}).`);
         }
         let classes = this.classes_by_degree.get([x, y]);
         if(idx >= classes.length) {
-            throw ValueError(`Fewer than ${idx} classes exist in bidegree (${x}, ${y}).`);
+            throw Error(`Fewer than ${idx} classes exist in bidegree (${x}, ${y}).`);
         }
         return classes[idx];
     }
@@ -113,7 +122,6 @@ class SpectralSequenceChart extends EventEmitter {
             c.idx = this.classes_by_degree.get(degree).length;
         }
         add_to_dictionary_of_lists(this.classes_by_degree, degree, c);
-        this.recalculate_offsets(degree);
         this.emit("class-added", c);
         this.emit("update");
         return c;
@@ -179,51 +187,6 @@ class SpectralSequenceChart extends EventEmitter {
         return e;    
     }
 
-    recalculate_offsets(degree) {
-        let classes = this.classes_by_degree.get(degree);
-        let num_classes = classes.length;
-        for(let c of classes) {
-            let idx = c.idx;
-            let out = (idx - (num_classes - 1) / 2) * this.offset_size;
-            if (isNaN(out)) {
-                console.error("Invalid offset for class:",c);
-                c._x_offset = 0;
-            } else {
-                c._x_offset = out; 
-            }
-        }
-    }
-
-    static _classInRangeQ(c, xmin, xmax, ymin, ymax) {
-        return xmin <= c.x && c.x <= xmax && ymin <= c.y && c.y <= ymax;
-    }
-
-    static _drawClassOnPageQ(c, page) {
-        if (c._drawOnPageQ) {
-            return c._drawOnPageQ(page);
-        } else {
-            return ChartClass._drawOnPageQ(c, page);
-        }
-    }
-
-    static _drawEdgeOnPageQ(edge, pageRange) {
-        if (edge._drawOnPageQ) {
-            return edge._drawOnPageQ(pageRange);
-        } else {
-            switch (edge.type) {
-                case "differential":
-                    return ChartDifferential._drawOnPageQ(edge, pageRange);
-                case "extension":
-                    return ChartExtension._drawOnPageQ(edge, pageRange);
-                case "structline":
-                    return ChartStructline._drawOnPageQ(edge, pageRange);
-                default:
-                    return ChartEdge._drawOnPageQ(edge, pageRange);
-
-            }
-        }
-    }
-    
     /**
      * Gets the node to be drawn for the class on the given page. Used primarily by display.
      * @param c
@@ -252,8 +215,7 @@ class SpectralSequenceChart extends EventEmitter {
             if (!c || c.invalid) {
                 return false;
             }
-            c._in_range = SpectralSequenceChart._classInRangeQ(c, xmin, xmax, ymin, ymax);
-            return c._in_range && c._drawOnPageQ(page);
+            return c._inRangeQ(xmin, xmax, ymin, ymax) && c._drawOnPageQ(page);
         });
 
         // Maybe move this elsewhere...
@@ -269,10 +231,10 @@ class SpectralSequenceChart extends EventEmitter {
         // 4) At least one of the source or target is in bounds.
         let display_edges = Object.values(this.edges).filter(e =>
             e && !e.invalid && 
-            SpectralSequenceChart._drawEdgeOnPageQ(e, pageRange)
-            && SpectralSequenceChart._drawClassOnPageQ(e._source, page) 
-            && SpectralSequenceChart._drawClassOnPageQ(e._target, page)
-            && (e._source._in_range || e._target._in_range)
+            e._drawOnPageQ(pageRange)
+            && e._source._drawOnPageQ(page) 
+            && e._target._drawOnPageQ(page)
+            && (e._source._inRangeQ(xmin, xmax, ymin, ymax) || e._target._inRangeQ(xmin, xmax, ymin, ymax))
         );
 
         // We need to go back and make sure that for every edge we are planning to  draw, we draw both its source and

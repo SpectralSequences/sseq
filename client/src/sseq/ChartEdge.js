@@ -4,16 +4,26 @@ let INFINITY = require("../infinity.js").INFINITY;
 class ChartEdge {
     constructor(type, kwargs) {
         this.type = type;
-        utils.assign_fields(this, kwargs, [
-            { "type" : "mandatory", "field" : "source"},
-            { "type" : "mandatory", "field" : "target"},
-            { "type" : "default", "field" : "visible", "default" : true},
-            { "type" : "optional", "field" : "color"},
-            { "type" : "optional", "field" : "opacity"},
-            { "type" : "optional", "field" : "bend"},
-            { "type" : "optional", "field" : "control_points"},
-            { "type" : "optional", "field" : "arrow_type"},
-        ])
+        if(!"source" in kwargs){
+            throw Error(`Edge is missing argument "source".`);
+        }
+        if(!"target" in kwargs){
+            throw Error(`Edge is missing argument "target".`);
+        }
+        if(!"visible" in kwargs) {
+            this.visible = true;
+        }
+        Object.assign(this, kwargs);
+        // utils.assign_fields(this, kwargs, [
+        //     { "type" : "mandatory", "field" : "source"},
+        //     { "type" : "mandatory", "field" : "target"},
+        //     { "type" : "default", "field" : "visible", "default" : true},
+        //     { "type" : "optional", "field" : "color"},
+        //     { "type" : "optional", "field" : "opacity"},
+        //     { "type" : "optional", "field" : "bend"},
+        //     { "type" : "optional", "field" : "control_points"},
+        //     { "type" : "optional", "field" : "arrow_type"},
+        // ])
     }
 
     _drawOnPageQ(pageRange){
@@ -41,11 +51,15 @@ class ChartDifferential extends ChartEdge {
 class ChartStructline extends ChartEdge {
     constructor(kwargs){
         super("structline", kwargs);
-        this.max_page = utils.assign_kwarg_default(kwargs, "max_page", INFINITY);
-        this.min_page = utils.assign_kwarg_default(kwargs, "min_page", 0);
+        if(this.max_page === undefined) {
+            this.max_page = INFINITY;
+        }
+        if(this.min_page === undefined) {
+            this.min_page = 0;
+        }        
     }
 
-    static _drawOnPageQ(pageRange){
+    _drawOnPageQ(pageRange){
         return pageRange[0] <= this.max_page && this.min_page <= pageRange[0];
     }
 }
@@ -55,9 +69,10 @@ class ChartExtension extends ChartEdge {
         super("extension", kwargs);
     }
 
-    static _drawOnPageQ(pageRange){
-        return pageRange[0] === infinity;
+    _drawOnPageQ(pageRange){
+        return pageRange[0] === INFINITY;
     }
+
 }
 
 exports.ChartEdge = ChartEdge;
