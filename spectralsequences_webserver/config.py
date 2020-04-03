@@ -39,6 +39,9 @@ else:
     if not USER_DIR.is_dir():
         USER_DIR.mkdir()
 
+SAVE_DIR = USER_DIR / "save"
+REPL_INIT_FILE = USER_DIR / "on_repl_init.py"
+
 USER_CONFIG_FILE = USER_DIR / "config.py"
 TEMPLATE_DIR = PACKAGE_ROOT / "templates"
 

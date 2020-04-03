@@ -14,8 +14,8 @@
             }
             
             #main {
-                    height: 100%;
-                    min-height: 100%;
+                    height: 98%;
+                    min-height: 98%;
                     overflow: hidden;
                     position: relative;
             }
@@ -49,20 +49,21 @@
     </head>
 <body>
     <script src="/static/webclient" type="text/javascript"></script>
-    <div id="main" style="left:25pt; width:96%;"></div>
-
+    <div id="main" style="left:25pt; width:96%; height:90%"></div>
+    <div style="position:absolute; bottom:15pt; left: 25pt">
+        <span id="mode" style="font-weight: bold;"></span>
+        <span id="mode_info" style="margin-left: 10pt;"></span>
+    </div>
 <script>
-"use strict";
+IO.loadFromServer("anss-S0.json").then(
+    (json_str) => {
+        let json = JSON.parse(json_str);
+        console.log(json)
+        window.sseq = SpectralSequenceChart.from_JSON(json);
+        window.display = new BasicDisplay("#main", sseq);
+    }
+)
 
-let ws = new WebSocket("ws://localhost:{{ port }}/ws/{{ directory }}/{{ channel_name }}");
 
-function make_display(sseq){
-    return new BasicDisplay("#main", sseq);
-}
-
-let sseq_socket = new SpectralSequenceSocketListener(ws, make_display);
-Mousetrap.bind("n", () => sseq_socket.send("demo.next", {}));
-Mousetrap.bind("t", () => sseq_socket.send("demo.take_over_console", {}));
-</script>        
+</script>
 </body>
-</html>

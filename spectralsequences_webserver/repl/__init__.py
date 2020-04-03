@@ -41,7 +41,7 @@ def set_double_fault_handler(r):
 
 async def read_input_files_a(r):
     r.console_io.turn_on_buffered_stdout()
-    await exec_file_if_exists_a(r.executor, config.USER_DIR / "on_repl_init.py", working_directory=config.USER_DIR)
+    await r.executor.load_repl_init_file_if_it_exists()
     await handle_script_args_a(r.executor, config)
     r.console_io.turn_off_buffered_stdout()
 
@@ -57,19 +57,11 @@ def start_repl(r):
     task.add_done_callback(handle_task_exception)
 
 
-
 async def handle_script_args_a(r, config):
     os.chdir(config.WORKING_DIRECTORY)
     for arg in config.INPUT_FILES:
         path = pathlib.Path(arg)
         if path.is_file():
-            await exec_file(r, path)
+            await r.exec_file_a(path)
         else:
             utils.print_warning(f"""Cannot find file "{arg}". Ignoring it!""")
-
-async def exec_file_a(r, path : pathlib.Path, working_directory=None):
-    await r.exec_file_a(path, working_directory)
-
-async def exec_file_if_exists_a(r, path : pathlib.Path, working_directory=None):
-    if path.is_file():
-        await exec_file_a(r, path, working_directory)

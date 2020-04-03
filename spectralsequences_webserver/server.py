@@ -10,7 +10,11 @@ logger = logging.getLogger(__name__)
 from . import config
 
 from .repl import start_repl_a, ReplAgent
-from .channels import (DemoChannel, SseqChannel)
+from .channels import (
+    DemoChannel, 
+    InteractChannel,
+    SseqChannel
+)
 from . import socket_close_codes
 from message_passing_tree import SocketReceiver
 from spectralsequence_chart import SseqSocketReceiver
@@ -36,6 +40,14 @@ async def main():
     @app.get("/static/webclient", response_class=JSResponse)
     async def get_a():
         return config.SSEQ_WEBCLIENT_JS_FILE.read_text()
+
+    @app.get("/anss-S0.html")
+    async def get_a():
+        return HTMLResponse((config.TEMPLATE_DIR / "anss-S0.html").read_text())
+
+    @app.get("/anss-S0.json")
+    async def get_a():
+        return (config.USER_DIR / "anss-S0_2020-04-03T15-43-48.json").read_text()
 
 
     def serve_channel(app, channel_cls, cls_dir):
@@ -78,3 +90,4 @@ async def main():
 
     serve_channel(app, SseqChannel, "sseq")
     serve_channel(app, DemoChannel, "demo")
+    serve_channel(app, InteractChannel, "interact")

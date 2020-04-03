@@ -1,11 +1,14 @@
 import asyncio
 from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
+from inspect import iscoroutine
 import os
 import pathlib
 from textwrap import dedent, indent
 
 from message_passing_tree import Agent 
 from message_passing_tree.decorators import collect_transforms, subscribe_to
+
+from .. import config
 
 @subscribe_to("*")
 @collect_transforms(inherit = False)
@@ -95,9 +98,17 @@ class Executor(Agent):
     async def eval_code_a(self, line):
         code = self.compile_with_flags(line, "eval")
         result = eval(code, self.get_globals(), self.get_locals())
-        if asyncio.iscoroutine(result):
+        if iscoroutine(result):
             result = await result
         return result
+
+    async def exec_file_if_exists_a(self, path : pathlib.Path, working_directory=None):
+        if path.is_file():
+            await self.exec_file_a(path, working_directory)
+
+    async def load_repl_init_file_if_it_exists(self):
+        await self.exec_file_if_exists_a(config.REPL_INIT_FILE, working_directory=config.USER_DIR)
+
 
     async def exec_file_a(self, path : pathlib.Path, working_directory=None):
         await self.exec_code_a(

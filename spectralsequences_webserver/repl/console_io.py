@@ -127,7 +127,7 @@ class ConsoleIO(PythonRepl):
             out_prompt = self.get_output_prompt()
 
             try:
-                result_str = "%r\n" % (repr(result),)
+                result_str = "%r\n" % (result,)
             except UnicodeDecodeError:
                 # In Python 2: `__repr__` should return a bytestring,
                 # so to put it in a unicode context could raise an

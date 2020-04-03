@@ -1,7 +1,7 @@
 import asyncio
 
-from message_passing_tree import SocketChannel
 from message_passing_tree.prelude import *
+from message_passing_tree import SocketChannel
 
 from spectralsequence_chart import SseqSocketReceiver, SpectralSequenceChart
 
@@ -37,10 +37,13 @@ class DemoChannel(SocketChannel):
         
         put_main_class_here = {}
         self.setup_executor_namespace(executor, put_main_class_here)
-        executor.get_globals()["REPL"] = self.repl_agent
         await executor.exec_file_a(self.file_path)
 
         DemoClass = put_main_class_here["main_class"]
+        if DemoClass.inward_transformers is None:
+            collect_transforms(inherit = True)(DemoClass)
+        if DemoClass.subscriptions is None:
+            subscribe_to("*")(DemoClass)
         demo = DemoClass(executor)
         executor.get_globals()["demo"] = demo
 
@@ -51,8 +54,7 @@ class DemoChannel(SocketChannel):
         await demo.start_a()
         print("END")
 
-    @staticmethod    
-    def setup_executor_namespace(executor, return_by_reference):
+    def setup_executor_namespace(self, executor, return_by_reference):
         """ Get the @main decorator into the """
         def main(cls):
             return_by_reference["main_class"] = cls
@@ -64,6 +66,8 @@ class DemoChannel(SocketChannel):
         globals["subscribe_to"] = subscribe_to
         globals["transform_inbound_messages"] = transform_inbound_messages
         globals["transform_outbound_messages"] = transform_outbound_messages
+        executor.get_globals()["REPL"] = self.repl_agent
+
 
     @classmethod
     def get_file_path(cls, name):
@@ -74,7 +78,7 @@ class DemoChannel(SocketChannel):
 
     @classmethod
     async def get_channel_a(cls, name, repl):
-        if name in cls.channels:
+        if name in cls.channels and False: # Always reload for debugging demos.
             return cls.channels[name]
         file_path = cls.get_file_path(name)
         if file_path:
