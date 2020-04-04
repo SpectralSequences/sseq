@@ -271,7 +271,23 @@ class Display extends EventEmitter {
         if (this.sseq.edgeLayerSVG)
             this.drawSVG(ctx, this.sseq.edgeLayerSVG);
 
+        if(this.svg) {
+            let scale = this.svg_scale || 1;
+            let x_offset = this.svg_x_offset || 0;
+            let y_offset = this.svg_y_offset || 0;
+            let default_width = display.canvasWidth  / (display.xmaxFloat - display.xminFloat) * (display.sseq.x_range[1] - display.sseq.x_range[0] + 1);
+            let default_height = display.canvasHeight / (display.ymaxFloat - display.yminFloat) * (display.sseq.y_range[1] - display.sseq.y_range[0] + 1) - y_offset;
+            let width = default_width * scale;
+            let height = default_height * scale;
+            console.log("width:",width, "height:",  height)
+            this.context.drawImage(this.svg,
+                display.xScale(display.sseq.x_range[0] + x_offset), //- display.xMinOffset,
+                display.yScale(display.sseq.y_range[1] + 1 + y_offset) ,
+                width, height
+            );
+        }
         ctx.restore();
+
 
         this.emit("draw");
     }
@@ -626,7 +642,7 @@ class Display extends EventEmitter {
         img.src = image64;
 
         context.drawImage(img,
-            this.xScale(this.sseq.x_range[0]) - this.xMinOffset,
+            this.xScale(this.sseq.x_range[0]),// - this.xMinOffset,
             this.yScale(this.sseq.y_range[1] + 1),
             this.canvasWidth  / (this.xmaxFloat - this.xminFloat) * (this.sseq.x_range[1] - this.sseq.x_range[0] + 1),
             this.canvasHeight / (this.ymaxFloat - this.yminFloat) * (this.sseq.y_range[1] - this.sseq.y_range[0] + 1)

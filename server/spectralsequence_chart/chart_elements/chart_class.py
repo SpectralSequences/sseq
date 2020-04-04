@@ -91,7 +91,8 @@ class ChartClass:
     def set_field(self, field, value):
         # with self._lock:
             for i in range(len(self.node_list)):
-                self.set_node_field_by_idx(i, field, value)
+                if self.node_list[i]:
+                    self.set_node_field_by_idx(i, field, value)
             self._sseq.add_class_to_update(self)
             return self
 
