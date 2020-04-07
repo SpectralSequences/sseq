@@ -9,3 +9,12 @@ webserver
 **/__pycache__
 **/node_modules
 **/npm-debug.log
+**/*.rs.bk
+**/*.lock
+
+
+# Probably need these back in ext.
+target
+dist
+package-lock.json
+resolution.save
