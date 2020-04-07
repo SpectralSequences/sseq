@@ -1,48 +1,36 @@
 [package]
-name = "ext"
+name = "ext_webserver"
 version = "0.1.0"
-authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dexter@math.harvard.edu>"]
+authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dalcde@yahoo.com.hk>"]
 edition = "2018"
-description = "Compute Ext over the Steenrod algebra"
-repository = "https://github.com/SpectralSequences/ext/"
-license = "(MIT OR Apache-2.0)"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-algebra = { path = "crates/algebra" }
-bivec = { path = "crates/bivec"}
+bivec = { path = "ext/crates/bivec" }
 enum_dispatch = "0.2.0"
-error = { path = "crates/error"}
-fp = { path = "crates/fp" }
-lazy_static = "1.2.0"
-lock_api = "0.3"
-nom = "5.0.0"
-once = { path = "crates/once"}
+error = { path = "ext/crates/error" }
+fp = { path = "ext/crates/fp", features = ["json"] }
 parking_lot = "0.10"
-saveload = { path = "crates/saveload" }
-query = { path = "crates/query" }
+ext = { path = "ext" }
 serde_json = "1.0.0"
 serde = { version = "1.0.0", features = ["derive"] }
-thread-token = { path = "crates/thread-token", optional = true }
+thread-token = { path = "ext/crates/thread-token", optional = true }
 
-[target.'cfg(not(target_arch = "wasm32-unknown-unknown"))'.dependencies.clap]
-version = "2.33.0"
-default-features = false
-features = ["yaml", "wrap_help", "color"]
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+time = "0.2.7"
+ws = "0.9.0"
+textwrap = { version = "0.11.0", features = ["term_size"] }
 
-[dev-dependencies]
-rstest = "0.5.0"
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.0"
+js-sys = "0.3.0"
+
+[features]
+default = []
+cache-multiplication = ["ext/cache-multiplication"]
+concurrent = ["thread-token", "ext/concurrent"]
+prime-two = ["fp/prime-two", "ext/prime-two"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-
-[profile.release]
-# This makes the compiled code faster and smaller, but it makes compiling slower,
-# so it's only enabled in release mode.
-lto = true
-opt-level = 3
-debug = true
-
-[features]
-cache-multiplication = []
-concurrent = ["thread-token"]
-prime-two = ["fp/prime-two"]

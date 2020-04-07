@@ -1,113 +1,78 @@
-[![Build Status](https://travis-ci.com/SpectralSequences/ext.svg?branch=master)](https://travis-ci.com/SpectralSequences/ext)
+# Rust-based Ext webserver
+[![Build Status](https://travis-ci.com/SpectralSequences/rust_webserver.svg?branch=master)](https://travis-ci.com/SpectralSequences/rust_webserver)
 
-# Overview
-The purpose of this repository is to compute Ext over the Steenrod algebra, and
-facilitate the computation of the corresponding Adams spectral sequence. The
-library is written in a way that makes it easy to adapt this to compute Ext
-over other algebras.
+There are three parts to this code.
+## Spectral Sequence Editor
+The first part is a spectral sequence editor. It takes as an input a Steenrod
+module, and computes the E_2 page using the resolver. One can then add
+differentials and mark classes as permanent, which can be propagated via the
+Leibniz rule.
 
-The repository is separated into two distinct workspaces. `libraries` contains
-helper crates and all the homological algebra logic. `binaries` provide several
-binaries on top of this, which is mostly glue around the `libraries`. The
-reason is that when we use the binary for calculations, we often have to edit
-the binary and recompile. Structuring the repository this way allows us to
-compile the library with -O3 and the binary with -O0. This massively improves
-the compile time with a much smaller runtime overhead.
+This is managed by a rust backend and uses a websocket to communicate to the
+web frontend for display.
 
-# Libraries
-## Top-level crate
-The main crate implements most of the homolgoical algebra.
-
-## fp
-This implements linear algebra over Fp, as well as general helper functions
-about primes.
-
-## bivec
-This is a small crate that provides `BiVec` - a variant of `Vec` indexed by an
-`i32` whose starting index may be non-zero.
-
-## once
-This is a small crate that provides `OnceVec` and `OnceBiVec`, a wrapper around `UnsafeCell<Vec>` (or `BiVec`) that models a `Vec` whose only way of modification is `push`. This models some partially computed infinite data structure, and we think of pushing as simply finding out more of this infinite data structure instead of genuinely mutating it.
-
-## query
-This contains some helper functions for a command line interface.
-
-## saveload
-This provides an interface for saving and loading resolutions and other data.
-
-# Binaries
-## Top-level crate
-By default, the binary computes Ext and displays the result in an ASCII graph.
-This is mainly used for testing purposes. It also comes with a CLI interface
-for defining Steenrod modules, which may be used "in production".
-
-At the moment, it also has an interface for calculating Steenrod operations in
-Ext using the algorithm described in
-[https://arxiv.org/abs/1909.03117](https://arxiv.org/abs/1909.03117) via the
-`steenrod` subcommand (`cargo run --release steenrod`), but the intention is to
-expose this via `ext-websocket` once it is sufficiently presentable (the
-current algorithm can be very slow, and the speed cannot be easily determined
-a priori).
-
-There is also an alternative entry point, `cargo run test`, which runs
-custom-written code in `binaries/src/test.rs`. This is used for ad hoc
-calculations, and the content of the this file is probably what the author
-happened to be working on when they had to commit something else.
-
-## compressor
-This is a utility for further compressing the history file constructed by the
-previous interface (again, see the README in `ext-websocket/` for more
-details). It is not very well polished. To use it, save the file to compress as
-`compressor/old.hist`, and then run `cargo run --release`. The compressed file
-will be saved at `compressor/new.hist`.
-
-This program is multithreaded, and to change the number of threads used, edit
-the `NUM_THREAD` variable in `compressor/src/main.rs`.
-
-# Compilation
-Most users will have no reason to compile the `libraries` crate apart from
-running `cargo test`, `cargo doc` and `cargo clippy` when editing the code.
-
-In general, you will want to work in the `binaries` directory. To compile the
-main binary, simply run
+To setup the build environment, run
+```console
+ $ bin/setup.sh
 ```
-$ cargo build
-```
-This will automatically download and manage the dependencies, and the compiled
-binary can be found at `target/debug/binary`.
 
-This by default resolves the sphere at p = 2 to degree 30. See `binary
---help` for more configuration options.
-
-Once can also run the resolver directly via
-```
-$ cargo run
-```
-This will compile the code (if necessary) and then run the binary. Command line
-options can be passed with `--`, e.g. `cargo run -- --help`. In particular,
-`cargo run -- module` will start an interactive interface for defining a
-module.
-
-To compile and run a properly optimized version, use
-```
-$ cargo build --release
+Afterwards, to build and run, simply run
+```console
 $ cargo run --release
 ```
-The compiled binaries can be found at `target/release`. This binary is usually
-much faster but compilation takes longer.
+and then navigate to `http://localhost:8080/`.
 
-To run the tests, do
-```
-$ cargo test
+The source files are located in `interface/` and `src/`.
+
+## Spectral Sequence Editor (without backend)
+This is a variation of the previous version, where the rust backend is compiled
+to wasm so that everything runs on the browser. This is more convenient for
+distribution but is slower. A live version is available at
+[https://spectralsequences.github.io/rust_webserver/](https://spectralsequences.github.io/rust_webserver/).
+
+To setup the build environment, run
+```console
+ $ bin/setup-wasm.sh
 ```
 
-## Documentation
-To compile the code documentation, run
+Afterwards, build and serve with
+```console
+ $ bin/build-wasm.sh
+ $ bin/serve-wasm.sh [port]
 ```
-$ cargo doc --no-deps
+This serves the website at `localhost:[port]`. The `[port]` argument is optional and defaults to `8000`.
+
+The final command merely serves the directory `dist/`, which you may serve with
+your favorite alternative webserver. There are two points to take note if
+you want to serve the directory yourself.
+
+1. By default, most http servers do not serve `.wasm` files with the correct
+   MIME type. For example, you need to add the following line to `.htaccess`
+   for Apache:
 ```
-To view the docuemntation, run
+AddType application/wasm .wasm
 ```
-$ cargo doc --no-deps --open
-```
-As usual, the latter command triggers the former if needed. This can also be viewed on [https://spectralsequences.github.io/ext/ext/](https://spectralsequences.github.io/ext/ext/)
+
+2. During compilation, the `dist/` directory is deleted and then re-created, so
+   the actual directory changes every time you compile.
+
+The relevant source files are in `wasm/`.
+
+## Calculation Display
+This displays a completed computation, with notes for each of the actions. This
+is generated by one of the two previous parts. The interface is not very well
+developed, but see https://dec41.user.srcf.net/includes/sseq/tmf/ for an
+example of the result.
+
+This uses a fork of https://github.com/usablica/intro.js for the introduction.
+
+The relevant files are in `display/`.
+
+## Save files
+Save files are filees produced by the "Save" button in the editor. This is a list of actions performed in the spectral sequence calculation. This can be loaded via the "Load History" button in the homepage.
+
+The format is pretty simple. Each line is a JSON encoding the action, and these are executed in order. The allowed actions are not documented but it should be simple to figure out from examples.
+
+One can manually reorganize the calculation by moving the rows around. Lines are ignored if they are empty or start with `//`. These can be used to help organizing the calculation.
+
+One can add annotations to the lines, which affects how it is displayed in Calculation Display (but *not* the editor). Adding `"skip":true` means this will be grouped with the next item. Adding `"short-note":"Lorem ipsum"` and `"note":"Lorem ipsum"` will add notes to the corresponding action. Note that if several actions are grouped, only the notes of the first action will be displayed.

@@ -18,34 +18,28 @@ matrix:
     fast_finish: true
 
 install:
+    - bin/setup-wasm.sh
+    - bin/install-wasm-opt.sh
     - rustup component add clippy
 
 script:
-    - cargo test --verbose --workspace
-    - cargo test --features "cache-multiplication" --verbose --workspace
-    - cargo check --features "prime-two concurrent" --workspace
-    - cargo clippy --workspace --all-targets -- -D warnings
-    - cargo clippy --workspace --features "cache-multiplication concurrent" --all-targets -- -D warnings -A unused_imports
-    - cd crates
-    - cargo test --workspace
-    - cargo clippy --workspace --all-targets -- -D warnings
-    - cd ..
+    - cargo test --verbose
+    - cargo clippy --all-targets -- -D warnings
+    - cargo clippy --features "concurrent" --all-targets -- -D warnings -A unused_imports
+    - bin/build-wasm.sh
+    - cd compressor; cargo clippy -- -D warnings; cd ..
 
 cache:
     cargo: true
     directories:
-        - crates/target/
-
-before_deploy:
-    - ./gen_doc.sh
-    - cp -r target/doc/* gh-pages/
+        - $HOME/.local/bin
 
 deploy:
   provider: pages
   skip_cleanup: true
   github_token: $GITHUB_TOKEN  # Set in the settings page of your repository, as a secure variable
   keep_history: true
-  local_dir: gh-pages/
+  local_dir: dist/
   on:
       branch: master
       condition: "$TRAVIS_RUST_VERSION = stable && $TRAVIS_OS_NAME = linux"
