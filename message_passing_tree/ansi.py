@@ -13,6 +13,7 @@ MISTAKE = RED
 CORRECTION = LIME_GREEN
 SUCCESS = DARK_GREEN
 HIGHLIGHT = ORANGE
+STATE_CHANGE = ORANGE
 
 
 def info(s):
@@ -29,3 +30,6 @@ def correction(s):
 
 def highlight(s):
     return HIGHLIGHT + str(s) + NOCOLOR
+
+def state_change(s):
+    return STATE_CHANGE + str(s) + NOCOLOR

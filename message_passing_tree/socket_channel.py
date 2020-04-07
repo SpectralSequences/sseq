@@ -3,6 +3,15 @@ from . import utils
 from .agent import Agent
 from .decorators import subscribe_to
 
+from . import socket_close_codes
+
+from fastapi import FastAPI, Request, WebSocket
+from fastapi.responses import HTMLResponse, FileResponse, Response
+
+
+import logging
+logger = logging.getLogger(__name__)
+
 @subscribe_to("*")
 class SocketChannel(Agent):
     channels = {}
@@ -13,21 +22,55 @@ class SocketChannel(Agent):
         return name in cls.channels
 
     @classmethod
-    async def get_channel_a(cls, name, repl):
-        """ This is used by server.py to look up what channel a websocket should
-            subscribe to. If server receives a requet to /ws/class_directory/{name}
-            it will call this function. Return value should be a SocketChannel 
-            instance.
-        """
-        if name in cls.channels:
-            return cls.channels[name]
+    def serve(cls, app, repl, host, port, cls_dir):
+        cls.set_serving_info(host, port, cls_dir)
+
+        @app.get(f"/{cls_dir}/{{channel_name}}")
+        async def get_html_a(request: Request, channel_name : str):
+            logger.debug(f"get: {cls_dir}/{channel_name}")
+            try:
+                response_data = { 
+                    "port" : port, 
+                    "directory" : cls_dir,
+                    "channel_name" : channel_name,
+                    "request" : request, 
+                }
+                response = cls.http_response(channel_name, request)
+                if response is None:
+                    return templates.TemplateResponse("invalid_channel.html", response_data)
+                else:
+                    return response
+            except Exception as e:
+                repl.console_io._handle_exception(e)
+
+        @app.websocket(f"/ws/{cls_dir}/{{channel_name}}")
+        async def websocket_subscribe_a(websocket: WebSocket, channel_name : str):
+            logger.debug(f"ws: {cls_dir}/{channel_name}")
+            try:
+                channel = await cls.get_channel_a(channel_name, repl)
+                if channel is None:
+                    # TODO: is this the best way to handle this?
+                    # One reasonable reason we could end up here is if the channel closed between the
+                    # get request and now...
+                    # In that case we should respond with GOING_AWAY rather than INTERNAL_ERROR.
+                    raise RuntimeError(f"""No channel available named "{cls_dir}/{channel_name}".""")
+                await channel.add_subscriber_a(websocket)
+            except Exception as e:
+                await websocket.close(socket_close_codes.INTERNAL_ERROR)
+                repl.console_io._handle_exception(e)
+
+        cls.serve_extra(app, host, port, cls_dir)
 
     @classmethod
-    def serve_channel_to(cls, host, port, directory):
+    def serve_extra(cls, app, host, port, cls_dir):
+        pass
+
+    @classmethod
+    def set_serving_info(cls, host, port, directory):
         cls.host = host
         cls.port = port
         cls.directory = directory
-        cls.serving_class_to = f"{host}:{port}/{directory}"
+        cls.set_serving_info = f"{host}:{port}/{directory}"
         cls.initialize_channel()
 
     @classmethod
@@ -48,6 +91,9 @@ class SocketChannel(Agent):
         self.name = name
         type(self).channels[name] = self
         asyncio.ensure_future(self.send_start_msg_a())
+
+    async def send_start_msg_a(self):
+        print(f"Started {self.name}")
 
     def serving_to(self):
         if self.serving_class_to is None:

@@ -244,22 +244,26 @@ class Agent:
         if consume:
             return  
         children_to_pass_to = self.pass_envelope_outward_get_children_to_pass_to(envelope)
-        self.log_debug(f"children_to_pass_to : {children_to_pass_to}")
         if not children_to_pass_to:
+            # TODO: extra logging info about subscriber filters!
             await self.handle_leaked_envelope_a(envelope)
             # raise RuntimeWarning("Leaked message") # TODO: should be a warning.
         for recv in children_to_pass_to:
             await recv.pass_envelope_outward_a(envelope)        
    
     def pass_envelope_outward_get_children_to_pass_to(self,  envelope):
-        if envelope.target_agent_path is None:
+        if envelope.target_agent_path is None or len(envelope.target_agent_path) == 0:
+            # TODO: extra logging info about subscriber filters!
             return [recv for recv in self.children.values() if recv.is_subscribed_to(envelope.msg.cmd.filter_list)]
-        if len(envelope.target_agent_path) == 0:
-            raise RuntimeError(f"""Unconsumed message with command "{cmd[0]}" targeted to me.""")
         child_uuid = envelope.target_agent_path.pop()
         if child_uuid not in self.children:
             raise RuntimeError(f"""I don't have a child with id "{child_uuid}".""")
         return [self.children[child_uuid]]
+
+
+    async def handle_leaked_envelope_a(self, envelope):
+        self.log_warning(f"""Leaked envelope self: {self.info()}  envelope: {envelope.info()}""")
+        self.log_warning(f"""=== Leaked envelope {self.children}""")
 
 
     async def send_message_inward_a(self, 
@@ -276,6 +280,7 @@ class Agent:
         cmd_str, args, kwargs, *,
         target_agent_path : Optional[AgentPath] = None
     ):
+        self.log_debug(f"smo {cmd_str}")
         cmd = Command().set_str(cmd_str)
         message = Message(cmd, args, kwargs)
         envelope = Envelope("out", message, source_agent_id = self.uuid, target_agent_path = target_agent_path)
