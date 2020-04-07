@@ -1,5 +1,4 @@
 /target
-Cargo.lock
 dist/steenrod_calculator_wasm.js
 dist/steenrod_calculator_wasm_bg.wasm
 ext

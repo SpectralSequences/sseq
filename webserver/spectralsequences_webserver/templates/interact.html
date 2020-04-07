@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Spectral Sequence Demo {{ channel_name }}</title>
+        <meta charset="utf-8"/>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.css" integrity="sha384-+MsSfd29vjUzcyqYURxcmpWGtqoSHBy+QdEJNLEslXQftxojQv0k6BGDqUNp9GtA" crossorigin="anonymous">
+        
+        <style>
+            html, body {
+              height: 100%;
+              min-height: 100%;
+              overflow: hidden;
+            }
+            
+            #main {
+                    height: 98%;
+                    min-height: 98%;
+                    overflow: hidden;
+                    position: relative;
+            }
+            
+            #main-svg {
+                    width: 100%;
+                    height: 100%;
+            }
+            
+            #status {
+                    position: absolute;
+                    left: 20px;
+                    bottom: 20px;
+                    z-index: 1000;
+            }
+            div.tooltip {	
+                text-align: center;
+                padding: 5px;
+                font: 12px sans-serif;		
+                background: lightsteelblue;
+                border: 0px;
+                border-radius: 8px;
+                pointer-events: none;
+            }
+            .class {
+                pointer-events: fill;
+            }
+            
+            hr { height:2px; visibility:hidden; margin-bottom:-1px; }
+            </style>
+    </head>
+<body>
+    <script src="/static/webclient" type="text/javascript"></script>
+    <!-- This next script allows us to call Mousetrap.bind(dictionary-of-bindings) -->
+    <!--<script src="https://github.com/ccampbell/mousetrap/blob/master/plugins/bind-dictionary/mousetrap-bind-dictionary.min.js" type="text/javascript"></script>!-->
+    <div id="main" style="left:25pt; width:96%; height:90%"></div>
+    <div style="position:absolute; bottom:15pt; left: 25pt">
+        <span id="mode" style="font-weight: bold;"></span>
+        <span id="mode_info" style="margin-left: 10pt;"></span>
+    </div>
+<script>
+"use strict";
+
+
+
+let ws = new WebSocket("ws://localhost:{{ port }}/ws/{{ directory }}/{{ channel_name }}");
+
+let main_div = document.querySelector("#main");
+function make_display(sseq){
+    let display = new BasicDisplay(main_div, sseq);
+    return display;
+}
+
+let sseq_socket = new SpectralSequenceSocketListener(ws, make_display);
+sseq_socket.mode_elt = document.querySelector("#mode");
+sseq_socket.mode_info_elt = document.querySelector("#mode_info");
+
+function set_mode_info(text){
+    sseq_socket.mode_info_elt.innerText = text;
+}
+
+let always_bindings = {
+    "t" : () => sseq_socket.send("console.take", {}),
+    "s s s" : (e) => {
+        // e.preventDefault();
+        sseq_socket.send("io.save", {});
+    },
+    "escape" : () => {
+        sseq_socket.send("interact.mode.cancel", {});
+        Mode.cancel();
+    },
+    'left' : () => sseq_socket.display.previousPage(),
+    'right' : () => sseq_socket.display.nextPage(),
+    "f" : () => {
+        sseq_socket.send("io.process_screenshot", {})
+    }
+}
+
+function add_key_bindings(bindings){
+    for(let [k, v] of Object.entries(bindings)){
+        Mousetrap.bind(k, v);
+    }
+}
+
+function reset_key_bindings(bindings){
+    Mousetrap.reset();
+    add_key_bindings(always_bindings);
+}
+
+function set_normal_key_bindings(bindings) {
+    reset_key_bindings();
+    add_mode_key_bindings();
+}
+
+
+class Mode {
+    static set(mode) {
+        console.log("mode.set:", mode);
+        if(Mode.currentMode){
+            Mode.currentMode.end();
+        }
+        if(mode.constructor === String) {
+            mode = Mode.dict[mode];
+        }
+        Mode.currentMode = mode;
+        Mode.currentMode.start();
+        sseq_socket.send("interact.mode.set", {"mode" : mode.constructor.name});        
+        sseq_socket.mode_elt.innerText = mode.constructor.name;
+    }
+    
+    static cancel(){
+        if(!Mode.currentMode){
+            throw ReferenceError("No current mode.");
+        }
+        Mode.currentMode.cancel();
+    }
+
+    static click(cls, x, y){
+        if(!Mode.currentMode){
+            throw ReferenceError("No current mode.");
+        }        
+        Mode.currentMode.click(cls, x, y);
+    }
+    
+    constructor(ss) {
+        this.ss = ss;
+    }
+
+    start() {
+        
+    }
+
+    end() {
+        
+    }
+
+    click(cls, x, y){
+
+    }
+
+    cancel(){
+        
+    }
+
+    /* Handlers */
+}
+Mode.currentMode = undefined;
+
+
+let old_initialize_chart_state = sseq_socket.message_dispatch["initialize.chart.state"]
+sseq_socket.add_message_handlers_from_object({
+    "initialize.chart.state" : function(cmd, args, kwargs) {
+        old_initialize_chart_state(cmd, args, kwargs);
+        this.display.on("click", (cls, x, y) => Mode.click(cls, x, y));
+    },
+    "interact.mode.set_info" : function(cmd, args, kwargs) {
+        set_mode_info(kwargs["info"])
+    },
+
+    "interact.mode" : function(cmd, args, kwargs) {
+        let handler_name = "handle__" + cmd[0].split(".").slice(2).join("__");
+        if(!Mode.currentMode[handler_name]){
+            throw Error(`Unknown mode command ${handler_name}`);
+        }
+        Mode.currentMode[handler_name](args, kwargs)
+    },
+});
+
+class AddClassMode extends Mode {}
+class AddEdgeMode extends Mode {}
+class ColorMode extends Mode {}
+class AddDifferentialMode extends Mode {}
+class AddExtensionMode extends Mode {
+    handle__extension__adjust_bend() {
+        reset_key_bindings();
+        add_key_bindings(AddExtensionMode.key_bindings);
+        set_mode_info("Adjust edge bend")
+    }
+
+    cancel(){
+        this.current_class = undefined;
+        set_normal_key_bindings();
+    }
+
+    static change_edge_bend(delta){
+        console.log("CEB: delta=", delta);
+        sseq_socket.send("interact.mode.extension.adjust_bend", {"delta" : delta })
+    }
+}
+
+AddExtensionMode.key_bindings = {
+    "q" : () => AddExtensionMode.change_edge_bend(3),
+    "w" : () => AddExtensionMode.change_edge_bend(-3)
+}
+
+
+
+class NudgeClassMode extends Mode {
+    click(cls, x, y) {
+        if(!cls){
+            return;
+        }
+        this.current_class = cls;
+        reset_key_bindings();
+        add_key_bindings(NudgeClassMode.key_bindings);
+        console.log("nudge bindings??")
+    }
+
+    cancel(){
+        this.current_class = undefined;
+        set_normal_key_bindings();
+    }
+
+    static nudge_class(x, y){
+        console.log(`Nudge ${x}, ${y}`);
+        sseq_socket.send("interact.mode.nudge_class", {"x" : x, "y" : y});
+    }
+}
+NudgeClassMode.key_bindings = {
+    'w' : () => NudgeClassMode.nudge_class(0, -1),
+    'a' : () => NudgeClassMode.nudge_class(-1, 0),
+    's' : () => NudgeClassMode.nudge_class(0, 1),
+    'd' : () => NudgeClassMode.nudge_class(1, 0),
+}
+
+
+let add_class_mode = new AddClassMode(sseq_socket);
+let add_edge_mode = new AddEdgeMode(sseq_socket);
+let color_mode = new ColorMode(sseq_socket);
+let add_differential_mode = new AddDifferentialMode(sseq_socket);
+let add_extension_mode = new AddExtensionMode(sseq_socket);
+let nudge_mode = new NudgeClassMode(sseq_socket);
+
+Mode.dict = {
+    "AddClassMode" : add_class_mode,
+    "AddEdgeMode" : add_edge_mode,
+    "ColorMode" : color_mode,
+    "AddDifferentialMode" : add_differential_mode,
+    "NudgeClassMode" : nudge_mode,
+    "AddExtensionMode" : add_extension_mode
+}
+let mode_change_bindings = {
+    "c" : () => Mode.set(add_class_mode),
+    "e" : () => Mode.set(add_extension_mode),
+    "w" : () => Mode.set(add_edge_mode),
+    "r" : () => Mode.set(color_mode),
+    "d" : () => Mode.set(add_differential_mode),
+    "n" : () => Mode.set(nudge_mode),
+}
+function add_mode_key_bindings() {
+    add_key_bindings(mode_change_bindings);
+}
+
+
+function start(ss_sock){
+    set_normal_key_bindings();
+    ss_sock.start();
+}
+
+start(sseq_socket);
+</script>        
+</body>
+</html>

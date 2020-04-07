@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>The Adams Novikov Spectral Sequence at 2</title>
+        <meta charset="utf-8"/>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.css" integrity="sha384-+MsSfd29vjUzcyqYURxcmpWGtqoSHBy+QdEJNLEslXQftxojQv0k6BGDqUNp9GtA" crossorigin="anonymous">
+        
+        <style>
+            html, body {
+              height: 100%;
+              min-height: 100%;
+              overflow: hidden;
+            }
+            
+            #main {
+                    height: 98%;
+                    min-height: 98%;
+                    overflow: hidden;
+                    position: relative;
+            }
+            
+            #main-svg {
+                    width: 100%;
+                    height: 100%;
+            }
+            
+            #status {
+                    position: absolute;
+                    left: 20px;
+                    bottom: 20px;
+                    z-index: 1000;
+            }
+            div.tooltip {	
+                text-align: center;
+                padding: 5px;
+                font: 12px sans-serif;		
+                background: lightsteelblue;
+                border: 0px;
+                border-radius: 8px;
+                pointer-events: none;
+            }
+            .class {
+                pointer-events: fill;
+            }
+            
+            hr { height:2px; visibility:hidden; margin-bottom:-1px; }
+            </style>
+    </head>
+<body>
+    <script src="/static/webclient" type="text/javascript"></script>
+    <div id="main" style="left:25pt; width:96%; height:90%"></div>
+    <div style="position:absolute; bottom:15pt; left: 25pt">
+        <span id="mode" style="font-weight: bold;"></span>
+        <span id="mode_info" style="margin-left: 10pt;"></span>
+    </div>
+
+<img id="SVG" style="display: none;" src="anss-labels-overlay.svg" />
+<script>
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+IO.loadFromServer("anss-S0.json").then(async function(json){
+    window.sseq = SpectralSequenceChart.from_JSON(json);
+    sseq.initial_x_range = [0, 50];
+    sseq.initial_y_range = [0, 12];
+    window.display = new BasicDisplay("#main");
+    // display.svg_x_scale = 3;
+    // display.svg_y_scale = 1;
+    display.svg = document.getElementById("SVG");
+    display.svg_x_offset = -12.9;
+    display.svg_y_offset = 3;
+    display.svg_scale = 1.375;
+    // display.svg_width = 1338.149959716797 * scale;
+    // display.svg_height = 623 * scale;
+    await sleep(10);
+    display.setSseq(sseq);
+    await sleep(5);
+    display.update();
+})
+</script>
+</body>
