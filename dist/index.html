@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Steenrod Calculator</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.min.css" integrity="sha384-yFRtMMDnQtDRO8rLpMIKrtPCD5jdktao2TV19YiZYWMDkUR5GQZR/NOVTdquEx1j" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <style>
+      html, body {
+        height: 98.5%;
+        min-height: 98.5%;
+        margin-top: 0.4cm;
+        margin-left:0.4cm;
+        margin-right:3cm;
+      }
+
+      hr { height:2px; visibility:hidden; margin-bottom:-1px; }
+    </style>
+  </head>
+  <body>
+    <h3>Steenrod Calculator</h3>
+    <div id="description-div" style="margin-left:1cm; width:50em; max-width: 100%;">
+      <p>
+      This is a Steenrod calculator. A Steenrod square is input like "Sq5" or "P5".
+      The Milnor primitives are written like "Q2".
+      In particular, at an odd prime the Bockstein is currently written "Q0".
+      The Milnor basis elements are denoted like "Sq(0,1)" which is the same as "Q1" at the prime 2 or "P(0,0,1)" which is $[[P^1,P^p],P^{p^2}]$.
+      </p>
+      <p>
+      In order to multiply two elements you MUST include a "*" between them, for instance "Sq4*Sq2*Sq1".
+      You can use parentheses for grouping as in "(Q2 + Sq7)*Sq2".
+      Input can be an arbitrary homogenous arithmetic expression using +, -, *, and parentheses in these generators.
+      Scalars are denoted like "2*P2". "P1*P1*2", or "-P1*P1" or "P1*P1*-1" are all valid notations.
+    </p>
+    <p>
+      For convenience, we also allow the notation "A(2 2 2 2)" for $Sq^2 Sq^2 Sq^2 Sq^2$ and "A(1 b 1)" for "P^1 \beta P^1".
+      The letter "A" here stands for "admissible", though of course the sequences involved are not admissible.
+      We also allow "M(0 0 2)" as an alternate notation for "P(0, 0, 2)" or "Sq(0,0,2)".
+    </p>
+    </div>
+<!-- -->
+<div id="calculator-div">
+<form id="adem-calculator" onsubmit="runAdem(); return false;" action="#">
+    Prime: <select name="prime" id="calculator-prime">
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="5">5</option>
+        <option value="7">7</option>
+    </select>
+    <br>
+    Output Basis:
+    <br>
+    <input type="radio" name="basis" value="adem" checked> Adem<br>
+    <input type="radio" name="basis" value="milnor"> Milnor<br>
+    <br>
+    Input:
+    <br>
+    <input type="text" id="calculator-input" name="input" style="width:200px" onkeydown="if (event.keyCode == 13) {runAdem(); return false}">
+    <input type="button" value="Compute!" onClick="runAdem(); return false" style="margin-bottom: 10pt">
+    <div>Result: <span id="adem-result" onclick="copyAdemResultToClipboard()"></span> <p id="adem-result-simple"></p> </div>
+
+    <p style="margin-top:30pt" id="adem-relation">
+        The Adem relation is
+        $
+                \displaystyle\def\P{\mathrm{P}}
+                \P^i \beta^{\epsilon} \P^j
+                 = \sum_{\epsilon_1+\epsilon_2 = \epsilon}\sum_{k=0}^{i/p}
+                        \binom{(j-k)(p-1) + \epsilon_1 - 1 }{i-pj-\epsilon_2} \beta^{\epsilon_1}\P^{i+j-k}\beta^{\epsilon_2}\P^{k}
+        $
+    </p>
+  </form>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/katex.min.js" integrity="sha384-y23I5Q6l+B6vatafAwxRu/0oK/79VlbSz7Q9aiSZUvyWYIYsd+qj+o24G5ZU2zJz" crossorigin="anonymous"></script>
+  <script src="./steenrod_calculator.js"></script>
+</div>
+  </body>
+</html>
