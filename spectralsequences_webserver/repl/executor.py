@@ -106,7 +106,7 @@ class Executor(Agent):
         if path.is_file():
             await self.exec_file_a(path, working_directory)
 
-    async def load_repl_init_file_if_it_exists(self):
+    async def load_repl_init_file_if_it_exists_a(self):
         await self.exec_file_if_exists_a(config.REPL_INIT_FILE, working_directory=config.USER_DIR)
 
 

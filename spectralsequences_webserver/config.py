@@ -32,19 +32,20 @@ if "INPUT_FILES" in os.environ:
 else:
     INPUT_FILES = []
 
-if LOCAL_USER_DIR.is_dir():
+if "USER_DIR" in os.environ:
+    USER_DIR = pathlib.Path(os.environ["USER_DIR"])
+elif LOCAL_USER_DIR.is_dir():
     USER_DIR = LOCAL_USER_DIR
 else:
     USER_DIR = REPO_USER_DIR
     if not USER_DIR.is_dir():
         USER_DIR.mkdir()
 
+
 SAVE_DIR = USER_DIR / "save"
 REPL_INIT_FILE = USER_DIR / "on_repl_init.py"
 
-USER_CONFIG_FILE = USER_DIR / "config.py"
 TEMPLATE_DIR = PACKAGE_ROOT / "templates"
 
+USER_CONFIG_FILE = USER_DIR / "config.py"
 utils.exec_file_if_exists(USER_CONFIG_FILE, globals(), locals())
-
-

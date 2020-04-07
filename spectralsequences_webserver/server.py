@@ -2,7 +2,7 @@
 ## Where do the exceptions go when there's a failure? Nobody knows.
 import asyncio
 from fastapi import FastAPI, Request, WebSocket
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, FileResponse, Response
 from fastapi.templating import Jinja2Templates
 
 import logging
@@ -13,13 +13,14 @@ from .repl import start_repl_a, ReplAgent
 from .channels import (
     DemoChannel, 
     InteractChannel,
+    PresentationChannel,
+    SlideshowChannel,
     SseqChannel
 )
-from . import socket_close_codes
-from message_passing_tree import SocketReceiver
+from message_passing_tree import SocketReceiver, ansi
 from spectralsequence_chart import SseqSocketReceiver
 # from spectralsequence_chart.utils import
-print("Starting server")
+print(ansi.success("Starting server"))
 
 app = FastAPI()
 
@@ -42,52 +43,35 @@ async def main():
         return config.SSEQ_WEBCLIENT_JS_FILE.read_text()
 
     @app.get("/anss-S0.html")
-    async def get_a():
-        return HTMLResponse((config.TEMPLATE_DIR / "anss-S0.html").read_text())
+    async def get_anss_S0():
+        return FileResponse(config.TEMPLATE_DIR / "anss-S0.html")
 
     @app.get("/anss-S0.json")
-    async def get_a():
-        return (config.USER_DIR / "anss-S0_2020-04-03T15-43-48.json").read_text()
+    async def get_anss_S0_json():
+        return FileResponse(config.USER_DIR / "anss-S0_2020-04-03T15-43-48.json")
+
+    @app.get("/anss-S0-with-J.html")
+    async def get_S0_with_J_html():
+        return FileResponse(config.TEMPLATE_DIR / "anss-S0-with-J.html")
+
+    @app.get("/anss-S0-with-J.json")
+    async def get_S0_with_J_json():
+        return FileResponse(config.USER_DIR / "anss-S0-with-J_2020-04-03T20-09-21.json")
+
+    @app.get("/overlay-test.svg")
+    async def get_test_overlay():
+        return FileResponse(config.USER_DIR / "anss-labels-white.svg")
+    
+    @app.get("/overlay/{file_name}")
+    async def get_overlay(request: Request, file_name : str):
+        return FileResponse(config.OVERLAY_DIR / file_name);
 
 
-    def serve_channel(app, channel_cls, cls_dir):
-        channel_cls.serve_channel_to("localhost",config.PORT, cls_dir)
+    host = "localhost"
+    port = config.PORT
 
-        @app.get(f"/{cls_dir}/{{channel_name}}")
-        async def get_html_a(request: Request, channel_name : str):
-            logger.debug(f"get: {cls_dir}/{channel_name}")
-            try:
-                response_data = { 
-                    "port" : config.PORT, 
-                    "directory" : cls_dir,
-                    "channel_name" : channel_name,
-                    "request" : request, 
-                }
-                response = channel_cls.http_response(channel_name, request)
-                if response is None:
-                    return templates.TemplateResponse("invalid_channel.html", response_data)
-                else:
-                    return response
-            except Exception as e:
-                repl._handle_exception(e)
-
-        @app.websocket(f"/ws/{cls_dir}/{{channel_name}}")
-        async def websocket_subscribe_a(websocket: WebSocket, channel_name : str):
-            logger.debug(f"ws: {cls_dir}/{channel_name}")
-            try:
-                channel = await channel_cls.get_channel_a(channel_name, repl)
-                if channel is None:
-                    # TODO: is this the best way to handle this?
-                    # One reasonable reason we could end up here is if the channel closed between the
-                    # get request and now...
-                    # In that case we should respond with GOING_AWAY rather than INTERNAL_ERROR.
-                    raise RuntimeError(f"""No channel available named "{cls_dir}/{channel_name}".""")
-                await channel.add_subscriber_a(websocket)
-            except Exception as e:
-                await websocket.close(socket_close_codes.INTERNAL_ERROR)
-                repl.console_io._handle_exception(e)
-
-
-    serve_channel(app, SseqChannel, "sseq")
-    serve_channel(app, DemoChannel, "demo")
-    serve_channel(app, InteractChannel, "interact")
+    SseqChannel.serve(app, repl, host, port, "sseq")
+    DemoChannel.serve(app, repl, host, port, "demo")
+    InteractChannel.serve(app, repl, host, port, "interact")
+    SlideshowChannel.serve(app, repl, host, port, "slideshow")
+    PresentationChannel.serve(app, repl, host, port, "presentation")

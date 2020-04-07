@@ -41,7 +41,7 @@ def set_double_fault_handler(r):
 
 async def read_input_files_a(r):
     r.console_io.turn_on_buffered_stdout()
-    await r.executor.load_repl_init_file_if_it_exists()
+    await r.executor.load_repl_init_file_if_it_exists_a()
     await handle_script_args_a(r.executor, config)
     r.console_io.turn_off_buffered_stdout()
 

@@ -50,8 +50,8 @@ class DemoChannel(SocketChannel):
         demo.take_over_console = self.make_demo_take_over_console()
         await self.add_child_a(demo)
         await demo.setup_a(websocket)
-        demo.start_socket()
-        await demo.start_a()
+        demo.start_socket() # We do this weirdly here because it's a hack.
+        await demo.start_a()# I didn't want to bother resolving a deadlock in a better way.
         print("END")
 
     def setup_executor_namespace(self, executor, return_by_reference):

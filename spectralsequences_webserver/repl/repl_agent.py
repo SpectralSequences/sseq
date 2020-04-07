@@ -40,22 +40,16 @@ class ReplAgent(Agent):
             await self.console_io.run_a()
 
     def set_executor(self, executor):
-        print("set_exec...")
-        print("self:", self)
-        print("self.console_io.executor:", self.console_io.executor)
         if self.console_io.executor:
-            print("Switch")
             self.console_io.print_formatted_text(HTML(
                 "<orange>Switching executor!!</orange>"
-            ))
+            ), buffered=True)
         self.executor = executor
         self.console_io.executor = executor
-        print("self.console_io.executor:", self.console_io.executor)
 
 
     @transform_inbound_messages
     async def consume_debug_a(self, source_agent_path, cmd, msg):#source, cmd, msg):
-        # print("consume_info", args, kwargs)
         self.console_io.print_debug(".".join(cmd.part_list[1:]), msg)
 
     @transform_inbound_messages

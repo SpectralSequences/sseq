@@ -65,7 +65,8 @@ let ws = new WebSocket("ws://localhost:{{ port }}/ws/{{ directory }}/{{ channel_
 
 let main_div = document.querySelector("#main");
 function make_display(sseq){
-    return new BasicDisplay(main_div, sseq);
+    let display = new BasicDisplay(main_div, sseq);
+    return display;
 }
 
 let sseq_socket = new SpectralSequenceSocketListener(ws, make_display);
@@ -78,8 +79,8 @@ function set_mode_info(text){
 
 let always_bindings = {
     "t" : () => sseq_socket.send("console.take", {}),
-    "s" : (e) => {
-        e.preventDefault();
+    "s s s" : (e) => {
+        // e.preventDefault();
         sseq_socket.send("io.save", {});
     },
     "escape" : () => {
@@ -88,6 +89,9 @@ let always_bindings = {
     },
     'left' : () => sseq_socket.display.previousPage(),
     'right' : () => sseq_socket.display.nextPage(),
+    "f" : () => {
+        sseq_socket.send("io.process_screenshot", {})
+    }
 }
 
 function add_key_bindings(bindings){
@@ -217,6 +221,7 @@ class NudgeClassMode extends Mode {
         this.current_class = cls;
         reset_key_bindings();
         add_key_bindings(NudgeClassMode.key_bindings);
+        console.log("nudge bindings??")
     }
 
     cancel(){
@@ -224,7 +229,7 @@ class NudgeClassMode extends Mode {
         set_normal_key_bindings();
     }
 
-    nudge_class(x, y){
+    static nudge_class(x, y){
         console.log(`Nudge ${x}, ${y}`);
         sseq_socket.send("interact.mode.nudge_class", {"x" : x, "y" : y});
     }

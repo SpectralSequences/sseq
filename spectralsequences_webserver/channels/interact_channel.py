@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+from multiprocessing import Process
 import pathlib
 
 from message_passing_tree.prelude import *
@@ -12,6 +13,9 @@ from spectralsequence_chart import SseqSocketReceiver, InteractiveChart
 
 from ..repl.executor import Executor
 from .. import config
+
+from ..process_overlay import process_overlay
+
 
 from fastapi.templating import Jinja2Templates
 templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
@@ -26,6 +30,7 @@ class InteractChannel(SocketChannel):
         self.executor = Executor()
         self.chart = InteractiveChart(name)
         self.setup_executor_namespace()
+        self.last_screenshot = None
 
     channels = {}
     async def send_start_msg_a(self):
@@ -36,7 +41,7 @@ class InteractChannel(SocketChannel):
         await self.executor.add_child_a(self.chart)
         await self.chart.add_child_a(self)
         self.chart._interact_source = None
-        await self.executor.load_repl_init_file_if_it_exists()
+        await self.executor.load_repl_init_file_if_it_exists_a()
         
     @transform_inbound_messages
     async def consume_console__take_a(self, source_agent_path, cmd):
@@ -53,29 +58,77 @@ class InteractChannel(SocketChannel):
         globals["chart"] = self.chart
         globals["channel"] = self
 
-    async def load_from_file(self):
+    async def load_from_file_a(self):
+        return await self.load_from_old_file_a(-1)
+
+    async def load_from_old_file_a(self, idx):
         files = sorted(config.SAVE_DIR.glob(f"{self.name}_*.json"))
-        file = files[-1]
+        if not files:
+            return False
+        file = files[idx]
         print(ansi.success("Loading from file " + str(file)))
-        self.chart.load_json(file.read_text())
-        await self.chart.update_a()
+        self.last_save_file = file
+        self.last_save = file.read_text()
+        self.chart.load_json(self.last_save)
+        await self.chart.reset_state_a()
+        return True
 
     @classmethod
     async def get_channel_a(cls, name, repl):
         if name in cls.channels:
             return cls.channels[name]
         new_channel = InteractChannel(name, repl)
-        await new_channel.load_from_file()
+        await new_channel.load_from_file_a()
         await new_channel.setup_a()
         return new_channel
 
     @transform_inbound_messages
     async def consume_io__save_a(self, source_agent_path, cmd):
+        self.save()
+
+    def save(self):
         save_str = json_stringify(self.chart.data)
         iso_time = datetime.now().replace(microsecond=0).isoformat().replace(":", "-")
         out_path = config.SAVE_DIR / f"{self.name}_{iso_time}.json"
+        self.last_save = save_str
+        self.last_save_file = out_path
         print(ansi.success("Saving to " + str(out_path)))
         out_path.write_text(save_str)
+
+    def save_over_previous_version(self):
+        save_str = json_stringify(self.chart.data)
+        out_path = self.last_save_file
+        self.last_save = save_str
+        print(ansi.success("Overwriting " + str(out_path)))
+        out_path.write_text(save_str)
+
+    @transform_inbound_messages
+    async def consume_io__process_screenshot_a(self, source_agent_path, cmd):
+        files = sorted(config.SCREENSHOT_DIR.glob("*.png"))
+        file = files[-1]
+        if file == self.last_screenshot:
+            print(ansi.info("No new screenshot to process."))
+            return
+        self.last_screenshot = file
+        print(ansi.info("Setting up screenshot processing."))
+        # save_str = json_stringify(self.chart.data)
+        # if save_str != self.last_save:
+        #     self.save()
+        self.process_screenshot(file)
+
+    def process_screenshot(self, file):
+        i = sum(1 for i in config.OVERLAY_DIR.glob(f"{self.last_save_file.stem}*"))
+        outfile = config.OVERLAY_DIR / f"{self.last_save_file.stem}__overlay{i}.svg"
+        self.last_overlay_outfile = outfile
+        p = Process(target=process_overlay, args=(file, outfile))
+        p.start()
+        print(ansi.info(f"   Output file: {outfile}"))
+
+
+    def set_note(self, note):
+        out_file = config.OVERLAY_DIR / (self.last_overlay_outfile.stem + "__note.txt")
+        out_file.write_text(note)
+        
 
     @classmethod
     def has_channel(cls, name):
