@@ -159,7 +159,7 @@ class DisplayState:
     def __init__(self):
         self.background_color = SpectralSequenceChart.default_background_color
 
-@subscribe_to(["chart", "display"])
+@subscribe_to(["*"])
 @collect_transforms(inherit=False) # Nothing to inherit
 class SpectralSequenceChart(Agent):
     default_agent=None
@@ -172,7 +172,15 @@ class SpectralSequenceChart(Agent):
 
     def get_state(self):        
         return self.data
+
+    @property
+    def classes(self):
+        return list(self.data.classes.values())
     
+    @property
+    def edges(self):
+        return list(self.data.edges.values())
+
     def load_json(self, json_obj):
         if type(json_obj) is str:
             json_obj = json.loads(json_obj)

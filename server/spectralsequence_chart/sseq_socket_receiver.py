@@ -28,5 +28,9 @@ class SseqSocketReceiver(SocketReceiver):
     async def consume_display_a(self, source_agent_id, cmd, **kwargs):
         await self.send_message_to_socket_a(cmd, **kwargs)
 
+    @transform_outbound_messages
+    async def consume_slideshow_a(self, source_agent_id, cmd, **kwargs):
+        await self.send_message_to_socket_a(cmd, **kwargs)    
+
     # def send_introduction_message(self):
     #     await self.send_message({"cmd"})

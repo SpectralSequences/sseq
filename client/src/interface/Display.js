@@ -235,8 +235,10 @@ class Display extends EventEmitter {
 
     clipContext(ctx) {
         ctx.beginPath();
+        let y_clip_offset = this.y_clip_offset || 0;
+        console.log("y_clip_offset:", y_clip_offset);
         ctx.globalAlpha = 0; // C2S does not correctly clip unless the clip is stroked.
-        ctx.rect(this.leftMargin, this.topMargin, this.plotWidth, this.plotHeight);
+        ctx.rect(this.leftMargin, this.topMargin + y_clip_offset, this.plotWidth, this.plotHeight - y_clip_offset);
         ctx.stroke();
         ctx.clip();
         ctx.globalAlpha = 1;
@@ -272,17 +274,24 @@ class Display extends EventEmitter {
             this.drawSVG(ctx, this.sseq.edgeLayerSVG);
 
         if(this.svg) {
-            let scale = this.svg_scale || 1;
+            if(this.svg_unclipped){
+                ctx.restore();
+                ctx.save();
+            }
+            let x_scale = this.svg_x_scale || this.svg_scale || 1;
+            let y_scale = this.svg_y_scale || this.svg_scale || 1;
             let x_offset = this.svg_x_offset || 0;
             let y_offset = this.svg_y_offset || 0;
-            let default_width = display.canvasWidth  / (display.xmaxFloat - display.xminFloat) * (display.sseq.x_range[1] - display.sseq.x_range[0] + 1);
-            let default_height = display.canvasHeight / (display.ymaxFloat - display.yminFloat) * (display.sseq.y_range[1] - display.sseq.y_range[0] + 1) - y_offset;
-            let width = default_width * scale;
-            let height = default_height * scale;
-            console.log("width:",width, "height:",  height)
+            let default_width = 
+                this.canvasWidth / (this.xmaxFloat - this.xminFloat) * (this.sseq.x_range[1] - this.sseq.x_range[0] + 1);
+            let default_height = 
+                this.canvasHeight / (this.ymaxFloat - this.yminFloat) * (this.sseq.y_range[1] - this.sseq.y_range[0] + 1);
+            let width = default_width * x_scale;
+            let height = default_height * y_scale;
+            // console.log("width:",width, "height:",  height)
             this.context.drawImage(this.svg,
-                display.xScale(display.sseq.x_range[0] + x_offset), //- display.xMinOffset,
-                display.yScale(display.sseq.y_range[1] + 1 + y_offset) ,
+                this.xScale(this.sseq.x_range[0] + x_offset), //- display.xMinOffset,
+                this.yScale(this.sseq.y_range[1] + 1 + y_offset) ,
                 width, height
             );
         }
@@ -406,9 +415,16 @@ class Display extends EventEmitter {
         this.xTicks.push(this.xTicks[this.xTicks.length - 1] + this.xTickStep);
         this.yTicks.push(this.yTicks[this.yTicks.length - 1] + this.yTickStep);
 
-
-        this.xGridStep = (Math.floor(this.xTickStep / 5) === 0) ? 1 : Math.floor(this.xTickStep / 5);
-        this.yGridStep = (Math.floor(this.yTickStep / 5) === 0) ? 1 : Math.floor(this.yTickStep / 5);
+        if(this.manualxGridStep){
+            this.xGridStep = this.manualxGridStep;
+        } else {
+            this.xGridStep = (Math.floor(this.xTickStep / 5) === 0) ? 1 : Math.floor(this.xTickStep / 5);
+        }
+        if(this.manualyGridStep){
+            this.yGridStep = this.manualxGridStep;
+        } else {
+            this.yGridStep = (Math.floor(this.yTickStep / 5) === 0) ? 1 : Math.floor(this.yTickStep / 5);
+        }
         // TODO: This is an ad-hoc modification requested by Danny to ensure that the grid boxes are square.
         // Probably it's a useful thing to be able to have square grid boxes, how do we want to deal with this?
         if(this.sseq.squareAspectRatio){

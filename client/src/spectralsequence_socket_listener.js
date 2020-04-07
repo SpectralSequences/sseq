@@ -31,9 +31,6 @@ class UnknownDisplayCommandError extends UnknownCommandError {
     }
 }
 
-// let ws = new WebSocket("ws://localhost:{{ PORT }}/ws/sseq/{{ channel_name }}");
-
-
 class SpectralSequenceSocketListener {
     constructor(websocket, make_display) {
         this.websocket = websocket;
@@ -58,6 +55,7 @@ class SpectralSequenceSocketListener {
     }
 
     start() {
+        console.log("client ready");
         this.client_ready = true;
         if(this.socket_ready) {
             this.send_introduction_message();
@@ -65,6 +63,7 @@ class SpectralSequenceSocketListener {
     }
 
     onopen(event) {
+        console.log("socket opened");
         this.socket_ready = true;
         if(this.client_ready){
             this.send_introduction_message();
@@ -72,6 +71,7 @@ class SpectralSequenceSocketListener {
     }
 
     send_introduction_message(){
+        console.log("send_introduction_message");
         this.send("new_user", {});
     }
 
@@ -88,7 +88,7 @@ class SpectralSequenceSocketListener {
 
     send(cmd, kwargs) { // args parameter?
         let args = []
-        console.log(cmd, kwargs);
+        console.log("send message", cmd, kwargs);
         // if(args === undefined || kwargs === undefined) {
         //     throw TypeError(`Send with missing arguments.`);
         // }
@@ -212,6 +212,7 @@ class SpectralSequenceSocketListener {
                 }
             }
             this.console_log_if_debug("cmd", msg.cmd, "key", key);
+            this.console_log_if_debug("received message","cmd", msg.cmd, "key", key);
             if(key === undefined) {
                 throw new UnknownCommandError(`Console sent unknown command "${msg.cmd[0]}".`);
             }
@@ -234,6 +235,7 @@ let default_message_handlers = {
         this.console_log_if_debug("accepted user:", kwargs.state);
         this.sseq = SpectralSequenceChart.from_JSON(kwargs.state);
         this.display = this.make_display(this.sseq);
+        this.display.y_clip_offset = this.sseq.y_clip_offset;
         this.set_display_state(kwargs.display_state)
         this.display.on("click", this.display_click_handler.bind(this));
         this.send("initialize.complete", {});
@@ -257,6 +259,7 @@ let default_message_handlers = {
         if(kwargs.display_state !== undefined){
             this.set_display_state(kwargs.display_state);
         }
+        this.display.y_clip_offset = this.sseq.y_clip_offset;
         this.display.setSseq(this.sseq);
         // this.display.on("click", this.display_click_handler.bind(this));
         // this.send("initialize.complete", {});
