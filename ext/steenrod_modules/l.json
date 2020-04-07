@@ -1,0 +1,6 @@
+{"type" : "finite dimensional module","name": "$\\mathit{tmf}_{(2)}", "file_name": "tmf2", "algebra": ["milnor"], "profile": {"truncated": false, "q_part": 65532, "p_part": [0]}, "p": 5, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": [],
+    "self_maps": [
+        { "hom_deg" : 1, "int_deg" : 49, "map_data" : [[1]], "name" : "v_2" },
+        { "hom_deg" : 1, "int_deg" : 249, "map_data" : [[1]], "name" : "v_3" }
+    ]
+}

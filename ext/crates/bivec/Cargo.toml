@@ -1,0 +1,9 @@
+[package]
+name = "bivec"
+version = "0.1.0"
+authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dexter@math.harvard.edu>"]
+edition = "2018"
+
+[dependencies]
+serde = "1.0.0"
+saveload = { path = "../saveload" }

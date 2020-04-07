@@ -1,0 +1,1 @@
+{"type" : "finite dimensional module","name": "$\\mathit{tmf}_{(2)}", "file_name": "tmf2", "algebra": ["milnor"], "profile": {"truncated": true, "p_part": [3, 2, 1]}, "p": 2, "generic": false, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}

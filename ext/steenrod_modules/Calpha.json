@@ -1,0 +1,6 @@
+{"type" : "finite dimensional module","name": "$C(\\alpha)$", "file_name": "Calpha", "p": 3, "generic": true, "gens": {"x0": 0, "x4": 4}, "sq_actions": [{"op": 1, "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}], "adem_actions": [{"op": [0, 1, 0], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}], "milnor_actions": [{"op": [[], [1]], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}],
+    "products" : [
+        { "hom_deg" : 2, "int_deg" : 12, "class" : [1], "name" : "\\beta" },
+        { "hom_deg" : 2, "int_deg" : 9, "class" : [1], "name" : "\\alpha_{2}" }
+    ]
+}

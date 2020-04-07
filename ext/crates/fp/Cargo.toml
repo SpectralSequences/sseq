@@ -1,0 +1,26 @@
+[package]
+name = "fp"
+version = "0.1.0"
+authors = ["Dexter Chua <dexter@math.harvard.edu>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde_json = { version = "1.0.0", optional = true }
+serde = { version = "1.0.0", optional = true }
+enum_dispatch = "0.2.0"
+saveload = { path = "../saveload" }
+
+[dev-dependencies]
+rand = "0.7.0"
+rstest = "0.5.0"
+bencher = "0.1.5"
+
+[features]
+prime-two = []
+json = ["serde_json", "serde"]
+
+[[bench]]
+name = "bench"
+harness = false

@@ -1,0 +1,4 @@
+{"file_name":"tmf-mod-nu","generic":false,"gens":{"x0":0,"x2":4},"milnor_actions":[{"input":"x0","op":[4],"output":[{"coeff":1,"gen":"x2"}]}],"name":"$tmf/\\nu$","p":2,"type":"finite dimensional module",
+ "algebra": ["milnor"],
+ "profile": {"truncated": true, "p_part": [3, 2, 1]}
+}
