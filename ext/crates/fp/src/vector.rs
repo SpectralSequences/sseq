@@ -626,8 +626,19 @@ pub trait FpVectorT {
             let sum = limb_a + scaled_limb_b;
             let reduced_sum = self.reduce_limb(sum);
             if reduced_sum == sum {
+                println!("ok\n  limb_a : {}\n  limb_b : {},\n     sum : {}", 
+                    FpVector::limb_string(self.prime(), limb_a),
+                    FpVector::limb_string(self.prime(), limb_b),
+                    FpVector::limb_string(self.prime(), sum)
+                );
                 Ok(sum) 
             } else {
+                println!("not ok\n  limb_a : {}\n  limb_b : {},\n     sum : {}\n   resum : {}", 
+                    FpVector::limb_string(self.prime(), limb_a),
+                    FpVector::limb_string(self.prime(), limb_b),
+                    FpVector::limb_string(self.prime(), sum),
+                    FpVector::limb_string(self.prime(), reduced_sum)
+                );                
                 Err(())
             }
         }
@@ -690,6 +701,7 @@ pub trait FpVectorT {
     }
 
     fn shift_right_add_truncate(&mut self, other : &FpVector, c : u32) -> Result<(),()> {
+        println!("Shift_right_atr");
         debug_assert!(self.prime() == other.prime());
         debug_assert!(self.offset() >= other.offset());
         debug_assert!(self.dimension() == other.dimension(),
@@ -710,25 +722,36 @@ pub trait FpVectorT {
         let number_of_target_limbs = max_target_limb - min_target_limb;
         let mut target_limbs = self.take_limbs();
         let source_limbs = other.limbs();
+        println!("num tlimbs : {}", number_of_target_limbs);
         let mut i = 0; {
             let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
+            println!("atr1");
+            println!("slm: {}\n\nsl : {}", 
+                FpVector::limb_string(self.prime(), source_limb_masked),
+                FpVector::limb_string(self.prime(), source_limbs[min_source_limb + i]),
+                // FpVector::limb_string(self.prime(), sum)
+            );            
             target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], (source_limb_masked << (offset_shift + zero_bits)) >> zero_bits, c)?;
-            target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], source_limb_masked, c)?;
             if number_of_target_limbs > 1 {
+                println!("atr2");
                 target_limbs[i + min_target_limb + 1] = self.add_truncate_limb(target_limbs[i + min_target_limb + 1], source_limb_masked >> tail_shift, c)?;
             }
         }
-        for i in 1 .. number_of_source_limbs-1 {
+        for i in 1..number_of_source_limbs-1 {
+            println!("atr3");
             target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], (source_limbs[i + min_source_limb] << (offset_shift + zero_bits)) >> zero_bits, c)?;
+            println!("atr4");
             target_limbs[i + min_target_limb + 1] = self.add_truncate_limb(target_limbs[i + min_target_limb + 1], source_limbs[i + min_source_limb] >> tail_shift, c)?;
         }
         i = number_of_source_limbs - 1;
         if i > 0 {
             let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
+            println!("atr5");
             target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], source_limb_masked << offset_shift, c)?;
             if number_of_target_limbs > number_of_source_limbs {
+                println!("atr6");
                 target_limbs[i + min_target_limb + 1] = self.add_truncate_limb(target_limbs[i + min_target_limb + 1], source_limb_masked >> tail_shift, c)?;
             }
         }
@@ -737,6 +760,7 @@ pub trait FpVectorT {
     }
 
     fn shift_left_add_truncate(&mut self, other : &FpVector, c : u32) -> Result<(), ()> {
+        println!("Shift_left_atr");
         debug_assert!(self.prime() == other.prime());
         debug_assert!(self.offset() <= other.offset());
         debug_assert!(self.dimension() == other.dimension(),
@@ -760,21 +784,27 @@ pub trait FpVectorT {
         let mut i = 0; {
             let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
+            println!("atr1");
             target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], source_limb_masked >> offset_shift, c)?;
         }
         for i in 1 .. number_of_source_limbs - 1 {
+            println!("atr2");
             target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], source_limbs[i + min_source_limb] >> offset_shift, c)?;
+            println!("atr3");
             target_limbs[i + min_target_limb - 1] = self.add_truncate_limb(target_limbs[i + min_target_limb - 1], (source_limbs[i + min_source_limb] << (tail_shift + zero_bits)) >> zero_bits, c)?;
         }
         i = number_of_source_limbs - 1;
         if i > 0 {
             let mask = other.limb_mask(i);
             let source_limb_masked = source_limbs[min_source_limb + i] & mask;
+            println!("atr4");
             target_limbs[i + min_target_limb - 1] = self.add_truncate_limb(target_limbs[i + min_target_limb - 1], source_limb_masked << tail_shift, c)?;
             if number_of_source_limbs == number_of_target_limbs {
+                println!("atr5");
                 target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], source_limb_masked >> offset_shift, c)?;
             }
         }
+
         self.put_limbs(target_limbs);
         Ok(())
     }
@@ -1109,6 +1139,22 @@ impl FpVector {
         }
         limbs[limb_idx] = limb_value;
         idx
+    }
+
+    fn limb_string(p : ValidPrime, limb : u64) -> String {
+        let bit_length = bit_length(p);
+        let entries_per_64_bits = entries_per_64_bits(p);
+        let bit_mask = bitmask(p);
+        let bit_min = 0usize;
+        let bit_max = bit_length * entries_per_64_bits;
+        let mut result = String::new();
+        result.push_str("[");
+        for j in (bit_min .. bit_max).step_by(bit_length) {
+            let s = format!("{}, ", ((limb >> j) & bit_mask) as u32);
+            result.push_str(&s);
+        }
+        result.push_str("]");  
+        result
     }
 
     // Panics on arithmetic overflow from "bits_needed_for_entire_vector - 1" if dimension == 0.
@@ -1840,19 +1886,10 @@ mod tests {
             let w_arr = random_vector(p, dim);
             let mut w = FpVector::new(p_, dim);
             w.pack(&w_arr);
-            println!("\n\n\n");
-            println!("p : {}, dim : {}, slice_start : {}, slice_end : {}", p, dim, slice_start, slice_end);
-            println!("entries_per_64 : {}, bits_per_entry : {}", entries_per_64_bits(p_), bit_length(p_));
-            println!("v full: {}", v);
-            println!("w full: {}", w);
             v.set_slice(slice_start - 2, slice_end - 2);
             w.set_slice(slice_start, slice_end);
-            println!("v slice: {}", v);
-            println!("w slice: {}", w);
             v.shift_add(&w, 1);
-            println!("v resu: {}", v);
             v.clear_slice();
-            println!("v resu: {}", v);
             let mut diffs = Vec::new();
             for i in 0..slice_start - 2 {
                 if v.entry(i) != v_arr[i] {
@@ -1965,4 +2002,158 @@ mod tests {
             }
         }
     }
+    
+    #[rstest(p, case(2), case(3), case(5))]
+    fn test_add_truncate(p : u32){
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
+        for &dim in &[10, 20, 70, 100, 1000] {
+            println!("p: {}, dim: {}", p, dim);
+            let mut v = FpVector::new(p_, dim);
+            let mut w = FpVector::new(p_, dim);
+            let mut v_arr = random_vector(p, dim);
+            let w_arr = random_vector(p, dim);
+            let mut result = vec![0; dim];
+            v.pack(&v_arr);
+            w.pack(&w_arr);
+            let ok_q = v.shift_add_truncate(&w, 1).is_ok();
+            println!("\nok_q: {}\n!!\n" , ok_q);
+            v.clear_slice();
+            if ok_q {
+                println!("\nok_q: {}\nleft??\n" , ok_q);
+                v.unpack(&mut result);
+                for i in 0..dim {
+                    v_arr[i] = (v_arr[i] + w_arr[i]) % p;
+                }
+                let mut diffs = Vec::new();
+                for i in 0..dim {
+                    if result[i] != v_arr[i] {
+                        diffs.push((i, result[i],v_arr[i]));
+                    }
+                }
+                println!("panicking, ok_q: {}\n!!\n", ok_q);
+                assert_eq!(diffs, []);
+            } else {
+                let mut carried = false;
+                for i in 0..dim {
+                    if (v_arr[i] + w_arr[i]) >= p {
+                        carried = true;
+                        break;
+                    }
+                }
+                assert!(carried);
+            }
+        }
+    }
+
+    #[rstest(p, case(2), case(3), case(5))]//, case(7))]
+    fn test_add_truncate_shift_right(p : u32) {
+        let p_ = ValidPrime::new(p);
+        println!("p : {}", p);
+        initialize_limb_bit_index_table(p_);
+        let dim_list = [10, 20, 70, 100, 1000];
+        for i in 0..dim_list.len() {
+            let dim = dim_list[i];
+            let slice_start = [5, 10, 20, 30, 290][i];
+            let slice_end = (dim + slice_start)/2;
+            let v_arr = random_vector(p, dim);
+            let mut v = FpVector::new(p_, dim);
+            v.pack(&v_arr);
+            let w_arr = random_vector(p, dim);
+            let mut w = FpVector::new(p_, dim);
+            w.pack(&w_arr);
+            v.set_slice(slice_start + 2, slice_end + 2);
+            w.set_slice(slice_start, slice_end);
+            let ok_q = v.shift_add_truncate(&w, 1).is_ok();
+            v.clear_slice();
+            println!("\nok_q: {}\n" , ok_q);
+            if ok_q {
+                let mut diffs = String::new();
+                for i in 0..slice_start + 2 {
+                    if v.entry(i) != v_arr[i] {
+                        // diffs.push((i, dim,  "before", 0, 0,  v_arr[i], v.entry(i), v_arr.clone(), w_arr.clone()));
+                    }
+                }
+                for i in slice_start + 2 .. slice_end + 2 {
+                    if v.entry(i) != (v_arr[i] + w_arr[i - 2]) % p {
+                        diffs.push_str(&format!(
+                            "\n\ni : {}, dim : {}, v_arr[i] : {}, w_arr[i-2]: {}, v_arr[i] + w_arr[i-2] : {}, res[i] : {}, \nv_arr :\n{:?}\n\nw_arr :\n{:?}",
+                                i, dim, v_arr[i], w_arr[i-2], (v_arr[i] + w_arr[i - 2]) % p, v.entry(i), v_arr.clone(), w_arr.clone()
+                        ));
+                    }
+                }
+                for i in slice_end  + 2 .. dim {
+                    if v.entry(i) != v_arr[i] {
+                        // diffs.push((i, dim, "after", 0, 0, v_arr[i], v.entry(i), v_arr.clone(), w_arr.clone()));
+                    }
+                }
+                assert!(diffs == "", diffs);
+            } else {
+                let mut carried = false;
+                for i in slice_start + 2 .. slice_end + 2 {
+                    if (v_arr[i] + w_arr[i - 2]) >= p {
+                        carried = true; 
+                        break;
+                    }
+                }
+                assert!(carried);
+            }
+        }
+    }
+
+    #[rstest(p, case(2), case(3), case(5))]//, case(7))]
+    fn test_add_truncate_shift_left(p : u32) {
+        let p_ = ValidPrime::new(p);
+        println!("p : {}", p);
+        initialize_limb_bit_index_table(p_);
+        let dim_list = [10, 20, 70, 100, 1000];
+        for i in 0..dim_list.len() {
+            let dim = dim_list[i];
+            let slice_start = [5, 10, 20, 30, 290][i];
+            let slice_end = (dim + slice_start)/2;
+            let v_arr = random_vector(p, dim);
+            let mut v = FpVector::new(p_, dim);
+            v.pack(&v_arr);
+            let w_arr = random_vector(p, dim);
+            let mut w = FpVector::new(p_, dim);
+            w.pack(&w_arr);
+            v.set_slice(slice_start - 2, slice_end - 2);
+            w.set_slice(slice_start, slice_end);
+            let ok_q = v.shift_add_truncate(&w, 1).is_ok();
+            v.clear_slice();
+            if ok_q {
+                let mut diffs = String::new();
+                for i in 0..slice_start - 2 {
+                    if v.entry(i) != v_arr[i] {
+                        // diffs.push((i, v_arr[i], v.entry(i)));
+                    }
+                }
+                for i in slice_start - 2 .. slice_end - 2 {
+                    if v.entry(i) != (v_arr[i] + w_arr[i + 2]) % p {
+                        diffs.push_str(&format!(
+                            "\n\ni : {}, dim : {}, v_arr[i] : {}, w_arr[i-2]: {}, v_arr[i] + w_arr[i-2] : {}, res[i] : {}, \nv_arr :\n{:?}\n\nw_arr :\n{:?}",
+                                i, dim, v_arr[i], w_arr[i-2], (v_arr[i] + w_arr[i - 2]) % p, v.entry(i), v_arr.clone(), w_arr.clone()
+                        ));                        
+                        // diffs.push((i, (v_arr[i] + w_arr[i + 2]) % p, v.entry(i)));
+                    }
+                }
+                for i in slice_end - 2 .. dim {
+                    if v.entry(i) != v_arr[i] {
+                        // diffs.push((i, v_arr[i], v.entry(i)));
+                    }
+                }
+                assert!(diffs == "", diffs);
+            } else {
+                let mut carried = false;
+                for i in slice_start - 2 .. slice_end - 2 {
+                    if (v_arr[i] + w_arr[i + 2]) >= p {
+                        carried = true;
+                        break;
+                    }
+                }
+                assert!(carried);
+            }
+            v.clear_slice();
+        }
+    }    
 }
