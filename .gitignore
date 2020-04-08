@@ -1,0 +1,21 @@
+# Python
+**/__pycache__
+**/virtualenv
+
+# Node
+**/node_modules
+**/npm-debug.log
+
+# Rust
+**/*.rs.bk
+**/*.lock
+
+
+# Probably need these back in ext.
+# Maybe should include target & dist in repo?
+target 
+dist
+target/
+package-lock.json
+resolution.save
+Cargo.lock
