@@ -1,0 +1,42 @@
+os:
+    - linux
+    - osx
+
+language: rust
+rust:
+    - stable
+    - beta
+    - nightly
+
+env:
+    - RUST_BACKTRACE=1
+
+matrix:
+    allow_failures:
+        - rust: beta
+        - rust: nightly
+    fast_finish: true
+
+install:
+    - bin/setup.sh
+    - bin/install-wasm-opt.sh
+    - rustup component add clippy
+
+script:
+    - cargo clippy --target wasm32-unknown-unknown -- -D warnings
+    - bin/build.sh
+
+cache:
+    cargo: true
+    directories:
+        - $HOME/.local/bin
+
+deploy:
+  provider: pages
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN  # Set in the settings page of your repository, as a secure variable
+  keep_history: true
+  local_dir: dist/
+  on:
+      branch: master
+      condition: "$TRAVIS_RUST_VERSION = stable && $TRAVIS_OS_NAME = linux"
