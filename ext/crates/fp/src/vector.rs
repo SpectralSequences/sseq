@@ -145,7 +145,18 @@ pub enum FpVector {
 
 #[enum_dispatch(FpVector)]
 pub trait FpVectorT {
-    fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize );
+    // These could be static but enum_dispatch needs them to take &self.
+    fn reduce_limb(&self, limb : u64) -> u64;
+    fn quotient_limb(&self, limb : u64) -> u64;
+    
+    fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize ){
+        let mut limbs = std::mem::take(&mut self.vector_container_mut().limbs);
+        for limb in &mut limbs[start_limb..end_limb] {
+            *limb = self.reduce_limb(*limb);
+        }
+        self.vector_container_mut().limbs = limbs;
+    }
+
     fn vector_container(&self) -> &VectorContainer;
     fn vector_container_mut(&mut self) -> &mut VectorContainer;
     fn prime(&self) -> ValidPrime;
@@ -582,6 +593,22 @@ pub trait FpVectorT {
         self.reduce_limbs(min_target_limb, max_target_limb);
     }
 
+    // fn add_with_carry(&mut self, other : &FpVector, c : u32, )
+    //     where
+    //     I: Iterator<Item = &'a FpVector>,
+    // {
+
+    // }
+
+    // fn add_truncate(&mut self, other : &FpVector, c : u32) -> bool {
+
+    // }
+
+    // fn add_with_carry_truncate(&mut self, other : &FpVector, c : u32) -> bool {
+
+    // }
+
+
     fn scale(&mut self, c : u32){
         let c = c as u64;
         let min_limb = self.min_limb();
@@ -694,7 +721,10 @@ pub struct FpVectorGeneric {
 }
 
 impl FpVectorT for FpVector2 {
-    fn reduce_limbs(&mut self, _start_limb : usize, _end_limb : usize){}
+    // Use special handling at 2. 
+    fn reduce_limb(&self, _limb : u64) -> u64 { panic!() }
+    fn quotient_limb(&self, _limb : u64) -> u64 { panic!() }  
+    fn reduce_limbs(&mut self, _start_limb : usize, _end_limb : usize){ }
 
     fn prime(&self) -> ValidPrime { ValidPrime::new(2) }
     fn vector_container (&self) -> &VectorContainer { &self.vector_container }
@@ -708,16 +738,24 @@ impl FpVectorT for FpVector2 {
 }
 
 impl FpVectorT for FpVector3 {
-    fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize ){
-        let limbs = &mut self.vector_container.limbs;
-        for limb in &mut limbs[start_limb..end_limb] {
-            let top_bit_set_in_each_field = 0x4924924924924924u64;
-            let mut limb_2 = ((*limb & top_bit_set_in_each_field) >> 2) + (*limb & (!top_bit_set_in_each_field));
-            let mut limb_3s = limb_2 & (limb_2 >> 1);
-            limb_3s |= limb_3s << 1;
-            limb_2 ^= limb_3s;
-            *limb = limb_2;
-        }
+    // This code contributed by Robert Burklund
+    fn reduce_limb(&self, limb : u64) -> u64 {
+        let top_bit = 0x4924924924924924u64;
+        let mut limb_2 = ((limb & top_bit) >> 2) + (limb & (!top_bit));
+        let mut limb_3s = limb_2 & (limb_2 >> 1);
+        limb_3s |= limb_3s << 1;
+        limb_2 ^= limb_3s;
+        return limb_2;
+    }
+
+    // This code contributed by Robert Burklund
+    fn quotient_limb(&self, limb : u64) -> u64 {
+        let top_bit = 0x4924924924924924u64;
+        let middle_bit = top_bit >> 1;
+        let bottom_bit = top_bit >> 2;
+        let a = ((limb + bottom_bit) & top_bit) >> 2;
+        let b = (limb & (limb >> 1) & middle_bit) >> 1;
+        return a + b;
     }
 
     fn prime (&self) -> ValidPrime { ValidPrime::new(3) }
@@ -726,20 +764,29 @@ impl FpVectorT for FpVector3 {
 }
 
 impl FpVectorT for FpVector5 {
-    fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize ){
-        let limbs = &mut self.vector_container.limbs;
-        for limb in &mut limbs[start_limb..end_limb] {
-            let bottom_bit = 0x84210842108421u64;
-            let bottom_two_bits = bottom_bit | (bottom_bit << 1);
-            let bottom_three_bits = bottom_bit | (bottom_two_bits << 1);
-            let a = (*limb >> 2) & bottom_three_bits;
-            let b = *limb & bottom_two_bits;
-            let m = (bottom_bit << 3) - a + b;
-            let mut c = (m >> 3) & bottom_bit;
-            c |= c << 1;
-            let d = m & bottom_three_bits;
-            *limb = d + c - bottom_two_bits;
-        }
+    // This code contributed by Robert Burklund
+    fn reduce_limb(&self, limb : u64) -> u64 {
+        let bottom_bit = 0x84210842108421u64;
+        let bottom_two_bits = bottom_bit | (bottom_bit << 1);
+        let bottom_three_bits = bottom_bit | (bottom_two_bits << 1);
+        let a = (limb >> 2) & bottom_three_bits;
+        let b = limb & bottom_two_bits;
+        let m = (bottom_bit << 3) - a + b;
+        let mut c = (m >> 3) & bottom_bit;
+        c |= c << 1;
+        let d = m & bottom_three_bits;
+        return d + c - bottom_two_bits;
+    }
+
+    // This code contributed by Robert Burklund
+    fn quotient_limb(&self, limb : u64) -> u64 {
+        let bottom_bit = 0x84210842108421u64;
+        let bottom_two_bits = bottom_bit | (bottom_bit << 1);
+        let top_bit = bottom_bit << 4;
+        let top_three_bits = !bottom_two_bits;
+        let a = (limb & top_three_bits) >> 2;
+        let b = ((top_bit + (limb & bottom_two_bits) - a) & top_bit) >> 4;
+        return a - b;
     }
 
     fn prime(&self) -> ValidPrime { ValidPrime::new(5) }
@@ -748,13 +795,14 @@ impl FpVectorT for FpVector5 {
 }
 
 impl FpVectorT for FpVectorGeneric {
+    fn reduce_limb(&self, _limb : u64) -> u64 { panic!() }
+
+    fn quotient_limb(&self, _limb : u64) -> u64 { panic!() }
+
+
     fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize){
         let p = self.p;
-        let entries_per_64_bits = entries_per_64_bits(p);
-        let mut unpacked_limb = Vec::with_capacity(entries_per_64_bits);
-        for _ in 0..entries_per_64_bits {
-            unpacked_limb.push(0);
-        }
+        let mut unpacked_limb = vec![0; entries_per_64_bits(p)];
         let dimension = self.vector_container.dimension;
         let limbs = &mut self.vector_container.limbs;
         for i in start_limb..end_limb {
@@ -820,7 +868,7 @@ impl FpVector {
     fn add_limb(p : ValidPrime, limb_a : u64, limb_b : u64, coeff : u32) -> u64 {
         match *p {
            2 => limb_a ^ (coeff as u64 * limb_b),
-           _ => limb_a + (coeff as u64) * limb_b
+           _ => limb_a + (coeff as u64 * limb_b)
         }
     }
 
@@ -847,6 +895,8 @@ impl FpVector {
     pub fn iter(&self) -> FpVectorIterator {
         FpVectorIterator::new(self)
     }
+
+    // pub fn 
 
     fn pack_limb(p : ValidPrime, dimension : usize, offset : usize, limb_array : &[u32], limbs : &mut Vec<u64>, limb_idx : usize) -> usize {
         let bit_length = bit_length(p);
