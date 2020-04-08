@@ -382,7 +382,7 @@ impl Matrix {
     ///  should be at least as long as the number of columns (and the extra entries are ignored).
     ///
     /// # Example
-    /// ```
+    /// `#`#`
     /// # use fp::prime::ValidPrime;
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
@@ -399,7 +399,7 @@ impl Matrix {
     /// m.row_reduce();
     ///
     /// assert_eq!(m, Matrix::from_vec(p, &result));
-    /// ```
+    /// `#`#`
     pub fn row_reduce(&mut self) {
         let mut column_to_pivot_row = self.take_pivots();
         self.row_reduce_offset_into_pivots(&mut column_to_pivot_row, 0);
@@ -841,7 +841,7 @@ impl Matrix {
     /// Applies a matrix to a vector.
     ///
     /// # Example
-    /// ```
+    /// #`#`#`
     /// # use fp::prime::ValidPrime;
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
@@ -858,7 +858,7 @@ impl Matrix {
     /// desired_result.pack(&vec![3, 5, 1]);
     /// m.apply(&mut result, 1, &v);
     /// assert_eq!(result, desired_result);
-    /// ```
+    /// `#`#`
     pub fn apply(&self, result : &mut FpVector, coeff : u32, input : &FpVector) {
         debug_assert_eq!(input.dimension(), self.rows());
         for i in 0 .. input.dimension() {

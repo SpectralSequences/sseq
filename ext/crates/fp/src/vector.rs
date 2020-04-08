@@ -1471,7 +1471,7 @@ mod tests {
         }
     }
 
-    #[rstest(p,  case(2), case(3), case(5), case(7))]
+    #[rstest(p,  case(2), case(3), case(5))]//, case(7))]
     fn test_add(p : u32){
         let p_ = ValidPrime::new(p);
         initialize_limb_bit_index_table(p_);
@@ -1659,7 +1659,7 @@ mod tests {
         }
     }
 
-    #[rstest(p, case(2), case(3), case(5), case(7))]//
+    #[rstest(p, case(2), case(3), case(5))]//, case(7))]//
     fn test_add_slice_to_slice(p : u32) {
         let p_ = ValidPrime::new(p);
         println!("p : {}", p);
@@ -1732,7 +1732,7 @@ mod tests {
         }
     }
 
-    #[rstest(p, case(2), case(3), case(5), case(7))]//
+    #[rstest(p, case(2), case(3), case(5))]//, case(7))]//
     fn test_assign_slice_to_slice(p : u32) {
         let p_ = ValidPrime::new(p);
         println!("p : {}", p);
@@ -1777,7 +1777,7 @@ mod tests {
         }
     }
 
-    #[rstest(p, case(2), case(3), case(5), case(7))]
+    #[rstest(p, case(2), case(3), case(5))]//, case(7))]
     fn test_add_shift_right(p : u32) {
         let p_ = ValidPrime::new(p);
         println!("p : {}", p);
@@ -1824,7 +1824,7 @@ mod tests {
         }
     }
 
-    #[rstest(p, case(2), case(3), case(5), case(7))]
+    #[rstest(p, case(2), case(3), case(5))]//, case(7))]
     fn test_add_shift_left(p : u32) {
         let p_ = ValidPrime::new(p);
         println!("p : {}", p);
@@ -1873,7 +1873,7 @@ mod tests {
         }
     }
 
-    #[rstest(p, case(2), case(3), case(5), case(7))]
+    #[rstest(p, case(2), case(3), case(5))]//, case(7))]
     fn test_iterator_slice(p : u32) {
         let p_ = ValidPrime::new(p);
         initialize_limb_bit_index_table(p_);
