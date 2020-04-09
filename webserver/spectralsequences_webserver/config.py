@@ -17,7 +17,7 @@ EXT_REPOSITORY_ROOT = REPOSITORY_ROOT / "../ext"
 PYTHON_EXT_REPOSITORY_ROOT = REPOSITORY_ROOT / "../python_ext"
 
 CHART_REPOSITORY_ROOT = REPOSITORY_ROOT / "../chart"
-SSEQ_WEBCLIENT_JS_FILE = CHART_REPOSITORY_ROOT / "../client/target/debug/sseq_webclient.js"
+SSEQ_WEBCLIENT_JS_FILE = CHART_REPOSITORY_ROOT / "client/target/debug/sseq_webclient.js"
 
 sys.path.extend([str(path) for path in [
     MESSAGE_PASSING_REPOSITORY_ROOT,
