@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>{{ channel_name }} Presentation</title>
+        <meta charset="utf-8"/>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.css" integrity="sha384-+MsSfd29vjUzcyqYURxcmpWGtqoSHBy+QdEJNLEslXQftxojQv0k6BGDqUNp9GtA" crossorigin="anonymous">
+        
+        <style>
+            html, body {
+              height: 100%;
+              min-height: 100%;
+              overflow: hidden;
+            }
+            
+            #main {
+                    height: 98%;
+                    min-height: 98%;
+                    overflow: hidden;
+                    position: relative;
+            }
+            
+            #main-svg {
+                    width: 100%;
+                    height: 100%;
+            }
+            
+            #status {
+                    position: absolute;
+                    left: 20px;
+                    bottom: 20px;
+                    z-index: 1000;
+            }
+            div.tooltip {	
+                text-align: center;
+                padding: 5px;
+                font: 12px sans-serif;		
+                background: lightsteelblue;
+                border: 0px;
+                border-radius: 8px;
+                pointer-events: none;
+            }
+            .class {
+                pointer-events: fill;
+            }
+            
+            hr { height:2px; visibility:hidden; margin-bottom:-1px; }
+
+
+
+
+
+
+
+
+
+[style*="--aspect-ratio"] > :first-child {
+  width: 100%;
+}
+[style*="--aspect-ratio"] > img {  
+  height: auto;
+} 
+@supports (--custom:property) {
+  [style*="--aspect-ratio"] {
+    position: relative;
+  }
+  [style*="--aspect-ratio"]::before {
+    content: "";
+    display: block;
+    padding-bottom: calc(100% / (var(--aspect-ratio)));
+  }  
+  [style*="--aspect-ratio"] > :first-child {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+  }  
+}
+            </style>
+    </head>
+<body>
+    <script src="/static/webclient" type="text/javascript"></script>
+    <!-- This next script allows us to call Mousetrap.bind(dictionary-of-bindings) -->
+    <!--<script src="https://github.com/ccampbell/mousetrap/blob/master/plugins/bind-dictionary/mousetrap-bind-dictionary.min.js" type="text/javascript"></script>!-->
+    <div id="main" style="left:25pt; width:96%; height:90%"></div>
+    <div style="position:absolute; bottom:15pt; left: 25pt">
+        <span id="mode" style="font-weight: bold;"></span>
+        <span id="mode_info" style="margin-left: 10pt;"></span>
+    </div>
+    <div id="x-axis-label" style="position: absolute; left: 505pt; bottom: 15pt; font-size: 20pt; display:none;">t-s</div>
+    <div id="y-axis-label" style="position: absolute; left: 20pt; top: 278pt; font-size: 20pt; display:none;">s</div>
+<script>
+"use strict";
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
+function add_key_bindings(bindings){
+    for(let [k, v] of Object.entries(bindings)){
+        Mousetrap.bind(k, v);
+    }
+}
+
+
+
+
+
+let chart_types = [
+    [0, 10, "ko"], 
+    [10, 14, "novikov"], 
+    [14, 15, "ass"], 
+    [15, 18, "novikov"], 
+    [18, 20, "ko"],
+    [20, 29, "eo3-72"],
+    [29, 30, "eo3-144"],
+    [30, 33, "eo5"],
+    [33, 35, "ko-sm-eta"],
+    [35, 50, "eo3-sm-x3"]
+]
+let overlay_offset_lookup = {
+    "ko" : {
+        "svg_x_offset" : -6.03, // -4 -- 12
+        "svg_y_offset" : 3.45,  // 0 -- 12?
+    },
+    "ko-sm-eta" : {
+        "svg_x_offset" : -6.03, // -4 -- 12
+        "svg_y_offset" : 4.15,  // 0 -- 12?
+    },
+    "novikov" : {
+        "svg_x_offset" : -18.33, //
+        "svg_y_offset" : 4.15
+    },
+    "ass" : {
+        "svg_x_offset" : -18.33,
+        "svg_y_offset" : 7.15,
+    },
+    "eo3-72" : {
+        "svg_x_offset" : -24.1,
+        "svg_y_offset" : 4.9,
+    },
+    "eo3-144" : {
+        "svg_x_offset" : -47.1,
+        "svg_y_offset" : 4.9,
+    },
+    "eo3-sm-x3" : {
+        "svg_x_offset" : -48,
+        "svg_y_offset" : 3.4,
+    },
+    "eo5" : {
+        "svg_x_offset" : -530, // 0 -- 1630?
+        "svg_y_offset" : 14.15, // 0 -- 40
+    }
+
+}
+
+
+
+class ChartState {
+
+    constructor() {
+        this.main_div = document.querySelector("#main");
+        this.chart_types = chart_types;
+        this.overlay_offset_lookup = overlay_offset_lookup;
+        this.always_bindings = {
+            'left' : () => sseq_socket.display.previousPage(),
+            'right' : () => sseq_socket.display.nextPage(),
+            "n" : next,
+            "b" : previous
+        }
+
+        this.chart_idx = 0;
+        this.overlay_idx = 0;
+        this.chart_promises = [];
+        // let chart_promises_resolves = [];
+        this.overlay_promises = [];        
+    }
+
+    start() {
+        IO.loadFromServer("json/thesis-defense_manifest.json").then(async function(json){
+            this.chart_file_names = json["charts"];
+
+            this.request_nearby_overlay_batches();
+            
+            let img = await this.overlay_promises[sseq_socket.chart_idx][sseq_socket.overlay_idx];
+            this.display.svg = img;
+            await sleep(5);
+            sseq_socket.display.update();
+            add_key_bindings(this.always_bindings);
+        });
+    }
+
+    make_display(sseq){
+        let display = new BasicDisplay(main_div, sseq);
+        display.svg_unclipped = true;
+        if(false){ // IPAD Screen
+            display.svg_x_offset = -5.9;
+            display.svg_y_offset = 3.2;
+            display.svg_scale = 1.5;
+        } else if(true){ // Big monitor
+            display.svg_x_offset = -6.03;
+            display.svg_y_offset = 3.45;
+            // display.svg_x_scale = 2.6;
+            display.svg_scale = 1.52;
+            main_div.style.height = "1235";
+            main_div.style.height = "1235";
+        }
+        display.y_clip_offset = 100;
+        return display;
+    }
+
+
+    request_overlay_batch(chart_idx){
+        if(chart_idx < 0 || chart_idx > this.chart_file_names.length){
+            return;
+        }
+        if(this.chart_promises[chart_idx] !== undefined){
+            return;
+        }
+
+        let chart_json = await this.chart_promises[chart_idx];
+        
+        console.log("overlay.load_batch", kwargs);
+        // We were sent the list of overlay svgs. Now we need to ask the server for all of them.
+        let overlay_promises = [];
+        for(let file of kwargs["file_list"]){
+            let img = new Image;
+            let promise = new Promise(function loaded_svg(resolve, reject){
+                img.onload = () => {
+                    // console.log(`loaded file`, file);
+                    // console.log(`img.src:`, img.src);
+                    resolve(img);
+                };
+                img.onerror = function() {
+                    console.error(`Image ${file} failed to load.`);
+                    reject();
+                }
+            });
+            img.src = file;
+            overlay_promises.push(promise);
+        }
+        sseq_socket.overlay_promises[kwargs.chart_idx] = overlay_promises;
+    }
+    
+    
+    request_nearby_overlay_batches(){
+        request_overlay_batch(this.chart_idx);
+        request_overlay_batch(this.chart_idx + 1);
+        request_overlay_batch(this.chart_idx - 1);
+    }
+    
+    next(){
+        //olsw
+        update_overlay();
+    }
+    
+    previous(){
+        //olsw
+        update_overlay();
+    }
+    
+    update_chart(){
+        request_nearby_overlay_batches();
+    
+        update_overlay_offset();
+        update_overlay();
+        // Sleep 5 milliseconds to sync update of svg with update of chart data.
+        sleep(5).then(() => {
+            this.sseq = SpectralSequenceChart.from_JSON(kwargs.state);
+            if(kwargs.display_state !== undefined){
+                this.set_display_state(kwargs.display_state);
+            }
+            this.display.y_clip_offset = this.sseq.y_clip_offset;
+            this.display.setSseq(this.sseq);
+        });
+    }
+    
+
+    
+    
+    update_overlay(){
+        overlay_promises[sseq_socket.chart_idx][sseq_socket.overlay_idx]
+            .then(async function(img){
+                // sseq_socket.info("not-really-error", {"msg" : img.src, "orig_msg" : { "kwargs" : {}, "cmd" : "none"}})
+                sseq_socket.display.svg = img;
+                await sleep(5);
+                sseq_socket.display.update();
+            });
+    }
+    
+    
+    function ko_offset(){
+        sseq_socket.display.svg_x_offset = -6.03;
+        sseq_socket.display.svg_y_offset = 3.45;
+        sseq_socket.display.svg_scale = 1.52;
+    }
+    
+    function novikov_offset(){
+        sseq_socket.display.svg_x_offset = -18.33;
+        sseq_socket.display.svg_y_offset = 4.15;
+        // display.svg_x_scale = 2.6;
+        sseq_socket.display.svg_scale = 1.52;
+        // main_div.style.height = "1235";
+    }
+    
+    function ass_offset(){
+        sseq_socket.display.svg_x_offset = -18.33;
+        sseq_socket.display.svg_y_offset = 7.15;
+        // display.svg_x_scale = 2.6;
+        sseq_socket.display.svg_scale = 1.52;      
+    }
+    
+    function EO3_offset(){
+        sseq_socket.display.svg_x_offset = -36;
+    }
+    
+    
+    function update_overlay_offset(){
+        for(let [min, max, name] of chart_types) {
+            if(sseq_socket.chart_idx < max) {
+                // console.log("hi");
+                Object.assign(sseq_socket.display, overlay_offset_lookup[name]);
+                // sseq_socket.display.svg_x_offset = sseq_socket.display.svg_x_offset | -1
+                // sseq_socket.display.svg_y_offset = sseq_socket.sseq.y_range[1] + 10;
+                return
+            }
+        }
+        console.log("No offset defined for this page.")
+        // display.svg_x_offset = -6.03;
+        
+        // display.svg_scale = 1.52;
+    }
+    
+    function start(ss_sock){
+        ss_sock.start();
+    }
+}
+
+
+start(sseq_socket);
+</script>        
+</body>
+</html>

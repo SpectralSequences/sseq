@@ -8,11 +8,11 @@ repository = "https://github.com/SpectralSequences/ext/"
 license = "(MIT OR Apache-2.0)"
 
 [dependencies]
-saveload = { path = "../rust_ext/crates/saveload", version = "0.1.0"  }
-bivec = { path = "../rust_ext/crates/bivec", version = "0.1.0"  }
-fp = { path = "../rust_ext/crates/fp", version = "0.1.0"  }
-algebra = { path = "../rust_ext/crates/algebra", version = "0.1.0"  }
-ext = { path = "../rust_ext", version = "0.1.0"  }
+saveload = { path = "../../ext/crates/saveload", version = "0.1.0"  }
+bivec = { path = "../../ext/crates/bivec", version = "0.1.0"  }
+fp = { path = "../../ext/crates/fp", version = "0.1.0"  }
+ext = { path = "../../ext", version = "0.1.0"  }
+algebra = { path = "../../ext/crates/algebra", version = "0.1.0"  }
 
 python_algebra = { path = "python_algebra", version = "0.1.0"  }
 python_fp = { path = "python_fp", version = "0.1.0"  }
