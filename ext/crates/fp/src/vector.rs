@@ -143,8 +143,520 @@ pub enum FpVector {
     FpVector2,
 }
 
+
+struct AddShiftNoneData {
+    p : ValidPrime,
+    min_source_limb : usize,
+    max_source_limb : usize,
+    min_target_limb : usize,
+    max_target_limb : usize,
+    number_of_limbs : usize
+}
+
+impl AddShiftNoneData {
+    fn new(target : &(impl FpVectorT + ?Sized), source : &(impl FpVectorT + ?Sized)) -> Self {
+        debug_assert_eq!(target.prime(), source.prime());
+        debug_assert_eq!(target.offset(), source.offset());
+        debug_assert_eq!(target.dimension(), source.dimension(), "Adding vectors of different dimensions");
+        let p = target.prime();
+        let min_target_limb = target.min_limb();
+        let max_target_limb = target.max_limb();
+        let min_source_limb = source.min_limb();
+        let max_source_limb = source.max_limb();
+        debug_assert!(max_source_limb - min_source_limb == max_target_limb - min_target_limb);
+        let number_of_limbs = max_source_limb - min_source_limb;
+        Self {
+            p,
+            min_target_limb,
+            max_target_limb,
+            min_source_limb,
+            max_source_limb,
+            number_of_limbs
+        }
+    }
+
+    fn mask_first_limb(&self, other : &(impl FpVectorT + ?Sized), i : usize) -> u64 {
+        other.limbs()[self.min_source_limb + i] & other.limb_mask(i)
+    }
+
+    fn mask_middle_limb(&self, other : &(impl FpVectorT + ?Sized), i : usize) -> u64 {
+        other.limbs()[self.min_source_limb + i]
+    }
+
+    fn mask_last_limb(&self, other : &(impl FpVectorT + ?Sized), i : usize) -> u64 {
+        other.limbs()[self.min_source_limb + i] & other.limb_mask(i)
+    }
+}
+
+struct AddShiftLeftData {
+    p : ValidPrime,
+    offset_shift : usize,
+    bit_length :usize,
+    entries_per_64_bits : usize,
+    usable_bits_per_limb : usize,
+    tail_shift : usize,
+    zero_bits : usize,
+    min_source_limb : usize,
+    max_source_limb : usize,
+    min_target_limb : usize,
+    max_target_limb : usize,
+    number_of_source_limbs : usize,
+    number_of_target_limbs : usize
+}
+
+impl AddShiftLeftData {
+    fn new(target : &(impl FpVectorT + ?Sized), source : &(impl FpVectorT + ?Sized)) -> Self {
+        debug_assert!(target.prime() == source.prime());
+        debug_assert!(target.offset() <= source.offset());
+        debug_assert!(target.dimension() == source.dimension(),
+            "self.dim {} not equal to other.dim {}", target.dimension(), source.dimension());
+        let p = target.prime();
+        let offset_shift = source.offset() - target.offset();
+        let bit_length = bit_length(p);
+        let entries_per_64_bits = entries_per_64_bits(p);
+        let usable_bits_per_limb = bit_length * entries_per_64_bits;
+        let tail_shift = usable_bits_per_limb - offset_shift;
+        let zero_bits = 64 - usable_bits_per_limb;
+        let min_target_limb = target.min_limb();
+        let max_target_limb = target.max_limb();
+        let min_source_limb = source.min_limb();
+        let max_source_limb = source.max_limb();
+        let number_of_source_limbs = max_source_limb - min_source_limb;
+        let number_of_target_limbs = max_target_limb - min_target_limb;
+
+        Self {
+            p,
+            offset_shift,
+            bit_length,
+            entries_per_64_bits,
+            usable_bits_per_limb,
+            tail_shift,
+            zero_bits,
+            min_source_limb,
+            max_source_limb,
+            min_target_limb,
+            max_target_limb,
+            number_of_source_limbs,
+            number_of_target_limbs
+        }
+    }
+
+    fn mask_first_limb(&self, other : &(impl FpVectorT + ?Sized), i : usize) -> u64 {
+        (other.limbs()[self.min_source_limb + i] & other.limb_mask(i)) >> self.offset_shift
+    }
+
+    fn mask_middle_limb_a(&self, other : &(impl FpVectorT + ?Sized), i : usize) -> u64 {
+        other.limbs()[i + self.min_source_limb] >> self.offset_shift
+    }
+
+    fn mask_middle_limb_b(&self, other : &(impl FpVectorT + ?Sized), i : usize) -> u64 {
+        (other.limbs()[i + self.min_source_limb] << (self.tail_shift + self.zero_bits)) >> self.zero_bits
+    }
+
+    fn mask_last_limb_a(&self, other : &(impl FpVectorT + ?Sized), i : usize) -> u64 {
+        let mask = other.limb_mask(i);
+        let source_limb_masked = other.limbs()[self.min_source_limb + i] & mask;
+        source_limb_masked << self.tail_shift
+    }
+
+    fn mask_last_limb_b(&self, other : &(impl FpVectorT + ?Sized), i : usize) -> u64 {
+        let mask = other.limb_mask(i);
+        let source_limb_masked = other.limbs()[self.min_source_limb + i] & mask;
+        source_limb_masked >> self.offset_shift
+    }
+}
+
+struct AddShiftRightData {
+    p : ValidPrime,
+    offset_shift : usize,
+    bit_length :usize,
+    entries_per_64_bits : usize,
+    usable_bits_per_limb : usize,
+    tail_shift : usize,
+    zero_bits : usize,
+    min_source_limb : usize,
+    max_source_limb : usize,
+    min_target_limb : usize,
+    max_target_limb : usize,
+    number_of_source_limbs : usize,
+    number_of_target_limbs : usize
+}
+
+
+impl AddShiftRightData {
+    fn new(target : &(impl FpVectorT + ?Sized), source : &(impl FpVectorT + ?Sized)) -> Self {
+        debug_assert!(target.prime() == source.prime());
+        debug_assert!(target.offset() >= source.offset());
+        debug_assert!(target.dimension() == source.dimension(),
+            "self.dim {} not equal to other.dim {}", target.dimension(), source.dimension());
+        let p = target.prime();
+        let offset_shift = target.offset() - source.offset();
+        let bit_length = bit_length(p);
+        let entries_per_64_bits = entries_per_64_bits(p);
+        let usable_bits_per_limb = bit_length * entries_per_64_bits;
+        let tail_shift = usable_bits_per_limb - offset_shift;
+        let zero_bits = 64 - usable_bits_per_limb;
+        let min_target_limb = target.min_limb();
+        let max_target_limb = target.max_limb();
+        let min_source_limb = source.min_limb();
+        let max_source_limb = source.max_limb();
+        let number_of_source_limbs = max_source_limb - min_source_limb;
+        let number_of_target_limbs = max_target_limb - min_target_limb;
+        Self {
+            p,
+            offset_shift,
+            bit_length,
+            entries_per_64_bits,
+            usable_bits_per_limb,
+            tail_shift,
+            zero_bits,
+            min_source_limb,
+            max_source_limb,
+            min_target_limb,
+            max_target_limb,
+            number_of_source_limbs,
+            number_of_target_limbs
+        }
+    }
+
+    fn mask_first_limb_a(&self, other : &(impl FpVectorT + ?Sized), i : usize) -> u64 {
+        let mask = other.limb_mask(i);
+        let source_limb_masked = other.limbs()[self.min_source_limb + i] & mask;
+        (source_limb_masked << (self.offset_shift + self.zero_bits)) >> self.zero_bits
+    }
+
+    fn mask_first_limb_b(&self, other : &(impl FpVectorT + ?Sized), i : usize) -> u64 {
+        let mask = other.limb_mask(i);
+        let source_limb_masked = other.limbs()[self.min_source_limb + i] & mask;
+        source_limb_masked >> self.tail_shift
+    }
+
+    fn mask_middle_limb_a(&self, other : &(impl FpVectorT + ?Sized), i : usize) -> u64 {
+        (other.limbs()[i + self.min_source_limb] << (self.offset_shift + self.zero_bits)) >> self.zero_bits
+    }
+
+    fn mask_middle_limb_b(&self, other : &(impl FpVectorT + ?Sized), i : usize) -> u64 {
+        other.limbs()[i + self.min_source_limb] >> self.tail_shift
+    }
+
+    fn mask_last_limb_a(&self, other : &(impl FpVectorT + ?Sized), i : usize) -> u64 {
+        let mask = other.limb_mask(i);
+        let source_limb_masked = other.limbs()[self.min_source_limb + i] & mask;
+        source_limb_masked << self.offset_shift
+    }
+
+    fn mask_last_limb_b(&self, other : &(impl FpVectorT + ?Sized), i : usize) -> u64 {
+        let mask = other.limb_mask(i);
+        let source_limb_masked = other.limbs()[self.min_source_limb + i] & mask;
+        source_limb_masked >> self.tail_shift
+    }    
+}
+
+
 #[enum_dispatch(FpVector)]
 pub trait FpVectorT {
+
+    fn add_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> u64 {
+        limb_a + (coeff as u64 * limb_b)
+    }
+
+    fn add(&mut self, other : &FpVector, c : u32){
+        debug_assert!(c < *self.prime());
+        if self.dimension() == 0 {
+            return;
+        }
+
+        match self.offset().cmp(&other.offset()) {
+            Ordering::Equal => self.add_shift_none(other, c),
+            Ordering::Less => self.add_shift_left(other, c),
+            Ordering::Greater => self.add_shift_right(other, c),
+        };
+    }
+
+
+    /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
+    fn add_shift_none(&mut self, other : &FpVector, c : u32){
+        let dat = AddShiftNoneData::new(self, other);
+        let mut target_limbs = self.take_limbs();
+        let mut i = 0; {
+            target_limbs[i + dat.min_target_limb] = self.add_limb(target_limbs[i + dat.min_target_limb], dat.mask_first_limb(other, i), c);
+            target_limbs[i + dat.min_target_limb] = self.reduce_limb(target_limbs[i + dat.min_target_limb]);
+        }
+        for i in 1..dat.number_of_limbs-1 {
+            target_limbs[i + dat.min_target_limb] = self.add_limb(target_limbs[i + dat.min_target_limb], dat.mask_middle_limb(other, i), c);
+            target_limbs[i + dat.min_target_limb] = self.reduce_limb(target_limbs[i + dat.min_target_limb]);
+        }
+        i = dat.number_of_limbs - 1;
+        if i > 0 {
+            target_limbs[i + dat.min_target_limb] = self.add_limb(target_limbs[i + dat.min_target_limb], dat.mask_last_limb(other, i), c);
+            target_limbs[i + dat.min_target_limb] = self.reduce_limb(target_limbs[i + dat.min_target_limb]);
+        }
+        self.put_limbs(target_limbs);
+    }
+
+
+    fn add_shift_left(&mut self, other : &FpVector, c : u32){
+        let dat = AddShiftLeftData::new(self, other);
+        let mut target_limbs = self.take_limbs();
+        let mut i = 0; {
+            target_limbs[i + dat.min_target_limb] = self.add_limb(target_limbs[i + dat.min_target_limb], dat.mask_first_limb(other, i) , c);
+        }
+        for i in 1 .. dat.number_of_source_limbs - 1 {
+            target_limbs[i + dat.min_target_limb] = self.add_limb(target_limbs[i + dat.min_target_limb], dat.mask_middle_limb_a(other, i), c);
+            target_limbs[i + dat.min_target_limb - 1] = self.add_limb(target_limbs[i + dat.min_target_limb - 1], dat.mask_middle_limb_b(other, i), c);
+            target_limbs[i + dat.min_target_limb - 1] = self.reduce_limb(target_limbs[i + dat.min_target_limb - 1]);
+        }
+        i = dat.number_of_source_limbs - 1; 
+        if i > 0 {
+            target_limbs[i + dat.min_target_limb - 1] = self.add_limb(target_limbs[i + dat.min_target_limb - 1], dat.mask_last_limb_a(other, i), c);
+            target_limbs[i + dat.min_target_limb - 1] = self.reduce_limb(target_limbs[i + dat.min_target_limb - 1]);
+            if dat.number_of_source_limbs == dat.number_of_target_limbs {
+                target_limbs[i + dat.min_target_limb] = self.add_limb(target_limbs[i + dat.min_target_limb], dat.mask_last_limb_b(other, i), c);
+                target_limbs[i + dat.min_target_limb] = self.reduce_limb(target_limbs[i + dat.min_target_limb]);
+            }
+        } else {
+            target_limbs[i + dat.min_target_limb] = self.reduce_limb(target_limbs[i + dat.min_target_limb]);
+        }
+        self.put_limbs(target_limbs);
+    }
+
+
+    fn add_shift_right(&mut self, other : &FpVector, c : u32){
+        let dat = AddShiftRightData::new(self, other);
+        let mut target_limbs = self.take_limbs();
+        let mut i = 0; {
+            target_limbs[i + dat.min_target_limb] = self.add_limb(target_limbs[i + dat.min_target_limb], dat.mask_first_limb_a(other, i), c);
+            target_limbs[i + dat.min_target_limb] = self.reduce_limb(target_limbs[i + dat.min_target_limb]);
+            if dat.number_of_target_limbs > 1 {
+                target_limbs[i + dat.min_target_limb + 1] = self.add_limb(target_limbs[i + dat.min_target_limb + 1], dat.mask_first_limb_b(other, i), c);
+            }
+        }
+        for i in 1 .. dat.number_of_source_limbs-1 {
+            target_limbs[i + dat.min_target_limb] = self.add_limb(target_limbs[i + dat.min_target_limb], dat.mask_middle_limb_a(other, i), c);
+            target_limbs[i + dat.min_target_limb] = self.reduce_limb(target_limbs[i + dat.min_target_limb]);
+            target_limbs[i + dat.min_target_limb + 1] = self.add_limb(target_limbs[i + dat.min_target_limb + 1], dat.mask_middle_limb_b(other, i), c);
+        }
+        i = dat.number_of_source_limbs - 1;
+        if i > 0 {
+            target_limbs[i + dat.min_target_limb] = self.add_limb(target_limbs[i + dat.min_target_limb], dat.mask_last_limb_a(other, i), c);
+            target_limbs[i + dat.min_target_limb] = self.reduce_limb(target_limbs[i + dat.min_target_limb]);
+            if dat.number_of_target_limbs > dat.number_of_source_limbs {
+                target_limbs[i + dat.min_target_limb + 1] = self.add_limb(target_limbs[i + dat.min_target_limb + 1], dat.mask_last_limb_b(other, i), c);
+            }
+        }
+        // if dat.number_of_target_limbs > 1 {
+            // target_limbs[i + dat.min_target_limb] = self.reduce_limb(target_limbs[i + dat.min_target_limb]);
+        // }
+        self.put_limbs(target_limbs);
+    }
+
+
+
+    // This one takes &self so we can figure out how to reduce.
+    // Returns: either (true, sum) if no carries happen in the limb or (false, ???) if some carry does happen.
+    fn add_truncate_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> Result<u64, ()> {
+        let scaled_limb_b = coeff as u64 * limb_b;
+        let sum = limb_a + scaled_limb_b;
+        if self.is_reduced_limb(sum) {
+            Ok(sum) 
+        } else {          
+            Err(())
+        }
+    }
+
+
+    fn add_truncate(&mut self, other : &FpVector, c : u32) -> Result<(),()> {
+        if self.dimension() == 0 {
+            return Ok(());
+        }
+
+        match self.offset().cmp(&other.offset()) {
+            Ordering::Equal => self.add_truncate_shift_none(other, c),
+            Ordering::Less => self.add_truncate_shift_left(other, c),
+            Ordering::Greater => self.add_truncate_shift_right(other, c),
+        }
+    }
+
+    /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
+    /// If any of the fields exceeds p after doing this, return "false" and quit as soon as this condition is detected.
+    /// In this case, "self" will contain undefined nonsense.
+    /// Otherwise return "true" and "self" will contain the sum.
+    /// You get these "_truncate" variants from the normal variants by: every time "self.add_limb(<args>)" shows up
+    /// in the original variant, replace it with "self.add_limb_truncate(<args>)?".
+    /// Also have to add some extra Ok(())'s.
+    /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
+    fn add_truncate_shift_none(&mut self, other : &FpVector, c : u32) -> Result<(), ()> {
+        let dat = AddShiftNoneData::new(self, other);
+        let mut target_limbs = self.take_limbs();
+        let mut i = 0; {
+            target_limbs[i + dat.min_target_limb] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb], dat.mask_first_limb(other, i), c)?;
+        }
+        for i in 1..dat.number_of_limbs-1 {
+            target_limbs[i + dat.min_target_limb] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb], dat.mask_middle_limb(other, i), c)?;
+        }
+        i = dat.number_of_limbs - 1;
+        if i > 0 {
+            target_limbs[i + dat.min_target_limb] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb], dat.mask_last_limb(other, i), c)?;
+        }
+        self.put_limbs(target_limbs);
+        Ok(())
+    }
+
+
+    fn add_truncate_shift_left(&mut self, other : &FpVector, c : u32) -> Result<(), ()> {
+        let dat = AddShiftLeftData::new(self, other);
+        let mut target_limbs = self.take_limbs();
+        let mut i = 0; {
+            target_limbs[i + dat.min_target_limb] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb], dat.mask_first_limb(other, i) , c)?;
+        }
+        for i in 1 .. dat.number_of_source_limbs - 1 {
+            target_limbs[i + dat.min_target_limb] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb], dat.mask_middle_limb_a(other, i), c)?;
+            target_limbs[i + dat.min_target_limb - 1] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb - 1], dat.mask_middle_limb_b(other, i), c)?;
+        }
+        i = dat.number_of_source_limbs - 1; 
+        if i > 0 {
+            target_limbs[i + dat.min_target_limb - 1] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb - 1], dat.mask_last_limb_a(other, i), c)?;
+            if dat.number_of_source_limbs == dat.number_of_target_limbs {
+                target_limbs[i + dat.min_target_limb] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb], dat.mask_last_limb_b(other, i), c)?;
+            }
+        }
+        self.put_limbs(target_limbs);
+        Ok(())
+    }
+
+    fn add_truncate_shift_right(&mut self, other : &FpVector, c : u32) -> Result<(), ()> {
+        let dat = AddShiftRightData::new(self, other);
+        let mut target_limbs = self.take_limbs();
+        let mut i = 0; {
+            target_limbs[i + dat.min_target_limb] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb], dat.mask_first_limb_a(other, i), c)?;
+            if dat.number_of_target_limbs > 1 {
+                target_limbs[i + dat.min_target_limb + 1] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb + 1], dat.mask_first_limb_b(other, i), c)?;
+            }
+        }
+        for i in 1 .. dat.number_of_source_limbs-1 {
+            target_limbs[i + dat.min_target_limb] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb], dat.mask_middle_limb_a(other, i), c)?;
+            target_limbs[i + dat.min_target_limb + 1] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb + 1], dat.mask_middle_limb_b(other, i), c)?;
+        }
+        i = dat.number_of_source_limbs - 1;
+        if i > 0 {
+            target_limbs[i + dat.min_target_limb] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb], dat.mask_last_limb_a(other, i), c)?;
+            if dat.number_of_target_limbs > dat.number_of_source_limbs {
+                target_limbs[i + dat.min_target_limb + 1] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb + 1], dat.mask_last_limb_b(other, i), c)?;
+            }
+        }
+        self.put_limbs(target_limbs);
+        Ok(())
+    }
+
+
+    // This one takes &self so we can figure out how to reduce.
+    // Returns: either (true, sum) if no carries happen in the limb or (false, ???) if some carry does happen.
+    fn add_carry_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> (u64, u64) {
+        let scaled_limb_b = coeff as u64 * limb_b;
+        self.reduce_quotient_limb(limb_a + scaled_limb_b)
+    }    
+
+
+    // 
+    fn add_carry<'a>(&mut self, other : &FpVector, c : u32, rest : impl IntoIterator<Item = &'a mut FpVector>) {
+        if self.dimension() == 0 {
+            return;
+        }
+        match self.offset().cmp(&other.offset()) {
+            Ordering::Equal => self.add_carry_shift_none(other, c, rest),
+            Ordering::Less => self.add_carry_shift_left(other, c, rest),
+            Ordering::Greater => self.add_carry_shift_right(other, c, rest),
+        }
+    }
+
+    /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
+    /// If any of the fields exceeds p after doing this, return "false" and quit as soon as this condition is detected.
+    /// In this case, "self" will contain undefined nonsense.
+    /// Otherwise return "true" and "self" will contain the sum.
+    /// You get these "_truncate" variants from the normal variants by: every time "self.add_limb(<args>)" shows up
+    /// in the original variant, replace it with "self.add_limb_truncate(<args>)?".
+    /// Also have to add some extra Ok(())'s.
+    fn add_carry_shift_none<'a>(&mut self, other : &FpVector, c : u32, rest : impl IntoIterator<Item = &'a mut FpVector>) {
+        let p = self.prime();
+        debug_assert!(c < *p);
+        let min_target_limb = self.min_limb();
+        let max_target_limb = self.max_limb();
+        let min_source_limb = other.min_limb();
+        let max_source_limb = other.max_limb();
+        debug_assert!(max_source_limb - min_source_limb == max_target_limb - min_target_limb);
+        let number_of_limbs = max_source_limb - min_source_limb;
+        let mut target_limbs = self.take_limbs();
+        let source_limbs = other.limbs();
+        // let mut i = 0; {
+        //     let mask = other.limb_mask(i);
+        //     // add_carry_shift_none_first_limb()
+            
+        //     let source_limb_masked = source_limbs[min_source_limb + i] & mask;
+        //     target_limbs[i + min_target_limb] = self.add_limb(target_limbs[i + min_target_limb], source_limb_masked, c);
+        // }
+        // for i in 1..number_of_limbs-1 {
+        //     target_limbs[i + min_target_limb] = self.add_limb(target_limbs[i + min_target_limb], source_limbs[i + min_source_limb], c);
+        // }
+        // i = number_of_limbs - 1;
+        // if i > 0 {
+        //     let mask = other.limb_mask(i);
+        //     let source_limb_masked = source_limbs[min_source_limb + i] & mask;
+        //     target_limbs[i + min_target_limb] = self.add_limb(target_limbs[i + min_target_limb], source_limb_masked, c);
+        // }
+        self.put_limbs(target_limbs);
+    }
+
+    fn add_carry_shift_left<'a>(&mut self, other : &FpVector, c : u32, mut rest : impl IntoIterator<Item = &'a mut FpVector>) {
+        debug_assert_eq!(self.prime(), other.prime());
+        debug_assert_eq!(self.offset(), other.offset());
+        debug_assert_eq!(self.dimension(), other.dimension(), "Adding vectors of different dimensions");
+        if self.dimension() == 0 {
+            return;
+        }
+        let mut iter = rest.into_iter();
+        match iter.next() {
+            None => {
+                self.add_shift_left(other, c);
+            }
+            Some(v) => {
+
+            }
+        }
+    }
+
+    fn add_carry_shift_right<'a>(&mut self, other : &FpVector, c : u32, mut rest : impl IntoIterator<Item = &'a mut FpVector>){
+        debug_assert_eq!(self.prime(), other.prime());
+        debug_assert_eq!(self.offset(), other.offset());
+        debug_assert_eq!(self.dimension(), other.dimension(), "Adding vectors of different dimensions");
+        if self.dimension() == 0 {
+            return;
+        }
+        let mut iter = rest.into_iter();
+        match iter.next() {
+            None => {
+                self.add_shift_right(other, c);
+            }
+            Some(v) => {
+
+            }
+
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // These could be static but enum_dispatch needs them to take &self.
     fn is_reduced_limb(&self, limb : u64) -> bool;
     fn reduce_limb(&self, limb : u64) -> u64;
@@ -468,387 +980,21 @@ pub trait FpVectorT {
         }
     }
 
-    fn add_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> u64 {
-        self.reduce_limb(limb_a + (coeff as u64 * limb_b))
-    }
-
-
-    fn add(&mut self, other : &FpVector, c : u32){
-        if self.dimension() == 0 {
-            return;
-        }
-
-        match self.offset().cmp(&other.offset()) {
-            Ordering::Equal => self.add_shift_none(other, c),
-            Ordering::Less => self.add_shift_left(other, c),
-            Ordering::Greater => self.add_shift_right(other, c),
-        };
-    }
-
-
-    /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
-    fn add_shift_none(&mut self, other : &FpVector, c : u32){
-        debug_assert_eq!(self.prime(), other.prime());
-        debug_assert_eq!(self.offset(), other.offset());
-        debug_assert_eq!(self.dimension(), other.dimension(), "Adding vectors of different dimensions");
-        if self.dimension() == 0 {
-            return;
-        }
-        let p = self.prime();
-        debug_assert!(c < *p);
-        let min_target_limb = self.min_limb();
-        let max_target_limb = self.max_limb();
-        let min_source_limb = other.min_limb();
-        let max_source_limb = other.max_limb();
-        debug_assert!(max_source_limb - min_source_limb == max_target_limb - min_target_limb);
-        let number_of_limbs = max_source_limb - min_source_limb;
-        let mut target_limbs = self.take_limbs();
-        let source_limbs = other.limbs();
-        let mut i = 0; {
-            let mask = other.limb_mask(i);
-            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb] = self.add_limb(target_limbs[i + min_target_limb], source_limb_masked, c);
-        }
-        for i in 1..number_of_limbs-1 {
-            target_limbs[i + min_target_limb] = self.add_limb(target_limbs[i + min_target_limb], source_limbs[i + min_source_limb], c);
-        }
-        i = number_of_limbs - 1;
-        if i > 0 {
-            let mask = other.limb_mask(i);
-            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb] = self.add_limb(target_limbs[i + min_target_limb], source_limb_masked, c);
-        }
-        self.put_limbs(target_limbs);
-    }
-
-
-    fn add_shift_left(&mut self, other : &FpVector, c : u32){
-        debug_assert!(self.prime() == other.prime());
-        debug_assert!(self.offset() <= other.offset());
-        debug_assert!(self.dimension() == other.dimension(),
-            "self.dim {} not equal to other.dim {}", self.dimension(), other.dimension());
-        let p = self.prime();
-        debug_assert!(c < *p);
-        let offset_shift = other.offset() - self.offset();
-        let bit_length = bit_length(p);
-        let entries_per_64_bits = entries_per_64_bits(p);
-        let usable_bits_per_limb = bit_length * entries_per_64_bits;
-        let tail_shift = usable_bits_per_limb - offset_shift;
-        let zero_bits = 64 - usable_bits_per_limb;
-        let min_target_limb = self.min_limb();
-        let max_target_limb = self.max_limb();
-        let min_source_limb = other.min_limb();
-        let max_source_limb = other.max_limb();
-        let number_of_source_limbs = max_source_limb - min_source_limb;
-        let number_of_target_limbs = max_target_limb - min_target_limb;
-        let mut target_limbs = self.take_limbs();
-        let source_limbs = other.limbs();
-        let mut i = 0; {
-            let mask = other.limb_mask(i);
-            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb] = self.add_limb(target_limbs[i + min_target_limb], source_limb_masked >> offset_shift, c);
-        }
-        for i in 1 .. number_of_source_limbs - 1 {
-            target_limbs[i + min_target_limb] = self.add_limb(target_limbs[i + min_target_limb], source_limbs[i + min_source_limb] >> offset_shift, c);
-            target_limbs[i + min_target_limb - 1] = self.add_limb(target_limbs[i + min_target_limb - 1], (source_limbs[i + min_source_limb] << (tail_shift + zero_bits)) >> zero_bits, c);
-        }
-        i = number_of_source_limbs - 1; 
-        if i > 0 {
-            let mask = other.limb_mask(i);
-            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb - 1] = self.add_limb(target_limbs[i + min_target_limb - 1], source_limb_masked << tail_shift, c);
-            if number_of_source_limbs == number_of_target_limbs {
-                target_limbs[i + min_target_limb] = self.add_limb(target_limbs[i + min_target_limb], source_limb_masked >> offset_shift, c);
-            }
-        }
-        self.put_limbs(target_limbs);
-    }
-
-
-    fn add_shift_right(&mut self, other : &FpVector, c : u32){
-        debug_assert!(self.prime() == other.prime());
-        debug_assert!(self.offset() >= other.offset());
-        debug_assert!(self.dimension() == other.dimension(),
-            "self.dim {} not equal to other.dim {}", self.dimension(), other.dimension());
-        let p = self.prime();
-        debug_assert!(c < *p);
-        let offset_shift = self.offset() - other.offset();
-        let bit_length = bit_length(p);
-        let entries_per_64_bits = entries_per_64_bits(p);
-        let usable_bits_per_limb = bit_length * entries_per_64_bits;
-        let tail_shift = usable_bits_per_limb - offset_shift;
-        let zero_bits = 64 - usable_bits_per_limb;
-        let min_target_limb = self.min_limb();
-        let max_target_limb = self.max_limb();
-        let min_source_limb = other.min_limb();
-        let max_source_limb = other.max_limb();
-        let number_of_source_limbs = max_source_limb - min_source_limb;
-        let number_of_target_limbs = max_target_limb - min_target_limb;
-        let mut target_limbs = self.take_limbs();
-        let source_limbs = other.limbs();
-        let mut i = 0; {
-            let mask = other.limb_mask(i);
-            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb] = self.add_limb(target_limbs[i + min_target_limb], (source_limb_masked << (offset_shift + zero_bits)) >> zero_bits, c);
-            if number_of_target_limbs > 1 {
-                target_limbs[i + min_target_limb + 1] = self.add_limb(target_limbs[i + min_target_limb + 1], source_limb_masked >> tail_shift, c);
-            }
-        }
-        for i in 1..number_of_source_limbs-1 {
-            target_limbs[i + min_target_limb] = self.add_limb(target_limbs[i + min_target_limb], (source_limbs[i + min_source_limb] << (offset_shift + zero_bits)) >> zero_bits, c);
-            target_limbs[i + min_target_limb + 1] = self.add_limb(target_limbs[i + min_target_limb + 1], source_limbs[i + min_source_limb] >> tail_shift, c);
-        }
-        i = number_of_source_limbs - 1;
-        if i > 0 {
-            let mask = other.limb_mask(i);
-            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb] = self.add_limb(target_limbs[i + min_target_limb], source_limb_masked << offset_shift, c);
-            if number_of_target_limbs > number_of_source_limbs {
-                target_limbs[i + min_target_limb + 1] = self.add_limb(target_limbs[i + min_target_limb + 1], source_limb_masked >> tail_shift, c);
-            }
-        }
-        self.put_limbs(target_limbs);
-    }
 
 
 
-    // This one takes &self so we can figure out how to reduce.
-    // Returns: either (true, sum) if no carries happen in the limb or (false, ???) if some carry does happen.
-    fn add_truncate_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> Result<u64, ()> {
-        let scaled_limb_b = coeff as u64 * limb_b;
-        let sum = limb_a + scaled_limb_b;
-        if self.is_reduced_limb(sum) {
-            Ok(sum) 
-        } else {          
-            Err(())
-        }
-    }
 
 
-    fn add_truncate(&mut self, other : &FpVector, c : u32) -> Result<(),()> {
-        if self.dimension() == 0 {
-            return Ok(());
-        }
-
-        match self.offset().cmp(&other.offset()) {
-            Ordering::Equal => self.add_truncate_shift_none(other, c),
-            Ordering::Less => self.add_truncate_shift_left(other, c),
-            Ordering::Greater => self.add_truncate_shift_right(other, c),
-        }
-    }
-
-    /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
-    /// If any of the fields exceeds p after doing this, return "false" and quit as soon as this condition is detected.
-    /// In this case, "self" will contain undefined nonsense.
-    /// Otherwise return "true" and "self" will contain the sum.
-    /// You get these "_truncate" variants from the normal variants by: every time "self.add_limb(<args>)" shows up
-    /// in the original variant, replace it with "self.add_limb_truncate(<args>)?".
-    /// Also have to add some extra Ok(())'s.
-    fn add_truncate_shift_none(&mut self, other : &FpVector, c : u32) -> Result<(), ()> {
-        debug_assert_eq!(self.prime(), other.prime());
-        debug_assert_eq!(self.offset(), other.offset());
-        debug_assert_eq!(self.dimension(), other.dimension(), "Adding vectors of different dimensions");
-        if self.dimension() == 0 {
-            return Ok(());
-        }
-        let p = self.prime();
-        debug_assert!(c < *p);
-        let min_target_limb = self.min_limb();
-        let max_target_limb = self.max_limb();
-        let min_source_limb = other.min_limb();
-        let max_source_limb = other.max_limb();
-        debug_assert!(max_source_limb - min_source_limb == max_target_limb - min_target_limb);
-        let number_of_limbs = max_source_limb - min_source_limb;
-        let mut target_limbs = self.take_limbs();
-        let source_limbs = other.limbs();
-        let mut i = 0; {
-            let mask = other.limb_mask(i);
-            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], source_limb_masked, c)?;
-        }
-        for i in 1 .. number_of_limbs - 1 {
-            let source_limb_masked = source_limbs[min_source_limb + i];
-            target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], source_limb_masked, c)?;
-        }
-        i = number_of_limbs - 1;
-        if i > 0 {
-            let mask = other.limb_mask(i);
-            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], source_limb_masked, c)?;
-        }
-        self.put_limbs(target_limbs);
-        Ok(())
-    }
-
-    fn add_truncate_shift_left(&mut self, other : &FpVector, c : u32) -> Result<(), ()> {
-        debug_assert!(self.prime() == other.prime());
-        debug_assert!(self.offset() <= other.offset());
-        debug_assert!(self.dimension() == other.dimension(),
-            "self.dim {} not equal to other.dim {}", self.dimension(), other.dimension());
-        let p = self.prime();
-        debug_assert!(c < *p);
-        let offset_shift = other.offset() - self.offset();
-        let bit_length = bit_length(p);
-        let entries_per_64_bits = entries_per_64_bits(p);
-        let usable_bits_per_limb = bit_length * entries_per_64_bits;
-        let tail_shift = usable_bits_per_limb - offset_shift;
-        let zero_bits = 64 - usable_bits_per_limb;
-        let min_target_limb = self.min_limb();
-        let max_target_limb = self.max_limb();
-        let min_source_limb = other.min_limb();
-        let max_source_limb = other.max_limb();
-        let number_of_source_limbs = max_source_limb - min_source_limb;
-        let number_of_target_limbs = max_target_limb - min_target_limb;
-        let mut target_limbs = self.take_limbs();
-        let source_limbs = other.limbs();
-        let mut i = 0; {
-            let mask = other.limb_mask(i);
-            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], source_limb_masked >> offset_shift, c)?;
-        }
-        for i in 1 .. number_of_source_limbs - 1 {
-            target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], source_limbs[i + min_source_limb] >> offset_shift, c)?;
-            target_limbs[i + min_target_limb - 1] = self.add_truncate_limb(target_limbs[i + min_target_limb - 1], (source_limbs[i + min_source_limb] << (tail_shift + zero_bits)) >> zero_bits, c)?;
-        }
-        i = number_of_source_limbs - 1;
-        if i > 0 {
-            let mask = other.limb_mask(i);
-            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb - 1] = self.add_truncate_limb(target_limbs[i + min_target_limb - 1], source_limb_masked << tail_shift, c)?;
-            if number_of_source_limbs == number_of_target_limbs {
-                target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], source_limb_masked >> offset_shift, c)?;
-            }
-        }
-
-        self.put_limbs(target_limbs);
-        Ok(())
-    }
-
-    fn add_truncate_shift_right(&mut self, other : &FpVector, c : u32) -> Result<(),()> {
-        debug_assert!(self.prime() == other.prime());
-        debug_assert!(self.offset() >= other.offset());
-        debug_assert!(self.dimension() == other.dimension(),
-            "self.dim {} not equal to other.dim {}", self.dimension(), other.dimension());
-        let p = self.prime();
-        debug_assert!(c < *p);
-        let offset_shift = self.offset() - other.offset();
-        let bit_length = bit_length(p);
-        let entries_per_64_bits = entries_per_64_bits(p);
-        let usable_bits_per_limb = bit_length * entries_per_64_bits;
-        let tail_shift = usable_bits_per_limb - offset_shift;
-        let zero_bits = 64 - usable_bits_per_limb;
-        let min_target_limb = self.min_limb();
-        let max_target_limb = self.max_limb();
-        let min_source_limb = other.min_limb();
-        let max_source_limb = other.max_limb();
-        let number_of_source_limbs = max_source_limb - min_source_limb;
-        let number_of_target_limbs = max_target_limb - min_target_limb;
-        let mut target_limbs = self.take_limbs();
-        let source_limbs = other.limbs();
-        let mut i = 0; {
-            let mask = other.limb_mask(i);
-            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], (source_limb_masked << (offset_shift + zero_bits)) >> zero_bits, c)?;
-            if number_of_target_limbs > 1 {
-                target_limbs[i + min_target_limb + 1] = self.add_truncate_limb(target_limbs[i + min_target_limb + 1], source_limb_masked >> tail_shift, c)?;
-            }
-        }
-        for i in 1..number_of_source_limbs-1 {
-            target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], (source_limbs[i + min_source_limb] << (offset_shift + zero_bits)) >> zero_bits, c)?;
-            target_limbs[i + min_target_limb + 1] = self.add_truncate_limb(target_limbs[i + min_target_limb + 1], source_limbs[i + min_source_limb] >> tail_shift, c)?;
-        }
-        i = number_of_source_limbs - 1;
-        if i > 0 {
-            let mask = other.limb_mask(i);
-            let source_limb_masked = source_limbs[min_source_limb + i] & mask;
-            target_limbs[i + min_target_limb] = self.add_truncate_limb(target_limbs[i + min_target_limb], source_limb_masked << offset_shift, c)?;
-            if number_of_target_limbs > number_of_source_limbs {
-                target_limbs[i + min_target_limb + 1] = self.add_truncate_limb(target_limbs[i + min_target_limb + 1], source_limb_masked >> tail_shift, c)?;
-            }
-        }
-        self.put_limbs(target_limbs);
-        Ok(())
-    }
-
-    // This one takes &self so we can figure out how to reduce.
-    // Returns: either (true, sum) if no carries happen in the limb or (false, ???) if some carry does happen.
-    fn add_carry_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> (u64, u64) {
-        let scaled_limb_b = coeff as u64 * limb_b;
-        self.reduce_quotient_limb(limb_a + scaled_limb_b)
-    }
 
 
-    fn add_carry<'a>(&mut self, other : &FpVector, c : u32, vecs : impl IntoIterator<Item = &'a mut FpVector>) {
-        if self.dimension() == 0 {
-            return;
-        }
-        let iter = vecs.into_iter();
-        match self.offset().cmp(&other.offset()) {
-            Ordering::Greater => self.add_carry_shift_right(other, c, iter),
-            Ordering::Less => self.add_carry_shift_left(other, c, iter),
-            Ordering::Equal => self.add_carry_shift_none(other, c, iter),
-        }
-    }
 
-    /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
-    /// If any of the fields exceeds p after doing this, return "false" and quit as soon as this condition is detected.
-    /// In this case, "self" will contain undefined nonsense.
-    /// Otherwise return "true" and "self" will contain the sum.
-    /// You get these "_truncate" variants from the normal variants by: every time "self.add_limb(<args>)" shows up
-    /// in the original variant, replace it with "self.add_limb_truncate(<args>)?".
-    /// Also have to add some extra Ok(())'s.
-    fn add_carry_shift_none<'a>(&mut self, other : &FpVector, c : u32, mut iter : impl Iterator<Item = &'a mut FpVector>) {
-        debug_assert_eq!(self.prime(), other.prime());
-        debug_assert_eq!(self.offset(), other.offset());
-        debug_assert_eq!(self.dimension(), other.dimension(), "Adding vectors of different dimensions");
-        if self.dimension() == 0 {
-            return;
-        }
-        match iter.next() {
-            None => {
-                self.add_shift_none(other, c);
-            }
-            Some(v) => {
 
-            }
 
-        }
-    }
 
-    fn add_carry_shift_left<'a>(&mut self, other : &FpVector, c : u32, mut iter : impl Iterator<Item = &'a mut FpVector>) {
-        debug_assert_eq!(self.prime(), other.prime());
-        debug_assert_eq!(self.offset(), other.offset());
-        debug_assert_eq!(self.dimension(), other.dimension(), "Adding vectors of different dimensions");
-        if self.dimension() == 0 {
-            return;
-        }
-        match iter.next() {
-            None => {
-                self.add_shift_left(other, c);
-            }
-            Some(v) => {
-                
-            }
-        }
-    }
 
-    fn add_carry_shift_right<'a>(&mut self, other : &FpVector, c : u32, mut iter : impl Iterator<Item = &'a mut FpVector>){
-        debug_assert_eq!(self.prime(), other.prime());
-        debug_assert_eq!(self.offset(), other.offset());
-        debug_assert_eq!(self.dimension(), other.dimension(), "Adding vectors of different dimensions");
-        if self.dimension() == 0 {
-            return;
-        }
-        match iter.next() {
-            None => {
-                self.add_shift_right(other, c);
-            }
-            Some(v) => {
 
-            }
 
-        }
-    }
+
 
     // fn add_truncate(&mut self, other : &FpVector, c : u32) -> bool {
 
@@ -973,7 +1119,7 @@ pub struct FpVectorGeneric {
 impl FpVectorT for FpVector2 {
     // Use special handling at 2. 
     fn is_reduced_limb(&self, _limb : u64) -> bool { panic!() }
-    fn reduce_limb(&self, _limb : u64) -> u64 { panic!() }
+    fn reduce_limb(&self, limb : u64) -> u64 { limb }
     fn reduce_quotient_limb(&self, _limb : u64) -> (u64, u64) { panic!() }  
     fn reduce_limbs(&mut self, _start_limb : usize, _end_limb : usize){ }
 
