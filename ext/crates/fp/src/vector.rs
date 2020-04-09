@@ -469,11 +469,7 @@ pub trait FpVectorT {
     }
 
     fn add_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> u64 {
-        if *self.prime() == 2 {
-           limb_a ^ (coeff as u64 * limb_b)
-        } else {
-           self.reduce_limb(limb_a + (coeff as u64 * limb_b))
-        }
+        self.reduce_limb(limb_a + (coeff as u64 * limb_b))
     }
 
 
@@ -620,19 +616,11 @@ pub trait FpVectorT {
     // Returns: either (true, sum) if no carries happen in the limb or (false, ???) if some carry does happen.
     fn add_truncate_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> Result<u64, ()> {
         let scaled_limb_b = coeff as u64 * limb_b;
-        if *self.prime() == 2 {
-            if limb_a & scaled_limb_b == 0 {
-                Ok(limb_a ^ scaled_limb_b)
-            } else {
-                Err(())
-            }
-        } else {
-            let sum = limb_a + scaled_limb_b;
-            if self.is_reduced_limb(sum) {
-                Ok(sum) 
-            } else {          
-                Err(())
-            }
+        let sum = limb_a + scaled_limb_b;
+        if self.is_reduced_limb(sum) {
+            Ok(sum) 
+        } else {          
+            Err(())
         }
     }
 
@@ -786,11 +774,7 @@ pub trait FpVectorT {
     // Returns: either (true, sum) if no carries happen in the limb or (false, ???) if some carry does happen.
     fn add_carry_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> (u64, u64) {
         let scaled_limb_b = coeff as u64 * limb_b;
-        if *self.prime() == 2 {
-            (limb_a ^ scaled_limb_b, limb_a & scaled_limb_b)
-        } else {
-            self.reduce_quotient_limb(limb_a + scaled_limb_b)
-        }
+        self.reduce_quotient_limb(limb_a + scaled_limb_b)
     }
 
 
@@ -992,6 +976,24 @@ impl FpVectorT for FpVector2 {
     fn reduce_limb(&self, _limb : u64) -> u64 { panic!() }
     fn reduce_quotient_limb(&self, _limb : u64) -> (u64, u64) { panic!() }  
     fn reduce_limbs(&mut self, _start_limb : usize, _end_limb : usize){ }
+
+    fn add_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> u64 {
+        limb_a ^ (coeff as u64 * limb_b)
+    }
+
+    fn add_truncate_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> Result<u64, ()> {
+        let scaled_limb_b = coeff as u64 * limb_b;
+        if limb_a & scaled_limb_b == 0 {
+            Ok(limb_a ^ scaled_limb_b)
+        } else {
+            Err(())
+        }
+    }
+
+    fn add_carry_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> (u64, u64) {
+        let scaled_limb_b = coeff as u64 * limb_b;
+        (limb_a ^ scaled_limb_b, limb_a & scaled_limb_b)
+    }
 
     fn prime(&self) -> ValidPrime { ValidPrime::new(2) }
     fn vector_container (&self) -> &VectorContainer { &self.vector_container }
