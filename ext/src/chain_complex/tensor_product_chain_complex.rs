@@ -345,7 +345,7 @@ where
             if let Some(qi) = &qis[i] {
                 for (offset_start, offset_end, data) in qi.iter() {
                     result.set_slice(*offset_start, *offset_end);
-                    result.shift_add(data, x);
+                    result.add(data, x);
                     result.restore_slice(old_slice);
                 }
             }

@@ -188,7 +188,7 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
             return;
         }
         let output = self.action(op_degree, op_index, mod_degree, mod_index);
-        result.shift_add(output, coeff);
+        result.add(output, coeff);
     }
 
     fn borrow_output(&self) -> bool {

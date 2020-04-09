@@ -81,7 +81,7 @@ impl BlockStructure {
         assert!(source.dimension() == block_size);
         let old_slice = target.slice();
         target.set_slice(block_min, block_max);
-        target.shift_add(source, coeff);
+        target.add(source, coeff);
         target.restore_slice(old_slice);
     }
 }

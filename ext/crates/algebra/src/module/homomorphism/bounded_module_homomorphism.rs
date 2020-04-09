@@ -60,7 +60,7 @@ impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
     ) {
         let output_degree = input_degree - self.degree_shift;
         if let Some(matrix) = self.matrices.get(output_degree) {
-            result.shift_add(&matrix[input_idx], coeff);
+            result.add(&matrix[input_idx], coeff);
         }
     }
 

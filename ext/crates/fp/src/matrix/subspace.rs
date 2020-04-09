@@ -147,7 +147,7 @@ impl Subspace {
             }
             let c = vector.entry(i);
             if c != 0 {
-                vector.shift_add(&self[row], *p - c);
+                vector.add(&self[row], *p - c);
             }
             row += 1;
         }
