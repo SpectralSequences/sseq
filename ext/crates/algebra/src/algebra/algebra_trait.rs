@@ -43,7 +43,7 @@ pub trait Algebra : Send + Sync + 'static {
 
     fn multiply_basis_element_by_element(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r_idx : usize, s_degree : i32, s : &FpVector, excess : i32){
         let p = self.prime();
-        for (i, v) in s.iter().enumerate() {
+        for (i, v) in s.iter_nonzero() {
             if v == 0 { continue; }
             self.multiply_basis_elements(result, (coeff * v) % *p, r_degree, r_idx, s_degree, i, excess);
         }
@@ -51,16 +51,14 @@ pub trait Algebra : Send + Sync + 'static {
 
     fn multiply_element_by_basis_element(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r : &FpVector, s_degree : i32, s_idx : usize, excess : i32){
         let p = self.prime();
-        for (i, v) in r.iter().enumerate() {
-            if v == 0 { continue; }
+        for (i, v) in r.iter_nonzero() {
             self.multiply_basis_elements(result, (coeff * v) % *p, r_degree, i, s_degree, s_idx, excess);
         }
     }
 
     fn multiply_element_by_element(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r : &FpVector, s_degree : i32, s : &FpVector, excess : i32){
         let p = self.prime();
-        for (i, v) in s.iter().enumerate() {
-            if v == 0 { continue; }
+        for (i, v) in s.iter_nonzero() {
             self.multiply_element_by_basis_element(result, (coeff * v) % *p, r_degree, r, s_degree, i, excess);
         }
     }
@@ -85,10 +83,7 @@ pub trait Algebra : Send + Sync + 'static {
     fn element_to_string(&self, degree : i32, element : &FpVector) -> String {
         let mut result = String::new();
         let mut zero = true;
-        for (idx, value) in element.iter().enumerate() {
-            if value == 0 {
-                continue;
-            }
+        for (idx, value) in element.iter_nonzero() {
             zero = false;
             if value != 1 {
                 result.push_str(&format!("{} * ", value));

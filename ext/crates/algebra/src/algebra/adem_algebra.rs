@@ -693,10 +693,7 @@ impl AdemAlgebra {
             // The answer to this is in the table we're currently making.
             // total degree -> first sq -> idx of rest of squares
             let rest_reduced = &self.multiplication_table[(n as u32 - (x + y) + j) as usize][j as usize][tail_idx];
-            for (i, coeff) in rest_reduced.iter().enumerate() {
-                if coeff == 0 {
-                    continue;
-                }
+            for (i, _coeff) in rest_reduced.iter_nonzero() {
                 // Reduce Sq^{x+y-j} * whatever square using the table in the same degree, larger index
                 // Since we're doing the first squares in decreasing order and x + y - j > x, 
                 // we already calculated this.
@@ -970,10 +967,7 @@ impl AdemAlgebra {
             ps : monomial.ps[0..idx].to_vec()
         };
 
-        for (it_idx, it_value) in reduced_tail.iter().enumerate() {
-            if it_value == 0 {
-                continue;
-            }
+        for (it_idx, _value) in reduced_tail.iter_nonzero() {
             let cur_tail_basis_elt = self.basis_element_from_index(tail_degree, it_idx);
 
             new_monomial.ps.truncate(idx);
@@ -1021,10 +1015,7 @@ impl AdemAlgebra {
             ps : monomial.ps[0 .. idx].to_vec(),
         };
 
-        for (it_idx, it_value) in reduced_tail.iter().enumerate() {
-            if it_value == 0 {
-                continue;
-            }
+        for (it_idx, it_value) in reduced_tail.iter_nonzero() {
             if it_idx >= dim {
                 break;
             }
@@ -1082,10 +1073,7 @@ impl AdemAlgebra {
         out_vec.set_entry(idx, 0);
         let mut result = Vec::new();
         result.push((1, (first_degree, first_idx), (second_degree, second_idx)));
-        for (i, v) in out_vec.iter().enumerate() {
-            if v == 0 {
-                continue;
-            }
+        for (i, _v) in out_vec.iter_nonzero() {
             result.extend(self.decompose_basis_element_2(degree, i));
         }
         result
@@ -1161,10 +1149,7 @@ impl AdemAlgebra {
         let c_inv = fp::prime::inverse(p, *p - c);
         result.push((((*p - 1) * c_inv) % *p, (first_degree, first_idx), (second_degree, second_idx)));
         out_vec.set_entry(idx, 0);
-        for (i, v) in out_vec.iter().enumerate() {
-            if v == 0 {
-                continue;
-            }
+        for (i, v) in out_vec.iter_nonzero() {
             let (c, t1, t2) = self.decompose_basis_element_generic(degree, i)[0];
             result.push(((c_inv * c * v) % *p, t1, t2));
         }
@@ -1301,7 +1286,7 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_adem(){
         let p = ValidPrime::new(2);
-        let A = AdemAlgebra::new(p, *p != 2, false);
+        let A = AdemAlgebra::new(p, *p != 2, false, false);
         A.compute_basis(10);
         let r_deg = 4;
         let r_idx = 0;
@@ -1327,7 +1312,7 @@ mod tests {
     )]
     fn test_adem_basis(p : u32, max_degree : i32){
         let p = ValidPrime::new(p);
-        let algebra = AdemAlgebra::new(p, *p != 2, false);
+        let algebra = AdemAlgebra::new(p, *p != 2, false, false);
         algebra.compute_basis(max_degree);
         for i in 1 ..= max_degree {
             let dim = algebra.dimension(i, i32::max_value());
@@ -1347,7 +1332,7 @@ mod tests {
     )]
     fn test_adem_decompose(p : u32, max_degree : i32){
         let p = ValidPrime::new(p);
-        let algebra = AdemAlgebra::new(p, *p != 2, false);
+        let algebra = AdemAlgebra::new(p, *p != 2, false, false);
         algebra.compute_basis(max_degree);
         for i in 1 ..= max_degree {
             let dim = algebra.dimension(i, i32::max_value());
@@ -1379,7 +1364,7 @@ mod tests {
     )]
     fn test_adem_relations(p : u32, max_degree : i32){
         let p = ValidPrime::new(p);
-        let algebra = AdemAlgebra::new(p, *p != 2, false);
+        let algebra = AdemAlgebra::new(p, *p != 2, false, false);
         algebra.compute_basis(max_degree);
         let mut output_vec = FpVector::new(p, 0);
         for i in 1 ..= max_degree {

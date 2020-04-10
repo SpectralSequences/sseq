@@ -330,7 +330,7 @@ mod tests {
     fn test_evaluate(){
         let p = ValidPrime::new(2);
         let max_degree = 30;
-        let adem = AdemAlgebra::new(p, *p != 2, false);
+        let adem = AdemAlgebra::new(p, *p != 2, false, false);
         let milnor = MilnorAlgebra::new(p);//, p != 2
         adem.compute_basis(max_degree);
         milnor.compute_basis(max_degree);
@@ -350,7 +350,7 @@ mod tests {
         }
         let p = ValidPrime::new(3);
         let max_degree = 30;
-        let adem = AdemAlgebra::new(p, *p != 2, false);
+        let adem = AdemAlgebra::new(p, *p != 2, false, false);
         let milnor = MilnorAlgebra::new(p);//, p != 2
         adem.compute_basis(max_degree);
         milnor.compute_basis(max_degree);

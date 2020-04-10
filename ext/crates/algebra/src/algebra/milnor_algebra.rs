@@ -965,10 +965,7 @@ impl MilnorAlgebra {
         out_vec.set_entry(idx, 0);
         let c_inv = fp::prime::inverse(p, *p - c);
         result.push((((*p - 1) * c_inv) % *p, first, second));
-        for (i, v) in out_vec.iter().enumerate() {
-            if v == 0 {
-                continue;
-            }
+        for (i, v) in out_vec.iter_nonzero() {
             for (c, t1, t2) in self.decompose_basis_element_ppart(degree, i){
                 result.push(((c_inv * c * v) % *p, t1, t2));
             }

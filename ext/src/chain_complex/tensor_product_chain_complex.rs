@@ -338,10 +338,7 @@ where
 
         let old_slice = result.slice();
 
-        for (i, x) in input.iter().enumerate() {
-            if x == 0 {
-                continue;
-            }
+        for (i, x) in input.iter_nonzero() {
             if let Some(qi) = &qis[i] {
                 for (offset_start, offset_end, data) in qi.iter() {
                     result.set_slice(*offset_start, *offset_end);
@@ -446,10 +443,8 @@ where
                         .apply_to_basis_element(&mut result, 1, left_t, li);
                     for ri in 0..source_right_dim {
                         let row = &mut matrix[row_count];
-                        for (i, x) in result.iter().enumerate() {
-                            if x != 0 {
-                                row.add_basis_element(target_offset + i * target_right_dim + ri, x);
-                            }
+                        for (i, x) in result.iter_nonzero() {
+                            row.add_basis_element(target_offset + i * target_right_dim + ri, x);
                         }
                         row_count += 1;
                     }

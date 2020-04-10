@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn test_hom_space() {
         let p = ValidPrime::new(2);
-        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false)));
+        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false, false)));
         A.compute_basis(20);
         let F = Arc::new(FreeModule::new(Arc::clone(&A), "".to_string(), 0));
         F.add_generators_immediate(0, 1, None);
@@ -243,7 +243,7 @@ mod tests {
     #[test]
     fn test_hom_space_elt_to_map() {
         let p = ValidPrime::new(2);
-        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false)));
+        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false, false)));
         A.compute_basis(20);
         let F = Arc::new(FreeModule::new(Arc::clone(&A), "".to_string(), 0));
         F.add_generators_immediate(0, 1, None);

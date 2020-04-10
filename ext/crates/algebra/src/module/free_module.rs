@@ -289,10 +289,7 @@ impl<A: Algebra> FreeModule<A> {
     pub fn element_to_json(&self, degree: i32, elt: &FpVector) -> Value {
         let mut result = Vec::new();
         let algebra = self.algebra();
-        for (i, v) in elt.iter().enumerate() {
-            if v == 0 {
-                continue;
-            }
+        for (i, v) in elt.iter_nonzero() {
             let opgen = self.index_to_op_gen(degree, i);
             result.push(json!({
                 "op" : algebra.json_from_basis(opgen.operation_degree, opgen.operation_index),
@@ -390,10 +387,7 @@ impl<A: Algebra> FreeModule<A> {
     fn standard_act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector) {
         assert!(input.dimension() == self.dimension(input_degree));
         let p = *self.prime();
-        for (i, v) in input.iter().enumerate() {
-            if v == 0 {
-                continue;
-            }
+        for (i, v) in input.iter_nonzer() {
             self.act_on_basis(result, (coeff * v) % p, op_degree, op_index, input_degree, i);
         }
     }
@@ -428,8 +422,7 @@ impl<A: Algebra> FreeModule<A> {
             degree: 0,
         };
 
-        let terms : Vec<usize> = input.iter().enumerate()
-            .filter(|(_, x)| *x != 0)
+        let terms : Vec<usize> = input.iter_nonzero()
             .map(|(i, _)| i)
             .collect();
 
@@ -615,7 +608,7 @@ mod tests {
     #[test]
     fn test_free_mod() {
         let p = ValidPrime::new(2);
-        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false)));
+        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false, false)));
         A.compute_basis(10);
         let M = FreeModule::new(Arc::clone(&A), "".to_string(), 0);
         M.extend_table_entries(10);

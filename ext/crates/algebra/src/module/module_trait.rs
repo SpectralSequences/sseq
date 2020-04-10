@@ -70,10 +70,7 @@ pub trait Module: Send + Sync + 'static {
     ) {
         assert!(input.dimension() <= self.dimension(input_degree));
         let p = self.prime();
-        for (i, v) in input.iter().enumerate() {
-            if v == 0 {
-                continue;
-            }
+        for (i, v) in input.iter_nonzero() {
             self.act_on_basis(
                 result,
                 (coeff * v) % *p,
@@ -96,10 +93,7 @@ pub trait Module: Send + Sync + 'static {
     ) {
         assert_eq!(input.dimension(), self.dimension(input_degree));
         let p = self.prime();
-        for (i, v) in op.iter().enumerate() {
-            if v == 0 {
-                continue;
-            }
+        for (i, v) in op.iter_nonzero() {
             self.act(result, (coeff * v) % *p, op_degree, i, input_degree, input);
         }
     }
@@ -117,10 +111,7 @@ pub trait Module: Send + Sync + 'static {
     fn element_to_string(&self, degree: i32, element: &FpVector) -> String {
         let mut result = String::new();
         let mut zero = true;
-        for (idx, value) in element.iter().enumerate() {
-            if value == 0 {
-                continue;
-            }
+        for (idx, value) in element.iter_nonzero() {
             zero = false;
             if value != 1 {
                 result.push_str(&format!("{} ", value));

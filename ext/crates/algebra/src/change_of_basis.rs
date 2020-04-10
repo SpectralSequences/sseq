@@ -207,7 +207,7 @@ mod tests {
     fn test_cob_milnor_qs_to_adem(){
         let p = ValidPrime::new(2);
         let max_degree = 16;
-        let adem = AdemAlgebra::new(p, *p != 2, false);
+        let adem = AdemAlgebra::new(p, *p != 2, false, false);
         let milnor = MilnorAlgebra::new(p);
         adem.compute_basis(max_degree);
         milnor.compute_basis(max_degree);
@@ -231,7 +231,7 @@ mod tests {
     )]    
    fn test_cob_adem_to_milnor(p : u32, max_degree : i32){
         let p = ValidPrime::new(p);
-        let adem = AdemAlgebra::new(p, *p != 2, false);
+        let adem = AdemAlgebra::new(p, *p != 2, false, false);
         let milnor = MilnorAlgebra::new(p);//, p != 2
         adem.compute_basis(max_degree);
         milnor.compute_basis(max_degree);

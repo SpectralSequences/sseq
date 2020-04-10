@@ -578,7 +578,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(ValidPrime::new(2), false, false)));
+        let algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(ValidPrime::new(2), false, false, false)));
         let module = Arc::new(FiniteModule::from(FDModule::new(algebra, "".to_string(), BiVec::from_vec(0, vec![1]))));
         let chain_complex : Arc<CCC> = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
         let resolution = Resolution::new(chain_complex, None, None);
