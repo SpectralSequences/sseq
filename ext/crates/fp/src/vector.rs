@@ -1200,14 +1200,11 @@ impl FpVectorT for FpVector3 {
         return limb_2;
     }
 
-    // This code contributed by Robert Burklund
     fn reduce_quotient_limb(&self, limb : u64) -> (u64, u64) {
-        let top_bit = 0x4924924924924924u64;
-        let middle_bit = top_bit >> 1;
-        let bottom_bit = top_bit >> 2;
-        let a = ((limb + bottom_bit) & top_bit) >> 2;
-        let b = (limb & (limb >> 1) & middle_bit) >> 1;
-        return (self.reduce_limb(limb), a + b);
+        let rem = self.reduce_limb(limb);
+        let a = limb - rem;
+        let quot = a & (a >> 1);
+        (rem, quot)
     }
 
     fn prime (&self) -> ValidPrime { ValidPrime::new(3) }
@@ -1240,25 +1237,16 @@ impl FpVectorT for FpVector5 {
 
     // This code contributed by Robert Burklund
     fn reduce_quotient_limb(&self, limb : u64) -> (u64, u64) {
-        // A = (X & 11100) >> 2
-        // B = ((01111 - (X & 00011) + A) & 10000) >> 4
-        // output A - B
-
-        println!("   limb : {}" , FpVector::limb_string_x(self.prime(), limb));
         let bottom_bit = 0x84210842108421u64;
         let bottom_two_bits = bottom_bit | (bottom_bit << 1);
-        let top_bit = bottom_bit << 4;
         let top_three_bits = !bottom_two_bits;
+        let top_bit = bottom_bit << 4;
+        let bottom_four_bits = !top_bit;
         let a = (limb & top_three_bits) >> 2;
-        println!("      a : {}" , FpVector::limb_string_x(self.prime(), a));
-        println!("   l&b2 : {}", FpVector::limb_string_x(self.prime(), limb & bottom_two_bits));
-        println!(" l&b2-a : {}", FpVector::limb_string_x(self.prime(), top_bit + (limb & bottom_two_bits) - a));
-        println!(" l&b2-a : {}", FpVector::limb_string_x(self.prime(), (top_bit + (limb & bottom_two_bits) - a)&top_bit));
-        let b = ((top_bit + (limb & bottom_two_bits) - a) & top_bit) >> 4;
-        println!("   b : {}" , FpVector::limb_string_x(self.prime(), b));
-        let rem = self.reduce_limb(limb);
-        (rem, a-b)
-        // let quot = (limb - rem) / 5;
+        let b = ((bottom_four_bits - (limb & bottom_two_bits) + a) & top_bit) >> 4;
+        let quot = a - b;
+        let rem = limb - 5*quot;
+        (rem, quot)
     }
 
     fn prime(&self) -> ValidPrime { ValidPrime::new(5) }
@@ -1430,7 +1418,7 @@ impl FpVector {
         let mut result = String::new();
         result.push_str("[");
         for j in (bit_min .. bit_max).step_by(bit_length) {
-            let s = format!("{:05b}, ", ((limb >> j) & bit_mask) as u32);
+            let s = format!("{:b}, ",  ((limb >> j) & bit_mask) as u32);
             result.push_str(&s);
         }
         result.push_str("]");  
@@ -1697,22 +1685,20 @@ pub struct FpVector2IteratorNonzero<'a> {
     limb_index : usize,
     cur_limb_entries_left : usize,
     cur_limb : u64,
-    counter : isize,
     idx : usize
 }
 
 impl<'a> FpVector2IteratorNonzero<'a> {
     fn new(vec : &'a FpVector) -> Self {
-        let counter = vec.dimension() as isize;
+        let dim = vec.dimension() as isize;
         let limbs = vec.limbs();
 
-        if counter == 0 {
+        if dim == 0 {
             return Self {
                 limbs,
                 limb_index : 0,
                 cur_limb_entries_left : 0,
                 cur_limb: 0,
-                counter,
                 idx : 0,
             }
         }
@@ -1725,7 +1711,6 @@ impl<'a> FpVector2IteratorNonzero<'a> {
             limb_index : pair.limb,
             cur_limb_entries_left : 64 - (min_index % 64),
             cur_limb,
-            counter,
             idx : 0,
         }
     }
@@ -1734,20 +1719,35 @@ impl<'a> FpVector2IteratorNonzero<'a> {
 impl<'a> Iterator for FpVector2IteratorNonzero<'a> {
     type Item = (usize, u32);
     fn next(&mut self) -> Option<Self::Item> {
-        let tz = (self.cur_limb | (1 << self.cur_limb_entries_left)).trailing_zeros();
-        self.idx += tz as usize;
-        self.cur_limb_entries_left -= tz as usize;
-        self.cur_limb >>= tz;
-        self.counter -= tz as isize;
-        if self.counter <= 0 {
-            return None;
-        } else if self.cur_limb_entries_left == 0 {
-            self.limb_index += 1;
-            self.cur_limb = self.limbs[self.limb_index];
-            self.cur_limb_entries_left = 63;
-            return self.next();
+        println!("\n\nNext");
+        loop {
+            println!("  idx : {}", self.idx);
+            println!("  working on cur_limb : {}", FpVector::limb_string_x(ValidPrime::new(2), self.cur_limb));
+            let tz = (self.cur_limb | 1u64.checked_shl(self.cur_limb_entries_left as u32).unwrap_or(0)).trailing_zeros();
+            println!("  tz: {} <? entries_left : {}", tz, self.cur_limb_entries_left);
+            self.idx += tz as usize;
+            self.cur_limb_entries_left -= tz as usize;
+            if self.cur_limb_entries_left == 0 {
+                self.limb_index += 1;
+                self.cur_limb_entries_left = 64;
+                if self.limb_index < self.limbs.len() {
+                    self.cur_limb = self.limbs[self.limb_index];
+                } else {
+                    return None;
+                }
+                continue;
+            } 
+            self.cur_limb >>= tz;
+            if tz == 0 {
+                println!("finished. idx : {}", self.idx);
+                break;
+            }
         }
-        Some((self.idx, 1))
+        let result = (self.idx, 1);
+        self.idx += 1;
+        self.cur_limb_entries_left -= 1;
+        self.cur_limb >>= 1;
+        Some(result)
     }
 }
 
@@ -1811,6 +1811,13 @@ impl<'a> FpVectorGenericIteratorNonzero<'a> {
     }
 }
 
+impl<'a> Iterator for FpVectorGenericIteratorNonzero<'a> {
+    type Item = (usize, u32);
+    fn next(&mut self) -> Option<Self::Item> {
+        unimplemented!()
+    }
+}
+
 pub enum FpVectorIteratorNonzero<'a> {
     FpVec2(FpVector2IteratorNonzero<'a>),
     FpVec3(FpVector3IteratorNonzero<'a>),
@@ -1829,6 +1836,17 @@ impl<'a> FpVectorIteratorNonzero<'a> {
     }
 }
 
+impl<'a> Iterator for FpVectorIteratorNonzero<'a> {
+    type Item = (usize, u32);
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::FpVec2(vec) => vec.next(),
+            Self::FpVec3(vec) => vec.next(),
+            Self::FpVec5(vec) => vec.next(),
+            Self::FpVecGeneric(vec) => vec.next(),
+        }
+    }
+}
 
 
 
@@ -2696,11 +2714,11 @@ mod tests {
         initialize_limb_bit_index_table(p_);
         for &dim in &[10, 20, 70, 100, 1000] {
             println!("p: {}, dim: {}", p, dim);
-            const e_max : usize = 4;
+            const E_MAX : usize = 4;
             let p_to_the_e_max = (p*p*p*p)*p;
-            let mut v = Vec::with_capacity(e_max+1);
-            let mut w = Vec::with_capacity(e_max+1);
-            for i in 0..=e_max {
+            let mut v = Vec::with_capacity(E_MAX+1);
+            let mut w = Vec::with_capacity(E_MAX+1);
+            for i in 0..=E_MAX {
                 v.push(FpVector::new(p_, dim));
                 w.push(FpVector::new(p_, dim));
             }
@@ -2709,7 +2727,7 @@ mod tests {
             for i in 0 .. dim {
                 let mut ev = v_arr[i];
                 let mut ew = w_arr[i];
-                for e in 0..=e_max {
+                for e in 0..=E_MAX {
                     v[e].set_entry(i, ev % p);
                     w[e].set_entry(i, ew % p);
                     ev /= p;
@@ -2718,31 +2736,31 @@ mod tests {
             }
             
             println!("in  : {:?}", v_arr);
-            for e in (0 ..= e_max) {
+            for e in 0 ..= E_MAX {
                 println!("in {}: {}", e, v[e]);
             }
             println!("");
             
             println!("in  : {:?}", w_arr);
-            for e in (0 ..= e_max) {
+            for e in 0 ..= E_MAX {
                 println!("in {}: {}", e, w[e]);
             }
             println!("");
 
-            for e in 0 ..= e_max {
+            for e in 0 ..= E_MAX {
                 let (first, rest) = v[e..].split_at_mut(1);
                 first[0].add_carry(&w[e], 1, rest);
             }
 
             let mut vec_result = vec![0; dim];
             for i in 0 .. dim {
-                for e in (0 ..= e_max).rev() {
+                for e in (0 ..= E_MAX).rev() {
                     vec_result[i] *= p;
                     vec_result[i] += v[e].entry(i);
                 }
             }
 
-            for e in (0 ..= e_max) {
+            for e in 0 ..= E_MAX {
                 println!("out{}: {}", e, v[e]);
             }
             println!("");
@@ -2880,4 +2898,57 @@ mod tests {
     //         v.clear_slice();
     //     }
     // }
+
+    #[rstest(p, case(2))]//, case(3), case(5))]//, case(7))]
+    fn test_iter_nonzero(p : u32) {
+        let p_ = ValidPrime::new(p);
+        println!("p : {}", p);
+        initialize_limb_bit_index_table(p_);
+        let dim_list = [20, 66, 100, 270, 1000];
+        for i in 0..dim_list.len() {
+            let dim = dim_list[i];
+            let slice_start = [5, 10, 20, 30, 290][i];
+            let slice_end = (dim + slice_start)/2;
+            let v_arr = random_vector(p, dim);
+            let mut v = FpVector::new(p_, dim);
+            v.pack(&v_arr);
+            let mut result = Vec::new();
+            for (idx, v) in v.iter_nonzero() {
+                result.push((idx, v));
+            }
+            let mut comparison_result = Vec::new();
+            for (idx, v) in v_arr.iter().enumerate() {
+                if *v != 0 {
+                    comparison_result.push((idx, *v));
+                }
+            }
+
+            let mut i = 0;
+            let mut j = 0;
+            let mut diffs_str = String::new();
+            while i < result.len() && j < comparison_result.len() {
+                if result[i] != comparison_result[j] {
+                    if result[i].0 < comparison_result[j].0 {
+                        diffs_str.push_str(&format!(
+                            "\n({:?}) present in result, missing from comparison_result", result[i]
+                        ));
+                        i += 1;
+                    } else {
+                        diffs_str.push_str(&format!(
+                            "\n({:?}) present in comparison_result, missing from result", comparison_result[j]
+                        ));
+                        j += 1;                        
+                    }
+                } else {
+                    i += 1;
+                    j += 1;
+                }
+            }
+            for i in 0 .. std::cmp::min(result.len(), comparison_result.len()) {
+                println!("res : {:?}, comp : {:?}", result[i], comparison_result[i]);
+            }
+            assert!(diffs_str == "", diffs_str);
+            println!("{:?}", v_arr);
+        }
+    }
 }
