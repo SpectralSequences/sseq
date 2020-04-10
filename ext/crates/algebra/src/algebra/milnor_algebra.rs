@@ -17,6 +17,14 @@ use nom::{
     sequence::{delimited, pair},
 };
 
+// This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
+// In order for things to work AdemAlgebraT cannot implement Algebra.
+// Otherwise, the algebra enum for our bindings will see an implementation clash.
+pub trait MilnorAlgebraT : Send + Sync + 'static + Algebra {
+    fn to_milnor_algebra(&self) -> &MilnorAlgebra;
+}
+
+
 pub struct MilnorProfile {
     pub truncated : bool,
     pub q_part : u32,

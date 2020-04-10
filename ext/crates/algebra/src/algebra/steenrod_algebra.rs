@@ -1,9 +1,10 @@
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
-use crate::algebra::Algebra;
-use crate::algebra::Bialgebra;
-use crate::algebra::AdemAlgebra;
-use crate::algebra::MilnorAlgebra;
+use crate::algebra::{
+    Algebra, Bialgebra,
+    AdemAlgebra, AdemAlgebraT,
+    MilnorAlgebra, MilnorAlgebraT
+};
 
 use enum_dispatch::enum_dispatch;
 use serde::Deserialize;
@@ -36,8 +37,24 @@ impl SteenrodAlgebraT for SteenrodAlgebra {
     }
 }
 
+impl<A : SteenrodAlgebraT> AdemAlgebraT for A {
+    fn to_adem_algebra(&self) -> &AdemAlgebra {
+        match self.to_steenrod_algebra() {
+            SteenrodAlgebraBorrow::BorrowAdem(a) => a,
+            SteenrodAlgebraBorrow::BorrowMilnor(a) => panic!(),
+        }
+    }
+}
 
 
+impl<A : SteenrodAlgebraT> MilnorAlgebraT for A {
+    fn to_milnor_algebra(&self) -> &MilnorAlgebra {
+        match self.to_steenrod_algebra() {
+            SteenrodAlgebraBorrow::BorrowAdem(a) => panic!(),
+            SteenrodAlgebraBorrow::BorrowMilnor(a) => a,
+        }
+    }
+}
 
 impl Bialgebra for SteenrodAlgebra {
     fn decompose (&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize)> {

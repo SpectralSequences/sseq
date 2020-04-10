@@ -1747,7 +1747,6 @@ impl<'a> Iterator for FpVector2IteratorNonzero<'a> {
     }
 }
 
-
 pub struct FpVector3IteratorNonzero<'a> {
     limbs : &'a Vec<u64>,
     limb_index : usize,
@@ -1800,8 +1799,8 @@ impl<'a> Iterator for FpVector3IteratorNonzero<'a> {
         const USABLE_BITS_PER_LIMB : usize = ENTRIES_PER_LIMB * BITS_PER_ENTRY;
         loop {
             let tz_real = (self.cur_limb | 1u64.checked_shl(self.cur_limb_bits_left as u32).unwrap_or(0)).trailing_zeros();
-            let tz_rem = (tz_real as u8) % (BITS_PER_ENTRY as u8);
-            let tz_div = (tz_real as u8) / (BITS_PER_ENTRY as u8);
+            let tz_rem = ((tz_real as u8) % (BITS_PER_ENTRY as u8)) as u32;
+            let tz_div = ((tz_real as u8) / (BITS_PER_ENTRY as u8)) as u32;
             let tz = tz_real - tz_rem;
             // println!("  tz: {} <? entries_left : {}", tz, self.cur_limb_entries_left);
             self.idx += tz_div as usize;
@@ -1885,8 +1884,8 @@ impl<'a> Iterator for FpVector5IteratorNonzero<'a> {
         const USABLE_BITS_PER_LIMB : usize = ENTRIES_PER_LIMB * BITS_PER_ENTRY;
         loop {
             let tz_real = (self.cur_limb | 1u64.checked_shl(self.cur_limb_bits_left as u32).unwrap_or(0)).trailing_zeros();
-            let tz_rem = (tz_real as u8) % (BITS_PER_ENTRY as u8);
-            let tz_div = (tz_real as u8) / (BITS_PER_ENTRY as u8);
+            let tz_rem = ((tz_real as u8) % (BITS_PER_ENTRY as u8)) as u32;
+            let tz_div = ((tz_real as u8) / (BITS_PER_ENTRY as u8)) as u32;
             let tz = tz_real - tz_rem;
             // println!("  tz: {} <? entries_left : {}", tz, self.cur_limb_entries_left);
             self.idx += tz_div as usize;

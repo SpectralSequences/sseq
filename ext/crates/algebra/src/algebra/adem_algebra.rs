@@ -19,6 +19,13 @@ use nom::{
 };
 use serde_json::value::Value;
 
+// This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
+// In order for things to work AdemAlgebraT cannot implement Algebra.
+// Otherwise, the algebra enum for our bindings will see an implementation clash.
+pub trait AdemAlgebraT : Send + Sync + 'static + Algebra {
+    fn to_adem_algebra(&self) -> &AdemAlgebra;
+}
+
 
 lazy_static!{
     static ref BOCKSTEIN_TABLE : Vec<Vec<u32>> = {
