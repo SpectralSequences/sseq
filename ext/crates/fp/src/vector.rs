@@ -1690,6 +1690,7 @@ pub struct FpVector2IteratorNonzero<'a> {
 
 impl<'a> FpVector2IteratorNonzero<'a> {
     fn new(vec : &'a FpVector) -> Self {
+        const ENTRIES_PER_LIMB : usize = 64;
         let dim = vec.dimension() as isize;
         let limbs = vec.limbs();
 
@@ -1709,7 +1710,7 @@ impl<'a> FpVector2IteratorNonzero<'a> {
         Self {
             limbs,
             limb_index : pair.limb,
-            cur_limb_entries_left : 64 - (min_index % 64),
+            cur_limb_entries_left : ENTRIES_PER_LIMB - (min_index % ENTRIES_PER_LIMB),
             cur_limb,
             idx : 0,
         }
@@ -1719,12 +1720,8 @@ impl<'a> FpVector2IteratorNonzero<'a> {
 impl<'a> Iterator for FpVector2IteratorNonzero<'a> {
     type Item = (usize, u32);
     fn next(&mut self) -> Option<Self::Item> {
-        println!("\n\nNext");
         loop {
-            println!("  idx : {}", self.idx);
-            println!("  working on cur_limb : {}", FpVector::limb_string_x(ValidPrime::new(2), self.cur_limb));
             let tz = (self.cur_limb | 1u64.checked_shl(self.cur_limb_entries_left as u32).unwrap_or(0)).trailing_zeros();
-            println!("  tz: {} <? entries_left : {}", tz, self.cur_limb_entries_left);
             self.idx += tz as usize;
             self.cur_limb_entries_left -= tz as usize;
             if self.cur_limb_entries_left == 0 {
@@ -1739,7 +1736,6 @@ impl<'a> Iterator for FpVector2IteratorNonzero<'a> {
             } 
             self.cur_limb >>= tz;
             if tz == 0 {
-                println!("finished. idx : {}", self.idx);
                 break;
             }
         }
@@ -1756,21 +1752,84 @@ pub struct FpVector3IteratorNonzero<'a> {
     limbs : &'a Vec<u64>,
     limb_index : usize,
     cur_limb_entries_left : usize,
+    cur_limb_bits_left : usize,
     cur_limb : u64,
-    counter : isize,
     idx : usize
 }
 
 impl<'a> FpVector3IteratorNonzero<'a> {
     fn new(vec : &'a FpVector) -> Self {
-        unimplemented!()
+        const BITS_PER_ENTRY : usize = 3;
+        const ENTRIES_PER_LIMB : usize = 21;
+        // const USABLE_BITS_PER_LIMB = ENTRIES_PER_LIMB * BITS_PER_ENTRY;
+        let dim = vec.dimension() as isize;
+        let limbs = vec.limbs();
+
+        if dim == 0 {
+            return Self {
+                limbs,
+                limb_index : 0,
+                cur_limb_entries_left : 0,
+                cur_limb_bits_left : 0,
+                cur_limb: 0,
+                idx : 0,
+            }
+        }
+        let min_index = vec.min_index();
+        let pair = limb_bit_index_pair(vec.prime(), min_index);
+        let cur_limb = limbs[pair.limb] >> pair.bit_index;
+        let cur_limb_entries_left = ENTRIES_PER_LIMB - (min_index % ENTRIES_PER_LIMB);
+        let cur_limb_bits_left = cur_limb_entries_left * BITS_PER_ENTRY;
+        Self {
+            limbs,
+            limb_index : pair.limb,
+            cur_limb_entries_left,
+            cur_limb_bits_left,
+            cur_limb,
+            idx : 0,
+        }
     }
 }
 
 impl<'a> Iterator for FpVector3IteratorNonzero<'a> {
     type Item = (usize, u32);
     fn next(&mut self) -> Option<Self::Item> {
-        unimplemented!()
+        const BITS_PER_ENTRY : usize = 3;
+        const MASK : u64 = 0b111;
+        const ENTRIES_PER_LIMB : usize = 21;
+        const USABLE_BITS_PER_LIMB : usize = ENTRIES_PER_LIMB * BITS_PER_ENTRY;
+        loop {
+            let tz_real = (self.cur_limb | 1u64.checked_shl(self.cur_limb_bits_left as u32).unwrap_or(0)).trailing_zeros();
+            let tz_rem = tz_real % (BITS_PER_ENTRY as u32);
+            let tz_div = tz_real / (BITS_PER_ENTRY as u32);
+            let tz = tz_real - tz_rem;
+            // println!("  tz: {} <? entries_left : {}", tz, self.cur_limb_entries_left);
+            self.idx += tz_div as usize;
+            self.cur_limb_entries_left -= tz_div as usize;
+            self.cur_limb_bits_left -= tz as usize;
+            if self.cur_limb_entries_left == 0 {
+                self.limb_index += 1;
+                self.cur_limb_entries_left = ENTRIES_PER_LIMB;
+                self.cur_limb_bits_left = USABLE_BITS_PER_LIMB;
+                if self.limb_index < self.limbs.len() {
+                    self.cur_limb = self.limbs[self.limb_index];
+                } else {
+                    return None;
+                }
+                continue;
+            } 
+            self.cur_limb >>= tz;
+            if tz == 0 {
+                // println!("finished. idx : {}", self.idx);
+                break;
+            }
+        }
+        let result = (self.idx, (self.cur_limb & MASK) as u32);
+        self.idx += 1;
+        self.cur_limb_entries_left -= 1;
+        self.cur_limb_bits_left -= BITS_PER_ENTRY;
+        self.cur_limb >>= BITS_PER_ENTRY;
+        Some(result)
     }
 }
 
@@ -1778,24 +1837,89 @@ pub struct FpVector5IteratorNonzero<'a> {
     limbs : &'a Vec<u64>,
     limb_index : usize,
     cur_limb_entries_left : usize,
+    cur_limb_bits_left : usize,
     cur_limb : u64,
-    counter : isize,
     idx : usize
 }
 
 impl<'a> FpVector5IteratorNonzero<'a> {
     fn new(vec : &'a FpVector) -> Self {
-        unimplemented!()
+        const BITS_PER_ENTRY : usize = 5;
+        const ENTRIES_PER_LIMB : usize = 12;
+        // const USABLE_BITS_PER_LIMB = ENTRIES_PER_LIMB * BITS_PER_ENTRY;
+        let dim = vec.dimension() as isize;
+        let limbs = vec.limbs();
+
+        if dim == 0 {
+            return Self {
+                limbs,
+                limb_index : 0,
+                cur_limb_entries_left : 0,
+                cur_limb_bits_left : 0,
+                cur_limb: 0,
+                idx : 0,
+            }
+        }
+        let min_index = vec.min_index();
+        let pair = limb_bit_index_pair(vec.prime(), min_index);
+        let cur_limb = limbs[pair.limb] >> pair.bit_index;
+        let cur_limb_entries_left = ENTRIES_PER_LIMB - (min_index % ENTRIES_PER_LIMB);
+        let cur_limb_bits_left = cur_limb_entries_left * BITS_PER_ENTRY;
+        Self {
+            limbs,
+            limb_index : pair.limb,
+            cur_limb_entries_left,
+            cur_limb_bits_left,
+            cur_limb,
+            idx : 0,
+        }
     }
 }
 
 impl<'a> Iterator for FpVector5IteratorNonzero<'a> {
     type Item = (usize, u32);
     fn next(&mut self) -> Option<Self::Item> {
-        unimplemented!()
+        const BITS_PER_ENTRY : usize = 5;
+        const MASK : u64 = 0b11111;
+        const ENTRIES_PER_LIMB : usize = 12;
+        const USABLE_BITS_PER_LIMB : usize = ENTRIES_PER_LIMB * BITS_PER_ENTRY;
+        loop {
+            let tz_real = (self.cur_limb | 1u64.checked_shl(self.cur_limb_bits_left as u32).unwrap_or(0)).trailing_zeros();
+            let tz_rem = tz_real % (BITS_PER_ENTRY as u32);
+            let tz_div = tz_real / (BITS_PER_ENTRY as u32);
+            let tz = tz_real - tz_rem;
+            // println!("  tz: {} <? entries_left : {}", tz, self.cur_limb_entries_left);
+            self.idx += tz_div as usize;
+            self.cur_limb_entries_left -= tz_div as usize;
+            self.cur_limb_bits_left -= tz as usize;
+            if self.cur_limb_entries_left == 0 {
+                self.limb_index += 1;
+                self.cur_limb_entries_left = ENTRIES_PER_LIMB;
+                self.cur_limb_bits_left = USABLE_BITS_PER_LIMB;
+                if self.limb_index < self.limbs.len() {
+                    self.cur_limb = self.limbs[self.limb_index];
+                } else {
+                    return None;
+                }
+                continue;
+            } 
+            self.cur_limb >>= tz;
+            if tz == 0 {
+                // println!("finished. idx : {}", self.idx);
+                break;
+            }
+        }
+        let result = (self.idx, (self.cur_limb & MASK) as u32);
+        self.idx += 1;
+        self.cur_limb_entries_left -= 1;
+        self.cur_limb_bits_left -= BITS_PER_ENTRY;
+        self.cur_limb >>= BITS_PER_ENTRY;
+        Some(result)
     }
 }
 
+
+#[allow(dead_code)]
 pub struct FpVectorGenericIteratorNonzero<'a> {
     limbs : &'a Vec<u64>,
     limb_index : usize,
@@ -1805,6 +1929,7 @@ pub struct FpVectorGenericIteratorNonzero<'a> {
     idx : usize
 }
 
+#[allow(unused_variables)]
 impl<'a> FpVectorGenericIteratorNonzero<'a> {
     fn new(vec : &'a FpVector) -> Self {
         unimplemented!()
@@ -2716,9 +2841,9 @@ mod tests {
             println!("p: {}, dim: {}", p, dim);
             const E_MAX : usize = 4;
             let p_to_the_e_max = (p*p*p*p)*p;
-            let mut v = Vec::with_capacity(E_MAX+1);
-            let mut w = Vec::with_capacity(E_MAX+1);
-            for i in 0..=E_MAX {
+            let mut v = Vec::with_capacity(E_MAX + 1);
+            let mut w = Vec::with_capacity(E_MAX + 1);
+            for _ in 0 ..= E_MAX {
                 v.push(FpVector::new(p_, dim));
                 w.push(FpVector::new(p_, dim));
             }
@@ -2900,6 +3025,15 @@ mod tests {
     // }
 
     #[rstest(p, case(2))]//, case(3), case(5))]//, case(7))]
+    fn test_iter_nonzero_empty(p : u32) {
+        let p_ = ValidPrime::new(p);
+        let v = FpVector::new(p_, 0);
+        for (idx, v) in v.iter_nonzero() {
+            assert!(false);
+        }
+    }
+
+    #[rstest(p, case(2), case(3), case(5))]//, case(7))]
     fn test_iter_nonzero(p : u32) {
         let p_ = ValidPrime::new(p);
         println!("p : {}", p);
@@ -2912,16 +3046,20 @@ mod tests {
             let v_arr = random_vector(p, dim);
             let mut v = FpVector::new(p_, dim);
             v.pack(&v_arr);
+            v.set_slice(slice_start, slice_end);
             let mut result = Vec::new();
-            for (idx, v) in v.iter_nonzero() {
-                result.push((idx, v));
+            for (idx, e) in v.iter_nonzero() {
+                result.push((idx, e));
             }
             let mut comparison_result = Vec::new();
-            for (idx, v) in v_arr.iter().enumerate() {
-                if *v != 0 {
-                    comparison_result.push((idx, *v));
+            for i in slice_start..slice_end {
+                if v_arr[i] != 0 {
+                    comparison_result.push((i - slice_start, v_arr[i]));
                 }
             }
+
+            // println!("v    : {}", v);
+            // println!("v_arr: {:?}", v_arr);
 
             let mut i = 0;
             let mut j = 0;
@@ -2944,11 +3082,10 @@ mod tests {
                     j += 1;
                 }
             }
-            for i in 0 .. std::cmp::min(result.len(), comparison_result.len()) {
-                println!("res : {:?}, comp : {:?}", result[i], comparison_result[i]);
-            }
+            // for i in 0 .. std::cmp::min(result.len(), comparison_result.len()) {
+            //     println!("res : {:?}, comp : {:?}", result[i], comparison_result[i]);
+            // }
             assert!(diffs_str == "", diffs_str);
-            println!("{:?}", v_arr);
         }
     }
 }
