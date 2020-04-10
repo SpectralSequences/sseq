@@ -86,7 +86,7 @@ impl SteenrodAlgebra {
 
         let algebra : SteenrodAlgebra;
         match algebra_name.as_ref() {
-            "adem" => algebra = SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, *p != 2, false)),
+            "adem" => algebra = SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, *p != 2, false, false)),
             "milnor" => {
                 let mut algebra_inner = MilnorAlgebra::new(p);
                 if let Some(profile) = spec.profile {

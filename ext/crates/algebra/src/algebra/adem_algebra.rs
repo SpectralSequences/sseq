@@ -122,6 +122,7 @@ pub struct AdemAlgebra {
     name : String,
     pub generic : bool,
     pub unstable : bool,
+    pub unstable_enabled : bool,
     next_degree : Mutex<i32>,
     even_basis_table : OnceVec<Vec<AdemBasisElement>>,
     basis_table : OnceVec<Vec<AdemBasisElement>>, // degree -> index -> AdemBasisElement
@@ -203,7 +204,7 @@ impl Algebra for AdemAlgebra {
             self.generate_multiplication_table_2(*next_degree, max_degree);
         }
 
-        if self.unstable {
+        if self.unstable_enabled {
             self.generate_excess_table(max_degree);
         }
 
@@ -411,14 +412,14 @@ impl Algebra for AdemAlgebra {
 // static void AdemAlgebra__initializeFields(AdemAlgebraInternal *algebra, uint p, bool generic, bool unstable);
 // uint AdemAlgebra__generateName(AdemAlgebra *algebra); // defined in adem_io
 impl AdemAlgebra {
-    pub fn new(p : ValidPrime, generic : bool, unstable : bool) -> Self {
+    pub fn new(p : ValidPrime, generic : bool, unstable : bool, unstable_enabled : bool) -> Self {
         fp::vector::initialize_limb_bit_index_table(p);
         let even_basis_table = OnceVec::new();
         let basis_table = OnceVec::new();
         let basis_element_to_index_map = OnceVec::new();
         let multiplication_table = OnceVec::new();
         let excess_table = OnceVec::new();
-        let sort_order = if unstable { 
+        let sort_order = if unstable_enabled { 
             Some(adem_basis_element_excess_sort_order as fn(&AdemBasisElement, &AdemBasisElement) -> Ordering) 
         } else { None };
         Self {
@@ -427,6 +428,7 @@ impl AdemAlgebra {
             generic,
             next_degree : Mutex::new(0),
             unstable,
+            unstable_enabled,
             even_basis_table,
             basis_table,
             basis_element_to_index_map,
@@ -982,7 +984,7 @@ impl AdemAlgebra {
 
     fn make_mono_admissible_generic(
         &self, result : &mut FpVector, coeff : u32, monomial : &mut AdemBasisElement,
-        mut idx : i32, mut leading_degree : i32, excess : i32, stop_early : bool        
+        mut idx : i32, mut leading_degree : i32, excess : i32, stop_early : bool
     ){
         let p = *self.prime();
         let q = 2*p-2;

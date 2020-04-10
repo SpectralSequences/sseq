@@ -157,7 +157,7 @@ pub fn interactive_module_define() -> error::Result<String>{
 
 
 pub fn interactive_module_define_fdmodule(output_json : &mut Value, p : ValidPrime, generic : bool, name: String) -> error::Result<()>{
-    let algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, generic, false)));
+    let algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, generic, false, false)));
 
     let min_degree = 0i32;
     let gens = get_gens(min_degree)?;
@@ -227,8 +227,8 @@ pub fn interactive_module_define_fpmodule(output_json : &mut Value, p : ValidPri
     let gens = get_gens(min_degree)?;
     let max_degree = 20;
 
-    let steenrod_algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, generic, false)));
-    let adem_algebra = AdemAlgebra::new(p, generic, false);
+    let steenrod_algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, generic, false, false)));
+    let adem_algebra = AdemAlgebra::new(p, generic, false, false);
     let milnor_algebra = MilnorAlgebra::new(p);
 
     steenrod_algebra.compute_basis(max_degree);

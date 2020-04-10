@@ -16,7 +16,7 @@ pub struct SteenrodCalculator {
 impl SteenrodCalculator {
     pub fn new(p : ValidPrime) -> Self {
         Self {
-            adem_algebra : AdemAlgebra::new(p, *p != 2, false),
+            adem_algebra : AdemAlgebra::new(p, *p != 2, false, false),
             milnor_algebra : MilnorAlgebra::new(p)
         }
     }
