@@ -90,7 +90,7 @@ pub fn initialize_limb_bit_index_table(p : ValidPrime){
     if *p == 2 {
         return;
     }
-    unsafe{
+    unsafe {
         LIMB_BIT_INDEX_ONCE_TABLE[PRIME_TO_INDEX_MAP[*p as usize]].call_once(||{
             let entries_per_limb = entries_per_64_bits(p);
             let bit_length = bit_length(p);
@@ -324,7 +324,6 @@ impl AddShiftRightData {
 
 #[enum_dispatch(FpVector)]
 pub trait FpVectorT {
-
     fn add_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> u64 {
         limb_a + (coeff as u64 * limb_b)
     }
@@ -527,7 +526,6 @@ pub trait FpVectorT {
         self.put_limbs(target_limbs);
         Ok(())
     }
-
 
     // These could be static but enum_dispatch needs them to take &self.
     fn is_reduced_limb(&self, limb : u64) -> bool;
@@ -1076,7 +1074,6 @@ impl FpVectorT for FpVector2 {
     }
 
 
-
     fn prime(&self) -> ValidPrime { ValidPrime::new(2) }
     fn vector_container (&self) -> &VectorContainer { &self.vector_container }
     fn vector_container_mut(&mut self) -> &mut VectorContainer { &mut self.vector_container }
@@ -1243,20 +1240,25 @@ impl FpVectorT for FpVector5 {
 
     // This code contributed by Robert Burklund
     fn reduce_quotient_limb(&self, limb : u64) -> (u64, u64) {
-        // println!("limb : {}" , FpVector::limb_string(self.prime(), limb));
-        // let bottom_bit = 0x84210842108421u64;
-        // let bottom_two_bits = bottom_bit | (bottom_bit << 1);
-        // let top_bit = bottom_bit << 4;
-        // let top_three_bits = !bottom_two_bits;
-        // println!("   b2b : {}" , FpVector::limb_string(self.prime(), bottom_two_bits));
-        // println!("   t3b : {}" , FpVector::limb_string(self.prime(), top_three_bits));
-        // let a = (limb & top_three_bits) >> 2;
-        // println!("   a : {}" , FpVector::limb_string(self.prime(), a));
-        // let b = ((top_bit + (limb & bottom_two_bits) - a) & top_bit) >> 4;
-        // println!("   b : {}" , FpVector::limb_string(self.prime(), b));
+        // A = (X & 11100) >> 2
+        // B = ((01111 - (X & 00011) + A) & 10000) >> 4
+        // output A - B
+
+        println!("   limb : {}" , FpVector::limb_string_x(self.prime(), limb));
+        let bottom_bit = 0x84210842108421u64;
+        let bottom_two_bits = bottom_bit | (bottom_bit << 1);
+        let top_bit = bottom_bit << 4;
+        let top_three_bits = !bottom_two_bits;
+        let a = (limb & top_three_bits) >> 2;
+        println!("      a : {}" , FpVector::limb_string_x(self.prime(), a));
+        println!("   l&b2 : {}", FpVector::limb_string_x(self.prime(), limb & bottom_two_bits));
+        println!(" l&b2-a : {}", FpVector::limb_string_x(self.prime(), top_bit + (limb & bottom_two_bits) - a));
+        println!(" l&b2-a : {}", FpVector::limb_string_x(self.prime(), (top_bit + (limb & bottom_two_bits) - a)&top_bit));
+        let b = ((top_bit + (limb & bottom_two_bits) - a) & top_bit) >> 4;
+        println!("   b : {}" , FpVector::limb_string_x(self.prime(), b));
         let rem = self.reduce_limb(limb);
-        let quot = (limb - rem) / 5;
-        return (rem, quot);
+        (rem, a-b)
+        // let quot = (limb - rem) / 5;
     }
 
     fn prime(&self) -> ValidPrime { ValidPrime::new(5) }
@@ -1361,6 +1363,10 @@ impl FpVector {
         FpVectorIterator::new(self)
     }
 
+    pub fn iter_nonzero(&self) -> FpVectorIteratorNonzero {
+        FpVectorIteratorNonzero::new(self)
+    }    
+
     // pub fn 
 
     fn pack_limb(p : ValidPrime, dimension : usize, offset : usize, limb_array : &[u32], limbs : &mut Vec<u64>, limb_idx : usize) -> usize {
@@ -1408,6 +1414,23 @@ impl FpVector {
         result.push_str("[");
         for j in (bit_min .. bit_max).step_by(bit_length) {
             let s = format!("{}, ", ((limb >> j) & bit_mask) as u32);
+            result.push_str(&s);
+        }
+        result.push_str("]");  
+        result
+    }
+
+    #[allow(dead_code)]
+    fn limb_string_x(p : ValidPrime, limb : u64) -> String {
+        let bit_length = bit_length(p);
+        let entries_per_64_bits = entries_per_64_bits(p);
+        let bit_mask = bitmask(p);
+        let bit_min = 0usize;
+        let bit_max = bit_length * entries_per_64_bits;
+        let mut result = String::new();
+        result.push_str("[");
+        for j in (bit_min .. bit_max).step_by(bit_length) {
+            let s = format!("{:05b}, ", ((limb >> j) & bit_mask) as u32);
             result.push_str(&s);
         }
         result.push_str("]");  
@@ -1579,12 +1602,12 @@ pub struct FpVectorIterator<'a> {
 }
 
 impl<'a> FpVectorIterator<'a> {
-    fn new(vec : &'a FpVector) -> FpVectorIterator {
+    fn new(vec : &'a FpVector) -> Self {
         let counter = vec.dimension();
         let limbs = vec.limbs();
 
         if counter == 0 {
-            return FpVectorIterator {
+            return Self {
                 limbs,
                 bit_length : 0,
                 entries_per_64_bits_m_1 : 0,
@@ -1604,7 +1627,7 @@ impl<'a> FpVectorIterator<'a> {
         let cur_limb = limbs[pair.limb] >> pair.bit_index;
 
         let entries_per_64_bits = entries_per_64_bits(p);
-        FpVectorIterator {
+        Self {
             limbs,
             bit_length,
             entries_per_64_bits_m_1 : entries_per_64_bits - 1,
@@ -1655,7 +1678,7 @@ impl<'a> Iterator for FpVectorIterator<'a> {
         } else if self.entries_left == 0 {
             self.limb_index += 1;
             self.cur_limb = self.limbs[self.limb_index];
-            self.entries_left = self.entries_per_64_bits_m_1; // Set to entries_per_64_bits, then immediately decrement 1
+            self.entries_left = self.entries_per_64_bits_m_1;
         } else {
             self.entries_left -= 1;
         }
@@ -1667,6 +1690,147 @@ impl<'a> Iterator for FpVectorIterator<'a> {
         Some(result)
     }
 }
+
+
+pub struct FpVector2IteratorNonzero<'a> {
+    limbs : &'a Vec<u64>,
+    limb_index : usize,
+    cur_limb_entries_left : usize,
+    cur_limb : u64,
+    counter : isize,
+    idx : usize
+}
+
+impl<'a> FpVector2IteratorNonzero<'a> {
+    fn new(vec : &'a FpVector) -> Self {
+        let counter = vec.dimension() as isize;
+        let limbs = vec.limbs();
+
+        if counter == 0 {
+            return Self {
+                limbs,
+                limb_index : 0,
+                cur_limb_entries_left : 0,
+                cur_limb: 0,
+                counter,
+                idx : 0,
+            }
+        }
+        let min_index = vec.min_index();
+        let pair = limb_bit_index_pair(vec.prime(), min_index);
+        let cur_limb = limbs[pair.limb] >> pair.bit_index;
+
+        Self {
+            limbs,
+            limb_index : pair.limb,
+            cur_limb_entries_left : 64 - (min_index % 64),
+            cur_limb,
+            counter,
+            idx : 0,
+        }
+    }
+}
+
+impl<'a> Iterator for FpVector2IteratorNonzero<'a> {
+    type Item = (usize, u32);
+    fn next(&mut self) -> Option<Self::Item> {
+        let tz = (self.cur_limb | (1 << self.cur_limb_entries_left)).trailing_zeros();
+        self.idx += tz as usize;
+        self.cur_limb_entries_left -= tz as usize;
+        self.cur_limb >>= tz;
+        self.counter -= tz as isize;
+        if self.counter <= 0 {
+            return None;
+        } else if self.cur_limb_entries_left == 0 {
+            self.limb_index += 1;
+            self.cur_limb = self.limbs[self.limb_index];
+            self.cur_limb_entries_left = 63;
+            return self.next();
+        }
+        Some((self.idx, 1))
+    }
+}
+
+
+pub struct FpVector3IteratorNonzero<'a> {
+    limbs : &'a Vec<u64>,
+    limb_index : usize,
+    cur_limb_entries_left : usize,
+    cur_limb : u64,
+    counter : isize,
+    idx : usize
+}
+
+impl<'a> FpVector3IteratorNonzero<'a> {
+    fn new(vec : &'a FpVector) -> Self {
+        unimplemented!()
+    }
+}
+
+impl<'a> Iterator for FpVector3IteratorNonzero<'a> {
+    type Item = (usize, u32);
+    fn next(&mut self) -> Option<Self::Item> {
+        unimplemented!()
+    }
+}
+
+pub struct FpVector5IteratorNonzero<'a> {
+    limbs : &'a Vec<u64>,
+    limb_index : usize,
+    cur_limb_entries_left : usize,
+    cur_limb : u64,
+    counter : isize,
+    idx : usize
+}
+
+impl<'a> FpVector5IteratorNonzero<'a> {
+    fn new(vec : &'a FpVector) -> Self {
+        unimplemented!()
+    }
+}
+
+impl<'a> Iterator for FpVector5IteratorNonzero<'a> {
+    type Item = (usize, u32);
+    fn next(&mut self) -> Option<Self::Item> {
+        unimplemented!()
+    }
+}
+
+pub struct FpVectorGenericIteratorNonzero<'a> {
+    limbs : &'a Vec<u64>,
+    limb_index : usize,
+    cur_limb_entries_left : usize,
+    cur_limb : u64,
+    counter : isize,
+    idx : usize
+}
+
+impl<'a> FpVectorGenericIteratorNonzero<'a> {
+    fn new(vec : &'a FpVector) -> Self {
+        unimplemented!()
+    }
+}
+
+pub enum FpVectorIteratorNonzero<'a> {
+    FpVec2(FpVector2IteratorNonzero<'a>),
+    FpVec3(FpVector3IteratorNonzero<'a>),
+    FpVec5(FpVector5IteratorNonzero<'a>),
+    FpVecGeneric(FpVectorGenericIteratorNonzero<'a>)
+}
+
+impl<'a> FpVectorIteratorNonzero<'a> {
+    fn new(vec : &'a FpVector) -> Self {
+        match *vec.prime() {
+            2 => Self::FpVec2(FpVector2IteratorNonzero::new(vec)),
+            3 => Self::FpVec3(FpVector3IteratorNonzero::new(vec)),
+            5 => Self::FpVec5(FpVector5IteratorNonzero::new(vec)),
+            _ => Self::FpVecGeneric(FpVectorGenericIteratorNonzero::new(vec)),
+        }
+    }
+}
+
+
+
 
 impl fmt::Display for FpVector {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
