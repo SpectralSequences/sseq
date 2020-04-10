@@ -2518,5 +2518,180 @@ mod tests {
             }
             v.clear_slice();
         }
-    }    
+    }
+
+
+
+
+    #[rstest(p, case(2), case(3), case(5))]
+    fn test_add_carry(p : u32){
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
+        for &dim in &[10, 20, 70, 100, 1000] {
+            println!("p: {}, dim: {}", p, dim);
+            const e_max : usize = 4;
+            let p_to_the_e_max = p*p*p*p;
+            let mut v = Vec::with_capacity(e_max+1);
+            let mut w = Vec::with_capacity(e_max+1);
+            for i in 0..=e_max {
+                v.push(FpVector::new(p_, dim));
+                w.push(FpVector::new(p_, dim));
+            }
+            let v_arr = random_vector(p_to_the_e_max, dim);
+            let w_arr = random_vector(p_to_the_e_max, dim);
+            for i in 0..dim {
+                let mut ev = v_arr[i];
+                let mut ew = w_arr[i];
+                for e in 0..=e_max {
+                    v[e].set_entry(i, ev % p);
+                    w[e].set_entry(i, ew % p);
+                    ev /= p;
+                    ew /= p;
+                }
+            }
+
+            for e in 0..=e_max {
+                let (first, rest) = v[e..].split_at_mut(1);
+                first[0].add_carry(&w[e], 1, rest);
+            }
+
+            let mut vec_result = vec![0; dim];
+            for i in 0..dim {
+                for e in (0..=e_max).rev() {
+                    vec_result[i] *= p;
+                    vec_result[i] = v[e].entry(i);
+                }
+            }
+
+            let mut comparison_result = vec![0; dim];
+            for i in 0..dim {
+                comparison_result[i] = (v_arr[i] + w_arr[i]) % p_to_the_e_max;
+            }
+
+            let mut diffs = Vec::new();
+            let mut diffs_str = String::new();
+            for i in 0..dim {
+                if vec_result[i] != comparison_result[i] {
+                    diffs.push((i, comparison_result[i], vec_result[i]));
+                    diffs_str.push_str(&format!(
+                        "\nIn position {} expected {} got {}. v[i] = {}, w[i] = {}.", 
+                        i, comparison_result[i], vec_result[i],
+                        v_arr[i], w_arr[i]
+                    ));
+                }
+            }
+            assert!(diffs == [], diffs_str);
+        }
+    }
+
+    // #[rstest(p, case(2), case(3), case(5))]//, case(7))]
+    // fn test_add_carry_shift_right(p : u32) {
+    //     let p_ = ValidPrime::new(p);
+    //     println!("p : {}", p);
+    //     initialize_limb_bit_index_table(p_);
+    //     let dim_list = [10, 20, 70, 100, 1000];
+    //     for i in 0..dim_list.len() {
+    //         let dim = dim_list[i];
+    //         let slice_start = [5, 10, 20, 30, 290][i];
+    //         let slice_end = (dim + slice_start)/2;
+    //         let v_arr = random_vector(p, dim);
+    //         let mut v = FpVector::new(p_, dim);
+    //         v.pack(&v_arr);
+    //         let w_arr = random_vector(p, dim);
+    //         let mut w = FpVector::new(p_, dim);
+    //         w.pack(&w_arr);
+    //         v.set_slice(slice_start + 2, slice_end + 2);
+    //         w.set_slice(slice_start, slice_end);
+    //         let ok_q = v.add_truncate(&w, 1).is_ok();
+    //         v.clear_slice();
+    //         println!("\nok_q: {}\n" , ok_q);
+    //         if ok_q {
+    //             let mut diffs = String::new();
+    //             for i in 0..slice_start + 2 {
+    //                 if v.entry(i) != v_arr[i] {
+    //                     // diffs.push((i, dim,  "before", 0, 0,  v_arr[i], v.entry(i), v_arr.clone(), w_arr.clone()));
+    //                 }
+    //             }
+    //             for i in slice_start + 2 .. slice_end + 2 {
+    //                 if v.entry(i) != (v_arr[i] + w_arr[i - 2]) % p {
+    //                     diffs.push_str(&format!(
+    //                         "\n\ni : {}, dim : {}, v_arr[i] : {}, w_arr[i-2]: {}, v_arr[i] + w_arr[i-2] : {}, res[i] : {}, \nv_arr :\n{:?}\n\nw_arr :\n{:?}",
+    //                             i, dim, v_arr[i], w_arr[i-2], (v_arr[i] + w_arr[i - 2]) % p, v.entry(i), v_arr.clone(), w_arr.clone()
+    //                     ));
+    //                 }
+    //             }
+    //             for i in slice_end  + 2 .. dim {
+    //                 if v.entry(i) != v_arr[i] {
+    //                     // diffs.push((i, dim, "after", 0, 0, v_arr[i], v.entry(i), v_arr.clone(), w_arr.clone()));
+    //                 }
+    //             }
+    //             assert!(diffs == "", diffs);
+    //         } else {
+    //             let mut carried = false;
+    //             for i in slice_start + 2 .. slice_end + 2 {
+    //                 if (v_arr[i] + w_arr[i - 2]) >= p {
+    //                     carried = true; 
+    //                     break;
+    //                 }
+    //             }
+    //             assert!(carried);
+    //         }
+    //     }
+    // }
+
+    // #[rstest(p, case(2), case(3), case(5))]//, case(7))]
+    // fn test_add_carry_shift_left(p : u32) {
+    //     let p_ = ValidPrime::new(p);
+    //     println!("p : {}", p);
+    //     initialize_limb_bit_index_table(p_);
+    //     let dim_list = [10, 20, 70, 100, 1000];
+    //     for i in 0..dim_list.len() {
+    //         let dim = dim_list[i];
+    //         let slice_start = [5, 10, 20, 30, 290][i];
+    //         let slice_end = (dim + slice_start)/2;
+    //         let v_arr = random_vector(p, dim);
+    //         let mut v = FpVector::new(p_, dim);
+    //         v.pack(&v_arr);
+    //         let w_arr = random_vector(p, dim);
+    //         let mut w = FpVector::new(p_, dim);
+    //         w.pack(&w_arr);
+    //         v.set_slice(slice_start - 2, slice_end - 2);
+    //         w.set_slice(slice_start, slice_end);
+    //         let ok_q = v.add_truncate(&w, 1).is_ok();
+    //         v.clear_slice();
+    //         if ok_q {
+    //             let mut diffs = String::new();
+    //             for i in 0..slice_start - 2 {
+    //                 if v.entry(i) != v_arr[i] {
+    //                     // diffs.push((i, v_arr[i], v.entry(i)));
+    //                 }
+    //             }
+    //             for i in slice_start - 2 .. slice_end - 2 {
+    //                 if v.entry(i) != (v_arr[i] + w_arr[i + 2]) % p {
+    //                     diffs.push_str(&format!(
+    //                         "\n\ni : {}, dim : {}, v_arr[i] : {}, w_arr[i-2]: {}, v_arr[i] + w_arr[i-2] : {}, res[i] : {}, \nv_arr :\n{:?}\n\nw_arr :\n{:?}",
+    //                             i, dim, v_arr[i], w_arr[i-2], (v_arr[i] + w_arr[i - 2]) % p, v.entry(i), v_arr.clone(), w_arr.clone()
+    //                     ));                        
+    //                     // diffs.push((i, (v_arr[i] + w_arr[i + 2]) % p, v.entry(i)));
+    //                 }
+    //             }
+    //             for i in slice_end - 2 .. dim {
+    //                 if v.entry(i) != v_arr[i] {
+    //                     // diffs.push((i, v_arr[i], v.entry(i)));
+    //                 }
+    //             }
+    //             assert!(diffs == "", diffs);
+    //         } else {
+    //             let mut carried = false;
+    //             for i in slice_start - 2 .. slice_end - 2 {
+    //                 if (v_arr[i] + w_arr[i + 2]) >= p {
+    //                     carried = true;
+    //                     break;
+    //                 }
+    //             }
+    //             assert!(carried);
+    //         }
+    //         v.clear_slice();
+    //     }
+    // }
 }
