@@ -1089,7 +1089,7 @@ impl FpVectorT for FpVector2 {
 }
 
 impl FpVector2 {
-    pub fn add_carry<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) {
+    pub fn add_carry2<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) {
         if self.dimension() == 0 {
             return;
         }
@@ -1097,24 +1097,26 @@ impl FpVector2 {
             return;
         }
         match self.offset().cmp(&other.offset()) {
-            Ordering::Equal => self.add_carry_shift_none(other, rest),
-            Ordering::Less => self.add_carry_shift_left(other, rest),
-            Ordering::Greater => self.add_carry_shift_right(other, rest),
+            Ordering::Equal => self.add_carry_shift_none2(other, rest),
+            Ordering::Less => self.add_carry_shift_left2(other, rest),
+            Ordering::Greater => self.add_carry_shift_right2(other, rest),
         }
     }
 
-    pub fn add_carry_limb<'a>(&mut self, target_limbs : &mut Vec<u64>, idx : usize, source : u64, rest : &mut [FpVector]) {
+    pub fn add_carry_limb2<'a>(&mut self, idx : usize, source : u64, rest : &mut [FpVector]) {
         let mut cur_vec = self;
         let mut target_limbs;
+        let mut carry = source;
         for carry_vec in rest.iter_mut() {
             let carry_vec = match carry_vec {
                 FpVector::FpVector2(v) => v,
                 _ => panic!()
             };
             target_limbs = cur_vec.take_limbs();
-            let (rem, quot) = cur_vec.reduce_quotient_limb(target_limbs[idx]);
+            let rem = target_limbs[idx] ^ carry;
+            let quot = target_limbs[idx] & carry;
             target_limbs[idx] = rem;
-            carry_vec.limbs_mut()[idx] = carry_vec.add_limb(carry_vec.limbs()[idx], quot, 1);
+            carry = quot;
             cur_vec.put_limbs(target_limbs);
             cur_vec = carry_vec;
             if quot == 0 {
@@ -1122,69 +1124,63 @@ impl FpVector2 {
             }
         }
         target_limbs = cur_vec.take_limbs();
-        target_limbs[idx] = cur_vec.reduce_limb(target_limbs[idx]);
+        target_limbs[idx] = target_limbs[idx] ^ carry;
         cur_vec.put_limbs(target_limbs);
     }
 
-    pub fn add_carry_shift_none<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) {
+    pub fn add_carry_shift_none2<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) {
         let dat = AddShiftNoneData::new(self, other);
-        let mut target_limbs = self.take_limbs();
         let mut i = 0; {
-           self.add_carry_limb(&mut target_limbs, i + dat.min_target_limb, dat.mask_first_limb(other, i), rest);
+           self.add_carry_limb2(i + dat.min_target_limb, dat.mask_first_limb(other, i), rest);
         }
         for i in 1..dat.number_of_limbs-1 {
-            self.add_carry_limb(&mut target_limbs, i + dat.min_target_limb, dat.mask_middle_limb(other, i), rest)
+            self.add_carry_limb2(i + dat.min_target_limb, dat.mask_middle_limb(other, i), rest)
         }
         i = dat.number_of_limbs - 1;
         if i > 0 {
-            self.add_carry_limb(&mut target_limbs, i + dat.min_target_limb, dat.mask_last_limb(other, i), rest);
+            self.add_carry_limb2(i + dat.min_target_limb, dat.mask_last_limb(other, i), rest);
         }
-        self.put_limbs(target_limbs);
     }
 
     
-    pub fn add_carry_shift_left<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) {
+    pub fn add_carry_shift_left2<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) {
         let dat = AddShiftLeftData::new(self, other);
-        let mut target_limbs = self.take_limbs();
         let mut i = 0; {
-            self.add_carry_limb(&mut target_limbs, i + dat.min_target_limb, dat.mask_first_limb(other, i), rest);
+            self.add_carry_limb2(i + dat.min_target_limb, dat.mask_first_limb(other, i), rest);
         }
         for i in 1 .. dat.number_of_source_limbs - 1 {
-            self.add_carry_limb(&mut target_limbs, i + dat.min_target_limb, dat.mask_middle_limb_a(other, i), rest);
-            self.add_carry_limb(&mut target_limbs, i + dat.min_target_limb - 1, dat.mask_middle_limb_b(other, i), rest);
+            self.add_carry_limb2(i + dat.min_target_limb, dat.mask_middle_limb_a(other, i), rest);
+            self.add_carry_limb2(i + dat.min_target_limb - 1, dat.mask_middle_limb_b(other, i), rest);
         }
         i = dat.number_of_source_limbs - 1; 
         if i > 0 {
-            self.add_carry_limb(&mut target_limbs, i + dat.min_target_limb - 1, dat.mask_last_limb_a(other, i), rest);
+            self.add_carry_limb2(i + dat.min_target_limb - 1, dat.mask_last_limb_a(other, i), rest);
             if dat.number_of_source_limbs == dat.number_of_target_limbs {
-                self.add_carry_limb(&mut target_limbs, i + dat.min_target_limb, dat.mask_last_limb_b(other, i), rest);
+                self.add_carry_limb2(i + dat.min_target_limb, dat.mask_last_limb_b(other, i), rest);
             }
         }
-        self.put_limbs(target_limbs);
     }
 
 
-    pub fn add_carry_shift_right<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) {
+    pub fn add_carry_shift_right2<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) {
         let dat = AddShiftRightData::new(self, other);
-        let mut target_limbs = self.take_limbs();
         let mut i = 0; {
-            self.add_carry_limb(&mut target_limbs, i + dat.min_target_limb, dat.mask_first_limb_a(other, i), rest);
+            self.add_carry_limb2(i + dat.min_target_limb, dat.mask_first_limb_a(other, i), rest);
             if dat.number_of_target_limbs > 1 {
-                self.add_carry_limb(&mut target_limbs, i + dat.min_target_limb + 1, dat.mask_first_limb_b(other, i), rest);
+                self.add_carry_limb2(i + dat.min_target_limb + 1, dat.mask_first_limb_b(other, i), rest);
             }
         }
         for i in 1 .. dat.number_of_source_limbs-1 {
-            self.add_carry_limb(&mut target_limbs, i + dat.min_target_limb, dat.mask_middle_limb_a(other, i), rest);
-            self.add_carry_limb(&mut target_limbs, i + dat.min_target_limb + 1, dat.mask_middle_limb_b(other, i), rest);
+            self.add_carry_limb2(i + dat.min_target_limb, dat.mask_middle_limb_a(other, i), rest);
+            self.add_carry_limb2(i + dat.min_target_limb + 1, dat.mask_middle_limb_b(other, i), rest);
         }
         i = dat.number_of_source_limbs - 1;
         if i > 0 {
-            self.add_carry_limb(&mut target_limbs, i + dat.min_target_limb, dat.mask_last_limb_a(other, i), rest);
+            self.add_carry_limb2(i + dat.min_target_limb, dat.mask_last_limb_a(other, i), rest);
             if dat.number_of_target_limbs > dat.number_of_source_limbs {
-                self.add_carry_limb(&mut target_limbs, i + dat.min_target_limb + 1, dat.mask_last_limb_b(other, i), rest);
+                self.add_carry_limb2(i + dat.min_target_limb + 1, dat.mask_last_limb_b(other, i), rest);
             }
         }
-        self.put_limbs(target_limbs);
     }
 }
 
@@ -1247,13 +1243,20 @@ impl FpVectorT for FpVector5 {
 
     // This code contributed by Robert Burklund
     fn reduce_quotient_limb(&self, limb : u64) -> (u64, u64) {
-        let bottom_bit = 0x84210842108421u64;
-        let bottom_two_bits = bottom_bit | (bottom_bit << 1);
-        let top_bit = bottom_bit << 4;
-        let top_three_bits = !bottom_two_bits;
-        let a = (limb & top_three_bits) >> 2;
-        let b = ((top_bit + (limb & bottom_two_bits) - a) & top_bit) >> 4;
-        return (self.reduce_limb(limb), a - b);
+        // println!("limb : {}" , FpVector::limb_string(self.prime(), limb));
+        // let bottom_bit = 0x84210842108421u64;
+        // let bottom_two_bits = bottom_bit | (bottom_bit << 1);
+        // let top_bit = bottom_bit << 4;
+        // let top_three_bits = !bottom_two_bits;
+        // println!("   b2b : {}" , FpVector::limb_string(self.prime(), bottom_two_bits));
+        // println!("   t3b : {}" , FpVector::limb_string(self.prime(), top_three_bits));
+        // let a = (limb & top_three_bits) >> 2;
+        // println!("   a : {}" , FpVector::limb_string(self.prime(), a));
+        // let b = ((top_bit + (limb & bottom_two_bits) - a) & top_bit) >> 4;
+        // println!("   b : {}" , FpVector::limb_string(self.prime(), b));
+        let rem = self.reduce_limb(limb);
+        let quot = (limb - rem) / 5;
+        return (rem, quot);
     }
 
     fn prime(&self) -> ValidPrime { ValidPrime::new(5) }
@@ -1454,7 +1457,7 @@ impl FpVector {
             return;
         }
         if let FpVector::FpVector2(v) = self {
-            v.add_carry(other, c, rest);
+            v.add_carry2(other, c, rest);
             return
         }
         match self.offset().cmp(&other.offset()) {
@@ -2530,7 +2533,7 @@ mod tests {
         for &dim in &[10, 20, 70, 100, 1000] {
             println!("p: {}, dim: {}", p, dim);
             const e_max : usize = 4;
-            let p_to_the_e_max = p*p*p*p;
+            let p_to_the_e_max = (p*p*p*p)*p;
             let mut v = Vec::with_capacity(e_max+1);
             let mut w = Vec::with_capacity(e_max+1);
             for i in 0..=e_max {
@@ -2539,7 +2542,7 @@ mod tests {
             }
             let v_arr = random_vector(p_to_the_e_max, dim);
             let w_arr = random_vector(p_to_the_e_max, dim);
-            for i in 0..dim {
+            for i in 0 .. dim {
                 let mut ev = v_arr[i];
                 let mut ew = w_arr[i];
                 for e in 0..=e_max {
@@ -2549,24 +2552,43 @@ mod tests {
                     ew /= p;
                 }
             }
+            
+            println!("in  : {:?}", v_arr);
+            for e in (0 ..= e_max) {
+                println!("in {}: {}", e, v[e]);
+            }
+            println!("");
+            
+            println!("in  : {:?}", w_arr);
+            for e in (0 ..= e_max) {
+                println!("in {}: {}", e, w[e]);
+            }
+            println!("");
 
-            for e in 0..=e_max {
+            for e in 0 ..= e_max {
                 let (first, rest) = v[e..].split_at_mut(1);
                 first[0].add_carry(&w[e], 1, rest);
             }
 
             let mut vec_result = vec![0; dim];
-            for i in 0..dim {
-                for e in (0..=e_max).rev() {
+            for i in 0 .. dim {
+                for e in (0 ..= e_max).rev() {
                     vec_result[i] *= p;
-                    vec_result[i] = v[e].entry(i);
+                    vec_result[i] += v[e].entry(i);
                 }
             }
 
+            for e in (0 ..= e_max) {
+                println!("out{}: {}", e, v[e]);
+            }
+            println!("");
+
             let mut comparison_result = vec![0; dim];
-            for i in 0..dim {
+            for i in 0 .. dim {
                 comparison_result[i] = (v_arr[i] + w_arr[i]) % p_to_the_e_max;
             }
+            println!("out : {:?}", comparison_result);
+
 
             let mut diffs = Vec::new();
             let mut diffs_str = String::new();
