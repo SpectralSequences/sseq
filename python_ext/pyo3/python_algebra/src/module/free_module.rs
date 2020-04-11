@@ -10,11 +10,12 @@ use python_utils::{
     wrapper_type, 
 };
 
-use algebra::Algebra as AlgebraT;
+use algebra::AdemAlgebraT;
+
 
 use algebra::module::{
     Module, 
-    FreeModule as FreeModuleRust, 
+    FreeUnstableModule as FreeUnstableModuleRust,
     OperationGeneratorPair as OperationGeneratorPairRust,
 };
 
@@ -24,22 +25,22 @@ use crate::algebra::AlgebraRust;
 // wrapper_type!(FreeModuleLock, MutexGuard<()>); // causes Lifetime specifier problem
 wrapper_type!(OperationGeneratorPair, OperationGeneratorPairRust);
 
-rc_wrapper_type!(FreeModule, FreeModuleRust<AlgebraRust>);
+rc_wrapper_type!(FreeUnstableModule, FreeUnstableModuleRust<AlgebraRust>);
 
-py_repr!(FreeModule, "FreedFreeModule", {
+py_repr!(FreeUnstableModule, "FreedFreeUnstableModule", {
     Ok(format!(
-        "FreeModule(p={})",
+        "FreeUnstableModule(p={})",
         inner.prime()
     ))
 });
 
-crate::module_methods!(FreeModule);
+crate::module_methods!(FreeUnstableModule);
 
 #[pymethods]
-impl FreeModule {
+impl FreeUnstableModule {
     #[new]
     pub fn new(algebra: PyObject, name: String, min_degree: i32) -> PyResult<Self> {
-        Ok(Self::box_and_wrap(FreeModuleRust::new(AlgebraRust::from_py_object(algebra)?, name, min_degree)))
+        Ok(Self::box_and_wrap(FreeUnstableModuleRust::new(AlgebraRust::from_py_object(algebra)?, name, min_degree)))
     }
 
     // pub fn lock(&self) -> FreeModuleLock {

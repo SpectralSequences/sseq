@@ -41,7 +41,7 @@ impl<A : SteenrodAlgebraT> AdemAlgebraT for A {
     fn to_adem_algebra(&self) -> &AdemAlgebra {
         match self.to_steenrod_algebra() {
             SteenrodAlgebraBorrow::BorrowAdem(a) => a,
-            SteenrodAlgebraBorrow::BorrowMilnor(a) => panic!(),
+            SteenrodAlgebraBorrow::BorrowMilnor(_) => panic!(),
         }
     }
 }
@@ -50,7 +50,7 @@ impl<A : SteenrodAlgebraT> AdemAlgebraT for A {
 impl<A : SteenrodAlgebraT> MilnorAlgebraT for A {
     fn to_milnor_algebra(&self) -> &MilnorAlgebra {
         match self.to_steenrod_algebra() {
-            SteenrodAlgebraBorrow::BorrowAdem(a) => panic!(),
+            SteenrodAlgebraBorrow::BorrowAdem(_) => panic!(),
             SteenrodAlgebraBorrow::BorrowMilnor(a) => a,
         }
     }
