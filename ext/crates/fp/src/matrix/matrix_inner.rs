@@ -365,7 +365,8 @@ impl Matrix {
             // them to their raw pointers to do the swap
             let ptarget: *mut FpVector = &mut self[target];
             let psource: *const FpVector = &mut self[source];
-            (*ptarget).add(&*psource, coeff);
+            // Use the optimized variant of add that ignores slicing (profiling shows this cuts out ~ 2% of runtime)
+            (*ptarget).add_shift_none_pure(&*psource, coeff);
         }
     }
 

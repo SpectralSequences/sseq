@@ -90,3 +90,25 @@ pub fn tau_degrees(p : ValidPrime) -> &'static [i32] {
 pub fn xi_degrees(p : ValidPrime) -> &'static [i32] {
     &XI_DEGREES[PRIME_TO_INDEX_MAP[*p as usize]]
 }
+
+// struct TruncPolyParts {
+//     p : ValidPrime,
+//     pub gens : OnceVec<u32>,
+//     parts : OnceVec<Vec<FpVector>>
+// }
+
+// impl TruncPolyParts {
+//     fn new(p : ValidPrime) -> Self {
+//         let gens = OnceVec::new();
+//         gens.push(0);
+//         Self {
+//             p,
+//             gens,
+
+//         }
+//     }
+// }
+
+// struct ExteriorParts {
+//     gens : OnceBivec<u32>
+// }

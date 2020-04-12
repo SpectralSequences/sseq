@@ -543,10 +543,12 @@ impl MilnorAlgebra {
         let mut total : i32 = tau_degrees[0 .. old_max_tau].iter().sum();
 
         for bit_string in bit_string_min..bit_string_max {
+            // v has all the trailing zeros set. These are the bits that were set last time,
+            // but aren't set anymore because of a carry. Shift right 1 because ???1000 ==> ???0111 xor ???1000 = 0001111.
             let mut v = (bit_string ^ (bit_string - 1)) >> 1;
-            let mut c : usize = 0;
+            let mut c : usize = 0; // We're going to get the new bit that is set into c.
             while v != 0 {
-                v >>= 1;
+                v >>= 1; // Subtract off the degree of each of the lost entries
                 total -= tau_degrees [c];
                 c += 1;
             }

@@ -341,6 +341,21 @@ pub trait FpVectorT {
         };
     }
 
+    /// Ignores any slice and any edge conditions. For use in row_reduce. Included because profiling showed that
+    /// handling edge conditions was taking up 2%
+    fn add_shift_none_pure(&mut self, other : &FpVector, c : u32){
+        debug_assert_eq!(self.prime(), other.prime());
+        debug_assert_eq!(self.offset(), other.offset());
+        debug_assert_eq!(self.dimension(), other.dimension(), "Adding vectors of different dimensions");
+        let min_limb = self.min_limb();
+        let max_limb = self.max_limb();
+        let mut target_limbs = self.take_limbs();
+        for i in min_limb .. max_limb {
+            target_limbs[i] = self.add_limb(target_limbs[i], other.limbs()[i], c);
+        }
+        self.put_limbs(target_limbs);
+    }
+
 
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
     fn add_shift_none(&mut self, other : &FpVector, c : u32){
@@ -1086,12 +1101,12 @@ impl FpVectorT for FpVector2 {
 }
 
 impl FpVector2 {
-    pub fn add_carry2<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) {
+    pub fn add_carry2<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
         if self.dimension() == 0 {
-            return;
+            return false;
         }
         if c == 0 { 
-            return;
+            return false;
         }
         match self.offset().cmp(&other.offset()) {
             Ordering::Equal => self.add_carry_shift_none2(other, rest),
@@ -1100,7 +1115,7 @@ impl FpVector2 {
         }
     }
 
-    pub fn add_carry_limb2<'a>(&mut self, idx : usize, source : u64, rest : &mut [FpVector]) {
+    pub fn add_carry_limb2<'a>(&mut self, idx : usize, source : u64, rest : &mut [FpVector]) -> bool {
         let mut cur_vec = self;
         let mut target_limbs;
         let mut carry = source;
@@ -1117,67 +1132,74 @@ impl FpVector2 {
             cur_vec.put_limbs(target_limbs);
             cur_vec = carry_vec;
             if quot == 0 {
-                return;
+                return false;
             }
         }
         target_limbs = cur_vec.take_limbs();
         target_limbs[idx] = target_limbs[idx] ^ carry;
         cur_vec.put_limbs(target_limbs);
+        return true;
     }
 
-    pub fn add_carry_shift_none2<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) {
+    pub fn add_carry_shift_none2<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) -> bool {
         let dat = AddShiftNoneData::new(self, other);
+        let mut result = false;
         let mut i = 0; {
-           self.add_carry_limb2(i + dat.min_target_limb, dat.mask_first_limb(other, i), rest);
+            result |= self.add_carry_limb2(i + dat.min_target_limb, dat.mask_first_limb(other, i), rest);
         }
         for i in 1..dat.number_of_limbs-1 {
-            self.add_carry_limb2(i + dat.min_target_limb, dat.mask_middle_limb(other, i), rest)
+            result |= self.add_carry_limb2(i + dat.min_target_limb, dat.mask_middle_limb(other, i), rest)
         }
         i = dat.number_of_limbs - 1;
         if i > 0 {
-            self.add_carry_limb2(i + dat.min_target_limb, dat.mask_last_limb(other, i), rest);
+            result |= self.add_carry_limb2(i + dat.min_target_limb, dat.mask_last_limb(other, i), rest);
         }
+        result
     }
 
     
-    pub fn add_carry_shift_left2<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) {
+    pub fn add_carry_shift_left2<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) -> bool {
         let dat = AddShiftLeftData::new(self, other);
+        let mut result = false;
         let mut i = 0; {
-            self.add_carry_limb2(i + dat.min_target_limb, dat.mask_first_limb(other, i), rest);
+            result |= self.add_carry_limb2(i + dat.min_target_limb, dat.mask_first_limb(other, i), rest);
         }
         for i in 1 .. dat.number_of_source_limbs - 1 {
-            self.add_carry_limb2(i + dat.min_target_limb, dat.mask_middle_limb_a(other, i), rest);
-            self.add_carry_limb2(i + dat.min_target_limb - 1, dat.mask_middle_limb_b(other, i), rest);
+            result |= self.add_carry_limb2(i + dat.min_target_limb, dat.mask_middle_limb_a(other, i), rest);
+            result |= self.add_carry_limb2(i + dat.min_target_limb - 1, dat.mask_middle_limb_b(other, i), rest);
         }
         i = dat.number_of_source_limbs - 1; 
         if i > 0 {
-            self.add_carry_limb2(i + dat.min_target_limb - 1, dat.mask_last_limb_a(other, i), rest);
+            result |= self.add_carry_limb2(i + dat.min_target_limb - 1, dat.mask_last_limb_a(other, i), rest);
             if dat.number_of_source_limbs == dat.number_of_target_limbs {
-                self.add_carry_limb2(i + dat.min_target_limb, dat.mask_last_limb_b(other, i), rest);
+                result |= self.add_carry_limb2(i + dat.min_target_limb, dat.mask_last_limb_b(other, i), rest);
             }
         }
+        result
     }
 
 
-    pub fn add_carry_shift_right2<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) {
+    pub fn add_carry_shift_right2<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) -> bool {
         let dat = AddShiftRightData::new(self, other);
+        let mut result = false;
         let mut i = 0; {
-            self.add_carry_limb2(i + dat.min_target_limb, dat.mask_first_limb_a(other, i), rest);
+            result |= self.add_carry_limb2(i + dat.min_target_limb, dat.mask_first_limb_a(other, i), rest);
             if dat.number_of_target_limbs > 1 {
                 self.add_carry_limb2(i + dat.min_target_limb + 1, dat.mask_first_limb_b(other, i), rest);
             }
         }
         for i in 1 .. dat.number_of_source_limbs-1 {
-            self.add_carry_limb2(i + dat.min_target_limb, dat.mask_middle_limb_a(other, i), rest);
-            self.add_carry_limb2(i + dat.min_target_limb + 1, dat.mask_middle_limb_b(other, i), rest);
+            result |= self.add_carry_limb2(i + dat.min_target_limb, dat.mask_middle_limb_a(other, i), rest);
+            result |= self.add_carry_limb2(i + dat.min_target_limb + 1, dat.mask_middle_limb_b(other, i), rest);
         }
         i = dat.number_of_source_limbs - 1;
         if i > 0 {
-            self.add_carry_limb2(i + dat.min_target_limb, dat.mask_last_limb_a(other, i), rest);
+            result |= self.add_carry_limb2(i + dat.min_target_limb, dat.mask_last_limb_a(other, i), rest);
             if dat.number_of_target_limbs > dat.number_of_source_limbs {
-                self.add_carry_limb2(i + dat.min_target_limb + 1, dat.mask_last_limb_b(other, i), rest);
+                result |= self.add_carry_limb2(i + dat.min_target_limb + 1, dat.mask_last_limb_b(other, i), rest);
             }
         }
+        result
     }
 }
 
@@ -1463,13 +1485,12 @@ impl FpVector {
     }
 
 
-    pub fn add_carry<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) {
+    pub fn add_carry<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
         if self.dimension() == 0 {
-            return;
+            return false;
         }
         if let FpVector::FpVector2(v) = self {
-            v.add_carry2(other, c, rest);
-            return
+            return v.add_carry2(other, c, rest);
         }
         match self.offset().cmp(&other.offset()) {
             Ordering::Equal => self.add_carry_shift_none(other, c, rest),
@@ -1478,7 +1499,7 @@ impl FpVector {
         }
     }
 
-    pub fn add_carry_propagate<'a>(&mut self, rest : &mut [FpVector]) {
+    pub fn add_carry_propagate<'a>(&mut self, rest : &mut [FpVector]) -> bool {
         let min_target_limb = self.min_limb();
         let max_target_limb = self.max_limb();
         let number_of_limbs = max_target_limb - min_target_limb;
@@ -1496,7 +1517,7 @@ impl FpVector {
             cur_vec.put_limbs(target_limbs);
             cur_vec = carry_vec;
             if carries_occurred == 0 {
-                return;
+                return false;
             }
         }
         target_limbs = cur_vec.take_limbs();
@@ -1504,9 +1525,10 @@ impl FpVector {
             target_limbs[i + min_target_limb] = cur_vec.reduce_limb(target_limbs[i + min_target_limb]);
         }
         cur_vec.put_limbs(target_limbs);
+        return true;
     }
 
-    pub fn add_carry_shift_none<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) {
+    pub fn add_carry_shift_none<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
         let dat = AddShiftNoneData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -1520,11 +1542,11 @@ impl FpVector {
             target_limbs[i + dat.min_target_limb] = self.add_limb(target_limbs[i + dat.min_target_limb], dat.mask_last_limb(other, i), c);
         }
         self.put_limbs(target_limbs);
-        self.add_carry_propagate(rest);
+        self.add_carry_propagate(rest)
     }
 
     
-    pub fn add_carry_shift_left<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) {
+    pub fn add_carry_shift_left<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
         let dat = AddShiftLeftData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -1542,11 +1564,11 @@ impl FpVector {
             }
         }
         self.put_limbs(target_limbs);
-        self.add_carry_propagate(rest);
+        self.add_carry_propagate(rest)
     }
 
 
-    pub fn add_carry_shift_right<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) {
+    pub fn add_carry_shift_right<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
         let dat = AddShiftRightData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -1567,7 +1589,7 @@ impl FpVector {
             }
         }
         self.put_limbs(target_limbs);
-        self.add_carry_propagate(rest);
+        self.add_carry_propagate(rest)
     }
 
 }
