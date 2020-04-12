@@ -36,7 +36,7 @@ pub enum AlgebraRust {
 }
 
 impl SteenrodAlgebraRustT for AlgebraRust {
-    fn to_steenrod_algebra(&self) -> SteenrodAlgebraBorrowRust {
+    fn steenrod_algebra(&self) -> SteenrodAlgebraBorrowRust {
         match self {
             AlgebraRust::AdemAlgebraRust(a) => SteenrodAlgebraBorrowRust::BorrowAdem(&a),
             AlgebraRust::MilnorAlgebraRust(a) => SteenrodAlgebraBorrowRust::BorrowMilnor(&a),

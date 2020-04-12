@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use pyo3::prelude::*;
 
 use ext::resolution::ResolutionInner as ResolutionRust;
-use ext::chain_complex::{ChainComplex, FiniteChainComplex, FreeChainComplex};//, ChainMap};
+use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex};//, ChainMap};
 
 use python_algebra::module::{
     ModuleRust,
@@ -137,4 +137,19 @@ impl Resolution {
         Ok(FreeModuleHomomorphism::wrap_to_free(self.inner()?.differential(s)))
     }
 
+    pub fn chain_map(&self, s : u32) -> PyResult<FreeModuleHomomorphism> {
+        Ok(FreeModuleHomomorphism::wrap_to_other(self.inner()?.chain_map(s)))
+    }
+
+}
+
+
+use python_algebra::module::FreeUnstableModule;
+use python_algebra::algebra::{AdemAlgebra, AlgebraRust};
+pub fn test() -> PyResult<()> {
+    let a = Arc::new(AdemAlgebra::new(2, false, true, None)?);
+    let b = a.to_arc()?.clone();
+    let m = FreeUnstableModule::new(AlgebraRust::into_py_object(b), "i".to_string(), 0)?;
+    Resolution::new(ModuleRust::into_py_object(m.to_arc()?.clone()))?;
+    Ok(())
 }

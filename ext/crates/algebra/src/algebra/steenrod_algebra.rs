@@ -14,7 +14,7 @@ use serde_json::Value;
 // In order for things to work SteenrodAlgebraT cannot implement Algebra.
 // Otherwise, the algebra enum for our bindings will see an implementation clash.
 pub trait SteenrodAlgebraT : Send + Sync + 'static + Algebra {
-    fn to_steenrod_algebra(&self) -> SteenrodAlgebraBorrow;
+    fn steenrod_algebra(&self) -> SteenrodAlgebraBorrow;
 }
 
 pub enum SteenrodAlgebraBorrow<'a> {
@@ -29,7 +29,7 @@ pub enum SteenrodAlgebra {
 }
 
 impl SteenrodAlgebraT for SteenrodAlgebra {
-    fn to_steenrod_algebra(&self) -> SteenrodAlgebraBorrow {
+    fn steenrod_algebra(&self) -> SteenrodAlgebraBorrow {
         match self {
             SteenrodAlgebra::AdemAlgebra(a) => SteenrodAlgebraBorrow::BorrowAdem(a),
             SteenrodAlgebra::MilnorAlgebra(a) => SteenrodAlgebraBorrow::BorrowMilnor(a),
@@ -38,8 +38,8 @@ impl SteenrodAlgebraT for SteenrodAlgebra {
 }
 
 impl<A : SteenrodAlgebraT> AdemAlgebraT for A {
-    fn to_adem_algebra(&self) -> &AdemAlgebra {
-        match self.to_steenrod_algebra() {
+    fn adem_algebra(&self) -> &AdemAlgebra {
+        match self.steenrod_algebra() {
             SteenrodAlgebraBorrow::BorrowAdem(a) => a,
             SteenrodAlgebraBorrow::BorrowMilnor(_) => panic!(),
         }
@@ -48,8 +48,8 @@ impl<A : SteenrodAlgebraT> AdemAlgebraT for A {
 
 
 impl<A : SteenrodAlgebraT> MilnorAlgebraT for A {
-    fn to_milnor_algebra(&self) -> &MilnorAlgebra {
-        match self.to_steenrod_algebra() {
+    fn milnor_algebra(&self) -> &MilnorAlgebra {
+        match self.steenrod_algebra() {
             SteenrodAlgebraBorrow::BorrowAdem(_) => panic!(),
             SteenrodAlgebraBorrow::BorrowMilnor(a) => a,
         }

@@ -82,7 +82,14 @@ impl FreeModuleHomomorphism {
             inner : FreeModuleHomomorphismInner::ToFree(morphism_to_free)
         }
     }
+
+    pub fn wrap_to_other(morphism_to_other : Arc<FreeModuleHomomorphismRust<ModuleRust>>) -> FreeModuleHomomorphism {
+        Self {
+            inner : FreeModuleHomomorphismInner::ToOther(morphism_to_other)
+        }
+    }    
 }
+
 
 #[pymethods]
 impl FreeModuleHomomorphism {

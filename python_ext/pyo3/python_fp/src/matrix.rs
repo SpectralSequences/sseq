@@ -193,6 +193,10 @@ impl Subspace {
         Ok(Self::box_and_wrap(SubspaceRust::new(new_valid_prime(p)?, rows, columns)))
     }
 
+    pub fn matrix(&self) -> PyResult<Matrix> {
+        Ok(Matrix::wrap_immutable(&self.inner()?.matrix, self.owner()))
+    }
+
     // #[staticmethod]
     // pub fn subquotient(space : Option<&Subspace>, subspace : Option<&Subspace>, ambient_dimension : usize) -> PyResult<Vec<usize>> { 
     //     Ok(SubspaceRust::subquotient(

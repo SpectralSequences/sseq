@@ -107,7 +107,7 @@ impl<A : SteenrodAlgebraT> Module for RealProjectiveSpace<A> {
             return;
         }
 
-        if match self.algebra.to_steenrod_algebra() {
+        if match self.algebra.steenrod_algebra() {
             SteenrodAlgebraBorrow::BorrowAdem(a) => coef_adem(a, op_degree, op_index, mod_degree),
             SteenrodAlgebraBorrow::BorrowMilnor(a) => coef_milnor(a, op_degree, op_index, mod_degree),
         } {

@@ -17,8 +17,6 @@ pub struct OperationGeneratorPair {
     pub generator_index: usize,
 }
 
-// pub struct FreeModuleTableEntry {}
-
 pub struct FreeModule<A: Algebra> {
     pub algebra: Arc<A>,
     pub name: String,

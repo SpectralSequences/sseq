@@ -10,12 +10,11 @@ use python_utils::{
     wrapper_type, 
 };
 
-use algebra::AdemAlgebraT;
-
+use algebra::Algebra as AlgebraT;
 
 use algebra::module::{
     Module, 
-    FreeUnstableModule as FreeUnstableModuleRust,
+    FreeModule as FreeModuleRust, 
     OperationGeneratorPair as OperationGeneratorPairRust,
 };
 
@@ -25,22 +24,22 @@ use crate::algebra::AlgebraRust;
 // wrapper_type!(FreeModuleLock, MutexGuard<()>); // causes Lifetime specifier problem
 wrapper_type!(OperationGeneratorPair, OperationGeneratorPairRust);
 
-rc_wrapper_type!(FreeUnstableModule, FreeUnstableModuleRust<AlgebraRust>);
+rc_wrapper_type!(FreeModule, FreeModuleRust<AlgebraRust>);
 
-py_repr!(FreeUnstableModule, "FreedFreeUnstableModule", {
+py_repr!(FreeModule, "FreedFreeModule", {
     Ok(format!(
-        "FreeUnstableModule(p={})",
+        "FreeModule(p={})",
         inner.prime()
     ))
 });
 
-crate::module_methods!(FreeUnstableModule);
+crate::module_methods!(FreeModule);
 
 #[pymethods]
-impl FreeUnstableModule {
+impl FreeModule {
     #[new]
     pub fn new(algebra: PyObject, name: String, min_degree: i32) -> PyResult<Self> {
-        Ok(Self::box_and_wrap(FreeUnstableModuleRust::new(AlgebraRust::from_py_object(algebra)?, name, min_degree)))
+        Ok(Self::box_and_wrap(FreeModuleRust::new(AlgebraRust::from_py_object(algebra)?, name, min_degree)))
     }
 
     // pub fn lock(&self) -> FreeModuleLock {
@@ -98,6 +97,21 @@ impl FreeUnstableModule {
 
     pub fn element_to_json(&self, degree: i32, elt: &FpVector) -> PyResult<String> {
         Ok(self.inner()?.element_to_json(degree, elt.inner()?).to_string())
+    }
+
+    pub fn extend_table_entries(&self, degree: i32) -> PyResult<()> {
+        self.inner()?.extend_table_entries(degree);
+        Ok(())
+    }
+
+    pub fn add_generators(
+        &self,
+        degree: i32,
+        num_gens: usize,
+        names: Option<Vec<String>>,
+    ) -> PyResult<()> {
+        self.inner()?.add_generators(degree, num_gens, names);
+        Ok(())
     }
 
     pub fn add_generators_immediate(

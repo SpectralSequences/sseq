@@ -21,7 +21,7 @@ use nom::{
 // In order for things to work AdemAlgebraT cannot implement Algebra.
 // Otherwise, the algebra enum for our bindings will see an implementation clash.
 pub trait MilnorAlgebraT : Send + Sync + 'static + Algebra {
-    fn to_milnor_algebra(&self) -> &MilnorAlgebra;
+    fn milnor_algebra(&self) -> &MilnorAlgebra;
 }
 
 

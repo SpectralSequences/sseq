@@ -23,7 +23,7 @@ use serde_json::value::Value;
 // In order for things to work AdemAlgebraT cannot implement Algebra.
 // Otherwise, the algebra enum for our bindings will see an implementation clash.
 pub trait AdemAlgebraT : Send + Sync + 'static + Algebra {
-    fn to_adem_algebra(&self) -> &AdemAlgebra;
+    fn adem_algebra(&self) -> &AdemAlgebra;
 }
 
 
@@ -420,6 +420,7 @@ impl Algebra for AdemAlgebra {
 // uint AdemAlgebra__generateName(AdemAlgebra *algebra); // defined in adem_io
 impl AdemAlgebra {
     pub fn new(p : ValidPrime, generic : bool, unstable : bool, unstable_enabled : bool) -> Self {
+        assert!(unstable_enabled || !unstable);
         fp::vector::initialize_limb_bit_index_table(p);
         let even_basis_table = OnceVec::new();
         let basis_table = OnceVec::new();
@@ -890,6 +891,12 @@ impl AdemAlgebra {
         s_degree : i32, s_index : usize, excess : i32)
     {
         self.multiply(result, coeff, r_degree, r_index, s_degree, s_index, excess, true);
+        // Zeroing the rest of the result is a little unexpected, but I don't think it causes trouble?
+        // Can't avoid this unexpected behavior without sacrificing some speed.
+        let slice = result.slice();
+        result.set_slice(self.dimension_unstable(r_degree + s_degree, excess), self.dimension_unstable(r_degree + s_degree, i32::max_value()));
+        result.set_to_zero();
+        result.restore_slice(slice);        
     }
 
     pub fn multiply(&self, result : &mut FpVector, coeff : u32, 

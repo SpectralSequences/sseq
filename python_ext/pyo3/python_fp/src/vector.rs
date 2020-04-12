@@ -234,16 +234,12 @@ impl FpVector {
         self.check_primes_match(other, "")?;
         self.check_dimensions_match(other, "Cannot add vectors when dimensions do not match.")?;
         let c =  self.reduce_coefficient(c);
-        self.inner_mut_unchkd().shift_add(other.inner()?, c);
+        self.inner_mut_unchkd().add(other.inner()?, c);
         Ok(())
     }
 
     pub fn add_unchecked(&mut self, other : &FpVector, c : u32) {
         self.inner_mut_unchkd().add(other.inner_unchkd(), c);
-    }
-
-    pub fn shift_add_unchecked(&mut self, other : &FpVector, c : u32) {
-        self.inner_mut_unchkd().shift_add(other.inner_unchkd(), c);
     }
 
     pub fn scale(&mut self, c : i32) -> PyResult<()> {

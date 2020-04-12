@@ -29,7 +29,8 @@ fn algebra(_py: Python, m: &PyModule) -> PyResult<()> {
 fn module(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<module::FDModule>()?;
     m.add_class::<module::RealProjectiveSpace>()?;
-    // m.add_class::<module::FreeModule>()?;
+    m.add_class::<module::FreeModule>()?;
+    m.add_class::<module::FreeUnstableModule>()?;
     Ok(())
 }
 

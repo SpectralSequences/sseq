@@ -90,11 +90,13 @@ class Resolver(MathAgent):
     def step_if_needed(self, i, j):
         if (i, j) not in self.finished_degrees:
             self.rust_res.step_resolution(i,j)
-            f = asyncio.run_coroutine_threadsafe(
-                self.broadcast(["resolution", "finished_bidegree"], i, j), 
-                self.loop
-            )
-            f.result()
+            # if self.rust_res.number_of_gens_in_bidegree(i, j) > 0:
+                # print(i, j, self.rust_res.number_of_gens_in_bidegree(i, j))
+            # f = asyncio.run_coroutine_threadsafe(
+            #     self.broadcast(["resolution", "finished_bidegree"], i, j), 
+            #     self.loop
+            # )
+            # f.result()
             self.finished_degrees.add((i, j))
 
     def cocycle_string(self, x, y, idx):

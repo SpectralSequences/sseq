@@ -207,6 +207,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         matrix.segment(2,2).add_identity(source_dimension, 0, 0);
         matrix.initialize_pivots();
 
+
         // This slices the underling matrix. Be sure to revert this.
         matrix.inner.set_slice(0, source_dimension, 0, matrix.start[2] + source_dimension);
         matrix.row_reduce();

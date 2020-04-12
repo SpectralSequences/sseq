@@ -6,6 +6,8 @@ use algebra::module::{
     Module as ModuleT,
     FDModule as FDModuleRust,
     FPModule as FPModuleRust,
+    // FreeModule as FreeModuleRust,
+    FreeUnstableModule as FreeUnstableModuleRust,
     RealProjectiveSpace as RealProjectiveSpaceRust,
     ZeroModule
 };
@@ -14,13 +16,17 @@ use pyo3::{prelude::*};//, exceptions, PyErr};
 use crate::algebra::AlgebraRust;
 use crate::module::{
     FDModule,
+    FreeUnstableModule,
     RealProjectiveSpace
 };
 
+// To add a new module: Add in enum ModuleRust, in because_enum_dispatch_doesnt_work_for_me,
+// in into_py_object and in from_py_object
 #[allow(dead_code)]
 pub enum ModuleRust {
     FDModule(FDModuleRust<AlgebraRust>),
     FPModule(FPModuleRust<AlgebraRust>),
+    FreeUnstableModule(FreeUnstableModuleRust<AlgebraRust>),
     RealProjectiveSpace(RealProjectiveSpaceRust<AlgebraRust>)
 }
 
@@ -29,6 +35,7 @@ macro_rules! because_enum_dispatch_doesnt_work_for_me {
         match $self_ {
             ModuleRust::FDModule(module) => module.$method($($args),*),
             ModuleRust::FPModule(module) => module.$method($($args),*),
+            ModuleRust::FreeUnstableModule(module) => module.$method($($args), *),
             ModuleRust::RealProjectiveSpace(module) => module.$method($($args),*),
             // AlgebraRust::PythonModuleRust(alg) => alg.$method($($args),*)
         }
@@ -41,6 +48,8 @@ impl ModuleRust {
         let py = gil.python();
         match *module {
             ModuleRust::FDModule(_) => FDModule::wrap_immutable(module).into_py(py),
+            // ModuleRust::FPModule(_) => FPModule::wrap_immutable(module).into_py(py),
+            ModuleRust::FreeUnstableModule(_) => FreeUnstableModule::wrap_immutable(module).into_py(py),
             ModuleRust::RealProjectiveSpace(_) => RealProjectiveSpace::wrap_immutable(module).into_py(py),
             _ => unimplemented!()
         }
@@ -50,14 +59,15 @@ impl ModuleRust {
         let gil = Python::acquire_gil();
         let py = gil.python();
         module.extract::<&FDModule>(py).and_then(|a| a.to_arc())
-                .or_else(|_err : PyErr| Ok(module.extract::<&RealProjectiveSpace>(py)?.to_arc()?))
-                // .or_else(|_err : PyErr| Ok(module.extract::<&PythonAlgebra>(py)?.to_arc()?))
-                .map( |a| a.clone())
-                // .map_err(|_err : PyErr| {
-                //     python_utils::exception!(TypeError,
-                //         "Invalid module!"
-                //     )
-                // })
+            // .or_else(|_err : PyErr| Ok(module.extract::<&FPModule>(py)?.to_arc()?))
+            .or_else(|_err : PyErr| Ok(module.extract::<&RealProjectiveSpace>(py)?.to_arc()?))
+            .or_else(|_err : PyErr| Ok(module.extract::<&FreeUnstableModule>(py)?.to_arc()?))
+            // .or_else(|_err : PyErr| Ok(module.extract::<&FreeUnstableModule>(py)?.to_arc()?))
+            // .or_else(|_err : PyErr| Ok(module.extract::<&PythonAlgebra>(py)?.to_arc()?))
+            .map( |a| a.clone())
+            .map_err(|_err : PyErr| { python_utils::exception!(TypeError,
+                "Invalid module for from_py_object!"
+            )})
     }    
 }
 
