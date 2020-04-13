@@ -1022,6 +1022,7 @@ impl FpVectorT for FpVector2 {
     fn add_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> u64 {
         limb_a ^ (coeff as u64 * limb_b)
     }
+    
 
 
     fn add_truncate_shift_none(&mut self, other : &FpVector, c : u32) -> Result<(), ()> {

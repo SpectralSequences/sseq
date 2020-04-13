@@ -359,7 +359,7 @@ impl Matrix {
     }
 
     pub fn row_op(&mut self, target : usize, source : usize, coeff : u32) {
-        assert!(target != source);
+        debug_assert!(target != source);
         unsafe {
             // Can't take two mutable borrows from one vector, so instead just cast
             // them to their raw pointers to do the swap
@@ -484,6 +484,7 @@ impl Matrix {
             // Search down column for a nonzero entry.
             let mut pivot_row = rows;
             for i in pivot..rows {
+                // 20% of L1 cache misses happen here.
                 if self[i].entry(pivot_column) != 0 {
                     pivot_row = i;
                     break;
@@ -506,20 +507,26 @@ impl Matrix {
             let c_inv = prime::inverse(p, c);
             self[pivot].scale(c_inv);
             // println!("({}) <== {} * ({}): \n{}", pivot, c_inv, pivot, self);
-
-            for i in 0 .. rows {
-                // Between pivot and pivot_row, we already checked that the pivot column is 0, so we could skip ahead a bit.
-                // But Rust doesn't make this as easy as C.
-                if i == pivot {
+            // We would say:
+            // for i in 0..rows { // but we want to skip a few rows so we can't use for.
+            let mut i = 0;
+            while i < rows {
+                if i as usize == pivot {
+                    // Between pivot and pivot_row, we already checked that the pivot column is 0, 
+                    // so we skip ahead a bit.
+                    i = pivot_row + 1;
                     continue;
                 }
+                // 50% of L1 cache misses happen here
                 let pivot_column_entry = self[i].entry(pivot_column);
                 if pivot_column_entry == 0 {
+                    i += 1; // loop control structure.
                     continue;
                 }
                 let row_op_coeff = *p - pivot_column_entry;
-                // Do row operation
+                // 12% of L1 cache misses here (90% of L1 write misses.)
                 self.row_op(i, pivot, row_op_coeff);
+                i += 1; // loop control structure.
             }
             pivot += 1;
         }

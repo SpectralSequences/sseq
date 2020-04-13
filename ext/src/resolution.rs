@@ -1,7 +1,8 @@
+use parking_lot::{RwLock, Mutex};
 use std::cmp::{min, max};
 use std::sync::{Arc, Weak};
-use parking_lot::{RwLock, Mutex};
 use std::collections::HashSet;
+use time::Instant;
 
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
@@ -789,12 +790,15 @@ impl<CC : UnitChainComplex> Resolution<CC> {
             }
         }
 
+        let t0 = Instant::now();
         for t in min_degree ..= max_t {
             let start = if t < *next_t { *next_s } else { 0 };
             for s in start ..= max_s {
                 self.inner.step_resolution(s, t);
                 self.step_after(s, t);
             }
+            let dt = t0.elapsed();
+            // println!("t:{t} {h}h:{m}m:{s}s", t=t,  h=dt.whole_hours() , m=dt.whole_minutes() % 60, s = dt.whole_seconds()%60);
         }
         *next_s = max_s + 1;
         *next_t = max_t + 1;

@@ -93,22 +93,55 @@ pub fn xi_degrees(p : ValidPrime) -> &'static [i32] {
 
 // struct TruncPolyParts {
 //     p : ValidPrime,
-//     pub gens : OnceVec<u32>,
+//     pub gens : OnceVec<(usize, usize)>,
 //     parts : OnceVec<Vec<FpVector>>
 // }
 
 // impl TruncPolyParts {
 //     fn new(p : ValidPrime) -> Self {
-//         let gens = OnceVec::new();
-//         gens.push(0);
+//         let mut gens = OnceVec::new();
+//         gens.push((0, 0));
+//         let mut parts = OnceVec::new();
+//         parts.push(vec![FpVector::new(p, 0)]);
 //         Self {
 //             p,
 //             gens,
+//             parts
+//         }
+//     }
+
+//     fn add_gens_and_calculate_parts(&self, degree : i32, new_gens : usize){
+//         assert!(degree as usize == gens.len());
+//         let idx = gens[degree - 1].0 + gens[degree - 1].1;
+//         gens.push((idx, new_gens));
+//         let mut new_parts = Vec::new();
+//         // for i in 0 ..= degree {
+//         new_parts.push(vec![]);
+//         // }
+//         for last_deg in 1 ..= degree as usize {
+//             let result = Vec::new();
+//             let (offset, num_gens) = self.gens[i];
+//             let rest_deg = degree - last_deg;
+//             for (min_deg, part_list) in self.parts[rest_deg].iter().enumerate() {
+//                 if min_deg > last_deg {
+//                     break;
+//                 }
+//                 for part in part_list {
+//                     for d in .. {
+//                         FpVector::new()
+//                         part.
+//                         result.push()
+//                     }
+
+//                 }
+                
+
+//             }
 
 //         }
 //     }
 // }
 
-// struct ExteriorParts {
-//     gens : OnceBivec<u32>
-// }
+// // struct ExteriorParts {
+// //     gens : OnceBivec<u32>
+// // }
