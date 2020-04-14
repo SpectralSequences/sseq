@@ -43,7 +43,7 @@ static BIT_LENGHTS : [usize; NUM_PRIMES] = [
      1, 3, 5, 6, 7, 8, 9, 9
 ];
 
-fn bit_length(p : ValidPrime) -> usize {
+pub fn bit_length(p : ValidPrime) -> usize {
     BIT_LENGHTS[PRIME_TO_INDEX_MAP[*p as usize]]
 }
 
@@ -54,7 +54,7 @@ static BITMASKS : [u32; NUM_PRIMES] = [
     1, 7, 31, 63, 127, 255, 511, 511
 ];
 
-fn bitmask(p : ValidPrime) -> u64{
+pub fn bitmask(p : ValidPrime) -> u64{
     BITMASKS[PRIME_TO_INDEX_MAP[*p as usize]] as u64
 }
 
@@ -65,7 +65,7 @@ static ENTRIES_PER_64_BITS : [usize;NUM_PRIMES] = [
     64, 21, 12, 10, 9, 8, 7, 7
 ];
 
-fn entries_per_64_bits(p : ValidPrime) -> usize {
+pub fn entries_per_64_bits(p : ValidPrime) -> usize {
     ENTRIES_PER_64_BITS[PRIME_TO_INDEX_MAP[*p as usize]]
 }
 
@@ -351,7 +351,7 @@ pub trait FpVectorT {
         let max_limb = self.max_limb();
         let mut target_limbs = self.take_limbs();
         for i in min_limb .. max_limb {
-            target_limbs[i] = self.add_limb(target_limbs[i], other.limbs()[i], c);
+            target_limbs[i] = self.reduce_limb(self.add_limb(target_limbs[i], other.limbs()[i], c));
         }
         self.put_limbs(target_limbs);
     }
@@ -1414,8 +1414,7 @@ impl FpVector {
         idx
     }
 
-    #[allow(dead_code)]
-    fn limb_string(p : ValidPrime, limb : u64) -> String {
+    pub fn limb_string(p : ValidPrime, limb : u64) -> String {
         let bit_length = bit_length(p);
         let entries_per_64_bits = entries_per_64_bits(p);
         let bit_mask = bitmask(p);
@@ -1431,8 +1430,7 @@ impl FpVector {
         result
     }
 
-    #[allow(dead_code)]
-    fn limb_string_x(p : ValidPrime, limb : u64) -> String {
+    pub fn limb_string_x(p : ValidPrime, limb : u64) -> String {
         let bit_length = bit_length(p);
         let entries_per_64_bits = entries_per_64_bits(p);
         let bit_mask = bitmask(p);
@@ -2179,6 +2177,7 @@ impl Hash for FpVector {
 mod tests {
     use super::*;
     use rand::Rng;
+    use rstest::rstest;
 
     fn random_vector(p : u32, dimension : usize) -> Vec<u32> {
         let mut result = Vec::with_capacity(dimension);
@@ -2188,7 +2187,6 @@ mod tests {
         }
         result
     }
-    use rstest::rstest;
 
     #[rstest(p, case(3), case(5), case(7))]
     fn test_reduce_limb(p : u32){

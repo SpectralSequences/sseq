@@ -211,7 +211,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
 
         // This slices the underling matrix. Be sure to revert this.
         matrix.inner.set_slice(0, source_dimension, 0, matrix.start[2] + source_dimension);
-        matrix.row_reduce();
+        matrix.row_reduce_pure();
         let temp = matrix.start[2];
         let new_kernel = matrix.compute_kernel(temp);
         matrix.clear_slice();
@@ -798,7 +798,12 @@ impl<CC : UnitChainComplex> Resolution<CC> {
                 self.step_after(s, t);
             }
             let dt = t0.elapsed();
-            // println!("t:{t} {h}h:{m}m:{s}s", t=t,  h=dt.whole_hours() , m=dt.whole_minutes() % 60, s = dt.whole_seconds()%60);
+            println!("t:{t} {h}h:{m}m:{s}s:{micros}", t=t,  
+                h=dt.whole_hours(), 
+                m=dt.whole_minutes() % 60, 
+                s = dt.whole_seconds() % 60, 
+                micros = dt.subsec_microseconds()
+            );
         }
         *next_s = max_s + 1;
         *next_t = max_t + 1;

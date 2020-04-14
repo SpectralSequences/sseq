@@ -1,4 +1,6 @@
+use once::OnceVec;
 use fp::prime::*;
+use fp::vector::{FpVector, FpVectorT};
 
 pub const MAX_XI_TAU : usize = fp::prime::MAX_MULTINOMIAL_LEN;
 
@@ -91,57 +93,71 @@ pub fn xi_degrees(p : ValidPrime) -> &'static [i32] {
     &XI_DEGREES[PRIME_TO_INDEX_MAP[*p as usize]]
 }
 
-// struct TruncPolyParts {
-//     p : ValidPrime,
-//     pub gens : OnceVec<(usize, usize)>,
-//     parts : OnceVec<Vec<FpVector>>
-// }
+struct TruncPolyPartitions {
+    p : ValidPrime,
+    pub gens : OnceVec<(usize, usize)>, // degree => (first_index, number_of_gens)
+    parts : OnceVec<Vec<Vec<FpVector>>> // degree => max_part => list of partitions with maximum part max_part
+}
 
-// impl TruncPolyParts {
-//     fn new(p : ValidPrime) -> Self {
-//         let mut gens = OnceVec::new();
-//         gens.push((0, 0));
-//         let mut parts = OnceVec::new();
-//         parts.push(vec![FpVector::new(p, 0)]);
-//         Self {
-//             p,
-//             gens,
-//             parts
-//         }
-//     }
+impl TruncPolyPartitions {
+    fn new(p : ValidPrime) -> Self {
+        let mut gens = OnceVec::new();
+        gens.push((0, 0));
+        let mut parts = OnceVec::new();
+        parts.push(vec![vec![FpVector::new(p, 0)]]);
+        Self {
+            p,
+            gens,
+            parts
+        }
+    }
 
-//     fn add_gens_and_calculate_parts(&self, degree : i32, new_gens : usize){
-//         assert!(degree as usize == gens.len());
-//         let idx = gens[degree - 1].0 + gens[degree - 1].1;
-//         gens.push((idx, new_gens));
-//         let mut new_parts = Vec::new();
-//         // for i in 0 ..= degree {
-//         new_parts.push(vec![]);
-//         // }
-//         for last_deg in 1 ..= degree as usize {
-//             let result = Vec::new();
-//             let (offset, num_gens) = self.gens[i];
-//             let rest_deg = degree - last_deg;
-//             for (min_deg, part_list) in self.parts[rest_deg].iter().enumerate() {
-//                 if min_deg > last_deg {
-//                     break;
-//                 }
-//                 for part in part_list {
-//                     for d in .. {
-//                         FpVector::new()
-//                         part.
-//                         result.push()
-//                     }
-
-//                 }
-                
-
-//             }
-
-//         }
-//     }
-// }
-
-// // struct ExteriorParts {
-// //     gens : OnceBivec<u32>
-// // }
+    fn add_gens_and_calculate_parts(&self, degree : i32, new_gens : usize){
+        assert!(degree as usize == self.gens.len());
+        let p = *self.p;
+        let idx = self.gens[degree as usize - 1].0 + self.gens[degree as usize - 1].1;
+        self.gens.push((idx, new_gens));
+        let mut new_parts = Vec::new();
+        // for i in 0 ..= degree {
+        new_parts.push(vec![]);
+        // }
+        for last_deg in 1 .. degree {
+            let mut partitions_cur_max_part = Vec::new();
+            let (offset, num_gens) = self.gens[last_deg  as usize];
+            let rest_deg = degree - last_deg;
+            for (max_part, part_list) in self.parts[rest_deg as usize].iter().enumerate() {
+                if max_part > last_deg as usize {
+                    break;
+                }
+                for part in part_list {
+                    let mut last_nonzero_entry = usize::max_value();
+                    for d in (0 .. num_gens).rev() {
+                        let idx = offset + num_gens;
+                        if idx > part.dimension() {
+                            continue;
+                        }
+                        if part.entry(d) != 0 {
+                            last_nonzero_entry = d;
+                            break;
+                        }
+                    }
+                    if last_nonzero_entry > part.dimension() {
+                        continue;
+                    }
+                    if part.entry(last_nonzero_entry) < p-1 {
+                        let mut new_part = part.clone();
+                        new_part.add_basis_element(last_nonzero_entry, 1);
+                        partitions_cur_max_part.push(new_part);
+                    }
+                    for d in last_nonzero_entry + 1 .. new_gens {
+                        let mut new_part = part.clone();
+                        new_part.add_basis_element(d, 1);
+                        partitions_cur_max_part.push(new_part);
+                    }
+                }
+            }
+            new_parts.push(partitions_cur_max_part);
+        }
+        self.parts.push(new_parts);
+    }
+}
