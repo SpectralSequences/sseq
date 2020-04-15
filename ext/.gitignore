@@ -10,6 +10,8 @@
 # Rust
 **/*.rs.bk
 **/*.lock
+**/cachegrind
+**/time
 
 
 # Probably need these back in ext.

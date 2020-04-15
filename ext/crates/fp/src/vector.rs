@@ -328,6 +328,51 @@ pub trait FpVectorT {
         limb_a + (coeff as u64 * limb_b)
     }
 
+    fn all_leq_limb(&self, limb_a : u64, limb_b : u64) -> bool;
+
+    fn all_leq(&self, other : &FpVector) -> bool {
+        match self.offset().cmp(&other.offset()) {
+            Ordering::Equal => self.all_leq_shift_none(other),
+            Ordering::Less => self.all_leq_shift_left(other),
+            Ordering::Greater => self.all_leq_shift_right(other),
+        }
+    }
+
+    fn all_leq_shift_none(&self, other : &FpVector) -> bool {
+        let dat = AddShiftNoneData::new(self, other);
+        let mut i = 0; {
+            let self_limb = dat.mask_first_limb(self, i); 
+            let other_limb = dat.mask_first_limb(other, i);
+            if !self.all_leq_limb(self_limb, other_limb) {
+                return false;
+            }
+        }
+        for i in 1 .. dat.number_of_limbs - 1 {
+            let self_limb = dat.mask_middle_limb(self, i); 
+            let other_limb = dat.mask_middle_limb(other, i);
+            if !self.all_leq_limb(self_limb, other_limb) {
+                return false;
+            }
+        }
+        i = dat.number_of_limbs - 1;
+        if i > 0 {
+            let self_limb = dat.mask_middle_limb(self, i); 
+            let other_limb = dat.mask_middle_limb(other, i);
+            if !self.all_leq_limb(self_limb, other_limb) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    fn all_leq_shift_left(&self, _other : &FpVector) -> bool {
+        unimplemented!()
+    }
+
+    fn all_leq_shift_right(&self, _other : &FpVector) -> bool {
+        unimplemented!()
+    }
+
     fn add(&mut self, other : &FpVector, c : u32){
         debug_assert!(c < *self.prime());
         if self.dimension() == 0 {
@@ -1019,6 +1064,11 @@ impl FpVectorT for FpVector2 {
     fn reduce_quotient_limb(&self, _limb : u64) -> (u64, u64) { panic!() }  
     fn reduce_limbs(&mut self, _start_limb : usize, _end_limb : usize){ }
 
+    fn all_leq_limb(&self, limb_a : u64, limb_b : u64) -> bool {
+        limb_a | limb_b == limb_b
+    }
+
+
     fn add_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> u64 {
         limb_a ^ (coeff as u64 * limb_b)
     }
@@ -1102,6 +1152,7 @@ impl FpVectorT for FpVector2 {
 }
 
 impl FpVector2 {
+
     pub fn add_carry2<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
         if self.dimension() == 0 {
             return false;
@@ -1230,6 +1281,11 @@ impl FpVectorT for FpVector3 {
         (rem, quot)
     }
 
+    fn all_leq_limb(&self, limb_a : u64, limb_b : u64) -> bool {
+        let top_bit = 0x4924924924924924u64;
+        limb_b.wrapping_sub(limb_a) & top_bit == 0
+    }
+
     fn prime (&self) -> ValidPrime { ValidPrime::new(3) }
     fn vector_container (&self) -> &VectorContainer { &self.vector_container }
     fn vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
@@ -1272,6 +1328,12 @@ impl FpVectorT for FpVector5 {
         (rem, quot)
     }
 
+    fn all_leq_limb(&self, limb_a : u64, limb_b : u64) -> bool {
+        let bottom_bit = 0x84210842108421u64;
+        let top_bit = bottom_bit << 4;
+        limb_b.wrapping_sub(limb_a) & top_bit == 0
+    }    
+
     fn prime(&self) -> ValidPrime { ValidPrime::new(5) }
     fn vector_container (&self) -> &VectorContainer { &self.vector_container }
     fn vector_container_mut (&mut self) -> &mut VectorContainer { &mut self.vector_container }
@@ -1282,8 +1344,8 @@ impl FpVectorT for FpVectorGeneric {
     fn is_reduced_limb(&self, limb : u64) -> bool {
         self.reduce_limb(limb) == limb
     }
-    fn reduce_limb(&self, _limb : u64) -> u64 { panic!() }
-    fn reduce_quotient_limb(&self, _limb : u64) -> (u64, u64) { panic!() }
+    fn reduce_limb(&self, _limb : u64) -> u64 { unimplemented!() }
+    fn reduce_quotient_limb(&self, _limb : u64) -> (u64, u64) { unimplemented!() }
 
     fn reduce_limbs(&mut self, start_limb : usize, end_limb : usize){
         let p = self.p;
@@ -1298,6 +1360,11 @@ impl FpVectorT for FpVectorGeneric {
             FpVector::pack_limb(p, dimension, 0, &unpacked_limb, limbs, i);
         }
     }
+
+    fn all_leq_limb(&self, _limb_a : u64, _limb_b : u64) -> bool {
+        unimplemented!()
+    }    
+
 
     fn prime (&self) -> ValidPrime { self.p }
     fn vector_container (&self) -> &VectorContainer { &self.vector_container }
@@ -2105,6 +2172,21 @@ impl FpVectorMask {
             target[i] &= self.masks[i];
         }
     }
+
+    #[allow(clippy::needless_range_loop)]
+    pub fn contains(&self, target : &FpVector) -> bool {
+        debug_assert_eq!(self.dimension, target.dimension());
+        debug_assert_eq!(target.vector_container().slice_start, 0);
+        debug_assert_eq!(target.vector_container().slice_end, target.dimension());
+
+        let target = &target.vector_container().limbs;
+        for i in 0 .. self.masks.len() {
+            if target[i] & self.masks[i] != target[i] {
+                return false;
+            }
+        }
+        return true;
+    }    
 }
 
 use std::io;

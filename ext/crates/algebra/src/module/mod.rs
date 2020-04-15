@@ -3,6 +3,7 @@ mod finite_module;
 mod finitely_presented_module;
 mod free_module;
 mod free_unstable_module;
+mod unstable_algebra;
 mod hom_module;
 mod quotient_module;
 mod rpn;
@@ -37,4 +38,3 @@ use crate::algebra::SteenrodAlgebra;
 // Poor man's trait alias
 pub trait SteenrodModule: Module<Algebra = SteenrodAlgebra> {}
 impl<M: Module<Algebra = SteenrodAlgebra>> SteenrodModule for M {}
-

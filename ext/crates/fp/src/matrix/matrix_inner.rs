@@ -1,5 +1,5 @@
 use crate::prime::{self, ValidPrime};
-use crate::vector::{self, FpVector, FpVectorT, FpVectorSlice};
+use crate::vector::{FpVector, FpVectorT, FpVectorSlice};
 use super::{
     Subspace,
     QuasiInverse
