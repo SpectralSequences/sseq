@@ -205,126 +205,168 @@ impl TruncatedPolynomialPartitions {
     }
 }
 
+pub struct PartitionIterator<'a> {
+    remaining : i32,   // leftover degree
+    parts : &'a [i32],// list of part sizes to use
+    partition : Vec<u32>, // current partition
+    initial : bool
+}
+
+impl<'a> PartitionIterator<'a> {
+    pub fn new(max_degree : i32, num_parts : usize, parts : &'a [i32]) -> Self {
+        let mut remaining = max_degree;
+        let mut partition = vec![0; parts.len()];
+        let idx = if parts.len() == 1 { 0 } else { 1 };
+        partition[idx] = num_parts as u32;
+        remaining -= num_parts as i32 * parts[idx];
+        Self {
+            remaining,
+            parts,
+            partition,
+            initial : true
+        }
+    }
+
+    pub fn search(&mut self) -> bool {
+        let mut cur_idx = 0;
+        for i in (1 .. self.partition.len()).rev() {
+            if self.partition[i] != 0 {
+                cur_idx = i;
+                break;
+            }
+        }
+        if cur_idx == 0 {
+            return false;
+        }
+        let dec_step;
+        if self.remaining < 0 {
+            let part_delta = self.parts[cur_idx] - self.parts[0];
+            dec_step = (-self.remaining + part_delta - 1) / part_delta;
+        } else {
+            dec_step = 1;
+        }
+
+        self.partition[cur_idx] -= dec_step as u32;
+        self.remaining += dec_step*self.parts[cur_idx];
+
+        self.partition[0] += dec_step as u32;
+        self.remaining -= dec_step*self.parts[0];
+        
+        match self.remaining.cmp(&0) {
+            std::cmp::Ordering::Less => { unreachable!() },
+            std::cmp::Ordering::Equal => { return true; },
+            std::cmp::Ordering::Greater => { }
+        }
+        if cur_idx + 1 == self.parts.len() {
+            true
+        } else {
+            let next_part = self.parts[cur_idx + 1];
+            let inc_step = (self.partition[0] as i32).min((self.remaining + next_part - 1) / next_part);
+            self.partition[cur_idx + 1] = inc_step as u32;
+            self.remaining -= inc_step * self.parts[cur_idx + 1];
+            
+            self.partition[0] -= inc_step as u32;
+            self.remaining += inc_step * self.parts[0];
+            self.search()
+        } 
+    }
+}
+
+impl<'a> Iterator for PartitionIterator<'a> {
+    type Item = (i32, &'a Vec<u32>);
+    fn next(&mut self) -> Option<Self::Item> {
+        let found;
+        if self.initial && self.remaining >= 0 {
+            self.initial = false;
+            found = true;
+        } else {
+            found = self.search();
+        }
+        if found {
+            Some(unsafe { std::mem::transmute::<_, Self::Item>((self.remaining, &self.partition)) })
+        } else {
+            None
+        }
+    }
+}
+
+
+
 pub struct TruncatedPolynomialSteenrodPartitionIterator<'a> {
-    remaining : i32,
     parts : &'a Vec<&'a Vec<i32>>,
-    partition : Vec<Vec<(usize, i32)>>,
-    index : (usize, usize)
+    monomial : FpVector,
+    iterators : Vec<PartitionIterator<'a>>,
+    partition : Vec<&'a Vec<u32>>,
+    coeffs : Vec<u32>,
+    // This dummy_vec is Rust nonsense as usual:
+    // To avoid an extra case distinction we need to push a dummy value onto partition
+    // that will immediately be deleted. Unforutunately, partition is a list of vectors,
+    // so we need a reference to a list. As usual that empty list needs to be owned
+    // somewhere, and it is obviously not reasonable to ask our caller to lend us an extra Vec<u32>
+    dummy_vec : Vec<u32> 
 }
 
 impl<'a> TruncatedPolynomialSteenrodPartitionIterator<'a> {
-    pub fn new(degree : i32, parts : &'a Vec<&'a Vec<i32>>, monomial : &FpVector) -> Self {
-        let mut partition = Vec::with_capacity(monomial.dimension());
-        for i in 0..monomial.dimension() {
-            partition.push(vec![(0, 0); monomial.entry(i) as usize]);
-        }
+    pub fn new(degree : i32, parts : &'a Vec<&'a Vec<i32>>, monomial : FpVector) -> Self {
+        let dim = monomial.dimension();
+        let mut iterators = Vec::with_capacity(dim);
+        let mut partition = Vec::with_capacity(dim);
+        let mut coeffs = Vec::with_capacity(monomial.dimension());
+        let dummy_vec = Vec::new();
+        // transmute to make Rust forget that we own dummy_vec.
+        partition.push(unsafe { std::mem::transmute::<_, &'a _>(&dummy_vec) });
+        iterators.push(PartitionIterator::new(degree, monomial.entry(0) as usize, parts[0]));
+        coeffs.push(0);
         Self {
-            remaining : degree,
             parts,
+            monomial,
+            iterators,
             partition,
-            index : (usize::max_value(), usize::max_value())
+            coeffs,
+            dummy_vec 
         }
     }
 
-    fn search_first(&mut self) -> bool {
-        // println!("search first {:?}", self.index);
-        for i in 0..self.partition.len() {
-            if self.partition[i].len() != 0 {
-                self.index = (i, 0);
-                let max_part_idx = self.parts[i].len() - 1;
-                let max_part = self.parts[i][max_part_idx];
-                self.partition[i][0] = (max_part_idx, max_part);
-                self.remaining -= max_part;
-                return self.search();
-            }
-        }
-        return false;
-    }
-
-    fn search_continue(&mut self) -> bool {
-        // println!("search continue {:?}", self.index);
-        // println!(" last_part : {:?}", self.partition[self.index.0][self.index.1]);
-        while self.partition[self.index.0][self.index.1].0 == 0 {
-            // println!("  cur_idx : {:?}", self.index);
-            if self.index.1 > 0 {
-                println!("B");
-                self.index.1 -= 1;
-            } else if self.index.0 > 0 {
-                println!("C");
-                self.index.0 -= 1;
-                self.index.1 = self.partition[self.index.0].len() - 1;
-            } else {
-                return false;
-            }
-        }
-        let last_part_idx = self.partition[self.index.0][self.index.1].0;
-        let last_part_size = self.partition[self.index.0][self.index.1].1;
-        let new_part_size = self.parts[self.index.0][last_part_idx - 1];
-        self.partition[self.index.0][self.index.1].0 -= 1;
-        self.partition[self.index.0][self.index.1].1 = new_part_size;
-        self.remaining += last_part_size;
-        self.remaining -= new_part_size;
-        if self.search() {
-            true
-        } else {
-            self.search_continue()
-        }
-    }
-
-    fn search_child(&mut self) -> bool {
-        // println!("search child {:?}", self.index);
-        if self.index.1 + 1 < self.partition[self.index.0].len() {
-            self.index.1 += 1;
-        } else if self.index.0 + 1 < self.partition.len() {
-            self.index.0 += 1;
-            self.index.1 = 0;
-        } else {
-            return false;
-        }
-        let max_part_idx = self.parts[self.index.0].len() - 1;
-        let max_part = self.parts[self.index.0][max_part_idx];
-        self.partition[self.index.0][self.index.1] = (max_part_idx, max_part);
-        self.remaining -= max_part;
-        // println!("CHILD remaining: {}, part : {:?}", self.remaining, self.partition);
-        self.search()
-    }
-
-    fn search(&mut self) -> bool {
-        // println!("search {:?}", self.index);
-        // println!(" last_part : {:?}", self.partition[self.index.0][self.index.1]);
-        let index = self.index;
-        for i in (0 ..= self.partition[self.index.0][self.index.1].0).rev() {
-            let last_part_size = self.partition[self.index.0][self.index.1].1;
-            let next_part_size = self.parts[self.index.0][i];
-            self.remaining += last_part_size;
-            self.remaining -= next_part_size;
-            self.partition[self.index.0][self.index.1] = (i, next_part_size);
-            // println!("SEARCH remaining: {}, lps : {} , part : {:?}", self.remaining, last_part_size, self.partition);
-            if self.remaining == 0 {
-                return true;
-            } else if self.remaining > 0 {
-                let found = self.search_child();
-                if found {
-                    return true;
+    fn search(&mut self) -> Option<i32> {
+        let idx = self.iterators.len() - 1;
+        match self.iterators[idx].next() {
+            Some((remaining, next)) => {
+                let prev_coeff = if idx == 0 { 1 } else { self.coeffs[idx - 1] };
+                let p = self.monomial.prime();
+                self.partition[idx] = next;
+                self.coeffs[idx] = (prev_coeff * multinomial(p, &mut next.clone())) % *p;
+                if remaining == 0 {
+                    Some(remaining)
+                } else if idx == self.monomial.dimension() - 1 {
+                    Some(remaining)
+                } else {
+                    // transmute to make Rust forget that we own dummy_vec.
+                    self.partition.push(unsafe { std::mem::transmute::<_, &'a _>(&self.dummy_vec) });
+                    self.iterators.push(PartitionIterator::new(remaining, self.monomial.entry(idx + 1) as usize, self.parts[idx + 1]));
+                    self.coeffs.push(0);
+                    self.search()
                 }
-                self.index = index;
+            }
+            None => {
+                self.iterators.pop();
+                self.partition.pop();
+                self.coeffs.pop();
+                if self.iterators.len() == 0 {
+                    None
+                } else {
+                    self.search()
+                }
             }
         }
-        return false;
     }
 }
 
 impl<'a> Iterator for TruncatedPolynomialSteenrodPartitionIterator<'a> {
-    type Item = &'a Vec<Vec<(usize, i32)>>;
+    type Item = (i32, &'a Vec<&'a Vec<u32>>);
     fn next(&mut self) -> Option<Self::Item> {
-        let success;
-        if self.index.0 == usize::max_value() {
-            success = self.search_first()
-        } else {
-            success = self.search_continue();
-        }
-        if success {
-            Some(unsafe { std::mem::transmute::<_, Self::Item>(&self.partition) })
+        let remaining = self.search()?;
+        if true {
+            Some(unsafe { std::mem::transmute::<_, Self::Item>((remaining, &self.partition)) })
         } else {
             None
         }
@@ -365,6 +407,13 @@ mod tests {
     }
 
     #[test]
+    fn test_partition_iterator() {
+        for p in PartitionIterator::new(17, 5, &[0, 2, 7, 9]) {
+            println!("{:?}", p);
+        }
+    }
+
+    #[test]
     fn test_monomial_partitions() {
         let parts_0 = vec![0, 3, 5];
         let parts_1 = vec![0, 2, 7, 9];
@@ -373,7 +422,7 @@ mod tests {
         fp::vector::initialize_limb_bit_index_table(p);
         let mut m = FpVector::new(p, 2);
         m.pack(&vec![2, 2]);
-        for part in TruncatedPolynomialSteenrodPartitionIterator::new(12, &parts, &m) {
+        for part in TruncatedPolynomialSteenrodPartitionIterator::new(12, &parts, m) {
             println!("{:?}", part);
         }
     }
