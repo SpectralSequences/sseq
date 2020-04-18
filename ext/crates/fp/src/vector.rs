@@ -482,18 +482,18 @@ pub trait FpVectorT {
 
     // This one takes &self so we can figure out how to reduce.
     // Returns: either (true, sum) if no carries happen in the limb or (false, ???) if some carry does happen.
-    fn truncate_limb(&self, sum : u64) -> Result<u64, ()> {
+    fn truncate_limb(&self, sum : u64) -> Option<u64> {
         if self.is_reduced_limb(sum) {
-            Ok(sum) 
+            Some(sum) 
         } else {          
-            Err(())
+            None
         }
     }
 
 
-    fn add_truncate(&mut self, other : &FpVector, c : u32) -> Result<(),()> {
+    fn add_truncate(&mut self, other : &FpVector, c : u32) -> Option<()> {
         if self.dimension() == 0 {
-            return Ok(());
+            return Some(());
         }
 
         match self.offset().cmp(&other.offset()) {
@@ -509,10 +509,10 @@ pub trait FpVectorT {
     /// Otherwise return "true" and "self" will contain the sum.
     /// You get these "_truncate" variants from the normal variants by: every time "self.add_limb(<args>)" shows up
     /// in the original variant, replace it with "self.add_limb_truncate(<args>)?".
-    /// Also have to add some extra Ok(())'s.
+    /// Also have to add some extra Some(())'s.
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
 
-    fn add_truncate_shift_none(&mut self, other : &FpVector, c : u32) -> Result<(), ()> {
+    fn add_truncate_shift_none(&mut self, other : &FpVector, c : u32) -> Option<()> {
         let dat = AddShiftNoneData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -529,11 +529,11 @@ pub trait FpVectorT {
             target_limbs[i + dat.min_target_limb] = self.truncate_limb(target_limbs[i + dat.min_target_limb])?;
         }
         self.put_limbs(target_limbs);
-        Ok(())
+        Some(())
     }
 
 
-    fn add_truncate_shift_left(&mut self, other : &FpVector, c : u32) -> Result<(), ()> {
+    fn add_truncate_shift_left(&mut self, other : &FpVector, c : u32) -> Option<()> {
         let dat = AddShiftLeftData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -556,11 +556,11 @@ pub trait FpVectorT {
             target_limbs[i + dat.min_target_limb] = self.truncate_limb(target_limbs[i + dat.min_target_limb])?;
         }
         self.put_limbs(target_limbs);
-        Ok(())
+        Some(())
     }
 
 
-    fn add_truncate_shift_right(&mut self, other : &FpVector, c : u32) -> Result<(), ()> {
+    fn add_truncate_shift_right(&mut self, other : &FpVector, c : u32) -> Option<()> {
         let dat = AddShiftRightData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -584,7 +584,7 @@ pub trait FpVectorT {
             }
         }
         self.put_limbs(target_limbs);
-        Ok(())
+        Some(())
     }
 
     // These could be static but enum_dispatch needs them to take &self.
@@ -1047,12 +1047,12 @@ pub struct FpVectorGeneric {
 }
 
 impl FpVector2 {
-    fn add_truncate_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> Result<u64, ()> {
+    fn add_truncate_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> Option<u64> {
         let scaled_limb_b = coeff as u64 * limb_b;
         if limb_a & scaled_limb_b == 0 {
-            Ok(limb_a ^ scaled_limb_b)
+            Some(limb_a ^ scaled_limb_b)
         } else {
-            Err(())
+            None
         }
     }
 }
@@ -1075,7 +1075,7 @@ impl FpVectorT for FpVector2 {
     
 
 
-    fn add_truncate_shift_none(&mut self, other : &FpVector, c : u32) -> Result<(), ()> {
+    fn add_truncate_shift_none(&mut self, other : &FpVector, c : u32) -> Option<()> {
         let dat = AddShiftNoneData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -1089,12 +1089,12 @@ impl FpVectorT for FpVector2 {
             target_limbs[i + dat.min_target_limb] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb], dat.mask_last_limb(other, i), c)?;
         }
         self.put_limbs(target_limbs);
-        Ok(())
+        Some(())
     }
 
     // Have to reduce twice at odd primes b/c of 2.
     // Perhaps should biforcate implementations at p odd and p=2...
-    fn add_truncate_shift_left(&mut self, other : &FpVector, c : u32) -> Result<(), ()> {
+    fn add_truncate_shift_left(&mut self, other : &FpVector, c : u32) -> Option<()> {
         let dat = AddShiftLeftData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -1112,10 +1112,10 @@ impl FpVectorT for FpVector2 {
             }
         }
         self.put_limbs(target_limbs);
-        Ok(())
+        Some(())
     }
 
-    fn add_truncate_shift_right(&mut self, other : &FpVector, c : u32) -> Result<(), ()> {
+    fn add_truncate_shift_right(&mut self, other : &FpVector, c : u32) -> Option<()> {
         let dat = AddShiftRightData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -1136,7 +1136,7 @@ impl FpVectorT for FpVector2 {
             }
         }
         self.put_limbs(target_limbs);
-        Ok(())
+        Some(())
     }
 
 
@@ -1153,7 +1153,7 @@ impl FpVectorT for FpVector2 {
 
 impl FpVector2 {
 
-    pub fn add_carry2<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
+    pub fn add_carry2(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
         if self.dimension() == 0 {
             return false;
         }
@@ -1167,7 +1167,7 @@ impl FpVector2 {
         }
     }
 
-    pub fn add_carry_limb2<'a>(&mut self, idx : usize, source : u64, rest : &mut [FpVector]) -> bool {
+    pub fn add_carry_limb2(&mut self, idx : usize, source : u64, rest : &mut [FpVector]) -> bool {
         let mut cur_vec = self;
         let mut target_limbs;
         let mut carry = source;
@@ -1193,7 +1193,7 @@ impl FpVector2 {
         return true;
     }
 
-    pub fn add_carry_shift_none2<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) -> bool {
+    pub fn add_carry_shift_none2(&mut self, other : &FpVector, rest : &mut [FpVector]) -> bool {
         let dat = AddShiftNoneData::new(self, other);
         let mut result = false;
         let mut i = 0; {
@@ -1210,7 +1210,7 @@ impl FpVector2 {
     }
 
     
-    pub fn add_carry_shift_left2<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) -> bool {
+    pub fn add_carry_shift_left2(&mut self, other : &FpVector, rest : &mut [FpVector]) -> bool {
         let dat = AddShiftLeftData::new(self, other);
         let mut result = false;
         let mut i = 0; {
@@ -1231,7 +1231,7 @@ impl FpVector2 {
     }
 
 
-    pub fn add_carry_shift_right2<'a>(&mut self, other : &FpVector, rest : &mut [FpVector]) -> bool {
+    pub fn add_carry_shift_right2(&mut self, other : &FpVector, rest : &mut [FpVector]) -> bool {
         let dat = AddShiftRightData::new(self, other);
         let mut result = false;
         let mut i = 0; {
@@ -1551,7 +1551,7 @@ impl FpVector {
     }
 
 
-    pub fn add_carry<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
+    pub fn add_carry(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
         if self.dimension() == 0 {
             return false;
         }
@@ -1565,7 +1565,7 @@ impl FpVector {
         }
     }
 
-    pub fn add_carry_propagate<'a>(&mut self, rest : &mut [FpVector]) -> bool {
+    pub fn add_carry_propagate(&mut self, rest : &mut [FpVector]) -> bool {
         let min_target_limb = self.min_limb();
         let max_target_limb = self.max_limb();
         let number_of_limbs = max_target_limb - min_target_limb;
@@ -1594,7 +1594,7 @@ impl FpVector {
         return true;
     }
 
-    pub fn add_carry_shift_none<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
+    pub fn add_carry_shift_none(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
         let dat = AddShiftNoneData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -1612,7 +1612,7 @@ impl FpVector {
     }
 
     
-    pub fn add_carry_shift_left<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
+    pub fn add_carry_shift_left(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
         let dat = AddShiftLeftData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -1634,7 +1634,7 @@ impl FpVector {
     }
 
 
-    pub fn add_carry_shift_right<'a>(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
+    pub fn add_carry_shift_right(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
         let dat = AddShiftRightData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -2791,7 +2791,7 @@ mod tests {
             let mut result = vec![0; dim];
             v.pack(&v_arr);
             w.pack(&w_arr);
-            let ok_q = v.add_truncate(&w, 1).is_ok();
+            let ok_q = v.add_truncate(&w, 1).is_some();
             println!("\nok_q: {}\n!!\n" , ok_q);
             v.clear_slice();
             if ok_q {
@@ -2839,7 +2839,7 @@ mod tests {
             w.pack(&w_arr);
             v.set_slice(slice_start + 2, slice_end + 2);
             w.set_slice(slice_start, slice_end);
-            let ok_q = v.add_truncate(&w, 1).is_ok();
+            let ok_q = v.add_truncate(&w, 1).is_some();
             v.clear_slice();
             println!("\nok_q: {}\n" , ok_q);
             if ok_q {
@@ -2894,7 +2894,7 @@ mod tests {
             w.pack(&w_arr);
             v.set_slice(slice_start - 2, slice_end - 2);
             w.set_slice(slice_start, slice_end);
-            let ok_q = v.add_truncate(&w, 1).is_ok();
+            let ok_q = v.add_truncate(&w, 1).is_some();
             v.clear_slice();
             if ok_q {
                 let mut diffs = String::new();
