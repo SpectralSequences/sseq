@@ -71,6 +71,15 @@ impl<A : AdemAlgebraT> UnstableAlgebra for UnstableAlgebraBCp<A> {
         if degree == 1 { 1 } else { 0 }
     }
 
+    fn repr_poly_generator(&self, degree : i32, _index : usize) -> (String, u32) {
+        ("x".to_string(), (degree / 2) as u32)
+    }
+
+    fn repr_ext_generator(&self, _degree : i32, _index : usize) -> String {
+        "a".to_string()
+    }
+
+
     fn frobenius_on_generator(&self, _degree : i32, _index : usize) -> Option<usize> {
         Some(0)
     }

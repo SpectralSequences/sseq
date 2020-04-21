@@ -1,9 +1,10 @@
+use itertools::Itertools;
+use parking_lot::Mutex;
 use serde_json::value::Value;
 use std::collections::HashMap;
-use parking_lot::Mutex;
 
 use once::OnceVec;
-use fp::prime::ValidPrime;
+use fp::prime::{integer_power, ValidPrime, BitflagIterator};
 use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::combinatorics;
 use crate::algebra::{Algebra, Bialgebra};
@@ -79,25 +80,17 @@ impl std::fmt::Display for MilnorBasisElement {
             write!(f, "1")?;
             return Ok(());
         }
-        let mut qpart = self.q_part;
-        if qpart != 0 {
-            let mut i = 0;
-            while qpart != 0 {
-                if qpart & 1 != 0 {
-                    write!(f, "Q_{} ", i)?;
-                }
-                qpart >>= 1;
-                i += 1;
-            }
+        let mut parts = Vec::new();
+        if self.q_part != 0 {            
+            let q_part_str = BitflagIterator::set_bit_iterator(self.q_part as u64)
+                .map(|idx| format!("Q_{}", idx))
+                .join(" ");
+            parts.push(q_part_str);
         }
         if !self.p_part.is_empty() {
-            write!(f, "P(")?;
-            write!(f, "{}", self.p_part.iter()
-                   .map(u32::to_string)
-                   .collect::<Vec<String>>()
-                   .join(", "))?;
-            write!(f, ")")?;
+            parts.push(format!("P({})", self.p_part.iter().join(", ")));
         }
+        write!(f, "{}", parts.join(" "))?;
         Ok(())
     }
 }
@@ -626,15 +619,9 @@ impl MilnorAlgebra {
         let mut new_result : Vec<(u32, MilnorBasisElement)> = vec![(1, m1.clone())];
         let mut old_result : Vec<(u32, MilnorBasisElement)> = Vec::new();
 
-        let mut pk : u32 = 1;
-        let mut k : u32 = 0;
-        while f & !((1 << k) - 1) != 0 {
-            if f & (1<<k) == 0 { // If only we had goto (or C-style for-loops)
-                k+=1;
-                pk *= *self.prime();
-                continue;
-            }
-
+        for k in BitflagIterator::set_bit_iterator(f as u64) {
+            let k = k as u32;
+            let pk = integer_power(*self.p, k);
             std::mem::swap(&mut new_result, &mut old_result);
             new_result.clear();
 
@@ -647,7 +634,7 @@ impl MilnorAlgebra {
             //
             // We also use the fact that Q_k Q_j = -Q_j Q_k
             for (coef, term) in &old_result {
-                for i in 0..=term.p_part.len() {
+                for i in 0..= term.p_part.len() {
                     // If there is already Q_{k+i} on the other side, the result is 0
                     if term.q_part & (1 << (k + i as u32)) != 0 {
                         continue;
@@ -663,12 +650,7 @@ impl MilnorAlgebra {
                     }
 
                     // Now calculate the number of Q's we are moving past
-                    let mut larger_q = 0;
-                    let mut v = term.q_part >> (k + i as u32 + 1);
-                    while v != 0 {
-                        larger_q += v & 1;
-                        v >>= 1;
-                    }
+                    let larger_q = BitflagIterator::set_bit_iterator(term.q_part as u64 >> (k + i as u32 + 1)).count();
 
                     // If new_p ends with 0, drop them
                     while let Some(0) = new_p.last() {
@@ -685,16 +667,12 @@ impl MilnorAlgebra {
                     new_result.push((c, m));
                 }
             }
-
-            k += 1;
-            pk *= *self.prime();
         }
         new_result
     }
 
     fn multiply(&self, res : &mut FpVector, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement) {
         let target_dim = m1.degree + m2.degree;
-
         if self.generic {
             let m1f = self.multiply_qpart(m1, m2.q_part);
             for (cc, basis) in m1f {
@@ -780,7 +758,7 @@ impl<'a>  PPartMultiplier<'a> {
 
         let mut M = Matrix2D::new(rows, cols);
 
-        for i in 1..rows {
+        for i in 1 .. rows {
             M[i][0] = r[i - 1];
         }
         M[0][1..cols].clone_from_slice(&s[0..(cols - 1)]);
@@ -801,26 +779,23 @@ impl<'a>  PPartMultiplier<'a> {
                     continue;
                 }
                 // Check if any entry in column j above row i is nonzero. I'm still not sure why tbh.
-                for k in 0..i {
-                    if self.M[k][j] != 0 {
-                        // If so, we found our next matrix.
-                        for row in 1..i {
-                            self.M[row][0] = self.r[row-1];
-                            for col in 1..self.cols{
-                                self.M[0][col] += self.M[row][col];
-                                self.M[row][col] = 0;
-                            }
+                if let Some(_) = (0..i).find(|&k| self.M[k][j] != 0) {
+                    // If so, we found our next matrix.
+                    for row in 1..i {
+                        self.M[row][0] = self.r[row-1];
+                        for col in 1..self.cols{
+                            self.M[0][col] += self.M[row][col];
+                            self.M[row][col] = 0;
                         }
-                        for col in 1..j {
-                            self.M[0][col] += self.M[i][col];
-                            self.M[i][col] = 0;
-                        }
-                        self.M[0][j] -= 1;
-                        self.M[i][j] += 1;
-                        self.M[i][0] = total - p_to_the_j;
-
-                        return true;
                     }
+                    for col in 1..j {
+                        self.M[0][col] += self.M[i][col];
+                        self.M[i][col] = 0;
+                    }
+                    self.M[0][j] -= 1;
+                    self.M[i][j] += 1;
+                    self.M[i][0] = total - p_to_the_j;
+                    return true;
                 }
                 // All the cells above this one are zero so we didn't find our next matrix.
                 // Add the weight from this cell to the total, we can use it to increment a cell lower down.

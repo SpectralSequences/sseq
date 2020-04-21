@@ -258,6 +258,47 @@ pub fn binomial(p : ValidPrime, n : i32, k : i32) -> u32 {
     }
 }
 
+pub struct BitflagIterator {
+    remaining : u8,
+    flag : u64
+}
+
+impl BitflagIterator {
+    pub fn new(flag : u64) -> Self {
+        Self {
+            remaining : u8::max_value(),
+            flag
+        }
+    }
+
+    pub fn new_fixed_length(flag : u64, remaining : usize) -> Self {
+        assert!(remaining <= 64);
+        let remaining = remaining as u8;
+        Self {
+            remaining,
+            flag
+        }
+    }
+
+    pub fn set_bit_iterator(flag : u64) -> impl Iterator<Item=usize> {
+        Self::new(flag).enumerate().filter_map(|(idx, v)| if v { Some(idx) } else { None })
+    }
+}
+
+impl Iterator for BitflagIterator {
+    type Item = bool;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining > 64 && self.flag == 0 || self.remaining == 0 {
+            None
+        } else {
+            self.remaining -= 1;
+            let result = self.flag & 1 == 1;
+            self.flag >>= 1;
+            Some(result)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

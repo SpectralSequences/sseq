@@ -22,6 +22,7 @@
 //! However, the way this structured means one always has to import both `FpVector` and
 //! `FpVectorT`, since you cannot use the functions of a trait unless you have imported the trait.
 
+use itertools::Itertools;
 use std::cmp::Ordering;
 use std::sync::Once;
 use std::fmt;
@@ -2064,17 +2065,7 @@ impl<'a> Iterator for FpVectorIteratorNonzero<'a> {
 
 impl fmt::Display for FpVector {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let mut it = self.iter();
-        if let Some(x) = it.next(){
-            write!(f,"[{}", x)?;
-        } else {
-            write!(f, "[]")?;
-            return Ok(());
-        }
-        for x in it {
-            write!(f, ", {}", x)?;
-        }
-        write!(f,"]")?;
+        write!(f, "[{}]", self.iter().join(", "))?;
         Ok(())
     }
 }

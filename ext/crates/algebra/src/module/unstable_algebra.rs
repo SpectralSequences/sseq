@@ -73,6 +73,8 @@ pub trait UnstableAlgebra : Sized + Send + Sync + 'static {
 
     fn polynomial_generators_in_degree(&self, degree : i32) -> usize;
     fn exterior_generators_in_degree(&self, degree : i32) -> usize;
+    fn repr_poly_generator(&self, degree : i32, _index : usize) -> (String, u32);
+    fn repr_ext_generator(&self, degree : i32, _index : usize) -> String;
 
     fn basis_table(&self) -> &OnceVec<UnstableAlgebraTableEntry>;
     fn action_table(&self) -> &OnceVec<Vec<Vec<FpVector>>>; // degree -> square -> monomial idx -> result vector
@@ -359,14 +361,7 @@ pub trait UnstableAlgebra : Sized + Send + Sync + 'static {
         let mut rest_mono = mono.clone();
         let p = self.prime();
         let mut result = FpVector::new(p, self.dimension(mono.degree));
-        let mut gen_exp = u32::max_value();
-        let mut gen_int_idx = usize::max_value();
-        for (i, v) in rest_mono.poly.iter_nonzero() {
-            if v < gen_exp {
-                gen_exp = v;
-                gen_int_idx = i;
-            }
-        }
+        let (gen_int_idx, gen_exp) = rest_mono.poly.iter_nonzero().min_by_key(|(_i, v)| *v).unwrap();
         let (gen_deg, gen_idx) = self.polynomial_partitions().internal_idx_to_gen_deg(gen_int_idx);
         rest_mono.poly.set_entry(gen_int_idx, 0);
         let rest_mono_new_deg = rest_mono.degree - gen_exp as i32 * gen_deg;
@@ -508,8 +503,17 @@ impl<Adem : AdemAlgebraT, A: UnstableAlgebra<Algebra=Adem> + Send + Sync + 'stat
         }
     }    
 
-    fn basis_element_to_string(&self, _degree: i32, _index: usize) -> String {
-        "".to_string()
+    fn basis_element_to_string(&self, degree: i32, index: usize) -> String {
+        let mono = self.index_to_monomial(degree, index);
+        let mut exp_map = HashMap::new();
+        for (i, e) in mono.poly.iter_nonzero() {
+            let (gen_deg, gen_idx) = self.polynomial_partitions().internal_idx_to_gen_deg(i);
+            let (var, var_exp) = self.repr_poly_generator(gen_deg, gen_idx);
+            exp_map.entry(var).or_insert((0, gen_deg/var_exp as i32)).0 += e as i32 * gen_deg;
+        }
+        // exp_map.iter().sor
+
+        unimplemented!()
     }
 
     fn act_on_basis(&self,

@@ -251,21 +251,24 @@ fn bockstein_or_sq_to_adem_basis_elt(e : &BocksteinOrSq, q : i32) -> AdemBasisEl
                 degree : 1,
                 excess : 1,
                 bocksteins : 0,
-                ps : vec![1]
+                ps : vec![1],
+                p_or_sq : false                
             }
         } else {
             AdemBasisElement {
                 degree : 1,
                 excess : 1,
                 bocksteins : 1,
-                ps : vec![]
+                ps : vec![],
+                p_or_sq : true
             }            
         },
         BocksteinOrSq::Sq(x) => AdemBasisElement {
             degree : (*x) as i32 * q,
             excess : 2 * (*x) as i32,
             bocksteins : 0,
-            ps : vec![*x]         
+            ps : vec![*x],
+            p_or_sq : q != 1  
         }
     }
 }
@@ -337,12 +340,12 @@ mod tests {
         println!("{:?}", milnor.basis_element_from_index(1, 0));
 
         for (input, output) in &[
-            ("Sq2 * Sq2", "P3 P1"),
-            ("A(2 2)", "P3 P1"),
+            ("Sq2 * Sq2", "Sq3 Sq1"),
+            ("A(2 2)", "Sq3 Sq1"),
             ("Sq2 * Sq2 * Sq2 + Sq3 * Sq3", "0"),
-            ("Sq2 * (Sq2 * Sq2 + Sq4)", "P6"),
-            ("Sq7 + Q2","P5 P2 + P6 P1 + P4 P2 P1"),            
-            ("(Q2 + Sq7) * Q1", "P6 P3 P1"),
+            ("Sq2 * (Sq2 * Sq2 + Sq4)", "Sq6"),
+            ("Sq7 + Q2","Sq5 Sq2 + Sq6 Sq1 + Sq4 Sq2 Sq1"),            
+            ("(Q2 + Sq7) * Q1", "Sq6 Sq3 Sq1"),
         ]{
             let (degree, result) = evaluate_algebra_adem(&adem, &milnor, input).unwrap();
             println!("{} ==> {}", input, adem.element_to_string(degree, &result));

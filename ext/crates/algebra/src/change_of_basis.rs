@@ -100,7 +100,8 @@ fn milnor_to_adem_on_basis_2(
         degree,
         excess : 0,
         bocksteins : 0,
-        ps : t
+        ps : t,
+        p_or_sq : *adem_algebra.prime() != 2
     });
     let mut tmp_vector_a = FpVector::new(p, dim);
     adem_to_milnor_on_basis(adem_algebra, milnor_algebra, &mut tmp_vector_a, 1, degree, t_idx);
@@ -134,7 +135,8 @@ fn milnor_to_adem_on_basis_generic(
         degree,
         excess : 0,
         bocksteins : elt.q_part,
-        ps : t
+        ps : t,
+        p_or_sq : *adem_algebra.prime() != 2
     });
     let mut tmp_vector_a = FpVector::new(p, dim);
     adem_to_milnor_on_basis(adem_algebra, milnor_algebra, &mut tmp_vector_a, 1, degree, t_idx);
@@ -212,9 +214,9 @@ mod tests {
         adem.compute_basis(max_degree);
         milnor.compute_basis(max_degree);
         for (qi, output) in &[
-            (0, "P1"),
-            (1, "P3 + P2 P1"),
-            (2, "P7 + P5 P2 + P6 P1 + P4 P2 P1")
+            (0, "Sq1"),
+            (1, "Sq3 + Sq2 Sq1"),
+            (2, "Sq7 + Sq5 Sq2 + Sq6 Sq1 + Sq4 Sq2 Sq1")
         ] {
             let degree = (1 << (*qi + 1)) - 1;
             let mut result = FpVector::new(p, adem.dimension(degree, -1));
