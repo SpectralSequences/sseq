@@ -26,6 +26,12 @@ pub trait AdemAlgebraT : Send + Sync + 'static + Algebra {
     fn adem_algebra(&self) -> &AdemAlgebra;
 }
 
+impl AdemAlgebraT for AdemAlgebra {
+    fn adem_algebra(&self) -> &AdemAlgebra {
+        &*self
+    }
+}
+
 
 lazy_static!{
     static ref BOCKSTEIN_TABLE : Vec<Vec<u32>> = {
@@ -98,7 +104,7 @@ impl std::fmt::Display for AdemBasisElement {
             }
             return Ok(())
         }
-        if (self.bocksteins >> self.ps.len()) & 1 == 1{
+        if (self.bocksteins >> self.ps.len()) & 1 == 1 {
             write!(f, " b")?;
         }
         Ok(())
@@ -134,7 +140,7 @@ pub struct AdemAlgebra {
     even_basis_table : OnceVec<Vec<AdemBasisElement>>,
     basis_table : OnceVec<Vec<AdemBasisElement>>, // degree -> index -> AdemBasisElement
     basis_element_to_index_map : OnceVec<HashMap<AdemBasisElement, usize>>, // degree -> AdemBasisElement -> index
-    multiplication_table : OnceVec<Vec<Vec<FpVector>>>,// degree -> first square -> admissibile sequence idx -> result vector
+    multiplication_table : OnceVec<Vec<Vec<FpVector>>>,// degree -> first square -> admissible sequence idx -> result vector
     excess_table : OnceVec<Vec<usize>>,
     // #[allow(dead_code)]
     sort_order : Option<fn(&AdemBasisElement, &AdemBasisElement) -> Ordering>
@@ -445,6 +451,10 @@ impl AdemAlgebra {
             sort_order
         }
     }
+
+    pub fn q(&self) -> i32 {
+        if self.generic { 2*(*self.prime() as i32 - 1) } else { 1 }
+    }    
 
     fn generate_basis_even(&self, mut next_degree : i32, max_degree : i32){
         if next_degree == 0 {
@@ -1003,7 +1013,6 @@ impl AdemAlgebra {
 
         for (it_idx, _value) in reduced_tail.iter_nonzero() {
             let cur_tail_basis_elt = self.basis_element_from_index(tail_degree, it_idx);
-
             new_monomial.ps.truncate(idx);
             new_monomial.ps.extend_from_slice(&cur_tail_basis_elt.ps);
             self.make_mono_admissible_2(result, &mut new_monomial, idx as i32 - 1, leading_degree - x, excess, stop_early, unstable);

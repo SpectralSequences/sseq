@@ -209,11 +209,11 @@ pub struct PartitionIterator<'a> {
     remaining : i32,   // leftover degree
     parts : &'a [i32],// list of part sizes to use
     partition : Vec<u32>, // current partition
-    initial : bool
+    initial : bool    // 
 }
 
 impl<'a> PartitionIterator<'a> {
-    pub fn new(max_degree : i32, num_parts : usize, parts : &'a [i32]) -> Self {
+    pub fn new(max_degree : i32, num_parts : u32, parts : &'a [i32]) -> Self {
         let mut remaining = max_degree;
         let mut partition = vec![0; parts.len()];
         let idx = if parts.len() == 1 { 0 } else { 1 };
@@ -315,7 +315,7 @@ impl<'a> TruncatedPolynomialSteenrodPartitionIterator<'a> {
         let dummy_vec = Vec::new();
         // transmute to make Rust forget that we own dummy_vec.
         partition.push(unsafe { std::mem::transmute::<_, &'a _>(&dummy_vec) });
-        iterators.push(PartitionIterator::new(degree, monomial.entry(0) as usize, parts[0]));
+        iterators.push(PartitionIterator::new(degree, monomial.entry(0), parts[0]));
         coeffs.push(0);
         Self {
             parts,
@@ -342,7 +342,7 @@ impl<'a> TruncatedPolynomialSteenrodPartitionIterator<'a> {
                 } else {
                     // transmute to make Rust forget that we own dummy_vec.
                     self.partition.push(unsafe { std::mem::transmute::<_, &'a _>(&self.dummy_vec) });
-                    self.iterators.push(PartitionIterator::new(remaining, self.monomial.entry(idx + 1) as usize, self.parts[idx + 1]));
+                    self.iterators.push(PartitionIterator::new(remaining, self.monomial.entry(idx + 1), self.parts[idx + 1]));
                     self.coeffs.push(0);
                     self.search()
                 }

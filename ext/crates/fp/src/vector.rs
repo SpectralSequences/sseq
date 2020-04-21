@@ -356,8 +356,8 @@ pub trait FpVectorT {
         }
         i = dat.number_of_limbs - 1;
         if i > 0 {
-            let self_limb = dat.mask_middle_limb(self, i); 
-            let other_limb = dat.mask_middle_limb(other, i);
+            let self_limb = dat.mask_last_limb(self, i); 
+            let other_limb = dat.mask_last_limb(other, i);
             if !self.all_leq_limb(self_limb, other_limb) {
                 return false;
             }
@@ -1014,7 +1014,7 @@ impl PartialEq for FpVector {
 
 impl Eq for FpVector {}
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone)]
 pub struct VectorContainer {
     dimension : usize,
     slice_start : usize,
@@ -2250,7 +2250,21 @@ impl Load for FpVector {
 
 impl Hash for FpVector {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.vector_container().hash(state);
+        self.dimension().hash(state);
+        if self.dimension() == 0 {
+            return;
+        }
+        let dat = AddShiftNoneData::new(self, self);
+        let mut i = 0; {
+            dat.mask_first_limb(self, i).hash(state);
+        }
+        for i in 1 .. dat.number_of_limbs - 1 {
+            dat.mask_middle_limb(self, i).hash(state);
+        }
+        i = dat.number_of_limbs - 1;
+        if i > 0 {
+            dat.mask_last_limb(self, i).hash(state);
+        }
     }
 }
 

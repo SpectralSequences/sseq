@@ -151,6 +151,10 @@ impl MilnorAlgebra {
         }
     }
 
+    pub fn q(&self) -> i32 {
+        if self.generic { 2*(*self.prime() as i32 - 1) } else { 1 }
+    }
+
     pub fn basis_element_from_index(&self, degree : i32, idx : usize) -> &MilnorBasisElement {
         &self.basis_table[degree as usize][idx]
     }
