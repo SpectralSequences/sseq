@@ -1,5 +1,5 @@
 use core::cmp::Ordering;
-use itertools::{Itertools, interleave};
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use nom::{
     IResult,
@@ -78,8 +78,9 @@ pub enum PorBockstein {
 
 impl AdemBasisElement {
     fn iter_filtered(&self) -> impl Iterator<Item=PorBockstein> + '_ {
-        interleave(
-            BitflagIterator::new(self.bocksteins as u64).map(|b| PorBockstein::Bockstein(b)), 
+        BitflagIterator::new(self.bocksteins as u64)
+        .map(|b| PorBockstein::Bockstein(b))
+        .interleave(
             self.ps.iter().map(|b| PorBockstein::P(*b))
         ).filter(|b| match b {
             PorBockstein::Bockstein(false) => false,
@@ -88,8 +89,9 @@ impl AdemBasisElement {
     }
 
     fn iter_full(&self) -> impl Iterator<Item=PorBockstein> + '_ {
-        interleave(
-            BitflagIterator::new_fixed_length(self.bocksteins as u64, self.ps.len() + 1).map(|b| PorBockstein::Bockstein(b)), 
+        BitflagIterator::new_fixed_length(self.bocksteins as u64, self.ps.len() + 1)
+        .map(|b| PorBockstein::Bockstein(b))
+        .interleave(
             self.ps.iter().map(|b| PorBockstein::P(*b))
         )
     }
@@ -213,7 +215,7 @@ impl Algebra for AdemAlgebra {
             .collect()
     }
 
-    fn max_degree(&self) -> i32 {
+    fn max_computed_degree(&self) -> i32 {
         *self.next_degree.lock() - 1
     }
 

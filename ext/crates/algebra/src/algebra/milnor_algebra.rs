@@ -219,7 +219,7 @@ impl Algebra for MilnorAlgebra {
             .collect()
     }
 
-    fn max_degree(&self) -> i32 {
+    fn max_computed_degree(&self) -> i32 {
         *self.next_degree.lock() - 1
     }
 
@@ -779,7 +779,7 @@ impl<'a>  PPartMultiplier<'a> {
                     continue;
                 }
                 // Check if any entry in column j above row i is nonzero. I'm still not sure why tbh.
-                if let Some(_) = (0..i).find(|&k| self.M[k][j] != 0) {
+                if (0..i).find(|&k| self.M[k][j] != 0).is_some() {
                     // If so, we found our next matrix.
                     for row in 1..i {
                         self.M[row][0] = self.r[row-1];

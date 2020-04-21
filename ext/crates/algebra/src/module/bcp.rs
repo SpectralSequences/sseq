@@ -6,18 +6,19 @@ use fp::vector::{FpVector, FpVectorT};
 
 use crate::algebra::combinatorics::TruncatedPolynomialPartitions;
 use crate::algebra::AdemAlgebraT;
-use crate::module::{UnstableAlgebra, UnstableAlgebraMonomial, UnstableAlgebraTableEntry};
+use crate::algebra::{PolynomialAlgebra, PolynomialAlgebraMonomial, PolynomialAlgebraTableEntry};
+use crate::module::PolynomialAlgebraModule;
 
-struct UnstableAlgebraBCp<A : AdemAlgebraT> {
+struct BCp<A : AdemAlgebraT> {
     algebra : Arc<A>,
     polynomial_monomials : TruncatedPolynomialPartitions,
     exterior_monomials : TruncatedPolynomialPartitions,
-    basis_table_field : OnceVec<UnstableAlgebraTableEntry>,
+    basis_table_field : OnceVec<PolynomialAlgebraTableEntry>,
     action_table_field : OnceVec<Vec<Vec<FpVector>>>,
     bockstein_table_field : OnceVec<Vec<FpVector>>,
 }
 
-impl<A : AdemAlgebraT> UnstableAlgebraBCp<A> {
+impl<A : AdemAlgebraT> BCp<A> {
     pub fn new(algebra : Arc<A>) -> Self {
         let p = algebra.prime();
         Self {
@@ -45,13 +46,12 @@ fn is_two_times_power_of_p(p : i32, mut degree : i32) -> bool {
     degree == 1
 }
 
-impl<A : AdemAlgebraT> UnstableAlgebra for UnstableAlgebraBCp<A> {
-    type Algebra = A;
-    fn algebra_inner(&self) -> Arc<Self::Algebra> {
-        self.algebra.clone()
+impl<A : AdemAlgebraT> PolynomialAlgebra for BCp<A> {
+    fn prime(&self) -> ValidPrime {
+        self.algebra().prime()
     }
-
-    fn name_inner(&self) -> String {
+    
+    fn name(&self) -> String {
         format!("BC{}", *self.prime())
     }
 
@@ -86,17 +86,16 @@ impl<A : AdemAlgebraT> UnstableAlgebra for UnstableAlgebraBCp<A> {
 
     fn compute_generating_set(&self, _degree : i32) {}
 
-    fn nonzero_squares_on_exterior_generator(&self, _gen_degree : i32, _gen_idx : usize) -> Vec<i32> {
-        vec![0]
-    }
-
-    fn nonzero_squares_on_polynomial_generator(&self, gen_degree : i32, _gen_idx : usize) -> Vec<i32> {
-        let q = self.algebra.adem_algebra().q();
-        vec![0, gen_degree/q]
-    }    
-
-    fn basis_table(&self) -> &OnceVec<UnstableAlgebraTableEntry> {
+    fn basis_table(&self) -> &OnceVec<PolynomialAlgebraTableEntry> {
         &self.basis_table_field
+    }
+}
+
+impl<A : AdemAlgebraT> PolynomialAlgebraModule for BCp<A> {
+    type Algebra = A;
+
+    fn algebra(&self) -> Arc<Self::Algebra> {
+        self.algebra.clone()
     }
 
     fn action_table(&self) -> &OnceVec<Vec<Vec<FpVector>>> {// degree -> square -> monomial idx -> result vector
@@ -107,7 +106,16 @@ impl<A : AdemAlgebraT> UnstableAlgebra for UnstableAlgebraBCp<A> {
         &self.bockstein_table_field
     }
 
-    fn sq_polynomial_generator_to_monomial(&self, result : &mut UnstableAlgebraMonomial, sq : i32, input_degree : i32, input_idx : usize) {
+    fn nonzero_squares_on_exterior_generator(&self, _gen_degree : i32, _gen_idx : usize) -> Vec<i32> {
+        vec![0]
+    }
+
+    fn nonzero_squares_on_polynomial_generator(&self, gen_degree : i32, _gen_idx : usize) -> Vec<i32> {
+        let q = self.algebra.adem_algebra().q();
+        vec![0, gen_degree/q]
+    }
+
+    fn sq_polynomial_generator_to_monomial(&self, result : &mut PolynomialAlgebraMonomial, sq : i32, input_degree : i32, input_idx : usize) {
         let p = *self.prime() as i32;
         // let q = self.algebra.adem_algebra().q();
         if is_two_times_power_of_p(p, input_degree) && sq == input_degree {
@@ -119,20 +127,21 @@ impl<A : AdemAlgebraT> UnstableAlgebra for UnstableAlgebraBCp<A> {
         }
     }
 
-    fn sq_exterior_generator_to_monomial(&self, result : &mut UnstableAlgebraMonomial, _sq : i32, _input_degree : i32, _input_idx : usize) {
+    fn sq_exterior_generator_to_monomial(&self, result : &mut PolynomialAlgebraMonomial, _sq : i32, _input_degree : i32, _input_idx : usize) {
         // assert!(false);
         result.valid = false;
     }
     
-    fn bockstein_polynomial_generator_to_monomial(&self, result : &mut UnstableAlgebraMonomial, _input_degree : i32, _input_idx : usize) {
+    fn bockstein_polynomial_generator_to_monomial(&self, result : &mut PolynomialAlgebraMonomial, _input_degree : i32, _input_idx : usize) {
         result.valid = false;
     }
     
-    fn bockstein_exterior_generator_to_monomial(&self, result : &mut UnstableAlgebraMonomial, _input_degree : i32, _input_idx : usize) {
+    fn bockstein_exterior_generator_to_monomial(&self, result : &mut PolynomialAlgebraMonomial, _input_degree : i32, _input_idx : usize) {
         result.poly.set_entry(0, 1);
         // result.ext.set_entry(0, 0);
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -145,7 +154,7 @@ mod tests {
         let p = 3;
         let p_ = ValidPrime::new(p);
         let algebra = Arc::new(AdemAlgebra::new(p_, p != 2, false, false));
-        let bcp = UnstableAlgebraBCp::new(algebra);
+        let bcp = BCp::new(algebra);
         bcp.compute_basis(20);
     }
 }
