@@ -31,6 +31,7 @@ fn module(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<module::RealProjectiveSpace>()?;
     m.add_class::<module::FreeModule>()?;
     m.add_class::<module::FreeUnstableModule>()?;
+    m.add_class::<module::BCp>()?;
     Ok(())
 }
 

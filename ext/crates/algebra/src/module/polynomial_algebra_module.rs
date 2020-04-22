@@ -34,6 +34,7 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
         temp_monomial.poly.extend_dimension(self.polynomial_partitions().generators_up_to_degree(temp_monomial.degree));
         temp_monomial.ext.extend_dimension(self.exterior_partitions().generators_up_to_degree(temp_monomial.degree));
         self.sq_polynomial_generator_to_monomial(&mut temp_monomial, sq, input_degree, input_idx);
+        println!("temp_monomial: {}", temp_monomial);
         if temp_monomial.valid {
             result.add_basis_element(self.monomial_to_index(&temp_monomial).unwrap(), coeff);
         }

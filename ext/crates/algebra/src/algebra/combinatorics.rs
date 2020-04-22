@@ -302,7 +302,7 @@ mod tests {
     fn test_trunc_poly_partitions(){
         let p = ValidPrime::new(3);
         fp::vector::initialize_limb_bit_index_table(p);
-        let tp = TruncatedPolynomialPartitions::new(p);
+        let tp = TruncatedPolynomialMonomialBasis::new(p);
         tp.add_gens_and_calculate_parts(1, 2);
         tp.add_gens_and_calculate_parts(2, 1);
         tp.add_gens_and_calculate_parts(3, 0);
@@ -327,20 +327,5 @@ mod tests {
             println!("{:?}", p);
         }
     }
-
-    #[test]
-    fn test_monomial_partitions() {
-        let parts_0 = vec![0, 3, 5];
-        let parts_1 = vec![0, 2, 7, 9];
-        let parts = vec![&parts_0, &parts_1];
-        let p = ValidPrime::new(3);
-        fp::vector::initialize_limb_bit_index_table(p);
-        let mut m = FpVector::new(p, 2);
-        m.pack(&vec![2, 2]);
-        for part in TruncatedPolynomialSteenrodPartitionIterator::new(12, &parts, m) {
-            println!("{:?}", part);
-        }
-    }
-    
 
 }

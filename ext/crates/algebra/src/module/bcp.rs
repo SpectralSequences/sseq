@@ -32,8 +32,8 @@ impl<A : AdemAlgebraT> BCp<A> {
     }
 }
 
-fn is_two_times_power_of_p(p : i32, mut degree : i32) -> bool {
-    let q = 2;
+fn is_two_times_power_of_p(p : i32, generic : bool, mut degree : i32) -> bool {
+    let q = if generic { 2 } else { 1 };
     if degree % q != 0 {
         return false;
     }
@@ -64,15 +64,16 @@ impl<A : AdemAlgebraT> PolynomialAlgebra for BCp<A> {
     }
 
     fn polynomial_generators_in_degree(&self, degree : i32) -> usize {
-        if is_two_times_power_of_p(*self.prime() as i32, degree) { 1 } else { 0 }
+        if is_two_times_power_of_p(*self.prime() as i32, self.algebra().adem_algebra().generic, degree) { 1 } else { 0 }
     }
 
     fn exterior_generators_in_degree(&self, degree : i32) -> usize {
-        if degree == 1 { 1 } else { 0 }
+        if degree == 1 && self.algebra().adem_algebra().generic { 1 } else { 0 }
     }
 
     fn repr_poly_generator(&self, degree : i32, _index : usize) -> (String, u32) {
-        ("x".to_string(), (degree / 2) as u32)
+        let q = if self.algebra().adem_algebra().generic { 2 } else { 1 };
+        ("x".to_string(), (degree / q) as u32)
     }
 
     fn repr_ext_generator(&self, _degree : i32, _index : usize) -> String {
@@ -111,16 +112,19 @@ impl<A : AdemAlgebraT> PolynomialAlgebraModule for BCp<A> {
     }
 
     fn nonzero_squares_on_polynomial_generator(&self, gen_degree : i32, _gen_idx : usize) -> Vec<i32> {
-        let q = self.algebra.adem_algebra().q();
+        let q = if self.algebra().adem_algebra().generic { 2 } else { 1 };
         vec![0, gen_degree/q]
     }
 
     fn sq_polynomial_generator_to_monomial(&self, result : &mut PolynomialAlgebraMonomial, sq : i32, input_degree : i32, input_idx : usize) {
         let p = *self.prime() as i32;
         // let q = self.algebra.adem_algebra().q();
-        if is_two_times_power_of_p(p, input_degree) && sq == input_degree {
+        if is_two_times_power_of_p(p, self.algebra().adem_algebra().generic, input_degree) && sq == input_degree {
             result.degree = p*input_degree;
-            let int_idx = self.polynomial_monomials.gen_deg_idx_to_internal_idx(input_degree, input_idx);
+            let int_idx = self.polynomial_monomials.gen_deg_idx_to_internal_idx(
+                result.degree, 
+                self.frobenius_on_generator(input_degree, input_idx).unwrap()
+            );
             result.poly.set_entry(int_idx, 1);
         } else {
             result.valid = false;
@@ -146,12 +150,12 @@ impl<A : AdemAlgebraT> PolynomialAlgebraModule for BCp<A> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
     use crate::algebra::AdemAlgebra;
     use crate::module::Module;
 
-    #[test]
-    fn test_uabcp(){
-        let p = 3;
+    #[rstest(p, case(2), case(3), case(5))]
+    fn test_bcp(p : u32){
         let p_ = ValidPrime::new(p);
         let algebra = Arc::new(AdemAlgebra::new(p_, p != 2, false, false));
         let bcp = BCp::new(algebra);
