@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::fmt;
 
@@ -99,7 +100,6 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
                         valid : true
                     };
                     self.set_monomial_degree(&mut m, degree);
-                    println!("==  idx : {}, m : {}", table.index_to_monomial.len(), m);
                     table.monomial_to_index.insert(m.clone(), index);
                     table.index_to_monomial.push(m);
                 }
@@ -170,10 +170,7 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
         target.extend_dimension(self.dimension(left_degree + right_mono.degree, i32::max_value()));
         for (left_idx, left_entry) in left.iter_nonzero() {
             let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone();
-            println!("left_mono : {}", target_mono);
-            println!("right_mono : {}", right_mono);
             self.multiply_monomials(&mut target_mono,  &right_mono);
-            println!("target_mono : {}", target_mono);
             let idx = self.monomial_to_index(&target_mono).unwrap();
             target.add_basis_element(idx, (left_entry * 1 * coeff)%p);
         }
@@ -211,6 +208,35 @@ impl<A : PolynomialAlgebra> Algebra for A {
             0 
         } else {
             self.basis_table()[degree as usize].index_to_monomial.len()
+        }
+    }
+
+    fn basis_element_to_string(&self, degree: i32, index: usize) -> String {
+        let mono = self.index_to_monomial(degree, index);
+        let mut exp_map = HashMap::new();
+        for (i, e) in mono.poly.iter_nonzero() {
+            let (gen_deg, gen_idx) = self.polynomial_partitions().internal_idx_to_gen_deg(i);
+            let (var, var_exp) = self.repr_poly_generator(gen_deg, gen_idx);
+            let entry = exp_map.entry(var).or_insert((0, gen_deg/var_exp as i32));
+            entry.0 += (e * var_exp) as i32;
+        }
+        let result = exp_map.iter().sorted_by_key(|(_, &(_, gen_deg))| gen_deg)
+            .map(|(var, &(var_exp, gen_deg))| {
+                let pow = if var_exp > 1 { format!("^{{{}}}", var_exp) } else { "".to_string() };
+                let s = format!("{}{}", var, pow);
+                (s, gen_deg)
+            }).merge_by(
+                mono.ext.iter_nonzero().map(|(i, _)|{
+                    let (gen_deg, gen_idx) = self.polynomial_partitions().internal_idx_to_gen_deg(i);
+                    let var = self.repr_ext_generator(gen_deg, gen_idx);
+                    (var, gen_deg)               
+                }),
+                |x, y| x.1 < y.1
+            ).map(|(v, _gen_deg)| v).join(" ");
+        if result.len() == 0 {
+            "1".to_string()
+        } else {
+            result
         }
     }
 

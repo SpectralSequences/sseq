@@ -75,9 +75,7 @@ pub trait Algebra : Send + Sync + 'static {
     fn json_from_basis(&self, _degree : i32, _idx : usize) -> serde_json::Value { unimplemented!() }
 
     /// Converts a basis element into a string for display.
-    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
-        format!("a_{{{}, {}}}", degree, idx)
-    }
+    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String;
 
     /// Converts an element into a string for display.
     fn element_to_string(&self, degree : i32, element : &FpVector) -> String {

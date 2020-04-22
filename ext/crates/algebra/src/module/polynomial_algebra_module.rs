@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use once::OnceVec;
@@ -30,11 +29,9 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
         let mut temp_monomial = PolynomialAlgebraMonomial::new(self.prime());
         let q = self.algebra().adem_algebra().q();
         temp_monomial.degree =  q*sq + input_degree;
-        println!("degree : {}", temp_monomial.degree);
         temp_monomial.poly.extend_dimension(self.polynomial_partitions().generators_up_to_degree(temp_monomial.degree));
         temp_monomial.ext.extend_dimension(self.exterior_partitions().generators_up_to_degree(temp_monomial.degree));
         self.sq_polynomial_generator_to_monomial(&mut temp_monomial, sq, input_degree, input_idx);
-        println!("temp_monomial: {}", temp_monomial);
         if temp_monomial.valid {
             result.add_basis_element(self.monomial_to_index(&temp_monomial).unwrap(), coeff);
         }
@@ -89,7 +86,6 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
     }
 
     fn bockstein_on_basis(&self, result : &mut FpVector, coeff : u32, degree : i32, idx : usize) {
-        println!("bock_on_basis {}, {}", degree, idx);
         result.add(&self.bockstein_table()[degree  as usize + 1][idx], coeff);
     }
 
@@ -105,7 +101,6 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
     }    
 
     fn compute_action_table(&self, degree : i32) {
-        println!("compute_action_table degree : {}", degree);
         let p = self.prime();
         let q = self.algebra().adem_algebra().q();
         // Build action table
@@ -317,29 +312,18 @@ impl<Adem : AdemAlgebraT, A : PolynomialAlgebraModule<Algebra=Adem> + Send + Syn
 
     fn compute_basis(&self, degree : i32) {
         let prev_max = Module::max_computed_degree(self);
-        println!("prev_max : {}", prev_max);
         self.algebra().compute_basis(degree);
         Algebra::compute_basis(self, degree);
         for i in prev_max + 1 ..= degree {
             self.compute_action_table(i);
             if self.algebra().adem_algebra().generic {
-                println!("compute bockstein table i : {}", i);
                 self.compute_bockstein_table(i);
             }
         }
     }    
 
     fn basis_element_to_string(&self, degree: i32, index: usize) -> String {
-        let mono = self.index_to_monomial(degree, index);
-        let mut exp_map = HashMap::new();
-        for (i, e) in mono.poly.iter_nonzero() {
-            let (gen_deg, gen_idx) = self.polynomial_partitions().internal_idx_to_gen_deg(i);
-            let (var, var_exp) = self.repr_poly_generator(gen_deg, gen_idx);
-            exp_map.entry(var).or_insert((0, gen_deg/var_exp as i32)).0 += e as i32 * gen_deg;
-        }
-        // exp_map.iter().sor
-
-        unimplemented!()
+        Algebra::basis_element_to_string(self, degree, index)
     }
 
     fn act_on_basis(&self,
