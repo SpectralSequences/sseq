@@ -113,11 +113,11 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
 
     impl $algebra {
         fn check_degree(&self, degree : i32) -> PyResult<()> {
-            let max_degree = self.inner_unchkd().max_degree();
-            if degree > max_degree {
+            let max_computed_degree = self.inner_unchkd().max_computed_degree();
+            if degree > max_computed_degree {
                 Err(python_utils::exception!(IndexError,
-                    "Degree {} too large: maximum degree of algebra is {}. Run algebra.compute_basis({}) first.", 
-                    degree, max_degree, degree
+                    "Degree {} too large: maximum computed degree of algebra is {}. Run algebra.compute_basis({}) first.", 
+                    degree, max_computed_degree, degree
                 ))
             } else {
                 Ok(())

@@ -95,7 +95,7 @@ impl Algebra for PythonAlgebraRust {
         }
     }
 
-    fn max_degree(&self) -> i32 {
+    fn max_computed_degree(&self) -> i32 {
         i32::max_value()
     }
 

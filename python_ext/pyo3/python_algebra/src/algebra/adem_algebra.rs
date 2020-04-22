@@ -47,7 +47,8 @@ impl AdemBasisElement {
             degree,
             excess,
             bocksteins : bs,
-            ps : ps_vec
+            ps : ps_vec,
+            p_or_sq : true
         }))
     }
 

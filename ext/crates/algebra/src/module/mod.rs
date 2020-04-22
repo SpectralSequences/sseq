@@ -25,6 +25,7 @@ pub use finitely_presented_module::FinitelyPresentedModule as FPModule;
 pub use free_module::{FreeModule, OperationGeneratorPair};
 pub use free_unstable_module::FreeUnstableModule;
 pub use polynomial_algebra_module::PolynomialAlgebraModule;
+pub use bcp::BCp;
 pub use hom_module::HomModule;
 pub use quotient_module::QuotientModule;
 pub use rpn::RealProjectiveSpace;

@@ -9,7 +9,7 @@ use crate::algebra::AdemAlgebraT;
 use crate::algebra::{PolynomialAlgebra, PolynomialAlgebraMonomial, PolynomialAlgebraTableEntry};
 use crate::module::PolynomialAlgebraModule;
 
-struct BCp<A : AdemAlgebraT> {
+pub struct BCp<A : AdemAlgebraT> {
     algebra : Arc<A>,
     polynomial_monomials : TruncatedPolynomialMonomialBasis,
     exterior_monomials : TruncatedPolynomialMonomialBasis,

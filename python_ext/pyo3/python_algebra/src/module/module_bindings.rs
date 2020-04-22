@@ -7,7 +7,7 @@ macro_rules! module_methods {
         #[allow(dead_code)]
         impl $module {
             fn check_degree(&self, degree : i32) -> PyResult<()> {
-                let max_degree = self.inner()?.max_computed_degree();
+                let max_degree = Module::max_computed_degree(self.inner()?);
                 if degree > max_degree {
                     Err(python_utils::exception!(IndexError,
                         "Degree {} too large: maximum degree of module is {}.", 
@@ -19,7 +19,7 @@ macro_rules! module_methods {
             }
     
             fn check_dimension(&self, degree : i32, vec : &python_fp::vector::FpVector) -> PyResult<()> {
-                let what_the_dimension_should_be = self.inner_unchkd().dimension(degree);
+                let what_the_dimension_should_be = Module::dimension(self.inner_unchkd(), degree);
                 let the_dimension = vec.get_dimension()?;
                 if the_dimension == what_the_dimension_should_be {
                     Ok(())
@@ -34,7 +34,7 @@ macro_rules! module_methods {
             }
     
             pub fn check_index(&self, degree : i32, idx : usize) -> PyResult<()> {
-                let dimension = self.inner_unchkd().dimension(degree);
+                let dimension = Module::dimension(self.inner_unchkd(), degree);
                 if idx < dimension {
                     Ok(())
                 } else {
@@ -101,12 +101,12 @@ macro_rules! module_methods {
     
             #[getter]
             pub fn get_prime(&self) -> PyResult<u32> {
-                Ok(*self.inner()?.prime())
+                Ok(*Module::prime(self.inner()?))
             }
     
             #[getter]
             pub fn get_name(&self) -> PyResult<String> {
-                Ok(self.inner()?.name())
+                Ok(Module::name(self.inner()?))
             }
     
             #[getter]
@@ -115,16 +115,15 @@ macro_rules! module_methods {
             }
     
             pub fn compute_basis(&self, max_degree : i32) -> PyResult<()> {
-                self.inner()?.compute_basis(max_degree);
+                Module::compute_basis(self.inner()?, max_degree);
                 Ok(())
             }
     
             pub fn dimension(&self, degree : i32) -> PyResult<usize> {
                 self.check_not_null()?;
                 self.check_degree(degree)?;
-                Ok(self.inner_unchkd().dimension(degree))
+                Ok(Module::dimension(self.inner_unchkd(), degree))
             }
-    
     
             pub fn act_on_basis(
                 &self,
@@ -198,7 +197,7 @@ macro_rules! module_methods {
                 self.check_not_null()?;
                 self.check_degree(degree)?;
                 self.check_index(degree, idx)?;
-                Ok(self.inner_unchkd().basis_element_to_string(degree, idx))
+                Ok(Module::basis_element_to_string(self.inner_unchkd(), degree, idx))
             }
             
             pub fn element_to_string(&self, degree : i32, element : &python_fp::vector::FpVector) -> PyResult<String> {
@@ -206,7 +205,7 @@ macro_rules! module_methods {
                 self.check_degree(degree)?;
                 element.check_not_null()?;
                 self.check_dimension(degree, element)?;
-                Ok(self.inner_unchkd().element_to_string(degree, element.inner_unchkd()))
+                Ok(Module::element_to_string(self.inner_unchkd(), degree, element.inner_unchkd()))
             }
             
         }

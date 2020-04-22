@@ -9,6 +9,7 @@ use algebra::module::{
     // FreeModule as FreeModuleRust,
     FreeUnstableModule as FreeUnstableModuleRust,
     RealProjectiveSpace as RealProjectiveSpaceRust,
+    BCp as BCpRust,
     ZeroModule
 };
 
@@ -17,7 +18,8 @@ use crate::algebra::AlgebraRust;
 use crate::module::{
     FDModule,
     FreeUnstableModule,
-    RealProjectiveSpace
+    RealProjectiveSpace,
+    BCp
 };
 
 // To add a new module: Add in enum ModuleRust, in because_enum_dispatch_doesnt_work_for_me,
@@ -27,16 +29,18 @@ pub enum ModuleRust {
     FDModule(FDModuleRust<AlgebraRust>),
     FPModule(FPModuleRust<AlgebraRust>),
     FreeUnstableModule(FreeUnstableModuleRust<AlgebraRust>),
-    RealProjectiveSpace(RealProjectiveSpaceRust<AlgebraRust>)
+    RealProjectiveSpace(RealProjectiveSpaceRust<AlgebraRust>),
+    BCp(BCpRust<AlgebraRust>),
 }
 
 macro_rules! because_enum_dispatch_doesnt_work_for_me {
     ($method : ident, $self_ : expr, $( $args : ident ),*) => {
         match $self_ {
-            ModuleRust::FDModule(module) => module.$method($($args),*),
-            ModuleRust::FPModule(module) => module.$method($($args),*),
-            ModuleRust::FreeUnstableModule(module) => module.$method($($args), *),
-            ModuleRust::RealProjectiveSpace(module) => module.$method($($args),*),
+            ModuleRust::FDModule(module) => ModuleT::$method(module, $($args),*),
+            ModuleRust::FPModule(module) => ModuleT::$method(module, $($args),*),
+            ModuleRust::FreeUnstableModule(module) => ModuleT::$method(module, $($args),*),
+            ModuleRust::RealProjectiveSpace(module) => ModuleT::$method(module, $($args),*),
+            ModuleRust::BCp(module) => ModuleT::$method(module, $($args),*),
             // AlgebraRust::PythonModuleRust(alg) => alg.$method($($args),*)
         }
     };
@@ -51,6 +55,7 @@ impl ModuleRust {
             // ModuleRust::FPModule(_) => FPModule::wrap_immutable(module).into_py(py),
             ModuleRust::FreeUnstableModule(_) => FreeUnstableModule::wrap_immutable(module).into_py(py),
             ModuleRust::RealProjectiveSpace(_) => RealProjectiveSpace::wrap_immutable(module).into_py(py),
+            ModuleRust::BCp(_) => BCp::wrap_immutable(module).into_py(py),
             _ => unimplemented!()
         }
     }
@@ -62,7 +67,7 @@ impl ModuleRust {
             // .or_else(|_err : PyErr| Ok(module.extract::<&FPModule>(py)?.to_arc()?))
             .or_else(|_err : PyErr| Ok(module.extract::<&RealProjectiveSpace>(py)?.to_arc()?))
             .or_else(|_err : PyErr| Ok(module.extract::<&FreeUnstableModule>(py)?.to_arc()?))
-            // .or_else(|_err : PyErr| Ok(module.extract::<&FreeUnstableModule>(py)?.to_arc()?))
+            .or_else(|_err : PyErr| Ok(module.extract::<&BCp>(py)?.to_arc()?))
             // .or_else(|_err : PyErr| Ok(module.extract::<&PythonAlgebra>(py)?.to_arc()?))
             .map( |a| a.clone())
             .map_err(|_err : PyErr| { python_utils::exception!(TypeError,

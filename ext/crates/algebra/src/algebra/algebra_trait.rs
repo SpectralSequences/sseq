@@ -160,8 +160,8 @@ macro_rules! dispatch_algebra {
             $dispatch_macro!(compute_basis, self, degree)
         }
 
-        fn max_degree(&self) -> i32 {
-            $dispatch_macro!(max_degree, self, )
+        fn max_computed_degree(&self) -> i32 {
+            $dispatch_macro!(max_computed_degree, self, )
         }
 
         fn dimension(&self, degree : i32, excess : i32) -> usize {
