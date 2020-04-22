@@ -650,7 +650,7 @@ impl MilnorAlgebra {
                     }
 
                     // Now calculate the number of Q's we are moving past
-                    let larger_q = BitflagIterator::set_bit_iterator(term.q_part as u64 >> (k + i as u32 + 1)).count();
+                    let larger_q = (term.q_part >> (k + i as u32 + 1)).count_ones();
 
                     // If new_p ends with 0, drop them
                     while let Some(0) = new_p.last() {

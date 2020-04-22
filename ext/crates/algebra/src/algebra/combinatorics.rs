@@ -93,7 +93,7 @@ pub fn xi_degrees(p : ValidPrime) -> &'static [i32] {
     &XI_DEGREES[PRIME_TO_INDEX_MAP[*p as usize]]
 }
 
-pub struct TruncatedPolynomialPartitions {
+pub struct TruncatedPolynomialMonomialBasis {
     p : ValidPrime,
     pub gens : OnceVec<(usize, usize)>, // degree => (first_index, number_of_gens)
     pub gen_degrees : OnceVec<i32>, // index ==> degree
@@ -101,7 +101,7 @@ pub struct TruncatedPolynomialPartitions {
     pub parts : OnceVec<Vec<FpVector>>
 }
 
-impl TruncatedPolynomialPartitions {
+impl TruncatedPolynomialMonomialBasis {
     pub fn new(p : ValidPrime) -> Self {
         let gens = OnceVec::new();
         gens.push((0, 0));
@@ -291,87 +291,6 @@ impl<'a> Iterator for PartitionIterator<'a> {
 }
 
 
-
-pub struct TruncatedPolynomialSteenrodPartitionIterator<'a> {
-    parts : &'a Vec<&'a Vec<i32>>,
-    monomial : FpVector,
-    iterators : Vec<PartitionIterator<'a>>,
-    partition : Vec<&'a Vec<u32>>,
-    coeffs : Vec<u32>,
-    // This dummy_vec is Rust nonsense as usual:
-    // To avoid an extra case distinction we need to push a dummy value onto partition
-    // that will immediately be deleted. Unforutunately, partition is a list of vectors,
-    // so we need a reference to a list. As usual that empty list needs to be owned
-    // somewhere, and it is obviously not reasonable to ask our caller to lend us an extra Vec<u32>
-    dummy_vec : Vec<u32> 
-}
-
-impl<'a> TruncatedPolynomialSteenrodPartitionIterator<'a> {
-    pub fn new(degree : i32, parts : &'a Vec<&'a Vec<i32>>, monomial : FpVector) -> Self {
-        let dim = monomial.dimension();
-        let mut iterators = Vec::with_capacity(dim);
-        let mut partition = Vec::with_capacity(dim);
-        let mut coeffs = Vec::with_capacity(monomial.dimension());
-        let dummy_vec = Vec::new();
-        // transmute to make Rust forget that we own dummy_vec.
-        partition.push(unsafe { std::mem::transmute::<_, &'a _>(&dummy_vec) });
-        iterators.push(PartitionIterator::new(degree, monomial.entry(0), parts[0]));
-        coeffs.push(0);
-        Self {
-            parts,
-            monomial,
-            iterators,
-            partition,
-            coeffs,
-            dummy_vec 
-        }
-    }
-
-    fn search(&mut self) -> Option<i32> {
-        let idx = self.iterators.len() - 1;
-        match self.iterators[idx].next() {
-            Some((remaining, next)) => {
-                let prev_coeff = if idx == 0 { 1 } else { self.coeffs[idx - 1] };
-                let p = self.monomial.prime();
-                self.partition[idx] = next;
-                self.coeffs[idx] = (prev_coeff * multinomial(p, &mut next.clone())) % *p;
-                if remaining == 0 {
-                    Some(remaining)
-                } else if idx == self.monomial.dimension() - 1 {
-                    Some(remaining)
-                } else {
-                    // transmute to make Rust forget that we own dummy_vec.
-                    self.partition.push(unsafe { std::mem::transmute::<_, &'a _>(&self.dummy_vec) });
-                    self.iterators.push(PartitionIterator::new(remaining, self.monomial.entry(idx + 1), self.parts[idx + 1]));
-                    self.coeffs.push(0);
-                    self.search()
-                }
-            }
-            None => {
-                self.iterators.pop();
-                self.partition.pop();
-                self.coeffs.pop();
-                if self.iterators.len() == 0 {
-                    None
-                } else {
-                    self.search()
-                }
-            }
-        }
-    }
-}
-
-impl<'a> Iterator for TruncatedPolynomialSteenrodPartitionIterator<'a> {
-    type Item = (i32, &'a Vec<&'a Vec<u32>>);
-    fn next(&mut self) -> Option<Self::Item> {
-        let remaining = self.search()?;
-        if true {
-            Some(unsafe { std::mem::transmute::<_, Self::Item>((remaining, &self.partition)) })
-        } else {
-            None
-        }
-    }
-}
 
 
 

@@ -4,15 +4,15 @@ use once::OnceVec;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 
-use crate::algebra::combinatorics::TruncatedPolynomialPartitions;
+use crate::algebra::combinatorics::TruncatedPolynomialMonomialBasis;
 use crate::algebra::AdemAlgebraT;
 use crate::algebra::{PolynomialAlgebra, PolynomialAlgebraMonomial, PolynomialAlgebraTableEntry};
 use crate::module::PolynomialAlgebraModule;
 
 struct BCp<A : AdemAlgebraT> {
     algebra : Arc<A>,
-    polynomial_monomials : TruncatedPolynomialPartitions,
-    exterior_monomials : TruncatedPolynomialPartitions,
+    polynomial_monomials : TruncatedPolynomialMonomialBasis,
+    exterior_monomials : TruncatedPolynomialMonomialBasis,
     basis_table_field : OnceVec<PolynomialAlgebraTableEntry>,
     action_table_field : OnceVec<Vec<Vec<FpVector>>>,
     bockstein_table_field : OnceVec<Vec<FpVector>>,
@@ -23,8 +23,8 @@ impl<A : AdemAlgebraT> BCp<A> {
         let p = algebra.prime();
         Self {
             algebra,
-            polynomial_monomials : TruncatedPolynomialPartitions::new(p), 
-            exterior_monomials : TruncatedPolynomialPartitions::new(ValidPrime::new(2)),
+            polynomial_monomials : TruncatedPolynomialMonomialBasis::new(p), 
+            exterior_monomials : TruncatedPolynomialMonomialBasis::new(ValidPrime::new(2)),
             basis_table_field : OnceVec::new(),
             action_table_field : OnceVec::new(),
             bockstein_table_field : OnceVec::new()
@@ -55,11 +55,11 @@ impl<A : AdemAlgebraT> PolynomialAlgebra for BCp<A> {
         format!("BC{}", *self.prime())
     }
 
-    fn polynomial_partitions(&self) -> &TruncatedPolynomialPartitions {
+    fn polynomial_partitions(&self) -> &TruncatedPolynomialMonomialBasis {
         &self.polynomial_monomials
     }
 
-    fn exterior_partitions(&self) -> &TruncatedPolynomialPartitions {
+    fn exterior_partitions(&self) -> &TruncatedPolynomialMonomialBasis {
         &self.exterior_monomials
     }
 

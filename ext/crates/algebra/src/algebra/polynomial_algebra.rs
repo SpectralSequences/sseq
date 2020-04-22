@@ -5,7 +5,7 @@ use once::OnceVec;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 
-use crate::algebra::combinatorics::TruncatedPolynomialPartitions;
+use crate::algebra::combinatorics::TruncatedPolynomialMonomialBasis;
 use crate::algebra::Algebra;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -59,8 +59,8 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
     fn name(&self) -> String;
     fn prime(&self) -> ValidPrime;
 
-    fn polynomial_partitions(&self) -> &TruncatedPolynomialPartitions;
-    fn exterior_partitions(&self) -> &TruncatedPolynomialPartitions;
+    fn polynomial_partitions(&self) -> &TruncatedPolynomialMonomialBasis;
+    fn exterior_partitions(&self) -> &TruncatedPolynomialMonomialBasis;
 
 
     fn min_degree(&self) -> i32 { 0 }
