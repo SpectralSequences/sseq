@@ -216,6 +216,15 @@ impl<'a> PartitionIterator<'a> {
     pub fn new(max_degree : i32, num_parts : u32, parts : &'a [i32]) -> Self {
         let mut remaining = max_degree;
         let mut partition = vec![0; parts.len()];
+        if parts.len() == 0 {
+            return Self { 
+                remaining : -1,
+                parts,
+                partition,
+                initial : true
+            }
+        }
+
         let idx = if parts.len() == 1 { 0 } else { 1 };
         partition[idx] = num_parts as u32;
         remaining -= num_parts as i32 * parts[idx];
@@ -276,7 +285,10 @@ impl<'a> Iterator for PartitionIterator<'a> {
     type Item = (i32, &'a Vec<u32>);
     fn next(&mut self) -> Option<Self::Item> {
         let found;
-        if self.initial && self.remaining >= 0 {
+        if self.initial {
+            if self.remaining < 0 {
+                return None;
+            }
             self.initial = false;
             found = true;
         } else {

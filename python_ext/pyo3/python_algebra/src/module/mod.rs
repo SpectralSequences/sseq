@@ -6,7 +6,7 @@ mod finite_dimensional_module;
 mod free_module;
 mod free_unstable_module;
 mod rpn;
-mod bcp;
+mod kfpn;
 
 
 
@@ -16,4 +16,4 @@ pub use finite_dimensional_module::FDModule;
 pub use free_module::*;
 pub use free_unstable_module::*;
 pub use rpn::RealProjectiveSpace;
-pub use bcp::BCp;
+pub use kfpn::KFpn;

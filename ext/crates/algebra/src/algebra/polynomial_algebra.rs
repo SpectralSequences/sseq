@@ -60,9 +60,8 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
     fn name(&self) -> String;
     fn prime(&self) -> ValidPrime;
 
-    fn polynomial_partitions(&self) -> &TruncatedPolynomialMonomialBasis;
-    fn exterior_partitions(&self) -> &TruncatedPolynomialMonomialBasis;
-
+    fn polynomial_monomials(&self) -> &TruncatedPolynomialMonomialBasis;
+    fn exterior_monomials(&self) -> &TruncatedPolynomialMonomialBasis;
 
     fn min_degree(&self) -> i32 { 0 }
 
@@ -76,13 +75,12 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
     fn frobenius_on_generator(&self, degree : i32, index : usize) -> Option<usize>; 
     fn compute_generating_set(&self, degree : i32);
     
-
     fn compute_basis_step(&self, degree : i32){
         assert!(degree as usize == self.basis_table().len());
         let num_poly_gens = self.polynomial_generators_in_degree(degree);
         let num_ext_gens = self.exterior_generators_in_degree(degree);
-        let poly_parts = self.polynomial_partitions();
-        let ext_parts = self.exterior_partitions();
+        let poly_parts = self.polynomial_monomials();
+        let ext_parts = self.exterior_monomials();
         if degree > 0 {
             poly_parts.add_gens_and_calculate_parts(degree, num_poly_gens);
             ext_parts.add_gens_and_calculate_parts(degree, num_ext_gens);
@@ -120,18 +118,17 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
     fn frobenius_monomial(&self, target : &mut FpVector, source : &FpVector) {
         let p = *self.prime() as i32;
         for (i, c) in source.iter_nonzero() {
-            let (degree, in_idx) = self.polynomial_partitions().internal_idx_to_gen_deg(i);
+            let (degree, in_idx) = self.polynomial_monomials().internal_idx_to_gen_deg(i);
             let frob = self.frobenius_on_generator(degree, in_idx);
             if let Some(e) = frob {
-                let out_idx = self.polynomial_partitions().gen_deg_idx_to_internal_idx(p*degree, e);
+                let out_idx = self.polynomial_monomials().gen_deg_idx_to_internal_idx(p*degree, e);
                 target.add_basis_element(out_idx, c);
             }
         }
     }
 
-    fn multiply_monomials(&self, target : &mut PolynomialAlgebraMonomial, source : &PolynomialAlgebraMonomial) -> Option<()> {
+    fn multiply_monomials(&self, target : &mut PolynomialAlgebraMonomial, source : &PolynomialAlgebraMonomial) -> Result<(), ()> {
         self.set_monomial_degree(target, target.degree + source.degree);
-
         target.ext.set_slice(0, source.ext.dimension());
         target.ext.add_truncate(&source.ext, 1)?;
         target.ext.clear_slice();
@@ -148,7 +145,7 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
                 carry_vec[0].set_to_zero_pure();
             }
         }
-        Some(())
+        Ok(())
     }
 
     fn multiply_polynomials(&self, target : &mut FpVector, coeff : u32, left_degree : i32, left : &FpVector, right_degree : i32, right : &FpVector) {
@@ -158,9 +155,11 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
             for (right_idx, right_entry) in right.iter_nonzero() {
                 let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone();
                 let source_mono = self.index_to_monomial(right_degree, right_idx);
-                self.multiply_monomials(&mut target_mono,  &source_mono);
-                let idx = self.monomial_to_index(&target_mono).unwrap();
-                target.add_basis_element(idx, (left_entry * right_entry * coeff)%p);
+                let nonzero_result = self.multiply_monomials(&mut target_mono,  &source_mono);
+                if nonzero_result.is_ok() {
+                    let idx = self.monomial_to_index(&target_mono).unwrap();
+                    target.add_basis_element(idx, (left_entry * right_entry * coeff)%p);
+                }
             }
         }
     }
@@ -170,16 +169,18 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
         target.extend_dimension(self.dimension(left_degree + right_mono.degree, i32::max_value()));
         for (left_idx, left_entry) in left.iter_nonzero() {
             let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone();
-            self.multiply_monomials(&mut target_mono,  &right_mono);
-            let idx = self.monomial_to_index(&target_mono).unwrap();
-            target.add_basis_element(idx, (left_entry * 1 * coeff)%p);
+            let nonzero_result = self.multiply_monomials(&mut target_mono,  &right_mono);
+            if nonzero_result.is_ok() {
+                let idx = self.monomial_to_index(&target_mono).unwrap();
+                target.add_basis_element(idx, (left_entry * 1 * coeff)%p);
+            }
         }
     }
 
     fn set_monomial_degree(&self, mono : &mut PolynomialAlgebraMonomial, degree : i32) {
         mono.degree = degree;
-        mono.ext.set_scratch_vector_size(self.exterior_partitions().generators_up_to_degree(mono.degree));
-        mono.poly.set_scratch_vector_size(self.polynomial_partitions().generators_up_to_degree(mono.degree));        
+        mono.ext.set_scratch_vector_size(self.exterior_monomials().generators_up_to_degree(mono.degree));
+        mono.poly.set_scratch_vector_size(self.polynomial_monomials().generators_up_to_degree(mono.degree));        
     }
 }
 
@@ -200,7 +201,7 @@ impl<A : PolynomialAlgebra> Algebra for A {
     }
 
     fn max_computed_degree(&self) -> i32 {
-        self.polynomial_partitions().parts.len() as i32 - 1
+        self.polynomial_monomials().parts.len() as i32 - 1
     }
 
     fn dimension(&self, degree : i32, _excess : i32) -> usize {
@@ -215,7 +216,7 @@ impl<A : PolynomialAlgebra> Algebra for A {
         let mono = self.index_to_monomial(degree, index);
         let mut exp_map = HashMap::new();
         for (i, e) in mono.poly.iter_nonzero() {
-            let (gen_deg, gen_idx) = self.polynomial_partitions().internal_idx_to_gen_deg(i);
+            let (gen_deg, gen_idx) = self.polynomial_monomials().internal_idx_to_gen_deg(i);
             let (var, var_exp) = self.repr_poly_generator(gen_deg, gen_idx);
             let entry = exp_map.entry(var).or_insert((0, gen_deg/var_exp as i32));
             entry.0 += (e * var_exp) as i32;
@@ -227,7 +228,7 @@ impl<A : PolynomialAlgebra> Algebra for A {
                 (s, gen_deg)
             }).merge_by(
                 mono.ext.iter_nonzero().map(|(i, _)|{
-                    let (gen_deg, gen_idx) = self.polynomial_partitions().internal_idx_to_gen_deg(i);
+                    let (gen_deg, gen_idx) = self.exterior_monomials().internal_idx_to_gen_deg(i);
                     let var = self.repr_ext_generator(gen_deg, gen_idx);
                     (var, gen_deg)               
                 }),
@@ -246,7 +247,7 @@ impl<A : PolynomialAlgebra> Algebra for A {
         }
         let mut target = self.index_to_monomial(left_degree, left_idx).clone();
         let source = self.index_to_monomial(right_degree, right_idx);
-        if self.multiply_monomials(&mut target, &source).is_some() {
+        if self.multiply_monomials(&mut target, &source).is_ok() {
             let idx = self.monomial_to_index(&target).unwrap();
             result.add_basis_element(idx, coeff);
         }

@@ -483,18 +483,18 @@ pub trait FpVectorT {
 
     // This one takes &self so we can figure out how to reduce.
     // Returns: either (true, sum) if no carries happen in the limb or (false, ???) if some carry does happen.
-    fn truncate_limb(&self, sum : u64) -> Option<u64> {
+    fn truncate_limb(&self, sum : u64) -> Result<u64, ()> {
         if self.is_reduced_limb(sum) {
-            Some(sum) 
+            Ok(sum) 
         } else {          
-            None
+            Err(())
         }
     }
 
 
-    fn add_truncate(&mut self, other : &FpVector, c : u32) -> Option<()> {
+    fn add_truncate(&mut self, other : &FpVector, c : u32) -> Result<(),()> {
         if self.dimension() == 0 {
-            return Some(());
+            return Ok(());
         }
 
         match self.offset().cmp(&other.offset()) {
@@ -510,10 +510,10 @@ pub trait FpVectorT {
     /// Otherwise return "true" and "self" will contain the sum.
     /// You get these "_truncate" variants from the normal variants by: every time "self.add_limb(<args>)" shows up
     /// in the original variant, replace it with "self.add_limb_truncate(<args>)?".
-    /// Also have to add some extra Some(())'s.
+    /// Also have to add some extra Ok(())'s.
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
 
-    fn add_truncate_shift_none(&mut self, other : &FpVector, c : u32) -> Option<()> {
+    fn add_truncate_shift_none(&mut self, other : &FpVector, c : u32) -> Result<(),()> {
         let dat = AddShiftNoneData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -530,11 +530,11 @@ pub trait FpVectorT {
             target_limbs[i + dat.min_target_limb] = self.truncate_limb(target_limbs[i + dat.min_target_limb])?;
         }
         self.put_limbs(target_limbs);
-        Some(())
+        Ok(())
     }
 
 
-    fn add_truncate_shift_left(&mut self, other : &FpVector, c : u32) -> Option<()> {
+    fn add_truncate_shift_left(&mut self, other : &FpVector, c : u32) -> Result<(),()> {
         let dat = AddShiftLeftData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -557,11 +557,11 @@ pub trait FpVectorT {
             target_limbs[i + dat.min_target_limb] = self.truncate_limb(target_limbs[i + dat.min_target_limb])?;
         }
         self.put_limbs(target_limbs);
-        Some(())
+        Ok(())
     }
 
 
-    fn add_truncate_shift_right(&mut self, other : &FpVector, c : u32) -> Option<()> {
+    fn add_truncate_shift_right(&mut self, other : &FpVector, c : u32) -> Result<(),()> {
         let dat = AddShiftRightData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -585,7 +585,7 @@ pub trait FpVectorT {
             }
         }
         self.put_limbs(target_limbs);
-        Some(())
+        Ok(())
     }
 
     // These could be static but enum_dispatch needs them to take &self.
@@ -830,7 +830,7 @@ pub trait FpVectorT {
     }
 
     fn entry(&self, index : usize) -> u32 {
-        debug_assert!(index < self.dimension());
+        debug_assert!(index < self.dimension(), format!("Index {} too large, dimension of vector is only {}.", index, self.dimension()));
         let p = self.prime();
         let bit_mask = bitmask(p);
         let limb_index = limb_bit_index_pair(p, index + self.min_index());
@@ -1048,12 +1048,12 @@ pub struct FpVectorGeneric {
 }
 
 impl FpVector2 {
-    fn add_truncate_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> Option<u64> {
+    fn add_truncate_limb(&self, limb_a : u64, limb_b : u64, coeff : u32) -> Result<u64, ()> {
         let scaled_limb_b = coeff as u64 * limb_b;
         if limb_a & scaled_limb_b == 0 {
-            Some(limb_a ^ scaled_limb_b)
+            Ok(limb_a ^ scaled_limb_b)
         } else {
-            None
+            Err(())
         }
     }
 }
@@ -1076,7 +1076,7 @@ impl FpVectorT for FpVector2 {
     
 
 
-    fn add_truncate_shift_none(&mut self, other : &FpVector, c : u32) -> Option<()> {
+    fn add_truncate_shift_none(&mut self, other : &FpVector, c : u32) -> Result<(),()> {
         let dat = AddShiftNoneData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -1090,12 +1090,12 @@ impl FpVectorT for FpVector2 {
             target_limbs[i + dat.min_target_limb] = self.add_truncate_limb(target_limbs[i + dat.min_target_limb], dat.mask_last_limb(other, i), c)?;
         }
         self.put_limbs(target_limbs);
-        Some(())
+        Ok(())
     }
 
     // Have to reduce twice at odd primes b/c of 2.
     // Perhaps should biforcate implementations at p odd and p=2...
-    fn add_truncate_shift_left(&mut self, other : &FpVector, c : u32) -> Option<()> {
+    fn add_truncate_shift_left(&mut self, other : &FpVector, c : u32) -> Result<(),()> {
         let dat = AddShiftLeftData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -1113,10 +1113,10 @@ impl FpVectorT for FpVector2 {
             }
         }
         self.put_limbs(target_limbs);
-        Some(())
+        Ok(())
     }
 
-    fn add_truncate_shift_right(&mut self, other : &FpVector, c : u32) -> Option<()> {
+    fn add_truncate_shift_right(&mut self, other : &FpVector, c : u32) -> Result<(),()> {
         let dat = AddShiftRightData::new(self, other);
         let mut target_limbs = self.take_limbs();
         let mut i = 0; {
@@ -1137,7 +1137,7 @@ impl FpVectorT for FpVector2 {
             }
         }
         self.put_limbs(target_limbs);
-        Some(())
+        Ok(())
     }
 
 
@@ -1400,8 +1400,9 @@ impl FpVector {
     /// an unsliced vector and returns an unsliced vector. See also `set_scratch_vector_size`.
     pub fn extend_dimension(&mut self, len: usize) {
         let p = self.prime();
+        self.clear_slice();
         let container = self.vector_container_mut();
-        assert_eq!((container.slice_start, container.slice_end), (0, container.dimension));
+        // assert_eq!((container.slice_start, container.slice_end), (0, container.dimension));
 
         if len <= container.dimension {
             return;

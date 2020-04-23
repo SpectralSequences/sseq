@@ -11,8 +11,8 @@ use crate::module::PolynomialAlgebraModule;
 
 pub struct BCp<A : AdemAlgebraT> {
     algebra : Arc<A>,
-    polynomial_monomials : TruncatedPolynomialMonomialBasis,
-    exterior_monomials : TruncatedPolynomialMonomialBasis,
+    polynomial_monomials_field : TruncatedPolynomialMonomialBasis,
+    exterior_monomials_field : TruncatedPolynomialMonomialBasis,
     basis_table_field : OnceVec<PolynomialAlgebraTableEntry>,
     action_table_field : OnceVec<Vec<Vec<FpVector>>>,
     bockstein_table_field : OnceVec<Vec<FpVector>>,
@@ -23,8 +23,8 @@ impl<A : AdemAlgebraT> BCp<A> {
         let p = algebra.prime();
         Self {
             algebra,
-            polynomial_monomials : TruncatedPolynomialMonomialBasis::new(p), 
-            exterior_monomials : TruncatedPolynomialMonomialBasis::new(ValidPrime::new(2)),
+            polynomial_monomials_field : TruncatedPolynomialMonomialBasis::new(p), 
+            exterior_monomials_field : TruncatedPolynomialMonomialBasis::new(ValidPrime::new(2)),
             basis_table_field : OnceVec::new(),
             action_table_field : OnceVec::new(),
             bockstein_table_field : OnceVec::new()
@@ -55,12 +55,12 @@ impl<A : AdemAlgebraT> PolynomialAlgebra for BCp<A> {
         format!("BC{}", *self.prime())
     }
 
-    fn polynomial_partitions(&self) -> &TruncatedPolynomialMonomialBasis {
-        &self.polynomial_monomials
+    fn polynomial_monomials(&self) -> &TruncatedPolynomialMonomialBasis {
+        &self.polynomial_monomials_field
     }
 
-    fn exterior_partitions(&self) -> &TruncatedPolynomialMonomialBasis {
-        &self.exterior_monomials
+    fn exterior_monomials(&self) -> &TruncatedPolynomialMonomialBasis {
+        &self.exterior_monomials_field
     }
 
     fn polynomial_generators_in_degree(&self, degree : i32) -> usize {
@@ -121,7 +121,7 @@ impl<A : AdemAlgebraT> PolynomialAlgebraModule for BCp<A> {
         // let q = self.algebra.adem_algebra().q();
         if is_two_times_power_of_p(p, self.algebra().adem_algebra().generic, input_degree) && sq == input_degree {
             result.degree = p*input_degree;
-            let int_idx = self.polynomial_monomials.gen_deg_idx_to_internal_idx(
+            let int_idx = self.polynomial_monomials().gen_deg_idx_to_internal_idx(
                 result.degree, 
                 self.frobenius_on_generator(input_degree, input_idx).unwrap()
             );

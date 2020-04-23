@@ -24,6 +24,7 @@ pub struct FreeUnstableModule<A: AdemAlgebraT> {
 
 impl<A : AdemAlgebraT> FreeUnstableModule<A> {
     pub fn new(algebra: Arc<A>, name: String, min_degree: i32) -> Self {
+        assert!(algebra.adem_algebra().unstable_enabled);
         let gen_deg_idx_to_internal_idx = OnceBiVec::new(min_degree);
         gen_deg_idx_to_internal_idx.push(0);
         Self {
@@ -115,6 +116,7 @@ impl<A: AdemAlgebraT> Module for FreeUnstableModule<A> {
         let output_block_max = output_block_min + num_ops;
 
         // Now we multiply s * r and write the result to the appropriate position.
+        let basis_filter = |_,_| true;
         self.adem_algebra().multiply_basis_elements_unstable(
             &mut *result.borrow_slice(output_block_min, output_block_max),
             coeff,
@@ -122,7 +124,8 @@ impl<A: AdemAlgebraT> Module for FreeUnstableModule<A> {
             op_index,
             module_operation_degree,
             module_operation_index,
-            generator_degree
+            generator_degree,
+            &basis_filter
         );        
     }
 

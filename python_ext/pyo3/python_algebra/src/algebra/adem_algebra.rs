@@ -146,7 +146,7 @@ impl AdemAlgebra {
         r_degree : i32, r_index : usize, 
         s_degree : i32, s_index : usize, excess : i32
     ) -> PyResult<()> {
-        self.inner()?.multiply_basis_elements_unstable(result.inner_mut()?, coeff, r_degree, r_index, s_degree, s_index, excess);
+        self.inner()?.multiply_basis_elements_unstable(result.inner_mut()?, coeff, r_degree, r_index, s_degree, s_index, excess, &|_,_|true);
         Ok(())
     }
 
@@ -181,7 +181,7 @@ impl AdemAlgebra {
         // TODO: this is insufficient to prevent a panic: we would need validity checking on monomial.
         // What if it is lying about its degree?
         // Should add check_reduced_monomial() and check_not_necessarily_reduced_monomial()?
-        self.inner_unchkd().make_mono_admissible(result.inner_mut()?, coeff, &mut monomial_inner, excess, unstable);
+        self.inner_unchkd().make_mono_admissible(result.inner_mut()?, coeff, &mut monomial_inner, excess, unstable, &|_,_|true);
         Ok(())
     }
 }

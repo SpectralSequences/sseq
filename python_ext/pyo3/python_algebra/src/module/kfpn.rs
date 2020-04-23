@@ -10,23 +10,23 @@ use crate::algebra::AlgebraRust;
 use crate::module::module_rust::ModuleRust;
 
 use algebra::Algebra as AlgebraT;
-use algebra::module::{BCp as BCpRust, Module};
+use algebra::module::{KFpn as KFpnRust, Module};
 
-crate::module_bindings!(BCp, BCpRust);
+crate::module_bindings!(KFpn, KFpnRust);
 
-python_utils::py_repr!(BCp, "FreedBCp", {
+python_utils::py_repr!(KFpn, "FreedKFpn", {
     Ok(format!(
-        "BCp()"
+        "KF{}{}", *inner.algebra().prime(), inner.n
     ))
 });
 
 #[pymethods]
-impl BCp {
+impl KFpn {
     #[new]
     #[args(min_degree=0, pyargs="*")]
-    fn new(algebra: PyObject) -> PyResult<Self> {
+    fn new(algebra: PyObject, n : i32) -> PyResult<Self> {
         let mut result = Self::box_and_wrap(
-            BCpRust::new(AlgebraRust::from_py_object(algebra)?)
+            KFpnRust::new(AlgebraRust::from_py_object(algebra)?, n)
         );
         result.freeze()?;
         Ok(result)

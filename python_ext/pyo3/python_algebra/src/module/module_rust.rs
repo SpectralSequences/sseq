@@ -9,7 +9,7 @@ use algebra::module::{
     // FreeModule as FreeModuleRust,
     FreeUnstableModule as FreeUnstableModuleRust,
     RealProjectiveSpace as RealProjectiveSpaceRust,
-    BCp as BCpRust,
+    KFpn as KFpnRust,
     ZeroModule
 };
 
@@ -19,61 +19,66 @@ use crate::module::{
     FDModule,
     FreeUnstableModule,
     RealProjectiveSpace,
-    BCp
+    KFpn
 };
 
-// To add a new module: Add in enum ModuleRust, in because_enum_dispatch_doesnt_work_for_me,
-// in into_py_object and in from_py_object
-#[allow(dead_code)]
-pub enum ModuleRust {
-    FDModule(FDModuleRust<AlgebraRust>),
-    FPModule(FPModuleRust<AlgebraRust>),
-    FreeUnstableModule(FreeUnstableModuleRust<AlgebraRust>),
-    RealProjectiveSpace(RealProjectiveSpaceRust<AlgebraRust>),
-    BCp(BCpRust<AlgebraRust>),
+// For escaping macro definition inside macro, see https://github.com/rust-lang/rust/issues/35853
+macro_rules! with_dollar_sign {
+    ($($body:tt)*) => {
+        macro_rules! __with_dollar_sign { $($body)* }
+        __with_dollar_sign!($);
+    }
 }
 
-macro_rules! because_enum_dispatch_doesnt_work_for_me {
-    ($method : ident, $self_ : expr, $( $args : ident ),*) => {
-        match $self_ {
-            ModuleRust::FDModule(module) => ModuleT::$method(module, $($args),*),
-            ModuleRust::FPModule(module) => ModuleT::$method(module, $($args),*),
-            ModuleRust::FreeUnstableModule(module) => ModuleT::$method(module, $($args),*),
-            ModuleRust::RealProjectiveSpace(module) => ModuleT::$method(module, $($args),*),
-            ModuleRust::BCp(module) => ModuleT::$method(module, $($args),*),
-            // AlgebraRust::PythonModuleRust(alg) => alg.$method($($args),*)
+
+macro_rules! export_modules {
+    ($(register($module_name : ident)),+) => {
+        paste::item!{
+            pub enum ModuleRust {
+                $( $module_name([<$module_name Rust>]<AlgebraRust>) ),+
+            }
         }
+        with_dollar_sign!{
+            ($d : tt) => {
+                macro_rules! because_enum_dispatch_doesnt_work_for_me {
+                    ($method : ident, $self_ : expr, $d( $d args : ident ),*) => { 
+                        match $self_ {
+                            $( ModuleRust::$module_name(module) =>  ModuleT::$method(module, $d($d args),*)),+ 
+                        }
+                    };
+                }
+            }
+        }
+
+        impl ModuleRust {
+            pub fn into_py_object(module : Arc<ModuleRust>) -> PyObject {
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+                match *module {
+                    $( ModuleRust::$module_name(_) =>  $module_name::wrap_immutable(module).into_py(py)),+ 
+                }
+            }
+
+            pub fn from_py_object(module : PyObject) -> PyResult<Arc<ModuleRust>> {
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+                Err(python_utils::exception!(RuntimeError, "Dummy"))
+                    $(.or_else(|_err : PyErr| Ok(module.extract::<&$module_name>(py)?.to_arc()?)))+
+                    .map( |a| a.clone())
+                    .map_err(|_err : PyErr| { python_utils::exception!(TypeError,
+                        "Invalid module for from_py_object!"
+                    )})
+            }    
+        }        
     };
 }
 
-impl ModuleRust {
-    pub fn into_py_object(module : Arc<ModuleRust>) -> PyObject {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        match *module {
-            ModuleRust::FDModule(_) => FDModule::wrap_immutable(module).into_py(py),
-            // ModuleRust::FPModule(_) => FPModule::wrap_immutable(module).into_py(py),
-            ModuleRust::FreeUnstableModule(_) => FreeUnstableModule::wrap_immutable(module).into_py(py),
-            ModuleRust::RealProjectiveSpace(_) => RealProjectiveSpace::wrap_immutable(module).into_py(py),
-            ModuleRust::BCp(_) => BCp::wrap_immutable(module).into_py(py),
-            _ => unimplemented!()
-        }
-    }
-
-    pub fn from_py_object(module : PyObject) -> PyResult<Arc<ModuleRust>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        module.extract::<&FDModule>(py).and_then(|a| a.to_arc())
-            // .or_else(|_err : PyErr| Ok(module.extract::<&FPModule>(py)?.to_arc()?))
-            .or_else(|_err : PyErr| Ok(module.extract::<&RealProjectiveSpace>(py)?.to_arc()?))
-            .or_else(|_err : PyErr| Ok(module.extract::<&FreeUnstableModule>(py)?.to_arc()?))
-            .or_else(|_err : PyErr| Ok(module.extract::<&BCp>(py)?.to_arc()?))
-            // .or_else(|_err : PyErr| Ok(module.extract::<&PythonAlgebra>(py)?.to_arc()?))
-            .map( |a| a.clone())
-            .map_err(|_err : PyErr| { python_utils::exception!(TypeError,
-                "Invalid module for from_py_object!"
-            )})
-    }    
+export_modules! {
+    register(FDModule),
+    // register(FPModule),
+    register(FreeUnstableModule),
+    register(RealProjectiveSpace),
+    register(KFpn)
 }
 
 impl ZeroModule for ModuleRust {

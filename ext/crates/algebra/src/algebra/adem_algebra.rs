@@ -258,9 +258,10 @@ impl Algebra for AdemAlgebra {
 
     fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, 
         r_degree : i32, r_index : usize, 
-        s_degree : i32, s_index : usize, excess : i32)
-    {
-        self.multiply(result, coeff, r_degree, r_index, s_degree, s_index, excess, self.unstable);
+        s_degree : i32, s_index : usize, excess : i32
+    ){
+        let basis_filter = |_,_| true;
+        self.multiply(result, coeff, r_degree, r_index, s_degree, s_index, excess, self.unstable, &basis_filter);
     }
 
     fn json_to_basis(&self, json : Value) -> error::Result<(i32, usize)> {
@@ -613,7 +614,7 @@ impl AdemAlgebra {
                     let degree = n;
                     let mut excess = 2*P.excess; // Ps contribute 2 to excess
                     excess += (bocksteins & 1) as i32; // leading bockstein increases excess by 1
-                    let nonleading_bocksteins = bocksteins & ((1<<P.ps.len()) - 1) & !1;
+                    let nonleading_bocksteins = bocksteins & !1;
                     excess -= nonleading_bocksteins.count_ones() as i32; // remaining bocksteins reduce excess by 1
                     let ps = P.ps.clone();
                     basis.push(AdemBasisElement {
@@ -918,11 +919,11 @@ impl AdemAlgebra {
         }
     }
 
-    pub fn multiply_basis_elements_unstable(&self, result : &mut FpVector, coeff : u32, 
+    pub fn multiply_basis_elements_unstable<BasisFilter>(&self, result : &mut FpVector, coeff : u32, 
         r_degree : i32, r_index : usize, 
-        s_degree : i32, s_index : usize, excess : i32)
-    {
-        self.multiply(result, coeff, r_degree, r_index, s_degree, s_index, excess, true);
+        s_degree : i32, s_index : usize, excess : i32, basis_filter : &BasisFilter
+    ) where BasisFilter : Fn(i32, usize) -> bool {
+        self.multiply(result, coeff, r_degree, r_index, s_degree, s_index, excess, true, basis_filter);
         // Zeroing the rest of the result is a little unexpected, but I don't think it causes trouble?
         // Can't avoid this unexpected behavior without sacrificing some speed.
         let slice = result.slice();
@@ -931,10 +932,11 @@ impl AdemAlgebra {
         result.restore_slice(slice);        
     }
 
-    pub fn multiply(&self, result : &mut FpVector, coeff : u32, 
-                            r_degree : i32, r_index : usize, 
-                            s_degree : i32, s_index : usize, excess : i32, unstable : bool)
-    {
+    pub fn multiply<BasisFilter>(&self, result : &mut FpVector, coeff : u32, 
+        r_degree : i32, r_index : usize, 
+        s_degree : i32, s_index : usize, 
+        excess : i32, unstable : bool, basis_filter : &BasisFilter
+    ) where BasisFilter : Fn(i32, usize) -> bool {
         if coeff == 0 {
             return;
         }
@@ -968,26 +970,39 @@ impl AdemAlgebra {
         monomial.ps.extend_from_slice(&r.ps);
         monomial.ps.extend_from_slice(&s.ps);
 
+        let stop_early = true;
+        let index_to_check_for_admissibility = r.ps.len() as i32 - 1;
         if self.generic {
             // If r ends in a bockstein, we need to move it over because we consider
             // the monomial from right to left in chunks like bP^i. The b from the end of r gets donated
             // to the P from the beginning of s.
             let leading_degree = r.degree - ((r.bocksteins >> r.ps.len()) & 1) as i32;
-            self.make_mono_admissible_generic(result, coeff, &mut monomial, r.ps.len() as i32 - 1, leading_degree, excess, true, unstable);
+            self.make_mono_admissible_generic(
+                result, coeff, &mut monomial, index_to_check_for_admissibility, leading_degree, 
+                excess, stop_early, unstable, basis_filter
+            );
         } else {
-            self.make_mono_admissible_2(result, &mut monomial, r.ps.len() as i32 - 1, r.degree, excess, true, unstable);
+            let leading_degree = r.degree;
+            self.make_mono_admissible_2(
+                result, &mut monomial, index_to_check_for_admissibility, leading_degree, 
+                excess, stop_early, unstable, basis_filter
+            );
         }
     }
 
-    pub fn make_mono_admissible(&self, result : &mut FpVector, coeff : u32, monomial : &mut AdemBasisElement, excess : i32, unstable : bool){
+    pub fn make_mono_admissible<BasisFilter>(
+        &self, result : &mut FpVector, coeff : u32, monomial : &mut AdemBasisElement, 
+        excess : i32, unstable : bool, basis_filter : &BasisFilter
+    ) where BasisFilter : Fn(i32, usize) -> bool {
         let q = if self.generic { 2 * (*self.prime()) - 2 } else { 1 };
         let mut leading_degree = monomial.degree - (q * monomial.ps[monomial.ps.len() - 1]) as i32;
-        let idx = monomial.ps.len() as i32 - 2;    
+        let idx = monomial.ps.len() as i32 - 2;
+        let stop_early = false;
         if self.generic {
             leading_degree -= ((monomial.bocksteins >> (monomial.ps.len() - 1)) & 1) as i32;
-            self.make_mono_admissible_generic(result, coeff, monomial, idx, leading_degree, excess, false, unstable);
+            self.make_mono_admissible_generic(result, coeff, monomial, idx, leading_degree, excess, stop_early, unstable, basis_filter);
         } else {
-            self.make_mono_admissible_2(result, monomial, idx, leading_degree, excess, false, unstable);
+            self.make_mono_admissible_2(result, monomial, idx, leading_degree, excess, stop_early, unstable, basis_filter);
         }
     }
 
@@ -1002,16 +1017,17 @@ impl AdemAlgebra {
     *           our input as a product of two admissible sequences.)
     *  * `leading_degree` - the degree of the squares between 0 and idx (so of length idx + 1)
     */
-    fn make_mono_admissible_2(
+    fn make_mono_admissible_2<BasisFilter>(
         &self, result : &mut FpVector, monomial : &mut AdemBasisElement,
-        mut idx : i32, mut leading_degree : i32, excess : i32, stop_early : bool, unstable : bool
-    ){
+        mut idx : i32, mut leading_degree : i32, excess : i32, 
+        stop_early : bool, unstable : bool, basis_filter : &BasisFilter
+    ) where BasisFilter : Fn(i32, usize) -> bool {
         while idx < 0 || idx as usize == monomial.ps.len() - 1 || monomial.ps[idx as usize] >= 2*monomial.ps[idx as usize + 1] {
             if idx < 0 || stop_early {
                 // Admissible so write monomial to result.
                 let idx = self.basis_element_to_index(&monomial);
                 // If excess is too large, quit. It's faster to check this by comparing idx to dimension
-                // than to use fromIndex because fromIndex  dereferences a hash map.
+                // than to use fromIndex because fromIndex dereferences a hash map.
                 if unstable && idx >= self.dimension(monomial.degree, excess) {
                     return;
                 }
@@ -1036,17 +1052,20 @@ impl AdemAlgebra {
         };
 
         for (it_idx, _value) in reduced_tail.iter_nonzero() {
+            if !basis_filter(tail_degree, it_idx) {
+                continue;
+            }
             let cur_tail_basis_elt = self.basis_element_from_index(tail_degree, it_idx);
             new_monomial.ps.truncate(idx);
             new_monomial.ps.extend_from_slice(&cur_tail_basis_elt.ps);
-            self.make_mono_admissible_2(result, &mut new_monomial, idx as i32 - 1, leading_degree - x, excess, stop_early, unstable);
+            self.make_mono_admissible_2(result, &mut new_monomial, idx as i32 - 1, leading_degree - x, excess, stop_early, unstable, basis_filter);
         }
     }
 
-    fn make_mono_admissible_generic(
+    fn make_mono_admissible_generic<BasisFilter>(
         &self, result : &mut FpVector, coeff : u32, monomial : &mut AdemBasisElement,
-        mut idx : i32, mut leading_degree : i32, excess : i32, stop_early : bool, unstable : bool
-    ){
+        mut idx : i32, mut leading_degree : i32, excess : i32, stop_early : bool, unstable : bool, basis_filter : &BasisFilter
+    ) where BasisFilter : Fn(i32, usize) -> bool {
         let p = *self.prime();
         let q = 2*p-2;
         // Check for admissibility
@@ -1073,8 +1092,6 @@ impl AdemAlgebra {
         let bx = (x << 1) + b1;
         let tail_degree = monomial.degree - leading_degree + (q*x + b1) as i32;
         let reduced_tail = &self.multiplication_table[tail_degree as usize][bx as usize][adm_idx];
-        let dim = self.dimension(tail_degree, excess);    
-
         let mut new_monomial = AdemBasisElement {
             degree : monomial.degree,
             excess : -1,
@@ -1084,16 +1101,13 @@ impl AdemAlgebra {
         };
 
         for (it_idx, it_value) in reduced_tail.iter_nonzero() {
-            if it_idx >= dim {
-                break;
-            }
             let cur_tail_basis_elt = self.basis_element_from_index(tail_degree, it_idx);
             new_monomial.ps.truncate(idx);
             new_monomial.ps.extend_from_slice(&cur_tail_basis_elt.ps);
             new_monomial.bocksteins = monomial.bocksteins & ((1<<idx)-1);
             new_monomial.bocksteins |= cur_tail_basis_elt.bocksteins << idx;
             let new_leading_degree = leading_degree - (q*x + b1) as i32;
-                self.make_mono_admissible_generic(result, (coeff * it_value) % p, &mut new_monomial, idx as i32 - 1, new_leading_degree, excess, stop_early, unstable);
+            self.make_mono_admissible_generic(result, (coeff * it_value) % p, &mut new_monomial, idx as i32 - 1, new_leading_degree, excess, stop_early, unstable, basis_filter);
         }
     }
 

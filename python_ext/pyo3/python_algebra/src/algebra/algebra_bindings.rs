@@ -140,7 +140,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
         }
 
         pub fn check_index(&self, degree : i32, idx : usize) -> PyResult<()> {
-            let dimension = self.inner_unchkd().dimension(degree, -1);
+            let dimension = self.inner_unchkd().dimension(degree, i32::max_value());
             if idx < dimension {
                 Ok(())
             } else {
