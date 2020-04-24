@@ -169,11 +169,11 @@ impl TruncatedPolynomialMonomialBasis {
                 for part in part_list {
                     let mut last_nonzero_entry = 0;
                     for d in (0 .. num_gens).rev() {
-                        let idx = offset + num_gens;
-                        if idx > part.dimension() {
+                        let idx = offset + d;
+                        if idx >= part.dimension() {
                             continue;
                         }
-                        if part.entry(d) != 0 {
+                        if part.entry(idx) != 0 {
                             last_nonzero_entry = d;
                             break;
                         }
@@ -185,15 +185,16 @@ impl TruncatedPolynomialMonomialBasis {
                         new_part.extend_dimension(offset + num_gens);
                         new_part.add_basis_element(offset + last_nonzero_entry, 1);
                         new_parts.push(new_part.clone());
-                        // println!("        new_part : {}", new_part);
+                        // println!("        new_part A: {}", new_part);
                         partitions_cur_max_part.push(new_part);
                     }
                     for d in last_nonzero_entry + 1 .. num_gens {
+                        // println!()
                         let mut new_part = part.clone();
                         new_part.extend_dimension(offset + num_gens);
-                        new_part.add_basis_element(d, 1);
+                        new_part.add_basis_element(offset + d, 1);
                         new_parts.push(new_part.clone());
-                        // println!("        new_part : {}", new_part);
+                        // println!("        new_part B: {}", new_part);
                         partitions_cur_max_part.push(new_part);
                     }
                 }
@@ -276,7 +277,11 @@ impl<'a> PartitionIterator<'a> {
             
             self.partition[0] -= inc_step as u32;
             self.remaining += inc_step * self.parts[0];
-            self.search()
+            if self.remaining >= 0 {
+                true
+            } else {
+                self.search()
+            }
         } 
     }
 }
@@ -334,10 +339,138 @@ mod tests {
     }
 
     #[test]
-    fn test_partition_iterator() {
-        for p in PartitionIterator::new(17, 5, &[0, 2, 7, 9]) {
-            println!("{:?}", p);
+    fn test_trunc_poly_partitions2(){
+        let p = ValidPrime::new(2);
+        fp::vector::initialize_limb_bit_index_table(p);
+        let tp = TruncatedPolynomialMonomialBasis::new(p);
+        tp.add_gens_and_calculate_parts(1, 0);
+        tp.add_gens_and_calculate_parts(2, 0);
+        tp.add_gens_and_calculate_parts(3, 1);
+        tp.add_gens_and_calculate_parts(4, 1);
+        tp.add_gens_and_calculate_parts(5, 1);
+        tp.add_gens_and_calculate_parts(6, 2);
+        tp.add_gens_and_calculate_parts(7, 1);
+        tp.add_gens_and_calculate_parts(8, 1);
+        tp.add_gens_and_calculate_parts(9, 1);
+        tp.add_gens_and_calculate_parts(10, 2);
+        tp.add_gens_and_calculate_parts(11, 1);
+        tp.add_gens_and_calculate_parts(12, 2);
+        println!("\n\n");
+        let expected = vec![
+            vec!["[]"], // 0
+            vec![],     // 1
+            vec![],     // 2
+            vec![       // 3
+                "[1]"
+            ], 
+            vec![       // 4
+                "[0, 1]"
+            ], 
+            vec![       // 5
+                "[0, 0, 1]"
+            ], 
+            vec![       // 6
+                "[0, 0, 0, 1, 0]", 
+                "[0, 0, 0, 0, 1]"
+            ],
+            vec![       // 7
+                "[1, 1]", 
+                "[0, 0, 0, 0, 0, 1]"
+            ],
+            vec![       // 8
+                "[1, 0, 1]", 
+                "[0, 0, 0, 0, 0, 0, 1]"
+            ],
+            vec![       // 9
+                "[0, 1, 1]",
+                "[1, 0, 0, 1, 0]",
+                "[1, 0, 0, 0, 1]",
+                "[0, 0, 0, 0, 0, 0, 0, 1]"                
+            ],
+            vec![       // 10
+                "[0, 1, 0, 1, 0]",
+                "[0, 1, 0, 0, 1]",
+                "[1, 0, 0, 0, 0, 1]",
+                "[0, 0, 0, 0, 0, 0, 0, 0, 1, 0]",
+                "[0, 0, 0, 0, 0, 0, 0, 0, 0, 1]"
+            ],
+            vec![       // 11    
+                "[0, 0, 1, 1, 0]",
+                "[0, 0, 1, 0, 1]",
+                "[0, 1, 0, 0, 0, 1]",
+                "[1, 0, 0, 0, 0, 0, 1]",
+                "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]"
+            ],
+            vec![       // 12
+                "[1, 1, 1]",
+                "[0, 0, 0, 1, 1]",
+                "[0, 0, 1, 0, 0, 1]",
+                "[0, 1, 0, 0, 0, 0, 1]",
+                "[1, 0, 0, 0, 0, 0, 0, 1]",
+                "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]",
+                "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]",
+            ]
+        ];
+        for d in 0 .. tp.parts.len() {
+            println!("Partitions of {}",d);
+            for part in &tp.parts[d] {
+                println!("      {}", part);
+            }
         }
+        for d in 0 .. tp.parts.len() {
+            for (idx, part) in tp.parts[d].iter().enumerate() {
+                assert!(expected[d][idx] == format!("{}", part), 
+                    format!("Discrepancy : degree : {}, idx : {} expected : {}, got : {}", d, idx, expected[d][idx], part)
+                );
+            }
+        }
+    }    
+
+    #[test]
+    fn test_partition_iterator() {
+        let result = PartitionIterator::new(3, 1, &[0, 1, 2, 3, 4]).map(|(x, v)| (x, v.clone())).collect::<Vec<_>>();
+        let expected = vec![
+            (2, vec![0, 1, 0, 0, 0]),
+            (1, vec![0, 0, 1, 0, 0]),
+            (0, vec![0, 0, 0, 1, 0]),
+            (3, vec![1, 0, 0, 0, 0]),
+        ];
+        assert_eq!(result, expected);
+
+        let expected = vec![
+            (5, vec![0, 1, 0, 0, 0]),
+            (4, vec![0, 0, 1, 0, 0]),
+            (3, vec![0, 0, 0, 1, 0]),
+            (2, vec![0, 0, 0, 0, 1]),
+            (6, vec![1, 0, 0, 0, 0])
+        ];
+        let result = PartitionIterator::new(6, 1, &[0, 1, 2, 3, 4]).map(|(x, v)| (x, v.clone())).collect::<Vec<_>>();
+        assert_eq!(result, expected);
+
+
+        let expected = vec![
+            (7,  vec![0, 5, 0, 0]),
+            (2,  vec![0, 4, 1, 0]),
+            (0,  vec![0, 4, 0, 1]),
+            (9,  vec![1, 4, 0, 0]),
+            (4,  vec![1, 3, 1, 0]),
+            (2,  vec![1, 3, 0, 1]),
+            (11, vec![2, 3, 0, 0]),
+            (6,  vec![2, 2, 1, 0]),
+            (4,  vec![2, 2, 0, 1]),
+            (13, vec![3, 2, 0, 0]),
+            (1,  vec![2, 1, 2, 0]),
+            (8,  vec![3, 1, 1, 0]),
+            (6,  vec![3, 1, 0, 1]),
+            (15, vec![4, 1, 0, 0]),
+            (3,  vec![3, 0, 2, 0]),
+            (1,  vec![3, 0, 1, 1]),
+            (10, vec![4, 0, 1, 0]),
+            (8,  vec![4, 0, 0, 1]),
+            (17, vec![5, 0, 0, 0])
+        ];
+        let result = PartitionIterator::new(17, 5, &[0, 2, 7, 9]).map(|(x, v)| (x, v.clone())).collect::<Vec<_>>();
+        assert_eq!(result, expected);
     }
 
 }

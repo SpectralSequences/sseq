@@ -107,8 +107,9 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
     }
 
     
-    fn monomial_to_index(&self, monomial : &PolynomialAlgebraMonomial) -> Option<usize> {
+    fn monomial_to_index(&self, monomial : &PolynomialAlgebraMonomial) -> usize {
         self.basis_table()[monomial.degree as usize].monomial_to_index.get(monomial).map(|x| *x)
+            .unwrap_or_else(|| panic!("Didn't find monomial: {}", monomial))
     }
     
     fn index_to_monomial(&self, degree : i32, index : usize) -> &PolynomialAlgebraMonomial {
@@ -157,7 +158,7 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
                 let source_mono = self.index_to_monomial(right_degree, right_idx);
                 let nonzero_result = self.multiply_monomials(&mut target_mono,  &source_mono);
                 if nonzero_result.is_ok() {
-                    let idx = self.monomial_to_index(&target_mono).unwrap();
+                    let idx = self.monomial_to_index(&target_mono);
                     target.add_basis_element(idx, (left_entry * right_entry * coeff)%p);
                 }
             }
@@ -171,7 +172,7 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
             let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone();
             let nonzero_result = self.multiply_monomials(&mut target_mono,  &right_mono);
             if nonzero_result.is_ok() {
-                let idx = self.monomial_to_index(&target_mono).unwrap();
+                let idx = self.monomial_to_index(&target_mono);
                 target.add_basis_element(idx, (left_entry * 1 * coeff)%p);
             }
         }
@@ -195,13 +196,13 @@ impl<A : PolynomialAlgebra> Algebra for A {
     
     fn compute_basis(&self, degree : i32) {
         self.compute_generating_set(degree);
-        for i in self.max_computed_degree() ..= degree {
+        for i in self.max_computed_degree() + 1 ..= degree {
             self.compute_basis_step(i);
         }
     }
 
     fn max_computed_degree(&self) -> i32 {
-        self.polynomial_monomials().parts.len() as i32 - 1
+        self.basis_table().len() as i32 - 1
     }
 
     fn dimension(&self, degree : i32, _excess : i32) -> usize {
@@ -248,7 +249,7 @@ impl<A : PolynomialAlgebra> Algebra for A {
         let mut target = self.index_to_monomial(left_degree, left_idx).clone();
         let source = self.index_to_monomial(right_degree, right_idx);
         if self.multiply_monomials(&mut target, &source).is_ok() {
-            let idx = self.monomial_to_index(&target).unwrap();
+            let idx = self.monomial_to_index(&target);
             result.add_basis_element(idx, coeff);
         }
     }

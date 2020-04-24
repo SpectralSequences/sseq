@@ -17,7 +17,7 @@ pub struct KFpn<A : AdemAlgebraT> {
     polynomial_monomials_field : TruncatedPolynomialMonomialBasis,
     exterior_monomials_field : TruncatedPolynomialMonomialBasis,
     basis_table_field : OnceVec<PolynomialAlgebraTableEntry>,
-    action_table_field : OnceVec<Vec<Vec<FpVector>>>,
+    action_table_field : OnceVec<Vec<Vec<FpVector>>>, // total_degree ==> sq ==> input_idx ==> result
     bockstein_table_field : OnceVec<Vec<FpVector>>,
     frobenius_table : OnceVec<Vec<usize>>, // degree => idx => idx of x^p.
     inverse_frobenius_table : OnceVec<Vec<(i32, usize, u32)>>, // degree => idx => (root degree, idx, frob_p_power)
@@ -68,7 +68,7 @@ impl<A : AdemAlgebraT> KFpn<A> {
                 let gen_index = self.exterior_monomials().gen_deg_idx_to_internal_idx(output_degree, idx);
                 mono.ext.set_to_zero_pure();
                 mono.ext.set_entry(gen_index, 1);
-                let poly_idx = self.monomial_to_index(&mono).unwrap();
+                let poly_idx = self.monomial_to_index(&mono);
                 result.add_basis_element(poly_idx, c);
             }
         } else {            
@@ -76,7 +76,7 @@ impl<A : AdemAlgebraT> KFpn<A> {
                 let gen_index = self.polynomial_monomials().gen_deg_idx_to_internal_idx(output_degree, idx);
                 mono.poly.set_to_zero_pure();
                 mono.poly.set_entry(gen_index, 1);
-                let poly_idx = self.monomial_to_index(&mono).unwrap();
+                let poly_idx = self.monomial_to_index(&mono);
                 result.add_basis_element(poly_idx, c);
             }
         }
@@ -142,7 +142,7 @@ impl<A : AdemAlgebraT> PolynomialAlgebra for KFpn<A> {
 
     fn frobenius_on_generator(&self, degree : i32, index : usize) -> Option<usize> {
         let p = *Module::prime(self) as i32;
-        debug_assert!(p*degree < Module::max_computed_degree(self));
+        debug_assert!(p*degree <= Module::max_computed_degree(self));
         let two_or_one = if self.adem_algebra().generic { 2 } else { 1 };
         Some(self.frobenius_table[degree as usize / two_or_one][index])
     }
@@ -152,7 +152,7 @@ impl<A : AdemAlgebraT> PolynomialAlgebra for KFpn<A> {
         let two_or_one = if self.adem_algebra().generic { 2 } else { 1 };
         self.adem_algebra().compute_basis(degree - self.n);
         // OnceVec<Vec<(i32, usize, u32)>> // degree => idx => (root degree, idx, frob_p_power)
-        for d in self.inverse_frobenius_table.len() as i32 .. degree/two_or_one {
+        for d in self.inverse_frobenius_table.len() as i32 ..= degree/two_or_one {
             let dim = self.adem_algebra().dimension_unstable(d * two_or_one - self.n, self.n);
             let mut table = Vec::with_capacity(dim);
             for idx in 0 .. dim {
@@ -187,7 +187,7 @@ impl<A : AdemAlgebraT> PolynomialAlgebra for KFpn<A> {
         }
         // degree => idx => idx of x^p.
         let two_p_or_p = p * two_or_one;
-        for d in self.frobenius_table.len() as i32 .. (degree + two_p_or_p - 1)/two_p_or_p {
+        for d in self.frobenius_table.len() as i32 ..= (degree)/two_p_or_p {
             let dim = self.adem_algebra().dimension_unstable(two_or_one * d - self.n, self.n);
             let mut table = Vec::with_capacity(dim);
             for idx in 0 .. dim {
@@ -232,9 +232,9 @@ impl<A : AdemAlgebraT> PolynomialAlgebraModule for KFpn<A> {
         } else {
             let b = self.adem_algebra().basis_element_from_index(gen_degree - self.n, gen_index);
             let p = *self.adem_algebra().prime();
-            max_sq = self.n + (2 * b.bocksteins & 1 + p * b.ps[0]) as i32 - b.excess;
+            max_sq = self.n + ((2 * b.bocksteins & 1) + p * b.ps[0]) as i32 - b.excess;
         }
-        (0..max_sq).collect()
+        (0 ..= max_sq).collect()
     }
 
     fn nonzero_squares_on_polynomial_generator(&self, gen_degree : i32, gen_index : usize) -> Vec<i32> {
@@ -245,9 +245,9 @@ impl<A : AdemAlgebraT> PolynomialAlgebraModule for KFpn<A> {
         } else {
             let b = self.adem_algebra().basis_element_from_index(gen_degree - self.n, gen_index);
             let p = *self.adem_algebra().prime();
-            max_sq = self.n + (2 * b.bocksteins & 1 + p * b.ps[0]) as i32 - b.excess;
+            max_sq = self.n + ((2 * b.bocksteins & 1) + p * b.ps[0]) as i32 - b.excess;
         }
-        (0..max_sq).collect()
+        (0..=max_sq).collect()
     }
 
     fn sq_polynomial_generator_to_monomial(&self, _result : &mut PolynomialAlgebraMonomial, _sq : i32, _input_degree : i32, _input_idx : usize) {
@@ -291,30 +291,82 @@ mod tests {
     use crate::module::Module;
 
     #[rstest(p, case(2), case(3), case(5))]//, case(3), case(5))]
-    fn test_kfp1(p : u32){
+    fn test_kfp1_basis(p : u32){
         let p_ = ValidPrime::new(p);
+        let n = 1;
+        let max_degree = 20;
         let algebra = Arc::new(AdemAlgebra::new(p_, p != 2, false, true));
-        let kfp1 = KFpn::new(algebra, 1);
-        Module::compute_basis(&kfp1, 20);
-        for d in 0..20 {
+        let kfp = KFpn::new(algebra, n);
+        Module::compute_basis(&kfp, max_degree);
+        for d in 0..max_degree {
             println!("degree {}:", d);
-            for i in 0..Module::dimension(&kfp1, d) {
-                println!("  {}", Module::basis_element_to_string(&kfp1, d, i));
+            for i in 0..Module::dimension(&kfp, d) {
+                println!("  {}", Module::basis_element_to_string(&kfp, d, i));
             }
         }
+        for d in 0..max_degree {
+            assert!(Module::dimension(&kfp, d) == 1);
+        }
     }
+
+    #[rstest(p, case(2))]//, case(3), case(5))]
+    fn test_kfp1_action(p : u32){
+        let p_ = ValidPrime::new(p);
+        let n = 1;
+        let max_degree = 10;
+        let algebra = Arc::new(AdemAlgebra::new(p_, p != 2, false, true));
+        let kfp = KFpn::new(algebra.clone(), n);
+        let max_op_deg = 4;
+        Module::compute_basis(&kfp, max_degree + max_op_deg);
+        for &(op_deg, op_idx) in &vec![(1, 0), (2, 0), (3, 0), (3, 1), (4, 1)] {//[(1, 0), (2, 0), (3, 0), (3, 1), (4,0)] {
+            for mod_deg in 0..max_degree {
+                for mod_idx in 0..Module::dimension(&kfp, mod_deg) {
+                    let result_deg = op_deg + mod_deg;
+                    let mut result = FpVector::new(p_, Module::dimension(&kfp, result_deg));
+                    kfp.act_on_basis(&mut result, 1, op_deg, op_idx, mod_deg, mod_idx);
+                    println!("  {op}({input}) = {result}", 
+                        op=algebra.basis_element_to_string(op_deg, op_idx), 
+                        input=Module::basis_element_to_string(&kfp, mod_deg, mod_idx),
+                        result=Module::element_to_string(&kfp, result_deg, &result)
+                    );
+                }
+            }
+        }
+        for d in 0..max_degree {
+            assert!(Module::dimension(&kfp, d) == 1);
+        }
+    }
+
 
     #[rstest(p, case(2), case(3), case(5))]//, case(3))]//, case(5)
     fn test_kfp2(p : u32){
         let p_ = ValidPrime::new(p);
+        let max_degree = 20;
+        let n = 2;
         let algebra = Arc::new(AdemAlgebra::new(p_, p != 2, false, true));
-        let kfp2 = KFpn::new(algebra, 2);
-        Module::compute_basis(&kfp2, 20);
-        for d in 0..20 {
+        let kfp = KFpn::new(algebra, n);
+        Module::compute_basis(&kfp, max_degree);
+        for d in 0..max_degree {
             println!("degree {}:", d);
-            for i in 0..Module::dimension(&kfp2, d) {
-                println!("  {}", Module::basis_element_to_string(&kfp2, d, i));
+            for i in 0..Module::dimension(&kfp, d) {
+                println!("  {}", Module::basis_element_to_string(&kfp, d, i));
             }
         }        
-    }    
+    }
+
+    #[rstest(p, case(3))]//, case(3), case(5))]//, case(3))]//, case(5)
+    fn test_kfp3(p : u32){
+        let p_ = ValidPrime::new(p);
+        let max_degree = 12;
+        let n = 3;
+        let algebra = Arc::new(AdemAlgebra::new(p_, p != 2, false, true));
+        let kfp = KFpn::new(algebra, n);
+        Module::compute_basis(&kfp, max_degree);
+        for d in 0..max_degree {
+            println!("degree {}:", d);
+            for i in 0..Module::dimension(&kfp, d) {
+                println!("  {}", Module::basis_element_to_string(&kfp, d, i));
+            }
+        }        
+    }
 }
