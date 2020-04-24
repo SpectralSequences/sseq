@@ -1,19 +1,33 @@
 let utils = require("./utils.js");
+let ChartClass = require("./ChartClass.js").ChartClass;
 let INFINITY = require("../infinity.js").INFINITY;
 
 class ChartEdge {
     constructor(type, kwargs) {
+        console.log(kwargs);
         this.type = type;
-        if(!"source" in kwargs){
+        if(!("source" in kwargs)){
             throw Error(`Edge is missing argument "source".`);
         }
-        if(!"target" in kwargs){
+        if(!("target" in kwargs)){
             throw Error(`Edge is missing argument "target".`);
         }
-        if(!"visible" in kwargs) {
+        if(!("visible" in kwargs)) {
             this.visible = true;
         }
+        
+        
         Object.assign(this, kwargs);
+        // if(typeof(this.source) !== ChartClass) {
+        //     throw Error(`Invalid source of edge : ${JSON.stringify(this.source)}`);
+        // }
+        // if(typeof(this.target) !== ChartClass) {
+        //     throw Error(`Invalid target of edge: ${JSON.stringify(this.target)}`);
+        // }
+        this._source = this.source;
+        this._target = this.target;
+        this.source = this.source.uuid;
+        this.target = this.target.uuid;
         // utils.assign_fields(this, kwargs, [
         //     { "type" : "mandatory", "field" : "source"},
         //     { "type" : "mandatory", "field" : "target"},

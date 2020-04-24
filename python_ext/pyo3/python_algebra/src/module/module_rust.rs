@@ -10,6 +10,7 @@ use algebra::module::{
     FreeUnstableModule as FreeUnstableModuleRust,
     RealProjectiveSpace as RealProjectiveSpaceRust,
     KFpn as KFpnRust,
+    BCp as BCpRust,
     ZeroModule
 };
 
@@ -19,7 +20,8 @@ use crate::module::{
     FDModule,
     FreeUnstableModule,
     RealProjectiveSpace,
-    KFpn
+    KFpn,
+    BCp
 };
 
 // For escaping macro definition inside macro, see https://github.com/rust-lang/rust/issues/35853
@@ -78,7 +80,8 @@ export_modules! {
     // register(FPModule),
     register(FreeUnstableModule),
     register(RealProjectiveSpace),
-    register(KFpn)
+    register(KFpn),
+    register(BCp)
 }
 
 impl ZeroModule for ModuleRust {
@@ -86,7 +89,6 @@ impl ZeroModule for ModuleRust {
         ModuleRust::FDModule(FDModuleRust::zero_module(algebra, min_degree))
     }
 }
-
 
 impl ModuleT for ModuleRust {
     type Algebra = AlgebraRust;

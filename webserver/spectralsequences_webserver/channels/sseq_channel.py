@@ -1,5 +1,5 @@
+from message_passing_tree.prelude import *
 from message_passing_tree import SocketChannel
-from message_passing_tree.decorators import collect_transforms, subscribe_to
 
 from fastapi.templating import Jinja2Templates
 
@@ -11,6 +11,9 @@ templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 @subscribe_to("*")
 @collect_transforms(inherit=True)
 class SseqChannel(SocketChannel):
+    def __init__(self, name):
+        super().__init__(name)
+
     async def send_start_msg_a(self):
         await self.has_parent.wait()
         serving_to = self.serving_to()
@@ -31,3 +34,26 @@ class SseqChannel(SocketChannel):
         }
         if cls.has_channel(channel_name):
             return templates.TemplateResponse("sseq_chart.html", response_data)
+
+    async def setup_a(self):
+        await type(self).repl.add_child_a(self.chart)
+        await self.chart.add_child_a(self)
+
+    async def add_subscriber_a(self, websocket):
+        recv = SseqSocketReceiver(websocket)
+        await self.add_child_a(recv)
+        await recv.start_a()
+
+    @classmethod
+    async def get_channel_a(cls, name, repl):
+        if name in cls.channels:
+            return cls.channels[name]
+
+    @classmethod
+    def has_channel(cls, name):
+        if name in cls.channels:
+            return True
+
+    @transform_inbound_messages
+    async def consume_click_a(self, source_agent_path, cmd, x, y, chart_class=None):
+        pass # IGNORED!

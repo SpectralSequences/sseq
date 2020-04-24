@@ -24,6 +24,7 @@ class SocketChannel(Agent):
     @classmethod
     def serve(cls, app, repl, host, port, cls_dir):
         cls.set_serving_info(host, port, cls_dir)
+        cls.set_repl(repl)
 
         @app.get(f"/{cls_dir}/{{channel_name}}")
         async def get_html_a(request: Request, channel_name : str):
@@ -37,7 +38,7 @@ class SocketChannel(Agent):
                 }
                 response = cls.http_response(channel_name, request)
                 if response is None:
-                    return templates.TemplateResponse("invalid_channel.html", response_data)
+                    return cls.templates.TemplateResponse("invalid_channel.html", response_data)
                 else:
                     return response
             except Exception as e:
@@ -72,6 +73,10 @@ class SocketChannel(Agent):
         cls.directory = directory
         cls.set_serving_info = f"{host}:{port}/{directory}"
         cls.initialize_channel()
+
+    @classmethod
+    def set_repl(cls, repl):
+        cls.repl = repl
 
     @classmethod
     def initialize_channel(cls):

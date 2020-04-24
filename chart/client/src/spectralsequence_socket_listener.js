@@ -247,8 +247,13 @@ let default_message_handlers = {
     },
 
     "chart.batched" : function(cmd, args, kwargs) {
+        console.log("chart.batched", kwargs.messages);
         for(msg of kwargs.messages) {
-            this.handle_message_dispatch(msg);
+            try {
+                this.handle_message_dispatch(msg);
+            } catch(err) {
+                console.error(err);
+            }
         }
         this.display.update()
     },
@@ -312,6 +317,7 @@ let default_message_handlers = {
     },
 
     "chart.edge.add" : function(cmd, args, kwargs) {
+        console.log("chart.edge.add");
         this.console_log_if_debug(kwargs);
         this.sseq.add_edge(kwargs);
         // this.display.update();

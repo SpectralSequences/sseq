@@ -129,6 +129,10 @@ class SpectralSequenceChart extends EventEmitter {
 
     add_edge(kwargs) {
         let edge_type = kwargs["type"];
+        console.log("add_edge :", kwargs.source, kwargs.target);
+        kwargs.source = this.classes[kwargs.source];
+        kwargs.target = this.classes[kwargs.target];
+        console.log("           : ", kwargs.source, kwargs.target);
         switch(edge_type) {
             case ChartDifferential.name:
                 return this.add_differential(kwargs);
@@ -217,12 +221,6 @@ class SpectralSequenceChart extends EventEmitter {
             }
             return c._inRangeQ(xmin, xmax, ymin, ymax) && c._drawOnPageQ(page);
         });
-
-        // Maybe move this elsewhere...
-        for (let e of Object.values(this.edges)) {
-            e._source = this.classes[e.source];
-            e._target = this.classes[e.target];
-        }
 
         // Display edges such that
         // 1) e is a valid edge

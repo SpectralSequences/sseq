@@ -14,6 +14,7 @@ from .channels import (
     DemoChannel, 
     InteractChannel,
     PresentationChannel,
+    ResolverChannel,
     SlideshowChannel,
     SseqChannel
 )
@@ -75,3 +76,4 @@ async def main():
     InteractChannel.serve(app, repl, host, port, "interact")
     SlideshowChannel.serve(app, repl, host, port, "slideshow")
     PresentationChannel.serve(app, repl, host, port, "presentation")
+    ResolverChannel.serve(app, repl, host, port, "resolver")

@@ -3,6 +3,7 @@ import os
 import pathlib
 
 from spectralsequence_chart import SpectralSequenceChart
+from ..channels import ResolverChannel
 import ext
 
 def read_file(path):
@@ -23,6 +24,7 @@ def add_stuff_to_repl_namespace(repl_namespace):
         ext.module.FDModule,
         # ext.resolution.Resolution,
         SpectralSequenceChart,
+        ResolverChannel
     ]
     for name in to_add:
         add_to_namespace(repl_namespace, name)

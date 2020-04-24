@@ -2,6 +2,7 @@ import asyncio
 import time
 import threading
 
+from message_passing_tree.prelude import *
 from message_passing_tree import MathAgent
 
 from .fp import Matrix
@@ -24,17 +25,20 @@ def make_unit_module():
     M.freeze()
     return M
 
+@subscribe_to("*")
+@collect_transforms(inherit=False)
 class Resolver(MathAgent):
     def __init__(self, name, chart=None, module=None): 
+        super().__init__()
         if module is None:
             self.M = make_unit_module()
         else:
             self.M = module
-        self.name=""
+        self.name=name
         self.A = self.M.algebra
         self.rust_res = RustResolution(self.M)
         self.rust_res.freeze()
-        self.loop = asyncio.get_event_loop()
+        self.loop = asyncio.get_event_loop() # Need this so that worker thread can submit events to run on the same event loop as main thread
         self.filtration_one_products = self.A.default_filtration_one_products()[:-1] 
         self.class_handlers = []
         self.structline_handlers = []
@@ -47,8 +51,7 @@ class Resolver(MathAgent):
         self.unit_resolution = None
         self.chain_maps_to_unit_resolution = [[None] * 200 for _ in range(200)]
         
-        if chart is not None:
-            self.set_chart(chart)
+        self.chart = chart
 
     def resolve(self, n):
         t = threading.Thread(target=self._resolve_st_rectangle(n), daemon=True)
@@ -57,6 +60,7 @@ class Resolver(MathAgent):
 
     def _resolve_st_rectangle(self, n):
         def run(): 
+            asyncio.set_event_loop(self.loop)
             self.A.compute_basis(n)
             self.target_max_degree = n
             self.rust_res.extend_through_degree(n, n)
@@ -90,6 +94,7 @@ class Resolver(MathAgent):
     def step_if_needed(self, i, j):
         if (i, j) not in self.finished_degrees:
             self.rust_res.step_resolution(i,j)
+            asyncio.ensure_future(self.step_after(i, j))
             # if self.rust_res.number_of_gens_in_bidegree(i, j) > 0:
                 # print(i, j, self.rust_res.number_of_gens_in_bidegree(i, j))
             # f = asyncio.run_coroutine_threadsafe(
@@ -99,20 +104,57 @@ class Resolver(MathAgent):
             # f.result()
             self.finished_degrees.add((i, j))
 
+    async def step_after(self, s, t):
+        if not self.chart:
+            return
+        self.add_classes(s, t)
+        products = self.compute_filtration_one_products(s, t)
+        for product in products:
+            source_t = product["source_t"]
+            source_s = product["source_s"]
+            target_t = t
+            target_s = s 
+            table = product["table"]
+            for (source_idx, row) in enumerate(iter(table)):
+                for (target_idx, entry) in enumerate(iter(row)):
+                    if entry != 0:
+                        self.add_structline(
+                            source_s, source_t, source_idx,
+                            target_s, target_t, target_idx
+                        )
+        await self.chart.update_a()
+        
+
+
+    def add_classes(self, s, t):
+        for i in range(self.rust_res.number_of_gens_in_bidegree(s, t)):
+            self.chart.add_class(*st_to_xy(s, t))
+
+    def add_structline(self,
+        source_s, source_t, source_idx,
+        target_s, target_t, target_idx
+    ):
+        try:
+            source = self.chart.get_class_by_idx(*st_to_xy(source_s, source_t), source_idx)
+            target = self.chart.get_class_by_idx(*st_to_xy(target_s, target_t), target_idx)
+            self.chart.add_structline(source, target)
+        except Exception as e:
+            self.send_error_a("", exception=e)
+
+
     def cocycle_string(self, x, y, idx):
         return self.rust_res.cocycle_string(*xy_to_st(x, y), idx)
 
-    async def compute_filtration_one_products(self, target_s, target_t):
+    def compute_filtration_one_products(self, target_s, target_t):
         if target_s == 0:
-            return
+            return []
 
         source_s = target_s - 1
-
         source = self.rust_res.module(source_s)
         target = self.rust_res.module(target_s)
 
         target_dim = target.number_of_gens_in_degree(target_t)
-
+        result = []
         for (op_name, op_degree, op_index) in self.filtration_one_products:
             source_t = target_t - op_degree
             if source_t - source_s < self.rust_res.min_degree:
@@ -125,18 +167,11 @@ class Resolver(MathAgent):
             products = [[0 for _ in range(target_dim)] for _ in range(source_dim)]
             for target_idx in range(target_dim):
                 dx = d.output(target_t, target_idx)
-
                 for source_idx in range(source_dim):
                     idx = source.operation_generator_to_index(op_degree, op_index, source_t, source_idx)
                     products[source_idx][target_idx] = dx.entry(idx)
-
-            for target_idx in range(target_dim):
-                for source_idx in range(source_dim):
-                    if products[source_idx][target_idx] != 0:
-                        await self.add_structline(
-                            source_s, source_t, source_idx,
-                            target_s, target_t, target_idx
-                        ) 
+            result.append({"source_s" : source_s, "source_t" : source_t, "table" : products})
+        return result
 
     def construct_maps_to_unit_resolution_in_bidegree(self, s, t):
         if self.unit_resolution is None:

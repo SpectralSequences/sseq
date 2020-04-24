@@ -106,7 +106,7 @@ py_repr!(AdemAlgebra, "FreedAdemAlgebra", {
 #[pymethods]
 impl AdemAlgebra {
     #[new]
-    #[args("*", unstable=false,  unstable_enabled=false, kwargs="**")]
+    #[args("*", unstable=false,  unstable_enabled=true, kwargs="**")]
     pub fn new(p : u32,  unstable : bool, mut unstable_enabled : bool, kwargs: Option<&PyDict>) -> PyResult<Self> {
         if unstable {
             unstable_enabled = true;

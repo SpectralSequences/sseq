@@ -61,7 +61,10 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-IO.loadFromServer("anss-S0.json").then(async function(json){
+let url = new URL(document.location)
+let jsFile = url.searchParams.get("sseq");
+
+IO.loadFromServer(f`json/${jsFile}`).then(async function(json){
     window.sseq = SpectralSequenceChart.from_JSON(json);
     sseq.initial_x_range = [0, 50];
     sseq.initial_y_range = [0, 12];

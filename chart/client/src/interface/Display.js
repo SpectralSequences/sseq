@@ -145,7 +145,7 @@ class Display extends EventEmitter {
             this.page_idx = this.sseq.min_page_idx;
         }
         if(this.page_idx >= this.sseq.page_list.length){
-            console.log(`Warning: min_page_idx ${this.sseq.min_page_idx} greater than page list length ${this.sseq.page_list.length}. Using 0 for min_page_idx instead.`);
+            console.warn(`Warning: min_page_idx ${this.sseq.min_page_idx} greater than page list length ${this.sseq.page_list.length}. Using 0 for min_page_idx instead.`);
             this.page_idx = 0;
             this.min_page_idx = 0;
         }
@@ -236,7 +236,6 @@ class Display extends EventEmitter {
     clipContext(ctx) {
         ctx.beginPath();
         let y_clip_offset = this.y_clip_offset || 0;
-        console.log("y_clip_offset:", y_clip_offset);
         ctx.globalAlpha = 0; // C2S does not correctly clip unless the clip is stroked.
         ctx.rect(this.leftMargin, this.topMargin + y_clip_offset, this.plotWidth, this.plotHeight - y_clip_offset);
         ctx.stroke();
@@ -539,9 +538,11 @@ class Display extends EventEmitter {
             if(!e) {
                 throw ValueError("Undefined edge.");
             }
+            console.log("draw_edge: ", e);
             if(e.invalid || !e.visible){
                 continue;
             }
+            console.log("   Hi!");
             if (e.type === "Structline" && this.hiddenStructlines.has(e.mult)) {
                 continue;
             }
@@ -551,6 +552,7 @@ class Display extends EventEmitter {
             if(!source_node || ! target_node){
                 throw ValueError(`Edge ${e} has undefined source or target node`);
             }
+            console.log("   Hi!");
 
             e._sourceOffset = e.sourceOffset || {x: 0, y: 0};
             e._targetOffset = e.targetOffset || {x: 0, y: 0};
@@ -571,6 +573,7 @@ class Display extends EventEmitter {
             let sourceY = source_node._canvas_y + e._sourceOffset.y;
             let targetX = target_node._canvas_x + e._targetOffset.x;
             let targetY = target_node._canvas_y + e._targetOffset.y;
+            console.log("   Hi!");
 
             context.beginPath();
             if(e.bend ){//&& e.bend !== 0
@@ -591,6 +594,7 @@ class Display extends EventEmitter {
                 context.moveTo(sourceX, sourceY);
                 context.lineTo(targetX, targetY);
             }
+            console.log("    stroke edge");
             context.stroke();
             context.restore();
         }
