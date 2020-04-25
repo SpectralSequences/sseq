@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use std::sync::Arc;
 
 use once::OnceVec;
@@ -251,19 +252,19 @@ impl<A : AdemAlgebraT> PolynomialAlgebraModule for KFpn<A> {
     }
 
     fn sq_polynomial_generator_to_monomial(&self, _result : &mut PolynomialAlgebraMonomial, _sq : i32, _input_degree : i32, _input_idx : usize) {
-        panic!();
+        unreachable!();
     }
 
     fn sq_exterior_generator_to_monomial(&self, _result : &mut PolynomialAlgebraMonomial, _sq : i32, _input_degree : i32, _input_idx : usize) {
-        panic!();
+        unreachable!();
     }
     
     fn bockstein_polynomial_generator_to_monomial(&self, _result : &mut PolynomialAlgebraMonomial, _input_degree : i32, _input_idx : usize) {
-        panic!();
+        unreachable!();
     }
     
     fn bockstein_exterior_generator_to_monomial(&self, _result : &mut PolynomialAlgebraMonomial, _input_degree : i32, _input_idx : usize) {
-        panic!();
+        unreachable!();
     }
 
     fn sq_polynomial_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, sq : i32, input_degree : i32, input_index : usize) {
@@ -304,54 +305,63 @@ mod tests {
                 println!("  {}", Module::basis_element_to_string(&kfp, d, i));
             }
         }
-        for d in 0..max_degree {
+        for d in 1..max_degree {
             assert!(Module::dimension(&kfp, d) == 1);
         }
     }
 
-    #[rstest(p, case(2))]//, case(3), case(5))]
-    fn test_kfp1_action(p : u32){
+
+    #[rstest(
+        p => [2, 3, 5],
+        n => [1, 2, 3, 4]
+    )]
+    fn test_kfpn_action(p : u32, n : i32){
         let p_ = ValidPrime::new(p);
-        let n = 1;
-        let max_degree = 10;
         let algebra = Arc::new(AdemAlgebra::new(p_, p != 2, false, true));
-        let kfp = KFpn::new(algebra.clone(), n);
-        let max_op_deg = 4;
-        Module::compute_basis(&kfp, max_degree + max_op_deg);
-        for &(op_deg, op_idx) in &vec![(1, 0), (2, 0), (3, 0), (3, 1), (4, 1)] {//[(1, 0), (2, 0), (3, 0), (3, 1), (4,0)] {
-            for mod_deg in 0..max_degree {
-                for mod_idx in 0..Module::dimension(&kfp, mod_deg) {
-                    let result_deg = op_deg + mod_deg;
-                    let mut result = FpVector::new(p_, Module::dimension(&kfp, result_deg));
-                    kfp.act_on_basis(&mut result, 1, op_deg, op_idx, mod_deg, mod_idx);
-                    println!("  {op}({input}) = {result}", 
-                        op=algebra.basis_element_to_string(op_deg, op_idx), 
-                        input=Module::basis_element_to_string(&kfp, mod_deg, mod_idx),
-                        result=Module::element_to_string(&kfp, result_deg, &result)
-                    );
+        let kfpn = KFpn::new(algebra.clone(), n);
+        let discrepancies = kfpn.check_relations(30);
+        if discrepancies.len() != 0 {
+            let formatter = discrepancies.iter().take(10).format_with("\n\n   ========= \n\n  ", 
+                |(
+                    tuple,
+                    discrepancy_vec
+                ), f| {
+                    let &(outer_op_degree, outer_op_index, 
+                        inner_op_degree, inner_op_index,
+                        module_degree, module_index)
+                    = tuple;
+                    f(&format_args!(
+                        "{op1}({op2}({m})) - ({op1} * {op2})({m}) == {disc}", 
+                        op1 = algebra.basis_element_to_string(outer_op_degree, outer_op_index),
+                        op2 = algebra.basis_element_to_string(inner_op_degree, inner_op_index),
+                        m = Module::basis_element_to_string(&kfpn, module_degree, module_index),
+                        disc = Module::element_to_string(&kfpn, outer_op_degree + inner_op_degree + module_degree, &discrepancy_vec)
+                    ))
                 }
-            }
-        }
-        for d in 0..max_degree {
-            assert!(Module::dimension(&kfp, d) == 1);
+            );
+            assert!(false, "Discrepancies:\n  {}",formatter);
         }
     }
 
 
-    #[rstest(p, case(2), case(3), case(5))]//, case(3))]//, case(5)
-    fn test_kfp2(p : u32){
+    // #[rstest(p, case(2), case(3), case(5))]//, case(3))]//, case(5)
+    #[test]
+    fn test_kfpn_b(){
+        let p = 3;
+        let n = 3;
+
         let p_ = ValidPrime::new(p);
-        let max_degree = 20;
-        let n = 2;
+        let max_degree = 40;
         let algebra = Arc::new(AdemAlgebra::new(p_, p != 2, false, true));
-        let kfp = KFpn::new(algebra, n);
-        Module::compute_basis(&kfp, max_degree);
-        for d in 0..max_degree {
-            println!("degree {}:", d);
-            for i in 0..Module::dimension(&kfp, d) {
-                println!("  {}", Module::basis_element_to_string(&kfp, d, i));
-            }
-        }        
+        let kfpn = KFpn::new(algebra, n);
+        // let discrepancies = kfpn.check_relations(4, 30);
+        Module::compute_basis(&kfpn, max_degree);
+        // for d in 0..max_degree {
+        //     println!("degree {}:", d);
+        //     for i in 0..Module::dimension(&kfp, d) {
+        //         println!("  {}", Module::basis_element_to_string(&kfp, d, i));
+        //     }
+        // }        
     }
 
     #[rstest(p, case(3))]//, case(3), case(5))]//, case(3))]//, case(5)

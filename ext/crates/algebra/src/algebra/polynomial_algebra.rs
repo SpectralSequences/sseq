@@ -151,7 +151,7 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
 
     fn multiply_polynomials(&self, target : &mut FpVector, coeff : u32, left_degree : i32, left : &FpVector, right_degree : i32, right : &FpVector) {
         let p = *self.prime();
-        target.extend_dimension(self.dimension(left_degree + right_degree, i32::max_value()));
+        target.set_scratch_vector_size(self.dimension(left_degree + right_degree, i32::max_value()));
         for (left_idx, left_entry) in left.iter_nonzero() {
             for (right_idx, right_entry) in right.iter_nonzero() {
                 let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone();

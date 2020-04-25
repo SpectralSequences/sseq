@@ -11,6 +11,7 @@ use algebra::module::{
     RealProjectiveSpace as RealProjectiveSpaceRust,
     KFpn as KFpnRust,
     BCp as BCpRust,
+    Dickson2 as Dickson2Rust,
     ZeroModule
 };
 
@@ -21,7 +22,8 @@ use crate::module::{
     FreeUnstableModule,
     RealProjectiveSpace,
     KFpn,
-    BCp
+    BCp,
+    Dickson2
 };
 
 // For escaping macro definition inside macro, see https://github.com/rust-lang/rust/issues/35853
@@ -81,7 +83,8 @@ export_modules! {
     register(FreeUnstableModule),
     register(RealProjectiveSpace),
     register(KFpn),
-    register(BCp)
+    register(BCp),
+    register(Dickson2)
 }
 
 impl ZeroModule for ModuleRust {
@@ -179,8 +182,8 @@ impl ModuleT for ModuleRust {
         because_enum_dispatch_doesnt_work_for_me!(act_by_element, self, result, coeff, op_degree, op, input_degree, input)
     }
 
-    fn generator_list_string(&self, degree: i32) -> String {
-        because_enum_dispatch_doesnt_work_for_me!(generator_list_string, self, degree)
+    fn basis_string_list(&self, degree: i32) -> Vec<String> {
+        because_enum_dispatch_doesnt_work_for_me!(basis_string_list, self, degree)
     }
 
     fn element_to_string(&self, degree: i32, element: &FpVector) -> String {

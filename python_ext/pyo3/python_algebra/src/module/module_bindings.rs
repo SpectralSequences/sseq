@@ -1,5 +1,6 @@
 #![macro_use]
 
+
 #[macro_export]
 macro_rules! module_methods {
     ($module : ty) => {
@@ -189,8 +190,10 @@ macro_rules! module_methods {
                 Ok(())
             }
 
-            fn generator_list_string(&self, degree: i32) -> PyResult<String> {
-                Ok(self.inner()?.generator_list_string(degree))
+            fn basis_string_list(&self, degree: i32) -> PyResult<Vec<String>> {
+                self.check_not_null()?;
+                self.check_degree(degree)?;                
+                Ok(self.inner()?.basis_string_list(degree))
             }
 
             pub fn basis_element_to_string(&self, degree : i32, idx : usize) -> PyResult<String> {
@@ -206,6 +209,26 @@ macro_rules! module_methods {
                 element.check_not_null()?;
                 self.check_dimension(degree, element)?;
                 Ok(Module::element_to_string(self.inner_unchkd(), degree, element.inner_unchkd()))
+            }
+
+            pub fn check_relation(&self,
+                outer_op_degree : i32, outer_op_index : usize, 
+                inner_op_degree : i32, inner_op_index : usize,
+                module_degree : i32, module_index : usize
+            ) -> PyResult<python_fp::vector::FpVector> {
+                self.check_not_null()?;
+                self.check_degree(outer_op_degree + inner_op_degree + module_degree)?;
+                self.check_algebra_degree(outer_op_degree + inner_op_degree)?;
+                let p = *self.inner_unchkd().algebra().prime();
+                let mut result = python_fp::vector::FpVector::new(p, 0)?;
+                let mut scratch = python_fp::vector::FpVector::new(p, 0)?;
+                self.inner_unchkd().check_relation(
+                    result.inner_mut_unchkd(), scratch.inner_mut_unchkd(),
+                    outer_op_degree, outer_op_index, 
+                    inner_op_degree, inner_op_index,
+                    module_degree, module_index
+                );
+                Ok(result)
             }
             
         }

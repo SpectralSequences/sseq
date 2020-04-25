@@ -33,6 +33,7 @@ fn module(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<module::FreeUnstableModule>()?;
     m.add_class::<module::KFpn>()?;
     m.add_class::<module::BCp>()?;
+    m.add_class::<module::Dickson2>()?;
     Ok(())
 }
 

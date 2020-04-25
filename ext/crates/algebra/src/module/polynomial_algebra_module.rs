@@ -34,73 +34,73 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
     }
 
 
-    fn sq_polynomial_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, sq : i32, input_degree : i32, input_idx : usize) {
+    fn sq_polynomial_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, sq : i32, input_degree : i32, input_index : usize) {
         let mut temp_monomial = PolynomialAlgebraMonomial::new(self.prime());
         let q = self.algebra().adem_algebra().q();
         temp_monomial.degree =  q*sq + input_degree;
         temp_monomial.poly.extend_dimension(self.polynomial_monomials().generators_up_to_degree(temp_monomial.degree));
         temp_monomial.ext.extend_dimension(self.exterior_monomials().generators_up_to_degree(temp_monomial.degree));
-        self.sq_polynomial_generator_to_monomial(&mut temp_monomial, sq, input_degree, input_idx);
+        self.sq_polynomial_generator_to_monomial(&mut temp_monomial, sq, input_degree, input_index);
         if temp_monomial.valid {
             result.add_basis_element(self.monomial_to_index(&temp_monomial), coeff);
         }
     }
 
-    fn sq_exterior_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, sq : i32, input_degree : i32, input_idx : usize) {
+    fn sq_exterior_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, sq : i32, input_degree : i32, input_index : usize) {
         let q = self.algebra().adem_algebra().q();
         let mut temp_monomial = PolynomialAlgebraMonomial::new(self.prime());
         temp_monomial.degree = q*sq + input_degree;
         temp_monomial.poly.extend_dimension(self.polynomial_monomials().generators_up_to_degree(temp_monomial.degree));
         temp_monomial.ext.extend_dimension(self.exterior_monomials().generators_up_to_degree(temp_monomial.degree));
-        self.sq_exterior_generator_to_monomial(&mut temp_monomial, sq, input_degree, input_idx);
+        self.sq_exterior_generator_to_monomial(&mut temp_monomial, sq, input_degree, input_index);
         if temp_monomial.valid {
             result.add_basis_element(self.monomial_to_index(&temp_monomial), coeff);
         }
     }
 
-    fn bockstein_polynomial_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_idx : usize) {
+    fn bockstein_polynomial_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_index : usize) {
         let mut temp_monomial = PolynomialAlgebraMonomial::new(self.prime());
         temp_monomial.degree = 1 + input_degree;
         temp_monomial.poly.extend_dimension(self.polynomial_monomials().generators_up_to_degree(temp_monomial.degree));
         temp_monomial.ext.extend_dimension(self.exterior_monomials().generators_up_to_degree(temp_monomial.degree));
-        self.bockstein_polynomial_generator_to_monomial(&mut temp_monomial, input_degree, input_idx);
+        self.bockstein_polynomial_generator_to_monomial(&mut temp_monomial, input_degree, input_index);
         if temp_monomial.valid {
             result.add_basis_element(self.monomial_to_index(&temp_monomial), coeff);
         }
     }
 
-    fn bockstein_exterior_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_idx : usize) {
+    fn bockstein_exterior_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_index : usize) {
         let mut temp_monomial = PolynomialAlgebraMonomial::new(self.prime());
         self.set_monomial_degree(&mut temp_monomial, input_degree + 1);
-        self.bockstein_exterior_generator_to_monomial(&mut temp_monomial, input_degree, input_idx);
+        self.bockstein_exterior_generator_to_monomial(&mut temp_monomial, input_degree, input_index);
         if temp_monomial.valid {
             result.add_basis_element(self.monomial_to_index(&temp_monomial), coeff);
         }
     }
 
-    fn sq_on_basis(&self, result : &mut FpVector, coeff : u32, sq : i32, degree : i32, idx : usize) {
+    fn sq_on_basis(&self, result : &mut FpVector, coeff : u32, sq : i32, degree : i32, index : usize) {
         let q = self.algebra().adem_algebra().q();
-        result.add(&self.action_table()[(degree + q*sq) as usize][sq as usize][idx], coeff);
+        result.add(&self.action_table()[(degree + q*sq) as usize][sq as usize][index], coeff);
     }
 
     fn sq_monomial_to_polynomial(&self, result : &mut FpVector, coeff : u32, sq : i32, mono : &PolynomialAlgebraMonomial) {
-        let idx = self.monomial_to_index(mono);
-        self.sq_on_basis(result, coeff, sq, mono.degree, idx);
+        let index = self.monomial_to_index(mono);
+        self.sq_on_basis(result, coeff, sq, mono.degree, index);
     }
 
     fn sq_polynomial_to_polynomial(&self, result : &mut FpVector, coeff : u32, sq : i32, input_degree : i32, input : &FpVector) {
-        for (idx, c) in input.iter_nonzero() {
-            self.sq_on_basis(result, (c*coeff) % *self.prime(), sq, input_degree, idx);
+        for (index, c) in input.iter_nonzero() {
+            self.sq_on_basis(result, (c*coeff) % *self.prime(), sq, input_degree, index);
         }
     }
 
-    fn bockstein_on_basis(&self, result : &mut FpVector, coeff : u32, degree : i32, idx : usize) {
-        result.add(&self.bockstein_table()[degree  as usize + 1][idx], coeff);
+    fn bockstein_on_basis(&self, result : &mut FpVector, coeff : u32, degree : i32, index : usize) {
+        result.add(&self.bockstein_table()[degree  as usize + 1][index], coeff);
     }
 
     fn bockstein_monomial_to_polynomial(&self, result : &mut FpVector, coeff : u32, mono : &PolynomialAlgebraMonomial) {
-        let idx = self.monomial_to_index(mono);
-        self.bockstein_on_basis(result, coeff, mono.degree, idx);
+        let index = self.monomial_to_index(mono);
+        self.bockstein_on_basis(result, coeff, mono.degree, index);
     }
 
     fn bockstein_polynomial_to_polynomial(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input : &FpVector) {
@@ -195,14 +195,13 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
         let mut rest_mono = mono.clone();
         let p = self.prime();
         let q = self.algebra().adem_algebra().q();
-        let mut result = FpVector::new(p, Algebra::dimension(self, mono.degree + q * sq, i32::max_value()));
+        let result_degree = mono.degree + q * sq;
+        let mut result = FpVector::new(p, Algebra::dimension(self, result_degree, i32::max_value()));
         let (gen_int_idx, gen_exp) = rest_mono.poly.iter_nonzero().min_by_key(|(_i, v)| *v).unwrap();
         let (gen_deg, gen_idx) = self.polynomial_monomials().internal_idx_to_gen_deg(gen_int_idx);
         rest_mono.poly.set_entry(gen_int_idx, 0);
         let rest_mono_new_deg = rest_mono.degree - gen_exp as i32 * gen_deg;
-        // println!("gen_exp : {}, gen_deg : {}", gen_exp, gen_deg);
         self.set_monomial_degree(&mut rest_mono, rest_mono_new_deg);
-        // println!("mono : {}, rest_mono : {}", mono, rest_mono);
         let nzsqs = self.nonzero_squares_on_polynomial_generator(gen_deg, gen_idx);
         for (rest_sq, part) in PartitionIterator::new(sq, gen_exp, &nzsqs) {
             let coeff = multinomial(p, &mut part.clone());
@@ -210,8 +209,8 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
             reducer_a.set_scratch_vector_size(Algebra::dimension(self, cur_deg, i32::max_value()));
             reducer_a.set_to_zero_pure();
             self.sq_monomial_to_polynomial(reducer_a, 1, rest_sq, &rest_mono);
-            for (idx, mult) in part.iter().enumerate() {
-                if *mult == 0 {
+            for (idx, &mult) in part.iter().enumerate() {
+                if mult == 0 {
                     continue;
                 }
                 let cur_sq = nzsqs[idx];
@@ -219,7 +218,7 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
                 term.set_scratch_vector_size(Algebra::dimension(self, term_degree, i32::max_value()));
                 term.set_to_zero_pure();
                 self.sq_polynomial_generator_to_polynomial(term, 1, cur_sq, gen_deg, gen_idx);
-                for _ in 0 .. *mult {
+                for _ in 0 .. mult {
                     reducer_b.set_scratch_vector_size(Algebra::dimension(self, cur_deg + term_degree, i32::max_value()));
                     reducer_b.set_to_zero_pure();
                     self.multiply_polynomials(reducer_b, 1, cur_deg, &reducer_a, term_degree, &term);
@@ -227,7 +226,8 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
                     std::mem::swap(reducer_a, reducer_b);
                 }
             }
-            assert!(cur_deg == mono.degree + q*sq);
+            debug_assert!(cur_deg == mono.degree + q*sq);
+            debug_assert!(result.dimension() == reducer_a.dimension());
             result.add(&reducer_a, coeff);
         }
         result
@@ -355,6 +355,7 @@ impl<Adem : AdemAlgebraT, A : PolynomialAlgebraModule<Algebra=Adem> + Send + Syn
 
 
     fn act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector){
+        debug_assert!(result.dimension() == Module::dimension(self, op_degree + input_degree));
         let algebra_outer = self.algebra();
         let algebra = algebra_outer.adem_algebra();
         let q = algebra.q();

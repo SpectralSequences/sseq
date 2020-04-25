@@ -363,7 +363,7 @@ impl ActionT for QueryTable {
         if t > module.max_computed_degree() {
             return None;
         }
-        let string = module.generator_list_string(t);
+        let string = format!("{:?}", module.basis_string_list(t));
         Some(Message {
             recipients : vec![],
             sseq : SseqChoice::Main, // This will be overwritten
