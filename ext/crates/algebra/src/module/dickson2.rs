@@ -156,14 +156,6 @@ impl<A : AdemAlgebraT> PolynomialAlgebraModule for Dickson2<A> {
         unreachable!()
     }
 
-    fn nonzero_squares_on_exterior_generator(&self, _gen_degree : i32, _gen_index : usize) -> Vec<i32> {
-        panic!();
-    }
-
-    fn nonzero_squares_on_polynomial_generator(&self, gen_degree : i32, _gen_index : usize) -> Vec<i32> {
-        (0 ..= gen_degree).collect()
-    }
-
     fn sq_polynomial_generator_to_monomial(&self, result : &mut PolynomialAlgebraMonomial, sq : i32, input_degree : i32, input_index : usize) {
         debug_assert!(input_index == 0);
         let (_k, _l, frob) = self.klfrob(input_degree).unwrap();
@@ -174,7 +166,7 @@ impl<A : AdemAlgebraT> PolynomialAlgebraModule for Dickson2<A> {
         let sq = sq >> frob;
         let degree = input_degree >> frob;
         if let Some((a, b)) = self.quadratic_terms(sq + degree) {
-            if b < degree {
+            if b < degree || (a == degree && b > degree) {
                 result.valid = false;
                 return;
             }
@@ -215,7 +207,6 @@ mod tests {
     use rstest::rstest;
     use crate::algebra::AdemAlgebra;
     use crate::module::Module;
-    use itertools::Itertools;
 
     #[rstest(n => [2])]
     fn test_dickson_basis(n : i32){
@@ -233,54 +224,15 @@ mod tests {
         }
     }
 
-    #[rstest(n => [2, 3, 4, 5])]//, case(3), case(5))]
+    #[rstest(
+        n => [1, 2, 3, 4, 5]
+    )]//, case(3), case(5))]
     fn test_dickson_action(n : i32) {
         let p = 2;
         let p_ = ValidPrime::new(p);
         let algebra = Arc::new(AdemAlgebra::new(p_, p != 2, false, true));
         let dickson = Dickson2::new(algebra.clone(), n);
-        let discrepancies = dickson.check_relations(30);
-        if discrepancies.len() != 0 {
-            let formatter = discrepancies.iter().take(10).format_with("\n\n   ========= \n\n  ", 
-                |(
-                    tuple,
-                    discrepancy_vec
-                ), f| {
-                    let &(outer_op_degree, outer_op_index, 
-                        inner_op_degree, inner_op_index,
-                        module_degree, module_index)
-                    = tuple;
-                    f(&format_args!(
-                        "{op1}({op2}({m})) - ({op1} * {op2})({m}) == {disc}", 
-                        op1 = algebra.basis_element_to_string(outer_op_degree, outer_op_index),
-                        op2 = algebra.basis_element_to_string(inner_op_degree, inner_op_index),
-                        m = Module::basis_element_to_string(&dickson, module_degree, module_index),
-                        disc = Module::element_to_string(&dickson, outer_op_degree + inner_op_degree + module_degree, &discrepancy_vec)
-                    ))
-                }
-            );
-            assert!(false, "Discrepancies:\n  {}",formatter);
-        }
-
-
-        // let mut result = FpVector::new(p_, 0);
-        // Module::compute_basis(&dickson, max_degree);
-        // for op_deg in 0..4 {
-        //     for op_idx in 0..algebra.dimension(op_deg, i32::max_value()) {
-        //         for mod_deg in 0 ..= max_degree - op_deg {
-        //             for mod_idx in 0..Module::dimension(&dickson, mod_deg) {
-        //                 result.set_scratch_vector_size(Module::dimension(&dickson, op_deg + mod_deg));
-        //                 result.set_to_zero_pure();
-        //                 dickson.act_on_basis(&mut result, 1, op_deg, op_idx, mod_deg, mod_idx);
-        //                 println!("{op}({input}) = {output}", 
-        //                     op = algebra.basis_element_to_string(op_deg, op_idx), 
-        //                     input = Module::basis_element_to_string(&dickson, mod_deg, mod_idx),
-        //                     output = Module::element_to_string(&dickson, mod_deg + op_deg, &result)
-        //                 );
-        //             }
-        //         }
-        //     }
-        // }
+        dickson.test_relations(5, 5);
     }
 
 

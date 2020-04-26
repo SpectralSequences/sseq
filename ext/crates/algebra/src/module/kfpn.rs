@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use std::sync::Arc;
 
 use once::OnceVec;
@@ -143,7 +142,9 @@ impl<A : AdemAlgebraT> PolynomialAlgebra for KFpn<A> {
 
     fn frobenius_on_generator(&self, degree : i32, index : usize) -> Option<usize> {
         let p = *Module::prime(self) as i32;
-        debug_assert!(p*degree <= Module::max_computed_degree(self));
+        debug_assert!(p*degree <= Module::max_computed_degree(self), 
+            format!("degree : {}, max_computed_degree : {}", degree, Module::max_computed_degree(self))
+        );
         let two_or_one = if self.adem_algebra().generic { 2 } else { 1 };
         Some(self.frobenius_table[degree as usize / two_or_one][index])
     }
@@ -225,32 +226,6 @@ impl<A : AdemAlgebraT> PolynomialAlgebraModule for KFpn<A> {
         &self.bockstein_table_field
     }
 
-    fn nonzero_squares_on_exterior_generator(&self, gen_degree : i32, gen_index : usize) -> Vec<i32> {
-        let two_or_one = if self.adem_algebra().generic { 2 } else { 1 };
-        let max_sq;
-        if gen_degree <= self.n + two_or_one - 1 { // iota or beta(iota)
-            max_sq = gen_degree/two_or_one;
-        } else {
-            let b = self.adem_algebra().basis_element_from_index(gen_degree - self.n, gen_index);
-            let p = *self.adem_algebra().prime();
-            max_sq = self.n + ((2 * b.bocksteins & 1) + p * b.ps[0]) as i32 - b.excess;
-        }
-        (0 ..= max_sq).collect()
-    }
-
-    fn nonzero_squares_on_polynomial_generator(&self, gen_degree : i32, gen_index : usize) -> Vec<i32> {
-        let two_or_one = if self.adem_algebra().generic { 2 } else { 1 };
-        let max_sq;
-        if gen_degree <= self.n + two_or_one - 1 { // iota or beta(iota)
-            max_sq = gen_degree/two_or_one;
-        } else {
-            let b = self.adem_algebra().basis_element_from_index(gen_degree - self.n, gen_index);
-            let p = *self.adem_algebra().prime();
-            max_sq = self.n + ((2 * b.bocksteins & 1) + p * b.ps[0]) as i32 - b.excess;
-        }
-        (0..=max_sq).collect()
-    }
-
     fn sq_polynomial_generator_to_monomial(&self, _result : &mut PolynomialAlgebraMonomial, _sq : i32, _input_degree : i32, _input_idx : usize) {
         unreachable!();
     }
@@ -313,34 +288,19 @@ mod tests {
 
     #[rstest(
         p => [2, 3, 5],
-        n => [1, 2, 3, 4]
+        n => [2, 3, 4]
     )]
     fn test_kfpn_action(p : u32, n : i32){
         let p_ = ValidPrime::new(p);
         let algebra = Arc::new(AdemAlgebra::new(p_, p != 2, false, true));
         let kfpn = KFpn::new(algebra.clone(), n);
-        let discrepancies = kfpn.check_relations(30);
-        if discrepancies.len() != 0 {
-            let formatter = discrepancies.iter().take(10).format_with("\n\n   ========= \n\n  ", 
-                |(
-                    tuple,
-                    discrepancy_vec
-                ), f| {
-                    let &(outer_op_degree, outer_op_index, 
-                        inner_op_degree, inner_op_index,
-                        module_degree, module_index)
-                    = tuple;
-                    f(&format_args!(
-                        "{op1}({op2}({m})) - ({op1} * {op2})({m}) == {disc}", 
-                        op1 = algebra.basis_element_to_string(outer_op_degree, outer_op_index),
-                        op2 = algebra.basis_element_to_string(inner_op_degree, inner_op_index),
-                        m = Module::basis_element_to_string(&kfpn, module_degree, module_index),
-                        disc = Module::element_to_string(&kfpn, outer_op_degree + inner_op_degree + module_degree, &discrepancy_vec)
-                    ))
-                }
-            );
-            assert!(false, "Discrepancies:\n  {}",formatter);
-        }
+        kfpn.test_relations(30, 5);
+        // Module::compute_basis(&kfpn, 17);
+        // let mut scratch_vec = FpVector::new(p_, 0);
+        // let mut discrepancy_vec = FpVector::new(p_, 0);
+        // kfpn.check_relation(&mut discrepancy_vec, &mut scratch_vec,
+        //     4, 0, 5, 1, 7, 1
+        // );
     }
 
 
@@ -354,14 +314,7 @@ mod tests {
         let max_degree = 40;
         let algebra = Arc::new(AdemAlgebra::new(p_, p != 2, false, true));
         let kfpn = KFpn::new(algebra, n);
-        // let discrepancies = kfpn.check_relations(4, 30);
         Module::compute_basis(&kfpn, max_degree);
-        // for d in 0..max_degree {
-        //     println!("degree {}:", d);
-        //     for i in 0..Module::dimension(&kfp, d) {
-        //         println!("  {}", Module::basis_element_to_string(&kfp, d, i));
-        //     }
-        // }        
     }
 
     #[rstest(p, case(3))]//, case(3), case(5))]//, case(3))]//, case(5)

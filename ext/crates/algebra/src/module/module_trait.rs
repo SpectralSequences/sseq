@@ -163,12 +163,17 @@ pub trait Module: Send + Sync + 'static {
         scratch.set_to_zero_pure();
         self.act_on_basis(scratch, 1, inner_op_degree, inner_op_index, module_degree, module_index);
         self.act(result, 1, outer_op_degree, outer_op_index, inner_op_degree + module_degree, scratch);
+        // println!("scratch 1 : {}", self.element_to_string(inner_op_degree + module_degree, &scratch));
+        // println!("result 1 : {}", self.element_to_string(outer_op_degree + inner_op_degree + module_degree, &result));
         scratch.set_scratch_vector_size(self.algebra().dimension(outer_op_degree + inner_op_degree, i32::max_value()));
         scratch.set_to_zero_pure();
         self.algebra().multiply_basis_elements(scratch, 1,  outer_op_degree, outer_op_index, inner_op_degree, inner_op_index, i32::max_value());
         self.act_by_element_on_basis(result, *self.prime() - 1, outer_op_degree + inner_op_degree, scratch, module_degree, module_index);
+        // println!("result 2 : {}", self.element_to_string(outer_op_degree + inner_op_degree + module_degree, &result));
     }
 
+    /// Input: degree through which to check.
+    /// Output: Vec of discrepancies.
     fn check_relations(&self, max_degree : i32) -> Vec<((i32, usize, i32, usize, i32, usize), FpVector)> {
         let mut result = Vec::new();
         let algebra = self.algebra();
@@ -203,6 +208,36 @@ pub trait Module: Send + Sync + 'static {
             }
         }
         result
+    }
+
+    fn test_relations(&self, max_degree : i32, max_failures_to_display : usize){
+        let discrepancies = self.check_relations(max_degree);
+        let algebra = self.algebra();
+        if discrepancies.len() != 0 {
+            let formatter = discrepancies.iter().take(max_failures_to_display).format_with("\n\n   ========= \n\n  ", 
+                |(
+                    tuple,
+                    discrepancy_vec
+                ), f| {
+                    let &(outer_op_degree, outer_op_index, 
+                        inner_op_degree, inner_op_index,
+                        module_degree, module_index)
+                    = tuple;
+                    f(&format_args!(
+                        "{outer_op_degree}, {outer_op_index}, {inner_op_degree}, {inner_op_index}, {module_degree}, {module_index}\n\
+                        {op1}({op2}({m})) - ({op1} * {op2})({m}) == {disc}",
+                        outer_op_degree = outer_op_degree, outer_op_index = outer_op_index, 
+                        inner_op_degree = inner_op_degree, inner_op_index = inner_op_index,
+                        module_degree   = module_degree, module_index     = module_index,
+                        op1 = algebra.basis_element_to_string(outer_op_degree, outer_op_index),
+                        op2 = algebra.basis_element_to_string(inner_op_degree, inner_op_index),
+                        m = self.basis_element_to_string(module_degree, module_index),
+                        disc = self.element_to_string(outer_op_degree + inner_op_degree + module_degree, &discrepancy_vec)
+                    ))
+                }
+            );
+            assert!(false, "Discrepancies:\n  {}",formatter);
+        }
     }
 }
 

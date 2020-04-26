@@ -912,21 +912,6 @@ pub trait FpVectorT {
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     // fn add_truncate(&mut self, other : &FpVector, c : u32) -> bool {
 
     // }
@@ -1645,7 +1630,7 @@ impl FpVector {
                 target_limbs[i + dat.min_target_limb + 1] = self.add_limb(target_limbs[i + dat.min_target_limb + 1], dat.mask_first_limb_b(other, i), c);
             }
         }
-        for i in 1 .. dat.number_of_source_limbs-1 {
+        for i in 1 .. dat.number_of_source_limbs - 1 {
             target_limbs[i + dat.min_target_limb] = self.add_limb(target_limbs[i + dat.min_target_limb], dat.mask_middle_limb_a(other, i), c);
             target_limbs[i + dat.min_target_limb + 1] = self.add_limb(target_limbs[i + dat.min_target_limb + 1], dat.mask_middle_limb_b(other, i), c);
         }
@@ -1658,6 +1643,68 @@ impl FpVector {
         }
         self.put_limbs(target_limbs);
         self.add_carry_propagate(rest)
+    }
+
+    pub fn sign_rule(&self, other : &FpVector) -> bool {
+        match self {
+            FpVector::FpVector2(_) => {},
+            _ => panic!()
+        };
+        match self.offset().cmp(&other.offset()) {
+            Ordering::Equal => self.sign_rule_shift_none(other),
+            Ordering::Less => unimplemented!(),
+            Ordering::Greater => unimplemented!(),
+        }
+    }
+
+    pub fn sign_rule_shift_none(&self, other : &FpVector) -> bool {
+        let mut result = 0;
+        let min_limb = self.min_limb();
+        let max_limb = self.max_limb();
+        for target_limb_idx in min_limb .. max_limb {
+            let target_limb = other.limbs()[target_limb_idx] & other.limb_mask(target_limb_idx - min_limb);
+            let source_limb = self.limbs()[target_limb_idx] & self.limb_mask(target_limb_idx - min_limb);
+            result ^= self.sign_rule_limb(target_limb, source_limb);
+            if target_limb.count_ones() % 2 == 0 {
+                continue;
+            }    
+            for source_limb_idx in target_limb_idx + 1 .. max_limb {
+                let source_limb = self.limbs()[target_limb_idx] & self.limb_mask(source_limb_idx - min_limb);
+                result ^= source_limb.count_ones() % 2;
+            }
+        }
+        result == 1
+    }
+
+    pub fn sign_rule_limb(&self, mut target : u64, mut source : u64) -> u32 {
+        let every_other_bit  = 0x5555555555555555;
+        let every_fourth_bit = 0x1111111111111111;
+        let every_eight_bit  = 0x0101010101010101;
+        let every_16th_bit   = 0x0001000100010001;
+        let every_32nd_bit   = 0x0000000100000001;
+        let mut result = 0;
+        result ^= (every_other_bit & (source >> 1) & target).count_ones() % 2;
+        source = (source & every_other_bit) ^ ((source >> 1) & every_other_bit);
+        target = (target & every_other_bit) ^ ((target >> 1) & every_other_bit);
+        
+        result ^= (every_fourth_bit & (source >> 2) & target).count_ones() % 2;
+        source = (source & every_fourth_bit) ^ ((source >> 2) & every_fourth_bit);
+        target = (target & every_fourth_bit) ^ ((target >> 2) & every_fourth_bit);
+
+        result ^= (every_eight_bit & (source >> 4) & target).count_ones() % 2;
+        source = (source & every_eight_bit) ^ ((source >> 4) & every_eight_bit);
+        target = (target & every_eight_bit) ^ ((target >> 4) & every_eight_bit);
+        
+        result ^= (every_16th_bit & (source >> 8) & target).count_ones() % 2;
+        source = (source & every_16th_bit) ^ ((source >> 8) & every_16th_bit);
+        target = (target & every_16th_bit) ^ ((target >> 8) & every_16th_bit);
+        
+        result ^= (every_32nd_bit & (source >> 16) & target).count_ones() % 2;
+        source = (source & every_32nd_bit) ^ ((source >> 16) & every_32nd_bit);
+        target = (target & every_32nd_bit) ^ ((target >> 16) & every_32nd_bit);
+        
+        result ^= ((source >> 32) & target).count_ones() % 2;
+        result
     }
 
 }
@@ -1892,7 +1939,6 @@ impl<'a> Iterator for FpVector3IteratorNonzero<'a> {
             let tz_rem = ((tz_real as u8) % (BITS_PER_ENTRY as u8)) as u32;
             let tz_div = ((tz_real as u8) / (BITS_PER_ENTRY as u8)) as u32;
             let tz = tz_real - tz_rem;
-            // println!("  tz: {} <? entries_left : {}", tz, self.cur_limb_entries_left);
             self.idx += tz_div as usize;
             self.cur_limb_entries_left -= tz_div as usize;
             self.cur_limb_bits_left -= tz as usize;
@@ -1909,7 +1955,6 @@ impl<'a> Iterator for FpVector3IteratorNonzero<'a> {
             } 
             self.cur_limb >>= tz;
             if tz == 0 {
-                // println!("finished. idx : {}", self.idx);
                 break;
             }
         }
@@ -1977,7 +2022,6 @@ impl<'a> Iterator for FpVector5IteratorNonzero<'a> {
             let tz_rem = ((tz_real as u8) % (BITS_PER_ENTRY as u8)) as u32;
             let tz_div = ((tz_real as u8) / (BITS_PER_ENTRY as u8)) as u32;
             let tz = tz_real - tz_rem;
-            // println!("  tz: {} <? entries_left : {}", tz, self.cur_limb_entries_left);
             self.idx += tz_div as usize;
             self.cur_limb_entries_left -= tz_div as usize;
             self.cur_limb_bits_left -= tz as usize;
@@ -1994,7 +2038,6 @@ impl<'a> Iterator for FpVector5IteratorNonzero<'a> {
             } 
             self.cur_limb >>= tz;
             if tz == 0 {
-                // println!("finished. idx : {}", self.idx);
                 break;
             }
         }
@@ -2797,7 +2840,7 @@ mod tests {
             let mut result = vec![0; dim];
             v.pack(&v_arr);
             w.pack(&w_arr);
-            let ok_q = v.add_truncate(&w, 1).is_some();
+            let ok_q = v.add_truncate(&w, 1).is_ok();
             println!("\nok_q: {}\n!!\n" , ok_q);
             v.clear_slice();
             if ok_q {
@@ -2845,7 +2888,7 @@ mod tests {
             w.pack(&w_arr);
             v.set_slice(slice_start + 2, slice_end + 2);
             w.set_slice(slice_start, slice_end);
-            let ok_q = v.add_truncate(&w, 1).is_some();
+            let ok_q = v.add_truncate(&w, 1).is_ok();
             v.clear_slice();
             println!("\nok_q: {}\n" , ok_q);
             if ok_q {
@@ -2900,7 +2943,7 @@ mod tests {
             w.pack(&w_arr);
             v.set_slice(slice_start - 2, slice_end - 2);
             w.set_slice(slice_start, slice_end);
-            let ok_q = v.add_truncate(&w, 1).is_some();
+            let ok_q = v.add_truncate(&w, 1).is_ok();
             v.clear_slice();
             if ok_q {
                 let mut diffs = String::new();
@@ -3195,5 +3238,16 @@ mod tests {
             // }
             assert!(diffs_str == "", diffs_str);
         }
+    }
+
+    #[test]
+    fn test_sign_rule_limb(){
+        let p = 2;
+        let p_ = ValidPrime::new(p);
+        let dummy_vec = FpVector::new(p_, 0);
+        assert!(dummy_vec.sign_rule_limb(1, 0b10) == 1);
+        assert!(dummy_vec.sign_rule_limb(0b10, 1) == 0);
+        assert!(dummy_vec.sign_rule_limb(0x84012c02,0x6b920241) == 1);
+        assert!(dummy_vec.sign_rule_limb(0x6b920241, 0x84012c02) == 0);
     }
 }

@@ -119,20 +119,23 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
     fn frobenius_monomial(&self, target : &mut FpVector, source : &FpVector) {
         let p = *self.prime() as i32;
         for (i, c) in source.iter_nonzero() {
-            let (degree, in_idx) = self.polynomial_monomials().internal_idx_to_gen_deg(i);
-            let frob = self.frobenius_on_generator(degree, in_idx);
+            let (gen_degree, gen_index) = self.polynomial_monomials().internal_idx_to_gen_deg(i);
+            let frob = self.frobenius_on_generator(gen_degree, gen_index);
             if let Some(e) = frob {
-                let out_idx = self.polynomial_monomials().gen_deg_idx_to_internal_idx(p*degree, e);
+                let out_idx = self.polynomial_monomials().gen_deg_idx_to_internal_idx(p*gen_degree, e);
                 target.add_basis_element(out_idx, c);
             }
         }
     }
 
-    fn multiply_monomials(&self, target : &mut PolynomialAlgebraMonomial, source : &PolynomialAlgebraMonomial) -> Result<(), ()> {
+    fn multiply_monomials(&self, target : &mut PolynomialAlgebraMonomial, source : &PolynomialAlgebraMonomial) -> Result<u32, ()> {
+        let minus_one = *self.prime() - 1;
         self.set_monomial_degree(target, target.degree + source.degree);
-        target.ext.set_slice(0, source.ext.dimension());
-        target.ext.add_truncate(&source.ext, 1)?;
-        target.ext.clear_slice();
+        let mut temp_source_ext = source.ext.clone();
+        temp_source_ext.set_scratch_vector_size(target.ext.dimension());
+        // If we made sign_rule handle vectors of different lengths, we could avoid cloning ext here.
+        let coeff = if target.ext.sign_rule(&temp_source_ext) { minus_one } else { 1 };
+        target.ext.add_truncate(&temp_source_ext, 1)?;
 
         let mut carry_vec = [FpVector::new(self.prime(), target.poly.dimension())];
         let mut source_vec = source.poly.clone();
@@ -146,7 +149,7 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
                 carry_vec[0].set_to_zero_pure();
             }
         }
-        Ok(())
+        Ok(coeff)
     }
 
     fn multiply_polynomials(&self, target : &mut FpVector, coeff : u32, left_degree : i32, left : &FpVector, right_degree : i32, right : &FpVector) {
@@ -157,9 +160,9 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
                 let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone();
                 let source_mono = self.index_to_monomial(right_degree, right_idx);
                 let nonzero_result = self.multiply_monomials(&mut target_mono,  &source_mono);
-                if nonzero_result.is_ok() {
+                if let Ok(c) = nonzero_result {
                     let idx = self.monomial_to_index(&target_mono);
-                    target.add_basis_element(idx, (left_entry * right_entry * coeff)%p);
+                    target.add_basis_element(idx, (left_entry * right_entry * c * coeff)%p);
                 }
             }
         }
@@ -169,14 +172,30 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
         let p = *self.prime();
         target.extend_dimension(self.dimension(left_degree + right_mono.degree, i32::max_value()));
         for (left_idx, left_entry) in left.iter_nonzero() {
-            let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone();
+            let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone(); // Could reduce cloning a bit but probably best not to worry.
             let nonzero_result = self.multiply_monomials(&mut target_mono,  &right_mono);
-            if nonzero_result.is_ok() {
+            if let Ok(c) = nonzero_result {
                 let idx = self.monomial_to_index(&target_mono);
-                target.add_basis_element(idx, (left_entry * 1 * coeff)%p);
+                target.add_basis_element(idx, (left_entry * 1 * c * coeff)%p);
             }
         }
     }
+
+    // At p=2 this is redundant but at odd primes one must worry about signs.
+    fn multiply_monomial_by_polynomial(&self, target : &mut FpVector, coeff : u32, left_mono : &PolynomialAlgebraMonomial, right_degree : i32, right : &FpVector) {
+        let p = *self.prime();
+        target.extend_dimension(self.dimension(right_degree + left_mono.degree, i32::max_value()));
+        for (right_idx, right_entry) in right.iter_nonzero() {
+            let mut target_mono = left_mono.clone(); // Could reduce cloning a bit but probably best not to worry.
+            let right_mono = self.index_to_monomial(right_degree, right_idx);
+            let nonzero_result = self.multiply_monomials(&mut target_mono,  &right_mono);
+            if let Ok(c) = nonzero_result {
+                let idx = self.monomial_to_index(&target_mono);
+                target.add_basis_element(idx, (1 * right_entry * c * coeff)%p);
+            }
+        }
+    }
+
 
     fn set_monomial_degree(&self, mono : &mut PolynomialAlgebraMonomial, degree : i32) {
         mono.degree = degree;

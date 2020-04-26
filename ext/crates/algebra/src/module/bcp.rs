@@ -107,16 +107,6 @@ impl<A : AdemAlgebraT> PolynomialAlgebraModule for BCp<A> {
         &self.bockstein_table_field
     }
 
-    fn nonzero_squares_on_exterior_generator(&self, _gen_degree : i32, _gen_idx : usize) -> Vec<i32> {
-        vec![0]
-    }
-
-    fn nonzero_squares_on_polynomial_generator(&self, gen_degree : i32, _gen_idx : usize) -> Vec<i32> {
-        let q = if self.algebra().adem_algebra().generic { 2 } else { 1 };
-        // print("nzsog : gen : {}, {} sqs : {}", )
-        vec![0, gen_degree/q]
-    }
-
     fn sq_polynomial_generator_to_monomial(&self, result : &mut PolynomialAlgebraMonomial, sq : i32, input_degree : i32, input_idx : usize) {
         let p = *self.prime() as i32;
         // let q = self.algebra.adem_algebra().q();
