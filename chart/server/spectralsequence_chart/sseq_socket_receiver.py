@@ -10,27 +10,20 @@ class SseqSocketReceiver(SocketReceiver):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    # @transform_outbound_messages
-    # async def consume_chart(self, source_agent_id, cmd, state):
-    #     # utils.replace_keys(state, [
-    #     #     ["x_range", "xRange"], 
-    #     #     ["y_range", "yRange"],
-    #     #     ["initial_x_range", "initialxRange"],
-    #     #     ["initial_y_range", "initialyRange"]
-    #     # ])
-    #     await self.send_message_to_socket_a(cmd, state=state)
+    @transform_outbound_messages
+    async def transform__chart__a(self, envelope, **kwargs):
+        envelope.mark_used()
+        await self.send_message_to_socket_a(envelope)
 
     @transform_outbound_messages
-    async def consume_chart_a(self, source_agent_id, cmd, **kwargs):
-        await self.send_message_to_socket_a(cmd, **kwargs)
+    async def transform__display__a(self, envelope, **kwargs):
+        envelope.mark_used()
+        await self.send_message_to_socket_a(envelope)
 
     @transform_outbound_messages
-    async def consume_display_a(self, source_agent_id, cmd, **kwargs):
-        await self.send_message_to_socket_a(cmd, **kwargs)
-
-    @transform_outbound_messages
-    async def consume_slideshow_a(self, source_agent_id, cmd, **kwargs):
-        await self.send_message_to_socket_a(cmd, **kwargs)    
+    async def transform__slideshow__a(self, envelope, **kwargs):
+        envelope.mark_used()
+        await self.send_message_to_socket_a(envelope)    
 
     # def send_introduction_message(self):
     #     await self.send_message({"cmd"})

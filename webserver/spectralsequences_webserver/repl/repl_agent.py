@@ -49,23 +49,28 @@ class ReplAgent(Agent):
 
 
     @transform_inbound_messages
-    async def consume_debug_a(self, source_agent_path, cmd, msg):#source, cmd, msg):
+    async def transform__debug__a(self, envelope, msg):#source, cmd, msg):
+        envelope.mark_used()
         self.console_io.print_debug(".".join(cmd.part_list[1:]), msg)
 
     @transform_inbound_messages
-    async def consume_info_a(self, source_agent_path, cmd, msg):
+    async def transform__info__a(self, envelope, msg):
         # print("consume_info", args, kwargs)
+        envelope.mark_used()
         self.console_io.print_info(".".join(cmd.part_list[1:]), msg)
 
     @transform_inbound_messages
-    async def consume_warning_a(self, source_agent_path, cmd, msg):
+    async def transform__warning__a(self, envelope, msg):
+        envelope.mark_used()
         self.console_io.print_warning(".".join(cmd.part_list[1:]), msg)
 
     @transform_inbound_messages
-    async def consume_error__exception_a(self, source_agent_path, cmd, msg,  exception):
+    async def transform__error__exception__a(self, envelope, msg,  exception):
         # do something with cmd?
+        envelope.mark_used()
         self.console_io.print_exception(exception)
 
     @transform_inbound_messages
-    async def consume_error__additional_info_a(self, source_agent_path, cmd, msg, additional_info):
+    async def transform__error__additional_info__a(self, envelope, msg, additional_info):
+        envelope.mark_used()
         self.console_io.print_error(".".join(cmd.part_list[2:]), msg, additional_info)

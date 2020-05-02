@@ -200,7 +200,8 @@ class SpectralSequenceChart(Agent):
         await self.send_batched_messages_a()
 
     @transform_inbound_messages
-    async def consume_new_user_a(self, source_agent_path, cmd):
+    async def transform__new_user__a(self, envelope):
+        envelope.mark_used()
         await self.send_message_outward_a("initialize.chart.state", *arguments(
             state=self.data, display_state=self.display_state
         ))

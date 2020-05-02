@@ -33,6 +33,9 @@ class Command:
         self.part_list = part_list
         return self
 
+    def __copy__(self):
+        return Command().set_str(self.str)
+
     @staticmethod
     def cmdstr_to_filter_list(cmd):
         # We use "__" as a standin for "." in "command filter identifiers"
@@ -62,7 +65,18 @@ class Message:
         self.cmd = cmd
         self.args = args
         self.kwargs = kwargs
-    
+
+    def update_arguments(self, *args, **kwargs):
+        if args:
+            args = self.args.copy()
+            args.update(args)
+        if kwargs:
+            kwargs = self.kwargs.copy()
+            kwargs.update(kwargs)
+        self.args = args
+        self.kwargs = kwargs
+
+
     def to_json(self):
         return { "cmd" : self.cmd.filter_list, "args" : self.args, "kwargs" : self.kwargs }
 
@@ -93,12 +107,28 @@ class Envelope:
         if direction == "out" and target_agent_id is not None:
             raise TypeError(
                 f"""Outbound envelope should not have a "target_agent_id"."""
-            )            
+            )
+        self.direction = direction
         self.msg = msg
         self.source_agent_id = source_agent_id
         self.source_agent_path = source_agent_path
         self.target_agent_id = target_agent_id
         self.target_agent_path = target_agent_path
+        self._used = False
+        self._stop_propagation = False
+
+    
+    def mark_used(self):
+        self._used = True
+    
+    def stop_propagation(self):
+        self._stop_propagation = True
+
+    def stop_propagation_q(self):
+        return self._stop_propagation
+
+    def unused_q(self):
+        return not self._used
 
     def info(self):
         return f"""cmd: {ansi.highlight(self.msg.cmd.str)} args: {ansi.info(self.msg.args)} kwargs: {ansi.info(self.msg.kwargs)}"""
@@ -228,26 +258,27 @@ class Agent:
 
     async def pass_envelope_inward_a(self, envelope):
         self.log_envelope_task("pass_envelope_inward", envelope)
-        consume = await self.transform_inbound_envelope_a(envelope)
-        if consume:
+        await self.transform_inbound_envelope_a(envelope)
+        if envelope.stop_propagation_q():
             return
-        if envelope.target_agent_id == self.uuid:
+        if envelope.target_agent_id == self.uuid and envelope.unused_q():
             raise RuntimeError(f"""Unconsumed message with command "{envelope.msg.cmd.str}" targeted to me.""")
-        if self.parent is None:
+        if self.parent is None and envelope.unused_q():
             raise RuntimeError(f"""Unconsumed message with command "{envelope.msg.cmd.str}" hit root node.""")
+        elif self.parent is None:
+            return
         envelope.source_agent_path.append(self.uuid)
         await self.parent.pass_envelope_inward_a(envelope)        
         
     async def pass_envelope_outward_a(self, envelope):
         self.log_envelope_task("pass_envelope_outward", envelope)
-        consume = await self.transform_outbound_envelope_a(envelope)
-        if consume:
-            return  
+        await self.transform_outbound_envelope_a(envelope)
+        if envelope.stop_propagation_q():
+            return 
         children_to_pass_to = self.pass_envelope_outward_get_children_to_pass_to(envelope)
         if not children_to_pass_to:
             # TODO: extra logging info about subscriber filters!
             await self.handle_leaked_envelope_a(envelope)
-            # raise RuntimeWarning("Leaked message") # TODO: should be a warning.
         for recv in children_to_pass_to:
             await recv.pass_envelope_outward_a(envelope)        
    
@@ -262,8 +293,9 @@ class Agent:
 
 
     async def handle_leaked_envelope_a(self, envelope):
-        self.log_warning(f"""Leaked envelope self: {self.info()}  envelope: {envelope.info()}""")
-        self.log_warning(f"""=== Leaked envelope {self.children}""")
+        if envelope.unused_q():
+            self.log_warning(f"""Leaked envelope self: {self.info()}  envelope: {envelope.info()}""")
+            self.log_warning(f"""=== Leaked envelope {self.children}""")
 
 
     async def send_message_inward_a(self, 
@@ -292,12 +324,6 @@ class Agent:
         args, kwargs
     ):
         await self.send_message_outward_a(cmd, args, kwargs)
-
-    # async def get_response_a(self, cmd_filter):
-        # async with self.inward_responses_expected_lock:
-            # event = asyncio.Event()
-            # self.inward_responses_expected.append((cmd_filter, event))
-        # return event.wait()
 
 
     async def send_debug_a(self, msg_type, msg):

@@ -44,7 +44,8 @@ class InteractChannel(SocketChannel):
         await self.executor.load_repl_init_file_if_it_exists_a()
         
     @transform_inbound_messages
-    async def consume_console__take_a(self, source_agent_path, cmd):
+    async def transform__console__take__a(self, envelope):
+        envelope.mark_used()
         self.repl_agent.set_executor(self.executor)
 
     async def add_subscriber_a(self, websocket):
@@ -83,7 +84,8 @@ class InteractChannel(SocketChannel):
         return new_channel
 
     @transform_inbound_messages
-    async def consume_io__save_a(self, source_agent_path, cmd):
+    async def transform__io__save__a(self, envelope):
+        envelope.mark_used()
         self.save()
 
     def save(self):
@@ -103,7 +105,8 @@ class InteractChannel(SocketChannel):
         out_path.write_text(save_str)
 
     @transform_inbound_messages
-    async def consume_io__process_screenshot_a(self, source_agent_path, cmd):
+    async def transform__io__process_screenshot__a(self, envelope):
+        envelope.mark_used()
         files = sorted(config.SCREENSHOT_DIR.glob("*.png"))
         file = files[-1]
         if file == self.last_screenshot:

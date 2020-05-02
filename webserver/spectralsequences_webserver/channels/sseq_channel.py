@@ -55,5 +55,6 @@ class SseqChannel(SocketChannel):
             return True
 
     @transform_inbound_messages
-    async def consume_click_a(self, source_agent_path, cmd, x, y, chart_class=None):
+    async def transform__click__a(self, envelope, x, y, chart_class=None):
+        envelope.mark_used()
         pass # IGNORED!

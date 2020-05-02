@@ -1,3 +1,4 @@
+from copy import copy
 import functools
 import inspect
 import sys
@@ -14,8 +15,6 @@ def reset_global_transformers():
         "out" : { },
     }
 reset_global_transformers()
-
-
 
 
 def subscribe_to(subs):
@@ -77,7 +76,7 @@ def declared_at(func):
            f"""   in class "{ansi.info(cls)}"\n""" +\
            f"""   on line {ansi.info(lineno)}"""
 
-def transform(in_or_out : str, transform_cmd : str = None):
+def transform(in_or_out : str):
     if in_or_out not in TRANSFORMERS:
         raise ValueError(f"""Second argument "in_or_out" should be "in" or "out" not "{in_or_out}".""")
     def helper(func):
@@ -85,12 +84,12 @@ def transform(in_or_out : str, transform_cmd : str = None):
         func_args = inspect.getargspec(func).args
         second_argument_name = transformer_source_agent_argument_name[in_or_out]
         def get_sample_declaration(colored_positions):
-            subs = [ansi.INFO]*8
-            for i, pos in enumerate(["async", "self", "agent", "cmd"]):
+            subs = [ansi.INFO]*6
+            for i, pos in enumerate(["async", "self", "envelope"]):
                 if pos in colored_positions:
                     subs[2*i] = ansi.CORRECTION
             return f""""{colored_func_name}" should be declared as"""+\
-                 f""" "{ansi.INFO}%sasync%s def {func.__name__}(%sself%s, %s{second_argument_name}%s, %scmd%s, ...){ansi.NOCOLOR}".""" % tuple(subs)
+                 f""" "{ansi.INFO}%sasync%s def {func.__name__}(%sself%s, %senvelope%s, ...){ansi.NOCOLOR}".""" % tuple(subs)
 
         if not inspect.iscoroutinefunction(func):
             raise TypeError(
@@ -101,23 +100,27 @@ def transform(in_or_out : str, transform_cmd : str = None):
                 declared_at(func)
             )
 
-        if func.__name__.startswith("transform_"):
-            transform_or_consume = "transform"
-        elif func.__name__.startswith("consume_"):
-            transform_or_consume = "consume"
-        else:
+        prefix = "transform__"
+        suffix = "__a"
+        if not func.__name__.startswith(prefix):
             raise TypeError(
                 f"""Transformer method name "{ansi.mistake(func.__name__)}" """ +\
-                f"""should either start with "{ansi.correction("transform_")}" or with "{ansi.correction("consume_")}".""" + "\n" +\
-                # get_sample_declaration(["name"]) + "\n" +\
+                f"""should start with "{ansi.correction(prefix)}".""" + "\n" +\
+                declared_at(func)
+            )
+        
+        if not func.__name__.endswith(suffix):
+            raise TypeError(
+                f"""Transformer method name "{ansi.mistake(func.__name__)}" """ +\
+                f"""should end with "{ansi.correction(suffix)}".""" + "\n" +\
                 declared_at(func)
             )
 
-        if len(func_args) < 3:
+        if len(func_args) < 2:
             raise TypeError(
                 f"""Transformer method "{colored_func_name}" """ +\
-                f"""should have at least three positional arguments.\n""" +\
-                get_sample_declaration(["self", "agent", "cmd"]) + "\n" +\
+                f"""should have at least two positional arguments.\n""" +\
+                get_sample_declaration(["self", "envelope"]) + "\n" +\
                 declared_at(func)
             )
         if func_args[0] != "self":
@@ -127,41 +130,32 @@ def transform(in_or_out : str, transform_cmd : str = None):
                 get_sample_declaration(["self"]) + "\n" +\
                 declared_at(func)
             )
-        
-        if func_args[1] != second_argument_name:
+
+        if func_args[1] != "envelope":
             raise TypeError(
-                f"""The second argument of {in_or_out}bound transformer method "{colored_func_name}" """ +\
-                f"""should be named "{ansi.correction(second_argument_name)}" not "{ansi.mistake(func_args[1])}".\n""" +\
-                get_sample_declaration(["agent"]) + "\n" +\
+                f"""The second argument of transformer function "{colored_func_name}" """ +\
+                f"""should be named "{ansi.correction("envelope")}" not "{ansi.mistake(func_args[1])}".\n""" +\
+                get_sample_declaration(["envelope"]) + "\n" +\
                 declared_at(func)
             )
 
-        if func_args[2] != "cmd":
-            raise TypeError(
-                f"""The third argument of transformer function "{colored_func_name}" """ +\
-                f"""should be named "{ansi.correction("cmd")}" not "{ansi.mistake(func_args[2])}".\n""" +\
-                get_sample_declaration(["cmd"]) + "\n" +\
-                declared_at(func)
-            )
-
-        nonlocal transform_cmd
-        if transform_cmd is None:
-            transform_cmd = get_transform_cmd(func, f"{transform_or_consume}_") 
-        wrapper = get_wrapper[transform_or_consume](in_or_out, func)
+        transform_cmd = get_transform_cmd(func) 
+        wrapper = get_transform_wrapper(in_or_out, func)
         TRANSFORMERS[in_or_out][transform_cmd] = wrapper
         return wrapper
     return helper
 
-# Given a function named "prefix_cmd__sub_cmd" return "cmd.sub_cmd"
-def get_transform_cmd(func, prefix):
+# Given a function named "transform__cmd__sub_cmd__a" return "cmd.sub_cmd"
+def get_transform_cmd(func):
+    prefix = "transform__"
     if not func.__name__.startswith(prefix):
-        raise ValueError(f"""Method name {func.__name__} doesn't start with "{prefix}" so you need to explicitly specify "transform_cmd".""")
-    suffix="_a"
+        raise ValueError(f"""Method name {func.__name__} should start with "{prefix}".""")
+    suffix="__a"
     if not func.__name__.endswith(suffix):
         raise ValueError(f"""Method name {func.__name__} should end with "{suffix}".""")
     result = func.__name__[len(prefix):-len(suffix)].replace("__", ".")
     
-    if result == "_all":
+    if result == "all":
         return "*"
     return result
 
@@ -169,46 +163,21 @@ def get_transform_cmd(func, prefix):
 def get_transform_wrapper(in_or_out, func_a):
     async def transform_wrapper_a(self, envelope):
         self.log_envelope_task(f"transform_{in_or_out}bound_method", envelope)
-        if in_or_out == "in":
-            source_agent = envelope.source_agent_path
-        else:
-            source_agent = envelope.source_agent_id
         try:
-            new_cmd, new_args, new_kwargs = await func_a(self, 
-                source_agent, envelope.msg.cmd,
+            await func_a(self, 
+                envelope,
                 *envelope.msg.args, **envelope.msg.kwargs
             )
         except TypeError as e:
             add_wrapped_func_to_stack_trace_if_necessary(e, transform_wrapper_a, func_a)
             raise
-        envelope.msg.cmd = new_cmd
-        envelope.msg.args = new_args
-        envelope.msg.kwargs = new_kwargs
-        return False
+        if in_or_out == "out":
+            msg = envelope.msg
+            new_msg = copy(msg)
+            new_msg.cmd = copy(msg.cmd)
+            envelope.msg = new_msg
     return transform_wrapper_a
 
-def get_consume_wrapper(in_or_out, func_a):
-    async def consume_wrapper_a(self, envelope):
-        self.log_envelope_task(f"consume_{in_or_out}bound_method", envelope)
-        if in_or_out == "in":
-            source_agent = envelope.source_agent_path
-        else:
-            source_agent = envelope.source_agent_id
-        try:
-            await func_a(self, 
-                source_agent, envelope.msg.cmd,
-                *envelope.msg.args, **envelope.msg.kwargs
-            )
-        except TypeError as e:
-            add_wrapped_func_to_stack_trace_if_necessary(e, consume_wrapper_a, func_a)
-            raise
-        return True
-    return consume_wrapper_a
-
-get_wrapper = {
-    "transform" : get_transform_wrapper,
-    "consume" : get_consume_wrapper
-}
 
 
 class MockTraceback:

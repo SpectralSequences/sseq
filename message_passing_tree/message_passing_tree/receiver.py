@@ -13,7 +13,7 @@ class Receiver(Agent):
         raise RuntimeError("Receiver cannot have children.")
 
     @transform_outbound_messages
-    async def consume__all_a(self, source_agent_id, cmd, *args, **kwargs ):
+    async def transform__all__a(self, envelope, *args, **kwargs ):
         raise RuntimeError(
             f"""Receiver failed to consume outbound message.\n""" +\
             f""" cmd : {cmd}, args : {args}, kwargs : {kwargs}"""

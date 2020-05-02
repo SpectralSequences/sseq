@@ -27,16 +27,17 @@ class SocketReceiver(Receiver):
     def get_uid(self) -> UUID:
         return self.uuid
 
-    async def send_message_to_socket_a(self, cmd, *args, **kwargs):
+    async def send_message_to_socket_a(self, envelope):
         if not self.accepted_connection.is_set():
             return
+        cmd = envelope.msg.cmd
         if not self.initialized_client.is_set() and cmd.part_list[0] != "initialize":
             # Try again and hope for the best?
             # Maybe we should queue these so they don't get reordered.
             # Usually this case won't happen, but when it does it might happen many times in a row.
-            asyncio.ensure_future(self.send_message_to_socket_a(cmd, *args, **kwargs))
+            asyncio.ensure_future(self.send_message_to_socket_a(envelope))
             return
-        msg = { "cmd" : cmd.filter_list, "args" : args, "kwargs" : kwargs }
+        msg = { "cmd" : cmd.filter_list, "args" : envelope.msg.args, "kwargs" : envelope.msg.kwargs }
         try:
             await self.socket.send_text(json_stringify(msg))
         except ConnectionClosedOK:
@@ -95,48 +96,57 @@ class SocketReceiver(Receiver):
         return True
 
     @transform_inbound_messages
-    async def consume_initialize__complete_a(self, source_agent_path, cmd):
-        # print("Client says it is initialized.")
+    async def transform__initialize__complete__a(self, envelope):
+        # print("Client says it is initialized.")'
+        envelope.mark_used()
         self.initialized_client.set()
 
     @transform_outbound_messages
-    async def consume_initialize_a(self, source_agent_id, cmd, **kwargs):
-        await self.send_message_to_socket_a(cmd, **kwargs)
+    async def transform__initialize__a(self, envelope, **kwargs):
+        envelope.mark_used()
+        await self.send_message_to_socket_a(envelope)
 
     @transform_outbound_messages
-    async def consume_interact_a(self, source_agent_id, cmd, **kwargs):
-        await self.send_message_to_socket_a(cmd, **kwargs)
+    async def transform__interact__a(self, envelope, **kwargs):
+        envelope.mark_used()
+        await self.send_message_to_socket_a(envelope)
 
     @transform_inbound_messages
-    async def transform_debug_a(self, source_agent_path, cmd, text, orig_msg=None):
+    async def transform__debug__a(self, envelope, text, orig_msg=None):
         if orig_msg is None:
             additional_info = None
         else:
             additional_info = f"""============ : Original Message : {orig_msg}"""
-        cmd.insert(1, "client")
-        return [cmd, *arguments(text, additional_info=additional_info)]
+        part_list = envelope.msg.cmd.part_list
+        part_list.insert(1, "client")
+        envelope.msg.cmd.set_part_list(part_list)
+        envelope.msg.update_arguments(additional_info=additional_info)
 
     @transform_inbound_messages
-    async def transform_info_a(self, source_agent_path, cmd, text, orig_msg=None):
+    async def transform__info__a(self, envelope, text, orig_msg=None):
         if orig_msg is None:
             additional_info = None
         else:
             additional_info = f"""============ : Original Message : {orig_msg}"""
-        cmd.insert(1, "client")
-        return [cmd, *arguments(text, additional_info=additional_info)]
+        part_list = envelope.msg.cmd.part_list
+        part_list.insert(1, "client")
+        envelope.msg.cmd.set_part_list(part_list)
+        envelope.msg.update_arguments(additional_info=additional_info)
         
 
     @transform_inbound_messages
-    async def transform_warning_a(self, source_agent_path, cmd, text, orig_msg=None, stack_trace=None):
+    async def transform__warning__a(self, envelope, text, orig_msg=None, stack_trace=None):
         if orig_msg is None:
             additional_info = None
         else:
             additional_info = f"""============ : Original Message : {orig_msg}"""
-        cmd.insert(1, "client")
-        return [cmd, *arguments(text, additional_info=additional_info, stack_trace=stack_trace)]
+        part_list = envelope.msg.cmd.part_list
+        part_list.insert(1, "client")
+        envelope.msg.cmd.set_part_list(part_list)
+        envelope.msg.update_arguments(additional_info=additional_info)
 
     @transform_inbound_messages
-    async def transform_error__client_a(self, source_agent_path, cmd, orig_msg, exception=None):
+    async def transform__error__client__a(self, envelope, orig_msg, exception=None):
         # raise RuntimeError("Test error")
         if orig_msg is None:
             additional_info = ""
@@ -148,6 +158,7 @@ class SocketReceiver(Receiver):
         if "stack" in exception:
             additional_info += "== Javascript stacktrace: \n"
             additional_info += exception["stack"]
-        cmd.part_list.insert(1, "additional_info")
-        cmd.set_part_list(cmd.part_list)
-        return [cmd, *arguments(msg=exception["msg"], additional_info=additional_info)]
+        part_list = envelope.msg.cmd.part_list
+        part_list.insert(1, "additional_info")
+        envelope.msg.cmd.set_part_list(part_list)        
+        envelope.msg.update_arguments(msg=exception["msg"], additional_info=additional_info)

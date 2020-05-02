@@ -133,11 +133,13 @@ class GenericDemo(Agent):
         await self.user_next.wait()
     
     @transform_inbound_messages
-    async def consume_demo__next_a(self, source_agent_path, cmd):
+    async def transform__demo__next__a(self, envelope):
+        envelope.mark_used()
         await self.next_a()
 
     @transform_inbound_messages
-    async def consume_demo__take_over_console_a(self, source_agent_path, cmd):
+    async def transform__demo__take_over_console__a(self, envelope):
+        envelope.mark_used()
         self.take_over_console(self)
 
     async def next_a(self):

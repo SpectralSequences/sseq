@@ -64,7 +64,8 @@ class PresentationChannel(SocketChannel):
         out_file.write_text(note)
 
     @transform_inbound_messages
-    async def consume_slideshow__reset_a(self, source_agent_path, cmd):
+    async def transform__slideshow__reset__a(self, envelope):
+        envelope.mark_used()
         print("Reset presentation. Refresh page!")
         await self.reset_a()
 
@@ -113,11 +114,13 @@ class PresentationChannel(SocketChannel):
             return templates.TemplateResponse("presentation.html", response_data)
 
     @transform_inbound_messages
-    async def consume_click_a(self, source_agent_path, cmd, x, y, chart_class=None):
+    async def transform__click__a(self, envelope, x, y, chart_class=None):
+        envelope.mark_used()
         pass # IGNORED!
 
     @transform_inbound_messages
-    async def consume_slideshow__chart__initialize_a(self, source_agent_path, cmd):
+    async def transform__slideshow__chart__initialize__a(self, envelope):
+        envelope.mark_used()
         await self.send_message_outward_a(
             "slideshow.initialize",
             *arguments(chart_idx = self.chart_idx, overlay_idx = self.overlay_idx),
@@ -137,7 +140,8 @@ class PresentationChannel(SocketChannel):
         return self.overlay_lists[chart_idx]
 
     @transform_inbound_messages
-    async def consume_slideshow__overlay__request_batch_a(self, source_agent_path, cmd, chart_idx):
+    async def transform__slideshow__overlay__request_batch__a(self, envelope, chart_idx):
+        envelope.mark_used()
         if chart_idx >= len(self.chart_source_files):
             self.log_error(f"Client requested chart number {chart_idx} but I only have {len(self.chart_source_files)} charts.") 
             # TODO: how do we handle the end of the slideshow?
@@ -189,7 +193,8 @@ class PresentationChannel(SocketChannel):
             return
 
     @transform_inbound_messages
-    async def consume_slideshow__next_a(self, source_agent_path, cmd, chart_idx, overlay_idx):
+    async def transform__slideshow__next__a(self, envelope, chart_idx, overlay_idx):
+        envelope.mark_used()
         if self.lock.locked():
             return
         await self.lock.acquire() # This lock prevents the program from exploding if the user continuously holds n.
@@ -222,7 +227,8 @@ class PresentationChannel(SocketChannel):
 
 
     @transform_inbound_messages
-    async def consume_slideshow__previous_a(self, source_agent_path, cmd, chart_idx, overlay_idx):
+    async def transform__slideshow__previous__a(self, envelope, chart_idx, overlay_idx):
+        envelope.mark_used()
         if self.lock.locked():
             return
         await self.lock.acquire()
@@ -253,5 +259,6 @@ class PresentationChannel(SocketChannel):
         
         
     @transform_inbound_messages
-    async def consume_console__take_a(self, source_agent_path, cmd):
+    async def transform__console__take__a(self, envelope):
+        envelope.mark_used()
         self.repl_agent.set_executor(self.executor)
