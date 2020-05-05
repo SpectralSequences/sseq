@@ -65,7 +65,7 @@ let ws = new WebSocket("ws://localhost:{{ port }}/ws/{{ directory }}/{{ channel_
 
 let main_div = document.querySelector("#main");
 function make_display(sseq){
-    let display = new BasicDisplay(main_div, sseq);
+    let display = new Interface.TableDisplay(main_div, sseq);
     return display;
 }
 

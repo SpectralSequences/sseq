@@ -47,8 +47,6 @@ exports.upload = function() {
     });
 };
 
-
-
 exports.saveToLocalStore = function(key, value, collection){
     if(value.constructor !== String){
         value = JSON.stringify(value);

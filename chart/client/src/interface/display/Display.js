@@ -8,7 +8,7 @@ let d3 = Object.assign({},
     require("d3-timer")
 );
 
-let INFINITY = require("../infinity.js").INFINITY
+let INFINITY = require("../../infinity.js").INFINITY
 
 const gridGo = "go";
 const gridChess = "chess";
@@ -287,7 +287,6 @@ class Display extends EventEmitter {
                 this.canvasHeight / (this.ymaxFloat - this.yminFloat) * (this.sseq.y_range[1] - this.sseq.y_range[0] + 1);
             let width = default_width * x_scale;
             let height = default_height * y_scale;
-            // console.log("width:",width, "height:",  height)
             this.context.drawImage(this.svg,
                 this.xScale(this.sseq.x_range[0] + x_offset), //- display.xMinOffset,
                 this.yScale(this.sseq.y_range[1] + 1 + y_offset) ,
@@ -538,11 +537,9 @@ class Display extends EventEmitter {
             if(!e) {
                 throw ValueError("Undefined edge.");
             }
-            console.log("draw_edge: ", e);
             if(e.invalid || !e.visible){
                 continue;
             }
-            console.log("   Hi!");
             if (e.type === "Structline" && this.hiddenStructlines.has(e.mult)) {
                 continue;
             }
@@ -552,7 +549,6 @@ class Display extends EventEmitter {
             if(!source_node || ! target_node){
                 throw ValueError(`Edge ${e} has undefined source or target node`);
             }
-            console.log("   Hi!");
 
             e._sourceOffset = e.sourceOffset || {x: 0, y: 0};
             e._targetOffset = e.targetOffset || {x: 0, y: 0};
@@ -573,7 +569,6 @@ class Display extends EventEmitter {
             let sourceY = source_node._canvas_y + e._sourceOffset.y;
             let targetX = target_node._canvas_x + e._targetOffset.x;
             let targetY = target_node._canvas_y + e._targetOffset.y;
-            console.log("   Hi!");
 
             context.beginPath();
             if(e.bend ){//&& e.bend !== 0
@@ -594,7 +589,6 @@ class Display extends EventEmitter {
                 context.moveTo(sourceX, sourceY);
                 context.lineTo(targetX, targetY);
             }
-            console.log("    stroke edge");
             context.stroke();
             context.restore();
         }

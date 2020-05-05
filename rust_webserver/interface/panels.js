@@ -184,7 +184,7 @@ export class Panel extends EventEmitter {
      *
      * This should be used if one wishes to add a collection of children that
      * are to be grouped together. The procedure for using this is as follows:
-     * (1) Run Panel#addGroup
+     * (1) Run Panel#newGroup
      * (2) Add the children using the helper functions (addButton, addObject, etc.)
      * (3) Run Panel#endGroup to set currentGroup back to this.container.
      */

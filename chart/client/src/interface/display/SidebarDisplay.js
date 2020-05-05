@@ -1,7 +1,7 @@
 "use strict"
 
 let Display = require("./Display.js").Display;
-let Panel = require("./Panel.js");
+let Panel = require("../Panel/mod.js");
 
 class Sidebar {
     constructor(parentContainer) {

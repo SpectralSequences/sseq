@@ -1,8 +1,8 @@
 "use strict"
 
 let Display = require("./Display.js").Display;
-let Tooltip = require("./Tooltip.js").Tooltip;
-let Interface = require("./Interface.js");
+let Tooltip = require("../Tooltip.js").Tooltip;
+let latex = require("../latex.js");
 let Mousetrap = require("mousetrap");
 
 class BasicDisplay extends Display {
@@ -75,8 +75,8 @@ class BasicDisplay extends Display {
     }
 
     getClassTooltipHTML(c, page) {
-        return Interface.renderLatex(this.getClassTooltip(c,page));
-    }    
+        return latex.renderLatex(this.getClassTooltip(c,page));
+    }
 
     static toTooltipString(obj, page) {
         if (!obj) {

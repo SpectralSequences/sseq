@@ -2,7 +2,6 @@
 
 let EventEmitter = require("events");
 let Mousetrap = require("mousetrap");
-let Interface = require("./Interface.js");
 
 const STATE_ADD_DIFFERENTIAL = 1;
 const STATE_RM_DIFFERENTIAL = 2;
@@ -118,7 +117,7 @@ class Panel extends EventEmitter {
      *
      * This should be used if one wishes to add a collection of children that
      * are to be grouped together. The procedure for using this is as follows:
-     * (1) Run Panel#addGroup
+     * (1) Run Panel#newGroup
      * (2) Add the children using the helper functions (addButton, addObject, etc.)
      * (3) Run Panel#endGroup to set currentGroup back to this.container.
      */
@@ -303,162 +302,4 @@ class Panel extends EventEmitter {
     }
 }
 
-/**
- * This is a panel whose some purpose is to contain further panels arranged in
- * tabs. This is used, for example, in EditorDisplay for configuring different
- * properties of a class.
- *
- * @property {Panel} currentTab - The current tab that is displayed.
- */
-class TabbedPanel extends Panel {
-    constructor (parentContainer, display) {
-        super(parentContainer, display);
-
-        let head = document.createElement("div");
-        head.className = "card-header";
-        this.container.appendChild(head);
-
-        this.header = document.createElement("ul");
-        this.header.className = "nav nav-tabs card-header-tabs";
-        head.appendChild(this.header);
-
-        this.tabs = [];
-        this.currentTab = null;
-    }
-
-    /**
-     * This adds a tab to TabbedPanel.
-     *
-     * @param {string} name - The name of the tab, to be displayed in the
-     * header. Avoid making this too long.
-     * @param {Panel} tab - The tab to be added.
-     */
-    addTab(name, tab) {
-        let li = document.createElement("li");
-        li.className = "nav-item";
-        this.header.appendChild(li);
-
-        let a = document.createElement("a");
-        a.className = "nav-link";
-        a.href = "#";
-        a.innerHTML = name;
-        li.appendChild(a);
-
-        a.addEventListener("click", () => this.showTab(tab));
-        this.tabs[this.tabs.length] = [tab, a];
-
-        if (!this.currentTab) this.currentTab = tab;
-    }
-
-    show() {
-        super.show();
-        this.showTab(this.currentTab);
-    }
-
-    /**
-     * Sets the corresponding tab to be the active tab and shows it (of course,
-     * the tab will not be actually shown if the panel itself is hidden).
-     *
-     * @param {Panel} tab - Tab to be shown.
-     */
-    showTab(tab) {
-        this.currentTab = tab;
-        for (let t of this.tabs) {
-            if (t[0] == tab) {
-                t[1].className = "nav-link active";
-                t[0].show();
-            } else {
-                t[1].className = "nav-link";
-                t[0].hide();
-            }
-        }
-    }
-}
-
-class DifferentialPanel extends Panel {
-    constructor(parentContainer, display) {
-        super(parentContainer, display);
-
-        this.differential_list = document.createElement("ul");
-        this.differential_list.className = "list-group list-group-flush";
-        this.differential_list.style["text-align"] = "center";
-        this.addObject(this.differential_list);
-
-        this.on("show", () => {
-            while(this.differential_list.firstChild)
-                this.differential_list.removeChild(this.differential_list.firstChild);
-
-            let edges = this.display.selected.c.edges.filter(e => e.type === "Differential").sort((a, b) => a.page - b.page);
-
-            let sname, tname;
-            for (let e of edges) {
-                sname = e.source.name ? e.source.name : "?"
-                tname = e.target.name ? e.target.name : "?"
-                if (e.source == this.display.selected.c)
-                    this.addLI(Interface.renderMath(`d_${e.page}({\\color{blue}${sname}}) = ${tname}`));
-                else
-                    this.addLI(Interface.renderMath(`d_${e.page}(${sname}) = {\\color{blue}${tname}}`));
-            }
-
-            this.addLI("<a href='#'>Add differential</a>", () => this.display.state = STATE_ADD_DIFFERENTIAL );
-            this.addLI("<a href='#'>Remove differential</a>", () => this.display.state = STATE_RM_DIFFERENTIAL );
-        });
-    }
-
-    addLI(html, callback) {
-        let node = document.createElement("li");
-        node.className = "list-group-item";
-        node.style = "padding: 0.75rem 0";
-        node.innerHTML = html;
-        if (callback)
-            node.addEventListener("click", callback);
-        this.differential_list.appendChild(node);
-    }
-}
-
-class StructlinePanel extends Panel {
-    constructor(parentContainer, display) {
-        super(parentContainer, display);
-
-        this.structline_list = document.createElement("ul");
-        this.structline_list.className = "list-group list-group-flush";
-        this.structline_list.style["text-align"] = "center";
-        this.addObject(this.structline_list);
-
-        this.on("show", () => {
-            while(this.structline_list.firstChild)
-                this.structline_list.removeChild(this.structline_list.firstChild);
-
-            let edges = this.display.selected.c.edges.filter(e => e.type === "Structline").sort((a, b) => a.page - b.page);
-
-            let sname, tname;
-            for (let e of edges) {
-                sname = e.source.name ? e.source.name : "?"
-                tname = e.target.name ? e.target.name : "?"
-                if (e.source == this.display.selected.c)
-                    this.addLI(Interface.renderMath(`{\\color{blue}${sname}} \\text{---} ${tname}`));
-                else
-                    this.addLI(Interface.renderMath(`${sname} \\text{---} {\\color{blue}${tname}}`));
-            }
-
-            this.addLI("<a href='#'>Add structline</a>", () => this.display.state = STATE_ADD_STRUCTLINE );
-            this.addLI("<a href='#'>Remove structline</a>", () => this.display.state = STATE_RM_STRUCTLINE );
-        });
-
-    }
-
-    addLI(html, callback) {
-        let node = document.createElement("li");
-        node.className = "list-group-item";
-        node.style = "padding: 0.75rem 0";
-        node.innerHTML = html;
-        if (callback)
-            node.addEventListener("click", callback);
-        this.structline_list.appendChild(node);
-    }
-}
-
 exports.Panel = Panel;
-exports.TabbedPanel = TabbedPanel;
-exports.DifferentialPanel = DifferentialPanel;
-exports.StructlinePanel = StructlinePanel;

@@ -1,9 +1,9 @@
 "use strict"
 
 let SidebarDisplay = require("./SidebarDisplay.js").SidebarDisplay;
-let Panel = require("./Panel.js");
-let Tooltip = require("./Tooltip.js").Tooltip;
-let Interface = require("./Interface.js");
+let Panel = require("../Panel/mod.js");
+let Tooltip = require("../Tooltip.js").Tooltip;
+let latex = require("../latex.js");
 let Mousetrap = require("mousetrap");
 
 const STATE_ADD_DIFFERENTIAL = 1;
@@ -93,7 +93,7 @@ class EditorDisplay extends SidebarDisplay {
             this.title_edit_link.innerHTML = "Edit";
             let c = this.selected.c;
             if (c.name) {
-                this.title_text.innerHTML = Interface.renderLaTeX(Interface.ensureMath(c.name)) + ` - (${c.x}, ${c.y})`;
+                this.title_text.innerHTML = latex.renderMath(c.name) + ` - (${c.x}, ${c.y})`;
             } else {
                 this.title_text.innerHTML = `<span style='color: gray'>unnamed</span> - (${c.x}, ${c.y})`;
             }
