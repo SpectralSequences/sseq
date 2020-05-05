@@ -11,6 +11,11 @@ class SseqSocketReceiver(SocketReceiver):
         super().__init__(*args, **kwargs)
 
     @transform_outbound_messages
+    async def transform__initialize__a(self, envelope, **kwargs):
+        envelope.mark_used()
+        await self.send_message_to_socket_a(envelope)
+
+    @transform_outbound_messages
     async def transform__chart__a(self, envelope, **kwargs):
         envelope.mark_used()
         await self.send_message_to_socket_a(envelope)

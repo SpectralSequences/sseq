@@ -106,8 +106,8 @@ class SocketChannel(Agent):
         else:
             return self.serving_class_to + f"/{self.name}"
 
-    async def handle_leaked_envelope_a(self, envelope):
-        self.log_info(f"""Leaked envelope self: {self.info()}  envelope: {envelope.info()}""")
+    # async def handle_leaked_envelope_a(self, envelope):
+    #     self.log_info(f"""Leaked envelope self: {self.info()}  envelope: {envelope.info()}""")
 
 
     async def add_subscriber_a(self, sock_recv):

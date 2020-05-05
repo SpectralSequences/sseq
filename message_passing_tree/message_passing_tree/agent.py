@@ -188,8 +188,9 @@ class Agent:
     def envelope_task_info(self, name, envelope):
         return f"""Task: {ansi.highlight(name)}  self: {self.info()}  envelope: {envelope.info()}"""
 
-    def handle_leaked_envelope(self, envelope):
-        raise RuntimeWarning(f"""Leaked envelope self: {self.info()}  envelope: {envelope.info()}""")
+    async def handle_leaked_envelope_a(self, direction, envelope):
+        print(f"""Leaked {direction} envelope self: {self.info()}  envelope: {envelope.info()}""")
+        # raise RuntimeWarning()
 
     def get_uuid(self) -> UUID:
         return self.uuid
@@ -230,6 +231,8 @@ class Agent:
             await self.parent.remove_child_a(self)
 
     def is_subscribed_to(self, cmd):
+        if "*" in self.subscriptions:
+            return True
         for subcmd in reversed(cmd):
             if subcmd in self.subscriptions:
                 return True
@@ -264,7 +267,7 @@ class Agent:
         if envelope.target_agent_id == self.uuid and envelope.unused_q():
             raise RuntimeError(f"""Unconsumed message with command "{envelope.msg.cmd.str}" targeted to me.""")
         if self.parent is None and envelope.unused_q():
-            raise RuntimeError(f"""Unconsumed message with command "{envelope.msg.cmd.str}" hit root node.""")
+            await self.handle_leaked_envelope_a("inbound", envelope)
         elif self.parent is None:
             return
         envelope.source_agent_path.append(self.uuid)
@@ -276,9 +279,9 @@ class Agent:
         if envelope.stop_propagation_q():
             return 
         children_to_pass_to = self.pass_envelope_outward_get_children_to_pass_to(envelope)
-        if not children_to_pass_to:
+        if not children_to_pass_to and envelope.unused_q():
             # TODO: extra logging info about subscriber filters!
-            await self.handle_leaked_envelope_a(envelope)
+            await self.handle_leaked_envelope_a("outbound", envelope)
         for recv in children_to_pass_to:
             await recv.pass_envelope_outward_a(envelope)        
    
@@ -290,12 +293,6 @@ class Agent:
         if child_uuid not in self.children:
             raise RuntimeError(f"""I don't have a child with id "{child_uuid}".""")
         return [self.children[child_uuid]]
-
-
-    async def handle_leaked_envelope_a(self, envelope):
-        if envelope.unused_q():
-            self.log_warning(f"""Leaked envelope self: {self.info()}  envelope: {envelope.info()}""")
-            self.log_warning(f"""=== Leaked envelope {self.children}""")
 
 
     async def send_message_inward_a(self, 
@@ -351,7 +348,6 @@ class Agent:
         await self.send_message_inward_a(cmd, *arguments(msg=msg, exception=exception))
 
     async def handle_exception_a(self, exception):
-        print("handle_exception_a:", exception)
         try:
             # raise RuntimeError("Double fault test")
             await self.parent.send_error_a("exception." + type(exception).__name__, exception=exception)

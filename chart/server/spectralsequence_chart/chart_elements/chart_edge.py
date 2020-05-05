@@ -1,5 +1,4 @@
 from uuid import uuid4
-
 from .. import utils
 
 class ChartEdge:
@@ -20,16 +19,6 @@ class ChartEdge:
         if "visible" not in kwargs:
             self.visible = True
 
-        # utils.assign_fields(self, kwargs, [
-        #     { "type" : "mandatory", "field" : "source"},
-        #     { "type" : "mandatory", "field" : "target"},
-        #     { "type" : "default", "field" : "visible", "default" : True},
-        #     { "type" : "optional", "field" : "color"},
-        #     { "type" : "optional", "field" : "opacity"},
-        #     { "type" : "optional", "field" : "bend"},
-        #     { "type" : "optional", "field" : "control_points"},
-        #     { "type" : "optional", "field" : "arrow_type"},
-        # ])
         if self.source is not str:
             self.source = self.source.uuid
         if self.target is not str:
@@ -56,6 +45,10 @@ class ChartEdge:
         # del e._source.edges[e]
         # del e._target.edges[e]
 
+    def set_bend(self, bend):
+        self.bend = bend
+        
+
     @staticmethod
     def from_json(sseq, json):
         edge_type = json["type"]
@@ -75,9 +68,6 @@ class ChartDifferential(ChartEdge):
     def __init__(self, sseq, page, **kwargs):
         super().__init__(sseq, ChartDifferential.__name__, **kwargs)
         self.page = page
-
-    def replace_source():
-        pass
 
 class ChartStructline(ChartEdge):
     def __init__(self, sseq, **kwargs):

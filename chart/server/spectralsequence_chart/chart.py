@@ -29,7 +29,7 @@ class ChartData:
         default_node.idx = 0
         self.nodes = [default_node]
         self._nodes_dict = {hash(default_node) : default_node}
-        self._nodes_lock = rwlock.RWLockFair()
+        # self._nodes_lock = rwlock.RWLockFair()
         
         self.classes = {}
         self._classes_by_bidegree = {}
@@ -187,6 +187,8 @@ class SpectralSequenceChart(Agent):
         self.data = ChartData.from_json(self, json_obj)
 
     async def reset_state_a(self):
+        with self.data._batched_messages_lock:
+            self.data._batched_messages = []
         await self.send_message_outward_a("chart.state.reset", *arguments(state = self.data))
 
     async def send_batched_messages_a(self):
@@ -202,6 +204,7 @@ class SpectralSequenceChart(Agent):
     @transform_inbound_messages
     async def transform__new_user__a(self, envelope):
         envelope.mark_used()
+        print("new user")
         await self.send_message_outward_a("initialize.chart.state", *arguments(
             state=self.data, display_state=self.display_state
         ))
@@ -211,26 +214,12 @@ class SpectralSequenceChart(Agent):
         self.data.nodes.append(node)
         await self.broadcast_a("chart.node.add", *arguments(node=node))
 
-            
-    # async def add_class_a(self, x : int, y : int, **kwargs):
-    #     """ Add class immediate """
-    #     kwargs.update({"x" : x, "y" : y, "node_list" : [0]})
-    #     c = self.data.add_class(**kwargs)
-    #     await self.broadcast_a("chart.class.add", *arguments(new_class=c))
-    #     return c
-
     def add_class(self, x : int, y : int, **kwargs):
         """ Add class batched """
         kwargs.update({"x" : x, "y" : y, "node_list" : [0]})
         c = self.data.add_class(**kwargs)
         self.data.add_batched_message("chart.class.add", *arguments(new_class=c))
         return c
-
-    async def set_class_name_a(self, x, y, idx, name):
-        c = self.get_classes_in_bidegree(x, y)[idx]
-        c.name = name
-        self.data.add_element_to_update(c)
-
 
     def add_structline(self, source, target, **kwargs):
         e = self.data.add_structline(source, target, **kwargs)
@@ -255,13 +244,11 @@ class SpectralSequenceChart(Agent):
         return e
 
 
-    def add_differential_main(self, page, source, target, auto=True, **kwargs):
+    def add_differential(self, page, source, target, auto=True, **kwargs):
         e = self.data.add_differential(page=page, source=source, target=target, auto=auto, **kwargs)
-        self.data.add_page_range([page, page])
-        # if auto:
-        #     
-        #     await self.update_a()
-        return (e, "chart.edge.add", *arguments(
+        if auto:
+            self.data.add_page_range([page, page])
+        self.data.add_batched_message("chart.edge.add", *arguments(
             page = page,
             type = e.type,
             uuid = e.uuid,
@@ -269,16 +256,7 @@ class SpectralSequenceChart(Agent):
             target = target.uuid,
             **kwargs
         ))
-
-    def add_differential(self, page, source, target, **kwargs):
-        (e, *rest) = self.add_differential_main(page, source, target, **kwargs)
-        self.data.add_batched_message(*rest)
         return e
-
-    # async def add_differential_a(self, source, target, **kwargs):
-    #     (e, *rest) = self.add_differential_main(source, target, **kwargs)
-    #     await self.broadcast_a(*rest)
-    #     return e
 
     def get_class_by_idx(self, x, y, idx):
         return self.get_classes_in_bidegree(x, y)[idx]
@@ -290,17 +268,33 @@ class SpectralSequenceChart(Agent):
     def x_min(self):
         return self.data.x_range[0]
 
+    @x_min.setter
+    def x_min(self, value):
+        self.data.x_range[0] = value
+
     @property
     def x_max(self):
         return self.data.x_range[1]
+
+    @x_max.setter
+    def x_max(self, value):
+        self.data.x_range[1] = value
 
     @property
     def y_min(self):
         return self.data.y_range[0]
     
+    @y_min.setter
+    def y_min(self, value):
+        self.data.y_range[0] = value
+
     @property
     def y_max(self):
         return self.data.y_range[1]
+
+    @y_max.setter
+    def y_max(self, value):
+        self.data.y_range[1] = value
 
     async def set_x_range_a(self, x_min, x_max):
         self.data.x_range = [x_min, x_max]

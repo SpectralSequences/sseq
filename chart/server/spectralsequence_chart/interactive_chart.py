@@ -22,9 +22,6 @@ class InteractiveChart(SpectralSequenceChart):
         self.data.y_range=[0, 12]
         # self.data.initial_x_range=[14, 46]
 
-    async def handle_leaked_envelope_a(self, envelope):
-        self.log_warning(f"Leaked envelope {envelope}")
-
     @transform_inbound_messages
     async def transform__click__a(self, envelope, x, y, chart_class=None):
         envelope.mark_used()
@@ -102,6 +99,7 @@ class InteractiveChart(SpectralSequenceChart):
 
     @transform_inbound_messages
     async def transform__interact__result__a(self, envelope, *args, **kwargs):
+        envelope.mark_used()
         self.response_event.result = [args, kwargs]
         self.response_event.set()
 
