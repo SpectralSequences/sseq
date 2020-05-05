@@ -1,6 +1,6 @@
 import json
-import os
 import pathlib
+from .. import config
 
 from spectralsequence_chart import SpectralSequenceChart
 from ..channels import ResolverChannel
@@ -24,7 +24,8 @@ def add_stuff_to_repl_namespace(repl_namespace):
         ext.module.FDModule,
         # ext.resolution.Resolution,
         SpectralSequenceChart,
-        ResolverChannel
+        ResolverChannel,
+        pathlib, config
     ]
     for name in to_add:
         add_to_namespace(repl_namespace, name)

@@ -33,7 +33,7 @@ class DemoChannel(SocketChannel):
         return closure
 
     async def add_subscriber_a(self, websocket):
-        executor = Executor()
+        executor = Executor(self.repl_agent.console_io)
         
         put_main_class_here = {}
         self.setup_executor_namespace(executor, put_main_class_here)

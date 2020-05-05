@@ -27,7 +27,7 @@ class InteractChannel(SocketChannel):
     def __init__(self, name, repl_agent):
         super().__init__(name)
         self.repl_agent = repl_agent
-        self.executor = Executor()
+        self.executor = Executor(repl_agent.console_io)
         self.chart = InteractiveChart(name)
         self.setup_executor_namespace()
         self.last_screenshot = None

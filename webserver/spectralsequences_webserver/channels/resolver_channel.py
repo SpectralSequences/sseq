@@ -10,7 +10,6 @@ from spectralsequence_chart import SseqSocketReceiver, SpectralSequenceChart
 import os
 from .. import config
 templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
-print("templates", templates)
 
 @subscribe_to("*")
 @collect_transforms(inherit=True)

@@ -18,8 +18,8 @@ async def start_repl_a():
         title = "Test",
         history_filename=str(config.USER_DIR / "repl.hist"),
     )
-    REPL_NAMESPACE = globals()
-    executor = Executor(REPL_NAMESPACE)
+    executor = Executor(r.console_io)
+    REPL_NAMESPACE = executor.globals
     r.set_executor(executor)
 
     REPL_NAMESPACE["REPL"] = r

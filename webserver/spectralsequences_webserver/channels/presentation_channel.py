@@ -25,7 +25,7 @@ class PresentationChannel(SocketChannel):
     def __init__(self, name, chart_source_files, repl_agent):
         super().__init__(name)
         self.repl_agent = repl_agent
-        self.executor = Executor()
+        self.executor = Executor(repl_agent.console_io)
         self.chart = SpectralSequenceChart("A presentation")
         self.setup_executor_namespace()
         self.last_screenshot = None

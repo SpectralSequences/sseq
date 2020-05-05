@@ -4,21 +4,47 @@ from inspect import iscoroutine
 import os
 import pathlib
 from textwrap import dedent, indent
+import types
 
 from message_passing_tree import Agent 
 from message_passing_tree.decorators import collect_transforms, subscribe_to
 
 from .. import config
 
+class ExecResult:
+    pass
+
+def temp():
+    class Ok(ExecResult):
+        def __init__(self, result):
+            self.result = result
+
+    class Err(ExecResult):
+        def __init__(self, exc):
+            self.exception = exc
+
+    class Interrupt(ExecResult):
+        def __init__(self, exc):
+            self.exception = exc
+    
+    ExecResult.Ok = Ok
+    ExecResult.Err = Err
+    ExecResult.Interrupt = Interrupt
+
+temp()
+del temp
+
+
 @subscribe_to("*")
 @collect_transforms(inherit = False)
 class Executor(Agent):
-    def __init__(self, globs=None, locs=None):
+    def __init__(self, console_io, globs=None, locs=None):
         super().__init__()
+        self.console_io = console_io
         if globs is None:
-            globs = globals()
+            globs = {} 
         if locs is None:
-            locs = locals()
+            locs = globs
         self.globals = globs
         self.locals = locs
 
@@ -31,63 +57,8 @@ class Executor(Agent):
         self.get_globals = get_globals
         self.get_locals = get_locals
     
-    @staticmethod
-    def asyncify(code: str) -> str:
-        """wrap code in async def definition.
-        And set up a bit of context to run it later.
-        """
-        INDENT_SIZE = 4
-        NUM_INDENTS = 3
-        return Executor.asyncify_WRAPPER_TEMPLATE.format(
-            ASYNCIFY_WRAPPER_NAME=Executor.asyncify_WRAPPER_NAME, 
-            usercode=indent(code, " " * (INDENT_SIZE * NUM_INDENTS) )
-        ) 
-
-    asyncify_WRAPPER_NAME = '__async_def_wrapper_a__'
-    asyncify_WRAPPER_LINE_NUMBER_OFFSET = 2 # Number of lines before user_code in ASYNCIFY_TEMPLATE
-    asyncify_FIX_LINE_NUMBER_MARKER = "##FIX_LINE_NUMBER##"
-    # Do not mess with indentation of WRAPPER_TEMPLATE.
-    asyncify_WRAPPER_TEMPLATE = dedent(
-            """
-    async def {ASYNCIFY_WRAPPER_NAME}(result):
-            try:
-    {usercode}
-            finally:
-                result["locals"] = locals()
-            """
-        )
-
-    def adjust_traceback(self, tb_summary_list):
-        for (i, tb_summary) in enumerate(tb_summary_list):
-            if tb_summary.filename.startswith(Executor.asyncify_FIX_LINE_NUMBER_MARKER):
-                tb_summary.filename = tb_summary.filename[len(Executor.asyncify_FIX_LINE_NUMBER_MARKER):]
-                tb_summary.lineno -= Executor.asyncify_WRAPPER_LINE_NUMBER_OFFSET
-                # We need to clear the cached "_line" so when we print the exception, 
-                # Python will grab the line from the file again using the updated line number.
-                tb_summary._line = None 
-
-        if len(tb_summary_list) > 1 and tb_summary_list[1].name == Executor.asyncify_WRAPPER_NAME:
-            tb_summary_list[1].name = tb_summary_list[0].name
-
-
     def get_compiler_flags(self):
         return PyCF_ALLOW_TOP_LEVEL_AWAIT
-
-    async def _execute_a(self, line: str) -> None:
-        """
-        Evaluate the line and print the result.
-        """
-        # Try eval first
-        try:
-            result = await self.eval_code_a(line)
-            # Do something with result!
-            return
-            # If not a valid `eval` expression, run using `exec` instead.
-        except SyntaxError:
-                # Don't exec_codehere because otherwise if another error occurs later,
-                # the SyntaxError above would be printed in the stack trace.
-            pass 
-        await self.exec_code(line)
 
     def compile_with_flags(self, code: str, mode: str, file = "<stdin>"):
         " Compile code with the right compiler flags. "
@@ -96,46 +67,65 @@ class Executor(Agent):
             file,
             mode,
             flags=self.get_compiler_flags(),
-            dont_inherit=True,
+            # dont_inherit=True,
         )
 
-    async def eval_code_a(self, line):
-        code = self.compile_with_flags(line, "eval")
-        result = eval(code, self.get_globals(), self.get_locals())
-        if iscoroutine(result):
-            result = await result
-        return result
+    async def load_repl_init_file_if_it_exists_a(self):
+        await self.exec_file_if_exists_a(config.REPL_INIT_FILE, working_directory=config.USER_DIR)
 
     async def exec_file_if_exists_a(self, path : pathlib.Path, working_directory=None):
         if path.is_file():
             await self.exec_file_a(path, working_directory)
 
-    async def load_repl_init_file_if_it_exists_a(self):
-        await self.exec_file_if_exists_a(config.REPL_INIT_FILE, working_directory=config.USER_DIR)
-
-
     async def exec_file_a(self, path : pathlib.Path, working_directory=None):
-        await self.exec_code_a(
-            path.read_text(), 
-            working_directory, 
-            Executor.asyncify_FIX_LINE_NUMBER_MARKER + str(path)
+        result = await self.exec_code_a(
+            path.read_text(),
+            working_directory,
+            str(path)
         )
+        if type(result) is ExecResult.Ok:
+            pass
+        elif type(result) is ExecResult.Err:
+            self.console_io.print_exception(result.exception, buffered = False)
+        elif type(result) is ExecResult.Interrupt:
+            print("KeyboardInterrupt 171571")
+        else:
+            assert False
 
-    async def exec_code_a(self, lines, working_directory=None, file="<stdin>"):
-        mod = Executor.asyncify(lines)
-        async_wrapper_code = self.compile_with_flags(mod, 'exec', file)
-        exec(async_wrapper_code, self.get_globals(), self.get_locals()) 
-        do_the_thing = self.compile_with_flags(f"await {Executor.asyncify_WRAPPER_NAME}(exec_result)", "eval")
+    async def exec_code_a(self, code_str, working_directory=None, file="<stdin>"):
+        try:
+            return ExecResult.Ok(await self.exec_code_unhandled_a(code_str))
+        except KeyboardInterrupt as e:  # KeyboardInterrupt doesn't inherit from Exception.
+            return ExecResult.Interrupt(e)
+        except Exception as e:
+            return ExecResult.Err(e)
+
+    async def exec_code_unhandled_a(self, code_str, working_directory=None, file="<stdin>"):
+        tree = Executor.ast_get_last_expression(code_str) # Executor.asyncify(lines)
+        do_the_thing = self.compile_with_flags(tree, 'exec', file)
         save_working_dir = os.getcwd()
         if working_directory is not None:
             os.chdir(working_directory)
-        self.get_locals()["exec_result"] = {}
         try:
-            await eval(do_the_thing, self.get_globals(), self.get_locals())
+            res = eval(do_the_thing, self.get_globals(), self.get_locals())
+            if asyncio.iscoroutine(res):
+                await res
         finally:
-            result = self.get_locals().pop("exec_result")
-            self.get_globals().update(result["locals"])
             os.chdir(save_working_dir)
-
+        return self.get_locals().pop("EXEC-LAST-EXPRESSION")
     
-
+    @staticmethod
+    def ast_get_last_expression(code_str):
+        """ Modify code so that if the last statement is an "Expr" or "Await" statement, we return that into "EXEC-LAST-EXPRESSION" """
+        from ast import (
+            fix_missing_locations, parse, 
+            Assign, Await, Constant, Expr, Name, Store
+        )
+        tree = parse(code_str)
+        targets = [Name("EXEC-LAST-EXPRESSION", ctx = Store())]
+        if isinstance(tree.body[-1], (Expr, Await)):
+            tree.body[-1] = Assign(targets, tree.body[-1].value)
+        else:
+            tree.body.append(Assign(targets, Constant(None, None)))
+        fix_missing_locations(tree)
+        return tree

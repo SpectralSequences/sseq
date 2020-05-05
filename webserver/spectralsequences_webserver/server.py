@@ -21,7 +21,6 @@ from .channels import (
 from message_passing_tree import SocketReceiver, ansi
 from spectralsequence_chart import SseqSocketReceiver
 # from spectralsequence_chart.utils import
-print(ansi.success("Starting server"))
 
 app = FastAPI()
 
@@ -31,7 +30,10 @@ def run_main(f):
 
 @run_main
 async def main():
+    print("""Executing user "on_repl_init" file.""")
     repl = await start_repl_a()
+
+    print(ansi.success("Starting server"))
     channels = {}
 
     templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))

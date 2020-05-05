@@ -18,7 +18,6 @@ class SocketReceiver(Receiver):
     def __init__(self, ws):
         super().__init__()
         self.socket = ws
-        # print(type(self.socket))
         self.uuid = uuid4()
         self.accepted_connection = asyncio.Event()
         self.initialized_client = asyncio.Event()

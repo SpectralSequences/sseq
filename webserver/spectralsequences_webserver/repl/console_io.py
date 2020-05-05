@@ -3,6 +3,7 @@
 # to exception handling.
 
 from message_passing_tree.prelude import *
+from .executor import ExecResult
 
 from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
 import traceback
@@ -55,14 +56,7 @@ class ConsoleIO(PythonRepl):
 
     async def _process_text_a(self, line: str) -> None:
         if line and not line.isspace():
-            try:
-                # Eval and print.
-                await self.execute_a(line)
-            except KeyboardInterrupt as e:  # KeyboardInterrupt doesn't inherit from Exception.
-                self._handle_keyboard_interrupt(e)
-            except Exception as e:
-                self.app.output.write("\n")
-                self._handle_exception(e)
+            await self.execute_and_print_a(line)
 
             if self.insert_blank_line_after_output:
                 self.app.output.write("\n")
@@ -74,10 +68,7 @@ class ConsoleIO(PythonRepl):
         """ Make sure that "await f_a()" is not reported as a syntax error."""
         return PyCF_ALLOW_TOP_LEVEL_AWAIT
 
-    async def execute_a(self, line: str) -> None:
-        """
-        Evaluate the line and print the result.
-        """
+    async def execute_and_print_a(self, input: str) -> None:
         output = self.app.output
 
         # WORKAROUND: Due to a bug in Jedi, the current directory is removed
@@ -85,39 +76,31 @@ class ConsoleIO(PythonRepl):
         if "" not in sys.path:
             sys.path.insert(0, "")
 
-        if line.lstrip().startswith("\x1a"):
+        if input.lstrip().startswith("\x1a"):
             # When the input starts with Ctrl-Z, quit the REPL.
             self.app.exit()
-        elif line.lstrip().startswith("!"):
+        elif input.lstrip().startswith("!"):
             # Run as shell command
-            os.system(line[1:])
+            os.system(input[1:])
         else:
-            # Try eval first
-            try:
-                result = await self.eval_code_a(line)
-                formatted_output = self.format_output(result)
-                self.print_formatted_output(formatted_output)
-                output.flush()
-                return
-            # If not a valid `eval` expression, run using `exec` instead.
-            except SyntaxError:
-                # Don't exec_code here because otherwise if another error occurs later,
-                # the SyntaxError above would be printed in the stack trace.
-                pass 
-            await self.exec_code_a(line)
-            output.flush()
+            result = await self.executor.exec_code_a(input)
+            if type(result) is ExecResult.Ok:
+                self.format_and_print_result(result.result)
+            elif type(result) is ExecResult.Err:
+                self.print_exception(result.exception, buffered = False)
+            elif type(result) is ExecResult.Interrupt:
+                self._handle_keyboard_interrupt(result.exception)
+            else:
+                assert False
 
+    def format_and_print_result(self, result):
+        if result is None:
+            return
+        formatted_result = self.format_result(result)
+        self.print_formatted_result(formatted_result)
+        self.app.output.flush()
 
-    async def eval_code_a(self, *args, **kwargs):
-        return await self.executor.eval_code_a(*args, **kwargs)
-
-    async def exec_file_a(self, *args, **kwargs):
-        return await self.executor.exec_file_a(*args, **kwargs)
-
-    async def exec_code_a(self, *args, **kwargs):
-        return await self.executor.exec_code_a(*args, **kwargs)
-
-    def format_output(self, result):
+    def format_result(self, result):
         locals: Dict[str, Any] = self.get_locals()
         locals["_"] = locals["_%i" % self.current_statement_index] = result
 
@@ -156,7 +139,7 @@ class ConsoleIO(PythonRepl):
                 )
             return formatted_output
 
-    def print_formatted_output(self, formatted_output):
+    def print_formatted_result(self, formatted_output):
         print_formatted_text(
             formatted_output,
             style=self._current_style,
@@ -192,23 +175,18 @@ class ConsoleIO(PythonRepl):
             additional_info
         ))
 
-    def print_exception(self, exception):
-        # self.get_globals()["exception"] = exception
-        self._handle_exception(exception, True)
-
-    def _handle_exception(self, exception: Exception, buffered = False) -> None:
+    def print_exception(self, exception, buffered = True):
+        self.app.output.write("\n")
         exception_chain = [exception]
         while (exception := exception.__context__) is not None:
             exception_chain.append(exception)
         orig_exception = exception_chain.pop()
-        self._handle_one_exception(orig_exception, buffered)
+        self._print_one_exception(orig_exception, buffered)
         for e in reversed(exception_chain):
             self.print_formatted_text("During handling of the above exception, another exception occurred:\n", buffered)
-            self._handle_one_exception(e, buffered)
+            self._print_one_exception(e, buffered)
         
-
-
-    def _handle_one_exception(self, exception: Exception, buffered = False) -> None:
+    def _print_one_exception(self, exception: Exception, buffered = False) -> None:
         traceback.clear_frames(exception.__traceback__)
         tb_summary_list = list(traceback.extract_tb(exception.__traceback__))
 
@@ -217,15 +195,8 @@ class ConsoleIO(PythonRepl):
                 tb_summary_list = tb_summary_list[line_number:]
                 break
 
-        self.executor.adjust_traceback(tb_summary_list)
-
         if hasattr(exception, "extra_traceback"):
             tb_summary_list.extend(exception.extra_traceback)
-
-
-        self.get_globals()["exc"] = tb_summary_list
-        # for tb_tuple in enumerate(tblist):
-
 
         l = traceback.format_list(tb_summary_list)
         if l:
