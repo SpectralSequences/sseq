@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use crate::prime::{self, ValidPrime};
 use crate::vector::{FpVector, FpVectorT, FpVectorSlice};
 use super::{
@@ -1076,6 +1077,79 @@ impl Load for Subspace {
     }
 }
 
+use crate::vector::VectorDiffEntry;
+pub struct MatrixDiffEntry {
+    pos : (usize, usize),
+    left : u32,
+    right : u32
+}
+
+impl Matrix {
+    pub fn diff_list(&self, other : &[Vec<u32>]) -> Vec<MatrixDiffEntry> {
+        assert!(self.rows() == other.len());
+        if self.rows() > 0 {
+            assert!(self.columns() == other[0].len());
+        }
+        let mut result = Vec::new();
+        for row in 0 .. self.rows() {
+            result.extend(
+                self[row].diff_list(&other[row]).iter()
+                .map(|&VectorDiffEntry {index, left, right}| 
+                    MatrixDiffEntry {
+                        pos : (row, index),
+                        left,
+                        right
+                    }
+                )
+            )
+        }
+        result
+    }
+
+    pub fn diff_matrix(&self, other : &Matrix) -> Vec<MatrixDiffEntry> {
+        assert!(self.rows() == other.rows());
+        assert!(self.columns() == other.columns());
+        let mut result = Vec::new();
+        for row in 0 .. self.rows() {
+            result.extend(
+                self[row].diff_vec(&other[row]).iter()
+                .map(|&VectorDiffEntry {index, left, right}| 
+                    MatrixDiffEntry {
+                        pos : (row, index),
+                        left,
+                        right
+                    }
+                )
+            )
+        }
+        result
+    }
+    
+    pub fn format_diff(diff : Vec<MatrixDiffEntry>) -> String {
+        let data_formatter = diff.iter().format_with("\n ", |MatrixDiffEntry {pos, left, right}, f| 
+            f(&format_args!("  At index {:?}: {}!={}", pos, left, right))
+        );
+        format!("{}", data_formatter)
+    }
+
+    pub fn assert_list_eq(&self, other : &[Vec<u32>]){
+        let diff = self.diff_list(other);
+        if diff.len() == 0 {
+            return;
+        }
+        println!("assert {} == {:?}", self,other);
+        println!("{}", Matrix::format_diff(diff));
+    }
+
+    pub fn assert_matrix_eq(&self, other : &Matrix){
+        let diff = self.diff_matrix(other);
+        if diff.len() == 0 {
+            return;
+        }
+        println!("assert {} == {}", self, other);
+        println!("{}", Matrix::format_diff(diff));
+    }
+}
 
 #[cfg(test)]
 mod tests {

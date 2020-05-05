@@ -117,6 +117,7 @@ impl Resolution {
     // }
 
     pub fn number_of_gens_in_bidegree(&self, homological_degree : u32, internal_degree : i32) -> PyResult<usize> {
+        self.check_has_computed_bidegree(homological_degree, internal_degree)?;
         Ok(self.inner()?.module(homological_degree).number_of_gens_in_degree(internal_degree))
     }
 

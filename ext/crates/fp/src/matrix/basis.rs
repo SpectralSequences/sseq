@@ -20,6 +20,10 @@ impl Basis {
         }
     }
 
+    pub fn prime(&self) -> ValidPrime {
+        self.matrix.prime()
+    }
+
     pub fn is_inverse_calculated(&self) -> bool {
         self.inverse.pivots()[0] == 0
     }
@@ -41,8 +45,13 @@ impl Basis {
         let matrix = self.take_matrix();
         self.inverse.segment(0,0).assign(&matrix);
         self.set_matrix(matrix);
+        self.inverse.segment(1,1).set_to_zero();
+        self.inverse.segment(1,1).add_identity(self.matrix.rows(), 0, 0);
         self.inverse.initialize_pivots();
         self.inverse.row_reduce();
+        for i in 0..self.matrix.columns() {
+            assert!(self.inverse.pivots()[i] == i as isize, "Singular matrix!");
+        }
     }
 
     pub fn apply(&self, result : &mut FpVector, v : &FpVector) {
@@ -57,7 +66,13 @@ impl Basis {
         for i in 0 .. v.dimension() {
             result.add(&self.inverse.segment(1,1)[i], v.entry(i));
         }
-    }    
+    }
+
+    pub fn replace_entry(&mut self, row : usize, v : &FpVector){
+        assert!(v.dimension() == self.matrix.columns());
+        self.matrix[row].assign(v);
+        self.calculate_inverse();
+    }
 }
 
 
@@ -75,18 +90,19 @@ mod tests {
             vec![1, 0, 1, 1],
             vec![0, 1, 0, 1],
         ];
+
+        let inverse = &[
+            vec![1, 1, 1, 1],
+            vec![1, 0, 1, 1],
+            vec![0, 1, 1, 1],
+            vec![1, 0, 1, 0]
+        ];
+
         for (i, row) in basis.matrix.iter_mut().enumerate() {
             row.pack(&matrix[i]);
         }
         basis.calculate_inverse();
-        println!("inverse: {}", *basis.inverse.segment(1,1));
-        // Should be:
-        // [
-        //     [1, 1, 1, 1],
-        //     [1, 0, 1, 1],
-        //     [0, 1, 1, 1],
-        //     [1, 0, 1, 0]
-        // ]
+        basis.inverse.segment(1,1).assert_list_eq(inverse);
         let mut result = FpVector::new(p, 4);
         let mut input = FpVector::new(p, 4);
         input.pack(&[1,1,1,1]);
@@ -96,6 +112,16 @@ mod tests {
         basis.apply_inverse(&mut result, &input);
         println!("inverse_result : {}", result);
         result.set_to_zero();
+        println!("basis : {}", basis.matrix);
+        println!("inverse : {}", *basis.inverse.segment(1, 1));        
+        input.pack(&[1,1,0,1]);
+        basis.apply_inverse(&mut result, &input);
+        println!("inverse_result : {}", result);
+        result.set_to_zero();        
+        basis.replace_entry(2, &input);
+        println!("basis : {}", basis.matrix);
+        // println!("inverse : {}", *basis.inverse.segment(0, 0));
+        println!("inverse : {}", *basis.inverse.segment(1, 1));
     }
 
 }

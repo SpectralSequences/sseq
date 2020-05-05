@@ -10,4 +10,4 @@ class TestPrime:
     @pytest.mark.parametrize("n, expected", [[17, True], [19, True],[21, False]])
     def test_isprime(self, n, expected):
         print(self.pg)
-        assert self.is_prime(n) == expected        
+        assert [1,2,3] == [1,2,7,4]
