@@ -36,9 +36,11 @@ class Executor(Agent):
         """wrap code in async def definition.
         And set up a bit of context to run it later.
         """
+        INDENT_SIZE = 4
+        NUM_INDENTS = 3
         return Executor.asyncify_WRAPPER_TEMPLATE.format(
             ASYNCIFY_WRAPPER_NAME=Executor.asyncify_WRAPPER_NAME, 
-            usercode=indent(code, " " * 8)
+            usercode=indent(code, " " * (INDENT_SIZE * NUM_INDENTS) )
         ) 
 
     asyncify_WRAPPER_NAME = '__async_def_wrapper_a__'
@@ -47,9 +49,11 @@ class Executor(Agent):
     # Do not mess with indentation of WRAPPER_TEMPLATE.
     asyncify_WRAPPER_TEMPLATE = dedent(
             """
-    async def {ASYNCIFY_WRAPPER_NAME}():
+    async def {ASYNCIFY_WRAPPER_NAME}(result):
+            try:
     {usercode}
-            return locals() 
+            finally:
+                result["locals"] = locals()
             """
         )
 
@@ -121,16 +125,17 @@ class Executor(Agent):
         mod = Executor.asyncify(lines)
         async_wrapper_code = self.compile_with_flags(mod, 'exec', file)
         exec(async_wrapper_code, self.get_globals(), self.get_locals()) 
-        do_the_thing = self.compile_with_flags(f"await {Executor.asyncify_WRAPPER_NAME}()", "eval")
+        do_the_thing = self.compile_with_flags(f"await {Executor.asyncify_WRAPPER_NAME}(exec_result)", "eval")
         save_working_dir = os.getcwd()
         if working_directory is not None:
             os.chdir(working_directory)
+        self.get_locals()["exec_result"] = {}
         try:
-            result = await eval(do_the_thing, self.get_globals(), self.get_locals())
-        except:
-            raise
-        os.chdir(save_working_dir)
-        self.get_globals().update(result)
+            await eval(do_the_thing, self.get_globals(), self.get_locals())
+        finally:
+            result = self.get_locals().pop("exec_result")
+            self.get_globals().update(result["locals"])
+            os.chdir(save_working_dir)
 
     
 
