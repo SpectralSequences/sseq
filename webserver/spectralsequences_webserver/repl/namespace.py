@@ -12,11 +12,11 @@ def read_file(path):
 def read_json_file(path):
     return json.loads(read_file(path))
 
-def add_to_namespace(repl_namespace, obj):
+def add_to_namespace(namespace, obj):
     name = obj.__name__.split(".")[-1]
-    repl_namespace[name] = obj
+    namespace[name] = obj
 
-def add_stuff_to_repl_namespace(repl_namespace):
+def add_stuff_to_namespace(namespace):
     to_add = [
         read_file, read_json_file,
         ext, ext.algebra, ext.module, ext.fp, ext.fp.FpVector,
@@ -28,4 +28,4 @@ def add_stuff_to_repl_namespace(repl_namespace):
         pathlib, config
     ]
     for name in to_add:
-        add_to_namespace(repl_namespace, name)
+        add_to_namespace(namespace, name)

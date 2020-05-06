@@ -3,11 +3,10 @@
 # to exception handling.
 
 from message_passing_tree.prelude import *
-from .executor import ExecResult
+from .executor import ExecResult, Executor
 
 from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
-import traceback
-from typing import Any, Dict
+from typing import Any, Dict, List
 import os
 import sys
 
@@ -87,7 +86,7 @@ class ConsoleIO(PythonRepl):
             if type(result) is ExecResult.Ok:
                 self.format_and_print_result(result.result)
             elif type(result) is ExecResult.Err:
-                self.print_exception(result.exception, buffered = False)
+                self.print_traceback_list(result.exception, buffered = False)
             elif type(result) is ExecResult.Interrupt:
                 self._handle_keyboard_interrupt(result.exception)
             else:
@@ -176,35 +175,18 @@ class ConsoleIO(PythonRepl):
         ))
 
     def print_exception(self, exception, buffered = True):
+        tb_list = Executor.exception_to_traceback_list(exception, "")
+        self.print_traceback_list(tb_list)
+
+    def print_traceback_list(self, tb_str_list : List[str], buffered = True):
         self.app.output.write("\n")
-        exception_chain = [exception]
-        while (exception := exception.__context__) is not None:
-            exception_chain.append(exception)
-        orig_exception = exception_chain.pop()
-        self._print_one_exception(orig_exception, buffered)
-        for e in reversed(exception_chain):
+        self.print_traceback(tb_str_list[0], buffered)
+        for tb_str in tb_str_list[1:]:
             self.print_formatted_text("During handling of the above exception, another exception occurred:\n", buffered)
-            self._print_one_exception(e, buffered)
-        
-    def _print_one_exception(self, exception: Exception, buffered = False) -> None:
-        traceback.clear_frames(exception.__traceback__)
-        tb_summary_list = list(traceback.extract_tb(exception.__traceback__))
+            self.print_traceback(tb_str, buffered)
 
-        for line_number, tb_summary in enumerate(tb_summary_list):
-            if tb_summary.filename == "<stdin>":
-                tb_summary_list = tb_summary_list[line_number:]
-                break
 
-        if hasattr(exception, "extra_traceback"):
-            tb_summary_list.extend(exception.extra_traceback)
-
-        l = traceback.format_list(tb_summary_list)
-        if l:
-            l.insert(0, "Traceback (most recent call last):\n")
-        l.extend(traceback.format_exception_only(type(exception), exception))
-
-        tb_str = "".join(l)
-
+    def print_traceback(self, tb_str : str, buffered):
         # Format exception and write to output.
         # (We use the default style. Most other styles result
         # in unreadable colors for the traceback.)
@@ -220,6 +202,7 @@ class ConsoleIO(PythonRepl):
             style_transformation=self.style_transformation,
             include_default_pygments_style=False,
         )
+        
 
 
     def _handle_keyboard_interrupt(self, e: KeyboardInterrupt) -> None:

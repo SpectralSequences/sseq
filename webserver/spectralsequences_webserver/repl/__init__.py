@@ -9,26 +9,21 @@ from message_passing_tree.agent import Agent
 from .console_io import ConsoleIO
 from .executor import Executor
 from .repl_agent import ReplAgent
-from .namespace import add_stuff_to_repl_namespace
 from .. import utils
 from .. import config
 
 async def start_repl_a():
-    r = ReplAgent(
+    repl = ReplAgent(
         title = "Test",
         history_filename=str(config.USER_DIR / "repl.hist"),
     )
-    executor = Executor(r.console_io)
-    REPL_NAMESPACE = executor.globals
-    r.set_executor(executor)
+    executor = Executor(repl)
+    repl.set_executor(executor)
 
-    REPL_NAMESPACE["REPL"] = r
-    add_stuff_to_repl_namespace(REPL_NAMESPACE)
-
-    set_double_fault_handler(r)
-    await read_input_files_a(r)
-    start_repl(r)
-    return r
+    set_double_fault_handler(repl)
+    await read_input_files_a(repl)
+    start_repl(repl)
+    return repl
 
 def set_double_fault_handler(r):
     # TODO: Is this the right logic for double_fault_handler?

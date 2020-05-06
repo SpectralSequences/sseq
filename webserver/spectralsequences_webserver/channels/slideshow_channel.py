@@ -35,7 +35,7 @@ class SlideshowChannel(SocketChannel):
         recv.current_source_file = -1
         recv.max_source_file = -1
         recv.chart = SpectralSequenceChart("A slideshow")
-        recv.executor = Executor()
+        recv.executor = Executor(self.repl_agent)
         recv.executor.recv = recv  
         self.setup_executor_namespace(recv)
         await recv.executor.load_repl_init_file_if_it_exists_a()
