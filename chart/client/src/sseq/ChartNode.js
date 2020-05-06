@@ -1,6 +1,6 @@
-let utils = require("./utils.js");
+import * as utils from "./utils.js";
 
-class ChartNode {
+export class ChartNode {
     constructor(kwargs) {
         utils.assign_fields(this, kwargs, [
             { "type" : "mandatory", "field" : "shape"},
@@ -16,5 +16,3 @@ class ChartNode {
         return utils.public_fields(this);
     }
 }
-
-exports.ChartNode = ChartNode;

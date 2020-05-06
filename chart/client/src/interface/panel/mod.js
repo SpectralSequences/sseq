@@ -1,4 +1,4 @@
-exports.Panel = require("./Panel.js").Panel;
-exports.DifferentialPanel = require("./DifferentialPanel.js").DifferentialPanel;
-exports.StructlinePanel = require("./StructlinePanel.js").StructlinePanel;
-exports.TabbedPanel = require("./TabbedPanel.js").TabbedPanel;
+export { Panel } from "./Panel";
+export { DifferentialPanel } from "./DifferentialPanel";
+export { StructlinePanel } from "./StructlinePanel";
+export { TabbedPanel } from "./TabbedPanel";

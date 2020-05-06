@@ -11,7 +11,7 @@ TODO.
 # Client Compilation
 
 The directory `client/src` contains the source code for the spectral-sequences module.
-This is compiled into `target/release/spectralsequences_basic_webclient.js`, which is what you should include into your
+This is compiled into `dist/sseq_webclient.js`, which is what you should include into your
 webpage.
 
 To install dependencies for compilation, run 
@@ -19,7 +19,7 @@ To install dependencies for compilation, run
  $ npm install
 ```
 This only has to be done once. Afterwards, to compile the source code into
-target/release/spectralsequences_basic_webclient.js, run
+dist/sseq_webclient.js, run
 ```
  $ npm run build
 ```

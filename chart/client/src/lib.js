@@ -1,19 +1,18 @@
-exports.INFINITY = require("./infinity.js").INFINITY;
+export { infinity } from "./infinity.js";
 
-exports.mod = function(n,d){
+export function mod(n,d){
     return (n % d + d)%d;
 };
 
-// window.Util = require("./sseq/Util.js");
-
-exports.C2S = require("canvas2svg");
-exports.EventEmitter = require("events");
-
-
-exports.interface = require("./interface/mod.js");
-exports.spectralsequences = require("./sseq/mod.js");
-exports.SpectralSequenceSocketListener = require("./spectralsequence_socket_listener.js").SpectralSequenceSocketListener;
+import * as C2S from "canvas2svg";
+import * as EventEmitter from "events";
+export {C2S, EventEmitter};
 
 
-exports.d3 = require("d3-selection");
-exports.Mousetrap = require("mousetrap");
+import * as Interface from "./interface/mod.js";
+import * as spectralsequences from "./sseq/mod.js";
+export {Interface, spectralsequences};
+export { SpectralSequenceSocketListener } from "./spectralsequence_socket_listener.js";
+
+import * as Mousetrap from "mousetrap";
+export { Mousetrap };

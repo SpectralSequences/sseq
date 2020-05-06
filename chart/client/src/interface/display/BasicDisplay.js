@@ -1,9 +1,10 @@
 "use strict"
 
-let Display = require("./Display.js").Display;
-let Tooltip = require("../Tooltip.js").Tooltip;
-let latex = require("../latex.js");
-let Mousetrap = require("mousetrap");
+
+import { Display } from "./Display.js";
+import { Tooltip } from "../Tooltip.js";
+import { renderLatex } from "../Latex.js";
+import { bind } from "mousetrap";
 
 class BasicDisplay extends Display {
     constructor(container, sseq, kwargs) {
@@ -24,9 +25,9 @@ class BasicDisplay extends Display {
         });
         this.on("mouseout", () => this.tooltip.hide());
 
-        Mousetrap.bind('left',  this.previousPage);
-        Mousetrap.bind('right', this.nextPage);
-        Mousetrap.bind('x',
+        bind('left',  this.previousPage);
+        bind('right', this.nextPage);
+        bind('x',
             () => {
                 if(this.mouseover_node){
                     console.log(this.mouseover_node.c);
@@ -75,7 +76,7 @@ class BasicDisplay extends Display {
     }
 
     getClassTooltipHTML(c, page) {
-        return latex.renderLatex(this.getClassTooltip(c,page));
+        return renderLatex(this.getClassTooltip(c,page));
     }
 
     static toTooltipString(obj, page) {
@@ -106,4 +107,5 @@ class BasicDisplay extends Display {
     }
 }
 
-exports.BasicDisplay = BasicDisplay;
+const _BasicDisplay = BasicDisplay;
+export { _BasicDisplay as BasicDisplay };

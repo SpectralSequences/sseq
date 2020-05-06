@@ -1,5 +1,5 @@
-let Latex = require("../Latex.js");
-let Panel = require("./Panel.js").Panel;
+import { renderMath } from "../Latex.js";
+import { Panel } from "./Panel.js";
 
 class StructlinePanel extends Panel {
     constructor(parentContainer, display) {
@@ -21,9 +21,9 @@ class StructlinePanel extends Panel {
                 sname = e.source.name ? e.source.name : "?"
                 tname = e.target.name ? e.target.name : "?"
                 if (e.source == this.display.selected.c)
-                    this.addLI(Latex.renderMath(`{\\color{blue}${sname}} \\text{---} ${tname}`));
+                    this.addLI(renderMath(`{\\color{blue}${sname}} \\text{---} ${tname}`));
                 else
-                    this.addLI(Latex.renderMath(`${sname} \\text{---} {\\color{blue}${tname}}`));
+                    this.addLI(renderMath(`${sname} \\text{---} {\\color{blue}${tname}}`));
             }
 
             this.addLI("<a href='#'>Add structline</a>", () => this.display.state = STATE_ADD_STRUCTLINE );
@@ -43,4 +43,5 @@ class StructlinePanel extends Panel {
     }
 }
 
-exports.StructlinePanel = StructlinePanel;
+const _StructlinePanel = StructlinePanel;
+export { _StructlinePanel as StructlinePanel };

@@ -1,8 +1,8 @@
-let utils = require("./utils.js");
-let ChartClass = require("./ChartClass.js").ChartClass;
-let INFINITY = require("../infinity.js").INFINITY;
+import * as utils from "./utils.js";
+import { ChartClass } from "./ChartClass.js";
+import { INFINITY } from "../infinity.js";
 
-class ChartEdge {
+export class ChartEdge {
     constructor(type, kwargs) {
         console.log(kwargs);
         this.type = type;
@@ -51,7 +51,7 @@ class ChartEdge {
     }
 }
 
-class ChartDifferential extends ChartEdge {
+export class ChartDifferential extends ChartEdge {
     constructor(kwargs){
         super("differential", kwargs);
         utils.assign_kwarg_mandatory(this, kwargs, "page");
@@ -62,7 +62,7 @@ class ChartDifferential extends ChartEdge {
     }    
 }
 
-class ChartStructline extends ChartEdge {
+export class ChartStructline extends ChartEdge {
     constructor(kwargs){
         super("structline", kwargs);
         if(this.max_page === undefined) {
@@ -78,7 +78,7 @@ class ChartStructline extends ChartEdge {
     }
 }
 
-class ChartExtension extends ChartEdge {
+export class ChartExtension extends ChartEdge {
     constructor(kwargs){
         super("extension", kwargs);
     }
@@ -88,8 +88,3 @@ class ChartExtension extends ChartEdge {
     }
 
 }
-
-exports.ChartEdge = ChartEdge;
-exports.ChartDifferential = ChartDifferential;
-exports.ChartStructline = ChartStructline;
-exports.ChartExtension = ChartExtension;

@@ -1,5 +1,5 @@
-let Latex = require("../Latex.js");
-let Panel = require("./Panel.js").Panel;
+import { renderMath } from "../Latex.js";
+import { Panel } from "./Panel.js";
 
 class DifferentialPanel extends Panel {
     constructor(parentContainer, display) {
@@ -21,9 +21,9 @@ class DifferentialPanel extends Panel {
                 sname = e.source.name ? e.source.name : "?"
                 tname = e.target.name ? e.target.name : "?"
                 if (e.source == this.display.selected.c)
-                    this.addLI(Latex.renderMath(`d_${e.page}({\\color{blue}${sname}}) = ${tname}`));
+                    this.addLI(renderMath(`d_${e.page}({\\color{blue}${sname}}) = ${tname}`));
                 else
-                    this.addLI(Latex.renderMath(`d_${e.page}(${sname}) = {\\color{blue}${tname}}`));
+                    this.addLI(renderMath(`d_${e.page}(${sname}) = {\\color{blue}${tname}}`));
             }
 
             this.addLI("<a href='#'>Add differential</a>", () => this.display.state = STATE_ADD_DIFFERENTIAL );
@@ -41,4 +41,5 @@ class DifferentialPanel extends Panel {
         this.differential_list.appendChild(node);
     }
 }
-exports.DifferentialPanel = DifferentialPanel;
+const _DifferentialPanel = DifferentialPanel;
+export { _DifferentialPanel as DifferentialPanel };

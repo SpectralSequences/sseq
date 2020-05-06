@@ -1,19 +1,14 @@
-let webclient = require("./lib.js")
+import * as webclient from "./lib.js";
 
 window.infinity = webclient.infinity;
-window.mod = function(n,d){
-    return (n % d + d)%d;
-};
+window.mod = webclient.mod;
 
-// window.Util = require("./sseq/Util.js");
+window.C2S = webclient.C2S;
+window.EventEmitter = webclient.EventEmitter;
 
-window.C2S = require("canvas2svg");
-window.EventEmitter = require("events");
-
-
-window.Interface = webclient.interface;
-window.IO = webclient.interface.IO;
-window.BasicDisplay = webclient.interface.BasicDisplay;
+window.Interface = webclient.Interface;
+window.IO = webclient.Interface.IO;
+window.BasicDisplay = webclient.Interface.BasicDisplay;
 
 window.spectralsequences = webclient.spectralsequences;
 window.SpectralSequenceChart = webclient.spectralsequences.SpectralSequenceChart;
@@ -27,6 +22,6 @@ window.ChartExtension = webclient.spectralsequences.ChartExtension;
 
 window.SpectralSequenceSocketListener = webclient.SpectralSequenceSocketListener;
 
-
-window.d3 = webclient.d3;
+import * as d3 from "d3";
+window.d3 = d3; 
 window.Mousetrap = webclient.Mousetrap;

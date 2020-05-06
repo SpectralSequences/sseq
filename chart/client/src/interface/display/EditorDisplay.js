@@ -1,10 +1,10 @@
 "use strict"
 
-let SidebarDisplay = require("./SidebarDisplay.js").SidebarDisplay;
-let Panel = require("../Panel/mod.js");
-let Tooltip = require("../Tooltip.js").Tooltip;
-let latex = require("../latex.js");
-let Mousetrap = require("mousetrap");
+import { SidebarDisplay } from "./SidebarDisplay.js";
+import { Panel as _Panel, TabbedPanel, DifferentialPanel, StructlinePanel } from "../Panel/mod.js";
+import { Tooltip } from "../Tooltip.js";
+import { renderMath } from "../Latex.js";
+import { bind } from "mousetrap";
 
 const STATE_ADD_DIFFERENTIAL = 1;
 const STATE_RM_DIFFERENTIAL = 2;
@@ -30,7 +30,7 @@ class EditorDisplay extends SidebarDisplay {
         this.sidebar.footer.addButton("Save", () => this.sseq.download("sseq.json"));
 
         // General Panel
-        this.generalPanel = new Panel.Panel(this.sidebar.main_div, this);
+        this.generalPanel = new _Panel(this.sidebar.main_div, this);
         this.generalPanel.newGroup();
         this.pageLabel = document.createElement("span");
         this.on("page-change", (r) => {
@@ -50,11 +50,11 @@ class EditorDisplay extends SidebarDisplay {
         this.sidebar.addPanel(this.generalPanel);
 
         // Class panel
-        this.classPanel = new Panel.TabbedPanel(this.sidebar.main_div, this);
+        this.classPanel = new TabbedPanel(this.sidebar.main_div, this);
         this.sidebar.addPanel(this.classPanel);
 
         // Node tab
-        this.nodeTab = new Panel.Panel(this.classPanel.container, this);
+        this.nodeTab = new _Panel(this.classPanel.container, this);
         this.nodeTab.newGroup();
 
         this.title_text = document.createElement("span");
@@ -93,7 +93,7 @@ class EditorDisplay extends SidebarDisplay {
             this.title_edit_link.innerHTML = "Edit";
             let c = this.selected.c;
             if (c.name) {
-                this.title_text.innerHTML = latex.renderMath(c.name) + ` - (${c.x}, ${c.y})`;
+                this.title_text.innerHTML = renderMath(c.name) + ` - (${c.x}, ${c.y})`;
             } else {
                 this.title_text.innerHTML = `<span style='color: gray'>unnamed</span> - (${c.x}, ${c.y})`;
             }
@@ -111,14 +111,14 @@ class EditorDisplay extends SidebarDisplay {
         this.classPanel.addTab("Node", this.nodeTab);
 
         // Differentials tab
-        this.differentialTab = new Panel.DifferentialPanel(this.classPanel.container, this);
-        Mousetrap.bind('d', () => this.state = STATE_ADD_DIFFERENTIAL);
-        Mousetrap.bind('r', () => this.state = STATE_RM_EDGE);
+        this.differentialTab = new DifferentialPanel(this.classPanel.container, this);
+        bind('d', () => this.state = STATE_ADD_DIFFERENTIAL);
+        bind('r', () => this.state = STATE_RM_EDGE);
         this.classPanel.addTab("Diff", this.differentialTab);
 
         // Structline tab
-        this.structlineTab = new Panel.StructlinePanel(this.classPanel.container, this);
-        Mousetrap.bind('s', () => this.state = STATE_ADD_STRUCTLINE);
+        this.structlineTab = new StructlinePanel(this.classPanel.container, this);
+        bind('s', () => this.state = STATE_ADD_STRUCTLINE);
         this.classPanel.addTab("Struct", this.structlineTab);
 
         this.sidebar.showPanel(this.generalPanel);
@@ -133,9 +133,9 @@ class EditorDisplay extends SidebarDisplay {
 
         this._onDifferentialAdded = this._onDifferentialAdded.bind(this);
 
-        Mousetrap.bind('left',  this.previousPage);
-        Mousetrap.bind('right', this.nextPage);
-        Mousetrap.bind('x', () => { if(this.selected){ console.log(this.selected.c); } });
+        bind('left',  this.previousPage);
+        bind('right', this.nextPage);
+        bind('x', () => { if(this.selected){ console.log(this.selected.c); } });
 
         if (sseq) this.setSseq(sseq);
     }
@@ -254,4 +254,5 @@ class EditorDisplay extends SidebarDisplay {
             d.color = this.differentialColors[d.page];
     }
 }
-exports.EditorDisplay = EditorDisplay;
+const _EditorDisplay = EditorDisplay;
+export { _EditorDisplay as EditorDisplay };

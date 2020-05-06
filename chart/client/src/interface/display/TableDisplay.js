@@ -1,9 +1,9 @@
 "use strict"
 
-let SidebarDisplay = require("./SidebarDisplay.js").SidebarDisplay;
-let Panel = require("../Panel/mod.js");
-let Tooltip = require("../Tooltip.js").Tooltip;
-let Mousetrap = require("mousetrap");
+import { SidebarDisplay } from "./SidebarDisplay.js";
+import Panel from "../Panel/mod.js";
+import { Tooltip } from "../Tooltip.js";
+import Mousetrap from "mousetrap";
 
 class TableDisplay extends SidebarDisplay {
     constructor(container, sseq) {
@@ -12,4 +12,5 @@ class TableDisplay extends SidebarDisplay {
     }
 }
 
-exports.TableDisplay = TableDisplay;
+const _TableDisplay = TableDisplay;
+export { _TableDisplay as TableDisplay };

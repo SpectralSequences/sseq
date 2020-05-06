@@ -1,5 +1,5 @@
-exports.BasicDisplay = require("./BasicDisplay.js").BasicDisplay;
-exports.Display = require("./Display.js").Display;
-exports.EditorDisplay = require("./EditorDisplay.js").EditorDisplay;
-exports.SidebarDisplay = require("./SidebarDisplay.js").SidebarDisplay;
-exports.TableDisplay = require("./TableDisplay.js").TableDisplay;
+export { BasicDisplay } from "./BasicDisplay.js";
+export { Display } from "./Display.js";
+export { EditorDisplay } from "./EditorDisplay.js";
+export { SidebarDisplay } from "./SidebarDisplay.js";
+export { TableDisplay } from "./TableDisplay.js";

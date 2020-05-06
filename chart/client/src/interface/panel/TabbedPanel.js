@@ -1,4 +1,4 @@
-let Panel = require("./Panel.js").Panel;
+import { Panel } from "./Panel.js";
 
 /**
  * This is a panel whose some purpose is to contain further panels arranged in
@@ -72,4 +72,5 @@ class TabbedPanel extends Panel {
     }
 }
 
-exports.TabbedPanel = TabbedPanel;
+const _TabbedPanel = TabbedPanel;
+export { _TabbedPanel as TabbedPanel };

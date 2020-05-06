@@ -1,12 +1,10 @@
-let display = require("./display/mod.js");
-exports.BasicDisplay = display.BasicDisplay;
-exports.Display = display.Display;
-exports.EditorDisplay = display.EditorDisplay;
-exports.SidebarDisplay = display.SidebarDisplay;
-exports.TableDisplay = display.TableDisplay;
-exports.Undo = require("./Undo");
-exports.IO = require("./SaveLoad");
-exports.sseqDatabase = exports.IO.sseqDatabase;
-exports.Tooltip = require("./Tooltip.js").Tooltip;
-exports.Panel = require("./Panel/mod.js");
-// exports.EditMode = require("./EditMode.js").EditMode;
+export {
+    BasicDisplay, Display,
+    EditorDisplay, SidebarDisplay, TableDisplay,
+} from "./display/mod.js";
+
+import * as Undo from "./Undo";
+import * as IO from "./SaveLoad";
+import * as Panel from "./Panel/mod.js";
+export {Undo, IO, Panel};
+export { Tooltip } from "./Tooltip.js";

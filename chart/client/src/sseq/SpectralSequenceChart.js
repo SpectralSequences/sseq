@@ -1,12 +1,8 @@
-let StringifyingMap = require("../StringifyingMap.js");
-let ChartNode = require("./ChartNode.js").ChartNode;
-let ChartClass = require("./ChartClass.js").ChartClass;
-let ChartEdgeJS = require("./ChartEdge.js");
-let ChartEdge = ChartEdgeJS.ChartEdge;
-let ChartDifferential = ChartEdgeJS.ChartDifferential;
-let ChartStructline = ChartEdgeJS.ChartStructline;
-let ChartExtension = ChartEdgeJS.ChartExtension;
-let EventEmitter = require('events');
+import StringifyingMap from "../StringifyingMap.js";
+import { ChartNode } from "./ChartNode";
+import { ChartClass } from "./ChartClass";
+import { ChartDifferential, ChartStructline, ChartExtension } from "./ChartEdge";
+import * as EventEmitter from "events";
 
 function check_argument_is_integer(name, value){
     if(!Number.isInteger(value)) {
@@ -35,7 +31,7 @@ function filter_dictionary_of_lists(dictionary, key,callback){
     dictionary.set(dictionary.get(key).filter(callback));
 }
 
-class SpectralSequenceChart extends EventEmitter {
+export class SpectralSequenceChart extends EventEmitter {
     constructor() {
         super();
         this.offset_size = 8;
@@ -265,5 +261,3 @@ class SpectralSequenceChart extends EventEmitter {
         return [display_classes, display_edges];
     }
 }
-
-exports.SpectralSequenceChart = SpectralSequenceChart;

@@ -1,13 +1,8 @@
 "use strict"
 
-let EventEmitter = require("events");
-let Mousetrap = require("mousetrap");
+import EventEmitter from "events";
+import * as Mousetrap from "mousetrap";
 
-const STATE_ADD_DIFFERENTIAL = 1;
-const STATE_RM_DIFFERENTIAL = 2;
-const STATE_ADD_STRUCTLINE = 3;
-const STATE_RM_STRUCTLINE = 4;
-const STATE_RM_EDGE = 5;
 
 /**
  * A panel is a collection of objects (button etc.) to be displayed in a
@@ -70,8 +65,9 @@ class Panel extends EventEmitter {
      * shortcuts.
      */
     clear() {
-        while (this.container.firstChild)
+        while (this.container.firstChild){
             this.container.removeChild(this.container.firstChild);
+        }
 
         this.links = [];
     }
@@ -162,11 +158,15 @@ class Panel extends EventEmitter {
         o.innerHTML = text;
         o.addEventListener("click", callback);
 
-        if (extra.tooltip)
+        if (extra.tooltip){
             o.setAttribute("title", extra.tooltip);
-        if (extra.shortcuts)
-            for (let k of extra.shortcuts)
+        }
+        
+        if (extra.shortcuts){
+            for (let k of extra.shortcuts){
                 Mousetrap.bind(k, callback);
+            }
+        }
 
         this.currentGroup.appendChild(o);
     }
@@ -296,10 +296,12 @@ class Panel extends EventEmitter {
 
     static unwrapProperty(start, list) {
         let t = start;
-        for (let i of list)
+        for (let i of list){
             t = t[i];
+        }
         return t;
     }
 }
 
-exports.Panel = Panel;
+const _Panel = Panel;
+export { _Panel as Panel };

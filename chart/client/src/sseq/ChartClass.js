@@ -1,27 +1,12 @@
-let utils = require("./utils.js");
-let ChartShape = require("./ChartShape.js").ChartShape;
+import * as utils from "./utils.js";
+import { ChartShape } from "./ChartShape.js";
 
-class ChartClass {
+export class ChartClass {
     constructor(sseq, kwargs) {
         this._sseq = sseq;
         this._valid = true;
         this._x_offset = 0;
         this._y_offset = 0;
-        
-        // utils.assign_fields(this, kwargs, [
-        //     { "type" : "mandatory", "field" : "x" },
-        //     { "type" : "mandatory", "field" : "y" },
-        //     { "type" : "optional", "field" : "idx" },
-        //     { "type" : "default",   "field" : "name",             "default" : "" },
-        //     { "type" : "default",   "field" : "transition_pages", "default" : [] },
-        //     { "type" : "mandatory", "field" : "node_list" },
-        //     { "type" : "default",   "field" : "transition_pages", "default" : [] },
-        //     { "type" : "default",   "field" : "visible",          "default" : true },
-        //     { "type" : "optional",  "field" : "xoffset" },
-        //     { "type" : "optional",  "field" : "yoffset" },
-        //     { "type" : "optional",  "field" : "tooltip" },
-        //     { "type" : "optional",  "field" : "uuid" },
-        // ]);
         
         // TODO: new utils function that ensures no "_" fields present, raises error "bad serialized class".
         Object.assign(this, kwargs);
@@ -140,5 +125,3 @@ class ChartClass {
         return utils.public_fields(this);
     }
 }
-
-exports.ChartClass = ChartClass;

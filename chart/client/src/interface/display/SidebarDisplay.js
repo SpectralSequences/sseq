@@ -1,7 +1,7 @@
 "use strict"
 
-let Display = require("./Display.js").Display;
-let Panel = require("../Panel/mod.js");
+import { Display } from "./Display.js";
+import { Panel as _Panel } from "../Panel/mod.js";
 
 class Sidebar {
     constructor(parentContainer) {
@@ -54,7 +54,7 @@ class Sidebar {
 
     init(display) {
         this.display = display;
-        this.footer = new Panel.Panel(this.footer_div, display);
+        this.footer = new _Panel(this.footer_div, display);
     }
 
     resize(e) {
@@ -107,4 +107,5 @@ class SidebarDisplay extends Display {
     }
 }
 
-exports.SidebarDisplay = SidebarDisplay;
+const _SidebarDisplay = SidebarDisplay;
+export { _SidebarDisplay as SidebarDisplay };

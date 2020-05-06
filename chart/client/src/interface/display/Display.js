@@ -1,19 +1,13 @@
 "use strict";
 
-let EventEmitter = require("events");
-let d3 = Object.assign({}, 
-    require("d3-selection"), 
-    require("d3-zoom"), 
-    require("d3-scale"), 
-    require("d3-timer")
-);
-
-let INFINITY = require("../../infinity.js").INFINITY
+import * as EventEmitter from "events";
+import * as d3 from "d3";
+import INFINITY from "../../infinity.js";
 
 const gridGo = "go";
 const gridChess = "chess";
 
-class Display extends EventEmitter {
+export class Display extends EventEmitter {
     // container is either an id (e.g. "#main") or a DOM object
     constructor(container, sseq) {
         super();
@@ -534,6 +528,7 @@ class Display extends EventEmitter {
 
     _drawEdges(context, edges){        
         for (let e of edges) {
+            console.log(e);
             if(!e) {
                 throw ValueError("Undefined edge.");
             }
@@ -543,13 +538,14 @@ class Display extends EventEmitter {
             if (e.type === "Structline" && this.hiddenStructlines.has(e.mult)) {
                 continue;
             }
+            console.log("hi");
 
             let source_node = e._source;
             let target_node = e._target;
             if(!source_node || ! target_node){
                 throw ValueError(`Edge ${e} has undefined source or target node`);
             }
-
+            console.log([source_node, target_node]);
             e._sourceOffset = e.sourceOffset || {x: 0, y: 0};
             e._targetOffset = e.targetOffset || {x: 0, y: 0};
 
@@ -569,6 +565,7 @@ class Display extends EventEmitter {
             let sourceY = source_node._canvas_y + e._sourceOffset.y;
             let targetX = target_node._canvas_x + e._targetOffset.x;
             let targetY = target_node._canvas_y + e._targetOffset.y;
+            console.log([sourceX, sourceY, targetX, targetY]);
 
             context.beginPath();
             if(e.bend ){//&& e.bend !== 0
@@ -835,5 +832,3 @@ class Display extends EventEmitter {
     //    }
 
 }
-
-exports.Display = Display;
