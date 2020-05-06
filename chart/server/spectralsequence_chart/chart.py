@@ -258,10 +258,10 @@ class SpectralSequenceChart(Agent):
         ))
         return e
 
-    def get_class_by_idx(self, x, y, idx):
+    def class_by_idx(self, x, y, idx):
         return self.get_classes_in_bidegree(x, y)[idx]
 
-    def get_classes_in_bidegree(self, x, y):
+    def classes_in_bidegree(self, x, y):
         return self.data._classes_by_bidegree.get((x,y), [])
 
     @property

@@ -1,8 +1,23 @@
 "use strict";
 
 class ChartShape {
-    static draw(shape, ...rest) {
-        return Shapes[shape].draw(...rest);
+    static draw(context, params) {
+        let shape = params.shape;
+        return Shapes[shape].draw.bind(Shapes[shape])(context, params);
+    }
+    
+    static outline(context, params) {
+        let shape = params.shape;
+        return Shapes[shape].outline.bind(Shapes[shape])(context, params);
+    }
+
+    static fillStrokeContext(context, params) {
+        if(params.strokeQ){
+            context.stroke();
+        }
+        if(params.fillQ){
+            context.fill();
+        }
     }
 }
 
@@ -11,52 +26,44 @@ exports.ChartShape = ChartShape;
 let Shapes = {};
 
 Shapes.circle = {
-    draw: function(context, x, y, size, path2d=true) {
-        context.beginPath();
-        context.arc(x, y, size * 0.1, 0, 2*Math.PI);
-        context.fill();
-        context.stroke();
-
-        let path = new Path2D();
-        path.arc(x, y, size * 0.2, 0, 2 * Math.PI);
-        return path;
+    outline : function(context, params) {
+        context.arc(params.x, params.y, params.size * 0.1, 0, 2*Math.PI);
+    },
+    draw: function(context, params) {
+        this.outline(context, params);
+        ChartShape.fillStrokeContext(context, params);
     }
 }
 
 
 Shapes.circlen = {
-    draw: function(context, x, y, size, node) {
-        context.beginPath();
-        context.arc(x, y, size * 0.1, 0, 2*Math.PI);
-        context.fill();
-        context.stroke();
+    outline : function(context, params) {
+        context.arc(params.x, params.y, params.size * 0.1, 0, 2*Math.PI);
+    },
+    draw: function(context, params) {
+        this.outline(context, params);
+        ChartShape.fillStrokeContext(context, params);
 
         context.textAlign = "center";
         context.fillStyle = "black";
-        let fontsize = 0.15*size | 0;
+        let fontsize = 0.15*params.size | 0;
         context.font = `${fontsize}px Arial`;
-        context.fillText(node.order, x, y + size*0.06);
-
-        let path = new Path2D();
-        path.arc(x, y, size * 0.2, 0, 2 * Math.PI);
-
-        return path;
+        context.fillText(params.node.order, params.x, params.y + params.size*0.06);
     }
 };
 
 Shapes.square = {
-    draw: function(context, x, y, size) {
+    outline: function(context, params) {
+        let x = params.x;
+        let y = params.y;
+        let size = params.size;
         let hwidth = 0.1 * size;
-
-        context.beginPath();
         context.rect(x - hwidth, y - hwidth, 2*hwidth, 2*hwidth);
-        context.fill();
-        context.stroke();
+    },
 
-        let path = new Path2D();
-        path.rect(x - 2*hwidth, y - 2*hwidth, 4*hwidth, 4*hwidth);
-
-        return path;
+    draw : function(context, params) {
+        this.outline(context, params);
+        ChartShape.fillStrokeContext(context, params);
     }
 }
 

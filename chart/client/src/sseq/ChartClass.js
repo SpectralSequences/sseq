@@ -22,10 +22,21 @@ export class ChartClass {
         this._size = size;
     }
 
-    draw(context) {
+    getDrawParams() {
         let node = this._node;
-        context.save();
+        return {
+            shape : node.shape,
+            size : this._size * node.scale,
+            x : this._canvas_x,
+            y : this._canvas_y,
+            fillQ : node.fill !== false,
+            strokeQ : node.stroke !== false,
+            node : node
+        };
+    }
 
+    _drawPrepareCanvasContext(context){
+        let node = this._node;
         if(node.opacity) {
             context.opacity = node.opacity;
         }
@@ -42,24 +53,34 @@ export class ChartClass {
         if(node.fill && node.fill !== true) {
             context.fillStyle = node.fill;
         }
-
-        if(node.highlight) {
-            if(node.hcolor) {
-                context.fillStyle = node.hcolor;
-                context.strokeStyle = node.hcolor;
-            }
-
-            if(node.hstroke) {
-                context.strokeStyle = node.hstroke;
-            }
-
-            if(node.hfill) {
-                context.fillStyle = node.hfill;
-            }
-        }
         context.lineWidth = Math.min(3, node.size * node.scale / 20); // Magic number
-        this._path = ChartShape.draw(node.shape, context, this._canvas_x, this._canvas_y, this._size * node.scale, node);
+    }    
+
+    drawHighlight(context) {
+        context.save();
+        context.beginPath();
+        context.fillStyle = this._sseq.highlightColor;
+        let params = this.getDrawParams();
+        params.size *= this._sseq.highlightScale;
+        ChartShape.outline(context, params);
+        context.fill();
         context.restore();
+    }
+
+    draw(context) {
+        context.save();
+        this._drawPrepareCanvasContext(context)
+        let params = this.getDrawParams();
+        context.beginPath();
+        ChartShape.draw(context, params);
+        context.restore();
+    }
+
+    updateTooltipPath(){
+        this._path = new Path2D();
+        let params = this.getDrawParams();
+        params.size *= this._sseq.mouseoverScale;
+        ChartShape.outline(this._path, params);
     }
 
     _drawOnPageQ(page){

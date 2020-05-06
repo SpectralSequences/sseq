@@ -1,7 +1,7 @@
 import { renderMath } from "../Latex.js";
 import { Panel } from "./Panel.js";
 
-class DifferentialPanel extends Panel {
+export class DifferentialPanel extends Panel {
     constructor(parentContainer, display) {
         super(parentContainer, display);
 
@@ -11,8 +11,9 @@ class DifferentialPanel extends Panel {
         this.addObject(this.differential_list);
 
         this.on("show", () => {
-            while(this.differential_list.firstChild)
+            while(this.differential_list.firstChild) {
                 this.differential_list.removeChild(this.differential_list.firstChild);
+            }
 
             let edges = this.display.selected.c.edges.filter(e => e.type === "Differential").sort((a, b) => a.page - b.page);
 
@@ -20,10 +21,11 @@ class DifferentialPanel extends Panel {
             for (let e of edges) {
                 sname = e.source.name ? e.source.name : "?"
                 tname = e.target.name ? e.target.name : "?"
-                if (e.source == this.display.selected.c)
+                if (e.source == this.display.selected.c){
                     this.addLI(renderMath(`d_${e.page}({\\color{blue}${sname}}) = ${tname}`));
-                else
+                } else {
                     this.addLI(renderMath(`d_${e.page}(${sname}) = {\\color{blue}${tname}}`));
+                }
             }
 
             this.addLI("<a href='#'>Add differential</a>", () => this.display.state = STATE_ADD_DIFFERENTIAL );
@@ -36,10 +38,10 @@ class DifferentialPanel extends Panel {
         node.className = "list-group-item";
         node.style = "padding: 0.75rem 0";
         node.innerHTML = html;
-        if (callback)
+        if (callback) {
             node.addEventListener("click", callback);
+        }
         this.differential_list.appendChild(node);
     }
 }
-const _DifferentialPanel = DifferentialPanel;
-export { _DifferentialPanel as DifferentialPanel };
+

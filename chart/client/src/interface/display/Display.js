@@ -4,8 +4,7 @@ import * as EventEmitter from "events";
 import * as d3 from "d3";
 import INFINITY from "../../infinity.js";
 
-const gridGo = "go";
-const gridChess = "chess";
+const GridEnum = Object.freeze({ go : 1, chess : 2 });
 
 export class Display extends EventEmitter {
     // container is either an id (e.g. "#main") or a DOM object
@@ -18,11 +17,12 @@ export class Display extends EventEmitter {
         this.bottomMargin = 50;
         this.domainOffset = 1 / 2;
 
-        this.gridStyle = gridGo;
+        this.gridStyle = GridEnum.go;
         this.gridColor = "#c6c6c6";
         this.background_color = "#FFFFFF";
         this.gridStrokeWidth = 0.3;
         this.TICK_STEP_LOG_BASE = 1.1; // Used for deciding when to change tick step.
+        this.bidegreeDistanceThreshold = 15;
 
         this.hiddenStructlines = new Set();
         this.updateQueue = 0;
@@ -261,7 +261,7 @@ export class Display extends EventEmitter {
         this.emit("draw_background");
         this._updateNodes(nodes);
         this._drawEdges(ctx, edges);
-        this._drawNodes(ctx);
+        this._drawClasses(ctx);
 
         if (this.sseq.edgeLayerSVG)
             this.drawSVG(ctx, this.sseq.edgeLayerSVG);
@@ -449,14 +449,14 @@ export class Display extends EventEmitter {
         context.lineWidth = this.gridStrokeWidth;
 
         switch(this.gridStyle){
-            case gridGo:
+            case GridEnum.go:
                 this._drawGoGrid(context);
                 break;
-            case gridChess:
+            case GridEnum.chess:
                 this._drawChessGrid(context);
                 break;
             default:
-                // TODO: an error here?
+                throw Error("Undefined grid type.");
                 break;
         }
 
@@ -520,15 +520,18 @@ export class Display extends EventEmitter {
         }
     }
 
-    _drawNodes(context) {
+    _drawClasses(context) {
         for (let c of this.classes_to_draw) {
+            if(c._highlight){
+                c.drawHighlight(context);
+            }
             c.draw(context);
+            c.updateTooltipPath();
         }
     }
 
     _drawEdges(context, edges){        
         for (let e of edges) {
-            console.log(e);
             if(!e) {
                 throw ValueError("Undefined edge.");
             }
@@ -538,14 +541,12 @@ export class Display extends EventEmitter {
             if (e.type === "Structline" && this.hiddenStructlines.has(e.mult)) {
                 continue;
             }
-            console.log("hi");
 
             let source_node = e._source;
             let target_node = e._target;
             if(!source_node || ! target_node){
                 throw ValueError(`Edge ${e} has undefined source or target node`);
             }
-            console.log([source_node, target_node]);
             e._sourceOffset = e.sourceOffset || {x: 0, y: 0};
             e._targetOffset = e.targetOffset || {x: 0, y: 0};
 
@@ -565,7 +566,6 @@ export class Display extends EventEmitter {
             let sourceY = source_node._canvas_y + e._sourceOffset.y;
             let targetX = target_node._canvas_x + e._targetOffset.x;
             let targetY = target_node._canvas_y + e._targetOffset.y;
-            console.log([sourceX, sourceY, targetX, targetY]);
 
             context.beginPath();
             if(e.bend ){//&& e.bend !== 0
@@ -597,42 +597,94 @@ export class Display extends EventEmitter {
         this.emit("click", this.mouseover_node, x, y, e);
     }
 
-    _onMousemove(e) {
+    _onMousemove(e, redraw) {
         // If not yet set up 
-        if (!this.classes_to_draw) return;
-
-        let redraw = false;
+        if (!this.classes_to_draw) {
+            return;
+        }
 
         // We cannot query for mouse position. We must remember it from
         // previous events. If update() is called, we call _onMousemove without
         // an event.
-        let rect = this.canvas.getBoundingClientRect();
-        if (e) {
-            this.x = e.clientX - rect.x;
-            this.y = e.clientY - rect.y;
+        // let rect = this.canvas.getBoundingClientRect();
+        if(e) {
+            this.mousex = e.layerX; //e.clientX - rect.x;
+            this.mousey = e.layerY; //e.clientY - rect.y;
         }
+        redraw = redraw | false;
+        redraw |= this._onMousemoveClass();
+        redraw |= this._onMousemoveBidegree();
 
-        if (this.mouseover_node) {
-            if (this.classes_to_draw.includes(this.mouseover_class) && this.context.isPointInPath(this.mouseover_class._path, this.x, this.y)) {
-                return;
+        if (redraw) {
+            this._drawSseq(this.context);  
+        } 
+    }
+
+    _onMousemoveClass(){
+        let redraw = false;
+        if (this.mouseover_class) {
+            if(
+                this.classes_to_draw.includes(this.mouseover_class) 
+                && this.context.isPointInPath(this.mouseover_class._path, this.mousex, this.mousey)
+            ) {
+                return false;
             } else {
-                this.mouseover_node.highlight = false;
-                this.mouseover_node = null;
+                this.emit("mouseout-class", this.mouseover_class);
                 this.mouseover_class = null;
                 redraw = true;
-                this.emit("mouseout");
             }
         }
-        let node = this.classes_to_draw.find(n => this.context.isPointInPath(n._path, this.x, this.y));
-        if (node) {
+        let c = this.classes_to_draw.find(c => this.context.isPointInPath(c._path, this.mousex, this.mousey));
+        if(c) {
             redraw = true;
-            node.highlight = true;
-            this.mouseover_node = node;
-            this.mouseover_class = node.c;
-            this.emit("mouseover", node);
+            this.mouseover_class = c;
+            this.emit("mouseover-class", c);
         }
+        return redraw;
+    }
 
-        if (redraw) this._drawSseq(this.context);
+    _onMousemoveBidegree(){
+        let x = this.mousex;
+        let y = this.mousey;
+        let nearest_x = Math.round(this.xScale.invert(x));
+        let nearest_y = Math.round(this.yScale.invert(y));
+        let redraw = false;
+        let threshold = this.bidegreeDistanceThreshold * (this.sseq.bidegreeDistanceScale | 1);
+        let xscale = 1;
+        let yscale = 1;
+        // let x_max_threshold = Math.abs(this.xScale(1) - this.xScale(0)) * 0.4;
+        // let y_max_threshold = Math.abs(this.yScale(1) - this.yScale(0)) * 0.4;
+        // if(threshold > x_max_threshold) {
+        //     xscale = x_max_threshold / threshold;
+        // }
+        // if(threshold > y_max_threshold) {
+        //     yscale = y_max_threshold / threshold;
+        // }
+        if(this.mouseover_bidegree){
+            let bidegree = this.mouseover_bidegree;
+            let dx = (x - this.xScale(bidegree[0])) * xscale;
+            let dy = (y - this.yScale(bidegree[1])) * yscale;
+            let distance = Math.sqrt(dx * dx + dy * dy);
+            if(distance < threshold){
+                return false;
+            } else {
+                this.emit("mouseout-bidegree", this.mouseover_bidegree);
+                this.mouseover_bidegree = null;
+                redraw = true;
+            }
+        }
+        
+
+        let bidegree = [nearest_x, nearest_y];
+        let dx = (x - this.xScale(bidegree[0])) * xscale;
+        let dy = (y - this.yScale(bidegree[1])) * yscale;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+        if(distance < threshold){
+            redraw = true;
+            this.mouseover_bidegree = bidegree;
+            this.emit("mouseover-bidegree", bidegree);
+        }
+        return redraw;
     }
 
     /**

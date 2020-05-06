@@ -38,6 +38,12 @@ export class SpectralSequenceChart extends EventEmitter {
         this.min_class_size = 1;
         this.max_class_size = 3;
         this.class_scale = 10;
+        this.highlightScale = 2;
+        this.defaultClassStrokeColor = "black";
+        this.defaultClassFillColor = "black";
+        this.highlightColor = "orange";
+        this.bidegreeDistanceScale = 1;
+        this.mouseoverScale = 2; // How much bigger should the mouseover region be than the clas itself?
         this.classes_by_degree = new StringifyingMap();
         this.classes = [];
         this.edges = [];
@@ -85,18 +91,30 @@ export class SpectralSequenceChart extends EventEmitter {
             chart.edges[id] = chart.add_edge(e)
         }
         
-
         return chart;
     }
 
-    class_by_degree_and_index(x, y, idx){
+    classes_in_bidegree(x, y) {
+        if(x.constructor === Array) {
+            if(y !== undefined) {
+                throw Error("If first argument is an array, second argument should be undefined.");
+            }
+            if(x.length != 2){
+                throw Error("If first argument is an array, it should have length 2.");
+            }
+            [x, y] = x;
+        }
         check_argument_is_integer("x", x);
         check_argument_is_integer("y", y);
-        check_argument_is_integer("idx", idx);
         if(!this.classes_by_degree.has([x,y])){
-            throw Error(`No classes exist in bidegree (${x}, ${y}).`);
+            return [];
         }
-        let classes = this.classes_by_degree.get([x, y]);
+        return this.classes_by_degree.get([x, y]);
+    }
+
+    class_by_index(x, y, idx){
+        check_argument_is_integer("idx", idx);
+        let classes = this.classes_in_bidegree(x, y);
         if(idx >= classes.length) {
             throw Error(`Fewer than ${idx} classes exist in bidegree (${x}, ${y}).`);
         }
@@ -125,10 +143,8 @@ export class SpectralSequenceChart extends EventEmitter {
 
     add_edge(kwargs) {
         let edge_type = kwargs["type"];
-        console.log("add_edge :", kwargs.source, kwargs.target);
         kwargs.source = this.classes[kwargs.source];
         kwargs.target = this.classes[kwargs.target];
-        console.log("           : ", kwargs.source, kwargs.target);
         switch(edge_type) {
             case ChartDifferential.name:
                 return this.add_differential(kwargs);

@@ -4,7 +4,6 @@ import { INFINITY } from "../infinity.js";
 
 export class ChartEdge {
     constructor(type, kwargs) {
-        console.log(kwargs);
         this.type = type;
         if(!("source" in kwargs)){
             throw Error(`Edge is missing argument "source".`);
@@ -15,7 +14,6 @@ export class ChartEdge {
         if(!("visible" in kwargs)) {
             this.visible = true;
         }
-        
         
         Object.assign(this, kwargs);
         // if(typeof(this.source) !== ChartClass) {

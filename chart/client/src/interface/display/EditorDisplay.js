@@ -4,7 +4,7 @@ import { SidebarDisplay } from "./SidebarDisplay.js";
 import { Panel as _Panel, TabbedPanel, DifferentialPanel, StructlinePanel } from "../Panel/mod.js";
 import { Tooltip } from "../Tooltip.js";
 import { renderMath } from "../Latex.js";
-import { bind } from "mousetrap";
+import * as Mousetrap from "mousetrap";
 
 const STATE_ADD_DIFFERENTIAL = 1;
 const STATE_RM_DIFFERENTIAL = 2;
@@ -13,7 +13,7 @@ const STATE_RM_STRUCTLINE = 4;
 const STATE_RM_EDGE = 5;
 const STATE_ADD_CLASS = 6;
 
-class EditorDisplay extends SidebarDisplay {
+export class EditorDisplay extends SidebarDisplay {
     constructor(container, sseq) {
         super(container);
 
@@ -112,30 +112,27 @@ class EditorDisplay extends SidebarDisplay {
 
         // Differentials tab
         this.differentialTab = new DifferentialPanel(this.classPanel.container, this);
-        bind('d', () => this.state = STATE_ADD_DIFFERENTIAL);
-        bind('r', () => this.state = STATE_RM_EDGE);
+        Mousetrap.bind('d', () => this.state = STATE_ADD_DIFFERENTIAL);
+        Mousetrap.bind('r', () => this.state = STATE_RM_EDGE);
         this.classPanel.addTab("Diff", this.differentialTab);
 
         // Structline tab
         this.structlineTab = new StructlinePanel(this.classPanel.container, this);
-        bind('s', () => this.state = STATE_ADD_STRUCTLINE);
+        Mousetrap.bind('s', () => this.state = STATE_ADD_STRUCTLINE);
         this.classPanel.addTab("Struct", this.structlineTab);
 
         this.sidebar.showPanel(this.generalPanel);
 
         this.tooltip = new Tooltip(this);
-        this.on("mouseover", (node) => {
-            this.tooltip.setHTML(`(${node.c.x}, ${node.c.y})`);
-            this.tooltip.show(node.canvas_x, node.canvas_y);
-        });
+        this.on("mouseover", this._onMouseover.bind(this));
         this.on("mouseout", this._onMouseout.bind(this));
         this.on("click", this.__onClick.bind(this)); // Display already has an _onClick
 
         this._onDifferentialAdded = this._onDifferentialAdded.bind(this);
 
-        bind('left',  this.previousPage);
-        bind('right', this.nextPage);
-        bind('x', () => { if(this.selected){ console.log(this.selected.c); } });
+        Mousetrap.bind('left',  this.previousPage);
+        Mousetrap.bind('right', this.nextPage);
+        Mousetrap.bind('x', () => { if(this.selected){ console.log(this.selected.c); } });
 
         if (sseq) this.setSseq(sseq);
     }
@@ -145,18 +142,25 @@ class EditorDisplay extends SidebarDisplay {
     }
 
     setSseq(sseq) {
-        if (this.sseq)
+        if (this.sseq) {
             this.sseq.removeListener("differential-added", this._onDifferentialAdded);
+        }
 
         super.setSseq(sseq)
-
         this.sidebar.showPanel(this.generalPanel);
 
         this.sseq.on("differential-added", this._onDifferentialAdded);
     }
 
+    _onMouseover(node) {
+        this.tooltip.setHTML(`(${node.c.x}, ${node.c.y})`);
+        this.tooltip.show(node.canvas_x, node.canvas_y);
+    }
+
     _onMouseout() {
-        if (this.selected) this.selected.highlight = true;
+        if (this.selected){
+            this.selected.highlight = true;  
+        }
         this.tooltip.hide();
     }
 
@@ -254,5 +258,3 @@ class EditorDisplay extends SidebarDisplay {
             d.color = this.differentialColors[d.page];
     }
 }
-const _EditorDisplay = EditorDisplay;
-export { _EditorDisplay as EditorDisplay };

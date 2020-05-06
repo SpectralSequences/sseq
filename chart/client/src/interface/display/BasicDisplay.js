@@ -69,8 +69,9 @@ class BasicDisplay extends Display {
         let tooltip = c.getNameCoord();
         let extra_info = BasicDisplay.toTooltipString(c.extra_info, page);
 
-        if (extra_info)
+        if (extra_info) {
             tooltip += extra_info;
+        }
 
         return tooltip;
     }
