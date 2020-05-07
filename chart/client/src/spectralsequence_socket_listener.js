@@ -1,4 +1,4 @@
-class BadMessageError extends TypeError {
+export class BadMessageError extends TypeError {
     constructor(...args) {
         super(...args)
         this.name = this.constructor.name;
@@ -6,7 +6,7 @@ class BadMessageError extends TypeError {
     }
 }
 
-class UnknownCommandError extends BadMessageError {
+export class UnknownCommandError extends BadMessageError {
     constructor(...args) {
         super(...args)
         this.name = this.constructor.name;
@@ -14,7 +14,7 @@ class UnknownCommandError extends BadMessageError {
     }
 }
 
-class InvalidCommandError extends BadMessageError {
+export class InvalidCommandError extends BadMessageError {
     constructor(...args) {
         super(...args)
         this.name = this.constructor.name;
@@ -23,7 +23,7 @@ class InvalidCommandError extends BadMessageError {
 }
 
 
-class UnknownDisplayCommandError extends UnknownCommandError {
+export class UnknownDisplayCommandError extends UnknownCommandError {
     constructor(...args) {
         super(...args)
         this.name = this.constructor.name;
@@ -31,7 +31,7 @@ class UnknownDisplayCommandError extends UnknownCommandError {
     }
 }
 
-class SpectralSequenceSocketListener {
+export class SpectralSequenceSocketListener {
     constructor(websocket, make_display) {
         this.websocket = websocket;
         this.websocket.onmessage = this.onmessage.bind(this);
@@ -342,5 +342,3 @@ let default_message_handlers = {
         this.send("interact.result", {"result" : result});
     }
 };
-
-exports.SpectralSequenceSocketListener = SpectralSequenceSocketListener;

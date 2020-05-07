@@ -48,16 +48,16 @@ export class Display extends EventEmitter {
         this.updateBatch = this.updateBatch.bind(this);
         this.nextPage = this.nextPage.bind(this);
         this.previousPage = this.previousPage.bind(this);
-        this._onMousemove = this._onMousemove.bind(this);
-        this._onClick = this._onClick.bind(this);
+        this._emitMouseover = this._emitMouseover.bind(this);
+        this._emitClick = this._emitClick.bind(this);
 
         this.zoom = d3.zoom().scaleExtent([0, 4]);
         this.zoom.on("zoom", this.updateBatch);
         this.zoomD3Element = d3.select(this.canvas);
         this.zoomD3Element.call(this.zoom).on("dblclick.zoom", null);
 
-        this.canvas.addEventListener("mousemove", this._onMousemove);
-        this.canvas.addEventListener("click", this._onClick);
+        this.canvas.addEventListener("mousemove", this._emitMouseoverEvent);
+        this.canvas.addEventListener("click", this._emitClick);
 
         // TODO: improve window resize handling. Currently the way that the domain changes is suboptimal.
         // I think the best would be to maintain the x and y range by scaling.
@@ -215,9 +215,9 @@ export class Display extends EventEmitter {
             if (d3.event) {
                 // d3 zoom doesn't allow the events it handles to bubble, so we
                 // fails to track pointer position.
-                this._onMousemove(d3.event);
+                this._emitMouseover(d3.event);
             } else {
-                this._onMousemove();
+                this._emitMouseover();
             }
         };
         if(batch){
@@ -260,6 +260,7 @@ export class Display extends EventEmitter {
         this._drawGrid(ctx);
         this.emit("draw_background");
         this._updateNodes(nodes);
+        this._hightlightClasses(ctx);
         this._drawEdges(ctx, edges);
         this._drawClasses(ctx);
 
@@ -520,11 +521,16 @@ export class Display extends EventEmitter {
         }
     }
 
-    _drawClasses(context) {
+    _hightlightClasses(context) {
         for (let c of this.classes_to_draw) {
             if(c._highlight){
                 c.drawHighlight(context);
             }
+        }
+    }
+
+    _drawClasses(context) {
+        for (let c of this.classes_to_draw) {
             c.draw(context);
             c.updateTooltipPath();
         }
@@ -591,13 +597,13 @@ export class Display extends EventEmitter {
         }
     }
 
-    _onClick(e) {
+    _emitClickEvent(e) {
         let x = this.xScale.invert(e.layerX);
         let y = this.yScale.invert(e.layerY);
         this.emit("click", this.mouseover_node, x, y, e);
     }
 
-    _onMousemove(e, redraw) {
+    _emitMouseover(e, redraw) {
         // If not yet set up 
         if (!this.classes_to_draw) {
             return;
@@ -612,15 +618,15 @@ export class Display extends EventEmitter {
             this.mousey = e.layerY; //e.clientY - rect.y;
         }
         redraw = redraw | false;
-        redraw |= this._onMousemoveClass();
-        redraw |= this._onMousemoveBidegree();
+        redraw |= this._emitMouseoverClass();
+        redraw |= this._emitMouseoverBidegree();
 
         if (redraw) {
             this._drawSseq(this.context);  
         } 
     }
 
-    _onMousemoveClass(){
+    _emitMouseoverClass(){
         let redraw = false;
         if (this.mouseover_class) {
             if(
@@ -643,7 +649,7 @@ export class Display extends EventEmitter {
         return redraw;
     }
 
-    _onMousemoveBidegree(){
+    _emitMouseoverBidegree(){
         let x = this.mousex;
         let y = this.mousey;
         let nearest_x = Math.round(this.xScale.invert(x));

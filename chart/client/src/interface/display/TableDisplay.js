@@ -19,8 +19,22 @@ export class TableDisplay extends SidebarDisplay {
         this.tablePanel.show();
     }
 
-    __onClick() { // Display already has an _onClick       
-        
+    __onClick() { // Display already has an _onClick
+        if(this.selected_bidegree){
+            if(
+                this.mouseover_bidegree 
+                && this.mouseover_bidegree[0] === this.selected_bidegree[0] 
+                && this.mouseover_bidegree[1] === this.selected_bidegree[1]
+            ){
+                return;
+            }
+            console.log("hi");
+            this.setBidegreeHighlight(this.selected_bidegree, false);
+        }
+        if(this.mouseover_bidegree) {
+            this.selected_bidegree = this.mouseover_bidegree;
+            this.setBidegreeHighlight(this.selected_bidegree, true);
+        }
     }
 
     _onMouseoverClass(c) {
@@ -30,22 +44,23 @@ export class TableDisplay extends SidebarDisplay {
     }
 
     _onMouseoutClass(c) {
-        // c._highlight = false;
         this.tooltip.hide();
     }
 
     _onMouseoverBidegree(b){
-        let classes = this.sseq.classes_in_bidegree(b)
-        for(let c of classes){
-            c._highlight = true;
-        }
+
     }
 
     _onMouseoutBidegree(b){
+        
+    }
+
+    setBidegreeHighlight(b, highlight){
         let classes = this.sseq.classes_in_bidegree(b)
         for(let c of classes){
-            c._highlight = false;
+            c._highlight = highlight;
         }
+        this.update();
     }
 
 }
