@@ -11,8 +11,10 @@ export {C2S, EventEmitter};
 
 import * as Interface from "./interface/mod.js";
 import * as spectralsequences from "./sseq/mod.js";
-export {Interface, spectralsequences};
-export { SpectralSequenceSocketListener } from "./spectralsequence_socket_listener.js";
+export { Interface, spectralsequences };
+export { SocketListener } from "./SocketListener.js";
+export { SocketDisplay } from "./SocketDisplay.js";
+
 
 import * as Mousetrap from "mousetrap";
 export { Mousetrap };

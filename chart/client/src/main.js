@@ -20,7 +20,8 @@ window.ChartStructline = webclient.spectralsequences.ChartStructline;
 window.ChartDifferential = webclient.spectralsequences.ChartDifferential;
 window.ChartExtension = webclient.spectralsequences.ChartExtension;
 
-window.SpectralSequenceSocketListener = webclient.SpectralSequenceSocketListener;
+window.SocketListener = webclient.SocketListener;
+window.SocketDisplay = webclient.SocketDisplay;
 
 import * as d3 from "d3";
 window.d3 = d3; 

@@ -56,7 +56,7 @@ class Command:
 class Message:
     def __init__(self, cmd, args, kwargs):
         # Don't allow top level keys sharing a name with the arguments of transformers.
-        for illegal_top_level_key in ["cmd", "source_agent_path", "source_agent_id"]:
+        for illegal_top_level_key in ["envelope"]:
             if illegal_top_level_key in kwargs:
                 raise ValueError(
                     f"""Cannot use key "{illegal_top_level_key}" in top level of message. Ignoring this message:\n""" +\
@@ -66,15 +66,16 @@ class Message:
         self.args = args
         self.kwargs = kwargs
 
-    def update_arguments(self, *args, **kwargs):
-        if args:
-            args = self.args.copy()
-            args.update(args)
-        if kwargs:
-            kwargs = self.kwargs.copy()
-            kwargs.update(kwargs)
-        self.args = args
-        self.kwargs = kwargs
+    def update_arguments(self, **kwargs):
+        new_kwargs = self.kwargs.copy()
+        new_kwargs.update(kwargs)
+        self.kwargs = new_kwargs
+
+    def del_arguments(self, arguments):
+        new_kwargs = self.kwargs.copy()
+        for argument in arguments:
+            del new_kwargs[argument]
+        self.kwargs = new_kwargs
 
 
     def to_json(self):

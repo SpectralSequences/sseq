@@ -11,6 +11,7 @@ module.exports = {
     mode : "development",
     // mode : "production",
     plugins: [],
+
     resolve: {
         alias: {
           'd3': path.resolve(__dirname, 'dist/d3.min.js')

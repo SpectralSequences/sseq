@@ -64,31 +64,27 @@
 let ws = new WebSocket("ws://localhost:{{ port }}/ws/{{ directory }}/{{ channel_name }}");
 
 let main_div = document.querySelector("#main");
-function make_display(sseq){
-    let display = new Interface.TableDisplay(main_div, sseq);
-    return display;
-}
 
-let sseq_socket = new SpectralSequenceSocketListener(ws, make_display);
-sseq_socket.mode_elt = document.querySelector("#mode");
-sseq_socket.mode_info_elt = document.querySelector("#mode_info");
+let display = new SocketDisplay(main_div, ws);
+display.mode_elt = document.querySelector("#mode");
+display.mode_info_elt = document.querySelector("#mode_info");
 
 function set_mode_info(text){
-    sseq_socket.mode_info_elt.innerText = text;
+    display.mode_info_elt.innerText = text;
 }
 
 let always_bindings = {
-    "t" : () => sseq_socket.send("console.take", {}),
+    "t" : () => display.socket.send("console.take", {}),
     "s s s" : (e) => {
         // e.preventDefault();
-        sseq_socket.send("io.save", {});
+        display.socket.send("io.save", {});
     },
     "escape" : () => {
-        sseq_socket.send("interact.mode.cancel", {});
+        display.socket.send("interact.mode.cancel", {});
         Mode.cancel();
     },
-    'left' : () => sseq_socket.display.previousPage(),
-    'right' : () => sseq_socket.display.nextPage(),
+    'left' : () => display.previousPage(),
+    'right' : () => display.nextPage(),
     "f" : () => {
         sseq_socket.send("io.process_screenshot", {})
     }
@@ -122,8 +118,8 @@ class Mode {
         }
         Mode.currentMode = mode;
         Mode.currentMode.start();
-        sseq_socket.send("interact.mode.set", {"mode" : mode.constructor.name});        
-        sseq_socket.mode_elt.innerText = mode.constructor.name;
+        display.socket.send("interact.mode.set", {"mode" : mode.constructor.name});        
+        display.mode_elt.innerText = mode.constructor.name;
     }
     
     static cancel(){
@@ -140,8 +136,8 @@ class Mode {
         Mode.currentMode.click(cls, x, y);
     }
     
-    constructor(ss) {
-        this.ss = ss;
+    constructor(display) {
+        this.display = display;
     }
 
     start() {
@@ -164,13 +160,12 @@ class Mode {
 }
 Mode.currentMode = undefined;
 
+display.on("click", function(o){
+    console.log("mode click", o);
+    Mode.click(o.mouseover_class, o.real_x, o.real_y);
+});
 
-let old_initialize_chart_state = sseq_socket.message_dispatch["initialize.chart.state"]
-sseq_socket.add_message_handlers_from_object({
-    "initialize.chart.state" : function(cmd, args, kwargs) {
-        old_initialize_chart_state(cmd, args, kwargs);
-        this.display.on("click", (cls, x, y) => Mode.click(cls, x, y));
-    },
+display.add_message_handlers_from_object({
     "interact.mode.set_info" : function(cmd, args, kwargs) {
         set_mode_info(kwargs["info"])
     },
@@ -231,7 +226,7 @@ class NudgeClassMode extends Mode {
 
     static nudge_class(x, y){
         console.log(`Nudge ${x}, ${y}`);
-        sseq_socket.send("interact.mode.nudge_class", {"x" : x, "y" : y});
+        display.send("interact.mode.nudge_class", {"x" : x, "y" : y});
     }
 }
 NudgeClassMode.key_bindings = {
@@ -242,12 +237,12 @@ NudgeClassMode.key_bindings = {
 }
 
 
-let add_class_mode = new AddClassMode(sseq_socket);
-let add_edge_mode = new AddEdgeMode(sseq_socket);
-let color_mode = new ColorMode(sseq_socket);
-let add_differential_mode = new AddDifferentialMode(sseq_socket);
-let add_extension_mode = new AddExtensionMode(sseq_socket);
-let nudge_mode = new NudgeClassMode(sseq_socket);
+let add_class_mode = new AddClassMode(display);
+let add_edge_mode = new AddEdgeMode(display);
+let color_mode = new ColorMode(display);
+let add_differential_mode = new AddDifferentialMode(display);
+let add_extension_mode = new AddExtensionMode(display);
+let nudge_mode = new NudgeClassMode(display);
 
 Mode.dict = {
     "AddClassMode" : add_class_mode,
@@ -270,12 +265,12 @@ function add_mode_key_bindings() {
 }
 
 
-function start(ss_sock){
+function start(display){
     set_normal_key_bindings();
-    ss_sock.start();
+    display.socket.start();
 }
 
-start(sseq_socket);
+start(display);
 </script>        
 </body>
 </html>

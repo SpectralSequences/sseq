@@ -73,4 +73,4 @@ class ReplAgent(Agent):
     @transform_inbound_messages
     async def transform__error__additional_info__a(self, envelope, msg, additional_info):
         envelope.mark_used()
-        self.console_io.print_error(".".join(cmd.part_list[2:]), msg, additional_info)
+        self.console_io.print_error(".".join(envelope.msg.cmd.part_list[2:]), msg, additional_info)

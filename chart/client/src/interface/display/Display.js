@@ -56,7 +56,7 @@ export class Display extends EventEmitter {
         this.zoomD3Element = d3.select(this.canvas);
         this.zoomD3Element.call(this.zoom).on("dblclick.zoom", null);
 
-        this.canvas.addEventListener("mousemove", this._emitMouseoverEvent);
+        this.canvas.addEventListener("mousemove", this._emitMouseover);
         this.canvas.addEventListener("click", this._emitClick);
 
         // TODO: improve window resize handling. Currently the way that the domain changes is suboptimal.
@@ -597,10 +597,24 @@ export class Display extends EventEmitter {
         }
     }
 
-    _emitClickEvent(e) {
-        let x = this.xScale.invert(e.layerX);
-        let y = this.yScale.invert(e.layerY);
-        this.emit("click", this.mouseover_node, x, y, e);
+    prepareMouseEventObject(){
+        let o = {};
+        o.real_x = this.xScale.invert(this.mousex);
+        o.real_y = this.yScale.invert(this.mousey);
+        o.x = Math.round(o.real_x);
+        o.y = Math.round(o.real_y);
+        let dx = o.x - o.real_x;
+        let dy = o.y - o.real_y;
+        o.distance = Math.sqrt(dx*dx + dy*dy);
+        o.mouseover_class = this.mouseover_class;
+        o.mouseover_bidegree = this.mouseover_bidegree;
+        return o;
+    }
+
+    _emitClick(e) {
+        let o = this.prepareMouseEventObject();
+        o.event = e;
+        this.emit("click", o);
     }
 
     _emitMouseover(e, redraw) {

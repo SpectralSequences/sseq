@@ -161,3 +161,4 @@ class SocketReceiver(Receiver):
         part_list.insert(1, "additional_info")
         envelope.msg.cmd.set_part_list(part_list)        
         envelope.msg.update_arguments(msg=exception["msg"], additional_info=additional_info)
+        envelope.msg.del_arguments(["exception", "orig_msg"])
