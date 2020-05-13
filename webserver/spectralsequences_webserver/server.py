@@ -4,6 +4,7 @@ import asyncio
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import HTMLResponse, FileResponse, Response
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 
 import logging
 logger = logging.getLogger(__name__)
@@ -16,7 +17,8 @@ from .channels import (
     PresentationChannel,
     ResolverChannel,
     SlideshowChannel,
-    SseqChannel
+    SseqChannel,
+    TestChannel
 )
 from message_passing_tree import SocketReceiver, ansi
 from spectralsequence_chart import SseqSocketReceiver
@@ -40,6 +42,9 @@ async def main():
 
     class JSResponse(Response):
         media_type = "application/javascript"
+
+    app.mount("/static/client", StaticFiles(directory="client/dist"), name="client")
+
 
     @app.get("/static/webclient", response_class=JSResponse)
     async def get_a():
@@ -79,3 +84,4 @@ async def main():
     SlideshowChannel.serve(app, repl, host, port, "slideshow")
     PresentationChannel.serve(app, repl, host, port, "presentation")
     ResolverChannel.serve(app, repl, host, port, "resolver")
+    TestChannel.serve(app, repl, host, port, "test")

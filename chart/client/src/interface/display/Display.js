@@ -6,16 +6,19 @@ import INFINITY from "../../infinity.js";
 
 const GridEnum = Object.freeze({ go : 1, chess : 2 });
 
-export class Display extends EventEmitter {
+export class Display extends HTMLElement {
     // container is either an id (e.g. "#main") or a DOM object
-    constructor(container, sseq) {
+    constructor() {
         super();
+        this.container = this.attachShadow({mode: 'open'});
+        let slot = document.createElement("slot");
+        this.container.appendChild(slot);
 
-        this.leftMargin = 40;
-        this.rightMargin = 5;
-        this.topMargin = 45;
-        this.bottomMargin = 50;
-        this.domainOffset = 1 / 2;
+        this._leftMargin = 40;
+        this._rightMargin = 5;
+        this._topMargin = 45;
+        this._bottomMargin = 50;
+        this._domainOffset = 1 / 2;
 
         this.gridStyle = GridEnum.go;
         this.gridColor = "#c6c6c6";
@@ -27,10 +30,7 @@ export class Display extends EventEmitter {
         this.hiddenStructlines = new Set();
         this.updateQueue = 0;
 
-        this.container = d3.select(container);
-        this.container_DOM = this.container.node();
-
-        this.container.selectAll().remove();
+        this.container_DOM = this.container;
 
         this.xScaleInit = d3.scaleLinear();
         this.yScaleInit = d3.scaleLinear();
@@ -58,14 +58,16 @@ export class Display extends EventEmitter {
 
         this.canvas.addEventListener("mousemove", this._emitMouseover);
         this.canvas.addEventListener("click", this._emitClick);
-
+        
         // TODO: improve window resize handling. Currently the way that the domain changes is suboptimal.
         // I think the best would be to maintain the x and y range by scaling.
-        window.addEventListener("resize",  () => this.resize());
-
-        if(sseq) {
-            this.setSseq(sseq);
-        }
+        this._lastResizeTime = 0;
+        this._resizeObserver = new ResizeObserver(entries => {
+            for(let e of entries){
+                requestAnimationFrame(() => e.target.resize());
+            }
+        });
+        this._resizeObserver.observe(this);
     }
 
     setBackgroundColor(color) {
@@ -83,7 +85,13 @@ export class Display extends EventEmitter {
         if(!this.sseq) {
             return;
         }
-
+        // let difference = 1 - (window.performance.now() - this._lastResizeTime);
+        // if(difference <= 0) {
+        //     this._lastResizeTime = window.performance.now();
+        // } else {
+        //     setTimeout(() => this.resize(), difference);
+        //     return;
+        // }
         let oldxmin = this.xminFloat;
         let oldymin = this.yminFloat;
         // This fixes the scale, but leaves a
@@ -94,7 +102,7 @@ export class Display extends EventEmitter {
         this.zoom.on("zoom", null);
         this.zoom.translateBy(this.zoomD3Element, this.dxScale(dx), this.dyScale(dy));
         this.zoom.on("zoom", this.updateBatch);
-        this.updateBatch();
+        this.update(); // Make sure this is update(), updateBatch() causes screen flicker.
     }
 
     /**
@@ -102,24 +110,36 @@ export class Display extends EventEmitter {
      * @private
      */
     _initializeCanvas(width, height){
-        const boundingRectangle = this.container_DOM.getBoundingClientRect();
-        const canvasWidth = width || 0.99*boundingRectangle.width;
-        const canvasHeight = height || 0.97*boundingRectangle.height;
+        let computedStyle = getComputedStyle(this);
+        // computed_width will look like "####px", need to get rid of "px".
+        let computedWidth = Number.parseFloat(computedStyle.width.slice(0,-2)); 
+        let computedHeight = Number.parseFloat(computedStyle.height.slice(0,-2)); 
+        const canvasWidth = width || 0.99*computedWidth;
+        const canvasHeight = height || 0.97*computedHeight;
 
-        this.canvasWidth = canvasWidth;
-        this.canvasHeight = canvasHeight;
+        this._canvasWidth = canvasWidth;
+        this._canvasHeight = canvasHeight;
 
         this.canvas.width = canvasWidth;
         this.canvas.height = canvasHeight;
 
-        this.clipWidth = this.canvasWidth - this.rightMargin;
-        this.clipHeight = this.canvasHeight - this.bottomMargin;
+        this._clipWidth = this._canvasWidth - this._rightMargin;
+        this._clipHeight = this._canvasHeight - this._bottomMargin;
 
-        this.plotWidth = this.canvasWidth - this.leftMargin - this.rightMargin;
-        this.plotHeight = this.canvasHeight - this.bottomMargin - this.topMargin;
+        this._plotWidth = this._canvasWidth - this._leftMargin - this._rightMargin;
+        this._plotHeight = this._canvasHeight - this._bottomMargin - this._topMargin;
 
-        this.xScaleInit = this.xScaleInit.range([this.leftMargin, this.clipWidth]);
-        this.yScaleInit = this.yScaleInit.range([this.clipHeight, this.topMargin]);
+        this.xScaleInit = this.xScaleInit.range([this._leftMargin, this._clipWidth]);
+        this.yScaleInit = this.yScaleInit.range([this._clipHeight, this._topMargin]);
+    }
+
+    emit(event, ...args){
+        let myEvent = new CustomEvent(event, { 
+            detail: args,
+            bubbles: true, 
+            composed: true 
+        });
+        this.dispatchEvent(myEvent);
     }
 
 
@@ -157,8 +177,8 @@ export class Display extends EventEmitter {
     }
 
     _initializeScale(){
-        this.xScaleInit.domain([this.sseq.initial_x_range[0] - this.domainOffset, this.sseq.initial_x_range[1] + this.domainOffset]);
-        this.yScaleInit.domain([this.sseq.initial_y_range[0] - this.domainOffset, this.sseq.initial_y_range[1] + this.domainOffset]);
+        this.xScaleInit.domain([this.sseq.initial_x_range[0] - this._domainOffset, this.sseq.initial_x_range[1] + this._domainOffset]);
+        this.yScaleInit.domain([this.sseq.initial_y_range[0] - this._domainOffset, this.sseq.initial_y_range[1] + this._domainOffset]);
     }
 
     nextPage(){
@@ -231,7 +251,7 @@ export class Display extends EventEmitter {
         ctx.beginPath();
         let y_clip_offset = this.y_clip_offset || 0;
         ctx.globalAlpha = 0; // C2S does not correctly clip unless the clip is stroked.
-        ctx.rect(this.leftMargin, this.topMargin + y_clip_offset, this.plotWidth, this.plotHeight - y_clip_offset);
+        ctx.rect(this._leftMargin, this._topMargin + y_clip_offset, this._plotWidth, this._plotHeight - y_clip_offset);
         ctx.stroke();
         ctx.clip();
         ctx.globalAlpha = 1;
@@ -243,7 +263,7 @@ export class Display extends EventEmitter {
         this._updateScale();
         this._updateGridAndTickStep();
 
-        ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+        ctx.clearRect(0, 0, this._canvasWidth, this._canvasHeight);
 
         this._drawTicks(ctx);
         this._drawAxes(ctx);
@@ -260,7 +280,7 @@ export class Display extends EventEmitter {
         this._drawGrid(ctx);
         this.emit("draw_background");
         this._updateNodes(nodes);
-        this._hightlightClasses(ctx);
+        this._highlightClasses(ctx);
         this._drawEdges(ctx, edges);
         this._drawClasses(ctx);
 
@@ -277,9 +297,9 @@ export class Display extends EventEmitter {
             let x_offset = this.svg_x_offset || 0;
             let y_offset = this.svg_y_offset || 0;
             let default_width = 
-                this.canvasWidth / (this.xmaxFloat - this.xminFloat) * (this.sseq.x_range[1] - this.sseq.x_range[0] + 1);
+                this._canvasWidth / (this.xmaxFloat - this.xminFloat) * (this.sseq.x_range[1] - this.sseq.x_range[0] + 1);
             let default_height = 
-                this.canvasHeight / (this.ymaxFloat - this.yminFloat) * (this.sseq.y_range[1] - this.sseq.y_range[0] + 1);
+                this._canvasHeight / (this.ymaxFloat - this.yminFloat) * (this.sseq.y_range[1] - this.sseq.y_range[0] + 1);
             let width = default_width * x_scale;
             let height = default_height * y_scale;
             this.context.drawImage(this.svg,
@@ -314,24 +334,24 @@ export class Display extends EventEmitter {
         let xScaleMaxed = false, yScaleMaxed = false;
         // Prevent user from panning off the side.
         if (this.sseq.x_range) {
-            if (xScale(this.sseq.x_range[1] - this.sseq.x_range[0] + 2 * this.domainOffset) - xScale(0) < this.plotWidth) {
+            if (xScale(this.sseq.x_range[1] - this.sseq.x_range[0] + 2 * this._domainOffset) - xScale(0) < this._plotWidth) {
                 // We simply record the scale was maxed and handle this later
                 // by modifying xScale directly.
                 xScaleMaxed = true;
-            } else if (xScale(this.sseq.x_range[0] - this.domainOffset) > this.leftMargin) {
-                this.zoom.translateBy(zoomD3Element, (this.leftMargin - xScale(this.sseq.x_range[0] - this.domainOffset)) / scale, 0);
-            } else if (xScale(this.sseq.x_range[1] + this.domainOffset) < this.clipWidth) {
-                this.zoom.translateBy(zoomD3Element, (this.clipWidth - xScale(this.sseq.x_range[1] + this.domainOffset)) / scale, 0);
+            } else if (xScale(this.sseq.x_range[0] - this._domainOffset) > this._leftMargin) {
+                this.zoom.translateBy(zoomD3Element, (this._leftMargin - xScale(this.sseq.x_range[0] - this._domainOffset)) / scale, 0);
+            } else if (xScale(this.sseq.x_range[1] + this._domainOffset) < this._clipWidth) {
+                this.zoom.translateBy(zoomD3Element, (this._clipWidth - xScale(this.sseq.x_range[1] + this._domainOffset)) / scale, 0);
             }
         }
 
         if (this.sseq.y_range) {
-            if (yScale(0) -yScale(this.sseq.y_range[1] - this.sseq.y_range[0] + 2 * this.domainOffset) < this.plotHeight) {
+            if (yScale(0) -yScale(this.sseq.y_range[1] - this.sseq.y_range[0] + 2 * this._domainOffset) < this._plotHeight) {
                 yScaleMaxed = true;
-            } else if (yScale(this.sseq.y_range[0] - this.domainOffset) < this.clipHeight) {
-                this.zoom.translateBy(zoomD3Element, 0, (this.clipHeight - yScale(this.sseq.y_range[0] - this.domainOffset)) / scale);
-            } else if (yScale(this.sseq.y_range[1] + this.domainOffset) > this.topMargin) {
-                this.zoom.translateBy(zoomD3Element, 0, this.topMargin - yScale(this.sseq.y_range[1] + this.domainOffset) / scale);
+            } else if (yScale(this.sseq.y_range[0] - this._domainOffset) < this._clipHeight) {
+                this.zoom.translateBy(zoomD3Element, 0, (this._clipHeight - yScale(this.sseq.y_range[0] - this._domainOffset)) / scale);
+            } else if (yScale(this.sseq.y_range[1] + this._domainOffset) > this._topMargin) {
+                this.zoom.translateBy(zoomD3Element, 0, this._topMargin - yScale(this.sseq.y_range[1] + this._domainOffset) / scale);
             }
         }
 
@@ -365,21 +385,21 @@ export class Display extends EventEmitter {
         // other direction
         if (xScaleMaxed) {
             this.xScale.domain([
-                this.sseq.x_range[0] - this.domainOffset,
-                this.sseq.x_range[1] + this.domainOffset
+                this.sseq.x_range[0] - this._domainOffset,
+                this.sseq.x_range[1] + this._domainOffset
             ]);
         }
         if (yScaleMaxed) {
             this.yScale.domain([
-                this.sseq.y_range[0] - this.domainOffset,
-                this.sseq.y_range[1] + this.domainOffset
+                this.sseq.y_range[0] - this._domainOffset,
+                this.sseq.y_range[1] + this._domainOffset
             ]);
         }
 
-        this.xminFloat = this.xScale.invert(this.leftMargin);
-        this.xmaxFloat = this.xScale.invert(this.clipWidth);
-        this.yminFloat = this.yScale.invert(this.clipHeight);
-        this.ymaxFloat = this.yScale.invert(this.topMargin);
+        this.xminFloat = this.xScale.invert(this._leftMargin);
+        this.xmaxFloat = this.xScale.invert(this._clipWidth);
+        this.yminFloat = this.yScale.invert(this._clipHeight);
+        this.ymaxFloat = this.yScale.invert(this._topMargin);
         this.xmin = Math.ceil(this.xminFloat);
         this.xmax = Math.floor(this.xmaxFloat);
         this.ymin = Math.ceil(this.yminFloat);
@@ -398,8 +418,8 @@ export class Display extends EventEmitter {
 
     _updateGridAndTickStep(){
         // TODO: This 70 is a magic number. Maybe I should give it a name?
-        this.xTicks = this.xScale.ticks(this.canvasWidth / 70);
-        this.yTicks = this.yScale.ticks(this.canvasHeight / 70);
+        this.xTicks = this.xScale.ticks(this._canvasWidth / 70);
+        this.yTicks = this.yScale.ticks(this._canvasHeight / 70);
 
         this.xTickStep = Math.ceil(this.xTicks[1] - this.xTicks[0]);
         this.yTickStep = Math.ceil(this.yTicks[1] - this.yTicks[0]);
@@ -433,12 +453,12 @@ export class Display extends EventEmitter {
         context.font = "15px Arial";
         context.textAlign = "center";
         for (let i = Math.floor(this.xTicks[0]); i <= this.xTicks[this.xTicks.length - 1]; i += this.xTickStep) {
-            context.fillText(i, this.xScale(i), this.clipHeight + 20);
+            context.fillText(i, this.xScale(i), this._clipHeight + 20);
         }
 
         context.textAlign = "right";
         for (let i = Math.floor(this.yTicks[0]); i <= this.yTicks[this.yTicks.length - 1]; i += this.yTickStep) {
-            context.fillText(i, this.leftMargin - 10, this.yScale(i));
+            context.fillText(i, this._leftMargin - 10, this.yScale(i));
         }
         context.restore();
     }
@@ -476,14 +496,14 @@ export class Display extends EventEmitter {
         context.beginPath();
         for (let col = Math.floor(this.xmin / this.xGridStep) * this.xGridStep - xoffset; col <= this.xmax; col += this.xGridStep) {
             context.moveTo(this.xScale(col), 0);
-            context.lineTo(this.xScale(col), this.clipHeight);
+            context.lineTo(this.xScale(col), this._clipHeight);
         }
         context.stroke();
 
         context.beginPath();
         for (let row = Math.floor(this.ymin / this.yGridStep) * this.yGridStep - yoffset; row <= this.ymax; row += this.yGridStep) {
-            context.moveTo(this.leftMargin, this.yScale(row));
-            context.lineTo(this.canvasWidth - this.rightMargin, this.yScale(row));
+            context.moveTo(this._leftMargin, this.yScale(row));
+            context.lineTo(this._canvasWidth - this._rightMargin, this.yScale(row));
         }
         context.stroke();
     }
@@ -494,16 +514,16 @@ export class Display extends EventEmitter {
         // This makes the white square in the bottom left and top right corners which prevents axes labels from appearing to the left
         // or below the axes intercept.
         context.fillStyle = this.background_color;
-        context.rect(0, this.clipHeight, this.leftMargin, this.bottomMargin);
-        context.rect(0, 0, this.leftMargin, this.topMargin);
+        context.rect(0, this._clipHeight, this._leftMargin, this._bottomMargin);
+        context.rect(0, 0, this._leftMargin, this._topMargin);
         context.fill();
         context.fillStyle = "#000";
 
         // Draw the axes.
         context.beginPath();
-        context.moveTo(this.leftMargin, this.topMargin);
-        context.lineTo(this.leftMargin, this.clipHeight);
-        context.lineTo(this.canvasWidth - this.rightMargin, this.clipHeight);
+        context.moveTo(this._leftMargin, this._topMargin);
+        context.lineTo(this._leftMargin, this._clipHeight);
+        context.lineTo(this._canvasWidth - this._rightMargin, this._clipHeight);
         context.stroke();
 
         context.restore();
@@ -521,7 +541,7 @@ export class Display extends EventEmitter {
         }
     }
 
-    _hightlightClasses(context) {
+    _highlightClasses(context) {
         for (let c of this.classes_to_draw) {
             if(c._highlight){
                 c.drawHighlight(context);
@@ -727,13 +747,13 @@ export class Display extends EventEmitter {
         context.drawImage(img,
             this.xScale(this.sseq.x_range[0]),// - this.xMinOffset,
             this.yScale(this.sseq.y_range[1] + 1),
-            this.canvasWidth  / (this.xmaxFloat - this.xminFloat) * (this.sseq.x_range[1] - this.sseq.x_range[0] + 1),
-            this.canvasHeight / (this.ymaxFloat - this.yminFloat) * (this.sseq.y_range[1] - this.sseq.y_range[0] + 1)
+            this._canvasWidth  / (this.xmaxFloat - this.xminFloat) * (this.sseq.x_range[1] - this.sseq.x_range[0] + 1),
+            this._canvasHeight / (this.ymaxFloat - this.yminFloat) * (this.sseq.y_range[1] - this.sseq.y_range[0] + 1)
         );
     }
 
     toSVG(){
-        let ctx = new C2S(this.canvasWidth, this.canvasHeight);
+        let ctx = new C2S(this._canvasWidth, this._canvasHeight);
         this._drawSseq(ctx);
 
         return ctx.getSerializedSvg(true);
@@ -904,3 +924,6 @@ export class Display extends EventEmitter {
     //    }
 
 }
+
+
+customElements.define('sseq-display', Display);

@@ -54,6 +54,7 @@ fi
 . bin/virtualenv/bin/activate
 msg "Installing python packages."
 pip install fastapi
+pip install aiofiles
 pip install imageio
 pip install jinja2
 pip install maturin

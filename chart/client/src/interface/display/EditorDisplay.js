@@ -1,7 +1,7 @@
 "use strict"
 
 import { SidebarDisplay } from "./SidebarDisplay.js";
-import { Panel as _Panel, TabbedPanel, DifferentialPanel, StructlinePanel } from "../Panel/mod.js";
+import { Panel as _Panel, TabbedPanel, DifferentialPanel, StructlinePanel } from "../panel/mod.js";
 import { Tooltip } from "../Tooltip.js";
 import { renderMath } from "../Latex.js";
 import * as Mousetrap from "mousetrap";

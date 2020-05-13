@@ -1,7 +1,7 @@
 "use strict"
 
 import { Display } from "./Display.js";
-import { Panel as _Panel } from "../Panel/mod.js";
+import { Panel as _Panel } from "../panel/mod.js";
 
 class Sidebar {
     constructor(parentContainer) {

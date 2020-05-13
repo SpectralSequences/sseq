@@ -5,6 +5,6 @@ export {
 
 import * as Undo from "./Undo";
 import * as IO from "./SaveLoad";
-import * as Panel from "./Panel/mod.js";
+import * as Panel from "./panel/mod.js";
 export {Undo, IO, Panel};
 export { Tooltip } from "./Tooltip.js";
