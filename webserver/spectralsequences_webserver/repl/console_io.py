@@ -175,7 +175,10 @@ class ConsoleIO(PythonRepl):
         ))
 
     def print_exception(self, exception, buffered = True):
-        tb_list = Executor.exception_to_traceback_list(exception, "")
+        if type(exception) is list:
+            tb_list = exception
+        else:
+            tb_list = Executor.exception_to_traceback_list(exception, "")
         self.print_traceback_list(tb_list)
 
     def print_traceback_list(self, tb_str_list : List[str], buffered = True):
