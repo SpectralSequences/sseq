@@ -139,6 +139,14 @@ class Agent:
     inward_transformers = None
     subscriptions = None
 
+    def schedule_coroutine(self, cofunc):
+        async def temp():
+            try:
+                await cofunc
+            except Exception as e:
+                await self.handle_exception_a(e)
+        asyncio.ensure_future(temp())
+
     @classmethod
     def get_transformer(cls, transform_dict, cmd):
         for cmd_filter in cmd.filter_list:
@@ -191,7 +199,6 @@ class Agent:
 
     async def handle_leaked_envelope_a(self, direction, envelope):
         print(f"""Leaked {direction} envelope self: {self.info()}  envelope: {envelope.info()}""")
-        # raise RuntimeWarning()
 
     def get_uuid(self) -> UUID:
         return self.uuid
@@ -260,6 +267,7 @@ class Agent:
             return False
         return await transform_a(self, envelope)
 
+
     async def pass_envelope_inward_a(self, envelope):
         self.log_envelope_task("pass_envelope_inward", envelope)
         await self.transform_inbound_envelope_a(envelope)
@@ -269,7 +277,7 @@ class Agent:
             raise RuntimeError(f"""Unconsumed message with command "{envelope.msg.cmd.str}" targeted to me.""")
         if self.parent is None and envelope.unused_q():
             await self.handle_leaked_envelope_a("inbound", envelope)
-        elif self.parent is None:
+        if self.parent is None:
             return
         envelope.source_agent_path.append(self.uuid)
         await self.parent.pass_envelope_inward_a(envelope)        

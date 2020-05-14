@@ -2,7 +2,7 @@ import json
 import pathlib
 from .. import config
 
-from spectralsequence_chart import SpectralSequenceChart
+from spectralsequence_chart import ChartAgent, ChartData
 from ..channels import ResolverChannel
 import ext
 
@@ -23,7 +23,7 @@ def add_stuff_to_namespace(namespace):
         ext.algebra.AdemAlgebra, ext.algebra.MilnorAlgebra,
         ext.module.FDModule,
         # ext.resolution.Resolution,
-        SpectralSequenceChart,
+        ChartAgent, ChartData,
         ResolverChannel,
         pathlib, config
     ]

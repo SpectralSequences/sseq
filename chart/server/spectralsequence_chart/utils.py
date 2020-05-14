@@ -1,3 +1,6 @@
+PROPERTY_PREFIX = "_property_"
+
+
 def public_keys(obj):
     return [field for field in dir(obj) \
             if not field.startswith("_") and not callable(getattr(obj,field))]
@@ -5,23 +8,73 @@ def public_keys(obj):
 def public_fields(obj):
     result = {}
     for field in public_keys(obj):
-        result[field] = getattr(obj, field)
+        value = getattr(obj, field)
+        if value is not None:
+            result[field] = value
+    for field in (field for field in dir(obj) if field.startswith(PROPERTY_PREFIX)):
+        value = getattr(obj, field)
+        if value is not None:
+            result[field[len(PROPERTY_PREFIX):]] = value
     return result
 
-PROPERTY_PREFIX = "_property_"
+
+
+
+class MyProperty:
+    "Emulate PyProperty_Type() in Objects/descrobject.c"
+
+    def __init__(self, fget=None, fset=None, fdel=None, doc=None):
+        self.fget = fget
+        self.fset = fset
+        self.fdel = fdel
+        if fget is not None:
+            self.name = fget.__name__
+            self.storage_name = PROPERTY_PREFIX + self.name
+
+        if doc is None and fget is not None:
+            doc = fget.__doc__
+        self.__doc__ = doc
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        if self.fget is None:
+            raise AttributeError("unreadable attribute")
+        return self.fget(obj, self.storage_name)
+
+    def __set__(self, obj, value):
+        if self.fset is None:
+            print("Can't set:", obj, value)
+            raise AttributeError("can't set attribute")
+        self.fset(obj, self.storage_name, value)
+
+    def __delete__(self, obj):
+        if self.fdel is None:
+            raise AttributeError("can't delete attribute")
+        self.fdel(obj)
+
+    def getter(self, fget):
+        return type(self)(fget, self.fset, self.fdel, self.__doc__)
+
+    def setter(self, fset):
+        return type(self)(self.fget, fset, self.fdel, self.__doc__)
+
+    def deleter(self, fdel):
+        return type(self)(self.fget, self.fset, fdel, self.__doc__)
+
+def my_property(fget):
+    return MyProperty().getter(fget)
+
 def sseq_property(func):
-    storage_name = PROPERTY_PREFIX + func.__name__
-    name = func.__name__
-    def getter(self):
-        return getattr(self, storage_name, "")
-    getter.__name__ = name
-    getter = property(getter)
+    def getter(self, storage_name):
+        return getattr(self, storage_name, None)
+    getter.__name__ = func.__name__
+    getter = my_property(getter)
 
     @getter.setter
-    def setter(self, value):
+    def setter(self, storage_name, value):
         setattr(self, storage_name, value)
-        func(self)
-
+        func(self, storage_name)
     return setter
 
 
@@ -40,7 +93,10 @@ def assign_fields(obj, kwargs, fields):
 
 def copy_fields_from_kwargs(obj, kwargs):
     for [k, v] in kwargs.items():
-        setattr(obj, k, v)
+        try:
+            setattr(obj, k, v)
+        except AttributeError:
+            print("can't set:", k, v)
 
 def assign_kwarg_mandatory(obj, kwargs, field):
     if field in kwargs:

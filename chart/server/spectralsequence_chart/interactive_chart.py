@@ -3,30 +3,30 @@ import asyncio
 
 from message_passing_tree.prelude import *
 
-from spectralsequence_chart import SpectralSequenceChart
+from spectralsequence_chart import ChartAgent
 
 
 @subscribe_to("*")
 @collect_transforms(inherit = True)
-class InteractiveChart(SpectralSequenceChart):
+class InteractiveChartAgent(ChartAgent):
     modes = {}
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.response_event = asyncio.Event()
-        self.mode = AddClassMode
+        self.mode = NoMode
         self._interact_source = None
         self._differential_source = None
         self._extension_source = None
         self._extension_prev_color_default = "black"
-        self.data.x_range=[0, 50]
-        self.data.y_range=[0, 12]
+        self.x_range = [0, 50]
+        self.y_max = [0, 12]
 
     @transform_inbound_messages
     async def transform__click__a(self, envelope, x, y, chart_class=None):
         envelope.mark_used()
         if chart_class is not None:
-            chart_class = self.data.classes[chart_class["uuid"]]
-        asyncio.ensure_future(self.mode.handle_click_a(self, x, y, chart_class))
+            chart_class = self.sseq._classes[chart_class["uuid"]]
+        self.schedule_coroutine(self.mode.handle_click_a(self, x, y, chart_class))
 
     async def prompt_for_class_name_a(self, c):
         name = await self.prompt_a(msg="Name?", default=c.name)
@@ -51,8 +51,8 @@ class InteractiveChart(SpectralSequenceChart):
         if result is not None:
             c.set_field("color", result)
         for e in c._edges:
-            s = e._source
-            t = e._target
+            s = e.source
+            t = e.target
             if hasattr(e, "color"):
                 default = e.color
             else:
@@ -69,20 +69,12 @@ class InteractiveChart(SpectralSequenceChart):
     async def make_client_set_mode_info_a(self, info):
         await self.send_message_outward_a("interact.mode.set_info", *arguments(info = info))
 
-
-    @transform_inbound_messages
-    async def transform__new_user__a(self, envelope):
-        envelope.mark_used()
-        await self.send_message_outward_a("initialize.chart.state", *arguments(
-            state=self.data, display_state=self.display_state
-        ))
-
     @transform_inbound_messages
     async def transform__interact__mode__set__a(self, envelope,  *args, **kwargs):
         envelope.mark_used()
         new_mode = kwargs["mode"]
-        if new_mode in InteractiveChart.modes:
-            self.mode = InteractiveChart.modes[new_mode]
+        if new_mode in InteractiveChartAgent.modes:
+            self.mode = InteractiveChartAgent.modes[new_mode]
         else:
             raise RuntimeError(f"""Unknown mode "{new_mode}".""")
 
@@ -94,7 +86,7 @@ class InteractiveChart(SpectralSequenceChart):
         if f is None:
             raise RuntimeError(f"Invalid mode command {cmd.str}.")
         else:
-            asyncio.ensure_future(f(self, *args, **kwargs))
+            self.schedule_coroutine(f(self, *args, **kwargs))
             
 
     @transform_inbound_messages
@@ -108,10 +100,10 @@ class InteractiveChart(SpectralSequenceChart):
         ry = round(y)
         threshold = 0.3
         if abs(x-rx) < threshold and abs(y-ry) < threshold:
-            return self.add_class(rx, ry)
+            return self.sseq.add_class(rx, ry)
 
 def register_mode(cls):
-    InteractiveChart.modes[cls.__name__] = cls
+    InteractiveChartAgent.modes[cls.__name__] = cls
     return cls
 
 class Mode:
@@ -126,6 +118,12 @@ class Mode:
 
 
 @register_mode
+class NoMode(Mode):
+    async def handle_click_a(self, x, y, c=None):
+        pass
+
+
+@register_mode
 class AddClassMode(Mode):
     async def handle_click_a(self, x, y, c=None):
         if c is None:
@@ -133,10 +131,10 @@ class AddClassMode(Mode):
             if not c:
                 return
             if self._interact_source is not None:
-                self.add_structline(self._interact_source, c)
+                self.sseq.add_structline(self._interact_source, c)
             self._interact_source = c
             await self.make_client_set_mode_info_a(f"""Current source: "{c}".""")
-            await self.send_batched_messages_a()
+            await self.update_a()
         else:
             await self.prompt_for_class_name_a(c)
     
@@ -153,7 +151,7 @@ class AddEdgeMode(Mode):
             self._interact_source = c
             await self.send_message_outward_a("interact.mode.set_info", *arguments(info = f"""Current source: "{c.name}"."""))
         else:
-            self.add_structline(self._interact_source, c)
+            self.sseq.add_structline(self._interact_source, c)
             self._interact_source = None
             await self.send_message_outward_a("interact.mode.set_info", *arguments(info=""))
             await self.update_a()
@@ -169,14 +167,14 @@ class NameClassMode(Mode):
     async def handle_click_a(self, x, y, c=None):
         if c is None:
             return
-        asyncio.ensure_future(self.prompt_for_class_name_a(c, x, y))
+        self.schedule_coroutine(self.prompt_for_class_name_a(c, x, y))
 
 @register_mode
 class ColorMode(Mode):
     async def handle_click_a(self, x, y, c=None):
         if c is None:
             return
-        asyncio.ensure_future(self.prompt_for_colors_a(c))
+        self.schedule_coroutine(self.prompt_for_colors_a(c))
 
 
 @register_mode
@@ -200,10 +198,9 @@ class AddExtensionMode(Mode):
             print("success")
             color = await self.prompt_a(msg="Color?", default=self._extension_prev_color_default)
             self._extension_prev_color_default = color
-            e = self.add_extension(s, t)
+            e = self.sseq.add_extension(s, t)
             e.color = color
             self._extension = e
-            self.data.add_edge_to_update(e)
             self._extension_source = None
             await self.update_a()
             await self.send_message_outward_a("interact.mode.extension.adjust_bend", *arguments())
@@ -215,7 +212,6 @@ class AddExtensionMode(Mode):
         bend = getattr(e, "bend", 0)
         bend += delta
         e.bend = bend
-        self.data.add_edge_to_update(e)
         await self.update_a()
 
     async def handle__cancel__a(self):
@@ -242,7 +238,7 @@ class AddDifferentialMode(Mode):
                 return
             print("success")
             page = t.y - s.y
-            d = self.add_differential(page, s, t)
+            d = self.sseq.add_differential(page, s, t)
             d.color = "blue"
             self._differential_source = None
             await self.send_message_outward_a("interact.mode.set_info", *arguments(info=""))
@@ -270,12 +266,11 @@ class NudgeClassMode(Mode):
     async def handle__nudge_class__a(self, x, y):
         c = self._nudge_class
         if c:
-            print("nudge", x, y )
+            print("nudge", x, y)
             x_nudge = getattr(c, "x_nudge", 0)
             y_nudge = getattr(c, "y_nudge", 0)
             x_nudge += x
             y_nudge += y
             c.x_nudge = x_nudge
             c.y_nudge = y_nudge
-            self.data.add_class_to_update(c)
             await self.update_a()

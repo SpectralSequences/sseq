@@ -23,12 +23,12 @@ templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 
 @subscribe_to("*")
 @collect_transforms(inherit=True)
-class InteractChannel(SocketChannel):
+class TestChannel(SocketChannel):
     def __init__(self, name, repl_agent):
         super().__init__(name)
         self.repl_agent = repl_agent
         self.executor = Executor(repl_agent)
-        self.chart = InteractiveChartAgent(name)
+        self.chart = InteractiveChart(name)
         self.setup_executor_namespace()
         self.last_screenshot = None
 
@@ -78,60 +78,11 @@ class InteractChannel(SocketChannel):
     async def get_channel_a(cls, name, repl):
         if name in cls.channels:
             return cls.channels[name]
-        new_channel = InteractChannel(name, repl)
+        new_channel = TestChannel(name, repl)
         await new_channel.load_from_file_a()
         await new_channel.setup_a()
         return new_channel
 
-    @transform_inbound_messages
-    async def transform__io__save__a(self, envelope):
-        envelope.mark_used()
-        self.save()
-
-    def save(self):
-        save_str = json_stringify(self.chart.data)
-        iso_time = datetime.now().replace(microsecond=0).isoformat().replace(":", "-")
-        out_path = config.SAVE_DIR / f"{self.name}_{iso_time}.json"
-        self.last_save = save_str
-        self.last_save_file = out_path
-        print(ansi.success("Saving to " + str(out_path)))
-        out_path.write_text(save_str)
-
-    def save_over_previous_version(self):
-        save_str = json_stringify(self.chart.data)
-        out_path = self.last_save_file
-        self.last_save = save_str
-        print(ansi.success("Overwriting " + str(out_path)))
-        out_path.write_text(save_str)
-
-    @transform_inbound_messages
-    async def transform__io__process_screenshot__a(self, envelope):
-        envelope.mark_used()
-        files = sorted(config.SCREENSHOT_DIR.glob("*.png"))
-        file = files[-1]
-        if file == self.last_screenshot:
-            print(ansi.info("No new screenshot to process."))
-            return
-        self.last_screenshot = file
-        print(ansi.info("Setting up screenshot processing."))
-        # save_str = json_stringify(self.chart.data)
-        # if save_str != self.last_save:
-        #     self.save()
-        self.process_screenshot(file)
-
-    def process_screenshot(self, file):
-        i = sum(1 for i in config.OVERLAY_DIR.glob(f"{self.last_save_file.stem}*"))
-        outfile = config.OVERLAY_DIR / f"{self.last_save_file.stem}__overlay{i}.svg"
-        self.last_overlay_outfile = outfile
-        p = Process(target=process_overlay, args=(file, outfile))
-        p.start()
-        print(ansi.info(f"   Output file: {outfile}"))
-
-
-    def set_note(self, note):
-        out_file = config.OVERLAY_DIR / (self.last_overlay_outfile.stem + "__note.txt")
-        out_file.write_text(note)
-        
 
     @classmethod
     def has_channel(cls, name):
@@ -146,4 +97,4 @@ class InteractChannel(SocketChannel):
             "request" : request, 
         }
         if cls.has_channel(channel_name):
-            return templates.TemplateResponse("interact.html", response_data)
+            return templates.TemplateResponse("test.html", response_data)

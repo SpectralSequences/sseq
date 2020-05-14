@@ -1,1 +1,1 @@
-exports.INFINITY = 65535;
+export const INFINITY = 65535;

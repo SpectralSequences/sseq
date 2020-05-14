@@ -52,7 +52,7 @@ export class SocketListener {
     }    
 
     start() {
-        console.log("client ready");
+        this.console_log_if_debug("client ready");
         this.client_ready = true;
         if(this.socket_ready) {
             this._start();
@@ -60,7 +60,7 @@ export class SocketListener {
     }
 
     onopen(event) {
-        console.log("socket opened");
+        this.console_log_if_debug("socket opened");
         this.socket_ready = true;
         if(this.client_ready){
             this._start();
@@ -68,7 +68,7 @@ export class SocketListener {
     }
 
     _start(){
-        console.error("send_introduction_message");
+        this.console_log_if_debug("send_introduction_message");
         this.handle_message({
             "cmd" : ["start"],
             "args" : [],
@@ -83,7 +83,7 @@ export class SocketListener {
 
     send(cmd, kwargs) { // args parameter?
         let args = [];
-        console.log("send message", cmd, args, kwargs);
+        this.console_log_if_debug("send message", cmd, args, kwargs);
         if(args === undefined || kwargs === undefined) {
             throw TypeError(`Send with missing arguments.`);
         }

@@ -1,55 +1,56 @@
+from message_passing_tree.prelude import arguments
 from uuid import uuid4
 from .. import utils
 
 class ChartEdge:
-    def __init__(self, sseq, edge_type, **kwargs):
+    def __init__(self, sseq, edge_type, *, source, target, **kwargs):
         self._sseq = sseq
         self.type = edge_type
-        utils.copy_fields_from_kwargs(self, kwargs)
-
-        if "uuid" not in kwargs:
+        if "uuid" in kwargs:
+            self.uuid = kwargs["uuid"]
+        else:
             self.uuid = str(uuid4())
 
-        if "source" not in kwargs:
-            raise ValueError("""Edge is missing mandatory argument "source".""")
+        self.source = source
+        self.target = target
 
-        if "target" not in kwargs:
-            raise ValueError("""Edge is missing mandatory argument "target".""")
+        setattr(self, utils.PROPERTY_PREFIX + "source",  self.source.uuid)
+        setattr(self, utils.PROPERTY_PREFIX + "target",  self.target.uuid)
+
+        [message_args, message_kwargs] = arguments(
+            type = self.type,
+            uuid = self.uuid,
+            source = source.uuid,
+            target = target.uuid,
+            **kwargs
+        )
+        if "page" in kwargs:
+            message_kwargs["page"] = kwargs["page"]
+        self._sseq.add_batched_message(self.uuid, "chart.edge.add", message_args, message_kwargs)
+        utils.copy_fields_from_kwargs(self, kwargs)
 
         if "visible" not in kwargs:
             self.visible = True
 
-        if self.source is not str:
-            self.source = self.source.uuid
-        if self.target is not str:
-            self.target = self.target.uuid
-        self._source = self._sseq.classes[self.source]
-        self._target = self._sseq.classes[self.target]
-        self._source._edges.append(self)
-        self._target._edges.append(self)
+        self.source._edges.append(self)
+        self.target._edges.append(self)
 
     def needs_update(self):
         self._sseq.add_edge_to_update(self)
 
     @utils.sseq_property
-    def color(self):
+    def color(self, storage_name):
         self.needs_update()
 
     @utils.sseq_property
-    def bend(self):
+    def bend(self, storage_name):
         self.needs_update()
 
-    def get_source(self):
-        return self._source
-
-    def get_target(self):
-        return self._target
-
     def replace_source(self, **kwargs):
-        self._source.replace(**kwargs)
+        self.source.replace(**kwargs)
     
     def replace_target(self, **kwargs):
-        self._target.replace(**kwargs)
+        self.target.replace(**kwargs)
 
     def delete(self):
         del self._sseq.edges[self.uuid]
@@ -73,13 +74,12 @@ class ChartEdge:
 
 class ChartDifferential(ChartEdge):
     def __init__(self, sseq, page, **kwargs):
-        super().__init__(sseq, ChartDifferential.__name__, **kwargs)
+        super().__init__(sseq, ChartDifferential.__name__, **kwargs, page = page)
         self.page = page
 
 class ChartStructline(ChartEdge):
     def __init__(self, sseq, **kwargs):
         super().__init__(sseq, ChartStructline.__name__, **kwargs)
-
 
 class ChartExtension(ChartEdge):
     def __init__(self, sseq, **kwargs):

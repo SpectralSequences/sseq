@@ -5,7 +5,7 @@ from message_passing_tree import ansi
 
 from fastapi.templating import Jinja2Templates
 
-from spectralsequence_chart import SseqSocketReceiver, SpectralSequenceChart
+from spectralsequence_chart import SseqSocketReceiver, ChartAgent
 
 import os
 from .. import config

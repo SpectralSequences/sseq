@@ -14,7 +14,6 @@ export class ChartEdge {
         if(!("visible" in kwargs)) {
             this.visible = true;
         }
-        
         Object.assign(this, kwargs);
         // if(typeof(this.source) !== ChartClass) {
         //     throw Error(`Invalid source of edge : ${JSON.stringify(this.source)}`);

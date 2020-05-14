@@ -5,7 +5,7 @@ import { ChartDifferential, ChartStructline, ChartExtension } from "./ChartEdge"
 
 import { renderLatex } from "../interface/Latex.js";
 
-import { Tooltip } from "../interface/tooltip.js";
+import { Tooltip } from "../interface/Tooltip.js";
 
 import * as EventEmitter from "events";
 
@@ -67,6 +67,9 @@ export class SpectralSequenceChart extends EventEmitter {
     }
 
     static from_JSON(json) {
+        if(!json){
+            throw ReferenceError("json is undefined");
+        }
         let chart = new SpectralSequenceChart();
 
         if(json.nodes === undefined) {

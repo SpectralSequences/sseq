@@ -3,7 +3,7 @@ import asyncio
 from message_passing_tree.prelude import *
 from message_passing_tree import SocketChannel
 
-from spectralsequence_chart import SseqSocketReceiver, SpectralSequenceChart
+from spectralsequence_chart import SseqSocketReceiver, ChartAgent
 
 from ..repl.executor import Executor
 from .. import config
@@ -148,13 +148,11 @@ class GenericDemo(Agent):
             self.ready_for_next_signal.clear()
             self.user_next.set()
 
-
-
 class Demo(GenericDemo):
     async def setup_a(self, websocket):
         self.socket = SseqSocketReceiver(websocket)
-        self.chart = SpectralSequenceChart("demo")
-        await self.chart.add_child_a(self.socket)
+        self.chart_agent = ChartAgent("demo")
+        await self.chart_agent.add_child_a(self.socket)
         await self.executor.add_child_a(self.chart)
         await self.add_child_a(self.executor)
 

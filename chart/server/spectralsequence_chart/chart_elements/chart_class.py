@@ -1,11 +1,16 @@
+from message_passing_tree.prelude import arguments
 import threading
 from uuid import uuid4
-
 from . import ChartNode
 from .. import utils
 
 class ChartClass:
     def __init__(self, sseq, **kwargs):
+        if "uuid" in kwargs:
+            self.uuid = kwargs["uuid"]
+        else:
+            self.uuid = str(uuid4())
+        sseq.add_batched_message(self.uuid, "chart.class.add", *arguments(new_class=self))
         self._sseq = sseq
         self._edges = []
         self._lock = threading.Lock()
@@ -15,8 +20,7 @@ class ChartClass:
         # We'd then get multiple objects with same uuid from file.
         # But if we replace all uuids on load, we will loose the cool capability of being able to track
         # a chart entity through multiple different save files.
-        if "uuid" not in kwargs:
-            self.uuid = str(uuid4())
+
 
         if "name" not in kwargs:
             self.name = ""
@@ -54,7 +58,7 @@ class ChartClass:
             elif type(self.node_list[i]) is dict:
                 self.node_list[i] = ChartNode.from_json(self._sseq, self.node_list[i])
 
-        sseq.classes[self.uuid] = self
+        sseq._classes[self.uuid] = self
         pos = (self.x, self.y)
         if pos not in sseq._classes_by_bidegree:
             sseq._classes_by_bidegree[pos] = []
@@ -87,13 +91,20 @@ class ChartClass:
         setattr(n, field, value)
 
     @utils.sseq_property
-    def name(self):
+    def name(self, storage_name):
         self.needs_update()
 
     @utils.sseq_property
-    def visible(self):
+    def visible(self, storage_name):
         self.needs_update()
 
+    @utils.sseq_property
+    def x_nudge(self, storage_name):
+        self.needs_update()
+
+    @utils.sseq_property
+    def y_nudge(self, storage_name):
+        self.needs_update()
 
     def set_field(self, field, value):
         # with self._lock:
@@ -143,7 +154,7 @@ class ChartClass:
             Better refresh the page after using this...
             Probably should also delete edges
         """ 
-        del self._sseq.classes[self.uuid]
+        del self._sseq._classes[self.uuid]
         for e in self._edges:
             e.delete()
 

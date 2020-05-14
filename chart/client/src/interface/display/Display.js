@@ -2,7 +2,7 @@
 
 import * as EventEmitter from "events";
 import * as d3 from "d3";
-import INFINITY from "../../infinity.js";
+import { INFINITY } from "../../infinity.js";
 
 const GridEnum = Object.freeze({ go : 1, chess : 2 });
 
@@ -577,7 +577,7 @@ export class Display extends HTMLElement {
             let sourceY = source_node._canvas_y + e._sourceOffset.y;
             let targetX = target_node._canvas_x + e._targetOffset.x;
             let targetY = target_node._canvas_y + e._targetOffset.y;
-
+            
             context.beginPath();
             if(e.bend ){//&& e.bend !== 0
                 let distance = Math.sqrt((targetX - sourceX)*(targetX - sourceX) + (targetY - sourceY)*(targetY - sourceY));
@@ -810,7 +810,9 @@ export class Display extends HTMLElement {
     }
 
     getPageDescriptor(pageRange) {
-        if (!this.sseq) return;
+        if (!this.sseq) {
+            return;  
+        }
 
         let basePage = 2;
         if(this.sseq.page_list.includes(1)){

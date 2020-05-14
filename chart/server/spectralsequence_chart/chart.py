@@ -8,16 +8,14 @@ from uuid import uuid4
 from . import utils
 from .chart_elements import *
 
-
-
 from message_passing_tree.prelude import *
 from message_passing_tree import Command, Message
 
 INFINITY = 65535
 
 class ChartData:
-    def __init__(self, agent, name):
-        self._agent = agent
+    def __init__(self, name):
+        self._agent = None
         self.name = name
         self.initial_x_range = [0, 10]
         self.initial_y_range = [0, 10]
@@ -31,63 +29,87 @@ class ChartData:
         self._nodes_dict = {hash(default_node) : default_node}
         # self._nodes_lock = rwlock.RWLockFair()
         
-        self.classes = {}
+        self._classes = {}
         self._classes_by_bidegree = {}
         
-        self.edges = {}
+        self._edges = {}
         
         self._batched_messages = []
+        self._objects_to_update = set()
         self._batched_messages_lock = threading.Lock()
 
+    @property
+    def classes(self):
+        return list(self._classes.values())
+
+    @classes.setter
+    def classes(self, value):
+        if type(value) is not dict:
+            raise TypeError(f"Value should be a dictionary not a {type(value).__name__}")
+        self._classes = value
+
+    @property
+    def edges(self):
+        return list(self._edges.values())
+
+    @edges.setter
+    def edges(self, value):
+        if type(value) is not dict:
+            raise TypeError(f"Value should be a dictionary not a {type(value).__name__}")
+        self._edges = value
+
     def to_json(self):
-        return utils.public_fields(self)
+        result = utils.public_fields(self)
+        result["classes"] = self._classes
+        result["edges"] = self._edges
+        return result
 
     @staticmethod
-    def from_json(chart, json):
-        result = ChartData(chart, json["name"])
+    def from_json(json):
+        result = ChartData(json["name"])
         utils.copy_fields_from_kwargs(result, json)
 
         result.nodes = []
-        result.classes = {}
-        result.edges = {}
+        result._classes = {}
+        result._edges = {}
         for node in json["nodes"]:
             result.nodes.append(ChartNode.from_json(result, node))
 
         for c in json["classes"].values():
-            result.classes[c["uuid"]] = ChartClass.from_json(result, c)
+            result._classes[c["uuid"]] = ChartClass.from_json(result, c)
 
         for e in json["edges"].values():
-            result.edges[e["uuid"]] = ChartEdge.from_json(result, e)
+            result._edges[e["uuid"]] = ChartEdge.from_json(result, e)
 
         # We need to replace the uuids so that they are actually unique.
+        # (should we do this?)
         for node in result.nodes:
             node.uuid = str(uuid4())
 
-        for chart_class in list(result.classes.values()):
-            del result.classes[chart_class.uuid]
+        for chart_class in result.classes:
+            del result._classes[chart_class.uuid]
             chart_class.uuid = str(uuid4())
-            result.classes[chart_class.uuid] = chart_class
+            result._classes[chart_class.uuid] = chart_class
 
-        for edge in list(result.edges.values()):
-            del result.edges[edge.uuid]
+        for edge in result.edges:
+            del result._edges[edge.uuid]
             edge.uuid = str(uuid4())
-            result.edges[edge.uuid] = edge
-            edge.source = edge._source.uuid
-            edge.target = edge._target.uuid
+            result._edges[edge.uuid] = edge
+            edge.source = edge.source.uuid
+            edge.target = edge.target.uuid
         
         return result
         
-
-    def add_class(self, **kwargs):
+    def add_class(self, x, y, **kwargs):
+        kwargs.update({"x" : x, "y" : y, "node_list" : [0]})
         c = ChartClass(self, **kwargs)
         if "color" in kwargs:
             c.set_field("color", kwargs["color"])
         return c
 
-
-    def add_differential(self, page, source, target, auto, **kwargs):
+    def add_differential(self, page, source, target, auto = True, **kwargs):
         e = ChartDifferential(self, page=page, source=source, target=target, **kwargs)
-        self.edges[e.uuid] = e
+        self._edges[e.uuid] = e
         if auto:
             source.add_page(page)
             target.add_page(page)
@@ -96,14 +118,27 @@ class ChartData:
 
     def add_structline(self, source, target, **kwargs):
         e = ChartStructline(self, source=source, target=target, **kwargs)
-        self.edges[e.uuid] = e
+        self._edges[e.uuid] = e
+        self.add_batched_message(e.uuid, "chart.edge.add", *arguments(
+            type = e.type,
+            uuid = e.uuid,
+            source = source.uuid,
+            target = target.uuid,
+            **kwargs
+        ))        
         return e
 
     def add_extension(self, source, target, **kwargs):
         e = ChartExtension(self, source=source, target=target, **kwargs)
-        self.edges[e.uuid] = e
+        self._edges[e.uuid] = e
+        self.add_batched_message(e.uuid, "chart.edge.add", *arguments(
+            type = e.type,
+            uuid = e.uuid,
+            source = source.uuid,
+            target = target.uuid,
+            **kwargs
+        ))        
         return e
-
 
     def add_page_range(self, page_range):
         if page_range in self.page_list:
@@ -140,178 +175,217 @@ class ChartData:
     #             return n
 
     def add_class_to_update(self, c):
-        self.add_batched_message("chart.class.update", *arguments(
+        self.add_batched_message(c.uuid, "chart.class.update", *arguments(
             class_to_update=c
         ))
 
-    def add_edge_to_update(self, c):
-        self.add_batched_message("chart.edge.update", *arguments(
-            edge_to_update=c
+    def add_edge_to_update(self, e):
+        self.add_batched_message(e.uuid, "chart.edge.update", *arguments(
+            edge_to_update=e
         ))
 
-    def add_batched_message(self, cmd, args, kwargs):
+    def add_batched_message(self, key, cmd, args, kwargs):
+        if key in self._objects_to_update:
+            return
+        with self._batched_messages_lock:
+            self.add_batched_message_raw(key, cmd, args, kwargs)
+
+    def add_batched_message_raw(self, key, cmd, args, kwargs):
+        if key in self._objects_to_update:
+            return
+        if key is not None:       
+            self._objects_to_update.add(key)
         cmd = Command().set_str(cmd)
         message = Message(cmd, args, kwargs)
-        with self._batched_messages_lock:
-            self._batched_messages.append(message)
-
-class DisplayState:
-    def __init__(self):
-        self.background_color = SpectralSequenceChart.default_background_color
-
-@subscribe_to(["*"])
-@collect_transforms(inherit=False) # Nothing to inherit
-class SpectralSequenceChart(Agent):
-    default_agent=None
-    default_background_color = "#FFFFFF"
-    def __init__(self, name, sseq=None):
-        super().__init__()
-        self.data = ChartData(self, name)
-        self.display_state = DisplayState()
-        self._click = asyncio.Event()
-
-    def get_state(self):        
-        return self.data
-
-    @property
-    def classes(self):
-        return list(self.data.classes.values())
-    
-    @property
-    def edges(self):
-        return list(self.data.edges.values())
-
-    def load_json(self, json_obj):
-        if type(json_obj) is str:
-            json_obj = json.loads(json_obj)
-        self.data = ChartData.from_json(self, json_obj)
-
-    async def reset_state_a(self):
-        with self.data._batched_messages_lock:
-            self.data._batched_messages = []
-        await self.send_message_outward_a("chart.state.reset", *arguments(state = self.data))
-
-    async def send_batched_messages_a(self):
-        with self.data._batched_messages_lock:
-            await self.send_message_outward_a("chart.batched", *arguments(
-                messages = self.data._batched_messages
-            ))
-            self.data._batched_messages = []
+        self._batched_messages.append(message)
 
     async def update_a(self):
-        await self.send_batched_messages_a()
-
-    @transform_inbound_messages
-    async def transform__new_user__a(self, envelope):
-        envelope.mark_used()
-        print("new user")
-        await self.send_message_outward_a("initialize.chart.state", *arguments(
-            state=self.data, display_state=self.display_state
-        ))
-
-    async def add_node_a(self, node : ChartNode):
-        node.idx = len(self.data.nodes)
-        self.data.nodes.append(node)
-        await self.broadcast_a("chart.node.add", *arguments(node=node))
-
-    def add_class(self, x : int, y : int, **kwargs):
-        """ Add class batched """
-        kwargs.update({"x" : x, "y" : y, "node_list" : [0]})
-        c = self.data.add_class(**kwargs)
-        self.data.add_batched_message("chart.class.add", *arguments(new_class=c))
-        return c
-
-    def add_structline(self, source, target, **kwargs):
-        e = self.data.add_structline(source, target, **kwargs)
-        self.data.add_batched_message("chart.edge.add", *arguments(
-            type = e.type,
-            uuid = e.uuid,
-            source = source.uuid,
-            target = target.uuid,
-            **kwargs
-        ))
-        return e
-
-    def add_extension(self, source, target, **kwargs):
-        e = self.data.add_extension(source, target, **kwargs)
-        self.data.add_batched_message("chart.edge.add", *arguments(
-            type = e.type,
-            uuid = e.uuid,
-            source = source.uuid,
-            target = target.uuid,
-            **kwargs
-        ))
-        return e
-
-
-    def add_differential(self, page, source, target, auto=True, **kwargs):
-        e = self.data.add_differential(page=page, source=source, target=target, auto=auto, **kwargs)
-        if auto:
-            self.data.add_page_range([page, page])
-        self.data.add_batched_message("chart.edge.add", *arguments(
-            page = page,
-            type = e.type,
-            uuid = e.uuid,
-            source = source.uuid,
-            target = target.uuid,
-            **kwargs
-        ))
-        return e
-
+        with self._batched_messages_lock:
+            if self._agent:
+                await self._agent.send_batched_messages_a(self._batched_messages)
+            self._batched_messages = []
+            self._objects_to_update = set()
+    
     def class_by_idx(self, x, y, idx):
         return self.get_classes_in_bidegree(x, y)[idx]
 
     def classes_in_bidegree(self, x, y):
-        return self.data._classes_by_bidegree.get((x,y), [])
+        return self._classes_by_bidegree.get((x,y), [])
 
     @property
     def x_min(self):
-        return self.data.x_range[0]
+        return self.x_range[0]
 
     @x_min.setter
     def x_min(self, value):
-        self.data.x_range[0] = value
+        self.add_batched_message("x_range", "chart.set_x_range", *arguments(x_range=self.x_range))
+        self.x_range[0] = value
 
     @property
     def x_max(self):
-        return self.data.x_range[1]
+        return self.x_range[1]
 
     @x_max.setter
     def x_max(self, value):
-        self.data.x_range[1] = value
+        self.add_batched_message("x_range", "chart.set_x_range", *arguments(x_range=self.x_range))
+        self.x_range[1] = value
 
     @property
     def y_min(self):
-        return self.data.y_range[0]
+        return self.y_range[0]
     
     @y_min.setter
     def y_min(self, value):
-        self.data.y_range[0] = value
+        self.add_batched_message("y_range", "chart.set_y_range", *arguments(y_range=self.y_range))
+        self.y_range[0] = value
 
     @property
     def y_max(self):
-        return self.data.y_range[1]
+        return self.y_range[1]
 
     @y_max.setter
     def y_max(self, value):
-        self.data.y_range[1] = value
+        self.add_batched_message("y_range", "chart.set_y_range", *arguments(y_range=self.y_range))
+        self.y_range[1] = value
 
-    async def set_x_range_a(self, x_min, x_max):
-        self.data.x_range = [x_min, x_max]
-        await self.broadcast_a("chart.set_x_range", *arguments(x_min=x_min, x_max=x_max))
+    @property
+    def x_min_initial(self):
+        return self.x_range_initial[0]
 
-    async def set_y_range_a(self, y_min, y_max):
-        self.data.y_range = [y_min, y_max]
-        await self.broadcast_a("chart.set_y_range", *arguments(y_min=y_min, y_max=y_max))
+    @x_min.setter
+    def x_min_initial(self, value):
+        self.add_batched_message("initial_x_range", "chart.set_initial_x_range", *arguments(x_range=self.initial_x_range))
+        self.x_range_initial[0] = value
 
-    async def set_initial_x_range_a(self, x_min, x_max):
-        self.data.initial_x_range = [x_min, x_max]        
-        await self.broadcast_a("chart.set_initial_x_range", *arguments(x_min=x_min, x_max=x_max))
+    @property
+    def x_max_initial(self):
+        return self.x_range_initial[1]
 
-    async def set_initial_y_range_a(self, y_min, y_max):
-        self.data.initial_y_range = [y_min, y_max]
-        await self.broadcast_a("chart.set_initial_y_range", *arguments(y_min=y_min, y_max=y_max))
+    @x_max.setter
+    def x_max_initial(self, value):
+        self.add_batched_message("initial_x_range", "chart.set_initial_x_range", *arguments(x_range=self.initial_x_range))
+        self.x_range_initial[1] = value
 
-    async def set_background_color_a(self, color):
-        self.data.background_color = color
-        await self.broadcast_a("display.set_background_color", *arguments(color=color))
+    @property
+    def y_min_initial(self):
+        return self.y_range_initial[0]
+    
+    @y_min.setter
+    def y_min_initial(self, value):
+        self.add_batched_message("initial_y_range", "chart.set_initial_y_range", *arguments(y_range=self.initial_y_range))
+        self.y_range_initial[0] = value
+
+    @property
+    def y_max_initial(self):
+        return self.y_range_initial[1]
+
+    @y_max.setter
+    def y_max_initial(self, value):
+        self.add_batched_message("initial_y_range", "chart.set_initial_y_range", *arguments(y_range=self.y_range))
+        self.y_range_initial[1] = value
+
+    @utils.sseq_property
+    def x_range(self, storage_name):
+        pass
+    
+    @x_range.setter
+    def x_range(self, storage_name, value):
+        range_list = getattr(self, storage_name, [0, 0])
+        range_list[0] = value[0]
+        range_list[1] = value[1]
+        setattr(self, storage_name, range_list)
+        self.add_batched_message("x_range", "chart.set_x_range", *arguments(x_range=self.x_range))
+
+    @utils.sseq_property
+    def y_range(self, storage_name):
+        pass
+    
+    @y_range.setter
+    def y_range(self, storage_name, value):
+        range_list = getattr(self, storage_name, [0, 0])
+        range_list[0] = value[0]
+        range_list[1] = value[1]
+        setattr(self, storage_name, range_list)
+        self.add_batched_message("y_range", "chart.set_y_range", *arguments(y_range=self.y_range))
+
+
+    @utils.sseq_property
+    def x_range_initial(self, storage_name):
+        pass
+    
+    @x_range_initial.setter
+    def x_range_initial(self, storage_name, value):
+        range_list = getattr(self, storage_name, [0, 0])
+        range_list[0] = value[0]
+        range_list[1] = value[1]
+        setattr(self, storage_name, range_list)
+        self.add_batched_message("x_range_initial", "chart.set_initial_x_range", *arguments(x_range=self.x_range))
+
+    @utils.sseq_property
+    def y_range_initial(self, storage_name):
+        pass
+    
+    @y_range_initial.setter
+    def y_range_initial(self, storage_name, value):
+        range_list = getattr(self, storage_name, [0, 0])
+        range_list[0] = value[0]
+        range_list[1] = value[1]
+        setattr(self, storage_name, range_list)
+        self.add_batched_message("y_range_initial", "chart.set_initial_y_range", *arguments(y_range=self.y_range))
+
+class DisplayState:
+    def __init__(self):
+        self.background_color = ChartAgent.default_background_color
+
+@subscribe_to(["*"])
+@collect_transforms(inherit=False) # Nothing to inherit
+class ChartAgent(Agent):
+    default_agent=None
+    default_background_color = "#FFFFFF"
+    def __init__(self, name, sseq=None):
+        super().__init__()
+        self.sseq = None
+        sseq = ChartData(name)
+        self.set_sseq(sseq)
+        self.display_state = DisplayState()
+        self._click = asyncio.Event()
+
+    def set_sseq(self, sseq):
+        if self.sseq is not None:
+            self.sseq._agent = None
+        self.sseq = sseq
+        self.sseq._agent = self
+
+    def load_json(self, json_obj):
+        if type(json_obj) is str:
+            json_obj = json.loads(json_obj)
+        self.set_sseq(ChartData.from_json(json_obj))
+
+    async def reset_state_a(self):
+        with self.sseq._batched_messages_lock:
+            self.sseq._batched_messages = []
+        await self.send_message_outward_a("chart.state.reset", *arguments(state = self.sseq))
+
+    async def update_a(self):
+        await self.sseq.update_a()
+
+    async def send_batched_messages_a(self, messages):
+        await self.send_message_outward_a("chart.batched", *arguments(
+            messages = messages
+        ))
+
+    @transform_inbound_messages
+    async def transform__new_user__a(self, envelope):
+        envelope.mark_used()
+        await self.send_message_outward_a("initialize.chart.state", *arguments(
+            state=self.sseq, display_state=self.display_state
+        ))
+
+    # async def add_node_a(self, node : ChartNode):
+    #     node.idx = len(self.data.nodes)
+    #     self.data.nodes.append(node)
+    #     await self.broadcast_a("chart.node.add", *arguments(node=node))
+
+    # async def set_background_color_a(self, color):
+    #     self.data.background_color = color
+    #     await self.broadcast_a("display.set_background_color", *arguments(color=color))

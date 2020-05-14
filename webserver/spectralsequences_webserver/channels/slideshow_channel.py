@@ -9,7 +9,7 @@ from message_passing_tree.utils import json_stringify
 from message_passing_tree import ansi
 
 import spectralsequence_chart
-from spectralsequence_chart import SseqSocketReceiver, SpectralSequenceChart
+from spectralsequence_chart import SseqSocketReceiver, ChartAgent
 
 
 from ..repl.executor import Executor
