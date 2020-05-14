@@ -61,7 +61,6 @@ export class Display extends HTMLElement {
         
         // TODO: improve window resize handling. Currently the way that the domain changes is suboptimal.
         // I think the best would be to maintain the x and y range by scaling.
-        this._lastResizeTime = 0;
         this._resizeObserver = new ResizeObserver(entries => {
             for(let e of entries){
                 requestAnimationFrame(() => e.target.resize());
@@ -85,13 +84,6 @@ export class Display extends HTMLElement {
         if(!this.sseq) {
             return;
         }
-        // let difference = 1 - (window.performance.now() - this._lastResizeTime);
-        // if(difference <= 0) {
-        //     this._lastResizeTime = window.performance.now();
-        // } else {
-        //     setTimeout(() => this.resize(), difference);
-        //     return;
-        // }
         let oldxmin = this.xminFloat;
         let oldymin = this.yminFloat;
         // This fixes the scale, but leaves a
@@ -172,7 +164,7 @@ export class Display extends HTMLElement {
             this.gridStyle = sseq.gridStyle;
         }
 
-        this.sseq.on('update',this.updateBatch);
+        this.sseq.on('update', this.updateBatch);
         this.update();
     }
 
@@ -197,7 +189,6 @@ export class Display extends HTMLElement {
 
     /**
      * Update this.page and this.pageRange to reflect the value of page_idx.
-     * Eventually I should make a display that indicates the current page again, then this can also say what that is.
      */
     setPage(idx){
         if (!this.sseq) return;
@@ -215,9 +206,6 @@ export class Display extends HTMLElement {
         this.emit("page-change", this.pageRange, this.page_idx);
     }
 
-    /**
-     * The main updateAll routine.
-     */
     updateBatch(){
         this.update(true);
     }
@@ -309,8 +297,6 @@ export class Display extends HTMLElement {
             );
         }
         ctx.restore();
-
-
         this.emit("draw");
     }
 
@@ -480,7 +466,6 @@ export class Display extends HTMLElement {
                 throw Error("Undefined grid type.");
                 break;
         }
-
         context.restore();
     }
 
@@ -619,10 +604,14 @@ export class Display extends HTMLElement {
 
     prepareMouseEventObject(){
         let o = {};
+        o.screen_x = this.mousex;
+        o.screen_y = this.mousey;
         o.real_x = this.xScale.invert(this.mousex);
         o.real_y = this.yScale.invert(this.mousey);
         o.x = Math.round(o.real_x);
         o.y = Math.round(o.real_y);
+        o.screen_lattice_x = this.xScale(o.x);
+        o.screen_lattice_y = this.yScale(o.y);
         let dx = o.x - o.real_x;
         let dy = o.y - o.real_y;
         o.distance = Math.sqrt(dx*dx + dy*dy);
@@ -632,6 +621,7 @@ export class Display extends HTMLElement {
     }
 
     _emitClick(e) {
+        e.stopPropagation();
         let o = this.prepareMouseEventObject();
         o.event = e;
         this.emit("click", o);
@@ -650,6 +640,7 @@ export class Display extends HTMLElement {
         if(e) {
             this.mousex = e.layerX; //e.clientX - rect.x;
             this.mousey = e.layerY; //e.clientY - rect.y;
+            this.mouseover_object = this.prepareMouseEventObject();
         }
         redraw = redraw | false;
         redraw |= this._emitMouseoverClass();
@@ -669,7 +660,7 @@ export class Display extends HTMLElement {
             ) {
                 return false;
             } else {
-                this.emit("mouseout-class", this.mouseover_class);
+                this.emit("mouseout-class", this.mouseover_class, this.mouseover_object);
                 this.mouseover_class = null;
                 redraw = true;
             }
@@ -678,7 +669,7 @@ export class Display extends HTMLElement {
         if(c) {
             redraw = true;
             this.mouseover_class = c;
-            this.emit("mouseover-class", c);
+            this.emit("mouseover-class", c, this.mouseover_object);
         }
         return redraw;
     }
@@ -708,7 +699,7 @@ export class Display extends HTMLElement {
             if(distance < threshold){
                 return false;
             } else {
-                this.emit("mouseout-bidegree", this.mouseover_bidegree);
+                this.emit("mouseout-bidegree", this.mouseover_bidegree, this.mouseover_object);
                 this.mouseover_bidegree = null;
                 redraw = true;
             }
@@ -722,7 +713,7 @@ export class Display extends HTMLElement {
         if(distance < threshold){
             redraw = true;
             this.mouseover_bidegree = bidegree;
-            this.emit("mouseover-bidegree", bidegree);
+            this.emit("mouseover-bidegree", bidegree, this.mouseover_object);
         }
         return redraw;
     }

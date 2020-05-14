@@ -1,5 +1,6 @@
 import * as utils from "./utils.js";
 import { ChartShape } from "./ChartShape.js";
+import { ChartNode } from "./ChartNode.js";
 
 export class ChartClass {
     constructor(sseq, kwargs) {
@@ -10,6 +11,16 @@ export class ChartClass {
         
         // TODO: new utils function that ensures no "_" fields present, raises error "bad serialized class".
         Object.assign(this, kwargs);
+        this.name = this.name || "";
+        this.transition_pages = this.transition_pages || [];
+        this.node_list = this.node_list || [
+            new ChartNode({
+                "shape" : "circle"
+            })
+        ];
+        if(this.visible === undefined) {
+            this.visible = true;
+        }
     }
 
     setPosition(x, y, size) {

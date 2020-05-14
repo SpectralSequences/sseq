@@ -28,6 +28,17 @@ class ChartEdge:
         self._source._edges.append(self)
         self._target._edges.append(self)
 
+    def needs_update(self):
+        self._sseq.add_edge_to_update(self)
+
+    @utils.sseq_property
+    def color(self):
+        self.needs_update()
+
+    @utils.sseq_property
+    def bend(self):
+        self.needs_update()
+
     def get_source(self):
         return self._source
 
@@ -44,10 +55,6 @@ class ChartEdge:
         del self._sseq.edges[self.uuid]
         # del e._source.edges[e]
         # del e._target.edges[e]
-
-    def set_bend(self, bend):
-        self.bend = bend
-        
 
     @staticmethod
     def from_json(sseq, json):

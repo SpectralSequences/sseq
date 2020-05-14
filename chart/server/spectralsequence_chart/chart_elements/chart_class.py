@@ -63,6 +63,9 @@ class ChartClass:
         sseq._classes_by_bidegree[pos].append(self)
         # self.node_list = [ n.idx for n in self.node_list ]
 
+    def needs_update(self):
+        self._sseq.add_class_to_update(self)
+
     @staticmethod
     def from_json(sseq, json):
         return ChartClass(sseq, **json)
@@ -83,24 +86,28 @@ class ChartClass:
         n = self.node_list[idx]
         setattr(n, field, value)
 
+    @utils.sseq_property
+    def name(self):
+        self.needs_update()
 
-    def set_name(self, name):
-        self.name = name
-        self._sseq.add_class_to_update(self)
+    @utils.sseq_property
+    def visible(self):
+        self.needs_update()
+
 
     def set_field(self, field, value):
         # with self._lock:
             for i in range(len(self.node_list)):
                 if self.node_list[i]:
                     self.set_node_field_by_idx(i, field, value)
-            self._sseq.add_class_to_update(self)
+            self.needs_update()
             return self
 
     def set_field_on_page(self, page, field, value):
         # with self._lock:
             i = self.get_page_idx(page)
             self.set_node_field_by_idx(i, field, value)
-            self._sseq.add_class_to_update(self)
+            self.needs_update()
             return self
 
     def add_page(self, page, node=None):
@@ -112,7 +119,7 @@ class ChartClass:
         idx = self.get_page_idx(page)
         self.transition_pages.insert(idx, page)
         self.node_list.insert(idx+1, node)
-        self._sseq.add_class_to_update(self)
+        self.needs_update()
         return self
 
     def copy_previous_node(self, page):
@@ -120,7 +127,7 @@ class ChartClass:
         if idx == 0:
             raise ValueError("No previous node.")
         self.node_list[idx] = self.node_list[idx - 1].copy()
-        self._sseq.add_class_to_update(self)
+        self.needs_update()
         return self
 
     def replace(self, **kwargs):
@@ -128,7 +135,7 @@ class ChartClass:
         self.node_list[-1] = n
         for [key, value] in kwargs.items():
             setattr(n, key, value)
-        self._sseq.add_class_to_update(self)
+        self.needs_update()
         return self
 
     def delete(self):

@@ -44,6 +44,13 @@ export class SocketListener {
         this.message_dispatch[cmd_filter] = handler;
     }
 
+
+    add_message_handlers_from_object(handlers) {
+        for(let [cmd_filter, handler] of Object.entries(handlers)) {
+            this.add_message_handler(cmd_filter, handler.bind(this));
+        }
+    }    
+
     start() {
         console.log("client ready");
         this.client_ready = true;

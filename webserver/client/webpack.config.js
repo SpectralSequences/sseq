@@ -3,7 +3,8 @@ const webpack = require('webpack');
 
 module.exports = {
     entry: {
-      table : './src/table.js'
+      table : './src/table.js',
+      interact : './src/interact.js',
     },
     output: {
         path: path.resolve(__dirname, 'dist'),

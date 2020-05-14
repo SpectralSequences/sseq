@@ -2,7 +2,14 @@ import StringifyingMap from "../StringifyingMap.js";
 import { ChartNode } from "./ChartNode";
 import { ChartClass } from "./ChartClass";
 import { ChartDifferential, ChartStructline, ChartExtension } from "./ChartEdge";
+
+import { renderLatex } from "../interface/Latex.js";
+
+import { Tooltip } from "../interface/tooltip.js";
+
 import * as EventEmitter from "events";
+
+
 
 function check_argument_is_integer(name, value){
     if(!Number.isInteger(value)) {
@@ -215,6 +222,27 @@ export class SpectralSequenceChart extends EventEmitter {
             node_or_idx = this.nodes[node_or_idx];
         }
         return node_or_idx;
+    }
+
+    /**
+     * Gets the tooltip for the current class on the given page (currently ignores the page).
+     * @param c
+     * @param page
+     * @returns {string}
+     */
+    getClassTooltip(c, page) {
+        let tooltip = c.getNameCoord();
+        let extra_info = Tooltip.toTooltipString(c.extra_info, page);
+
+        if(extra_info) {
+            tooltip += extra_info;
+        }
+
+        return tooltip;
+    }
+
+    getClassTooltipHTML(c, page) {
+        return renderLatex(this.getClassTooltip(c,page));
     }
 
     getElementsToDraw(page, xmin, xmax, ymin, ymax) {

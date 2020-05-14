@@ -2,12 +2,29 @@ def public_keys(obj):
     return [field for field in dir(obj) \
             if not field.startswith("_") and not callable(getattr(obj,field))]
 
-
 def public_fields(obj):
     result = {}
     for field in public_keys(obj):
         result[field] = getattr(obj, field)
     return result
+
+PROPERTY_PREFIX = "_property_"
+def sseq_property(func):
+    storage_name = PROPERTY_PREFIX + func.__name__
+    name = func.__name__
+    def getter(self):
+        return getattr(self, storage_name, "")
+    getter.__name__ = name
+    getter = property(getter)
+
+    @getter.setter
+    def setter(self, value):
+        setattr(self, storage_name, value)
+        func(self)
+
+    return setter
+
+
 
 def assign_fields(obj, kwargs, fields):
     for field in fields: 

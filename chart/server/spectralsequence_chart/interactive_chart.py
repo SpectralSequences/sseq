@@ -20,7 +20,6 @@ class InteractiveChart(SpectralSequenceChart):
         self._extension_prev_color_default = "black"
         self.data.x_range=[0, 50]
         self.data.y_range=[0, 12]
-        # self.data.initial_x_range=[14, 46]
 
     @transform_inbound_messages
     async def transform__click__a(self, envelope, x, y, chart_class=None):
@@ -33,7 +32,7 @@ class InteractiveChart(SpectralSequenceChart):
         name = await self.prompt_a(msg="Name?", default=c.name)
         if name is None:
             return
-        c.set_name(name)
+        c.name = name
         await self.update_a()
 
     async def prompt_a(self, msg, default):
@@ -64,6 +63,7 @@ class InteractiveChart(SpectralSequenceChart):
             )
             if result is not None:
                 e.color = result
+        await self.update_a()
 
 
     async def make_client_set_mode_info_a(self, info):

@@ -17,7 +17,7 @@ export class SseqPageIndicator extends LitElement {
         this.parentElement.addEventListener("page-change", (e) => {
             this.page_value = e.detail[0];
         });
-    }    
+    }
 
     render() {
         // if(this.parentElement){

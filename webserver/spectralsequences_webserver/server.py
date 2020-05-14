@@ -43,7 +43,7 @@ async def main():
     class JSResponse(Response):
         media_type = "application/javascript"
 
-    app.mount("/static/client", StaticFiles(directory="client/dist"), name="client")
+    app.mount("/static/client", StaticFiles(directory=config.CLIENT_DIR), name="client")
 
 
     @app.get("/static/webclient", response_class=JSResponse)
