@@ -1,5 +1,4 @@
 "use strict"
-
 import { Tooltip } from "chart/interface/Tooltip.js";
 import Mousetrap from "mousetrap";
 
@@ -10,6 +9,8 @@ import { SseqPageIndicator } from "chart/interface/display/SseqPageIndicator.js"
 import { Panel } from "chart/interface/panel/Panel.js";
 import { SseqSocketListener } from "chart/SseqSocketListener.js";
 window.SseqSocketListener = SseqSocketListener;
+
+import { renderMath } from "chart/interface/Latex.js";
 
 window.main = main;
 
@@ -26,7 +27,15 @@ function main(display, socket_address){
 
     socket_listener.add_message_handler("interact.product_info", function(cmd, args, kwargs){
         let product_info = kwargs.product_info;
-        
+        let result = [];
+        for(let [in1, in2, out] of product_info){
+            if(in1[0] === 0 && in1[1] === 0) {
+                continue;
+            }
+            result.push(`<div class="product">${renderMath(`(${in1}) * (${in2}) == ${JSON.stringify(out)}`)}</div>`);
+        }
+        let sidebar = document.querySelector("sseq-panel");
+        sidebar.innerHTML = result.join("");
     })
     
     display.addEventListener("click", function(e){

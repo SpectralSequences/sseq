@@ -132,19 +132,24 @@ class TableChannel(SocketChannel):
 
     def get_product_info(self, bidegree):
         bidegree = tuple(bidegree)
-        decompositions = self.table.decomposition_table[bidegree]
         result = []
+        try:
+            decompositions = self.table.decomposition_table[bidegree]
+        except KeyError:
+            return result
         for (in1, in2, out) in decompositions:
+            if in1[0] == 0 and in1[1] == 0:
+                continue
             c1 = self.chart.sseq.class_by_idx(*in1)
             if c1.name:
                 n1 = c1.name
             else:
-                n1 = f"x_{in1[0], in1[1]}^{in1[2]}"
+                n1 = f"x_{{{in1[0], in1[1]}}}^{{{in1[2]}}}"
             c2 = self.chart.sseq.class_by_idx(*in2)
             if c2.name:
                 n2 = c2.name
             else:
-                n2 = f"x_{in2[0], in2[1]}^{in2[2]}"
+                n2 = f"x_{{{in2[0], in2[1]}}}^{{{in2[2]}}}"
             out_indexes = [x[-1] for x in out]
             out_vec = [0] * len(self.chart.sseq.classes_in_bidegree(*bidegree))
             for idx in out_indexes:

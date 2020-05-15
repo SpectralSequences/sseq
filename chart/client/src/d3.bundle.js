@@ -6,7 +6,7 @@
 // export { interval } from 'd3-timer/src/interval';
 
 
-export { select, selectAll } from 'd3-selection';
+export { event, select, selectAll } from 'd3-selection';
 export { scaleLinear } from 'd3-scale';
 export { zoom, zoomTransform } from 'd3-zoom';
 export { interval } from 'd3-timer';

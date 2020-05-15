@@ -33,6 +33,7 @@ export class Tooltip extends HTMLElement {
         super();
         this._mouseover_class = this._mouseover_class.bind(this);
         this._mouseout_class = this._mouseout_class.bind(this);
+        this._handle_redraw = this._handle_redraw.bind(this);
         this.attachShadow({mode: 'open'});
         let style = document.createElement("style");
         style.innerText = `
@@ -63,20 +64,26 @@ export class Tooltip extends HTMLElement {
     }
 
     disconnectedCallback(){
-        this.display.removeEventListener("_mouseover_class");
-        this.display.removeEventListener("_mouseout_class");
+        this.display.removeEventListener(this._mouseover_class);
+        this.display.removeEventListener(this._mouseout_class);
     }
 
     _mouseover_class(event){
+        let [cls, mouseState] = event.detail;
+        this.cls = cls;
         let sseq = this.display.sseq;
-        let [cls, mouse_state] = event.detail;
         let page = this.display.page;
         this.setHTML(sseq.getClassTooltipHTML(cls, page));
-        this.show(mouse_state.screen_lattice_x, mouse_state.screen_lattice_y);
+        this.show(this.cls._canvas_x, this.cls._canvas_y);
     }
 
     _mouseout_class(event){
+        this.cls = undefined;
         this.hide();
+    }
+
+    _handle_redraw(){
+        this.position(this.cls._canvas_x, this.cls._canvas_y);
     }
 
     setHTML(html) {
@@ -94,40 +101,43 @@ export class Tooltip extends HTMLElement {
          * where the location of the previous tooltip is now outside of the
          * window.
          */
-        this.style.cssText = this.style.cssText;
         this.style.left = "0px";
         this.style.top = "0px";
 
-        let rect = this.getBoundingClientRect();
-        let canvasRect = this.display.canvas.getBoundingClientRect();
+        this.rect = this.getBoundingClientRect();
+        this.canvasRect = this.display.canvas.getBoundingClientRect();
+        this.position(x, y);
+        this.style.transition = `opacity ${this.showTransitionTime}`;
+        this.style.opacity = 0.9;
+        this.display.addEventListener("draw", this._handle_redraw);
+    }
 
-        x = x + canvasRect.x;
-        y = y + canvasRect.y;
+    position(x, y){
+        x = x + this.canvasRect.x;
+        y = y + this.canvasRect.y;
 
         /**
          * By default, show the tooltip to the top and right of (x, y), offset
          * by MARGIN. If this causes the tooltip to leave the window, position
          * it to the bottom/left accordingly.
          */
-        if (x + MARGIN + rect.width < window.innerWidth){
+        if (x + MARGIN + this.rect.width < window.innerWidth){
             x = x + MARGIN;
         } else {
-            x = x - rect.width - MARGIN;
+            x = x - this.rect.width - MARGIN;
         }
         
-        if (y - rect.height - MARGIN > 0){
-            y = y - rect.height - MARGIN;
+        if (y - this.rect.height - MARGIN > 0){
+            y = y - this.rect.height - MARGIN;
         } else {
             y = y + MARGIN;
         }
         this.style.left = `${x}px`;
         this.style.top = `${y}px`;
-
-        this.style.transition = `opacity ${this.showTransitionTime}`;
-        this.style.opacity = 0.9;
     }
 
     hide() {
+        this.display.removeEventListener("draw", this._handle_redraw);
         this.style.transition = `opacity ${this.hideTransitionTime}`;
         this.style.opacity = 0;
     }

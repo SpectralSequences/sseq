@@ -24,12 +24,11 @@ function groupByArray(xs, key) {
 
 
 export class Display extends HTMLElement {
-    // container is either an id (e.g. "#main") or a DOM object
     constructor() {
         super();
-        this.container = this.attachShadow({mode: 'open'});
+        this.attachShadow({mode: 'open'});
         let slot = document.createElement("slot");
-        this.container.appendChild(slot);
+        this.shadowRoot.appendChild(slot);
 
         this._leftMargin = 40;
         this._rightMargin = 5;
@@ -47,33 +46,38 @@ export class Display extends HTMLElement {
         this.hiddenStructlines = new Set();
         this.updateQueue = 0;
 
-        this.container_DOM = this.container;
-
         this.xScaleInit = d3.scaleLinear();
         this.yScaleInit = d3.scaleLinear();
 
         this.canvas = document.createElement("canvas");
-        this.shadowCanvas = document.createElement("canvas");
         this.canvas.style.padding = "0px";
         this.canvas.style.position = "absolute";
         this.canvas.style.top = "0";
         this.canvas.style.left = "0";
 
-        this.container_DOM.appendChild(this.canvas);
+        this.shadowRoot.appendChild(this.canvas);
+
+        this.eventsElement = document.createElement("div");
 
         this.context = this.canvas.getContext("2d");
         this.node_buffers = {};
 
-        this.updateBatch = this.updateBatch.bind(this);
+        this.handleZoom = this.handleZoom.bind(this);
         this.nextPage = this.nextPage.bind(this);
         this.previousPage = this.previousPage.bind(this);
         this._emitMouseover = this._emitMouseover.bind(this);
         this._emitClick = this._emitClick.bind(this);
-
         this.zoom = d3.zoom().scaleExtent([0, 4]);
-        this.zoom.on("zoom", this.updateBatch);
+        this.zoom.on("zoom", this.handleZoom);
         this.zoomD3Element = d3.select(this.canvas);
         this.zoomD3Element.call(this.zoom).on("dblclick.zoom", null);
+        this.zoom.on("start", () => {
+            this.updatingZoom = true;
+        });
+        this.zoom.on("end", () => {
+            this.updatingZoom = false;
+            this._emitMouseover();
+        });
 
         this.canvas.addEventListener("mousemove", this._emitMouseover);
         this.canvas.addEventListener("click", this._emitClick);
@@ -90,7 +94,7 @@ export class Display extends HTMLElement {
 
     setBackgroundColor(color) {
         this.background_color = color;
-        this.container_DOM.style["background"] = color;
+        this.shadowRoot.style.background = color;
         this.update();
     }
 
@@ -112,7 +116,7 @@ export class Display extends HTMLElement {
         let dy = this.yminFloat - oldymin;
         this.zoom.on("zoom", null);
         this.zoom.translateBy(this.zoomD3Element, this.dxScale(dx), this.dyScale(dy));
-        this.zoom.on("zoom", this.updateBatch);
+        this.zoom.on("zoom", this.handleZoom);
         this.update(); // Make sure this is update(), updateBatch() causes screen flicker.
     }
 
@@ -225,6 +229,11 @@ export class Display extends HTMLElement {
         this.emit("page-change", this.pageRange, this.page_idx);
     }
 
+    handleZoom(){
+        this.updateMousePosition(d3.event.sourceEvent);
+        this.updateBatch();
+    }
+
     updateBatch(){
         this.update(true);
     }
@@ -239,13 +248,7 @@ export class Display extends HTMLElement {
             if (this.updateQueue != 0) return;
 
             this._drawSseq(this.context);
-            if (d3.event) {
-                // d3 zoom doesn't allow the events it handles to bubble, so we
-                // fails to track pointer position.
-                this._emitMouseover(d3.event);
-            } else {
-                this._emitMouseover();
-            }
+            this._emitMouseover();
         };
         if(batch){
             requestAnimationFrame(drawFunc);
@@ -272,10 +275,11 @@ export class Display extends HTMLElement {
         this._updateScale();
         this._updateGridAndTickStep();
 
-        let [nodes, edges] = this.sseq.getElementsToDraw(
+        let [classes, edges] = this.sseq.getElementsToDraw(
             this.pageRange, 
             this.xmin - 1, this.xmax + 1, this.ymin - 1, this.ymax + 1
         );
+        this._updateClassPositions(classes);
 
         ctx.clearRect(0, 0, this._canvasWidth, this._canvasHeight);
 
@@ -288,7 +292,6 @@ export class Display extends HTMLElement {
         this._drawGrid(ctx);
 
         this.emit("draw_background");
-        this._updateNodes(nodes);
         this._highlightClasses(ctx);
         this._drawEdges(ctx, edges);
         this._drawClasses(ctx);
@@ -320,7 +323,7 @@ export class Display extends HTMLElement {
         ctx.restore();
         this.emit("draw");
         let dt = performance.now() - startTime;
-        console.log("elapsed", dt/1000, "fps:", 1000/dt);
+        // console.log("elapsed", dt/1000, "fps:", 1000/dt);
     }
 
     /**
@@ -329,6 +332,7 @@ export class Display extends HTMLElement {
     _updateScale(){
         let zoomD3Element = this.zoomD3Element;
         let transform = d3.zoomTransform(zoomD3Element.node());
+        let originalTransform = transform;
         let scale = transform.k;
         let xScale = transform.rescaleX(this.xScaleInit);
         let yScale = transform.rescaleY(this.yScaleInit);
@@ -341,6 +345,7 @@ export class Display extends HTMLElement {
         this.zoom.on("zoom", null);
 
         let xScaleMaxed = false, yScaleMaxed = false;
+        let autoTranslated = false;
         // Prevent user from panning off the side.
         if (this.sseq.x_range) {
             if (xScale(this.sseq.x_range[1] - this.sseq.x_range[0] + 2 * this._domainOffset) - xScale(0) < this._plotWidth) {
@@ -349,8 +354,10 @@ export class Display extends HTMLElement {
                 xScaleMaxed = true;
             } else if (xScale(this.sseq.x_range[0] - this._domainOffset) > this._leftMargin) {
                 this.zoom.translateBy(zoomD3Element, (this._leftMargin - xScale(this.sseq.x_range[0] - this._domainOffset)) / scale, 0);
+                autoTranslated = true;
             } else if (xScale(this.sseq.x_range[1] + this._domainOffset) < this._clipWidth) {
                 this.zoom.translateBy(zoomD3Element, (this._clipWidth - xScale(this.sseq.x_range[1] + this._domainOffset)) / scale, 0);
+                autoTranslated = true;
             }
         }
 
@@ -359,10 +366,19 @@ export class Display extends HTMLElement {
                 yScaleMaxed = true;
             } else if (yScale(this.sseq.y_range[0] - this._domainOffset) < this._clipHeight) {
                 this.zoom.translateBy(zoomD3Element, 0, (this._clipHeight - yScale(this.sseq.y_range[0] - this._domainOffset)) / scale);
+                autoTranslated = true;
             } else if (yScale(this.sseq.y_range[1] + this._domainOffset) > this._topMargin) {
                 this.zoom.translateBy(zoomD3Element, 0, this._topMargin - yScale(this.sseq.y_range[1] + this._domainOffset) / scale);
+                autoTranslated = true;
             }
         }
+
+        let oldXScaleMaxed = this.xScaleMaxed;
+        let oldYScaleMaxed = this.yScaleMaxed;
+        this.xScaleMaxed = xScaleMaxed;
+        this.yScaleMaxed = yScaleMaxed;
+        let scalesMaxed = (xScaleMaxed && yScaleMaxed);
+        let oldScalesMaxed = (oldXScaleMaxed && oldYScaleMaxed);
 
         // If both scales are maxed, and the user attempts to zoom out further,
         // d3 registers a zoom, but nothing in the interface changes since we
@@ -371,20 +387,17 @@ export class Display extends HTMLElement {
         // zooming out, or else when the user wants to zoom back in, they will
         // have to zoom in for a while before the interface actually zooms in.
         // Thus, We restore the previous zoom state.
-        if (xScaleMaxed && yScaleMaxed) {
-            if (this.oldScalesMaxed && scale < this.scale) {
-                this.zoom.transform(zoomD3Element, this.transform);
-                this.zoom.on("zoom", this.updateBatch);
-                return;
-            } else {
-                this.oldScalesMaxed = true;
-            }
-        } else {
-            this.oldScalesMaxed = false;
+        if (scalesMaxed && oldScalesMaxed && scale < this.scale) {
+            this.zoom.transform(zoomD3Element, this.transform);
+            this.zoom.on("zoom", this.handleZoom);
+            this.disableMouseoverUpdates = true;
+            return;
         }
 
         // Get new transform and scale objects after possible translation above
-        this.transform = d3.zoomTransform(zoomD3Element.node());
+        transform = d3.zoomTransform(zoomD3Element.node());
+        let old_transform = this.transform;
+        this.transform = transform;
         this.scale = this.transform.k;
         this.xScale = this.transform.rescaleX(this.xScaleInit);
         this.yScale = this.transform.rescaleY(this.yScaleInit);
@@ -397,12 +410,27 @@ export class Display extends HTMLElement {
                 this.sseq.x_range[0] - this._domainOffset,
                 this.sseq.x_range[1] + this._domainOffset
             ]);
+            this.transform.x = old_transform.x;
         }
         if (yScaleMaxed) {
             this.yScale.domain([
                 this.sseq.y_range[0] - this._domainOffset,
                 this.sseq.y_range[1] + this._domainOffset
             ]);
+            this.transform.y = old_transform.y;
+        }
+        this.zoom.transform(zoomD3Element, this.transform);
+        if(old_transform){
+            let updatedScale = old_transform.k !== transform.k;
+            let updatedTranslation =  old_transform.x != transform.x || old_transform.y != transform.y;
+            let previousUpdatedTranslation = this.updatedTranslation;
+            this.updatedTranslation = updatedTranslation;
+            let revertedDistance = Math.abs(originalTransform.x - transform.x) + Math.abs(originalTransform.y - transform.y);
+            this.disableMouseoverUpdates = 
+                ((updatedScale && autoTranslated) || updatedTranslation || previousUpdatedTranslation )
+                && (oldXScaleMaxed == xScaleMaxed)
+                && (oldYScaleMaxed == yScaleMaxed)
+                && revertedDistance < 5;
         }
 
         this.xminFloat = this.xScale.invert(this._leftMargin);
@@ -414,7 +442,7 @@ export class Display extends HTMLElement {
         this.ymin = Math.ceil(this.yminFloat);
         this.ymax = Math.floor(this.ymaxFloat);
 
-        this.zoom.on("zoom", this.updateBatch);
+        this.zoom.on("zoom", this.handleZoom);
     }
 
     dxScale(x){
@@ -537,7 +565,7 @@ export class Display extends HTMLElement {
         context.restore();
     }
 
-    _updateNodes(classes){
+    _updateClassPositions(classes){
         let size = Math.max(Math.min(this.dxScale(1), -this.dyScale(1), this.sseq.max_class_size), this.sseq.min_class_size) * this.sseq.class_scale;
         this.classes_to_draw = classes;
         for(let c of classes) {
@@ -650,7 +678,7 @@ export class Display extends HTMLElement {
         }
     }
 
-    prepareMouseEventObject(){
+    getMouseState(){
         let o = {};
         o.screen_x = this.mousex;
         o.screen_y = this.mousey;
@@ -668,16 +696,22 @@ export class Display extends HTMLElement {
         return o;
     }
 
+    updateMousePosition(e){
+        this.mousex = e.layerX;
+        this.mousey = e.layerY;
+        this.mouseState = this.getMouseState();
+    }
+
     _emitClick(e) {
         e.stopPropagation();
-        let o = this.prepareMouseEventObject();
+        let o = this.getMouseState();
         o.event = e;
         this.emit("click", o);
     }
 
     _emitMouseover(e, redraw) {
-        // If not yet set up 
-        if (!this.classes_to_draw) {
+        // If not yet set up, updateMousePosition will throw an error.
+        if(!this.classes_to_draw){
             return;
         }
 
@@ -685,11 +719,14 @@ export class Display extends HTMLElement {
         // previous events. If update() is called, we call _onMousemove without
         // an event.
         if(e) {
-            this.mousex = e.layerX;
-            this.mousey = e.layerY;
-            this.mouseover_object = this.prepareMouseEventObject();
+            this.updateMousePosition(e);
         }
-        
+
+        // Don't emit mouseover or mouseout 
+        if(this.updatingZoom && this.disableMouseoverUpdates) {
+            return;
+        }
+
         redraw = redraw | false;
         redraw |= this._emitMouseoverClass();
         redraw |= this._emitMouseoverBidegree();
@@ -712,7 +749,7 @@ export class Display extends HTMLElement {
             if(new_mouseover_class === this.mouseover_class) {
                 return false;
             } else {
-                this.emit("mouseout-class", this.mouseover_class, this.mouseover_object);
+                this.emit("mouseout-class", this.mouseover_class, this.mouseState);
                 this.mouseover_class = null;
                 redraw = true;
             }
@@ -720,7 +757,7 @@ export class Display extends HTMLElement {
         if(new_mouseover_class) {
             redraw = true;
             this.mouseover_class = new_mouseover_class;
-            this.emit("mouseover-class", new_mouseover_class, this.mouseover_object);
+            this.emit("mouseover-class", new_mouseover_class, this.mouseState);
         }
         return redraw;
     }
@@ -750,7 +787,7 @@ export class Display extends HTMLElement {
             if(distance < threshold){
                 return false;
             } else {
-                this.emit("mouseout-bidegree", this.mouseover_bidegree, this.mouseover_object);
+                this.emit("mouseout-bidegree", this.mouseover_bidegree, this.mouseState);
                 this.mouseover_bidegree = null;
                 redraw = true;
             }
@@ -764,7 +801,7 @@ export class Display extends HTMLElement {
         if(distance < threshold){
             redraw = true;
             this.mouseover_bidegree = bidegree;
-            this.emit("mouseover-bidegree", bidegree, this.mouseover_object);
+            this.emit("mouseover-bidegree", bidegree, this.mouseState);
         }
         return redraw;
     }
@@ -857,7 +894,7 @@ export class Display extends HTMLElement {
         this.zoom.on("zoom", null);
         this.zoom.translateBy(this.zoomD3Element, xstep / this.scale, ystep / this.scale );
         this.update();
-        this.zoom.on("zoom", this.updateBatch);
+        this.zoom.on("zoom", this.handleZoom);
     }
 
     getPageDescriptor(pageRange) {
