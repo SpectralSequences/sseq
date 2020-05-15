@@ -18,7 +18,8 @@ from .channels import (
     ResolverChannel,
     SlideshowChannel,
     SseqChannel,
-    TestChannel
+    TestChannel,
+    TableChannel
 )
 from message_passing_tree import SocketReceiver, ansi
 from spectralsequence_chart import SseqSocketReceiver
@@ -85,3 +86,4 @@ async def main():
     PresentationChannel.serve(app, repl, host, port, "presentation")
     ResolverChannel.serve(app, repl, host, port, "resolver")
     TestChannel.serve(app, repl, host, port, "test")
+    TableChannel.serve(app, repl, host, port, "table")

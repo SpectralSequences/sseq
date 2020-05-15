@@ -12,19 +12,3 @@ def make_add_structline_func(**kwargs1):
         return await chart.add_structline(source, target, **kwargs1, **kwargs2)
     return add_structline
 
-# Write x^n but handle special cases x^0 ==> 1 and x^1 ==> x
-def power_name(var, n, zeroth_power=""):
-    if n == 0:
-        return zeroth_power
-    elif n==1:
-        return var
-    else:
-        return str(var) + "^{" + str(n) + "}"
-
-def monomial_name(*exponents):
-    result = ""
-    for [var, e] in exponents:
-        result += " " + power_name(var, e)
-    if result.strip() == "":
-        result = "1"
-    return result

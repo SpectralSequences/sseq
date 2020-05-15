@@ -19,7 +19,9 @@ class ChartData:
         self.name = name
         self.initial_x_range = [0, 10]
         self.initial_y_range = [0, 10]
-        
+        self.x_range = [0, 10]
+        self.y_range = [0, 10]
+
         self.page_list = [[2, INFINITY], [INFINITY, INFINITY]]
         self._page_list_lock = threading.Lock()
         self.min_page_idx = 0
@@ -37,6 +39,7 @@ class ChartData:
         self._batched_messages = []
         self._objects_to_update = set()
         self._batched_messages_lock = threading.Lock()
+        self._initialized = True
 
     @property
     def classes(self):
@@ -185,6 +188,8 @@ class ChartData:
         ))
 
     def add_batched_message(self, key, cmd, args, kwargs):
+        if not hasattr(self, "_initialized"):
+            return        
         if key in self._objects_to_update:
             return
         with self._batched_messages_lock:
@@ -207,7 +212,7 @@ class ChartData:
             self._objects_to_update = set()
     
     def class_by_idx(self, x, y, idx):
-        return self.get_classes_in_bidegree(x, y)[idx]
+        return self.classes_in_bidegree(x, y)[idx]
 
     def classes_in_bidegree(self, x, y):
         return self._classes_by_bidegree.get((x,y), [])

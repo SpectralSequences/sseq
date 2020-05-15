@@ -27,9 +27,11 @@ let Shapes = {};
 
 Shapes.circle = {
     outline : function(context, params) {
+        context.moveTo(params.x, params.y);
         context.arc(params.x, params.y, params.size * 0.1, 0, 2*Math.PI);
     },
     draw: function(context, params) {
+        // console.log("shape_draw");
         this.outline(context, params);
         ChartShape.fillStrokeContext(context, params);
     }

@@ -33,39 +33,49 @@ export class ChartClass {
         this._size = size;
     }
 
-    getDrawParams() {
+    getDrawParams(x, y) {
         let node = this._node;
         return {
             shape : node.shape,
             size : this._size * node.scale,
-            x : this._canvas_x,
-            y : this._canvas_y,
+            x : x,
+            y : y,
             fillQ : node.fill !== false,
             strokeQ : node.stroke !== false,
             node : node
         };
     }
 
-    _drawPrepareCanvasContext(context){
+    _getStyleForCanvasContext(){
+        let result = {};
         let node = this._node;
         if(node.opacity) {
-            context.opacity = node.opacity;
+            result.opacity = node.opacity;
         }
 
         if(node.color) {
-            context.fillStyle = node.color;
-            context.strokeStyle = node.color;
+            if(node.fill !== false){
+                result.fillStyle = node.color;
+            }
+            if(node.stroke !== false){
+                result.strokeStyle = node.color;
+            }
         }
 
         if(node.stroke && node.stroke !== true) {
-            context.strokeStyle = node.stroke;
+            result.strokeStyle = node.stroke;
         }
 
         if(node.fill && node.fill !== true) {
-            context.fillStyle = node.fill;
+            result.fillStyle = node.fill;
         }
-        context.lineWidth = Math.min(3, node.size * node.scale / 20); // Magic number
-    }    
+        result.lineWidth = Math.min(3, this._size * node.scale / 20); // Magic number
+        return result;
+    }
+
+    _drawPrepareCanvasContext(context){
+        Object.assign(context, this._getStyleForCanvasContext());
+    }
 
     drawHighlight(context) {
         context.save();
@@ -78,20 +88,27 @@ export class ChartClass {
         context.restore();
     }
 
-    draw(context) {
+    draw(context, x, y) {
+        if(x === undefined){
+            x = this._canvas_x;
+        }
+        if(y === undefined){
+            y = this._canvas_y;
+        }
         context.save();
         this._drawPrepareCanvasContext(context)
-        let params = this.getDrawParams();
+        let params = this.getDrawParams(x, y);
         context.beginPath();
         ChartShape.draw(context, params);
         context.restore();
     }
 
-    updateTooltipPath(){
-        this._path = new Path2D();
-        let params = this.getDrawParams();
+    getMouseoverPath(x, y){
+        let path = new Path2D();
+        let params = this.getDrawParams(x, y);
         params.size *= this._sseq.mouseoverScale;
-        ChartShape.outline(this._path, params);
+        ChartShape.outline(path, params);
+        return path;
     }
 
     _drawOnPageQ(page){

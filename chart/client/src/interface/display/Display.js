@@ -6,6 +6,23 @@ import { INFINITY } from "../../infinity.js";
 
 const GridEnum = Object.freeze({ go : 1, chess : 2 });
 
+function groupByArray(xs, key) { 
+    return xs.reduce(
+        function reducer(rv, x) { 
+            let v = key instanceof Function ? key(x) : x[key]; 
+            let el = rv.find((r) => r && r.key === v); 
+            if(el) { 
+                el.values.push(x); 
+            } else { 
+                rv.push({ key: v, values: [x] }); 
+            } 
+            return rv; 
+        }, 
+        []
+    ); 
+} 
+
+
 export class Display extends HTMLElement {
     // container is either an id (e.g. "#main") or a DOM object
     constructor() {
@@ -36,6 +53,7 @@ export class Display extends HTMLElement {
         this.yScaleInit = d3.scaleLinear();
 
         this.canvas = document.createElement("canvas");
+        this.shadowCanvas = document.createElement("canvas");
         this.canvas.style.padding = "0px";
         this.canvas.style.position = "absolute";
         this.canvas.style.top = "0";
@@ -44,6 +62,7 @@ export class Display extends HTMLElement {
         this.container_DOM.appendChild(this.canvas);
 
         this.context = this.canvas.getContext("2d");
+        this.node_buffers = {};
 
         this.updateBatch = this.updateBatch.bind(this);
         this.nextPage = this.nextPage.bind(this);
@@ -58,7 +77,7 @@ export class Display extends HTMLElement {
 
         this.canvas.addEventListener("mousemove", this._emitMouseover);
         this.canvas.addEventListener("click", this._emitClick);
-        
+
         // TODO: improve window resize handling. Currently the way that the domain changes is suboptimal.
         // I think the best would be to maintain the x and y range by scaling.
         this._resizeObserver = new ResizeObserver(entries => {
@@ -247,9 +266,16 @@ export class Display extends HTMLElement {
 
     _drawSseq(ctx = this.context) {
         if (!this.sseq) return;
+        this.total_draws = this.total_draws + 1 || 0;
+        let startTime = performance.now();
 
         this._updateScale();
         this._updateGridAndTickStep();
+
+        let [nodes, edges] = this.sseq.getElementsToDraw(
+            this.pageRange, 
+            this.xmin - 1, this.xmax + 1, this.ymin - 1, this.ymax + 1
+        );
 
         ctx.clearRect(0, 0, this._canvasWidth, this._canvasHeight);
 
@@ -259,13 +285,8 @@ export class Display extends HTMLElement {
         ctx.save();
 
         this.clipContext(ctx);
-
-        let [nodes, edges] = this.sseq.getElementsToDraw(
-            this.pageRange, 
-            this.xmin - 1, this.xmax + 1, this.ymin - 1, this.ymax + 1
-        );
-
         this._drawGrid(ctx);
+
         this.emit("draw_background");
         this._updateNodes(nodes);
         this._highlightClasses(ctx);
@@ -298,6 +319,8 @@ export class Display extends HTMLElement {
         }
         ctx.restore();
         this.emit("draw");
+        let dt = performance.now() - startTime;
+        console.log("elapsed", dt/1000, "fps:", 1000/dt);
     }
 
     /**
@@ -535,67 +558,92 @@ export class Display extends HTMLElement {
     }
 
     _drawClasses(context) {
-        for (let c of this.classes_to_draw) {
-            c.draw(context);
-            c.updateTooltipPath();
+        const BUFFER_WIDTH = 64;
+        const BUFFER_HEIGHT = 64;
+        let groupedClasses = groupByArray(this.classes_to_draw, c => JSON.stringify(c._getStyleForCanvasContext()))
+
+        for(let classGroup of groupedClasses){
+            let buffer;
+            if(classGroup.key in this.node_buffers){
+                buffer = this.node_buffers[classGroup.key];
+                let bufferCtx = buffer.getContext('2d');
+                bufferCtx.clearRect(0, 0, BUFFER_WIDTH, BUFFER_HEIGHT);
+            } else {
+                buffer = document.createElement('canvas');
+                buffer.width = BUFFER_WIDTH;
+                buffer.height = BUFFER_HEIGHT;
+                this.node_buffers[classGroup.key] = buffer;
+            }
+            let bufferCtx = buffer.getContext('2d');
+            let firstClass = classGroup.values[0];
+            firstClass.draw(bufferCtx, BUFFER_WIDTH/2, BUFFER_HEIGHT/2);
+            let path = firstClass.getMouseoverPath(0, 0);
+                   
+            for(let c of classGroup.values) {
+                c._path = path;
+                context.drawImage(buffer, c._canvas_x - BUFFER_WIDTH/2, c._canvas_y - BUFFER_HEIGHT/2);
+            }
         }
     }
 
-    _drawEdges(context, edges){        
-        for (let e of edges) {
-            if(!e) {
-                throw ValueError("Undefined edge.");
-            }
-            if(e.invalid || !e.visible){
-                continue;
-            }
-            if (e.type === "Structline" && this.hiddenStructlines.has(e.mult)) {
-                continue;
-            }
-
-            let source_node = e._source;
-            let target_node = e._target;
-            if(!source_node || ! target_node){
-                throw ValueError(`Edge ${e} has undefined source or target node`);
-            }
-            e._sourceOffset = e.sourceOffset || {x: 0, y: 0};
-            e._targetOffset = e.targetOffset || {x: 0, y: 0};
-
+    _drawEdges(context, edges){
+        let grouped_edges = groupByArray(edges, (e) => JSON.stringify([e.color, e.lineWidth, e.opacity, e.dash]));
+        for(let edge_group of grouped_edges){
             context.save();
-            context.strokeStyle = e.color;
-            if(e.lineWidth){
-                context.lineWidth = e.lineWidth;
+            let first_edge = edge_group.values[0];
+            context.strokeStyle = first_edge.color || "black";
+            if(first_edge.lineWidth){
+                context.lineWidth = first_edge.lineWidth;
             }
-            if(e.opacity){
-                context.globalAlpha = e.opacity;
+            if(first_edge.opacity){
+                context.globalAlpha = first_edge.opacity;
             }
-            if(e.dash){
-                context.setLineDash(e.dash);
-            }
-
-            let sourceX = source_node._canvas_x + e._sourceOffset.x;
-            let sourceY = source_node._canvas_y + e._sourceOffset.y;
-            let targetX = target_node._canvas_x + e._targetOffset.x;
-            let targetY = target_node._canvas_y + e._targetOffset.y;
-            
+            if(first_edge.dash){
+                context.setLineDash(first_edge.dash);
+            }            
             context.beginPath();
-            if(e.bend ){//&& e.bend !== 0
-                let distance = Math.sqrt((targetX - sourceX)*(targetX - sourceX) + (targetY - sourceY)*(targetY - sourceY));
-                let looseness = 0.4;
-                if(e.looseness){
-                    looseness = e.looseness;
+            for (let e of edge_group.values) {
+                if(!e) {
+                    throw ValueError("Undefined edge.");
                 }
-                let angle = Math.atan((targetY - sourceY)/(targetX - sourceX));
-                let bendAngle = - e.bend * Math.PI/180;
-                let control1X = sourceX + Math.cos(angle + bendAngle) * looseness * distance;
-                let control1Y = sourceY + Math.sin(angle + bendAngle) * looseness * distance;
-                let control2X = targetX - Math.cos(angle - bendAngle) * looseness * distance;
-                let control2Y = targetY - Math.sin(angle - bendAngle) * looseness * distance;
-                context.moveTo(sourceX, sourceY);
-                context.bezierCurveTo(control1X, control1Y, control2X, control2Y, targetX, targetY);
-            } else {
-                context.moveTo(sourceX, sourceY);
-                context.lineTo(targetX, targetY);
+                if(e.invalid || !e.visible){
+                    continue;
+                }
+                if (e.type === "Structline" && this.hiddenStructlines.has(e.mult)) {
+                    continue;
+                }
+
+                let source_node = e._source;
+                let target_node = e._target;
+                if(!source_node || ! target_node){
+                    throw ValueError(`Edge ${e} has undefined source or target node`);
+                }
+                e._sourceOffset = e.sourceOffset || {x: 0, y: 0};
+                e._targetOffset = e.targetOffset || {x: 0, y: 0};
+
+                let sourceX = source_node._canvas_x + e._sourceOffset.x;
+                let sourceY = source_node._canvas_y + e._sourceOffset.y;
+                let targetX = target_node._canvas_x + e._targetOffset.x;
+                let targetY = target_node._canvas_y + e._targetOffset.y;
+                
+                if(e.bend ){//&& e.bend !== 0
+                    let distance = Math.sqrt((targetX - sourceX)*(targetX - sourceX) + (targetY - sourceY)*(targetY - sourceY));
+                    let looseness = 0.4;
+                    if(e.looseness){
+                        looseness = e.looseness;
+                    }
+                    let angle = Math.atan((targetY - sourceY)/(targetX - sourceX));
+                    let bendAngle = - e.bend * Math.PI/180;
+                    let control1X = sourceX + Math.cos(angle + bendAngle) * looseness * distance;
+                    let control1Y = sourceY + Math.sin(angle + bendAngle) * looseness * distance;
+                    let control2X = targetX - Math.cos(angle - bendAngle) * looseness * distance;
+                    let control2Y = targetY - Math.sin(angle - bendAngle) * looseness * distance;
+                    context.moveTo(sourceX, sourceY);
+                    context.bezierCurveTo(control1X, control1Y, control2X, control2Y, targetX, targetY);
+                } else {
+                    context.moveTo(sourceX, sourceY);
+                    context.lineTo(targetX, targetY);
+                }
             }
             context.stroke();
             context.restore();
@@ -636,12 +684,12 @@ export class Display extends HTMLElement {
         // We cannot query for mouse position. We must remember it from
         // previous events. If update() is called, we call _onMousemove without
         // an event.
-        // let rect = this.canvas.getBoundingClientRect();
         if(e) {
-            this.mousex = e.layerX; //e.clientX - rect.x;
-            this.mousey = e.layerY; //e.clientY - rect.y;
+            this.mousex = e.layerX;
+            this.mousey = e.layerY;
             this.mouseover_object = this.prepareMouseEventObject();
         }
+        
         redraw = redraw | false;
         redraw |= this._emitMouseoverClass();
         redraw |= this._emitMouseoverBidegree();
@@ -651,13 +699,17 @@ export class Display extends HTMLElement {
         } 
     }
 
+    getMouseoverClass(x, y){
+        return this.classes_to_draw.find((c) => 
+            this.context.isPointInPath(c._path, this.mousex - c._canvas_x, this.mousey - c._canvas_y)
+        );
+    }
+
     _emitMouseoverClass(){
+        let new_mouseover_class = this.getMouseoverClass(this.mousex, this.mousey);
         let redraw = false;
         if (this.mouseover_class) {
-            if(
-                this.classes_to_draw.includes(this.mouseover_class) 
-                && this.context.isPointInPath(this.mouseover_class._path, this.mousex, this.mousey)
-            ) {
+            if(new_mouseover_class === this.mouseover_class) {
                 return false;
             } else {
                 this.emit("mouseout-class", this.mouseover_class, this.mouseover_object);
@@ -665,11 +717,10 @@ export class Display extends HTMLElement {
                 redraw = true;
             }
         }
-        let c = this.classes_to_draw.find(c => this.context.isPointInPath(c._path, this.mousex, this.mousey));
-        if(c) {
+        if(new_mouseover_class) {
             redraw = true;
-            this.mouseover_class = c;
-            this.emit("mouseover-class", c, this.mouseover_object);
+            this.mouseover_class = new_mouseover_class;
+            this.emit("mouseover-class", new_mouseover_class, this.mouseover_object);
         }
         return redraw;
     }

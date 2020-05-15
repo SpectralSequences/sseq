@@ -20,6 +20,7 @@ export class Panel extends LitElement {
         this._startResize = this._startResize.bind(this);
         this._resize = this._resize.bind(this);
         this._stopResize = this._stopResize.bind(this);
+        this.transitionTime = "0.5s";
         this.width = 240; // px
         this.minWidth = 200; // px
         this.collapsedWidth = 30; // px
@@ -72,7 +73,7 @@ export class Panel extends LitElement {
     render(){
         let sidebar_styles  = { width : `${this.width}px` };
         if(!this.resizing){
-            Object.assign(sidebar_styles, {transition : "0.5s"});
+            Object.assign(sidebar_styles, {transition : this.transitionTime});
         }
         if(this.hidden){
             let translation = this.width - this.collapsedWidth;
