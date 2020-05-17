@@ -21,8 +21,6 @@ export class Panel extends LitElement {
         this._resize = this._resize.bind(this);
         this._stopResize = this._stopResize.bind(this);
         this.transitionTime = "0.5s";
-        this.width = 240; // px
-        this.minWidth = 200; // px
         this.collapsedWidth = 30; // px
         this.hidden = false;
         this.hidden_width = "2rem";
@@ -70,6 +68,13 @@ export class Panel extends LitElement {
         `
     }
 
+    firstUpdated(){
+        this.width = parseFloat(this.getAttribute("initial-width")) || 240; // px
+        this.minWidth = parseFloat(this.getAttribute("min-width")) || 200; // px
+        this.maxWidth = parseFloat(this.getAttribute("max-width")) || 100000; // px
+        console.log(this.width, this.minWidth, this.maxWidth);
+    }
+
     render(){
         let sidebar_styles  = { width : `${this.width}px` };
         if(!this.resizing){
@@ -115,7 +120,7 @@ export class Panel extends LitElement {
     }
 
     _resize(e) {
-        this.width = Math.max(this.getBoundingClientRect().right - e.pageX, this.minWidth);
+        this.width = Math.min(Math.max(this.getBoundingClientRect().right - e.pageX, this.minWidth), this.maxWidth);
     }
 
     _stopResize() {

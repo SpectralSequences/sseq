@@ -106,6 +106,9 @@ class ChartClass:
     def y_nudge(self, storage_name):
         self.needs_update()
 
+    def set_color(self, value):
+        self.set_field("color", value)
+
     def set_field(self, field, value):
         # with self._lock:
             for i in range(len(self.node_list)):

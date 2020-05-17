@@ -81,7 +81,7 @@ export class ChartClass {
         context.save();
         context.beginPath();
         context.fillStyle = this._sseq.highlightColor;
-        let params = this.getDrawParams();
+        let params = this.getDrawParams(this._canvas_x, this._canvas_y);
         params.size *= this._sseq.highlightScale;
         ChartShape.outline(context, params);
         context.fill();
