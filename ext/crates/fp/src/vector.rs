@@ -1816,6 +1816,13 @@ impl<'a> Iterator for FpVectorIterator<'a> {
     }
 }
 
+impl<'a> ExactSizeIterator for FpVectorIterator<'a> {
+    fn len(&self) -> usize {
+        self.counter
+    }
+}
+
+
 
 pub struct FpVector2IteratorNonzero<'a> {
     limbs : &'a Vec<u64>,

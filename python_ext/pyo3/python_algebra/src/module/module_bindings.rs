@@ -286,7 +286,7 @@ macro_rules! module_bindings { ( $module : ident, $module_rust : ident) => {
     //         Ok(obj.extract::<&FpVector>(py).or_else(|_err| {
     //             Ok(&obj.extract::<&$element>(py)?.element)
     //         }).map_err(|_err : PyErr| {
-    //             Err(python_utils::exception!(ValueError,
+    //             Err(python_utils::exception!(TypeError,
     //                 "Argument \"{}\" expected to be either an {} or an FpVector.",
     //                 $element_name,
     //                 argument_name

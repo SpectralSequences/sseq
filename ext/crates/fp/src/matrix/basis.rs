@@ -12,6 +12,7 @@ impl Basis {
         let mut matrix = Matrix::new(p, dimension, dimension);
         let mut inverse = AugmentedMatrix2::new(p, dimension, &[dimension, dimension]);
         matrix.add_identity(dimension, 0, 0);
+        std::mem::forget(inverse.segment(1,1));
         inverse.segment(0,0).add_identity(dimension, 0, 0);
         inverse.segment(1,1).add_identity(dimension, 0, 0);
         Basis {
@@ -22,6 +23,10 @@ impl Basis {
 
     pub fn prime(&self) -> ValidPrime {
         self.matrix.prime()
+    }
+
+    pub fn dimension(&self) -> usize {
+        self.matrix.rows()
     }
 
     pub fn is_inverse_calculated(&self) -> bool {
@@ -41,6 +46,16 @@ impl Basis {
         self.matrix = m;
     }
 
+    pub fn is_singular(&self) -> bool {
+        for i in 0..self.matrix.columns() {
+            if self.inverse.pivots()[i] != i as isize {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     pub fn calculate_inverse(&mut self) {
         let matrix = self.take_matrix();
         self.inverse.clear_slice();
@@ -50,12 +65,7 @@ impl Basis {
         self.inverse.segment(1,1).add_identity(self.matrix.rows(), 0, 0);
         self.inverse.initialize_pivots();
         self.inverse.row_reduce();
-        for i in 0..self.matrix.columns() {
-            assert!(self.inverse.pivots()[i] == i as isize, "Singular matrix!");
-        }
-        println!("inverse columns : {}", self.inverse.columns());
         std::mem::forget(self.inverse.segment(1,1));
-        println!("  inverse columns : {}", self.inverse.columns());
     }
 
     pub fn apply(&self, result : &mut FpVector, v : &FpVector) {
@@ -73,11 +83,11 @@ impl Basis {
         }
     }
 
-    pub fn replace_entry(&mut self, row : usize, v : &FpVector){
-        assert!(v.dimension() == self.matrix.columns());
-        self.matrix[row].assign(v);
-        self.calculate_inverse();
-    }
+    // pub fn replace_entry(&mut self, row : usize, v : &FpVector) -> Result<(), ()>{
+    //     assert!(v.dimension() == self.matrix.columns());
+    //     self.matrix[row].assign(v);
+    //     self.calculate_inverse();
+    // }
 }
 
 

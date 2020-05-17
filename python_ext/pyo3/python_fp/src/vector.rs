@@ -161,7 +161,7 @@ impl FpVector {
         self.check_not_null()?;
         let index = self.handle_index(index)?;
         let value = self.reduce_coefficient(value);
-        self.inner_mut_unchkd().set_entry(index, value);
+        self.inner_mut()?.set_entry(index, value);
         Ok(())
     }
 
@@ -174,7 +174,7 @@ impl FpVector {
         self.check_not_null()?;
         let index = self.handle_index(index)?;
         let c = self.reduce_coefficient(c);
-        self.inner_mut_unchkd().add_basis_element(index, c);
+        self.inner_mut()?.add_basis_element(index, c);
         Ok(())
     }
 
@@ -219,6 +219,11 @@ impl FpVector {
     pub fn pack(&self, l : PyObject) -> PyResult<()> {
         let inner = self.inner_mut()?;
         let vec = vec_from_pyobj(*inner.prime(), l)?;
+        if vec.len() != inner.dimension() {
+            return Err(python_utils::exception!(ValueError, 
+                "Input list has length {} vector has dimension {}.", vec.len(), inner.dimension()
+            ))
+        }
         inner.pack(&vec);
         Ok(())
     }
@@ -234,7 +239,7 @@ impl FpVector {
         self.check_primes_match(other, "")?;
         self.check_dimensions_match(other, "Cannot add vectors when dimensions do not match.")?;
         let c =  self.reduce_coefficient(c);
-        self.inner_mut_unchkd().add(other.inner()?, c);
+        self.inner_mut()?.add(other.inner()?, c);
         Ok(())
     }
 
@@ -283,7 +288,7 @@ impl PySequenceProtocol for FpVector {
     fn __setitem__(mut self, index : isize, value : i32) -> PyResult<()> {
         self.check_not_null()?;
         self.check_index(index)?;
-        self.inner_mut_unchkd().set_entry(index as usize, self.reduce_coefficient(value));
+        self.inner_mut()?.set_entry(index as usize, self.reduce_coefficient(value));
         Ok(())
     }
 }
@@ -294,5 +299,5 @@ impl PySequenceProtocol for FpVector {
 // self.check_not_null()?;
 // let index = self.handle_index(index)?;
 // let value = self.reduce_coefficient(value);
-// self.inner_mut_unchkd().set_entry(index, value);
+// self.inner_mut()?.set_entry(index, value);
 // Ok(())

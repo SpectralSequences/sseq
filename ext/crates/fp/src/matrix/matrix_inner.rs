@@ -956,12 +956,17 @@ macro_rules! augmented_matrix {
                 pub fn segment(&mut self, start: usize, end: usize) -> MatrixSlice<'_> {
                     let start_idx = self.start[start];
                     let end_idx = self.end[end];
+                    let old_slice = if self.rows() == 0 {
+                        (0, self.columns())
+                    } else {
+                        self[0].slice()
+                    };
                     for v in &mut *self.inner {
                         v.restore_slice((start_idx, end_idx));
                     }
                     self.inner.slice_col_start = start_idx;
                     self.inner.slice_col_end = end_idx;
-                    MatrixSlice(&mut self.inner)
+                    MatrixSlice(&mut self.inner, old_slice)
                 }
 
                 pub fn row_segment(&mut self, i: usize, start: usize, end: usize) -> FpVectorSlice<'_> {
@@ -1009,14 +1014,14 @@ impl AugmentedMatrix3 {
     }
 }
 
-pub struct MatrixSlice<'a>(&'a mut Matrix);
+pub struct MatrixSlice<'a>(&'a mut Matrix, (usize, usize));
 
 impl<'a> Drop for MatrixSlice<'a> {
     fn drop(&mut self) {
         self.0.slice_col_start = 0;
         self.0.slice_col_end = self.0.columns;
         for v in &mut **self.0 {
-            v.clear_slice();
+            v.restore_slice(self.1);
         }
     }
 }

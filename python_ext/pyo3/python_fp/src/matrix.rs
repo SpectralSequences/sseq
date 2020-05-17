@@ -2,7 +2,7 @@ use pyo3::{
     prelude::*,
     PyObjectProtocol, 
     PySequenceProtocol,
-    types::PyTuple
+    types::{ PyTuple, PyList }
 };
 
 // use fp::vector::{FpVector as FpVectorRust, FpVectorT};
@@ -21,6 +21,19 @@ use crate::prime::new_valid_prime;
 use crate::vector::FpVector;
 
 wrapper_type!(PivotVecWrapper, Vec<isize>);
+#[pyproto]
+impl PySequenceProtocol for PivotVecWrapper {
+    fn __len__(self) -> PyResult<usize> {
+        Ok(self.inner()?.len())
+    }
+
+    fn __getitem__(self, index : isize) -> PyResult<isize> {
+        self.check_not_null()?;
+        python_utils::check_index(self.inner_unchkd().len(), index, "length", "pivot vector")?;
+        Ok(self.inner_unchkd()[index as usize])
+    }
+}
+
 
 #[pymethods]
 impl PivotVecWrapper {
@@ -90,7 +103,11 @@ impl Matrix {
     }
 
     // TODO:
-    // pub fn to_python_matrix(&self) -> PyResult<PyObject> { }
+    pub fn to_python_matrix(&self) -> PyResult<PyObject> { 
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(PyObject::from(PyList::new(py, self.inner()?.iter().map(|r| PyList::new(py, r.iter())))))
+    }
     
     // pub fn from_rows(p : u32, vectors : Vec<FpVector>, columns : usize) -> Self {}
     // pub fn from_vec(p : ValidPrime, input : &[Vec<u32>]) -> Matrix  {}
@@ -98,6 +115,21 @@ impl Matrix {
     // pub fn augmented_from_vec(p : ValidPrime, input : &[Vec<u32>]) -> (usize, Matrix) {}
 
     fn add_identity(&mut self, size : usize, row : usize, column : usize) -> PyResult<()> {
+        self.check_not_null()?;
+        let rows = self.rows()?;
+        let cols = self.columns()?;
+        if row + size > rows {
+            return Err(python_utils::exception!(IndexError,
+                "Matrix has only {} rows but needs at least {} rows for desired operation.",
+                rows, row + size
+            ));
+        }
+        if column + size > cols {
+            return Err(python_utils::exception!(IndexError,
+                "Matrix has only {} columns but needs at least {} columns for desired operation.",
+                cols, column + size
+            ));
+        }        
         self.inner_mut()?.add_identity(size, row, column);
         Ok(())
     }
@@ -170,7 +202,11 @@ impl PySequenceProtocol for Matrix {
     }
 
     fn __getitem__(self, index : isize) -> PyResult<FpVector> {
-        Ok(FpVector::wrap(&mut self.inner_mut()?[self.handle_index(index)?], self.owner()))
+        if self.is_mutable(){
+            Ok(FpVector::wrap(&mut self.inner_mut()?[self.handle_index(index)?], self.owner()))
+        } else {
+            Ok(FpVector::wrap_immutable(&self.inner()?[self.handle_index(index)?], self.owner()))
+        }
     }
 }
 
@@ -180,9 +216,9 @@ wrapper_type!(Subspace, SubspaceRust);
 
 py_repr!(Subspace, "FreedSubspace", {
     Ok(format!(
-        "FSubspace (TODO: a repr)",
-        // self.inner.prime(),
-        // self.inner
+        "F{}Subspace {}",
+        inner.prime(),
+        inner.matrix
     ))
 });
 
@@ -297,6 +333,10 @@ impl Matrix {
     pub fn set_to_zero(&mut self) -> PyResult<()> { 
         self.inner_mut()?.set_to_zero();
         Ok(())
+    }
+
+    pub fn pivots(&self) -> PyResult<PivotVecWrapper> {
+        Ok(PivotVecWrapper::wrap_immutable(self.inner()?.pivots(), self.owner()))
     }
 
     pub fn find_first_row_in_block(&self, first_column_in_block : usize) -> PyResult<usize> {
