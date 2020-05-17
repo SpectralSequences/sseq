@@ -5,7 +5,7 @@ use fp::vector::FpVector;
 use algebra::module::{
     Module as ModuleT,
     FDModule as FDModuleRust,
-    FPModule as FPModuleRust,
+    // FPModule as FPModuleRust,
     // FreeModule as FreeModuleRust,
     FreeUnstableModule as FreeUnstableModuleRust,
     RealProjectiveSpace as RealProjectiveSpaceRust,
@@ -67,7 +67,7 @@ macro_rules! export_modules {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
                 Err(python_utils::exception!(RuntimeError, "Dummy"))
-                    $(.or_else(|_err : PyErr| Ok(module.extract::<&$module_name>(py)?.to_arc()?)))+
+                    $(.or_else(|_err : PyErr| Ok((&module).extract::<$module_name>(py)?.to_arc()?)))+
                     .map( |a| a.clone())
                     .map_err(|_err : PyErr| { python_utils::exception!(TypeError,
                         "Invalid module for from_py_object!"

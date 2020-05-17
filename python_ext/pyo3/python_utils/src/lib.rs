@@ -2,7 +2,6 @@
 
 use pyo3::{
     prelude::*,
-    ObjectProtocol,
     types::{PyDict, PyAny}
 };
 
@@ -652,12 +651,12 @@ macro_rules! rc_wrapper_type_helper {
                 Ok(())
             }
 
-            pub fn to_arc(&self) -> PyResult<&std::sync::Arc<$inner>> {
+            pub fn to_arc(&self) -> PyResult<std::sync::Arc<$inner>> {
                 self.check_not_null()?;
                 self.check_immutable()?;
                 match &self.inner {
                     $enum_name::Mut(_) => unreachable!(),
-                    $enum_name::Immut(arc) => Ok(arc)
+                    $enum_name::Immut(arc) => Ok(arc.clone())
                 }                
             }
 

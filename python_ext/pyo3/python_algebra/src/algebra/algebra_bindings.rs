@@ -26,7 +26,7 @@ pub fn vecu32_from_py_object(obj : PyObject, argument_name : &str) -> PyResult<V
     let gil = Python::acquire_gil();
     let py = gil.python();
     obj.extract(py).or_else(|_err| {
-        let result : &PVector = obj.extract(py)?;
+        let result : PVector = obj.extract(py)?;
         Ok(result.inner()?.clone())
     }).map_err(|_err : PyErr| {
         python_utils::exception!(ValueError,
@@ -307,145 +307,145 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
         element : FpVector
     }
     
-    #[pyproto]
-    impl PyObjectProtocol for $element {
-        fn __repr__(&self) -> PyResult<String> {
-            self.algebra.element_to_string(self.degree, &self.element)
-        }
-    }
+    // #[pyproto]
+    // impl PyObjectProtocol for $element {
+    //     fn __repr__(&self) -> PyResult<String> {
+    //         self.algebra.element_to_string(self.degree, &self.element)
+    //     }
+    // }
+
+    // // #[pyproto]
+    // // impl pyo3::PyNumberProtocol for $element {
+    // //     fn __add__(self, other: $element) -> PyResult<$element> {
+    // //         // if self.algebra != other.algebra {
+    // //         //     return Err(python_utils::exception!(TypeError,
+    // //         //         "You cannot add elements of different algebras."
+    // //         //     ))
+    // //         // }
+    // //         // if self.degree != other.degree {
+    // //         //     return Err(python_utils::exception!(TypeError,
+    // //         //         "Elements you are trying to add have different degrees {} and {}. You cannot form inhomogenous sums.",
+    // //         //         self.degree, other.degree
+    // //         //     ))
+    // //         // }
+    // //         // let mut result = self.algebra.new_element(self.degree)?;
+    // //         // result.assign(&self.element);
+    // //         // result.add(&other.element);
+    // //         Ok(self)
+    // //     }
+
+    //     // fn __mul__(self, other: $element) -> PyResult<$element> {
+    //     //     if self.algebra != other.algebra {
+    //     //         return Err(python_utils::exception!(TypeError,
+    //     //             "You cannot multiply elements of different algebras."
+    //     //         ))
+    //     //     }
+            
+    //     //     let mut result = self.algebra.new_element(self.degree + other.degree)?;
+    //     //     result.excess = other.excess;
+    //     //     self.algebra.multiply_element_by_element(
+    //     //         &mut result, 1, self.degree, &self.element, other.degree, &other.element, other.excess
+    //     //     );
+    //     //     Ok(result)
+    //     // }        
+    // // }    
 
     // #[pyproto]
-    // impl pyo3::PyNumberProtocol for $element {
-    //     fn __add__(self, other: $element) -> PyResult<$element> {
-    //         // if self.algebra != other.algebra {
-    //         //     return Err(python_utils::exception!(TypeError,
-    //         //         "You cannot add elements of different algebras."
-    //         //     ))
-    //         // }
-    //         // if self.degree != other.degree {
-    //         //     return Err(python_utils::exception!(TypeError,
-    //         //         "Elements you are trying to add have different degrees {} and {}. You cannot form inhomogenous sums.",
-    //         //         self.degree, other.degree
-    //         //     ))
-    //         // }
-    //         // let mut result = self.algebra.new_element(self.degree)?;
-    //         // result.assign(&self.element);
-    //         // result.add(&other.element);
-    //         Ok(self)
+    // impl pyo3::PySequenceProtocol for $element {
+    //     fn __len__(self) -> PyResult<usize> {
+    //         self.element.get_dimension()
     //     }
 
-        // fn __mul__(self, other: $element) -> PyResult<$element> {
-        //     if self.algebra != other.algebra {
-        //         return Err(python_utils::exception!(TypeError,
-        //             "You cannot multiply elements of different algebras."
-        //         ))
-        //     }
-            
-        //     let mut result = self.algebra.new_element(self.degree + other.degree)?;
-        //     result.excess = other.excess;
-        //     self.algebra.multiply_element_by_element(
-        //         &mut result, 1, self.degree, &self.element, other.degree, &other.element, other.excess
-        //     );
-        //     Ok(result)
-        // }        
-    // }    
+    //     fn __getitem__(self, index : isize) -> PyResult<u32> {
+    //         self.element.check_not_null()?;
+    //         self.element.check_index(index)?;
+    //         Ok(self.element.inner_unchkd().entry(index as usize))
+    //     }
 
-    #[pyproto]
-    impl pyo3::PySequenceProtocol for $element {
-        fn __len__(self) -> PyResult<usize> {
-            self.element.get_dimension()
-        }
-
-        fn __getitem__(self, index : isize) -> PyResult<u32> {
-            self.element.check_not_null()?;
-            self.element.check_index(index)?;
-            Ok(self.element.inner_unchkd().entry(index as usize))
-        }
-
-        fn __setitem__(mut self, index : isize, value : i32) -> PyResult<()> {
-            self.element.check_not_null()?;
-            self.element.check_index(index)?;
-            self.element.inner_mut_unchkd().set_entry(index as usize, self.element.reduce_coefficient(value));
-            Ok(())
-        }
-    }
+    //     fn __setitem__(mut self, index : isize, value : i32) -> PyResult<()> {
+    //         self.element.check_not_null()?;
+    //         self.element.check_index(index)?;
+    //         self.element.inner_mut_unchkd().set_entry(index as usize, self.element.reduce_coefficient(value));
+    //         Ok(())
+    //     }
+    // }
     
-    impl $element {
-        fn obj_to_vec(obj : PyObject, argument_name : &str) -> PyResult<FpVector> {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
-            Ok(obj.extract::<&FpVector>(py).or_else(|_err| {
-                Ok(&obj.extract::<&$element>(py)?.element)
-            }).map_err(|_err : PyErr| {
-                python_utils::exception!(TypeError,
-                    "Argument \"{}\" expected to be either an {} or an FpVector.",
-                    $element_name,
-                    argument_name
-                )
-            })?.clone())
-        }
-    }
+    // impl $element {
+    //     fn obj_to_vec(obj : PyObject, argument_name : &str) -> PyResult<FpVector> {
+    //         let gil = Python::acquire_gil();
+    //         let py = gil.python();
+    //         Ok(obj.extract::<FpVector>(py).or_else(|_err| {
+    //             Ok(&obj.extract::<$element>(py)?.element)
+    //         }).map_err(|_err : PyErr| {
+    //             python_utils::exception!(TypeError,
+    //                 "Argument \"{}\" expected to be either an {} or an FpVector.",
+    //                 $element_name,
+    //                 argument_name
+    //             )
+    //         })?.clone())
+    //     }
+    // }
     
-    #[pymethods]
-    impl $element {
-        #[getter]
-        fn get_vec(&self) -> FpVector {
-            self.element.clone()
-        }
+    // #[pymethods]
+    // impl $element {
+    //     #[getter]
+    //     fn get_vec(&self) -> FpVector {
+    //         self.element.clone()
+    //     }
 
-        #[getter]
-        fn get_algebra(&self) -> $algebra {
-            self.algebra.clone()
-        }
+    //     #[getter]
+    //     fn get_algebra(&self) -> $algebra {
+    //         self.algebra.clone()
+    //     }
 
-        #[getter]
-        fn get_degree(&self) -> i32 {
-            self.degree
-        }
+    //     #[getter]
+    //     fn get_degree(&self) -> i32 {
+    //         self.degree
+    //     }
 
-        #[getter]
-        fn get_dimension(&self) -> PyResult<usize> {
-            self.element.get_dimension()
-        }
+    //     #[getter]
+    //     fn get_dimension(&self) -> PyResult<usize> {
+    //         self.element.get_dimension()
+    //     }
     
-        #[args(c=1)]
-        fn add(&mut self, other : PyObject, c : i32) -> PyResult<()> {
-            self.element.add(&$element::obj_to_vec(other, "other")?, c)
-        }
+    //     #[args(c=1)]
+    //     fn add(&mut self, other : PyObject, c : i32) -> PyResult<()> {
+    //         self.element.add(&$element::obj_to_vec(other, "other")?, c)
+    //     }
     
-        #[args(coeff=1)]
-        fn multiply_add(&mut self, left : &$element, right : &$element, coeff : i32) -> PyResult<()> {
-            let coeff = python_utils::reduce_coefficient(self.algebra.get_prime()?, coeff);
-            self.algebra.multiply_element_by_element(&mut self.element, coeff, 
-                left.degree, &left.element, 
-                right.degree, &right.element, 
-                right.excess
-            )
-        }
-    }
+    //     #[args(coeff=1)]
+    //     fn multiply_add(&mut self, left : &$element, right : &$element, coeff : i32) -> PyResult<()> {
+    //         let coeff = python_utils::reduce_coefficient(self.algebra.get_prime()?, coeff);
+    //         self.algebra.multiply_element_by_element(&mut self.element, coeff, 
+    //             left.degree, &left.element, 
+    //             right.degree, &right.element, 
+    //             right.excess
+    //         )
+    //     }
+    // }
     
 
-    #[pymethods]
-    impl $algebra {
-        #[args(excess=2147483647)]
-        fn new_element(&self, degree : i32, excess : i32) -> PyResult<$element> {
-            self.check_not_null()?;
-            self.check_degree(degree)?;
-            Ok($element {
-                algebra : self.clone(),
-                degree,
-                excess,
-                element : FpVector::new(self.get_prime()?, self.dimension(degree, excess)?)?
-            })
-        }
+    // #[pymethods]
+    // impl $algebra {
+    //     #[args(excess=2147483647)]
+    //     fn new_element(&self, degree : i32, excess : i32) -> PyResult<$element> {
+    //         self.check_not_null()?;
+    //         self.check_degree(degree)?;
+    //         Ok($element {
+    //             algebra : self.clone(),
+    //             degree,
+    //             excess,
+    //             element : FpVector::new(self.get_prime()?, self.dimension(degree, excess)?)?
+    //         })
+    //     }
     
-        fn element_from_vec(&self, degree : i32, v : &FpVector) -> PyResult<$element> {
-            Ok($element {
-                algebra : self.clone(),
-                degree,
-                excess : -1,
-                element : v.clone()
-            })
-        }
-    }
+    //     fn element_from_vec(&self, degree : i32, v : &FpVector) -> PyResult<$element> {
+    //         Ok($element {
+    //             algebra : self.clone(),
+    //             degree,
+    //             excess : -1,
+    //             element : v.clone()
+    //         })
+    //     }
+    // }
 }}

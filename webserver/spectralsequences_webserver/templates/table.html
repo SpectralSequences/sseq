@@ -70,6 +70,7 @@
             font-weight: 400;
             text-align: center;
             margin: 0.25rem 0rem;
+            margin-bottom: 0.8rem;
         }
 
         input {
@@ -103,6 +104,23 @@
         sseq-tooltip {
             background: rgb(60, 189, 125);
         }
+
+        sseq-matrix {
+            --row-selected : rgba(0, 0, 255, 0.4);
+            --row-hover : rgba(0, 0, 255, 0.25);
+            --row-hover-selected : rgba(0, 0, 255, 0.5);
+            --row-active : rgba(0, 0, 255, 0.75);
+            --row-active-selected : rgba(0, 0, 255, 0.5);
+        }
+
+        .product-item:hover {
+            color : blue;
+        }
+        
+
+        /* .decompositions {
+            text-align: right;
+        }     */
     </style>
 </head>
 <body style="overflow: hidden;">
@@ -111,7 +129,7 @@
             <sseq-page-indicator style="position: absolute; left: 60px; top: 0px; font-family: Arial; font-size: 15px;"></sseq-page-indicator>
             <sseq-tooltip></sseq-tooltip>
         </sseq-display>
-    <sseq-panel style="display:flex; flex-direction: column;">
+    <sseq-panel max-width=400 initial-width=280 style="display:flex; flex-direction: column;">
     </sseq-panel>
     </div>
     <script>

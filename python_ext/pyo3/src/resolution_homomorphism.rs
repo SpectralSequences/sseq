@@ -23,8 +23,8 @@ impl ResolutionHomomorphism {
     ) -> PyResult<Self> {
         Ok(ResolutionHomomorphism::box_and_wrap(ResolutionHomomorphismRust::new(
             name, 
-            Arc::downgrade(source.to_arc()?), 
-            Arc::downgrade(target.to_arc()?),
+            Arc::downgrade(&source.to_arc()?), 
+            Arc::downgrade(&target.to_arc()?),
             homological_degree_shift,
             internal_degree_shift
         )))
@@ -41,19 +41,21 @@ impl ResolutionHomomorphism {
     }
 
     pub fn extend_step(&self, source_homological_degree : u32, source_degree : i32, extra_images : PyObject) -> PyResult<()> {
+        let temp;
         let extra_images_rust = 
             if extra_images.is_none() {
                 None
             } else {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
+                temp = extra_images.extract::<Matrix>(py)
+                    .map_err(|_err : PyErr| {
+                        python_utils::exception!(TypeError,
+                            "Type error!"
+                        )
+                    })?;
                 Some(
-                    extra_images.extract::<&Matrix>(py)
-                        .map_err(|_err : PyErr| {
-                            python_utils::exception!(TypeError,
-                                "Type error!"
-                            )
-                        })?.inner()?
+                    temp.inner()?
                 )
             };
         let self_inner = self.inner()?;

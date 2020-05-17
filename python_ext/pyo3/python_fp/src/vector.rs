@@ -1,13 +1,21 @@
 use pyo3::prelude::*;
-use pyo3::{PyObjectProtocol, PySequenceProtocol };
+use pyo3::{
+    PyObjectProtocol, 
+    PySequenceProtocol
+};
 
-use fp::vector::{FpVector as FpVectorRust, FpVectorT};
+use fp::vector::{
+    FpVector as FpVectorRust, 
+    FpVectorT,
+    // FpVectorIteratorNonzero as FpVectorIteratorNonzeroRust
+};
 
 
 use python_utils;
 use crate::prime::new_valid_prime;
 
 python_utils::wrapper_type!(FpVector, FpVectorRust);
+// python_utils::wrapper_type!(FpVectorIteratorNonzero, FpVectorIteratorNonzeroRust<'static>);
 
 python_utils::py_repr!(FpVector, "FreedVector", {
     Ok(format!(
@@ -193,8 +201,22 @@ impl FpVector {
         Ok(vec.into_py(py))
     }
 
-
+    // pub fn iter_nonzero(&self) -> PyResult<FpVectorIteratorNonzero> {
+    //     let iter = self.inner()?.iter_nonzero();
+    //     let mut iter_static : FpVectorIteratorNonzeroRust<'static> = unsafe { std::mem::transmute(iter) };
+    //     Ok(FpVectorIteratorNonzero::wrap(&mut iter_static, self.owner()))
+    // }
 }
+
+// #[pyproto]
+// impl PyIterProtocol for FpVectorIteratorNonzero {
+//     fn __iter__(slf: PyRef<Self>) -> PyResult<FpVectorIteratorNonzero> {
+//         Ok(slf.into())
+//     }
+//     fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<(usize, u32)>> {
+//         // Ok(self.inner()?.next())
+//     }
+// }
 
 fn vec_from_pyobj(p : u32, l : PyObject) -> PyResult<Vec<u32>> {
     let gil = Python::acquire_gil();
@@ -269,7 +291,7 @@ impl FpVector {
 
     pub fn set_scratch_vector_size(&mut self, dimension : usize) -> PyResult<()> {
         self.inner_mut()?.set_scratch_vector_size(dimension);
-        Ok(())  
+        Ok(())
     }
 }
 

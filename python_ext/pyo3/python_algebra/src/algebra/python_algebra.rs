@@ -49,7 +49,7 @@ crate::algebra_bindings!(PythonAlgebra, PythonAlgebraRust, PythonElement, "Pytho
 #[pymethods]
 impl PythonAlgebra {
     #[new]
-    #[args(p, "*", compute_basis, get_dimension, multiply_basis_elements, basis_element_to_string)]
+    // #[args(p, "*", compute_basis, get_dimension, multiply_basis_elements, basis_element_to_string)]
     fn new(p : u32, 
         compute_basis : PyObject,
         get_dimension : PyObject,

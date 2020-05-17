@@ -95,7 +95,7 @@ impl FreeModuleHomomorphism {
 impl FreeModuleHomomorphism {
 
     fn free(&mut self) {
-        std::mem::replace(&mut self.inner, FreeModuleHomomorphismInner::Null);
+        self.inner = FreeModuleHomomorphismInner::Null;
     }
 
     fn source(&self) -> PyResult<FreeModule> {

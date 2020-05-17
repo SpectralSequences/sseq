@@ -45,6 +45,7 @@ impl SteenrodAlgebraRustT for AlgebraRust {
     }
 }
 
+
 impl AlgebraRust {
     pub fn into_py_object(algebra : Arc<AlgebraRust>) -> PyObject {
         let gil = Python::acquire_gil();
@@ -59,15 +60,16 @@ impl AlgebraRust {
     pub fn from_py_object(algebra : PyObject) -> PyResult<Arc<AlgebraRust>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        algebra.extract::<&AdemAlgebra>(py).and_then(|a| a.to_arc())
-                .or_else(|_err : PyErr| Ok(algebra.extract::<&MilnorAlgebra>(py)?.to_arc()?))
-                .or_else(|_err : PyErr| Ok(algebra.extract::<&PythonAlgebra>(py)?.to_arc()?))
-                .map( |a| a.clone())
-                .map_err(|_err : PyErr| {
-                    python_utils::exception!(TypeError,
-                        "Invalid algebra!"
-                    )
-                })
+        Err(python_utils::exception!(RuntimeError, "Dummy"))
+            .or_else(|_err : PyErr| Ok((&algebra).extract::<AdemAlgebra>(py)?.to_arc()?))
+            .or_else(|_err : PyErr| Ok((&algebra).extract::<MilnorAlgebra>(py)?.to_arc()?))
+            .or_else(|_err : PyErr| Ok((&algebra).extract::<PythonAlgebra>(py)?.to_arc()?))
+            .map( |a| a.clone())
+            .map_err(|_err : PyErr| {
+                python_utils::exception!(TypeError,
+                    "Invalid algebra!"
+                )
+            })
     }
 }
 

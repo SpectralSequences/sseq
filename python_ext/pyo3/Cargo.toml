@@ -50,5 +50,5 @@ prime-two = ["fp/prime-two"]
 
 
 [dependencies.pyo3]
-version = "0.9.0-alpha.1"
+version = "0.10.1"
 features = ["extension-module"]

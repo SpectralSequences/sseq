@@ -57,13 +57,13 @@ impl Basis {
     }
 
     #[getter]
-    pub fn get_matrix(&mut self) -> PyResult<Matrix> {
-        Ok(Matrix::wrap_immutable(&mut self.inner_mut()?.matrix, self.owner()))
+    pub fn get_matrix(&self) -> PyResult<Matrix> {
+        Ok(Matrix::wrap_immutable(&self.inner()?.matrix, self.owner()))
     }
 
     #[getter]
-    pub fn get_inverse(&mut self) -> PyResult<Matrix> {
-        Ok(Matrix::wrap_immutable(&*self.inner_mut()?.inverse, self.owner()))
+    pub fn get_inverse(&self) -> PyResult<Matrix> {
+        Ok(Matrix::wrap_immutable(&*self.inner()?.inverse, self.owner()))
     }
 
     pub fn apply(&self, result : &mut FpVector, v : &FpVector) -> PyResult<()> {
@@ -74,7 +74,7 @@ impl Basis {
         Ok(())
     }
 
-    pub fn apply_inverse(&mut self, result : &mut FpVector, v : &FpVector) -> PyResult<()> {
+    pub fn apply_inverse(&self, result : &mut FpVector, v : &FpVector) -> PyResult<()> {
         self.check_dimension(v.inner()?.dimension())?;
         self.check_dimension(result.inner()?.dimension())?;
         self.check_nonsingular()?;
@@ -85,7 +85,7 @@ impl Basis {
     pub fn set_matrix(&mut self, value : PyObject) -> PyResult<()> {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        if let Ok(m) = value.extract::<&Matrix>(py) {
+        if let Ok(m) = value.extract::<Matrix>(py) {
             let m_inner = m.inner()?;
             self.check_dimension(m_inner.rows())?;
             self.check_dimension(m_inner.columns())?;
@@ -93,7 +93,7 @@ impl Basis {
             for i in 0 .. slf.dimension() {
                 slf.matrix[i].assign(&m_inner[i]);
             }
-        } else if let Ok(m) = value.extract::<Vec<&FpVector>>(py) {
+        } else if let Ok(m) = value.extract::<Vec<FpVector>>(py) {
             self.check_dimension(m.len())?;
             for i in 0 .. self.inner()?.dimension() {
                 self.check_dimension(m[i].inner()?.dimension())?;
@@ -170,7 +170,7 @@ impl PySequenceProtocol for Basis {
     fn __setitem__(mut self, index : isize, value : PyObject) -> PyResult<()>{
         let gil = Python::acquire_gil();
         let py = gil.python();
-        if let Ok(vec) = value.extract::<&FpVector>(py) {
+        if let Ok(vec) = value.extract::<FpVector>(py) {
             self.check_dimension(vec.inner()?.dimension())?;
             self.inner_mut()?.matrix[self.handle_index(index)?].assign(vec.inner()?);
         } else if let Ok(vec) = value.extract::<Vec<u32>>(py) {

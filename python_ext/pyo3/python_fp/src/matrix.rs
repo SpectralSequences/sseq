@@ -402,17 +402,13 @@ impl Matrix {
     ) -> PyResult<Vec<usize>> {  
         python_utils::check_number_of_positional_arguments!("extend_image", 5, 6, 5 + pyargs.len())?;
         let self_inner = self.inner_mut()?;
-        let desired_image : Option<&SubspaceRust> = 
-            if pyargs.is_empty() {
+        let temp;
+        let desired_image = if pyargs.is_empty() {
                 None
             } else {
-                Some(
-                    pyargs.get_item(0)
-                          .extract::<&Subspace>()?
-                          .inner()?
-                )
+                temp = pyargs.get_item(0).extract::<Subspace>()?;
+                Some(temp.inner()?)
             };
-
         Ok(python_utils::release_gil!(
             self_inner.extend_image(
                 first_empty_row, start_column, end_column,  
