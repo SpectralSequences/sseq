@@ -9,16 +9,14 @@ pub struct Basis {
 
 impl Basis {
     pub fn new(p : ValidPrime, dimension : usize) -> Self {
-        let mut matrix = Matrix::new(p, dimension, dimension);
-        let mut inverse = AugmentedMatrix2::new(p, dimension, &[dimension, dimension]);
-        matrix.add_identity(dimension, 0, 0);
-        std::mem::forget(inverse.segment(1,1));
-        inverse.segment(0,0).add_identity(dimension, 0, 0);
-        inverse.segment(1,1).add_identity(dimension, 0, 0);
-        Basis {
-            matrix,
-            inverse
-        }
+        let mut result = Basis {
+            matrix :  Matrix::new(p, dimension, dimension),
+            inverse : AugmentedMatrix2::new(p, dimension, &[dimension, dimension])
+        };
+        result.matrix.add_identity(dimension, 0, 0);
+        result.inverse.segment(0,0).add_identity(dimension, 0, 0);        
+        result.calculate_inverse();
+        result
     }
 
     pub fn prime(&self) -> ValidPrime {
@@ -77,7 +75,6 @@ impl Basis {
 
     pub fn apply_inverse(&self, result : &mut FpVector, v : &FpVector) {
         assert!(v.dimension() == self.matrix.columns());
-        println!("  inverse columns : {}", self.inverse.columns());
         for i in 0 .. v.dimension() {
             result.add(&self.inverse[i], v.entry(i));
         }
@@ -128,15 +125,15 @@ mod tests {
         println!("inverse_result : {}", result);
         result.set_to_zero();
         println!("basis : {}", basis.matrix);
-        println!("inverse : {}", basis.inverse);        
+        println!("inverse : {}", *basis.inverse);        
         input.pack(&[1,1,0,1]);
         println!("  inverse columns 111 : {}", basis.inverse.columns());
         basis.apply_inverse(&mut result, &input);
         println!("inverse_result : {}", result);
         result.set_to_zero();        
-        basis.replace_entry(2, &input);
-        println!("basis : {}", basis.matrix);
-        println!("inverse : {}", *basis.inverse);
+        // basis.replace_entry(2, &input);
+        // println!("basis : {}", basis.matrix);
+        // println!("inverse : {}", *basis.inverse);
     }
 
 }

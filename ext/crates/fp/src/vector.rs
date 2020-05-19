@@ -626,6 +626,13 @@ pub trait FpVectorT {
         (container.slice_start, container.slice_end)
     }
 
+    fn is_set_slice_valid(&self, slice_start : usize, slice_end : usize) -> bool {
+        let container = self.vector_container();
+        let slice_end = container.slice_start + slice_end;
+        let slice_start =  container.slice_start + slice_start;
+        (slice_start <= slice_end) && (slice_end <= container.dimension)
+    }
+
     fn set_slice(&mut self, slice_start : usize, slice_end : usize) {
         let container = self.vector_container_mut();
         container.slice_end = container.slice_start + slice_end;
@@ -636,6 +643,7 @@ pub trait FpVectorT {
 
     fn restore_slice(&mut self, slice : (usize, usize)) {
         let container = self.vector_container_mut();
+        debug_assert!(slice.1 <= container.dimension);
         container.slice_start = slice.0;
         container.slice_end = slice.1;
     }
@@ -900,11 +908,12 @@ pub trait FpVectorT {
         let right_dim = right.dimension();
 
         let old_slice = self.slice();
-        for i in 0 .. left.dimension() {
-            let entry = (left.entry(i) * coeff) % *self.prime();
-            if entry == 0 {
-                continue;
-            }
+        // println!("v : {}, dim(v) : {}, slice: {:?}", left, left.dimension(), left.slice());
+        // println!(" debug v : {:?}", left);
+        for (i, v) in left.iter_nonzero() {
+            let entry = (v * coeff) % *self.prime();
+            // println!("   left_dim : {}, right_dim : {}, i : {}, v : {}", left.dimension(), right.dimension(), i, v);
+            // println!("   set slice: {} -- {} dimension: {}", offset + i * right_dim, offset + (i + 1) * right_dim, self.dimension());
             self.set_slice(offset + i * right_dim, offset + (i + 1) * right_dim);
             self.add(right, entry);
             self.restore_slice(old_slice);
@@ -1829,13 +1838,14 @@ pub struct FpVector2IteratorNonzero<'a> {
     limb_index : usize,
     cur_limb_entries_left : usize,
     cur_limb : u64,
-    idx : usize
+    idx : usize,
+    dim : usize
 }
 
 impl<'a> FpVector2IteratorNonzero<'a> {
     fn new(vec : &'a FpVector) -> Self {
         const ENTRIES_PER_LIMB : usize = 64;
-        let dim = vec.dimension() as isize;
+        let dim = vec.dimension();
         let limbs = vec.limbs();
 
         if dim == 0 {
@@ -1845,6 +1855,7 @@ impl<'a> FpVector2IteratorNonzero<'a> {
                 cur_limb_entries_left : 0,
                 cur_limb: 0,
                 idx : 0,
+                dim
             }
         }
         let min_index = vec.min_index();
@@ -1857,6 +1868,7 @@ impl<'a> FpVector2IteratorNonzero<'a> {
             cur_limb_entries_left : ENTRIES_PER_LIMB - (min_index % ENTRIES_PER_LIMB),
             cur_limb,
             idx : 0,
+            dim
         }
     }
 }
@@ -1868,6 +1880,10 @@ impl<'a> Iterator for FpVector2IteratorNonzero<'a> {
             let tz = (self.cur_limb | 1u64.checked_shl(self.cur_limb_entries_left as u32).unwrap_or(0)).trailing_zeros();
             self.idx += tz as usize;
             self.cur_limb_entries_left -= tz as usize;
+            // println!("cur_limb_entries_left : {}", self.cur_limb_entries_left);
+            if self.idx >= self.dim {
+                return None;
+            }
             if self.cur_limb_entries_left == 0 {
                 self.limb_index += 1;
                 self.cur_limb_entries_left = 64;
@@ -2984,6 +3000,20 @@ mod tests {
         let v = FpVector::new(p_, 0);
         for (_idx, _v) in v.iter_nonzero() {
             assert!(false);
+        }
+    }
+
+    #[rstest(p, case(2))]//, case(7))]
+    fn test_iter_nonzero_slice(p : u32) {
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
+        let mut v = FpVector::new(p_, 5);
+        v.set_entry(0, 1);
+        v.set_entry(1, 1);
+        v.set_entry(2, 1);
+        v.set_slice(0, 1);
+        for (i, v) in v.iter_nonzero() {
+            assert!(i == 0);
         }
     }
 

@@ -94,7 +94,11 @@ impl FpVector {
     }
 
     pub fn set_slice(&mut self, slice_start : usize, slice_end : usize) -> PyResult<()> {
-        // TODO: needs error handling
+        if !self.inner()?.is_set_slice_valid(slice_start, slice_end) {
+            return Err(python_utils::exception!(IndexError,
+                "Slice out of bound!"
+            ));
+        }
         self.inner_mut()?.set_slice(slice_start, slice_end);
         Ok(())
     }
@@ -257,12 +261,32 @@ impl FpVector {
         if self.equal(other) {
             self.scale(c + 1)?;
             return Ok(());
-        }        
+        }
         self.check_primes_match(other, "")?;
         self.check_dimensions_match(other, "Cannot add vectors when dimensions do not match.")?;
         let c =  self.reduce_coefficient(c);
         self.inner_mut()?.add(other.inner()?, c);
         Ok(())
+    }
+
+    #[args(coeff = 1, offset = 0)]
+    fn add_tensor(&mut self, left : &FpVector, right : &FpVector, coeff : u32, offset : usize) -> PyResult<()> {
+        self.check_not_null()?;
+        left.check_not_null()?;
+        right.check_not_null()?;
+        self.check_primes_match(left, "")?;
+        self.check_primes_match(right, "")?;
+        let left_dim = left.inner()?.dimension();
+        let right_dim = right.inner()?.dimension();
+        let slf = self.inner_mut()?;
+        if left_dim * right_dim + offset > slf.dimension() {
+            Err(python_utils::exception!(IndexError,
+                "Target needs to be at least {} dimensional to fit tensor but dimension is only {}", 
+                left_dim * right_dim + offset, slf.dimension()
+            ))
+        } else {
+            Ok(self.inner_mut()?.add_tensor(offset, coeff, left.inner()?, right.inner()?))
+        }
     }
 
     pub fn add_unchecked(&mut self, other : &FpVector, c : u32) {
