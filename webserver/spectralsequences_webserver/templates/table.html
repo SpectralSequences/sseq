@@ -54,7 +54,7 @@
         }
 
         .button::-moz-focus-inner {
-        border: 0;
+            border: 0;
         }
 
         .button:disabled {
@@ -66,6 +66,8 @@
         }
 
         sseq-panel h5 {
+            --text-opacity : 0.87;
+            color : rgba(var(--text-color), var(--text-opacity));
             font-size: 120%;
             font-weight: 400;
             text-align: center;
@@ -106,33 +108,111 @@
         }
 
         sseq-matrix {
-            --row-selected : rgba(0, 0, 255, 0.4);
-            --row-hover : rgba(0, 0, 255, 0.25);
-            --row-hover-selected : rgba(0, 0, 255, 0.5);
-            --row-active : rgba(0, 0, 255, 0.75);
-            --row-active-selected : rgba(0, 0, 255, 0.5);
+            --row-selected : rgba(var(--complement-4),0.4);
+            --row-hover : rgba(var(--complement-4), 0.6); /* rgba(0, 0, 255, 0.25);*/
+            --row-hover-selected : rgba(var(--complement-4),1);
+            --row-active : rgba(var(--complement-4),1);
+            --row-active-selected : rgba(var(--complement-4),0.5);
+        }
+
+        .product-item {
+            color : rgba(var(--text-color), var(--text-opacity));
         }
 
         .product-item:hover {
-            color : blue;
+            --text-opacity : 0.87;
         }
-        
 
-        /* .decompositions {
-            text-align: right;
-        }     */
+        .product-item:active {
+            --text-opacity : 1;
+        }
+
+
+        :root {
+            --text-opacity : 0.7;
+            --button-text-color : var(--primary-2-text);
+            --button-text-opacity : 0.8;
+            --button-background-color : var(--primary-2);
+            --close-icon-font-size : 18pt;
+
+        }
+
+        :root {
+            --primary-0: rgba( 56, 54, 41, 1);	/* Main Primary color */
+            --primary-1: rgba(134,129, 103, 1);
+            --primary-2: rgba( 96, 92, 74, 1);
+            --primary-3: rgba( 52, 48, 30, 1);
+            --primary-4: rgba( 47, 43, 21, 1);
+
+            --primary-0-text: 255, 255, 255;	/* Main Primary color */
+            --primary-1-text: 255, 255, 255;
+            --primary-2-text: 255, 255, 255;
+            --primary-3-text: 255, 255, 255;
+            --primary-4-text: 255, 255, 255;
+
+            --complement-0: 32, 29, 39;	/* Main Complement color */
+            --complement-1: 78, 73, 93;
+            --complement-2: 56, 52, 66;
+            --complement-3: 26, 22, 36;
+            --complement-4: 21, 17, 32;
+
+            --complement-0: 57, 20,175;	/* Main Complement color */
+            --complement-1: 115, 90,195;
+            --complement-2: 86, 56,180;
+            --complement-3: 43, 14,136;
+            --complement-4: 32,  9,106;
+
+
+            --complement-0-text: 255, 255, 255;	/* Main complement color */
+            --complement-1-text: 255, 255, 255;
+            --complement-2-text: 255, 255, 255;
+            --complement-3-text: 255, 255, 255;
+            --complement-4-text: 255, 255, 255;
+        }
+
+
+
     </style>
 </head>
 <body style="overflow: hidden;">
-    <div style="height: 100vh; width: 100vw; display: flex;">
+
+<!-- Start Modal
+<sseq-popup>
+    <span slot="header">A formula</span>
+    <div class="ft-modal-body">
+        <katex-expr>e = mc^2</katex-expr>!
+    </div>
+</sseq-popup>
+ 
+<a href="javascript:openPopup()">Open modal</a>
+
+<script>
+    function openPopup(){
+        document.querySelector("sseq-popup").setAttribute("open", "open");
+    }
+</script> -->
+
+
+   <div style="height: 100vh; width: 100vw; display: flex;">
         <sseq-display id=display style="overflow: hidden; position: relative; flex-grow: 1;">
             <sseq-page-indicator style="position: absolute; left: 60px; top: 0px; font-family: Arial; font-size: 15px;"></sseq-page-indicator>
             <sseq-tooltip></sseq-tooltip>
         </sseq-display>
-    <sseq-panel max-width=400 initial-width=280 style="display:flex; flex-direction: column;">
-    </sseq-panel>
+        <sseq-panel max-width=400 initial-width=280 style="display:flex; flex-direction: column;">
+        </sseq-panel>
+    <sseq-popup>
+        <span slot="header">A formula</span>
+        <div class="ft-modal-body">
+            Words and stuff
+            <!-- <p><katex-expr>e = mc^2</katex-expr>!</p> -->
+        </div>
+        <!-- <div slot="test">Blahhh</div> -->
+    </sseq-popup>
     </div>
+
     <script>
         main(document.querySelector("sseq-display"), "ws://localhost:{{ port }}/ws/{{ directory }}/{{ channel_name }}");
+        document.querySelector("sseq-popup").show();
     </script>
+
 </body>

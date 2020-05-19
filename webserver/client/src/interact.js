@@ -1,9 +1,9 @@
-import { Display } from "chart/interface/display/Display.js";
+import { Display } from "chart/interface/Display.js";
 import { SpectralSequenceChart } from "chart/sseq/SpectralSequenceChart.js";
 window.SpectralSequenceChart = SpectralSequenceChart;
 
-import { SseqPageIndicator } from "chart/interface/display/SseqPageIndicator.js";
-import { Panel } from "chart/interface/panel/Panel.js";
+import { SseqPageIndicator } from "chart/interface/SseqPageIndicator.js";
+import { Panel } from "chart/interface/Panel.js";
 
 import { SseqSocketListener } from "chart/SseqSocketListener.js";
 window.SseqSocketListener = SseqSocketListener;

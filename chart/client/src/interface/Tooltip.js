@@ -1,7 +1,9 @@
-"use strict"
+import {LitElement, html, css} from 'lit-element';
+import { promiseFromDomEvent } from "./utils.js";
+
 const MARGIN = 10;
 
-export class Tooltip extends HTMLElement {
+export class Tooltip extends LitElement {
     static toTooltipString(obj, page) {
         if (!obj) {
             return false;
@@ -29,43 +31,55 @@ export class Tooltip extends HTMLElement {
         return false;
     }
 
+    static get styles() {
+        return css `
+        :host {
+            position: absolute;
+            z-index: 999999;
+            transition: opacity 500ms ease 0s;             
+            text-align: center;
+            padding: 5px;
+            font: 12px sans-serif;
+            background: lightsteelblue;
+            border: 0px;
+            border-radius: 8px;
+            pointer-events: none;
+            opacity : 0;
+            width : max-content;
+        }
+        
+        :host([shown]) {
+            opacity: 0.9;
+        }
+
+        :host([transition=show]) {
+            transition : opacity 200ms ease-out;
+        }
+        
+        :host([transition=hide]) {
+            transition : opacity 500ms ease-in;
+        }
+        `;
+    }
+
+
     constructor() {
         super();
         this._mouseover_class = this._mouseover_class.bind(this);
         this._mouseout_class = this._mouseout_class.bind(this);
         this._handle_redraw = this._handle_redraw.bind(this);
-        this.attachShadow({mode: 'open'});
-        let style = document.createElement("style");
-        style.innerText = `
-            :host {
-                position: absolute;
-                z-index: 999999;
-                transition: opacity 500ms ease 0s;             
-                text-align: center;
-                padding: 5px;
-                font: 12px sans-serif;
-                background: lightsteelblue;
-                border: 0px;
-                border-radius: 8px;
-                pointer-events: none;
-                opacity : 0;
-            }`;
-        this.shadowRoot.appendChild(style);
-        this.showTransitionTime = "200ms";
-        this.hideTransitionTime = "500ms";
-        let slot = document.createElement("slot");
-        this.shadowRoot.appendChild(slot);
     }
 
-    connectedCallback(){
+    render(){
+        return html`
+            <slot></slot>
+        `;
+    }
+
+    firstUpdated(changedProperties) {
         this.display = this.parentElement;
         this.display.addEventListener("mouseover-class", this._mouseover_class);
         this.display.addEventListener("mouseout-class", this._mouseout_class);
-    }
-
-    disconnectedCallback(){
-        this.display.removeEventListener(this._mouseover_class);
-        this.display.removeEventListener(this._mouseout_class);
     }
 
     _mouseover_class(event){
@@ -90,7 +104,7 @@ export class Tooltip extends HTMLElement {
         this.innerHTML = html;
     }
 
-    show(x, y) {
+    async show(x, y) {
         /**
          * Reset the tooltip position. This prevents a bug that occurs when the
          * previously displayed tooltip is positioned near the edge (but still
@@ -104,15 +118,19 @@ export class Tooltip extends HTMLElement {
         this.style.left = "0px";
         this.style.top = "0px";
 
-        this.rect = this.getBoundingClientRect();
-        this.canvasRect = this.display.canvas.getBoundingClientRect();
         this.position(x, y);
-        this.style.transition = `opacity ${this.showTransitionTime}`;
-        this.style.opacity = 0.9;
         this.display.addEventListener("draw", this._handle_redraw);
+        this.setAttribute("shown", "");
+        this.setAttribute("transition", "show");
+        await promiseFromDomEvent(this, "transitionend");
+        this.removeAttribute("transition");
     }
 
     position(x, y){
+        this.rect = this.getBoundingClientRect();
+        this.canvasRect = this.display.canvas.getBoundingClientRect();
+        this.displayRect = this.display.getBoundingClientRect();
+
         x = x + this.canvasRect.x;
         y = y + this.canvasRect.y;
 
@@ -121,7 +139,7 @@ export class Tooltip extends HTMLElement {
          * by MARGIN. If this causes the tooltip to leave the window, position
          * it to the bottom/left accordingly.
          */
-        if (x + MARGIN + this.rect.width < window.innerWidth){
+        if (x + MARGIN + this.rect.width < this.displayRect.width){
             x = x + MARGIN;
         } else {
             x = x - this.rect.width - MARGIN;
@@ -136,10 +154,12 @@ export class Tooltip extends HTMLElement {
         this.style.top = `${y}px`;
     }
 
-    hide() {
+    async hide() {
         this.display.removeEventListener("draw", this._handle_redraw);
-        this.style.transition = `opacity ${this.hideTransitionTime}`;
-        this.style.opacity = 0;
+        this.removeAttribute("shown", "");
+        this.setAttribute("transition", "hide");
+        await promiseFromDomEvent(this, "transitionend");
+        this.removeAttribute("transition");
     }
 }
 

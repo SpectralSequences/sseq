@@ -25,6 +25,9 @@ const template = document.createElement('template');
 template.innerHTML = `
     <style>
     :host {
+        display: inline-block;
+    }
+    :host([display-mode]) {
         display: block;
     }
     </style>
@@ -148,8 +151,6 @@ export class KatexExprElement extends HTMLElement {
     }
   
     _render() {
-        const hostRule = (this._styleTag.sheet).cssRules[0];
-        hostRule.style.display = this.displayMode ? 'block' : 'inline-block';
         const inputText = this._slot.assignedNodes().map((n) => n.textContent).join('');
         katex.render(inputText, this._container, {displayMode: this.displayMode});
     }

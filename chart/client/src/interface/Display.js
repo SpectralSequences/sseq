@@ -2,7 +2,7 @@
 
 import * as EventEmitter from "events";
 import * as d3 from "d3";
-import { INFINITY } from "../../infinity.js";
+import { INFINITY } from "../infinity.js";
 
 const GridEnum = Object.freeze({ go : 1, chess : 2 });
 

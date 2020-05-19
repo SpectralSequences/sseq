@@ -121,20 +121,14 @@ class TableChannel(SocketChannel):
                 for _ in range(gens):
                     chart.add_class(x,y)
 
-        for [(in1, in2), out_list] in self.table.product_table.items():
-            if in2[0] < in1[0]:
-                (in1,in2) = (in2, in1)
-            if in1 in [(0,1,0), (1,1,0),(3,1,0)]:
-                for out in out_list:
-                    try:
-                        chart.add_structline(chart.class_by_idx(*in2), chart.class_by_idx(*out))
-                    except IndexError:
-                        continue
-        chart.add_structline(chart.class_by_idx(0, 0, 0), chart.class_by_idx(0, 1, 0))
-        chart.add_structline(chart.class_by_idx(0, 1, 0), chart.class_by_idx(3, 2, 0))
-        chart.add_structline(chart.class_by_idx(0, 2, 0), chart.class_by_idx(3, 3, 0))
-        chart.add_structline(chart.class_by_idx(0, 0, 0), chart.class_by_idx(1, 1, 0))
-        chart.add_structline(chart.class_by_idx(0, 0, 0), chart.class_by_idx(3, 1, 0))
+        for x in range(120):
+            for y in range(120):
+                prods = self.table.compute_hi_products(x, y)
+                for [hi, table] in zip([0, 1, 3], prods):
+                    for (in_idx, row) in enumerate(table):
+                        for (out_idx, v) in enumerate(row):
+                            if v != 0:
+                                chart.add_structline(chart.class_by_idx(x, y, in_idx), chart.class_by_idx(x+hi, y+1, out_idx))
 
         for [c,name] in self.table.class_names:
             try:
@@ -182,17 +176,14 @@ class TableChannel(SocketChannel):
         for (in1, in2, out) in self.get_filtered_decompositions(bidegree):
             n1 = (self.get_name(in1), self.get_monomial_name(in1))
             n2 = (self.get_name(in2), self.get_monomial_name(in2))
-            out_indexes = [x[-1] for x in out]
-            out_vec = [0] * len(self.chart.sseq.classes_in_bidegree(*bidegree))
-            for idx in out_indexes:
-                out_vec[idx] = 1
-            result.append((n1, n2, out_vec))
+            out_name = self.table.name_to_str(self.table.get_vec_name(*bidegree, out))
+            result.append((n1, n2, out, out_name ))
         return result
 
     def get_filtered_decompositions(self, bidegree):
         bidegree = tuple(bidegree)
         result = []
-        decompositions = self.get_decompositions(bidegree)
+        decompositions = self.table.get_decompositions(*bidegree)
         for (in1, in2, out) in decompositions:
             indec1 = self.table.indecomposable_q(*in1)
             indec2 = self.table.indecomposable_q(*in2)
@@ -202,7 +193,7 @@ class TableChannel(SocketChannel):
                 continue
             if in1 == (0,0,0):
                 continue
-            # We don't want a bunch of redunant P-juggling 
+            # We don't want a bunch of redundant P-juggling 
             # (really Px shouldn't be considered indecomposable)
             if self.get_name(in1).strip().startswith("P"):
                 continue
@@ -222,6 +213,7 @@ class ProductTable:
         self.generate_decomposition_table()
         self.setup_class_names()
         self.compute_all_indecomposables()
+        self.build_dense_products()
     
     def load_numgens(self):
         num_gens = json.loads(pathlib.Path(config.USER_DIR / "S_2-dims.json").read_text())
@@ -235,20 +227,25 @@ class ProductTable:
         self.bases = [[fp.Basis(2, n) for n in r] for r in self.num_gens]
     
     def gens_in_bidegree(self, x, y):
-        return self.num_gens[y][x]
+        try:
+            return self.num_gens[y][x]
+        except IndexError:
+            return 0
     
     def basis_in_bidegree(self, x, y):
-        self.bases[y][x]
+        return self.bases[y][x]
 
     def generate_decomposition_table(self):
         self.decomposition_table = {}
         self.nontrivial_pairs = {}
         for ((in1, in2), out) in self.product_table.items():
             key = (in1[0] + in2[0], in1[1] + in2[1])
+            if key[0] >= 120 or key[1] >= 120:
+                continue
             if key not in self.decomposition_table:
                 self.decomposition_table[key] = []
-                self.decomposition_table[key] = set()
-            self.decomposition_table[key].append((in1, in2, out))
+                self.nontrivial_pairs[key] = set()
+            self.decomposition_table[key].append((in1, in2, [ x[-1] for x in out ]))
             self.nontrivial_pairs[key].add((in1[:-1], in2[:-1]))
 
     def compute_all_indecomposables(self):
@@ -259,11 +256,62 @@ class ProductTable:
                     continue
                 self.indecomposables[y][x] = self.compute_indecomposables_in_bidegree(x, y)
 
-    def compute_indecomposables_in_bidegree(self, x, y)
+    def compute_hi_products(self, x, y):
+        v2 = fp.FpVector(2, 0)
+        w2 = fp.FpVector(2, 0)
+        vout = fp.FpVector(2, 0)
+        wout = fp.FpVector(2, 0)
+        result = []   
+        for hi in [0, 1, 3]:
+            t1 = (hi, 1)
+            t2 = (x, y)
+            tout = (x + hi, y + 1)
+            hi_result = []
+            if tout not in self.dense_products:
+                result.append(hi_result)
+                continue
+            ng2 = self.gens_in_bidegree(*t2)
+            ngout = self.gens_in_bidegree(*tout)
+            b2 = self.basis_in_bidegree(*t2)
+            try:
+                bout = self.basis_in_bidegree(*tout)
+            except IndexError:
+                result.append(hi_result)
+                continue
+            v2.set_scratch_vector_size(ng2)
+            w2.set_scratch_vector_size(ng2)
+            vout.set_scratch_vector_size(ngout)
+            wout.set_scratch_vector_size(ngout)
+            for i in range(ng2):
+                v2.set_to_zero()
+                w2.set_to_zero()
+                vout.set_to_zero()
+                wout.set_to_zero()
+                v2[i] = 1
+                b2.apply(w2, v2)
+                pair = (t1, t2) if t1 <= t2 else (t2, t1)
+                products = None
+                if pair in self.dense_products[tout]:
+                    products = self.dense_products[tout][pair]
+                else:
+                    pair = tuple(reversed(pair))
+                    if tuple(reversed(pair)) in self.dense_products:
+                        products = self.dense_products[tout][pair]
+                if products:
+                    for j in range(ng2):
+                        if w2[j] != 0:
+                            vout.add(products[i])
+                bout.apply_inverse(wout, vout)
+                hi_result.append(list(wout))
+            result.append(hi_result)
+        return result
+
+
+    def compute_indecomposables_in_bidegree(self, x, y):
         ng = self.gens_in_bidegree(x, y)
         subspace = fp.Subspace(2, ng+1, ng)
         subspace.set_to_zero()
-        image_vecs = [ [ x[-1] for x in out] for (in1, in2, out) in self.decomposition_table[(x,y)] if in1 != (0,0,0)]
+        image_vecs = [ out for (in1, in2, out) in self.decomposition_table[(x,y)] if in1 != (0,0,0)]
         py_v = [0] * ng
         v = fp.FpVector(2, ng)
         w = fp.FpVector(2, ng)
@@ -271,9 +319,9 @@ class ProductTable:
         for e in image_vecs:
             for i in range(ng):
                 py_v[i] = 1 if i in e else 0
-            v.pack(w)
+            v.pack(py_v)
             w.set_to_zero()
-            B.apply_inverse(w, 1, v)
+            B.apply_inverse(w, v)
             subspace.add_vector(w)
         return [idx for (idx, e) in enumerate(subspace.matrix().pivots()) if e == -1]
     
@@ -282,29 +330,38 @@ class ProductTable:
         for [tout, pairs] in self.nontrivial_pairs.items():
             self.dense_products[tout] = {}
             for (t1, t2) in pairs:
-                ng1 = self.gens_in_bidegree(*t1)
-                ng2 = self.gens_in_bidegree(*t2)
-                ngout = self.gens_in_bidegree(*tout)
-                products = [[fp.FpVector(2, ngout) for _ in range(ng2)] for _ in range(ng1)]
-                self.dense_products[tout][(t1, t2)] = products
-                for idx1 in range(ng1):
-                    in1 = t1 + (idx1,)
-                    for idx2 in range(ng2):
-                        in2 = t2 + (idx2,)
-                        for [_, _, e] in self.product_table.get((in1,in2), []):
-                            products[idx1][idx2][e] = 1
-                
+                self.dense_products[tout][(t1, t2)] = self.build_dense_products_bidegree(t1, t2)
+    
+    def build_dense_products_bidegree(self, t1, t2):
+        tout = (t1[0] + t2[0], t1[1] + t2[1])
+        ng1 = self.gens_in_bidegree(*t1)
+        ng2 = self.gens_in_bidegree(*t2)
+        ngout = self.gens_in_bidegree(*tout)
+        products = [ fp.FpVector(2, ngout) for _ in range(ng1 * ng2) ]
+        for idx1 in range(ng1):
+            in1 = t1 + (idx1,)
+            for idx2 in range(ng2):
+                in2 = t2 + (idx2,)
+                if (in1,in2) in self.product_table:
+                    product_table_entry = self.product_table.get((in1,in2), [])
+                else:
+                    product_table_entry = self.product_table.get((in2, in1), [])
+                for [_, _, e] in product_table_entry:
+                    products[ idx2 * ng1 + idx1 ][e] = 1
+        return products
     
     def get_decompositions(self, x, y):
         v1 = fp.FpVector(2, 0)
         w1 = fp.FpVector(2, 0)
         v2 = fp.FpVector(2, 0)
         w2 = fp.FpVector(2, 0)
-        vout = fp.FpVector(2, ngout)
-        wout = fp.FpVector(2, ngout)
+        tensor = fp.FpVector(2, 0)
         tout = (x, y)
         ngout = self.gens_in_bidegree(*tout)
+        vout = fp.FpVector(2, ngout)
+        wout = fp.FpVector(2, ngout)
         bout = self.basis_in_bidegree(*tout)
+        result = []
         for (t1, t2) in self.dense_products[tout]:
             ng1 = self.gens_in_bidegree(*t1)
             ng2 = self.gens_in_bidegree(*t2)            
@@ -314,33 +371,64 @@ class ProductTable:
             w1.set_scratch_vector_size(ng1)
             v2.set_scratch_vector_size(ng2)
             w2.set_scratch_vector_size(ng2)
+            tensor.set_scratch_vector_size(ng1 * ng2)
             for idx1 in range(ng1):
                 v1.set_to_zero()
                 w1.set_to_zero()
                 v1[idx1] = 1
-                b1.apply(w1, 1, v1)
+                b1.apply(w1, v1)
+                if w1.is_zero():
+                    continue
                 for idx2 in range(ng2):
                     v2.set_to_zero()
                     w2.set_to_zero()
-                    v2[idx1] = 1
-                    b2.apply(w2, 1, v2)
-                    
-            
+                    v2[idx2] = 1
+                    b2.apply(w2, v2)
+                    tensor.set_to_zero()
+                    try:
+                        tensor.add_tensor(w1, w2)
+                    except Exception as e:
+                        print(e)
+                        print(w1, w2, tensor)
+                        print(w1.dimension, w2.dimension, tensor.dimension)
+                        raise
+                    vout.set_to_zero()
+                    for i in range(ng1 * ng2):
+                        if tensor[i] != 0:
+                            vout.add(self.dense_products[tout][(t1, t2)][i])
+                    if vout.is_zero():
+                        continue
+                    wout.set_to_zero()
+                    bout.apply_inverse(wout, vout)
+                    result.append((t1 + (idx1,), t2 + (idx2,), tuple(wout)))
+        return result
 
     def indecomposable_q(self, x, y, idx):
         return idx in self.indecomposables[y][x]
 
     def setup_class_names(self):
         self.class_names = json.loads(pathlib.Path(config.USER_DIR / "class_names_parsed.json").read_text())
-        self.class_name_table = dict([tuple(rest,),name] for [rest, name] in self.class_names)
         self.gen_degs = {}
-        for [t, n] in self.class_names:
-            if len(n) == 1 and n[0][1] == 1:
-                self.gen_degs[n[0][0]] = t
+        for [t, name] in self.class_names:
+            if len(name) == 1 and name[0][1] == 1:
+                self.gen_degs[name[0][0]] = t
         self.gen_degs["P"] = [0,0,0]
+        self.named_vecs = [[{} for _ in range(120)] for _ in range(120)]
+        for [(x, y, idx), name] in self.class_names:
+            if x >= 120 or y >= 120:
+                continue
+            ng = self.gens_in_bidegree(x, y)
+            vec = tuple(1 if i==idx else 0 for i in range(ng))
+            self.named_vecs[y][x][vec] = name
     
+    def get_vec_name(self, x, y, vec):
+        # print("named vecs:", self.named_vecs[y][x], "vec:", vec)
+        return self.named_vecs[y][x].get(vec, None)
+
+
     def name_to_str(self, name):
-        return monomial_name(*sorted(name, key=lambda x : self.gen_degs[x[0]] if x[0] in self.gen_degs else [10000, 10000]))
+        if name:
+            return monomial_name(*sorted(name, key=lambda x : self.gen_degs[x[0]] if x[0] in self.gen_degs else [10000, 10000]))
 
 
 

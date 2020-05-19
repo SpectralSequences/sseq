@@ -1,6 +1,6 @@
 import {LitElement, html, css} from 'lit-element';
 // import {unsafeHTML} from 'lit-html/directives/unsafe-html.js';
-import { KatexExprElement } from "../KatexExprElement.js";
+// import { KatexExprElement } from "../KatexExprElement.js";
 
 
 export class MatrixElement extends LitElement {
@@ -29,9 +29,9 @@ export class MatrixElement extends LitElement {
                 transform: translateX(calc(var(--label-width, 0) + 2.8ex));
                 width: 0.8ex;
                 font-size: 50%;
-                border-top: solid 0.25ex black;
-                border-bottom: solid 0.25ex black;
-                border-left: solid 0.5ex black;
+                border-top: solid 0.25ex currentColor;
+                border-bottom: solid 0.25ex currentColor;
+                border-left: solid 0.5ex currentColor;
                 border-right: none;
             }
 
@@ -39,9 +39,9 @@ export class MatrixElement extends LitElement {
                 transform: translateX(-2.8ex);
                 width: 0.8ex;
                 font-size: 50%;
-                border-top: solid 0.25ex black;
-                border-bottom: solid 0.25ex black;
-                border-right: solid 0.5ex black;
+                border-top: solid 0.25ex currentColor;
+                border-bottom: solid 0.25ex currentColor;
+                border-right: solid 0.5ex currentColor;
                 border-left: none;
             }
 
@@ -97,14 +97,21 @@ export class MatrixElement extends LitElement {
             .row:active {
                 box-shadow: 0px 2px 2px -1px var(--row-active);
                 background-color : var(--row-active) !important;
+                color : rgba(var(--text-color), 1);
             }
 
             .row:hover {
                 background-color : var(--row-hover) !important;
+                color : rgba(var(--text-color), 1);
             }
+
+            .row:hover:active {
+                background-color : var(--row-active) !important;
+            }            
             
             .row[selected] {
                 background-color : var(--row-selected);
+                color : rgba(var(--text-color), 1);
             }
 
             .row:active[selected] {
@@ -208,11 +215,13 @@ export class MatrixElement extends LitElement {
     updated(changedProperties) {
         let label_entry = this.shadowRoot.querySelector(".label-entry");
         if(label_entry){
-            let resizeObserver = new ResizeObserver(entries => {
-                // resizeObserver.disconect();
-                this.style.setProperty("--label-width", `${label_entry.offsetWidth}px`);
-            });
-            resizeObserver.observe(label_entry);        
+            if(!this.resizeObserver) {
+                this.resizeObserver = new ResizeObserver(entries => {
+                    // resizeObserver.disconect();
+                    this.style.setProperty("--label-width", `${label_entry.offsetWidth}px`);
+                });
+            }
+            this.resizeObserver.observe(label_entry);        
         }
     }
 
