@@ -259,10 +259,8 @@ export class SpectralSequenceChart extends EventEmitter {
             pageRange = [page, page];
         }
         let display_classes = Object.values(this.classes).filter(c => {
-            if (!c || c.invalid) {
-                return false;
-            }
-            return c._inRangeQ(xmin, xmax, ymin, ymax) && c._drawOnPageQ(page);
+            c._displayed = c && !c.invalid && c._inRangeQ(xmin, xmax, ymin, ymax) && c._drawOnPageQ(page);
+            return c._displayed;
         });
 
         // Display edges such that
@@ -282,12 +280,12 @@ export class SpectralSequenceChart extends EventEmitter {
         // target even if one of them is out of bounds. Check for out of bounds sources / targets and add them to the
         // list of edges to draw.
         for (let e of display_edges) {
-            if (!e._source.in_range) {
+            if (!e._source._displayed) {
                 display_classes.push(e._source);
-                e._source._in_range = true;
+                e._source._displayed = true;
             }
-            if (!e._target.in_range) {
-                e._target._in_range = true;
+            if (!e._target._displayed) {
+                e._target._displayed = true;
                 display_classes.push(e._target);
             }
         }
@@ -299,7 +297,6 @@ export class SpectralSequenceChart extends EventEmitter {
                 throw ReferenceError(`Undefined node on page ${page} for class: ${c}`);
             }
             c._node = node;
-            c._displayed = true;
         }
 
         // for (let e of display_edges) {

@@ -60,6 +60,7 @@ function main(display, socket_address){
     });
 
 
+
     function productMouseover(e){
         console.log(e);
     }
@@ -153,6 +154,7 @@ function main(display, socket_address){
         let bidegree = selected_bidegree;
         let highlightClasses = [sseq.class_by_index(...in1), sseq.class_by_index(...in2)];
         if(inbasis){
+            popup.okEnabled = true;
             let out_tuple = [...bidegree, index];
             let nameWord = out_name ? "Rename" : "Name";
             popup_header.innerText = `${nameWord} class?`;
@@ -162,6 +164,7 @@ function main(display, socket_address){
             `;
             highlightClasses.push(sseq.class_by_index(...out_tuple));
         } else {
+            popup.okEnabled = false;
             popup_header.innerText = "Update basis?";
             popup_body.innerHTML = `
                 Select a basis vector to replace:
@@ -170,12 +173,15 @@ function main(display, socket_address){
             await sleep(10);
             let matrix_elt = popup_body.querySelector("sseq-matrix");
             matrix_elt.value = matrix;
+            matrix_elt.labels = names
             matrix_elt.addEventListener("matrix-click", (e) => {
                 let row = e.detail.row_idx;
                 if(matrix_elt.selectedRows.includes(row)){
                     matrix_elt.selectedRows = [];
+                    popup.okEnabled = false;
                 } else {
                     matrix_elt.selectedRows = [e.detail.row_idx];
+                    popup.okEnabled = true;
                 }
             });
             
@@ -185,7 +191,11 @@ function main(display, socket_address){
         let result = class_highlighter.clear();
         class_highlighter.fire(highlightClasses, 0.8);
     }
-    
+
+    document.querySelector("sseq-popup").addEventListener("ok", () => {
+        
+    });
+
     display.addEventListener("click", function(e){
         let sseq = display.querySelector("sseq-chart").sseq;
         let new_bidegree = e.detail[0].mouseover_bidegree;

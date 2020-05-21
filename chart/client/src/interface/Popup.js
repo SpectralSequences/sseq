@@ -147,6 +147,8 @@ export class PopupElement extends LitElement {
         this.move = this.move.bind(this);
         this.endMove = this.endMove.bind(this);
         this.toggleMinimize = this.toggleMinimize.bind(this);
+        this.ok = this.ok.bind(this);
+        this.cancel = this.cancel.bind(this);
         this.top = 70;
         this.left = 70;
         this.minimized = false;
@@ -171,8 +173,8 @@ export class PopupElement extends LitElement {
                         </div>
                         <div id="footer">
                             <span style="flex-grow : 1;"></span>
-                            <sseq-button style="margin-right: 0.75rem;">OK</sseq-button>
-                            <sseq-button>CANCEL</sseq-button>
+                            <sseq-button id=ok @click=${this.ok} style="margin-right: 0.75rem; ">OK</sseq-button>
+                            <sseq-button id=cancel @click=${this.cancel}>CANCEL</sseq-button>
                         </div>
                     </div>
                 </div>
@@ -221,15 +223,38 @@ export class PopupElement extends LitElement {
         this.open = false;
     }
 
-    minimize() {
-        this.setAttribute("minimized", true);
-        this.minimized = true;
+    get okEnabled(){
+        return this.shadowRoot.querySelector("#ok").hasAttribute("disabled");
     }
 
-    restore() {
-        this.removeAttribute("minimized");
-        this.minimized = false;
+    set okEnabled(v){
+        let okayElt = this.shadowRoot.querySelector("#ok");
+        if(v){
+            okayElt.removeAttribute("disabled");
+        } else {
+            okayElt.setAttribute("disabled", "");
+        }
     }
+
+    ok(){
+        this.dispatchEvent(new CustomEvent("ok"));
+        this.hide();
+    }
+
+    cancel(){
+        this.dispatchEvent(new CustomEvent("cancel"));
+        this.hide();
+    }
+
+    // minimize() {
+    //     this.setAttribute("minimized", true);
+    //     this.minimized = true;
+    // }
+
+    // restore() {
+    //     this.removeAttribute("minimized");
+    //     this.minimized = false;
+    // }
 
     async toggleMinimize() {
         let body_and_footer = this.shadowRoot.querySelector("#body-footer");

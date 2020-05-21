@@ -57,7 +57,9 @@ export class ClassHighlighter extends LitElement {
         if(elt.cls === undefined){
             return;
         }
-        if(!elt.cls.isDisplayed()){
+        if(elt.cls.isDisplayed()){
+            elt.style.display = "";
+        } else {
             elt.style.display = "none";
         }
         let x = elt.cls._canvas_x;

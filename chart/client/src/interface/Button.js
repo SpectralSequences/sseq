@@ -27,6 +27,7 @@ export class ButtonElement extends LitElement {
         :host([disabled]) {
             opacity : 0.5;
             cursor: default;
+            pointer-events : none;
         }
 
         
@@ -39,6 +40,16 @@ export class ButtonElement extends LitElement {
             background-color: rgb(224, 224, 224, 0.5);
         }       
         `;
+    }
+
+    constructor(){
+        super();
+        // this.addEventListener("click", () => {
+        //     if(this.hasAttribute("disabled")){
+        //         console.log("disabled click");
+        //         event.stopImmediatePropagation();
+        //     }
+        // })
     }
 
     render(){
