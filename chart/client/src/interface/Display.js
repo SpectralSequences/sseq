@@ -3,74 +3,66 @@
 import * as EventEmitter from "events";
 import * as d3 from "d3";
 import { INFINITY } from "../infinity.js";
-
-const GridEnum = Object.freeze({ go : 1, chess : 2 });
-
-function groupByArray(xs, key) { 
-    return xs.reduce(
-        function reducer(rv, x) { 
-            let v = key instanceof Function ? key(x) : x[key]; 
-            let el = rv.find((r) => r && r.key === v); 
-            if(el) { 
-                el.values.push(x); 
-            } else { 
-                rv.push({ key: v, values: [x] }); 
-            } 
-            return rv; 
-        }, 
-        []
-    ); 
-} 
-
+import { sleep } from "./utils.js";
 
 export class Display extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({mode: 'open'});
-        let slot = document.createElement("slot");
-        this.shadowRoot.appendChild(slot);
+        this.shadowRoot.innerHTML = `<slot></slot>`;
+
+        this.xRange = [];
+        this.yRange = [];
+        this.initialXRange = [];
+        this.initialYRange = [];
 
         this._leftMargin = 40;
         this._rightMargin = 5;
         this._topMargin = 45;
         this._bottomMargin = 50;
         this._domainOffset = 1 / 2;
-
-        this.gridStyle = GridEnum.go;
-        this.gridColor = "#c6c6c6";
-        this.background_color = "#FFFFFF";
-        this.gridStrokeWidth = 0.3;
-        this.TICK_STEP_LOG_BASE = 1.1; // Used for deciding when to change tick step.
+        
         this.bidegreeDistanceThreshold = 15;
-
-        this.hiddenStructlines = new Set();
-        this.updateQueue = 0;
-
+        this.background_color = "#FFFFFF";
+        
         this.xScaleInit = d3.scaleLinear();
         this.yScaleInit = d3.scaleLinear();
-
+        
         this.canvas = document.createElement("canvas");
         this.canvas.style.padding = "0px";
         this.canvas.style.position = "absolute";
         this.canvas.style.top = "0";
         this.canvas.style.left = "0";
-
         this.shadowRoot.appendChild(this.canvas);
-
-        this.eventsElement = document.createElement("div");
-
         this.context = this.canvas.getContext("2d");
+        
+        this.updateQueue = 0;
+
+
         this.node_buffers = {};
+        this.hiddenStructlines = new Set();
 
         this.handleZoom = this.handleZoom.bind(this);
-        this.nextPage = this.nextPage.bind(this);
-        this.previousPage = this.previousPage.bind(this);
         this._emitMouseover = this._emitMouseover.bind(this);
         this._emitClick = this._emitClick.bind(this);
+
+        this.canvas.addEventListener("click", this._emitClick);
+
+        this._resizeObserver = new ResizeObserver(entries => {
+            for(let e of entries){
+                requestAnimationFrame(() => e.target.resize());
+            }
+        });
+        this._resizeObserver.observe(this);
+    }
+    
+    start(){
         this.zoom = d3.zoom().scaleExtent([0, 4]);
-        this.zoom.on("zoom", this.handleZoom);
         this.zoomD3Element = d3.select(this.canvas);
         this.zoomD3Element.call(this.zoom).on("dblclick.zoom", null);
+        this._initializeScale(...this.initialXRange, ...this.initialYRange);
+        
+        this.zoom.on("zoom", this.handleZoom);
         this.zoom.on("start", () => {
             this.updatingZoom = true;
         });
@@ -78,18 +70,12 @@ export class Display extends HTMLElement {
             this.updatingZoom = false;
             this._emitMouseover();
         });
-
-        this.canvas.addEventListener("mousemove", this._emitMouseover);
-        this.canvas.addEventListener("click", this._emitClick);
-
-        // TODO: improve window resize handling. Currently the way that the domain changes is suboptimal.
-        // I think the best would be to maintain the x and y range by scaling.
-        this._resizeObserver = new ResizeObserver(entries => {
-            for(let e of entries){
-                requestAnimationFrame(() => e.target.resize());
-            }
-        });
-        this._resizeObserver.observe(this);
+        
+        window.addEventListener("mousemove", this._emitMouseover);
+        
+        this._initializeCanvas();
+        this._updateScale();
+        this.emit("scale-update", {type : "zoom"});
     }
 
     setBackgroundColor(color) {
@@ -104,7 +90,7 @@ export class Display extends HTMLElement {
      * @param height Optional height. Default to 97% of height of bounding element.
      */
     resize(width, height){
-        if(!this.sseq) {
+        if(!this.zoom){
             return;
         }
         let oldxmin = this.xminFloat;
@@ -115,8 +101,9 @@ export class Display extends HTMLElement {
         let dx = this.xminFloat - oldxmin;
         let dy = this.yminFloat - oldymin;
         this.zoom.on("zoom", null);
-        this.zoom.translateBy(this.zoomD3Element, this.dxScale(dx), this.dyScale(dy));
+        this.zoom.translateBy(this.zoomD3Element, this.dxScale(dx)/this.transform.k, this.dyScale(dy)/this.transform.k);
         this.zoom.on("zoom", this.handleZoom);
+        this.emit("scale-update", {type : "zoom"});
         this.update(); // Make sure this is update(), updateBatch() causes screen flicker.
     }
 
@@ -129,7 +116,7 @@ export class Display extends HTMLElement {
         // computed_width will look like "####px", need to get rid of "px".
         let computedWidth = Number.parseFloat(computedStyle.width.slice(0,-2)); 
         let computedHeight = Number.parseFloat(computedStyle.height.slice(0,-2)); 
-        const canvasWidth = width || 0.99*computedWidth;
+        const canvasWidth = width || 1*computedWidth;
         const canvasHeight = height || 0.97*computedHeight;
 
         this._canvasWidth = canvasWidth;
@@ -146,6 +133,7 @@ export class Display extends HTMLElement {
 
         this.xScaleInit = this.xScaleInit.range([this._leftMargin, this._clipWidth]);
         this.yScaleInit = this.yScaleInit.range([this._clipHeight, this._topMargin]);
+        this.emit("canvas-initialize");
     }
 
     emit(event, ...args){
@@ -157,80 +145,41 @@ export class Display extends HTMLElement {
         this.dispatchEvent(myEvent);
     }
 
-
-    /**
-     * Set the spectral sequence to display.
-     * @param ss
-     */
-    setSseq(sseq){
-        if(this.sseq) {
-            this.sseq.removeListener("update", this.updateBatch);
-        }
-        this.sseq = sseq;
-        // The sseq object contains the list of valid pages. Always includes at least 0 and infinity.
-        if(this.sseq.initial_page_idx){
-            this.page_idx = this.sseq.initial_page_idx;
-        } else {
-            this.page_idx = this.sseq.min_page_idx;
-        }
-        if(this.page_idx >= this.sseq.page_list.length){
-            console.warn(`Warning: min_page_idx ${this.sseq.min_page_idx} greater than page list length ${this.sseq.page_list.length}. Using 0 for min_page_idx instead.`);
-            this.page_idx = 0;
-            this.min_page_idx = 0;
-        }
-        this.setPage();
-
-        this._initializeScale();
-        this._initializeCanvas();
-
-        if(sseq.gridStyle){
-            this.gridStyle = sseq.gridStyle;
-        }
-
-        this.sseq.on('update', this.updateBatch);
-        this.update();
+    setXRange(xmin, xmax){
+        this.xRange = [0, 0];
+        this.xRange[0] = xmin;
+        this.xRange[1] = xmax;
     }
 
-    _initializeScale(){
-        this.xScaleInit.domain([this.sseq.initial_x_range[0] - this._domainOffset, this.sseq.initial_x_range[1] + this._domainOffset]);
-        this.yScaleInit.domain([this.sseq.initial_y_range[0] - this._domainOffset, this.sseq.initial_y_range[1] + this._domainOffset]);
+    setYRange(ymin, ymax){
+        this.yRange = [0, 0];
+        this.yRange[0] = ymin;
+        this.yRange[1] = ymax;
     }
 
-    nextPage(){
-        if (this.page_idx < this.sseq.page_list.length - 1) {
-            this.setPage(this.page_idx + 1);
-            this.update();
-        }
+    setInitialXRange(xmin, xmax){
+        this.initialXRange[0] = xmin;
+        this.initialXRange[1] = xmax;
     }
 
-    previousPage(){
-        if (this.page_idx > this.sseq.min_page_idx) {
-            this.setPage(this.page_idx - 1);
-            this.update();
-        }
+    setInitialYRange(ymin, ymax){
+        this.initialYRange[0] = ymin;
+        this.initialYRange[1] = ymax;
     }
 
-    /**
-     * Update this.page and this.pageRange to reflect the value of page_idx.
-     */
-    setPage(idx){
-        if (!this.sseq) return;
-
-        if(idx !== undefined){
-            this.page_idx = idx;
-        }
-        this.pageRange = this.sseq.page_list[this.page_idx];
-
-        if(Array.isArray(this.pageRange)){
-            this.page = this.pageRange[0];
-        } else {
-            this.page = this.pageRange;
-        }
-        this.emit("page-change", this.pageRange, this.page_idx);
+    _initializeScale(xmin, xmax, ymin, ymax){
+        this.xminFloat = xmin - this._domainOffset;
+        this.xmaxFloat = xmax + this._domainOffset;
+        this.yminFloat = ymin - this._domainOffset;
+        this.ymaxFloat = ymax - this._domainOffset;
+        this.xScaleInit.domain([this.xminFloat, this.xmaxFloat]);
+        this.yScaleInit.domain([this.yminFloat, this.ymaxFloat]);
     }
 
     handleZoom(){
-        this.updateMousePosition(d3.event.sourceEvent);
+        if(d3.event && d3.event.sourceEvent){
+            this.updateMousePosition(d3.event.sourceEvent);
+        }
         this.updateBatch();
     }
 
@@ -239,14 +188,15 @@ export class Display extends HTMLElement {
     }
 
     update(batch = false) {
-        if (!this.sseq) return;
+        if(!this.zoom){
+            return;
+        }
 
         this.updateQueue ++;
 
         let drawFunc = () => {
             this.updateQueue --;
             if (this.updateQueue != 0) return;
-
             this._drawSseq(this.context);
             this._emitMouseover();
         };
@@ -257,9 +207,25 @@ export class Display extends HTMLElement {
         }
     }
 
-    clipContext(ctx) {
-        ctx.beginPath();
+    // This allows us to put various decorations as DOM elements and have them properly clipped
+    // as long as they are behind the canvas.
+    paintComplementOfClippedRegionWhite(ctx){
+        // TODO: get rid of y_clip_offset or make it less ad-hoc
         let y_clip_offset = this.y_clip_offset || 0;
+        ctx.save();
+        ctx.beginPath();
+        ctx.fillStyle = "white";
+        ctx.rect(0, 0, this._canvasWidth, this._canvasHeight);
+        ctx.moveTo(this._leftMargin, this._topMargin + y_clip_offset);
+        ctx.rect(this._leftMargin, this._topMargin + y_clip_offset, this._plotWidth, this._plotHeight - y_clip_offset);
+        ctx.fill("evenodd");
+        ctx.restore();
+    }
+
+    clipContext(ctx) {
+        // TODO: get rid of y_clip_offset or make it less ad-hoc
+        let y_clip_offset = this.y_clip_offset || 0;
+        ctx.beginPath();
         ctx.globalAlpha = 0; // C2S does not correctly clip unless the clip is stroked.
         ctx.rect(this._leftMargin, this._topMargin + y_clip_offset, this._plotWidth, this._plotHeight - y_clip_offset);
         ctx.stroke();
@@ -267,59 +233,61 @@ export class Display extends HTMLElement {
         ctx.globalAlpha = 1;
     }
 
-    _drawSseq(ctx = this.context) {
-        if (!this.sseq) return;
+    _drawSseq(ctx = this.context, drawAxes = false) {
+        if(!this.zoom){
+            return;
+        }        
         this.total_draws = this.total_draws + 1 || 0;
         let startTime = performance.now();
 
         this._updateScale();
-        this._updateGridAndTickStep();
+        // this._updateGridAndTickStep();
 
-        let [classes, edges] = this.sseq.getElementsToDraw(
-            this.pageRange, 
-            this.xmin - 1, this.xmax + 1, this.ymin - 1, this.ymax + 1
-        );
-        this._updateClassPositions(classes);
 
-        ctx.clearRect(0, 0, this._canvasWidth, this._canvasHeight);
-
-        this._drawTicks(ctx);
-        this._drawAxes(ctx);
-
-        ctx.save();
-
-        this.clipContext(ctx);
-        this._drawGrid(ctx);
-
-        this.emit("draw_background");
-        this._highlightClasses(ctx);
-        this._drawEdges(ctx, edges);
-        this._drawClasses(ctx);
-
-        if (this.sseq.edgeLayerSVG)
-            this.drawSVG(ctx, this.sseq.edgeLayerSVG);
-
-        if(this.svg) {
-            if(this.svg_unclipped){
-                ctx.restore();
-                ctx.save();
-            }
-            let x_scale = this.svg_x_scale || this.svg_scale || 1;
-            let y_scale = this.svg_y_scale || this.svg_scale || 1;
-            let x_offset = this.svg_x_offset || 0;
-            let y_offset = this.svg_y_offset || 0;
-            let default_width = 
-                this._canvasWidth / (this.xmaxFloat - this.xminFloat) * (this.sseq.x_range[1] - this.sseq.x_range[0] + 1);
-            let default_height = 
-                this._canvasHeight / (this.ymaxFloat - this.yminFloat) * (this.sseq.y_range[1] - this.sseq.y_range[0] + 1);
-            let width = default_width * x_scale;
-            let height = default_height * y_scale;
-            this.context.drawImage(this.svg,
-                this.xScale(this.sseq.x_range[0] + x_offset), //- display.xMinOffset,
-                this.yScale(this.sseq.y_range[1] + 1 + y_offset) ,
-                width, height
-            );
+        if(this.scaleChanged){
+            let type = this.zoomChanged ? "zoom" : "pan";
+            this.emit("scale-update", {type : type});
         }
+        
+        ctx.clearRect(0, 0, this._canvasWidth, this._canvasHeight);
+        this.paintComplementOfClippedRegionWhite(ctx);
+
+        for(let elt of this.children){
+            if(!elt.paint){
+                continue;
+            }
+            ctx.save();
+            if(elt.clipped || elt.hasAttribute("clipped")){
+                this.clipContext(ctx);
+            }
+            elt.paint(this, ctx);
+            ctx.restore();
+        }
+
+        // if (this.sseq.edgeLayerSVG)
+        //     this.drawSVG(ctx, this.sseq.edgeLayerSVG);
+
+        // if(this.svg) {
+        //     if(this.svg_unclipped){
+        //         ctx.restore();
+        //         ctx.save();
+        //     }
+        //     let x_scale = this.svg_x_scale || this.svg_scale || 1;
+        //     let y_scale = this.svg_y_scale || this.svg_scale || 1;
+        //     let x_offset = this.svg_x_offset || 0;
+        //     let y_offset = this.svg_y_offset || 0;
+        //     let default_width = 
+        //         this._canvasWidth / (this.xmaxFloat - this.xminFloat) * (this.xRange[1] - this.xRange[0] + 1);
+        //     let default_height = 
+        //         this._canvasHeight / (this.ymaxFloat - this.yminFloat) * (this.yRange[1] - this.yRange[0] + 1);
+        //     let width = default_width * x_scale;
+        //     let height = default_height * y_scale;
+        //     this.context.drawImage(this.svg,
+        //         this.xScale(this.xRange[0] + x_offset), //- display.xMinOffset,
+        //         this.yScale(this.yRange[1] + 1 + y_offset) ,
+        //         width, height
+        //     );
+        // }
         ctx.restore();
         this.emit("draw");
         let dt = performance.now() - startTime;
@@ -328,6 +296,7 @@ export class Display extends HTMLElement {
 
     /**
      * @private
+     * TODO: CLEAN ME UP!!
      */
     _updateScale(){
         let zoomD3Element = this.zoomD3Element;
@@ -347,28 +316,28 @@ export class Display extends HTMLElement {
         let xScaleMaxed = false, yScaleMaxed = false;
         let autoTranslated = false;
         // Prevent user from panning off the side.
-        if (this.sseq.x_range) {
-            if (xScale(this.sseq.x_range[1] - this.sseq.x_range[0] + 2 * this._domainOffset) - xScale(0) < this._plotWidth) {
+        if (this.xRange) {
+            if (xScale(this.xRange[1] - this.xRange[0] + 2 * this._domainOffset) - xScale(0) < this._plotWidth) {
                 // We simply record the scale was maxed and handle this later
                 // by modifying xScale directly.
                 xScaleMaxed = true;
-            } else if (xScale(this.sseq.x_range[0] - this._domainOffset) > this._leftMargin) {
-                this.zoom.translateBy(zoomD3Element, (this._leftMargin - xScale(this.sseq.x_range[0] - this._domainOffset)) / scale, 0);
+            } else if (xScale(this.xRange[0] - this._domainOffset) > this._leftMargin) {
+                this.zoom.translateBy(zoomD3Element, (this._leftMargin - xScale(this.xRange[0] - this._domainOffset)) / scale, 0);
                 autoTranslated = true;
-            } else if (xScale(this.sseq.x_range[1] + this._domainOffset) < this._clipWidth) {
-                this.zoom.translateBy(zoomD3Element, (this._clipWidth - xScale(this.sseq.x_range[1] + this._domainOffset)) / scale, 0);
+            } else if (xScale(this.xRange[1] + this._domainOffset) < this._clipWidth) {
+                this.zoom.translateBy(zoomD3Element, (this._clipWidth - xScale(this.xRange[1] + this._domainOffset)) / scale, 0);
                 autoTranslated = true;
             }
         }
 
-        if (this.sseq.y_range) {
-            if (yScale(0) -yScale(this.sseq.y_range[1] - this.sseq.y_range[0] + 2 * this._domainOffset) < this._plotHeight) {
+        if (this.yRange) {
+            if (yScale(0) -yScale(this.yRange[1] - this.yRange[0] + 2 * this._domainOffset) < this._plotHeight) {
                 yScaleMaxed = true;
-            } else if (yScale(this.sseq.y_range[0] - this._domainOffset) < this._clipHeight) {
-                this.zoom.translateBy(zoomD3Element, 0, (this._clipHeight - yScale(this.sseq.y_range[0] - this._domainOffset)) / scale);
+            } else if (yScale(this.yRange[0] - this._domainOffset) < this._clipHeight) {
+                this.zoom.translateBy(zoomD3Element, 0, (this._clipHeight - yScale(this.yRange[0] - this._domainOffset)) / scale);
                 autoTranslated = true;
-            } else if (yScale(this.sseq.y_range[1] + this._domainOffset) > this._topMargin) {
-                this.zoom.translateBy(zoomD3Element, 0, this._topMargin - yScale(this.sseq.y_range[1] + this._domainOffset) / scale);
+            } else if (yScale(this.yRange[1] + this._domainOffset) > this._topMargin) {
+                this.zoom.translateBy(zoomD3Element, 0, this._topMargin - yScale(this.yRange[1] + this._domainOffset) / scale);
                 autoTranslated = true;
             }
         }
@@ -407,15 +376,15 @@ export class Display extends HTMLElement {
         // other direction
         if (xScaleMaxed) {
             this.xScale.domain([
-                this.sseq.x_range[0] - this._domainOffset,
-                this.sseq.x_range[1] + this._domainOffset
+                this.xRange[0] - this._domainOffset,
+                this.xRange[1] + this._domainOffset
             ]);
             this.transform.x = old_transform.x;
         }
         if (yScaleMaxed) {
             this.yScale.domain([
-                this.sseq.y_range[0] - this._domainOffset,
-                this.sseq.y_range[1] + this._domainOffset
+                this.yRange[0] - this._domainOffset,
+                this.yRange[1] + this._domainOffset
             ]);
             this.transform.y = old_transform.y;
         }
@@ -432,7 +401,6 @@ export class Display extends HTMLElement {
                 && (oldYScaleMaxed == yScaleMaxed)
                 && revertedDistance < 5;
         }
-
         this.xminFloat = this.xScale.invert(this._leftMargin);
         this.xmaxFloat = this.xScale.invert(this._clipWidth);
         this.yminFloat = this.yScale.invert(this._clipHeight);
@@ -443,6 +411,15 @@ export class Display extends HTMLElement {
         this.ymax = Math.floor(this.ymaxFloat);
 
         this.zoom.on("zoom", this.handleZoom);
+        old_transform = this.old_transform;
+        this.old_transform = transform;
+        this.scaleChanged = 
+            old_transform === undefined 
+            || Math.abs(old_transform.x - transform.x) > 1e-8 
+            || Math.abs(old_transform.y - transform.y) > 1e-8 
+            || old_transform.k != transform.k;
+        this.zoomChanged = 
+            old_transform === undefined || old_transform.k != transform.k;
     }
 
     dxScale(x){
@@ -451,231 +428,6 @@ export class Display extends HTMLElement {
 
     dyScale(x){
         return this.yScale(x) - this.yScale(0);
-    }
-
-    _updateGridAndTickStep(){
-        // TODO: This 70 is a magic number. Maybe I should give it a name?
-        this.xTicks = this.xScale.ticks(this._canvasWidth / 70);
-        this.yTicks = this.yScale.ticks(this._canvasHeight / 70);
-
-        this.xTickStep = Math.ceil(this.xTicks[1] - this.xTicks[0]);
-        this.yTickStep = Math.ceil(this.yTicks[1] - this.yTicks[0]);
-        this.xTicks[0] -= this.xTickStep;
-        this.yTicks[0] -= this.yTickStep;
-        this.xTicks.push(this.xTicks[this.xTicks.length - 1] + this.xTickStep);
-        this.yTicks.push(this.yTicks[this.yTicks.length - 1] + this.yTickStep);
-
-        if(this.manualxGridStep){
-            this.xGridStep = this.manualxGridStep;
-        } else {
-            this.xGridStep = (Math.floor(this.xTickStep / 5) === 0) ? 1 : Math.floor(this.xTickStep / 5);
-        }
-        if(this.manualyGridStep){
-            this.yGridStep = this.manualxGridStep;
-        } else {
-            this.yGridStep = (Math.floor(this.yTickStep / 5) === 0) ? 1 : Math.floor(this.yTickStep / 5);
-        }
-        // TODO: This is an ad-hoc modification requested by Danny to ensure that the grid boxes are square.
-        // Probably it's a useful thing to be able to have square grid boxes, how do we want to deal with this?
-        if(this.sseq.squareAspectRatio){
-            this.xGridStep = 1;
-            this.yGridStep = this.xGridStep;
-        }
-    }
-
-    _drawTicks(context) {
-        context.save();
-
-        context.textBaseline = "middle";
-        context.font = "15px Arial";
-        context.textAlign = "center";
-        for (let i = Math.floor(this.xTicks[0]); i <= this.xTicks[this.xTicks.length - 1]; i += this.xTickStep) {
-            context.fillText(i, this.xScale(i), this._clipHeight + 20);
-        }
-
-        context.textAlign = "right";
-        for (let i = Math.floor(this.yTicks[0]); i <= this.yTicks[this.yTicks.length - 1]; i += this.yTickStep) {
-            context.fillText(i, this._leftMargin - 10, this.yScale(i));
-        }
-        context.restore();
-    }
-
-    _drawGrid(context){
-        context.save();
-
-        context.strokeStyle = this.gridColor;
-        context.lineWidth = this.gridStrokeWidth;
-
-        switch(this.gridStyle){
-            case GridEnum.go:
-                this._drawGoGrid(context);
-                break;
-            case GridEnum.chess:
-                this._drawChessGrid(context);
-                break;
-            default:
-                throw Error("Undefined grid type.");
-                break;
-        }
-        context.restore();
-    }
-
-    _drawGoGrid(context) {
-        this._drawGridWithOffset(context, 0, 0);
-    }
-
-    _drawChessGrid(context) {
-        this._drawGridWithOffset(context, 0.5, 0.5);
-    }
-
-    _drawGridWithOffset(context, xoffset, yoffset){
-        context.beginPath();
-        for (let col = Math.floor(this.xmin / this.xGridStep) * this.xGridStep - xoffset; col <= this.xmax; col += this.xGridStep) {
-            context.moveTo(this.xScale(col), 0);
-            context.lineTo(this.xScale(col), this._clipHeight);
-        }
-        context.stroke();
-
-        context.beginPath();
-        for (let row = Math.floor(this.ymin / this.yGridStep) * this.yGridStep - yoffset; row <= this.ymax; row += this.yGridStep) {
-            context.moveTo(this._leftMargin, this.yScale(row));
-            context.lineTo(this._canvasWidth - this._rightMargin, this.yScale(row));
-        }
-        context.stroke();
-    }
-
-    _drawAxes(context){
-        context.save();
-
-        // This makes the white square in the bottom left and top right corners which prevents axes labels from appearing to the left
-        // or below the axes intercept.
-        context.fillStyle = this.background_color;
-        context.rect(0, this._clipHeight, this._leftMargin, this._bottomMargin);
-        context.rect(0, 0, this._leftMargin, this._topMargin);
-        context.fill();
-        context.fillStyle = "#000";
-
-        // Draw the axes.
-        context.beginPath();
-        context.moveTo(this._leftMargin, this._topMargin);
-        context.lineTo(this._leftMargin, this._clipHeight);
-        context.lineTo(this._canvasWidth - this._rightMargin, this._clipHeight);
-        context.stroke();
-
-        context.restore();
-    }
-
-    _updateClassPositions(classes){
-        let size = Math.max(Math.min(this.dxScale(1), -this.dyScale(1), this.sseq.max_class_size), this.sseq.min_class_size) * this.sseq.class_scale;
-        this.classes_to_draw = classes;
-        for(let c of classes) {
-            c.setPosition( 
-                this.xScale(c.x) + c.getXOffset(), 
-                this.yScale(c.y) + c.getYOffset(), 
-                size
-            );
-        }
-    }
-
-    _highlightClasses(context) {
-        for (let c of this.classes_to_draw) {
-            if(c._highlight){
-                c.drawHighlight(context);
-            }
-        }
-    }
-
-    _drawClasses(context) {
-        const BUFFER_WIDTH = 64;
-        const BUFFER_HEIGHT = 64;
-        let groupedClasses = groupByArray(this.classes_to_draw, c => JSON.stringify(c._getStyleForCanvasContext()))
-
-        for(let classGroup of groupedClasses){
-            let buffer;
-            if(classGroup.key in this.node_buffers){
-                buffer = this.node_buffers[classGroup.key];
-                let bufferCtx = buffer.getContext('2d');
-                bufferCtx.clearRect(0, 0, BUFFER_WIDTH, BUFFER_HEIGHT);
-            } else {
-                buffer = document.createElement('canvas');
-                buffer.width = BUFFER_WIDTH;
-                buffer.height = BUFFER_HEIGHT;
-                this.node_buffers[classGroup.key] = buffer;
-            }
-            let bufferCtx = buffer.getContext('2d');
-            let firstClass = classGroup.values[0];
-            firstClass.draw(bufferCtx, BUFFER_WIDTH/2, BUFFER_HEIGHT/2);
-            let path = firstClass.getMouseoverPath(0, 0);
-                   
-            for(let c of classGroup.values) {
-                c._path = path;
-                context.drawImage(buffer, c._canvas_x - BUFFER_WIDTH/2, c._canvas_y - BUFFER_HEIGHT/2);
-            }
-        }
-    }
-
-    _drawEdges(context, edges){
-        let grouped_edges = groupByArray(edges, (e) => JSON.stringify([e.color, e.lineWidth, e.opacity, e.dash]));
-        for(let edge_group of grouped_edges){
-            context.save();
-            let first_edge = edge_group.values[0];
-            context.strokeStyle = first_edge.color || "black";
-            if(first_edge.lineWidth){
-                context.lineWidth = first_edge.lineWidth;
-            }
-            if(first_edge.opacity){
-                context.globalAlpha = first_edge.opacity;
-            }
-            if(first_edge.dash){
-                context.setLineDash(first_edge.dash);
-            }            
-            context.beginPath();
-            for (let e of edge_group.values) {
-                if(!e) {
-                    throw ValueError("Undefined edge.");
-                }
-                if(e.invalid || !e.visible){
-                    continue;
-                }
-                if (e.type === "Structline" && this.hiddenStructlines.has(e.mult)) {
-                    continue;
-                }
-
-                let source_node = e._source;
-                let target_node = e._target;
-                if(!source_node || ! target_node){
-                    throw ValueError(`Edge ${e} has undefined source or target node`);
-                }
-                e._sourceOffset = e.sourceOffset || {x: 0, y: 0};
-                e._targetOffset = e.targetOffset || {x: 0, y: 0};
-
-                let sourceX = source_node._canvas_x + e._sourceOffset.x;
-                let sourceY = source_node._canvas_y + e._sourceOffset.y;
-                let targetX = target_node._canvas_x + e._targetOffset.x;
-                let targetY = target_node._canvas_y + e._targetOffset.y;
-                
-                if(e.bend ){//&& e.bend !== 0
-                    let distance = Math.sqrt((targetX - sourceX)*(targetX - sourceX) + (targetY - sourceY)*(targetY - sourceY));
-                    let looseness = 0.4;
-                    if(e.looseness){
-                        looseness = e.looseness;
-                    }
-                    let angle = Math.atan((targetY - sourceY)/(targetX - sourceX));
-                    let bendAngle = - e.bend * Math.PI/180;
-                    let control1X = sourceX + Math.cos(angle + bendAngle) * looseness * distance;
-                    let control1Y = sourceY + Math.sin(angle + bendAngle) * looseness * distance;
-                    let control2X = targetX - Math.cos(angle - bendAngle) * looseness * distance;
-                    let control2Y = targetY - Math.sin(angle - bendAngle) * looseness * distance;
-                    context.moveTo(sourceX, sourceY);
-                    context.bezierCurveTo(control1X, control1Y, control2X, control2Y, targetX, targetY);
-                } else {
-                    context.moveTo(sourceX, sourceY);
-                    context.lineTo(targetX, targetY);
-                }
-            }
-            context.stroke();
-            context.restore();
-        }
     }
 
     getMouseState(){
@@ -711,15 +463,16 @@ export class Display extends HTMLElement {
 
     _emitMouseover(e, redraw) {
         // If not yet set up, updateMousePosition will throw an error.
-        if(!this.classes_to_draw){
-            return;
-        }
+        // if(!this.classes_to_draw){
+        //     return;
+        // }
 
         // We cannot query for mouse position. We must remember it from
         // previous events. If update() is called, we call _onMousemove without
         // an event.
         if(e) {
             this.updateMousePosition(e);
+            this.emit("mouse-state-update", this.mouseState);
         }
 
         // Don't emit mouseover or mouseout 
@@ -727,39 +480,14 @@ export class Display extends HTMLElement {
             return;
         }
 
+
         redraw = redraw | false;
-        redraw |= this._emitMouseoverClass();
+        // redraw |= this._emitMouseoverClass();
         redraw |= this._emitMouseoverBidegree();
 
         if (redraw) {
             this._drawSseq(this.context);  
         } 
-    }
-
-    getMouseoverClass(x, y){
-        return this.classes_to_draw.find((c) => 
-            this.context.isPointInPath(c._path, this.mousex - c._canvas_x, this.mousey - c._canvas_y)
-        );
-    }
-
-    _emitMouseoverClass(){
-        let new_mouseover_class = this.getMouseoverClass(this.mousex, this.mousey);
-        let redraw = false;
-        if (this.mouseover_class) {
-            if(new_mouseover_class === this.mouseover_class) {
-                return false;
-            } else {
-                this.emit("mouseout-class", this.mouseover_class, this.mouseState);
-                this.mouseover_class = null;
-                redraw = true;
-            }
-        }
-        if(new_mouseover_class) {
-            redraw = true;
-            this.mouseover_class = new_mouseover_class;
-            this.emit("mouseover-class", new_mouseover_class, this.mouseState);
-        }
-        return redraw;
     }
 
     _emitMouseoverBidegree(){
@@ -768,7 +496,7 @@ export class Display extends HTMLElement {
         let nearest_x = Math.round(this.xScale.invert(x));
         let nearest_y = Math.round(this.yScale.invert(y));
         let redraw = false;
-        let threshold = this.bidegreeDistanceThreshold * (this.sseq.bidegreeDistanceScale | 1);
+        let threshold = this.bidegreeDistanceThreshold * 1;//(this.sseq.bidegreeDistanceScale | 1)
         let xscale = 1;
         let yscale = 1;
         // let x_max_threshold = Math.abs(this.xScale(1) - this.xScale(0)) * 0.4;
@@ -824,10 +552,10 @@ export class Display extends HTMLElement {
         img.src = image64;
 
         context.drawImage(img,
-            this.xScale(this.sseq.x_range[0]),// - this.xMinOffset,
-            this.yScale(this.sseq.y_range[1] + 1),
-            this._canvasWidth  / (this.xmaxFloat - this.xminFloat) * (this.sseq.x_range[1] - this.sseq.x_range[0] + 1),
-            this._canvasHeight / (this.ymaxFloat - this.yminFloat) * (this.sseq.y_range[1] - this.sseq.y_range[0] + 1)
+            this.xScale(this.xRange[0]),// - this.xMinOffset,
+            this.yScale(this.yRange[1] + 1),
+            this._canvasWidth  / (this.xmaxFloat - this.xminFloat) * (this.xRange[1] - this.xRange[0] + 1),
+            this._canvasHeight / (this.ymaxFloat - this.yminFloat) * (this.yRange[1] - this.yRange[0] + 1)
         );
     }
 
@@ -896,114 +624,6 @@ export class Display extends HTMLElement {
         this.update();
         this.zoom.on("zoom", this.handleZoom);
     }
-
-    getPageDescriptor(pageRange) {
-        if (!this.sseq) {
-            return;  
-        }
-
-        let basePage = 2;
-        if(this.sseq.page_list.includes(1)){
-            basePage = 1;
-        }
-        if (pageRange[0] === INFINITY) {
-            return "Page ∞";
-        }
-        if (pageRange === 0) {
-            return `Page ${basePage} with all differentials`;
-        }
-        if (pageRange === 1 && basePage === 2) {
-            return `Page ${basePage} with no differentials`;
-        }
-        if (pageRange.length) {
-            if(pageRange[1] === INFINITY){
-                return `Page ${pageRange[0]} with all differentials`;
-            }
-            if(pageRange[1] === -1){
-                return `Page ${pageRange[0]} with no differentials`;
-            }
-
-            if(pageRange[0] === pageRange[1]){
-                return `Page ${pageRange[0]}`;
-            }
-
-            return `Pages ${pageRange[0]} – ${pageRange[1]}`.replace(INFINITY, "∞");
-        }
-        return `Page ${pageRange}`;
-    }
-
-    // TODO: Fix the selection
-    //    /**
-    //     * This is a click event handler to update the selected cell when the user clicks.
-    //     * @param event A click event.
-    //     */
-    //    updateSelection(event){
-    //        event.mouseover_class = this.mouseover_class;
-    //        this.selectedX = Math.floor(display.xScale.invert(event.layerX) + 0.5);
-    //        this.selectedY = Math.floor(display.yScale.invert(event.layerY) + 0.5);
-    //        this.update();
-    //    }
-    //
-    //    /**
-    //     * Enable selection. This changes the grid style to a chess grid and attaches event handlers for clicking
-    //     * @param arrowNavigate
-    //     */
-    //    enableSelection(arrowNavigate){
-    //        this.gridStyle = gridChess;
-    //        this.addEventHandler("onclick",this.updateSelection.bind(this));
-    //        if(arrowNavigate){
-    //            this.addEventHandler('left',  () => {
-    //                if(this.selectedX !== undefined){
-    //                    this.selectedX --;
-    //                    this.update();
-    //                }
-    //            });
-    //            this.addEventHandler('right', () => {
-    //                if(this.selectedX !== undefined){
-    //                    this.selectedX ++;
-    //                    this.update();
-    //                }
-    //            });
-    //            this.addEventHandler('down',  () => {
-    //                if(this.selectedY !== undefined){
-    //                    this.selectedY --;
-    //                    this.update();
-    //                }
-    //            });
-    //            this.addEventHandler('up', () => {
-    //                if(this.selectedY !== undefined){
-    //                    this.selectedY ++;
-    //                    this.update();
-    //                }
-    //            });
-    //        }
-    //        this.update();
-    //    }
-    //
-    //    disableSelection(){
-    //        this.selectedX = undefined;
-    //        this.gridStyle = gridGo;
-    //        Mousetrap.bind('left',  this.previousPage);
-    //        Mousetrap.bind('right', this.nextPage);
-    //        this.eventHandlerLayer["onclick"] = (event) => {};
-    //        this.update();
-    //    }
-    //
-    //    _drawSelection(context){
-    //        let x = this.selectedX;
-    //        let y = this.selectedY;
-    //        if(x !== undefined && y !== undefined){
-    //            context.fillStyle = this.gridColor;
-    //            context.rect(
-    //                display.xScale(x - 0.5),
-    //                display.yScale(y - 0.5),
-    //                display.dxScale(1),
-    //                display.dyScale(1)
-    //            );
-    //            context.fill();
-    //        }
-    //    }
-
 }
 
 

@@ -91,7 +91,6 @@ export class PopupElement extends LitElement {
                 color : rgba(var(--text-color), var(--text-opacity));
             }
 
-
             .close-btn {
                 font-size: var(--close-icon-font-size);
             }
@@ -168,11 +167,11 @@ export class PopupElement extends LitElement {
                 <div id="body-footer">
                     <div id="body-footer-inner">
                         <div id="body">
-                            <slot></slot>
+                            <slot name="body"></slot>
                         </div>
                         <div id="footer">
                             <span style="flex-grow : 1;"></span>
-                            <sseq-button disabled style="margin-right: 0.75rem;">OK</sseq-button>
+                            <sseq-button style="margin-right: 0.75rem;">OK</sseq-button>
                             <sseq-button>CANCEL</sseq-button>
                         </div>
                     </div>
@@ -244,7 +243,7 @@ export class PopupElement extends LitElement {
             body_and_footer.setAttribute("transition", "close");
             body_and_footer.style.height = 0;            
         }
-        await promiseFromDomEvent(body_and_footer, "transition");
+        await promiseFromDomEvent(body_and_footer, "transitionend");
         body_and_footer.removeAttribute("transition");
     }
 }

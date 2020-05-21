@@ -10,7 +10,7 @@ export { event, select, selectAll } from 'd3-selection';
 export { scaleLinear } from 'd3-scale';
 export { zoom, zoomTransform } from 'd3-zoom';
 export { interval } from 'd3-timer';
-
+// export { axisLeft, axisBottom } from 'd3-axis';
 
 // let d3_select = require("d3-selection");
 // exports.select = d3_select.select;

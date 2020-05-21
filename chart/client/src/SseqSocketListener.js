@@ -42,8 +42,10 @@ let default_message_handlers = {
     "initialize.chart.state" : function(cmd, args, kwargs) {
         this.console_log_if_debug("accepted user:", kwargs.state);
         this.sseq = SpectralSequenceChart.from_JSON(kwargs.state);
-        this.display.setSseq(this.sseq);
         this.display.y_clip_offset = this.sseq.y_clip_offset;
+        let chart = document.querySelector("sseq-chart");
+        chart.setSseq(this.sseq);
+        document.querySelector("sseq-ui").start();
         this.send("initialize.complete", {});
     },
 
@@ -61,7 +63,8 @@ let default_message_handlers = {
     "chart.state.reset" : function(cmd, args, kwargs) {
         this.console_log_if_debug("accepted user:", kwargs.state);
         this.sseq = SpectralSequenceChart.from_JSON(kwargs.state);
-        this.display.setSseq(this.sseq);
+        let chart = document.querySelector("sseq-chart");
+        chart.setSseq(this.sseq);
         if(kwargs.display_state !== undefined){
             this.set_display_state(kwargs.display_state);
         }

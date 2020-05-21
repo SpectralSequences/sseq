@@ -88,6 +88,10 @@ export class ChartClass {
         context.restore();
     }
 
+    isDisplayed(){
+        return this._displayed;
+    }
+
     draw(context, x, y) {
         if(x === undefined){
             x = this._canvas_x;

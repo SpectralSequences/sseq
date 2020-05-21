@@ -17,6 +17,7 @@ export class ButtonElement extends LitElement {
             display: flex;
             justify-content: center;
             align-items: center;
+            font-variant: all-small-caps;
         }
 
         :host(:not([disabled])) {

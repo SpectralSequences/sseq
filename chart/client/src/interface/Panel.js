@@ -1,14 +1,16 @@
 import {LitElement, html, css} from 'lit-element';
 import { styleMap } from 'lit-html/directives/style-map';
 
-import { promiseFromDomEvent } from "./utils.js";
+
+import { sleep, promiseFromDomEvent } from "./utils.js";
 const RESIZER_WIDTH = 8;
 
 export class Panel extends LitElement {
     static get properties() {
         return { 
             width : { type: Number },
-            closed : { type : Boolean }
+            closed : { type : Boolean },
+            displayedChildren : { type : Array }
         };
     }
 
@@ -108,11 +110,15 @@ export class Panel extends LitElement {
         `
     }
 
-    firstUpdated(){
+    async firstUpdated(){
+        let slot = this.shadowRoot.querySelector("slot");
+        slot.style.display = "none";
         this.width = parseFloat(this.getAttribute("initial-width")) || 240; // px
         this.minWidth = parseFloat(this.getAttribute("min-width")) || 200; // px
         this.maxWidth = parseFloat(this.getAttribute("max-width")) || 100000; // px
-        console.log(this.width, this.minWidth, this.maxWidth);
+        await sleep(100);
+        this.hideChildren();
+        slot.style.display = "";
     }
 
     render(){
@@ -183,6 +189,36 @@ export class Panel extends LitElement {
 
     show(){
         this.closed = false;
+    }
+
+    hideChildren(){
+        for(let child of this.children){
+            child.slot = "none";
+        }
+        this.displayedChildren = [];
+        this.requestUpdate();
+    }
+
+    displayChildren(element){
+        if(element.constructor === String){
+            element = document.querySelectorAll(element);
+        }
+        if(element instanceof HTMLElement) {
+            if(!this.displayedChildren.includes(element)){
+                this.displayedChildren.push(element);
+                element.slot = "";
+                this.requestUpdate();
+            }
+            return
+        }
+        // try {// Maybe it's an array
+            let elements = element;
+            for(let element of elements){
+                this.displayChildren(element);
+            }
+        // } catch(e) {
+        //     throw TypeError("Expected argument to be an HTML element, a String selector, or a list of elements");
+        // }
     }
 }
 customElements.define('sseq-panel', Panel);

@@ -65,15 +65,23 @@
             box-shadow: none;
         }
 
+        #product-info {
+            text-align: center;
+        }
+
         sseq-panel h5 {
             --text-opacity : 0.87;
             color : rgba(var(--text-color), var(--text-opacity));
             font-size: 120%;
             font-weight: 400;
-            text-align: center;
             margin: 0.25rem 0rem;
             margin-bottom: 0.8rem;
         }
+
+        sseq-panel div {
+            display: flex;
+            flex-direction: column;
+        }        
 
         input {
             font-family: inherit;
@@ -104,12 +112,14 @@
         }
 
         sseq-tooltip {
-            background: rgb(60, 189, 125);
+            --text-color : var(--complement-3-text);
+            --text-opacity : 1;
+            background: rgba(var(--complement-3), 1);
         }
 
         sseq-matrix {
-            --row-selected : rgba(var(--complement-4),0.4);
-            --row-hover : rgba(var(--complement-4), 0.6); /* rgba(0, 0, 255, 0.25);*/
+            --row-selected : rgba(var(--complement-4),0.7);
+            --row-hover : rgba(var(--complement-4), 0.4); /* rgba(0, 0, 255, 0.25);*/
             --row-hover-selected : rgba(var(--complement-4),1);
             --row-active : rgba(var(--complement-4),1);
             --row-active-selected : rgba(var(--complement-4),0.5);
@@ -175,44 +185,32 @@
     </style>
 </head>
 <body style="overflow: hidden;">
-
-<!-- Start Modal
-<sseq-popup>
-    <span slot="header">A formula</span>
-    <div class="ft-modal-body">
-        <katex-expr>e = mc^2</katex-expr>!
-    </div>
-</sseq-popup>
- 
-<a href="javascript:openPopup()">Open modal</a>
-
-<script>
-    function openPopup(){
-        document.querySelector("sseq-popup").setAttribute("open", "open");
-    }
-</script> -->
-
-
-   <div style="height: 100vh; width: 100vw; display: flex;">
+   <sseq-ui>
         <sseq-display id=display style="overflow: hidden; position: relative; flex-grow: 1;">
-            <sseq-page-indicator style="position: absolute; left: 60px; top: 0px; font-family: Arial; font-size: 15px;"></sseq-page-indicator>
-            <sseq-tooltip></sseq-tooltip>
+            <sseq-axes></sseq-axes>
+            <sseq-grid></sseq-grid>
+            <sseq-chart>
+                <sseq-class-highlighter></sseq-class-highlighter>
+                <sseq-page-indicator style="position: absolute; left: 60px; top: 0px; font-family: Arial; font-size: 15px;"></sseq-page-indicator>
+                <sseq-tooltip></sseq-tooltip>
+            </sseq-chart>
         </sseq-display>
-        <sseq-panel max-width=400 initial-width=280 style="display:flex; flex-direction: column;">
+        <sseq-panel max-width=400 initial-width=280>
+            <div id="product-info" style="overflow: overlay; padding-right: 1.5rem; padding-top: 0.4rem;" >
+                <div id="product-info-classes"></div>
+                <div id="product-info-products"></div>
+                <div id="product-info-matrix"></div>
+            </div>
         </sseq-panel>
-    <sseq-popup>
-        <span slot="header">A formula</span>
-        <div class="ft-modal-body">
-            Words and stuff
-            <!-- <p><katex-expr>e = mc^2</katex-expr>!</p> -->
-        </div>
-        <!-- <div slot="test">Blahhh</div> -->
-    </sseq-popup>
-    </div>
+        <sseq-popup>
+            <span slot="header">A formula</span>
+            <div slot="body">
+            </div>
+        </sseq-popup>
+    </sseq-ui>
 
     <script>
         main(document.querySelector("sseq-display"), "ws://localhost:{{ port }}/ws/{{ directory }}/{{ channel_name }}");
-        document.querySelector("sseq-popup").show();
     </script>
 
 </body>

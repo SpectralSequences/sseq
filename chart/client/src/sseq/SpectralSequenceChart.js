@@ -299,6 +299,7 @@ export class SpectralSequenceChart extends EventEmitter {
                 throw ReferenceError(`Undefined node on page ${page} for class: ${c}`);
             }
             c._node = node;
+            c._displayed = true;
         }
 
         // for (let e of display_edges) {

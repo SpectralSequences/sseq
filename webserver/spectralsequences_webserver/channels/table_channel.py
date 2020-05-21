@@ -57,7 +57,7 @@ class TableChannel(SocketChannel):
         self.repl_agent.set_executor(self.executor)
 
     @transform_inbound_messages
-    async def transform__click__a(self, envelope, x, y, chart_class):
+    async def transform__click__a(self, envelope, *args, **kwargs):
         envelope.mark_used()
 
     @transform_inbound_messages
@@ -173,11 +173,17 @@ class TableChannel(SocketChannel):
 
     def get_product_info(self, bidegree):
         result = []
+        v = fp.FpVector(2, self.table.gens_in_bidegree(*bidegree))
+        w = fp.FpVector(2, self.table.gens_in_bidegree(*bidegree))
+        b = self.table.basis_in_bidegree(*bidegree)
         for (in1, in2, out) in self.get_filtered_decompositions(bidegree):
-            n1 = (self.get_name(in1), self.get_monomial_name(in1))
-            n2 = (self.get_name(in2), self.get_monomial_name(in2))
+            n1 = (in1, self.get_name(in1), self.get_monomial_name(in1))
+            n2 = (in2, self.get_name(in2), self.get_monomial_name(in2))
+            v.pack(out)
+            w.set_to_zero()
+            b.apply_inverse(w, v)
             out_name = self.table.name_to_str(self.table.get_vec_name(*bidegree, out))
-            result.append((n1, n2, out, out_name ))
+            result.append((n1, n2, out, list(w), out_name ))
         return result
 
     def get_filtered_decompositions(self, bidegree):

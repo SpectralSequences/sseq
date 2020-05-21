@@ -21,7 +21,8 @@
     "katex": "^0.10.2",
     "katex-elements": "^0.1.0",
     "lit-element": "^2.3.1",
-    "mousetrap": "^1.6.2"
+    "mousetrap": "^1.6.2",
+    "reconnecting-websocket": "^4.4.0"
   },
   "scripts": {
     "prepublish": "browserify -g uglifyify -p esmify src/d3.bundle.js --standalone d3 > dist/d3.min.js",

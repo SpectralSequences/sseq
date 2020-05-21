@@ -1,5 +1,5 @@
 import {LitElement, html, css} from 'lit-element';
-import { promiseFromDomEvent } from "./utils.js";
+import { promiseFromDomEvent, findAncestorElement } from "./utils.js";
 
 const MARGIN = 10;
 
@@ -35,17 +35,18 @@ export class Tooltip extends LitElement {
         return css `
         :host {
             position: absolute;
-            z-index: 999999;
+            z-index: 999;
             transition: opacity 500ms ease 0s;             
             text-align: center;
             padding: 5px;
             font: 12px sans-serif;
             background: lightsteelblue;
             border: 0px;
-            border-radius: 8px;
+            /* border-radius: 8px; */
             pointer-events: none;
             opacity : 0;
             width : max-content;
+            color :rgba(var(--text-color), var(--text-opacity));
         }
         
         :host([shown]) {
@@ -77,16 +78,17 @@ export class Tooltip extends LitElement {
     }
 
     firstUpdated(changedProperties) {
-        this.display = this.parentElement;
-        this.display.addEventListener("mouseover-class", this._mouseover_class);
-        this.display.addEventListener("mouseout-class", this._mouseout_class);
+        this.disp = findAncestorElement(this, "sseq-display");
+        this.chart = findAncestorElement(this, "sseq-chart");
+        this.disp.addEventListener("mouseover-class", this._mouseover_class);
+        this.disp.addEventListener("mouseout-class", this._mouseout_class);
     }
 
     _mouseover_class(event){
         let [cls, mouseState] = event.detail;
         this.cls = cls;
-        let sseq = this.display.sseq;
-        let page = this.display.page;
+        let sseq = this.chart.sseq;
+        let page = this.chart.page;
         this.setHTML(sseq.getClassTooltipHTML(cls, page));
         this.show(this.cls._canvas_x, this.cls._canvas_y);
     }
@@ -119,7 +121,7 @@ export class Tooltip extends LitElement {
         this.style.top = "0px";
 
         this.position(x, y);
-        this.display.addEventListener("draw", this._handle_redraw);
+        this.disp.addEventListener("draw", this._handle_redraw);
         this.setAttribute("shown", "");
         this.setAttribute("transition", "show");
         await promiseFromDomEvent(this, "transitionend");
@@ -128,8 +130,8 @@ export class Tooltip extends LitElement {
 
     position(x, y){
         this.rect = this.getBoundingClientRect();
-        this.canvasRect = this.display.canvas.getBoundingClientRect();
-        this.displayRect = this.display.getBoundingClientRect();
+        this.canvasRect = this.disp.canvas.getBoundingClientRect();
+        this.displayRect = this.disp.getBoundingClientRect();
 
         x = x + this.canvasRect.x;
         y = y + this.canvasRect.y;
@@ -155,7 +157,7 @@ export class Tooltip extends LitElement {
     }
 
     async hide() {
-        this.display.removeEventListener("draw", this._handle_redraw);
+        this.disp.removeEventListener("draw", this._handle_redraw);
         this.removeAttribute("shown", "");
         this.setAttribute("transition", "hide");
         await promiseFromDomEvent(this, "transitionend");
