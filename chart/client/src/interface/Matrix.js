@@ -1,7 +1,7 @@
 import {LitElement, html, css} from 'lit-element';
 // import {unsafeHTML} from 'lit-html/directives/unsafe-html.js';
 // import { KatexExprElement } from "../KatexExprElement.js";
-
+import { promiseFromDomEvent } from "./utils.js";
 
 export class MatrixElement extends LitElement {
     static get properties() {
@@ -13,6 +13,14 @@ export class MatrixElement extends LitElement {
 
     static get styles() {
         return css`
+            :host {
+                color : rgba(var(--text-color), var(--text-opacity));
+            }
+
+            :focus {
+                outline: var(--focus-outline-color) auto 10px;
+            }
+
             .matrixbrak {
                 outline: none;
             }
@@ -94,34 +102,37 @@ export class MatrixElement extends LitElement {
                 -moz-appearance: textfield;
             }
 
-            .row:active {
+            :host([type="select-row"]) .row:active, :host([type="select-row"]) .row.active {
                 box-shadow: 0px 2px 2px -1px var(--row-active);
                 background-color : var(--row-active) !important;
                 color : rgba(var(--text-color), 1);
             }
 
-            .row:hover {
+            :host([type="select-row"]) .row:hover {
                 background-color : var(--row-hover) !important;
                 color : rgba(var(--text-color), 1);
             }
 
-            .row:hover:active {
+            :host([type="select-row"]) .row:hover:active, :host([type="select-row"]) .row:hover.active {
                 background-color : var(--row-active) !important;
             }            
             
-            .row[selected] {
+            :host([type="select-row"]) .row[selected] {
                 background-color : var(--row-selected);
                 color : rgba(var(--text-color), 1);
             }
 
-            .row:active[selected] {
+            :host([type="select-row"]) .row:hover:active[selected], :host([type="select-row"]) .row.active[selected] {
                 box-shadow: 0px 2px 2px -1px var(--row-active-selected);
                 background-color : var(--row-active-selected) !important;
             }
 
-            .row:hover[selected] {
+            :host([type="select-row"]) .row:hover[selected] { 
                 background-color : var(--row-hover-selected) !important;
             }
+            
+
+
             
             
             /*
@@ -158,6 +169,45 @@ export class MatrixElement extends LitElement {
         this.selectedRows = [];
     }
 
+    firstUpdated(changedProperties){
+        this.addEventListener("matrix-click", (e) => {
+            this.toggleRowSelect(e.detail.row_idx);
+        });
+        this.addEventListener("interact-toggle", (e) => {
+            e.stopPropagation();
+            this.toggle(e);
+        });
+    }
+
+    async toggle(e){
+        let elt = this.shadowRoot.activeElement;
+        if(!elt) {
+            return
+        }
+        if(e.constructor === CustomEvent) {
+            e = e.detail.originalEvent;
+        }
+        if(e.constructor === KeyboardEvent){
+            elt.classList.add("active");
+            await promiseFromDomEvent(window, "keyup", (keyupEvent) => keyupEvent.key === e.key);
+            elt.classList.remove("active");
+            this.toggleRowSelect(parseInt(elt.getAttribute("pos")));
+        }        
+    }
+
+    toggleRowSelect(row){
+        if(this.getAttribute("type") !== "select-row"){
+            return;
+        }
+        if(this.selectedRows.includes(row)){
+            this.selectedRows = [];
+        } else {
+            this.selectedRows = [row];
+        }
+        this.dispatchEvent(new CustomEvent("matrix-select", { "detail" : this.selectedRows }));
+        this.requestUpdate();
+    }
+
     render(){
         this.max_value = this.getAttribute("max-value") || 1;
         let rows = this.value.length;
@@ -168,10 +218,10 @@ export class MatrixElement extends LitElement {
                 selectedEntries[i][j] = true;
             }
         }
-        document.createElement("table");
-
+        let row_select = this.getAttribute("type") === "select-row";
+        let tabindex = row_select ? 0 : -1;
         return html`
-<table class="matrixbrak" tabindex="0"
+<table class="matrixbrak" 
         @click=${this._handleMouseEvent} @dblclick=${this._handleMouseEvent} @contextmenu=${this._handleMouseEvent} 
         @mousedown=${this._handleMouseEvent} @mouseup=${this._handleMouseEvent}
         @mouseover=${this._handleMouseEvent} @mouseout=${this._handleMouseEvent}
@@ -193,7 +243,7 @@ export class MatrixElement extends LitElement {
         <td> <table class="matrix"><tbody>
             ${
                 this.value.map((r, ridx) => html`
-                    <tr class="row" pos="${ridx}" ?selected=${this.selectedRows.includes(ridx)}>
+                    <tr class="row" tabindex=${tabindex} pos="${ridx}" ?selected=${this.selectedRows.includes(ridx)}>
                     ${  this.labels ?
                         html`<td class="label-entry" pos="${ridx}"><katex-expr>${this.labels[ridx]}</katex-expr></td>`
                     :""}
@@ -306,13 +356,26 @@ export class MatrixElement extends LitElement {
     }
 
     wrapEntry(e){
-        switch(this.getAttribute("type")){
+        let matrix_type = this.getAttribute("type");
+        switch(matrix_type){
             case "input":
                 return html`<input type="number" value="${e}" @click="${this._inputclick}" @keydown="${this._inputkeydown}" @keypress="${this._inputkeypress}"></input>`;
             case "display":
                 return e;
+            case "select-row":
+                return e;
+            case null:
+                return e; // throw Error(`Matrix is missing type.`); //?? 
             default:
-                throw Error("Invalid value for type");
+                throw Error(`Invalid value "${matrix_type}" for type`);
+        }
+    }
+
+    submit(e){
+        if(this.shadowRoot.activeElement){
+            let elt = this.shadowRoot.activeElement;
+            let row = elt.getAttribute("pos");
+            console.log("matrix-elt submit row", row);
         }
     }
 }

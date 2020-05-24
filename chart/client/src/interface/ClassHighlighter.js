@@ -1,5 +1,5 @@
 import {LitElement, html, css} from 'lit-element';
-import { sleep, promiseFromDomEvent } from "./utils.js";
+import { sleep, promiseFromDomEvent, findAncestorElement } from "./utils.js";
 
 export class ClassHighlighter extends LitElement {
     static get styles() {
@@ -30,14 +30,8 @@ export class ClassHighlighter extends LitElement {
     }
 
     firstUpdated(){
-        let elt = this;
-        while(elt !== undefined && elt.nodeName !== "SSEQ-DISPLAY"){
-            elt = elt.parentElement;
-        }
-        if(elt === undefined){
-            throw Error("sseq-class-highlighter must be a descendant of sseq-display.");
-        }
-        this.disp = elt;
+        this.disp = findAncestorElement(this, "sseq-display");
+        this.chart = findAncestorElement(this, "sseq-chart");
         this.disp.addEventListener("scale-update", this.handleScaleUpdate);
     }
 
@@ -49,12 +43,20 @@ export class ClassHighlighter extends LitElement {
 
     handleScaleUpdate(){
         for(let elt of Array.from(this.shadowRoot.children).filter(elt => elt.cls)){
-            ClassHighlighter.setSize(elt);
+            this.setSize(elt);
         }
     }
 
-    static setSize(elt, size){
+    setSize(elt, size){
         if(elt.cls === undefined){
+            return;
+        }
+        // In case cls is out of date, look up the current class with same uuid
+        // Once in a while this out of dateness is caused by chart.class.update in sseqsocketlistener
+        // TODO: can we change design so this isn't needed? I don't understand why identity of cls changes...
+        elt.cls = this.chart.sseq.classes[elt.cls.uuid];
+        if(elt.cls === undefined){
+            elt.style.display = "none";
             return;
         }
         if(elt.cls.isDisplayed()){
@@ -81,7 +83,7 @@ export class ClassHighlighter extends LitElement {
                 clearedClasses.push(elt);
                 elt.style.removeProperty("--transition-time");
                 elt.removeAttribute("transition");
-                ClassHighlighter.setSize(elt, 0);
+                this.setSize(elt, 0);
                 delete this.classMap[elt.cls.uuid];
                 elt.cls = undefined;
             }
@@ -127,7 +129,7 @@ export class ClassHighlighter extends LitElement {
 
         for(let c of classes){
             let elt = this.classMap[c.uuid];
-            ClassHighlighter.setSize(elt, 15);
+            this.setSize(elt, 15);
         }
     }
 
@@ -144,7 +146,7 @@ export class ClassHighlighter extends LitElement {
         for(let c of classes){
             let elt = this.classMap[c.uuid];
             elt.removeAttribute("transition");
-            ClassHighlighter.setSize(elt, 0);
+            this.setSize(elt, 0);
         }
         await sleep(30);
 
@@ -152,7 +154,7 @@ export class ClassHighlighter extends LitElement {
             let elt = this.classMap[c.uuid];
             elt.style.visibility = "";
             elt.setAttribute("transition", "");
-            ClassHighlighter.setSize(elt, 15);
+            this.setSize(elt, 15);
             promiseFromDomEvent(elt, "transitionend").then(() => {
                 elt.removeAttribute("transition");                    
             });            

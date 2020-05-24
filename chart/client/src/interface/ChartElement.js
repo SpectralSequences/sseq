@@ -64,7 +64,7 @@ export class ChartElement extends HTMLElement {
      */
     setSseq(sseq){
         if(this.sseq) {
-            this.sseq.removeListener("update", this.updateBatch);
+            this.sseq.removeListener("update", this.disp.updateBatch);
         }
         this.sseq = sseq;
         // The sseq object contains the list of valid pages. Always includes at least 0 and infinity.
@@ -142,6 +142,10 @@ export class ChartElement extends HTMLElement {
         }
     }
 
+    update(){
+        this.updateElements();
+        this.disp.update();
+    }
 
     handleScaleUpdate(){
         this.updateElements();

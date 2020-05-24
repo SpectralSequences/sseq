@@ -46,7 +46,7 @@ export class Tooltip extends LitElement {
             pointer-events: none;
             opacity : 0;
             width : max-content;
-            color :rgba(var(--text-color), var(--text-opacity));
+            color : rgba(var(--text-color), var(--text-opacity));
         }
         
         :host([shown]) {

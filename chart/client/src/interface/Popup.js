@@ -51,14 +51,19 @@ export class PopupElement extends LitElement {
 
             #header {
                 display : flex;
-                background : var(--primary-2);
-                --text-color : var(--primary-2-text);
+                background : rgba(var(--header-background-color));
+                --text-color : var(--header-text-color);
                 color : rgba(var(--text-color), var(--text-opacity));
             }
 
             #footer {
                 flex-shrink : 1;
                 display : flex;
+            }
+
+            sseq-button:focus {
+                outline-style : solid;
+                outline-offset : -2px;
             }
 
             #header-inner {
@@ -77,8 +82,8 @@ export class PopupElement extends LitElement {
                 width: -moz-fit-content;
                 width: fit-content;
                 background: #FFF;
-                background : var(--primary-4);
-                --text-color : var(--primary-4-text);
+                background : rgb(var(--body-background-color));
+                --text-color : var(--body-text-color);
                 --text-opacity : 0.7;                
                 max-width: 600px;
                 position: relative;
@@ -103,7 +108,7 @@ export class PopupElement extends LitElement {
             .draggable:active {
                 cursor: grabbing;
             }
-     
+            
         `
     }
 
@@ -141,6 +146,8 @@ export class PopupElement extends LitElement {
 
     constructor(){
         super();
+        this.focus = this.focus.bind(this);
+        this.handleBodyClick = this.handleBodyClick.bind(this);
         this.show = this.show.bind(this);
         this.hide = this.hide.bind(this);
         this.startMove = this.startMove.bind(this);
@@ -154,6 +161,33 @@ export class PopupElement extends LitElement {
         this.minimized = false;
     }
 
+    firstUpdated(changedProperties) {
+        let onContentResized = async function onContentResized(_entries){
+            if(!this.minimized){                
+                let body_and_footer = this.shadowRoot.querySelector("#body-footer");
+                let body_and_footer_inner = this.shadowRoot.querySelector("#body-footer-inner");
+                await sleep(100);
+                body_and_footer.style.height = `${body_and_footer_inner.clientHeight}px`;
+            }
+        }.bind(this);
+        this.resizeObserver = new ResizeObserver(onContentResized);
+        this.resizeObserver.observe(this.shadowRoot.querySelector("#body-footer-inner"));
+        this.addEventListener("keydown", (e) => {
+            if(e.key === "Escape"){
+                this.cancel();
+            }
+        });
+        this.addEventListener("interact-toggle", (e) => {
+            e.stopPropagation();
+            this.submit(e);
+        });
+        this.addEventListener("interact-submit", (e) => {
+            e.stopPropagation();
+            this.submit(e);
+        });
+    }
+
+
     render(){
         return html`
             <div id="content" style="margin-top:${this.top}px; margin-left:${this.left}px;">
@@ -164,15 +198,15 @@ export class PopupElement extends LitElement {
                         </slot>
                     </div>
                     <sseq-button class="close-btn" @click=${this.toggleMinimize}> ${this.minimized ? "+" : html`&minus;`}</sseq-button>
-                    <sseq-button class="close-btn" @click=${this.hide}>×</sseq-button>
+                    <sseq-button class="close-btn" @click=${this.cancel}>×</sseq-button>
                 </div>
                 <div id="body-footer">
-                    <div id="body-footer-inner">
+                    <div id="body-footer-inner" @click=${this.handleBodyClick}>
                         <div id="body">
                             <slot name="body"></slot>
                         </div>
                         <div id="footer">
-                            <span style="flex-grow : 1;"></span>
+                            <span @click=${this.focus} style="flex-grow : 1;"></span>
                             <sseq-button id=ok @click=${this.ok} style="margin-right: 0.75rem; ">OK</sseq-button>
                             <sseq-button id=cancel @click=${this.cancel}>CANCEL</sseq-button>
                         </div>
@@ -182,17 +216,7 @@ export class PopupElement extends LitElement {
         `
     }
 
-    firstUpdated(changedProperties) {
-        let onContentResized = function onContentResized(_entries){
-            if(!this.minimized){                
-                let body_and_footer = this.shadowRoot.querySelector("#body-footer");
-                let body_and_footer_inner = this.shadowRoot.querySelector("#body-footer-inner");
-                body_and_footer.style.height = `${body_and_footer_inner.clientHeight}px`;
-            }
-        }.bind(this);
-        this.resizeObserver = new ResizeObserver(onContentResized);
-        this.resizeObserver.observe(this.shadowRoot.querySelector("#body-footer-inner"));
-    }
+
 
     startMove(e){
         this.starting_mouse_x = e.pageX - this.left;
@@ -215,61 +239,139 @@ export class PopupElement extends LitElement {
     } 
 
     async show(){
-        await sleep(100);
+        for(let elt of document.querySelectorAll("sseq-popup")){
+            elt.cancel(elt !== this);
+        }
+        // Without this sleep(0) the height of the popup behaves inconsistently (window size will change by +/- 3px). Don't remove it!
+        // Also important that cancel happens first, because immediately after using show() we are often going to await on the 
+        // result of this popup. If we sleep(0) then the cancel here will be picked up as the result of the popup.
+        await sleep(0); 
+        let okbtn = this.shadowRoot.querySelector("#ok");
+        okbtn.saveState = okbtn.enabled;
+        this.restore();
+        this.focus();
+        // It's slightly inconsistent about focusing the button for some reason, 
+        // so just to be sure, do it again after 100ms.
+        sleep(100).then(() => this.focus());        
+        this.triggerElement = document.activeElement;
         this.open = true;
+        return this;
     }
 
     hide(){
+        if(this.triggerElement){
+            this.triggerElement.focus();
+            delete this.triggerElement;
+        }
         this.open = false;
+        return this;
     }
 
     get okEnabled(){
-        return this.shadowRoot.querySelector("#ok").hasAttribute("disabled");
+        return this.shadowRoot.querySelector("#ok").enabled;
     }
 
     set okEnabled(v){
-        let okayElt = this.shadowRoot.querySelector("#ok");
-        if(v){
-            okayElt.removeAttribute("disabled");
-        } else {
-            okayElt.setAttribute("disabled", "");
+        this.shadowRoot.querySelector("#ok").enabled = v;
+    }
+
+    handleBodyClick(){
+        // If the clicked object wouldn't otherwise be focused, focus the okay button if possible.
+        if(document.activeElement === document.body){
+            this.focus();
         }
+    }
+
+    focus(){
+        let focusElt = this.querySelector("[focus]");
+        if(focusElt){
+            focusElt.focus();
+        } else if(this.okEnabled){
+            this.shadowRoot.querySelector("#ok").focus();
+        } else {
+            this.shadowRoot.querySelector("#cancel").focus();
+        }
+        return this;
     }
 
     ok(){
-        this.dispatchEvent(new CustomEvent("ok"));
+        if(!this.okEnabled){
+            return;
+        }
+        this.dispatchEvent(new CustomEvent("submit", { detail : true }));
+        this._submitPromise = null;
         this.hide();
     }
 
-    cancel(){
-        this.dispatchEvent(new CustomEvent("cancel"));
-        this.hide();
+    cancel(hide = true){
+        this.dispatchEvent(new CustomEvent("submit", { detail : false }));
+        this._submitPromise = null;
+        if(hide){
+            this.hide();
+        }
     }
 
-    // minimize() {
-    //     this.setAttribute("minimized", true);
-    //     this.minimized = true;
-    // }
+    submit(e){
+        let elt = this.shadowRoot.activeElement;
+        if(elt && elt.submit){
+            elt.submit(e);
+        } else if(elt && elt.nodeName.toLowerCase() === "input"){
+            this.ok();
+        } else if(elt){
+            elt.click();
+        } else {
+            this.ok();
+        }
+    }
 
-    // restore() {
-    //     this.removeAttribute("minimized");
-    //     this.minimized = false;
-    // }
+    submited(){
+        if(!this._submitPromise){
+            this._submitPromise = promiseFromDomEvent(this, "submit").then((e) => {
+                return e.detail;
+            });
+        }
+        return this._submitPromise;
+    }
 
-    async toggleMinimize() {
+    async minimize() {
         let body_and_footer = this.shadowRoot.querySelector("#body-footer");
         let body_and_footer_inner = this.shadowRoot.querySelector("#body-footer-inner");
-        if(this.minimized){
-            this.minimized = false;
-            body_and_footer.setAttribute("transition", "open");
-            body_and_footer.style.height = `${body_and_footer_inner.clientHeight}px`;
-        } else {
-            this.minimized = true;
-            body_and_footer.setAttribute("transition", "close");
-            body_and_footer.style.height = 0;            
-        }
+        this.minimized = true;
+        body_and_footer.setAttribute("transition", "close");
+        body_and_footer.style.height = 0;     
         await promiseFromDomEvent(body_and_footer, "transitionend");
         body_and_footer.removeAttribute("transition");
+        for(let btn of this.shadowRoot.querySelector("#body-footer").querySelectorAll("sseq-button")){
+            btn.saveState = btn.enabled;
+            btn.enabled = false;
+        }
+    }
+
+    async restore(animate = false) {
+        let body_and_footer = this.shadowRoot.querySelector("#body-footer");
+        let body_and_footer_inner = this.shadowRoot.querySelector("#body-footer-inner");
+        this.minimized = false;
+        body_and_footer.style.height = `${body_and_footer_inner.clientHeight}px`;
+        for(let btn of this.shadowRoot.querySelector("#body-footer").querySelectorAll("sseq-button")){
+            if(btn.saveState !== undefined){
+                btn.enabled = btn.saveState;
+            } else {
+                btn.enabled = true;
+            }            
+        }    
+        if(animate){
+            body_and_footer.setAttribute("transition", "open");
+            await promiseFromDomEvent(body_and_footer, "transitionend");
+            body_and_footer.removeAttribute("transition");
+        }
+    }
+
+    async toggleMinimize() {
+        if(this.minimized){
+            await this.restore();
+        } else {
+            await this.minimize();
+        }
     }
 }
 

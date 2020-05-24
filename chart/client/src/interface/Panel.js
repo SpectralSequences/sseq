@@ -80,19 +80,18 @@ export class Panel extends LitElement {
             }
 
             #content {
-                background : var(--primary-4);
-                --text-color : var(--primary-4-text);
-                color : rgba(--text-color, 1);
+                background : rgba(var(--body-background-color), 1); /*var(--body-background-opacity)*/
+                color : rgba(--body-text-color, 1); /* Is 1 correct for opacity here? */
             }
 
             ::slotted(*) {
-                --text-color : var(--primary-4-text);
-                color : rgba(var(--text-color), var(--text-opacity));
+                --text-color : var(--body-text-color);
+                color : rgba(var(--body-text-color), var(--body-text-opacity));
             }
 
             #header {
-                background : var(--primary-2);
-                color : var(--primary-2-text);
+                background : rgba(var(--header-background-color), 1);
+                color : rgba(var(--header-text-color), 1);
                 font-size: 20pt;
                 display : flex;
                 flex-direction : column;

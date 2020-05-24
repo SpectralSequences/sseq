@@ -45,6 +45,7 @@ export class Display extends HTMLElement {
         this.handleZoom = this.handleZoom.bind(this);
         this._emitMouseover = this._emitMouseover.bind(this);
         this._emitClick = this._emitClick.bind(this);
+        this.updateBatch = this.updateBatch.bind(this);
 
         this.canvas.addEventListener("click", this._emitClick);
 

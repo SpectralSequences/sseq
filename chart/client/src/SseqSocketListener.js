@@ -57,7 +57,7 @@ let default_message_handlers = {
                 console.error(err);
             }
         }
-        this.display.update()
+        document.querySelector("sseq-chart").update();
     },
     
     "chart.state.reset" : function(cmd, args, kwargs) {
