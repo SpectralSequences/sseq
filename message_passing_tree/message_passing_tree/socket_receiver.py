@@ -43,8 +43,9 @@ class SocketReceiver(Receiver):
             self.log_warning("Connection closed while trying to send message to socket.")
             self.log_warning(f"Message: {msg}")
 
-    async def close_connection_a(self):
-        pass
+    async def close_a(self, close_code):
+        print(close_code)
+        await self.socket.close(close_code)
 
     async def start_a(self):
         await self.run_a()

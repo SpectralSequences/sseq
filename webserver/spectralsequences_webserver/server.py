@@ -10,7 +10,7 @@ import logging
 logger = logging.getLogger(__name__)
 from . import config
 
-from .repl import start_repl_a, ReplAgent
+from .repl import start_repl_a, Executor
 from .channels import (
     DemoChannel, 
     InteractChannel,
@@ -31,11 +31,22 @@ def run_main(f):
     asyncio.ensure_future(f())
     return f
 
+repl = None
+host = "localhost"
+port = config.PORT
+
+served_channels = {}
+def serve(channel, name = None):
+    if name is None:
+        name = channel.serve_as
+    if name in served_channels:
+        served_channels[name].remove_routes(app)
+    served_channels[name] = channel
+    print("Serving", channel.__repr__(0), hash(channel), "as", name)
+    channel.serve(app, repl, host, port, name)
+
 @run_main
 async def main():
-    print("""Executing user "on_repl_init" file.""")
-    repl = await start_repl_a()
-
     print(ansi.success("Starting server"))
     channels = {}
 
@@ -46,10 +57,32 @@ async def main():
 
     app.mount("/static/client", StaticFiles(directory=config.CLIENT_DIR), name="client")
 
-
     @app.get("/static/webclient", response_class=JSResponse)
     async def get_a():
         return config.SSEQ_WEBCLIENT_JS_FILE.read_text()
+
+
+    Executor.add_to_global_namespace(serve)
+    Executor.add_to_global_namespace("app", app)
+    global repl
+    repl = await start_repl_a()
+    
+
+    # serve(SseqChannel, "sseq")
+    # serve(DemoChannel, "demo")
+    # serve(InteractChannel, "interact")
+    # serve(SlideshowChannel, "slideshow")
+    # serve(PresentationChannel, "presentation")
+    # serve(ResolverChannel, "resolver")
+    # serve(TestChannel, "test")
+    serve(TableChannel)
+
+    print("""Executing user "on_repl_init" file.""")
+
+
+
+    # TODO: clean this crap up.
+
 
     @app.get("/anss-S0.html")
     async def get_anss_S0():
@@ -74,16 +107,3 @@ async def main():
     @app.get("/overlay/{file_name}")
     async def get_overlay(request: Request, file_name : str):
         return FileResponse(config.OVERLAY_DIR / file_name);
-
-
-    host = "localhost"
-    port = config.PORT
-
-    SseqChannel.serve(app, repl, host, port, "sseq")
-    DemoChannel.serve(app, repl, host, port, "demo")
-    InteractChannel.serve(app, repl, host, port, "interact")
-    SlideshowChannel.serve(app, repl, host, port, "slideshow")
-    PresentationChannel.serve(app, repl, host, port, "presentation")
-    ResolverChannel.serve(app, repl, host, port, "resolver")
-    TestChannel.serve(app, repl, host, port, "test")
-    TableChannel.serve(app, repl, host, port, "table")

@@ -145,7 +145,7 @@ class Agent:
                 await cofunc
             except Exception as e:
                 await self.handle_exception_a(e)
-        asyncio.ensure_future(temp())
+        return asyncio.ensure_future(temp())
 
     @classmethod
     def get_transformer(cls, transform_dict, cmd):

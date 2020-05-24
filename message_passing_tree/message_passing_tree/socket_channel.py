@@ -1,6 +1,7 @@
 import asyncio
 from . import utils
 from .agent import Agent
+from .socket_receiver import SocketReceiver
 from .decorators import subscribe_to
 
 from . import socket_close_codes
@@ -23,9 +24,9 @@ class SocketChannel(Agent):
 
     @classmethod
     def serve(cls, app, repl, host, port, cls_dir):
+        num_routes = len(app.routes)
         cls.set_serving_info(host, port, cls_dir)
         cls.set_repl(repl)
-
         @app.get(f"/{cls_dir}/{{channel_name}}")
         async def get_html_a(request: Request, channel_name : str):
             logger.debug(f"get: {cls_dir}/{channel_name}")
@@ -46,6 +47,7 @@ class SocketChannel(Agent):
 
         @app.websocket(f"/ws/{cls_dir}/{{channel_name}}")
         async def websocket_subscribe_a(websocket: WebSocket, channel_name : str):
+            print("websocket_subscribe channel hash", hash(cls))
             logger.debug(f"ws: {cls_dir}/{channel_name}")
             try:
                 channel = await cls.get_channel_a(channel_name, repl)
@@ -61,17 +63,51 @@ class SocketChannel(Agent):
                 repl.console_io._handle_exception(e)
 
         cls.serve_extra(app, host, port, cls_dir)
+        cls.routes = app.routes[num_routes:]
 
     @classmethod
     def serve_extra(cls, app, host, port, cls_dir):
         pass
 
     @classmethod
+    def remove_routes(cls, app):
+        cls.serving_to = ""
+        for route in cls.routes:
+            app.routes.remove(route)
+
+    @classmethod
+    async def close_all_channels_a(cls, code):
+        tasks = []
+        for channel in cls.channels.values():
+            tasks.append(channel.schedule_coroutine(channel.close_channel_a(code)))
+        return await asyncio.gather(*tasks)
+
+    async def close_channel_a(self, code):
+        del type(self).channels[self.name]
+        await self.close_connections_a(code)
+
+    async def close_connections_a(self, code):
+        tasks = []
+        for receiver in SocketChannel.get_receivers(self):
+            print("  Closing connection")
+            tasks.append(self.schedule_coroutine(receiver.close_a(code)))
+            tasks.append(self.schedule_coroutine(self.remove_subscriber_a(receiver)))
+        return await asyncio.gather(*tasks)
+    
+    @staticmethod 
+    def get_receivers(agent):
+        for child in agent.children.values():
+            if isinstance(child, SocketReceiver):
+                yield child
+            else:
+                yield from SocketChannel.get_receivers(child)
+
+    @classmethod
     def set_serving_info(cls, host, port, directory):
         cls.host = host
         cls.port = port
         cls.directory = directory
-        cls.set_serving_info = f"{host}:{port}/{directory}"
+        cls.serving_to = f"{host}:{port}/{directory}"
         cls.initialize_channel()
 
     @classmethod
@@ -116,3 +152,9 @@ class SocketChannel(Agent):
             Channels are in charge of assembling the connection to the SocketReceiver themselves.
         """
         await self.add_child_a(sock_recv)
+
+    async def remove_subscriber_a(self, sock_recv):
+        child = sock_recv
+        while child.parent is not self:
+            child = child.parent
+        await self.remove_child_a(child)

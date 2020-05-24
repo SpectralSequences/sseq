@@ -24,7 +24,10 @@ templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 @subscribe_to("*")
 @collect_transforms(inherit=True)
 class TableChannel(SocketChannel):
+    serve_as = "table"
+
     def __init__(self, name, repl_agent):
+        # print("HI!")
         super().__init__(name)
         self.repl_agent = repl_agent
         self.executor = Executor(repl_agent)
@@ -42,6 +45,23 @@ class TableChannel(SocketChannel):
     async def send_start_msg_a(self):
         pass
 
+    @classmethod
+    def has_channel(cls, name):
+        return True #name in cls.channels or cls.get_file_path(name)
+
+    @classmethod
+    async def get_channel_a(cls, name, repl):
+        if name in cls.channels:
+            return cls.channels[name]
+        return await cls.create_channel_a(name, repl)
+
+    @classmethod
+    async def create_channel_a(cls, name, repl):
+        channel = cls(name, repl)
+        cls.channels[name] = channel
+        await channel.setup_a()
+        return channel
+
     async def setup_a(self):
         await self.repl_agent.add_child_a(self.executor)
         await self.executor.add_child_a(self.chart)
@@ -50,31 +70,10 @@ class TableChannel(SocketChannel):
         await self.executor.load_repl_init_file_if_it_exists_a()
         self.table.build_dense_products()
 
-        
-    @transform_inbound_messages
-    async def transform__console__take__a(self, envelope):
-        envelope.mark_used()
-        self.repl_agent.set_executor(self.executor)
-
-    @transform_inbound_messages
-    async def transform__click__a(self, envelope, *args, **kwargs):
-        envelope.mark_used()
-
-    @transform_inbound_messages
-    async def transform__interact__select_bidegree__a(self, envelope, bidegree):
-        envelope.mark_used()
-        names = self.get_names_info(bidegree)
-        matrix = self.get_matrix(bidegree)
-        prod_info = self.get_product_info(bidegree)
-        await self.send_message_outward_a("interact.product_info", *arguments(names=names, matrix=matrix, product_info=prod_info))
-
-    @transform_inbound_messages
-    async def transform__interact__click_product__a(self, envelope, bidegree, idx):
-        envelope.mark_used()
-        (in1, in2, out) = self.get_filtered_decompositions(bidegree)[idx]
-        print(in1, in2, out)
-        # await self.send_message_outward_a("interact.product_info", *arguments(product_info=prod_info))
-
+    async def close_channel_a(self, code):
+        del type(self).channels[self.name]
+        await self.close_connections_a(code)
+        await self.repl_agent.remove_child_a(self.executor)
 
     async def add_subscriber_a(self, websocket):
         recv = SseqSocketReceiver(websocket)
@@ -88,20 +87,6 @@ class TableChannel(SocketChannel):
         globals["channel"] = self
         globals["table"] = self.table
 
-    @classmethod
-    async def get_channel_a(cls, name, repl):
-        if name in cls.channels:
-            print("Found")
-            return cls.channels[name]
-        print("Generating")
-        new_channel = TableChannel(name, repl)
-        await new_channel.setup_a()
-        return new_channel
-
-
-    @classmethod
-    def has_channel(cls, name):
-        return True #name in cls.channels or cls.get_file_path(name)
 
     @classmethod
     def http_response(cls, channel_name, request):
@@ -113,6 +98,21 @@ class TableChannel(SocketChannel):
         }
         if cls.has_channel(channel_name):
             return templates.TemplateResponse("table.html", response_data)
+
+
+
+    @transform_inbound_messages
+    async def transform__console__take__a(self, envelope):
+        envelope.mark_used()
+        self.repl_agent.set_executor(self.executor)
+
+    @transform_inbound_messages
+    async def transform__click__a(self, envelope, *args, **kwargs):
+        envelope.mark_used()
+
+
+############# END BOILERPLATE
+
 
     def populate_chart(self):
         chart = self.chart.sseq
@@ -148,6 +148,55 @@ class TableChannel(SocketChannel):
                 else:
                     c.set_color("purple")
 
+
+    @transform_inbound_messages
+    async def transform__interact__select_bidegree__a(self, envelope, bidegree):
+        envelope.mark_used()
+        names = self.get_names_info(bidegree)
+        matrix = self.get_matrix(bidegree)
+        prod_info = self.get_product_info(bidegree)
+        await self.send_message_outward_a("interact.product_info", *arguments(names=names, matrix=matrix, product_info=prod_info))
+
+    @transform_inbound_messages
+    async def transform__interact__name_class__free__a(self, envelope, product_data):
+        envelope.mark_used()
+        self.chart.sseq.class_by_idx()
+
+    @transform_inbound_messages
+    async def transform__interact__name_class__product__in_basis__a(self, envelope, product_data):
+        envelope.mark_used()
+        self.use_product_to_name_class(product_data)
+        await self.chart.sseq.update_a()
+
+    async def transform__interact__name_class__product__change_basis__a(self, envelope, ):
+    
+    def use_product_to_name_class(self, product_data):
+        [[[x1, y1, _], _, mono1], [[x2, y2, _], _, mono2], out_vec_res_basis, out_vec, out_name] = product_data
+        idx = out_vec.index(1)
+        out = (x1 + x2, y1 + y2, idx)
+        print(out)
+        c = self.chart.sseq.class_by_idx(*out)
+        new_mono = mono2
+        new_mono.extend(mono1)
+        c.monomial_name = new_mono
+        new_name = self.table.name_to_str(new_mono)
+        c.name = new_name
+        print("out bidegree:", out[:-1], out_vec_res_basis)
+        print("new_mono", new_mono)
+        self.table.set_vec_name(*out[:-1], out_vec_res_basis, new_mono)
+        if self.table.indecomposable_q(*out):
+            c.set_color("red")
+        else:
+            c.set_color("black")
+
+    @transform_inbound_messages
+    async def transform__interact__click_product__a(self, envelope, bidegree, idx):
+        envelope.mark_used()
+        (in1, in2, out) = self.get_filtered_decompositions(bidegree)[idx]
+        print(in1, in2, out)
+        # await self.send_message_outward_a("interact.product_info", *arguments(product_info=prod_info)
+
+
     def get_name(self, tuple):
         c = self.chart.sseq.class_by_idx(*tuple)
         if c.name:
@@ -159,12 +208,10 @@ class TableChannel(SocketChannel):
         c = self.chart.sseq.class_by_idx(*tuple)
         if hasattr(c, "monomial_name"):
             return c.monomial_name
-        else:
-            return [f"x_{{{tuple[0], tuple[1]}}}^{{{tuple[2]}}}", 1]
 
     def get_names_info(self, bidegree):
         num_classes = len(self.chart.sseq.classes_in_bidegree(*bidegree))
-        return [self.get_name((*bidegree, i)) for i in range(num_classes)]            
+        return [(self.get_name(t), self.get_monomial_name(t)) for t in [(*bidegree, i) for i in range(num_classes)]]
     
     def get_matrix(self, bidegree):
         (x, y) = bidegree
@@ -429,8 +476,10 @@ class ProductTable:
     
     def get_vec_name(self, x, y, vec):
         # print("named vecs:", self.named_vecs[y][x], "vec:", vec)
-        return self.named_vecs[y][x].get(vec, None)
+        return self.named_vecs[y][x].get(tuple(vec), None)
 
+    def set_vec_name(self, x, y, vec, name):
+        self.named_vecs[y][x][tuple(vec)] = name
 
     def name_to_str(self, name):
         if name:

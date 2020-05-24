@@ -1,12 +1,14 @@
 import asyncio
 from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
-from inspect import iscoroutine
+import importlib
+from inspect import iscoroutine, getsourcefile
 import os
 import pathlib
 
 import traceback
 import types
 from typing import Any, List
+from weakref import WeakSet
 
 
 from message_passing_tree import Agent 
@@ -42,12 +44,54 @@ del temp
 @subscribe_to("*")
 @collect_transforms(inherit = False)
 class Executor(Agent):
+    namespace = None
+    executors = WeakSet()
+
     def __init__(self, repl, globs=None, locs=None):
+        Executor.executors.add(self)
         super().__init__()
         self.repl = repl
         self._initialize_scopes(globs, locs)
         self._initialize_namespace()
         self.globals["REPL"] = repl
+
+    @staticmethod
+    def ensure_global_namespace_is_initialized():
+        if Executor.namespace is None:
+            # Import this in here to avoid circular imports
+            from .namespace import default_namespace
+            Executor.namespace = [ [value.__name__.split(".")[-1], value] for value in default_namespace ]
+
+    @staticmethod
+    def add_to_global_namespace(name, value=None):
+        Executor.ensure_global_namespace_is_initialized()
+        if value is None:
+            value = name
+            name = value.__name__.split(".")[-1]
+        Executor.namespace.append([name, value])
+    
+    @staticmethod
+    async def reload_channel_a(cls):
+        from message_passing_tree.socket_close_codes import SERVICE_RESTART
+        from ..server import serve
+        await cls.close_all_channels_a(SERVICE_RESTART)
+        print("Original hash: ", hash(cls))
+        cls = Executor.reload_class(cls)
+        # print(cls.__repr)
+        print("Reloaded channel hash: ", hash(cls))
+        serve(cls)
+        for executor in Executor.executors:
+            executor.get_globals()[cls.__name__] = cls
+
+    @staticmethod
+    def reload_class(cls):
+        from itertools import zip_longest
+        module_path = cls.__module__.split(".")
+        module = __import__(module_path[0])
+        for name in module_path[1:]:
+            module = getattr(module, name)
+        reloaded_module = importlib.reload(module)
+        return getattr(reloaded_module , cls.__name__)
     
     def _initialize_scopes(self, globs, locs):
         if globs is None:
@@ -64,9 +108,10 @@ class Executor(Agent):
         self.get_locals = get_locals
 
     def _initialize_namespace(self):
-        # Import this in here to avoid circular imports
-        from .namespace import add_stuff_to_namespace
-        add_stuff_to_namespace(self.get_globals())
+        Executor.ensure_global_namespace_is_initialized()
+        globals = self.get_globals()
+        for [name, value] in Executor.namespace:
+            globals[name] = value
     
     def get_compiler_flags(self):
         return PyCF_ALLOW_TOP_LEVEL_AWAIT
