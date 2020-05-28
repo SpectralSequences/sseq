@@ -37,26 +37,26 @@ export class PopupElement extends LitElement {
                 visibility: visible;	
             }
             
-            #body-footer {
+            .body-footer {
                 overflow: hidden;
             }
 
-            #body-footer[transition=close] {
+            .body-footer[transition=close] {
                 transition: all 0.3s ease-in;
             }
 
-            #body-footer[transition=open] {
+            .body-footer[transition=open] {
                 transition: all 0.3s ease-out;
             }
 
-            #header {
+            .header {
                 display : flex;
                 background : rgba(var(--header-background-color));
                 --text-color : var(--header-text-color);
                 color : rgba(var(--text-color), var(--text-opacity));
             }
 
-            #footer {
+            .footer {
                 flex-shrink : 1;
                 display : flex;
             }
@@ -66,18 +66,18 @@ export class PopupElement extends LitElement {
                 outline-offset : -2px;
             }
 
-            #header-inner {
+            .header-inner {
                 flex-grow : 1;
                 padding: 7px 0px 3px 15px;
                 user-select: none;
             }
 
-            #body {
+            .body {
                 padding: 25px;
             }
             
-            #content {
-                /* width: 70%; */
+            .content {
+              /* width: 70%; */
                 min-width: 250px;
                 width: -moz-fit-content;
                 width: fit-content;
@@ -100,9 +100,8 @@ export class PopupElement extends LitElement {
                 font-size: var(--close-icon-font-size);
             }
 
-
             .draggable {
-                cursor: grab; /* W3C standards syntax, all modern browser */
+                cursor: grab;
             }
             
             .draggable:active {
@@ -164,14 +163,14 @@ export class PopupElement extends LitElement {
     firstUpdated(changedProperties) {
         let onContentResized = async function onContentResized(_entries){
             if(!this.minimized){                
-                let body_and_footer = this.shadowRoot.querySelector("#body-footer");
-                let body_and_footer_inner = this.shadowRoot.querySelector("#body-footer-inner");
+                let body_and_footer = this.shadowRoot.querySelector(".body-footer");
+                let body_and_footer_inner = this.shadowRoot.querySelector(".body-footer-inner");
                 await sleep(100);
                 body_and_footer.style.height = `${body_and_footer_inner.clientHeight}px`;
             }
         }.bind(this);
         this.resizeObserver = new ResizeObserver(onContentResized);
-        this.resizeObserver.observe(this.shadowRoot.querySelector("#body-footer-inner"));
+        this.resizeObserver.observe(this.shadowRoot.querySelector(".body-footer-inner"));
         this.addEventListener("keydown", (e) => {
             if(e.key === "Escape"){
                 this.cancel();
@@ -190,9 +189,9 @@ export class PopupElement extends LitElement {
 
     render(){
         return html`
-            <div id="content" style="margin-top:${this.top}px; margin-left:${this.left}px;">
-                <div id="header">
-                    <div id="header-inner" class="draggable" @pointerdown=${this.startMove} @pointerup=${this.endMove}>
+            <div class="content" style="margin-top:${this.top}px; margin-left:${this.left}px;">
+                <div class="header">
+                    <div class="header-inner draggable" @pointerdown=${this.startMove} @pointerup=${this.endMove}>
                         <slot name="header">
                             <h3>Popup | Modal | PURE CSS</h3>
                         </slot>
@@ -200,15 +199,15 @@ export class PopupElement extends LitElement {
                     <sseq-button class="close-btn" @click=${this.toggleMinimize}> ${this.minimized ? "+" : html`&minus;`}</sseq-button>
                     <sseq-button class="close-btn" @click=${this.cancel}>×</sseq-button>
                 </div>
-                <div id="body-footer">
-                    <div id="body-footer-inner" @click=${this.handleBodyClick}>
-                        <div id="body">
+                <div class="body-footer">
+                    <div class="body-footer-inner" @click=${this.handleBodyClick}>
+                        <div class="body">
                             <slot name="body"></slot>
                         </div>
-                        <div id="footer">
+                        <div class="footer">
                             <span @click=${this.focus} style="flex-grow : 1;"></span>
-                            <sseq-button id=ok @click=${this.ok} style="margin-right: 0.75rem; ">OK</sseq-button>
-                            <sseq-button id=cancel @click=${this.cancel}>CANCEL</sseq-button>
+                            <sseq-button class="ok" @click=${this.ok} style="margin-right: 0.75rem; ">OK</sseq-button>
+                            <sseq-button class="cancel" @click=${this.cancel}>CANCEL</sseq-button>
                         </div>
                     </div>
                 </div>
@@ -221,7 +220,7 @@ export class PopupElement extends LitElement {
     startMove(e){
         this.starting_mouse_x = e.pageX - this.left;
         this.starting_mouse_y = e.pageY - this.top;
-        this.shadowRoot.querySelector("#header-inner").setPointerCapture(e.pointerId);
+        this.shadowRoot.querySelector(".header-inner").setPointerCapture(e.pointerId);
         this.addEventListener('pointermove', this.move);
     }
 
@@ -234,7 +233,7 @@ export class PopupElement extends LitElement {
     }
 
     endMove(e) {
-        this.shadowRoot.querySelector("#header-inner").releasePointerCapture(e.pointerId);
+        this.shadowRoot.querySelector(".header-inner").releasePointerCapture(e.pointerId);
         this.removeEventListener('pointermove', this.move);
     } 
 
@@ -246,7 +245,7 @@ export class PopupElement extends LitElement {
         // Also important that cancel happens first, because immediately after using show() we are often going to await on the 
         // result of this popup. If we sleep(0) then the cancel here will be picked up as the result of the popup.
         await sleep(0); 
-        let okbtn = this.shadowRoot.querySelector("#ok");
+        let okbtn = this.shadowRoot.querySelector(".ok");
         okbtn.saveState = okbtn.enabled;
         this.restore();
         this.focus();
@@ -268,11 +267,11 @@ export class PopupElement extends LitElement {
     }
 
     get okEnabled(){
-        return this.shadowRoot.querySelector("#ok").enabled;
+        return this.shadowRoot.querySelector(".ok").enabled;
     }
 
     set okEnabled(v){
-        this.shadowRoot.querySelector("#ok").enabled = v;
+        this.shadowRoot.querySelector(".ok").enabled = v;
     }
 
     handleBodyClick(){
@@ -285,11 +284,22 @@ export class PopupElement extends LitElement {
     focus(){
         let focusElt = this.querySelector("[focus]");
         if(focusElt){
+            let found = true;
+            while(focusElt.shadowRoot && found){
+                found = false;
+                for(let elt of focusElt.shadowRoot.querySelectorAll("[focus]")){
+                    if(elt.shadowRoot || elt.tabIndex === 0){
+                        focusElt = elt;
+                        found = !!elt.shadowRoot;
+                        break;
+                    }
+                }
+            }
             focusElt.focus();
         } else if(this.okEnabled){
-            this.shadowRoot.querySelector("#ok").focus();
+            this.shadowRoot.querySelector(".ok").focus();
         } else {
-            this.shadowRoot.querySelector("#cancel").focus();
+            this.shadowRoot.querySelector(".cancel").focus();
         }
         return this;
     }
@@ -334,25 +344,25 @@ export class PopupElement extends LitElement {
     }
 
     async minimize() {
-        let body_and_footer = this.shadowRoot.querySelector("#body-footer");
-        let body_and_footer_inner = this.shadowRoot.querySelector("#body-footer-inner");
+        let body_and_footer = this.shadowRoot.querySelector(".body-footer");
+        let body_and_footer_inner = this.shadowRoot.querySelector(".body-footer-inner");
         this.minimized = true;
         body_and_footer.setAttribute("transition", "close");
         body_and_footer.style.height = 0;     
         await promiseFromDomEvent(body_and_footer, "transitionend");
         body_and_footer.removeAttribute("transition");
-        for(let btn of this.shadowRoot.querySelector("#body-footer").querySelectorAll("sseq-button")){
+        for(let btn of this.shadowRoot.querySelector(".body-footer").querySelectorAll("sseq-button")){
             btn.saveState = btn.enabled;
             btn.enabled = false;
         }
     }
 
     async restore(animate = false) {
-        let body_and_footer = this.shadowRoot.querySelector("#body-footer");
-        let body_and_footer_inner = this.shadowRoot.querySelector("#body-footer-inner");
+        let body_and_footer = this.shadowRoot.querySelector(".body-footer");
+        let body_and_footer_inner = this.shadowRoot.querySelector(".body-footer-inner");
         this.minimized = false;
         body_and_footer.style.height = `${body_and_footer_inner.clientHeight}px`;
-        for(let btn of this.shadowRoot.querySelector("#body-footer").querySelectorAll("sseq-button")){
+        for(let btn of this.shadowRoot.querySelector(".body-footer").querySelectorAll("sseq-button")){
             if(btn.saveState !== undefined){
                 btn.enabled = btn.saveState;
             } else {
@@ -368,7 +378,7 @@ export class PopupElement extends LitElement {
 
     async toggleMinimize() {
         if(this.minimized){
-            await this.restore();
+            await this.restore(true);
         } else {
             await this.minimize();
         }
@@ -376,12 +386,3 @@ export class PopupElement extends LitElement {
 }
 
 customElements.define('sseq-popup', PopupElement);
-
-// import {unsafeHTML} from 'lit-html/directives/unsafe-html.js';
-
-// <!-- Start Modal -->
-
-// <!-- End Modal -->
- 
-// <!-- Link in page to show modal on click-->
-// <a href="#ft-demo-modal">Open modal</a>

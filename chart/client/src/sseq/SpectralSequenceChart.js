@@ -151,21 +151,44 @@ export class SpectralSequenceChart extends EventEmitter {
         return c;
     }
 
+    delete_class(c){
+        delete this.classes[c.uuid];
+        throw Error("Not implemented");
+    }
+
     add_edge(kwargs) {
         let edge_type = kwargs["type"];
         kwargs.source = this.classes[kwargs.source];
         kwargs.target = this.classes[kwargs.target];
+        let e;
         switch(edge_type) {
             case ChartDifferential.name:
-                return this.add_differential(kwargs);
+                e = this.add_differential(kwargs);
+                break;
             case ChartStructline.name:
-                return this.add_structline(kwargs);
+                e = this.add_structline(kwargs);
+                break;
             case ChartExtension.name:
-                return this.add_extension(kwargs);
+                e = this.add_extension(kwargs);
+                break;
             default:
                 throw TypeError(`Argument "type" expected to contain one of "${ChartDifferential.name}" \
                                  "${ChartStructline.name}", or "${ChartExtension.name}", not "${edge_type}".`);
         }
+        if(kwargs.color){
+            console.log("adding edge", e, kwargs);
+            Object.assign(e, kwargs);
+            console.log("   adding edge", e);
+        }
+        return e;
+    }
+
+    delete_edge(e){
+        if(!(e.uuid in this.edges)){
+            console.error("Failed to delete edge", e);
+            throw Error(`Failed to delete edge!`);
+        }
+        delete this.edges[e.uuid];
     }
 
     add_differential(kwargs) {

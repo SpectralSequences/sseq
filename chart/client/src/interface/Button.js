@@ -61,8 +61,6 @@ export class ButtonElement extends LitElement {
     }
 
     async submit(e){
-        console.log("submit!");
-        this.click();
         this.classList.add("active");
         if(e.constructor === CustomEvent) {
             e = e.detail.originalEvent;
@@ -72,6 +70,7 @@ export class ButtonElement extends LitElement {
             await promiseFromDomEvent(window, "keyup", (keyupEvent) => keyupEvent.key === e.key);
             this.classList.remove("active");
         }
+        this.click();
     }
 
     get enabled(){

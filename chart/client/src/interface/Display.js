@@ -3,7 +3,7 @@
 import * as EventEmitter from "events";
 import * as d3 from "d3";
 import { INFINITY } from "../infinity.js";
-import { sleep } from "./utils.js";
+import { sleep, animationFrame } from "./utils.js";
 
 export class Display extends HTMLElement {
     constructor() {
@@ -138,11 +138,7 @@ export class Display extends HTMLElement {
     }
 
     emit(event, ...args){
-        let myEvent = new CustomEvent(event, { 
-            detail: args,
-            bubbles: true, 
-            composed: true 
-        });
+        let myEvent = new CustomEvent(event, { detail: args });
         this.dispatchEvent(myEvent);
     }
 
@@ -242,13 +238,6 @@ export class Display extends HTMLElement {
         let startTime = performance.now();
 
         this._updateScale();
-        // this._updateGridAndTickStep();
-
-
-        if(this.scaleChanged){
-            let type = this.zoomChanged ? "zoom" : "pan";
-            this.emit("scale-update", {type : type});
-        }
         
         ctx.clearRect(0, 0, this._canvasWidth, this._canvasHeight);
         this.paintComplementOfClippedRegionWhite(ctx);
@@ -302,6 +291,10 @@ export class Display extends HTMLElement {
     _updateScale(){
         let zoomD3Element = this.zoomD3Element;
         let transform = d3.zoomTransform(zoomD3Element.node());
+        if(isNaN(transform.x) || isNaN(transform.y) || isNaN(transform.k) ){
+            this.zoom.transform(zoomD3Element, this.old_transform);
+            throw Error("Bad scale?");
+        }
         let originalTransform = transform;
         let scale = transform.k;
         let xScale = transform.rescaleX(this.xScaleInit);
@@ -389,6 +382,7 @@ export class Display extends HTMLElement {
             ]);
             this.transform.y = old_transform.y;
         }
+
         this.zoom.transform(zoomD3Element, this.transform);
         if(old_transform){
             let updatedScale = old_transform.k !== transform.k;
@@ -402,6 +396,7 @@ export class Display extends HTMLElement {
                 && (oldYScaleMaxed == yScaleMaxed)
                 && revertedDistance < 5;
         }
+
         this.xminFloat = this.xScale.invert(this._leftMargin);
         this.xmaxFloat = this.xScale.invert(this._clipWidth);
         this.yminFloat = this.yScale.invert(this._clipHeight);
@@ -414,13 +409,19 @@ export class Display extends HTMLElement {
         this.zoom.on("zoom", this.handleZoom);
         old_transform = this.old_transform;
         this.old_transform = transform;
-        this.scaleChanged = 
+        let scaleChanged = 
             old_transform === undefined 
             || Math.abs(old_transform.x - transform.x) > 1e-8 
             || Math.abs(old_transform.y - transform.y) > 1e-8 
             || old_transform.k != transform.k;
-        this.zoomChanged = 
+        let zoomChanged = 
             old_transform === undefined || old_transform.k != transform.k;
+
+        this.old_transform = old_transform;
+        if(scaleChanged){
+            let type = zoomChanged ? "zoom" : "pan";
+            this.emit("scale-update", {type : type});
+        }
     }
 
     dxScale(x){
@@ -450,8 +451,14 @@ export class Display extends HTMLElement {
     }
 
     updateMousePosition(e){
-        this.mousex = e.layerX;
-        this.mousey = e.layerY;
+        if(e.srcElement === this){
+            this.mousex = e.layerX;
+            this.mousey = e.layerY;
+        } else {
+            // If mouse is not over display, make sure mouse is not over a class.
+            this.mousex = -100000; 
+            this.mousey = -100000;
+        }
         this.mouseState = this.getMouseState();
     }
 
@@ -500,14 +507,15 @@ export class Display extends HTMLElement {
         let threshold = this.bidegreeDistanceThreshold * 1;//(this.sseq.bidegreeDistanceScale | 1)
         let xscale = 1;
         let yscale = 1;
-        // let x_max_threshold = Math.abs(this.xScale(1) - this.xScale(0)) * 0.4;
-        // let y_max_threshold = Math.abs(this.yScale(1) - this.yScale(0)) * 0.4;
-        // if(threshold > x_max_threshold) {
-        //     xscale = x_max_threshold / threshold;
-        // }
-        // if(threshold > y_max_threshold) {
-        //     yscale = y_max_threshold / threshold;
-        // }
+        // TODO: this doesn't work well when zoomed out...
+        let x_max_threshold = Math.abs(this.dxScale(1)) * 0.4;
+        let y_max_threshold = Math.abs(this.dyScale(1)) * 0.4;
+        if(threshold > x_max_threshold) {
+            xscale = x_max_threshold / threshold;
+        }
+        if(threshold > y_max_threshold) {
+            yscale = y_max_threshold / threshold;
+        }
         if(this.mouseover_bidegree){
             let bidegree = this.mouseover_bidegree;
             let dx = (x - this.xScale(bidegree[0])) * xscale;
@@ -580,10 +588,27 @@ export class Display extends HTMLElement {
      * @param x
      * @param y
      */
-    seek(x, y){
-        return new Promise((resolve) => {
+    async seek(x, y){
+        this._seekTarget = [x, y];
+        if(!this._seekActive){
+            this._seekActive = this._seek();
+        }
+        await this._seekActive;
+        delete this._seekActive;
+    }
+
+    async _seek(){
+        let t = performance.now();
+        let tprev = performance.now();
+        let lastdx = 0;
+        let lastdy = 0;
+        while(true){
+            // console.log("loop elapsed =",t - tprev);
+            tprev = t;
+            t = performance.now();
             let dx = 0;
             let dy = 0;
+            let [x, y] = this._seekTarget;
             if (x > this.xmaxFloat - 1) {
                 dx = this.xmaxFloat - 1 - x;
             } else if (x < this.xminFloat + 1) {
@@ -591,37 +616,43 @@ export class Display extends HTMLElement {
             }
             if (y > this.ymaxFloat - 1) {
                 dy = this.ymaxFloat - 1 - y;
-            } else if (y < this.xminFloat + 1) {
+            } else if (y < this.yminFloat + 1) {
                 dy = this.yminFloat + 1 - y;
             }
-            if (dx === 0 && dy === 0) {
+            if (Math.abs(dx - lastdx) < 1e-8 && Math.abs(dy - lastdy) < 1e-8) {
                 return;
             }
-
+            lastdx = dx;
+            lastdy = dy;
+            
             let dxActual = this.dxScale(dx);
             let dyActual = this.dyScale(dy);
             let dist = Math.sqrt(dxActual * dxActual + dyActual * dyActual);
+            if(dist < 1e-2){
+                return;
+            }
+            // console.log("seek:", dxActual, dyActual, dist);
             // steps controls the speed -- doubling steps halves the speed.
             // Of course we could maybe set up some fancy algorithm that zooms and pans.
-            let steps = Math.ceil(dist / 10);
+            let steps = Math.ceil(dist / 7);
             let xstep = dxActual / steps;
             let ystep = dyActual / steps;
-
-            let i = 0;
-            let t = d3.interval(() => {
-                i++;
-                this.translateBy(xstep, ystep);
-                if (i >= steps) {
-                    t.stop();
-                    resolve();
-                }
-            }, 5);
-        });
+            this.translateBy(xstep, ystep);
+            await animationFrame();
+        }
     }
 
     translateBy(xstep, ystep){
         this.zoom.on("zoom", null);
         this.zoom.translateBy(this.zoomD3Element, xstep / this.scale, ystep / this.scale );
+        this.update();
+        this.zoom.on("zoom", this.handleZoom);
+    }
+
+    zoomBy(step, target){
+        let factor = Math.exp(Math.log(1.1) * step);
+        this.zoom.on("zoom", null);
+        this.zoom.scaleBy(this.zoomD3Element, factor, target );
         this.update();
         this.zoom.on("zoom", this.handleZoom);
     }

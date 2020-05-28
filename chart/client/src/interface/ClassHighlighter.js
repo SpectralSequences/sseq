@@ -30,8 +30,8 @@ export class ClassHighlighter extends LitElement {
     }
 
     firstUpdated(){
-        this.disp = findAncestorElement(this, "sseq-display");
-        this.chart = findAncestorElement(this, "sseq-chart");
+        this.disp = this.closest("sseq-display");
+        this.chart = this.closest("sseq-chart");
         this.disp.addEventListener("scale-update", this.handleScaleUpdate);
     }
 
@@ -107,13 +107,13 @@ export class ClassHighlighter extends LitElement {
         }
 
         for(let c of classes){
-            let elt = this.classMap[c.uuid];
-            if(elt === undefined){
-                elt = availableElements.pop();
-                this.classMap[c.uuid] = elt;
-                elt.cls = c;
-                elt.busy = true;   
+            if(c.uuid in this.classMap){
+                continue;
             }
+            let elt = availableElements.pop();
+            this.classMap[c.uuid] = elt;
+            elt.cls = c;
+            elt.busy = true;   
         }
     }
 

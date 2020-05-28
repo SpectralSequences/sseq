@@ -122,25 +122,11 @@ class ChartData:
     def add_structline(self, source, target, **kwargs):
         e = ChartStructline(self, source=source, target=target, **kwargs)
         self._edges[e.uuid] = e
-        self.add_batched_message(e.uuid, "chart.edge.add", *arguments(
-            type = e.type,
-            uuid = e.uuid,
-            source = source.uuid,
-            target = target.uuid,
-            **kwargs
-        ))        
         return e
 
     def add_extension(self, source, target, **kwargs):
         e = ChartExtension(self, source=source, target=target, **kwargs)
         self._edges[e.uuid] = e
-        self.add_batched_message(e.uuid, "chart.edge.add", *arguments(
-            type = e.type,
-            uuid = e.uuid,
-            source = source.uuid,
-            target = target.uuid,
-            **kwargs
-        ))        
         return e
 
     def add_page_range(self, page_range):
@@ -182,9 +168,19 @@ class ChartData:
             class_to_update=c
         ))
 
+    def add_class_to_delete(self, c):
+        self.add_batched_message(c.uuid, "chart.class.delete", *arguments(
+            class_to_delete=c
+        ))
+
     def add_edge_to_update(self, e):
         self.add_batched_message(e.uuid, "chart.edge.update", *arguments(
             edge_to_update=e
+        ))
+
+    def add_edge_to_delete(self, c):
+        self.add_batched_message(c.uuid, "chart.edge.delete", *arguments(
+            edge_to_delete=c
         ))
 
     def add_batched_message(self, key, cmd, args, kwargs):

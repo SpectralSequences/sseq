@@ -42,12 +42,12 @@ export class GridElement extends HTMLElement {
         if(this.manualxGridStep){
             this.xGridStep = this.manualxGridStep;
         } else {
-            this.xGridStep = (Math.floor(xTickStep / 5) === 0) ? 1 : Math.floor(xTickStep / 5);
+            this.xGridStep = (Math.floor(xTickStep / 5) === 0) ? 2 : Math.floor(xTickStep / 5);
         }
         if(this.manualyGridStep){
             this.yGridStep = this.manualxGridStep;
         } else {
-            this.yGridStep = (Math.floor(yTickStep / 5) === 0) ? 1 : Math.floor(yTickStep / 5);
+            this.yGridStep = (Math.floor(yTickStep / 5) === 0) ? 2 : Math.floor(yTickStep / 5);
         }
         // // TODO: This is an ad-hoc modification requested by Danny to ensure that the grid boxes are square.
         // // Probably it's a useful thing to be able to have square grid boxes, how do we want to deal with this?

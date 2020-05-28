@@ -9,12 +9,58 @@
     <script src="/static/client/table.js" type="text/javascript"></script>
 
     <style>
-        :root{
+        :root {
             --focus-outline-color: rgba(var(--complement-2), 1);
+            --focus-outline-thickness : 1px;
         }
 
         :focus {
-            outline: var(--focus-outline-color) auto 2px;
+            outline: var(--focus-outline-color) solid var(--focus-outline-thickness);
+        }
+
+        katex-expr {
+            border: rgba(0,0,0,0) solid var(--focus-outline-thickness);
+        }
+
+        input:invalid {
+           border-color: #FDD !important;
+           background-color:  #900 !important;
+        }
+
+        katex-expr:focus {
+            outline-style: none;
+            border: var(--focus-outline-color) solid var(--focus-outline-thickness);
+        }
+
+        .error {
+            width  : 100%;
+            padding: 0.3em;
+            font-size: 80%;
+            color: white;
+            opacity: 0;
+            background-color: #900;            
+            box-sizing: border-box;
+        }
+
+        .error.active {
+            opacity: 1;
+        }        
+
+
+        /* outline*/
+        tr {
+            border-top: rgba(0,0,0,0) double var(--focus-outline-thickness);
+        }
+
+        tr:last-child {
+            border-bottom: rgba(0,0,0,0) double var(--focus-outline-thickness);
+        }
+
+        tr:focus {
+            border-color: var(--focus-outline-color);
+            border-style: double;
+            border-width: var(--focus-outline-thickness);
+            outline : none;
         }
 
         .sidebar-group {
@@ -29,6 +75,20 @@
 
         #product-info {
             text-align: center;
+            overflow: overlay; 
+            padding-right: 1.5rem; 
+            padding-top: 0.8rem; 
+            padding-bottom: 2rem;
+            height: 100vh;
+        }
+
+        sseq-panel h4 {
+            --text-opacity : 0.87;
+            color : rgba(var(--text-color), var(--text-opacity));
+            /* font-size: 120%; */
+            font-weight: 450;
+            margin: 0.25rem 0rem;
+            margin-bottom: 0.8rem;
         }
 
         sseq-panel h5 {
@@ -80,37 +140,36 @@
         }
 
         sseq-matrix {
-            --row-selected : rgba(var(--complement-4),0.7);
-            --row-hover : rgba(var(--complement-4), 0.4); /* rgba(0, 0, 255, 0.25);*/
-            --row-hover-selected : rgba(var(--complement-4),1);
+            --row-selected : rgba(var(--complement-3),0.7);
+            --row-hover : rgba(var(--complement-3), 0.4); /* rgba(0, 0, 255, 0.25);*/
+            --row-hover-selected : rgba(var(--complement-3),1);
             --row-active : rgba(var(--complement-2),1);
             --row-active-selected : rgba(var(--complement-2),0.5); /* about to turn off */
         }
 
-        .product-item {
+        sseq-panel * {
             color : rgba(var(--text-color), var(--text-opacity));
         }
 
-        .product-item:hover {
+        sseq-panel {
+            --text-opacity : 0.5;
+        }
+
+        sseq-panel [tabindex="0"] {
+            --text-opacity : 0.7;
+        }
+
+        sseq-panel :hover[tabindex="0"] {
             --text-opacity : 0.87;
         }
 
-        .product-item:active {
+        sseq-panel :active[tabindex="0"] {
             --text-opacity : 1;
         }
 
 
-        .name {
-            color : rgba(var(--text-color), var(--text-opacity));
-        }
-
-        .name:focus {
-            outline-style: solid;
-            outline-offset: 2px;
-        }
-
-        .name:hover {
-            --text-opacity : 0.87;
+        ::selection {
+            background : rgba(var(--selection-background-color), 1);
         }
 
         .name:active {
@@ -119,8 +178,8 @@
         
         input[type=text] {
             border-radius: 0px;
-            background-color: rgba(var(--primary-1), 1);
-            color : rgba(var(--primary-1-text), 1);
+            background-color: rgba(var(--input-background-color), 1);
+            color : rgba(var(--input-text-color), 1);
             border: 1px solid #CCC; /* default for text input */
         }
 
@@ -137,7 +196,10 @@
             --button-text-opacity : 0.8;
             --button-background-color : var(--primary-2);
             --button-background-opacity : 1;
+            --input-background-color : var(--primary-1);
+            --input-text-color : var(--primary-1-text);
             --close-icon-font-size : 18pt;
+            --selection-background-color : var(--complement-0);
         }
 
         :root {
@@ -196,13 +258,15 @@
             <sseq-axes></sseq-axes>
             <sseq-grid></sseq-grid>
             <sseq-chart>
+                <sseq-bidegree-highlighter></sseq-bidegree-highlighter>
                 <sseq-class-highlighter></sseq-class-highlighter>
                 <sseq-page-indicator style="position: absolute; left: 60px; top: 0px; font-family: Arial; font-size: 15px;"></sseq-page-indicator>
                 <sseq-tooltip></sseq-tooltip>
             </sseq-chart>
         </sseq-display>
         <sseq-panel max-width=400 initial-width=280>
-            <div id="product-info" style="overflow: overlay; padding-right: 1.5rem; padding-top: 0.4rem;" >
+            <div id="product-info">
+                <div id="product-info-bidegree"></div>
                 <div id="product-info-classes"></div>
                 <div id="product-info-products"></div>
                 <div id="product-info-matrix"></div>

@@ -75,10 +75,7 @@ class Executor(Agent):
         from message_passing_tree.socket_close_codes import SERVICE_RESTART
         from ..server import serve
         await cls.close_all_channels_a(SERVICE_RESTART)
-        print("Original hash: ", hash(cls))
         cls = Executor.reload_class(cls)
-        # print(cls.__repr)
-        print("Reloaded channel hash: ", hash(cls))
         serve(cls)
         for executor in Executor.executors:
             executor.get_globals()[cls.__name__] = cls
@@ -144,7 +141,7 @@ class Executor(Agent):
         elif type(result) is ExecResult.Err:
             self.repl.console_io.print_exception(result.exception, buffered = False)
         elif type(result) is ExecResult.Interrupt:
-            print("KeyboardInterrupt 171571")
+            print("KeyboardInterrupt 171571") # This doesn't happen very often...
         else:
             assert False
 

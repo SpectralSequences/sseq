@@ -232,11 +232,11 @@ class Agent:
     async def run_a(self):
         pass
 
-    # TODO: Should this be here?
-    async def shutdown_a(self):
-        # print("shutdown")
-        if self.parent:
-            await self.parent.remove_child_a(self)
+    # # TODO: Should this be here?
+    # async def shutdown_a(self):
+    #     # print("shutdown")
+    #     if self.parent:
+    #         await self.parent.remove_child_a(self)
 
     def is_subscribed_to(self, cmd):
         if "*" in self.subscriptions:

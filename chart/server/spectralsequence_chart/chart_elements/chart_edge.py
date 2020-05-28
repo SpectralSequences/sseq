@@ -26,7 +26,7 @@ class ChartEdge:
         )
         if "page" in kwargs:
             message_kwargs["page"] = kwargs["page"]
-        self._sseq.add_batched_message(self.uuid, "chart.edge.add", message_args, message_kwargs)
+        self._sseq.add_batched_message(self.uuid + ".new", "chart.edge.add", message_args, message_kwargs)
         utils.copy_fields_from_kwargs(self, kwargs)
 
         if "visible" not in kwargs:
@@ -46,6 +46,15 @@ class ChartEdge:
     def bend(self, storage_name):
         self.needs_update()
 
+    @property
+    def line_width(self):
+        return getattr(self, utils.PROPERTY_PREFIX + "lineWidth", None)
+    
+    @line_width.setter
+    def line_width(self, v):
+        setattr(self, utils.PROPERTY_PREFIX + "lineWidth",  v)
+        self.needs_update()
+
     def replace_source(self, **kwargs):
         self.source.replace(**kwargs)
     
@@ -53,9 +62,10 @@ class ChartEdge:
         self.target.replace(**kwargs)
 
     def delete(self):
-        del self._sseq.edges[self.uuid]
-        # del e._source.edges[e]
-        # del e._target.edges[e]
+        self._sseq.add_edge_to_delete(self)
+        del self._sseq._edges[self.uuid]
+        del self.source._edges[self.source._edges.index(self)]
+        del self.target._edges[self.target._edges.index(self)]
 
     @staticmethod
     def from_json(sseq, json):

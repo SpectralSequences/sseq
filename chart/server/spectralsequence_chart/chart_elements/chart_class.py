@@ -157,6 +157,7 @@ class ChartClass:
             Better refresh the page after using this...
             Probably should also delete edges
         """ 
+        self._sseq.add_class_to_delete(self)
         del self._sseq._classes[self.uuid]
         for e in self._edges:
             e.delete()

@@ -103,6 +103,11 @@ let default_message_handlers = {
         Object.assign(this.sseq.classes[c.uuid], c);
     },
 
+    "chart.class.delete" : function(cmd, args, kwargs) {
+        let c = kwargs.class_to_delete;
+        this.sseq.delete_class(c);
+    },
+
     "chart.class.set_name" : function(cmd, args, kwargs) {
         let [x,y,idx] = load_args({
             "x" : Number.isInteger, 
@@ -113,7 +118,6 @@ let default_message_handlers = {
     },
 
     "chart.edge.add" : function(cmd, args, kwargs) {
-        // console.log("chart.edge.add");
         this.console_log_if_debug(kwargs);
         this.sseq.add_edge(kwargs);
     },
@@ -123,6 +127,11 @@ let default_message_handlers = {
         let e = kwargs.edge_to_update;
         Object.assign(this.sseq.edges[e.uuid], e);
     },
+
+    "chart.edge.delete" : function(cmd, args, kwargs) {
+        let e = kwargs.edge_to_delete;
+        this.sseq.delete_edge(e);
+    },      
 
     "display.set_background_color" : function(cmd, args, kwargs) {
         this.display.setBackgroundColor(kwargs.color);

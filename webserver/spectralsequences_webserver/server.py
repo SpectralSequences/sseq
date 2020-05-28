@@ -35,6 +35,7 @@ repl = None
 host = "localhost"
 port = config.PORT
 
+# TODO: make a class out of this...
 served_channels = {}
 def serve(channel, name = None):
     if name is None:
@@ -42,7 +43,7 @@ def serve(channel, name = None):
     if name in served_channels:
         served_channels[name].remove_routes(app)
     served_channels[name] = channel
-    print("Serving", channel.__repr__(0), hash(channel), "as", name)
+    print(f"""Serving {channel.__name__} as "{name}" """)
     channel.serve(app, repl, host, port, name)
 
 @run_main

@@ -2,7 +2,7 @@ import asyncio
 from . import utils
 from .agent import Agent
 from .socket_receiver import SocketReceiver
-from .decorators import subscribe_to
+from .prelude import *
 
 from . import socket_close_codes
 
@@ -14,6 +14,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 @subscribe_to("*")
+@collect_transforms(inherit = False)
 class SocketChannel(Agent):
     channels = {}
     serving_class_to = None
@@ -47,7 +48,6 @@ class SocketChannel(Agent):
 
         @app.websocket(f"/ws/{cls_dir}/{{channel_name}}")
         async def websocket_subscribe_a(websocket: WebSocket, channel_name : str):
-            print("websocket_subscribe channel hash", hash(cls))
             logger.debug(f"ws: {cls_dir}/{channel_name}")
             try:
                 channel = await cls.get_channel_a(channel_name, repl)
@@ -153,8 +153,17 @@ class SocketChannel(Agent):
         """
         await self.add_child_a(sock_recv)
 
+    @transform_inbound_messages
+    async def transform__socket__close__a(self, envelope):
+        envelope.mark_used()
+        recv = self
+        for id in reversed(envelope.source_agent_path):
+            recv = recv.children[id]
+        await self.remove_subscriber_a(recv)
+
     async def remove_subscriber_a(self, sock_recv):
         child = sock_recv
         while child.parent is not self:
             child = child.parent
         await self.remove_child_a(child)
+

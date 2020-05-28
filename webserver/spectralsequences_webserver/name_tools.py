@@ -9,14 +9,14 @@ _name_parser = Lark("""
     _extras_sub : (sup [prime]) | (prime _extras_sub) | ()
     _extras_sup : (sub [prime]) | (prime _extras_sup) | ()
 
-    prime : "'"
+    prime : "'" ((prime) | ())
     sub : "_" arg
 
     sup : "^" arg
 
     gen : /[A-Za-z]/
 
-    ?arg : ("{" /\w+/ "}") | /[0-9]+/
+    ?arg : ("{" /[0-9]+/ "}") | /[0-9]+/
 
     %ignore " "
 """)
@@ -57,6 +57,15 @@ def parse_name(name):
     t = _name_parser.parse(name)
     return _name_evaluator.transform(t)
 
+def validate_name(name):
+    from lark import LarkError
+    err = None
+    try:
+        parse_name(name)
+    except LarkError as e:
+        err = {"name": type(e).__name__, "column" : getattr(e, "column", None)}
+    return [err is None, err]
+
 # Write x^n but handle special cases x^0 ==> 1 and x^1 ==> x
 def power_name(var, n, zeroth_power=""):
     if n == 0:
@@ -64,12 +73,19 @@ def power_name(var, n, zeroth_power=""):
     elif n==1:
         return var
     else:
-        return str(var) + "^{" + str(n) + "}"
+        # if var.find("'") > -1:
+        #     var = f"({var})"
+        return f"{var}^{{{n}}}"
 
 def monomial_name(*exponents):
-    result = ""
-    for [var, e] in exponents:
-        result += " " + power_name(var, e)
-    if result.strip() == "":
+    result = " ".join(power_name(var, e) for [var,e] in exponents)
+    if result == "":
         result = "1"
     return result
+
+def add_monomials(mono1, mono2):
+    d = dict(mono1)
+    for [k, v] in mono2:
+        d[k] = d.get(k, 0)
+        d[k] += v
+    return list(d.items())

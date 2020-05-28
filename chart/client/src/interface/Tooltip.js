@@ -78,8 +78,8 @@ export class Tooltip extends LitElement {
     }
 
     firstUpdated(changedProperties) {
-        this.disp = findAncestorElement(this, "sseq-display");
-        this.chart = findAncestorElement(this, "sseq-chart");
+        this.disp = this.closest("sseq-display");
+        this.chart = this.closest("sseq-chart");
         this.disp.addEventListener("mouseover-class", this._mouseover_class);
         this.disp.addEventListener("mouseout-class", this._mouseout_class);
     }

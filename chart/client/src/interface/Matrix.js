@@ -1,4 +1,5 @@
 import {LitElement, html, css} from 'lit-element';
+import { ifDefined } from 'lit-html/directives/if-defined';
 // import {unsafeHTML} from 'lit-html/directives/unsafe-html.js';
 // import { KatexExprElement } from "../KatexExprElement.js";
 import { promiseFromDomEvent } from "./utils.js";
@@ -17,8 +18,29 @@ export class MatrixElement extends LitElement {
                 color : rgba(var(--text-color), var(--text-opacity));
             }
 
+            ::selection {
+                background : rgba(var(--selection-background-color), 1);
+            }
+
+            /*tr {
+                border-top-color: rgba(0,0,0,0);
+                border-top-style: double;
+                border-top-width: var(--focus-outline-thickness);
+            }*/
+    
+            /*tr:last-child {
+                border-bottom-color: rgba(0,0,0,0);
+                border-bottom-style: double;
+                border-bottom-width: var(--focus-outline-thickness);
+            }*/
+    
             :focus {
-                outline: var(--focus-outline-color) auto 10px;
+                /*border-color: var(--focus-outline-color);
+                border-style: double;
+                border-width: 2px;*/
+                --test : var(--focus-outline-color);
+                border: var(--focus-outline-thickness) solid purple;
+                outline : var(--focus-outline-color) solid var(--focus-outline-thickness);
             }
 
             .matrixbrak {
@@ -91,6 +113,8 @@ export class MatrixElement extends LitElement {
                 padding: 0;
                 text-align: center;
                 margin: 0;
+                background-color: rgba(var(--input-background-color), 1);
+                color : rgba(var(--input-text-color), 1);                
             }
 
             input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button {
@@ -164,7 +188,6 @@ export class MatrixElement extends LitElement {
         super();
         this._handleMouseEvent = this._handleMouseEvent.bind(this);
         this.value = [];
-        this.labels = undefined;
         this.lastTargets = [];
         this.selectedRows = [];
     }
@@ -177,6 +200,29 @@ export class MatrixElement extends LitElement {
             e.stopPropagation();
             this.toggle(e);
         });
+    }
+
+    get type(){
+        return this.getAttribute("type");
+    }
+
+    get max_value(){
+        return this.getAttribute("max-value") || 1;
+    }
+
+    get labels(){
+        return this._labels;
+    }
+
+    set labels(v){
+        if(!this._labels){
+            this._labels = v;
+            this.requestUpdate();
+            return;
+        }
+        this._labels = v;
+        let label_entries = this.shadowRoot.querySelectorAll(".label-entry katex-expr");
+        v.forEach((v, idx) => { label_entries[idx].innerText = v });
     }
 
     async toggle(e){
@@ -196,7 +242,7 @@ export class MatrixElement extends LitElement {
     }
 
     toggleRowSelect(row){
-        if(this.getAttribute("type") !== "select-row"){
+        if(this.type !== "select-row"){
             return;
         }
         if(this.selectedRows.includes(row)){
@@ -209,7 +255,6 @@ export class MatrixElement extends LitElement {
     }
 
     render(){
-        this.max_value = this.getAttribute("max-value") || 1;
         let rows = this.value.length;
         let columns = rows > 0 ? this.value[0].length : 0;
         let selectedEntries = new Array(rows).fill(0).map(() => new Array(columns).fill(false));
@@ -218,8 +263,7 @@ export class MatrixElement extends LitElement {
                 selectedEntries[i][j] = true;
             }
         }
-        let row_select = this.getAttribute("type") === "select-row";
-        let tabindex = row_select ? 0 : -1;
+        let rowTabIndex = this.type === "select-row" ? 0 : undefined;
         return html`
 <table class="matrixbrak" 
         @click=${this._handleMouseEvent} @dblclick=${this._handleMouseEvent} @contextmenu=${this._handleMouseEvent} 
@@ -243,9 +287,9 @@ export class MatrixElement extends LitElement {
         <td> <table class="matrix"><tbody>
             ${
                 this.value.map((r, ridx) => html`
-                    <tr class="row" tabindex=${tabindex} pos="${ridx}" ?selected=${this.selectedRows.includes(ridx)}>
+                    <tr class="row" pos="${ridx}" tabindex="${ifDefined(rowTabIndex)}" ?selected=${this.selectedRows.includes(ridx)} focus>
                     ${  this.labels ?
-                        html`<td class="label-entry" pos="${ridx}"><katex-expr>${this.labels[ridx]}</katex-expr></td>`
+                        html`<td class="label-entry" pos="${ridx}"><div><katex-expr>${this.labels[ridx]}</katex-expr></div></td>`
                     :""}
                         <td class="padding" ?selected=${this.selectedRows.includes(ridx)}></td>
                         ${r.map((e, colidx) => 
@@ -263,15 +307,20 @@ export class MatrixElement extends LitElement {
     }
 
     updated(changedProperties) {
+        let row_select = this.type === "select-row";
+        if(row_select){
+            for(let row of this.shadowRoot.querySelectorAll(".row")){
+                row.tabIndex = 0;
+            }
+        }
         let label_entry = this.shadowRoot.querySelector(".label-entry");
         if(label_entry){
             if(!this.resizeObserver) {
                 this.resizeObserver = new ResizeObserver(entries => {
-                    // resizeObserver.disconect();
                     this.style.setProperty("--label-width", `${label_entry.offsetWidth}px`);
                 });
             }
-            this.resizeObserver.observe(label_entry);        
+            this.resizeObserver.observe(label_entry);      
         }
     }
 
@@ -307,8 +356,23 @@ export class MatrixElement extends LitElement {
             composed: true 
         }));
     }
+
+    getEntryInput(row, col){
+        return this.shadowRoot.querySelector(`[pos='${row}-${col}'] input`);
+    }
+
+    updateEntryInput(row, col){
+        this.getEntryInput(row, col).value  = this.value[row][col]
+    }
+
+    focusEntryInput(row, col){
+        let target = this.getEntryInput(row, col);
+        if(target){
+            target.focus();
+        }
+    }
     
-    _inputkeydown(e){
+    _inputKeydown(e){
         let path = e.composedPath();
         if(["Backspace", "Delete"].includes(e.code)){
             e.preventDefault();    
@@ -323,14 +387,24 @@ export class MatrixElement extends LitElement {
         let dc = {"up" : 0, "down" : 0, "left" : -1, "right" : 1}[direction];
         let targetRow = row + dr;
         let targetCol = col + dc;
-        let target = this.shadowRoot.querySelector(`[pos="${targetRow}-${targetCol}"] input`);
-        if(target){
-            target.focus();
-            target.select();
+        if(e.ctrlKey){
+            if(dr === 0 || targetRow < 0 || targetRow >= this.value.length ){
+                return;
+            }
+            let curRow = this.value[row];
+            let swapRow = this.value[targetRow];
+            this.value[row] = swapRow;
+            this.value[targetRow] = curRow;
+            for(let i = 0; i < curRow.length; i++){
+                this.updateEntryInput(row, i);
+                this.updateEntryInput(targetRow, i);
+            }
+            this.dispatchEvent(new CustomEvent("change"));
         }
+        this.focusEntryInput(targetRow, targetCol);
     }
 
-    _inputkeypress(e){
+    _inputKeypress(e){
         e.preventDefault();
         let path = e.composedPath();
         let value = parseInt(e.key);
@@ -343,23 +417,59 @@ export class MatrixElement extends LitElement {
             path[0].select();
             let [row, col] = path[1].getAttribute("pos").split("-").map((x) => parseInt(x));
             this.value[row][col] = digit;
+            this.dispatchEvent(new CustomEvent("change", { detail : { row : row, col : col } } ));
         }
     }
 
-    _inputclick(e){
+    _inputCopy(e){
+        e.preventDefault();
+        let path = e.composedPath();
+        let [row, col] = path[1].getAttribute("pos").split("-").map((x) => parseInt(x));
+        (e.clipboardData || window.clipboardData).setData('text', JSON.stringify(this.value[row]));
+    }
+
+    _inputPaste(e){
+        e.preventDefault();
+        let path = e.composedPath();
+        let [row, col] = path[1].getAttribute("pos").split("-").map((x) => parseInt(x));
+        let pastedText = (e.clipboardData || window.clipboardData).getData('text');
+        let filterRegex = new RegExp(`^\[?[, 0-${this.max_value}]*\]?$`);
+        if(!filterRegex.test(pastedText)){
+            return;
+        }
+        let values = pastedText.replace(/[, \[\]]/g,"").split("").map((v) => parseInt(v));
+        if(values.length === this.value[row].length){
+            for(let i = 0; i < values.length; i++){
+                this.value[row][i] = values[i];
+                this.updateEntryInput(row, i);
+            }
+            this.dispatchEvent(new CustomEvent("change", { detail : { row : row } } ));
+        } else if(values.length + col <= this.value[row].length){
+            for(let i = 0; i < values.length; i++){
+                this.value[row][col + i] = values[i];
+                this.updateEntryInput(row, col + i);
+            }
+            this.dispatchEvent(new CustomEvent("change", { detail : { row : row } } ));
+        }
+    }
+
+    _inputFocus(e){
         let path = e.composedPath();
         path[0].select();
     }
 
-    _handleDigit(row, col, e) {
-
-    }
-
     wrapEntry(e){
-        let matrix_type = this.getAttribute("type");
-        switch(matrix_type){
+        switch(this.type){
             case "input":
-                return html`<input type="number" value="${e}" @click="${this._inputclick}" @keydown="${this._inputkeydown}" @keypress="${this._inputkeypress}"></input>`;
+                return html`
+                    <input type="number" tabindex="0" focus value="${e}"  
+                           @keydown="${this._inputKeydown}"
+                           @keypress="${this._inputKeypress}"
+                           @focus="${(e) => this._inputFocus(e)}"
+                           @copy="${(e)=> this._inputCopy(e)}"
+                           @paste="${(e)=> this._inputPaste(e)}"
+                    >
+                    `;
             case "display":
                 return e;
             case "select-row":
@@ -367,16 +477,15 @@ export class MatrixElement extends LitElement {
             case null:
                 return e; // throw Error(`Matrix is missing type.`); //?? 
             default:
-                throw Error(`Invalid value "${matrix_type}" for type`);
+                throw Error(`Invalid value "${this.type}" for type`);
         }
     }
 
-    submit(e){
-        if(this.shadowRoot.activeElement){
-            let elt = this.shadowRoot.activeElement;
-            let row = elt.getAttribute("pos");
-            console.log("matrix-elt submit row", row);
-        }
-    }
+    // submit(e){
+    //     if(this.shadowRoot.activeElement){
+    //         let elt = this.shadowRoot.activeElement;
+    //         let row = elt.getAttribute("pos");
+    //     }
+    // }
 }
 customElements.define('sseq-matrix', MatrixElement);

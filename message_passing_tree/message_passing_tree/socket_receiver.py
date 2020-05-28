@@ -42,9 +42,13 @@ class SocketReceiver(Receiver):
         except ConnectionClosedOK:
             self.log_warning("Connection closed while trying to send message to socket.")
             self.log_warning(f"Message: {msg}")
+        except RuntimeError as e:
+            if e.args[0].find("websocket.close"):
+                await self.shutdown_a()
+            else:
+                raise
 
     async def close_a(self, close_code):
-        print(close_code)
         await self.socket.close(close_code)
 
     async def start_a(self):
@@ -67,10 +71,15 @@ class SocketReceiver(Receiver):
                 consecutive_failed_passes += 1
                 await self.handle_exception_a(e)
                 # TODO: what's the right threshold?
-                if consecutive_failed_passes > 1: 
+                if consecutive_failed_passes > 2: 
+                    print("Too many errors, quitting!")
                     return
         await self.shutdown_a()
 
+
+    # # TODO: Should this be here?
+    async def shutdown_a(self):
+        await self.send_message_inward_a("socket.close", *arguments())
 
     async def abort_a(self):
         await self.send_text_a(json.dumps({
