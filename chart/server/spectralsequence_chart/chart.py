@@ -169,7 +169,7 @@ class ChartData:
         ))
 
     def add_class_to_delete(self, c):
-        self.add_batched_message(c.uuid, "chart.class.delete", *arguments(
+        self.add_batched_message(c.uuid + ".delete", "chart.class.delete", *arguments(
             class_to_delete=c
         ))
 
@@ -178,9 +178,9 @@ class ChartData:
             edge_to_update=e
         ))
 
-    def add_edge_to_delete(self, c):
-        self.add_batched_message(c.uuid, "chart.edge.delete", *arguments(
-            edge_to_delete=c
+    def add_edge_to_delete(self, e):
+        self.add_batched_message(e.uuid + ".delete", "chart.edge.delete", *arguments(
+            edge_to_delete=e
         ))
 
     def add_batched_message(self, key, cmd, args, kwargs):

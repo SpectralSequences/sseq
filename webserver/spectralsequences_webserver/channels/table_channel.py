@@ -193,55 +193,39 @@ class TableChannel(SocketChannel):
     async def transform__interact__select_bidegree__a(self, envelope, bidegree):
         envelope.mark_used()
         names = self.get_names_info(bidegree)
+        [x, y] = bidegree 
+        named_vecs = [[k, self.table.name_to_str(v)] for [k, v] in self.table.named_vecs[y][x].items()]
         matrix = self.get_matrix(bidegree)
         prod_info = self.get_product_info(bidegree)
-        await self.send_message_outward_a("interact.product_info", *arguments(names=names, matrix=matrix, product_info=prod_info))
+        await self.send_message_outward_a("interact.product_info", *arguments(names=names, named_vecs=named_vecs, matrix=matrix, product_info=prod_info))
 
 # Actions:
 
     @transform_inbound_messages
-    async def transform__interact__action__name__free__a(self, envelope, bidegree, idx, name):
+    async def transform__interact__action__a(self, envelope, bidegree, named_vecs, matrix):
         envelope.mark_used()
         if tuple(bidegree) in self.previews:
-            self.restore_bidegree_state(self.previews.pop(tuple(bidegree)))
-        self.undoStack.append(arguments(cmd="name_class", bidegree=bidegree, args=[idx, name], state=self.collect_bidegree_state(bidegree))[-1])
+            self.restore_bidegree_state(bidegree, self.previews.pop(tuple(bidegree)))
+        action = arguments(cmd="apply_action", bidegree=bidegree, args=[named_vecs, matrix], state=self.collect_bidegree_state(bidegree))[-1]
+        self.apply_action(bidegree, named_vecs, matrix)
+        self.undoStack.append(action)
         self.redoStack = []
-        self.name_class(bidegree, idx, name)
-        self.save()
-        await self.chart.sseq.update_a()
-    
-    @transform_inbound_messages
-    async def transform__interact__action__name__product__in_basis__a(self, envelope, bidegree, product_data):
-        envelope.mark_used()
-        if tuple(bidegree) in self.previews:
-            self.restore_bidegree_state(self.previews.pop(tuple(bidegree)))        
-        self.undoStack.append(arguments(cmd="name_product_in_basis", bidegree=bidegree, args=[product_data], state=self.collect_bidegree_state(bidegree))[-1])
-        self.redoStack = []
-        self.name_product_in_basis(bidegree, product_data)
         self.save()
         await self.chart.sseq.update_a()
 
-    @transform_inbound_messages
-    async def transform__interact__action__name__product__change_basis__a(self, envelope, bidegree, product_data, replace_row ):
-        envelope.mark_used()
-        if tuple(bidegree) in self.previews:
-            self.restore_bidegree_state(self.previews.pop(tuple(bidegree)))
-        self.undoStack.append(arguments(cmd="name_product_change_basis", bidegree=bidegree, args=[product_data, replace_row], state=self.collect_bidegree_state(bidegree))[-1])
-        self.redoStack = []
-        self.name_product_change_basis(bidegree, product_data, replace_row)
-        self.save()
-        await self.chart.sseq.update_a()
-
-    @transform_inbound_messages
-    async def transform__interact__action__set_basis__a(self, envelope, bidegree, matrix):
-        envelope.mark_used()
-        del self.previews[tuple(bidegree)]
-        self.undoStack.append(arguments(cmd="set_basis", bidegree=bidegree, args=[matrix], state=self.collect_bidegree_state(bidegree))[-1])
-        self.redoStack = []
-        self.set_basis(bidegree, matrix)
-        self.save()
-        await self.chart.sseq.update_a()
-        
+    def apply_action(self, bidegree, named_vecs, matrix):
+        [x, y] = bidegree
+        print("bidegree", bidegree, "new named vecs:", named_vecs)
+        named_vecs_dict = dict([[tuple(k), name_tools.parse_name(v)] for [k, v] in named_vecs])
+        # Make sure to set_matrix first, so if it's bad we have a chance to restore state.
+        old_matrix = self.table.basis_in_bidegree(*bidegree).matrix.to_python_matrix()
+        try:
+            self.table.basis_in_bidegree(*bidegree).set_matrix(matrix)
+        except ValueError:
+            self.table.basis_in_bidegree(*bidegree).set_matrix(old_matrix)
+            raise
+        self.table.named_vecs[y][x] = named_vecs_dict
+        self.update_bidegree(bidegree) 
 
     @transform_inbound_messages
     async def transform__interact__revert_preview__a(self, envelope, bidegree):
@@ -346,6 +330,7 @@ class TableChannel(SocketChannel):
             for e in list(c._edges):
                 e.delete()
                 deleted_edges += 1
+        # added_edges = 0
         for (s, t) in new_edges:
             e = sseq.add_structline(sseq.class_by_idx(*s), sseq.class_by_idx(*t))
             e.color = color
@@ -384,7 +369,7 @@ class TableChannel(SocketChannel):
         self.update_bidegree(bidegree)
 
     def update_bidegree(self, bidegree):
-        self.replace_edges(*bidegree)
+        self.replace_edges(*bidegree, "black", [])
         [x, y] = bidegree
         named_vecs = self.table.named_vecs[y][x]
         matrix = self.table.basis_in_bidegree(*bidegree).matrix

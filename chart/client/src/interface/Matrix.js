@@ -8,7 +8,8 @@ export class MatrixElement extends LitElement {
     static get properties() {
         return { 
             value : { type: Array },
-            selectedRows : { type : Array }
+            selectedRows : { type : Array },
+            enabledRows : { type : Array }
         };
     }
 
@@ -132,7 +133,13 @@ export class MatrixElement extends LitElement {
                 color : rgba(var(--text-color), 1);
             }
 
-            :host([type="select-row"]) .row:hover {
+            :host([type="select-row"]) .row[disabled] {
+                --text-opacity : var(--disabled-text-opacity);
+                color : rgba(var(--text-color), var(--text-opacity));
+                pointer-events : none;
+            }
+
+            :host([type="select-row"]) .row:hover:not([disabled]) {
                 background-color : var(--row-hover) !important;
                 color : rgba(var(--text-color), 1);
             }
@@ -245,6 +252,11 @@ export class MatrixElement extends LitElement {
         if(this.type !== "select-row"){
             return;
         }
+        if(this.enabledRows){
+            if(!this.enabledRows[row]){
+                return;
+            }
+        }
         if(this.selectedRows.includes(row)){
             this.selectedRows = [];
         } else {
@@ -263,7 +275,8 @@ export class MatrixElement extends LitElement {
                 selectedEntries[i][j] = true;
             }
         }
-        let rowTabIndex = this.type === "select-row" ? 0 : undefined;
+        let enabledRows = this.enabledRows || Array(rows).fill(true);
+        let rowTabIndices = enabledRows.map( e => (this.type === "select-row") && e ? 0 : undefined);
         return html`
 <table class="matrixbrak" 
         @click=${this._handleMouseEvent} @dblclick=${this._handleMouseEvent} @contextmenu=${this._handleMouseEvent} 
@@ -287,7 +300,12 @@ export class MatrixElement extends LitElement {
         <td> <table class="matrix"><tbody>
             ${
                 this.value.map((r, ridx) => html`
-                    <tr class="row" pos="${ridx}" tabindex="${ifDefined(rowTabIndex)}" ?selected=${this.selectedRows.includes(ridx)} focus>
+                    <tr class="row" pos="${ridx}" 
+                        tabindex="${ifDefined(rowTabIndices[ridx])}" 
+                        ?selected=${this.selectedRows.includes(ridx)} 
+                        ?focus=${enabledRows[ridx]} 
+                        ?disabled=${!enabledRows[ridx]} 
+                    >
                     ${  this.labels ?
                         html`<td class="label-entry" pos="${ridx}"><div><katex-expr>${this.labels[ridx]}</katex-expr></div></td>`
                     :""}
@@ -307,12 +325,12 @@ export class MatrixElement extends LitElement {
     }
 
     updated(changedProperties) {
-        let row_select = this.type === "select-row";
-        if(row_select){
-            for(let row of this.shadowRoot.querySelectorAll(".row")){
-                row.tabIndex = 0;
-            }
-        }
+        // let row_select = this.type === "select-row";
+        // if(row_select){
+        //     for(let row of this.shadowRoot.querySelectorAll(".row")){
+        //         row.tabIndex = 0;
+        //     }
+        // }
         let label_entry = this.shadowRoot.querySelector(".label-entry");
         if(label_entry){
             if(!this.resizeObserver) {

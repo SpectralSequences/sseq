@@ -152,7 +152,7 @@
         }
 
         sseq-panel {
-            --text-opacity : 0.5;
+            --text-opacity : var(--disabled-text-opacity);
         }
 
         sseq-panel [tabindex="0"] {
@@ -191,6 +191,7 @@
         }
 
         :root {
+            --disabled-text-opacity : 0.5;
             --text-opacity : 0.7;
             --button-text-color : var(--primary-2-text);
             --button-text-opacity : 0.8;

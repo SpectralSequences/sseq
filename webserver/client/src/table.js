@@ -125,14 +125,32 @@ function main(display, socket_address){
         document.activeElement.click();
     });
 
+    function namedVecsListToObj(namedVecs){
+        let result = {};
+        for(let [k, v] of namedVecs){
+            result[JSON.stringify(k)] = v;
+        }
+        return result;
+    }
+
+    function namedVecsObjToList(namedVecs){
+        let result = [];
+        for(let [k, v] of Object.entries(namedVecs)){
+            result.push([JSON.parse(k), v]);
+        }
+        return result;
+    }
+
 
     let names;
+    let namedVecs;
     let nameMonos;
     let product_info;
     let matrix;
     let selected_bidegree;
     socket_listener.add_message_handler("interact.product_info", async function(cmd, args, kwargs){
         let sseq = display.querySelector("sseq-chart");
+        namedVecs = namedVecsListToObj(kwargs.named_vecs);
         names = [];
         nameMonos = [];
         for(let [name, mono] of kwargs.names){
@@ -317,7 +335,16 @@ function main(display, socket_address){
         if(!ok_q){
             return;
         }
-        socket_listener.send("interact.action.name.free", {"bidegree" : selected_bidegree, "idx" : item_idx,  "name" : input.value}); //
+        let vec = Array(names.length).fill(0).map((_e, idx) => idx === item_idx ? 1 : 0);
+        namedVecs[JSON.stringify(vec)] = input.value;
+        console.log("sending action");
+        socket_listener.send("interact.action", 
+            {
+                "bidegree" : selected_bidegree,  
+                "named_vecs" : namedVecsObjToList(namedVecs),
+                "matrix" : matrix
+            }
+        );        
         socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
     }
     
@@ -345,12 +372,12 @@ function main(display, socket_address){
             let out_tuple = [...out_deg, one_entries[0]];
             await handleProductItemClick_inBasis(product_data, out_tuple );
         } else {
-            await handleProductItemClick_changeBasis(product_data, one_entries);
+            await handleProductItemClick_changeBasis(product_data, out_our_basis);
         }
     }
 
     async function handleProductItemClick_inBasis(product_data, out_tuple){
-        let { left : [, name1,], right : [, name2,], out_name } = product_data;
+        let { left : [, name1,], right : [, name2,], out_name, out_res_basis } = product_data;
         popup.okEnabled = true;
         let popup_header = popup.querySelector("[slot=header]");
         let popup_body = popup.querySelector("[slot=body]");
@@ -365,11 +392,18 @@ function main(display, socket_address){
         if(!ok_q){
             return;
         }
-        socket_listener.send("interact.action.name.product.in_basis", {"bidegree" : selected_bidegree,  "product_data" : product_data});        
+        namedVecs[JSON.stringify(out_res_basis)] = `${name1} ${name2}`;
+        socket_listener.send("interact.action", 
+            {
+                "bidegree" : selected_bidegree,  
+                "named_vecs" : namedVecsObjToList(namedVecs),
+                "matrix" : matrix
+            }
+        );
         socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
     }
     
-    async function handleProductItemClick_changeBasis(product_data, one_entries){
+    async function handleProductItemClick_changeBasis(product_data, out_our_basis){
         popup.okEnabled = false;
         let {left : [, name1, ], right :[, name2, ], out_res_basis} = product_data;
         let popup_header = popup.querySelector("[slot=header]");
@@ -387,17 +421,39 @@ function main(display, socket_address){
         let matrix_elt = new_body.querySelector("sseq-matrix");
         matrix_elt.value = matrix;
         matrix_elt.labels = names;
+        matrix_elt.enabledRows = out_our_basis.map(e => e !== 0);
         popup.okEnabled = false;
         matrix_elt.addEventListener("matrix-select", (e) => {
             popup.okEnabled = matrix_elt.selectedRows.length > 0;
+            if(matrix_elt.selectedRows.length > 0){
+                let matrix_clone = matrix.map(r => r.slice());
+                let replace_row = matrix_elt.selectedRows[0];
+                matrix_clone[replace_row] = out_res_basis;
+                validateMatrix(selected_bidegree, matrix_clone);
+            } else {
+                socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
+            }
+            console.log("      matrix:", JSON.stringify(matrix));
+            console.log("matrix_clone:", JSON.stringify(matrix_clone) );
         });
         // TODO: disable rows of matrix not set in one_entries.
         popup.show();
         let ok_q = await popup.submited();
         if(!ok_q){
+            socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
             return;
         }
-        socket_listener.send("interact.action.name.product.change_basis", {"bidegree" : selected_bidegree, "product_data" : product_data, replace_row : matrix_elt.selectedRows[0] });
+        let result_matrix = matrix_elt.value;
+        let replace_row = matrix_elt.selectedRows[0];
+        result_matrix[replace_row] = out_res_basis;
+        namedVecs[JSON.stringify(out_res_basis)] = `${name1} ${name2}`;
+        socket_listener.send("interact.action", 
+            {
+                "bidegree" : selected_bidegree,  
+                "named_vecs" : namedVecsObjToList(namedVecs),
+                "matrix" : result_matrix
+            }
+        );
         socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
     }
 
@@ -419,6 +475,9 @@ function main(display, socket_address){
             let { singular, row_labels } = await validateMatrix(selected_bidegree, matrix_elt.value);
             popup.okEnabled = !singular;
             matrix_elt.labels = row_labels;
+            if(JSON.stringify(matrix_elt.value) === JSON.stringify(matrix)){
+                socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
+            }
         });
         // matrix_elt.addEventListener("blur", (e) => console.log("blurred", e));
         popup.show();
@@ -426,8 +485,14 @@ function main(display, socket_address){
         if(!ok_q){
             socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
             return;
-        }            
-        socket_listener.send("interact.action.set_basis", { bidegree : selected_bidegree, matrix : matrix_elt.value });
+        }
+        socket_listener.send("interact.action", 
+            {
+                "bidegree" : selected_bidegree,  
+                "named_vecs" : namedVecsObjToList(namedVecs),
+                "matrix" : matrix_elt.value
+            }
+        );
         socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
     }
 

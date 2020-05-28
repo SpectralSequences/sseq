@@ -55,7 +55,10 @@ _name_evaluator = EvalName()
 
 def parse_name(name):
     t = _name_parser.parse(name)
-    return _name_evaluator.transform(t)
+    result = {}
+    for [k, v] in _name_evaluator.transform(t):
+        result[k] = result.get(k, 0) + v
+    return list(result.items())
 
 def validate_name(name):
     from lark import LarkError

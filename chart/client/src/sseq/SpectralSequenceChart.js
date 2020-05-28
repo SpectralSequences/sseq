@@ -176,9 +176,7 @@ export class SpectralSequenceChart extends EventEmitter {
                                  "${ChartStructline.name}", or "${ChartExtension.name}", not "${edge_type}".`);
         }
         if(kwargs.color){
-            console.log("adding edge", e, kwargs);
             Object.assign(e, kwargs);
-            console.log("   adding edge", e);
         }
         return e;
     }
