@@ -60,7 +60,8 @@ function main(display, socket_address){
             || (keyCode >= 65 && keyCode < 91)    // letter keys
             || (keyCode >= 96 && keyCode < 112)   // numpad keys
             || (keyCode >= 186 && keyCode < 193)  // ;=,-./` (in order)
-            || (keyCode >= 219 && keyCode < 223) ;   // [\]' (in order
+            || (keyCode >= 219 && keyCode < 223)  // [\]' (in order
+            ||  ["t", "z"].includes(e.key) ;   // Why is this here?
 
         // Is the element a text input?
         let in_text_input = element.matches("input, select, textarea") || (element.contentEditable && element.contentEditable == 'true');
@@ -296,11 +297,12 @@ function main(display, socket_address){
         errorElt.classList.remove("active");
     }
 
-    function setNameCommand(bidegree, names){
+    function setNameCommand(bidegree, vec, name){
         return {
             type : "set_name",
             bidegree : bidegree,  
-            named_vecs : namedVecsObjToList(namedVecs)
+            vec : vec,
+            name : name
         };
     }
 
@@ -364,10 +366,8 @@ function main(display, socket_address){
             return;
         }
         let vec = Array(names.length).fill(0).map((_e, idx) => idx === item_idx ? 1 : 0);
-        namedVecs[JSON.stringify(vec)] = input.value;
-        console.log("sending action");
         socket_listener.send("interact.action", {
-            cmd_list : [setNameCommand(selected_bidegree, namedVecs)]
+            cmd_list : [setNameCommand(selected_bidegree, vec, input.value)]
         });
         socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
     }
@@ -416,9 +416,8 @@ function main(display, socket_address){
         if(!ok_q){
             return;
         }
-        namedVecs[JSON.stringify(out_res_basis)] = `${name1} ${name2}`;
         socket_listener.send("interact.action", {
-            cmd_list : [setNameCommand(selected_bidegree, namedVecs)]
+            cmd_list : [setNameCommand(selected_bidegree, out_res_basis, `${name1} ${name2}`)]
         });    
         socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
     }
@@ -464,10 +463,9 @@ function main(display, socket_address){
         let result_matrix = matrix_elt.value;
         let replace_row = matrix_elt.selectedRows[0];
         result_matrix[replace_row] = out_res_basis;
-        namedVecs[JSON.stringify(out_res_basis)] = `${name1} ${name2}`;
         socket_listener.send("interact.action", {
             cmd_list : [
-                setNameCommand(selected_bidegree, namedVecs),
+                setNameCommand(selected_bidegree, out_res_basis, `${name1} ${name2}`),
                 setMatrixCommand(selected_bidegree, result_matrix)
             ]
         });
@@ -586,7 +584,7 @@ function main(display, socket_address){
     async function select_bidegree(x, y){
         let sseq = display.querySelector("sseq-chart").sseq;
         selected_bidegree = [x, y];
-        display.seek(x,y);
+        popup.cancel();
         let bidegree_highlighter = document.querySelector("sseq-bidegree-highlighter");
         let classes = sseq.classes_in_bidegree(...selected_bidegree);
         let class_highlighter = document.querySelector("sseq-class-highlighter");
@@ -697,6 +695,10 @@ function main(display, socket_address){
             socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
         }
     });
+
+    // Mousetrap.bind("backspace", () => {
+    //     // for 
+    // });
 
     window.addEventListener("beforeunload", (e) => { 
         popup.cancel();

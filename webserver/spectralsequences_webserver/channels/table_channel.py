@@ -219,15 +219,49 @@ class TableChannel(SocketChannel):
     def prepare_command(self, cmd):
         return getattr(self, "prepare_" + cmd["type"])(**cmd)
 
-    def prepare_set_name(self, type, bidegree, named_vecs):
-        [x, y] = bidegree
-        named_vecs_parsed = [[tuple(k), name_tools.parse_name(v)] for [k, v] in named_vecs]
-        return [{ 
-            "type" : "set_name", 
-            "bidegree" : bidegree, 
-            "named_vecs" : named_vecs_parsed, 
-            "state" : list(self.table.named_vecs[y][x].items())
-        }]
+    def prepare_set_name(self, **kwargs):
+        [x, y] = kwargs["bidegree"]
+        kwargs["name"] = name_tools.parse_name(kwargs["name"])
+        kwargs["state"] = self.table.named_vecs[y][x].get(tuple(kwargs["vec"]), None)
+        return self.propagate_names([kwargs])
+
+    def propagate_names(self, names):
+        result = dict([(*name["bidegree"], tuple(name["vec"])), name] for name in names)
+        new_names = result
+        product_list = [
+            {
+                "bidegree" : [(1 << i) - 1, 1],
+                "name" : name_tools.parse_name(f"h_{i}"),
+                "vec" : [1]
+            }
+            for i in range(5)
+        ]
+        while new_names:
+            last_names = new_names
+            new_names = {}
+            for name in last_names.values():
+                for prod in product_list:
+                    out_x = prod["bidegree"][0] + name["bidegree"][0]
+                    out_y = prod["bidegree"][1] + name["bidegree"][1]
+                    out_vec = tuple(self.table.multiply_vectors(
+                        prod["bidegree"], prod["vec"], 
+                        name["bidegree"], name["vec"]
+                    ))
+                    if 1 in out_vec and \
+                        not self.table.named_vecs[out_y][out_x].get(out_vec, None) \
+                        and (out_x, out_y, out_vec) not in result:
+
+                        new_name = name_tools.reduce_monomial(name["name"] + prod["name"])
+                        new_names[(out_x, out_y, out_vec)] = {
+                            "type" : "set_name", 
+                            "bidegree" : [out_x, out_y],
+                            "name" : new_name,
+                            "vec" : out_vec,
+                            "state" : None
+                        }
+            result.update(new_names)
+        return list(result.values())
+            
 
     def prepare_set_matrix(self, **kwargs):
         # Check that matrix is invertible. Raise error if not, otherwise return input unchanged.
@@ -240,9 +274,11 @@ class TableChannel(SocketChannel):
     def apply_command(self, cmd):
         getattr(self, "apply_" + cmd["type"])(**cmd)
 
-    def apply_set_name(self, type, bidegree, named_vecs, state):
+    def apply_set_name(self, type, bidegree, vec, name, state):
         [x, y] = bidegree
-        self.table.named_vecs[y][x] = dict([tuple(k), v] for [k, v] in named_vecs)
+        self.table.named_vecs[y][x][tuple(vec)] = name
+        if len(name) == 1 and name[0][1] == 1:
+            self.table.gen_degs[name[0][0]] = [x, y]
     
     def apply_set_matrix(self, type, bidegree, matrix, state):
         self.table.basis_in_bidegree(*bidegree).set_matrix(matrix)
@@ -274,9 +310,9 @@ class TableChannel(SocketChannel):
     def undo_cmd(self, cmd):
         getattr(self, "undo_" + cmd["type"])(**cmd)
     
-    def undo_set_name(self, bidegree, state, **kwargs):
+    def undo_set_name(self, bidegree, name, vec, state, **kwargs):
         [x, y] = bidegree
-        self.table.named_vecs[y][x] = dict([tuple(k), v] for [k, v] in state)
+        self.table.named_vecs[y][x][tuple(vec)] = state
 
     def undo_set_matrix(self, bidegree, state, **kwargs):
         self.table.basis_in_bidegree(*bidegree).set_matrix(state)
@@ -349,7 +385,7 @@ class TableChannel(SocketChannel):
 
     def update_color(self, c):
         indec = self.table.indecomposable_q(c.x, c.y, c.idx)
-        named = hasattr(c, "monomial_name") and c.monomial_name is not None
+        named = hasattr(c, "monomial_name") and c.monomial_name
         if not indec and named:
             c.set_color("black")
         elif not indec and not named:
@@ -632,21 +668,21 @@ class ProductTable:
                     products[ idx2 * ng1 + idx1 ][e] = 1
         return products
 
-    def multiply_vectors(self, in1, in2):
-        [*t1, invec1] = in1
-        [*t2, invec2] = in2
+    def multiply_vectors(self, in1, vec1, in2, vec2):
+        t1 = tuple(in1)
+        t2 = tuple(in2)
         ng1 = self.gens_in_bidegree(*t1)
         ng2 = self.gens_in_bidegree(*t2)            
         v1 = fp.FpVector(2, ng1)
         v2 = fp.FpVector(2, ng2)
-        v1.pack(invec1)
-        v2.pack(invec2)
+        v1.pack(vec1)
+        v2.pack(vec2)
         w1 = fp.FpVector(2, 0)
         w2 = fp.FpVector(2, 0)
         tensor = fp.FpVector(2, 0)
         vout = fp.FpVector(2, 0)
         wout = fp.FpVector(2, 0)
-        return multiply_vectors_helper(t1, v1, t2, v2, w1, w2, tensor, vout, wout)
+        return self.multiply_vectors_helper(t1, v1, t2, v2, w1, w2, tensor, vout, wout)
 
     def multiply_vectors_helper(self, 
         t1, v1, t2, v2,
@@ -655,14 +691,19 @@ class ProductTable:
         [x1, y1] = t1
         [x2, y2] = t2
         tout = (x1 + x2, y1 + y2)
+        
 
-        ng1 = self.gens_in_bidegree(*t1)
-        ng2 = self.gens_in_bidegree(*t2)         
-        ngout = self.gens_in_bidegree(*tout)
+        try:
+            ng1 = self.gens_in_bidegree(*t1)
+            ng2 = self.gens_in_bidegree(*t2)         
+            ngout = self.gens_in_bidegree(*tout)
 
-        b1 = self.basis_in_bidegree(*t1)
-        b2 = self.basis_in_bidegree(*t2)
-        bout = self.basis_in_bidegree(*tout)
+            b1 = self.basis_in_bidegree(*t1)
+            b2 = self.basis_in_bidegree(*t2)
+            bout = self.basis_in_bidegree(*tout)
+        except IndexError:
+            return []
+
 
         w1.set_scratch_vector_size(ng1)
         w2.set_scratch_vector_size(ng2)
@@ -675,6 +716,8 @@ class ProductTable:
         vout.set_to_zero()
         wout.set_to_zero()
         tensor.set_to_zero()
+        if tout not in self.dense_products or (t1, t2) not in self.dense_products[tout]:
+            return tuple(vout)
 
         b1.apply(w1, v1)
         b2.apply(w2, v2)
@@ -711,7 +754,8 @@ class ProductTable:
                         t1, v1, t2, v2, 
                         w1, w2, tensor, vout, wout
                     )
-                    result.append((t1 + (idx1,), t2 + (idx2,), product))
+                    if 1 in product:
+                        result.append((t1 + (idx1,), t2 + (idx2,), product))
         result.sort(key=lambda x : [-sum(x[-1]), *x[-1], -x[0][0], -x[0][1]], reverse=True)
         return result
 
@@ -719,7 +763,8 @@ class ProductTable:
         return idx in self.indecomposables[y][x]
 
     def setup_class_names(self):
-        self.class_names = json.loads(pathlib.Path(config.USER_DIR / "class_names_parsed.json").read_text())
+        class_names = json.loads(pathlib.Path(config.USER_DIR / "class_names_parsed.json").read_text())
+        self.class_names = [[loc, name] for [loc,name] in class_names if len(name) != 1 or name[0][0] != "h_{0}" or loc[0] == 0]
         self.gen_degs = {}
         for [t, name] in self.class_names:
             if len(name) == 1 and name[0][1] == 1:
