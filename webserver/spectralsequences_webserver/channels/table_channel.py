@@ -202,30 +202,50 @@ class TableChannel(SocketChannel):
 # Actions:
 
     @transform_inbound_messages
-    async def transform__interact__action__a(self, envelope, bidegree, named_vecs, matrix):
+    async def transform__interact__action__a(self, envelope, cmd_list):
         envelope.mark_used()
-        if tuple(bidegree) in self.previews:
-            self.restore_bidegree_state(bidegree, self.previews.pop(tuple(bidegree)))
-        action = arguments(cmd="apply_action", bidegree=bidegree, args=[named_vecs, matrix], state=self.collect_bidegree_state(bidegree))[-1]
-        self.apply_action(bidegree, named_vecs, matrix)
-        self.undoStack.append(action)
+        for [bidegree, state] in self.previews.items():
+            self.restore_bidegree_state(bidegree, state)
+        self.previews = {}
+        cmd_list = list(itertools.chain.from_iterable(self.prepare_command(cmd) for cmd in cmd_list))
+        for cmd in cmd_list:
+            self.apply_command(cmd)
+        self.update_action_bidegrees(cmd_list)
+        self.undoStack.append(cmd_list)
         self.redoStack = []
         self.save()
         await self.chart.sseq.update_a()
 
-    def apply_action(self, bidegree, named_vecs, matrix):
+    def prepare_command(self, cmd):
+        return getattr(self, "prepare_" + cmd["type"])(**cmd)
+
+    def prepare_set_name(self, type, bidegree, named_vecs):
         [x, y] = bidegree
-        print("bidegree", bidegree, "new named vecs:", named_vecs)
-        named_vecs_dict = dict([[tuple(k), name_tools.parse_name(v)] for [k, v] in named_vecs])
-        # Make sure to set_matrix first, so if it's bad we have a chance to restore state.
-        old_matrix = self.table.basis_in_bidegree(*bidegree).matrix.to_python_matrix()
-        try:
-            self.table.basis_in_bidegree(*bidegree).set_matrix(matrix)
-        except ValueError:
-            self.table.basis_in_bidegree(*bidegree).set_matrix(old_matrix)
-            raise
-        self.table.named_vecs[y][x] = named_vecs_dict
-        self.update_bidegree(bidegree) 
+        named_vecs_parsed = [[tuple(k), name_tools.parse_name(v)] for [k, v] in named_vecs]
+        return [{ 
+            "type" : "set_name", 
+            "bidegree" : bidegree, 
+            "named_vecs" : named_vecs_parsed, 
+            "state" : list(self.table.named_vecs[y][x].items())
+        }]
+
+    def prepare_set_matrix(self, **kwargs):
+        # Check that matrix is invertible. Raise error if not, otherwise return input unchanged.
+        matrix = kwargs["matrix"]
+        bidegree = kwargs["bidegree"]
+        fp.Basis(2, len(matrix)).set_matrix(matrix)
+        kwargs["state"] = self.table.basis_in_bidegree(*bidegree).matrix.to_python_matrix()
+        return [kwargs]
+
+    def apply_command(self, cmd):
+        getattr(self, "apply_" + cmd["type"])(**cmd)
+
+    def apply_set_name(self, type, bidegree, named_vecs, state):
+        [x, y] = bidegree
+        self.table.named_vecs[y][x] = dict([tuple(k), v] for [k, v] in named_vecs)
+    
+    def apply_set_matrix(self, type, bidegree, matrix, state):
+        self.table.basis_in_bidegree(*bidegree).set_matrix(matrix)
 
     @transform_inbound_messages
     async def transform__interact__revert_preview__a(self, envelope, bidegree):
@@ -241,10 +261,34 @@ class TableChannel(SocketChannel):
             return        
         action = self.undoStack.pop()
         self.redoStack.append(action)
-        self.restore_bidegree_state(action["bidegree"], action["state"])
+        for cmd in reversed(action):
+            self.undo_cmd(cmd)
+        self.update_action_bidegrees(action)
         self.save()
         await self.chart.sseq.update_a()
 
+    def update_action_bidegrees(self, action):
+        for bidegree in set(tuple(cmd["bidegree"]) for cmd in action):
+            self.update_bidegree(bidegree)
+
+    def undo_cmd(self, cmd):
+        getattr(self, "undo_" + cmd["type"])(**cmd)
+    
+    def undo_set_name(self, bidegree, state, **kwargs):
+        [x, y] = bidegree
+        self.table.named_vecs[y][x] = dict([tuple(k), v] for [k, v] in state)
+
+    def undo_set_matrix(self, bidegree, state, **kwargs):
+        self.table.basis_in_bidegree(*bidegree).set_matrix(state)
+
+    def restore_bidegree_state(self, bidegree, state):
+        sseq = self.chart.sseq
+        [x, y] = bidegree
+        basis = state["basis"]
+        self.table.basis_in_bidegree(*bidegree).set_matrix(basis)
+        named_vecs = dict([[tuple(k),v] for [k, v] in state["named_vecs"]])
+        self.table.named_vecs[y][x] = named_vecs
+        self.update_bidegree(bidegree)
 
     @transform_inbound_messages
     async def transform__interact__redo__a(self, envelope):
@@ -254,11 +298,13 @@ class TableChannel(SocketChannel):
         action = self.redoStack.pop()
         self.undoStack.append(action)
         self.do_action(action)
+        self.update_action_bidegrees(action)
         self.save()
         await self.chart.sseq.update_a()
 
     def do_action(self, action):
-        getattr(self, action["cmd"])(action["bidegree"], *action["args"])
+        for cmd in action:
+            self.apply_command(cmd)
 
     @transform_inbound_messages
     async def transform__interact__validate__name__a(self, envelope, name):
@@ -313,14 +359,7 @@ class TableChannel(SocketChannel):
         elif indec and not named:
             c.set_color("purple")
 
-    def restore_bidegree_state(self, bidegree, state):
-        sseq = self.chart.sseq
-        [x, y] = bidegree
-        basis = state["basis"]
-        self.table.basis_in_bidegree(*bidegree).set_matrix(basis)
-        named_vecs = dict([[tuple(k),v] for [k, v] in state["named_vecs"]])
-        self.table.named_vecs[y][x] = named_vecs
-        self.update_bidegree(bidegree)
+
 
     def replace_edges(self, x, y, color = None, dash = None, line_width = None):
         sseq = self.chart.sseq
@@ -390,11 +429,15 @@ class TableChannel(SocketChannel):
     def get_monomial_name(self, tuple):
         c = self.chart.sseq.class_by_idx(*tuple)
         if hasattr(c, "monomial_name"):
-            return c.monomial_name
+            return c.monomial_name or None
 
     def get_names_info(self, bidegree):
         num_classes = len(self.chart.sseq.classes_in_bidegree(*bidegree))
-        return [(self.get_name(t), self.get_monomial_name(t)) for t in [(*bidegree, i) for i in range(num_classes)]]
+        return [
+            (self.get_name(t), self.get_monomial_name(t)) 
+            for t in 
+                [ (*bidegree, i) for i in range(num_classes) ]
+        ]
     
     def get_matrix(self, bidegree):
         (x, y) = bidegree
@@ -413,9 +456,9 @@ class TableChannel(SocketChannel):
             [n1, n2] = [(x, self.get_name(x), self.get_monomial_name(x)) for x in [in1, in2]]
             v.pack(out)
             w.set_to_zero()
-            b.apply(w, v)
-            out_name = self.table.name_to_str(self.table.get_vec_name(*bidegree, w))
-            result.append({ "left" : n1, "right" : n2, "out_res_basis" : list(w), "out_our_basis" : out,  "out_name" : out_name })
+            b.apply_inverse(w, v)
+            out_name = self.table.name_to_str(self.table.get_vec_name(*bidegree, out))
+            result.append({ "left" : n1, "right" : n2, "out_res_basis" : out, "out_our_basis" : list(w),  "out_name" : out_name })
         return result
 
     def get_filtered_decompositions(self, bidegree):
@@ -588,7 +631,60 @@ class ProductTable:
                 for [_, _, e] in product_table_entry:
                     products[ idx2 * ng1 + idx1 ][e] = 1
         return products
-    
+
+    def multiply_vectors(self, in1, in2):
+        [*t1, invec1] = in1
+        [*t2, invec2] = in2
+        ng1 = self.gens_in_bidegree(*t1)
+        ng2 = self.gens_in_bidegree(*t2)            
+        v1 = fp.FpVector(2, ng1)
+        v2 = fp.FpVector(2, ng2)
+        v1.pack(invec1)
+        v2.pack(invec2)
+        w1 = fp.FpVector(2, 0)
+        w2 = fp.FpVector(2, 0)
+        tensor = fp.FpVector(2, 0)
+        vout = fp.FpVector(2, 0)
+        wout = fp.FpVector(2, 0)
+        return multiply_vectors_helper(t1, v1, t2, v2, w1, w2, tensor, vout, wout)
+
+    def multiply_vectors_helper(self, 
+        t1, v1, t2, v2,
+            w1, w2, tensor, vout, wout
+    ):
+        [x1, y1] = t1
+        [x2, y2] = t2
+        tout = (x1 + x2, y1 + y2)
+
+        ng1 = self.gens_in_bidegree(*t1)
+        ng2 = self.gens_in_bidegree(*t2)         
+        ngout = self.gens_in_bidegree(*tout)
+
+        b1 = self.basis_in_bidegree(*t1)
+        b2 = self.basis_in_bidegree(*t2)
+        bout = self.basis_in_bidegree(*tout)
+
+        w1.set_scratch_vector_size(ng1)
+        w2.set_scratch_vector_size(ng2)
+        vout.set_scratch_vector_size(ngout)
+        wout.set_scratch_vector_size(ngout)
+        tensor.set_scratch_vector_size(ng1 * ng2)
+
+        w1.set_to_zero()
+        w2.set_to_zero()
+        vout.set_to_zero()
+        wout.set_to_zero()
+        tensor.set_to_zero()
+
+        b1.apply(w1, v1)
+        b2.apply(w2, v2)
+        tensor.add_tensor(w1, w2)
+        for i in range(ng1 * ng2):
+            if tensor[i] != 0:
+                vout.add(self.dense_products[tout][(t1, t2)][i])
+        bout.apply_inverse(wout, vout)
+        return tuple(vout)
+
     def get_decompositions(self, x, y):
         v1 = fp.FpVector(2, 0)
         w1 = fp.FpVector(2, 0)
@@ -599,47 +695,23 @@ class ProductTable:
         ngout = self.gens_in_bidegree(*tout)
         vout = fp.FpVector(2, ngout)
         wout = fp.FpVector(2, ngout)
-        bout = self.basis_in_bidegree(*tout)
         result = []
         for (t1, t2) in self.dense_products[tout]:
             ng1 = self.gens_in_bidegree(*t1)
             ng2 = self.gens_in_bidegree(*t2)            
-            b1 = self.basis_in_bidegree(*t1)
-            b2 = self.basis_in_bidegree(*t2)
             v1.set_scratch_vector_size(ng1)
-            w1.set_scratch_vector_size(ng1)
             v2.set_scratch_vector_size(ng2)
-            w2.set_scratch_vector_size(ng2)
-            tensor.set_scratch_vector_size(ng1 * ng2)
             for idx1 in range(ng1):
                 v1.set_to_zero()
-                w1.set_to_zero()
                 v1[idx1] = 1
-                b1.apply(w1, v1)
-                if w1.is_zero():
-                    continue
                 for idx2 in range(ng2):
                     v2.set_to_zero()
-                    w2.set_to_zero()
                     v2[idx2] = 1
-                    b2.apply(w2, v2)
-                    tensor.set_to_zero()
-                    try:
-                        tensor.add_tensor(w1, w2)
-                    except Exception as e:
-                        print(e)
-                        print(w1, w2, tensor)
-                        print(w1.dimension, w2.dimension, tensor.dimension)
-                        raise
-                    vout.set_to_zero()
-                    for i in range(ng1 * ng2):
-                        if tensor[i] != 0:
-                            vout.add(self.dense_products[tout][(t1, t2)][i])
-                    if vout.is_zero():
-                        continue
-                    wout.set_to_zero()
-                    bout.apply_inverse(wout, vout)
-                    result.append((t1 + (idx1,), t2 + (idx2,), tuple(wout)))
+                    product = self.multiply_vectors_helper(
+                        t1, v1, t2, v2, 
+                        w1, w2, tensor, vout, wout
+                    )
+                    result.append((t1 + (idx1,), t2 + (idx2,), product))
         result.sort(key=lambda x : [-sum(x[-1]), *x[-1], -x[0][0], -x[0][1]], reverse=True)
         return result
 
@@ -652,7 +724,9 @@ class ProductTable:
         for [t, name] in self.class_names:
             if len(name) == 1 and name[0][1] == 1:
                 self.gen_degs[name[0][0]] = t
-        self.gen_degs["P"] = [0,0,0]
+        self.gen_degs["M"] = [-4,-4,0]
+        self.gen_degs["P"] = [-3,-3,0]
+        self.gen_degs["\\Delta"] = [-1,-1,0]
         self.named_vecs = [[{} for _ in range(120)] for _ in range(120)]
         for [(x, y, idx), name] in self.class_names:
             if x >= 120 or y >= 120:
@@ -669,7 +743,12 @@ class ProductTable:
 
     def name_to_str(self, name):
         if name:
-            return monomial_name(*sorted(name, key=lambda x : self.gen_degs[x[0]] if x[0] in self.gen_degs else [10000, 10000]))
+            return monomial_name(
+                *sorted(name, 
+                    key= lambda x : 
+                        self.gen_degs[x[0]] if x[0] in self.gen_degs else [10000, 10000]
+                )
+            )
 
 
 

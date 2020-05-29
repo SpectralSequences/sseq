@@ -235,7 +235,10 @@ function main(display, socket_address){
         });
         Array.from(sidebar.querySelectorAll(".product-item"))
              .map((e,idx) => [e,idx])
-             .filter((_, idx) => product_info[idx].left[2] && product_info[idx].right[2])
+             .filter((_, idx) => 
+                product_info[idx].left[2] && product_info[idx].left[2].length > 0
+                && product_info[idx].right[2] && product_info[idx].right[2].length > 0
+            )
         .forEach(([e, idx]) => {
             e.tabIndex = 0;
             e.addEventListener("click",  () => {
@@ -262,13 +265,15 @@ function main(display, socket_address){
         // div.style.height = "90%";
     });
 
-    function setError(type, message){
+    async function setError(type, message){
         if(type !== undefined){
             let input = popup.querySelector("input");
             if(input){
+                input.setAttribute("transition", "show");
                 input.setCustomValidity(message);
             }
             let errorElt = popup.querySelector(".error");
+            errorElt.setAttribute("transition", "show");
             errorElt.classList.add("active");
             errorElt.error_type = type;
             errorElt.innerHTML = message;
@@ -283,12 +288,30 @@ function main(display, socket_address){
         if(type !== undefined && errorElt.error_type !== type){
             return;
         }
+        errorElt.setAttribute("transition", "hide");
         if(input){
+            input.setAttribute("transition", "hide");
             input.setCustomValidity("");
         }
         errorElt.classList.remove("active");
-        errorElt.innerHTML = "";
     }
+
+    function setNameCommand(bidegree, names){
+        return {
+            type : "set_name",
+            bidegree : bidegree,  
+            named_vecs : namedVecsObjToList(namedVecs)
+        };
+    }
+
+    function setMatrixCommand(bidegree, matrix){
+        return {
+            type : "set_matrix",
+            bidegree : bidegree,  
+            matrix : matrix
+        };
+    }
+
 
     async function handleNameItemClick(item_idx){
         let popup_header = popup.querySelector("[slot=header]");
@@ -315,6 +338,11 @@ function main(display, socket_address){
             if(validated){
                 clearError();
             } else {
+                let input_value = input.value;
+                await sleep(1000);
+                if(input.value !== input_value){
+                    return;
+                }
                 setError(error.name, `${error.name} column: ${error.column}`);
             }
         });
@@ -338,16 +366,12 @@ function main(display, socket_address){
         let vec = Array(names.length).fill(0).map((_e, idx) => idx === item_idx ? 1 : 0);
         namedVecs[JSON.stringify(vec)] = input.value;
         console.log("sending action");
-        socket_listener.send("interact.action", 
-            {
-                "bidegree" : selected_bidegree,  
-                "named_vecs" : namedVecsObjToList(namedVecs),
-                "matrix" : matrix
-            }
-        );        
+        socket_listener.send("interact.action", {
+            cmd_list : [setNameCommand(selected_bidegree, namedVecs)]
+        });
         socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
     }
-    
+
     async function handleProductItemClick(item_idx){
         let sseq = display.querySelector("sseq-chart").sseq;
         let jsoned_matrix = matrix.map(JSON.stringify);
@@ -393,13 +417,9 @@ function main(display, socket_address){
             return;
         }
         namedVecs[JSON.stringify(out_res_basis)] = `${name1} ${name2}`;
-        socket_listener.send("interact.action", 
-            {
-                "bidegree" : selected_bidegree,  
-                "named_vecs" : namedVecsObjToList(namedVecs),
-                "matrix" : matrix
-            }
-        );
+        socket_listener.send("interact.action", {
+            cmd_list : [setNameCommand(selected_bidegree, namedVecs)]
+        });    
         socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
     }
     
@@ -411,7 +431,7 @@ function main(display, socket_address){
         popup_header.innerText = "Update basis?";
         let new_body = document.createElement("div");
         new_body.innerHTML = `
-            Select a basis vector to replace with 
+            Select a basis vector in bidegree (${selected_bidegree.join(",")}) to replace with 
             <p><katex-expr>${name1} \\cdot ${name2} = ${JSON.stringify(out_res_basis)}</katex-expr>:</p>
             <p><sseq-matrix focus type=select-row></sseq-matrix></p>
         `;
@@ -433,8 +453,6 @@ function main(display, socket_address){
             } else {
                 socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
             }
-            console.log("      matrix:", JSON.stringify(matrix));
-            console.log("matrix_clone:", JSON.stringify(matrix_clone) );
         });
         // TODO: disable rows of matrix not set in one_entries.
         popup.show();
@@ -447,13 +465,12 @@ function main(display, socket_address){
         let replace_row = matrix_elt.selectedRows[0];
         result_matrix[replace_row] = out_res_basis;
         namedVecs[JSON.stringify(out_res_basis)] = `${name1} ${name2}`;
-        socket_listener.send("interact.action", 
-            {
-                "bidegree" : selected_bidegree,  
-                "named_vecs" : namedVecsObjToList(namedVecs),
-                "matrix" : result_matrix
-            }
-        );
+        socket_listener.send("interact.action", {
+            cmd_list : [
+                setNameCommand(selected_bidegree, namedVecs),
+                setMatrixCommand(selected_bidegree, result_matrix)
+            ]
+        });
         socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
     }
 
@@ -463,7 +480,9 @@ function main(display, socket_address){
         popup_header.innerText = "Update basis?";
         let new_body = document.createElement("div");
         new_body.innerHTML = `
+            <p> Input new basis for bidegree (${selected_bidegree.join(",")}):
             <p><sseq-matrix focus type=input></sseq-matrix></p>
+            <div class="error" style="width:fit-content; padding : 5px; padding-right : 8px;">Matrix is singular</div>
         `;
         await sleep(0); // Allow matrix to render
         popup_body.innerHTML = "";
@@ -478,6 +497,18 @@ function main(display, socket_address){
             if(JSON.stringify(matrix_elt.value) === JSON.stringify(matrix)){
                 socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
             }
+            let errorElt = popup.querySelector(".error");
+            if(singular){
+                let cur_matrix = JSON.stringify(matrix_elt.value);
+                await sleep(1000);
+                if(cur_matrix === JSON.stringify(matrix_elt.value)){
+                    errorElt.setAttribute("transition", "show");
+                    errorElt.classList.add("active");
+                }
+            } else {
+                errorElt.setAttribute("transition", "hide");
+                errorElt.classList.remove("active");
+            }
         });
         // matrix_elt.addEventListener("blur", (e) => console.log("blurred", e));
         popup.show();
@@ -486,13 +517,9 @@ function main(display, socket_address){
             socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
             return;
         }
-        socket_listener.send("interact.action", 
-            {
-                "bidegree" : selected_bidegree,  
-                "named_vecs" : namedVecsObjToList(namedVecs),
-                "matrix" : matrix_elt.value
-            }
-        );
+        socket_listener.send("interact.action", {
+            cmd_list : [ setMatrixCommand(selected_bidegree, matrix_elt.value) ]
+        });        
         socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
     }
 
@@ -594,23 +621,29 @@ function main(display, socket_address){
             return;
         }
         if(e.code.startsWith("Arrow")){
-            handleArrow(e);
+            let direction = e.code.slice("Arrow".length).toLowerCase();
+            let dx = {"up" : 0, "down" : 0, "left" : -1, "right" : 1}[direction];
+            let dy = {"up" : 1, "down" : -1, "left" : 0, "right" : 0}[direction];
+            handleArrow(e, dx, dy);
         }
         if(e.code.startsWith("Digit")){
             handleDigit(e);
         }
         if(["+","-"].includes(e.key)){
-            handlePM(e);
+            let dir = {"+" : 1, "-" : -1}[e.key];
+            handlePM(e, dir);
+        }
+        if(["w", "a", "s", "d"].includes(e.key)){
+            let dx = {"w" : 0, "s" : 0, "a" : -1, "d" : 1}[e.key];
+            let dy = {"w" : 1, "s" : -1, "a" : 0, "d" : 0}[e.key];            
+            handleWASD(e, dx, dy);
         }
     }
 
-    let handleArrow = throttle(75, { trailing : false })(function handleArrow(e){
+    let handleArrow = throttle(75, { trailing : false })(function handleArrow(e, dx, dy){
         if(!selected_bidegree){
             return;
         }
-        let direction = e.code.slice("Arrow".length).toLowerCase();
-        let dx = {"up" : 0, "down" : 0, "left" : -1, "right" : 1}[direction];
-        let dy = {"up" : 1, "down" : -1, "left" : 0, "right" : 0}[direction];
         let [x, y] = selected_bidegree;
         x += dx;
         y += dy;
@@ -622,6 +655,10 @@ function main(display, socket_address){
         select_bidegree(x, y);
     });
     
+    let handleWASD = (function handleArrow(e, dx, dy){
+        let s = 8;
+        display.translateBy( - dx * s, dy * s);
+    });
 
     let handlePM = throttle(75, { trailing : false })(function handleArrow(e){
         let d = {"+" : 1, "-" : -1}[e.key];
@@ -660,6 +697,10 @@ function main(display, socket_address){
             socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
         }
     });
+
+    window.addEventListener("beforeunload", (e) => { 
+        popup.cancel();
+    })
 
     socket_listener.start();
 }

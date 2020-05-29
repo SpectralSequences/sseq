@@ -14,7 +14,10 @@ _name_parser = Lark("""
 
     sup : "^" arg
 
-    gen : /[A-Za-z]/
+    ?gen : gen_singleton | gen_macro | ( "(" " "* gen_singleton " "* ")" ) | ( "(" " "* gen_macro " "* ")" )| gen_parens 
+    gen_singleton : /[A-Za-z]/
+    gen_macro : /\\\\[A-Za-z]+/
+    gen_parens : "(" /((\\\\[A-Za-z]+)|[\w^ ])+/ ")"
 
     ?arg : ("{" /[0-9]+/ "}") | /[0-9]+/
 
@@ -23,8 +26,19 @@ _name_parser = Lark("""
 
 from lark import Tree, Transformer
 class EvalName(Transformer):
-    def gen(self, args):
-       return str(args[0])
+    def gen_parens(self, args):
+        import re
+        result = re.sub("\\\\[A-Za-z]*", "\g<0>!!!!", args[0])\
+                   .replace(" ", "")\
+                   .replace("!!!!", " ")\
+                   .strip()
+        return "(" + result + ")"
+
+    def gen_singleton(self, args):
+        return str(args[0]).strip()
+
+    def gen_macro(self, args):
+        return str(args[0]).strip()
 
     def sub(self, args):
         return ["add_to_var", f"_{{{args[0]}}}"]
@@ -55,8 +69,11 @@ _name_evaluator = EvalName()
 
 def parse_name(name):
     t = _name_parser.parse(name)
+    return reduce_monomial(_name_evaluator.transform(t))
+
+def reduce_monomial(mono):
     result = {}
-    for [k, v] in _name_evaluator.transform(t):
+    for [k, v] in mono:
         result[k] = result.get(k, 0) + v
     return list(result.items())
 
