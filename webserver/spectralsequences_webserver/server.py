@@ -43,12 +43,12 @@ def serve(channel, name = None):
     if name in served_channels:
         served_channels[name].remove_routes(app)
     served_channels[name] = channel
-    print(f"""Serving {channel.__name__} as "{name}" """)
+    print(f"""Serving {channel.__name__} as "{name}".""")
     channel.serve(app, repl, host, port, name)
 
 @run_main
 async def main():
-    print(ansi.success("Starting server"))
+    print(ansi.success(f"""Starting server. Listening on port {port}. Visit "localhost:{port}/<channel_name>/<file_name>" to use."""))
     channels = {}
 
     templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
@@ -74,37 +74,6 @@ async def main():
     # serve(InteractChannel, "interact")
     # serve(SlideshowChannel, "slideshow")
     # serve(PresentationChannel, "presentation")
-    # serve(ResolverChannel, "resolver")
+    serve(ResolverChannel, "resolver")
     # serve(TestChannel, "test")
     serve(TableChannel)
-
-    print("""Executing user "on_repl_init" file.""")
-
-
-
-    # TODO: clean this crap up.
-
-
-    @app.get("/anss-S0.html")
-    async def get_anss_S0():
-        return FileResponse(config.TEMPLATE_DIR / "anss-S0.html")
-
-    @app.get("/anss-S0.json")
-    async def get_anss_S0_json():
-        return FileResponse(config.USER_DIR / "anss-S0_2020-04-03T15-43-48.json")
-
-    @app.get("/anss-S0-with-J.html")
-    async def get_S0_with_J_html():
-        return FileResponse(config.TEMPLATE_DIR / "anss-S0-with-J.html")
-
-    @app.get("/anss-S0-with-J.json")
-    async def get_S0_with_J_json():
-        return FileResponse(config.USER_DIR / "anss-S0-with-J_2020-04-03T20-09-21.json")
-
-    @app.get("/overlay-test.svg")
-    async def get_test_overlay():
-        return FileResponse(config.USER_DIR / "anss-labels-white.svg")
-    
-    @app.get("/overlay/{file_name}")
-    async def get_overlay(request: Request, file_name : str):
-        return FileResponse(config.OVERLAY_DIR / file_name);
