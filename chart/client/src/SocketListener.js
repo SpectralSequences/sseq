@@ -37,6 +37,9 @@ export class SocketListener {
         this.websocket.onmessage = this.onmessage.bind(this);
         this.websocket.onopen = this.onopen.bind(this);
         this.message_dispatch = {};
+        this.promise_filters = {};
+        this.promises = {};
+        this.promise_resolves = {};
         this.debug_mode = false;
     }
 
@@ -44,12 +47,38 @@ export class SocketListener {
         this.message_dispatch[cmd_filter] = handler;
     }
 
-
     add_message_handlers_from_object(handlers) {
         for(let [cmd_filter, handler] of Object.entries(handlers)) {
             this.add_message_handler(cmd_filter, handler.bind(this));
         }
     }    
+
+    add_promise_message_handler(cmd_filter) {
+        this.promise_filters[cmd_filter] = true;
+        this.add_message_handler(cmd_filter, (cmd, args, kwargs) => {
+            if(!this.promise_filters[cmd_filter]){
+                throw Error(`Unexpected promise-handled message.`);
+            }
+            this.promise_resolves[cmd_filter]([cmd, args, kwargs]);
+            delete this.promise_resolves[cmd_filter];
+        });
+    }
+
+    new_message_promise(cmd_filter){
+        if(this.promise_resolves[cmd_filter]){
+            throw Error(`Already waiting on ${cmd_filter}`);
+        }
+        this.promises[cmd_filter] 
+            = new Promise(resolve => this.promise_resolves[cmd_filter] = resolve);
+        return this.promises[cmd_filter];
+    }
+
+    get_message_promise(cmd_filter){
+        if(!this.promises[cmd_filter]){
+            this.new_message_promise(cmd_filter);
+        }
+        return this.promises[cmd_filter];
+    }
 
     start() {
         this.console_log_if_debug("client ready");

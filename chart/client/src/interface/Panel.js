@@ -219,5 +219,15 @@ export class Panel extends LitElement {
         //     throw TypeError("Expected argument to be an HTML element, a String selector, or a list of elements");
         // }
     }
+
+    focus(){
+        let focusElt = this.querySelector("[focus][tabindex='0']");
+        if(focusElt){
+            focusElt.focus();
+        } else {
+            this.closest("sseq-ui").focus();
+        }
+        return this;
+    }    
 }
 customElements.define('sseq-panel', Panel);

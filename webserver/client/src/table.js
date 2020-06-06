@@ -15,7 +15,7 @@ import { ClassHighlighter } from "chart/interface/ClassHighlighter";
 import { BidegreeHighlighter } from "chart/interface/BidegreeHighlighter";
 import { SseqPageIndicator } from "chart/interface/SseqPageIndicator.js";
 import { Tooltip } from "chart/interface/Tooltip.js";
-
+import {Mutex, Semaphore, withTimeout} from 'async-mutex';
 
 
 import { Panel } from "chart/interface/Panel.js";
@@ -26,151 +26,106 @@ import { Popup } from "chart/interface/Popup.js";
 import { sleep, promiseFromDomEvent, throttle } from "chart/interface/utils.js";
 
 window.SseqSocketListener = SseqSocketListener;
+window.UIElement = UIElement;
+
+function namedVecsListToObj(namedVecs){
+    let result = {};
+    for(let [k, v] of namedVecs){
+        result[JSON.stringify(k)] = v;
+    }
+    return result;
+}
+
+function namedVecsObjToList(namedVecs){
+    let result = [];
+    for(let [k, v] of Object.entries(namedVecs)){
+        result.push([JSON.parse(k), v]);
+    }
+    return result;
+}
 
 
-window.main = main;
+function setNameCommand(bidegree, res_basis_vec,  our_basis_vec,  name){
+    return {
+        type : "set_name",
+        bidegree : bidegree,  
+        vec : res_basis_vec,
+        our_basis_vec : our_basis_vec,
+        name : name
+    };
+}
 
-function main(display, socket_address){
+function setMatrixCommand(bidegree, matrix, changedRows){
+    return {
+        type : "set_matrix",
+        bidegree : bidegree,  
+        matrix : matrix,
+        changedRows : changedRows
+    };
+}
 
-    let ws = new ReconnectingWebSocket(socket_address, [], 
-        {
-            /** debug : true, /**/
-            minReconnectionDelay: 100,
-            maxReconnectionDelay: 1000,
-        }
-    );
-    window.socket_listener = new SseqSocketListener(ws);
-    socket_listener.attachDisplay(display);
-    Mousetrap.prototype.stopCallback = stopCallback;
-    function stopCallback(e, element, combo){
-        // Find the correct target of the event inside the shadow dom
-        while(element.shadowRoot && element.shadowRoot.activeElement){
-            element = element.shadowRoot.activeElement;
-        }
-        // if the element has the class "mousetrap" then no need to stop
-        if(element.matches(".mousetrap")) {
-            return false;
-        }
-        // Is the key printable?
-        let keyCode = e.keyCode;
-        let printable = 
-            (keyCode >= 48 && keyCode < 58) // number keys
-            || keyCode == 32 // space
-            || (keyCode >= 37 && keyCode < 41) // Arrow keys (okay technically not printable but they do things in text boxes)
-            || (keyCode >= 65 && keyCode < 91)    // letter keys
-            || (keyCode >= 96 && keyCode < 112)   // numpad keys
-            || (keyCode >= 186 && keyCode < 193)  // ;=,-./` (in order)
-            || (keyCode >= 219 && keyCode < 223)  // [\]' (in order
-            ||  ["t", "z"].includes(e.key) ;   // Why is this here?
 
-        // Is the element a text input?
-        let in_text_input = element.matches("input, select, textarea") || (element.contentEditable && element.contentEditable == 'true');
-        return printable && in_text_input;
+class TableUI {
+    constructor(uiElement, socket_address){
+        this.ws = new ReconnectingWebSocket(socket_address, [], 
+            {
+                /** debug : true, /**/
+                minReconnectionDelay: 100,
+                maxReconnectionDelay: 1000,
+            }
+        );
+        this.uiElement = uiElement;
+        this.display = uiElement.querySelector("sseq-display")
+        this.socket_listener = new SseqSocketListener(this.ws);
+        this.socket_listener.attachDisplay(this.display);
+        this.popup = uiElement.querySelector("sseq-popup");
+        this.sidebar = uiElement.querySelector("sseq-panel");
+        this.undoMutex = withTimeout(new Mutex(), 100);
+        window.addEventListener("beforeunload", (e) => { 
+            this.popup.cancel();
+        });
     }
 
-    Mousetrap.bind("t", () => {
-        socket_listener.send("console.take", {});
-    });
+    start(){
+        this.setupUIBindings();
+        this.setupSocketMessageBindings();        
+        this.socket_listener.start();
+    }
 
-    let enterPressed = false;
-    let spacePressed = false;
-    Mousetrap.bind("enter", handleEnter, "keydown");
-    Mousetrap.bind("enter", () => { enterPressed = false; }, "keyup");
-    Mousetrap.bind("space", handleSpace, "keydown");
-    Mousetrap.bind("space", () => { spacePressed = false; }, "keyup");
+    setupSocketMessageBindings(){
+        this.socket_listener.add_promise_message_handler("interact.product_info");
+        this.socket_listener.add_promise_message_handler("interact.validate.name");
+        this.socket_listener.add_promise_message_handler("interact.validate.matrix");
+        this.socket_listener.add_promise_message_handler("interact.action_info");
+    }
 
-    function handleSpace(e){
-        if(spacePressed){
-            return
-        }
-        spacePressed = true;
-        let elt = document.activeElement;
-        if(!elt){
+    async updateProductInfo(){
+        if(!this.selected_bidegree){
             return;
         }
-        while(elt.shadowRoot && elt.shadowRoot.activeElement){
-            elt = elt.shadowRoot.activeElement;
-        }
-        elt.dispatchEvent(new CustomEvent("interact-toggle", {
-            bubbles : true,
-            composed : true,
-            detail : { "originalEvent" : e }
-        }));
-    }
-
-    function handleEnter(e){
-        if(enterPressed){
-            return
-        }
-        enterPressed = true;        
-        let elt = document.activeElement;
-        if(!elt){
-            return;
-        }
-        while(elt.shadowRoot && elt.shadowRoot.activeElement){
-            elt = elt.shadowRoot.activeElement;
-        }
-        elt.dispatchEvent(new CustomEvent("interact-submit", {
-            bubbles : true,
-            composed : true,
-            detail : { "originalEvent" : e }
-        }));
-    }
-
-    let popup = document.querySelector("sseq-popup");
-    let sidebar = document.querySelector("sseq-panel");
-    sidebar.addEventListener("interact-toggle", () => {
-        document.activeElement.click();
-    });
-    sidebar.addEventListener("interact-submit", () => {
-        document.activeElement.click();
-    });
-
-    function namedVecsListToObj(namedVecs){
-        let result = {};
-        for(let [k, v] of namedVecs){
-            result[JSON.stringify(k)] = v;
-        }
-        return result;
-    }
-
-    function namedVecsObjToList(namedVecs){
-        let result = [];
-        for(let [k, v] of Object.entries(namedVecs)){
-            result.push([JSON.parse(k), v]);
-        }
-        return result;
-    }
-
-
-    let names;
-    let namedVecs;
-    let nameMonos;
-    let product_info;
-    let matrix;
-    let selected_bidegree;
-    socket_listener.add_message_handler("interact.product_info", async function(cmd, args, kwargs){
-        let sseq = display.querySelector("sseq-chart");
-        namedVecs = namedVecsListToObj(kwargs.named_vecs);
-        names = [];
-        nameMonos = [];
+        this.socket_listener.send("interact.select_bidegree", {"bidegree" : this.selected_bidegree});
+        let [_cmd, _args, kwargs] = await this.socket_listener.new_message_promise("interact.product_info");
+        let sseq = this.uiElement.querySelector("sseq-chart");
+        this.namedVecs = namedVecsListToObj(kwargs.named_vecs);
+        this.names = [];
+        this.nameMonos = [];
         for(let [name, mono] of kwargs.names){
-            names.push(name);
-            nameMonos.push(mono);
+            this.names.push(name);
+            this.nameMonos.push(mono);
         }
         let selectedIndex = undefined;
-        if(document.activeElement.closest("sseq-panel")){
-            selectedIndex = sidebar.querySelectorAll("[tabindex='0']");
+        if(document.activeElement && document.activeElement.closest("sseq-panel")){
+            selectedIndex = this.sidebar.querySelectorAll("[tabindex='0']");
             selectedIndex = selectedIndex && Array.from(selectedIndex);
             selectedIndex = selectedIndex && selectedIndex.indexOf(document.activeElement);
         }
         let name_group = 1;
         let group = name_group;
-        product_info = kwargs.product_info;
-        matrix = kwargs.matrix;
+        this.product_info = kwargs.product_info;
+        this.matrix = kwargs.matrix;
         let result = [];
         let out_vecs = {};
-        for(let { left : [in1,name1, ], right : [in2, name2, ], out_name, out_res_basis} of product_info){
+        for(let { left : [in1,name1, ], right : [in2, name2, ], out_name, out_res_basis} of this.product_info){
             let name_str = "";
             if(out_name){
                 name_str = `{}= ${out_name}`
@@ -182,14 +137,14 @@ function main(display, socket_address){
             result.push([`${name1} \\cdot ${name2} = ${JSON.stringify(out_res_basis)}`, name_str, group]);
         }
         let matrix_group = group + 1;
-        let bidegree_html = `<h4>Bidegree (${selected_bidegree.join(", ")})</h4>`;
+        let bidegree_html = `<h4>Bidegree (${this.selected_bidegree.join(", ")})</h4>`;
         let class_html = "";
         let product_html = "";
         let matrix_html = "";
         class_html = `
             <h5>Classes</h5>
             <p style="align-self: center;">
-                ${names.map(e => `<katex-expr class="name" group="${name_group}">${e}</katex-expr>`)
+                ${this.names.map(e => `<katex-expr class="name" group="${name_group}">${e}</katex-expr>`)
                         .join(`, <span style="padding-right:6pt; display:inline-block;"></span>`)}
             </p>
         `;        
@@ -214,66 +169,70 @@ function main(display, socket_address){
             <h5 style="margin-top:12pt;">Matrix</h5>
             <sseq-matrix style="align-self:center;" group="${matrix_group}"></sseq-matrix>
         `;
-        sidebar.querySelector("#product-info-bidegree").innerHTML = bidegree_html;
-        sidebar.querySelector("#product-info-classes").innerHTML = class_html;
-        sidebar.querySelector("#product-info-products").innerHTML = product_html;
-        sidebar.querySelector("#product-info-matrix").innerHTML = matrix_html;
-        let matrixElt = sidebar.querySelector("sseq-matrix");
-        matrixElt.value = matrix;
-        matrixElt.labels = names.map((n, idx) => nameMonos[idx] ? n : "");
+        this.sidebar.querySelector("#product-info-bidegree").innerHTML = bidegree_html;
+        this.sidebar.querySelector("#product-info-classes").innerHTML = class_html;
+        this.sidebar.querySelector("#product-info-products").innerHTML = product_html;
+        this.sidebar.querySelector("#product-info-matrix").innerHTML = matrix_html;
+        let matrixElt = this.sidebar.querySelector("sseq-matrix");
+        matrixElt.value = this.matrix;
+        matrixElt.labels = this.names.map((n, idx) => this.nameMonos[idx] ? n : "");
         matrixElt.tabIndex = '0';
         matrixElt.addEventListener("click",  () => {
-            handleMatrixEditClick();
+            this.handleMatrixEditClick();
         });
-        sidebar.displayChildren("#product-info");
+        this.sidebar.displayChildren("#product-info");
 
-        sidebar.querySelectorAll(".name").forEach((e, idx) => {
+        this.sidebar.querySelectorAll(".name").forEach((e, idx) => {
             e.tabIndex = 0;
             e.addEventListener("click",  () => {
-                handleNameItemClick(idx);
+                this.handleNameItemClick(idx);
                 // socket_listener.send("interact.click_product", {"bidegree" : sseq._selected_bidegree, "idx" : idx});
             });
         });
-        Array.from(sidebar.querySelectorAll(".product-item"))
+        Array.from(this.sidebar.querySelectorAll(".product-item"))
              .map((e,idx) => [e,idx])
              .filter((_, idx) => 
-                product_info[idx].left[2] && product_info[idx].left[2].length > 0
-                && product_info[idx].right[2] && product_info[idx].right[2].length > 0
+             this.product_info[idx].left[2] && this.product_info[idx].left[2].length > 0
+                && this.product_info[idx].right[2] && this.product_info[idx].right[2].length > 0
             )
         .forEach(([e, idx]) => {
             e.tabIndex = 0;
             e.addEventListener("click",  () => {
-                handleProductItemClick(idx);
+                this.handleProductItemClick(idx);
                 // socket_listener.send("interact.click_product", {"bidegree" : sseq._selected_bidegree, "idx" : idx});
             });
         });
 
         await sleep(0);
 
-        let focusElt;
-        if(selectedIndex){
-            focusElt = sidebar.querySelectorAll("[tabindex='0']")[selectedIndex];
-        }
-        focusElt = focusElt || sidebar.querySelector(".product-item[tabindex='0']");
-        focusElt = focusElt || sidebar.querySelector("[tabindex='0']");
-        if(focusElt){
-            focusElt.focus();
-            sleep(50).then(() => focusElt.focus());
-        }        
+        this.updateFocus(selectedIndex);
 
         // div.style.display = "flex";
         // div.style.flexDirection = "column";
         // div.style.height = "90%";
-    });
+    }
 
-    async function setError(type, message){
+    async updateFocus(selectedIndex){
+        let focusElt;
+        if(selectedIndex){
+            focusElt = this.sidebar.querySelectorAll("[tabindex='0']")[selectedIndex];
+        }
+        focusElt = focusElt || this.sidebar.querySelector(".product-item[tabindex='0']");
+        focusElt = focusElt || this.sidebar.querySelector("[tabindex='0']");
+        focusElt = focusElt || this.uiElement;
+        focusElt.focus();
+        await sleep(50);
+        focusElt.focus();
+    }
+
+    async setError(type, message){
         if(type !== undefined){
-            let input = popup.querySelector("input");
+            let input = this.popup.querySelector("input");
             if(input){
                 input.setAttribute("transition", "show");
                 input.setCustomValidity(message);
             }
-            let errorElt = popup.querySelector(".error");
+            let errorElt = this.popup.querySelector(".error");
             errorElt.setAttribute("transition", "show");
             errorElt.classList.add("active");
             errorElt.error_type = type;
@@ -283,9 +242,9 @@ function main(display, socket_address){
         }
     }
 
-    function clearError(type){
-        let input = popup.querySelector("input");
-        let errorElt = popup.querySelector(".error");
+    clearError(type){
+        let input = this.popup.querySelector("input");
+        let errorElt = this.popup.querySelector(".error");
         if(type !== undefined && errorElt.error_type !== type){
             return;
         }
@@ -297,32 +256,15 @@ function main(display, socket_address){
         errorElt.classList.remove("active");
     }
 
-    function setNameCommand(bidegree, vec, name){
-        return {
-            type : "set_name",
-            bidegree : bidegree,  
-            vec : vec,
-            name : name
-        };
-    }
-
-    function setMatrixCommand(bidegree, matrix){
-        return {
-            type : "set_matrix",
-            bidegree : bidegree,  
-            matrix : matrix
-        };
-    }
-
-
-    async function handleNameItemClick(item_idx){
-        let popup_header = popup.querySelector("[slot=header]");
-        let popup_body = popup.querySelector("[slot=body]");
-        let hasName = nameMonos[item_idx] !== null;
-        let name = names[item_idx];
+    async handleNameItemClick(item_idx){
+        let selected_bidegree = this.selected_bidegree;
+        let popup_header = this.popup.querySelector("[slot=header]");
+        let popup_body = this.popup.querySelector("[slot=body]");
+        let hasName = this.nameMonos[item_idx] !== null;
+        let name = this.names[item_idx];
         let nameWord = hasName ? "Rename" : "Name";
         popup_header.innerText = `${nameWord} class?`;
-        let tuple = [...selected_bidegree, item_idx];
+        let tuple = [...this.selected_bidegree, item_idx];
         popup_body.innerHTML =`   
             Input ${hasName ? "new " : ""}name for class (${tuple.join(", ")}):
             <input type="text" focus style="width : 100%; margin-top : 0.6rem;">
@@ -331,51 +273,59 @@ function main(display, socket_address){
         let input = popup_body.querySelector("input");
         input.addEventListener("focus", () => {
             input.select();
-            clearError("UnexpectedEOF");
+            this.clearError("UnexpectedEOF");
         });
         input.addEventListener("input", async () => {
-            let [validated, error] = await validateName(input.value);
-            popup.okEnabled = validated;
+            let {validated, error} = await this.validateName(input.value);
+            this.popup.okEnabled = validated;
             validated = validated || error.name === "UnexpectedEOF";
             if(validated){
-                clearError();
+                this.clearError();
             } else {
                 let input_value = input.value;
                 await sleep(1000);
                 if(input.value !== input_value){
                     return;
                 }
-                setError(error.name, `${error.name} column: ${error.column}`);
+                this.setError(error.name, `${error.name} column: ${error.column}`);
             }
         });
         input.addEventListener("blur", async () => {
-            let [validated, error] = await validateName(input.value);
-            popup.okEnabled = validated;
+            let {validated, error} = await this.validateName(input.value);
+            this.popup.okEnabled = validated;
             if(validated){
-                clearError();
+                this.clearError();
             } else {
-                setError(error.name, error.name);
+                this.setError(error.name, error.name);
             }
         });        
         if(hasName){
             input.value = name;
         }
-        popup.show();
-        let ok_q = await popup.submited();
+        this.popup.show();
+        let ok_q = await this.popup.submited();
         if(!ok_q){
             return;
         }
-        let vec = Array(names.length).fill(0).map((_e, idx) => idx === item_idx ? 1 : 0);
-        socket_listener.send("interact.action", {
-            cmd_list : [setNameCommand(selected_bidegree, vec, input.value)]
+        let vec = this.matrix[item_idx];
+        let our_basis_vec = Array(this.matrix.length).fill(0);
+        our_basis_vec[item_idx] = 1;
+        let named_class = [...selected_bidegree, item_idx];
+        this.socket_listener.send("interact.action", {
+            action : { 
+                root_bidegree : selected_bidegree,
+                cmd_list : [setNameCommand(selected_bidegree, vec, our_basis_vec, input.value)] ,
+                description : `Named class (${named_class.join(", ")}) as <katex-expr>${input.value}</katex-expr>.`
+            }
         });
-        socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
+        this.updateProductInfo();
+        this.waitForActionInfoAndDisplayIt("Completed action:");
     }
 
-    async function handleProductItemClick(item_idx){
+    async handleProductItemClick(item_idx){
         let sseq = display.querySelector("sseq-chart").sseq;
-        let jsoned_matrix = matrix.map(JSON.stringify);
-        let product_data = product_info[item_idx];
+        let jsoned_matrix = this.matrix.map(JSON.stringify);
+        let product_data = this.product_info[item_idx];
         let { left : [in1, ,], right : [in2, ,], out_our_basis, out_res_basis } = product_data;
         let one_entries = [];
         out_our_basis.forEach((v, idx) => {
@@ -389,44 +339,54 @@ function main(display, socket_address){
         for(let idx of one_entries){
             highlightClasses.push(sseq.class_by_index(...out_deg, idx));
         }
-        let class_highlighter = document.querySelector("sseq-class-highlighter");
+        let class_highlighter = this.uiElement.querySelector("sseq-class-highlighter");
         class_highlighter.clear();
-        class_highlighter.fire(highlightClasses, 0.8);        
+        class_highlighter.fire(highlightClasses, 0.8);
+        // .then(() => {
+        //     class_highlighter.hideClasses(highlightClasses);
+        // });
         if(inbasis){
             let out_tuple = [...out_deg, one_entries[0]];
-            await handleProductItemClick_inBasis(product_data, out_tuple );
+            await this.handleProductItemClick_inBasis(product_data, out_tuple );
         } else {
-            await handleProductItemClick_changeBasis(product_data, out_our_basis);
+            await this.handleProductItemClick_changeBasis(product_data, out_our_basis);
         }
     }
 
-    async function handleProductItemClick_inBasis(product_data, out_tuple){
-        let { left : [, name1,], right : [, name2,], out_name, out_res_basis } = product_data;
-        popup.okEnabled = true;
-        let popup_header = popup.querySelector("[slot=header]");
-        let popup_body = popup.querySelector("[slot=body]");
+    async handleProductItemClick_inBasis(product_data, out_tuple){
+        let { left : [, name1,], right : [, name2,], out_name, out_res_basis, out_our_basis } = product_data;
+        let selected_bidegree = this.selected_bidegree;
+        this.popup.okEnabled = true;
+        let popup_header = this.popup.querySelector("[slot=header]");
+        let popup_body = this.popup.querySelector("[slot=body]");
         let nameWord = out_name ? "Rename" : "Name";
         popup_header.innerText = `${nameWord} class?`;
         popup_body.innerHTML = `
             <p>${nameWord} class (${out_tuple.join(", ")}) as <katex-expr>${name1}\\cdot ${name2}</katex-expr>?</p>
             ${out_name ? `<p>Current name is <katex-expr>${out_name}</katex-expr>.</p>` : ``}
         `;
-        popup.show();
-        let ok_q = await popup.submited();
+        this.popup.show();
+        let ok_q = await this.popup.submited();
         if(!ok_q){
             return;
         }
-        socket_listener.send("interact.action", {
-            cmd_list : [setNameCommand(selected_bidegree, out_res_basis, `${name1} ${name2}`)]
+        this.socket_listener.send("interact.action", {
+            action : {
+                root_bidegree : selected_bidegree,
+                cmd_list : [setNameCommand(selected_bidegree, out_res_basis, out_our_basis, `${name1} ${name2}`)],
+                description : `Named class (${out_tuple.join(", ")}) as the product "<katex-expr>${name1}\\cdot ${name2}</katex-expr>."`
+            }
         });    
-        socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
+        this.updateProductInfo();
+        this.waitForActionInfoAndDisplayIt("Completed action:");
     }
     
-    async function handleProductItemClick_changeBasis(product_data, out_our_basis){
-        popup.okEnabled = false;
+    async handleProductItemClick_changeBasis(product_data, out_our_basis){
+        this.popup.okEnabled = false;
+        let selected_bidegree = this.selected_bidegree;
         let {left : [, name1, ], right :[, name2, ], out_res_basis} = product_data;
-        let popup_header = popup.querySelector("[slot=header]");
-        let popup_body = popup.querySelector("[slot=body]");        
+        let popup_header = this.popup.querySelector("[slot=header]");
+        let popup_body = this.popup.querySelector("[slot=body]");
         popup_header.innerText = "Update basis?";
         let new_body = document.createElement("div");
         new_body.innerHTML = `
@@ -438,44 +398,53 @@ function main(display, socket_address){
         popup_body.innerHTML = "";
         popup_body.appendChild(new_body);
         let matrix_elt = new_body.querySelector("sseq-matrix");
-        matrix_elt.value = matrix;
-        matrix_elt.labels = names;
+        matrix_elt.value = this.matrix;
+        matrix_elt.labels = this.names;
         matrix_elt.enabledRows = out_our_basis.map(e => e !== 0);
-        popup.okEnabled = false;
+        this.popup.okEnabled = false;
         matrix_elt.addEventListener("matrix-select", (e) => {
-            popup.okEnabled = matrix_elt.selectedRows.length > 0;
+            this.popup.okEnabled = matrix_elt.selectedRows.length > 0;
             if(matrix_elt.selectedRows.length > 0){
-                let matrix_clone = matrix.map(r => r.slice());
+                let matrix_clone = this.matrix.map(r => r.slice());
                 let replace_row = matrix_elt.selectedRows[0];
                 matrix_clone[replace_row] = out_res_basis;
-                validateMatrix(selected_bidegree, matrix_clone);
+                this.validateMatrix(selected_bidegree, matrix_clone);
             } else {
-                socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
+                this.socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
             }
         });
         // TODO: disable rows of matrix not set in one_entries.
-        popup.show();
-        let ok_q = await popup.submited();
+        this.popup.show();
+        let ok_q = await this.popup.submited();
         if(!ok_q){
-            socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
+            this.socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
             return;
         }
         let result_matrix = matrix_elt.value;
         let replace_row = matrix_elt.selectedRows[0];
         result_matrix[replace_row] = out_res_basis;
-        socket_listener.send("interact.action", {
-            cmd_list : [
-                setNameCommand(selected_bidegree, out_res_basis, `${name1} ${name2}`),
-                setMatrixCommand(selected_bidegree, result_matrix)
-            ]
+        let updated_basis_vec = Array(result_matrix.length).fill(0);
+        updated_basis_vec[replace_row] = 1;
+        let class_index = [...selected_bidegree, replace_row];
+        this.socket_listener.send("interact.action", {
+            action : {
+                root_bidegree : selected_bidegree,
+                cmd_list : [
+                    setNameCommand(selected_bidegree, out_res_basis, updated_basis_vec, `${name1} ${name2}`),
+                    setMatrixCommand(selected_bidegree, result_matrix, [replace_row])
+                ],
+                description : `Replaced the basis vector for (${class_index.join(", ")}) with the product "<katex-expr>${name1}\\cdot ${name2}</katex-expr>."`
+            }
         });
-        socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
+        this.updateProductInfo();
+        this.waitForActionInfoAndDisplayIt("Completed action:");
     }
 
-    async function handleMatrixEditClick(){
-        let popup_header = popup.querySelector("[slot=header]");
-        let popup_body = popup.querySelector("[slot=body]");        
+    async handleMatrixEditClick(){
+        let popup_header = this.popup.querySelector("[slot=header]");
+        let popup_body = this.popup.querySelector("[slot=body]");        
         popup_header.innerText = "Update basis?";
+        let selected_bidegree = this.selected_bidegree;
         let new_body = document.createElement("div");
         new_body.innerHTML = `
             <p> Input new basis for bidegree (${selected_bidegree.join(",")}):
@@ -486,16 +455,16 @@ function main(display, socket_address){
         popup_body.innerHTML = "";
         popup_body.appendChild(new_body);
         let matrix_elt = new_body.querySelector("sseq-matrix");
-        matrix_elt.value = matrix.map(e => e.slice());
-        matrix_elt.labels = names;
+        matrix_elt.value = this.matrix.map(e => e.slice());
+        matrix_elt.labels = this.names;
         matrix_elt.addEventListener("change", async (e) => {
-            let { singular, row_labels } = await validateMatrix(selected_bidegree, matrix_elt.value);
-            popup.okEnabled = !singular;
+            let { singular, row_labels } = await this.validateMatrix(selected_bidegree, matrix_elt.value);
+            this.popup.okEnabled = !singular;
             matrix_elt.labels = row_labels;
-            if(JSON.stringify(matrix_elt.value) === JSON.stringify(matrix)){
-                socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
+            if(JSON.stringify(matrix_elt.value) === JSON.stringify(this.matrix)){
+                this.socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
             }
-            let errorElt = popup.querySelector(".error");
+            let errorElt = this.popup.querySelector(".error");
             if(singular){
                 let cur_matrix = JSON.stringify(matrix_elt.value);
                 await sleep(1000);
@@ -509,140 +478,142 @@ function main(display, socket_address){
             }
         });
         // matrix_elt.addEventListener("blur", (e) => console.log("blurred", e));
-        popup.show();
-        let ok_q = await popup.submited();
+        this.popup.show();
+        let ok_q = await this.popup.submited();
         if(!ok_q){
-            socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
+            this.socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
             return;
         }
-        socket_listener.send("interact.action", {
-            cmd_list : [ setMatrixCommand(selected_bidegree, matrix_elt.value) ]
+        let changedRows = [];
+        let originalRows = this.matrix.map((r) => r.join(","));
+        let newRows = matrix_elt.value.map((r) => r.join(","));
+        for(let r = 0; r < newRows.length; r++){
+            if(newRows[r] !== originalRows[r]){
+                changedRows.push(r);
+            }
+        }
+        this.socket_listener.send("interact.action", {
+            action : {
+                root_bidegree : selected_bidegree,
+                cmd_list : [ setMatrixCommand(selected_bidegree, matrix_elt.value, changedRows) ],
+                description : `Changed the basis in bidegree (${selected_bidegree.join(", ")})`
+            }
         });        
-        socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
+        this.updateProductInfo();
+        this.waitForActionInfoAndDisplayIt("Did:");
     }
 
-    display.addEventListener("click", function(e){
+    handleChartClick(e){
         let sseq = display.querySelector("sseq-chart").sseq;
         let new_bidegree = e.detail[0].mouseover_bidegree;
         if(!new_bidegree){
-            return;
-        }
-        if(
-            selected_bidegree
-            && new_bidegree[0] == selected_bidegree[0] 
-            && new_bidegree[1] == selected_bidegree[1]
-        ){
-            let focusElt = document.querySelector("sseq-panel").querySelector(".name");
-            focusElt.focus();
-            sleep(50).then(() => focusElt.focus());
             return;
         }
         let classes = sseq.classes_in_bidegree(...new_bidegree);
         if(classes.length == 0){
             return;
         }
-        select_bidegree(...new_bidegree);
+        this.select_bidegree(...new_bidegree);
         display.update();
-    });
-
-    let validationPromise;
-    let validationPromiseResolve;
-    async function validateName(name){
-        validationPromise = new Promise(resolve => validationPromiseResolve = resolve);
-        validationPromise.message = "interact.validate.name";
-        socket_listener.send("interact.validate.name", {"name" : name});
-        let result = await validationPromise;
-        validationPromise = null;
-        return result;
     }
 
-    socket_listener.add_message_handler("interact.validate.name", async function(cmd, args, kwargs){
-        if(!validationPromise || validationPromise.message !== "interact.validate.name"){
-            throw Error(`Received unexpected "interact.validate.name"`);
-        }
-        validationPromiseResolve([kwargs.validated, kwargs.error]);
-    });
-
-    async function validateMatrix(bidegree, matrix){
-        validationPromise = new Promise(resolve => validationPromiseResolve = resolve);
-        validationPromise.message = "interact.validate.matrix";
-        socket_listener.send("interact.validate.matrix", {"bidegree": bidegree, "matrix" : matrix});
-        let result = await validationPromise;
-        validationPromise = null;
-        return result;
+    async validateName(name){
+        this.socket_listener.send("interact.validate.name", {"name" : name});
+        let result = await this.socket_listener.new_message_promise("interact.validate.name");
+        return result[2];
     }
 
-    socket_listener.add_message_handler("interact.validate.matrix", async function(cmd, args, kwargs){
-        if(!validationPromise || validationPromise.message !== "interact.validate.matrix"){
-            throw Error(`Received unexpected "interact.validate.matrix"`);
-        }
-        validationPromiseResolve(kwargs);
-    });
+    async validateMatrix(bidegree, matrix){
+        this.socket_listener.send("interact.validate.matrix", {"bidegree": bidegree, "matrix" : matrix});
+        let result = await this.socket_listener.new_message_promise("interact.validate.matrix");
+        return result[2];
+    }
 
-
-    let moving = false;
-    async function select_bidegree(x, y){
-        let sseq = display.querySelector("sseq-chart").sseq;
-        selected_bidegree = [x, y];
-        popup.cancel();
-        let bidegree_highlighter = document.querySelector("sseq-bidegree-highlighter");
-        let classes = sseq.classes_in_bidegree(...selected_bidegree);
-        let class_highlighter = document.querySelector("sseq-class-highlighter");
+    async select_bidegree(x, y){
+        let sseq = this.uiElement.querySelector("sseq-chart").sseq;
+        this.selected_bidegree = [x, y];
+        this.popup.cancel();
+        let bidegree_highlighter = this.uiElement.querySelector("sseq-bidegree-highlighter");
+        let classes = sseq.classes_in_bidegree(...this.selected_bidegree);
+        let class_highlighter = this.uiElement.querySelector("sseq-class-highlighter");
         class_highlighter.clear();
         class_highlighter.highlight(classes);
         
         bidegree_highlighter.clear();
-        bidegree_highlighter.highlight([selected_bidegree]);
-        
-
+        bidegree_highlighter.highlight([this.selected_bidegree]);
             
-            
-        let bidegree_html = `<h4>Bidegree (${selected_bidegree.join(", ")})</h4>`;
+        let bidegree_html = `<h4>Bidegree (${this.selected_bidegree.join(", ")})</h4>`;
         let class_html = "";
         let product_html = "";
         let matrix_html = "";
-        let sidebar = document.querySelector("sseq-panel");
-        sidebar.querySelector("#product-info-bidegree").innerHTML = bidegree_html;
-        sidebar.querySelector("#product-info-classes").innerHTML = class_html;
-        sidebar.querySelector("#product-info-products").innerHTML = product_html;
-        sidebar.querySelector("#product-info-matrix").innerHTML = matrix_html;
+        this.sidebar.querySelector("#product-info-bidegree").innerHTML = bidegree_html;
+        this.sidebar.querySelector("#product-info-classes").innerHTML = class_html;
+        this.sidebar.querySelector("#product-info-products").innerHTML = product_html;
+        this.sidebar.querySelector("#product-info-matrix").innerHTML = matrix_html;
+        await Promise.all([display.seek(x,y)]); //handleKeyDown.stoppedPromise, 
         if(classes.length == 0){
+            this.uiElement.focus();
             return;
         }
-        await Promise.all([handleKeyDown.stoppedPromise, display.seek(x,y)]);
-        socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
+        this.updateProductInfo();
     }
 
-    document.addEventListener("keydown", handleKeyDown);
-    function handleKeyDown(e) {
-        if(stopCallback(e, e.target || e.srcElement)){
-            return;
-        }
-        if(e.code.startsWith("Arrow")){
-            let direction = e.code.slice("Arrow".length).toLowerCase();
-            let dx = {"up" : 0, "down" : 0, "left" : -1, "right" : 1}[direction];
-            let dy = {"up" : 1, "down" : -1, "left" : 0, "right" : 0}[direction];
-            handleArrow(e, dx, dy);
-        }
-        if(e.code.startsWith("Digit")){
-            handleDigit(e);
-        }
-        if(["+","-"].includes(e.key)){
-            let dir = {"+" : 1, "-" : -1}[e.key];
-            handlePM(e, dir);
-        }
-        if(["w", "a", "s", "d"].includes(e.key)){
-            let dx = {"w" : 0, "s" : 0, "a" : -1, "d" : 1}[e.key];
-            let dy = {"w" : 1, "s" : -1, "a" : 0, "d" : 0}[e.key];            
-            handleWASD(e, dx, dy);
-        }
+
+    setupUIBindings(){
+        this.uiElement.mousetrap.bind("t", () => {
+            this.socket_listener.send("console.take", {});
+        });
+
+        this.uiElement.mousetrap.bind("z", () => {
+            this.undo();
+        });
+    
+        this.uiElement.mousetrap.bind("Z", () => {
+            this.redo();
+        });
+        this.uiElement.mousetrap.bind("n", () => {
+            let unnamedClasses = this.unnamedClasses();
+            console.log(unnamedClasses.slice(0, 10).map(c => `[${c.x}, ${c.y}]`));
+            this.unnamedClassIndex = this.unnamedClassIndex || 0;
+            let curClass = unnamedClasses[this.unnamedClassIndex];
+            if(this.selected_bidegree
+                && curClass.x === this.selected_bidegree[0] 
+                && curClass.y === this.selected_bidegree[1]
+            ){
+                while(curClass.x === this.selected_bidegree[0] && curClass.y === this.selected_bidegree[1]){
+                    this.unnamedClassIndex ++;
+                    curClass = unnamedClasses[this.unnamedClassIndex];
+                }
+            } else {
+                this.unnamedClassIndex = 0;
+                curClass = unnamedClasses[this.unnamedClassIndex];
+            }
+            this.select_bidegree(curClass.x, curClass.y);
+        });
+        
+        this.sidebar.addEventListener("interact-toggle", () => {
+            document.activeElement.click();
+        });
+        this.sidebar.addEventListener("interact-submit", () => {
+            document.activeElement.click();
+        });
+        this.display.addEventListener("click", this.handleChartClick.bind(this))
+        this.uiElement.addEventListener("keydown-arrow",
+            throttle(75, { trailing : false })(this.handleArrow.bind(this)));
+        this.uiElement.addEventListener("keypress-wasd", this.handleWASD.bind(this));
+        this.uiElement.addEventListener("keypress-pm",
+            throttle(75, { trailing : false })(this.handlePM.bind(this)));
+        this.uiElement.addEventListener("keypress-digit",
+            throttle(75, { trailing : false })(this.handleDigit.bind(this)));
+        
     }
 
-    let handleArrow = throttle(75, { trailing : false })(function handleArrow(e, dx, dy){
-        if(!selected_bidegree){
+    handleArrow(e){
+        if(!this.selected_bidegree){
             return;
         }
-        let [x, y] = selected_bidegree;
+        let [x, y] = this.selected_bidegree;
+        let [dx, dy] = e.detail.direction;
         x += dx;
         y += dy;
         let [minX, maxX] = display.xRange;
@@ -650,28 +621,35 @@ function main(display, socket_address){
         x = Math.min(Math.max(x, minX), maxX);
         y = Math.min(Math.max(y, minY), maxY);
 
-        select_bidegree(x, y);
-    });
+        this.select_bidegree(x, y);
+    }
     
-    let handleWASD = (function handleArrow(e, dx, dy){
+    handleWASD(e){
+        let [dx, dy] = e.detail.direction;
         let s = 8;
         display.translateBy( - dx * s, dy * s);
-    });
+    }
 
-    let handlePM = throttle(75, { trailing : false })(function handleArrow(e){
-        let d = {"+" : 1, "-" : -1}[e.key];
+    handlePM(e){
+        let d = e.detail.direction;
         let zoomCenter = undefined;
-        if(selected_bidegree){
-            let [x, y] = selected_bidegree;
+        if(this.selected_bidegree){
+            let [x, y] = this.selected_bidegree;
             zoomCenter = [display.xScale(x), display.yScale(y)];
         }
         display.zoomBy(d, zoomCenter);
-    });
+    }
 
-    let handleDigit = throttle(75, { trailing : false })(function handleDigit(e) {
-        let focusElt = document.querySelector(`sseq-panel [group='${e.key}'][tabindex='0']`);
+    handleDigit(e) {
+        let focusElt;
+        for(let n = e.detail.digit; n < 10; n++){  
+            focusElt = this.sidebar.querySelector(`[group='${n}'][tabindex='0']`);
+            if(focusElt){
+                break;
+            }
+        }
         if(!focusElt){
-            let panel_focuses = document.querySelectorAll(`sseq-panel [tabindex='0']`);
+            let panel_focuses = this.sidebar.querySelectorAll(`[tabindex='0']`);
             if(panel_focuses){
                 focusElt = panel_focuses[panel_focuses.length - 1];
             }
@@ -679,30 +657,111 @@ function main(display, socket_address){
         if(focusElt){
             focusElt.focus();
         }
-    });
+    }
 
-    Mousetrap.bind("z", () =>  {
-        popup.cancel();
-        socket_listener.send("interact.undo", {});
-        if(selected_bidegree){
-            socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
+    async undo() {
+        this.undoMutex.runExclusive(async () => {
+            this.popup.cancel();
+            this.socket_listener.send("interact.undo", {});
+            this.updateProductInfo();
+            await Promise.all([this.waitForActionInfoAndDisplayIt("Undid action:"), sleep(500)]);
+        }).catch(e => {
+            if(e.message === "timeout"){
+                console.log("undo timed out");
+                return;
+            }            
+            throw e;
+        });
+    }
+
+    async redo() {
+        await this.undoMutex.runExclusive(async () => {
+            this.popup.cancel();
+            this.socket_listener.send("interact.redo", {});
+            this.updateProductInfo();
+            await Promise.all([this.waitForActionInfoAndDisplayIt("Redid action:"), sleep(500)]);
+        }).catch(e => {
+            if(e.message === "timeout"){
+                console.log("Redo timed out");
+                return;
+            }            
+            throw e;
+        });
+    }    
+    
+
+    async waitForActionInfoAndDisplayIt(action_type){
+        let [_cmd, _args, kwargs] = await this.socket_listener.new_message_promise("interact.action_info");
+        await this.displayActionInfo(action_type, kwargs.action);
+        return true;
+    }
+
+    async displayActionInfo(ty, action) {
+        console.log("Display action:", action);
+        if(action === null){
+            return;
         }
-    });
-    Mousetrap.bind("Z", () => {
-        popup.cancel();
-        socket_listener.send("interact.redo", {});
-        if(selected_bidegree){
-            socket_listener.send("interact.select_bidegree", {"bidegree" : selected_bidegree});
+        let updateID = Math.random();
+        let status = this.uiElement.querySelector(".status-indicator");
+        let highlightClasses = this.getHighlightClasses(action);
+        let class_highlighter = this.uiElement.querySelector("sseq-class-highlighter");
+        await class_highlighter.clear();
+        class_highlighter.fire(highlightClasses).then(() => {
+            class_highlighter.hideClasses(highlightClasses);
+        });
+        status.updateID = updateID;
+        status.innerHTML = `${ty} ${this.getActionDescription(action)}`;
+        status.setAttribute("transition", "show");
+        status.setAttribute("shown", "");
+        sleep(2000).then( () => {
+            if(status.updateID === updateID){            
+                status.setAttribute("transition", "hide");
+                status.removeAttribute("shown", "");
+            }
+        });
+    }
+
+    getActionDescription(action){
+        return action.description;
+    }
+
+    getHighlightClasses(action){
+        let highlightClasses = {};
+        for(let cmd of action.cmd_list){
+            let [x, y] = cmd.bidegree;
+            switch(cmd.type) {
+                case "set_name":
+                    cmd.our_basis_vec.forEach((v, idx) => {
+                        if(v !== 0){
+                            let class_index = [x, y, idx];
+                            highlightClasses[class_index.join(",")] = class_index;
+                        }
+                    });
+                    break;
+
+                case "set_matrix":
+                    cmd.changedRows.forEach((idx) => {
+                        let class_index = [x, y, idx];
+                        highlightClasses[class_index.join(",")] = class_index;
+                    });
+                    break;
+
+                default:
+                    throw Error(`Unknown command type ${cmd.type}`);
+                    break;
+            }
         }
-    });
+        let sseq = display.querySelector("sseq-chart").sseq;
+        return Object.values(highlightClasses).map( idx => sseq.class_by_index(...idx));
+    }
 
-    // Mousetrap.bind("backspace", () => {
-    //     // for 
-    // });
-
-    window.addEventListener("beforeunload", (e) => { 
-        popup.cancel();
-    })
-
-    socket_listener.start();
+    unnamedClasses(){
+        return Object.values(
+            this.uiElement.querySelector("sseq-chart").sseq.classes
+        )
+        .sort((a,b) => (a.x - b.x)*10 + Math.sign(a.y - b.y))
+        .filter(c => !c.monomial_name && c.y !== 0);
+    }
 }
+
+window.TableUI = TableUI;

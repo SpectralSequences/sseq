@@ -14,8 +14,20 @@ export class ClassHighlighter extends LitElement {
                 transition : none;
             }
 
-            span[transition] {
+            span[transition=fire] {
                 transition-timing-function: cubic-bezier(0,.27,1,5);
+                transition-property: all;
+                transition-duration : var(--transition-time);
+            }
+
+            span[transition=show] {
+                transition-timing-function: ease;
+                transition-property: all;
+                transition-duration : var(--transition-time);
+            }
+
+            span[transition=hide] {
+                transition-timing-function: ease;
                 transition-property: all;
                 transition-duration : var(--transition-time);
             }
@@ -76,44 +88,60 @@ export class ClassHighlighter extends LitElement {
         elt.style.width = `${size}px`;;
     }
 
-    clear(){
-        let clearedClasses = [];
-        for(let elt of this.shadowRoot.children){
-            if(elt.cls) {
-                clearedClasses.push(elt);
-                elt.style.removeProperty("--transition-time");
-                elt.removeAttribute("transition");
-                this.setSize(elt, 0);
-                delete this.classMap[elt.cls.uuid];
-                elt.cls = undefined;
-            }
+    async clearClass(cls){
+        if(!cls){
+            return;
         }
-        sleep(30).then(() => {
-            for(let c of clearedClasses){
-                c.busy = false;
-            }
-        })
-        
+        let elt = this.classMap[cls.uuid];
+        if(elt === undefined){
+            return;
+        }
+        elt.style.removeProperty("--transition-time");
+        elt.removeAttribute("transition");
+        this.setSize(elt, 0);
+        delete this.classMap[elt.cls.uuid];
+        elt.cls = undefined;
+        await sleep(30); 
+        delete elt.fireID;
     }
 
-    async _setupClasses(classes){
-        let availableElements = Array.from(this.shadowRoot.children).filter((elt) => !elt.busy);
+    async clear(){
+        let promises = [];
+        for(let elt of this.shadowRoot.children){
+            if(elt.cls) {
+                promises.push(this.clearClass(elt.cls));
+            }
+        }
+        await Promise.all(promises);
+    }
+
+    async clearClasses(classes){
+        let promises = [];
+        for(let cls of classes){
+            promises.push(this.clearClass(cls));
+        }
+        await Promise.all(promises);
+    }    
+
+    async allocateClasses(fireID, classes){
+        let availableElements = Array.from(this.shadowRoot.children).filter((elt) => !elt.fireID);
         let numElementsNeeded = classes.filter(c => !(c.uuid in this.classMap)).length;
         if(numElementsNeeded > availableElements.length){
             this.numElements += numElementsNeeded - availableElements.length;
             this.requestUpdate();
             await sleep(10);
-            availableElements = Array.from(this.shadowRoot.children).filter((elt) => !elt.busy);
+            availableElements = Array.from(this.shadowRoot.children).filter((elt) => !elt.fireID);
         }
 
         for(let c of classes){
             if(c.uuid in this.classMap){
+                this.classMap[c.uuid].fireID = fireID;
                 continue;
             }
             let elt = availableElements.pop();
             this.classMap[c.uuid] = elt;
             elt.cls = c;
-            elt.busy = true;   
+            elt.fireID = fireID;
         }
     }
 
@@ -125,12 +153,10 @@ export class ClassHighlighter extends LitElement {
             return;
         }
 
-        await this._setupClasses(classes);
-
-        for(let c of classes){
-            let elt = this.classMap[c.uuid];
-            this.setSize(elt, 15);
-        }
+        let fireID = Math.random();
+        await this.allocateClasses(fireID, classes);
+        await this.prepareElements(fireID, classes, 15, 0.7);
+        // await this.transitionClasses(fireID, classes, "none", 15, 0.7);
     }
 
     async fire(classes){
@@ -140,26 +166,68 @@ export class ClassHighlighter extends LitElement {
         if(classes.length === 0){
             return;
         }
-
-        await this._setupClasses(classes);
-
-        for(let c of classes){
-            let elt = this.classMap[c.uuid];
-            elt.removeAttribute("transition");
-            this.setSize(elt, 0);
-        }
+        let opacity = 0.7;
+        
+        let fireID = Math.random();
+        // console.log("fire")
+        // console.log("   allocate");
+        await this.allocateClasses(fireID, classes);
+        // console.log("   prepare");
+        await this.prepareElements(fireID, classes, 0, opacity);
         await sleep(30);
+        // console.log("   transition");
+        await this.transitionClasses(fireID, classes, "fire", 15, opacity);
+        // console.log("fire completed");
+    }
 
+    async hideClasses(classes){
+        let fireID = Math.random();
+        // console.log("hide")
+        // console.log("   allocate");        
+        await this.allocateClasses(fireID, classes);
+        // console.log("   transition");
+        await this.transitionClasses(fireID, classes, "hide", 15, 0);
+        // console.log("   clear");
+        await this.clearClasses(classes);
+        // console.log("hide completed")
+    }
+
+    async prepareElements(fireID, classes, size, opacity){
         for(let c of classes){
             let elt = this.classMap[c.uuid];
-            elt.style.visibility = "";
-            elt.setAttribute("transition", "");
-            this.setSize(elt, 15);
-            promiseFromDomEvent(elt, "transitionend").then(() => {
-                elt.removeAttribute("transition");                    
-            });            
+            if(!elt || elt.fireID !== fireID){
+                continue;
+            }            
+            elt.removeAttribute("transition");
+            this.setSize(elt, size);
+            elt.style.opacity = opacity;
         }
+        await sleep(0);
+    }
 
+    async transitionClasses(fireID, classes, transitionType, size, opacity){
+        let promises = [];
+        for(let c of classes){
+            let elt = this.classMap[c.uuid];
+            if(!elt || elt.fireID !== fireID){
+                continue;
+            }
+            elt.style.visibility = "";
+            elt.setAttribute("transition", transitionType);
+            this.setSize(elt, size);
+            elt.style.opacity = opacity;
+            if(c.isDisplayed()){
+                promises.push(promiseFromDomEvent(elt, "transitionend"));
+            }
+        }
+        await Promise.all(promises);
+        for(let c of classes){
+            let elt = this.classMap[c.uuid];
+            if(!elt ||elt.fireID !== fireID){
+                continue;
+            }
+            elt.removeAttribute("transition");
+        }
     }
 }
 
