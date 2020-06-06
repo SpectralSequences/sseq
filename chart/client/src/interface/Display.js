@@ -507,14 +507,13 @@ export class Display extends HTMLElement {
         let threshold = this.bidegreeDistanceThreshold * 1;//(this.sseq.bidegreeDistanceScale | 1)
         let xscale = 1;
         let yscale = 1;
-        // TODO: this doesn't work well when zoomed out...
         let x_max_threshold = Math.abs(this.dxScale(1)) * 0.4;
         let y_max_threshold = Math.abs(this.dyScale(1)) * 0.4;
         if(threshold > x_max_threshold) {
-            xscale = x_max_threshold / threshold;
+            xscale = threshold / x_max_threshold;
         }
         if(threshold > y_max_threshold) {
-            yscale = y_max_threshold / threshold;
+            yscale = threshold / y_max_threshold;
         }
         if(this.mouseover_bidegree){
             let bidegree = this.mouseover_bidegree;
