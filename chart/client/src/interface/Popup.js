@@ -18,18 +18,29 @@ export class PopupElement extends LitElement {
                 position: fixed;
                 visibility: hidden;
                 margin-top: -250px;
-
-                pointer-events: none;
                 overflow : hidden;
                 /*-moz-transition: all .3s ease-in-out;
                 -webkit-transition: all .3s ease-in-out;
                 transition: all .3s ease-in-out;*/
             }
 
+            :host(:not([modal])) {
+                pointer-events: none;
+            }
+
             :host([modal]){
                 background: rgba(0,0,0,.8);
-                
             }
+
+            :host([modal][open]:not(:focus-within)) {
+                opacity: 0.999;
+                transition: opacity 0.01s;
+            }
+
+            :host([open]:not(:focus-within)) {
+                opacity: 0.8;
+                transition: opacity 0.01s;
+            }            
             
             :host([open]) {
                 opacity: 1;
@@ -73,6 +84,7 @@ export class PopupElement extends LitElement {
             }
 
             .body {
+                overflow : auto;
                 padding: 25px;
             }
             
@@ -85,7 +97,7 @@ export class PopupElement extends LitElement {
                 background : rgb(var(--body-background-color));
                 --text-color : var(--body-text-color);
                 --text-opacity : 0.7;                
-                max-width: 600px;
+                /*max-width: 600px;*/
                 position: relative;
                 /* border-radius: 8px; */
                 box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
@@ -107,16 +119,35 @@ export class PopupElement extends LitElement {
             .draggable:active {
                 cursor: grabbing;
             }
-            
         `
     }
 
     static get properties() {
         return { 
-            top : { type: Number },
-            left : { type : Number },
             minimized : {type : Boolean}
         };
+    }
+
+    get modal(){
+        return this.hasAttribute("modal");
+    }
+
+    get top(){
+        return this.getAttribute("top");
+    }
+
+    set top(v){
+        this.setAttribute("top", v);
+        this.requestUpdate();
+    }
+
+    get left(){
+        return this.getAttribute("left");
+    }
+
+    set left(v){
+        this.setAttribute("left", v);
+        this.requestUpdate();
     }
 
     get open() {
@@ -130,6 +161,24 @@ export class PopupElement extends LitElement {
             this.removeAttribute('open');
         }
     }
+
+    get height() {
+        return this.getAttribute('height');
+    }
+  
+    set height(v) {
+        this.setAttribute('height', v);
+        this.requestUpdate();
+    }
+
+    get width() {
+        return this.getAttribute('width');
+    }
+  
+    set width(v) {
+        this.setAttribute('width', v);
+        this.requestUpdate();
+    } 
 
     // get minimized() {
     //     return this.hasAttribute('minimized');
@@ -155,12 +204,27 @@ export class PopupElement extends LitElement {
         this.toggleMinimize = this.toggleMinimize.bind(this);
         this.ok = this.ok.bind(this);
         this.cancel = this.cancel.bind(this);
-        this.top = 70;
-        this.left = 70;
         this.minimized = false;
     }
 
     firstUpdated(changedProperties) {
+        if(!this.top){
+            this.top = 70;
+        }
+        if(!this.left){
+            this.left = 200;        
+        }
+        this.setAttribute("tabindex", "-1");
+        this.addEventListener("click", () => {
+            if(document.activeElement === this && !this.shadowRoot.activeElement){
+                this.focus();
+            }
+        });
+        this.addEventListener("focus", () => {
+            if(document.activeElement === this && !this.shadowRoot.activeElement){
+                this.focus();
+            }
+        });        
         let onContentResized = async function onContentResized(_entries){
             if(!this.minimized){                
                 let body_and_footer = this.shadowRoot.querySelector(".body-footer");
@@ -171,10 +235,8 @@ export class PopupElement extends LitElement {
         }.bind(this);
         this.resizeObserver = new ResizeObserver(onContentResized);
         this.resizeObserver.observe(this.shadowRoot.querySelector(".body-footer-inner"));
-        this.addEventListener("keydown", (e) => {
-            if(e.key === "Escape"){
-                this.cancel();
-            }
+        this.addEventListener("interact-cancel", (e) => {
+            this.cancel();
         });
         this.addEventListener("interact-toggle", (e) => {
             e.stopPropagation();
@@ -184,6 +246,26 @@ export class PopupElement extends LitElement {
             e.stopPropagation();
             this.submit(e);
         });
+        this.addEventListener('transitionend', (e) => {
+            if(getComputedStyle(this).opacity === "0.999"){
+                this.focus();
+            }
+        });
+    }
+
+    updated(changedProperties) {
+        let header = this.shadowRoot.querySelector(".header");
+        let body = this.shadowRoot.querySelector(".body");
+        let footer = this.shadowRoot.querySelector(".footer");
+        let test_div = document.createElement("div");
+        body.style.width = this.width;
+        if(this.height){
+            test_div.style.height = this.height;
+            document.body.appendChild(test_div);
+            let test_height = getComputedStyle(test_div).height;
+            console.log("height:",this.height, "test height:", test_height, "header height:",getComputedStyle(header).height);
+            body.style.height = `calc(${test_height} - ${getComputedStyle(header).height} - ${getComputedStyle(footer).height})`;
+        }
     }
 
 
@@ -191,12 +273,19 @@ export class PopupElement extends LitElement {
         return html`
             <div class="content" style="margin-top:${this.top}px; margin-left:${this.left}px;">
                 <div class="header">
-                    <div class="header-inner draggable" @pointerdown=${this.startMove} @pointerup=${this.endMove}>
+                    <div class="header-inner">
                         <slot name="header">
                             <h3>Popup | Modal | PURE CSS</h3>
                         </slot>
                     </div>
-                    <sseq-button class="close-btn" @click=${this.toggleMinimize}> ${this.minimized ? "+" : html`&minus;`}</sseq-button>
+                    ${ 
+                        !this.modal 
+                        ? html`
+                            <sseq-button class="close-btn" @click=${this.toggleMinimize}> 
+                            ${this.minimized ? "+" : html`&minus;`}
+                            </sseq-button>` 
+                        : ""
+                    }
                     <sseq-button class="close-btn" @click=${this.cancel}>×</sseq-button>
                 </div>
                 <div class="body-footer">
@@ -206,8 +295,10 @@ export class PopupElement extends LitElement {
                         </div>
                         <div class="footer">
                             <span @click=${this.focus} style="flex-grow : 1;"></span>
-                            <sseq-button class="ok" @click=${this.ok} style="margin-right: 0.75rem; ">OK</sseq-button>
-                            <sseq-button class="cancel" @click=${this.cancel}>CANCEL</sseq-button>
+                            <slot name="buttons">
+                                <sseq-button class="ok" @click=${this.ok} style="margin-right: 0.75rem; ">OK</sseq-button>
+                                <sseq-button class="cancel" @click=${this.cancel}>CANCEL</sseq-button>
+                            </slot>
                         </div>
                     </div>
                 </div>
@@ -238,15 +329,21 @@ export class PopupElement extends LitElement {
     } 
 
     async show(){
-        for(let elt of document.querySelectorAll("sseq-popup")){
-            elt.cancel(elt !== this);
-        }
         // Without this sleep(0) the height of the popup behaves inconsistently (window size will change by +/- 3px). Don't remove it!
         // Also important that cancel happens first, because immediately after using show() we are often going to await on the 
         // result of this popup. If we sleep(0) then the cancel here will be picked up as the result of the popup.
         await sleep(0); 
         let okbtn = this.shadowRoot.querySelector(".ok");
         okbtn.saveState = okbtn.enabled;
+        let header = this.shadowRoot.querySelector(".header-inner");
+        header.classList.toggle("draggable", !this.modal);
+        if(this.modal){
+            header.removeEventListener("pointerdown", this.startMove);
+            header.removeEventListener("pointerup", this.endMove);            
+        } else {
+            header.addEventListener("pointerdown", this.startMove);
+            header.addEventListener("pointerup", this.endMove);
+        }
         this.restore();
         this.focus();
         // It's slightly inconsistent about focusing the button for some reason, 
@@ -254,6 +351,9 @@ export class PopupElement extends LitElement {
         sleep(100).then(() => this.focus());        
         this.triggerElement = document.activeElement;
         this.open = true;
+        for(let e of this.querySelectorAll(".cancel")){
+            e.addEventListener("click", this.cancel);
+        }
         return this;
     }
 
@@ -275,8 +375,8 @@ export class PopupElement extends LitElement {
     }
 
     handleBodyClick(){
-        // If the clicked object wouldn't otherwise be focused, focus the okay button if possible.
-        if(document.activeElement === document.body){
+        // If the clicked object wouldn't otherwise be focused, 
+        if(!document.activeElement || !document.activeElement.closest("sseq-popup")){
             this.focus();
         }
     }
@@ -295,11 +395,18 @@ export class PopupElement extends LitElement {
                     }
                 }
             }
+        }
+        focusElt = 
+            focusElt
+            || this.querySelector(".ok") 
+            || this.shadowRoot.querySelector(".ok")
+            || this.querySelector(".cancel")
+            || this.shadowRoot.querySelector(".cancel");
+        if(focusElt.clientWidth === 0){
+            focusElt = this.querySelector(".cancel");
+        }
+        if(focusElt){
             focusElt.focus();
-        } else if(this.okEnabled){
-            this.shadowRoot.querySelector(".ok").focus();
-        } else {
-            this.shadowRoot.querySelector(".cancel").focus();
         }
         return this;
     }
