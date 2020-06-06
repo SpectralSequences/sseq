@@ -3,6 +3,7 @@
 # to exception handling.
 
 from message_passing_tree.prelude import *
+from message_passing_tree import ansi
 from .executor import ExecResult, Executor
 
 from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
@@ -108,34 +109,37 @@ class ConsoleIO(PythonRepl):
         else:
             out_prompt = self.get_output_prompt()
 
-            try:
-                result_str = "%r\n" % (result,)
-            except UnicodeDecodeError:
-                # In Python 2: `__repr__` should return a bytestring,
-                # so to put it in a unicode context could raise an
-                # exception that the 'ascii' codec can't decode certain
-                # characters. Decode as utf-8 in that case.
-                result_str = "%s\n" % repr(result).decode(  # type: ignore
-                    "utf-8"
-                )
+            result_str = f"{result}\n"
+            line_width = 80
+            truncation_lines = 15
+            truncation_threshold = line_width * truncation_lines
+            truncated = len(result_str) > truncation_threshold
+            if truncated:
+                head_result = result_str[:truncation_threshold] 
+                tail_result = result_str[-line_width * 2 - 1:]
+                result = [head_result, tail_result]
+            else:
+                result = [result_str]
 
             # Align every line to the first one.
             line_sep = "\n" + " " * fragment_list_width(out_prompt)
-            result_str = line_sep.join(result_str.splitlines()).strip("")
+            result = [line_sep.join(result_str.splitlines()).strip("") for result_str in result]
 
             # Write output tokens.
-            if self.enable_syntax_highlighting:
-                formatted_output = FormattedText(merge_formatted_text(
-                    [
-                        out_prompt,
-                        PygmentsTokens(list(_lex_python_result(result_str))),
-                    ]
-                )())
-                formatted_output.pop()
-            else:
-                formatted_output = FormattedText(
-                    out_prompt + [("", result_str)]
-                )
+            result_tokens = [PygmentsTokens(list(_lex_python_result(result_str))) for result_str in result]
+            if truncated:
+                # Remove first token of start text and last token of end text
+                # in case they got weirdly truncated.
+                result_tokens[0].token_list.pop(-2) 
+                result_tokens[1].token_list.pop(0)
+                result_tokens.insert(1, ANSI(ansi.highlight(" ... <Truncated Long Output> ...\n")))
+            formatted_output = FormattedText(merge_formatted_text(
+                [
+                    out_prompt,
+                    *result_tokens
+                ]
+            )())
+            formatted_output.pop()
             return formatted_output
 
     def print_formatted_result(self, formatted_output):
@@ -170,7 +174,7 @@ class ConsoleIO(PythonRepl):
 
     def print_error(self, type, msg, additional_info):
         self.print_formatted_text(ANSI(
-            f"Error {ANSI_ORANGE}{type}: {ANSI_PINK}{msg}{ANSI_NOCOLOR}\n"  +\
+            f"Error {ansi.ORANGE}{type}: {ansi.PINK}{msg}{ansi.NOCOLOR}\n"  +\
             additional_info
         ))
 
@@ -212,18 +216,6 @@ class ConsoleIO(PythonRepl):
         output = self.app.output
         output.write("\rKeyboardInterrupt\n\n")
         output.flush()
-
-
-ANSI_RED = "\x1b[31m"
-# ANSI_ORANGE = "\033[48:2:255:165:0m%s\033[m"
-
-def ansi_color(r, g, b):
-    return "\033[38;2;" +";".join([str(r), str(g), str(b)]) + "m"
-
-ANSI_ORANGE = ansi_color(255, 0, 60)
-ANSI_NOCOLOR = "\033[m"
-
-ANSI_PINK = "\033[38;5;206m"
 
 class WrappedStdout:
     """
