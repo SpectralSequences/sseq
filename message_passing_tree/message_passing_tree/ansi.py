@@ -3,9 +3,10 @@ def ansi_color(r, g, b):
 
 NOCOLOR = "\033[m"
 RED = "\x1b[31m"
+PINK = "\033[38;5;206m"
 BLUE = ansi_color(100, 100, 255)
 LIME_GREEN = ansi_color(30, 220, 30)
-DARK_GREEN = ansi_color(0, 100, 0)
+DARK_GREEN = ansi_color(60, 150, 60)
 ORANGE = ansi_color(255, 165, 0)
 
 INFO = BLUE

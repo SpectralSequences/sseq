@@ -617,6 +617,10 @@ class TableUI {
             this.resizeHelpWindow();
         });
         resizeObserver.observe(this.uiElement);
+
+        this.uiElement.mousetrap.bind("home", async () => {
+            this.select_bidegree(0, 0);
+        });
         this.uiElement.mousetrap.bind("n", async () => {
             let curClass;
             for(let c of this.sortedClasses()){

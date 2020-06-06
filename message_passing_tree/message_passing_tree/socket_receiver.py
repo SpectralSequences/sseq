@@ -34,7 +34,8 @@ class SocketReceiver(Receiver):
             # Try again and hope for the best?
             # Maybe we should queue these so they don't get reordered.
             # Usually this case won't happen, but when it does it might happen many times in a row.
-            asyncio.ensure_future(self.send_message_to_socket_a(envelope))
+            # asyncio.ensure_future(self.send_message_to_socket_a(envelope))
+            self.schedule_coroutine(self.send_message_to_socket_a(envelope))
             return
         msg = { "cmd" : cmd.filter_list, "args" : envelope.msg.args, "kwargs" : envelope.msg.kwargs }
         try:
@@ -43,6 +44,8 @@ class SocketReceiver(Receiver):
             self.log_warning("Connection closed while trying to send message to socket.")
             self.log_warning(f"Message: {msg}")
         except RuntimeError as e:
+            # Annoyingly the ASGI server only throws RuntimeError so we have to inspect the message text to decide
+            # what sort of error it is.
             if e.args[0].find("websocket.close"):
                 await self.shutdown_a()
             else:
@@ -53,6 +56,7 @@ class SocketReceiver(Receiver):
 
     async def start_a(self):
         await self.run_a()
+        
 
     async def run_a(self):
         if self.accepted_connection.is_set():
