@@ -405,10 +405,11 @@
             ]],
             ["Chart", [
                 ["<kbd>w</kbd> <kbd>a</kbd> <kbd>s</kbd> <kbd>d</kbd>", "Pan chart content"],
+                ["<kbd>+</kbd> <kbd>-</kbd>", "Zoom in and out"],
                 ["<kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd>", "Move selected bidegree"],
                 ["<kbd>Home</kbd>", "Move to bidegree (0,0)"],
                 ["<kbd>m</kbd>", "Select next bidegree that contains an element that is decomposable but not divisible by <katex-expr>h_i</katex-expr>"],
-                ["<kbd>n</kbd>", "Select next bidegree containing an indecomposable element"]
+                ["<kbd>n</kbd>", "Select next bidegree containing an indecomposable element"],
             ]],
             ["Interface", [
                 ["<kbd>Tab ↹</kbd>", "Move to next control"],
@@ -418,8 +419,13 @@
                 ["<kbd>Esc</kbd>", "Cancel"],
                 ["<kbd>1</kbd> - <kbd>9</kbd>", "Focus sidebar group"],
                 ["<kbd>0</kbd>", "Focus popup"],
-            ]]
-            
+            ]],
+            ["Matrix Popup", [
+                ["<kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd>", "Move selected entry"],
+                ["<kbd>0</kbd> <kbd>1</kbd>", "Update selected entry"],
+                ["<kbd>Ctrl</kbd> + <kbd>↑</kbd>, <kbd>Ctrl</kbd> + <kbd>↓</kbd>", "Swap selected row up / down"],
+                ["<kbd>Ctrl</kbd> + <kbd>C</kbd>, <kbd>Ctrl</kbd> + <kbd>V</kbd>", "Copy / paste selected row"]
+            ]]   
         ]
 
         document.querySelector(".help [slot=body]").innerHTML =
