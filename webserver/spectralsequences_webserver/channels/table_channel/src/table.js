@@ -735,7 +735,7 @@ class TableUI {
         if(!focusElt){
             let panel_focuses = this.sidebar.querySelectorAll(`[tabindex='0']`);
             if(panel_focuses){
-                focusElt = panel_focuses[panel_focuses.length - 1];
+                focusElt = panel_focuses[panel_focuses.length - 2];
             }
         }
         if(focusElt){
