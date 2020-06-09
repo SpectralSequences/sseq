@@ -263,7 +263,6 @@ export class PopupElement extends LitElement {
             test_div.style.height = this.height;
             document.body.appendChild(test_div);
             let test_height = getComputedStyle(test_div).height;
-            console.log("height:",this.height, "test height:", test_height, "header height:",getComputedStyle(header).height);
             body.style.height = `calc(${test_height} - ${getComputedStyle(header).height} - ${getComputedStyle(footer).height})`;
         }
     }

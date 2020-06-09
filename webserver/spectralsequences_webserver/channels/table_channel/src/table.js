@@ -104,6 +104,7 @@ class TableUI {
         if(!this.selected_bidegree){
             return;
         }
+        let [curX, curY] = this.selected_bidegree;
         this.socket_listener.send("interact.select_bidegree", {"bidegree" : this.selected_bidegree});
         let [_cmd, _args, kwargs] = await this.socket_listener.new_message_promise("interact.product_info");
         let sseq = this.uiElement.querySelector("sseq-chart");
@@ -207,6 +208,10 @@ class TableUI {
         });
 
         await sleep(0);
+        let [selectedX, selectedY] = this.selected_bidegree;
+        if(selectedX !== curX || selectedY !== curY){
+            return;
+        }
         if(!this.sidebar.querySelector("[tabindex='0'][focus]")){
             let nameElts = this.sidebar.querySelectorAll(".name");
             this.nameMonos.forEach((n, idx) => {
@@ -215,7 +220,6 @@ class TableUI {
                 }
             });
         }
-
         if(!this.sidebar.querySelector("[tabindex='0'][focus]")){
             this.sidebar.querySelector("[tabindex='0']").setAttribute("focus", "");
         }
@@ -638,7 +642,10 @@ class TableUI {
             }
             if(curClass){
                 await this.select_bidegree(curClass.x, curClass.y);
-                this.sidebar.querySelectorAll(".name")[curClass.idx].focus();
+                let [selectedX, selectedY] = this.selected_bidegree;
+                if(selectedX === curClass.x && selectedY === curClass.y){
+                    this.sidebar.querySelectorAll(".name")[curClass.idx].focus();
+                }
             }
         });
 
