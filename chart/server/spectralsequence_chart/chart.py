@@ -349,7 +349,6 @@ class ChartAgent(Agent):
         sseq = ChartData(name)
         self.set_sseq(sseq)
         self.display_state = DisplayState()
-        self._click = asyncio.Event()
 
     def set_sseq(self, sseq):
         if self.sseq is not None:
@@ -375,12 +374,6 @@ class ChartAgent(Agent):
             messages = messages
         ))
 
-    @transform_inbound_messages
-    async def transform__new_user__a(self, envelope):
-        envelope.mark_used()
-        await self.send_message_outward_a("initialize.chart.state", *arguments(
-            state=self.sseq, display_state=self.display_state
-        ))
 
     # async def add_node_a(self, node : ChartNode):
     #     node.idx = len(self.data.nodes)

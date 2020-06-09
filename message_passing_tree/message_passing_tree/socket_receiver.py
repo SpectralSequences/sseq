@@ -34,15 +34,16 @@ class SocketReceiver(Receiver):
             # Try again and hope for the best?
             # Maybe we should queue these so they don't get reordered.
             # Usually this case won't happen, but when it does it might happen many times in a row.
-            # asyncio.ensure_future(self.send_message_to_socket_a(envelope))
-            self.schedule_coroutine(self.send_message_to_socket_a(envelope))
+            asyncio.ensure_future(self.send_message_to_socket_a(envelope))
+            # self.schedule_coroutine(self.send_message_to_socket_a(envelope))
             return
         msg = { "cmd" : cmd.filter_list, "args" : envelope.msg.args, "kwargs" : envelope.msg.kwargs }
         try:
             await self.socket.send_text(json_stringify(msg))
         except ConnectionClosedOK:
-            self.log_warning("Connection closed while trying to send message to socket.")
-            self.log_warning(f"Message: {msg}")
+            pass
+            # self.log_warning("Connection closed while trying to send message to socket.")
+            # self.log_warning(f"Message: {msg}")
         except RuntimeError as e:
             # Annoyingly the ASGI server only throws RuntimeError so we have to inspect the message text to decide
             # what sort of error it is.
@@ -71,10 +72,18 @@ class SocketReceiver(Receiver):
             try:
                 continue_running = await self.main_loop_a()
                 consecutive_failed_passes = 0
-            except Exception as e:
+            except TypeError as e:
+                # TODO: what's the right threshold?
                 consecutive_failed_passes += 1
+                if e.args[0] != "An asyncio.Future, a coroutine or an awaitable is required":
+                    await self.handle_exception_a(e)               
+                if consecutive_failed_passes > 2: 
+                    print("Too many errors, quitting!")
+                    return                    
+            except Exception as e:
                 await self.handle_exception_a(e)
                 # TODO: what's the right threshold?
+                consecutive_failed_passes += 1
                 if consecutive_failed_passes > 2: 
                     print("Too many errors, quitting!")
                     return

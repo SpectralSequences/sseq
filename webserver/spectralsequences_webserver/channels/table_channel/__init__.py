@@ -1,7 +1,11 @@
-import pathlib
-import json
-import itertools
+import asyncio
 from datetime import datetime
+import itertools
+import json
+import pathlib
+
+from concurrent.futures import ThreadPoolExecutor
+
 
 from message_passing_tree.prelude import *
 from message_passing_tree import SocketChannel
@@ -41,14 +45,101 @@ class TableChannel(SocketChannel):
         super().__init__(name)
         self.repl_agent = repl_agent
         self.executor = Executor(repl_agent)
+        self.py_executor = ThreadPoolExecutor(max_workers = 1)
         self.chart = ChartAgent(name)
-        self.table = ProductTable()
         self.setup_executor_namespace()
+        self.ready = asyncio.Event()
+
+    channels = {}
+    async def send_start_msg_a(self):
+        pass
+
+    @classmethod
+    def has_channel(cls, name):
+        return True #name in cls.channels or cls.get_file_path(name)
+
+    @classmethod
+    async def get_channel_a(cls, name, repl):
+        if name in cls.channels:
+            result = cls.channels[name]
+        else:
+            result = await cls.create_channel_a(name, repl)
+        return result
+
+    @classmethod
+    async def create_channel_a(cls, name, repl):
+        channel = cls(name, repl)
+        await channel.setup_a()
+        cls.channels[name] = channel # Important 
+        return channel
+
+    async def setup_a(self):
+        await self.repl_agent.add_child_a(self.executor)
+        await self.executor.add_child_a(self.chart)
+        await self.chart.add_child_a(self)
+        self.chart._interact_source = None
+        await self.executor.load_repl_init_file_if_it_exists_a()
+        self.py_executor.submit(self.finish_setup)
+
+    @transform_inbound_messages
+    async def transform__new_user__a(self, envelope):
+        envelope.mark_used()
+        await self.ready.wait()
+        await self.send_message_outward_a("initialize.chart.state", *arguments(
+            state=self.sseq, display_state=self.chart.display_state
+        ))
+
+
+    def finish_setup(self):
+        self.table = ProductTable()
+        self.executor.get_globals()["table"] = self.table
         if not TableChannel.SAVE_DIR.is_dir():
             TableChannel.SAVE_DIR.mkdir()
         self.load()
         if self.undoStack == []:
             self.do_initial_commands()
+        self.ready.set()
+
+    async def close_channel_a(self, code):
+        del type(self).channels[self.name]
+        await self.close_connections_a(code)
+        await self.repl_agent.remove_child_a(self.executor)
+
+    async def add_subscriber_a(self, websocket):
+        recv = SseqSocketReceiver(websocket)
+        # recv.executor = self.executor
+        await self.add_child_a(recv)
+        await recv.start_a()
+
+    def setup_executor_namespace(self):
+        globals = self.executor.get_globals()
+        globals["REPL"] = self.repl_agent
+        globals["chart"] = self.chart
+        globals["channel"] = self
+
+
+    @classmethod
+    def http_response(cls, channel_name, request):
+        response_data = { 
+            "port" : cls.port, 
+            "directory" : cls.directory,
+            "channel_name" : channel_name,
+            "request" : request, 
+        }
+        if cls.has_channel(channel_name):
+            return templates.TemplateResponse("table.html", response_data)
+
+
+
+    @transform_inbound_messages
+    async def transform__console__take__a(self, envelope):
+        envelope.mark_used()
+        self.repl_agent.set_executor(self.executor)
+
+    @transform_inbound_messages
+    async def transform__click__a(self, envelope, *args, **kwargs):
+        envelope.mark_used()
+
 
     def save(self):
         save_str = json_stringify(self.undoStack)
@@ -77,75 +168,7 @@ class TableChannel(SocketChannel):
             self.do_action(action)
             self.update_action_bidegrees(action)
 
-    channels = {}
-    async def send_start_msg_a(self):
-        pass
 
-    @classmethod
-    def has_channel(cls, name):
-        return True #name in cls.channels or cls.get_file_path(name)
-
-    @classmethod
-    async def get_channel_a(cls, name, repl):
-        if name in cls.channels:
-            return cls.channels[name]
-        return await cls.create_channel_a(name, repl)
-
-    @classmethod
-    async def create_channel_a(cls, name, repl):
-        channel = cls(name, repl)
-        cls.channels[name] = channel
-        await channel.setup_a()
-        return channel
-
-    async def setup_a(self):
-        await self.repl_agent.add_child_a(self.executor)
-        await self.executor.add_child_a(self.chart)
-        await self.chart.add_child_a(self)
-        self.chart._interact_source = None
-        await self.executor.load_repl_init_file_if_it_exists_a()
-        self.table.build_dense_products()
-
-    async def close_channel_a(self, code):
-        del type(self).channels[self.name]
-        await self.close_connections_a(code)
-        await self.repl_agent.remove_child_a(self.executor)
-
-    async def add_subscriber_a(self, websocket):
-        recv = SseqSocketReceiver(websocket)
-        # recv.executor = self.executor
-        await self.add_child_a(recv)
-        await recv.start_a()
-
-    def setup_executor_namespace(self):
-        globals = self.executor.get_globals()
-        globals["REPL"] = self.repl_agent
-        globals["chart"] = self.chart
-        globals["channel"] = self
-        globals["table"] = self.table
-
-
-    @classmethod
-    def http_response(cls, channel_name, request):
-        response_data = { 
-            "port" : cls.port, 
-            "directory" : cls.directory,
-            "channel_name" : channel_name,
-            "request" : request, 
-        }
-        if cls.has_channel(channel_name):
-            return templates.TemplateResponse("table.html", response_data)
-
-
-
-    @transform_inbound_messages
-    async def transform__console__take__a(self, envelope):
-        envelope.mark_used()
-        self.repl_agent.set_executor(self.executor)
-
-    @transform_inbound_messages
-    async def transform__click__a(self, envelope, *args, **kwargs):
-        envelope.mark_used()
 
 
 ############# start of math logic
@@ -222,7 +245,7 @@ class TableChannel(SocketChannel):
         for [bidegree, state] in self.previews.items():
             self.restore_bidegree_state(bidegree, state)
         self.previews = {}
-        action = self.process_user_action(action)
+        action = await asyncio.wrap_future(self.py_executor.submit(self.process_user_action, action))
         self.save()
         await self.send_action_info(action)
         await self.chart.sseq.update_a()
@@ -290,7 +313,6 @@ class TableChannel(SocketChannel):
                             }
                     except IndexError:
                         pass
-                        # print("out:", [out_x, out_y])
             result.update(new_names)
         return list(result.values())
             
@@ -330,13 +352,17 @@ class TableChannel(SocketChannel):
         if not self.redoStack:
             await self.send_action_info(None)
             return
+        action = await asyncio.wrap_future(self.py_executor.submit(self.redo_action_main)) 
+        await self.send_action_info(action)
+        await self.chart.sseq.update_a()
+
+    def redo_action_main(self):
         action = self.redoStack.pop()
         self.undoStack.append(action)
         self.do_action(action)
         self.update_action_bidegrees(action)
         self.save()
-        await self.send_action_info(action)
-        await self.chart.sseq.update_a()
+        return action        
 
     def do_action(self, action):
         for cmd in action["cmd_list"]:
@@ -348,14 +374,18 @@ class TableChannel(SocketChannel):
         if not self.undoStack:
             await self.send_action_info(None)
             return        
+        action = await asyncio.wrap_future(self.py_executor.submit(self.undo_action_main))
+        await self.send_action_info(action)
+        await self.chart.sseq.update_a()
+
+    def undo_action_main(self):
         action = self.undoStack.pop()
         self.redoStack.append(action)
         for cmd in reversed(action["cmd_list"]):
             self.undo_cmd(cmd)
         self.update_action_bidegrees(action)
         self.save()
-        await self.send_action_info(action)
-        await self.chart.sseq.update_a()
+        return action
 
     def update_action_bidegrees(self, action):
         for bidegree in set(tuple(cmd["bidegree"]) for cmd in action["cmd_list"]):
