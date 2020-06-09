@@ -310,7 +310,9 @@ class TableChannel(SocketChannel):
         [x, y] = bidegree
         self.table.named_vecs[y][x][tuple(vec)] = name
         if name and len(name) == 1 and name[0][1] == 1:
-            self.table.gen_degs[name[0][0]] = [x, y]
+            new_gen = name[0][0]
+            if not new_gen.startswith("h_{"):
+                self.table.gen_degs[new_gen] = [x, y]
     
     def apply_set_matrix(self, type, bidegree, matrix, state, **kwargs):
         self.table.basis_in_bidegree(*bidegree).set_matrix(matrix)
@@ -834,9 +836,9 @@ class ProductTable:
         # for [t, name] in self.class_names:
         #     if len(name) == 1 and name[0][1] == 1:
         #         self.gen_degs[name[0][0]] = t
-        self.gen_degs["M"] = [-4,-4,0]
-        self.gen_degs["P"] = [-3,-3,0]
-        self.gen_degs["\\Delta"] = [-1,-1,0]
+        override_gens = ["M", "P", "\\Delta", *(f"h_{{{i}}}" for i in range(HI_MAX))]
+        for [idx, gen] in enumerate(reversed(override_gens)):
+            self.gen_degs[gen] = [-idx, -idx, -idx]
         self.named_vecs = [[{} for _ in range(self.x_max)] for _ in range(self.y_max)]
     
     def get_vec_name(self, x, y, vec):

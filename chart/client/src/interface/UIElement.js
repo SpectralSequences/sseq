@@ -74,13 +74,14 @@ export class UIElement extends HTMLElement {
         let printable = 
             (keyCode >= 48 && keyCode < 58) // number keys
             || keyCode == 32 // space
-            || (keyCode >= 37 && keyCode < 41) // Arrow keys (okay technically not printable but they do things in text boxes)
+            || (keyCode >= 35 && keyCode < 41) //Home, End, Arrow keys (okay technically not printable but they do things in text boxes)
             || (keyCode >= 65 && keyCode < 91)    // letter keys
             || (keyCode >= 96 && keyCode < 112)   // numpad keys
             || (keyCode >= 186 && keyCode < 193)  // ;=,-./` (in order)
             || (keyCode >= 219 && keyCode < 223)  // [\]' (in order
-            ||  ["t", "z"].includes(e.key)
-            || e.code.startsWith("Digit");   // Why is this here?
+            ||  ["t", "z"].includes(e.key) // Why does this need to be here?
+            || e.code.startsWith("Digit")   // Why does this need to be here?
+        ;
             
             // Is the element a text input?
         let in_text_input = element.matches("input, select, textarea") || (element.contentEditable && element.contentEditable == 'true');
