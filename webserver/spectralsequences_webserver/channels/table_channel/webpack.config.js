@@ -1,6 +1,7 @@
 const path = require('path');
 const webpack = require('webpack');
 
+context = "../../../..";
 module.exports = {
     entry: {
       table : './src/table.js',
@@ -8,9 +9,16 @@ module.exports = {
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: '[name].js',
-        strictModuleExceptionHandling: true
+        strictModuleExceptionHandling: true,
+        devtoolModuleFilenameTemplate (info) {
+          const rel = path.relative(context, info.absoluteResourcePath);
+          // console.log(`rel: ${rel}`, `localhost:8000/debug/${rel}`);
+          // return `webpack:///${rel}`
+          return `../debug/table/${rel}`;
+        },
     },
     mode : "development",
+    devtool: 'eval-source-map',
     // mode : "production",
     plugins: [],
     module: {

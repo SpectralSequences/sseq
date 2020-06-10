@@ -39,6 +39,7 @@ class TableChannel(SocketChannel):
     @classmethod
     def serve_extra(cls, app, host, port, cls_dir):
         app.mount("/client/table", StaticFiles(directory=CHANNEL_DIR / "dist"), name="client")
+        app.mount("/debug/table/chart", StaticFiles(directory=config.CHART_REPOSITORY_ROOT), name="debug")
 
 
     def __init__(self, name, repl_agent):
@@ -301,7 +302,7 @@ class TableChannel(SocketChannel):
                         if 1 in out_vec and \
                             not self.table.named_vecs[out_y][out_x].get(out_vec, None) \
                             and (out_x, out_y, out_vec) not in result:
-                            
+
                             new_name = name_tools.reduce_monomial(name["name"] + prod["name"])
                             new_names[(out_x, out_y, out_vec)] = {
                                 "type" : "set_name", 
