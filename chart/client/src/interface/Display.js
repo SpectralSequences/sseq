@@ -633,7 +633,7 @@ export class Display extends HTMLElement {
             // console.log("seek:", dxActual, dyActual, dist);
             // steps controls the speed -- doubling steps halves the speed.
             // Of course we could maybe set up some fancy algorithm that zooms and pans.
-            let steps = Math.ceil(dist / 7);
+            let steps = Math.ceil(dist / 15);
             let xstep = dxActual / steps;
             let ystep = dyActual / steps;
             this.translateBy(xstep, ystep);

@@ -56,8 +56,6 @@ export class ChartElement extends HTMLElement {
         }
     }
 
-    
-
     /**
      * Set the spectral sequence to display.
      * @param ss

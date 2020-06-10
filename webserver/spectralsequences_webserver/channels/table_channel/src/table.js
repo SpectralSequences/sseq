@@ -15,6 +15,7 @@ import { ClassHighlighter } from "chart/interface/ClassHighlighter";
 import { BidegreeHighlighter } from "chart/interface/BidegreeHighlighter";
 import { SseqPageIndicator } from "chart/interface/SseqPageIndicator.js";
 import { Tooltip } from "chart/interface/Tooltip.js";
+
 import {Mutex, Semaphore, withTimeout} from 'async-mutex';
 
 import { Panel } from "chart/interface/Panel.js";
@@ -22,7 +23,7 @@ import { Matrix } from "chart/interface/Matrix.js";
 import { KatexExprElement } from "chart/interface/KatexExprElement.js";
 import { SseqSocketListener } from "chart/SseqSocketListener.js";
 import { Popup } from "chart/interface/Popup.js";
-import { sleep, promiseFromDomEvent, throttle } from "chart/interface/utils.js";
+import { sleep, promiseFromDomEvent, throttle, animationFrame } from "chart/interface/utils.js";
 
 window.SseqSocketListener = SseqSocketListener;
 window.UIElement = UIElement;
@@ -678,7 +679,7 @@ class TableUI {
         this.display.addEventListener("click", this.handleChartClick.bind(this))
         this.uiElement.addEventListener("keydown-arrow",
             throttle(75, { trailing : false })(this.handleArrow.bind(this)));
-        this.uiElement.addEventListener("keypress-wasd", throttle(50)(this.handleWASD.bind(this)));
+        this.uiElement.addEventListener("keypress-wasd", throttle(5)(this.handleWASD.bind(this)));
         this.uiElement.addEventListener("keypress-pm",
             throttle(150, { trailing : false })(this.handlePM.bind(this)));
         this.uiElement.addEventListener("keypress-digit",
@@ -702,10 +703,10 @@ class TableUI {
         this.select_bidegree(x, y);
     }
     
-    handleWASD(e){
-        console.log("HandleWasd")
+    async handleWASD(e){
+        await animationFrame();
         let [dx, dy] = e.detail.direction;
-        let s = 30;
+        let s = 20;
         display.translateBy( - dx * s, dy * s);
     }
 

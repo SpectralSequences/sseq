@@ -79,11 +79,12 @@ export class UIElement extends HTMLElement {
             || (keyCode >= 96 && keyCode < 112)   // numpad keys
             || (keyCode >= 186 && keyCode < 193)  // ;=,-./` (in order)
             || (keyCode >= 219 && keyCode < 223)  // [\]' (in order
-            ||  ["t", "z"].includes(e.key) // Why does this need to be here?
+            ||  ["t", "z", "+", "-"].includes(e.key) // Why does this need to be here?
             || e.code.startsWith("Digit")   // Why does this need to be here?
         ;
+        // console.log(e.key, e.code, e.keyCode, e);
             
-            // Is the element a text input?
+        // Is the element a text input?
         let in_text_input = element.matches("input, select, textarea") || (element.contentEditable && element.contentEditable == 'true');
         return printable && in_text_input;
     }
