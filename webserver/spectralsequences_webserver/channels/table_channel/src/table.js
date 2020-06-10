@@ -678,7 +678,7 @@ class TableUI {
         this.display.addEventListener("click", this.handleChartClick.bind(this))
         this.uiElement.addEventListener("keydown-arrow",
             throttle(75, { trailing : false })(this.handleArrow.bind(this)));
-        this.uiElement.addEventListener("keypress-wasd", throttle(75)(this.handleWASD.bind(this)));
+        this.uiElement.addEventListener("keypress-wasd", throttle(50)(this.handleWASD.bind(this)));
         this.uiElement.addEventListener("keypress-pm",
             throttle(150, { trailing : false })(this.handlePM.bind(this)));
         this.uiElement.addEventListener("keypress-digit",
@@ -703,8 +703,9 @@ class TableUI {
     }
     
     handleWASD(e){
+        console.log("HandleWasd")
         let [dx, dy] = e.detail.direction;
-        let s = 8;
+        let s = 30;
         display.translateBy( - dx * s, dy * s);
     }
 

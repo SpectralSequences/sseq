@@ -301,7 +301,7 @@ class TableChannel(SocketChannel):
                         if 1 in out_vec and \
                             not self.table.named_vecs[out_y][out_x].get(out_vec, None) \
                             and (out_x, out_y, out_vec) not in result:
-
+                            
                             new_name = name_tools.reduce_monomial(name["name"] + prod["name"])
                             new_names[(out_x, out_y, out_vec)] = {
                                 "type" : "set_name", 
