@@ -183,7 +183,7 @@ class TableChannel(SocketChannel):
         self.sseq.initial_x_range = [0, 60]
         self.sseq.initial_y_range = [0, 30]
         self.sseq.offset_size = 10
-        self.sseq.class_size = 8      
+        self.sseq.class_scale = 8      
         for (y, row) in enumerate(self.table.num_gens):
             for (x, gens) in enumerate(row):
                 for _ in range(gens):
