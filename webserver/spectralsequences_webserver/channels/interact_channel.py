@@ -14,7 +14,6 @@ from spectralsequence_chart import SseqSocketReceiver, InteractiveChartAgent
 from ..repl.executor import Executor
 from .. import config
 
-from ..process_overlay import process_overlay
 
 
 from fastapi.templating import Jinja2Templates
@@ -104,28 +103,29 @@ class InteractChannel(SocketChannel):
         print(ansi.success("Overwriting " + str(out_path)))
         out_path.write_text(save_str)
 
-    @transform_inbound_messages
-    async def transform__io__process_screenshot__a(self, envelope):
-        envelope.mark_used()
-        files = sorted(config.SCREENSHOT_DIR.glob("*.png"))
-        file = files[-1]
-        if file == self.last_screenshot:
-            print(ansi.info("No new screenshot to process."))
-            return
-        self.last_screenshot = file
-        print(ansi.info("Setting up screenshot processing."))
-        # save_str = json_stringify(self.chart.data)
-        # if save_str != self.last_save:
-        #     self.save()
-        self.process_screenshot(file)
+    # @transform_inbound_messages
+    # async def transform__io__process_screenshot__a(self, envelope):
+    #     envelope.mark_used()
+    #     files = sorted(config.SCREENSHOT_DIR.glob("*.png"))
+    #     file = files[-1]
+    #     if file == self.last_screenshot:
+    #         print(ansi.info("No new screenshot to process."))
+    #         return
+    #     self.last_screenshot = file
+    #     print(ansi.info("Setting up screenshot processing."))
+    #     # save_str = json_stringify(self.chart.data)
+    #     # if save_str != self.last_save:
+    #     #     self.save()
+    #     self.process_screenshot(file)
 
-    def process_screenshot(self, file):
-        i = sum(1 for i in config.OVERLAY_DIR.glob(f"{self.last_save_file.stem}*"))
-        outfile = config.OVERLAY_DIR / f"{self.last_save_file.stem}__overlay{i}.svg"
-        self.last_overlay_outfile = outfile
-        p = Process(target=process_overlay, args=(file, outfile))
-        p.start()
-        print(ansi.info(f"   Output file: {outfile}"))
+    # def process_screenshot(self, file):
+    #     from ..process_overlay import process_overlay
+    #     i = sum(1 for i in config.OVERLAY_DIR.glob(f"{self.last_save_file.stem}*"))
+    #     outfile = config.OVERLAY_DIR / f"{self.last_save_file.stem}__overlay{i}.svg"
+    #     self.last_overlay_outfile = outfile
+    #     p = Process(target=process_overlay, args=(file, outfile))
+    #     p.start()
+    #     print(ansi.info(f"   Output file: {outfile}"))
 
 
     def set_note(self, note):

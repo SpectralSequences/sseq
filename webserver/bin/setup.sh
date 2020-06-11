@@ -53,6 +53,7 @@ if [ $? -ne 0 ]; then
 fi
 . bin/virtualenv/bin/activate
 msg "Installing python packages."
+pip install aiofiles
 pip install fastapi
 pip install lark
 pip install jinja2
@@ -62,7 +63,6 @@ pip install ptpython
 pip install readerwriterlock # Necessary?
 pip install uvicorn
 pip install websockets
-#pip install aiofiles
 #pip install imageio
 #pip install shapely
 #pip install scikit-image
