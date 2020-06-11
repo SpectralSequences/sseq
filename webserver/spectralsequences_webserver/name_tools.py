@@ -99,6 +99,8 @@ def power_name(var, n, zeroth_power=""):
 
 def monomial_name(*exponents):
     result = " ".join(power_name(var, e) for [var,e] in exponents)
+    if len(exponents) == 1 and result.startswith("(") and result.endswith(")"):
+        result = result[1:-1]
     if result == "":
         result = "1"
     return result
