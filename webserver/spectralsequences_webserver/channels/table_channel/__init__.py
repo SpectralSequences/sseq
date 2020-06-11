@@ -867,7 +867,7 @@ class ProductTable:
         # for [t, name] in self.class_names:
         #     if len(name) == 1 and name[0][1] == 1:
         #         self.gen_degs[name[0][0]] = t
-        override_gens = ["M", "P", "\\Delta", *(f"h_{{{i}}}" for i in range(HI_MAX))]
+        override_gens = ["M", "P", "\\Delta", "\\Delta_{1}", *(f"h_{{{i}}}" for i in range(HI_MAX))]
         for [idx, gen] in enumerate(reversed(override_gens)):
             self.gen_degs[gen] = [-idx, -idx, -idx]
         self.named_vecs = [[{} for _ in range(self.x_max)] for _ in range(self.y_max)]
