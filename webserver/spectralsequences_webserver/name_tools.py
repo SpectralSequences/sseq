@@ -17,7 +17,9 @@ _name_parser = Lark("""
     ?gen : gen_singleton | gen_macro | ( "(" " "* gen_singleton " "* ")" ) | ( "(" " "* gen_macro " "* ")" )| gen_parens 
     gen_singleton : /[A-Za-z]/
     gen_macro : /\\\\[A-Za-z]+/
-    gen_parens : "(" /((\\\\[A-Za-z]+)|[\w^ +\-'])+/ ")"
+    gen_parens : "(" (latex_macro | /[\w^ +\-']/ | gen_parens)+ ")"
+    
+    ?latex_macro : /\\\\[A-Za-z]+/
 
     ?arg : ("{" /[0-9]+/ "}") | /[0-9]+/
 
@@ -28,7 +30,7 @@ from lark import Tree, Transformer
 class EvalName(Transformer):
     def gen_parens(self, args):
         import re
-        result = re.sub("\\\\[A-Za-z]*", "\g<0>!!!!", args[0])\
+        result = re.sub("\\\\[A-Za-z]*", "\g<0>!!!!", "".join(args))\
                    .replace(" ", "")\
                    .replace("!!!!", " ")\
                    .strip()
