@@ -13,7 +13,7 @@ templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 
 
 @subscribe_to("*")
-@collect_transforms(inherit=True)
+@collect_handlers(inherit=True)
 class DemoChannel(SocketChannel):
     def __init__(self, name, file_path, repl_agent):
         super().__init__(name)
@@ -40,8 +40,8 @@ class DemoChannel(SocketChannel):
         await executor.exec_file_a(self.file_path)
 
         DemoClass = put_main_class_here["main_class"]
-        if DemoClass.inward_transformers is None:
-            collect_transforms(inherit = True)(DemoClass)
+        if DemoClass.inward_handlers is None:
+            collect_handlers(inherit = True)(DemoClass)
         if DemoClass.subscriptions is None:
             subscribe_to("*")(DemoClass)
         demo = DemoClass(executor)
@@ -62,10 +62,10 @@ class DemoChannel(SocketChannel):
         globals = executor.get_globals()
         globals["main"] = main
         globals["Demo"] = Demo
-        globals["collect_transforms"] = collect_transforms
+        globals["collect_handlers"] = collect_handlers
         globals["subscribe_to"] = subscribe_to
-        globals["transform_inbound_messages"] = transform_inbound_messages
-        globals["transform_outbound_messages"] = transform_outbound_messages
+        globals["handle_inbound_messages"] = handle_inbound_messages
+        globals["handle_outbound_messages"] = handle_outbound_messages
         executor.get_globals()["REPL"] = self.repl_agent
 
 
@@ -101,7 +101,7 @@ class DemoChannel(SocketChannel):
         if cls.has_channel(channel_name):
             return templates.TemplateResponse("demo.html", response_data)
 
-@collect_transforms(inherit=False) # Nothing to inherit.
+@collect_handlers(inherit=False) # Nothing to inherit.
 class GenericDemo(Agent):
     def __init__(self, executor):
         super().__init__()
@@ -132,13 +132,13 @@ class GenericDemo(Agent):
         self.ready_for_next_signal.set()
         await self.user_next.wait()
     
-    @transform_inbound_messages
-    async def transform__demo__next__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__demo__next__a(self, envelope):
         envelope.mark_used()
         await self.next_a()
 
-    @transform_inbound_messages
-    async def transform__demo__take_over_console__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__demo__take_over_console__a(self, envelope):
         envelope.mark_used()
         self.take_over_console(self)
 

@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 @subscribe_to([]) # root node.
-@collect_transforms(inherit=False) # Nothing to inherit
+@collect_handlers(inherit=False) # Nothing to inherit
 class ReplAgent(Agent):
     def __init__(self,
         vi_mode: bool = False,
@@ -48,29 +48,29 @@ class ReplAgent(Agent):
         self.console_io.executor = executor
 
 
-    @transform_inbound_messages
-    async def transform__debug__a(self, envelope, msg):#source, cmd, msg):
+    @handle_inbound_messages
+    async def handle__debug__a(self, envelope, msg):#source, cmd, msg):
         envelope.mark_used()
         self.console_io.print_debug(".".join(cmd.part_list[1:]), msg)
 
-    @transform_inbound_messages
-    async def transform__info__a(self, envelope, msg):
+    @handle_inbound_messages
+    async def handle__info__a(self, envelope, msg):
         # print("consume_info", args, kwargs)
         envelope.mark_used()
         self.console_io.print_info(".".join(cmd.part_list[1:]), msg)
 
-    @transform_inbound_messages
-    async def transform__warning__a(self, envelope, msg):
+    @handle_inbound_messages
+    async def handle__warning__a(self, envelope, msg):
         envelope.mark_used()
         self.console_io.print_warning(".".join(cmd.part_list[1:]), msg)
 
-    @transform_inbound_messages
-    async def transform__error__exception__a(self, envelope, msg,  exception):
+    @handle_inbound_messages
+    async def handle__error__exception__a(self, envelope, msg,  exception):
         # do something with cmd?
         envelope.mark_used()
         self.console_io.print_exception(exception)
 
-    @transform_inbound_messages
-    async def transform__error__additional_info__a(self, envelope, msg, additional_info):
+    @handle_inbound_messages
+    async def handle__error__additional_info__a(self, envelope, msg, additional_info):
         envelope.mark_used()
         self.console_io.print_error(".".join(envelope.msg.cmd.part_list[2:]), msg, additional_info)

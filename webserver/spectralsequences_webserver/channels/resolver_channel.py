@@ -12,7 +12,7 @@ from .. import config
 templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 
 @subscribe_to("*")
-@collect_transforms(inherit=True)
+@collect_handlers(inherit=True)
 class ResolverChannel(SocketChannel):
     def __init__(self, resolver):
         super().__init__(resolver.name)
@@ -71,7 +71,7 @@ class ResolverChannel(SocketChannel):
         print(ansi.success("Saving to " + str(out_path)))
         out_path.write_text(save_str)
 
-    @transform_inbound_messages
-    async def transform__click__a(self, envelope, x, y, chart_class=None):
+    @handle_inbound_messages
+    async def handle__click__a(self, envelope, x, y, chart_class=None):
         envelope.mark_used()
         pass # IGNORED!

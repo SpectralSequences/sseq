@@ -7,7 +7,7 @@ from spectralsequence_chart import ChartAgent
 
 
 @subscribe_to("*")
-@collect_transforms(inherit = True)
+@collect_handlers(inherit = True)
 class InteractiveChartAgent(ChartAgent):
     modes = {}
     def __init__(self, *args, **kwargs):
@@ -21,8 +21,8 @@ class InteractiveChartAgent(ChartAgent):
         self.x_range = [0, 50]
         self.y_max = [0, 12]
 
-    @transform_inbound_messages
-    async def transform__click__a(self, envelope, x, y, chart_class=None):
+    @handle_inbound_messages
+    async def handle__click__a(self, envelope, x, y, chart_class=None):
         envelope.mark_used()
         if chart_class is not None:
             chart_class = self.sseq._classes[chart_class["uuid"]]
@@ -69,8 +69,8 @@ class InteractiveChartAgent(ChartAgent):
     async def make_client_set_mode_info_a(self, info):
         await self.send_message_outward_a("interact.mode.set_info", *arguments(info = info))
 
-    @transform_inbound_messages
-    async def transform__interact__mode__set__a(self, envelope,  *args, **kwargs):
+    @handle_inbound_messages
+    async def handle__interact__mode__set__a(self, envelope,  *args, **kwargs):
         envelope.mark_used()
         new_mode = kwargs["mode"]
         if new_mode in InteractiveChartAgent.modes:
@@ -78,8 +78,8 @@ class InteractiveChartAgent(ChartAgent):
         else:
             raise RuntimeError(f"""Unknown mode "{new_mode}".""")
 
-    @transform_inbound_messages
-    async def transform__interact__mode__a(self, envelope, *args, **kwargs):
+    @handle_inbound_messages
+    async def handle__interact__mode__a(self, envelope, *args, **kwargs):
         envelope.mark_used()
         cmd = envelope.msg.cmd
         f = getattr(self.mode, "handle__" + "__".join(cmd.part_list[2:]) + "__a", None)
@@ -89,8 +89,8 @@ class InteractiveChartAgent(ChartAgent):
             self.schedule_coroutine(f(self, *args, **kwargs))
             
 
-    @transform_inbound_messages
-    async def transform__interact__result__a(self, envelope, *args, **kwargs):
+    @handle_inbound_messages
+    async def handle__interact__result__a(self, envelope, *args, **kwargs):
         envelope.mark_used()
         self.response_event.result = [args, kwargs]
         self.response_event.set()

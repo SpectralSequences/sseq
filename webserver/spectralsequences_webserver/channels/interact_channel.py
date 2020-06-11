@@ -21,7 +21,7 @@ templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 
 
 @subscribe_to("*")
-@collect_transforms(inherit=True)
+@collect_handlers(inherit=True)
 class InteractChannel(SocketChannel):
     def __init__(self, name, repl_agent):
         super().__init__(name)
@@ -42,8 +42,8 @@ class InteractChannel(SocketChannel):
         self.chart._interact_source = None
         await self.executor.load_repl_init_file_if_it_exists_a()
         
-    @transform_inbound_messages
-    async def transform__console__take__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__console__take__a(self, envelope):
         envelope.mark_used()
         self.repl_agent.set_executor(self.executor)
 
@@ -82,8 +82,8 @@ class InteractChannel(SocketChannel):
         await new_channel.setup_a()
         return new_channel
 
-    @transform_inbound_messages
-    async def transform__io__save__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__io__save__a(self, envelope):
         envelope.mark_used()
         self.save()
 
@@ -103,8 +103,8 @@ class InteractChannel(SocketChannel):
         print(ansi.success("Overwriting " + str(out_path)))
         out_path.write_text(save_str)
 
-    # @transform_inbound_messages
-    # async def transform__io__process_screenshot__a(self, envelope):
+    # @handle_inbound_messages
+    # async def handle__io__process_screenshot__a(self, envelope):
     #     envelope.mark_used()
     #     files = sorted(config.SCREENSHOT_DIR.glob("*.png"))
     #     file = files[-1]

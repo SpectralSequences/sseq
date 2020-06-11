@@ -3,7 +3,7 @@ from spectralsequence_chart import SseqSocketReceiver, SpectralSequenceChart
 
 
 @main
-@collect_transforms(inherit = True)
+@collect_handlers(inherit = True)
 @subscribe_to("*")
 class TestDemo(Demo):
     async def setup_a(self, websocket):

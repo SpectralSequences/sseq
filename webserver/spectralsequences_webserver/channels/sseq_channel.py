@@ -9,7 +9,7 @@ templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 
 
 @subscribe_to("*")
-@collect_transforms(inherit=True)
+@collect_handlers(inherit=True)
 class SseqChannel(SocketChannel):
     def __init__(self, name):
         super().__init__(name)
@@ -54,7 +54,7 @@ class SseqChannel(SocketChannel):
         if name in cls.channels:
             return True
 
-    @transform_inbound_messages
-    async def transform__click__a(self, envelope, x, y, chart_class=None):
+    @handle_inbound_messages
+    async def handle__click__a(self, envelope, x, y, chart_class=None):
         envelope.mark_used()
         pass # IGNORED!

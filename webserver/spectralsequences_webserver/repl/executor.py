@@ -12,7 +12,7 @@ from weakref import WeakSet
 
 
 from message_passing_tree import Agent 
-from message_passing_tree.decorators import collect_transforms, subscribe_to
+from message_passing_tree.decorators import collect_handlers, subscribe_to
 
 from .. import config
 
@@ -42,7 +42,7 @@ del temp
 
 
 @subscribe_to("*")
-@collect_transforms(inherit = False)
+@collect_handlers(inherit = False)
 class Executor(Agent):
     namespace = None
     executors = WeakSet()

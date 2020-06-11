@@ -19,7 +19,7 @@ from fastapi.templating import Jinja2Templates
 templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 
 @subscribe_to("*")
-@collect_transforms(inherit=True)
+@collect_handlers(inherit=True)
 class SlideshowChannel(SocketChannel):
     def __init__(self, name, source_files, repl_agent):
         super().__init__(name)
@@ -80,13 +80,13 @@ class SlideshowChannel(SocketChannel):
         if cls.has_channel(channel_name):
             return templates.TemplateResponse("slideshow.html", response_data)
 
-    @transform_inbound_messages
-    async def transform__click__a(self, envelope, x, y, chart_class=None):
+    @handle_inbound_messages
+    async def handle__click__a(self, envelope, x, y, chart_class=None):
         envelope.mark_used()
         pass # IGNORED!
 
-    @transform_inbound_messages
-    async def transform__slideshow__initialize_source_files__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__slideshow__initialize_source_files__a(self, envelope):
         envelope.mark_used()
         recv = self.look_up_recv_by_path(source_agent_path)
         self.log_debug("ready to prepare source file")
@@ -126,8 +126,8 @@ class SlideshowChannel(SocketChannel):
             target_agent_path = [recv.executor.uuid]
         )
 
-    @transform_inbound_messages
-    async def transform__slideshow__next_file__a(self, envelope, file_idx):
+    @handle_inbound_messages
+    async def handle__slideshow__next_file__a(self, envelope, file_idx):
         envelope.mark_used()
         recv = self.look_up_recv_by_path(source_agent_path)
         print("slideshow.next_file", recv.current_source_file)
@@ -143,8 +143,8 @@ class SlideshowChannel(SocketChannel):
             recv.max_source_file = recv.current_source_file
             await self.prepare_source_file_a(recv)
 
-    @transform_inbound_messages
-    async def transform__slideshow__previous_file__a(self, envelope, file_idx):
+    @handle_inbound_messages
+    async def handle__slideshow__previous_file__a(self, envelope, file_idx):
         envelope.mark_used()
         recv = self.look_up_recv_by_path(source_agent_path)
         print("slideshow.previous_file", recv.current_source_file)
@@ -167,8 +167,8 @@ class SlideshowChannel(SocketChannel):
         raise RuntimeError("Didn't find a child with the appropriate ID.")
 
 
-    @transform_inbound_messages
-    async def transform__console__take__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__console__take__a(self, envelope):
         envelope.mark_used()
         recv = self.look_up_recv_by_path(source_agent_path)
         self.repl_agent.set_executor(recv.executor)

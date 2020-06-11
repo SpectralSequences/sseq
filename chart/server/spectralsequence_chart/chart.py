@@ -339,7 +339,7 @@ class DisplayState:
         self.background_color = ChartAgent.default_background_color
 
 @subscribe_to(["*"])
-@collect_transforms(inherit=False) # Nothing to inherit
+@collect_handlers(inherit=False) # Nothing to inherit
 class ChartAgent(Agent):
     default_agent=None
     default_background_color = "#FFFFFF"

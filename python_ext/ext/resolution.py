@@ -26,7 +26,7 @@ def make_unit_module():
     return M
 
 @subscribe_to("*")
-@collect_transforms(inherit=False)
+@collect_handlers(inherit=False)
 class Resolver(MathAgent):
     def __init__(self, name, chart=None, module=None): 
         super().__init__()

@@ -14,7 +14,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 @subscribe_to("*")
-@collect_transforms(inherit = False)
+@collect_handlers(inherit = False)
 class SocketChannel(Agent):
     channels = {}
     serving_class_to = None
@@ -153,8 +153,8 @@ class SocketChannel(Agent):
         """
         await self.add_child_a(sock_recv)
 
-    @transform_inbound_messages
-    async def transform__socket__close__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__socket__close__a(self, envelope):
         envelope.mark_used()
         recv = self
         for id in reversed(envelope.source_agent_path):

@@ -55,7 +55,7 @@ class Command:
 
 class Message:
     def __init__(self, cmd, args, kwargs):
-        # Don't allow top level keys sharing a name with the arguments of transformers.
+        # Don't allow top level keys sharing a name with the arguments of handlers.
         for illegal_top_level_key in ["envelope"]:
             if illegal_top_level_key in kwargs:
                 raise ValueError(
@@ -135,8 +135,8 @@ class Envelope:
         return f"""cmd: {ansi.highlight(self.msg.cmd.str)} args: {ansi.info(self.msg.args)} kwargs: {ansi.info(self.msg.kwargs)}"""
 
 class Agent:
-    outward_transformers = None
-    inward_transformers = None
+    outward_handlers = None
+    inward_handlers = None
     subscriptions = None
 
     def schedule_coroutine(self, cofunc):
@@ -148,15 +148,15 @@ class Agent:
         return asyncio.ensure_future(temp())
 
     @classmethod
-    def get_transformer(cls, transform_dict, cmd):
+    def get_handler(cls, handler_dict, cmd):
         for cmd_filter in cmd.filter_list:
-            if cmd_filter in transform_dict:
-                return transform_dict[cmd_filter]
+            if cmd_filter in handler_dict:
+                return handler_dict[cmd_filter]
         return None
 
     def __init__(self):
-        if type(self).inward_transformers is None:
-            raise RuntimeError(f"""You forgot to use "@collect_transforms" on {type(self).__name__}.""")
+        if type(self).inward_handlers is None:
+            raise RuntimeError(f"""You forgot to use "@collect_handlers" on {type(self).__name__}.""")
         if type(self).subscriptions is None:
             raise RuntimeError(f"""You forgot to use "@subscribe_to(...)" on {type(self).__name__}.""")
         self.parent = None
@@ -165,8 +165,8 @@ class Agent:
         logger.debug(f"new {type(self).__name__} uuuid: {self.uuid}")
         self.cached_path = None
         self.children = {}
-        self.outward_transformers = {}
-        self.inward_transformers = {}
+        self.outward_handlers = {}
+        self.inward_handlers = {}
         # self.inward_responses_expected = []
         # self.inward_responses_expected_lock = asyncio.Lock()
         # self.outward_responses_expected = []
@@ -203,12 +203,12 @@ class Agent:
     def get_uuid(self) -> UUID:
         return self.uuid
 
-    def add_transformer(self, cmd : str, direction):
-        if not hasattr(self, f"{direction}ward_transformers"):
+    def add_handler(self, cmd : str, direction):
+        if not hasattr(self, f"{direction}ward_handlers"):
             raise ValueError(f"""Direction should be "in" or "out" not "{direction}".""")
-        def helper(transformer):
-            getattr(self, f"{direction}ward_transformers")[cmd] = transformer
-            return transformer
+        def helper(handler):
+            getattr(self, f"{direction}ward_handlers")[cmd] = handler
+            return handler
         return helper
 
     async def add_child_a(self, recv):
@@ -246,31 +246,31 @@ class Agent:
                 return True
         return False
 
-    async def transform_outbound_envelope_a(self, envelope : Envelope):
-        self.log_envelope_task("transform_outbound_envelope", envelope)
-        transform_a = self.get_transformer(self.outward_transformers, envelope.msg.cmd)
-        if transform_a is None:
-            transform_a = self.get_transformer(type(self).outward_transformers, envelope.msg.cmd)
-        if transform_a is None:
+    async def handle_outbound_envelope_a(self, envelope : Envelope):
+        self.log_envelope_task("handle_outbound_envelope", envelope)
+        handle_a = self.get_handler(self.outward_handlers, envelope.msg.cmd)
+        if handle_a is None:
+            handle_a = self.get_handler(type(self).outward_handlers, envelope.msg.cmd)
+        if handle_a is None:
             return False
-        return await transform_a(self, envelope)
+        return await handle_a(self, envelope)
 
-    async def transform_inbound_envelope_a(self, envelope):
+    async def handle_inbound_envelope_a(self, envelope):
         # async with self.inward_responses_expected_lock:
             # for (i, (cmd_filter, evt)) in enumerate(self.inward_responses_expected):
                 # if cmd_filter in envelope.msg.cmd.filter_list:
                     # return True
-        transform_a = Agent.get_transformer(self.inward_transformers, envelope.msg.cmd)
-        if transform_a is None:
-            transform_a = Agent.get_transformer(type(self).inward_transformers, envelope.msg.cmd)
-        if transform_a is None:
+        handle_a = Agent.get_handler(self.inward_handlers, envelope.msg.cmd)
+        if handle_a is None:
+            handle_a = Agent.get_handler(type(self).inward_handlers, envelope.msg.cmd)
+        if handle_a is None:
             return False
-        return await transform_a(self, envelope)
+        return await handle_a(self, envelope)
 
 
     async def pass_envelope_inward_a(self, envelope):
         self.log_envelope_task("pass_envelope_inward", envelope)
-        await self.transform_inbound_envelope_a(envelope)
+        await self.handle_inbound_envelope_a(envelope)
         if envelope.stop_propagation_q():
             return
         if envelope.target_agent_id == self.uuid and envelope.unused_q():
@@ -284,7 +284,7 @@ class Agent:
         
     async def pass_envelope_outward_a(self, envelope):
         self.log_envelope_task("pass_envelope_outward", envelope)
-        await self.transform_outbound_envelope_a(envelope)
+        await self.handle_outbound_envelope_a(envelope)
         if envelope.stop_propagation_q():
             return 
         children_to_pass_to = self.pass_envelope_outward_get_children_to_pass_to(envelope)

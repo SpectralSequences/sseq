@@ -20,7 +20,7 @@ templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 
 # The same as slideshow except that different tabs share same view.
 @subscribe_to("*")
-@collect_transforms(inherit=True)
+@collect_handlers(inherit=True)
 class PresentationChannel(SocketChannel):
     def __init__(self, name, chart_source_files, repl_agent):
         super().__init__(name)
@@ -63,8 +63,8 @@ class PresentationChannel(SocketChannel):
         out_file = config.OVERLAY_DIR / (self.current_overlay_source.stem + "__note.txt")
         out_file.write_text(note)
 
-    @transform_inbound_messages
-    async def transform__slideshow__reset__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__slideshow__reset__a(self, envelope):
         envelope.mark_used()
         print("Reset presentation. Refresh page!")
         await self.reset_a()
@@ -113,13 +113,13 @@ class PresentationChannel(SocketChannel):
         if cls.has_channel(channel_name):
             return templates.TemplateResponse("presentation.html", response_data)
 
-    @transform_inbound_messages
-    async def transform__click__a(self, envelope, x, y, chart_class=None):
+    @handle_inbound_messages
+    async def handle__click__a(self, envelope, x, y, chart_class=None):
         envelope.mark_used()
         pass # IGNORED!
 
-    @transform_inbound_messages
-    async def transform__slideshow__chart__initialize__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__slideshow__chart__initialize__a(self, envelope):
         envelope.mark_used()
         await self.send_message_outward_a(
             "slideshow.initialize",
@@ -139,8 +139,8 @@ class PresentationChannel(SocketChannel):
             self.overlay_lists.append(list(config.OVERLAY_DIR.glob(f"{file.stem}*.svg")))
         return self.overlay_lists[chart_idx]
 
-    @transform_inbound_messages
-    async def transform__slideshow__overlay__request_batch__a(self, envelope, chart_idx):
+    @handle_inbound_messages
+    async def handle__slideshow__overlay__request_batch__a(self, envelope, chart_idx):
         envelope.mark_used()
         if chart_idx >= len(self.chart_source_files):
             self.log_error(f"Client requested chart number {chart_idx} but I only have {len(self.chart_source_files)} charts.") 
@@ -192,8 +192,8 @@ class PresentationChannel(SocketChannel):
             )
             return
 
-    @transform_inbound_messages
-    async def transform__slideshow__next__a(self, envelope, chart_idx, overlay_idx):
+    @handle_inbound_messages
+    async def handle__slideshow__next__a(self, envelope, chart_idx, overlay_idx):
         envelope.mark_used()
         if self.lock.locked():
             return
@@ -226,8 +226,8 @@ class PresentationChannel(SocketChannel):
         self.lock.release()
 
 
-    @transform_inbound_messages
-    async def transform__slideshow__previous__a(self, envelope, chart_idx, overlay_idx):
+    @handle_inbound_messages
+    async def handle__slideshow__previous__a(self, envelope, chart_idx, overlay_idx):
         envelope.mark_used()
         if self.lock.locked():
             return
@@ -258,7 +258,7 @@ class PresentationChannel(SocketChannel):
             asyncio.ensure_future(self.release_lock())
         
         
-    @transform_inbound_messages
-    async def transform__console__take__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__console__take__a(self, envelope):
         envelope.mark_used()
         self.repl_agent.set_executor(self.executor)

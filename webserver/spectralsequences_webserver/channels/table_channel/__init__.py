@@ -31,7 +31,7 @@ HI_MAX = 8
 
 
 @subscribe_to("*")
-@collect_transforms(inherit=True)
+@collect_handlers(inherit=True)
 class TableChannel(SocketChannel):
     serve_as = "table"
     SAVE_DIR = config.SAVE_DIR / "table"
@@ -82,8 +82,8 @@ class TableChannel(SocketChannel):
         await self.executor.load_repl_init_file_if_it_exists_a()
         self.py_executor.submit(self.finish_setup)
 
-    @transform_inbound_messages
-    async def transform__new_user__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__new_user__a(self, envelope):
         envelope.mark_used()
         await self.ready.wait()
         await self.send_message_outward_a("initialize.chart.state", *arguments(
@@ -132,13 +132,13 @@ class TableChannel(SocketChannel):
 
 
 
-    @transform_inbound_messages
-    async def transform__console__take__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__console__take__a(self, envelope):
         envelope.mark_used()
         self.repl_agent.set_executor(self.executor)
 
-    @transform_inbound_messages
-    async def transform__click__a(self, envelope, *args, **kwargs):
+    @handle_inbound_messages
+    async def handle__click__a(self, envelope, *args, **kwargs):
         envelope.mark_used()
 
 
@@ -229,8 +229,8 @@ class TableChannel(SocketChannel):
             "description" : "Named <katex-expr>h_i</katex-expr> family"
         })
 
-    @transform_inbound_messages
-    async def transform__interact__select_bidegree__a(self, envelope, bidegree):
+    @handle_inbound_messages
+    async def handle__interact__select_bidegree__a(self, envelope, bidegree):
         envelope.mark_used()
         names = self.get_names_info(bidegree)
         [x, y] = bidegree 
@@ -247,8 +247,8 @@ class TableChannel(SocketChannel):
 
 # Actions:
 
-    @transform_inbound_messages
-    async def transform__interact__action__a(self, envelope, action):
+    @handle_inbound_messages
+    async def handle__interact__action__a(self, envelope, action):
         envelope.mark_used()
         for [bidegree, state] in self.previews.items():
             self.restore_bidegree_state(bidegree, state)
@@ -349,15 +349,15 @@ class TableChannel(SocketChannel):
     def apply_set_matrix(self, type, bidegree, matrix, state, **kwargs):
         self.table.basis_in_bidegree(*bidegree).set_matrix(matrix)
 
-    @transform_inbound_messages
-    async def transform__interact__revert_preview__a(self, envelope, bidegree):
+    @handle_inbound_messages
+    async def handle__interact__revert_preview__a(self, envelope, bidegree):
         envelope.mark_used()
         if tuple(bidegree) in self.previews:
             self.restore_bidegree_state(bidegree, self.previews.pop(tuple(bidegree)))
             await self.chart.sseq.update_a()
 
-    @transform_inbound_messages
-    async def transform__interact__redo__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__interact__redo__a(self, envelope):
         envelope.mark_used()
         if not self.redoStack:
             await self.send_action_info(None)
@@ -378,8 +378,8 @@ class TableChannel(SocketChannel):
         for cmd in action["cmd_list"]:
             self.apply_command(cmd)
 
-    @transform_inbound_messages
-    async def transform__interact__undo__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__interact__undo__a(self, envelope):
         envelope.mark_used()
         if not self.undoStack:
             await self.send_action_info(None)
@@ -414,14 +414,14 @@ class TableChannel(SocketChannel):
         self.table.basis_in_bidegree(*bidegree).set_matrix(state)
 
 
-    @transform_inbound_messages
-    async def transform__interact__validate__name__a(self, envelope, name):
+    @handle_inbound_messages
+    async def handle__interact__validate__name__a(self, envelope, name):
         envelope.mark_used()
         [validated, error] = name_tools.validate_name(name)
         await self.send_message_outward_a("interact.validate.name", *arguments(name=name, validated=validated, error=error))
 
-    @transform_inbound_messages
-    async def transform__interact__validate__matrix__a(self, envelope, bidegree, matrix):
+    @handle_inbound_messages
+    async def handle__interact__validate__matrix__a(self, envelope, bidegree, matrix):
         envelope.mark_used()
         row_labels = self.get_matrix_row_labels(bidegree, matrix)
         singular = False

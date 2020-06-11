@@ -21,7 +21,7 @@ templates = Jinja2Templates(directory=str(config.TEMPLATE_DIR))
 
 
 @subscribe_to("*")
-@collect_transforms(inherit=True)
+@collect_handlers(inherit=True)
 class TestChannel(SocketChannel):
     def __init__(self, name, repl_agent):
         super().__init__(name)
@@ -42,8 +42,8 @@ class TestChannel(SocketChannel):
         self.chart._interact_source = None
         await self.executor.load_repl_init_file_if_it_exists_a()
         
-    @transform_inbound_messages
-    async def transform__console__take__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__console__take__a(self, envelope):
         envelope.mark_used()
         self.repl_agent.set_executor(self.executor)
 

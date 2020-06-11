@@ -12,7 +12,7 @@ from .prelude import *
 
 from .utils import (json_stringify, arguments)
 
-@collect_transforms(inherit=True) #inherit "all" handler
+@collect_handlers(inherit=True) #inherit "all" handler
 @subscribe_to("*")
 class SocketReceiver(Receiver):
     def __init__(self, ws):
@@ -117,24 +117,24 @@ class SocketReceiver(Receiver):
             await self.send_message_inward_a(data["cmd"], data["args"], data["kwargs"])
         return True
 
-    @transform_inbound_messages
-    async def transform__initialize__complete__a(self, envelope):
+    @handle_inbound_messages
+    async def handle__initialize__complete__a(self, envelope):
         # print("Client says it is initialized.")'
         envelope.mark_used()
         self.initialized_client.set()
 
-    @transform_outbound_messages
-    async def transform__initialize__a(self, envelope, **kwargs):
+    @handle_outbound_messages
+    async def handle__initialize__a(self, envelope, **kwargs):
         envelope.mark_used()
         await self.send_message_to_socket_a(envelope)
 
-    @transform_outbound_messages
-    async def transform__interact__a(self, envelope, **kwargs):
+    @handle_outbound_messages
+    async def handle__interact__a(self, envelope, **kwargs):
         envelope.mark_used()
         await self.send_message_to_socket_a(envelope)
 
-    @transform_inbound_messages
-    async def transform__debug__a(self, envelope, text, orig_msg=None):
+    @handle_inbound_messages
+    async def handle__debug__a(self, envelope, text, orig_msg=None):
         if orig_msg is None:
             additional_info = None
         else:
@@ -144,8 +144,8 @@ class SocketReceiver(Receiver):
         envelope.msg.cmd.set_part_list(part_list)
         envelope.msg.update_arguments(additional_info=additional_info)
 
-    @transform_inbound_messages
-    async def transform__info__a(self, envelope, text, orig_msg=None):
+    @handle_inbound_messages
+    async def handle__info__a(self, envelope, text, orig_msg=None):
         if orig_msg is None:
             additional_info = None
         else:
@@ -156,8 +156,8 @@ class SocketReceiver(Receiver):
         envelope.msg.update_arguments(additional_info=additional_info)
         
 
-    @transform_inbound_messages
-    async def transform__warning__a(self, envelope, text, orig_msg=None, stack_trace=None):
+    @handle_inbound_messages
+    async def handle__warning__a(self, envelope, text, orig_msg=None, stack_trace=None):
         if orig_msg is None:
             additional_info = None
         else:
@@ -167,8 +167,8 @@ class SocketReceiver(Receiver):
         envelope.msg.cmd.set_part_list(part_list)
         envelope.msg.update_arguments(additional_info=additional_info)
 
-    @transform_inbound_messages
-    async def transform__error__client__a(self, envelope, orig_msg, exception=None):
+    @handle_inbound_messages
+    async def handle__error__client__a(self, envelope, orig_msg, exception=None):
         # raise RuntimeError("Test error")
         if orig_msg is None:
             additional_info = ""
