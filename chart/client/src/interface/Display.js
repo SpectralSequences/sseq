@@ -58,7 +58,7 @@ export class Display extends HTMLElement {
     }
     
     start(){
-        this.zoom = d3.zoom().scaleExtent([0, 4]);
+        this.zoom = d3.xyzoom();
         this.zoomD3Element = d3.select(this.canvas);
         this.zoomD3Element.call(this.zoom).on("dblclick.zoom", null);
         this._initializeScale(...this.initialXRange, ...this.initialYRange);
@@ -102,7 +102,7 @@ export class Display extends HTMLElement {
         let dx = this.xminFloat - oldxmin;
         let dy = this.yminFloat - oldymin;
         this.zoom.on("zoom", null);
-        this.zoom.translateBy(this.zoomD3Element, this.dxScale(dx)/this.transform.k, this.dyScale(dy)/this.transform.k);
+        this.zoom.translateBy(this.zoomD3Element, this.dxScale(dx)/this.transform.kx, this.dyScale(dy)/this.transform.ky);
         this.zoom.on("zoom", this.handleZoom);
         this.emit("scale-update", {type : "zoom"});
         this.update(); // Make sure this is update(), updateBatch() causes screen flicker.
@@ -134,7 +134,22 @@ export class Display extends HTMLElement {
 
         this.xScaleInit = this.xScaleInit.range([this._leftMargin, this._clipWidth]);
         this.yScaleInit = this.yScaleInit.range([this._clipHeight, this._topMargin]);
+        let [xRangeMin, xRangeMax] = this.xScaleInit.range();
+        let [yRangeMin, yRangeMax] = this.yScaleInit.range();
+        this.zoom.extent([[xRangeMin, yRangeMax], [xRangeMax, yRangeMin]]);
+        this.updateZoomTranslateExtent();
         this.emit("canvas-initialize");
+    }
+
+    updateZoomTranslateExtent(){
+        let [xMin, xMax] = this.xRange;
+        let [yMin, yMax] = this.yRange;
+        let [xRangeMin, xRangeMax] = [xMin - this._domainOffset, xMax + this._domainOffset].map(this.xScaleInit);
+        let [yRangeMin, yRangeMax] = [yMin - this._domainOffset, yMax + this._domainOffset].map(this.yScaleInit);
+        this.zoom.translateExtent([
+            [xRangeMin, yRangeMax], 
+            [xRangeMax, yRangeMin]
+        ]);
     }
 
     emit(event, ...args){
@@ -146,12 +161,18 @@ export class Display extends HTMLElement {
         this.xRange = [0, 0];
         this.xRange[0] = xmin;
         this.xRange[1] = xmax;
+        if(this.zoom){
+            this.updateZoomTranslateExtent();
+        }
     }
 
     setYRange(ymin, ymax){
         this.yRange = [0, 0];
         this.yRange[0] = ymin;
         this.yRange[1] = ymax;
+        if(this.zoom){
+            this.updateZoomTranslateExtent();
+        }        
     }
 
     setInitialXRange(xmin, xmax){
@@ -190,7 +211,7 @@ export class Display extends HTMLElement {
         }
 
         this.updateQueue ++;
-
+                // this._drawSseq(this.context);
         let drawFunc = () => {
             this.updateQueue --;
             if (this.updateQueue != 0) return;
@@ -290,101 +311,22 @@ export class Display extends HTMLElement {
      */
     _updateScale(){
         let zoomD3Element = this.zoomD3Element;
-        let transform = d3.zoomTransform(zoomD3Element.node());
-        if(isNaN(transform.x) || isNaN(transform.y) || isNaN(transform.k) ){
+        let transform = d3.xyzoomTransform(zoomD3Element.node());
+        if(isNaN(transform.x) || isNaN(transform.y) || isNaN(transform.kx) || isNaN(transform.ky)){
             this.zoom.transform(zoomD3Element, this.old_transform);
             throw Error("Bad scale?");
         }
-        let originalTransform = transform;
-        let scale = transform.k;
-        let xScale = transform.rescaleX(this.xScaleInit);
-        let yScale = transform.rescaleY(this.yScaleInit);
 
-        // We have to call zoom.translateBy when the user hits the boundary of the pan region
-        // to adjust the zoom transform. However, this causes the zoom handler (this function) to be called a second time,
-        // which is less intuitive program flow than just continuing on in the current function.
-        // In order to prevent this, temporarily unset the zoom handler.
-        // TODO: See if we can make the behaviour here less jank.
         this.zoom.on("zoom", null);
-
-        let xScaleMaxed = false, yScaleMaxed = false;
-        let autoTranslated = false;
-        // Prevent user from panning off the side.
-        if (this.xRange) {
-            if (xScale(this.xRange[1] - this.xRange[0] + 2 * this._domainOffset) - xScale(0) < this._plotWidth) {
-                // We simply record the scale was maxed and handle this later
-                // by modifying xScale directly.
-                xScaleMaxed = true;
-            } else if (xScale(this.xRange[0] - this._domainOffset) > this._leftMargin) {
-                this.zoom.translateBy(zoomD3Element, (this._leftMargin - xScale(this.xRange[0] - this._domainOffset)) / scale, 0);
-                autoTranslated = true;
-            } else if (xScale(this.xRange[1] + this._domainOffset) < this._clipWidth) {
-                this.zoom.translateBy(zoomD3Element, (this._clipWidth - xScale(this.xRange[1] + this._domainOffset)) / scale, 0);
-                autoTranslated = true;
-            }
-        }
-
-        if (this.yRange) {
-            if (yScale(0) -yScale(this.yRange[1] - this.yRange[0] + 2 * this._domainOffset) < this._plotHeight) {
-                yScaleMaxed = true;
-            } else if (yScale(this.yRange[0] - this._domainOffset) < this._clipHeight) {
-                this.zoom.translateBy(zoomD3Element, 0, (this._clipHeight - yScale(this.yRange[0] - this._domainOffset)) / scale);
-                autoTranslated = true;
-            } else if (yScale(this.yRange[1] + this._domainOffset) > this._topMargin) {
-                this.zoom.translateBy(zoomD3Element, 0, this._topMargin - yScale(this.yRange[1] + this._domainOffset) / scale);
-                autoTranslated = true;
-            }
-        }
-
-        let oldXScaleMaxed = this.xScaleMaxed;
-        let oldYScaleMaxed = this.yScaleMaxed;
-        this.xScaleMaxed = xScaleMaxed;
-        this.yScaleMaxed = yScaleMaxed;
-        let scalesMaxed = (xScaleMaxed && yScaleMaxed);
-        let oldScalesMaxed = (oldXScaleMaxed && oldYScaleMaxed);
-
-        // If both scales are maxed, and the user attempts to zoom out further,
-        // d3 registers a zoom, but nothing in the interface changes since we
-        // manually override xScale and yScale instead of doing something at
-        // the level of the transform (see below). We do *not* want to keep
-        // zooming out, or else when the user wants to zoom back in, they will
-        // have to zoom in for a while before the interface actually zooms in.
-        // Thus, We restore the previous zoom state.
-        if (scalesMaxed && oldScalesMaxed && scale < this.scale) {
-            this.zoom.transform(zoomD3Element, this.transform);
-            this.zoom.on("zoom", this.handleZoom);
-            this.disableMouseoverUpdates = true;
-            return;
-        }
-
-        // Get new transform and scale objects after possible translation above
-        transform = d3.zoomTransform(zoomD3Element.node());
+        transform = d3.xyzoomTransform(zoomD3Element.node());
         let old_transform = this.transform;
         this.transform = transform;
-        this.scale = this.transform.k;
+        this.scale = this.transform.kx;
         this.xScale = this.transform.rescaleX(this.xScaleInit);
         this.yScale = this.transform.rescaleY(this.yScaleInit);
 
-        // If x or y scale is maxed, we directly override xScale/yScale instead
-        // of messing with zoom, since we want to continue allow zooming in the
-        // other direction
-        if (xScaleMaxed) {
-            this.xScale.domain([
-                this.xRange[0] - this._domainOffset,
-                this.xRange[1] + this._domainOffset
-            ]);
-            this.transform.x = old_transform.x;
-        }
-        if (yScaleMaxed) {
-            this.yScale.domain([
-                this.yRange[0] - this._domainOffset,
-                this.yRange[1] + this._domainOffset
-            ]);
-            this.transform.y = old_transform.y;
-        }
-
         this.zoom.transform(zoomD3Element, this.transform);
-        if(old_transform){
+        if(false){
             let updatedScale = old_transform.k !== transform.k;
             let updatedTranslation =  old_transform.x != transform.x || old_transform.y != transform.y;
             let previousUpdatedTranslation = this.updatedTranslation;
@@ -406,22 +348,22 @@ export class Display extends HTMLElement {
         this.ymin = Math.ceil(this.yminFloat);
         this.ymax = Math.floor(this.ymaxFloat);
 
-        this.zoom.on("zoom", this.handleZoom);
         old_transform = this.old_transform;
         this.old_transform = transform;
         let scaleChanged = 
-            old_transform === undefined 
-            || Math.abs(old_transform.x - transform.x) > 1e-8 
-            || Math.abs(old_transform.y - transform.y) > 1e-8 
-            || old_transform.k != transform.k;
+        old_transform === undefined 
+        || Math.abs(old_transform.x - transform.x) > 1e-8 
+        || Math.abs(old_transform.y - transform.y) > 1e-8 
+        || old_transform.k != transform.k;
         let zoomChanged = 
-            old_transform === undefined || old_transform.k != transform.k;
-
+        old_transform === undefined || old_transform.k != transform.k;
+        
         this.old_transform = old_transform;
         if(scaleChanged){
             let type = zoomChanged ? "zoom" : "pan";
             this.emit("scale-update", {type : type});
         }
+        this.zoom.on("zoom", this.handleZoom);
     }
 
     dxScale(x){
@@ -648,10 +590,93 @@ export class Display extends HTMLElement {
         this.zoom.on("zoom", this.handleZoom);
     }
 
-    zoomBy(step, target){
+    zoomScaleTo([kx, ky], p){
+        let zoom = this.zoom;
+        let transform = this.transform;
+        function centroid(extent) {
+            return [(+extent[0][0] + +extent[1][0]) / 2, (+extent[0][1] + +extent[1][1]) / 2];
+        }
+        function constrain(transform, extent) {
+            let [[x0, y0], [x1, y1]] = zoom.translateExtent();
+            var dx0 = transform.invertX(extent[0][0]) - x0,
+              dx1 = transform.invertX(extent[1][0]) - x1,
+              dy0 = transform.invertY(extent[0][1]) - y0,
+              dy1 = transform.invertY(extent[1][1]) - y1;
+            return transform.translate(
+              dx1 > dx0 ? (dx0 + dx1) / 2 : Math.min(0, dx0) || Math.max(0, dx1),
+              dy1 > dy0 ? (dy0 + dy1) / 2 : Math.min(0, dy0) || Math.max(0, dy1)
+            );
+        }
+        function constrainScaleExtent() {
+            let [[x0, y0], [x1, y1]] = zoom.translateExtent();
+            let [[kx0, kx1], [ky0, ky1]] = zoom.scaleExtent();
+            let [[rx0, ry0], [rx1, ry1]] = zoom.extent()();
+            kx0 = x1 !== x0 ? Math.max(kx0, (rx1 - rx0) / (x1 - x0)) : Infinity;
+            ky0 = y1 !== y0 ? Math.max(ky0, (ry1 - ry0) / (y1 - y0)) : Infinity;
+            zoom.scaleExtent([[kx0, kx1], [ky0, ky1]]);
+        }
+        function translate(transform, p0, p1) {
+            var x = p0[0] - p1[0] * transform.kx, y = p0[1] - p1[1] * transform.ky;
+            return x === transform.x && y === transform.y ? transform : new transform.constructor(x, y, transform.kx, transform.ky);
+        }        
+        function scale(transform, kx, ky) {
+            let [[kx0, kx1], [ky0, ky1]] = zoom.scaleExtent();
+            kx = Math.max(kx0, Math.min(kx1, kx));
+            ky = Math.max(ky0, Math.min(ky1, ky));
+            return (kx === transform.kx && ky === transform.ky) ? transform : new transform.constructor(transform.x, transform.y, kx, ky);
+        }      
+        this.zoom.transform(this.zoomD3Element, function() {
+            let e = zoom.extent().apply(this, arguments),
+            t0 = transform,
+            p0 = p == null ? centroid(e) : typeof p === "function" ? p.apply(this, arguments) : p,
+            p1 = t0.invert(p0),
+            kx1 = typeof kx === "function" ? kx.apply(this, arguments) : kx,
+            ky1 = typeof ky === "function" ? ky.apply(this, arguments) : ky;
+            let result = constrain(translate(scale(t0, kx1, ky1), p0, p1), e);
+            return result;
+        });
+        constrainScaleExtent();
+    }
+
+    zoomScaleBy([kx0, ky0], p){
+        let {kx, ky} = this.transform;
+        this.zoomScaleTo([
+            function(){
+                kx0 = typeof kx0 === "function" ? kx0.apply(this, arguments) : kx0;
+                return kx * kx0;
+            },
+            function(){
+                ky0 = typeof ky0 === "function" ? ky0.apply(this, arguments) : ky0;
+                return ky * ky0;
+            }
+        ], p);
+    }
+
+    scaleBy(step, zoom_center){
+        // zoom_center = zoom_center || [0,0];
+        // let [zcX, zcY] = zoom_center;
         let factor = Math.exp(Math.log(1.1) * step);
         this.zoom.on("zoom", null);
-        this.zoom.scaleBy(this.zoomD3Element, factor, target );
+        this.zoomScaleBy([factor, factor], zoom_center);
+        // this.zoom.transform(this.zoomD3Element, () => new this.transform.constructor(this.transform.x - zoom_center);
+        // this.zoom.scaleBy(this.zoomD3Element, factor, factor);
+        // this.zoom.translateBy(this.zoomD3Element, ...zoom_center);
+        this.update();
+        this.zoom.on("zoom", this.handleZoom);
+    }
+
+    scaleXBy(step, zoom_center){
+        let factor = Math.exp(Math.log(1.1) * step);
+        this.zoom.on("zoom", null);
+        this.zoomScaleBy([factor, 1], zoom_center);
+        this.update();
+        this.zoom.on("zoom", this.handleZoom);
+    }
+
+    scaleYBy(step, zoom_center){
+        let factor = Math.exp(Math.log(1.1) * step);
+        this.zoom.on("zoom", null);
+        this.zoomScaleBy([1, factor], zoom_center);
         this.update();
         this.zoom.on("zoom", this.handleZoom);
     }

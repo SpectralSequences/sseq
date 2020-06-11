@@ -80,6 +80,11 @@ class TableUI {
         this.popup = uiElement.querySelector("sseq-popup");
         this.sidebar = uiElement.querySelector("sseq-panel");
         this.undoMutex = withTimeout(new Mutex(), 100);
+        this.uiElement.addEventListener("keypress",(e) => {
+            if(e.code.startsWith("Bracket")){
+                this.handleBracketPress(e);
+            }
+        });
         window.addEventListener("beforeunload", (e) => { 
             this.popup.cancel();
         });
@@ -710,14 +715,28 @@ class TableUI {
         display.translateBy( - dx * s, dy * s);
     }
 
-    handlePM(e){
-        let d = e.detail.direction;
-        let zoomCenter = undefined;
+    getZoomCenter(){
         if(this.selected_bidegree){
             let [x, y] = this.selected_bidegree;
-            zoomCenter = [display.xScale(x), display.yScale(y)];
+            return [display.xScale(x), display.yScale(y)];
         }
-        display.zoomBy(d, zoomCenter);
+        return undefined;
+    }
+
+    handlePM(e){
+        let d = e.detail.direction;
+        let zoomCenter = this.getZoomCenter();
+        display.scaleBy(d, zoomCenter);
+    }
+
+    handleBracketPress(e){
+        let d = e.code.endsWith("Right") ? 1 : -1;
+        let zoomCenter = this.getZoomCenter();
+        if(e.shiftKey){
+            this.display.scaleYBy(d, zoomCenter);
+        } else {
+            this.display.scaleXBy(d, zoomCenter);
+        }
     }
 
     handleDigit(e) {
@@ -847,5 +866,6 @@ class TableUI {
         .sort((a,b) => (a.x - b.x)*10 + Math.sign(a.y - b.y));
     }
 }
+
 
 window.TableUI = TableUI;

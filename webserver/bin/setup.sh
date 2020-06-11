@@ -54,17 +54,18 @@ fi
 . bin/virtualenv/bin/activate
 msg "Installing python packages."
 pip install fastapi
-pip install aiofiles
-pip install imageio
+pip install lark
 pip install jinja2
 pip install maturin
 pip install pathlib
 pip install ptpython
-pip install shapely
-pip install scikit-image
-pip install readerwriterlock
+pip install readerwriterlock # Necessary?
 pip install uvicorn
 pip install websockets
+#pip install aiofiles
+#pip install imageio
+#pip install shapely
+#pip install scikit-image
 msg "Building rust_ext."
 
 cd ../python_ext/pyo3

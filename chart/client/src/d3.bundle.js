@@ -8,7 +8,7 @@
 
 export { event, select, selectAll } from 'd3-selection';
 export { scaleLinear } from 'd3-scale';
-export { zoom, zoomTransform } from 'd3-zoom';
+export { xyzoom, xyzoomTransform } from 'd3-xyzoom';
 // export { interval } from 'd3-timer';
 // export { axisLeft, axisBottom } from 'd3-axis';
 
