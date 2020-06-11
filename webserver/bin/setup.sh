@@ -55,7 +55,7 @@ fi
 msg "Installing python packages."
 pip install aiofiles
 pip install fastapi
-pip install lark
+pip install lark-parser
 pip install jinja2
 pip install maturin
 pip install pathlib
