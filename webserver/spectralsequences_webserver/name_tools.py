@@ -17,7 +17,7 @@ _name_parser = Lark("""
     ?gen : gen_singleton | gen_macro | ( "(" " "* gen_singleton " "* ")" ) | ( "(" " "* gen_macro " "* ")" )| gen_parens 
     gen_singleton : /[A-Za-z]/
     gen_macro : /\\\\[A-Za-z]+/
-    gen_parens : "(" /((\\\\[A-Za-z]+)|[\w^ +\-])+/ ")"
+    gen_parens : "(" /((\\\\[A-Za-z]+)|[\w^ +\-'])+/ ")"
 
     ?arg : ("{" /[0-9]+/ "}") | /[0-9]+/
 
