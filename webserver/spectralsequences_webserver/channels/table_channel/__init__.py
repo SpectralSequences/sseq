@@ -154,8 +154,12 @@ class TableChannel(SocketChannel):
         self.saves += 1
 
     def load(self):
+        # print("Load")
+        # print("   initialize change of basis")
         self.table.initialize_change_of_basis_matrices()
+        # print("   computing indecomposables")
         self.table.compute_all_indecomposables()
+        # print("   populating chart")
         self.populate_chart()
         self.redoStack = []
         self.previews = {}
@@ -163,11 +167,14 @@ class TableChannel(SocketChannel):
         save_path = TableChannel.SAVE_DIR / f"{self.name}.json"
         self.undoStack = []
         if save_path.is_file():
+            # print("   Loading saved actions")
             json_str = save_path.read_text()
             self.undoStack = json.loads(json_str)
+        # print("    Applying saved actions")
         for action in self.undoStack:
             self.do_action(action)
             self.update_action_bidegrees(action)
+        # print("Finished load")
 
 
 
@@ -330,13 +337,15 @@ class TableChannel(SocketChannel):
         getattr(self, "apply_" + cmd["type"])(**cmd)
 
     def apply_set_name(self, type, bidegree, vec, name, state, **kwargs):
+        # print(f"      apply_set_name start vec : {vec} name : {name}")
         [x, y] = bidegree
         self.table.named_vecs[y][x][tuple(vec)] = name
         if name and len(name) == 1 and name[0][1] == 1:
             new_gen = name[0][0]
             if not new_gen.startswith("h_{"):
                 self.table.gen_degs[new_gen] = [x, y]
-    
+        # print("      apply_set_name done")
+
     def apply_set_matrix(self, type, bidegree, matrix, state, **kwargs):
         self.table.basis_in_bidegree(*bidegree).set_matrix(matrix)
 
@@ -522,12 +531,14 @@ class TableChannel(SocketChannel):
 
 
 
-    def get_name(self, tuple):
+    def get_name(self, tuple, keep_parens=False):
         c = self.chart.sseq.class_by_idx(*tuple)
-        if c.name:
-            return c.name
+        if hasattr(c, "monomial_name"):
+            # return c.name
+            return self.table.name_to_str(c.monomial_name, keep_parens)
         else:
             return f"x_{{{tuple[0], tuple[1]}}}^{{{tuple[2]}}}"
+    
 
     def get_monomial_name(self, tuple):
         c = self.chart.sseq.class_by_idx(*tuple)
@@ -556,7 +567,7 @@ class TableChannel(SocketChannel):
         w = fp.FpVector(2, self.table.gens_in_bidegree(*bidegree))
         b = self.table.basis_in_bidegree(*bidegree)
         for (in1, in2, out) in self.get_filtered_decompositions(bidegree):
-            [n1, n2] = [(x, self.get_name(x), self.get_monomial_name(x)) for x in [in1, in2]]
+            [n1, n2] = [(x, self.get_name(x, keep_parens=True), self.get_monomial_name(x)) for x in [in1, in2]]
             v.pack(out)
             w.set_to_zero()
             b.apply_inverse(w, v)
@@ -592,10 +603,16 @@ class TableChannel(SocketChannel):
 
 class ProductTable:
     def __init__(self):
+        # print("ProductTable init")
+        # print("   Load JSON")
         self.load_json()
+        # print("   Generate decomposition table")
         self.generate_decomposition_table()
+        # print("   Setup class names")
         self.setup_class_names()
+        # print("   Build dense products")
         self.build_dense_products()
+        # print("Done")
     
     def load_json(self):
         json_obj = json.loads(pathlib.Path(CHANNEL_DIR / "product_table.json").read_text())
@@ -878,13 +895,14 @@ class ProductTable:
     def set_vec_name(self, x, y, vec, name):
         self.named_vecs[y][x][tuple(vec)] = name
 
-    def name_to_str(self, name):
+    def name_to_str(self, name, keep_parens = False):
         if name:
             return name_tools.monomial_name(
                 *sorted(name, 
                     key= lambda x : 
                         self.gen_degs[x[0]] if x[0] in self.gen_degs else [10000, 10000]
-                )
+                ),
+                keep_parens=keep_parens
             )
         else:
             return ""

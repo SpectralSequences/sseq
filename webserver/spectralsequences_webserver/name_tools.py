@@ -99,9 +99,9 @@ def power_name(var, n, zeroth_power=""):
         #     var = f"({var})"
         return f"{var}^{{{n}}}"
 
-def monomial_name(*exponents):
+def monomial_name(*exponents, keep_parens = False):
     result = " ".join(power_name(var, e) for [var,e] in exponents)
-    if len(exponents) == 1 and result.startswith("(") and result.endswith(")"):
+    if not keep_parens and len(exponents) == 1 and result.startswith("(") and result.endswith(")"):
         result = result[1:-1]
     if result == "":
         result = "1"
