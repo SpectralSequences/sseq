@@ -14,7 +14,6 @@ from spectralsequence_chart import SseqSocketReceiver, InteractiveChartAgent
 from ..repl.executor import Executor
 from .. import config
 
-from ..process_overlay import process_overlay
 
 
 from fastapi.templating import Jinja2Templates
