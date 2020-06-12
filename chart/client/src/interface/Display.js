@@ -136,7 +136,8 @@ export class Display extends HTMLElement {
         this.yScaleInit = this.yScaleInit.range([this._clipHeight, this._topMargin]);
         let [xRangeMin, xRangeMax] = this.xScaleInit.range();
         let [yRangeMin, yRangeMax] = this.yScaleInit.range();
-        this.zoom.extent([[xRangeMin, yRangeMax], [xRangeMax, yRangeMin]]);
+        this.zoom.extent([[xRangeMin, yRangeMax], [xRangeMax, yRangeMin]])
+                .scaleExtent([[0, 4], [0, 4]]);
         this.updateZoomTranslateExtent();
         this.emit("canvas-initialize");
     }

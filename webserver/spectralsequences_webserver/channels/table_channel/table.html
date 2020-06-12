@@ -87,16 +87,15 @@
             scrollbar-width: thin;
         }
 
-        #product-info {
+        [tab] {
             text-align: center;
-            overflow: overlay; 
             padding-right: 1.5rem; 
             padding-top: 0.8rem; 
             /*padding-bottom: 2rem;*/
-            height: 100vh;
+            /*height: 100vh;*/
         }
 
-        sseq-panel h4 {
+        sseq-sidebar h4 {
             --text-opacity : 0.87;
             color : rgba(var(--text-color), var(--text-opacity));
             /* font-size: 120%; */
@@ -105,7 +104,7 @@
             margin-bottom: 0.8rem;
         }
 
-        sseq-panel h5 {
+        sseq-sidebar h5 {
             --text-opacity : 0.87;
             color : rgba(var(--text-color), var(--text-opacity));
             font-size: 120%;
@@ -114,7 +113,7 @@
             margin-bottom: 0.8rem;
         }
 
-        sseq-panel div {
+        sseq-sidebar div {
             display: flex;
             flex-direction: column;
         }        
@@ -188,23 +187,23 @@
             --row-active-selected : rgba(var(--complement-2),0.5); /* about to turn off */
         }
 
-        sseq-panel * {
+        sseq-sidebar * {
             color : rgba(var(--text-color), var(--text-opacity));
         }
 
-        sseq-panel {
+        sseq-sidebar {
             --text-opacity : var(--disabled-text-opacity);
         }
 
-        sseq-panel [tabindex="0"] {
+        sseq-sidebar [tabindex="0"] {
             --text-opacity : 0.7;
         }
 
-        sseq-panel :hover[tabindex="0"] {
+        sseq-sidebar :hover[tabindex="0"] {
             --text-opacity : 0.87;
         }
 
-        sseq-panel :active[tabindex="0"] {
+        sseq-sidebar :active[tabindex="0"] {
             --text-opacity : 1;
         }
 
@@ -356,30 +355,27 @@
                 <sseq-tooltip></sseq-tooltip>
             </sseq-chart>
         </sseq-display>
-        <sseq-panel max-width=400 initial-width=280>
-            <div id="product-info">
-                <div id="product-info-bidegree"></div>
-                <div id="product-info-classes"></div>
-                <div id="product-info-products"></div>
-                <div id="product-info-matrix"></div>
+        <sseq-sidebar max-width=400 initial-width=280>
+            <div id="names" tab="Names">
+                <div content="bidegree"></div>
+                <div content="classes"></div>
+                <div content="names-products"></div>
+                <div content="matrix"></div>
                 <div style="flex-grow:1; min-height : 80px;"></div>
-                <sseq-button class="help-btn" 
-                    style="
-                        padding-left: 0.5rem; 
-                        padding-right: 0.5rem; 
-                        margin-bottom : 10px; 
-                        align-self: center;
-                    ">
-                    Help
-                </sseq-button>
-                <!-- <div id="sidebar-footer" style="margin-bottom : 10px;">
-                    <div style = "display:flex; flex-direction: row;">
-                        <div style="flex-grow: 1;"></div>
-                        <div style="flex-grow: 1;"></div>
-                    </div>
-                </div> -->
             </div>
-        </sseq-panel>
+            <div tab="Products">
+                <div></div>
+            </div>
+            <sseq-button slot="footer" class="help-btn" 
+                style="
+                    padding-left: 0.5rem; 
+                    padding-right: 0.5rem; 
+                    margin-bottom : 10px; 
+                    align-self: center;
+                ">
+                Help
+            </sseq-button>  
+        </sseq-sidebar>
         <sseq-popup>
             <span slot="header"></span>
             <div slot="body"></div>

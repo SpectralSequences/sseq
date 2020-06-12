@@ -18,7 +18,7 @@ import { Tooltip } from "chart/interface/Tooltip.js";
 
 import {Mutex, Semaphore, withTimeout} from 'async-mutex';
 
-import { Panel } from "chart/interface/Panel.js";
+import { Sidebar } from "chart/interface/Sidebar.js";
 import { Matrix } from "chart/interface/Matrix.js";
 import { KatexExprElement } from "chart/interface/KatexExprElement.js";
 import { SseqSocketListener } from "chart/SseqSocketListener.js";
@@ -78,7 +78,7 @@ class TableUI {
         this.socket_listener = new SseqSocketListener(this.ws);
         this.socket_listener.attachDisplay(this.display);
         this.popup = uiElement.querySelector("sseq-popup");
-        this.sidebar = uiElement.querySelector("sseq-panel");
+        this.sidebar = uiElement.querySelector("sseq-sidebar");
         this.undoMutex = withTimeout(new Mutex(), 100);
         this.uiElement.addEventListener("keypress",(e) => {
             if(e.code.startsWith("Bracket")){
@@ -122,7 +122,7 @@ class TableUI {
             this.nameMonos.push(mono);
         }
         let selectedIndex = undefined;
-        if(document.activeElement && document.activeElement.closest("sseq-panel")){
+        if(document.activeElement && document.activeElement.closest("sseq-sidebar")){
             selectedIndex = this.sidebar.querySelectorAll("[tabindex='0']");
             selectedIndex = selectedIndex && Array.from(selectedIndex);
             selectedIndex = selectedIndex && selectedIndex.indexOf(document.activeElement);
@@ -179,10 +179,9 @@ class TableUI {
             <h5 style="margin-top:12pt;">Matrix</h5>
             <sseq-matrix style="align-self:center;" group="${matrix_group}"></sseq-matrix>
         `;
-        this.sidebar.querySelector("#product-info-bidegree").innerHTML = bidegree_html;
-        this.sidebar.querySelector("#product-info-classes").innerHTML = class_html;
-        this.sidebar.querySelector("#product-info-products").innerHTML = product_html;
-        this.sidebar.querySelector("#product-info-matrix").innerHTML = matrix_html;
+        this.setSidebarContent("classes", class_html);
+        this.setSidebarContent("names-products", product_html);
+        this.setSidebarContent("matrix", matrix_html);
         let matrixElt = this.sidebar.querySelector("sseq-matrix");
         matrixElt.value = this.matrix;
         matrixElt.labels = this.names.map((n, idx) => this.nameMonos[idx] ? n : "");
@@ -190,7 +189,6 @@ class TableUI {
         matrixElt.addEventListener("click",  () => {
             this.handleMatrixEditClick();
         });
-        this.sidebar.displayChildren("#product-info");
 
         this.sidebar.querySelectorAll(".name").forEach((e, idx) => {
             e.tabIndex = 0;
@@ -563,6 +561,23 @@ class TableUI {
         return result[2];
     }
 
+    clearSidebarContent(){
+        let elts = this.sidebar.querySelectorAll(`[content]`);
+        for(let e of elts){
+            e.innerHTML = "";
+        }
+    }
+
+    setSidebarContent(name, html){
+        let elts = this.sidebar.querySelectorAll(`[content="${name}"]`);
+        if(elts.length === 0){
+            throw Error(`No elements with "content=${name}"`);
+        }
+        for(let e of elts){
+            e.innerHTML = html;
+        }
+    }
+
     async select_bidegree(x, y){
         let sseq = this.uiElement.querySelector("sseq-chart").sseq;
         this.selected_bidegree = [x, y];
@@ -575,15 +590,11 @@ class TableUI {
         
         bidegree_highlighter.clear();
         bidegree_highlighter.highlight([this.selected_bidegree]);
-            
+
+        this.clearSidebarContent();
         let bidegree_html = `<h4>Bidegree (${this.selected_bidegree.join(", ")})</h4>`;
-        let class_html = "";
-        let product_html = "";
-        let matrix_html = "";
-        this.sidebar.querySelector("#product-info-bidegree").innerHTML = bidegree_html;
-        this.sidebar.querySelector("#product-info-classes").innerHTML = class_html;
-        this.sidebar.querySelector("#product-info-products").innerHTML = product_html;
-        this.sidebar.querySelector("#product-info-matrix").innerHTML = matrix_html;
+        this.setSidebarContent("bidegree", bidegree_html);
+
         await Promise.all([display.seek(x,y)]); //handleKeyDown.stoppedPromise, 
         if(classes.length == 0){
             this.uiElement.focus();
@@ -754,9 +765,9 @@ class TableUI {
             }
         }
         if(!focusElt){
-            let panel_focuses = this.sidebar.querySelectorAll(`[tabindex='0']`);
-            if(panel_focuses){
-                focusElt = panel_focuses[panel_focuses.length - 2];
+            let sidebar_focuses = this.sidebar.querySelectorAll(`[tabindex='0']`);
+            if(sidebar_focuses){
+                focusElt = sidebar_focuses[sidebar_focuses.length - 2];
             }
         }
         if(focusElt){

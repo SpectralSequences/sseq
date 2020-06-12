@@ -5,12 +5,11 @@ import { styleMap } from 'lit-html/directives/style-map';
 import { sleep, promiseFromDomEvent } from "./utils.js";
 const RESIZER_WIDTH = 8;
 
-export class Panel extends LitElement {
+export class Sidebar extends LitElement {
     static get properties() {
         return { 
             width : { type: Number },
-            closed : { type : Boolean },
-            displayedChildren : { type : Array }
+            closed : { type : Boolean }
         };
     }
 
@@ -37,32 +36,24 @@ export class Panel extends LitElement {
         this._startResize = this._startResize.bind(this);
         this._resize = this._resize.bind(this);
         this._endResize = this._endResize.bind(this);
+        this._selectTab = this._selectTab.bind(this);
     }
 
     static get styles() {
         return css`
-            :host {
-                --sidebar-width-collapsed : 28.7px; 
-            }
-
             [hidden] {
                 display:none !important;
             }
-            #divider {
-                height : 100%;
-                cursor : ew-resize;
-                width : ${RESIZER_WIDTH}px;
-                position : absolute;
-                display:inline;
-                z-index : 10000;
-            }
             
             #sidebar {
+                --header-width : 28.7px;
+                --content-width : calc(var(--sidebar-width) - var(--header-width));
                 height: 100%;
                 width : var(--sidebar-width);
                 margin-left : ${RESIZER_WIDTH / 2}px;
                 border-left: 1px solid #DDD;
-                float:left; display:inline;
+                float:left; 
+                display:inline;
             }
 
             #sidebar[transition=open] {
@@ -74,19 +65,17 @@ export class Panel extends LitElement {
             }
 
             :host([closed]) #sidebar {
-                --sidebar-translation : calc(var(--sidebar-width) - var(--sidebar-width-collapsed));
-                transform : translateX(var(--sidebar-translation));
-                margin-left : calc(-1 * var(--sidebar-translation));
+                transform : translateX(var(--content-width));
+                margin-left : calc(-1 * var(--content-width));
             }
 
-            #content {
-                background : rgba(var(--body-background-color), 1); /*var(--body-background-opacity)*/
-                color : rgba(--body-text-color, 1); /* Is 1 correct for opacity here? */
-            }
-
-            ::slotted(*) {
-                --text-color : var(--body-text-color);
-                color : rgba(var(--body-text-color), var(--body-text-opacity));
+            #divider {
+                height : 100%;
+                cursor : ew-resize;
+                width : ${RESIZER_WIDTH}px;
+                position : absolute;
+                display:inline;
+                z-index : 10000;
             }
 
             #header {
@@ -98,62 +87,111 @@ export class Panel extends LitElement {
             }
 
             #btn-collapse {
-                width : 28.7px;
+                width : var(--header-width);
                 height: 26.9px;
             }
 
             #btn-collapse[open] {
                 font-size: var(--close-icon-font-size);
             }
+
+            .tab-btn {
+                writing-mode: tb-rl; 
+                transform: rotate(-180deg) translateX(-0.2px); 
+                padding: 0.4rem 0px;
+                width : var(--header-width);
+            }
             
+            .tab-btn[active] {
+                background-color : rgba(var(--body-background-color), 1);
+            }            
+
+
+            #content-and-footer {
+                background : rgba(var(--body-background-color), 1); /*var(--body-background-opacity)*/
+                color : rgba(--body-text-color, 1); /* Is 1 correct for opacity here? */
+                width: var(--content-width);
+                display: flex;
+                flex-direction: column;
+            }
+
+            #content {
+                overflow-x : none;
+                overflow-y : overlay;
+                width : 100%;
+                display: flex;
+                flex-direction: column;
+            }
+
+            ::slotted(*) {
+                --text-color : var(--body-text-color);
+                color : rgba(var(--body-text-color), var(--body-text-opacity));
+            }
+            
+            ::slotted(div){
+                overflow-x : hidden;
+            }
         `
     }
 
     async firstUpdated(){
-        let slot = this.shadowRoot.querySelector("slot");
-        slot.style.display = "none";
         this.width = parseFloat(this.getAttribute("initial-width")) || 240; // px
         this.minWidth = parseFloat(this.getAttribute("min-width")) || 200; // px
         this.maxWidth = parseFloat(this.getAttribute("max-width")) || 100000; // px
         await sleep(100);
-        this.hideChildren();
-        slot.style.display = "";
+        let tabs = this.querySelectorAll("[tab]");
+        for(let e of this.querySelectorAll("[tab]")){
+            e.setAttribute("slot", e.getAttribute("tab"));
+        }
+        this.requestUpdate();
+        await sleep(100);
+        this.selectTab(tabs[0]);
     }
 
     render(){
-        let sidebar_styles  = { "--sidebar-width" : `${this.width}px` };
-        // if(this.hidden){
-        //     let translation = this.width - this.collapsedWidth;
-        //     Object.assign(sidebar_styles, {
-        //         transform : `translateX(${translation}px)`,
-        //         marginLeft : `-${translation}px`
-        //     });
-        // }
-        let content_styles = { width : "100%" };
-        for(let key of ["display", "flexDirection", "flexWrap", "flexFlow", "justifyContent"]){
-            if(this.style[key]){
-                content_styles[key] = this.style[key];
-            }
-        }
+        let tabs = Array.from(this.querySelectorAll("[tab]"));
         return html`
             <div id=divider 
                 @pointerdown=${this._startResize}
                 @pointerup=${this._endResize} 
                 ?hidden="${this.closed}"
             ></div>
-            <div id=sidebar style="${styleMap(sidebar_styles)}">
+            <div id=sidebar style="--sidebar-width : ${this.width}px">
                 <div style="display:flex; height:100%;">
                     <div id="header">
                         <sseq-button @click=${this.toggle} id="btn-collapse" ?open="${!this.closed}">
                             ${this.closed ? html`&#9776;` : html`&times;` }
                         </sseq-button>
+                        ${tabs.length > 1 ? tabs.map(e => html`
+                            <sseq-button class="tab-btn" @click=${this._selectTab} tab=${e.getAttribute("tab")}>
+                            ${e.getAttribute("tab")}
+                            </sseq-button>
+                        `) : ""}
                     </div>
-                    <div id=content style="${styleMap(content_styles)}">
-                        <slot></slot>
+                    <div id="content-and-footer">
+                        <div id="content">
+                            <slot></slot>
+                        </div>
+                        <span style="flex-grow : 1; height : 2rem;"></span>
+                        <slot name=footer></slot>
                     </div>
                 </div>
             </div>
         `;
+    }
+
+    _selectTab(){
+        this.selectTab(this.shadowRoot.activeElement);
+    }
+
+    selectTab(tabName){
+        if(tabName instanceof Element){
+            tabName = tabName.getAttribute("tab");
+        }
+        this.shadowRoot.querySelector("slot").name = tabName;
+        for(let e of this.shadowRoot.querySelectorAll("[tab]")){
+            e.toggleAttribute("active", e.getAttribute("tab") === tabName);
+        }
     }
 
     _startResize(e){
@@ -190,36 +228,6 @@ export class Panel extends LitElement {
         this.closed = false;
     }
 
-    hideChildren(){
-        for(let child of this.children){
-            child.slot = "none";
-        }
-        this.displayedChildren = [];
-        this.requestUpdate();
-    }
-
-    displayChildren(element){
-        if(element.constructor === String){
-            element = document.querySelectorAll(element);
-        }
-        if(element instanceof HTMLElement) {
-            if(!this.displayedChildren.includes(element)){
-                this.displayedChildren.push(element);
-                element.slot = "";
-                this.requestUpdate();
-            }
-            return
-        }
-        // try {// Maybe it's an array
-            let elements = element;
-            for(let element of elements){
-                this.displayChildren(element);
-            }
-        // } catch(e) {
-        //     throw TypeError("Expected argument to be an HTML element, a String selector, or a list of elements");
-        // }
-    }
-
     focus(){
         let focusElt = this.querySelector("[focus][tabindex='0']");
         if(focusElt){
@@ -230,4 +238,4 @@ export class Panel extends LitElement {
         return this;
     }    
 }
-customElements.define('sseq-panel', Panel);
+customElements.define('sseq-sidebar', Sidebar);
