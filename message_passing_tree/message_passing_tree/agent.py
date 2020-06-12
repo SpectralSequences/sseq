@@ -253,6 +253,7 @@ class Agent:
             handle_a = self.get_handler(type(self).outward_handlers, envelope.msg.cmd)
         if handle_a is None:
             return False
+        envelope.mark_used()
         return await handle_a(self, envelope)
 
     async def handle_inbound_envelope_a(self, envelope):
@@ -265,6 +266,7 @@ class Agent:
             handle_a = Agent.get_handler(type(self).inward_handlers, envelope.msg.cmd)
         if handle_a is None:
             return False
+        envelope.mark_used()
         return await handle_a(self, envelope)
 
 

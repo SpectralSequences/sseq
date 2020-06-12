@@ -65,7 +65,6 @@ class PresentationChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__slideshow__reset__a(self, envelope):
-        envelope.mark_used()
         print("Reset presentation. Refresh page!")
         await self.reset_a()
 
@@ -115,12 +114,10 @@ class PresentationChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__click__a(self, envelope, x, y, chart_class=None):
-        envelope.mark_used()
         pass # IGNORED!
 
     @handle_inbound_messages
     async def handle__slideshow__chart__initialize__a(self, envelope):
-        envelope.mark_used()
         await self.send_message_outward_a(
             "slideshow.initialize",
             *arguments(chart_idx = self.chart_idx, overlay_idx = self.overlay_idx),
@@ -141,7 +138,6 @@ class PresentationChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__slideshow__overlay__request_batch__a(self, envelope, chart_idx):
-        envelope.mark_used()
         if chart_idx >= len(self.chart_source_files):
             self.log_error(f"Client requested chart number {chart_idx} but I only have {len(self.chart_source_files)} charts.") 
             # TODO: how do we handle the end of the slideshow?
@@ -194,7 +190,6 @@ class PresentationChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__slideshow__next__a(self, envelope, chart_idx, overlay_idx):
-        envelope.mark_used()
         if self.lock.locked():
             return
         await self.lock.acquire() # This lock prevents the program from exploding if the user continuously holds n.
@@ -228,7 +223,6 @@ class PresentationChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__slideshow__previous__a(self, envelope, chart_idx, overlay_idx):
-        envelope.mark_used()
         if self.lock.locked():
             return
         await self.lock.acquire()
@@ -260,5 +254,4 @@ class PresentationChannel(SocketChannel):
         
     @handle_inbound_messages
     async def handle__console__take__a(self, envelope):
-        envelope.mark_used()
         self.repl_agent.set_executor(self.executor)

@@ -120,17 +120,14 @@ class SocketReceiver(Receiver):
     @handle_inbound_messages
     async def handle__initialize__complete__a(self, envelope):
         # print("Client says it is initialized.")'
-        envelope.mark_used()
         self.initialized_client.set()
 
     @handle_outbound_messages
     async def handle__initialize__a(self, envelope, **kwargs):
-        envelope.mark_used()
         await self.send_message_to_socket_a(envelope)
 
     @handle_outbound_messages
     async def handle__interact__a(self, envelope, **kwargs):
-        envelope.mark_used()
         await self.send_message_to_socket_a(envelope)
 
     @handle_inbound_messages

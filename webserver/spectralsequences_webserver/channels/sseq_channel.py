@@ -56,5 +56,4 @@ class SseqChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__click__a(self, envelope, x, y, chart_class=None):
-        envelope.mark_used()
         pass # IGNORED!

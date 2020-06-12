@@ -12,22 +12,18 @@ class SseqSocketReceiver(SocketReceiver):
 
     @handle_outbound_messages
     async def handle__initialize__a(self, envelope, **kwargs):
-        envelope.mark_used()
         await self.send_message_to_socket_a(envelope)
 
     @handle_outbound_messages
     async def handle__chart__a(self, envelope, **kwargs):
-        envelope.mark_used()
         await self.send_message_to_socket_a(envelope)
 
     @handle_outbound_messages
     async def handle__display__a(self, envelope, **kwargs):
-        envelope.mark_used()
         await self.send_message_to_socket_a(envelope)
 
     @handle_outbound_messages
     async def handle__slideshow__a(self, envelope, **kwargs):
-        envelope.mark_used()
         await self.send_message_to_socket_a(envelope)    
 
     # def send_introduction_message(self):

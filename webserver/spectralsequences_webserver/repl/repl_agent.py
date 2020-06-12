@@ -50,27 +50,22 @@ class ReplAgent(Agent):
 
     @handle_inbound_messages
     async def handle__debug__a(self, envelope, msg):#source, cmd, msg):
-        envelope.mark_used()
         self.console_io.print_debug(".".join(cmd.part_list[1:]), msg)
 
     @handle_inbound_messages
     async def handle__info__a(self, envelope, msg):
         # print("consume_info", args, kwargs)
-        envelope.mark_used()
         self.console_io.print_info(".".join(cmd.part_list[1:]), msg)
 
     @handle_inbound_messages
     async def handle__warning__a(self, envelope, msg):
-        envelope.mark_used()
         self.console_io.print_warning(".".join(cmd.part_list[1:]), msg)
 
     @handle_inbound_messages
     async def handle__error__exception__a(self, envelope, msg,  exception):
         # do something with cmd?
-        envelope.mark_used()
         self.console_io.print_exception(exception)
 
     @handle_inbound_messages
     async def handle__error__additional_info__a(self, envelope, msg, additional_info):
-        envelope.mark_used()
         self.console_io.print_error(".".join(envelope.msg.cmd.part_list[2:]), msg, additional_info)

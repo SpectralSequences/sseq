@@ -44,7 +44,6 @@ class TestChannel(SocketChannel):
         
     @handle_inbound_messages
     async def handle__console__take__a(self, envelope):
-        envelope.mark_used()
         self.repl_agent.set_executor(self.executor)
 
     async def add_subscriber_a(self, websocket):

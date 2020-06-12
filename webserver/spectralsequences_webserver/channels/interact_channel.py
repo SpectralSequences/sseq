@@ -44,7 +44,6 @@ class InteractChannel(SocketChannel):
         
     @handle_inbound_messages
     async def handle__console__take__a(self, envelope):
-        envelope.mark_used()
         self.repl_agent.set_executor(self.executor)
 
     async def add_subscriber_a(self, websocket):
@@ -84,7 +83,6 @@ class InteractChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__io__save__a(self, envelope):
-        envelope.mark_used()
         self.save()
 
     def save(self):
@@ -105,7 +103,6 @@ class InteractChannel(SocketChannel):
 
     # @handle_inbound_messages
     # async def handle__io__process_screenshot__a(self, envelope):
-    #     envelope.mark_used()
     #     files = sorted(config.SCREENSHOT_DIR.glob("*.png"))
     #     file = files[-1]
     #     if file == self.last_screenshot:

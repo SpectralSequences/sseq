@@ -82,12 +82,10 @@ class SlideshowChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__click__a(self, envelope, x, y, chart_class=None):
-        envelope.mark_used()
         pass # IGNORED!
 
     @handle_inbound_messages
     async def handle__slideshow__initialize_source_files__a(self, envelope):
-        envelope.mark_used()
         recv = self.look_up_recv_by_path(source_agent_path)
         self.log_debug("ready to prepare source file")
         await self.prepare_source_file_a(recv)
@@ -128,7 +126,6 @@ class SlideshowChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__slideshow__next_file__a(self, envelope, file_idx):
-        envelope.mark_used()
         recv = self.look_up_recv_by_path(source_agent_path)
         print("slideshow.next_file", recv.current_source_file)
         if file_idx != recv.current_source_file + 1:
@@ -145,7 +142,6 @@ class SlideshowChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__slideshow__previous_file__a(self, envelope, file_idx):
-        envelope.mark_used()
         recv = self.look_up_recv_by_path(source_agent_path)
         print("slideshow.previous_file", recv.current_source_file)
         if file_idx != recv.current_source_file - 1:
@@ -169,6 +165,5 @@ class SlideshowChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__console__take__a(self, envelope):
-        envelope.mark_used()
         recv = self.look_up_recv_by_path(source_agent_path)
         self.repl_agent.set_executor(recv.executor)

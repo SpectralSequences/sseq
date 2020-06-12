@@ -134,12 +134,10 @@ class GenericDemo(Agent):
     
     @handle_inbound_messages
     async def handle__demo__next__a(self, envelope):
-        envelope.mark_used()
         await self.next_a()
 
     @handle_inbound_messages
     async def handle__demo__take_over_console__a(self, envelope):
-        envelope.mark_used()
         self.take_over_console(self)
 
     async def next_a(self):

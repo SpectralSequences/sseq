@@ -84,7 +84,6 @@ class TableChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__new_user__a(self, envelope):
-        envelope.mark_used()
         await self.ready.wait()
         await self.send_message_outward_a("initialize.chart.state", *arguments(
             state=self.sseq, display_state=self.chart.display_state
@@ -134,13 +133,11 @@ class TableChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__console__take__a(self, envelope):
-        envelope.mark_used()
         self.repl_agent.set_executor(self.executor)
 
     @handle_inbound_messages
     async def handle__click__a(self, envelope, *args, **kwargs):
-        envelope.mark_used()
-
+        pass
 
     def save(self):
         save_str = json_stringify(self.undoStack)
@@ -231,7 +228,6 @@ class TableChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__interact__select_bidegree__a(self, envelope, bidegree):
-        envelope.mark_used()
         names = self.get_names_info(bidegree)
         [x, y] = bidegree 
         named_vecs = [[k, self.table.name_to_str(v)] for [k, v] in self.table.named_vecs[y][x].items()]
@@ -249,7 +245,6 @@ class TableChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__interact__action__a(self, envelope, action):
-        envelope.mark_used()
         for [bidegree, state] in self.previews.items():
             self.restore_bidegree_state(bidegree, state)
         self.previews = {}
@@ -351,14 +346,12 @@ class TableChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__interact__revert_preview__a(self, envelope, bidegree):
-        envelope.mark_used()
         if tuple(bidegree) in self.previews:
             self.restore_bidegree_state(bidegree, self.previews.pop(tuple(bidegree)))
             await self.chart.sseq.update_a()
 
     @handle_inbound_messages
     async def handle__interact__redo__a(self, envelope):
-        envelope.mark_used()
         if not self.redoStack:
             await self.send_action_info(None)
             return
@@ -380,7 +373,6 @@ class TableChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__interact__undo__a(self, envelope):
-        envelope.mark_used()
         if not self.undoStack:
             await self.send_action_info(None)
             return        
@@ -416,13 +408,11 @@ class TableChannel(SocketChannel):
 
     @handle_inbound_messages
     async def handle__interact__validate__name__a(self, envelope, name):
-        envelope.mark_used()
         [validated, error] = name_tools.validate_name(name)
         await self.send_message_outward_a("interact.validate.name", *arguments(name=name, validated=validated, error=error))
 
     @handle_inbound_messages
     async def handle__interact__validate__matrix__a(self, envelope, bidegree, matrix):
-        envelope.mark_used()
         row_labels = self.get_matrix_row_labels(bidegree, matrix)
         singular = False
         if tuple(bidegree) not in self.previews:
@@ -529,8 +519,6 @@ class TableChannel(SocketChannel):
             e.line_width = line_width
 
 
-
-
     def get_name(self, tuple, keep_parens=False):
         c = self.chart.sseq.class_by_idx(*tuple)
         if hasattr(c, "monomial_name"):
@@ -538,7 +526,7 @@ class TableChannel(SocketChannel):
             return self.table.name_to_str(c.monomial_name, keep_parens)
         else:
             return f"x_{{{tuple[0], tuple[1]}}}^{{{tuple[2]}}}"
-    
+
 
     def get_monomial_name(self, tuple):
         c = self.chart.sseq.class_by_idx(*tuple)

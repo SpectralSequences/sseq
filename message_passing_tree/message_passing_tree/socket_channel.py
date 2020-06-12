@@ -155,7 +155,6 @@ class SocketChannel(Agent):
 
     @handle_inbound_messages
     async def handle__socket__close__a(self, envelope):
-        envelope.mark_used()
         recv = self
         for id in reversed(envelope.source_agent_path):
             recv = recv.children[id]

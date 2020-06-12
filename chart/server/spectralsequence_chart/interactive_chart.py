@@ -23,7 +23,6 @@ class InteractiveChartAgent(ChartAgent):
 
     @handle_inbound_messages
     async def handle__click__a(self, envelope, x, y, chart_class=None):
-        envelope.mark_used()
         if chart_class is not None:
             chart_class = self.sseq._classes[chart_class["uuid"]]
         self.schedule_coroutine(self.mode.handle_click_a(self, x, y, chart_class))
@@ -71,7 +70,6 @@ class InteractiveChartAgent(ChartAgent):
 
     @handle_inbound_messages
     async def handle__interact__mode__set__a(self, envelope,  *args, **kwargs):
-        envelope.mark_used()
         new_mode = kwargs["mode"]
         if new_mode in InteractiveChartAgent.modes:
             self.mode = InteractiveChartAgent.modes[new_mode]
@@ -80,7 +78,6 @@ class InteractiveChartAgent(ChartAgent):
 
     @handle_inbound_messages
     async def handle__interact__mode__a(self, envelope, *args, **kwargs):
-        envelope.mark_used()
         cmd = envelope.msg.cmd
         f = getattr(self.mode, "handle__" + "__".join(cmd.part_list[2:]) + "__a", None)
         if f is None:
@@ -91,7 +88,6 @@ class InteractiveChartAgent(ChartAgent):
 
     @handle_inbound_messages
     async def handle__interact__result__a(self, envelope, *args, **kwargs):
-        envelope.mark_used()
         self.response_event.result = [args, kwargs]
         self.response_event.set()
 
