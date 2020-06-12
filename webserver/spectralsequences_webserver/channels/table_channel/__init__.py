@@ -519,14 +519,14 @@ class TableChannel(SocketChannel):
             e.line_width = line_width
 
 
+
     def get_name(self, tuple, keep_parens=False):
         c = self.chart.sseq.class_by_idx(*tuple)
-        if hasattr(c, "monomial_name"):
-            # return c.name
+        if hasattr(c, "monomial_name") and c.monomial_name:
             return self.table.name_to_str(c.monomial_name, keep_parens)
         else:
             return f"x_{{{tuple[0], tuple[1]}}}^{{{tuple[2]}}}"
-
+    
 
     def get_monomial_name(self, tuple):
         c = self.chart.sseq.class_by_idx(*tuple)
