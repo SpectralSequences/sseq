@@ -227,30 +227,30 @@ class TableChannel(SocketChannel):
         })
 
     @handle_inbound_messages
-    async def handle__interact__select_bidegree__a(self, envelope, bidegree):
+    async def handle__interact__select_bidegree__a(self, envelope, bidegree, uuid):
         names = self.get_names_info(bidegree)
         [x, y] = bidegree 
         named_vecs = [[k, self.table.name_to_str(v)] for [k, v] in self.table.named_vecs[y][x].items()]
         matrix = self.get_matrix(bidegree)
         prod_info = self.get_product_info(bidegree)
-        await self.send_message_outward_a("interact.product_info", *arguments(names=names, named_vecs=named_vecs, matrix=matrix, product_info=prod_info))
+        await self.send_message_outward_a("interact.product_info", *arguments(names=names, named_vecs=named_vecs, matrix=matrix, product_info=prod_info, uuid=uuid))
 
 
-    async def send_action_info(self, action):
+    async def send_action_info(self, action, uuid):
         await self.send_message_outward_a("interact.action_info", 
-            *arguments(action=action)
+            *arguments(action=action, uuid=uuid)
         )
 
 # Actions:
 
     @handle_inbound_messages
-    async def handle__interact__action__a(self, envelope, action):
+    async def handle__interact__action__a(self, envelope, action, uuid):
         for [bidegree, state] in self.previews.items():
             self.restore_bidegree_state(bidegree, state)
         self.previews = {}
         action = await asyncio.wrap_future(self.py_executor.submit(self.process_user_action, action))
         self.save()
-        await self.send_action_info(action)
+        await self.send_action_info(action, uuid)
         await self.chart.sseq.update_a()
 
     def process_user_action(self, action):
@@ -351,12 +351,12 @@ class TableChannel(SocketChannel):
             await self.chart.sseq.update_a()
 
     @handle_inbound_messages
-    async def handle__interact__redo__a(self, envelope):
+    async def handle__interact__redo__a(self, envelope, uuid):
         if not self.redoStack:
-            await self.send_action_info(None)
+            await self.send_action_info(None, uuid)
             return
         action = await asyncio.wrap_future(self.py_executor.submit(self.redo_action_main)) 
-        await self.send_action_info(action)
+        await self.send_action_info(action, uuid)
         await self.chart.sseq.update_a()
 
     def redo_action_main(self):
@@ -372,12 +372,12 @@ class TableChannel(SocketChannel):
             self.apply_command(cmd)
 
     @handle_inbound_messages
-    async def handle__interact__undo__a(self, envelope):
+    async def handle__interact__undo__a(self, envelope, uuid):
         if not self.undoStack:
-            await self.send_action_info(None)
+            await self.send_action_info(None, uuid)
             return        
         action = await asyncio.wrap_future(self.py_executor.submit(self.undo_action_main))
-        await self.send_action_info(action)
+        await self.send_action_info(action, uuid)
         await self.chart.sseq.update_a()
 
     def undo_action_main(self):
@@ -407,12 +407,12 @@ class TableChannel(SocketChannel):
 
 
     @handle_inbound_messages
-    async def handle__interact__validate__name__a(self, envelope, name):
+    async def handle__interact__validate__name__a(self, envelope, name, uuid):
         [validated, error] = name_tools.validate_name(name)
-        await self.send_message_outward_a("interact.validate.name", *arguments(name=name, validated=validated, error=error))
+        await self.send_message_outward_a("interact.validate.name", *arguments(name=name, validated=validated, error=error, uuid=uuid))
 
     @handle_inbound_messages
-    async def handle__interact__validate__matrix__a(self, envelope, bidegree, matrix):
+    async def handle__interact__validate__matrix__a(self, envelope, bidegree, matrix, uuid):
         row_labels = self.get_matrix_row_labels(bidegree, matrix)
         singular = False
         if tuple(bidegree) not in self.previews:
@@ -427,7 +427,7 @@ class TableChannel(SocketChannel):
             self.replace_edges(*bidegree, "red", [15, 5])
             singular = True
         await self.chart.sseq.update_a()
-        await self.send_message_outward_a("interact.validate.matrix", *arguments(row_labels=row_labels, singular=singular))
+        await self.send_message_outward_a("interact.validate.matrix", *arguments(row_labels=row_labels, singular=singular, uuid=uuid))
     
 
     def get_matrix_row_labels(self, bidegree, matrix):

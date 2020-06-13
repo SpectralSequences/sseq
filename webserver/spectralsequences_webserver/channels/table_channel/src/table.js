@@ -22,8 +22,9 @@ import { Sidebar } from "chart/interface/Sidebar.js";
 import { Matrix } from "chart/interface/Matrix.js";
 import { KatexExprElement } from "chart/interface/KatexExprElement.js";
 import { SseqSocketListener } from "chart/SseqSocketListener.js";
+import { StaleResponseError } from "chart/SocketListener.js";
 import { Popup } from "chart/interface/Popup.js";
-import { sleep, promiseFromDomEvent, throttle, animationFrame } from "chart/interface/utils.js";
+import { sleep, promiseFromDomEvent, throttle, animationFrame, uuid4 } from "chart/interface/utils.js";
 
 window.SseqSocketListener = SseqSocketListener;
 window.UIElement = UIElement;
@@ -111,8 +112,18 @@ class TableUI {
             return;
         }
         let [curX, curY] = this.selected_bidegree;
-        this.socket_listener.send("interact.select_bidegree", {"bidegree" : this.selected_bidegree});
-        let [_cmd, _args, kwargs] = await this.socket_listener.new_message_promise("interact.product_info");
+        let {promise, uuid} = await this.socket_listener.new_message_promise("interact.product_info");
+        this.socket_listener.send("interact.select_bidegree", {"bidegree" : this.selected_bidegree, uuid : uuid});
+        let kwargs;
+        try {
+            let [_cmd, _args, kwargs1] = await promise;
+            kwargs = kwargs1;
+        } catch(e) {
+            if(!(e instanceof StaleResponseError)){
+                throw e;
+            }
+            return;
+        }
         let sseq = this.uiElement.querySelector("sseq-chart");
         this.namedVecs = namedVecsListToObj(kwargs.named_vecs);
         this.names = [];
@@ -343,15 +354,16 @@ class TableUI {
         } else {
             description = `Removed the name ${name} of class (${named_class.join(", ")})`;
         }
+        let {uuid} = this.waitForActionInfoAndDisplayIt("Completed action:");
         this.socket_listener.send("interact.action", {
             action : { 
                 root_bidegree : selected_bidegree,
                 cmd_list : [setNameCommand(selected_bidegree, vec, our_basis_vec, input.value)] ,
-                description : description
-            }
+                description : description,
+            },
+            uuid : uuid
         });
         this.updateProductInfo();
-        this.waitForActionInfoAndDisplayIt("Completed action:");
     }
 
     async handleProductItemClick(item_idx){
@@ -402,15 +414,16 @@ class TableUI {
         if(!ok_q){
             return;
         }
+        let {uuid} = this.waitForActionInfoAndDisplayIt("Completed action:");
         this.socket_listener.send("interact.action", {
             action : {
                 root_bidegree : selected_bidegree,
                 cmd_list : [setNameCommand(selected_bidegree, out_res_basis, out_our_basis, `${name1} ${name2}`)],
-                description : `Named class (${out_tuple.join(", ")}) as the product "<katex-expr>${name1}\\cdot ${name2}</katex-expr>."`
-            }
+                description : `Named class (${out_tuple.join(", ")}) as the product "<katex-expr>${name1}\\cdot ${name2}</katex-expr>."`,
+            },
+            uuid : uuid
         });    
         this.updateProductInfo();
-        this.waitForActionInfoAndDisplayIt("Completed action:");
     }
     
     async handleProductItemClick_changeBasis(product_data, out_our_basis){
@@ -458,6 +471,7 @@ class TableUI {
         let updated_basis_vec = Array(result_matrix.length).fill(0);
         updated_basis_vec[replace_row] = 1;
         let class_index = [...selected_bidegree, replace_row];
+        let {uuid} = this.waitForActionInfoAndDisplayIt("Completed action:");
         this.socket_listener.send("interact.action", {
             action : {
                 root_bidegree : selected_bidegree,
@@ -465,11 +479,11 @@ class TableUI {
                     setNameCommand(selected_bidegree, out_res_basis, updated_basis_vec, `${name1} ${name2}`),
                     setMatrixCommand(selected_bidegree, result_matrix, [replace_row])
                 ],
-                description : `Replaced the basis vector for (${class_index.join(", ")}) with the product "<katex-expr>${name1}\\cdot ${name2}</katex-expr>."`
-            }
+                description : `Replaced the basis vector for (${class_index.join(", ")}) with the product "<katex-expr>${name1}\\cdot ${name2}</katex-expr>."`,
+            },
+            uuid : uuid
         });
         this.updateProductInfo();
-        this.waitForActionInfoAndDisplayIt("Completed action:");
     }
 
     async handleMatrixEditClick(){
@@ -524,15 +538,16 @@ class TableUI {
                 changedRows.push(r);
             }
         }
+        let {uuid} = this.waitForActionInfoAndDisplayIt("Did:");
         this.socket_listener.send("interact.action", {
             action : {
                 root_bidegree : selected_bidegree,
                 cmd_list : [ setMatrixCommand(selected_bidegree, matrix_elt.value, changedRows) ],
-                description : `Changed the basis in bidegree (${selected_bidegree.join(", ")})`
-            }
+                description : `Changed the basis in bidegree (${selected_bidegree.join(", ")})`,
+            },
+            uuid : uuid
         });        
         this.updateProductInfo();
-        this.waitForActionInfoAndDisplayIt("Did:");
     }
 
     handleChartClick(e){
@@ -550,14 +565,16 @@ class TableUI {
     }
 
     async validateName(name){
-        this.socket_listener.send("interact.validate.name", {"name" : name});
-        let result = await this.socket_listener.new_message_promise("interact.validate.name");
+        let {promise, uuid} = this.socket_listener.new_message_promise("interact.validate.name");
+        this.socket_listener.send("interact.validate.name", {name : name, uuid : uuid});
+        let result = await promise;
         return result[2];
     }
 
     async validateMatrix(bidegree, matrix){
-        this.socket_listener.send("interact.validate.matrix", {"bidegree": bidegree, "matrix" : matrix});
-        let result = await this.socket_listener.new_message_promise("interact.validate.matrix");
+        let {promise, uuid} = this.socket_listener.new_message_promise("interact.validate.matrix");
+        this.socket_listener.send("interact.validate.matrix", {bidegree: bidegree, matrix: matrix, uuid: uuid});
+        let result = await promise;
         return result[2];
     }
 
@@ -778,9 +795,10 @@ class TableUI {
     async undo() {
         this.undoMutex.runExclusive(async () => {
             this.popup.cancel();
-            this.socket_listener.send("interact.undo", {});
+            let {promise, uuid} = this.waitForActionInfoAndDisplayIt("Undid action:");
+            this.socket_listener.send("interact.undo", {uuid : uuid});
             this.updateProductInfo();
-            await Promise.all([this.waitForActionInfoAndDisplayIt("Undid action:"), sleep(500)]);
+            await Promise.all([promise, sleep(500)]);
         }).catch(e => {
             if(e.message === "timeout"){
                 // console.log("undo timed out");
@@ -793,9 +811,10 @@ class TableUI {
     async redo() {
         await this.undoMutex.runExclusive(async () => {
             this.popup.cancel();
-            this.socket_listener.send("interact.redo", {});
+            let {promise, uuid} = this.waitForActionInfoAndDisplayIt("Redid action:");
+            this.socket_listener.send("interact.redo", {uuid : uuid});
             this.updateProductInfo();
-            await Promise.all([this.waitForActionInfoAndDisplayIt("Redid action:"), sleep(500)]);
+            await Promise.all([promise, sleep(500)]);
         }).catch(e => {
             if(e.message === "timeout"){
                 // console.log("Redo timed out");
@@ -806,10 +825,13 @@ class TableUI {
     }    
     
 
-    async waitForActionInfoAndDisplayIt(action_type){
-        let [_cmd, _args, kwargs] = await this.socket_listener.new_message_promise("interact.action_info");
-        await this.displayActionInfo(action_type, kwargs.action);
-        return true;
+    waitForActionInfoAndDisplayIt(action_type){
+        let result = this.socket_listener.new_message_promise("interact.action_info");
+        result.promise.then(async ([_cmd, _args, kwargs]) => {
+            await this.displayActionInfo(action_type, kwargs.action);
+            return true;
+        });
+        return result;
     }
 
     async displayActionInfo(ty, action) {

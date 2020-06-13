@@ -1,3 +1,5 @@
+import { uuidv4 } from "./interface/utils.js";
+
 export class BadMessageError extends TypeError {
     constructor(...args) {
         super(...args)
@@ -22,8 +24,15 @@ export class InvalidCommandError extends BadMessageError {
     }
 }
 
-
 export class UnknownDisplayCommandError extends UnknownCommandError {
+    constructor(...args) {
+        super(...args)
+        this.name = this.constructor.name;
+        this.stack = this.stack.split("\n").slice(1).join("\n")
+    }
+}
+
+export class StaleResponseError extends TypeError {
     constructor(...args) {
         super(...args)
         this.name = this.constructor.name;
@@ -39,7 +48,6 @@ export class SocketListener {
         this.message_dispatch = {};
         this.promise_filters = {};
         this.promises = {};
-        this.promise_resolves = {};
         this.debug_mode = false;
     }
 
@@ -56,28 +64,40 @@ export class SocketListener {
     add_promise_message_handler(cmd_filter) {
         this.promise_filters[cmd_filter] = true;
         this.add_message_handler(cmd_filter, (cmd, args, kwargs) => {
-            if(!this.promise_filters[cmd_filter]){
+            if(!(cmd_filter in this.promise_filters)){
                 throw Error(`Unexpected promise-handled message.`);
             }
-            this.promise_resolves[cmd_filter]([cmd, args, kwargs]);
-            delete this.promise_resolves[cmd_filter];
+            if(kwargs.uuid === undefined){
+                throw Error("Response has no uuid.");
+            }
+            let {resolve, uuid} = this.promises[cmd_filter];
+            if(kwargs.uuid === uuid){
+                resolve([cmd, args, kwargs]);
+            }
         });
     }
 
     new_message_promise(cmd_filter){
-        if(this.promise_resolves[cmd_filter]){
-            throw Error(`Already waiting on ${cmd_filter}`);
+        if(cmd_filter in this.promises){
+            let { reject } = this.promises[cmd_filter];
+            reject(new StaleResponseError("Stale Response"));
         }
-        this.promises[cmd_filter] 
-            = new Promise(resolve => this.promise_resolves[cmd_filter] = resolve);
-        return this.promises[cmd_filter];
+        let result = {};        
+        result.promise = new Promise((resolve, reject) => {
+            result.resolve = resolve;
+            result.reject = reject;
+        });
+        result.uuid = uuidv4();
+        this.promises[cmd_filter] = result;
+        return {"promise" : result.promise, "uuid" : result.uuid };
     }
 
     get_message_promise(cmd_filter){
         if(!this.promises[cmd_filter]){
-            this.new_message_promise(cmd_filter);
+            return this.new_message_promise(cmd_filter);
         }
-        return this.promises[cmd_filter];
+        let result = this.promises[cmd_filter];
+        return {"promise" : result.promise, "uuid" : result.uuid };
     }
 
     start() {
