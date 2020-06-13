@@ -349,15 +349,13 @@ export class Display extends HTMLElement {
         this.ymin = Math.ceil(this.yminFloat);
         this.ymax = Math.floor(this.ymaxFloat);
 
-        old_transform = this.old_transform;
-        this.old_transform = transform;
         let scaleChanged = 
         old_transform === undefined 
         || Math.abs(old_transform.x - transform.x) > 1e-8 
         || Math.abs(old_transform.y - transform.y) > 1e-8 
         || old_transform.k != transform.k;
         let zoomChanged = 
-        old_transform === undefined || old_transform.k != transform.k;
+        old_transform === undefined || old_transform.kx !== transform.kx;
         
         this.old_transform = old_transform;
         if(scaleChanged){

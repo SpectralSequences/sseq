@@ -171,7 +171,7 @@ export class AxesElement extends LitElement {
                 continue;
             }
             if(elt.tickValue === undefined){
-                console.log(elt);
+                console.error(elt);
             }
             elt.style.opacity = 0;
             if(elt.tickType === "x"){
