@@ -101,19 +101,19 @@ class TableUI {
     }
 
     setupSocketMessageBindings(){
-        this.socket_listener.add_promise_message_handler("interact.product_info");
+        this.socket_listener.add_promise_message_handler("interact.bidegree_info");
         this.socket_listener.add_promise_message_handler("interact.validate.name");
         this.socket_listener.add_promise_message_handler("interact.validate.matrix");
         this.socket_listener.add_promise_message_handler("interact.action_info");
     }
 
-    async updateProductInfo(){
+    async updateBidegreeInfo(){
         if(!this.selected_bidegree){
             return;
         }
         let [curX, curY] = this.selected_bidegree;
-        let {promise, uuid} = await this.socket_listener.new_message_promise("interact.product_info");
-        this.socket_listener.send("interact.select_bidegree", {"bidegree" : this.selected_bidegree, uuid : uuid});
+        let {promise, uuid} = await this.socket_listener.new_message_promise("interact.bidegree_info");
+        this.socket_listener.send("interact.bidegree_info", {"bidegree" : this.selected_bidegree, uuid : uuid});
         let kwargs;
         try {
             let [_cmd, _args, kwargs1] = await promise;
@@ -140,11 +140,11 @@ class TableUI {
         }
         let name_group = 1;
         let group = name_group;
-        this.product_info = kwargs.product_info;
+        this.binary_decomposition_info = kwargs.binary_decomposition_info;
         this.matrix = kwargs.matrix;
         let processed_product_info = [];
         let out_vecs = {};
-        for(let { left : [in1,name1, ], right : [in2, name2, ], out_name, out_res_basis} of this.product_info){
+        for(let { left : [in1,name1, ], right : [in2, name2, ], out_name, out_res_basis} of this.binary_decomposition_info){
             let name_str = "";
             if(out_name){
                 name_str = `{}= ${out_name}`
@@ -211,8 +211,8 @@ class TableUI {
         Array.from(this.sidebar.querySelectorAll(".product-item"))
              .map((e,idx) => [e,idx])
              .filter((_, idx) => 
-             this.product_info[idx].left[2] && this.product_info[idx].left[2].length > 0
-                && this.product_info[idx].right[2] && this.product_info[idx].right[2].length > 0
+             this.binary_decomposition_info[idx].left[2] && this.binary_decomposition_info[idx].left[2].length > 0
+                && this.binary_decomposition_info[idx].right[2] && this.binary_decomposition_info[idx].right[2].length > 0
             )
         .forEach(([e, idx]) => {
             e.tabIndex = 0;
@@ -363,13 +363,12 @@ class TableUI {
             },
             uuid : uuid
         });
-        this.updateProductInfo();
+        this.updateBidegreeInfo();
     }
 
     async handleProductItemClick(item_idx){
         let sseq = display.querySelector("sseq-chart").sseq;
-        let jsoned_matrix = this.matrix.map(JSON.stringify);
-        let product_data = this.product_info[item_idx];
+        let product_data = this.binary_decomposition_info[item_idx];
         let { left : [in1, ,], right : [in2, ,], out_our_basis, out_res_basis } = product_data;
         let one_entries = [];
         out_our_basis.forEach((v, idx) => {
@@ -423,7 +422,7 @@ class TableUI {
             },
             uuid : uuid
         });    
-        this.updateProductInfo();
+        this.updateBidegreeInfo();
     }
     
     async handleProductItemClick_changeBasis(product_data, out_our_basis){
@@ -483,7 +482,7 @@ class TableUI {
             },
             uuid : uuid
         });
-        this.updateProductInfo();
+        this.updateBidegreeInfo();
     }
 
     async handleMatrixEditClick(){
@@ -547,7 +546,7 @@ class TableUI {
             },
             uuid : uuid
         });        
-        this.updateProductInfo();
+        this.updateBidegreeInfo();
     }
 
     handleChartClick(e){
@@ -617,7 +616,7 @@ class TableUI {
             this.uiElement.focus();
             return;
         }
-        await this.updateProductInfo();
+        await this.updateBidegreeInfo();
     }
 
     async showHelpWindow() {
@@ -797,7 +796,7 @@ class TableUI {
             this.popup.cancel();
             let {promise, uuid} = this.waitForActionInfoAndDisplayIt("Undid action:");
             this.socket_listener.send("interact.undo", {uuid : uuid});
-            this.updateProductInfo();
+            this.updateBidegreeInfo();
             await Promise.all([promise, sleep(500)]);
         }).catch(e => {
             if(e.message === "timeout"){
@@ -813,7 +812,7 @@ class TableUI {
             this.popup.cancel();
             let {promise, uuid} = this.waitForActionInfoAndDisplayIt("Redid action:");
             this.socket_listener.send("interact.redo", {uuid : uuid});
-            this.updateProductInfo();
+            this.updateBidegreeInfo();
             await Promise.all([promise, sleep(500)]);
         }).catch(e => {
             if(e.message === "timeout"){

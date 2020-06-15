@@ -10,9 +10,9 @@ _name_parser = Lark("""
     _extras_sup : (sub [prime]) | (prime _extras_sup) | ()
 
     prime : "'" ((prime) | ())
-    sub : "_" arg
+    sub : "_" subscript
 
-    sup : "^" arg
+    sup : "^" superscript
 
     ?gen : gen_singleton | gen_macro | ( "(" " "* gen_singleton " "* ")" ) | ( "(" " "* gen_macro " "* ")" )| gen_parens 
     gen_singleton : /[A-Za-z]/
@@ -21,7 +21,8 @@ _name_parser = Lark("""
     
     ?latex_macro : /\\\\[A-Za-z]+/
 
-    ?arg : ("{" /[0-9]+/ "}") | /[0-9]+/
+    ?subscript : ("{" /[0-9,]+/ "}") | /[0-9]+/    // commas allowed in subscript.
+    ?superscript : ("{" /[0-9]+/ "}") | /[0-9]+/
 
     %ignore " "
 """)

@@ -80,7 +80,7 @@ class TableChannel(SocketChannel):
         await self.chart.add_child_a(self)
         self.chart._interact_source = None
         await self.executor.load_repl_init_file_if_it_exists_a()
-        self.py_executor.submit(self.finish_setup)
+        self.schedule_coroutine(self.finish_setup())
 
     @handle_inbound_messages
     async def handle__new_user__a(self, envelope):
@@ -89,8 +89,11 @@ class TableChannel(SocketChannel):
             state=self.sseq, display_state=self.chart.display_state
         ))
 
+    async def finish_setup(self):
+        await asyncio.get_event_loop().run_in_executor(self.py_executor, self.finish_setup_inner)
 
-    def finish_setup(self):
+
+    def finish_setup_inner(self):
         self.table = ProductTable()
         self.executor.get_globals()["table"] = self.table
         if not TableChannel.SAVE_DIR.is_dir():
@@ -151,12 +154,12 @@ class TableChannel(SocketChannel):
         self.saves += 1
 
     def load(self):
-        # print("Load")
-        # print("   initialize change of basis")
+        print("Load")
+        print("   initialize change of basis")
         self.table.initialize_change_of_basis_matrices()
-        # print("   computing indecomposables")
+        print("   computing indecomposables")
         self.table.compute_all_indecomposables()
-        # print("   populating chart")
+        print("   populating chart")
         self.populate_chart()
         self.redoStack = []
         self.previews = {}
@@ -171,7 +174,9 @@ class TableChannel(SocketChannel):
         for action in self.undoStack:
             self.do_action(action)
             self.update_action_bidegrees(action)
-        # print("Finished load")
+        # print("   generate indecomposable decomposition table")
+        # self.table.generate_indecomposable_decomposition_table()            
+        print("Finished load")
 
 
 
@@ -227,13 +232,19 @@ class TableChannel(SocketChannel):
         })
 
     @handle_inbound_messages
-    async def handle__interact__select_bidegree__a(self, envelope, bidegree, uuid):
+    async def handle__interact__bidegree_info__a(self, envelope, bidegree, uuid):
         names = self.get_names_info(bidegree)
         [x, y] = bidegree 
         named_vecs = [[k, self.table.name_to_str(v)] for [k, v] in self.table.named_vecs[y][x].items()]
         matrix = self.get_matrix(bidegree)
-        prod_info = self.get_product_info(bidegree)
-        await self.send_message_outward_a("interact.product_info", *arguments(names=names, named_vecs=named_vecs, matrix=matrix, product_info=prod_info, uuid=uuid))
+        binary_decomposition_info = self.get_binary_decomposition_info(bidegree)
+        await self.send_message_outward_a("interact.bidegree_info", *arguments(
+            names=names, 
+            named_vecs=named_vecs, 
+            matrix=matrix, 
+            binary_decomposition_info=binary_decomposition_info,
+            uuid=uuid,
+        ))
 
 
     async def send_action_info(self, action, uuid):
@@ -549,12 +560,12 @@ class TableChannel(SocketChannel):
             return []
         
 
-    def get_product_info(self, bidegree):
+    def get_binary_decomposition_info(self, bidegree):
         result = []
         v = fp.FpVector(2, self.table.gens_in_bidegree(*bidegree))
         w = fp.FpVector(2, self.table.gens_in_bidegree(*bidegree))
         b = self.table.basis_in_bidegree(*bidegree)
-        for (in1, in2, out) in self.get_filtered_decompositions(bidegree):
+        for (in1, in2, out) in self.get_filtered_binary_decompositions(bidegree):
             [n1, n2] = [(x, self.get_name(x, keep_parens=True), self.get_monomial_name(x)) for x in [in1, in2]]
             v.pack(out)
             w.set_to_zero()
@@ -563,10 +574,10 @@ class TableChannel(SocketChannel):
             result.append({ "left" : n1, "right" : n2, "out_res_basis" : out, "out_our_basis" : list(w),  "out_name" : out_name })
         return result
 
-    def get_filtered_decompositions(self, bidegree):
+    def get_filtered_binary_decompositions(self, bidegree):
         bidegree = tuple(bidegree)
         try:
-            decompositions = self.table.get_decompositions(*bidegree)
+            decompositions = self.table.get_binary_decompositions(*bidegree)
         except KeyError:
             return []
         result = []
@@ -594,8 +605,8 @@ class ProductTable:
         # print("ProductTable init")
         # print("   Load JSON")
         self.load_json()
-        # print("   Generate decomposition table")
-        self.generate_decomposition_table()
+        # print("   Generate binary decomposition table")
+        self.generate_binary_decomposition_table()
         # print("   Setup class names")
         self.setup_class_names()
         # print("   Build dense products")
@@ -629,34 +640,70 @@ class ProductTable:
             # print("IndexError in basis_in_bidegree", x, y)
             raise
 
-    def generate_decomposition_table(self):
-        self.decomposition_table = {}
+    def generate_binary_decomposition_table(self):
+        self.binary_decomposition_table = {}
         self.nontrivial_pairs = {}
         for ((in1, in2), out) in self.product_table.items():
             key = (in1[0] + in2[0], in1[1] + in2[1])
-            if key not in self.decomposition_table:
-                self.decomposition_table[key] = []
+            if key not in self.binary_decomposition_table:
+                self.binary_decomposition_table[key] = []
                 self.nontrivial_pairs[key] = set()
-            self.decomposition_table[key].append((in1, in2, [ x[-1] for x in out ]))
+            self.binary_decomposition_table[key].append((in1, in2, [ x[-1] for x in out ]))
             self.nontrivial_pairs[key].add((in1[:-1], in2[:-1]))
 
     def compute_all_indecomposables(self):
-        self.indecomposables = [[[] for n in r] for r in self.num_gens]
+        self.indecomposables = [[[] for n in range(self.x_max)] for r in range(self.y_max)]
         self.hi_indecomposables = [[[] for n in r] for r in self.num_gens]
         for (y, row) in enumerate(self.num_gens):
             for (x, e) in enumerate(row):
-                if (x,y) in self.decomposition_table:
+                if (x,y) in self.binary_decomposition_table:
                     self.update_indecomposables_in_bidegree(x,y)
 
     def update_indecomposables_in_bidegree(self, x, y):
         self.indecomposables[y][x] = self.compute_indecomposables_in_bidegree(x, y)
         self.hi_indecomposables[y][x] = self.compute_hi_indecomposables_in_bidegree(x, y)
 
+    def get_named_indecomposables_list(self):
+        result = []
+        for x in range(self.x_max):
+            for y in range(self.y_max):
+                for idx in self.indecomposables[y][x]:
+                    t = [0] * self.gens_in_bidegree(x, y)
+                    t[idx] = 1
+                    t = tuple(t)
+                    if t in self.named_vecs[y][x]:
+                        result.append(((x,y), idx, self.named_vecs[y][x][t]))
+        return result
+
+    def generate_indecomposable_decomposition_table(self):
+        self.named_indecomposables = self.get_named_indecomposables_list()
+        self.indecomposable_decompositions = [[[] for x in range(self.x_max)] for y in range(self.y_max)]
+        self.indecomposable_decomposition_table_helper(0, [0,0], [], [1])
+
+    def indecomposable_decomposition_table_helper(self, cur_indec_idx, cur_bidegree, cur_mono, cur_vec):
+        print("cur_indec_idx:", cur_indec_idx, "cur_bidegree:", cur_bidegree, "cur_mono:", self.name_to_str(cur_mono))
+        for i in range(cur_indec_idx, len(self.named_indecomposables)):
+            [indec_bidegree, indec_idx, indec_mono] = self.named_indecomposables[i]
+            t = [0] * self.gens_in_bidegree(*indec_bidegree)
+            t[indec_idx] = 1
+            t = tuple(t)            
+            new_vec = self.multiply_vectors(cur_bidegree, cur_vec, indec_bidegree, t)
+            if all(x==0 for x in new_vec):
+                continue
+            new_mono = name_tools.reduce_monomial(cur_mono + indec_mono)
+            new_bidegree = [sum(x) for x in zip(cur_bidegree, indec_bidegree)]
+            [x, y] = new_bidegree
+            self.indecomposable_decompositions[y][x].append((new_vec, new_mono))
+            self.indecomposable_decomposition_table_helper(i, new_bidegree, new_mono, new_vec)
+
+            
+
+
     def compute_indecomposables_in_bidegree(self, x, y):
         ng = self.gens_in_bidegree(x, y)
         subspace = fp.Subspace(2, ng+1, ng)
         subspace.set_to_zero()
-        image_vecs = [ out for (in1, in2, out) in self.decomposition_table[(x,y)] if in1 != (0,0,0)]
+        image_vecs = [ out for (in1, in2, out) in self.binary_decomposition_table[(x,y)] if in1 != (0,0,0)]
         py_v = [0] * ng
         v = fp.FpVector(2, ng)
         w = fp.FpVector(2, ng)
@@ -674,7 +721,7 @@ class ProductTable:
         ng = self.gens_in_bidegree(x, y)
         subspace = fp.Subspace(2, ng+1, ng)
         subspace.set_to_zero()
-        image_vecs = [ out for (in1, in2, out) in self.decomposition_table[(x,y)] if in1[1] == 1]
+        image_vecs = [ out for (in1, in2, out) in self.binary_decomposition_table[(x,y)] if in1[1] == 1]
         py_v = [0] * ng
         v = fp.FpVector(2, ng)
         w = fp.FpVector(2, ng)
@@ -828,7 +875,7 @@ class ProductTable:
         bout.apply_inverse(wout, vout)
         return tuple(vout)
 
-    def get_decompositions(self, x, y):
+    def get_binary_decompositions(self, x, y):
         v1 = fp.FpVector(2, 0)
         w1 = fp.FpVector(2, 0)
         v2 = fp.FpVector(2, 0)
