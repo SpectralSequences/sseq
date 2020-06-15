@@ -134,10 +134,16 @@ export class Sidebar extends LitElement {
         `
     }
 
+    get minWidth(){
+        return parseFloat(this.getAttribute("min-width")) || 200; // px
+    }
+
+    get maxWidth(){
+        return parseFloat(this.getAttribute("max-width")) || 100000; // px
+    }
+
     async firstUpdated(){
         this.width = parseFloat(this.getAttribute("initial-width")) || 240; // px
-        this.minWidth = parseFloat(this.getAttribute("min-width")) || 200; // px
-        this.maxWidth = parseFloat(this.getAttribute("max-width")) || 100000; // px
         await sleep(100);
         let tabs = this.querySelectorAll("[tab]");
         for(let e of this.querySelectorAll("[tab]")){

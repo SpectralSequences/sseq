@@ -13,18 +13,16 @@ error () {
 }
 
 WORKING_DIRECTORY="$(pwd)"
-
 cd "$( dirname $0 )"
 cd ..
 
-
-which python3.8
+which python3.8 > /dev/null
 if [ $? -ne 0 ]; then 
     error "I can't find python3.8. Install it / make sure it's on your path and then try again."
     exit 1
 fi
 
-which cargo
+which cargo > /dev/null
 if [ $? -ne 0 ]; then 
     error "I can't find cargo. Install Rust / make sure it's on your path and then try again."
     exit 1
