@@ -809,7 +809,7 @@ class ProductTable:
                     product_table_entry = self.product_table.get((in2, in1), [])
                 for [_, _, e] in product_table_entry:
                     try:
-                        products[ idx2 * ng1 + idx1 ][e] = 1
+                        products[ idx1 * ng2 + idx2 ][e] = 1
                     except IndexError:
                         print("bdpbi", t1, t2, "product_table_entry", product_table_entry, "ngout", ngout)
                         raise
