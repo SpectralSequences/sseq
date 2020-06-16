@@ -4,7 +4,7 @@ from typing import Optional
 from prompt_toolkit import HTML
 from prompt_toolkit.patch_stdout import patch_stdout as patch_stdout_context
 
-
+import pathlib
 import logging
 logger = logging.getLogger(__name__)
 
@@ -38,6 +38,9 @@ class ReplAgent(Agent):
     async def start_a(self):
         with self.patch_context:
             await self.console_io.run_a()
+
+    async def load_a(self, file):
+        await self.executor.exec_file_a(pathlib.Path(file))
 
     def set_executor(self, executor):
         if self.console_io.executor:
