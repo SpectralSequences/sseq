@@ -7,6 +7,7 @@ M.parse_action("Sq2 x0 = x2", None)
 M.freeze()
 r = ext.resolution.Resolver("Ceta", module=M)
 Ceta = ResolverChannel(r, REPL)
+await Ceta.setup_a()
 
 Ceta.chart.sseq.initial_x_range = [0, 40]
 Ceta.chart.sseq.initial_y_range = [0, 20]

@@ -13,6 +13,7 @@ M.extend_actions()
 M.freeze()
 r = ext.resolution.Resolver("RP8", module=M)
 RP8 = ResolverChannel(r, REPL)
+await RP8.setup_a()
 RP8.chart.sseq.initial_x_range = [0, 40]
 RP8.chart.sseq.initial_y_range = [0, 20]
 RP8.chart.x_range = [0, 80]

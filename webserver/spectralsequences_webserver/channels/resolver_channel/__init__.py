@@ -58,7 +58,7 @@ class ResolverChannel(SocketChannel):
 
     async def send_start_msg_a(self):
         await self.has_parent.wait()
-        serving_to = self.serving_to
+        serving_to = self.serving_to()
         if serving_to is not None:
             await self.send_info_a(
                 "channel.opened",
@@ -78,7 +78,14 @@ class ResolverChannel(SocketChannel):
             return templates.TemplateResponse("index.html", response_data)
 
     async def setup_a(self):
-        await type(self).repl.add_child_a(self.executor)
+        if not self.ready:
+            async with self.setup_lock:
+                if not self.ready:
+                    await self.setup_main_a()
+                    self.ready = True
+
+    async def setup_main_a(self):
+        await self.repl_agent.add_child_a(self.executor)
         await self.executor.add_child_a(self.resolver)
         await self.resolver.add_child_a(self.chart)
         await self.chart.add_child_a(self)
@@ -92,15 +99,10 @@ class ResolverChannel(SocketChannel):
     async def get_channel_a(cls, name, repl):
         print("Resolver get_channel", name)
         if name in cls.channels:
-            await cls.channels[name].ensure_setup()
+            await cls.channels[name].setup_a()
             return cls.channels[name]
 
-    async def ensure_setup(self):
-        if not self.ready:
-            async with self.setup_lock:
-                if not self.ready:
-                    await self.setup_a()
-                    self.ready = True
+
 
     @classmethod
     def has_channel(cls, name):

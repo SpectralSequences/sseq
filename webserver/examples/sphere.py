@@ -5,6 +5,7 @@ M.add_generator(0, "x0")
 M.freeze()
 r = ext.resolution.Resolver("S_2", module=M)
 S = ResolverChannel(r, REPL)
+await S.setup_a()
 S.resolver.resolve(50)
 
 
