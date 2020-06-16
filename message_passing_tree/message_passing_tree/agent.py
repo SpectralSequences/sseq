@@ -316,6 +316,17 @@ class Agent:
         self.log_envelope_task("send_message_inward", envelope)
         await self.pass_envelope_inward_a(envelope)
 
+    async def send_event_inward_a(self, 
+        cmd_str, args, kwargs,
+        target_agent_id : Optional[AgentID] = None
+    ):
+        cmd = Command().set_str(cmd_str)
+        message = Message(cmd, args, kwargs)
+        envelope = Envelope("in", message, source_agent_path = [], target_agent_id = target_agent_id)
+        envelope.mark_used()
+        self.log_envelope_task("send_event_inward", envelope)
+        await self.pass_envelope_inward_a(envelope)
+
     async def send_message_outward_a(self, 
         cmd_str, args, kwargs, *,
         target_agent_path : Optional[AgentPath] = None
@@ -327,6 +338,19 @@ class Agent:
         self.log_envelope_task("send_message_outward", envelope)
         await self.pass_envelope_outward_a(envelope)
     
+    async def send_event_outward_a(self, 
+        cmd_str, args, kwargs, *,
+        target_agent_path : Optional[AgentPath] = None
+    ):
+        self.log_debug(f"smo {cmd_str}")
+        cmd = Command().set_str(cmd_str)
+        message = Message(cmd, args, kwargs)
+        envelope = Envelope("out", message, source_agent_id = self.uuid, target_agent_path = target_agent_path)
+        envelope.mark_used()
+        self.log_envelope_task("send_event_outward", envelope)
+        await self.pass_envelope_outward_a(envelope)
+
+
     async def broadcast_a(self, 
         cmd : CmdStr,
         args, kwargs

@@ -71,7 +71,7 @@ class SocketChannel(Agent):
 
     @classmethod
     def remove_routes(cls, app):
-        cls.serving_to = ""
+        cls.serving_class_to = ""
         for route in cls.routes:
             app.routes.remove(route)
 
@@ -107,7 +107,7 @@ class SocketChannel(Agent):
         cls.host = host
         cls.port = port
         cls.directory = directory
-        cls.serving_to = f"{host}:{port}/{directory}"
+        cls.serving_class_to = f"{host}:{port}/{directory}"
         cls.initialize_channel()
 
     @classmethod

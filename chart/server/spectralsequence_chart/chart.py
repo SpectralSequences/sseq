@@ -370,7 +370,7 @@ class ChartAgent(Agent):
         await self.sseq.update_a()
 
     async def send_batched_messages_a(self, messages):
-        await self.send_message_outward_a("chart.batched", *arguments(
+        await self.send_event_outward_a("chart.batched", *arguments(
             messages = messages
         ))
 
