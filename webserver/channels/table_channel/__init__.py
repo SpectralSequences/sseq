@@ -16,11 +16,8 @@ from ext import fp
 
 from spectralsequence_chart import SseqSocketReceiver, ChartAgent, ChartData
 
-
-from ...repl.executor import Executor
-from ... import config
-
-from ... import name_tools
+from spectralsequences_webserver import config, name_tools
+from spectralsequences_webserver.repl.executor import Executor
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates

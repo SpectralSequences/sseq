@@ -10,11 +10,11 @@ from fastapi.templating import Jinja2Templates
 
 from spectralsequence_chart import SseqSocketReceiver, ChartAgent, ChartData
 
-from ...repl.executor import Executor
+from spectralsequences_webserver import config
+from spectralsequences_webserver.repl.executor import Executor
 
 
 import os
-from ... import config
 from fastapi.staticfiles import StaticFiles
 CHANNEL_DIR = pathlib.Path(__file__).parent
 templates = Jinja2Templates(directory=str(CHANNEL_DIR))
@@ -22,6 +22,8 @@ templates = Jinja2Templates(directory=str(CHANNEL_DIR))
 @subscribe_to("*")
 @collect_handlers(inherit=True)
 class ResolverChannel(SocketChannel):
+    serve_as = "resolver"
+
     def __init__(self, resolver, repl_agent):
         super().__init__(resolver.name)
         self.repl_agent = repl_agent

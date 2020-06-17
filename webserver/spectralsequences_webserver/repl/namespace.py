@@ -1,34 +1,31 @@
-import json
-import pathlib
 from .. import config
+from .. import utils
+
+namespace_functions = []
+default_namespace = []
+namespace_initialized = False
 
 
-from spectralsequence_chart import ChartAgent, ChartData
-from ..channels import ResolverChannel
-import ext
+def namespace(namespace_list):
+    namespace_functions.append(namespace_list)
 
-def read_file(path):
-    return pathlib.Path(path).read_text()
-
-def read_json_file(path):
-    return json.loads(read_file(path))
-
-default_namespace = [
-    read_file, read_json_file,
-    ext, ext.algebra, ext.module, ext.fp, ext.fp.FpVector,
-    ext.algebra.AdemAlgebra, ext.algebra.MilnorAlgebra,
-    ext.module.FDModule,
-    # ext.resolution.Resolution,
-    ChartAgent, ChartData,
-    ResolverChannel,
-    pathlib, config
-]
-
+def get_default_namespace():
+    if namespace_initialized:
+        return default_namespace
+    for namespace_list in namespace_functions:
+        default_namespace.extend(namespace_list())
+    return default_namespace
 
 def add_to_namespace(namespace, obj):
-    name = obj.__name__.split(".")[-1]
+    if hasattr(obj, "__name__"):
+        name = obj.__name__.split(".")[-1]
+    else:
+        [obj, name] = obj
     namespace[name] = obj
 
 def add_stuff_to_namespace(namespace, to_add):
     for name in to_add:
         add_to_namespace(namespace, name)
+
+utils.exec_file(config.NAMESPACE_FILE, globals(), locals())
+utils.exec_file_if_exists(config.USER_NAMESPACE_FILE, globals(), locals())

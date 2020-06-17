@@ -10,7 +10,6 @@ import types
 from typing import Any, List
 from weakref import WeakSet
 
-
 from message_passing_tree import Agent 
 from message_passing_tree.decorators import collect_handlers, subscribe_to
 
@@ -59,8 +58,14 @@ class Executor(Agent):
     def ensure_global_namespace_is_initialized():
         if Executor.namespace is None:
             # Import this in here to avoid circular imports
-            from .namespace import default_namespace
+            from .namespace import get_default_namespace
+            # try:
+            default_namespace = get_default_namespace()
             Executor.namespace = [ [value.__name__.split(".")[-1], value] for value in default_namespace ]
+            # except Exception as e:
+            #     from .console_io import ConsoleIO
+            #     ConsoleIO.print_exception(None, e, buffered=False)
+
 
     @staticmethod
     def add_to_global_namespace(name, value=None):

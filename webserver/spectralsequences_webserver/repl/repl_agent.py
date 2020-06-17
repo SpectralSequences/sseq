@@ -50,6 +50,8 @@ class ReplAgent(Agent):
         self.executor = executor
         self.console_io.executor = executor
 
+    def exit(self):
+        self.console_io.exit()
 
     @handle_inbound_messages
     async def handle__debug__a(self, envelope, msg):#source, cmd, msg):

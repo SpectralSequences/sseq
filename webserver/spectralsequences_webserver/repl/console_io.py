@@ -63,6 +63,10 @@ class ConsoleIO(PythonRepl):
 
             self.current_statement_index += 1
             self.signatures = []
+    
+    def exit(self):
+        self.app.output.flush()
+        self.app.exit()
 
     def get_compiler_flags(self):
         """ Make sure that "await f_a()" is not reported as a syntax error."""
@@ -175,6 +179,12 @@ class ConsoleIO(PythonRepl):
     def print_error(self, type, msg, additional_info):
         self.print_formatted_text(ANSI(
             f"Error {ansi.ORANGE}{type}: {ansi.PINK}{msg}{ansi.NOCOLOR}\n"  +\
+            additional_info
+        ))
+
+    def print_critical_error(self, type, msg, additional_info):
+        self.print_formatted_text(ANSI(
+            f"Critical Error {ansi.RED}{type}: {ansi.PINK}{msg}{ansi.NOCOLOR}\n"  +\
             additional_info
         ))
 
