@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ channel_name }} Table</title>
+    <meta charset="utf-8"/>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.css" integrity="sha384-+MsSfd29vjUzcyqYURxcmpWGtqoSHBy+QdEJNLEslXQftxojQv0k6BGDqUNp9GtA" crossorigin="anonymous">
+
+    <script src="/client/table/index.js" type="text/javascript"></script>
+
+    <style>
+        :root {
+            --focus-outline-color: rgba(var(--complement-2), 1);
+            --focus-outline-thickness : 1px;
+        }
+
+        :focus {
+            outline: var(--focus-outline-color) solid var(--focus-outline-thickness);
+        }
+
+        katex-expr {
+            border: rgba(0,0,0,0) solid var(--focus-outline-thickness);
+        }
+
+        input:invalid {
+           border-color: #FDD !important;
+           background-color:  #900 !important;
+        }
+
+        katex-expr:focus {
+            outline-style: none;
+            border: var(--focus-outline-color) solid var(--focus-outline-thickness);
+        }
+
+        .error {
+            width  : 100%;
+            padding: 0.3em;
+            font-size: 80%;
+            color: white;
+            opacity: 0;
+            background-color: #900;     
+            box-sizing: border-box;
+        }
+
+        input[transition=show] {
+            transition : 0.5s ease;
+        }
+        .error[transition=show] {
+            transition : 0.5s ease;
+        }
+
+        input[transition=hide] {
+            transition : 0.2s ease;
+        }
+        .error[transition=hide] {
+            transition : 0.2s ease;
+        }        
+
+        .error.active {
+            opacity: 1;
+        }        
+
+
+        /* outline*/
+        tr {
+            border-top: rgba(0,0,0,0) double var(--focus-outline-thickness);
+        }
+
+        tr:last-child {
+            border-bottom: rgba(0,0,0,0) double var(--focus-outline-thickness);
+        }
+
+        tr:focus {
+            border-color: var(--focus-outline-color);
+            border-style: double;
+            border-width: var(--focus-outline-thickness);
+            outline : none;
+        }
+
+        .sidebar-group {
+            padding: 0px 20px 0px 5px;
+            margin: 15px 0px 15px 0px;
+        }
+
+        .sidebar div {
+            /* Only works on Firefox */
+            scrollbar-width: thin;
+        }
+
+        [tab] {
+            text-align: center;
+            padding-right: 1.5rem; 
+            padding-top: 0.8rem; 
+            /*padding-bottom: 2rem;*/
+            /*height: 100vh;*/
+        }
+
+        sseq-sidebar h4 {
+            --text-opacity : 0.87;
+            color : rgba(var(--text-color), var(--text-opacity));
+            /* font-size: 120%; */
+            font-weight: 450;
+            margin: 0.25rem 0rem;
+            margin-bottom: 0.8rem;
+        }
+
+        sseq-sidebar h5 {
+            --text-opacity : 0.87;
+            color : rgba(var(--text-color), var(--text-opacity));
+            font-size: 120%;
+            font-weight: 400;
+            margin: 0.25rem 0rem;
+            margin-bottom: 0.8rem;
+        }
+
+        sseq-sidebar div {
+            display: flex;
+            flex-direction: column;
+        }        
+
+        input {
+            font-family: inherit;
+            padding: 0.375rem 0.75rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            display: block;
+            line-height: inherit;
+            border-radius: 0.25rem;
+            border: 1px solid #CCC;
+        }
+
+        .input-row {
+            margin-top: 0.4rem;
+            margin-bottom: 0.4rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-row label {
+            margin-right: 0.6rem;
+            text-align: right;
+        }
+
+        .input-row input {
+            flex-grow: 1;
+            width: 1px;
+        }
+
+        sseq-tooltip {
+            --text-color : var(--complement-3-text);
+            --text-opacity : 1;
+            background: rgba(var(--complement-3), 1);
+        }
+
+
+        .status-indicator {
+            position: absolute;
+            bottom : 10px;
+            left : 10px;
+            --text-color : var(--complement-3-text);
+            --text-opacity : 1;
+            background: rgba(var(--complement-3), 1);
+            color : rgba(var(--text-color), var(--text-opacity));
+            opacity: 0;
+            padding : 3px;
+        }
+
+        .status-indicator[shown] {
+            opacity: 1;
+        }
+
+        .status-indicator[transition=show] {
+            transition : opacity 200ms ease-out;
+        }
+        
+        .status-indicator[transition=hide] {
+            transition : opacity 500ms ease-in;
+        }
+
+
+
+        sseq-matrix {
+            --row-selected : rgba(var(--complement-3),0.7);
+            --row-hover : rgba(var(--complement-3), 0.4); /* rgba(0, 0, 255, 0.25);*/
+            --row-hover-selected : rgba(var(--complement-3),1);
+            --row-active : rgba(var(--complement-2),1);
+            --row-active-selected : rgba(var(--complement-2),0.5); /* about to turn off */
+        }
+
+        sseq-sidebar * {
+            color : rgba(var(--text-color), var(--text-opacity));
+        }
+
+        sseq-sidebar {
+            --text-opacity : var(--disabled-text-opacity);
+        }
+
+        sseq-sidebar [tabindex="0"] {
+            --text-opacity : 0.7;
+        }
+
+        sseq-sidebar :hover[tabindex="0"] {
+            --text-opacity : 0.87;
+        }
+
+        sseq-sidebar :active[tabindex="0"] {
+            --text-opacity : 1;
+        }
+
+
+        ::selection {
+            background : rgba(var(--selection-background-color), 1);
+        }
+
+        .name:active {
+            --text-opacity : 1;
+        }
+        
+        input[type=text] {
+            border-radius: 0px;
+            background-color: rgba(var(--input-background-color), 1);
+            color : rgba(var(--input-text-color), 1);
+            border: 1px solid #CCC; /* default for text input */
+        }
+
+        /*.help*/ dt {
+            display : inline-block;
+            margin-right : 10px;
+        }
+
+        /*.help*/ dd {
+            display : inline-block;
+        }/**/
+
+        /*.help/ kbd {
+            margin-left : 3px;
+            margin-right : 3px;
+        }/**/
+        .help h4 {
+            --text-opacity : 0.87;
+            color : rgba(var(--text-color), var(--text-opacity));
+        }
+
+
+        :root {
+            --body-background-color : var(--primary-4);
+            --body-text-color : var(--primary-4-text);
+            --header-background-color : var(--primary-2);
+            --header-text-color : var(--primary-2-text);
+        }
+
+        :root {
+            --disabled-text-opacity : 0.5;
+            --text-opacity : 0.7;
+            --button-text-color : var(--primary-2-text);
+            --button-text-opacity : 0.8;
+            --button-background-color : var(--primary-2);
+            --button-background-opacity : 1;
+            --input-background-color : var(--primary-1);
+            --input-text-color : var(--primary-1-text);
+            --close-icon-font-size : 18pt;
+            --selection-background-color : var(--complement-0);
+        }
+
+        :root {
+            --primary-0: 56, 54, 41;	/* Main Primary color */
+            --primary-1: 134,129, 103;
+            --primary-2: 96, 92, 74;
+            --primary-3: 52, 48, 30;
+            --primary-4: 47, 43, 21;
+
+            --primary-0-text: 255, 255, 255;	/* Main Primary color */
+            --primary-1-text: 255, 255, 255;
+            --primary-2-text: 255, 255, 255;
+            --primary-3-text: 255, 255, 255;
+            --primary-4-text: 255, 255, 255;
+
+            --complement-0: 32, 29, 39;	/* Main Complement color */
+            --complement-1: 78, 73, 93;
+            --complement-2: 56, 52, 66;
+            --complement-3: 26, 22, 36;
+            --complement-4: 21, 17, 32;
+
+            --complement-0: 57, 20,175;	/* Main Complement color */
+            --complement-1: 115, 90,195;
+            --complement-2: 86, 56,180;
+            --complement-3: 43, 14,136;
+            --complement-4: 32,  9,106;
+
+
+            --complement-0-text: 255, 255, 255;	/* Main complement color */
+            --complement-1-text: 255, 255, 255;
+            --complement-2-text: 255, 255, 255;
+            --complement-3-text: 255, 255, 255;
+            --complement-4-text: 255, 255, 255;
+
+/*
+            --primary-0:  61, 45, 29;	/* Main Primary color *
+            --primary-1: 128, 97, 67;
+            --primary-2:  94, 70, 47;
+            --primary-3:  84, 56, 28;
+            --primary-4:  96, 58, 21;
+
+            --complement-0:  18, 34, 38;	/* Main Complement color *
+            --complement-1:  42, 72, 79;
+            --complement-2:  30, 53, 58;
+            --complement-3:  18, 45, 52;
+            --complement-4:  15, 51, 59;           */
+        }
+
+
+        kbd {
+            background-color: #eee;
+            border-radius: 3px;
+            border: 1px solid #b4b4b4;
+            box-shadow: 0 1px 1px rgba(0, 0, 0, .2), 0 2px 0 0 rgba(255, 255, 255, .7) inset;
+            color: #333;
+            display: inline-block;
+            font-size: .85em;
+            font-weight: 700;
+            line-height: 1;
+            padding: 2px 4px;
+            white-space: nowrap;
+        }
+
+        /* kbd {
+            display: inline-block;
+            margin: 0 .1em;
+            padding: .1em .6em;
+            font-family: Arial,"Helvetica Neue",Helvetica,sans-serif;
+            font-size: 11px;
+            line-height: 1.4;
+            color: var(--black-800);
+            text-shadow: 0 1px 0 var(--white);
+            background-color: var(--black-075);
+            border: 1px solid var(--black-300);
+            border-radius: 3px;
+            box-shadow: 0 1px 1px rgba(12,13,14,0.15),inset 0 1px 0 0 var(--white);
+            white-space: nowrap;
+        } */
+
+
+
+    </style>
+</head>
+<body style="overflow: hidden;">
+   <sseq-ui tabindex="-1">
+        <sseq-display id=display style="overflow: hidden; position: relative; flex-grow: 1;">
+            <sseq-axes></sseq-axes>
+            <sseq-grid></sseq-grid>
+            <sseq-chart>
+                <sseq-bidegree-highlighter></sseq-bidegree-highlighter>
+                <sseq-class-highlighter></sseq-class-highlighter>
+                <sseq-page-indicator style="position: absolute; left: 60px; top: 0px; font-family: Arial; font-size: 15px;"></sseq-page-indicator>
+                <sseq-tooltip></sseq-tooltip>
+            </sseq-chart>
+        </sseq-display>
+        <sseq-sidebar max-width=400 initial-width=280>
+            <div id="names" tab="Names">
+                <div content="bidegree"></div>
+                <div content="classes"></div>
+                <div content="names-products"></div>
+                <div content="matrix"></div>
+                <div style="flex-grow:1; min-height : 80px;"></div>
+            </div>
+            <div tab="Products">
+                <div content="bidegree"></div>
+                <div content="classes"></div>
+                <div content="factorizations"></div>
+                <div content="outgoing-products"></div>
+            </div>
+            <sseq-button slot="footer" class="help-btn" 
+                style="
+                    padding-left: 0.5rem; 
+                    padding-right: 0.5rem; 
+                    margin-bottom : 10px; 
+                    align-self: center;
+                ">
+                Help
+            </sseq-button>  
+        </sseq-sidebar>
+        <sseq-popup>
+            <span slot="header"></span>
+            <div slot="body"></div>
+        </sseq-popup>
+        <sseq-popup modal class="help">
+            <span slot="header"><h4>Help</h4></span>
+            <div slot="body">
+            </div>
+            <div slot="buttons">
+                <sseq-button class="cancel">close</sseq-button>
+            </div>
+        </sseq-popup>
+        <div class="status-indicator"></div>
+    </sseq-ui>
+
+    <script>
+        let keybindings = [
+            ["General", [
+                ["<kbd>t</kbd>", "Take the console"],
+                ["<kbd>h</kbd>", "Show this help window"],
+                ["<kbd>z</kbd>", "Undo"],
+                ["<kbd>Shift ⇧</kbd> + <kbd>z</kbd>", "Redo"],
+            ]],
+            ["Chart", [
+                ["<kbd>w</kbd> <kbd>a</kbd> <kbd>s</kbd> <kbd>d</kbd>", "Pan chart content"],
+                ["<kbd>+</kbd> <kbd>-</kbd>", "Zoom in and out"],
+                ["<kbd>]</kbd> <kbd>[</kbd>", "Zoom x direction in and out"],
+                ["<kbd>}</kbd> <kbd>{</kbd>", "Zoom y direction in and out"],
+                ["<kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd>", "Move selected bidegree"],
+                ["<kbd>Home</kbd>", "Move to bidegree (0,0)"],
+                ["<kbd>m</kbd>", "Select next bidegree that contains an element that is decomposable but not divisible by <katex-expr>h_i</katex-expr>"],
+                ["<kbd>n</kbd>", "Select next bidegree containing an indecomposable element"],
+            ]],
+            ["Interface", [
+                ["<kbd>Tab ↹</kbd>", "Move to next control"],
+                ["<kbd>Shift ⇧</kbd> + <kbd>Tab ↹</kbd>", "Move to previous control"],
+                ["<kbd>Space</kbd>", "Toggle"],
+                ["<kbd>Enter ↵</kbd>", "Submit"],
+                ["<kbd>Esc</kbd>", "Cancel"],
+                ["<kbd>1</kbd> - <kbd>9</kbd>", "Focus sidebar group"],
+                ["<kbd>0</kbd>", "Focus popup"],
+            ]],
+            ["Matrix Popup", [
+                ["<kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd>", "Move selected entry"],
+                ["<kbd>0</kbd> <kbd>1</kbd>", "Update selected entry"],
+                ["<kbd>Ctrl</kbd> + <kbd>↑</kbd>, <kbd>Ctrl</kbd> + <kbd>↓</kbd>", "Swap selected row up / down"],
+                ["<kbd>Ctrl</kbd> + <kbd>C</kbd>, <kbd>Ctrl</kbd> + <kbd>V</kbd>", "Copy / paste selected row"]
+            ]]   
+        ]
+
+        document.querySelector(".help [slot=body]").innerHTML =
+            `<div>
+                    ${keybindings.map(([group, controls]) => `
+                    <div>
+                        <h4>${group}</h4>  
+                        <dl>
+                        ${controls.map(([key, description]) => `
+                            <dt>${key} :</dt>
+                            <dd>${description}</dd>
+                            <span style="display:block"></span>
+                        `).join("\n")}
+                        </dl>
+                    </div>
+                `).join("\n")}
+            </div>`;
+        
+            
+
+
+
+        let tableUI = new TableUI(document.querySelector("sseq-ui"), "ws://localhost:{{ port }}/ws/{{ directory }}/{{ channel_name }}");
+        tableUI.start();
+    </script>
+
+</body>

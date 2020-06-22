@@ -35,6 +35,8 @@ class TableChannel(SocketChannel):
 
     @classmethod
     def serve_extra(cls, app, host, port, cls_dir):
+        print("Serve extra?")
+        # print((CHANNEL_DIR / "dist").absolute())
         app.mount("/client/table", StaticFiles(directory=CHANNEL_DIR / "dist"), name="client")
         app.mount("/debug/table/chart", StaticFiles(directory=config.CHART_REPOSITORY_ROOT), name="debug")
 
@@ -127,7 +129,7 @@ class TableChannel(SocketChannel):
             "request" : request, 
         }
         if cls.has_channel(channel_name):
-            return templates.TemplateResponse("table.html", response_data)
+            return templates.TemplateResponse("index.html", response_data)
 
 
 

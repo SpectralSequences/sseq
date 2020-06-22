@@ -118,7 +118,7 @@ class Resolver(MathAgent):
             for (source_idx, row) in enumerate(iter(table)):
                 for (target_idx, entry) in enumerate(iter(row)):
                     if entry != 0:
-                        self.add_structline(
+                        await self.add_structline(
                             source_s, source_t, source_idx,
                             target_s, target_t, target_idx
                         )
@@ -128,18 +128,18 @@ class Resolver(MathAgent):
 
     def add_classes(self, s, t):
         for i in range(self.rust_res.number_of_gens_in_bidegree(s, t)):
-            self.chart.add_class(*st_to_xy(s, t))
+            self.chart.sseq.add_class(*st_to_xy(s, t))
 
-    def add_structline(self,
+    async def add_structline(self,
         source_s, source_t, source_idx,
         target_s, target_t, target_idx
     ):
         try:
-            source = self.chart.get_class_by_idx(*st_to_xy(source_s, source_t), source_idx)
-            target = self.chart.get_class_by_idx(*st_to_xy(target_s, target_t), target_idx)
-            self.chart.add_structline(source, target)
+            source = self.chart.sseq.class_by_idx(*st_to_xy(source_s, source_t), source_idx)
+            target = self.chart.sseq.class_by_idx(*st_to_xy(target_s, target_t), target_idx)
+            self.chart.sseq.add_structline(source, target)
         except Exception as e:
-            self.send_error_a("", exception=e)
+            await self.send_error_a("", exception=e)
 
 
     def cocycle_string(self, x, y, idx):
