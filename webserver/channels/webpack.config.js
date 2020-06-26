@@ -4,8 +4,9 @@ let channel = "resolver";
 let context = "../../..";
 module.exports = {
     entry: {
+        "demo_channel" : "./demo_channel/index.js",
         "table_channel" : "./table_channel/index.js",
-        "resolver_channel" : "./resolver_channel/index.js"
+        "resolver_channel" : "./resolver_channel/index.js",
     },
     output: {
         path: path.resolve(__dirname),

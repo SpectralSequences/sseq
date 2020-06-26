@@ -31,12 +31,9 @@ class ChartClass:
         if "visible" not in kwargs:
             self.visible = True
 
-        if "x" not in kwargs:
-            raise ValueError("""Class is missing mandatory argument "x".""")
+        if "degree" not in kwargs:
+            raise ValueError("""Class is missing mandatory argument "degree".""")
         
-        if "y" not in kwargs:
-            raise ValueError("""Class is missing mandatory argument "y".""")
-
         if "node_list" not in kwargs:
             raise ValueError("""Class is missing mandatory argument "node_list".""")
         # utils.assign_fields(self, kwargs, [
@@ -59,12 +56,11 @@ class ChartClass:
                 self.node_list[i] = ChartNode.from_json(self._sseq, self.node_list[i])
 
         sseq._classes[self.uuid] = self
-        pos = (self.x, self.y)
-        if pos not in sseq._classes_by_bidegree:
-            sseq._classes_by_bidegree[pos] = []
+        if self.degree not in sseq._classes_by_bidegree:
+            sseq._classes_by_bidegree[self.degree] = []
         if not hasattr(self, "idx"):
-            self.idx = len(sseq._classes_by_bidegree[pos])
-        sseq._classes_by_bidegree[pos].append(self)
+            self.idx = len(sseq._classes_by_bidegree[self.degree])
+        sseq._classes_by_bidegree[self.degree].append(self)
         # self.node_list = [ n.idx for n in self.node_list ]
 
     def needs_update(self):
@@ -78,7 +74,9 @@ class ChartClass:
         return f"ChartClass({self.x},{self.y})"
 
     def to_json(self):
-        return utils.public_fields(self)
+        result = utils.public_fields(self)
+        result["type"] = "ChartClass"
+        return result
 
     def get_page_idx(self, page):
         for i, v in enumerate(self.transition_pages):
@@ -89,6 +87,14 @@ class ChartClass:
     def set_node_field_by_idx(self, idx, field, value):
         n = self.node_list[idx]
         setattr(n, field, value)
+
+    @property
+    def x(self):
+        return sum(a*b for (a,b) in zip(self.degree,self._sseq.x_degree))
+
+    @property
+    def y(self):
+        return sum(a*b for (a,b) in zip(self.degree,self._sseq.y_degree))
 
     @utils.sseq_property
     def name(self, storage_name):

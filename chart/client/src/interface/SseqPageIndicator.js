@@ -1,41 +1,37 @@
 import {LitElement, html} from 'lit-element';
+import { INFINITY } from "../infinity";
 
 export class SseqPageIndicator extends LitElement {
-    static get properties() {
-        return { 
-            page_value : { type: String }
-        };
-    }
-
     constructor(){
         super(); 
         this.page_value = "";
     }
 
     firstUpdated(changedProperties) {
-        let elt = this;
-        while(elt !== undefined && elt.nodeName !== "SSEQ-DISPLAY"){
-            elt = elt.parentElement;
-        }
+        let elt = this.closest("sseq-display");
         if(elt === undefined){
             throw Error("sseq-class-highlighter must be a descendant of sseq-display.");
         }
         this.disp = elt;
+        this.chart = this.disp.querySelector("sseq-chart");
         this.page_value = this.disp.page;
         this.disp.addEventListener("page-change", (e) => {
+            console.log("page change?", e);
             this.page_value = e.detail[0];
+            this.requestUpdate();
         });
     }
 
     getPageDescriptor(pageRange) {
-        if (!this.sseq) {
+        if (!this.chart || !this.chart.sseq) {
             return;  
         }
 
         let basePage = 2;
-        if(this.sseq.page_list.includes(1)){
-            basePage = 1;
-        }
+        // if(this.sseq.page_list.includes(1)){
+        //     basePage = 1;
+        // }
+        console.log("gpd:", pageRange, INFINITY);
         if (pageRange[0] === INFINITY) {
             return "Page ∞";
         }

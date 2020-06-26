@@ -80,7 +80,9 @@ class ChartEdge:
             return ChartExtension(sseq, **json)
 
     def to_json(self):
-        return utils.public_fields(self)
+        result = utils.public_fields(self)
+        result["type"] = type(self).__name__
+        return result
 
 class ChartDifferential(ChartEdge):
     def __init__(self, sseq, page, **kwargs):

@@ -29,42 +29,6 @@ import { sleep, promiseFromDomEvent, throttle, animationFrame, uuid4 } from "cha
 window.SseqSocketListener = SseqSocketListener;
 window.UIElement = UIElement;
 
-function namedVecsListToObj(namedVecs){
-    let result = {};
-    for(let [k, v] of namedVecs){
-        result[JSON.stringify(k)] = v;
-    }
-    return result;
-}
-
-function namedVecsObjToList(namedVecs){
-    let result = [];
-    for(let [k, v] of Object.entries(namedVecs)){
-        result.push([JSON.parse(k), v]);
-    }
-    return result;
-}
-
-
-function setNameCommand(bidegree, res_basis_vec,  our_basis_vec,  name){
-    return {
-        type : "set_name",
-        bidegree : bidegree,  
-        vec : res_basis_vec,
-        our_basis_vec : our_basis_vec,
-        name : name
-    };
-}
-
-function setMatrixCommand(bidegree, matrix, changedRows){
-    return {
-        type : "set_matrix",
-        bidegree : bidegree,  
-        matrix : matrix,
-        changedRows : changedRows
-    };
-}
-
 class ResolverUI {
     constructor(uiElement, socket_address){
         this.ws = new WebSocket(socket_address);

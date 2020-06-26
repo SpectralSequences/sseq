@@ -30,13 +30,12 @@ HI_MAX = 8
 @subscribe_to("*")
 @collect_handlers(inherit=True)
 class TableChannel(SocketChannel):
+    channels = {}
     serve_as = "table"
     SAVE_DIR = config.SAVE_DIR / "table"
 
     @classmethod
     def serve_extra(cls, app, host, port, cls_dir):
-        print("Serve extra?")
-        # print((CHANNEL_DIR / "dist").absolute())
         app.mount("/client/table", StaticFiles(directory=CHANNEL_DIR / "dist"), name="client")
         app.mount("/debug/table/chart", StaticFiles(directory=config.CHART_REPOSITORY_ROOT), name="debug")
 
@@ -50,7 +49,6 @@ class TableChannel(SocketChannel):
         self.setup_executor_namespace()
         self.ready = asyncio.Event()
 
-    channels = {}
     async def send_start_msg_a(self):
         pass
 

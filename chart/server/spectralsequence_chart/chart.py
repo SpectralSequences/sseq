@@ -22,6 +22,10 @@ class ChartData:
         self.x_range = [0, 10]
         self.y_range = [0, 10]
 
+        self.num_gradings = 2
+        self.x_degree = [1, 0]
+        self.y_degree = [0, 1]
+
         self.page_list = [[2, INFINITY], [INFINITY, INFINITY]]
         self._page_list_lock = threading.Lock()
         self.min_page_idx = 0
@@ -68,20 +72,20 @@ class ChartData:
         return result
 
     @staticmethod
-    def from_json(json):
-        result = ChartData(json["name"])
-        utils.copy_fields_from_kwargs(result, json)
+    def from_json(json_obj):
+        result = ChartData(json_obj["name"])
+        utils.copy_fields_from_kwargs(result, json_obj)
 
         result.nodes = []
         result._classes = {}
         result._edges = {}
-        for node in json["nodes"]:
+        for node in json_obj["nodes"]:
             result.nodes.append(ChartNode.from_json(result, node))
 
-        for c in json["classes"].values():
+        for c in json_obj["classes"].values():
             result._classes[c["uuid"]] = ChartClass.from_json(result, c)
 
-        for e in json["edges"].values():
+        for e in json_obj["edges"].values():
             result._edges[e["uuid"]] = ChartEdge.from_json(result, e)
 
         # We need to replace the uuids so that they are actually unique.
@@ -103,8 +107,8 @@ class ChartData:
         
         return result
         
-    def add_class(self, x, y, **kwargs):
-        kwargs.update({"x" : x, "y" : y, "node_list" : [0]})
+    def add_class(self, *degree, **kwargs):
+        kwargs.update({"degree" : degree, "node_list" : [0]})
         c = ChartClass(self, **kwargs)
         if "color" in kwargs:
             c.set_field("color", kwargs["color"])
@@ -142,7 +146,7 @@ class ChartData:
             else:
                 idx = len(self.page_list)
             self.page_list.insert(idx, page_range)
-            self.add_batched_message("chart.insert_page_range", *arguments(page_range=page_range, idx=idx))
+            self.add_batched_message(uuid4(), "chart.insert_page_range", *arguments(page_range=page_range, idx=idx))
     
 
     # # TODO: Add a setting to turn off eager deduping.

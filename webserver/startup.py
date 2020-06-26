@@ -1,12 +1,13 @@
 def startup(server):
     from channels import (
         ResolverChannel, 
-        TableChannel
+        TableChannel,
+        DemoChannel
     )
     # serve(SseqChannel, "sseq")
-    # serve(DemoChannel, "demo")
     # serve(InteractChannel, "interact")
     # serve(SlideshowChannel, "slideshow")
     # serve(PresentationChannel, "presentation")
+    server.serve(DemoChannel)
     server.serve(ResolverChannel)
     server.serve(TableChannel)

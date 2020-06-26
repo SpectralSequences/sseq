@@ -43,15 +43,19 @@ export class ChartElement extends HTMLElement {
     }
 
     nextPage(){
-        if (this.page_idx < this.sseq.page_list.length - 1) {
-            this.setPage(this.page_idx + 1);
-            this.update();
-        }
+        this.changePage(1);
     }
 
     previousPage(){
-        if (this.page_idx > this.sseq.min_page_idx) {
-            this.setPage(this.page_idx - 1);
+        this.changePage(-1);
+    }
+
+    changePage(delta){
+        let min_idx = this.sseq.min_page_idx;
+        let max_idx = this.sseq.page_list.length - 1;
+        let new_idx = Math.min(Math.max(this.page_idx + delta, min_idx), max_idx)
+        if (new_idx !== this.page_idx) {
+            this.setPage(new_idx);
             this.update();
         }
     }
@@ -95,7 +99,9 @@ export class ChartElement extends HTMLElement {
      * Update this.page and this.pageRange to reflect the value of page_idx.
      */
     setPage(idx){
-        if (!this.sseq) return;
+        if (!this.sseq){
+            return;  
+        } 
 
         if(idx !== undefined){
             this.page_idx = idx;
