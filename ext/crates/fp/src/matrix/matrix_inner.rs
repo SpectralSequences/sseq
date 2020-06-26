@@ -929,6 +929,7 @@ macro_rules! augmented_matrix {
             /// because it is not clear if we first do the `deref_mut` then retrieve `start[0]`.
             /// (since `deref_mut` takes in a mutable borrow, it could in theory modify `m`
             /// non-trivially)
+            #[derive(Clone)]
             pub struct $name {
                 pub end: [usize; $N],
                 pub start: [usize; $N],

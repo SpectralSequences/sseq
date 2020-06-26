@@ -1,4 +1,7 @@
 #![macro_use]
+#![feature(drain_filter)]
+#![feature(try_blocks)]
+
 #![allow(clippy::many_single_char_names)]
 #![allow(clippy::unreadable_literal)]
 #![allow(clippy::too_many_arguments)]
@@ -17,5 +20,6 @@ pub mod steenrod_parser;
 pub mod steenrod_evaluator;
 pub mod module;
 pub mod cli_module_loaders;
+pub mod dense_bigraded_algebra;
 
 pub use crate::algebra::*;

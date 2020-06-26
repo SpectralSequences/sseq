@@ -70,7 +70,7 @@ impl Basis {
         self.check_dimension(v.inner()?.dimension())?;
         self.check_dimension(result.inner()?.dimension())?;
         self.check_nonsingular()?;
-        self.inner()?.apply(result.inner_mut()?, v.inner()?);
+        self.inner()?.apply(result.inner_mut()?, 1, v.inner()?);
         Ok(())
     }
 
@@ -78,7 +78,7 @@ impl Basis {
         self.check_dimension(v.inner()?.dimension())?;
         self.check_dimension(result.inner()?.dimension())?;
         self.check_nonsingular()?;
-        self.inner_mut()?.apply_inverse(result.inner_mut()?, v.inner()?);
+        self.inner_mut()?.apply_inverse(result.inner_mut()?, 1, v.inner()?);
         Ok(())
     }
 

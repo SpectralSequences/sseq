@@ -17,6 +17,7 @@ lock_api = "0.3"
 nom = "5.0.0"
 parking_lot = "0.10"
 twox-hash = "1.5.0"
+array-macro = "1.0.5"
 
 
 bivec = { path = "../bivec"}

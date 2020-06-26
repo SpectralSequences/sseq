@@ -150,8 +150,7 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
                     dimension,
                     degree,
                 ))
-            }
-            
+            }    
         }
     }
 

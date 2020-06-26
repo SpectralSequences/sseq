@@ -920,7 +920,6 @@ pub trait FpVectorT {
         }
     }
 
-
     // fn add_truncate(&mut self, other : &FpVector, c : u32) -> bool {
 
     // }
@@ -1431,6 +1430,7 @@ impl FpVector {
         self.clear_slice();
         self.extend_dimension(dimension);
         self.set_slice(0, dimension);
+        self.set_to_zero_pure();
     }
 
     pub fn iter(&self) -> FpVectorIterator {

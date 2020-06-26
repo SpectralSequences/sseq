@@ -83,7 +83,7 @@ impl Algebra for PythonAlgebraRust {
             return;
         } else {
             let gil = Python::acquire_gil();
-            let py = gil.python();            
+            let py = gil.python();  
             let result = self.compute_basis.call1(py, (degree,));
             if let Err(e) = result {
                 eprintln!("Error occurred in call compute_basis({}):",

@@ -23,6 +23,12 @@ impl<T: fmt::Debug> fmt::Debug for BiVec<T> {
     }
 }
 
+impl<T> std::default::Default for BiVec<T> {
+    fn default() -> Self {
+        Self::new(0)
+    }
+}
+
 impl<T> BiVec<T> {
     pub fn new(min_degree : i32) -> Self {
         Self {
@@ -81,7 +87,7 @@ impl<T> BiVec<T> {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.data.len() == 0
+        self.data.is_empty()
     }
 
     pub fn push(&mut self, x : T) {

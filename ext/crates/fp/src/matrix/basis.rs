@@ -2,6 +2,7 @@ use crate::prime::ValidPrime;
 use crate::vector::{FpVector, FpVectorT};
 use super::{Matrix, AugmentedMatrix2};
 
+#[derive(Clone)]
 pub struct Basis {
     pub matrix : Matrix,
     pub inverse : AugmentedMatrix2
@@ -36,7 +37,7 @@ impl Basis {
     }
 
     pub fn take_matrix(&mut self) -> Matrix {
-        let p = self.matrix.prime();
+        let p = self.prime(); // Need this separate for borrow rules
         std::mem::replace(&mut self.matrix, Matrix::new(p, 0, 0))
     }
 
@@ -66,17 +67,17 @@ impl Basis {
         std::mem::forget(self.inverse.segment(1,1));
     }
 
-    pub fn apply(&self, result : &mut FpVector, v : &FpVector) {
+    pub fn apply(&self, result : &mut FpVector, coeff : u32, v : &FpVector) {
         assert!(v.dimension() == self.matrix.columns());
         for i in 0 .. v.dimension() {
-            result.add(&self.matrix[i], v.entry(i));
+            result.add(&self.matrix[i], (v.entry(i) * coeff) % *self.prime());
         }
     }
 
-    pub fn apply_inverse(&self, result : &mut FpVector, v : &FpVector) {
+    pub fn apply_inverse(&self, result : &mut FpVector, coeff : u32, v : &FpVector) {
         assert!(v.dimension() == self.matrix.columns());
         for i in 0 .. v.dimension() {
-            result.add(&self.inverse[i], v.entry(i));
+            result.add(&self.inverse[i], (v.entry(i) * coeff) % *self.prime());
         }
     }
 

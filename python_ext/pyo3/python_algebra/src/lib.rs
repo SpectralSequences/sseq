@@ -1,6 +1,8 @@
+#![feature(try_blocks)]
 
 pub mod algebra;
 pub mod module;
+pub mod dense_bigraded_algebra;
 
 
 use pyo3::{
@@ -22,6 +24,8 @@ fn algebra(_py: Python, m: &PyModule) -> PyResult<()> {
     
     m.add_class::<algebra::PythonAlgebra>()?;
     m.add_class::<algebra::PythonElement>()?;
+
+    m.add_class::<dense_bigraded_algebra::DenseBigradedAlgebra>()?;
     Ok(())
 }
 
