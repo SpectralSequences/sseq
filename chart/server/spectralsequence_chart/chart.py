@@ -1,19 +1,20 @@
 
 import asyncio
 import json
-from readerwriterlock import rwlock
 import threading
 from uuid import uuid4
 
 from . import utils
 from .chart_elements import *
+from .page_property import PageProperty
 
 from message_passing_tree.prelude import *
 from message_passing_tree import Command, Message
 
 INFINITY = 65535
 
-class ChartData:
+
+class SseqChart:
     def __init__(self, name):
         self._agent = None
         self.name = name
@@ -29,11 +30,6 @@ class ChartData:
         self.page_list = [[2, INFINITY], [INFINITY, INFINITY]]
         self._page_list_lock = threading.Lock()
         self.min_page_idx = 0
-        default_node = ChartNode(self, shape="circle")
-        default_node.idx = 0
-        self.nodes = [default_node]
-        self._nodes_dict = {hash(default_node) : default_node}
-        # self._nodes_lock = rwlock.RWLockFair()
         
         self._classes = {}
         self._classes_by_bidegree = {}
@@ -67,31 +63,20 @@ class ChartData:
 
     def to_json(self):
         result = utils.public_fields(self)
+        result["type"] = type(self).__name__
         result["classes"] = self._classes
         result["edges"] = self._edges
         return result
 
     @staticmethod
     def from_json(json_obj):
-        result = ChartData(json_obj["name"])
+        result = SseqChart(json_obj["name"])
         utils.copy_fields_from_kwargs(result, json_obj)
-
-        result.nodes = []
-        result._classes = {}
-        result._edges = {}
-        for node in json_obj["nodes"]:
-            result.nodes.append(ChartNode.from_json(result, node))
-
         for c in json_obj["classes"].values():
             result._classes[c["uuid"]] = ChartClass.from_json(result, c)
 
         for e in json_obj["edges"].values():
             result._edges[e["uuid"]] = ChartEdge.from_json(result, e)
-
-        # We need to replace the uuids so that they are actually unique.
-        # (should we do this?)
-        for node in result.nodes:
-            node.uuid = str(uuid4())
 
         for chart_class in result.classes:
             del result._classes[chart_class.uuid]
@@ -108,7 +93,7 @@ class ChartData:
         return result
         
     def add_class(self, *degree, **kwargs):
-        kwargs.update({"degree" : degree, "node_list" : [0]})
+        kwargs.update({"degree" : degree})
         c = ChartClass(self, **kwargs)
         if "color" in kwargs:
             c.set_field("color", kwargs["color"])
@@ -118,8 +103,8 @@ class ChartData:
         e = ChartDifferential(self, page=page, source=source, target=target, **kwargs)
         self._edges[e.uuid] = e
         if auto:
-            source.add_page(page)
-            target.add_page(page)
+            source.max_page = page
+            target.max_page = page
             self.add_page_range([page,page])
         return e
 
@@ -148,24 +133,6 @@ class ChartData:
             self.page_list.insert(idx, page_range)
             self.add_batched_message(uuid4(), "chart.insert_page_range", *arguments(page_range=page_range, idx=idx))
     
-
-    # # TODO: Add a setting to turn off eager deduping.
-    # # In that case, maybe dedup whenever someone calls get_state?
-    # # Need to think about batch mode and stuff.
-    # async def get_node_a(self, n : ChartNode) -> ChartNode:
-    #     # if hash(n) in self._nodes_dict:
-    #         # return self._nodes_dict[hash(n)]
-    #     with self._nodes_lock.gen_rlock():
-    #         if hash(n) in self._nodes_dict:
-    #             return self._nodes_dict[hash(n)]
-    #     with self._nodes_lock.gen_wlock():
-    #         # Maybe someone else already put this node in before we got the lock.
-    #         if hash(n) in self._nodes_dict: 
-    #             return self._nodes_dict[hash(n)]
-    #         else:
-    #             self._nodes_dict[hash(n)] = n
-    #             await self._agent.add_node_a(n)
-    #             return n
 
     def add_class_to_update(self, c):
         self.add_batched_message(c.uuid, "chart.class.update", *arguments(
@@ -350,7 +317,7 @@ class ChartAgent(Agent):
     def __init__(self, name, sseq=None):
         super().__init__()
         self.sseq = None
-        sseq = ChartData(name)
+        sseq = SseqChart(name)
         self.set_sseq(sseq)
         self.display_state = DisplayState()
 
@@ -363,7 +330,7 @@ class ChartAgent(Agent):
     def load_json(self, json_obj):
         if type(json_obj) is str:
             json_obj = json.loads(json_obj)
-        self.set_sseq(ChartData.from_json(json_obj))
+        self.set_sseq(SseqChart.from_json(json_obj))
 
     async def reset_state_a(self):
         with self.sseq._batched_messages_lock:
@@ -377,13 +344,3 @@ class ChartAgent(Agent):
         await self.send_event_outward_a("chart.batched", *arguments(
             messages = messages
         ))
-
-
-    # async def add_node_a(self, node : ChartNode):
-    #     node.idx = len(self.data.nodes)
-    #     self.data.nodes.append(node)
-    #     await self.broadcast_a("chart.node.add", *arguments(node=node))
-
-    # async def set_background_color_a(self, color):
-    #     self.data.background_color = color
-    #     await self.broadcast_a("display.set_background_color", *arguments(color=color))

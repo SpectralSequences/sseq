@@ -37,6 +37,15 @@ export class ChartEdge {
         // ])
     }
 
+    update(kwargs){
+        for(let [k, v] of Object.entries(kwargs)){
+            if(v.type === "PageProperty"){
+                kwargs[k] = new PageProperty(v.data);
+            }
+        }        
+        Object.assign(this, kwargs);
+    }
+
     _drawOnPageQ(pageRange){
         let max_page = this.max_page || INFINITY;
         let min_page = this.min_page || 0;

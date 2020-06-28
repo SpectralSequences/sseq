@@ -104,7 +104,7 @@ def monomial_name(*exponents, keep_parens = False):
     result = " ".join(power_name(var, e) for [var,e] in exponents)
     if not keep_parens and len(exponents) == 1 and result.startswith("(") and result.endswith(")"):
         result = result[1:-1]
-    if result == "":
+    if result.strip() == "":
         result = "1"
     return result
 

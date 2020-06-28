@@ -16,7 +16,6 @@ export class SseqPageIndicator extends LitElement {
         this.chart = this.disp.querySelector("sseq-chart");
         this.page_value = this.disp.page;
         this.disp.addEventListener("page-change", (e) => {
-            console.log("page change?", e);
             this.page_value = e.detail[0];
             this.requestUpdate();
         });
@@ -31,7 +30,6 @@ export class SseqPageIndicator extends LitElement {
         // if(this.sseq.page_list.includes(1)){
         //     basePage = 1;
         // }
-        console.log("gpd:", pageRange, INFINITY);
         if (pageRange[0] === INFINITY) {
             return "Page ∞";
         }

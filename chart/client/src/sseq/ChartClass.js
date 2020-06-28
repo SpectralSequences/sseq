@@ -1,6 +1,6 @@
 import * as utils from "./utils.js";
 import { ChartShape } from "./ChartShape.js";
-import { ChartNode } from "./ChartNode.js";
+import { PageProperty } from "./PageProperty";
 
 export class ChartClass {
     constructor(sseq, kwargs) {
@@ -9,18 +9,21 @@ export class ChartClass {
         this._x_offset = 0;
         this._y_offset = 0;
         
-        // TODO: new utils function that ensures no "_" fields present, raises error "bad serialized class".
-        Object.assign(this, kwargs);
+        this.update(kwargs);
         this.name = this.name || "";
-        this.transition_pages = this.transition_pages || [];
-        this.node_list = this.node_list || [
-            new ChartNode({
-                "shape" : "circle"
-            })
-        ];
         if(this.visible === undefined) {
             this.visible = true;
         }
+    }
+
+    update(kwargs) {
+        // TODO: new utils function that ensures no "_" fields present, raises error "bad serialized class".
+        for(let [k, v] of Object.entries(kwargs)){
+            if(v.type === "PageProperty"){
+                kwargs[k] = new PageProperty(v.data);
+            }
+        }
+        Object.assign(this, kwargs);
     }
 
     setPosition(x, y, size) {
@@ -62,11 +65,11 @@ export class ChartClass {
             }
         }
 
-        if(node.stroke && node.stroke !== true) {
+        if(node.stroke && node.stroke !== true && node.stroke !== "default") {
             result.strokeStyle = node.stroke;
         }
 
-        if(node.fill && node.fill !== true) {
+        if(node.fill && node.fill !== true && node.fill !== "default") {
             result.fillStyle = node.fill;
         }
         result.lineWidth = Math.min(3, this._size * node.scale / 20); // Magic number
@@ -115,9 +118,25 @@ export class ChartClass {
         return path;
     }
 
+    /**
+     * Gets the node to be drawn for the class on the given page. Used primarily by display.
+     * @param c
+     * @param page
+     * @returns {*}
+     */
+    getNode(page) {
+        return {
+            shape : this.shape[page],
+            scale : this.scale[page],
+            color : this.color[page],
+            stroke : this.stroke[page],
+            fill : this.fill[page],
+            opacity : this.opacity[page]
+        }
+    }
+
     _drawOnPageQ(page){
-        let idx = this._getPageIndex(page);
-        return this.node_list[idx] != null && this.visible;
+        return page <= this.max_page;// && this.visible;
     }
 
     _inRangeQ(xmin, xmax, ymin, ymax){
@@ -142,10 +161,11 @@ export class ChartClass {
         return page_idx;
     }
 
-    getNameCoord(){
+    getNameCoord(page){
         let tooltip = "";
-        if (this.name !== "") {
-            tooltip = `\\(\\large ${this.name}\\)&nbsp;&mdash;&nbsp;`;
+        let name = this.name[page];
+        if (name !== "") {
+            tooltip = `\\(\\large ${name}\\)&nbsp;&mdash;&nbsp;`;
         }
         tooltip += `(${this.x}, ${this.y})`;
         return tooltip;

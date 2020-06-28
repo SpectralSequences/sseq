@@ -1,5 +1,4 @@
 import StringifyingMap from "../StringifyingMap.js";
-import { ChartNode } from "./ChartNode";
 import { ChartClass } from "./ChartClass";
 import { ChartDifferential, ChartStructline, ChartExtension } from "./ChartEdge";
 
@@ -54,7 +53,6 @@ export class SpectralSequenceChart extends EventEmitter {
         this.classes_by_degree = new StringifyingMap();
         this.classes = [];
         this.edges = [];
-        this.nodes = [];
 
         this.page_list = [2];
         this.min_page_idx = 0;
@@ -72,10 +70,6 @@ export class SpectralSequenceChart extends EventEmitter {
         }
         let chart = new SpectralSequenceChart();
 
-        if(json.nodes === undefined) {
-            throw ReferenceError("json.nodes is undefined.");
-        }
-
         if(json.classes === undefined) {
             throw ReferenceError("json.classes is undefined.");
         }
@@ -87,7 +81,6 @@ export class SpectralSequenceChart extends EventEmitter {
         // Make sure to assign fields to chart first in case they are used in process of add_class, add_edge.
         Object.assign(chart, json);
 
-        chart.nodes = chart.nodes.map(n => new ChartNode(n));
         let json_classes = chart.classes;
         let json_edges = chart.edges;
         chart.classes = {};
@@ -235,27 +228,13 @@ export class SpectralSequenceChart extends EventEmitter {
     }
 
     /**
-     * Gets the node to be drawn for the class on the given page. Used primarily by display.
-     * @param c
-     * @param page
-     * @returns {*}
-     */
-    getClassNode(c, page) {
-        let node_or_idx = c.node_list[c._getPageIndex(page)];
-        if(node_or_idx.constructor === Number) {
-            node_or_idx = this.nodes[node_or_idx];
-        }
-        return node_or_idx;
-    }
-
-    /**
      * Gets the tooltip for the current class on the given page (currently ignores the page).
      * @param c
      * @param page
      * @returns {string}
      */
     getClassTooltip(c, page) {
-        let tooltip = c.getNameCoord();
+        let tooltip = c.getNameCoord(page);
         let extra_info = Tooltip.toTooltipString(c.extra_info, page);
 
         if(extra_info) {
@@ -312,16 +291,16 @@ export class SpectralSequenceChart extends EventEmitter {
         }
 
         for(let c of display_classes) {
-            let node = this.getClassNode(c, page);
+            let node = c.getNode(page);
             if(node === undefined) {
                 console.error("Undefined node for:", c);
                 throw ReferenceError(`Undefined node on page ${page} for class: ${c}`);
             }
             c._node = node;
         }
-
+        
         // for (let e of display_edges) {
-        //     e.source_node = e.source.node;
+            //     e.source_node = e.source.node;
         //     e.target_node = e.target.node;
         // }
         return [display_classes, display_edges];

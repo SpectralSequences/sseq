@@ -36,13 +36,14 @@ class KO_HFPSS(Demo):
             for i in range(self.max_eta):
                 name = monomial_name(["u", v], ["\\eta", i])
                 last_c = c
-                c = self.sseq.add_class(i+4*v, i, name=name)
+                c = self.sseq.add_class(i+4*v, i)
+                c.name[:] = name
                 self.classes_dict[(v, i)] = c
                 if last_c:
                     self.sseq.add_structline(last_c, c)
                 else:
-                    c.set_field("shape", "square")
-                    c.set_field("scale", 1.5)
+                    c.shape[:] = "square"
+                    c.scale[:] = 1.5
                     # print(c.node_list)
         
 

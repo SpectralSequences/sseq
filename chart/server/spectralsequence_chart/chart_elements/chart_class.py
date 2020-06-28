@@ -1,4 +1,6 @@
 from message_passing_tree.prelude import arguments
+from ..page_property import PageProperty
+from ..infinity import INFINITY
 import threading
 from uuid import uuid4
 from . import ChartNode
@@ -18,50 +20,47 @@ class ChartClass:
 
         # TODO: figure out what to do about uuids and multiple reads from same file.
         # We'd then get multiple objects with same uuid from file.
-        # But if we replace all uuids on load, we will loose the cool capability of being able to track
+        # But if we replace all uuids on load, we will loose the capability of being able to track
         # a chart entity through multiple different save files.
 
-
         if "name" not in kwargs:
-            self.name = ""
+            self.name = PageProperty("")
         
-        if "transition_pages" not in kwargs:
-            self.transition_pages = []
-        
+        if "shape" not in kwargs:
+            self.shape = PageProperty("default")
+
+        if "color" not in kwargs:
+            self.color = PageProperty("default")
+
+        if "fill" not in kwargs:
+            self.fill = PageProperty("default")
+
+        if "stroke" not in kwargs:
+            self.stroke = PageProperty("default")
+
+        if "scale" not in kwargs:
+            self.scale = PageProperty(1)
+
+        if "opacity" not in kwargs:
+            self.opacity = PageProperty(1)
+
+
         if "visible" not in kwargs:
-            self.visible = True
+            self.visible = PageProperty(True)
 
         if "degree" not in kwargs:
             raise ValueError("""Class is missing mandatory argument "degree".""")
-        
-        if "node_list" not in kwargs:
-            raise ValueError("""Class is missing mandatory argument "node_list".""")
-        # utils.assign_fields(self, kwargs, [
-        #     { "type" : "mandatory", "field" : "x" },
-        #     { "type" : "mandatory", "field" : "y" },
-        #     { "type" : "optional", "field" : "idx" },
-        #     { "type" : "default",   "field" : "name",             "default" : "" },
-        #     { "type" : "default",   "field" : "transition_pages", "default" : [] },
-        #     { "type" : "mandatory", "field" : "node_list" },
-        #     { "type" : "default",   "field" : "visible",          "default" : True },
-        #     { "type" : "optional",  "field" : "xoffset" },
-        #     { "type" : "optional",  "field" : "yoffset" },
-        #     { "type" : "optional",  "field" : "tooltip" },
-        # ])
 
-        for (i, n) in enumerate(self.node_list):
-            if type(self.node_list[i]) is int:
-                self.node_list[i] = self._sseq.nodes[i].copy()
-            elif type(self.node_list[i]) is dict:
-                self.node_list[i] = ChartNode.from_json(self._sseq, self.node_list[i])
+        if "max_page" not in kwargs:
+            self.max_page = INFINITY
 
         sseq._classes[self.uuid] = self
         if self.degree not in sseq._classes_by_bidegree:
             sseq._classes_by_bidegree[self.degree] = []
+
         if not hasattr(self, "idx"):
             self.idx = len(sseq._classes_by_bidegree[self.degree])
         sseq._classes_by_bidegree[self.degree].append(self)
-        # self.node_list = [ n.idx for n in self.node_list ]
 
     def needs_update(self):
         self._sseq.add_class_to_update(self)
@@ -101,6 +100,10 @@ class ChartClass:
         self.needs_update()
 
     @utils.sseq_property
+    def max_page(self, storage_name):
+        self.needs_update()
+
+    @utils.sseq_property
     def visible(self, storage_name):
         self.needs_update()
 
@@ -112,57 +115,17 @@ class ChartClass:
     def y_nudge(self, storage_name):
         self.needs_update()
 
-    def set_color(self, value):
-        self.set_field("color", value)
-
-    def set_field(self, field, value):
-        # with self._lock:
-            for i in range(len(self.node_list)):
-                if self.node_list[i]:
-                    self.set_node_field_by_idx(i, field, value)
-            self.needs_update()
-            return self
-
-    def set_field_on_page(self, page, field, value):
-        # with self._lock:
-            i = self.get_page_idx(page)
-            self.set_node_field_by_idx(i, field, value)
-            self.needs_update()
-            return self
-
-    def add_page(self, page, node=None):
-        # if page in self.transition_pages:
-            # return False
-        # with self._lock:
-        if page in self.transition_pages:
-            return False            
-        idx = self.get_page_idx(page)
-        self.transition_pages.insert(idx, page)
-        self.node_list.insert(idx+1, node)
-        self.needs_update()
-        return self
-
-    def copy_previous_node(self, page):
-        idx = self.get_page_idx(page)
-        if idx == 0:
-            raise ValueError("No previous node.")
-        self.node_list[idx] = self.node_list[idx - 1].copy()
-        self.needs_update()
-        return self
-
     def replace(self, **kwargs):
-        n = self.node_list[-2].copy()
-        self.node_list[-1] = n
+        page = self.max_page + 1
+        self.max_page = INFINITY
+        # if self.max_page == INFINITY:
+        #     raise ValueError("???")
         for [key, value] in kwargs.items():
-            setattr(n, key, value)
+            getattr(self, key)[page:] = value
         self.needs_update()
         return self
 
     def delete(self):
-        """ We make no attempt to communicate the change to the client right now.
-            Better refresh the page after using this...
-            Probably should also delete edges
-        """ 
         self._sseq.add_class_to_delete(self)
         del self._sseq._classes[self.uuid]
         for e in self._edges:
@@ -170,7 +133,7 @@ class ChartClass:
 
     def __repr__(self):
         name_str = ")"
-        if self.name != "":
-            name_str = f""", name="{self.name}")""" # put paren here to prevent four quotes in a row, better way?
+        if self.name[0] != "":
+            name_str = f""", name="{self.name[0]}")""" # put paren here to prevent four quotes in a row, better way?
         return f"""Class({self.x}, {self.y}, {self.idx}{name_str}"""
 

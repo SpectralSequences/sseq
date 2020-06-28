@@ -5,7 +5,7 @@ from message_passing_tree.prelude import *
 from message_passing_tree import SocketChannel
 from message_passing_tree import ansi
 
-from spectralsequence_chart import SseqSocketReceiver, ChartAgent, ChartData
+from spectralsequence_chart import SseqSocketReceiver, ChartAgent, SseqChart
 
 from spectralsequences_webserver.repl.executor import Executor
 from spectralsequences_webserver import config
@@ -162,7 +162,7 @@ class GenericDemo(Agent):
         await self.next_a()
 
     @handle_inbound_messages
-    async def handle__demo__take_over_console__a(self, envelope):
+    async def handle__console__take__a(self, envelope):
         self.take_over_console(self)
 
     async def next_a(self):
@@ -179,6 +179,12 @@ class Demo(GenericDemo):
         await self.chart.add_child_a(self.socket)
         await self.executor.add_child_a(self.chart)
         await self.add_child_a(self.executor)
+        self.setup_executor_namespace()
+
+    def setup_executor_namespace(self):
+        globals = self.executor.get_globals()
+        globals["chart"] = self.chart
+        globals["channel"] = self
 
     def start_socket(self):
         asyncio.ensure_future(self.socket.run_a())

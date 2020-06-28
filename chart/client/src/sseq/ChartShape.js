@@ -25,6 +25,7 @@ exports.ChartShape = ChartShape;
 
 let Shapes = {};
 
+
 Shapes.circle = {
     outline : function(context, params) {
         context.moveTo(params.x, params.y);
@@ -45,7 +46,7 @@ Shapes.circlen = {
     draw: function(context, params) {
         this.outline(context, params);
         ChartShape.fillStrokeContext(context, params);
-
+        
         context.textAlign = "center";
         context.fillStyle = "black";
         let fontsize = 0.15*params.size | 0;
@@ -62,12 +63,15 @@ Shapes.square = {
         let hwidth = 0.1 * size;
         context.rect(x - hwidth, y - hwidth, 2*hwidth, 2*hwidth);
     },
-
+    
     draw : function(context, params) {
         this.outline(context, params);
         ChartShape.fillStrokeContext(context, params);
     }
 }
+
+Shapes.default = Shapes.circle;
+
 
 for(let k of Object.getOwnPropertyNames(Shapes)){
     Shapes[k].name = k;

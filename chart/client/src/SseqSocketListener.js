@@ -87,11 +87,6 @@ let default_message_handlers = {
         this.sseq.page_list.splice(kwargs.idx, 0, kwargs.page_range);
     },
 
-    "chart.node.add" : function(cmd, args, kwargs) {
-        this.console_log_if_debug("add node", cmd, kwargs)
-        // this.info(msg);
-    },
-
     "chart.class.add" : function(cmd, args, kwargs) {
         let c = this.sseq.add_class(kwargs.new_class);
         this.display.update();
@@ -100,7 +95,7 @@ let default_message_handlers = {
     "chart.class.update" : function(cmd, args, kwargs) {
         let c = kwargs.class_to_update;
         // console.log("class.update", kwargs, "c", c, "this.sseq.classes[c.uuid]", this.sseq.classes[c.uuid]);
-        Object.assign(this.sseq.classes[c.uuid], c);
+        this.sseq.classes[c.uuid].update(c);
     },
 
     "chart.class.delete" : function(cmd, args, kwargs) {
@@ -125,7 +120,7 @@ let default_message_handlers = {
     "chart.edge.update" : function(cmd, args, kwargs) {
         this.console_log_if_debug(kwargs);
         let e = kwargs.edge_to_update;
-        Object.assign(this.sseq.edges[e.uuid], e);
+        this.sseq.edges[e.uuid].update(e);
     },
 
     "chart.edge.delete" : function(cmd, args, kwargs) {

@@ -14,7 +14,7 @@ from message_passing_tree import ansi
 
 from ext import fp
 
-from spectralsequence_chart import SseqSocketReceiver, ChartAgent, ChartData
+from spectralsequence_chart import SseqSocketReceiver, ChartAgent, SseqChart
 
 from spectralsequences_webserver import config, name_tools
 from spectralsequences_webserver.repl.executor import Executor
@@ -182,7 +182,7 @@ class TableChannel(SocketChannel):
 
 
     def populate_chart(self):
-        self.sseq = ChartData(self.name)
+        self.sseq = SseqChart(self.name)
         self.executor.get_globals()["sseq"] = self.sseq
         self.sseq.x_range = [0, 180]
         self.sseq.y_range = [0, 60]
@@ -211,8 +211,8 @@ class TableChannel(SocketChannel):
         for c in self.sseq.classes:
             self.update_color(c)
         unit = self.sseq.class_by_idx(0,0,0)
-        unit.name = "1"
-        unit.set_color("black")
+        unit.name[:] = "1"
+        unit.color[:] = "black"
         self.chart.set_sseq(self.sseq)
 
 
@@ -470,7 +470,7 @@ class TableChannel(SocketChannel):
         for (idx, c) in enumerate(self.chart.sseq.classes_in_bidegree(*bidegree)):
             mono = named_vecs.get(tuple(matrix[idx]))
             c.monomial_name = mono
-            c.name = self.table.name_to_str(mono)
+            c.name[:] = self.table.name_to_str(mono)
             self.update_color(c)
 
 
@@ -479,13 +479,13 @@ class TableChannel(SocketChannel):
         c.hi_indec = self.table.hi_indecomposable_q(c.x, c.y, c.idx)        
         named = hasattr(c, "monomial_name") and c.monomial_name
         if not c.indec and named:
-            c.set_color("black")
+            c.color[:] = "black"
         elif not c.indec and not named:
-            c.set_color("blue")
+            c.color[:] = "blue"
         elif c.indec and named:
-            c.set_color("red")
+            c.color[:] = "red"
         elif c.indec and not named:
-            c.set_color("purple")
+            c.color[:] = "purple"
 
 
     def get_outgoing_edges(self, x, y):

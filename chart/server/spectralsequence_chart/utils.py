@@ -1,3 +1,49 @@
+import json
+
+def stringifier(obj):
+    if hasattr(obj, "to_json"):
+        return obj.to_json()
+    elif hasattr(obj, "__dict__"):
+        return obj.__dict__
+    else:
+        return str(obj)
+
+
+class JSON:
+    @staticmethod
+    def stringify(obj):
+        return json.dumps(obj, default=stringifier)
+
+    @staticmethod
+    def parse(json_str):
+        return json.loads(json_str, object_hook = JSON.parser_object_hook )
+
+    def parser_object_hook(json_dict):
+        JSON.ensure_types_are_initialized()
+        if "type" not in json_dict:
+            return json_dict
+        return JSON.types[json_dict["type"]].from_json(json_dict)
+
+    def ensure_types_are_initialized():
+        if hasattr(JSON, "types"):
+            return
+        from .chart_elements import (
+            ChartClass,
+            ChartStructline, 
+            ChartDifferential, 
+            ChartExtension
+        )
+        from .chart import SseqChart
+        from .page_property import PageProperty
+        JSON.types = { t.__name__ : t for t in [
+            SseqChart,
+            ChartClass,
+            ChartStructline, 
+            ChartDifferential, 
+            ChartExtension,
+            PageProperty
+        ]}
+
 PROPERTY_PREFIX = "_property_"
 
 
