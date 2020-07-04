@@ -67,4 +67,4 @@ class Server:
             self.served_channels[name].remove_routes(app)
         self.served_channels[name] = channel
         print(f"""Serving {channel.__name__} as "{name}".""")
-        channel.serve(self.app, self.repl, self.host, self.port, name)
+        channel.serve(self.app, self.repl, config, self.host, self.port, name)

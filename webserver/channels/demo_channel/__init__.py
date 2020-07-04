@@ -12,8 +12,6 @@ from spectralsequences_webserver import config
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-CHANNEL_DIR = pathlib.Path(__file__).parent
-templates = Jinja2Templates(directory=str(CHANNEL_DIR))
 
 
 
@@ -23,12 +21,8 @@ templates = Jinja2Templates(directory=str(CHANNEL_DIR))
 class DemoChannel(SocketChannel):
     channels = {}
     serve_as = "demo"
-
-    @classmethod
-    def serve_extra(cls, app, host, port, cls_dir):
-        app.mount("/client/demo", StaticFiles(directory=CHANNEL_DIR / "dist"), name="client")
-        app.mount("/debug/demo/chart", StaticFiles(directory=config.CHART_REPOSITORY_ROOT), name="debug")
-
+    CHANNEL_DIR = pathlib.Path(__file__).parent
+    templates = Jinja2Templates(directory=str(CHANNEL_DIR))
 
     def __init__(self, name, file_path, repl_agent):
         super().__init__(name)
@@ -114,7 +108,7 @@ class DemoChannel(SocketChannel):
             "request" : request, 
         }
         if cls.has_channel(channel_name):
-            return templates.TemplateResponse("index.html", response_data)
+            return DemoChannel.templates.TemplateResponse("index.html", response_data)
 
     
     @handle_inbound_messages

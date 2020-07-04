@@ -8,7 +8,7 @@ from . import socket_close_codes
 
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import HTMLResponse, FileResponse, Response
-
+from fastapi.staticfiles import StaticFiles
 
 import logging
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ class SocketChannel(Agent):
         return name in cls.channels
 
     @classmethod
-    def serve(cls, app, repl, host, port, cls_dir):
+    def serve(cls, app, repl, config, host, port, cls_dir):
         num_routes = len(app.routes)
         cls.set_serving_info(host, port, cls_dir)
         cls.set_repl(repl)
@@ -62,11 +62,18 @@ class SocketChannel(Agent):
                 await websocket.close(socket_close_codes.INTERNAL_ERROR)
                 repl.console_io._handle_exception(e)
 
-        cls.serve_extra(app, host, port, cls_dir)
+
+        app.mount(f"/client/{cls_dir}", StaticFiles(directory=cls.CHANNEL_DIR / "dist"), name="client")
+        if (cls.CHANNEL_DIR / "static").is_dir():
+            app.mount(f"/static/{cls_dir}", StaticFiles(directory=cls.CHANNEL_DIR / "static"), name="client")
+        app.mount(f"/debug/{cls_dir}/chart", StaticFiles(directory=config.CHART_REPOSITORY_ROOT), name="debug")
+
+
+        cls.serve_extra(app, host, config, port, cls_dir)
         cls.routes = app.routes[num_routes:]
 
     @classmethod
-    def serve_extra(cls, app, host, port, cls_dir):
+    def serve_extra(cls, app, config, host, port, cls_dir):
         pass
 
     @classmethod

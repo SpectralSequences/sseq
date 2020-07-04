@@ -16,13 +16,13 @@ from spectralsequences_webserver.repl.executor import Executor
 
 import os
 from fastapi.staticfiles import StaticFiles
-CHANNEL_DIR = pathlib.Path(__file__).parent
-templates = Jinja2Templates(directory=str(CHANNEL_DIR))
 
 @subscribe_to("*")
 @collect_handlers(inherit=True)
 class ResolverChannel(SocketChannel):
     serve_as = "resolver"
+    CHANNEL_DIR = pathlib.Path(__file__).parent
+    templates = Jinja2Templates(directory=str(CHANNEL_DIR))
 
     def __init__(self, resolver, repl_agent):
         super().__init__(resolver.name)
@@ -46,11 +46,6 @@ class ResolverChannel(SocketChannel):
     @handle_inbound_messages
     async def handle__console__take__a(self, envelope):
         self.repl_agent.set_executor(self.executor)
-
-    @classmethod
-    def serve_extra(cls, app, host, port, cls_dir):
-        app.mount("/client/resolver", StaticFiles(directory=CHANNEL_DIR / "dist"), name="client")
-        app.mount("/debug/resolver/chart", StaticFiles(directory=config.CHART_REPOSITORY_ROOT), name="debug")
 
     @handle_inbound_messages
     async def handle__new_user__a(self, envelope):

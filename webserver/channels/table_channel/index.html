@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.css" integrity="sha384-+MsSfd29vjUzcyqYURxcmpWGtqoSHBy+QdEJNLEslXQftxojQv0k6BGDqUNp9GtA" crossorigin="anonymous">
 
-    <script src="/client/table/index.js" type="text/javascript"></script>
+    <script src="/client/{{ directory }}/index.js" type="text/javascript"></script>
 
     <style>
         :root {
@@ -19,7 +19,8 @@
         }
 
         katex-expr {
-            border: rgba(0,0,0,0) solid var(--focus-outline-thickness);
+            border: rgba(0,0,0,0) solid v
+            ar(--focus-outline-thickness);
         }
 
         input:invalid {
@@ -263,49 +264,29 @@
         }
 
         :root {
-            --primary-0: 56, 54, 41;	/* Main Primary color */
+            --primary-0: 56, 54, 41;
             --primary-1: 134,129, 103;
             --primary-2: 96, 92, 74;
             --primary-3: 52, 48, 30;
             --primary-4: 47, 43, 21;
 
-            --primary-0-text: 255, 255, 255;	/* Main Primary color */
+            --primary-0-text: 255, 255, 255;
             --primary-1-text: 255, 255, 255;
             --primary-2-text: 255, 255, 255;
             --primary-3-text: 255, 255, 255;
             --primary-4-text: 255, 255, 255;
 
-            --complement-0: 32, 29, 39;	/* Main Complement color */
-            --complement-1: 78, 73, 93;
-            --complement-2: 56, 52, 66;
-            --complement-3: 26, 22, 36;
-            --complement-4: 21, 17, 32;
-
-            --complement-0: 57, 20,175;	/* Main Complement color */
+            --complement-0: 57, 20,175;	
             --complement-1: 115, 90,195;
             --complement-2: 86, 56,180;
             --complement-3: 43, 14,136;
             --complement-4: 32,  9,106;
 
-
-            --complement-0-text: 255, 255, 255;	/* Main complement color */
+            --complement-0-text: 255, 255, 255;
             --complement-1-text: 255, 255, 255;
             --complement-2-text: 255, 255, 255;
             --complement-3-text: 255, 255, 255;
             --complement-4-text: 255, 255, 255;
-
-/*
-            --primary-0:  61, 45, 29;	/* Main Primary color *
-            --primary-1: 128, 97, 67;
-            --primary-2:  94, 70, 47;
-            --primary-3:  84, 56, 28;
-            --primary-4:  96, 58, 21;
-
-            --complement-0:  18, 34, 38;	/* Main Complement color *
-            --complement-1:  42, 72, 79;
-            --complement-2:  30, 53, 58;
-            --complement-3:  18, 45, 52;
-            --complement-4:  15, 51, 59;           */
         }
 
 
@@ -379,6 +360,7 @@
                 Help
             </sseq-button>  
         </sseq-sidebar>
+    </sseq-ui>
         <sseq-popup>
             <span slot="header"></span>
             <div slot="body"></div>

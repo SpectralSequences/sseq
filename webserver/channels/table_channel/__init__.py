@@ -19,10 +19,7 @@ from spectralsequence_chart import SseqSocketReceiver, ChartAgent, SseqChart
 from spectralsequences_webserver import config, name_tools
 from spectralsequences_webserver.repl.executor import Executor
 
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-CHANNEL_DIR = pathlib.Path(__file__).parent
-templates = Jinja2Templates(directory=str(CHANNEL_DIR))
 
 HI_MAX = 8
 
@@ -33,12 +30,8 @@ class TableChannel(SocketChannel):
     channels = {}
     serve_as = "table"
     SAVE_DIR = config.SAVE_DIR / "table"
-
-    @classmethod
-    def serve_extra(cls, app, host, port, cls_dir):
-        app.mount("/client/table", StaticFiles(directory=CHANNEL_DIR / "dist"), name="client")
-        app.mount("/debug/table/chart", StaticFiles(directory=config.CHART_REPOSITORY_ROOT), name="debug")
-
+    CHANNEL_DIR = pathlib.Path(__file__).parent
+    templates = Jinja2Templates(directory=str(CHANNEL_DIR))
 
     def __init__(self, name, repl_agent):
         super().__init__(name)
@@ -127,7 +120,7 @@ class TableChannel(SocketChannel):
             "request" : request, 
         }
         if cls.has_channel(channel_name):
-            return templates.TemplateResponse("index.html", response_data)
+            return TableChannel.templates.TemplateResponse("index.html", response_data)
 
 
 
@@ -611,7 +604,7 @@ class ProductTable:
         # print("Done")
     
     def load_json(self):
-        json_obj = json.loads(pathlib.Path(CHANNEL_DIR / "product_table.json").read_text())
+        json_obj = json.loads(pathlib.Path(TableChannel.CHANNEL_DIR / "product_table.json").read_text())
         self.num_gens = json_obj["dimensions"]
         self.product_table = dict(
             [tuple(tuple(l) for l in key), value] 

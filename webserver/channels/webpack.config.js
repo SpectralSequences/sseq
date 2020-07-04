@@ -3,11 +3,12 @@ const webpack = require('webpack');
 let channel = "resolver";
 let context = "../../..";
 module.exports = {
-    entry: {
-        "demo_channel" : "./demo_channel/index.js",
-        "table_channel" : "./table_channel/index.js",
-        "resolver_channel" : "./resolver_channel/index.js",
-    },
+    entry: Object.fromEntries([
+      "demo_channel",
+      "interact_channel",
+      "table_channel",
+      "resolver_channel"
+    ].map(c => [c, `./${c}/index.js`])),
     output: {
         path: path.resolve(__dirname),
         filename: '[name]/dist/index.js',
