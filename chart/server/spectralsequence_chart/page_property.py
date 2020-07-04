@@ -43,12 +43,11 @@ class PageProperty:
     def setitem_single(self, p, v):
         [idx, hit] = self.find_index(p)
         if hit:
-            res_idx = idx
             self.values[idx][1] = v
         else:
-            res_idx = idx + 1
-            self.values.insert(idx + 1, [p, v])
-        return [res_idx, hit]
+            idx += 1
+            self.values.insert(idx, [p, v])
+        return [idx, hit]
 
     def merge_redundant(self):
         for i in range(len(self.values) - 1, 0, -1):

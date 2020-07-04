@@ -3,7 +3,6 @@ from ..page_property import PageProperty
 from ..infinity import INFINITY
 import threading
 from uuid import uuid4
-from . import ChartNode
 from .. import utils
 
 class ChartClass:
@@ -77,15 +76,6 @@ class ChartClass:
         result["type"] = "ChartClass"
         return result
 
-    def get_page_idx(self, page):
-        for i, v in enumerate(self.transition_pages):
-            if v > page:
-                return i
-        return len(self.transition_pages)
-
-    def set_node_field_by_idx(self, idx, field, value):
-        n = self.node_list[idx]
-        setattr(n, field, value)
 
     @property
     def x(self):

@@ -327,18 +327,6 @@ export class Display extends HTMLElement {
         this.yScale = this.transform.rescaleY(this.yScaleInit);
 
         this.zoom.transform(zoomD3Element, this.transform);
-        if(false){
-            let updatedScale = old_transform.k !== transform.k;
-            let updatedTranslation =  old_transform.x != transform.x || old_transform.y != transform.y;
-            let previousUpdatedTranslation = this.updatedTranslation;
-            this.updatedTranslation = updatedTranslation;
-            let revertedDistance = Math.abs(originalTransform.x - transform.x) + Math.abs(originalTransform.y - transform.y);
-            this.disableMouseoverUpdates = 
-                ((updatedScale && autoTranslated) || updatedTranslation || previousUpdatedTranslation )
-                && (oldXScaleMaxed == xScaleMaxed)
-                && (oldYScaleMaxed == yScaleMaxed)
-                && revertedDistance < 5;
-        }
 
         this.xminFloat = this.xScale.invert(this._leftMargin);
         this.xmaxFloat = this.xScale.invert(this._clipWidth);
@@ -350,12 +338,12 @@ export class Display extends HTMLElement {
         this.ymax = Math.floor(this.ymaxFloat);
 
         let scaleChanged = 
-        old_transform === undefined 
-        || Math.abs(old_transform.x - transform.x) > 1e-8 
-        || Math.abs(old_transform.y - transform.y) > 1e-8 
-        || old_transform.k != transform.k;
+            old_transform === undefined 
+            || Math.abs(old_transform.x - transform.x) > 1e-8 
+            || Math.abs(old_transform.y - transform.y) > 1e-8 
+            || old_transform.k != transform.k;
         let zoomChanged = 
-        old_transform === undefined || old_transform.kx !== transform.kx;
+            old_transform === undefined || old_transform.kx !== transform.kx;
         
         this.old_transform = old_transform;
         if(scaleChanged){
