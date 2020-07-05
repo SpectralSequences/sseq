@@ -10,6 +10,7 @@ M.parse_action(f"Sq2 x3 = x5")
 M.parse_action(f"Sq2 x6 = x8")
 M.parse_action(f"Sq4 x4 = x8")
 M.extend_actions()
+
 M.freeze()
 r = ext.resolution.Resolver("RP8", module=M)
 RP8 = ResolverChannel(r, REPL)

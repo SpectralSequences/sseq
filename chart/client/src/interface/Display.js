@@ -5,7 +5,7 @@ import * as d3 from "d3";
 import { INFINITY } from "../infinity.js";
 import { sleep, animationFrame } from "./utils.js";
 
-export class Display extends HTMLElement {
+export class DisplayElement extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({mode: 'open'});

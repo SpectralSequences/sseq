@@ -1,6 +1,6 @@
 import * as webclient from "./lib.js";
 
-window.infinity = webclient.infinity;
+window.INFINITY = webclient.INFINITY;
 window.mod = webclient.mod;
 
 window.C2S = webclient.C2S;
@@ -8,7 +8,6 @@ window.EventEmitter = webclient.EventEmitter;
 
 window.Interface = webclient.Interface;
 window.IO = webclient.Interface.IO;
-window.BasicDisplay = webclient.Interface.BasicDisplay;
 
 window.spectralsequences = webclient.spectralsequences;
 window.SpectralSequenceChart = webclient.spectralsequences.SpectralSequenceChart;
@@ -21,7 +20,6 @@ window.ChartDifferential = webclient.spectralsequences.ChartDifferential;
 window.ChartExtension = webclient.spectralsequences.ChartExtension;
 
 window.SocketListener = webclient.SocketListener;
-window.SocketDisplay = webclient.SocketDisplay;
 
 import * as d3 from "d3";
 window.d3 = d3; 

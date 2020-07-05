@@ -4,8 +4,6 @@ import { ChartDifferential, ChartStructline, ChartExtension } from "./ChartEdge"
 
 import { renderLatex } from "../interface/Latex.js";
 
-import { Tooltip } from "../interface/Tooltip.js";
-
 import * as EventEmitter from "events";
 
 
@@ -235,7 +233,7 @@ export class SpectralSequenceChart extends EventEmitter {
      */
     getClassTooltip(c, page) {
         let tooltip = c.getNameCoord(page);
-        let extra_info = Tooltip.toTooltipString(c.extra_info, page);
+        // let extra_info = Tooltip.toTooltipString(c.extra_info, page);
 
         if(extra_info) {
             tooltip += extra_info;

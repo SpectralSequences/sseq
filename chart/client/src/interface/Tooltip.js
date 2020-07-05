@@ -3,7 +3,7 @@ import { promiseFromDomEvent, findAncestorElement } from "./utils.js";
 
 const MARGIN = 10;
 
-export class Tooltip extends LitElement {
+export class TooltipElement extends LitElement {
     static toTooltipString(obj, page) {
         if (!obj) {
             return false;

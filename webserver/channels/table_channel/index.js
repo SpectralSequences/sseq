@@ -6,24 +6,24 @@ window.SpectralSequenceChart = SpectralSequenceChart;
 
 import ReconnectingWebSocket from 'reconnecting-websocket';
 
-import { UIElement } from "chart/interface/UIElement.js";
-import { Display } from "chart/interface/Display.js";
 import { AxesElement } from "chart/interface/Axes.js";
-import { GridElement } from "chart/interface/GridElement.js";
-import { ChartElement } from "chart/interface/ChartElement.js";
+import { BidegreeHighlighterElement } from "chart/interface/BidegreeHighlighter";
+import { ChartElement } from "chart/interface/Chart.js";
 import { ClassHighlighter } from "chart/interface/ClassHighlighter";
-import { BidegreeHighlighter } from "chart/interface/BidegreeHighlighter";
-import { SseqPageIndicator } from "chart/interface/SseqPageIndicator.js";
-import { Tooltip } from "chart/interface/Tooltip.js";
+import { DisplayElement } from "chart/interface/Display.js";
+import { GridElement } from "chart/interface/Grid.js";
+import { KatexExprElement } from "chart/interface/KatexExpr.js";
+import { MatrixElement } from "chart/interface/Matrix.js";
+import { PageIndicatorElement } from "chart/interface/PageIndicator.js";
+import { PopupElement } from "chart/interface/Popup.js";
+import { SidebarElement } from "chart/interface/Sidebar.js";
+import { TooltipElement } from "chart/interface/Tooltip.js";
+import { UIElement } from "chart/interface/UI.js";
 
-import {Mutex, Semaphore, withTimeout} from 'async-mutex';
-
-import { Sidebar } from "chart/interface/Sidebar.js";
-import { Matrix } from "chart/interface/Matrix.js";
-import { KatexExprElement } from "chart/interface/KatexExprElement.js";
 import { SseqSocketListener } from "chart/SseqSocketListener.js";
 import { StaleResponseError } from "chart/SocketListener.js";
-import { Popup } from "chart/interface/Popup.js";
+import {Mutex, Semaphore, withTimeout} from 'async-mutex';
+
 import { sleep, promiseFromDomEvent, throttle, animationFrame, uuid4 } from "chart/interface/utils.js";
 
 window.SseqSocketListener = SseqSocketListener;
@@ -628,6 +628,8 @@ class TableUI {
 
     resizeHelpWindow(){
         let help_popup = this.uiElement.querySelector(".help");
+        console.log("uiElement:", this.uiElement);
+        console.log("helpPopup:", help_popup);
         let display_rect = this.uiElement.querySelector("sseq-display").getBoundingClientRect();
         help_popup.left = 0.2  * display_rect.width;
         help_popup.top = 0.1 * display_rect.height;

@@ -5,7 +5,7 @@ import { styleMap } from 'lit-html/directives/style-map';
 import { sleep, promiseFromDomEvent } from "./utils.js";
 const RESIZER_WIDTH = 8;
 
-export class Sidebar extends LitElement {
+export class SidebarElement extends LitElement {
     static get properties() {
         return { 
             width : { type: Number },

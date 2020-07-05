@@ -1,7 +1,7 @@
 import {LitElement, html, css} from 'lit-element';
 import { sleep, promiseFromDomEvent, findAncestorElement } from "./utils.js";
 
-export class ClassHighlighter extends LitElement {
+export class ClassHighlighterElement extends LitElement {
     static get styles() {
         return css`
             span {
@@ -231,4 +231,4 @@ export class ClassHighlighter extends LitElement {
     }
 }
 
-customElements.define('sseq-class-highlighter', ClassHighlighter);
+customElements.define('sseq-class-highlighter', ClassHighlighterElement);

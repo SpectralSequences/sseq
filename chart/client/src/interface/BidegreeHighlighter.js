@@ -1,7 +1,7 @@
 import {LitElement, html, css} from 'lit-element';
 import { sleep, promiseFromDomEvent, findAncestorElement } from "./utils.js";
 
-export class BidegreeHighlighter extends LitElement {
+export class BidegreeHighlighterElement extends LitElement {
     static get styles() {
         return css`
             span {

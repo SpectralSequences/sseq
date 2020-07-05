@@ -23,7 +23,11 @@
     "katex-elements": "^0.1.0",
     "lit-element": "^2.3.1",
     "mousetrap": "^1.6.2",
-    "reconnecting-websocket": "^4.4.0"
+    "reconnecting-websocket": "^4.4.0",
+    "css-loader": "^3.5.3",
+    "style-loader": "^1.2.1",
+    "to-string-loader": "^1.1.6",
+    "url-loader": "^4.1.0"
   },
   "scripts": {
     "prepublish": "browserify -g uglifyify -p esmify src/d3.bundle.js --standalone d3 > dist/d3.min.js",

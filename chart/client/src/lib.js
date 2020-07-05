@@ -1,4 +1,4 @@
-export { infinity } from "./infinity.js";
+export { INFINITY } from "./infinity.js";
 
 export function mod(n,d){
     return (n % d + d)%d;
@@ -13,7 +13,6 @@ import * as Interface from "./interface/mod.js";
 import * as spectralsequences from "./sseq/mod.js";
 export { Interface, spectralsequences };
 export { SocketListener } from "./SocketListener.js";
-export { SocketDisplay } from "./SocketDisplay.js";
 
 
 import * as Mousetrap from "mousetrap";
