@@ -628,8 +628,6 @@ class TableUI {
 
     resizeHelpWindow(){
         let help_popup = this.uiElement.querySelector(".help");
-        console.log("uiElement:", this.uiElement);
-        console.log("helpPopup:", help_popup);
         let display_rect = this.uiElement.querySelector("sseq-display").getBoundingClientRect();
         help_popup.left = 0.2  * display_rect.width;
         help_popup.top = 0.1 * display_rect.height;

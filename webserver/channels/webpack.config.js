@@ -1,6 +1,5 @@
 const path = require('path');
 const webpack = require('webpack');
-let channel = "resolver";
 let context = "../../..";
 module.exports = {
     entry: Object.fromEntries([
@@ -15,9 +14,10 @@ module.exports = {
         strictModuleExceptionHandling: true,
         devtoolModuleFilenameTemplate (info) {
           const rel = path.relative(context, info.absoluteResourcePath);
-          // console.log(`rel: ${rel}`, `localhost:8000/debug/${rel}`);
+          // console.log(`rel: ${rel}`);
           // return `webpack:///${rel}`
-          return `../debug/${channel}/${rel}`;
+          // console.log(info.identifier);
+          return `../debug/${rel}`;
         },
     },
     mode : "development",

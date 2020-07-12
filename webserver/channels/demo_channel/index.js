@@ -26,6 +26,7 @@ import { StaleResponseError } from "chart/SocketListener.js";
 import { Popup } from "chart/interface/Popup.js";
 import { sleep, promiseFromDomEvent, throttle, animationFrame, uuid4 } from "chart/interface/utils.js";
 
+import { SseqSocketListener } from "chart/SseqSocketListener.js";
 window.SseqSocketListener = SseqSocketListener;
 window.UIElement = UIElement;
 
