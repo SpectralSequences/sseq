@@ -5,7 +5,8 @@ import { ChartDifferential, ChartStructline, ChartExtension } from "./ChartEdge"
 import { renderLatex } from "../interface/Latex.js";
 
 import * as EventEmitter from "events";
-
+import { INFINITY } from "../infinity.js";
+import { public_fields } from "./utils.js";
 
 
 function check_argument_is_integer(name, value){
@@ -43,23 +44,30 @@ export class SpectralSequenceChart extends EventEmitter {
         this.max_class_size = 3;
         this.class_scale = 10;
         this.highlightScale = 2;
-        this.defaultClassStrokeColor = "black";
-        this.defaultClassFillColor = "black";
+        this.defaultClassShape = {"type" : "circle"};
+        this.defaultClassScale = 1;
+        this.defaultClassStrokeColor = true;
+        this.defaultClassFillColor = true;
+        this.defaultClassColor = "black";
         this.highlightColor = "orange";
         this.bidegreeDistanceScale = 1;
         this.mouseoverScale = 2; // How much bigger should the mouseover region be than the clas itself?
-        this.classes_by_degree = new StringifyingMap();
-        this.classes = [];
-        this.edges = [];
-
-        this.page_list = [2];
-        this.min_page_idx = 0;
-
+        
         this.x_range = [0, 10];
         this.y_range = [0, 10];
         this.initial_x_range = [0, 10];
         this.initial_y_range = [0, 10];
-        this.next_uuid = 0;
+        
+        this.page_list = [2];
+        this.min_page_idx = 0;
+        
+        self.num_gradings = 2
+        self.x_degree = [1, 0]
+        self.y_degree = [0, 1]
+        
+        this._classes_by_degree = new StringifyingMap();
+        this.classes = {};
+        this.edges = {};
     }
 
     static from_JSON(json) {
@@ -107,10 +115,10 @@ export class SpectralSequenceChart extends EventEmitter {
         }
         check_argument_is_integer("x", x);
         check_argument_is_integer("y", y);
-        if(!this.classes_by_degree.has([x,y])){
+        if(!this._classes_by_degree.has([x,y])){
             return [];
         }
-        return this.classes_by_degree.get([x, y]);
+        return this._classes_by_degree.get([x, y]);
     }
 
     class_by_index(x, y, idx){
@@ -124,19 +132,13 @@ export class SpectralSequenceChart extends EventEmitter {
 
     add_class(kwargs) {
         let c = new ChartClass(this, kwargs);
-        if("uuid" in kwargs){
-            c.uuid = kwargs["uuid"]
-        } else {
-            c.uuid = this.next_uuid;
-            this.next_uuid++;
-        }
         let degree = [c.x, c.y];
         this.classes[c.uuid] = c;
-        filter_dictionary_of_lists(this.classes_by_degree, degree, c => c._valid);
+        filter_dictionary_of_lists(this._classes_by_degree, degree, c => c._valid);
         if(c.idx === undefined){
-            c.idx = this.classes_by_degree.get(degree).length;
+            c.idx = this._classes_by_degree.get(degree).length;
         }
-        add_to_dictionary_of_lists(this.classes_by_degree, degree, c);
+        add_to_dictionary_of_lists(this._classes_by_degree, degree, c);
         this.emit("class-added", c);
         this.emit("update");
         return c;
@@ -182,13 +184,6 @@ export class SpectralSequenceChart extends EventEmitter {
 
     add_differential(kwargs) {
         let e = new ChartDifferential(kwargs);
-        if("uuid" in kwargs){
-            e.uuid = kwargs["uuid"];
-        } else {
-            e.uuid = this.next_uuid;
-            this.next_uuid++;
-        }
-        this.edges[e["uuid"]] = e;
         this.emit("differential-added", e);
         this.emit("edge-added", e);
         this.emit("update");
@@ -197,12 +192,6 @@ export class SpectralSequenceChart extends EventEmitter {
 
     add_structline(kwargs) {
         let e = new ChartStructline(kwargs);
-        if("uuid" in kwargs){
-            e.uuid = kwargs["uuid"];
-        } else {
-            e.uuid = this.next_uuid;
-            this.next_uuid++;
-        }
         this.edges[e.uuid] = e;
         this.emit("structline-added", e);
         this.emit("edge-added", e);
@@ -212,12 +201,6 @@ export class SpectralSequenceChart extends EventEmitter {
 
     add_extension(kwargs) {
         let e = new ChartExtension(kwargs);
-        if("uuid" in kwargs){
-            e.uuid = kwargs["uuid"];
-        } else {
-            e.uuid = this.next_uuid;
-            this.next_uuid++;
-        }
         this.edges[e.uuid] = e;
         this.emit("extension-added", e);
         this.emit("edge-added", e);
@@ -234,7 +217,7 @@ export class SpectralSequenceChart extends EventEmitter {
     getClassTooltip(c, page) {
         let tooltip = c.getNameCoord(page);
         // let extra_info = Tooltip.toTooltipString(c.extra_info, page);
-
+        let extra_info = "";
         if(extra_info) {
             tooltip += extra_info;
         }
@@ -302,5 +285,9 @@ export class SpectralSequenceChart extends EventEmitter {
         //     e.target_node = e.target.node;
         // }
         return [display_classes, display_edges];
+    }
+
+    toJSON() {
+        return public_fields(this);
     }
 }

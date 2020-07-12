@@ -2,13 +2,23 @@
 
 class ChartShape {
     static draw(context, params) {
-        let shape = params.shape;
-        return Shapes[shape].draw.bind(Shapes[shape])(context, params);
+        let shape;
+        if(params.shape === "default"){
+            shape = DEFAULT_SHAPE;
+        } else {
+            shape = Shapes[params.shape.type];
+        }
+        return shape.draw.bind(shape)(context, params);
     }
     
     static outline(context, params) {
-        let shape = params.shape;
-        return Shapes[shape].outline.bind(Shapes[shape])(context, params);
+        let shape;
+        if(params.shape === "default"){
+            shape = DEFAULT_SHAPE;
+        } else {
+            shape = Shapes[params.shape.type];
+        }
+        return shape.outline.bind(shape)(context, params);
     }
 
     static fillStrokeContext(context, params) {
@@ -24,6 +34,24 @@ class ChartShape {
 exports.ChartShape = ChartShape;
 
 let Shapes = {};
+
+Shapes.text = {
+    outline : function(context, params) {
+        context.moveTo(params.x, params.y);
+        context.arc(params.x, params.y, params.size * 0.1, 0, 2*Math.PI);
+    },
+    draw : function(context, params) {
+        let text = params.shape.text;
+        let fontFace = params.shape.font;
+        context.save();
+        context.font = `${params.size * 0.5}px ${fontFace}`;
+        console.log("font:", context.font);
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillText(text, params.x, params.y);
+        context.restore();
+    }
+}
 
 
 Shapes.circle = {
@@ -51,7 +79,7 @@ Shapes.circlen = {
         context.fillStyle = "black";
         let fontsize = 0.15*params.size | 0;
         context.font = `${fontsize}px Arial`;
-        context.fillText(params.node.order, params.x, params.y + params.size*0.06);
+        context.fillText(params.shape.order, params.x, params.y + params.size*0.06);
     }
 };
 
@@ -70,7 +98,7 @@ Shapes.square = {
     }
 }
 
-Shapes.default = Shapes.circle;
+let DEFAULT_SHAPE = Shapes.circle;
 
 
 for(let k of Object.getOwnPropertyNames(Shapes)){

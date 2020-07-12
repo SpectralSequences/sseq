@@ -1,6 +1,22 @@
 import * as utils from "./utils.js";
 import { ChartShape } from "./ChartShape.js";
 import { PageProperty } from "./PageProperty";
+import { v4 as uuidv4 } from 'uuid';
+import { INFINITY } from "../infinity.js";
+
+function initialPagePropertyValue(propertyValue, defaultValue, propertyName, context) {
+    if(propertyValue){
+        if(propertyValue.constructor === PageProperty){
+            return propertyValue;
+        } else {
+            return new PageProperty(propertyValue);
+        }
+    } else if(defaultValue) {
+        return new PageProperty(defaultValue);
+    } else {
+        throw TypeError(`Missing property ${propertyName}${context}`);
+    }
+}
 
 export class ChartClass {
     constructor(sseq, kwargs) {
@@ -11,9 +27,25 @@ export class ChartClass {
         
         this.update(kwargs);
         this.name = this.name || "";
+        if("uuid" in kwargs){
+            this.uuid = kwargs["uuid"]
+        } else {
+            this.uuid = uuidv4();
+        }
+        if(!("max_page" in kwargs)) {
+            this.max_page = INFINITY;
+        }
         if(this.visible === undefined) {
             this.visible = true;
         }
+
+        let errorContext = " in constructor for ChartClass.";
+        this.shape = initialPagePropertyValue(kwargs.shape, sseq.defaultClassShape, "shape", errorContext);
+        this.scale = initialPagePropertyValue(kwargs.scale, sseq.defaultClassScale, "scale", errorContext);
+        this.color = initialPagePropertyValue(kwargs.color, sseq.defaultClassColor, "color", errorContext);
+        this.stroke = initialPagePropertyValue(kwargs.stroke, sseq.defaultClassStrokeColor, "stroke", errorContext);
+        this.fill = initialPagePropertyValue(kwargs.fill, sseq.defaultClassFillColor, "fill", errorContext);
+        this.opacity = initialPagePropertyValue(kwargs.opacity, 1, "opacity", errorContext);
     }
 
     update(kwargs) {
@@ -52,6 +84,7 @@ export class ChartClass {
     _getStyleForCanvasContext(){
         let result = {};
         let node = this._node;
+        result.shape = node.shape;
         if(node.opacity) {
             result.opacity = node.opacity;
         }
@@ -163,7 +196,7 @@ export class ChartClass {
 
     getNameCoord(page){
         let tooltip = "";
-        let name = this.name[page];
+        let name = this.name.constructor === PageProperty ? this.name[page] : this.name;
         if (name !== "") {
             tooltip = `\\(\\large ${name}\\)&nbsp;&mdash;&nbsp;`;
         }
@@ -173,7 +206,7 @@ export class ChartClass {
 
     getXOffset() {
         let x_offset;
-        let classes = this._sseq.classes_by_degree.get([this.x, this.y]);
+        let classes = this._sseq.classes_in_bidegree(this.x, this.y);
         let num_classes = classes.length;
         let idx = this.idx;
         let out = (idx - (num_classes - 1) / 2) * this._sseq.offset_size;

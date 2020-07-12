@@ -1,6 +1,7 @@
 import * as utils from "./utils.js";
 import { ChartClass } from "./ChartClass.js";
 import { INFINITY } from "../infinity.js";
+import { v4 as uuidv4 } from 'uuid';
 
 export class ChartEdge {
     constructor(type, kwargs) {
@@ -14,7 +15,10 @@ export class ChartEdge {
         if(!("visible" in kwargs)) {
             this.visible = true;
         }
-        Object.assign(this, kwargs);
+        this.update(kwargs);
+        if(!("uuid" in kwargs)){
+            this.uuid = uuidv4();
+        }
         // if(typeof(this.source) !== ChartClass) {
         //     throw Error(`Invalid source of edge : ${JSON.stringify(this.source)}`);
         // }
