@@ -116,7 +116,7 @@ export class DisplayElement extends HTMLElement {
         let computedStyle = getComputedStyle(this);
         // computed_width will look like "####px", need to get rid of "px".
         let computedWidth = Number.parseFloat(computedStyle.width.slice(0,-2)); 
-        let computedHeight = Number.parseFloat(computedStyle.height.slice(0,-2)); 
+        let computedHeight = Number.parseFloat(computedStyle.height.slice(0,-2));
         const canvasWidth = width || 1*computedWidth;
         const canvasHeight = height || 0.97*computedHeight;
 
@@ -124,7 +124,7 @@ export class DisplayElement extends HTMLElement {
         this._canvasHeight = canvasHeight;
 
         this.canvas.width = canvasWidth;
-        this.canvas.height = canvasHeight;
+        this.canvas.height = canvasHeight; 
 
         this._clipWidth = this._canvasWidth - this._rightMargin;
         this._clipHeight = this._canvasHeight - this._bottomMargin;
@@ -670,4 +670,4 @@ export class DisplayElement extends HTMLElement {
 }
 
 
-customElements.define('sseq-display', Display);
+customElements.define('sseq-display', DisplayElement);

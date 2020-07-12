@@ -34,8 +34,8 @@ template.innerHTML = `
     <div id="container"></div>
     <div hidden><slot></slot></div>
 `;
-
 export class KatexExprElement extends HTMLElement {
+
 
     static get observedAttributes(){
         return ['display-mode', 'leqno', 'fleqn', 'macros'];

@@ -284,5 +284,9 @@ export class ChartElement extends HTMLElement {
         this._drawEdges(disp, ctx, this.edgesToDraw);
         this._drawClasses(disp, ctx, this.classesToDraw);
     }
+
+    toJSON(){
+        return this;
+    }
 }
 customElements.define('sseq-chart', ChartElement);

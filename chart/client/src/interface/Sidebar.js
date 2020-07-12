@@ -244,4 +244,4 @@ export class SidebarElement extends LitElement {
         return this;
     }    
 }
-customElements.define('sseq-sidebar', Sidebar);
+customElements.define('sseq-sidebar', SidebarElement);

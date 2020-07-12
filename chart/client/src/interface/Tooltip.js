@@ -166,5 +166,5 @@ export class TooltipElement extends LitElement {
 }
 
 if(!customElements.get('sseq-tooltip')){
-    customElements.define('sseq-tooltip', Tooltip);
+    customElements.define('sseq-tooltip', TooltipElement);
 }

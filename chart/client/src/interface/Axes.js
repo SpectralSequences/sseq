@@ -81,13 +81,13 @@ export class AxesElement extends LitElement {
 
         let d3XTicks = disp.xScale.ticks(disp._canvasWidth / 70);
         let d3YTicks = disp.yScale.ticks(disp._canvasHeight / 70);
-        let minXTick = Math.floor(d3XTicks[0]);
-        let maxXTick = d3XTicks[d3XTicks.length - 1];
+        let minXTick = Math.ceil(d3XTicks[0]);
+        let maxXTick = Math.floor(d3XTicks[d3XTicks.length - 1]);
         let xTickStep = Math.ceil(d3XTicks[1] - d3XTicks[0]);
         
         
-        let minYTick = Math.floor(d3YTicks[0]);
-        let maxYTick = d3YTicks[d3YTicks.length - 1];
+        let minYTick = Math.ceil(d3YTicks[0]);
+        let maxYTick = Math.floor(d3YTicks[d3YTicks.length - 1]);
         let yTickStep = Math.ceil(d3YTicks[1] - d3YTicks[0]);
 
         if(disp.dxScale(+disp.xminFloat - minXTick + xTickStep) < 1.5 ){

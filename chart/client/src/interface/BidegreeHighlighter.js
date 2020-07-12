@@ -135,4 +135,4 @@ export class BidegreeHighlighterElement extends LitElement {
     // }
 }
 
-customElements.define('sseq-bidegree-highlighter', BidegreeHighlighter);
+customElements.define('sseq-bidegree-highlighter', BidegreeHighlighterElement);
