@@ -72,7 +72,7 @@ class ResolverChannel(SocketChannel):
             "request" : request, 
         }
         if cls.has_channel(channel_name):
-            return templates.TemplateResponse("index.html", response_data)
+            return ResolverChannel.templates.TemplateResponse("index.html", response_data)
 
     async def setup_a(self):
         if not self.ready:
