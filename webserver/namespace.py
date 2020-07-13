@@ -2,6 +2,7 @@ import json
 import pathlib
 
 from spectralsequence_chart import ChartAgent, SseqChart
+from channels import ResolverChannel
 import ext
 
 def read_file(path):
@@ -17,8 +18,8 @@ def get_namespace():
         ext, ext.algebra, ext.module, ext.fp, ext.fp.FpVector,
         ext.algebra.AdemAlgebra, ext.algebra.MilnorAlgebra,
         ext.module.FDModule,
-        # ext.resolution.Resolution,
+        ext.resolution.Resolver,
         ChartAgent, SseqChart,
-        # ResolverChannel,
+        ResolverChannel,
         pathlib, config
     ]
