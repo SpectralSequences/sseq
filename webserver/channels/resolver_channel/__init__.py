@@ -8,7 +8,8 @@ from message_passing_tree import ansi
 
 from fastapi.templating import Jinja2Templates
 
-from spectralsequence_chart import SseqSocketReceiver, ChartAgent, SseqChart
+from spectralsequence_chart import SseqChart
+from spectralsequences_webserver.chart import SseqSocketReceiver, ChartAgent
 
 from spectralsequences_webserver import config
 from spectralsequences_webserver.repl.executor import Executor

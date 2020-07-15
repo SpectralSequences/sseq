@@ -8,12 +8,12 @@ from message_passing_tree import SocketChannel
 from message_passing_tree.utils import json_stringify
 from message_passing_tree import ansi
 
-from spectralsequence_chart import SseqSocketReceiver, ChartAgent, SseqChart
+from spectralsequence_chart import SseqChart
+from spectralsequences_webserver.chart import SseqSocketReceiver, ChartAgent, InteractiveChartAgent
 
 from spectralsequences_webserver.repl.executor import Executor
 from spectralsequences_webserver import config
 
-from spectralsequence_chart import SseqSocketReceiver, InteractiveChartAgent
 
 
 

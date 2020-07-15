@@ -5,15 +5,13 @@ from message_passing_tree.prelude import *
 from message_passing_tree import SocketChannel
 from message_passing_tree import ansi
 
-from spectralsequence_chart import SseqSocketReceiver, ChartAgent, SseqChart
+from spectralsequences_webserver.chart import *
 
 from spectralsequences_webserver.repl.executor import Executor
 from spectralsequences_webserver import config
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-
-
 
 
 @subscribe_to("*")

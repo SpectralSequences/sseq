@@ -14,7 +14,8 @@ from message_passing_tree import ansi
 
 from ext import fp
 
-from spectralsequence_chart import SseqSocketReceiver, ChartAgent, SseqChart
+from spectralsequence_chart import SseqChart
+from spectralsequences_webserver.chart import SseqSocketReceiver, ChartAgent
 
 from spectralsequences_webserver import config, name_tools
 from spectralsequences_webserver.repl.executor import Executor

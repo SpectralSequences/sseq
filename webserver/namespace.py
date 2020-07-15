@@ -1,7 +1,8 @@
 import json
 import pathlib
 
-from spectralsequence_chart import ChartAgent, SseqChart
+from spectralsequence_chart import SseqChart
+from spectralsequences_webserver.chart import ChartAgent
 from channels import ResolverChannel
 import ext
 
