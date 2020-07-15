@@ -21,7 +21,7 @@ CHART_REPOSITORY_ROOT = REPOSITORY_ROOT / "../chart"
 
 sys.path.extend([str(path) for path in [
     MESSAGE_PASSING_REPOSITORY_ROOT,
-    CHART_REPOSITORY_ROOT / "server",
+    CHART_REPOSITORY_ROOT / "python",
     PYTHON_EXT_REPOSITORY_ROOT
 ]])
 

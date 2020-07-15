@@ -155,11 +155,7 @@ export class PopupElement extends LitElement {
     }
   
     set open(v) {
-        if (v) {
-            this.setAttribute('open', '');
-        } else {
-            this.removeAttribute('open');
-        }
+        this.toggleAttribute('open', v);
     }
 
     get height() {
