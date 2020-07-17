@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Spectral Sequence Viewer</title>
+        <meta charset="utf-8"/>
+        <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.css" integrity="sha384-+MsSfd29vjUzcyqYURxcmpWGtqoSHBy+QdEJNLEslXQftxojQv0k6BGDqUNp9GtA" crossorigin="anonymous"> -->
+        <!-- <script type="text/javascript">
+            // set the pyodide files URL (packages.json, pyodide.asm.data etc)
+            window.languagePluginUrl = 'https://pyodide-cdn2.iodide.io/v0.15.0/full/';
+        </script>
+        <script src="https://pyodide-cdn2.iodide.io/v0.15.0/full/pyodide.js"></script> -->
+        <style>
+            body {
+                background-color: black;
+                overflow: hidden;
+            }
+
+            repl-terminal {
+                display: block;
+                height : calc(100vh - 2*27px); 
+                padding-bottom: 27px;
+                padding-top : 27px;
+                padding-left : 10px;
+                width : 100vw;
+                top : 0;
+                left : 0;
+                position: absolute !important;
+            }
+        </style>
+    </head>
+<body>
+<script src="./monaco.dll.js"></script>
+<script src="./index.bundle.js"></script>
+<repl-terminal tabindex="-1" class="monaco-editor">
+</repl-terminal>
+<div class="dummy" tabindex="-1"></div>
+</body>
+</html>

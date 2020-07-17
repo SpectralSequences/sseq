@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Spectral Sequence Viewer</title>
+        <meta charset="utf-8"/>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.css" integrity="sha384-+MsSfd29vjUzcyqYURxcmpWGtqoSHBy+QdEJNLEslXQftxojQv0k6BGDqUNp9GtA" crossorigin="anonymous">
+        <link rel="stylesheet" href="dist/chart.css">
+        
+        <script src="dist/index.js" type="text/javascript"></script>
+        <style>
+            sseq-page-indicator {
+                position: absolute; 
+                left: 60px; top: 0px; 
+                font-family: Arial; 
+                font-size: 15px;
+                z-index: 1;
+            }
+        </style>
+    </head>
+<body>
+<sseq-ui tabindex="-1">
+    <sseq-display id=display style="overflow: hidden; position: relative; flex-grow: 1;">
+        <sseq-axes></sseq-axes>
+        <sseq-grid></sseq-grid>
+        <sseq-chart>
+            <!-- <sseq-bidegree-highlighter></sseq-bidegree-highlighter>
+            <sseq-class-highlighter></sseq-class-highlighter> -->
+            <sseq-page-indicator></sseq-page-indicator>
+            <sseq-tooltip></sseq-tooltip>
+        </sseq-chart>
+    </sseq-display>
+    <sseq-sidebar>
+
+    </sseq-sidebar>
+    <sseq-popup modal class="help">
+        <span slot="header"><h4>Help</h4></span>
+        <div slot="body">
+        </div>
+        <div slot="buttons">
+            <sseq-button class="cancel">close</sseq-button>
+        </div>
+    </sseq-popup>
+</sseq-ui>
+
+<script>
+"use strict";
+let chart = new SpectralSequenceChart();
+document.querySelector("sseq-chart").setSseq(chart);
+document.querySelector("sseq-ui").start();
+Mousetrap.bind("left", () => {
+    document.querySelector("sseq-chart").previousPage();
+});
+Mousetrap.bind("right", () => {
+    document.querySelector("sseq-chart").nextPage();
+});
+</script>        
+</body>
+</html>
