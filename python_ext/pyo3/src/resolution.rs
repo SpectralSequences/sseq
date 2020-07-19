@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-use pyo3::prelude::*;
 
+use pyo3::prelude::*;
 use ext::resolution::ResolutionInner as ResolutionRust;
 use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex};//, ChainMap};
 

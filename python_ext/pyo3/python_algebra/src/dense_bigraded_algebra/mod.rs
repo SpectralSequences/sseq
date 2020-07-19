@@ -18,7 +18,7 @@ use python_fp::vector::FpVector;
 use python_fp::basis::Basis;
 use python_fp::matrix::Matrix;
 
-use algebra::dense_bigraded_algebra::DenseBigradedAlgebra as DenseBigradedAlgebraRust;
+use algebra::dense_bigraded_algebra::{DenseBigradedAlgebra as DenseBigradedAlgebraRust, Indecomposable};
 rc_wrapper_type!(DenseBigradedAlgebra, DenseBigradedAlgebraRust);
 
 
@@ -142,12 +142,12 @@ impl DenseBigradedAlgebra {
             .collect())
     }
 
-    pub fn indecomposable_decompositions(&self, x : i32, y : i32) -> PyResult<Vec<(FpVector, Vec<(String, i32)>)>> {
+    pub fn indecomposable_decompositions(&self, x : i32, y : i32) -> PyResult<Vec<(FpVector, Vec<((i32, i32, usize), i32)>)>> {
         self.check_not_null()?;
         self.check_degree(x, y)?;          
         let data = self.inner_unchkd().data[x][y].read().unwrap();
         let result : Result<_,()> = data.indecomposable_decompositions.iter().map(|(vec,mono)| 
-            Ok((FpVector::box_and_wrap(vec.clone()),self.inner_unchkd().monomial_to_string_pairs(mono)?))
+            Ok((FpVector::box_and_wrap(vec.clone()),mono.clone().0))
         ).collect();
         result.map_err(|e| python_utils::exception!(ValueError, "Invalid indecomposable in monomial"))
     }

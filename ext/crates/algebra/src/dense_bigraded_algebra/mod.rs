@@ -12,14 +12,10 @@ use fp::vector::{FpVector, FpVectorT};
 use std::sync::{RwLock, RwLockWriteGuard, Mutex};
 use std::collections::{BTreeMap, HashMap};
 
-#[derive(Clone, Hash, PartialEq)]
-pub enum Variable {
-    String(String),
-    Indecomposable(i32, i32, usize)
-}
+pub type Indecomposable = (i32, i32, usize);
 
 #[derive(Clone)]
-pub struct Monomial(Vec<(Variable, i32)>);
+pub struct Monomial(pub Vec<(Indecomposable, i32)>);
 
 impl Monomial {
     pub fn unit() -> Self {
@@ -27,24 +23,18 @@ impl Monomial {
     }
 
     pub fn indecomposable(x : i32, y : i32, idx : usize) -> Self {
-        Self(vec!((Variable::Indecomposable(x, y, idx), 1)))
+        Self(vec![((x, y, idx), 1)])
     }
 
     pub fn contains_indecomposable(&self, x : i32, y : i32, idx : usize) -> bool {
-        self.0.iter().any(|v|
-            match &v.0 {
-                Variable::String(_) => false,
-                &Variable::Indecomposable(x1, y1, idx1) => x1 == x && y1 == y && idx1 == idx
-            }
+        self.0.iter().any(|&((x1, y1, idx1),_)|
+            x1 == x && y1 == y && idx1 == idx
         )
     }
 
     pub fn contains_bidegree(&self, x : i32, y : i32) -> bool {
-        self.0.iter().any(|v|
-            match &v.0 {
-                Variable::String(_) => false,
-                &Variable::Indecomposable(x1, y1, _) => x1 == x && y1 == y
-            }
+        self.0.iter().any(|&((x1, y1, _),_)|
+            x1 == x && y1 == y
         )
     }
 
@@ -65,7 +55,6 @@ impl Monomial {
 pub struct BidegreeData {
     pub dimension : usize,
     pub basis : Basis,
-    pub names : Vec<Option<String>>,
     product_tensor : BiVec<BiVec<Vec<Vec<Option<FpVector>>>>>,
     pub decomposables : Subspace,
     pub indecomposable_decompositions : Vec<(FpVector, Monomial)>
@@ -76,7 +65,6 @@ impl BidegreeData {
         Self {
             dimension,
             basis : Basis::new(p, dimension),
-            names : Vec::new(),
             product_tensor,
             decomposables : Subspace::new(p, dimension + 1, dimension),
             indecomposable_decompositions : Vec::new()
@@ -89,9 +77,7 @@ pub struct DenseBigradedAlgebra {
     pub min_x : i32,
     pub min_y : i32,
     pub data : OnceBiVec<OnceBiVec<RwLock<BidegreeData>>>,
-    named_indecomposables : RwLock<BTreeMap<(i32, i32), Vec<Option<String>>>>,
-    named_indecomposables_invalidated : Mutex<Vec<(i32, i32)>>,
-    new_named_indecomposables : Mutex<Vec<(i32, i32, usize)>>
+    updated_bidegrees : Mutex<Vec<(i32, i32)>>,
 }
 
 impl DenseBigradedAlgebra {
@@ -102,8 +88,7 @@ impl DenseBigradedAlgebra {
             min_y,
             data : OnceBiVec::new(min_x),
             named_indecomposables : RwLock::new(BTreeMap::new()),
-            named_indecomposables_invalidated : Mutex::new(Vec::new()),
-            new_named_indecomposables :  Mutex::new(Vec::new()),
+            updated_bidegrees : Mutex::new(Vec::new()),
         }
     }
 
@@ -148,35 +133,6 @@ impl DenseBigradedAlgebra {
 
     pub fn dimension(&self, x : i32, y : i32) -> usize {
         self.data[x][y].read().unwrap().dimension
-    }
-
-    pub fn monomial_to_string_pairs(&self, m : &Monomial) -> Result<Vec<(String, i32)>, ()> {
-        m.0.iter().map(|(v, e)|
-            Ok((self.variable_to_string(v)?, *e))
-        ).collect()
-    }
-
-    pub fn monomial_to_string(&self, m : &Monomial) -> Result<String, ()> {
-        m.0.iter().map(|(v, e)| {
-            try {
-                let mut var_str = self.variable_to_string(v)?;
-                let e = *e;
-                if e > 1 {
-                    var_str.push_str(&format!("{}", e));
-                }
-                var_str
-            }
-        }).collect::<Result<String, _>>()
-    }
-
-    pub fn variable_to_string(&self, v : &Variable) -> Result<String, ()> {
-        match v {
-            Variable::String(x) => Ok(x.clone()),
-            &Variable::Indecomposable(x, y, idx) => {
-                self.data[x][y].read().unwrap()
-                    .names[idx].clone().ok_or(())
-            }
-        }
     }
 
     fn insert_bidegree(&self, x : i32, y : i32, dimension : usize){
@@ -226,25 +182,18 @@ impl DenseBigradedAlgebra {
 
     pub fn set_basis(&self, x : i32, y : i32, new_basis : &Matrix) {
         let mut data = self.data[x][y].write().unwrap();
-        self.named_indecomposables_invalidated.lock().unwrap().push((x, y));
+        self.updated_bidegrees.lock().unwrap().push((x, y));
         assert!(new_basis.rows() == data.basis.matrix.rows());
         assert!(new_basis.columns() == data.basis.matrix.columns());
         for r in 0..new_basis.rows() {
             if data.basis.matrix[r] != new_basis[r] {
-                data.names[r] = None;
+                data.basis.matrix[r].assign(&new_basis[r]);
             }
         }
+        data.basis.calculate_inverse();
         drop(data);
         let mut sv = FpVector::new(self.prime(), 0);
         drop(self.compute_indecomposables_in_bidegree(x, y, &mut sv));
-    }
-
-    pub fn set_name(&self, x : i32, y : i32, idx : usize, name : String) {
-        let mut data = self.data[x][y].write().unwrap();
-        if data.names[idx].is_none() && data.decomposables.pivots()[idx] < 0 {
-            self.new_named_indecomposables.lock().unwrap().push((x, y, idx));
-        }
-        data.names[idx] = Some(name);
     }
 
     pub fn multiply_basis_element_by_basis_element(&self, 
@@ -368,11 +317,19 @@ impl DenseBigradedAlgebra {
         data.decomposables.set_to_zero();
         sv.set_scratch_vector_size(data.dimension);
         let product_tensor = std::mem::take(&mut data.product_tensor);
-        for v_opt in product_tensor.iter().flat_map(|x| x.iter()).flat_map(|x| x.iter()).flat_map(|x| x.iter()) {
-            if let Some(v) = v_opt {
-                sv.set_to_zero_pure();
-                data.basis.apply(sv, 1, v);
-                data.decomposables.add_vector(sv);
+        for (x_left, t1) in product_tensor.iter_enum(){ 
+            for (y_left, t2) in t1.iter_enum() {
+                if (x_left == 0 && y_left == 0) 
+                || (x_left == x && y_left == y) {
+                    continue;
+                }
+                for v_opt in t2.iter().flat_map(|x| x.iter()) {
+                    if let Some(v) = v_opt {
+                        sv.set_to_zero_pure();
+                        data.basis.apply(sv, 1, v);
+                        data.decomposables.add_vector(sv);
+                    }
+                }
             }
         }
         data.product_tensor = product_tensor;
@@ -386,10 +343,15 @@ impl DenseBigradedAlgebra {
         data.indecomposable_decompositions.push(
             (vec, Monomial::unit())
         );
+        // self.update_indecomposable_decompositions_helper(
+        //     &new_indecs,
+        //     prev_decompositions,
+        //     &mut sv_left, &mut sv_right, &mut sv_out
+        // )
     }
 
     pub fn update_indecomposable_decompositions(&self) -> Result<(), ()> {
-        let invalidated_bidegrees = self.named_indecomposables_invalidated.lock().unwrap();
+        let invalidated_bidegrees = self.updated_bidegrees.lock().unwrap();
         for mut data in self.data.iter().flat_map(|x| x.iter()).map(|x| x.write().unwrap()) {
             data.indecomposable_decompositions.drain_filter(|(vect, mono)|
                 invalidated_bidegrees.iter().any(|&(x,y)| mono.contains_bidegree(x, y) )
