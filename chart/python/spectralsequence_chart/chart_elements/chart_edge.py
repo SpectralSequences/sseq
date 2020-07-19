@@ -1,4 +1,3 @@
-from message_passing_tree.prelude import arguments
 from uuid import uuid4
 from .. import utils
 
@@ -17,7 +16,7 @@ class ChartEdge:
         setattr(self, utils.PROPERTY_PREFIX + "source",  self.source.uuid)
         setattr(self, utils.PROPERTY_PREFIX + "target",  self.target.uuid)
 
-        [message_args, message_kwargs] = arguments(
+        [message_args, message_kwargs] = utils.arguments(
             type = self.type,
             uuid = self.uuid,
             source = source.uuid,

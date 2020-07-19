@@ -188,3 +188,6 @@ def reverse_replace_keys(d, replace_keys):
         if hasattr(d, key):
             setattr(d, replacement, getattr(d, key))
             delattr(d, key)
+
+def arguments(*args, **kwargs):
+    return [args, kwargs]

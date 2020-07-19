@@ -19,3 +19,8 @@ target/
 package-lock.json
 resolution.save
 Cargo.lock
+webclient/repl/pyodide-build-0.15.0
+webclient/repl/dist
+chart/python/build
+chart/python/dist
+chart/python/*.egg-info

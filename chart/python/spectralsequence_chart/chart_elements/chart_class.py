@@ -1,7 +1,5 @@
-from message_passing_tree.prelude import arguments
 from ..page_property import PageProperty
 from ..infinity import INFINITY
-import threading
 from uuid import uuid4
 from .. import utils
 
@@ -11,10 +9,9 @@ class ChartClass:
             self.uuid = kwargs["uuid"]
         else:
             self.uuid = str(uuid4())
-        sseq.add_batched_message(self.uuid, "chart.class.add", *arguments(new_class=self))
+        sseq.add_batched_message(self.uuid, "chart.class.add", *utils.arguments(new_class=self))
         self._sseq = sseq
         self._edges = []
-        self._lock = threading.Lock()
         utils.copy_fields_from_kwargs(self, kwargs)
 
         # TODO: figure out what to do about uuids and multiple reads from same file.
