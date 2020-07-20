@@ -1,110 +1,99 @@
-from ..page_property import PageProperty
+from ..helper_types import (
+    PageProperty, PagePropertyOrValue, ensure_page_property, 
+    SignalDict
+)
 from ..infinity import INFINITY
 from uuid import uuid4
-from .. import utils
+
+from typing import TYPE_CHECKING, List, Any, Tuple, cast, Dict, Union, Optional
+if TYPE_CHECKING:
+    from ..chart import SseqChart
+    from .chart_edge import ChartEdge
+
+Color = Any
+Shape = Any
+UUID_str = str
+# PropertyValue = 
 
 class ChartClass:
-    def __init__(self, sseq, **kwargs):
-        if "uuid" in kwargs:
-            self.uuid = kwargs["uuid"]
+    def __init__(self,
+        degree : Tuple[int, ...], *,
+        type : str = "ChartClass",
+        idx : Optional[int] = None,
+        uuid : UUID_str = "",
+        name : PagePropertyOrValue[str] = "",
+        shape : PagePropertyOrValue[Shape] = "default",
+        color : PagePropertyOrValue[Color] = "default",
+        fill : PagePropertyOrValue[Color] = "default",
+        stroke : PagePropertyOrValue[Color] = "default",
+        scale : PagePropertyOrValue[float] = 1,
+        opacity : PagePropertyOrValue[int] = 1,
+        visible : PagePropertyOrValue[bool] = True,
+        x_nudge : PagePropertyOrValue[float] = 0,
+        y_nudge : PagePropertyOrValue[float] = 0,
+        dom_content : Optional[SignalDict[Union[str, PageProperty[str]]]] = None,
+        user_data : Optional[SignalDict[Any]] = None
+    ):
+        assert type == self.__class__.__name__
+        self._sseq : SseqChart
+        self._degree = degree
+        self.idx = idx
+        self._max_page = INFINITY
+        self._edges : List[ChartEdge] = []
+        
+        if uuid:
+            self.uuid = uuid
         else:
             self.uuid = str(uuid4())
-        sseq.add_batched_message(self.uuid, "chart.class.add", *utils.arguments(new_class=self))
-        self._sseq = sseq
-        self._edges = []
-        utils.copy_fields_from_kwargs(self, kwargs)
 
-        # TODO: figure out what to do about uuids and multiple reads from same file.
-        # We'd then get multiple objects with same uuid from file.
-        # But if we replace all uuids on load, we will loose the capability of being able to track
-        # a chart entity through multiple different save files.
+        # Type checker has difficulty with PagePropertyOrValue and the typing of ensure_page_property.
+        self._name = cast(PageProperty[str], ensure_page_property(name, parent=self))
+        self._shape = cast(PageProperty[Shape], ensure_page_property(shape, parent=self))
+        self._color = cast(PageProperty[Color], ensure_page_property(color, parent=self))
+        self._fill  = cast(PageProperty[Color], ensure_page_property(fill, parent=self))
+        self._stroke = cast(PageProperty[Color], ensure_page_property(stroke, parent=self))
+        self._scale = cast(PageProperty[float], ensure_page_property(scale, parent=self)) 
+        self._opacity = cast(PageProperty[float], ensure_page_property(opacity, parent=self))
+        self._visible = cast(PageProperty[bool], ensure_page_property(visible, parent=self))
+        self._x_nudge = cast(PageProperty[float], ensure_page_property(x_nudge, parent=self))
+        self._y_nudge = cast(PageProperty[float], ensure_page_property(y_nudge, parent=self))
 
-        if "name" not in kwargs:
-            self.name = PageProperty("")
-        
-        if "shape" not in kwargs:
-            self.shape = PageProperty("default")
-
-        if "color" not in kwargs:
-            self.color = PageProperty("default")
-
-        if "fill" not in kwargs:
-            self.fill = PageProperty("default")
-
-        if "stroke" not in kwargs:
-            self.stroke = PageProperty("default")
-
-        if "scale" not in kwargs:
-            self.scale = PageProperty(1)
-
-        if "opacity" not in kwargs:
-            self.opacity = PageProperty(1)
-
-
-        if "visible" not in kwargs:
-            self.visible = PageProperty(True)
-
-        if "degree" not in kwargs:
-            raise ValueError("""Class is missing mandatory argument "degree".""")
-
-        if "max_page" not in kwargs:
-            self.max_page = INFINITY
-
-        sseq._classes[self.uuid] = self
-        if self.degree not in sseq._classes_by_bidegree:
-            sseq._classes_by_bidegree[self.degree] = []
-
-        if not hasattr(self, "idx"):
-            self.idx = len(sseq._classes_by_bidegree[self.degree])
-        sseq._classes_by_bidegree[self.degree].append(self)
+        self._dom_content : SignalDict[Union[str, PageProperty[str]]]  = SignalDict(dom_content if dom_content else {}, parent=self)
+        self._user_data : SignalDict[Any] = SignalDict(user_data if user_data else {}, parent=self)
 
     def needs_update(self):
         self._sseq.add_class_to_update(self)
 
     @staticmethod
-    def from_json(sseq, json):
-        return ChartClass(sseq, **json)
+    def from_json(json : Dict[str, Any]) -> "ChartClass":
+        return ChartClass(**json)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"ChartClass({self.x},{self.y})"
 
-    def to_json(self):
-        result = utils.public_fields(self)
-        result["type"] = "ChartClass"
-        return result
+    def to_json(self) -> Dict[str, Any]:
+        return dict(
+            type=type(self).__name__,
+            degree=self.degree,
+            idx=self.idx,
+            uuid=self.uuid,
+            name=self.name,
+            shape=self.shape,
+            color=self.color,
+            fill=self.fill,
+            stroke=self.stroke,
+            scale=self.scale,
+            opacity=self.opacity,
+            visible=self.visible,
+            x_nudge=self.x_nudge,
+            y_nudge=self.y_nudge,
+            dom_content=self.dom_content,
+            user_dict=self.user_data
+        )
 
-
-    @property
-    def x(self):
-        return sum(a*b for (a,b) in zip(self.degree,self._sseq.x_degree))
-
-    @property
-    def y(self):
-        return sum(a*b for (a,b) in zip(self.degree,self._sseq.y_degree))
-
-    @utils.sseq_property
-    def name(self, storage_name):
-        self.needs_update()
-
-    @utils.sseq_property
-    def max_page(self, storage_name):
-        self.needs_update()
-
-    @utils.sseq_property
-    def visible(self, storage_name):
-        self.needs_update()
-
-    @utils.sseq_property
-    def x_nudge(self, storage_name):
-        self.needs_update()
-
-    @utils.sseq_property
-    def y_nudge(self, storage_name):
-        self.needs_update()
-
-    def replace(self, **kwargs):
+    def replace(self, **kwargs : Any):
         page = self.max_page + 1
-        self.max_page = INFINITY
+        self._max_page = INFINITY
         # if self.max_page == INFINITY:
         #     raise ValueError("???")
         for [key, value] in kwargs.items():
@@ -118,9 +107,73 @@ class ChartClass:
         for e in self._edges:
             e.delete()
 
-    def __repr__(self):
-        name_str = ")"
+    def __repr__(self) -> str:
+        fields = [str(self.x), str(self.y), str(self.idx)]
         if self.name[0] != "":
-            name_str = f""", name="{self.name[0]}")""" # put paren here to prevent four quotes in a row, better way?
-        return f"""Class({self.x}, {self.y}, {self.idx}{name_str}"""
+            fields.append(f'name="{self.name[0]}"')
+        return f"Class({','.join(fields)})"
 
+    @property
+    def degree(self):
+        return self._degree
+
+    @property
+    def x(self):
+        return sum(a*b for (a,b) in zip(self.degree,self._sseq.x_degree))
+
+    @property
+    def y(self):
+        return sum(a*b for (a,b) in zip(self.degree,self._sseq.y_degree))
+
+    # TODO: Should max_page exist?
+    @property
+    def max_page(self) -> int:
+        return self._max_page
+    
+    @property
+    def name(self) -> PageProperty[str]:
+        return self._name
+
+    @property
+    def shape(self) -> PageProperty[Shape]:
+        return self._shape
+    
+    @property
+    def color(self) -> PageProperty[Color]:
+        return self._color
+
+    @property
+    def stroke(self) -> PageProperty[Color]:
+        return self._stroke
+
+    @property
+    def fill(self) -> PageProperty[Color]:
+        return self._fill
+
+    @property
+    def scale(self) -> PageProperty[float]:
+        return self._scale
+
+    @property
+    def opacity(self) -> PageProperty[float]:
+        return self._opacity
+        
+    @property
+    def visible(self) -> PageProperty[bool]:
+        return self._visible
+
+    @property
+    def x_nudge(self) -> PageProperty[float]:
+        return self._x_nudge
+
+    @property
+    def y_nudge(self) -> PageProperty[float]:
+        return self._y_nudge
+
+    @property
+    def dom_content(self) -> SignalDict[Union[str, PageProperty[str]]]:
+        return self._dom_content
+
+    @property
+    def user_data(self) -> SignalDict[Any]:
+        return self._user_data

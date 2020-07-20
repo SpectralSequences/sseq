@@ -7,3 +7,5 @@ from .chart import (
     # INFINITY,
     SseqChart
 )
+
+__all__ = [SseqChart]

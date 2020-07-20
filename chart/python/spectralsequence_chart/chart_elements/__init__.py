@@ -5,3 +5,5 @@ from .chart_edge import (
     ChartExtension, 
     ChartStructline,
 )
+
+__all__ = [ChartClass, ChartEdge, ChartDifferential, ChartExtension, ChartStructline]

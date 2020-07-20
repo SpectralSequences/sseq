@@ -1,121 +1,161 @@
-import json
 import threading
+from typing import Tuple, List, Dict, Any, Set, Optional, Union
 from uuid import uuid4
 
 from . import utils
 from .utils import arguments
-from .chart_elements import *
-from .page_property import PageProperty
+from .chart_elements import (
+    ChartClass, 
+    ChartStructline, ChartDifferential, ChartExtension, ChartEdge
+)
 from .messages import *
+from .infinity import INFINITY
 
-INFINITY = 65535
-
+ChartClassArg = Union[ChartClass, Tuple[int, ...], List[int]]
 
 class SseqChart:
-    def __init__(self, name):
-        self._agent = None
+    def __init__(self, 
+        name : str, 
+        type : str = "SseqChart",
+        initial_x_range : Tuple[int, int] = (0, 10),
+        initial_y_range : Tuple[int, int] = (0, 10),
+        x_range : Tuple[int, int] = (0, 10),
+        y_range : Tuple[int, int] = (0, 10),
+        num_gradings : int = 2,
+        x_degree : Tuple[int, ...] = (1, 0),
+        y_degree : Tuple[int, ...] = (0, 1),
+        page_list : Optional[List[Tuple[int, int]]] = None,
+        min_page_idx : int = 0,
+        classes : Optional[Dict[str, ChartClass]] = None,
+        edges : Optional[Dict[str, ChartEdge]] = None        
+    ):
+        assert type == self.__class__.__name__
+        assert len(x_degree) == num_gradings
+        assert len(y_degree) == num_gradings
+        assert min_page_idx >= 0
+        self._initialized = False
+        self._agent : Any = None
         self.name = name
-        self.initial_x_range = [0, 10]
-        self.initial_y_range = [0, 10]
-        self.x_range = [0, 10]
-        self.y_range = [0, 10]
+        self.initial_x_range = initial_x_range
+        self.initial_y_range = initial_y_range
+        self.x_range = x_range
+        self.y_range = y_range
 
-        self.num_gradings = 2
-        self.x_degree = [1, 0]
-        self.y_degree = [0, 1]
+        self.num_gradings = num_gradings
+        self.x_degree = x_degree
+        self.y_degree = y_degree
 
-        self.page_list = [[2, INFINITY], [INFINITY, INFINITY]]
+        if page_list:
+            self.page_list = page_list
+        else:
+            self.page_list : List[Tuple[int, int]] = [(2, INFINITY), (INFINITY, INFINITY)]
         self._page_list_lock = threading.Lock()
-        self.min_page_idx = 0
+        self.min_page_idx = min_page_idx
         
-        self._classes = {}
-        self._classes_by_bidegree = {}
+        self._classes : Dict[str, ChartClass] = classes or {}
+        self._classes_by_degree : Dict[Tuple[int, ...], List[ChartClass]] = {}
         
-        self._edges = {}
+        self._edges : Dict[str, ChartEdge] = edges or {}
         
-        self._batched_messages = []
-        self._objects_to_update = set()
+        self._batched_messages : List[Message] = []
+        self._update_keys : Set[str] = set()
         self._batched_messages_lock = threading.Lock()
-        self._initialized = True
+        self._initialized : bool = True
 
     @property
-    def classes(self):
+    def classes(self) -> List[ChartClass]:
         return list(self._classes.values())
 
-    @classes.setter
-    def classes(self, value):
-        if type(value) is not dict:
-            raise TypeError(f"Value should be a dictionary not a {type(value).__name__}")
-        self._classes = value
-
     @property
-    def edges(self):
+    def edges(self) -> List[ChartEdge]:
         return list(self._edges.values())
 
-    @edges.setter
-    def edges(self, value):
-        if type(value) is not dict:
-            raise TypeError(f"Value should be a dictionary not a {type(value).__name__}")
-        self._edges = value
-
-    def to_json(self):
-        result = utils.public_fields(self)
-        result["type"] = type(self).__name__
-        result["classes"] = self._classes
-        result["edges"] = self._edges
-        return result
+    def to_json(self) -> Dict[str, Any]:
+        return dict(
+            type=type(self).__name__,
+            name=self.name,
+            initial_x_range=self.initial_x_range,
+            initial_y_range=self.initial_y_range,
+            x_range=self.x_range,
+            y_range=self.y_range,
+            num_gradings=self.num_gradings,
+            x_degree=self.x_degree,
+            y_degree=self.y_degree,
+            page_list=self.page_list,
+            min_page_idx=self.min_page_idx,
+            classes=self._classes,
+            edges=self._edges
+        )
+        
 
     @staticmethod
-    def from_json(json_obj):
-        result = SseqChart(json_obj["name"])
-        utils.copy_fields_from_kwargs(result, json_obj)
-        for c in json_obj["classes"].values():
-            result._classes[c["uuid"]] = ChartClass.from_json(result, c)
-
-        for e in json_obj["edges"].values():
-            result._edges[e["uuid"]] = ChartEdge.from_json(result, e)
-
-        for chart_class in result.classes:
-            del result._classes[chart_class.uuid]
-            chart_class.uuid = str(uuid4())
-            result._classes[chart_class.uuid] = chart_class
-
-        for edge in result.edges:
-            del result._edges[edge.uuid]
-            edge.uuid = str(uuid4())
-            result._edges[edge.uuid] = edge
-            edge.source = edge.source.uuid
-            edge.target = edge.target.uuid
-        
+    def from_json(json_obj : Dict[str, Any]) -> "SseqChart":
+        result = SseqChart(**json_obj)
+        for c in result.classes:
+            result.commit_class(c)
+        for e in result.edges:
+            result.commit_edge(e)
         return result
         
-    def add_class(self, *degree, **kwargs):
-        kwargs.update({"degree" : degree})
-        c = ChartClass(self, **kwargs)
-        if "color" in kwargs:
-            c.set_field("color", kwargs["color"])
+    def add_class(self, *degree : int, **kwargs : Any) -> ChartClass:
+        c = ChartClass(degree, **kwargs)
+        self.commit_class(c)
         return c
 
-    def add_differential(self, page, source, target, auto = True, **kwargs):
-        e = ChartDifferential(self, page=page, source=source, target=target, **kwargs)
+    def commit_class(self, c : ChartClass):
+        if len(c.degree) != self.num_gradings:
+            raise ValueError(f"Wrong number of gradings: degree {c.degree} has length {len(c.degree)} but num_gradings is {self.num_gradings}")
+
+        c._sseq = self
+        self.add_batched_message(c.uuid, "chart.class.add", *utils.arguments(new_class=self))
+        self._classes[c.uuid] = c
+        if c.degree not in self._classes_by_degree:
+            self._classes_by_degree[c.degree] = []
+
+        if c.idx is None:
+            c.idx = len(self._classes_by_degree[c.degree])
+        self._classes_by_degree[c.degree].append(c)
+
+    def add_differential(self, 
+        page : int, source_arg : ChartClassArg, target_arg : ChartClassArg, 
+        auto : bool = True, **kwargs : Any
+    ) -> ChartEdge:
+        source = self.normalize_class_argument(source_arg)
+        target = self.normalize_class_argument(target_arg)
+        e = ChartDifferential(page=page, source_uuid=source.uuid, target_uuid=target.uuid, **kwargs)
         self._edges[e.uuid] = e
         if auto:
-            source.max_page = page
-            target.max_page = page
-            self.add_page_range([page,page])
+            source._max_page = page
+            target._max_page = page
+            self.add_page_range(page,page)
+        self.commit_edge(e)        
         return e
 
-    def add_structline(self, source, target, **kwargs):
-        e = ChartStructline(self, source=source, target=target, **kwargs)
+    def add_structline(self, source_arg : ChartClassArg, target_arg : ChartClassArg,  **kwargs : Any) -> ChartStructline:
+        source = self.normalize_class_argument(source_arg)
+        target = self.normalize_class_argument(target_arg)
+        e = ChartStructline(source_uuid=source.uuid, target_uuid=target.uuid, **kwargs)
+        self.commit_edge(e)
+        return e
+
+    def add_extension(self, source_arg : ChartClassArg, target_arg : ChartClassArg, **kwargs : Any) -> ChartExtension:
+        source = self.normalize_class_argument(source_arg)
+        target = self.normalize_class_argument(target_arg)
+        e = ChartExtension(source_uuid=source.uuid, target_uuid=target.uuid, **kwargs)
+        self.commit_edge(e)
+        return e
+    
+    def commit_edge(self, e : ChartEdge):
+        e._sseq = self
         self._edges[e.uuid] = e
-        return e
+        e.source = self._classes[e.source_uuid]
+        e.target = self._classes[e.target_uuid]
+        e.source._edges.append(e)
+        e.target._edges.append(e)
+        self.add_batched_message(e.uuid + ".new", "chart.edge.add", *utils.arguments(new_edge=e))
 
-    def add_extension(self, source, target, **kwargs):
-        e = ChartExtension(self, source=source, target=target, **kwargs)
-        self._edges[e.uuid] = e
-        return e
-
-    def add_page_range(self, page_range):
+    def add_page_range(self, page_min : int, page_max : int):
+        page_range = (page_min, page_max)
         if page_range in self.page_list:
             return
         with self._page_list_lock:
@@ -128,43 +168,43 @@ class SseqChart:
             else:
                 idx = len(self.page_list)
             self.page_list.insert(idx, page_range)
-            self.add_batched_message(uuid4(), "chart.insert_page_range", *arguments(page_range=page_range, idx=idx))
+            self.add_batched_message(str(uuid4()), "chart.insert_page_range", *arguments(page_range=page_range, idx=idx))
     
 
-    def add_class_to_update(self, c):
+    def add_class_to_update(self, c : ChartClass):
         self.add_batched_message(c.uuid, "chart.class.update", *arguments(
             class_to_update=c
         ))
 
-    def add_class_to_delete(self, c):
+    def add_class_to_delete(self, c : ChartClass):
         self.add_batched_message(c.uuid + ".delete", "chart.class.delete", *arguments(
             class_to_delete=c
         ))
 
-    def add_edge_to_update(self, e):
+    def add_edge_to_update(self, e : ChartEdge):
         self.add_batched_message(e.uuid, "chart.edge.update", *arguments(
             edge_to_update=e
         ))
 
-    def add_edge_to_delete(self, e):
+    def add_edge_to_delete(self, e : ChartEdge):
         self.add_batched_message(e.uuid + ".delete", "chart.edge.delete", *arguments(
             edge_to_delete=e
         ))
 
-    def add_batched_message(self, key, cmd, args, kwargs):
-        if not hasattr(self, "_initialized"):
+    def add_batched_message(self, key : str, cmd : str, args : Tuple, kwargs : Dict[str, Any]):
+        if not self._initialized:
             return        
-        if key in self._objects_to_update:
+        if key in self._update_keys:
             return
         with self._batched_messages_lock:
             self.add_batched_message_raw(key, cmd, args, kwargs)
 
-    def add_batched_message_raw(self, key, cmd, args, kwargs):
-        if key in self._objects_to_update:
+    def add_batched_message_raw(self, key : str, cmd_str : str, args : Tuple, kwargs : Dict[str, Any]):
+        if key in self._update_keys:
             return
         if key is not None:       
-            self._objects_to_update.add(key)
-        cmd = Command().set_str(cmd)
+            self._update_keys.add(key)
+        cmd = Command().set_str(cmd_str)
         message = Message(cmd, args, kwargs)
         self._batched_messages.append(message)
 
@@ -173,131 +213,107 @@ class SseqChart:
             if self._agent:
                 await self._agent.send_batched_messages_a(self._batched_messages)
             self._batched_messages = []
-            self._objects_to_update = set()
+            self._update_keys = set()
     
-    def class_by_idx(self, x, y, idx):
-        return self.classes_in_bidegree(x, y)[idx]
+    def normalize_class_argument(self, class_arg : ChartClassArg) -> ChartClass:
+        if type(class_arg) is ChartClass:
+            return class_arg
+        return self.class_by_idx(*class_arg)
 
-    def classes_in_bidegree(self, x, y):
-        return self._classes_by_bidegree.get((x,y), [])
+    def class_by_idx(self, *args : int) -> ChartClass:
+        return self.classes_in_degree(*args[:-1])[args[-1]]
+
+    def classes_in_degree(self, *args : int) -> List[ChartClass]:
+        assert len(args) == self.num_gradings
+        return self._classes_by_degree.get(args, [])
 
     @property
     def x_min(self):
         return self.x_range[0]
 
     @x_min.setter
-    def x_min(self, value):
+    def x_min(self, value : int):
         self.add_batched_message("x_range", "chart.set_x_range", *arguments(x_range=self.x_range))
-        self.x_range[0] = value
+        x_range = list(self.x_range)
+        x_range[0] = value
+        self.x_range = tuple(x_range)
 
     @property
     def x_max(self):
         return self.x_range[1]
 
     @x_max.setter
-    def x_max(self, value):
+    def x_max(self, value : int):
         self.add_batched_message("x_range", "chart.set_x_range", *arguments(x_range=self.x_range))
-        self.x_range[1] = value
+        x_range = list(self.x_range)
+        x_range[1] = value
+        self.x_range = tuple(x_range)
 
     @property
     def y_min(self):
         return self.y_range[0]
     
     @y_min.setter
-    def y_min(self, value):
-        self.add_batched_message("y_range", "chart.set_y_range", *arguments(y_range=self.y_range))
-        self.y_range[0] = value
+    def y_min(self, value : int):
+        y_range = list(self.y_range)
+        y_range[0] = value
+        self.y_range = tuple(y_range)
+        self.add_batched_message(str(uuid4()), "chart.set_y_range", *arguments(y_range=self.y_range))
 
     @property
     def y_max(self):
         return self.y_range[1]
 
     @y_max.setter
-    def y_max(self, value):
-        self.add_batched_message("y_range", "chart.set_y_range", *arguments(y_range=self.y_range))
-        self.y_range[1] = value
+    def y_max(self, value : int):
+        y_range = list(self.y_range)
+        y_range[1] = value
+        self.y_range = tuple(y_range)
+        self.add_batched_message(str(uuid4()), "chart.set_y_range", *arguments(y_range=self.y_range))
+
 
     @property
-    def x_min_initial(self):
-        return self.x_range_initial[0]
+    def initial_x_min(self):
+        return self.initial_x_range[0]
 
-    @x_min.setter
-    def x_min_initial(self, value):
-        self.add_batched_message("initial_x_range", "chart.set_initial_x_range", *arguments(x_range=self.initial_x_range))
-        self.x_range_initial[0] = value
 
-    @property
-    def x_max_initial(self):
-        return self.x_range_initial[1]
-
-    @x_max.setter
-    def x_max_initial(self, value):
-        self.add_batched_message("initial_x_range", "chart.set_initial_x_range", *arguments(x_range=self.initial_x_range))
-        self.x_range_initial[1] = value
+    @initial_x_min.setter
+    def initial_x_min(self, value : int):
+        initial_x_range = list(self.initial_x_range)
+        initial_x_range[0] = value
+        self.initial_x_range = tuple(initial_x_range)
+        self.add_batched_message(str(uuid4()), "chart.set_initial_x_range", *arguments(x_range=self.initial_x_range))
 
     @property
-    def y_min_initial(self):
-        return self.y_range_initial[0]
-    
-    @y_min.setter
-    def y_min_initial(self, value):
-        self.add_batched_message("initial_y_range", "chart.set_initial_y_range", *arguments(y_range=self.initial_y_range))
-        self.y_range_initial[0] = value
+    def initial_x_max(self):
+        return self.initial_x_range[1]
+
+    @initial_x_max.setter
+    def initial_x_max(self, value : int):
+        initial_x_range = list(self.initial_x_range)
+        initial_x_range[1] = value
+        self.initial_x_range = tuple(initial_x_range)
+        self.add_batched_message(str(uuid4()), "chart.set_initial_x_range", *arguments(x_range=self.initial_x_range))
 
     @property
-    def y_max_initial(self):
-        return self.y_range_initial[1]
-
-    @y_max.setter
-    def y_max_initial(self, value):
-        self.add_batched_message("initial_y_range", "chart.set_initial_y_range", *arguments(y_range=self.y_range))
-        self.y_range_initial[1] = value
-
-    @utils.sseq_property
-    def x_range(self, storage_name):
-        pass
-    
-    @x_range.setter
-    def x_range(self, storage_name, value):
-        range_list = getattr(self, storage_name, [0, 0])
-        range_list[0] = value[0]
-        range_list[1] = value[1]
-        setattr(self, storage_name, range_list)
-        self.add_batched_message("x_range", "chart.set_x_range", *arguments(x_range=self.x_range))
-
-    @utils.sseq_property
-    def y_range(self, storage_name):
-        pass
-    
-    @y_range.setter
-    def y_range(self, storage_name, value):
-        range_list = getattr(self, storage_name, [0, 0])
-        range_list[0] = value[0]
-        range_list[1] = value[1]
-        setattr(self, storage_name, range_list)
-        self.add_batched_message("y_range", "chart.set_y_range", *arguments(y_range=self.y_range))
+    def initial_y_min(self):
+        return self.initial_y_range[0]
 
 
-    @utils.sseq_property
-    def x_range_initial(self, storage_name):
-        pass
-    
-    @x_range_initial.setter
-    def x_range_initial(self, storage_name, value):
-        range_list = getattr(self, storage_name, [0, 0])
-        range_list[0] = value[0]
-        range_list[1] = value[1]
-        setattr(self, storage_name, range_list)
-        self.add_batched_message("x_range_initial", "chart.set_initial_x_range", *arguments(x_range=self.x_range))
+    @initial_y_min.setter
+    def initial_y_min(self, value : int):
+        initial_y_range = list(self.initial_y_range)
+        initial_y_range[0] = value
+        self.initial_y_range = tuple(initial_y_range)
+        self.add_batched_message(str(uuid4()), "chart.set_initial_y_range", *arguments(x_range=self.initial_y_range))
 
-    @utils.sseq_property
-    def y_range_initial(self, storage_name):
-        pass
-    
-    @y_range_initial.setter
-    def y_range_initial(self, storage_name, value):
-        range_list = getattr(self, storage_name, [0, 0])
-        range_list[0] = value[0]
-        range_list[1] = value[1]
-        setattr(self, storage_name, range_list)
-        self.add_batched_message("y_range_initial", "chart.set_initial_y_range", *arguments(y_range=self.y_range))
+    @property
+    def initial_y_max(self):
+        return self.initial_y_range[1]
+
+    @initial_y_max.setter
+    def initial_y_max(self, value : int):
+        initial_y_range = list(self.initial_y_range)
+        initial_y_range[1] = value
+        self.initial_y_range = tuple(initial_y_range)
+        self.add_batched_message(str(uuid4()), "chart.set_initial_y_range", *arguments(x_range=self.initial_y_range))
