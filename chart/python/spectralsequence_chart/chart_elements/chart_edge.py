@@ -27,8 +27,8 @@ class ChartEdge:
         user_data : Optional[SignalDict[Any]] = None
     ):
         self._sseq : SseqChart
-        self.source_uuid = source_uuid
-        self.target_uuid = target_uuid
+        self._source_uuid = source_uuid
+        self._target_uuid = target_uuid
         self.source : ChartClass
         self.target : ChartClass
 
@@ -52,7 +52,7 @@ class ChartEdge:
 
 
     def needs_update(self):
-        self._sseq.add_edge_to_update(self)
+        self._sseq._add_edge_to_update(self)
 
     def replace_source(self, **kwargs : Any):
         self.source.replace(**kwargs)
@@ -61,21 +61,21 @@ class ChartEdge:
         self.target.replace(**kwargs)
 
     def delete(self):
-        self._sseq.add_edge_to_delete(self)
+        self._sseq._add_edge_to_delete(self)
         del self._sseq._edges[self.uuid]
         del self.source._edges[self.source._edges.index(self)]
         del self.target._edges[self.target._edges.index(self)]
 
-    EDGE_TYPE_DICT : Dict[str, type]
+    _EDGE_TYPE_DICT : Dict[str, type]
     @staticmethod
     def from_json(json : Dict[str, Any]) -> "ChartEdge":
         if hasattr(ChartEdge, "EDGE_TYPE_DICT"):
-            ChartEdge.EDGE_TYPE_DICT = {edge_type.__name__ : edge_type for edge_type in [ChartStructline, ChartDifferential, ChartExtension]}
+            ChartEdge._EDGE_TYPE_DICT = {edge_type.__name__ : edge_type for edge_type in [ChartStructline, ChartDifferential, ChartExtension]}
         edge_type = json["type"]
-        if edge_type in ChartEdge.EDGE_TYPE_DICT:
-            return ChartEdge.EDGE_TYPE_DICT[edge_type](**json)
+        if edge_type in ChartEdge._EDGE_TYPE_DICT:
+            return ChartEdge._EDGE_TYPE_DICT[edge_type](**json)
         else:
-            type_names = list(ChartEdge.EDGE_TYPE_DICT.keys())
+            type_names = list(ChartEdge._EDGE_TYPE_DICT.keys())
             types_list = ",".join(f'"{type}"' for type in type_names[:-1])
             types_list += f', or "${type_names[-1]}"'
             raise ValueError(f'"edge_type" should be one of {types_list}, not "{edge_type}"')

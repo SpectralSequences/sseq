@@ -62,7 +62,7 @@ class ChartClass:
         self._user_data : SignalDict[Any] = SignalDict(user_data if user_data else {}, parent=self)
 
     def needs_update(self):
-        self._sseq.add_class_to_update(self)
+        self._sseq._add_class_to_update(self)
 
     @staticmethod
     def from_json(json : Dict[str, Any]) -> "ChartClass":
@@ -102,7 +102,7 @@ class ChartClass:
         return self
 
     def delete(self):
-        self._sseq.add_class_to_delete(self)
+        self._sseq._add_class_to_delete(self)
         del self._sseq._classes[self.uuid]
         for e in self._edges:
             e.delete()
