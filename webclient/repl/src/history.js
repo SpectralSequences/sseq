@@ -5,42 +5,30 @@ export class History {
         this.store = new IndexedDBArray("sseq-repl-history", 1);
         this.databaseReady = this.openDatabase();
         this.historyStrings = [];
-        this.modifiedStrings = [];
+        this.temporaryValues = [];
         this.stringsFromLocalStorage = [];
-        return new Proxy(this, {
-            get : (obj, key) => {
-                if(!Number.isInteger(Number(key))){
-                    return Reflect.get(obj, key);
-                }
-                return (async () => {
-                    await this.databaseReady;
-                    if(key in this.modifiedStrings){
-                        return this.modifiedStrings[key];
-                    } 
-                    if(key in this.historyStrings){
-                        return this.historyStrings[key];
-                    } 
-                    if(key in this.stringsFromLocalStorage){
-                        return this.stringsFromLocalStorage[key];
-                    }
-                    await this.store.open();
-                    this.stringsFromLocalStorage[key] = await this.store[key];
-                    return this.stringsFromLocalStorage[key];
-                })();
-            },
-            set : (obj, key, value) => {
-                if(!Number.isInteger(Number(key))){
-                    return Reflect.set(obj, key, value);
-                }
-                this.modifiedStrings[key] = value;
-                return true;
-            }
-        });
+    }
+
+    async getItem(key){
+        await this.databaseReady;
+        if(key in this.temporaryValues){
+            return this.temporaryValues[key];
+        } 
+        if(key in this.historyStrings){
+            return this.historyStrings[key];
+        } 
+        if(key in this.stringsFromLocalStorage){
+            return this.stringsFromLocalStorage[key];
+        }
+        await this.store.open();
+        this.stringsFromLocalStorage[key] = await this.store[key];
+        return this.stringsFromLocalStorage[key];
     }
 
     async openDatabase(){
         await this.store.open();
         this.storedHistoryLength = await this.store.length;
+        this.idx = this.storedHistoryLength;
     }
 
     get length(){
@@ -51,10 +39,42 @@ export class History {
     async push(value){
         await this.databaseReady;
         this.historyStrings[this.length] = value;
+        this.temporaryValues = [];
+        this.undoStack = [];
+        this.redoStack = [];
+        this.idx = this.length;
     }
 
-    clearModifiedStrings(){
-        this.modifiedStrings = [];
+    step(didx) {
+		let oldIdx = this.idx;
+		this.idx = Math.min(Math.max(this.idx + didx, 0), this.length);
+        console.log(oldIdx, this.idx, didx);
+        if(this.idx === oldIdx){
+			return false;
+		}
+		this.redoStack = [];
+        this.undoStack.push(didx);
+        return true;
+    }
+    
+    get value(){
+        return this.getItem(this.idx);
+    }
+
+    setTemporaryValue(value){
+        this.temporaryValues[this.idx] = value;
+    }
+
+    undoStep(){
+        let didx = this.undoStack.pop();
+        this.idx -= didx;
+        this.redoStack.push(didx);
+    }
+
+    redoStep(){
+        let didx = this.redoStack.pop();
+        this.historyIdx += didx;
+        this.undoStack.push(didx);
     }
 
     async writeToLocalStorage(){

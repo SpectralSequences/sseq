@@ -23,7 +23,6 @@ class ReplElement extends HTMLElement {
 			wordWrap: 'wordWrapColumn',
 			wordWrapColumn: 80,
 			overviewRulerLanes : 0,
-			// "autoIndent": true
 			scrollBeyondLastLine : true,
 			contextmenu : false
 		};
@@ -94,7 +93,7 @@ class ReplElement extends HTMLElement {
 		return Math.floor((bottom - top)/this.lineHeight + 1);
 	}
 	
-	getTopScreenLineOfModelLine(lineNumber){
+	getLastScreenLineOfModelLine(lineNumber){
 		let bottom = this.editor.getTopForPosition(lineNumber, this.editor.getModel().getLineLength(lineNumber));
 		let top = 0;
 		return Math.floor((bottom - top)/this.lineHeight + 1);
@@ -116,7 +115,15 @@ class ReplElement extends HTMLElement {
 
 	getScreenLineCount(){
 		let totalLines = this.editor.getModel().getLineCount();
-		return this.getTopScreenLineOfModelLine(totalLines) + this.getScreenLinesInModelLine(totalLines);
+		return this.getLastScreenLineOfModelLine(totalLines);
+	}
+
+	revealSelection(scrollType = monaco.editor.ScrollType.Immediate){
+		this.editor.revealRange(this.editor.getSelection(), scrollType);
+	}
+
+	focus(){
+		this.editor.focus();
 	}
 
 
@@ -152,7 +159,7 @@ class ReplElement extends HTMLElement {
 		//    (4) attach a mutation observer to .view-overlays to make sure left-margin is set appropriately on output line overlays
 		// We are doing these things here to ensure that everything continues to work when "setModel" is called.
 		// Not clear whether this is necessary / a good idea...
-		this.overflowMutationObserver = new MutationObserver(async (mutationsList, observer) => {
+		this.overflowMutationObserver = new MutationObserver((mutationsList, observer) => {
 			for(let mutation of mutationsList){
 				if(mutation.target.matches(".view-lines")){
 					let elt = mutation.target.parentElement;
@@ -183,7 +190,12 @@ class ReplElement extends HTMLElement {
 	connectedCallback(){
         let styles = document.createElement("style");
         styles.innerText = ReplElement.styles;
-        this.appendChild(styles);
+		this.appendChild(styles);
+		this.dummyTextArea = document.createElement("textarea");
+		this.dummyTextArea.setAttribute("readonly", "");
+		this.dummyTextArea.style.position = "absolute";
+		this.dummyTextArea.style.opacity = 0;
+		this.appendChild(this.dummyTextArea);
 		let div = document.createElement("div");
 		this.overflowMutationObserver.observe(div, {"childList" : true, "subtree" : true});
         div.className = "root";
@@ -193,76 +205,203 @@ class ReplElement extends HTMLElement {
             this.editorOptions
 		);
 		this.editor.updateOptions({
-			lineNumbers : (n) => {
-				if(n in this.firstLines){
-					return ">>>";
-				}
-				if(n in this.outputModelLines){
-					return "";
-				}
-				return "...";
-			}
+			lineNumbers : this._getEditorLinePrefix.bind(this)
 		});
 		sleep(10).then(() => {
+			// Takes a minute for the Dom to update so we need to sleep first.
 			this.querySelector(".decorationsOverviewRuler").remove();
 		});
-		this._resizeObserver = new ResizeObserver(entries => {
-			this.editor.layout();
-		});
+		this._resizeObserver = new ResizeObserver(entries => this.editor.layout());
 		this._resizeObserver.observe(this);			
 		this.editor.onKeyDown(this._onkey.bind(this));
-		this.editor.onMouseDown(() => {
-			this.mouseDown = true;
-			this.fixCursorOutputPosition();
-		});
-		this.editor.onMouseUp(() => {
-			this.mouseDown = false;
-			if(this.doesSelectionIntersectReadOnlyRegion() && this.editor.getSelection().isEmpty()){
-				this.editor.setPosition(this.endOfInputPosition);
-				this.revealSelection();
-				this.fixCursorOutputPosition();
-			}
-		});
-		this.editor.onDidChangeCursorSelection(async (e) => {
-			if(e.secondarySelections.length > 0){
-				this.editor.setSelection(e.selection);
-				if(e.source !== "keyboard"){
-					return;
-				}
-				if(e.reason === monaco.editor.CursorChangeReason.Redo){
-					let historyIdxChange = this.historyIndexRedoStack.pop();
-					this.historyIdx += historyIdxChange;
-					this.historyIndexUndoStack.push(historyIdxChange);					
-					return;
-				}
-				if(e.reason === monaco.editor.CursorChangeReason.Undo){
-					let historyIdxChange = this.historyIndexUndoStack.pop();
-					this.historyIdx -= historyIdxChange;
-					this.historyIndexRedoStack.push(historyIdxChange);
-					return;
-				}
-				throw Error("Unreachable?");
-				return;
-			}
-			await sleep(0); // Need to sleep(0) to allow this.mouseDown to update.
-			if(!this.mouseDown && e.selection.isEmpty() && this.doesCurrentSelectionIntersectReadOnlyRegion()){
-				this.editor.setPosition(this.endOfInputPosition);
-				this.revealSelection();
-			}
-			this.fixCursorOutputPosition();
-		});
+		this.editor.onMouseDown(this._onmousedown.bind(this));
+		this.editor.onMouseUp(this._onmouseup.bind(this));
+		this.editor.onDidChangeCursorSelection(this._onDidChangeCursorSelection.bind(this));
 		this.editor.onDidScrollChange(() => this.updateLineOffsets());
-		window.addEventListener("cut", (e) => {
-			e.preventDefault();
-			if(this.value.length === 0){
+		window.addEventListener("cut", this._oncut.bind(this));
+	}
+
+	_getEditorLinePrefix(n){
+		if(n in this.firstLines){
+			return ">>>";
+		}
+		if(n in this.outputModelLines){
+			return "";
+		}
+		return "...";
+	}
+
+	fixCursorOutputPosition(){
+		let cursorLineNumber = this.editor.getPosition().lineNumber;
+		this.querySelector(".cursor").style.marginLeft = cursorLineNumber in this.outputModelLines ? "-4ch" : "";
+	}
+
+	_onmousedown(){
+		this.mouseDown = true;
+		this.justSteppedHistory = false;
+		this.fixCursorOutputPosition();
+	}
+
+	_onmouseup(){
+		this.mouseDown = false;
+		if(this.doesSelectionIntersectReadOnlyRegion() && this.editor.getSelection().isEmpty()){
+			this.editor.setPosition(this.endOfInputPosition);
+			this.revealSelection();
+			this.fixCursorOutputPosition();
+		}
+	}	
+
+	async _onDidChangeCursorSelection(e){
+		if(e.secondarySelections.length > 0){
+			this.editor.setSelection(e.selection);
+			if(e.source !== "keyboard"){
 				return;
 			}
-			;
-			if(this.doesCurrentSelectionIntersectReadOnlyRegion()){ 
-				event.clipboardData.setData('text/plain', this.editor.getModel().getValueInRange(this.editor.getSelection()));
+			if(e.reason === monaco.editor.CursorChangeReason.Redo){
+				this.undoStep();
 				return;
 			}
-			if(this.value.indexOf("\n") === -1 && this.editor.getSelection().isEmpty()){
+			if(e.reason === monaco.editor.CursorChangeReason.Undo){
+				this.redoStep();
+				return;
+			}
+			throw Error("Unreachable?");
+		}
+		await sleep(0); // Need to sleep(0) to allow this.mouseDown to update.
+		if(!this.mouseDown && e.selection.isEmpty() && this.doesCurrentSelectionIntersectReadOnlyRegion()){
+			this.editor.setPosition(this.endOfInputPosition);
+			this.revealSelection();
+		}
+		this.fixCursorOutputPosition();
+	}
+
+
+	/** 
+	*   e.preventDefault() doesn't work on certain keys, including Backspace, Tab, and Delete.
+	* 	As a recourse to prevent these rogue key events, we move the focus out of the input area 
+	*  	for just a moment and then move it back.
+	*   The .dummy should be a readonly textarea element.
+	*/
+	async preventKeyEvent(){
+		this.dummyTextArea.focus();
+		await sleep(0);
+		this.focus();
+	}
+
+
+	enforceReadOnlyRegion(e){
+		if(e.browserEvent.type !== "keydown"){
+			return;
+		}
+		if(
+			(e.browserEvent.ctrlKey || e.browserEvent.altKey || !/^[ -~]$/.test(e.browserEvent.key)) 
+			&& !["Backspace", "Tab", "Delete", "Enter"].includes(e.browserEvent.key)
+		){
+			return;
+		}
+		this.intersectSelectionWithInputRegion();
+	}
+
+	intersectSelectionWithInputRegion(){
+		const sel = this.editor.getSelection();
+		let newSel = sel.intersectRanges(this.allOfInputSelection);
+		if(newSel){
+			newSel = this.setSelectionDirection(newSel, sel.getDirection());
+			this.editor.setSelection(newSel);
+		} else {
+			this.editor.setPosition(this.endOfInputPosition);
+		}
+		this.revealSelection();
+		return !newSel || !sel.equalsSelection(newSel);
+	}
+
+
+	_onkey(e){
+		if(this.maybeStepHistory(event)){
+			this.preventKeyEvent();
+			return
+		}
+		this.justSteppedHistory = false;
+		// Many Ctrl+X commands require special handling.
+		if(e.browserEvent.ctrlKey){
+			if(e.browserEvent.key in ReplElement._ctrlCmdHandlers){
+				ReplElement._ctrlCmdHandlers[e.browserEvent.key].call(this, e);
+				return
+			}
+		}
+		if(e.browserEvent.key === "PageUp"){
+			this._onPageUp(e);
+			return;
+		}
+
+		// Prevent keys that would edit value if read only
+		if(this.readOnly && !e.browserEvent.altKey){
+			if(
+				!e.browserEvent.ctrlKey && /^[ -~]$/.test(e.browserEvent.key) 
+				|| ["Backspace", "Tab", "Delete", "Enter"].includes(e.browserEvent.key)
+			){
+				this.preventKeyEvent();
+				return;
+			}
+		}
+		// Prevent backing up past start of repl input
+		if(this.atStartOfInputRegion() && ["ArrowLeft", "Backspace"].includes(e.browserEvent.key)){
+			this.preventKeyEvent();
+			return;
+		}
+		this.enforceReadOnlyRegion(e);
+		if(e.browserEvent.key === "Enter") {
+			if(this.shouldEnterSubmit(e.browserEvent)){
+				this.preventKeyEvent();
+				this.submit();
+			}
+		}		
+	}
+
+	static get _ctrlCmdHandlers(){
+		return {
+			"c" : ReplElement.prototype._onCtrlC,
+			"v" : ReplElement.prototype._onCtrlV,
+			"x" : ReplElement.prototype._onCtrlX,
+			"a" : ReplElement.prototype._onCtrlA,
+			"Home" : ReplElement.prototype._onCtrlHome
+		};
+	}
+
+	_onCtrlC() {}
+
+	_onCtrlV(e) {
+		if(e.browserEvent.altKey){
+			// Ctrl+alt+V does nothing by default.
+			return;
+		}
+		if(this.readOnly){
+			this.preventKeyEvent();
+		}
+		if(this.doesCurrentSelectionIntersectReadOnlyRegion()){
+			this.preventKeyEvent();
+			this.editor.setPosition(this.endOfInputPosition);
+			this.revealSelection();
+		}
+	}
+
+	_onCtrlX() {
+		// In these cases, we do special handling in the "window.oncut" event listener see _oncut
+		if(
+			this.readOnly ||
+			this.doesCurrentSelectionIntersectReadOnlyRegion() 
+			|| this.value.indexOf("\n") === -1 && this.editor.getSelection().isEmpty()
+		){
+			this.preventKeyEvent();
+		}
+		// Otherwise allow default behavior
+		return
+	}
+
+	_oncut(e) {
+		e.preventDefault();
+		if(this.editor.getSelection().isEmpty()){
+			if(this.value.indexOf("\n") === -1 || this.readOnly){
 				event.clipboardData.setData('text/plain', this.value + "\n");
 				this.editor.pushUndoStop();
 				this.editor.executeEdits(
@@ -274,15 +413,97 @@ class ReplElement extends HTMLElement {
 					[this.endOfInputSelection]
 				);
 				this.editor.pushUndoStop();
+				this.preventKeyEvent();
 				return;
 			}
-		});
+			// Else allow default handling
+			return;
+		}
+		if(this.doesCurrentSelectionIntersectReadOnlyRegion() || this.readOnly){ 
+			event.clipboardData.setData('text/plain', this.editor.getModel().getValueInRange(this.editor.getSelection()));
+			this.preventKeyEvent();
+			return;
+		}
+		// Else allow default handling
 	}
 
-	fixCursorOutputPosition(){
-		let cursorLineNumber = this.editor.getPosition().lineNumber;
-		this.querySelector(".cursor").style.marginLeft = cursorLineNumber in this.outputModelLines ? "-4ch" : "";
-	}	
+	_onCtrlA(){
+		if(this.altKey){
+			// By default if alt key is pressed nothing happens.
+			return;
+		}
+		if(this.doesCurrentSelectionIntersectReadOnlyRegion()){
+			// If the current selection intersects read only region, allow default behavior
+			// which selects everything
+			return;
+		}
+		// Otherwise, we only want to select the input region
+		this.editor.setSelection(this.allOfInputSelection);
+		this.preventKeyEvent();
+	}
+
+	_onCtrlHome(e){
+		if(e.altKey){
+			// By default nothing happens if alt key is pressed.
+			return;
+		}
+		// If we are in the read only region
+		if(this.doesCurrentSelectionIntersectReadOnlyRegion()){
+			// And the user is holding shift, allow default behavior
+			if(e.browserEvent.shiftKey){
+				return;
+			}
+			// If in read only region but user is not holding shift, move to start of input region
+			this.editor.setPosition(this.startOfInputPosition);
+			this.revealSelection();
+			this.preventKeyEvent();
+			return;
+		}
+		// If in input region, select from start of current selection to start of input region
+		if(e.browserEvent.shiftKey){
+			this.editor.setSelection(this.editor.getSelection().setEndPosition(this.startOfInputPosition));
+		} else {
+			this.editor.setPosition(this.startOfInputPosition);
+		}
+		this.revealSelection();
+		this.preventKeyEvent();
+	}
+
+	_onPageUp(e){
+		if(e.browserEvent.altKey){
+			// alt key means move screen not cursor. So default handling is always fine.
+			return;
+		}
+		// If we are in the read only region
+		if(this.doesCurrentSelectionIntersectReadOnlyRegion()){
+			// And the user is holding shift, allow default behavior
+			if(e.browserEvent.shiftKey){
+				return;
+			}
+			// If in read only region but user is not holding shift, move to start of input region
+			this.editor.setPosition(this.startOfInputPosition);
+			this.revealSelection();
+			this.preventKeyEvent();
+			return;				
+		}
+		// If we would page up into read only region, select input region up to beginning.
+		let targetLine = this.getScreenLineOfPosition(this.editor.getPosition()) - this.linesPerScreen + 1;
+		if(targetLine <= this.getLastScreenLineOfModelLine(this.readOnlyLines)){
+			if(e.browserEvent.shiftKey){
+				this.editor.setSelection(this.editor.getSelection().setEndPosition(this.startOfInputPosition));
+			} else {
+				this.editor.setPosition(this.startOfInputPosition);
+			}
+			this.revealSelection();
+			this.preventKeyEvent();
+		}
+		// Otherwise, allow default page up behavior
+	}
+
+
+
+
+
 
 	updateLineOffsets(){
 		const outputLines = 
@@ -315,10 +536,10 @@ class ReplElement extends HTMLElement {
     }
 
     async stepHistory(didx) {
-		let oldHistoryIdx = this.historyIdx;
-		this.historyIdx = Math.min(Math.max(this.historyIdx + didx, 0), this.history.length);
-		if(this.historyIdx === oldHistoryIdx){
-			return;
+		this.history.setTemporaryValue(this.value);
+		const changed = this.history.step(didx);
+		if(!changed){
+			return
 		}
 		this.editor.pushUndoStop();
 		// Use a multi cursor before and after the edit operation to indicate that this is a history item
@@ -329,7 +550,7 @@ class ReplElement extends HTMLElement {
 			[this.editor.getSelection(), new monaco.Selection(1, 1, 1, 1)], 
 			[{
 				range : this.allOfInputSelection,
-				text : (await this.history[this.historyIdx]) || ""
+				text : (await this.history.value) || ""
 			}],
 			() => [this.endOfInputSelection, new monaco.Selection(1, 1, 1, 1)]
 		);
@@ -339,10 +560,11 @@ class ReplElement extends HTMLElement {
 		// for some reason we can't convince it that the before cursor state is a multi cursor like we need 
 		// for this strategy.
 		this.editor.setPosition(this.endOfInputPosition);
-		this.editor.revealSelection();
+		this.revealSelection();
 		// Record how much the history index changed for undo.
 		this.historyIndexRedoStack = [];
 		this.historyIndexUndoStack.push(didx);
+		this.justSteppedHistory = true;
 	}
 
 	
@@ -356,6 +578,9 @@ class ReplElement extends HTMLElement {
 	}
 
     shouldStepHistory(event){
+		if(!["ArrowUp", "ArrowDown"].includes(event.key)){
+			return false;
+		}
 		if(this.justSteppedHistory){
 			return true;
 		}
@@ -369,171 +594,7 @@ class ReplElement extends HTMLElement {
         if(event.key === "ArrowDown"){
             return this.getScreenLineOfPosition(pos) === this.getScreenLineOfPosition(this.endOfInputPosition);
         }
-        return false;
-	}
-	
-	async _onkey(e){
-		// Always allow default copy behavior
-		if(e.browserEvent.ctrlKey && e.browserEvent.key === "c"){
-			return
-		}
-		// Paste
-		if(e.browserEvent.ctrlKey && e.browserEvent.key === "v"){
-			if(this.doesCurrentSelectionIntersectReadOnlyRegion()){
-				this.preventKeyEvent();
-				this.editor.setPosition(this.endOfInputPosition());
-				this.revealSelection();
-			}
-			return
-		}
-		// Cut
-		if(e.browserEvent.ctrlKey && e.browserEvent.key === "x"){
-			// In these two cases, we do special handling in the "window.oncut" event listener
-			if(
-				this.doesCurrentSelectionIntersectReadOnlyRegion() 
-				|| this.value.indexOf("\n") === -1 && this.editor.getSelection().isEmpty()
-			){
-				this.preventKeyEvent();
-			}
-			// Otherwise allow default behavior
-			return
-		}
-		// Select all
-		if(e.browserEvent.ctrlKey && e.browserEvent.key === "a"){
-			// If we have a selection in read only region, allow default behavior
-			// everything gets selected
-			if(this.doesCurrentSelectionIntersectReadOnlyRegion()){
-				return;
-			}
-			// Otherwise, we only want to select the input region
-			this.editor.setSelection(this.allOfInputSelection);
-			this.preventKeyEvent();
-			return;
-		}
-		// Ctrl + Home
-		if(e.browserEvent.ctrlKey && e.browserEvent.key === "Home"){
-			// If we are in the read only region
-			if(this.doesCurrentSelectionIntersectReadOnlyRegion()){
-				// And the user is holding shift, allow default behavior
-				if(e.browserEvent.shiftKey){
-					return;
-				}
-				// If in read only region but user is not holding shift, move to start of input region
-				this.editor.setPosition(this.startOfInputPosition);
-				this.revealSelection();
-				this.preventKeyEvent();
-				return;
-			}
-			// If in input region, select from start of current selection to start of input region
-			if(e.browserEvent.shiftKey){
-				this.editor.setSelection(this.editor.getSelection().setEndPosition(this.startOfInputPosition));
-			} else {
-				this.editor.setPosition(this.startOfInputPosition);
-			}
-			this.revealSelection();
-			this.preventKeyEvent();
-			return;
-		}
-		// PageUp
-		if(e.browserEvent.key === "PageUp"){
-			// If we are in the read only region
-			if(this.doesCurrentSelectionIntersectReadOnlyRegion()){
-				// And the user is holding shift, allow default behavior
-				if(e.browserEvent.shiftKey){
-					return;
-				}
-				// If in read only region but user is not holding shift, move to start of input region
-				this.editor.setPosition(this.startOfInputPosition);
-				this.revealSelection();
-				this.preventKeyEvent();
-				return;				
-			}
-			// If we would page up into read only region, select input region up to beginning.
-			let targetLine = this.getScreenLineOfPosition(this.editor.getPosition()) - this.linesPerScreen + 1;
-			if(targetLine <= this.getTopScreenLineOfModelLine(this.readOnlyLines)){
-				if(e.browserEvent.shiftKey){
-					this.editor.setSelection(this.editor.getSelection().setEndPosition(this.startOfInputPosition));
-				} else {
-					this.editor.setPosition(this.startOfInputPosition);
-				}
-				this.revealSelection();
-				this.preventKeyEvent();
-			}
-			// Otherwise, allow default page up behavior
-			return;
-		}
-
-		// Prevent keys that would edit value if read only
-		if(this.readOnly && !e.browserEvent.ctrlKey && !e.browserEvent.altKey){
-			if(/^[ -~]$/.test(e.browserEvent.key) || ["Backspace", "Tab", "Delete", "Enter"].includes(e.browserEvent.key)){
-				this.moveSelectionOutOfReadOnlyRegion();
-				this.preventKeyEvent();
-				return;
-			}
-		}
-		// Prevent backing up past start of repl input
-		if(this.atStartOfInputRegion() && ["ArrowLeft", "Backspace"].includes(e.browserEvent.key)){
-			this.preventKeyEvent();
-			return;
-		}
-		if(this.maybeStepHistory(event)){
-			this.preventKeyEvent();
-			return
-		}
-		this.enforceReadOnlyRegion(e);
-		if(e.browserEvent.key === "Enter") {
-			if(this.shouldEnterSubmit(e.browserEvent)){
-				this.preventKeyEvent();
-				this.submit();
-			}
-		}
-	}
-
-	/** 
-	*   e.preventDefault() doesn't work on certain keys, including Backspace, Tab, and Delete.
-	* 	As a recourse to prevent these rogue key events, we move the focus out of the input area 
-	*  	for just a moment and then move it back.
-	*/
-	async preventKeyEvent(){
-		document.querySelector(".dummy").focus();
-		await sleep(0);
-		this.focus();
-	}
-	
-	async enforceReadOnlyRegion(e){
-		if(e.browserEvent.type !== "keydown"){
-			return false;
-		}
-		if((e.browserEvent.ctrlKey || e.browserEvent.altKey || !/^[ -~]$/.test(e.browserEvent.key)) && !["Backspace", "Tab", "Delete", "Enter"].includes(e.browserEvent.key)){
-			return false;
-		}
-		if(this.moveSelectionOutOfReadOnlyRegion()){
-			await this.preventKeyEvent();
-			// document.activeElement.dispatchEvent(new KeyboardEvent(e.browserEvent.type, e.browserEvent));
-			return true;
-		}
-		return false;
-	}
-
-	moveSelectionOutOfReadOnlyRegion(){
-		const sel = this.editor.getSelection();
-		let newSel = sel.intersectRanges(this.allOfInputSelection);
-		if(newSel){
-			newSel = this.setSelectionDirection(newSel, sel.getDirection());
-			this.editor.setSelection(newSel);
-		} else {
-			this.editor.setPosition(this.endOfInputPosition);
-		}
-		this.revealSelection();
-		return !newSel || !sel.equalsSelection(newSel);
-	}
-
-	revealSelection(scrollType = monaco.editor.ScrollType.Immediate){
-		this.editor.revealRange(this.editor.getSelection(), scrollType);
-	}
-
-	focus(){
-		this.editor.focus();
+        throw Error("Unreachable");
 	}
 
 	shouldEnterSubmit(event){
