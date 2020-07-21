@@ -8,20 +8,6 @@ import { promiseFromDomEvent } from "./utils"
 
 updatePythonLanguageDefinition(monaco);
 
-function countLines(value, cols){
-	let lines = 0;
-	let prev_pos = 0;
-	let pos = 0
-	while( (pos = value.indexOf(value, pos)) >= 0){
-		lines += Math.max(1, Math.ceil((pos - prev_pos - 1)/cols));
-		prev_pos = pos;
-		pos += 1;
-	}
-	pos = value.length
-	lines += Math.max(1, Math.ceil((pos - prev_pos - 1)/cols));
-	return lines;
-}
-
 class ReplElement extends HTMLElement {
 	static get defaultEditorOptions(){
 		return {
@@ -52,67 +38,94 @@ class ReplElement extends HTMLElement {
         `
 	}
 
-	getPositionAt(offset){
-		return this.editor.getModel().getPositionAt(offset);
+	get startOfInputPosition(){
+		return new monaco.Position(this.readOnlyLines + 1, 1);
 	}
 
-	getOffsetAt(offset){
-		return this.editor.getModel().getOffsetAt(offset);
+	get endOfInputPosition(){
+		return this.editor.getModel().getPositionAt(this.editor.getValue().length);
 	}
 
-	get position(){
-		return this.editor.getPosition();
+	get endOfInputSelection(){
+		return monaco.Selection.fromPositions(this.endOfInputPosition, this.endOfInputPosition);
 	}
 
-	set position(v){
-		this.editor.setPosition(v);
-	}
-
-	get offset(){
-		return this.getOffsetAt(this.position);
-	}
-
-	set offset(v){
-		this.position = this.getPositionAt(v);
-	}
-
-	get endPosition(){
-		return this.getPositionAt(this.editor.getValue().length);
-	}
-
-	get readOnlyValue(){
-		return this.editor.getModel().getValueInRange(this.rangeFromOffsets(0, this.readOnlyOffset));
+	get allOfInputSelection(){
+		return monaco.Selection.fromPositions(this.startOfInputPosition, this.endOfInputPosition);
 	}
 
 	get value(){
-		return this.editor.getModel().getValueInRange(this.rangeFromOffsets(this.readOnlyOffset, this.editor.getValue().length));
+		return this.editor.getModel().getValueInRange(this.allOfInputSelection);
 	}
 
-	set value(v){
-		this.editor.setValue(v);
+	doesSelectionIntersectReadOnlyRegion(sel){
+		return this.editor.getSelection().getStartPosition().isBefore(this.startOfInputPosition);
 	}
 
-	get readOnlyLines(){
-		return this._readOnlyLines;
+	doesCurrentSelectionIntersectReadOnlyRegion(){
+		return this.doesSelectionIntersectReadOnlyRegion(this.editor.getSelection());
 	}
 
-	set readOnlyLines(v){
-		this._readOnlyLines = v;
+	atStartOfInputRegion(){
+		return this.editor.getSelection().isEmpty() && this.editor.getPosition().equals(this.startOfInputPosition);
+	}
+
+	setSelectionDirection(sel, dir){
+		let {lineNumber : sline, column : scol} = sel.getStartPosition();
+		let {lineNumber : eline, column : ecol} = sel.getEndPosition();
+		return monaco.Selection.createWithDirection(sline, scol, eline, ecol, dir);
+	}
+
+	get lineHeight(){
+		return Number(this.querySelector(".view-line").style.height.slice(0,-2));
+	}
+
+	get screenHeight(){
+		return Number(getComputedStyle(document.querySelector("repl-terminal")).height.slice(0,-2));
+	}
+
+	get linesPerScreen(){
+		return Math.floor(this.screenHeight / this.lineHeight);
+	}
+
+	getScreenLinesInModelLine(lineNumber){
+		let bottom = this.editor.getTopForPosition(lineNumber, this.editor.getModel().getLineLength(lineNumber));
+		let top = this.editor.getTopForLineNumber(lineNumber);
+		return Math.floor((bottom - top)/this.lineHeight + 1);
 	}
 	
-	get readOnlyOffset(){
-		return this.editor.getModel().getOffsetAt(
-			new monaco.Position(this._readOnlyLines + 1, 1)
-		);
+	getTopScreenLineOfModelLine(lineNumber){
+		let bottom = this.editor.getTopForPosition(lineNumber, this.editor.getModel().getLineLength(lineNumber));
+		let top = 0;
+		return Math.floor((bottom - top)/this.lineHeight + 1);
 	}
+
+	getScreenLineOfPosition(pos){
+		let {lineNumber, column} = pos;
+		if(!Number.isInteger(lineNumber) || !Number.isInteger(column)){
+			throw Error("Invalid position!");
+		}
+		let bottom = this.editor.getTopForPosition(lineNumber, column);
+		let top = 0;
+		return Math.floor((bottom - top)/this.lineHeight + 1);
+	}
+
+	getModelLineCount(){
+		return this.editor.getModel().getLineCount();
+	}
+
+	getScreenLineCount(){
+		let totalLines = this.editor.getModel().getLineCount();
+		return this.getTopScreenLineOfModelLine(totalLines) + this.getScreenLinesInModelLine(totalLines);
+	}
+
 
 	constructor(options){
 		super();
 		this._focused = false;
 		this._visible = true;
 		this.editorOptions = Object.assign(ReplElement.defaultEditorOptions, options);
-		this._readOnlyLines = 1;
-		this._readOnlyOffset = 1;
+		this.readOnlyLines = 1;
 		this.readOnly = false;
         // window.addEventListener("pagehide", async (event) => {
         //     localStorage.setItem("pageHide", true);
@@ -204,8 +217,9 @@ class ReplElement extends HTMLElement {
 		});
 		this.editor.onMouseUp(() => {
 			this.mouseDown = false;
-			if(this.offset < this.readOnlyOffset && this.editor.getSelection().isEmpty()){
-				this.editor.setPosition(this.editor.getModel().getPositionAt(this.editor.getValue().length));
+			if(this.doesSelectionIntersectReadOnlyRegion() && this.editor.getSelection().isEmpty()){
+				this.editor.setPosition(this.endOfInputPosition);
+				this.revealSelection();
 				this.fixCursorOutputPosition();
 			}
 		});
@@ -231,9 +245,9 @@ class ReplElement extends HTMLElement {
 				return;
 			}
 			await sleep(0); // Need to sleep(0) to allow this.mouseDown to update.
-			if(!this.mouseDown && e.selection.isEmpty() && this.offset < this.readOnlyOffset){
-				this.editor.setPosition(this.editor.getModel().getPositionAt(this.editor.getValue().length));
-				this.editor.revealRange(this.editor.getSelection(), monaco.editor.ScrollType.Immediate);
+			if(!this.mouseDown && e.selection.isEmpty() && this.doesCurrentSelectionIntersectReadOnlyRegion()){
+				this.editor.setPosition(this.endOfInputPosition);
+				this.revealSelection();
 			}
 			this.fixCursorOutputPosition();
 		});
@@ -243,8 +257,8 @@ class ReplElement extends HTMLElement {
 			if(this.value.length === 0){
 				return;
 			}
-			let topOffset = this.getSelectionTopOffset(this.editor.getSelection());
-			if(topOffset < this.readOnlyOffset){ 
+			;
+			if(this.doesCurrentSelectionIntersectReadOnlyRegion()){ 
 				event.clipboardData.setData('text/plain', this.editor.getModel().getValueInRange(this.editor.getSelection()));
 				return;
 			}
@@ -254,10 +268,10 @@ class ReplElement extends HTMLElement {
 				this.editor.executeEdits(
 					"cut", 
 					[{
-						range : this.rangeFromOffsets(this.readOnlyOffset, this.editor.getValue().length),
+						range : this.allOfInputSelection,
 						text : ""
 					}],
-					[new monaco.Selection(10000, 10000, 10000, 10000)]
+					[this.endOfInputSelection]
 				);
 				this.editor.pushUndoStop();
 				return;
@@ -314,17 +328,18 @@ class ReplElement extends HTMLElement {
 		this.editor.getModel().pushEditOperations(
 			[this.editor.getSelection(), new monaco.Selection(1, 1, 1, 1)], 
 			[{
-				range : this.rangeFromOffsets(this.readOnlyOffset, this.editor.getValue().length),
+				range : this.allOfInputSelection,
 				text : (await this.history[this.historyIdx]) || ""
 			}],
-			[new monaco.Selection(10000, 10000, 10000, 10000), new monaco.Selection(1, 1, 1, 1)]
+			() => [this.endOfInputSelection, new monaco.Selection(1, 1, 1, 1)]
 		);
 		this.editor.pushUndoStop();
 		// For some reason we end up selecting the input. This is maybe a glitch with pushEditOperations?
 		// It doesn't happen with this.editor.executeEdits, but using executeEdits doesn't work because
 		// for some reason we can't convince it that the before cursor state is a multi cursor like we need 
 		// for this strategy.
-		this.editor.setSelection(new monaco.Selection(10000, 10000, 10000, 10000));
+		this.editor.setPosition(this.endOfInputPosition);
+		this.editor.revealSelection();
 		// Record how much the history index changed for undo.
 		this.historyIndexRedoStack = [];
 		this.historyIndexUndoStack.push(didx);
@@ -344,11 +359,15 @@ class ReplElement extends HTMLElement {
 		if(this.justSteppedHistory){
 			return true;
 		}
+		if(!this.editor.getSelection().isEmpty()){
+			return false;
+		}
+		let pos = this.editor.getPosition();
         if(event.key === "ArrowUp"){
-            return this.position.lineNumber === this.readOnlyLines + 1;
+			return this.getScreenLineOfPosition(pos) === this.getScreenLineOfPosition(this.startOfInputPosition);
         }
         if(event.key === "ArrowDown"){
-            return this.position.lineNumber === this.endPosition.lineNumber;
+            return this.getScreenLineOfPosition(pos) === this.getScreenLineOfPosition(this.endOfInputPosition);
         }
         return false;
 	}
@@ -360,89 +379,84 @@ class ReplElement extends HTMLElement {
 		}
 		// Paste
 		if(e.browserEvent.ctrlKey && e.browserEvent.key === "v"){
-			let topOffset = this.getSelectionTopOffset(this.editor.getSelection());
-			if(topOffset < this.readOnlyOffset){
+			if(this.doesCurrentSelectionIntersectReadOnlyRegion()){
 				this.preventKeyEvent();
-				this.editor.setSelection(new monaco.Selection(1000,1000,1000,1000));
+				this.editor.setPosition(this.endOfInputPosition());
+				this.revealSelection();
 			}
 			return
 		}
 		// Cut
 		if(e.browserEvent.ctrlKey && e.browserEvent.key === "x"){
-			let topOffset = this.getSelectionTopOffset(this.editor.getSelection());
-			if(topOffset < this.readOnlyOffset ||  this.value.indexOf("\n") === -1 && this.editor.getSelection().isEmpty()){
+			// In these two cases, we do special handling in the "window.oncut" event listener
+			if(
+				this.doesCurrentSelectionIntersectReadOnlyRegion() 
+				|| this.value.indexOf("\n") === -1 && this.editor.getSelection().isEmpty()
+			){
 				this.preventKeyEvent();
 			}
+			// Otherwise allow default behavior
 			return
 		}
 		// Select all
 		if(e.browserEvent.ctrlKey && e.browserEvent.key === "a"){
-			let topOffset = this.getSelectionTopOffset(this.editor.getSelection());
-			// If we already have a selection in read only region, allow default behavior
+			// If we have a selection in read only region, allow default behavior
 			// everything gets selected
-			if(topOffset < this.readOnlyOffset){
+			if(this.doesCurrentSelectionIntersectReadOnlyRegion()){
 				return;
 			}
 			// Otherwise, we only want to select the input region
-			let lineNumber = this.editor.getModel().getLineCount();
-			let column = this.editor.getModel().getLineLength(lineNumber) + 1;
-			this.editor.setSelection(new monaco.Selection(this.readOnlyLines + 1, 1, lineNumber, column));
+			this.editor.setSelection(this.allOfInputSelection);
 			this.preventKeyEvent();
 			return;
 		}
 		// Ctrl + Home
 		if(e.browserEvent.ctrlKey && e.browserEvent.key === "Home"){
-			let topOffset = this.getSelectionTopOffset(this.editor.getSelection());
 			// If we are in the read only region
-			if(topOffset < this.readOnlyOffset){
+			if(this.doesCurrentSelectionIntersectReadOnlyRegion()){
 				// And the user is holding shift, allow default behavior
 				if(e.browserEvent.shiftKey){
 					return;
 				}
 				// If in read only region but user is not holding shift, move to start of input region
-				let lineNumber = this.editor.getModel().getLineCount();
-				let column = this.editor.getModel().getLineLength(lineNumber) + 1;
-				this.editor.setPosition(new monaco.Position(this.readOnlyLines + 1, 1));
+				this.editor.setPosition(this.startOfInputPosition);
+				this.revealSelection();
 				this.preventKeyEvent();
 				return;
 			}
 			// If in input region, select from start of current selection to start of input region
-			let startOffset = this.getSelectionStartOffset(this.editor.getSelection());
 			if(e.browserEvent.shiftKey){
-				this.editor.setSelection(this.selectionFromOffsets(startOffset, this.readOnlyOffset));
+				this.editor.setSelection(this.editor.getSelection().setEndPosition(this.startOfInputPosition));
 			} else {
-				this.editor.setPosition(this.editor.getModel().getPositionAt(this.readOnlyOffset));
+				this.editor.setPosition(this.startOfInputPosition);
 			}
-			this.editor.revealPosition(this.editor.getModel().getPositionAt(this.readOnlyOffset));
+			this.revealSelection();
 			this.preventKeyEvent();
 			return;
 		}
 		// PageUp
 		if(e.browserEvent.key === "PageUp"){
-			let topOffset = this.getSelectionTopOffset(this.editor.getSelection());
 			// If we are in the read only region
-			if(topOffset < this.readOnlyOffset){
+			if(this.doesCurrentSelectionIntersectReadOnlyRegion()){
 				// And the user is holding shift, allow default behavior
 				if(e.browserEvent.shiftKey){
 					return;
 				}
 				// If in read only region but user is not holding shift, move to start of input region
-				let pos = this.editor.getModel().getPositionAt(this.readOnlyOffset);
-				this.editor.setPosition(pos);
-				this.editor.revealPosition(pos);
+				this.editor.setPosition(this.startOfInputPosition);
+				this.revealSelection();
 				this.preventKeyEvent();
 				return;				
 			}
 			// If we would page up into read only region, select input region up to beginning.
-			let targetLine = this.numScreenLinesUpToModelPosition(this.editor.getPosition()) - this.linesPerScreen + 1;
-			if(targetLine <= this.numScreenLinesUpToModelLine(this.readOnlyLines)){
-				let startOffset = this.getSelectionStartOffset(this.editor.getSelection());
+			let targetLine = this.getScreenLineOfPosition(this.editor.getPosition()) - this.linesPerScreen + 1;
+			if(targetLine <= this.getTopScreenLineOfModelLine(this.readOnlyLines)){
 				if(e.browserEvent.shiftKey){
-					this.editor.setSelection(this.selectionFromOffsets(startOffset, this.readOnlyOffset));
+					this.editor.setSelection(this.editor.getSelection().setEndPosition(this.startOfInputPosition));
 				} else {
-					this.editor.setPosition(this.editor.getModel().getPositionAt(this.readOnlyOffset));
+					this.editor.setPosition(this.startOfInputPosition);
 				}
-				this.editor.revealPosition(this.editor.getModel().getPositionAt(this.readOnlyOffset));	
+				this.revealSelection();
 				this.preventKeyEvent();
 			}
 			// Otherwise, allow default page up behavior
@@ -458,7 +472,7 @@ class ReplElement extends HTMLElement {
 			}
 		}
 		// Prevent backing up past start of repl input
-		if(this.offset === this.readOnlyOffset && ["ArrowLeft", "Backspace"].includes(e.browserEvent.key)){
+		if(this.atStartOfInputRegion() && ["ArrowLeft", "Backspace"].includes(e.browserEvent.key)){
 			this.preventKeyEvent();
 			return;
 		}
@@ -503,66 +517,20 @@ class ReplElement extends HTMLElement {
 
 	moveSelectionOutOfReadOnlyRegion(){
 		const sel = this.editor.getSelection();
-		const newSel = sel.intersectRanges(new monaco.Range(this.readOnlyLines + 1, 1, 10000, 10000));
+		let newSel = sel.intersectRanges(this.allOfInputSelection);
 		if(newSel){
+			newSel = this.setSelectionDirection(newSel, sel.getDirection());
 			this.editor.setSelection(newSel);
 		} else {
-			this.offset = this.value.length;
+			this.editor.setPosition(this.endOfInputPosition);
 		}
-		this.editor.revealRange(this.editor.getSelection(), monaco.editor.ScrollType.Immediate);
-		return !newSel || this.getSelectionTopOffset(sel) !== this.getSelectionTopOffset(newSel);
+		this.revealSelection();
+		return !newSel || !sel.equalsSelection(newSel);
 	}
 
-	getSelectionStartPosition(sel){
-		return new monaco.Position(sel.selectionStartLineNumber, sel.selectionStartColumn);
+	revealSelection(scrollType = monaco.editor.ScrollType.Immediate){
+		this.editor.revealRange(this.editor.getSelection(), scrollType);
 	}
-
-	getSelectionEndPosition(sel){
-		return new monaco.Position(sel.positionLineNumber, sel.positionColumn);
-	}
-
-	getSelectionTopPosition(sel){
-		return new monaco.Position(sel.startLineNumber, sel.startColumn);
-	}
-
-	getSelectionBottomPosition(sel){
-		return new monaco.Position(sel.endLineNumber, sel.endColumn);
-	}
-
-	getSelectionStartOffset(sel){
-		return this.editor.getModel().getOffsetAt(this.getSelectionStartPosition(sel));
-	}
-
-	getSelectionEndOffset(sel){
-		return this.editor.getModel().getOffsetAt(this.getSelectionEndPosition(sel));
-	}
-
-	getSelectionTopOffset(sel){
-		return this.editor.getModel().getOffsetAt(this.getSelectionTopPosition(sel));
-	}
-
-	getSelectionBottomOffset(sel){
-		return this.editor.getModel().getOffsetAt(this.getSelectionBottomPosition(sel));
-	}
-
-	selectionFromOffsets(startOffset, endOffset){
-		const model = this.editor.getModel();
-		return this.selectionFromPositions(model.getPositionAt(startOffset), model.getPositionAt(endOffset));
-	}
-
-	selectionFromPositions(startPosition, endPosition){
-		const {lineNumber : sline, column : scol} = startPosition;
-		const {lineNumber : eline, column : ecol} = endPosition;
-		return new monaco.Selection(sline, scol, eline, ecol);
-	}
-
-	rangeFromOffsets(startOffset, endOffset){
-		const model = this.editor.getModel();
-		const {lineNumber : sline, column : scol} = model.getPositionAt(startOffset);
-		const {lineNumber : eline, column : ecol} = model.getPositionAt(endOffset);
-		return new monaco.Range(sline, scol, eline, ecol);
-	}	
-
 
 	focus(){
 		this.editor.focus();
@@ -612,62 +580,17 @@ class ReplElement extends HTMLElement {
 		} else {
 			this.editor.setValue(`${this.editor.getValue()}\n`);
 		}
-		this.position = new monaco.Position(totalLines + 2, 1);
+		this.editor.setPosition(this.endOfInputPosition);
+		this.revealSelection();
 		this.readOnly = false;
 	}
 
-	get lineHeight(){
-		return Number(this.querySelector(".view-line").style.height.slice(0,-2));
-	}
-
-	get screenHeight(){
-		return Number(getComputedStyle(document.querySelector("repl-terminal")).height.slice(0,-2));
-	}
-
-	get linesPerScreen(){
-		return Math.floor(this.screenHeight / this.lineHeight);
-	}
-
-	numScreenLinesInModelLine(lineNumber){
-		let bottom = this.editor.getTopForPosition(lineNumber, this.editor.getModel().getLineLength(lineNumber));
-		let top = this.editor.getTopForLineNumber(lineNumber);
-		return Math.floor((bottom - top)/this.lineHeight + 1);
-	}
-	
-	numScreenLinesInModelLineUpToColumn(lineNumber, column){
-		let bottom = this.editor.getTopForPosition(lineNumber, column);
-		let top = this.editor.getTopForLineNumber(lineNumber);
-		return Math.floor((bottom - top)/this.lineHeight + 1);
-	}
-
-	numScreenLinesUpToModelLine(lineNumber){
-		let bottom = this.editor.getTopForPosition(lineNumber, this.editor.getModel().getLineLength(lineNumber));
-		let top = 0;
-		return Math.floor((bottom - top)/this.lineHeight + 1);
-	}
-
-	numScreenLinesUpToModelPosition(pos){
-		let {lineNumber, column} = pos;
-		let bottom = this.editor.getTopForPosition(lineNumber, column);
-		let top = 0;
-		return Math.floor((bottom - top)/this.lineHeight + 1);
-	}
-
-	numModelLines(){
-		return this.editor.getModel().getLineCount();
-	}
-
-	numScreenLines(){
-		return this.numScreenLinesUpToModelLine(this.editor.getModel().getLineCount());
-	}
-
-
     addOutput(value){
-		const totalScreenLines = this.numScreenLines();
-		const totalModelLines = this.numModelLines();
+		const totalScreenLines = this.getScreenLineCount();
+		const totalModelLines = this.getModelLineCount();
 		this.editor.setValue(`${this.editor.getValue()}\n${value}\n`);
 		this.outputModelLines[totalModelLines + 1] = true;
-		let numScreenLines = this.numScreenLinesInModelLine(totalModelLines + 1);
+		let numScreenLines = this.getScreenLinesInModelLine(totalModelLines + 1);
 		for(let curLine = totalScreenLines + 1; curLine <= totalScreenLines + numScreenLines; curLine++){
 			this.outputScreenLines[curLine] = true;
 		}
