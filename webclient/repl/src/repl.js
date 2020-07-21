@@ -4,21 +4,31 @@ import { monaco } from "./monaco";
 import { sleep } from './utils';
 import { PythonExecutor } from "./pythonExecutor";
 import { History } from "./history";
-
-// function sleep(ms) {
-//     return new Promise(resolve => setTimeout(resolve, ms));
-// }
+import { promiseFromDomEvent } from "./utils"
 
 updatePythonLanguageDefinition(monaco);
 function isSelectionNonempty(sel){
 	return sel.startLineNumber < sel.endLineNumber || sel.startColumn < sel.endColumn;
 }
 
+function countLines(value, cols){
+	let lines = 0;
+	let prev_pos = 0;
+	let pos = 0
+	while( (pos = value.indexOf(value, pos)) >= 0){
+		lines += Math.max(1, Math.ceil((pos - prev_pos - 1)/cols));
+		prev_pos = pos;
+		pos += 1;
+	}
+	pos = value.length
+	lines += Math.max(1, Math.ceil((pos - prev_pos - 1)/cols));
+	return lines;
+}
 
 class ReplElement extends HTMLElement {
 	static get defaultEditorOptions(){
 		return {
-			value: "",
+			value: "list(range(200))",
 			language: "python",
 			folding : false,
 			theme : "vs-dark",
@@ -87,13 +97,12 @@ class ReplElement extends HTMLElement {
 
 	set readOnlyLines(v){
 		this._readOnlyLines = v;
-		this._readOnlyOffset = this.editor.getModel().getOffsetAt(
-			new monaco.Position(this._readOnlyLines + 1, 1)
-		);
 	}
 	
 	get readOnlyOffset(){
-		return this._readOnlyOffset;
+		return this.editor.getModel().getOffsetAt(
+			new monaco.Position(this._readOnlyLines + 1, 1)
+		);
 	}
 
 	constructor(options){
@@ -112,7 +121,8 @@ class ReplElement extends HTMLElement {
         this.history = new History();
 		this.historyIdx = this.history.length;
 		this.firstLines = {};
-		this.outputLines = {};
+		this.outputScreenLines = {};
+		this.outputModelLines = {};
 		this.firstLines[1] = true; 
 	}
 
@@ -132,94 +142,86 @@ class ReplElement extends HTMLElement {
 				if(n in this.firstLines){
 					return ">>>";
 				}
-				if(n in this.outputLines){
+				if(n in this.outputModelLines){
 					return "";
 				}
 				return "...";
 			}
 		});
-		sleep(10).then(() => this.fixOutputPosition());
+		sleep(10).then(() => this.initializeOutputPositionFixers());
 		this._resizeObserver = new ResizeObserver(entries => {
 			this.editor.layout();
 		});
 		this._resizeObserver.observe(this);			
 		this.editor.onKeyDown(this._onkey.bind(this));
-		this.editor.onDidChangeCursorSelection((e) => {
-			if(isSelectionNonempty(e.selection)){
+		this.editor.onMouseDown(() => {
+			this.mouseDown = true;
+			this.fixCursorOutputPosition();
+		});
+		this.editor.onMouseUp(() => {
+			this.mouseDown = false;
+			if(this.offset < this.readOnlyOffset && !isSelectionNonempty(this.editor.getSelection())){
+				this.editor.setPosition(this.editor.getModel().getPositionAt(this.editor.getValue().length));
 				this.fixCursorOutputPosition();
-				return;
 			}
-			if(this.offset < this.readOnlyOffset){
-				this.editor.setPosition(this.editor.getModel().getPositionAt(this.readOnlyOffset));
+		});
+		this.editor.onDidChangeCursorSelection(async (e) => {
+			await sleep(0); // Need to sleep(0) to allow this.mouseDown to update.
+			if(!this.mouseDown && !isSelectionNonempty(e.selection) && this.offset < this.readOnlyOffset){
+				this.editor.setPosition(this.editor.getModel().getPositionAt(this.editor.getValue().length));
+				this.editor.revealRange(this.editor.getSelection(), monaco.editor.ScrollType.Immediate);
 			}
 			this.fixCursorOutputPosition();
 		});
-		this.errorWidget = {
-			domNode: null,
-			getId: function() {
-				return 'error.widget';
-			},
-			getDomNode: function() {
-				if (!this.domNode) {
-					this.domNode = document.createElement('div');
-					this.domNode.innerHTML = 'My content widget';
-					this.domNode.style.background = 'grey';
-				}
-				return this.domNode;
-			},
-			getPosition: function() {
-				return {
-					position: {
-						lineNumber: 11,
-						column: 8
-					},
-					preference: [monaco.editor.ContentWidgetPositionPreference.BELOW]
-				};
-			}
-		};
-		this.editor.addContentWidget(this.errorWidget);
-		
+		this.editor.onDidScrollChange(() => this.updateLineOffsets());
 	}
 
-	fixOutputPosition(){
+	fixCursorOutputPosition(){
+		let cursorLineNumber = this.editor.getPosition().lineNumber;
+		this.querySelector(".cursor").style.marginLeft = cursorLineNumber in this.outputModelLines ? "-4ch" : "";
+	}	
+
+	updateLineOffsets(){
+		const outputLines = 
+			Array.from(document.querySelectorAll(".view-line"))
+				.map(e => [e, Number(e.style.top.slice(0, -2))]).sort((a,b) => a[1]-b[1]).map(e => e[0]);
+		const topScreenLine = Math.floor(this.editor.getScrollTop() / this.lineHeight) + 1;
+		outputLines.forEach((e, idx) => {
+			let targetMargin = (topScreenLine + idx) in this.outputScreenLines ? "-4ch" : "";
+			if(e.style.marginLeft !== targetMargin){
+				e.style.marginLeft = targetMargin;
+			}
+		});
+		const outputOverlays = 
+			Array.from(document.querySelector(".view-overlays").children)
+				.map(e => [e, Number(e.style.top.slice(0, -2))]).sort((a,b) => a[1]-b[1]).map(e => e[0]);
+		outputOverlays.forEach((e, idx) => {
+			let targetMargin = (topScreenLine + idx) in this.outputScreenLines ? "-5ch" : "";
+			if(e.style.marginLeft !== targetMargin){
+				e.style.marginLeft = targetMargin;
+			}
+		});
+	}
+
+	initializeOutputPositionFixers(){
 		this.querySelector(".decorationsOverviewRuler").remove();
 		this.querySelector(".monaco-scrollable-element").style.overflow = "";
 		this.querySelector(".lines-content").style.overflow = "";
 		this.querySelector(".lines-content").style.contain = "";
 		this.lineContentMutationObserver = new MutationObserver((mutationsList, observer) => {
-			for(let mutation of mutationsList){
-				for(let addedNode of mutation.addedNodes){
-					let idx = Array.from(addedNode.parentElement.children).indexOf(addedNode);
-					if((idx + 1) in this.outputLines){
-						addedNode.style.marginLeft = "-4ch";
-					}
-				}
-			}
+			this.updateLineOffsets();
 		});
 		this.lineContentMutationObserver.observe(
 			this.querySelector(".view-lines"),
-			{"childList" : true}
+			{"childList" : true, "attributeFilter" : ["style"], "subtree" : true}
 		);
 		this.viewOverlaysMutationObserver = new MutationObserver((mutationsList, observer) => {
-			for(let mutation of mutationsList){
-				for(let addedNode of mutation.addedNodes){
-					let idx = Array.from(addedNode.parentElement.children).indexOf(addedNode);
-					if((idx + 1) in this.outputLines){
-						addedNode.style.marginLeft = "-5ch";
-					}
-				}
-			}
+			this.updateLineOffsets();
 		});
 		this.viewOverlaysMutationObserver.observe(
 			this.querySelector(".view-overlays"),
-			{"childList" : true}
+			{"childList" : true, "attributeFilter" : ["style"], "subtree" : true}
 		);
-	}
-
-
-	fixCursorOutputPosition(){
-		let cursorLineNumber = this.editor.getPosition().lineNumber;
-		this.querySelector(".cursor").style.marginLeft = cursorLineNumber in this.outputLines ? "-4ch" : "";
 	}
 	
 	async nextHistory(n = 1){
@@ -260,18 +262,101 @@ class ReplElement extends HTMLElement {
         }
         return false;
 	}
-		
 	
-	_onkey(e){
-		if(this.readOnly){
+	async _onkey(e){
+		// Always allow default copy behavior
+		if(e.browserEvent.ctrlKey && e.browserEvent.key === "c"){
+			return
+		}
+		// Select all
+		if(e.browserEvent.ctrlKey && e.browserEvent.key === "a"){
+			let topOffset = this.getSelectionTopOffset(this.editor.getSelection());
+			// If we already have a selection in read only region, allow default behavior
+			// everything gets selected
+			if(topOffset < this.readOnlyOffset){
+				return;
+			}
+			// Otherwise, we only want to select the input region
+			let lineNumber = this.editor.getModel().getLineCount();
+			let column = this.editor.getModel().getLineLength(lineNumber) + 1;
+			this.editor.setSelection(new monaco.Selection(this.readOnlyLines + 1, 1, lineNumber, column));
 			this.preventKeyEvent();
 			return;
 		}
-		if(this.offset === this.readOnlyOffset && e.browserEvent.key === "Backspace"){
+		// Ctrl + Home
+		if(e.browserEvent.ctrlKey && e.browserEvent.key === "Home"){
+			let topOffset = this.getSelectionTopOffset(this.editor.getSelection());
+			// If we are in the read only region
+			if(topOffset < this.readOnlyOffset){
+				// And the user is holding shift, allow default behavior
+				if(e.browserEvent.shiftKey){
+					return;
+				}
+				// If in read only region but user is not holding shift, move to start of input region
+				let lineNumber = this.editor.getModel().getLineCount();
+				let column = this.editor.getModel().getLineLength(lineNumber) + 1;
+				this.editor.setPosition(new monaco.Position(this.readOnlyLines + 1, 1));
+				this.preventKeyEvent();
+				return;
+			}
+			// If in input region, select from start of current selection to start of input region
+			let startOffset = this.getSelectionStartOffset(this.editor.getSelection());
+			if(e.browserEvent.shiftKey){
+				this.editor.setSelection(this.selectionFromOffsets(startOffset, this.readOnlyOffset));
+			} else {
+				this.editor.setPosition(this.editor.getModel().getPositionAt(this.readOnlyOffset));
+			}
+			this.editor.revealPosition(this.editor.getModel().getPositionAt(this.readOnlyOffset));
+			this.preventKeyEvent();
+			return;
+		}
+		// PageUp
+		if(e.browserEvent.key === "PageUp"){
+			let topOffset = this.getSelectionTopOffset(this.editor.getSelection());
+			// If we are in the read only region
+			if(topOffset < this.readOnlyOffset){
+				// And the user is holding shift, allow default behavior
+				if(e.browserEvent.shiftKey){
+					return;
+				}
+				// If in read only region but user is not holding shift, move to start of input region
+				let pos = this.editor.getModel().getPositionAt(this.readOnlyOffset);
+				this.editor.setPosition(pos);
+				this.editor.revealPosition(pos);
+				this.preventKeyEvent();
+				return;				
+			}
+			// If we would page up into read only region, select input region up to beginning.
+			let targetLine = this.numScreenLinesUpToModelPosition(this.editor.getPosition()) - this.linesPerScreen + 1;
+			if(targetLine <= this.numScreenLinesUpToModelLine(this.readOnlyLines)){
+				let startOffset = this.getSelectionStartOffset(this.editor.getSelection());
+				if(e.browserEvent.shiftKey){
+					this.editor.setSelection(this.selectionFromOffsets(startOffset, this.readOnlyOffset));
+				} else {
+					this.editor.setPosition(this.editor.getModel().getPositionAt(this.readOnlyOffset));
+				}
+				this.editor.revealPosition(this.editor.getModel().getPositionAt(this.readOnlyOffset));	
+				this.preventKeyEvent();
+			}
+			// Otherwise, allow default page up behavior
+			return;
+		}
+
+		// Prevent keys that would edit value if read only
+		if(this.readOnly && !e.browserEvent.ctrlKey && !e.browserEvent.altKey){
+			if(/^[ -~]$/.test(e.browserEvent.key) || ["Backspace", "Tab", "Delete", "Enter"].includes(e.browserEvent.key)){
+				this.moveSelectionOutOfReadOnlyRegion();
+				this.preventKeyEvent();
+				return;
+			}
+		}
+		// Prevent backing up past start of repl input
+		if(this.offset === this.readOnlyOffset && ["ArrowLeft", "Backspace"].includes(e.browserEvent.key)){
 			this.preventKeyEvent();
 			return;
 		}
 		if(this.maybeStepHistory(event)){
+			this.preventKeyEvent();
 			return
 		}
 		this.enforceReadOnlyRegion(e);
@@ -288,67 +373,81 @@ class ReplElement extends HTMLElement {
 	* 	As a recourse to prevent these rogue key events, we move the focus out of the input area 
 	*  	for just a moment and then move it back.
 	*/
-	preventKeyEvent(){
+	async preventKeyEvent(){
 		document.querySelector(".dummy").focus();
-		sleep(0).then(() => this.focus());
+		await sleep(0);
+		this.focus();
 	}
 	
-	enforceReadOnlyRegion(e){
+	async enforceReadOnlyRegion(e){
 		if(e.browserEvent.type !== "keydown"){
-			return;
+			return false;
 		}
-		if(!/^[ -~]$/.test(e.browserEvent.key) && !["Backspace", "Tab", "Delete", "Enter"].includes(e.browserEvent.key)){
-			return;
+		if((e.browserEvent.ctrlKey || e.browserEvent.altKey || !/^[ -~]$/.test(e.browserEvent.key)) && !["Backspace", "Tab", "Delete", "Enter"].includes(e.browserEvent.key)){
+			return false;
 		}
-		if(this.moveSelectionOutOfReadOnlyRegion() && ["Backspace", "Tab", "Delete"].includes(e.browserEvent.key)){
-			this.preventKeyEvent();
+		if(this.moveSelectionOutOfReadOnlyRegion()){
+			await this.preventKeyEvent();
+			// document.activeElement.dispatchEvent(new KeyboardEvent(e.browserEvent.type, e.browserEvent));
+			return true;
 		}
+		return false;
 	}
 
 	moveSelectionOutOfReadOnlyRegion(){
+		console.log("moveSelectionOutOfReadOnlyRegion");
 		const sel = this.editor.getSelection();
 		const newSel = sel.intersectRanges(new monaco.Range(this.readOnlyLines + 1, 1, 10000, 10000));
-		if(!newSel){
+		// console.log(newSel);
+		if(newSel){
+			this.editor.setSelection(newSel);
+		} else {
 			this.offset = this.value.length;
-			return true;
 		}
-		this.editor.setSelection(newSel);
-		return this.getSelectionTopOffset(sel) !== this.getSelectionTopOffset(newSel);
-
-		return a;
-		if(this.readOnlyOffset > this.getSelectionBottomOffset(sel)){
-			this.offset = this.value.length;
-			return true;
-		}
-		const startOffset = this.getSelectionStartOffset(sel);
-		const endOffset = this.getSelectionEndOffset(sel);
-		const newStartOffset = Math.max(startOffset, this.readOnlyOffset);
-		const newEndOffset = Math.max(endOffset, this.readOnlyOffset);
-		this.editor.setSelection(this.selectionFromOffsets(newStartOffset, newEndOffset));
-		return newStartOffset !== startOffset || newEndOffset !== endOffset;
+		this.editor.revealRange(this.editor.getSelection(), monaco.editor.ScrollType.Immediate);
+		return !newSel || this.getSelectionTopOffset(sel) !== this.getSelectionTopOffset(newSel);
 	}
 
+	getSelectionStartPosition(sel){
+		return new monaco.Position(sel.selectionStartLineNumber, sel.selectionStartColumn);
+	}
+
+	getSelectionEndPosition(sel){
+		return new monaco.Position(sel.positionLineNumber, sel.positionColumn);
+	}
+
+	getSelectionTopPosition(sel){
+		return new monaco.Position(sel.startLineNumber, sel.startColumn);
+	}
+
+	getSelectionBottomPosition(sel){
+		return new monaco.Position(sel.endLineNumber, sel.endColumn);
+	}
 
 	getSelectionStartOffset(sel){
-		return this.editor.getModel().getOffsetAt(new monaco.Position(sel.selectionStartLineNumber, sel.selectionStartColumn));
+		return this.editor.getModel().getOffsetAt(this.getSelectionStartPosition(sel));
 	}
 
 	getSelectionEndOffset(sel){
-		return this.editor.getModel().getOffsetAt(new monaco.Position(sel.positionLineNumber, sel.positionColumn));
+		return this.editor.getModel().getOffsetAt(this.getSelectionEndPosition(sel));
 	}
 
 	getSelectionTopOffset(sel){
-		return this.editor.getModel().getOffsetAt(new monaco.Position(sel.startLineNumber, sel.startColumn));
+		return this.editor.getModel().getOffsetAt(this.getSelectionTopPosition(sel));
 	}
 
 	getSelectionBottomOffset(sel){
-		return this.editor.getModel().getOffsetAt(new monaco.Position(sel.endLineNumber, sel.endColumn));
+		return this.editor.getModel().getOffsetAt(this.getSelectionBottomPosition(sel));
 	}
 
 	selectionFromOffsets(startOffset, endOffset){
 		const model = this.editor.getModel();
-		const {lineNumber : sline, column : scol} = model.getPositionAt(startOffset);
-		const {lineNumber : eline, column : ecol} = model.getPositionAt(endOffset);
+		return this.selectionFromPositions(model.getPositionAt(startOffset), model.getPositionAt(endOffset));
+	}
+
+	selectionFromPositions(startPosition, endPosition){
+		const {lineNumber : sline, column : scol} = startPosition;
+		const {lineNumber : eline, column : ecol} = endPosition;
 		return new monaco.Selection(sline, scol, eline, ecol);
 	}
 
@@ -382,45 +481,159 @@ class ReplElement extends HTMLElement {
 
 
 	async submit(){
-		const code = this.value.trim();
-		if(!code){
+		const code = this.value;
+		if(!code.trim()){
 			return;
 		}
 		this.readOnly = true;
 		let syntaxCheck = await this.executor.validate(code);
 		if(!syntaxCheck.validated){
-			console.log(syntaxCheck.error);
+			this.showSyntaxError(syntaxCheck.error);
 			this.readOnly = false;
 			return;
 		}
         this.history.push(code);
         await sleep(0);
         this.historyIdx = this.history.length;
-        const data = await this.executor.execute(code);
+		const data = await this.executor.execute(code);
+		const totalLines = this.editor.getModel().getLineCount();
+		let outputLines = data.result_repr !== undefined ? 1 : 0;
+
+		this.readOnlyLines = totalLines + outputLines;
+		this.firstLines[this.readOnlyLines + 1] = true;
+		
         if(data.result_repr !== undefined){
-            this.addOutput(data.result_repr);
+			this.addOutput(data.result_repr);
 		} else {
 			this.editor.setValue(`${this.editor.getValue()}\n`);
 		}
-		const totalLines = this.editor.getModel().getLineCount();
-		this.readOnlyLines = totalLines - 1;
-		this.position = new monaco.Position(totalLines, 1);
-		this.firstLines[totalLines] = true;
+		this.position = new monaco.Position(totalLines + 2, 1);
 		this.readOnly = false;
 	}
 
+	get lineHeight(){
+		return Number(this.querySelector(".view-line").style.height.slice(0,-2));
+	}
+
+	get screenHeight(){
+		return Number(getComputedStyle(document.querySelector("repl-terminal")).height.slice(0,-2));
+	}
+
+	get linesPerScreen(){
+		return Math.floor(this.screenHeight / this.lineHeight);
+	}
+
+	numScreenLinesInModelLine(lineNumber){
+		let bottom = this.editor.getTopForPosition(lineNumber, this.editor.getModel().getLineLength(lineNumber));
+		let top = this.editor.getTopForLineNumber(lineNumber);
+		return Math.floor((bottom - top)/this.lineHeight + 1);
+	}
+	
+	numScreenLinesInModelLineUpToColumn(lineNumber, column){
+		let bottom = this.editor.getTopForPosition(lineNumber, column);
+		let top = this.editor.getTopForLineNumber(lineNumber);
+		return Math.floor((bottom - top)/this.lineHeight + 1);
+	}
+
+	numScreenLinesUpToModelLine(lineNumber){
+		let bottom = this.editor.getTopForPosition(lineNumber, this.editor.getModel().getLineLength(lineNumber));
+		let top = 0;
+		return Math.floor((bottom - top)/this.lineHeight + 1);
+	}
+
+	numScreenLinesUpToModelPosition(pos){
+		let {lineNumber, column} = pos;
+		let bottom = this.editor.getTopForPosition(lineNumber, column);
+		let top = 0;
+		return Math.floor((bottom - top)/this.lineHeight + 1);
+	}
+
+	numModelLines(){
+		return this.editor.getModel().getLineCount();
+	}
+
+	numScreenLines(){
+		return this.numScreenLinesUpToModelLine(this.editor.getModel().getLineCount());
+	}
+
+
     addOutput(value){
-		const totalLines = this.editor.getModel().getLineCount();
+		const totalScreenLines = this.numScreenLines();
+		const totalModelLines = this.numModelLines();
 		this.editor.setValue(`${this.editor.getValue()}\n${value}\n`);
-		let outputLines = this.editor.getModel().getLineCount() - totalLines - 1;
-		for(let curLine = totalLines + 1; curLine <= totalLines + outputLines; curLine++){
-			this.outputLines[curLine] = true;
+		this.outputModelLines[totalModelLines + 1] = true;
+		let numScreenLines = this.numScreenLinesInModelLine(totalModelLines + 1);
+		console.log("numScreenLines", numScreenLines);
+		for(let curLine = totalScreenLines + 1; curLine <= totalScreenLines + numScreenLines; curLine++){
+			this.outputScreenLines[curLine] = true;
 		}
 	}
 	
-	updateOutputLines(){
-		for(let idx in this.outputLines){
-			this.querySelectorAll(".view-line")[idx - 1].style.marginLeft = "-4ch";
+	async showSyntaxError(error){
+		// console.log(error);
+		let line = this.readOnlyLines + error.lineno;
+		let col = error.offset;
+		let decorations = [{
+			range: new monaco.Range(line, 1, line, 1),
+			options: {
+				isWholeLine: true,
+				afterContentClassName: 'repl-error repl-error-decoration',
+			}
+		}];
+		if(col){
+			let endCol = this.editor.getModel().getLineMaxColumn(line);
+			decorations.push({
+				range: new monaco.Range(line, col, line, endCol),
+				options: {
+					isWholeLine: true,
+					className: 'repl-error repl-error-decoration-highlight',
+					inlineClassName : 'repl-error-decoration-text'
+
+				}
+			});
+		}
+		this.decorations = this.editor.deltaDecorations([], decorations);
+		this.errorWidget = {
+			domNode: null,
+			getId: function() {
+				return 'error.widget';
+			},
+			getDomNode: function() {
+				if (!this.domNode) {
+					this.domNode = document.createElement('div');
+					this.domNode.innerText = `${error.type}: ${error.msg}`;
+					this.domNode.classList.add("repl-error");
+					this.domNode.classList.add("repl-error-widget");
+					this.domNode.setAttribute("transition", "show");
+					promiseFromDomEvent(this.domNode, "transitionend").then(
+						() => this.domNode.removeAttribute("transition")
+					);
+					sleep(0).then(() => this.domNode.setAttribute("active", ""));
+				}
+				return this.domNode;
+			},
+			getPosition: function() {
+				return {
+					position: {
+						lineNumber: line,
+						column: 1
+					},
+					preference: [monaco.editor.ContentWidgetPositionPreference.BELOW]
+				};
+			}
+		};
+		this.editor.addContentWidget(this.errorWidget);
+		await sleep(10);
+		let elts = [
+			document.querySelector(".repl-error-decoration-highlight"),
+			document.querySelector(".repl-error-decoration"),
+		];
+		for(let elt of elts){
+			elt.setAttribute("transition", "show");
+			elt.setAttribute("active", "");
+			promiseFromDomEvent(elt, "transitionend").then(
+				() => elt.removeAttribute("transition")
+			);
 		}
 	}
 }

@@ -31,13 +31,23 @@ def eval_code(code, ns, flags=0):
     else:
         return [None, None]
 
+def firstlinelen(s):
+    res = s.find("\n")
+    if res == -1:
+        return len(s)
+    return res
+
 def validate_code(code, flags=0):
-    code = dedent(code)
+    dedent_code = dedent(code)
+    dedent_offset = firstlinelen(code) - firstlinelen(dedent_code)
+    code = dedent_code
     try:
         compile(code, '<exec>', mode='exec', flags=flags)
         return None
     except SyntaxError as e:
         error = e
+        if error.offset:
+            error.offset += dedent_offset
     except Exception as e:
         eprint("validate_code failed to catch exception of type", error.__class__.__name__)
         raise

@@ -2,13 +2,15 @@ self.languagePluginUrl = '/pyodide-build-0.15.0/'
 importScripts('/pyodide-build-0.15.0/pyodide.js')
 import executor_text from "./executor.py";
 
+const jediWheelURL = "https://files.pythonhosted.org/packages/c3/d4/36136b18daae06ad798966735f6c3fb96869c1be9f8245d2a8f556e40c36/jedi-0.17.2-py2.py3-none-any.whl";
 async function startup(){
     await languagePluginLoader;
     await Promise.all([
         async function(){
             // await pyodide.loadPackage("micropip");
             await self.pyodide.runPythonAsync(`
-                # import micropip
+                import micropip
+                micropip.install("${jediWheelURL}")
                 # micropip.install("spectralsequence_chart")
                 FLAGS = 0
                 NAMESPACE = {}
