@@ -26,6 +26,49 @@
                 left : 0;
                 position: absolute !important;
             }
+
+            .repl-error-widget {
+                width  : max-content;
+                padding: 0.3em;
+                font-size: 80%;
+                color: white;
+                background-color: #900;     
+                box-sizing: border-box;
+                margin-left: 80ch;
+            }
+
+            .repl-error {
+                opacity: 0;
+            }
+
+            .repl-error[transition=show] {
+                transition : 3s ease;
+            }
+
+            .repl-error[transition=hide] {
+                transition : 0.2s ease;
+            }        
+
+            .repl-error[active] {
+                opacity: 1;
+            }
+
+            .repl-error-decoration {
+                background-color: #900;
+                display: block;
+                width : 80ch;
+                height : 2px;
+            }
+
+            .repl-error-decoration-text {
+                color : blue !important;
+                margin-left : -4ch;
+            }
+
+            .repl-error-decoration-highlight {
+                background-color: #600;
+                padding-right: 1ch;
+            }
         </style>
     </head>
 <body>
@@ -33,6 +76,6 @@
 <script src="./index.bundle.js"></script>
 <repl-terminal tabindex="-1" class="monaco-editor">
 </repl-terminal>
-<div class="dummy" tabindex="-1"></div>
+<textarea class="dummy" readonly></textarea>
 </body>
 </html>

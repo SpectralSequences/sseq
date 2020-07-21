@@ -7,9 +7,6 @@ import { History } from "./history";
 import { promiseFromDomEvent } from "./utils"
 
 updatePythonLanguageDefinition(monaco);
-function isSelectionNonempty(sel){
-	return sel.startLineNumber < sel.endLineNumber || sel.startColumn < sel.endColumn;
-}
 
 function countLines(value, cols){
 	let lines = 0;
@@ -28,7 +25,7 @@ function countLines(value, cols){
 class ReplElement extends HTMLElement {
 	static get defaultEditorOptions(){
 		return {
-			value: "list(range(200))",
+			value: "\n",
 			language: "python",
 			folding : false,
 			theme : "vs-dark",
@@ -48,7 +45,7 @@ class ReplElement extends HTMLElement {
     
     static get styles() {
         return css`
-            #root {
+            .root {
                 height : 100%;
                 width : 100%;
             }
@@ -83,6 +80,10 @@ class ReplElement extends HTMLElement {
 		return this.getPositionAt(this.editor.getValue().length);
 	}
 
+	get readOnlyValue(){
+		return this.editor.getModel().getValueInRange(this.rangeFromOffsets(0, this.readOnlyOffset));
+	}
+
 	get value(){
 		return this.editor.getModel().getValueInRange(this.rangeFromOffsets(this.readOnlyOffset, this.editor.getValue().length));
 	}
@@ -110,8 +111,8 @@ class ReplElement extends HTMLElement {
 		this._focused = false;
 		this._visible = true;
 		this.editorOptions = Object.assign(ReplElement.defaultEditorOptions, options);
-		this._readOnlyLines = 0;
-		this._readOnlyOffset = 0;
+		this._readOnlyLines = 1;
+		this._readOnlyOffset = 1;
 		this.readOnly = false;
         // window.addEventListener("pagehide", async (event) => {
         //     localStorage.setItem("pageHide", true);
@@ -119,24 +120,65 @@ class ReplElement extends HTMLElement {
         // });
         this.executor = new PythonExecutor();
         this.history = new History();
-		this.historyIdx = this.history.length;
+		this.historyIdx = this.history.length || 0;
+		this.historyIndexUndoStack = [];
+		this.historyIndexRedoStack = [];
 		this.firstLines = {};
 		this.outputScreenLines = {};
 		this.outputModelLines = {};
-		this.firstLines[1] = true; 
+		this.outputModelLines[1] = true;
+		this.outputScreenLines[1] = true;
+		this.firstLines[2] = true; 
+		this.lineOffsetMutationObserver = new MutationObserver((mutationsList, observer) => {
+			this.updateLineOffsets();
+		});
+		// To display our output lines left of our input lines, we need to do the following:
+		//    (1) remove contain:strict; and overflow:hide; from .lines-content
+		//    (2) remove overflow:hide; from ".monaco-scrollable-element"
+		// 	  (3) attach a mutation observer to .view-lines to make sure left-margin is set appropriately on output line content
+		//    (4) attach a mutation observer to .view-overlays to make sure left-margin is set appropriately on output line overlays
+		// We are doing these things here to ensure that everything continues to work when "setModel" is called.
+		// Not clear whether this is necessary / a good idea...
+		this.overflowMutationObserver = new MutationObserver(async (mutationsList, observer) => {
+			for(let mutation of mutationsList){
+				if(mutation.target.matches(".view-lines")){
+					let elt = mutation.target.parentElement;
+					if(!elt.matches(".lines-content")){
+						throw Error("This shouldn't happen.");
+					}
+					elt.style.contain = "";
+					elt.style.overflow = "";
+					elt = elt.parentElement;
+					if(!elt.matches(".monaco-scrollable-element")){
+						throw Error("This shouldn't happen.");
+					}
+					elt.style.overflow = "";
+					this.lineOffsetMutationObserver.observe(
+						this.querySelector(".view-lines"),
+						{"childList" : true, "attributeFilter" : ["style"], "subtree" : true}
+					);
+					this.lineOffsetMutationObserver.observe(
+						this.querySelector(".view-overlays"),
+						{"childList" : true, "attributeFilter" : ["style"], "subtree" : true}
+					);
+					this.updateLineOffsets();
+				}
+			}
+		});
 	}
 
 	connectedCallback(){
         let styles = document.createElement("style");
         styles.innerText = ReplElement.styles;
         this.appendChild(styles);
-        let div = document.createElement("div");
-        div.id = "root";
+		let div = document.createElement("div");
+		this.overflowMutationObserver.observe(div, {"childList" : true, "subtree" : true});
+        div.className = "root";
         this.appendChild(div);
 		this.editor = monaco.editor.create(
-            this.querySelector("div"),
+            this.querySelector(".root"),
             this.editorOptions
-        );
+		);
 		this.editor.updateOptions({
 			lineNumbers : (n) => {
 				if(n in this.firstLines){
@@ -148,7 +190,9 @@ class ReplElement extends HTMLElement {
 				return "...";
 			}
 		});
-		sleep(10).then(() => this.initializeOutputPositionFixers());
+		sleep(10).then(() => {
+			this.querySelector(".decorationsOverviewRuler").remove();
+		});
 		this._resizeObserver = new ResizeObserver(entries => {
 			this.editor.layout();
 		});
@@ -160,20 +204,65 @@ class ReplElement extends HTMLElement {
 		});
 		this.editor.onMouseUp(() => {
 			this.mouseDown = false;
-			if(this.offset < this.readOnlyOffset && !isSelectionNonempty(this.editor.getSelection())){
+			if(this.offset < this.readOnlyOffset && this.editor.getSelection().isEmpty()){
 				this.editor.setPosition(this.editor.getModel().getPositionAt(this.editor.getValue().length));
 				this.fixCursorOutputPosition();
 			}
 		});
 		this.editor.onDidChangeCursorSelection(async (e) => {
+			if(e.secondarySelections.length > 0){
+				this.editor.setSelection(e.selection);
+				if(e.source !== "keyboard"){
+					return;
+				}
+				if(e.reason === monaco.editor.CursorChangeReason.Redo){
+					let historyIdxChange = this.historyIndexRedoStack.pop();
+					this.historyIdx += historyIdxChange;
+					this.historyIndexUndoStack.push(historyIdxChange);					
+					return;
+				}
+				if(e.reason === monaco.editor.CursorChangeReason.Undo){
+					let historyIdxChange = this.historyIndexUndoStack.pop();
+					this.historyIdx -= historyIdxChange;
+					this.historyIndexRedoStack.push(historyIdxChange);
+					return;
+				}
+				throw Error("Unreachable?");
+				return;
+			}
 			await sleep(0); // Need to sleep(0) to allow this.mouseDown to update.
-			if(!this.mouseDown && !isSelectionNonempty(e.selection) && this.offset < this.readOnlyOffset){
+			if(!this.mouseDown && e.selection.isEmpty() && this.offset < this.readOnlyOffset){
 				this.editor.setPosition(this.editor.getModel().getPositionAt(this.editor.getValue().length));
 				this.editor.revealRange(this.editor.getSelection(), monaco.editor.ScrollType.Immediate);
 			}
 			this.fixCursorOutputPosition();
 		});
 		this.editor.onDidScrollChange(() => this.updateLineOffsets());
+		window.addEventListener("cut", (e) => {
+			e.preventDefault();
+			if(this.value.length === 0){
+				return;
+			}
+			let topOffset = this.getSelectionTopOffset(this.editor.getSelection());
+			if(topOffset < this.readOnlyOffset){ 
+				event.clipboardData.setData('text/plain', this.editor.getModel().getValueInRange(this.editor.getSelection()));
+				return;
+			}
+			if(this.value.indexOf("\n") === -1 && this.editor.getSelection().isEmpty()){
+				event.clipboardData.setData('text/plain', this.value + "\n");
+				this.editor.pushUndoStop();
+				this.editor.executeEdits(
+					"cut", 
+					[{
+						range : this.rangeFromOffsets(this.readOnlyOffset, this.editor.getValue().length),
+						text : ""
+					}],
+					[new monaco.Selection(10000, 10000, 10000, 10000)]
+				);
+				this.editor.pushUndoStop();
+				return;
+			}
+		});
 	}
 
 	fixCursorOutputPosition(){
@@ -202,27 +291,6 @@ class ReplElement extends HTMLElement {
 			}
 		});
 	}
-
-	initializeOutputPositionFixers(){
-		this.querySelector(".decorationsOverviewRuler").remove();
-		this.querySelector(".monaco-scrollable-element").style.overflow = "";
-		this.querySelector(".lines-content").style.overflow = "";
-		this.querySelector(".lines-content").style.contain = "";
-		this.lineContentMutationObserver = new MutationObserver((mutationsList, observer) => {
-			this.updateLineOffsets();
-		});
-		this.lineContentMutationObserver.observe(
-			this.querySelector(".view-lines"),
-			{"childList" : true, "attributeFilter" : ["style"], "subtree" : true}
-		);
-		this.viewOverlaysMutationObserver = new MutationObserver((mutationsList, observer) => {
-			this.updateLineOffsets();
-		});
-		this.viewOverlaysMutationObserver.observe(
-			this.querySelector(".view-overlays"),
-			{"childList" : true, "attributeFilter" : ["style"], "subtree" : true}
-		);
-	}
 	
 	async nextHistory(n = 1){
         await this.stepHistory(n);
@@ -233,11 +301,33 @@ class ReplElement extends HTMLElement {
     }
 
     async stepHistory(didx) {
-		return;
-        this.historyIdx = Math.min(Math.max(this.historyIdx + didx, 0), this.history.length);
-        this.value = await this.history[this.historyIdx] || "";
-        await sleep(0);
-        this.offset = this.value.length; // Set cursor at end
+		let oldHistoryIdx = this.historyIdx;
+		this.historyIdx = Math.min(Math.max(this.historyIdx + didx, 0), this.history.length);
+		if(this.historyIdx === oldHistoryIdx){
+			return;
+		}
+		this.editor.pushUndoStop();
+		// Use a multi cursor before and after the edit operation to indicate that this is a history item
+		// change. In onDidChangeCursorSelection will check for a secondary selection and use the presence 
+		// of it to deduce that a history step occurred. We then immediately clear the secondary selection
+		// to prevent the user from ever seeing it.
+		this.editor.getModel().pushEditOperations(
+			[this.editor.getSelection(), new monaco.Selection(1, 1, 1, 1)], 
+			[{
+				range : this.rangeFromOffsets(this.readOnlyOffset, this.editor.getValue().length),
+				text : (await this.history[this.historyIdx]) || ""
+			}],
+			[new monaco.Selection(10000, 10000, 10000, 10000), new monaco.Selection(1, 1, 1, 1)]
+		);
+		this.editor.pushUndoStop();
+		// For some reason we end up selecting the input. This is maybe a glitch with pushEditOperations?
+		// It doesn't happen with this.editor.executeEdits, but using executeEdits doesn't work because
+		// for some reason we can't convince it that the before cursor state is a multi cursor like we need 
+		// for this strategy.
+		this.editor.setSelection(new monaco.Selection(10000, 10000, 10000, 10000));
+		// Record how much the history index changed for undo.
+		this.historyIndexRedoStack = [];
+		this.historyIndexUndoStack.push(didx);
 	}
 
 	
@@ -266,6 +356,23 @@ class ReplElement extends HTMLElement {
 	async _onkey(e){
 		// Always allow default copy behavior
 		if(e.browserEvent.ctrlKey && e.browserEvent.key === "c"){
+			return
+		}
+		// Paste
+		if(e.browserEvent.ctrlKey && e.browserEvent.key === "v"){
+			let topOffset = this.getSelectionTopOffset(this.editor.getSelection());
+			if(topOffset < this.readOnlyOffset){
+				this.preventKeyEvent();
+				this.editor.setSelection(new monaco.Selection(1000,1000,1000,1000));
+			}
+			return
+		}
+		// Cut
+		if(e.browserEvent.ctrlKey && e.browserEvent.key === "x"){
+			let topOffset = this.getSelectionTopOffset(this.editor.getSelection());
+			if(topOffset < this.readOnlyOffset ||  this.value.indexOf("\n") === -1 && this.editor.getSelection().isEmpty()){
+				this.preventKeyEvent();
+			}
 			return
 		}
 		// Select all
@@ -395,10 +502,8 @@ class ReplElement extends HTMLElement {
 	}
 
 	moveSelectionOutOfReadOnlyRegion(){
-		console.log("moveSelectionOutOfReadOnlyRegion");
 		const sel = this.editor.getSelection();
 		const newSel = sel.intersectRanges(new monaco.Range(this.readOnlyLines + 1, 1, 10000, 10000));
-		// console.log(newSel);
 		if(newSel){
 			this.editor.setSelection(newSel);
 		} else {
@@ -494,7 +599,7 @@ class ReplElement extends HTMLElement {
 		}
         this.history.push(code);
         await sleep(0);
-        this.historyIdx = this.history.length;
+		this.historyIdx = this.history.length;
 		const data = await this.executor.execute(code);
 		const totalLines = this.editor.getModel().getLineCount();
 		let outputLines = data.result_repr !== undefined ? 1 : 0;
@@ -563,14 +668,12 @@ class ReplElement extends HTMLElement {
 		this.editor.setValue(`${this.editor.getValue()}\n${value}\n`);
 		this.outputModelLines[totalModelLines + 1] = true;
 		let numScreenLines = this.numScreenLinesInModelLine(totalModelLines + 1);
-		console.log("numScreenLines", numScreenLines);
 		for(let curLine = totalScreenLines + 1; curLine <= totalScreenLines + numScreenLines; curLine++){
 			this.outputScreenLines[curLine] = true;
 		}
 	}
 	
 	async showSyntaxError(error){
-		// console.log(error);
 		let line = this.readOnlyLines + error.lineno;
 		let col = error.offset;
 		let decorations = [{
