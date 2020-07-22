@@ -134,10 +134,6 @@ class ReplElement extends HTMLElement {
 		this.editorOptions = Object.assign(ReplElement.defaultEditorOptions, options);
 		this.readOnlyLines = 1;
 		this.readOnly = false;
-        // window.addEventListener("pagehide", async (event) => {
-        //     localStorage.setItem("pageHide", true);
-        //     await this.history.writeToLocalStorage();
-        // });
         this.executor = new PythonExecutor();
         this.history = new History();
 		this.historyIdx = this.history.length || 0;
@@ -231,15 +227,37 @@ class ReplElement extends HTMLElement {
 		return "...";
 	}
 
-	fixCursorOutputPosition(){
+	updateCursorOffset(){
 		let cursorLineNumber = this.editor.getPosition().lineNumber;
 		this.querySelector(".cursor").style.marginLeft = cursorLineNumber in this.outputModelLines ? "-4ch" : "";
 	}
 
+	updateLineOffsets(){
+		const outputLines = 
+			Array.from(document.querySelectorAll(".view-line"))
+				.map(e => [e, Number(e.style.top.slice(0, -2))]).sort((a,b) => a[1]-b[1]).map(e => e[0]);
+		const topScreenLine = Math.floor(this.editor.getScrollTop() / this.lineHeight) + 1;
+		outputLines.forEach((e, idx) => {
+			let targetMargin = (topScreenLine + idx) in this.outputScreenLines ? "-4ch" : "";
+			if(e.style.marginLeft !== targetMargin){
+				e.style.marginLeft = targetMargin;
+			}
+		});
+		const outputOverlays = 
+			Array.from(document.querySelector(".view-overlays").children)
+				.map(e => [e, Number(e.style.top.slice(0, -2))]).sort((a,b) => a[1]-b[1]).map(e => e[0]);
+		outputOverlays.forEach((e, idx) => {
+			let targetMargin = (topScreenLine + idx) in this.outputScreenLines ? "-5ch" : "";
+			if(e.style.marginLeft !== targetMargin){
+				e.style.marginLeft = targetMargin;
+			}
+		});
+	}	
+
 	_onmousedown(){
 		this.mouseDown = true;
 		this.justSteppedHistory = false;
-		this.fixCursorOutputPosition();
+		this.updateCursorOffset();
 	}
 
 	_onmouseup(){
@@ -247,7 +265,7 @@ class ReplElement extends HTMLElement {
 		if(this.doesSelectionIntersectReadOnlyRegion() && this.editor.getSelection().isEmpty()){
 			this.editor.setPosition(this.endOfInputPosition);
 			this.revealSelection();
-			this.fixCursorOutputPosition();
+			this.updateCursorOffset();
 		}
 	}	
 
@@ -272,7 +290,7 @@ class ReplElement extends HTMLElement {
 			this.editor.setPosition(this.endOfInputPosition);
 			this.revealSelection();
 		}
-		this.fixCursorOutputPosition();
+		this.updateCursorOffset();
 	}
 
 
@@ -498,33 +516,6 @@ class ReplElement extends HTMLElement {
 			this.preventKeyEvent();
 		}
 		// Otherwise, allow default page up behavior
-	}
-
-
-
-
-
-
-	updateLineOffsets(){
-		const outputLines = 
-			Array.from(document.querySelectorAll(".view-line"))
-				.map(e => [e, Number(e.style.top.slice(0, -2))]).sort((a,b) => a[1]-b[1]).map(e => e[0]);
-		const topScreenLine = Math.floor(this.editor.getScrollTop() / this.lineHeight) + 1;
-		outputLines.forEach((e, idx) => {
-			let targetMargin = (topScreenLine + idx) in this.outputScreenLines ? "-4ch" : "";
-			if(e.style.marginLeft !== targetMargin){
-				e.style.marginLeft = targetMargin;
-			}
-		});
-		const outputOverlays = 
-			Array.from(document.querySelector(".view-overlays").children)
-				.map(e => [e, Number(e.style.top.slice(0, -2))]).sort((a,b) => a[1]-b[1]).map(e => e[0]);
-		outputOverlays.forEach((e, idx) => {
-			let targetMargin = (topScreenLine + idx) in this.outputScreenLines ? "-5ch" : "";
-			if(e.style.marginLeft !== targetMargin){
-				e.style.marginLeft = targetMargin;
-			}
-		});
 	}
 	
 	async nextHistory(n = 1){

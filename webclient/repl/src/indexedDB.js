@@ -3,10 +3,10 @@ export function openDatabase(name, version){
     request.onupgradeneeded = (e) => {
         const db = e.target.result;
 
-        // // Delete the old datastore.
-        // if (db.objectStoreNames.contains(name)) {
-        //     db.deleteObjectStore(name);
-        // }
+        // Delete the old datastore.
+        if (db.objectStoreNames.contains(name)) {
+            db.deleteObjectStore(name);
+        }
 
         // Create a new datastore.
         const store = db.createObjectStore(name, {
@@ -22,40 +22,6 @@ export function openDatabase(name, version){
 }
 
 
-export function getItemRequest(objStore, key){
-    const objectStoreRequest = objStore.index("key").get(key);
-    return new Promise((resolve, reject) => {
-        objectStoreRequest.onsuccess = function (e) {
-            resolve(objectStoreRequest.result && objectStoreRequest.result.value);
-        };
-        objectStoreRequest.onerror = reject;
-    });
-}
-
-export function setItemRequest(objStore, key, value){
-    const timestamp = new Date().getTime();
-    const item = { key, value, timestamp };
-    console.log("setItemRequest", item);
-    const request = objStore.put(item);
-    return new Promise((resolve, reject) => {
-        request.onsuccess = function (e) {
-            resolve(item);
-        };    
-        request.onerror = reject;
-    });
-}
-
-export function deleteItemRequest(objectStore, key){
-    const request = objStore.delete(key);
-        
-    return new Promise((resolve, reject) => {
-        request.onsuccess = function (e) {
-            resolve();
-        };
-        request.onerror = reject;
-    });
-}
-
 export class IndexedDBStorage {
     constructor(name, version){
         this.name = name;
@@ -69,73 +35,60 @@ export class IndexedDBStorage {
         this.datastore = await openDatabase(this.name, this.version);
     }
 
-    async pushArray(array){
-        const objStore = this.datastore.transaction([this.name], 'readwrite').objectStore(this.name);
-        let promises = array.map((element, idx) => setItemRequest(objStore, idx, element));
-        promises.push(setItemRequest(objStore, "listLength", array.length))
-        await Promise.all(promises);
+    readTransaction(){
+        return new IndexedDBTransaction(
+            this.datastore.transaction([this.name], 'readonly').objectStore(this.name), 
+            false
+        );
     }
 
-    async setItem(key, value) {
-        const objStore = this.datastore.transaction([this.name], 'readwrite').objectStore(this.name);
-        return await setItemRequest(objStore, key, value);
+    writeTransaction(){
+        return new IndexedDBTransaction(
+            this.datastore.transaction([this.name], 'readwrite').objectStore(this.name), 
+            true
+        );
     }
-
-    async getItem(key){
-        const objStore = this.datastore.transaction([this.name], 'readonly').objectStore(this.name);
-        return await getItemRequest(objStore, key);
-    }
-
-
-    async removeItem(key){
-        const objStore = this.datastore.transaction([this.name], 'readwrite').objectStore(this.name);
-        return await deleteItemRequest(objectStore, key);
-    }
-
-    hasItem(key){
-
-    }
-
 }
 
-
-export class IndexedDBArray {
-    constructor(name, version){
-        this.name = name;
-        this.version = version;
-        return new Proxy(this, {
-            get : (obj, key) => {
-                if(!Number.isInteger(Number(key))){
-                    return Reflect.get(obj, key);
-                }
-                return this.getItem(Number(key));
-            }
-        })
+export class IndexedDBTransaction {
+    constructor(objectStore, mutable){
+        this.objectStore = objectStore;
+        this.mutable = mutable;
     }
-
-    async open() {
-        if(this.datastore){
-            return;
+    
+    getItem(key){
+        const objectStoreRequest = this.objectStore.index("key").get(key);
+        return new Promise((resolve, reject) => {
+            objectStoreRequest.onsuccess = function (e) {
+                resolve(objectStoreRequest.result && objectStoreRequest.result.value);
+            };
+            objectStoreRequest.onerror = reject;
+        });
+    }
+    
+    setItem(key, value){
+        if(!this.mutable){
+            throw new Error("Attempted to mutate using immutable database reference.");
         }
-        this.datastore = await openDatabase(this.name, this.version);
+        const timestamp = new Date().getTime();
+        const item = { key, value, timestamp };
+        const request = this.objectStore.put(item);
+        return new Promise((resolve, reject) => {
+            request.onsuccess = function (e) {
+                resolve(item);
+            };    
+            request.onerror = reject;
+        });
     }
-
-    async pushArray(array, originalLength){
-        let offset = (await this.length) - originalLength;
-        const objStore = this.datastore.transaction([this.name], 'readwrite').objectStore(this.name);
-        let promises = array.map((element, idx) => setItemRequest(objStore, idx + offset, element));
-        promises.push(setItemRequest(objStore, "listLength", array.length + offset))
-        await Promise.all(promises);
+    
+    deleteItem(key){
+        const request = this.objectStore.delete(key);
+            
+        return new Promise((resolve, reject) => {
+            request.onsuccess = function (e) {
+                resolve();
+            };
+            request.onerror = reject;
+        });
     }
-
-    get length(){
-        return (async () => await this.getItem("listLength") || 0)();
-    }
-
-
-    async getItem(key){
-        const objStore = this.datastore.transaction([this.name], 'readonly').objectStore(this.name);
-        return await getItemRequest(objStore, key);
-    }
-
 }
