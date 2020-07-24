@@ -1,5 +1,6 @@
 import * as utils from "./utils.js";
 import { ChartClass } from "./ChartClass.js";
+import { PageProperty } from "./PageProperty";
 import { INFINITY } from "../infinity.js";
 import { v4 as uuidv4 } from 'uuid';
 

@@ -1,75 +1,63 @@
-self.languagePluginUrl = '/pyodide-build-0.15.0/'
-importScripts('/pyodide-build-0.15.0/pyodide.js')
-import executor_text from "./executor.py";
+import { v4 as uuid4 } from "uuid";
+self.languagePluginUrl = '/pyodide-build-custom/'
+importScripts(`${self.languagePluginUrl}pyodide.js`)
 
-const jediWheelURL = "https://files.pythonhosted.org/packages/c3/d4/36136b18daae06ad798966735f6c3fb96869c1be9f8245d2a8f556e40c36/jedi-0.17.2-py2.py3-none-any.whl";
-async function startup(){
-    await languagePluginLoader;
-    await Promise.all([
-        async function(){
-            // await pyodide.loadPackage("micropip");
-            await self.pyodide.runPythonAsync(`
-                import micropip
-                micropip.install("${jediWheelURL}")
-                # micropip.install("spectralsequence_chart")
-                FLAGS = 0
-                NAMESPACE = {}
-            `)
-        }(),
-        self.pyodide.runPythonAsync(executor_text)
-    ]);
+/**  
+ * NOTE: When pyodide is finished initializing, the original "pyodide" object
+ * is stored as "pyodide._module". We don't want to wait for this to happen or worry 
+ * about when the move occurs, so we just store it and use that.
+ */
+let pyodide_module = pyodide;
+
+import handler_decorator from "./handler_decorator.py";
+import traceback from "./traceback.py";
+import executor from "./executor.py";
+let files_to_install = {
+    executor, handler_decorator, traceback,
+    __init__ : `from .executor import PyodideExecutor`
+};
+
+pyodide_module.FS.mkdir('/executor');
+pyodide_module.FS.mkdir('/executor/executor');
+for(let [k, v] of Object.entries(files_to_install)){
+    pyodide_module.FS.writeFile(`/executor/executor/${k}.py`, v);
 }
 
+
+
+function sendMessage(x){
+    postMessage(x);
+}
+self.sendMessage = sendMessage;
+self.message_lookup = {};
+self.debug_parso_code_lookup = {};
+
+
+
+async function startup(){
+    await languagePluginLoader;
+    await pyodide.loadPackage(["micropip", "pygments"]);
+    await pyodide.runPython(`
+        import sys
+        sys.path.append("/executor")
+        import pathlib
+        from executor import PyodideExecutor
+        executor = PyodideExecutor()
+    `)
+}
 let startup_promise = startup();
 
 self.addEventListener("message", async function(e) { // eslint-disable-line no-unused-vars
     await startup_promise;
-    const data = e.data;
-    const cmd = data.cmd;
-    if(!MessageHandlers[cmd]){
-        self.postMessage({error : `Unknown command ${cmd}`, errorType : "unknown-command", id});
+    console.log("worker received message", e.data);
+    const {uuid, interrupt_buffer} = e.data;
+    // delete e.data.interrupt_buffer;
+    message_lookup[uuid] = e.data;
+    
+    if(interrupt_buffer){
+        e.data.interrupt_buffer = function(){
+            return Atomics.load(interrupt_buffer, 0);
+        }
     }
-    MessageHandlers[cmd](data);
+    await self.pyodide.runPythonAsync(`executor.handle_message("${uuid}")`);
 });
-
-class MessageHandlers {
-    static async execute(data){
-        const id = data.id;
-        try {
-            // In order to quote our input string in the most robust possible way,
-            // we insert it as a global variable and then read it from globals().
-            pyodide.globals[id] = data.python; 
-            let [result, result_repr] = await self.pyodide.runPythonAsync(`
-                result = eval_code(globals()["${id}"], NAMESPACE, flags=FLAGS)
-                globals().pop("${id}")
-                result
-            `);
-            self.postMessage({result_repr, id});
-        } catch(err) {
-            console.log(err);
-            self.postMessage({error : err.message, id});
-        }
-    }
-
-    static async validate(data){
-        const id = data.id;
-        try {
-            // In order to quote our input string in the most robust possible way,
-            // we insert it as a global variable and then read it from globals().
-            pyodide.globals[id] = data.python; 
-            let error = await self.pyodide.runPythonAsync(`
-                result = validate_code(globals()["${id}"], flags=FLAGS)
-                globals().pop("${id}")
-                result
-            `);
-            if(error){
-                error = {type : error.__class__.__name__, msg : error.msg, lineno : error.lineno, offset : error.offset};
-            }
-            // console.log(error);
-            self.postMessage({validated : !error, error, id});
-        } catch(err) {
-            console.error(err);
-            self.postMessage({error : err.message, id});
-        }
-    }
-}

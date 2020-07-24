@@ -72,7 +72,9 @@ function makeSuggestion(text, kind){
     return {
         insertText : text,
         kind,
-        label : text
+        label : text,
+        detail : "detail text",
+        documentation : "documentation text"
     }
 }
 
@@ -118,30 +120,31 @@ function getAttrCompletions(model, position, upToPosition){
     }
 }
 
-function getCompletionProvider(monaco) {
+function getCompletionProvider(monaco, repl) {
     return {
-        provideCompletionItems: function (model, position) {
-            let {lineNumber : line, column : col} = position;
-            let upToPosition = model.getValueInRange(new monaco.Range(line, 0, line, col));
-            let getattrExpression = /\.([a-zA-Z_])*$/.test(upToPosition);
-            if(getattrExpression){
-                return getAttrCompletions(model, position, upToPosition)
+        provideCompletionItems: async function (model, position) {
+            // repl.jedi_value.setCode(repl.value);
+            let completions = await repl.jedi_value.getCompletions();
+            // console.log(completions);
+            let suggestions = [];
+            for(let cmd of completions){
+                suggestions.push(makeSuggestion(cmd, monaco.languages.CompletionItemKind.Method));
             }
-            return getNormalCompletions(model, position, upToPosition);
+            return {suggestions};
         }
     };
 }
 
 
 
-export function updatePythonLanguageDefinition(monaco){
+export function updatePythonLanguageDefinition(monaco, executor){
     monaco.languages.setLanguageConfiguration('python', {
         indentationRules: {
             // decreaseIndentPattern: /^\s*pass\s*$/,
             increaseIndentPattern: /^.*:\s*$/
         }
     });
-    monaco.languages.registerCompletionItemProvider('python', getCompletionProvider(monaco));
+    monaco.languages.registerCompletionItemProvider('python', getCompletionProvider(monaco, executor));
     console.log("updateLanguageDefinition");
 }
 

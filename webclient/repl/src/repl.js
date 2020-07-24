@@ -6,8 +6,6 @@ import { PythonExecutor } from "./pythonExecutor";
 import { History } from "./history";
 import { promiseFromDomEvent } from "./utils"
 
-updatePythonLanguageDefinition(monaco);
-
 class ReplElement extends HTMLElement {
 	static get defaultEditorOptions(){
 		return {
@@ -126,7 +124,6 @@ class ReplElement extends HTMLElement {
 		this.editor.focus();
 	}
 
-
 	constructor(options){
 		super();
 		this._focused = false;
@@ -134,7 +131,10 @@ class ReplElement extends HTMLElement {
 		this.editorOptions = Object.assign(ReplElement.defaultEditorOptions, options);
 		this.readOnlyLines = 1;
 		this.readOnly = false;
-        this.executor = new PythonExecutor();
+		this.executor = new PythonExecutor();
+		this.jedi_history = this.executor.new_completer();
+		this.jedi_value = this.executor.new_completer();
+		updatePythonLanguageDefinition(monaco, this);
         this.history = new History();
 		this.historyIdx = this.history.length || 0;
 		this.historyIndexUndoStack = [];
@@ -204,7 +204,7 @@ class ReplElement extends HTMLElement {
 			lineNumbers : this._getEditorLinePrefix.bind(this)
 		});
 		sleep(10).then(() => {
-			// Takes a minute for the Dom to update so we need to sleep first.
+			// Takes a minute for the dom to update so we need to sleep first.
 			this.querySelector(".decorationsOverviewRuler").remove();
 		});
 		this._resizeObserver = new ResizeObserver(entries => this.editor.layout());
@@ -214,6 +214,7 @@ class ReplElement extends HTMLElement {
 		this.editor.onMouseUp(this._onmouseup.bind(this));
 		this.editor.onDidChangeCursorSelection(this._onDidChangeCursorSelection.bind(this));
 		this.editor.onDidScrollChange(() => this.updateLineOffsets());
+		this.editor.onDidChangeModelContent(this._onDidChangeModelContent.bind(this));
 		window.addEventListener("cut", this._oncut.bind(this));
 	}
 
@@ -335,6 +336,15 @@ class ReplElement extends HTMLElement {
 
 
 	_onkey(e){
+		if(this.querySelector(".suggest-widget.visible")){
+			if(
+				(e.browserEvent.key !== "PageUp" || !e.browserEvent.shiftKey)
+				&& (!e.browserEvent.ctrlKey || !["x", "Home", "a"].includes(e.browserEvent.key))
+				&& ((!e.shiftKey && !e.altKey) || e.browserEvent.key !== "ArrowUp")
+			){
+				return;
+			}
+		}
 		if(this.maybeStepHistory(event)){
 			this.preventKeyEvent();
 			return
@@ -517,7 +527,7 @@ class ReplElement extends HTMLElement {
 		}
 		// Otherwise, allow default page up behavior
 	}
-	
+
 	async nextHistory(n = 1){
         await this.stepHistory(n);
     }
@@ -604,49 +614,76 @@ class ReplElement extends HTMLElement {
         return true;
 	}
 
+	async _onDidChangeModelContent(event){
+		if(event.isUndoing || event.isRedoing || this.justSteppedHistory){
+			return;
+		}
+		let addedText = event.changes.reduce(({text : a},{text : b}) => (!!a)||(!!b), false);
+		let re = addedText ? /[a-zA-Z_.]$/ : /[a-zA-Z_]$/;
+		let shouldComplete = re.test(this.value) || true;
+		// console.log("addedText", addedText, "shouldComplete", shouldComplete);
+		if(shouldComplete){
+			this.jedi_value.setCode(this.value);
+			this.completions = await this.jedi_value.getCompletions();
+		}
+	}
 
 	async submit(){
+		console.log("submit");
 		const code = this.value;
 		if(!code.trim()){
 			return;
 		}
 		this.readOnly = true;
-		let syntaxCheck = await this.executor.validate(code);
-		if(!syntaxCheck.validated){
+		const execution = this.executor.execute(code);
+		execution.onStdout((data) => console.log("stdout::", data));
+		let syntaxCheck = await execution.validate_syntax(code);
+		if(!syntaxCheck.valid){
 			this.showSyntaxError(syntaxCheck.error);
 			this.readOnly = false;
 			return;
 		}
-        this.history.push(code);
+		execution.keyboardInterrupt();
+
+		this.history.push(code);
         await sleep(0);
 		this.historyIdx = this.history.length;
-		const data = await this.executor.execute(code);
-		const totalLines = this.editor.getModel().getLineCount();
-		let outputLines = data.result_repr !== undefined ? 1 : 0;
 
-		this.readOnlyLines = totalLines + outputLines;
-		this.firstLines[this.readOnlyLines + 1] = true;
-		
-        if(data.result_repr !== undefined){
-			this.addOutput(data.result_repr);
-		} else {
-			this.editor.setValue(`${this.editor.getValue()}\n`);
+		let result;
+		try {
+			result = await execution.result();
+			this.addOutput(result);
+		} catch(e) {
+			this.addOutput(e.traceback);
 		}
+		
+		const totalLines = this.editor.getModel().getLineCount();
+		this.readOnlyLines = totalLines - 1;
+		this.firstLines[totalLines] = true;			
+
 		this.editor.setPosition(this.endOfInputPosition);
 		this.revealSelection();
 		this.readOnly = false;
 	}
 
     addOutput(value){
-		const totalScreenLines = this.getScreenLineCount();
-		const totalModelLines = this.getModelLineCount();
+		if(value === undefined){
+			this.editor.setValue(`${this.editor.getValue()}\n`);
+			return;
+		}
+		const oldNumScreenLines = this.getScreenLineCount();
+		const oldNumModelLines = this.getModelLineCount();
 		this.editor.setValue(`${this.editor.getValue()}\n${value}\n`);
-		this.outputModelLines[totalModelLines + 1] = true;
-		let numScreenLines = this.getScreenLinesInModelLine(totalModelLines + 1);
-		for(let curLine = totalScreenLines + 1; curLine <= totalScreenLines + numScreenLines; curLine++){
+		const newNumScreenLines = this.getScreenLineCount();
+		const newNumModelLines = this.getModelLineCount();
+		for(let curLine = oldNumModelLines + 1; curLine < newNumModelLines; curLine++){
+			this.outputModelLines[curLine] = true;
+		}
+		for(let curLine = oldNumScreenLines + 1; curLine < newNumScreenLines; curLine++){
 			this.outputScreenLines[curLine] = true;
 		}
 	}
+
 	
 	async showSyntaxError(error){
 		let line = this.readOnlyLines + error.lineno;
@@ -663,7 +700,7 @@ class ReplElement extends HTMLElement {
 			decorations.push({
 				range: new monaco.Range(line, col, line, endCol),
 				options: {
-					isWholeLine: true,
+					// isWholeLine: true,
 					className: 'repl-error repl-error-decoration-highlight',
 					inlineClassName : 'repl-error-decoration-text'
 
@@ -671,6 +708,9 @@ class ReplElement extends HTMLElement {
 			});
 		}
 		this.decorations = this.editor.deltaDecorations([], decorations);
+		this.editor.onDidChangeModelDecorations((e) => {
+			console.log("decs:", this.editor.getLineDecorations(this.editor.getPosition().lineNumber))
+		});
 		this.errorWidget = {
 			domNode: null,
 			getId: function() {
