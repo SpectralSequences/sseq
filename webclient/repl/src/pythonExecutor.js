@@ -7,19 +7,26 @@ export class PythonExecutor {
     constructor(){
         this.executions = {};
         this.completers = {};
-        this.worker = new Worker("worker.bundle.js");
+        this.worker = new Worker("pyodide_worker.bundle.js");
         this.worker.addEventListener("message", this._handleMessage.bind(this));
+        let _readyPromise = new Promise((resolve, reject) => this._readyPromise = {resolve, reject});
+        this._readyPromise.promise = _readyPromise;
     }
 
     _handleMessage(event){
         let message = event.data;
         let message_cmd = message.cmd;
-        let subhandler_name = ({"execute" : "_handleExecutionMessage", "complete" : "_handleCompletionMessage"})[message_cmd];
-        // console.log("message", message, "subhandler_name", subhandler_name);
+        console.log("msg_cmd:", message_cmd);
+        let subhandler_name = ({"execute" : "_handleExecutionMessage", "complete" : "_handleCompletionMessage", "ready" : "_handleReadyMessage"})[message_cmd];
         if(!subhandler_name){
             throw new Error(`Unknown command "${message_cmd}"`);
         }
         this[subhandler_name](message);
+    }
+    
+    _handleReadyMessage(message){
+        console.log("_handleReadyMessage")
+        this._readyPromise.resolve();
     }
 
     _handleExecutionMessage(message){
@@ -55,6 +62,10 @@ export class PythonExecutor {
         this.worker.postMessage(msg);
     }
 
+    async ready(){
+        return await this._readyPromise.promise;
+    }
+
 
     execute(code){
         const interrupt_buffer = new Int32Array(new SharedArrayBuffer(4));
@@ -85,6 +96,7 @@ export class Execution extends EventEmitter {
         this._result = new Promise((resolve, reject) => {
             this.once("result", (message) => resolve(message.result));
             this.once("exception", (message) => reject(message));
+            this.once("keyboard_interrupt", (message) => reject(message));
         });
     }
     
@@ -135,8 +147,21 @@ export class Completer extends EventEmitter {
         this.executor = executor;
         this.uuid = uuid;
         this.responses = {};
-        this.on("completions", (msg) => {
-            this.responses[msg.subuuid].resolve(msg);
+        for(let cmd of ["completions", "completion_detail"]){
+            this._attachResponseHandler(cmd);
+        }
+    }
+
+    _attachResponseHandler(cmd){
+        this.on(cmd, (msg) => {
+            let promise_obj = this.responses[msg.subuuid];
+            if(!promise_obj){
+                throw Error(`Unknown subuuid ${subuuid}`);
+            }
+            if(cmd !== promise_obj.cmd) {
+                throw new Error(`Wrong command for response subuuid ${subuuid}. Was expecting command to be "${cmd}" but got "${promise_obj.cmd}"`);
+            }
+            promise_obj.resolve(msg);
         });
     }
 
@@ -157,11 +182,21 @@ export class Completer extends EventEmitter {
     async getCompletions(){
         let subuuid = uuid4();
         let response_promise = new Promise((resolve, reject) => 
-            this.responses[subuuid] = {resolve, reject}
+            this.responses[subuuid] = {resolve, reject, cmd : "completions"}
         );
         this._postMessage("completions", { subuuid });
         let response = await response_promise;
         return response.completions;
+    }
+
+    async getCompletionInfo(idx){
+        let subuuid = uuid4();
+        let response_promise = new Promise((resolve, reject) => 
+            this.responses[subuuid] = {resolve, reject, cmd : "completion_detail"}
+        );
+        this._postMessage("completion_detail", { subuuid, idx });
+        let {docstring, signature} = await response_promise;
+        return {docstring, signature};
     }
 
     close(){

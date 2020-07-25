@@ -1,4 +1,3 @@
-import { css } from "lit-element";
 import { updatePythonLanguageDefinition } from "./pythonTextCompletion";
 import { monaco } from "./monaco";
 import { sleep } from './utils';
@@ -22,17 +21,30 @@ class ReplElement extends HTMLElement {
 			wordWrapColumn: 80,
 			overviewRulerLanes : 0,
 			scrollBeyondLastLine : true,
-			contextmenu : false
+			contextmenu : false,
 		};
     }
     
     static get styles() {
-        return css`
+        return `
             .root {
                 height : 100%;
                 width : 100%;
             }
         `
+	}
+
+	get readOnly(){
+		return this._readOnly;
+	}
+	
+	set readOnly(v) {
+		this._readOnly = !!v;
+		// Monaco has an option called "cursorBlinking" that we tried to set to hidden,
+		// but it doesn't seem to do anything. Modifying the dom directly works fine though.
+		// Cursor blinking happens by toggling visibility, but we can use display without trouble.
+		this.querySelector(".cursor").style.display = v ? "none" : "block";
+		this.editor.updateOptions({ renderLineHighlight : v ? "none" : "line"});
 	}
 
 	get startOfInputPosition(){
@@ -120,6 +132,10 @@ class ReplElement extends HTMLElement {
 		this.editor.revealRange(this.editor.getSelection(), scrollType);
 	}
 
+	getLengthOfLastModelLine(){
+		return this.editor.getModel().getLineLength(this.getModelLineCount());
+	}		
+
 	focus(){
 		this.editor.focus();
 	}
@@ -130,7 +146,6 @@ class ReplElement extends HTMLElement {
 		this._visible = true;
 		this.editorOptions = Object.assign(ReplElement.defaultEditorOptions, options);
 		this.readOnlyLines = 1;
-		this.readOnly = false;
 		this.executor = new PythonExecutor();
 		this.jedi_history = this.executor.new_completer();
 		this.jedi_value = this.executor.new_completer();
@@ -143,8 +158,10 @@ class ReplElement extends HTMLElement {
 		this.outputScreenLines = {};
 		this.outputModelLines = {};
 		this.outputModelLines[1] = true;
+		this.outputModelLines[2] = true;
 		this.outputScreenLines[1] = true;
-		this.firstLines[2] = true; 
+		this.outputScreenLines[2] = true;
+		// this.firstLines[2] = true; 
 		this.lineOffsetMutationObserver = new MutationObserver((mutationsList, observer) => {
 			this.updateLineOffsets();
 		});
@@ -214,8 +231,23 @@ class ReplElement extends HTMLElement {
 		this.editor.onMouseUp(this._onmouseup.bind(this));
 		this.editor.onDidChangeCursorSelection(this._onDidChangeCursorSelection.bind(this));
 		this.editor.onDidScrollChange(() => this.updateLineOffsets());
-		this.editor.onDidChangeModelContent(this._onDidChangeModelContent.bind(this));
+		// this.editor.onDidChangeModelContent(this._onDidChangeModelContent.bind(this));
 		window.addEventListener("cut", this._oncut.bind(this));
+		this.readOnly = true;
+		this._initializePrompt();
+
+	}
+
+	async _initializePrompt(){
+		await this.executor.ready();
+		delete this.outputModelLines[2];
+		delete this.outputScreenLines[2];
+		this.firstLines[2] = true;
+		this.editor.setValue("\n");
+		this.editor.setPosition(this.endOfInputPosition);
+		this.focus();
+		await sleep(0);
+		this.readOnly = false;
 	}
 
 	_getEditorLinePrefix(n){
@@ -271,20 +303,33 @@ class ReplElement extends HTMLElement {
 	}	
 
 	async _onDidChangeCursorSelection(e){
+		// This means this was a history change event.
+		// We use this jank secondarySelection approach to signal a history change event because
+		// monaco's edit stack API doesn't let us attach our own undo/redo callback.
 		if(e.secondarySelections.length > 0){
 			this.editor.setSelection(e.selection);
+			// If the source is the keyboard, the user directly changed the history and stepHistory() covered everything.
 			if(e.source !== "keyboard"){
 				return;
 			}
 			if(e.reason === monaco.editor.CursorChangeReason.Redo){
-				this.undoStep();
+				this.history.undoStep();
 				return;
 			}
 			if(e.reason === monaco.editor.CursorChangeReason.Undo){
-				this.redoStep();
+				this.history.redoStep();
 				return;
 			}
 			throw Error("Unreachable?");
+		}
+		// Hide line selection if in read only region or if whole editor is read only.
+		// This improves feedback by quite a lot.
+		if(this.doesCurrentSelectionIntersectReadOnlyRegion()){
+			this.editor.updateOptions({ renderLineHighlight : "none" });
+			this.querySelector(".cursor").style.display = "none";
+		} else {
+			this.editor.updateOptions({ renderLineHighlight : "line" });
+			this.querySelector(".cursor").style.display = this.readOnly ? "none" : "block";
 		}
 		await sleep(0); // Need to sleep(0) to allow this.mouseDown to update.
 		if(!this.mouseDown && e.selection.isEmpty() && this.doesCurrentSelectionIntersectReadOnlyRegion()){
@@ -350,7 +395,7 @@ class ReplElement extends HTMLElement {
 			return
 		}
 		this.justSteppedHistory = false;
-		// Many Ctrl+X commands require special handling.
+		// Many Ctrl + <some-key> commands require special handling.
 		if(e.browserEvent.ctrlKey){
 			if(e.browserEvent.key in ReplElement._ctrlCmdHandlers){
 				ReplElement._ctrlCmdHandlers[e.browserEvent.key].call(this, e);
@@ -382,6 +427,17 @@ class ReplElement extends HTMLElement {
 			if(this.shouldEnterSubmit(e.browserEvent)){
 				this.preventKeyEvent();
 				this.submit();
+				return;
+			}
+			if(e.browserEvent.shiftKey){
+				return;
+			}
+			let lastLineContent = this.editor.getModel().getLineContent(this.getModelLineCount());
+			// If the current line is empty except for spaces, outdent it.
+			// TODO: Good choice or no?
+			if(/^ *$/.test(lastLineContent)){
+				this.editor.getAction("editor.action.outdentLines").run();
+				this.preventKeyEvent();
 			}
 		}		
 	}
@@ -599,11 +655,14 @@ class ReplElement extends HTMLElement {
 	}
 
 	shouldEnterSubmit(event){
+		if(event.shiftKey){
+			return false;
+		}
 		if(event.ctrlKey){
 			return true;
 		}
-		if(event.shiftKey){
-			return false;
+		if(this.getLengthOfLastModelLine() == 0){
+			return true;
 		}
 		if(this.value.search("\n") >= 0){
 			return false;
@@ -614,35 +673,36 @@ class ReplElement extends HTMLElement {
         return true;
 	}
 
-	async _onDidChangeModelContent(event){
-		if(event.isUndoing || event.isRedoing || this.justSteppedHistory){
-			return;
-		}
-		let addedText = event.changes.reduce(({text : a},{text : b}) => (!!a)||(!!b), false);
-		let re = addedText ? /[a-zA-Z_.]$/ : /[a-zA-Z_]$/;
-		let shouldComplete = re.test(this.value) || true;
-		// console.log("addedText", addedText, "shouldComplete", shouldComplete);
-		if(shouldComplete){
-			this.jedi_value.setCode(this.value);
-			this.completions = await this.jedi_value.getCompletions();
-		}
-	}
+	// async _onDidChangeModelContent(event){
+	// 	// if(event.isUndoing || event.isRedoing || this.justSteppedHistory){
+	// 	// 	return;
+	// 	// }
+	// 	// let addedText = event.changes.reduce(({text : a},{text : b}) => (!!a)||(!!b), false);
+	// 	// let re = addedText ? /[a-zA-Z_.]$/ : /[a-zA-Z_]$/;
+	// 	// let shouldComplete = re.test(this.value) || true;
+	// 	// if(shouldComplete){
+	// 	// 	this.jedi_value.setCode(this.value);
+	// 	// 	this.completions = await this.jedi_value.getCompletions();
+	// 	// }
+	// }
 
 	async submit(){
-		console.log("submit");
 		const code = this.value;
 		if(!code.trim()){
 			return;
 		}
 		this.readOnly = true;
+		this.printToConsole("\n");
 		const execution = this.executor.execute(code);
-		execution.onStdout((data) => console.log("stdout::", data));
+		execution.onStdout((data) => this.printToConsole(data));
 		let syntaxCheck = await execution.validate_syntax(code);
 		if(!syntaxCheck.valid){
 			this.showSyntaxError(syntaxCheck.error);
 			this.readOnly = false;
 			return;
 		}
+		await sleep(1000);
+		console.log("Interrupt!");
 		execution.keyboardInterrupt();
 
 		this.history.push(code);
@@ -654,34 +714,63 @@ class ReplElement extends HTMLElement {
 			result = await execution.result();
 			this.addOutput(result);
 		} catch(e) {
+			console.log(e);
 			this.addOutput(e.traceback);
 		}
-		
-		const totalLines = this.editor.getModel().getLineCount();
-		this.readOnlyLines = totalLines - 1;
-		this.firstLines[totalLines] = true;			
-
-		this.editor.setPosition(this.endOfInputPosition);
-		this.revealSelection();
+		this.prepareInput();
+		await sleep(0);
 		this.readOnly = false;
 	}
 
-    addOutput(value){
+	addOutput(value){
+		// If something printed to stdout but didn't end the line, we'll have a nonempty line
+		// at the bottom. We don't want our output sharing with that, so insert a newline in 
+		// this case.
+		if(this.getLengthOfLastModelLine() !== 0){
+			this.printToConsole("\n");
+		}
 		if(value === undefined){
-			this.editor.setValue(`${this.editor.getValue()}\n`);
 			return;
 		}
+		this.printToConsole(`${value}\n`);
+	}
+
+    printToConsole(value){
 		const oldNumScreenLines = this.getScreenLineCount();
 		const oldNumModelLines = this.getModelLineCount();
-		this.editor.setValue(`${this.editor.getValue()}\n${value}\n`);
+		this.editor.setValue(`${this.editor.getValue()}${value}`);
 		const newNumScreenLines = this.getScreenLineCount();
 		const newNumModelLines = this.getModelLineCount();
-		for(let curLine = oldNumModelLines + 1; curLine < newNumModelLines; curLine++){
+		for(let curLine = oldNumModelLines + 1; curLine <= newNumModelLines; curLine++){
 			this.outputModelLines[curLine] = true;
 		}
-		for(let curLine = oldNumScreenLines + 1; curLine < newNumScreenLines; curLine++){
+		for(let curLine = oldNumScreenLines + 1; curLine <= newNumScreenLines; curLine++){
 			this.outputScreenLines[curLine] = true;
 		}
+	}
+
+	prepareInput(){
+		const numScreenLines = this.getScreenLineCount();
+		let numModelLines = this.getModelLineCount();
+		if(this.getLengthOfLastModelLine() === 0){
+			// Usually there is an empty model line at the bottom, it has been marked as an output line
+			// so onmark it.
+			delete this.outputModelLines[numModelLines];
+			delete this.outputScreenLines[numScreenLines];
+		} else {
+			// Ocassionally something printed stuff to stdout but didn't terminate the line.
+			// We terminate it ourselves in that case to prevent weirdness.
+			this.editor.setValue(this.editor.getValue() + "\n");
+			numModelLines++;
+		}
+		this.readOnlyLines = numModelLines - 1;
+		this.firstLines[numModelLines] = true;
+		// the value of firstLines signals that the "line number" should show as a ">>>" prompt.
+		// we need to refresh the editor to get it to show up though so set value to current value.
+		this.editor.setValue(this.editor.getValue());		
+		
+		this.editor.setPosition(this.endOfInputPosition);
+		this.revealSelection();
 	}
 
 	

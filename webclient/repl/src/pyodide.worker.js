@@ -1,26 +1,21 @@
-import { v4 as uuid4 } from "uuid";
 self.languagePluginUrl = '/pyodide-build-custom/'
-importScripts(`${self.languagePluginUrl}pyodide.js`)
+importScripts(`${self.languagePluginUrl}pyodide.js`);
+
 
 /**  
  * NOTE: When pyodide is finished initializing, the original "pyodide" object
  * is stored as "pyodide._module". We don't want to wait for this to happen or worry 
  * about when the move occurs, so we just store it and use that.
  */
-let pyodide_module = pyodide;
 
-import handler_decorator from "./handler_decorator.py";
-import traceback from "./traceback.py";
-import executor from "./executor.py";
-let files_to_install = {
-    executor, handler_decorator, traceback,
-    __init__ : `from .executor import PyodideExecutor`
-};
+import { files_to_install } from "./python_imports";
 
-pyodide_module.FS.mkdir('/executor');
-pyodide_module.FS.mkdir('/executor/executor');
+// The pyodide loader will move what is currently called "pyodide" into pyoide._module.
+let pyodide_FS = pyodide.FS;
+pyodide_FS.mkdir('/executor');
+pyodide_FS.mkdir('/executor/executor');
 for(let [k, v] of Object.entries(files_to_install)){
-    pyodide_module.FS.writeFile(`/executor/executor/${k}.py`, v);
+    pyodide_FS.writeFile(`/executor/executor/${k}.py`, v);
 }
 
 
@@ -42,21 +37,25 @@ async function startup(){
         sys.path.append("/executor")
         import pathlib
         from executor import PyodideExecutor
-        executor = PyodideExecutor()
-    `)
+        executor = PyodideExecutor()        
+        import micropip
+        micropip.install("spectralsequence_chart")
+    `);
+    self.sendMessage({cmd : "ready"});
 }
 let startup_promise = startup();
 
 self.addEventListener("message", async function(e) { // eslint-disable-line no-unused-vars
     await startup_promise;
-    console.log("worker received message", e.data);
+    // console.log("worker received message", e.data);
     const {uuid, interrupt_buffer} = e.data;
     // delete e.data.interrupt_buffer;
     message_lookup[uuid] = e.data;
     
     if(interrupt_buffer){
         e.data.interrupt_buffer = function(){
-            return Atomics.load(interrupt_buffer, 0);
+            return interrupt_buffer[0]; 
+            // return Atomics.load(interrupt_buffer, 0);
         }
     }
     await self.pyodide.runPythonAsync(`executor.handle_message("${uuid}")`);

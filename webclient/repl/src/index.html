@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Spectral Sequence Viewer</title>
+        <meta charset="utf-8"/>
+        <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.css" integrity="sha384-+MsSfd29vjUzcyqYURxcmpWGtqoSHBy+QdEJNLEslXQftxojQv0k6BGDqUNp9GtA" crossorigin="anonymous"> -->
+        <!-- <script type="text/javascript">
+            // set the pyodide files URL (packages.json, pyodide.asm.data etc)
+            window.languagePluginUrl = 'https://pyodide-cdn2.iodide.io/v0.15.0/full/';
+        </script>
+        <script src="https://pyodide-cdn2.iodide.io/v0.15.0/full/pyodide.js"></script> -->
+        <!-- <script type="text/javascript">
+            // set the pyodide files URL (packages.json, pyodide.asm.data etc)
+            window.languagePluginUrl = '/pyodide-build-custom/';
+        </script>
+        <script src="/pyodide-build-custom/pyodide.js"></script>         -->
+        <style>
+            body {
+                background-color: black;
+                overflow: hidden;
+            }
+
+            repl-terminal {
+                display: block;
+                height : calc(100vh - 2*27px); 
+                padding-bottom: 27px;
+                padding-top : 27px;
+                padding-left : 10px;
+                width : 100vw;
+                top : 0;
+                left : 0;
+                position: absolute !important;
+            }
+
+            .repl-error-widget {
+                width  : max-content;
+                padding: 0.3em;
+                font-size: 80%;
+                color: white;
+                background-color: #900;     
+                box-sizing: border-box;
+                margin-left: 80ch;
+            }
+
+            .repl-error {
+                opacity: 0;
+            }
+
+            .repl-error[transition=show] {
+                transition : 3s ease;
+            }
+
+            .repl-error[transition=hide] {
+                transition : 0.2s ease;
+            }        
+
+            .repl-error[active] {
+                opacity: 1;
+            }
+
+            .repl-error-decoration {
+                background-color: #900;
+                display: block;
+                width : 80ch;
+                height : 2px;
+            }
+
+            .repl-error-decoration-text {
+                color : blue !important;
+                /* margin-left : -4ch; */
+            }
+
+            .repl-error-decoration-highlight {
+                background-color: #600;
+                padding-right: 1ch;
+            }
+        </style>
+    </head>
+<body>
+<script src="./monaco.dll.js"></script>
+<script src="./index.bundle.js"></script>
+<repl-terminal tabindex="-1" class="monaco-editor"></repl-terminal>
+</body>
+</html>

@@ -1,7 +1,7 @@
 {
-  "name": "xterm-test",
+  "name": "pyodide-repl",
   "version": "1.0.0",
-  "description": "xterm.js test",
+  "description": "Pyodide Repl",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -10,21 +10,20 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "css-loader": "^3.6.0",
     "eventemitter3": "^4.0.4",
-    "file-loader": "^6.0.0",
     "monaco-editor": "^0.20.0",
     "monaco-editor-webpack-plugin": "^1.9.0",
-    "mousetrap": "^1.6.5",
-    "style-loader": "^1.2.1",
     "webpack": "^4.43.0",
-    "worker-loader": "^2.0.0",
-    "xterm": "^4.8.1"
+    "zip": "^1.2.0",
+    "zlib": "^1.0.5"
   },
   "devDependencies": {
-    "lit-element": "^2.3.1",
+    "copy-webpack-plugin": "^6.0.3",
+    "extra-watch-webpack-plugin": "^1.0.3",
     "raw-loader": "^4.0.1",
     "webpack-cli": "^3.3.12",
-    "webpack-dev-server": "^3.11.0"
+    "webpack-dev-server": "^3.11.0",
+    "webpack-shell-plugin": "^0.5.0",
+    "webpack-zip-files-plugin": "^1.0.0"
   }
 }
