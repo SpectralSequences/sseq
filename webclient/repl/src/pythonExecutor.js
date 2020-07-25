@@ -25,7 +25,10 @@ export class PythonExecutor {
     }
     
     _handleReadyMessage(message){
-        console.log("_handleReadyMessage")
+        if(message.exception){
+            this._readyPromise.reject(message.exception);
+            return;
+        }
         this._readyPromise.resolve();
     }
 

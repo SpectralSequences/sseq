@@ -8,7 +8,7 @@ import { promiseFromDomEvent } from "./utils"
 class ReplElement extends HTMLElement {
 	static get defaultEditorOptions(){
 		return {
-			value: "\n",
+			value: "",
 			language: "python",
 			folding : false,
 			theme : "vs-dark",
@@ -22,6 +22,7 @@ class ReplElement extends HTMLElement {
 			overviewRulerLanes : 0,
 			scrollBeyondLastLine : true,
 			contextmenu : false,
+			readOnly : true,
 		};
     }
     
@@ -44,6 +45,7 @@ class ReplElement extends HTMLElement {
 		// but it doesn't seem to do anything. Modifying the dom directly works fine though.
 		// Cursor blinking happens by toggling visibility, but we can use display without trouble.
 		this.querySelector(".cursor").style.display = v ? "none" : "block";
+		this.querySelector(".view-lines").style.cursor = v ? "default" : "text";2+2
 		this.editor.updateOptions({ renderLineHighlight : v ? "none" : "line"});
 	}
 
@@ -200,19 +202,25 @@ class ReplElement extends HTMLElement {
 		});
 	}
 
-	connectedCallback(){
+	async connectedCallback(){
         let styles = document.createElement("style");
-        styles.innerText = ReplElement.styles;
+		styles.innerText = ReplElement.styles;
 		this.appendChild(styles);
+
 		this.dummyTextArea = document.createElement("textarea");
 		this.dummyTextArea.setAttribute("readonly", "");
 		this.dummyTextArea.style.position = "absolute";
 		this.dummyTextArea.style.opacity = 0;
+		
 		this.appendChild(this.dummyTextArea);
 		let div = document.createElement("div");
 		this.overflowMutationObserver.observe(div, {"childList" : true, "subtree" : true});
         div.className = "root";
-        this.appendChild(div);
+		this.appendChild(div);
+		
+		this._resizeObserver = new ResizeObserver(entries => this.editor.layout());
+		this._resizeObserver.observe(this);
+
 		this.editor = monaco.editor.create(
             this.querySelector(".root"),
             this.editorOptions
@@ -220,26 +228,40 @@ class ReplElement extends HTMLElement {
 		this.editor.updateOptions({
 			lineNumbers : this._getEditorLinePrefix.bind(this)
 		});
-		sleep(10).then(() => {
-			// Takes a minute for the dom to update so we need to sleep first.
-			this.querySelector(".decorationsOverviewRuler").remove();
-		});
-		this._resizeObserver = new ResizeObserver(entries => this.editor.layout());
-		this._resizeObserver.observe(this);			
+
+		await sleep(10);
+		this.querySelector(".decorationsOverviewRuler").remove();
+		this.readOnly = true;
+		this._displayLoadingPrompt();
+		try {
+			await this.executor.ready();
+			this._loaded();
+		} catch(e){
+			this._loadingFailed(e);
+		}
+	}
+
+	async _displayLoadingPrompt(){
+		let idx = 0;
+		let loadingSpinner = ["|", "\\", "—", "/"];
+		while(!this.ready){
+			idx ++;
+			idx = idx % loadingSpinner.length;
+			this.editor.setValue(`Loading... ${loadingSpinner[idx]}`);
+			await sleep(50);
+		}
+	}
+
+	async _loaded(){
+		this.ready = true;
 		this.editor.onKeyDown(this._onkey.bind(this));
 		this.editor.onMouseDown(this._onmousedown.bind(this));
 		this.editor.onMouseUp(this._onmouseup.bind(this));
 		this.editor.onDidChangeCursorSelection(this._onDidChangeCursorSelection.bind(this));
 		this.editor.onDidScrollChange(() => this.updateLineOffsets());
-		// this.editor.onDidChangeModelContent(this._onDidChangeModelContent.bind(this));
+		this.editor.updateOptions({ "readOnly" : false });
 		window.addEventListener("cut", this._oncut.bind(this));
-		this.readOnly = true;
-		this._initializePrompt();
-
-	}
-
-	async _initializePrompt(){
-		await this.executor.ready();
+		
 		delete this.outputModelLines[2];
 		delete this.outputScreenLines[2];
 		this.firstLines[2] = true;
@@ -248,6 +270,36 @@ class ReplElement extends HTMLElement {
 		this.focus();
 		await sleep(0);
 		this.readOnly = false;
+	}
+
+	_loadingFailed(e){
+		this.ready = true;
+		let observer = new MutationObserver(() => {
+			for(let c of document.querySelectorAll(".cigr, .cigra")){
+				if(
+					Number(c.parentElement.style.top.slice(0,-2))/27 >= 2
+					&& c.style.left === "0px"
+				){
+					continue;
+				}
+				if(c.style.display !== "none"){
+					c.style.display = "none";
+				}
+			}
+		});
+		observer.observe(this, {"subtree" : true, "childList" : true, "attributesFilter" : ["style"] });
+		this.editor.updateOptions({
+			lineNumbers : (n) => {
+				if(n in this.outputModelLines){
+					return "";
+				}
+				return "   ";
+			}
+		});		
+		this.editor.setValue(`Fatal Error! \n \n ${e.toString().replace(/\n/g,"\n ")}`);
+		this.editor.updateOptions({
+			rulers : []
+		});
 	}
 
 	_getEditorLinePrefix(n){
@@ -423,6 +475,12 @@ class ReplElement extends HTMLElement {
 			return;
 		}
 		this.enforceReadOnlyRegion(e);
+		if(e.browserEvent.key === "Escape"){
+			if(this.currentExecution){
+				this.currentExecution.keyboardInterrupt();
+			}
+		}
+
 		if(e.browserEvent.key === "Enter") {
 			if(this.shouldEnterSubmit(e.browserEvent)){
 				this.preventKeyEvent();
@@ -673,19 +731,6 @@ class ReplElement extends HTMLElement {
         return true;
 	}
 
-	// async _onDidChangeModelContent(event){
-	// 	// if(event.isUndoing || event.isRedoing || this.justSteppedHistory){
-	// 	// 	return;
-	// 	// }
-	// 	// let addedText = event.changes.reduce(({text : a},{text : b}) => (!!a)||(!!b), false);
-	// 	// let re = addedText ? /[a-zA-Z_.]$/ : /[a-zA-Z_]$/;
-	// 	// let shouldComplete = re.test(this.value) || true;
-	// 	// if(shouldComplete){
-	// 	// 	this.jedi_value.setCode(this.value);
-	// 	// 	this.completions = await this.jedi_value.getCompletions();
-	// 	// }
-	// }
-
 	async submit(){
 		const code = this.value;
 		if(!code.trim()){
@@ -694,16 +739,15 @@ class ReplElement extends HTMLElement {
 		this.readOnly = true;
 		this.printToConsole("\n");
 		const execution = this.executor.execute(code);
+		this.currentExecution = execution;
 		execution.onStdout((data) => this.printToConsole(data));
 		let syntaxCheck = await execution.validate_syntax(code);
 		if(!syntaxCheck.valid){
 			this.showSyntaxError(syntaxCheck.error);
+			this.currentExecution = undefined;
 			this.readOnly = false;
 			return;
 		}
-		await sleep(1000);
-		console.log("Interrupt!");
-		execution.keyboardInterrupt();
 
 		this.history.push(code);
         await sleep(0);
@@ -717,6 +761,7 @@ class ReplElement extends HTMLElement {
 			console.log(e);
 			this.addOutput(e.traceback);
 		}
+		this.currentExecution = undefined;
 		this.prepareInput();
 		await sleep(0);
 		this.readOnly = false;

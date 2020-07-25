@@ -31,7 +31,6 @@ def maketracefunc(execution):
         frame.f_trace_opcodes = True
         global tracetick
         tracetick -= 1
-        # console.log(tracetick)
         if tracetick <= 0:
             tracetick = trace_inspect_interval
             execution.check_interrupt()
@@ -119,6 +118,7 @@ class Execution:
         # global tracetick
         # tracetick=0
         sys.settrace(maketracefunc(self))
+        # mymodule.start_inspection(self.check_interrupt)
         try:
             if len(mod.body):
                 exec(compile(mod, '<exec>', mode='exec', flags=flags), ns, ns)
@@ -137,6 +137,7 @@ class Execution:
             self.send_keyboard_interrupt(e)
         finally:
             sys.settrace(None)
+            # mymodule.end_inspection()
             end = time()
             dt = end - start
             console.log("time", dt)

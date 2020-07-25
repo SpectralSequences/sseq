@@ -30,18 +30,22 @@ self.debug_parso_code_lookup = {};
 
 
 async function startup(){
-    await languagePluginLoader;
-    await pyodide.loadPackage(["micropip", "pygments"]);
-    await pyodide.runPython(`
-        import sys
-        sys.path.append("/executor")
-        import pathlib
-        from executor import PyodideExecutor
-        executor = PyodideExecutor()        
-        import micropip
-        micropip.install("spectralsequence_chart")
-    `);
-    self.sendMessage({cmd : "ready"});
+    try {
+        await languagePluginLoader;
+        await pyodide.loadPackage(["micropip", "pygments"]);
+        await pyodide.runPython(`
+            import sys
+            sys.path.append("/executor")
+            import pathlib
+            from executor import PyodideExecutor
+            executor = PyodideExecutor()        
+            import micropip
+            micropip.install("spectralsequence_chart")
+        `);
+        self.sendMessage({cmd : "ready"});
+    } catch(e){
+        self.sendMessage({cmd : "ready", exception : e});
+    }
 }
 let startup_promise = startup();
 
