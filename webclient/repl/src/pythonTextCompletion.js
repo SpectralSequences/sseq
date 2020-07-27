@@ -27,21 +27,21 @@ function getCompletionProvider(monaco, repl) {
         triggerCharacters: ['.'],
         provideCompletionItems: async function (model, position) {
             let suggestions = [];
-            repl.jedi_value.setCode(repl.value);
-            let completions = await repl.jedi_value.getCompletions();
+            position.lineNumber -= repl.readOnlyLines;
+            let [state_id, completions] = await repl.jedi_value.getCompletions(repl.value, position);
             for(let {name, kind} of completions){
                 let label = name;
                 let suggestion = makeSuggestion(label, monaco.languages.CompletionItemKind[kind_map[kind]]);
+                suggestion.state_id = state_id;
                 suggestion.idx = suggestions.length;
                 suggestions.push(suggestion);
             }
             return {suggestions};
         },
         resolveCompletionItem : async function(model, position, item){
-            let result = await repl.jedi_value.getCompletionInfo(item.idx);
+            let result = await repl.jedi_value.getCompletionInfo(item.state_id, item.idx);
+            console.log("resolved:", result);
             let {docstring, signature} = result;
-            // console.log(result);
-            // console.log("resolved", docstring, signature);
             item.detail = signature;
             item.documentation = docstring;
             return item;

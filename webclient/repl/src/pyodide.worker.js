@@ -32,15 +32,16 @@ self.debug_parso_code_lookup = {};
 async function startup(){
     try {
         await languagePluginLoader;
-        await pyodide.loadPackage(["micropip", "pygments"]);
+        await pyodide.loadPackage([
+            "pygments", 
+            "crappy-python-multitasking",
+            "spectralsequence_chart"
+        ]);
         await pyodide.runPython(`
             import sys
             sys.path.append("/executor")
-            import pathlib
             from executor import PyodideExecutor
             executor = PyodideExecutor()        
-            import micropip
-            micropip.install("spectralsequence_chart")
         `);
         self.sendMessage({cmd : "ready"});
     } catch(e){

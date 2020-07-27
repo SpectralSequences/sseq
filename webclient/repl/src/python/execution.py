@@ -6,6 +6,18 @@ from .traceback import Traceback
 from .send_message import send_message
 from .write_stream import WriteStream
 from js import console
+from contextlib import redirect_stdout, redirect_stderr, contextmanager
+import crappy_multitasking as crappy_multitasking_module
+
+
+@contextmanager
+def crappy_multitasking(callback, interval):
+    crappy_multitasking_module.set_interval(interval)
+    crappy_multitasking_module.start(callback)
+    try:
+        yield None
+    finally:
+        crappy_multitasking_module.end()
 
 def firstlinelen(s):
     res = s.find("\n") 
@@ -20,22 +32,6 @@ def dedent_code(code):
     code=dedent_code
     return [code, offset]
 
-# n: 1300083 time 2.2939999103546143
-# n:  200019 time 0.5100002288818359
-# n:       0 time 0.22800016403198242
-
-trace_inspect_interval = 10000
-tracetick = trace_inspect_interval
-def maketracefunc(execution):
-    def tracefunc(frame, event, arg):
-        frame.f_trace_opcodes = True
-        global tracetick
-        tracetick -= 1
-        if tracetick <= 0:
-            tracetick = trace_inspect_interval
-            execution.check_interrupt()
-        return tracefunc
-    return tracefunc
 
 
 class Execution:
@@ -46,6 +42,7 @@ class Execution:
         self.code = code
         self.dedent_offset = dedent_offset
         self.read_interrupt_buffer = interrupt_buffer
+        self.check_interrupt_interval = 10_000
 
     def send_message(self, subcmd, *, last_response, **kwargs):
         from .executor import PyodideExecutor
@@ -85,9 +82,6 @@ class Execution:
         Runs a string of code, the last part of which may be an expression.
         """
 
-        sys.stdout = WriteStream(self.send_stdout_write)
-        sys.stderr = WriteStream(self.send_stderr_write)
-
         try:
             mod = ast.parse(self.code)
         except SyntaxError as e:
@@ -111,43 +105,28 @@ class Execution:
 
         [mod, expr] = Execution.adjust_ast(mod, self.code)
 
-        flags = self.executor.flags
-        ns = self.executor.namespace
-        from time import time
-        start = time()
-        # global tracetick
-        # tracetick=0
-        sys.settrace(maketracefunc(self))
-        # mymodule.start_inspection(self.check_interrupt)
         try:
-            if len(mod.body):
-                exec(compile(mod, '<exec>', mode='exec', flags=flags), ns, ns)
-            if expr is not None:
-                result = eval(compile(expr, '<eval>', mode='eval', flags=flags), ns, ns)
-                if result is not None:
-                    self.send_result(repr(result))
+            flags = self.executor.flags
+            ns = self.executor.namespace
+            with \
+              redirect_stdout(WriteStream(self.send_stdout_write)),\
+              redirect_stderr(WriteStream(self.send_stderr_write)),\
+              crappy_multitasking(self.check_interrupt, self.check_interrupt_interval):
+                if len(mod.body):
+                    exec(compile(mod, '<exec>', mode='exec', flags=flags), ns, ns)
+                if expr is not None:
+                    result = eval(compile(expr, '<eval>', mode='eval', flags=flags), ns, ns)
+                    if result is not None:
+                        self.send_result(repr(result))
+                    else:
+                        self.send_result(None)
                 else:
                     self.send_result(None)
-            else:
-                self.send_result(None)
         except Exception as e:
             self.send_exception(e)
-            # raise
         except KeyboardInterrupt as e:
             self.send_keyboard_interrupt(e)
-        finally:
-            sys.settrace(None)
-            # mymodule.end_inspection()
-            end = time()
-            dt = end - start
-            console.log("time", dt)
-        # interrupt = self.interrupt_buffer()
-        # if interrupt:
-        #     console.log("Interrupt:", interrupt)
-        # else:
-        #     console.log("No interrupt")
 
-            
 
     def send_syntax_is_valid(self):
         self.send_message("validate_syntax", last_response=False, valid=True)

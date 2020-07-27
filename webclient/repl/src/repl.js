@@ -45,7 +45,8 @@ class ReplElement extends HTMLElement {
 		// but it doesn't seem to do anything. Modifying the dom directly works fine though.
 		// Cursor blinking happens by toggling visibility, but we can use display without trouble.
 		this.querySelector(".cursor").style.display = v ? "none" : "block";
-		this.querySelector(".view-lines").style.cursor = v ? "default" : "text";2+2
+		// console.log(this.querySelector(".cursor").style.display);
+		this.querySelector(".view-lines").style.cursor = v ? "default" : "text";
 		this.editor.updateOptions({ renderLineHighlight : v ? "none" : "line"});
 	}
 
@@ -243,7 +244,7 @@ class ReplElement extends HTMLElement {
 
 	async _displayLoadingPrompt(){
 		let idx = 0;
-		let loadingSpinner = ["|", "\\", "—", "/"];
+		let loadingSpinner = ["|",  "/", "—", "\\"];
 		while(!this.ready){
 			idx ++;
 			idx = idx % loadingSpinner.length;
@@ -736,8 +737,11 @@ class ReplElement extends HTMLElement {
 		if(!code.trim()){
 			return;
 		}
-		this.readOnly = true;
 		this.printToConsole("\n");
+		await sleep(0);
+		// editor.setValue seems to undo changes to the console so readOnly has to be set second
+		// and we need to sleep first.
+		this.readOnly = true; 
 		const execution = this.executor.execute(code);
 		this.currentExecution = execution;
 		execution.onStdout((data) => this.printToConsole(data));

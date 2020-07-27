@@ -173,31 +173,23 @@ export class Completer extends EventEmitter {
         this.executor._postMessage("complete", this.uuid, msg);
     }
 
-    setCode(code){
-        this._postMessage("set-code", {code});
-    }
-
-    setPosition(line, column){
-        this.line = line;
-        this.column = column;
-    }
-
-    async getCompletions(){
+    async getCompletions(code, position){
         let subuuid = uuid4();
         let response_promise = new Promise((resolve, reject) => 
             this.responses[subuuid] = {resolve, reject, cmd : "completions"}
         );
-        this._postMessage("completions", { subuuid });
+        let {lineNumber, column} = position;
+        this._postMessage("completions", { subuuid, code, lineNumber, column });
         let response = await response_promise;
-        return response.completions;
+        return [response.state_id, response.completions];
     }
 
-    async getCompletionInfo(idx){
+    async getCompletionInfo(state_id, idx){
         let subuuid = uuid4();
         let response_promise = new Promise((resolve, reject) => 
             this.responses[subuuid] = {resolve, reject, cmd : "completion_detail"}
         );
-        this._postMessage("completion_detail", { subuuid, idx });
+        this._postMessage("completion_detail", { subuuid, idx, state_id });
         let {docstring, signature} = await response_promise;
         return {docstring, signature};
     }

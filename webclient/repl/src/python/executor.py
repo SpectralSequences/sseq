@@ -12,6 +12,7 @@ from .execution import Execution
 class PyodideExecutor:
     def __init__(self, namespace=None, flags=0):
         self.namespace = namespace or {}
+        self.namespace["enable_interrupts"] = True
         self.flags = flags
         self.completers = {}
 
