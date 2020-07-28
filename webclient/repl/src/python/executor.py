@@ -1,18 +1,27 @@
 import sys
 import pyodide
 
-from js import message_lookup
+from js import message_lookup, asyncCall
 
 from .handler_decorator import *
 from .completer import Completer
 from .execution import Execution
 
+def async_call(cmd, **kwargs):
+    result = asyncCall(cmd, kwargs)
+    if result is not None:
+        return dict(result)
+
+def sleep(duration):
+    """ sleep for duration seconds (approximately) """
+    async_call("sleep", duration=duration * 1000)
 
 @collect_handlers("message_handlers")
 class PyodideExecutor:
     def __init__(self, namespace=None, flags=0):
         self.namespace = namespace or {}
-        self.namespace["enable_interrupts"] = True
+        self.namespace["async_call"] = async_call
+        self.namespace["sleep"] = sleep;
         self.flags = flags
         self.completers = {}
 
@@ -27,8 +36,8 @@ class PyodideExecutor:
         handler(self, **kwargs)
         
     @handle("execute")
-    def execute(self, *, code, uuid, interrupt_buffer):
-        Execution(self, code, uuid, interrupt_buffer).run()
+    def execute(self, **kwargs):
+        Execution(self, **kwargs).run()
 
     @handle("complete")
     def complete(self, uuid, subcmd, **kwargs):

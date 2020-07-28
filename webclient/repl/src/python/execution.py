@@ -44,6 +44,7 @@ class Execution:
         self.read_interrupt_buffer = interrupt_buffer
         self.check_interrupt_interval = 10_000
 
+
     def send_message(self, subcmd, *, last_response, **kwargs):
         from .executor import PyodideExecutor
         send_message("execute", self.uuid, subcmd=subcmd, last_response=last_response, **kwargs)
@@ -51,7 +52,7 @@ class Execution:
     def check_interrupt(self):
         if self.read_interrupt_buffer() == 0:
             return
-        raise KeyboardInterrupt
+        raise KeyboardInterrupt()
 
 
     @staticmethod

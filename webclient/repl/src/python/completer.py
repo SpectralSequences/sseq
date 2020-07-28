@@ -62,7 +62,6 @@ class Completer:
 
     @handle("completion_detail")
     def get_completion_info(self, subuuid, state_id, idx):
-        print(state_id, [x.name for x in self.states[state_id]])
         completion = self.states[state_id][idx]
         docstring = completion.docstring() or completion._get_docstring()
         signature = completion._get_docstring_signature()
