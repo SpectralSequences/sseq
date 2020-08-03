@@ -1,19 +1,32 @@
 from ..infinity import INFINITY
 import json
-from typing import List, Tuple, Any, Union, TypeVar, Generic, Optional, Dict
+from typing import List, Tuple, Any, Union, TypeVar, Generic, Optional, Dict, cast, Callable
 
 T = TypeVar('T')
 class PageProperty(Generic[T]):
-    def __init__(self, value : T, parent : Optional[Any] = None):
+    """
+        A class to represent a property that varies depending on the pages of a spectral sequence. 
+        This is the main helper class that encapsulates any property of a class, edge, or chart
+        that varies depending on the page.
+    """
+    def __init__(self, 
+        value : T, 
+        parent : Optional[Any] = None,
+        callback : Optional[Callable[[], None]] = None,
+    ):
+        """ Initialize the PageProperty to always have value v."""
         self._values : List[Tuple[int, T]] = [(-INFINITY, value)]
         self._set_parent(parent)
+        self._callback = callback
 
     def _set_parent(self, parent : Optional[Any]):
         self._parent = parent
     
-    def needs_update(self):
+    def _needs_update(self):
         if self._parent:
-            self._parent.needs_update()
+            self._parent._needs_update()
+        if self._callback:
+            self._callback()
 
     def _find_index(self, target_page : int) -> Tuple[int, bool]:
         result_idx = None
@@ -21,8 +34,9 @@ class PageProperty(Generic[T]):
             if page > target_page:
                 break
             result_idx = idx 
+        # We need to help out the type checker here
         if result_idx is None: 
-            assert False, "Unreachable" # We need to help out the type checker here
+            assert False, "Unreachable" 
         return (result_idx, self._values[result_idx][0] == target_page)
 
     def __getitem__(self, x : Union[int, slice]) -> T:
@@ -53,7 +67,7 @@ class PageProperty(Generic[T]):
             end_idx += 1
         del self._values[start_idx + 1 : end_idx]
         self._merge_redundant()
-        self.needs_update()
+        self._needs_update()
     
     def _setitem_single(self, p : int, v : T):
         (idx, hit) = self._find_index(p)
@@ -70,15 +84,20 @@ class PageProperty(Generic[T]):
                 del self._values[i]
     
     def __repr__(self) -> str:
-        return f"PageProperty({json.dumps(self._values)})"
+        return f"PageProperty({repr(self._values)})"
+
+    def __eq__(self, other):
+        if type(other) != PageProperty:
+            return False
+        return self._values == other._values
 
     def to_json(self) -> Dict[str, Any]:
         return {"type" : "PageProperty", "data" : self._values }
     
     @staticmethod
     def from_json(json_obj : Dict[str, Any]) -> "PageProperty[Any]":
-        result = PageProperty(None)
-        result._values = json_obj["data"]
+        result : PageProperty[Any] = PageProperty(None)
+        result._values = [cast(Tuple[int, Any], tuple(x)) for x in json_obj["data"]]
         return result
 
 S = TypeVar('S')

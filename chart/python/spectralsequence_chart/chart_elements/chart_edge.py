@@ -1,4 +1,4 @@
-from ..helper_types import (
+from ..helper_classes import (
     PageProperty, PagePropertyOrValue, ensure_page_property,
     SignalDict
 )
@@ -26,6 +26,8 @@ class ChartEdge:
         visible : PagePropertyOrValue[bool] = True,
         user_data : Optional[SignalDict[Any]] = None
     ):
+        """ Do not call SseqEdge constructor directly, use instead SseqChart.add_structline(),
+            SseqChart.add_differential(), SseqChart.add_extension(), or JSON.parse()."""
         self._sseq : SseqChart
         self._source_uuid = source_uuid
         self._target_uuid = target_uuid
@@ -51,7 +53,7 @@ class ChartEdge:
 
 
 
-    def needs_update(self):
+    def _needs_update(self):
         self._sseq._add_edge_to_update(self)
 
     def replace_source(self, **kwargs : Any):
@@ -69,7 +71,7 @@ class ChartEdge:
     _EDGE_TYPE_DICT : Dict[str, type]
     @staticmethod
     def from_json(json : Dict[str, Any]) -> "ChartEdge":
-        if hasattr(ChartEdge, "EDGE_TYPE_DICT"):
+        if not hasattr(ChartEdge, "EDGE_TYPE_DICT"):
             ChartEdge._EDGE_TYPE_DICT = {edge_type.__name__ : edge_type for edge_type in [ChartStructline, ChartDifferential, ChartExtension]}
         edge_type = json["type"]
         if edge_type in ChartEdge._EDGE_TYPE_DICT:
@@ -83,6 +85,9 @@ class ChartEdge:
     def to_json(self) -> Dict[str, Any]:
         return dict(
             type=self.__class__.__name__,
+            uuid=self.uuid,
+            source_uuid=self._source_uuid,
+            target_uuid=self._target_uuid,
             color=self.color,
             dash_pattern=self.dash_pattern,
             line_width=self.line_width,

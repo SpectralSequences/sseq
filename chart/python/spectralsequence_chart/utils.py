@@ -19,7 +19,9 @@ class Serializable:
 class JSON:
     @staticmethod
     def stringify(obj : Any):
-        return json.dumps(obj, default=stringifier)
+        # sort_keys needed to ensure that object equality ==> string equality,
+        # useful for ease of testing.
+        return json.dumps(obj, default=stringifier, sort_keys=True) 
 
     @staticmethod
     def parse(json_str : str) -> Any:
@@ -38,25 +40,12 @@ class JSON:
         if hasattr(JSON, "types"):
             return
         from .chart import (SseqChart, ChartClass, ChartStructline, ChartDifferential, ChartExtension)
-        from .helper_types import PageProperty
+        from .helper_classes import PageProperty
         JSON.types = { t.__name__ : cast(Serializable, t) for t in [
             SseqChart,
             ChartClass, ChartStructline, ChartDifferential, ChartExtension,
             PageProperty
         ]}
-
-
-def replace_keys(d : Any, replace_keys : List[Tuple[str, str]]):
-    for (key, replacement) in replace_keys:
-        if hasattr(d, key):
-            setattr(d, replacement, getattr(d, key))
-            delattr(d, key)
-
-def reverse_replace_keys(d : Any, replace_keys : List[Tuple[str, str]]):
-    for (replacement, key) in replace_keys:
-        if hasattr(d, key):
-            setattr(d, replacement, getattr(d, key))
-            delattr(d, key)
 
 def arguments(*args : Any, **kwargs : Any) -> Tuple[Tuple, Dict[str, Any]]:
     return (args, kwargs)
