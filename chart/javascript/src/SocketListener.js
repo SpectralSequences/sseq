@@ -1,10 +1,41 @@
-import { uuidv4 } from "./interface/utils.js";
+import { uuidv4 as uuid4 } from "./interface/utils.js";
+
+function removeErrorConstructorsFromStacktrace(stacktrace){
+    let lines = stacktrace.split("\n");
+    for(let i = 1; i < lines.length; i++){
+        if(!(/^\s*at new \w*(Error|Exception)/.test(lines[i]))){
+            break;
+        }
+        console.log("removed:", lines[i]);
+        lines[i] = undefined;
+    }
+    let result = [];
+    lines.forEach((line) => {
+        if(line){
+            result.push(line);
+        }
+    });
+    result.join("\n");
+    return result;
+}
+
+
+function cmd_string_to_filter_list(cmd){
+    let result = [cmd];
+    let idx;
+    while( (idx = cmd.lastIndexOf(".")) >= 0) {
+        cmd = cmd.slice(0, idx);
+        result.push(cmd);
+    }
+    result.push("*");
+    return result;
+}
 
 export class BadMessageError extends TypeError {
     constructor(...args) {
         super(...args)
         this.name = this.constructor.name;
-        this.stack = this.stack.split("\n").slice(1).join("\n")
+        // this.stack = removeErrorConstructorsFromStacktrace(this.stack);
     }
 }
 
@@ -12,7 +43,6 @@ export class UnknownCommandError extends BadMessageError {
     constructor(...args) {
         super(...args)
         this.name = this.constructor.name;
-        this.stack = this.stack.split("\n").slice(1).join("\n")
     }
 }
 
@@ -20,7 +50,6 @@ export class InvalidCommandError extends BadMessageError {
     constructor(...args) {
         super(...args)
         this.name = this.constructor.name;
-        this.stack = this.stack.split("\n").slice(1).join("\n")
     }
 }
 
@@ -28,7 +57,6 @@ export class UnknownDisplayCommandError extends UnknownCommandError {
     constructor(...args) {
         super(...args)
         this.name = this.constructor.name;
-        this.stack = this.stack.split("\n").slice(1).join("\n")
     }
 }
 
@@ -36,7 +64,7 @@ export class StaleResponseError extends TypeError {
     constructor(...args) {
         super(...args)
         this.name = this.constructor.name;
-        this.stack = this.stack.split("\n").slice(1).join("\n")
+        this.stack = (new Error(...args)).stack;
     }
 }
 
@@ -44,11 +72,19 @@ export class SocketListener {
     constructor(websocket) {
         this.websocket = websocket;
         this.websocket.onmessage = this.onmessage.bind(this);
-        this.websocket.onopen = this.onopen.bind(this);
         this.message_dispatch = {};
         this.promise_filters = {};
         this.promises = {};
+        this.message_extra_data = {};
         this.debug_mode = false;
+        if("onopen" in websocket){
+            this.websocket.onopen = this.onopen.bind(this);
+        } else {
+            this.onopen();
+        }
+        if("postMessage" in websocket){
+            this.websocket.send = this.websocket.postMessage;
+        }
     }
 
     add_message_handler(cmd_filter, handler) {
@@ -87,7 +123,7 @@ export class SocketListener {
             result.resolve = resolve;
             result.reject = reject;
         });
-        result.uuid = uuidv4();
+        result.uuid = uuid4();
         this.promises[cmd_filter] = result;
         return {"promise" : result.promise, "uuid" : result.uuid };
     }
@@ -117,6 +153,9 @@ export class SocketListener {
     }
 
     _start(){
+        if("start" in this.websocket){
+            this.websocket.start();
+        }        
         this.console_log_if_debug("send_introduction_message");
         this.handle_message({
             "cmd" : ["start"],
@@ -126,7 +165,10 @@ export class SocketListener {
     }
 
     onmessage(event) {
-        let msg = JSON.parse(event.data);
+        let msg = event.data;
+        if(msg.constructor === String){
+            msg = JSON.parse(msg);
+        }
         this.handle_message(msg, true);
     }
 
@@ -145,7 +187,13 @@ export class SocketListener {
         if("cmd" in kwargs) {
             throw ValueError(`Tried to send message with top level "cmd" key`);
         }
-        let obj = { "cmd" : cmd, "args" : args, "kwargs" : kwargs };
+        let uuid = uuid4();
+        let obj = Object.assign({ 
+                cmd, args, kwargs,
+                uuid : uuid4()
+            },
+            this.message_extra_data
+        );
         let json_str = JSON.stringify(obj);
         this.websocket.send(json_str);
     }
@@ -219,8 +267,12 @@ export class SocketListener {
             if(msg.cmd === undefined) {
                 throw new UnknownCommandError(`Server sent message missing "cmd" field.`);
             }
+
+            if(msg.cmd.constructor === String){
+                msg.cmd = cmd_string_to_filter_list(msg.cmd);
+            }
     
-            if(msg.cmd.constructor != Array){
+            if(msg.cmd.constructor !== Array){
                 throw new InvalidCommandError(
                     `"msg.cmd" should have type "Array" not "${msg.cmd.constructor.name}."`
                 );
@@ -253,6 +305,7 @@ export class SocketListener {
             this.message_dispatch[key](msg.cmd, msg.args, msg.kwargs);
         } catch(error) {
             this.console_log_if_debug(error);
+            console.log(msg);
             console.error(error);
             if(report_error_to_server){
                 this.report_error_to_server(error, msg);

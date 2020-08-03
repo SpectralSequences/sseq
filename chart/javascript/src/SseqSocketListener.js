@@ -36,6 +36,9 @@ export class SseqSocketListener extends SocketListener {
 
 let default_message_handlers = {
     "start" : function(){
+        if(!this.display){
+            throw Error("Must call 'socket.attachDisplay(display)' before socket.start()!")
+        }
         this.send("new_user", {});
     },
 

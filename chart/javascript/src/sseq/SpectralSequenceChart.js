@@ -74,6 +74,9 @@ export class SpectralSequenceChart extends EventEmitter {
         if(!json){
             throw ReferenceError("json is undefined");
         }
+        if(json.constructor === String){
+            json = JSON.parse(json);
+        }
         let chart = new SpectralSequenceChart();
 
         if(json.classes === undefined) {
