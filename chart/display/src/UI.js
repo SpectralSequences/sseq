@@ -12,6 +12,7 @@ export class UIElement extends HTMLElement {
         this._stopKeypressCallback = this._stopKeypressCallback.bind(this);
         this._handleKeyEvent = this._handleKeyEvent.bind(this);
         this._setupKeyBindings();
+        this._reflowing = 0;
         this.attachShadow({mode: 'open'});
         this.shadowRoot.innerHTML = `
             <style>
@@ -38,6 +39,31 @@ export class UIElement extends HTMLElement {
                 </div>
             </slot>
         `;
+    }
+
+    connectedCallback(){
+        this.style.display = "";
+        this.setAttribute("tab-index", "-1");
+        if(this.hasAttribute("start")){
+            this.start();
+        }
+    }
+
+    startReflow(){
+        this._reflowing ++;
+        if(this._reflowing == 1){
+            this.dispatchEvent(new CustomEvent("begin-reflow"));
+        }
+    }
+
+    endReflow(){
+        if(this._reflowing == 0){
+            return;
+        }
+        this._reflowing --;
+        if(this._reflowing == 0){
+            this.dispatchEvent(new CustomEvent("end-reflow"));
+        }
     }
 
     async start(){

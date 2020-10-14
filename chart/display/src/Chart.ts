@@ -4,6 +4,8 @@ import { assert } from "console";
 import { Color } from "./chart/Color";
 import { throttle } from "./utils";
 
+import {LitElement, html, css} from 'lit-element';
+
 (<any>window).EdgeOptions = EdgeOptions;
 (<any>window).Vec2 = Vec2;
 
@@ -80,15 +82,18 @@ function buildShapeGlyph(shape : Shape) : GlyphBuilder {
 
 const WEBGL_OPTIONS =  {"stencil" : true, "alpha" : true , "preserveDrawingBuffer" : true, antialias : true };
 
-export class ChartElement extends HTMLElement {
+export class ChartElement extends LitElement {
     _oldTouches : Touch[] = [];
     _previousMouseX : number = 0;
     _previousMouseY : number = 0;
     _canvas? : Canvas;
+
     _needsRedraw : boolean = true;
+    _continuousRedraw : number = 0;
     _idleFrames : number = 0;
     requestAnimationFrameId : number = 0;
-    _resizeObserver? : ResizeObserver;
+
+    _resizeObserver : ResizeObserver;
     _mouseDown : boolean = false;
     _glyph_scale : number = 0;
     shape_to_glyph : Map<Shape, Glyph> = new Map();
@@ -100,8 +105,11 @@ export class ChartElement extends HTMLElement {
     page : number = 0;
     page_idx : number = 0;
     defaultGlyphAndColors : GlyphAndColors;
-    scale_update_zoom : boolean = false;
-    scale_update_pan : boolean = false;
+
+
+    updated_zoom : boolean = false;
+    updated_pan : boolean = false;
+    updated_canvas_size : boolean = false;
 
     topMargin : number = 40;
     bottomMargin : number = 60;
@@ -110,7 +118,6 @@ export class ChartElement extends HTMLElement {
 
     constructor(){
         super();
-        this.attachShadow({ mode : "open" });
         let gb = GlyphBuilder.empty();
         gb.circled(15);
         let glyph = gb.build();
@@ -119,35 +126,69 @@ export class ChartElement extends HTMLElement {
             fill : new RustColor(0, 0, 0, 1),
             stroke : new RustColor(0, 0, 0, 1)
         };
+        this._resizeObserver = new ResizeObserver(_entries => {
+            this._resize();
+        });
     }
 
-    connectedCallback(){
-        let canvasElement = document.createElement("canvas");
-        this.shadowRoot!.appendChild(canvasElement);
-        let slot = document.createElement("slot");
-        slot.style.position = "relative";
-        this.shadowRoot!.appendChild(slot);
-        this.style.overflow = "hidden";
+    static get styles() {
+        return css`
+            :host {
+                position : relative;
+                overflow : hidden;
+            }
+        `;
+    }
 
-        let canvasContext = canvasElement.getContext("webgl2", WEBGL_OPTIONS) as WebGL2RenderingContext;
-        this._canvas = new Canvas(canvasContext);
-        this._canvas.set_margins(this.leftMargin, this.rightMargin, this.bottomMargin, this.topMargin);
+    render() {
+        return html`
+            <canvas></canvas>
+            <slot></slot>
+        `;
+    }
+
+    uiElt() : Element {
+        let uiElt = this.closest("sseq-ui");
+        if(!uiElt) {
+            throw Error("<sseq-chart> must be a descendent of <sseq-ui>");
+        }
+        return uiElt;
+    }
+
+    firstUpdated(){
+        let uiElt = this.uiElt();
+        uiElt.addEventListener("started", this._start.bind(this));
+    }
+
+    startContinuousRedraw(){
+        this._continuousRedraw ++;
+    }
+
+    endContinuousRedraw(){
+        this._continuousRedraw --;
+    }
+
+    _start(){
+        let uiElt = this.uiElt();
+        uiElt.addEventListener("begin-reflow", () => this.startContinuousRedraw() );
+        uiElt.addEventListener("end-reflow", () => this.endContinuousRedraw());
         this.addEventListener("mousedown", this.handleMouseDown.bind(this));
         this.addEventListener("mouseup", this.handleMouseUp.bind(this));
         this.addEventListener("mousemove", this.handleMouseMove.bind(this));
         this.addEventListener("touchstart", this.handleTouchStart.bind(this));
         this.addEventListener("touchmove", this.handleTouchMove.bind(this));
         this.addEventListener("touchend", this.handleTouchEnd.bind(this));
-
         this.addEventListener("wheel", this.handleScroll.bind(this));
-        this._resizeObserver = new ResizeObserver(_entries => {
-            this._resize();
-        });
-        this._resizeObserver.observe(this);
-        
+
+        let canvasElement = this.shadowRoot!.querySelector("canvas")!;
+        let canvasContext = canvasElement.getContext("webgl2", WEBGL_OPTIONS) as WebGL2RenderingContext;
+        this._canvas = new Canvas(canvasContext);
+        this._canvas.set_margins(this.leftMargin, this.rightMargin, this.bottomMargin, this.topMargin);
         this._canvas.resize(this.offsetWidth, this.offsetHeight, window.devicePixelRatio);
         this._canvas.set_current_xrange(-10, 10);
         this._canvas.set_current_yrange(-10, 10);
+        this._resizeObserver.observe(this);
+
         this._requestRedraw();
         this._requestFrame();
         this.dispatchCustomEvent("canvas-initialize", {});
@@ -155,10 +196,8 @@ export class ChartElement extends HTMLElement {
     }
 
     _resize(){
-        this._canvas!.resize(this.offsetWidth, this.offsetHeight, window.devicePixelRatio);
         this._requestRedraw();
-        this._requestFrame();
-        this.dispatchCustomEvent("canvas-resize", {});
+        this.updated_canvas_size = true;
     }
 
     _requestFrame(){
@@ -202,12 +241,12 @@ export class ChartElement extends HTMLElement {
     }
 
     _requestScaleUpdateZoom() {
-        this.scale_update_zoom = true;
+        this.updated_zoom = true;
         this._requestRedraw();
     }
 
     _requestScaleUpdatePan() {
-        this.scale_update_pan = true;
+        this.updated_pan = true;
         this._requestRedraw();
     }
 
@@ -313,7 +352,7 @@ export class ChartElement extends HTMLElement {
     
     handleMouseMove(event : MouseEvent) {
         let { offsetX : x, offsetY : y, buttons } = event;
-        if(buttons > 0){ 
+        if(buttons > 0 && document.activeElement?.contains(this)){ 
             this._canvas!.translate(new Vec2(x - this._previousMouseX, y - this._previousMouseY));
             this._requestRedraw();
             this._requestScaleUpdatePan();
@@ -359,7 +398,6 @@ export class ChartElement extends HTMLElement {
         this._previousMouseY = y;
     }
 
-
     handleFrame() {
         this._requestFrame();
         
@@ -394,7 +432,7 @@ export class ChartElement extends HTMLElement {
 		// 	_requestRedraw
 		// }
 
-		if(this._needsRedraw) {
+		if(this._needsRedraw || this._continuousRedraw > 0) {
             this._idleFrames = 0;
 			this._needsRedraw = false;
             this._draw();
@@ -440,7 +478,7 @@ export class ChartElement extends HTMLElement {
         this.page = this.pageRange[0];
 
         this._updateChart();
-        this.dispatchCustomEvent("page-change", {page : this.page, range : this.pageRange, idx : this.page_idx });
+        this.dispatchCustomEvent("page-change", {page : this.page, pageRange : this.pageRange, idx : this.page_idx });
     }
 
     setMargins(leftMargin : number, rightMargin : number, topMargin : number, bottomMargin : number){
@@ -561,13 +599,17 @@ export class ChartElement extends HTMLElement {
 
     _draw(){
         this._updateClassScale();
-        if(this.scale_update_zoom){
+        if(this.updated_zoom){
             this.dispatchCustomEvent("scale-update", { type : "zoom" });
-        } else if(this.scale_update_pan){
+        } else if(this.updated_pan){
             this.dispatchCustomEvent("scale-update", { type : "pan" });
         }
-        this.scale_update_zoom = false;
-        this.scale_update_pan = false;
+        this._canvas!.resize(this.offsetWidth, this.offsetHeight, window.devicePixelRatio);
+        if(this.updated_canvas_size){
+            this.dispatchCustomEvent("canvas-resize", {});
+        }
+        this.updated_zoom = false;
+        this.updated_pan = false;
         this._canvas!.render();
         this.dispatchCustomEvent("draw", {});
         this.updateMouseoverClass([this._previousMouseX, this._previousMouseY]);

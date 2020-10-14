@@ -63,7 +63,6 @@ export class ClassHighlighterElement extends LitElement {
     }
 
     handleMarginUpdate(){
-        console.log(this);
         let overflowHider = this.shadowRoot.querySelector(".overflow-hider");
         overflowHider.style.left = `${this.disp.leftMargin}px`;
         overflowHider.style.right = `${this.disp.rightMargin}px`;

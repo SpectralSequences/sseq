@@ -270,7 +270,7 @@ export class PopupElement extends LitElement {
                 <div class="header">
                     <div class="header-inner">
                         <slot name="header">
-                            <h3>Popup | Modal | PURE CSS</h3>
+                            <h3>Default Text</h3>
                         </slot>
                     </div>
                     ${ 

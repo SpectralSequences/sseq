@@ -11,6 +11,8 @@ import { SidebarElement } from "./Sidebar";
 import { TooltipElement } from "./Tooltip";
 import { UIElement } from "./UI";
 
+import "./theme.css";
+
 window.SseqChart = SseqChart;
 
 // wasm module has to be loaded asynchronously.

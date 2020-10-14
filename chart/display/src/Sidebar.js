@@ -222,7 +222,9 @@ export class SidebarElement extends LitElement {
         let sidebar = this.shadowRoot.querySelector("#sidebar");
         sidebar.setAttribute("transition", transition_direction);
         this.closed = !this.closed;
+        let chart = this.parentElement.startReflow();
         await promiseFromDomEvent(sidebar, "transitionend");
+        this.parentElement.endReflow();
         sidebar.removeAttribute("transition");
     }
 

@@ -8,13 +8,14 @@ export class PageIndicatorElement extends LitElement {
     }
 
     firstUpdated(changedProperties) {
-        let elt = this.closest("sseq-display");
-        if(elt === undefined){
-            throw Error("sseq-class-highlighter must be a descendant of sseq-display.");
+        let elt = this.closest("sseq-chart");
+        if(!elt){
+            throw Error("<sseq-class-highlighter> must be a descendant of <sseq-chart>.");
         }
         this.disp = elt;
         this.pageRange = this.disp.page;
         this.disp.addEventListener("page-change", (e) => {
+            console.log("page change?", e.detail);
             this.pageRange = e.detail.pageRange;
             this.requestUpdate();
         });

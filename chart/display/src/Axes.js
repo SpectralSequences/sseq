@@ -11,8 +11,9 @@ export class AxesElement extends LitElement {
 
             :host {
                 --axes-thickness : 1px;
+                user-select : none;
             }
-            
+
             .axis {
                 position: absolute;
                 background : black;
