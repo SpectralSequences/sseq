@@ -9,7 +9,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/resize-observer-browser": "^0.1.4",
     "async-mutex": "^0.2.2",
+    "awesome-typescript-loader": "^5.2.1",
     "d3-xyzoom": "^1.5.0",
     "katex": "^0.11.1",
     "lit-element": "^2.3.1",
@@ -22,6 +24,7 @@
     "css-loader": "^3.5.3",
     "style-loader": "^1.2.1",
     "to-string-loader": "^1.1.6",
+    "typescript": "^3.9.7",
     "url-loader": "^4.1.0",
     "webpack": "^4.43.0",
     "webpack-cli": "^3.3.11",

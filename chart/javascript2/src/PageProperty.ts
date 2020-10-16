@@ -1,4 +1,6 @@
 import { INFINITY } from "./infinity";
+import { Walker } from "./json_utils"
+
 export class PageProperty<V> {
     values : [number, V][];
 
@@ -88,7 +90,7 @@ export class PageProperty<V> {
         return {"type" : "PageProperty", "values" : this.values };
     }
 
-    static fromJSON(obj : any) : PageProperty<any> {
+    static fromJSON(walker : Walker, obj : any) : PageProperty<any> {
         return new PageProperty(obj.values);
     }
 
@@ -128,3 +130,20 @@ export function initialPagePropertyValue<V>(propertyValue : PageProperty<V> | V 
         throw TypeError(`Missing property ${propertyName}${context}`);
     }
 }
+
+export function initialOptionalPagePropertyValue<V>(propertyValue : PageProperty<V | undefined> | V | undefined | null, propertyName : string, context : string) : PageProperty<V | undefined> {
+    if(propertyValue){
+        return PagePropertyOrValueToPageProperty(propertyValue);
+    } else { 
+        // @ ts-expect-error
+        return PageProperty.fromValue(undefined);
+    }
+}
+
+export type PageProperties<T> = {
+    [P in keyof T] : PageProperty<T[P]>;
+};
+
+export type PagePropertyOrValues<T> = {
+    [P in keyof T] : PagePropertyOrValue<T[P]>;
+};

@@ -1,6 +1,6 @@
 import { Canvas, EdgeOptions, Glyph, GlyphBuilder, GlyphInstance, JsPoint as Vec2, Vec4 as RustColor, Vec4 } from "./display_backend/pkg/sseq_display_backend";
 import { Shape, Node, ChartClass, SpectralSequenceChart, INFINITY } from "./chart/lib";
-import { assert } from "console";
+// import { assert } from "console";
 import { Color } from "./chart/Color";
 import { throttle } from "./utils";
 
@@ -21,6 +21,7 @@ interface GlyphAndColors {
     glyph : Glyph;
     fill : RustColor;
     stroke : RustColor;
+    foreground : RustColor;
 }
 
 function getTouchesInfo(touchEvent : TouchEvent) : Touch {
@@ -124,7 +125,8 @@ export class ChartElement extends LitElement {
         this.defaultGlyphAndColors = {
             glyph,
             fill : new RustColor(0, 0, 0, 1),
-            stroke : new RustColor(0, 0, 0, 1)
+            stroke : new RustColor(0, 0, 0, 1),
+            foreground : new RustColor(0, 0, 0, 1)
         };
         this._resizeObserver = new ResizeObserver(_entries => {
             this._resize();
@@ -506,14 +508,15 @@ export class ChartElement extends LitElement {
     }
     
     getNodeGlyphAndColors(node : Node) : GlyphAndColors {
-        if(node === "DefaultNode"){
+        if(!node || node === "DefaultNode"){
             return this.defaultGlyphAndColors;
         } else {
             let glyph = this.getShapeGlyph(node.shape);
             return {
                 glyph,
-                stroke : new RustColor(...node.colors[0]),
-                fill : new RustColor(...node.colors[1])
+                stroke : new RustColor(...node.stroke),
+                fill : new RustColor(...node.fill),
+                foreground : new RustColor(...node.foreground)
             };
         }
     }

@@ -4,6 +4,7 @@ import {
     ChartDifferential, ChartStructline, ChartExtension, ChartEdge,
     ChartDifferentialConstructorArgs, ChartStructlineConstructorArgs, ChartExtensionConstructorArgs
 } from "./ChartEdge";
+import { Walker } from "./json_utils"
 
 
 import { EventEmitter } from 'ee-ts';
@@ -19,7 +20,7 @@ function check_argument_is_integer(name : string, value : any) {
 
 interface MessageUpdateGlobal {
     chart_id : string;
-    type : "SseqChart";
+    target_type : "SseqChart";
     command : "update";
     target_fields : Partial<SseqChart>;
 }
@@ -30,33 +31,32 @@ interface MessageCreate<T> {
     target : T;
 }
 
-interface MessageUpdate<T> {
+export interface MessageUpdate<T> {
     chart_id : string;
     command : "update";
-    target_uuid : string;
-    update_fields : Partial<T>;
+    update_fields : Partial<T> & { uuid : string };
 }
 
 interface MessageDelete {
     chart_id : string;
     command : "delete";
-    target_uuid : string;
+    uuid : string;
 }
 
-interface MessageCreateClass extends MessageCreate<ChartClass> { type : "SseqClass"; }
-interface MessageCreateStructline extends MessageCreate<ChartStructline> { type : "ChartStructline"; }
-interface MessageCreateDifferential extends MessageCreate<ChartDifferential> { type : "ChartDifferential"; }
-interface MessageCreateExtension extends MessageCreate<ChartExtension> { type : "ChartExtension"; }
+interface MessageCreateClass extends MessageCreate<ChartClass> { target_type : "ChartClass"; }
+interface MessageCreateStructline extends MessageCreate<ChartStructline> { target_type : "ChartStructline"; }
+interface MessageCreateDifferential extends MessageCreate<ChartDifferential> { target_type : "ChartDifferential"; }
+interface MessageCreateExtension extends MessageCreate<ChartExtension> { target_type : "ChartExtension"; }
 
-interface MessageUpdateClass extends MessageUpdate<ChartClass> { type : "SseqClass"; }
-interface MessageUpdateStructline extends MessageUpdate<ChartStructline> { type : "ChartStructline"; }
-interface MessageUpdateDifferential extends MessageUpdate<ChartDifferential> { type : "ChartDifferential"; }
-interface MessageUpdateExtension extends MessageUpdate<ChartExtension> { type : "ChartExtension"; }
+export interface MessageUpdateClass extends MessageUpdate<ChartClass> { target_type : "ChartClass"; }
+export interface MessageUpdateStructline extends MessageUpdate<ChartStructline> { target_type : "ChartStructline"; }
+export interface MessageUpdateDifferential extends MessageUpdate<ChartDifferential> { target_type : "ChartDifferential"; }
+export interface MessageUpdateExtension extends MessageUpdate<ChartExtension> { target_type : "ChartExtension"; }
 
-interface MessageDeleteClass extends MessageDelete { type : "SseqClass"; }
-interface MessageDeleteStructline extends MessageDelete { type : "ChartStructline"; }
-interface MessageDeleteDifferential extends MessageDelete { type : "ChartDifferential"; }
-interface MessageDeleteExtension extends MessageDelete { type : "ChartExtension"; }
+interface MessageDeleteClass extends MessageDelete { target_type : "ChartClass"; }
+interface MessageDeleteStructline extends MessageDelete { target_type : "ChartStructline"; }
+interface MessageDeleteDifferential extends MessageDelete { target_type : "ChartDifferential"; }
+interface MessageDeleteExtension extends MessageDelete { target_type : "ChartExtension"; }
 
 type Message = MessageUpdateGlobal |
     MessageCreateClass | MessageCreateStructline | MessageCreateDifferential | MessageCreateExtension
@@ -76,27 +76,24 @@ interface Events {
 export class SseqChart extends EventEmitter<Events> {
     readonly name : string = "";
     readonly uuid : string;
-    offset_size : number = 45;
-    min_class_size : number = 1;
-    max_class_size : number = 3;
-    class_scale : number = 10;
-    highlightScale : number = 2;
-    highlightColor = "orange";
-    bidegreeDistanceScale = 1;
-    mouseoverScale = 2; // How much bigger should the mouseover region be than the clas itself?
-    defaultClassShape = {"type" : "circle"};
-    defaultClassScale = 1;
-    defaultClassStrokeColor = true;
-    defaultClassFillColor = true;
-    defaultClassColor = "black";
+    page_list : [number, number][] = [[2, 2], [INFINITY, INFINITY]];
     initial_x_range : [number, number] = [0, 10];
     initial_y_range : [number, number] = [0, 10];
     x_range : [number, number] = [0, 10];
     y_range : [number, number] = [0, 10];
-    page_list : [number, number][] = [[2, 2], [INFINITY, INFINITY]];
-    num_gradings = 2;
+    readonly num_gradings = 2;
     x_projection = [1, 0];
     y_projection = [0, 1];
+
+    // No version of these in python version yet...
+    offset_size : number = 45;
+    // min_class_size : number = 1;
+    // max_class_size : number = 3;
+    // class_scale : number = 10;
+    // highlightScale : number = 2;
+    // highlightColor = "orange";
+    // mouseoverScale = 2; // How much bigger should the mouseover region be than the class itself?
+
     _classes_by_degree : StringifyingMap<number[], ChartClass[]> = new StringifyingMap();
     classes : Map<string, ChartClass> = new Map();
     edges : Map<string, ChartEdge> = new Map();
@@ -114,15 +111,15 @@ export class SseqChart extends EventEmitter<Events> {
         if(kwargs.offset_size){
             this.offset_size = kwargs.offset_size;
         }
-        if(kwargs.min_class_size){
-            this.min_class_size = kwargs.min_class_size;
-        }
-        if(kwargs.max_class_size){
-            this.max_class_size = kwargs.max_class_size;
-        }
-        if(kwargs.highlightScale){
-            this.highlightScale = kwargs.highlightScale;
-        }
+        // if(kwargs.min_class_size){
+        //     this.min_class_size = kwargs.min_class_size;
+        // }
+        // if(kwargs.max_class_size){
+        //     this.max_class_size = kwargs.max_class_size;
+        // }
+        // if(kwargs.highlightScale){
+        //     this.highlightScale = kwargs.highlightScale;
+        // }
 
         if(kwargs.initial_x_range){
             this.initial_x_range = kwargs.initial_x_range;
@@ -154,7 +151,11 @@ export class SseqChart extends EventEmitter<Events> {
         }        
     }
 
-    static fromJSON(json : any) : any {   
+    static visit(walker : Walker, obj : any) {
+        walker.visitChildren(obj);
+    }
+
+    static fromJSON(walker : Walker, json : any) : any {   
         return new SseqChart(json);
     }
 
@@ -228,13 +229,13 @@ export class SseqChart extends EventEmitter<Events> {
         e._sseq = this;
         this.edges.set(e.uuid, e);
         this.objects.set(e.uuid, e);
-        e.source = this.classes.get(e._source_uuid);
-        e.target = this.classes.get(e._target_uuid);
+        e.source = this.classes.get(e.source_uuid);
+        e.target = this.classes.get(e.target_uuid);
         if(!e.source){
-            throw Error(`No class with uuid ${e._source_uuid}`);
+            throw Error(`No class with uuid ${e.source_uuid}`);
         }
         if(!e.target){
-            throw Error(`No class with uuid ${e._target_uuid}`);
+            throw Error(`No class with uuid ${e.target_uuid}`);
         }        
         e.source.edges.add(e);
         e.target.edges.add(e);
@@ -251,9 +252,9 @@ export class SseqChart extends EventEmitter<Events> {
 
     add_structline(kwargs : ChartStructlineConstructorArgs) {
         let e = new ChartStructline(kwargs);
-        this._commit_edge(e);
+        this._commit_edge(<ChartEdge>e);
         this.emit("structline_added", e);
-        this.emit("edge_added", e);
+        this.emit("edge_added", <ChartEdge>e);
         this.emit("update");
         return e;
     }
@@ -280,7 +281,6 @@ export class SseqChart extends EventEmitter<Events> {
         if(extra_info) {
             tooltip += extra_info;
         }
-
         return tooltip;
     }
 
@@ -315,29 +315,47 @@ export class SseqChart extends EventEmitter<Events> {
     }
 
     handleMessage(msg : Message){
+        console.log("handleMessage", msg);
         switch(msg.command){
             case "create":
-                if(msg.type === "SseqClass"){
-                    this._commit_class(msg.target);
-                } else {
-                    this._commit_edge(msg.target);
+                switch(msg.target_type){
+                    case "ChartClass":
+                        this._commit_class(msg.target);
+                        return;
+                    case "ChartStructline":
+                    case "ChartDifferential":
+                    case "ChartExtension":
+                        this._commit_edge(<ChartEdge>msg.target);
+                        return;
+                    default:
+                        // @ts-expect-error // Typescript thinks this case is impossible.
+                        throw Error(`Cannot create object of unknown type: ${msg.target_type}`)
                 }
-                return;
             case "update": {
-                if(msg.type === "SseqChart"){
-
+                if(msg.target_type === "SseqChart"){
+                    Object.assign(this, msg);
                     return;
                 }
-                const target = this.objects.get(msg.target_uuid);
-                // assert(target && target.constructor.name === msg.type);
-                throw Error("Not implemented");
-                // target.update(msg);
+                const target = this.objects.get(msg.update_fields.uuid);
+                if(!target){
+                    throw new Error(`Asked to update unknown object: msg "${JSON.stringify(msg)}"`);
+                }
+                if(target.constructor.name !== msg.target_type){
+                    throw new Error(`Target of update has type "${target.constructor.name}" but message claims it has type "${msg.target_type}"`);
+                }
+                // @ts-expect-error
+                target.update(msg); 
                 return;
             }
             case "delete": {
-                let target = this.objects.get(msg.target_uuid);
-                // assert(target && target.constructor.name === msg.type); // TODO: get an assert function
-                target!.delete();
+                let target = this.objects.get(msg.uuid);
+                if(!target){
+                    throw new Error(`Asked to delete unknown object: msg "${JSON.stringify(msg)}"`);
+                }
+                if(target.constructor.name !== msg.target_type){
+                    throw new Error(`Target of delete has type "${target.constructor.name}" but message claims it has type "${msg.target_type}"`);
+                }                
+                target.delete();
             }
 
         }

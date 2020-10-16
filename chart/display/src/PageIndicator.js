@@ -15,7 +15,6 @@ export class PageIndicatorElement extends LitElement {
         this.disp = elt;
         this.pageRange = this.disp.page;
         this.disp.addEventListener("page-change", (e) => {
-            console.log("page change?", e.detail);
             this.pageRange = e.detail.pageRange;
             this.requestUpdate();
         });

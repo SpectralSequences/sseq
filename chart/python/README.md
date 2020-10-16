@@ -6,6 +6,24 @@ Hopefully I will make one soon.
 
 Changelog:
 ==========
+## [0.0.4]
+### Fixed:
+- Repr of ChartClassArg
+
+## [0.0.4]
+### Fixed:
+- reprs of SseqChart, ChartClass, ChartEdge
+
+## [0.0.3]
+### Fixed:
+- Deserialization didn't work correctly.
+
+### Added:
+- Doc strings for a lot of the main functions.
+
+### Changed:
+- Many private methods in SseqChart have had underscores added in front of their names.
+
 ## [0.0.2]
 ### Fixed: 
 - Removed whisker operator for compatibility with Python versions before 3.8

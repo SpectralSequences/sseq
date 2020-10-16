@@ -6,8 +6,10 @@ import {
 } from "./PageProperty";
 import { v4 as uuidv4 } from 'uuid';
 import { INFINITY } from "./infinity";
-import { SseqChart } from "./SseqChart";
+import { SseqChart, MessageUpdate } from "./SseqChart";
 import { ChartEdge } from "./ChartEdge";
+import { Walker } from "./json_utils"
+
 
 function arrayEqual<T>( array1 : T[], array2 : T[] ) : boolean {
     return array1.length === array2.length && 
@@ -38,14 +40,14 @@ export class ChartClass {
     x? : number;
     y? : number;
     idx? : number;
-    x_nudge : PageProperty<number>;
-    y_nudge : PageProperty<number>;
-    name : PageProperty<string>;
     uuid : string;
+    name : PageProperty<string>;
     max_page : number;
     visible : PageProperty<boolean>;
-    node : PageProperty<Node>;
+    x_nudge : PageProperty<number>;
+    y_nudge : PageProperty<number>;
     scale : PageProperty<number>;
+    node : PageProperty<Node>;
     _canvas_x? : number;
     _canvas_y? : number;
     dom_content : Map<string, any>;
@@ -89,18 +91,19 @@ export class ChartClass {
         this.y = y;
     }
 
-    update(kwargs : ChartClassConstructorArgs) {
+    update(msg : MessageUpdate<ChartClass>) {
+        let kwargs = msg.update_fields;
         // TODO: new utils function that ensures no "_" fields present, raises error "bad serialized class".
         if(kwargs.degree){
             if(!arrayEqual(this.degree, kwargs.degree)){
                 throw TypeError(`Inconsistent values for "degree".`)
             }
         }
-        if(kwargs.type){
-            if(kwargs.type !== this.constructor.name){
-                throw TypeError(`Invalid value for "type"`)
-            }
-        }
+        // if(kwargs.type){
+        //     if(kwargs.type !== this.constructor.name){
+        //         throw TypeError(`Invalid value for "type"`)
+        //     }
+        // }
         if(kwargs.uuid){
             if(this.uuid !== kwargs.uuid){
                 throw TypeError(`Inconsistent values for "uuid".`);
@@ -133,6 +136,9 @@ export class ChartClass {
         if(kwargs.dom_content){
             this.dom_content = kwargs.dom_content;
         }
+        if(kwargs.user_data){
+            this.user_data = kwargs.user_data;
+        }        
     }
 
     delete(){
@@ -160,7 +166,8 @@ export class ChartClass {
         };
     }
 
-    static fromJSON(obj : any) : ChartClass {
+    static fromJSON(walker : Walker, obj : object) : ChartClass {
+        console.log("ChartClass fromJSON", obj);
         return new ChartClass(obj);
     }
 

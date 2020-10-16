@@ -1,5 +1,5 @@
 import json
-from typing import Tuple, Any, Dict, Union, cast, List
+from typing import Tuple, Any, Dict, Union, cast, Protocol
 
 def stringifier(obj : Any) -> Union[str, Dict[str, Any]]:
     if hasattr(obj, "to_json"):
@@ -9,8 +9,8 @@ def stringifier(obj : Any) -> Union[str, Dict[str, Any]]:
     else:
         return str(obj)
 
-# Only to make typechecker happy...
-class Serializable:
+# To make typechecker happy...
+class Serializable(Protocol):
     @staticmethod
     def from_json(json : Dict[str, Any]):
         return Serializable()

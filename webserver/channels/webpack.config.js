@@ -3,14 +3,15 @@ const webpack = require('webpack');
 let context = "../../..";
 module.exports = {
     entry: Object.fromEntries([
-      "demo_channel",
-      "interact_channel",
-      "table_channel",
-      "resolver_channel"
+      // "demo_channel",
+      // "interact_channel",
+      // "table_channel",
+      // "resolver_channel"
+      "basic_channel"
     ].map(c => [c, `./${c}/index.js`])),
     output: {
-        path: path.resolve(__dirname),
-        filename: '[name]/dist/index.js',
+        path: path.resolve(__dirname, "basic_channel/dist"),
+        filename: 'index.js',
         strictModuleExceptionHandling: true,
         devtoolModuleFilenameTemplate (info) {
           const rel = path.relative(context, info.absoluteResourcePath);
@@ -33,7 +34,8 @@ module.exports = {
         {
             test: /\.css$/,
             use: ['to-string-loader', 'css-loader']
-        }
+        },
+        { test: /\.tsx?$/, loader: "awesome-typescript-loader" },
       ],
     },
 
@@ -43,9 +45,10 @@ module.exports = {
         ],
         alias: {
           // Utilities: path.resolve(__dirname, 'src/utilities/'),
-          'd3': path.resolve(__dirname, "../../chart/javascript/dist/d3.min.js"),
-          "chart" : path.resolve(__dirname, "../../chart/javascript/src"),
+          "chart" : path.resolve(__dirname, "../../chart/javascript2/src"),
+          "display" : path.resolve(__dirname, "../../chart/display/src"),
           // "katex" : path.resolve(__dirname, "./node_modules/katex/dist")
         }, 
+        extensions: [".webpack.js", ".web.js", ".ts", ".tsx", ".js"]
       }
 };

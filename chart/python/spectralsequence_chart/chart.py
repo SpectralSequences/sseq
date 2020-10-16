@@ -1,5 +1,9 @@
 import threading
-from typing import Tuple, List, Dict, Any, Set, Optional, Type, Union, Iterable
+from typing import (
+    Any, Dict, Iterable, List, NewType, 
+    Optional,  Set, Tuple, Union, TYPE_CHECKING
+)
+import typing
 from uuid import uuid4
 
 from . import utils
@@ -11,46 +15,59 @@ from .chart_elements import (
 from .messages import *
 from .infinity import INFINITY
 
-ChartClassArg = Union[ChartClass, Iterable[int]]
+if not TYPE_CHECKING:
+    class NewType:
+        def __init__(self, name, tp):
+            self.__name__ = name
+            self.__supertype__ = tp
+
+        def __call__(self, x):
+            return x
+
+        def __repr__(self):
+            return self.__name__
+
+ChartClassArg = NewType("ChartClassArg", Union[ChartClass, Iterable[int]])
 
 class SseqChart:
+    """ SseqChart is the main class which holds the data structure representing the chart. """
     def __init__(self, 
         name : str, 
-        num_gradings : int = 2,
         type : Optional[str] = None,
+        uuid : Optional[str] = None,
+        page_list : Optional[List[Tuple[int, int]]] = None,
         initial_x_range : Tuple[int, int] = (0, 10),
         initial_y_range : Tuple[int, int] = (0, 10),
         x_range : Tuple[int, int] = (0, 10),
         y_range : Tuple[int, int] = (0, 10),
+        num_gradings : int = 2,
         x_projection : Optional[Tuple[int, ...]] = None,
         y_projection : Optional[Tuple[int, ...]] = None,
-        page_list : Optional[List[Tuple[int, int]]] = None,
-        min_page_idx : int = 0,
-        classes : Optional[Dict[str, ChartClass]] = None,
-        edges : Optional[Dict[str, ChartEdge]] = None        
+        classes : Optional[List[ChartClass]] = None,
+        edges : Optional[List[ChartEdge]] = None
     ):
-        """ SseqChart is the main class which holds the data structure representing the chart.
-            
-            Arguments:
-                "name" -- the name of the chart.
-                "num_gradings" -- how many gradings the chart should have (default 2). 
+        """      
+            Args:
+                name (str): the name of the chart.
+                num_gradings (int, optional): how many gradings the chart should have. Defaults to 2. 
                     If there are more than two gradings, the chart will still be displayed in 2d.
                     By default, the display projects onto the first two coordinates. The projection
                     can be modified by updating the fields "x_projection" and "y_projection".
 
-            The rest of the optional arguments are for deserialization, not recommended 
-            for direct usage.
+            The rest of the optional arguments are for deserialization, not intended for direct usage.
         """
-        if type:
-            assert type == self.__class__.__name__
-        assert min_page_idx >= 0
         self._initialized = False
         self._agent : Any = None
         self.name = name
+        if type:
+            assert type == self.__class__.__name__
+        self.uuid = uuid or str(uuid4())
+        self.page_list : List[Tuple[int, int]] = page_list or [(2, INFINITY), (INFINITY, INFINITY)]
         self.initial_x_range = initial_x_range
         self.initial_y_range = initial_y_range
         self.x_range = x_range
         self.y_range = y_range
+    
 
         assert num_gradings >= 2
         self.num_gradings = num_gradings
@@ -65,22 +82,58 @@ class SseqChart:
         self.x_projection = x_projection
         self.y_projection = y_projection
 
-        if page_list:
-            self.page_list = page_list
-        else:
-            self.page_list : List[Tuple[int, int]] = [(2, INFINITY), (INFINITY, INFINITY)]
         self._page_list_lock = threading.Lock()
-        self.min_page_idx = min_page_idx
         
-        self._classes : Dict[str, ChartClass] = classes or {}
+        self._classes : Dict[str, ChartClass] = {}
+        self._edges : Dict[str, ChartEdge] = {}
         self._classes_by_degree : Dict[Tuple[int, ...], List[ChartClass]] = {}
+
+        classes = classes or []
+        edges = edges or []
+        for c in classes:
+            self._commit_class(c)
+        for e in edges:
+            self._commit_edge(e)
         
-        self._edges : Dict[str, ChartEdge] = edges or {}
         
-        self._batched_messages : List[Message] = []
+        self._batched_messages : List[Dict[str, Any]] = []
         self._update_keys : Set[str] = set()
         self._batched_messages_lock = threading.Lock()
         self._initialized : bool = True
+
+    def validate(self):
+        if not self._initialized:
+            raise RuntimeError("Uninitialized chart.")
+        if self._agent and not hasattr(self._agent, "send_batched_messages_a"):
+            raise TypeError(f"_agent is of type {type(self._agent).__name__} which has no attribute send_batched_messages_a")
+        
+        if not isinstance(self.num_gradings, int) and self.num_gradings >= 2:
+            raise TypeError(f"num_gradings should be an integer greater than or equal to 2, instead is {self.num_gradings}.")
+
+        if len(self.x_projection) != self.num_gradings:
+            raise TypeError(f"x_projection has length {len(self.x_projection)} not equal to num_gradings {self.num_gradings}")
+
+        if len(self.y_projection) != self.num_gradings:
+            raise TypeError(f"y_projection has length {len(self.y_projection)} not equal to num_gradings {self.num_gradings}")
+        
+        # for e in self.page_list:
+        #     if 
+
+        for c in self.classes_iter:
+            pass
+
+        for e in self.edges_iter:
+            pass
+
+
+    def __repr__(self):
+        fields = []
+        fields.append(f'"{self.name}"')
+        nc = len(self._classes)
+        ne = len(self._edges)
+        fields.append(f"classes=[{nc} class{'es' if nc != 1 else ''}]")
+        fields.append(f"edges=[{ne} edge{'s' if ne != 1 else ''}]")
+        return f"{type(self).__name__}({', '.join(fields)})"
 
     @property
     def classes(self) -> List[ChartClass]:
@@ -123,26 +176,24 @@ class SseqChart:
             x_degree=self.x_projection,
             y_degree=self.y_projection,
             page_list=self.page_list,
-            min_page_idx=self.min_page_idx,
-            classes=self._classes,
-            edges=self._edges
+            classes=list(self._classes.values()),
+            edges=list(self._edges.values())
         )
         
 
     @staticmethod
     def from_json(json_obj : Dict[str, Any]) -> "SseqChart":
         result = SseqChart(**json_obj)
-        for c in result.classes:
-            result._commit_class(c)
-        for [uuid, e] in result._edges.items():
-            assert uuid == e.uuid
-
-        for e in result.edges:
-            result._commit_edge(e)
         return result
         
     def add_class(self, *degree : int) -> ChartClass:
-        """ Add a class to the spectral sequence. """
+        """ Add a class to the spectral sequence. 
+        
+            Args:
+                *degree (int): A list of integers of length self.num_gradings.
+
+            Returns: The class added.
+        """
         assert len(degree) == self.num_gradings
         c = ChartClass(degree)
         self._commit_class(c)
@@ -154,7 +205,7 @@ class SseqChart:
             raise ValueError(f"Wrong number of gradings: degree {c.degree} has length {len(c.degree)} but num_gradings is {self.num_gradings}")
 
         c._sseq = self
-        self._add_batched_message(c.uuid, "chart.class.add", *utils.arguments(new_class=self))
+        self._add_create_message(c)
         self._classes[c.uuid] = c
         if c.degree not in self._classes_by_degree:
             self._classes_by_degree[c.degree] = []
@@ -169,13 +220,16 @@ class SseqChart:
     ) -> ChartEdge:
         """ Add a differential.
 
-            Arguments:
-                page -- which page should the differential appear on.
-                source_arg -- A class specifier: either a ChartClass or a list of integers of length num_gradings or num_gradings + 1.
-                target_arg -- A class specifier, same format as source_arg.
-                auto -- A boolean, default 'True'. If 'True', automatically hide source and target after page 'page',
+            Args:
+                page (int): which page should the differential appear on.
+                source_arg (ChartClassArg): The source class. Represented as either a ChartClass or a list of integers of 
+                    length num_gradings or num_gradings + 1.
+                target_arg (ChartClassArg): The target class, same format as source_arg.
+                auto (bool, optional): If 'True', automatically hide source and target after page 'page',
                         use replace to modify. If False, the edge will be added but no change will be made to the source 
-                        or target classes.
+                        or target classes. Defaults to 'True'.
+            
+            Returns: The added differential.
         """
         source = self._normalize_class_argument(source_arg)
         target = self._normalize_class_argument(target_arg)
@@ -193,9 +247,11 @@ class SseqChart:
             To adjust this behavior modify the page property edge.visible. For instance, if you want to set the edge to be invisible after
             page p, say edge.visible[p:] = False.
 
-            Arguments:
-                source_arg -- A class specifier: either a ChartClass or a list of integers of length num_gradings or num_gradings + 1.
-                target_arg -- A class specifier, same format as source_arg.
+            Args:
+                source_arg (ChartClassArg): The source class. Represented as either a ChartClass or a list of integers of length num_gradings or num_gradings + 1.
+                target_arg (ChartClassArg): The target class, same format as source_arg.
+
+            Returns: The added structline.
         """
         source = self._normalize_class_argument(source_arg)
         target = self._normalize_class_argument(target_arg)
@@ -206,9 +262,11 @@ class SseqChart:
     def add_extension(self, source_arg : ChartClassArg, target_arg : ChartClassArg) -> ChartExtension:
         """ Add an extension. The extension will only appear on page infinity.
 
-            Arguments:
-                source_arg -- A class specifier: either a ChartClass or a list of integers of length num_gradings or num_gradings + 1.
-                target_arg -- A class specifier, same format as source_arg.
+            Args:
+                source_arg (ChartClassArg): The source class. Represented as either a ChartClass or a list of integers of length num_gradings or num_gradings + 1.
+                target_arg (ChartClassArg): The target class, same format as source_arg.
+
+            Returns: The added extension.
         """        
         source = self._normalize_class_argument(source_arg)
         target = self._normalize_class_argument(target_arg)
@@ -224,7 +282,7 @@ class SseqChart:
         e.target = self._classes[e._target_uuid]
         e.source._edges.append(e)
         e.target._edges.append(e)
-        self._add_batched_message(e.uuid + ".new", "chart.edge.add", *utils.arguments(new_edge=e))
+        self._add_create_message(e)
 
     def add_page_range(self, page_min : int, page_max : int):
         """ Add a range of pages to the list of page_views. This indicates to the display that when stepping 
@@ -243,45 +301,76 @@ class SseqChart:
             else:
                 idx = len(self.page_list)
             self.page_list.insert(idx, page_range)
-            self._add_batched_message(str(uuid4()), "chart.insert_page_range", *arguments(page_range=page_range, idx=idx))
+            self._add_setting_message()
     
 
     def _add_class_to_update(self, c : ChartClass):
-        self._add_batched_message(c.uuid, "chart.class.update", *arguments(
-            class_to_update=c
-        ))
+        self._add_update_message(c)
 
     def _add_class_to_delete(self, c : ChartClass):
-        self._add_batched_message(c.uuid + ".delete", "chart.class.delete", *arguments(
-            class_to_delete=c
-        ))
+        self._add_delete_message(c)
+
 
     def _add_edge_to_update(self, e : ChartEdge):
-        self._add_batched_message(e.uuid, "chart.edge.update", *arguments(
-            edge_to_update=e
-        ))
+        self._add_update_message(e)
+
 
     def _add_edge_to_delete(self, e : ChartEdge):
-        self._add_batched_message(e.uuid + ".delete", "chart.edge.delete", *arguments(
-            edge_to_delete=e
-        ))
+        self._add_delete_message(e)
 
-    def _add_batched_message(self, key : str, cmd : str, args : Tuple, kwargs : Dict[str, Any]):
+    def _add_batched_message(self, key, kwargs : Dict[str, Any]):
         if not self._initialized:
             return        
         if key in self._update_keys:
             return
         with self._batched_messages_lock:
-            self._add_batched_message_raw(key, cmd, args, kwargs)
+            self._add_batched_message_raw(key, kwargs)
 
-    def _add_batched_message_raw(self, key : str, cmd_str : str, args : Tuple, kwargs : Dict[str, Any]):
+    def _add_batched_message_raw(self, key, kwargs : Dict[str, Any]):
+        # If we're actually bothering with locking we need to check again to make sure
+        # key is not in dict to make sure that it didn't get inserted before we got the lock.
         if key in self._update_keys:
             return
         if key is not None:       
             self._update_keys.add(key)
-        cmd = Command().set_str(cmd_str)
-        message = Message(cmd, args, kwargs)
-        self._batched_messages.append(message)
+        self._batched_messages.append(kwargs)
+
+    def _add_create_message(self, target_object : Any):
+        self._add_batched_message(
+            target_object.uuid,
+            dict(
+                chart_id=self.uuid,
+                target_type=type(target_object).__name__,
+                command="create",
+                target=target_object
+            )
+        )
+
+    def _add_update_message(self, target_object : Any):
+        self._add_batched_message(
+            target_object.uuid,
+            dict(
+                chart_id=self.uuid, # okay to merge update with earlier create.
+                target_type=type(target_object).__name__,
+                command="update",
+                target_uuid=target_object.uuid,
+                update_fields=target_object
+            )
+        )
+
+    def _add_delete_message(self, target_object : Any):
+        self._add_batched_message(
+            target_object.uuid + "--delete", # Don't merge delete event with earlier update
+            dict(
+                chart_id=self.uuid,
+                target_type=type(target_object).__name__,
+                command="delete",
+                target_uuid=target_object.uuid,
+            )
+        )
+
+    def _add_setting_message(self):
+        pass
 
     async def update_a(self):
         """ Update the display. This will send a message to the display instructing it about how to 
@@ -312,7 +401,7 @@ class SseqChart:
             class_arg2 = class_arg
         else:
             class_arg2 = list(class_arg)
-        if self.num_gradings <= len(class_arg2) <= self.num_gradings + 1:
+        if not self.num_gradings <= len(class_arg2) <= self.num_gradings + 1:
             raise TypeError(f'Iterable class specifier argument argument must have length "num_gradings" = {self.num_gradings} or "num_gradings" + 1 = {self.num_gradings+1}')
         from itertools import chain
         if len(class_arg2) == self.num_gradings:
@@ -321,9 +410,11 @@ class SseqChart:
 
     def class_by_idx(self, *args : int) -> ChartClass:
         """ Get a specific class in the given degree.
-            The arguments should be a sequence of integers of length "num_gradings + 1".
-            The last argument is the index of the class returned, the rest of the arguments
-            indicate the degree.
+
+            Args:
+                *args (int): A sequence of integers of length "num_gradings + 1".
+                    The last argument is the index of the class returned, the rest of the arguments
+                    indicate the degree.
         """
         if len(args) != self.num_gradings + 1:
             raise TypeError(f'Argument to "class_by_index" must have length "num_gradings + 1" = {self.num_gradings+1}')
@@ -339,35 +430,35 @@ class SseqChart:
 
     @property
     def x_min(self):
-        """ The minimum x view extent. This represents the minimum x value that is possible to look at with the display.
+        """ int: The minimum x view extent. This represents the minimum x value that is possible to look at with the display.
             The display will not zoom or scroll left of this value.
         """
         return self.x_range[0]
 
     @x_min.setter
     def x_min(self, value : int):
-        self._add_batched_message("x_range", "chart.set_x_range", *arguments(x_range=self.x_range))
         x_range = list(self.x_range)
         x_range[0] = value
         self.x_range = tuple(x_range)
+        self._add_setting_message()
 
     @property
     def x_max(self):
-        """ The maximum x view extent. This represents the maximum x value that is possible to look at with the display.
+        """ int: The maximum x view extent. This represents the maximum x value that is possible to look at with the display.
             The display will not zoom or scroll right of this value.
         """
         return self.x_range[1]
 
     @x_max.setter
     def x_max(self, value : int):
-        self._add_batched_message("x_range", "chart.set_x_range", *arguments(x_range=self.x_range))
         x_range = list(self.x_range)
         x_range[1] = value
         self.x_range = tuple(x_range)
+        self._add_setting_message()
 
     @property
     def y_min(self):
-        """ The minimum y view extent. This represents the minimum y value that is possible to look at with the display.
+        """ int: The minimum y view extent. This represents the minimum y value that is possible to look at with the display.
             The display will not zoom or scroll below this value.
         """
         return self.y_range[0]
@@ -377,11 +468,11 @@ class SseqChart:
         y_range = list(self.y_range)
         y_range[0] = value
         self.y_range = tuple(y_range)
-        self._add_batched_message(str(uuid4()), "chart.set_y_range", *arguments(y_range=self.y_range))
+        self._add_setting_message()
 
     @property
     def y_max(self):
-        """ The maximum y view extent. This represents the maximum y value that is possible to look at with the display.
+        """ int: The maximum y view extent. This represents the maximum y value that is possible to look at with the display.
             The display will not zoom or scroll above this value.
         """
         return self.y_range[1]
@@ -391,12 +482,12 @@ class SseqChart:
         y_range = list(self.y_range)
         y_range[1] = value
         self.y_range = tuple(y_range)
-        self._add_batched_message(str(uuid4()), "chart.set_y_range", *arguments(y_range=self.y_range))
+        self._add_setting_message()
 
 
     @property
     def initial_x_min(self):
-        """ The initial x minimum. When the display is first loaded this will be the smallest, leftmost visible x value."""        
+        """ int: The initial x minimum. When the display is first loaded this will be the smallest, leftmost visible x value."""        
         return self.initial_x_range[0]
 
 
@@ -405,11 +496,11 @@ class SseqChart:
         initial_x_range = list(self.initial_x_range)
         initial_x_range[0] = value
         self.initial_x_range = tuple(initial_x_range)
-        self._add_batched_message(str(uuid4()), "chart.set_initial_x_range", *arguments(x_range=self.initial_x_range))
+        self._add_setting_message()
 
     @property
     def initial_x_max(self):
-        """ The initial x maximum. When the display is first loaded this will be the largest, rightmost visible x value."""        
+        """ int: The initial x maximum. When the display is first loaded this will be the largest, rightmost visible x value."""        
         return self.initial_x_range[1]
 
     @initial_x_max.setter
@@ -417,11 +508,11 @@ class SseqChart:
         initial_x_range = list(self.initial_x_range)
         initial_x_range[1] = value
         self.initial_x_range = tuple(initial_x_range)
-        self._add_batched_message(str(uuid4()), "chart.set_initial_x_range", *arguments(x_range=self.initial_x_range))
+        self._add_setting_message()
 
     @property
     def initial_y_min(self):
-        """ The initial y minimum. When the display is first loaded this will be the smallest, bottommost visible y value."""        
+        """ int: The initial y minimum. When the display is first loaded this will be the smallest, bottommost visible y value."""        
         return self.initial_y_range[0]
 
 
@@ -430,11 +521,11 @@ class SseqChart:
         initial_y_range = list(self.initial_y_range)
         initial_y_range[0] = value
         self.initial_y_range = tuple(initial_y_range)
-        self._add_batched_message(str(uuid4()), "chart.set_initial_y_range", *arguments(x_range=self.initial_y_range))
+        self._add_setting_message()
 
     @property
     def initial_y_max(self):
-        """ The initial y maximum. When the display is first loaded this will be the largest, topmost visible y value."""        
+        """ int: The initial y maximum. When the display is first loaded this will be the largest, topmost visible y value."""        
         return self.initial_y_range[1]
 
     @initial_y_max.setter
@@ -442,4 +533,4 @@ class SseqChart:
         initial_y_range = list(self.initial_y_range)
         initial_y_range[1] = value
         self.initial_y_range = tuple(initial_y_range)
-        self._add_batched_message(str(uuid4()), "chart.set_initial_y_range", *arguments(x_range=self.initial_y_range))
+        self._add_setting_message()

@@ -461,7 +461,7 @@ class TableChannel(SocketChannel):
         named_vecs = self.table.named_vecs[y][x]
         matrix = self.table.basis_in_bidegree(*bidegree).matrix
         self.table.update_indecomposables_in_bidegree(*bidegree)
-        for (idx, c) in enumerate(self.chart.sseq.classes_in_bidegree(*bidegree)):
+        for (idx, c) in enumerate(self.chart.sseq.classes_in_degree(*bidegree)):
             mono = named_vecs.get(tuple(matrix[idx]))
             c.monomial_name = mono
             c.name[:] = self.table.name_to_str(mono)
@@ -509,16 +509,14 @@ class TableChannel(SocketChannel):
         sseq = self.chart.sseq
         new_edges = self.get_edges(x, y)
         deleted_edges = 0
-        for c in sseq.classes_in_bidegree(x, y):
+        for c in sseq.classes_in_degree(x, y):
             for e in list(c._edges):
                 e.delete()
                 deleted_edges += 1
         # added_edges = 0
         for (s, t) in new_edges:
             e = sseq.add_structline(sseq.class_by_idx(*s), sseq.class_by_idx(*t))
-            e.color = color
-            e.dash = dash
-            e.line_width = line_width
+            e.color[:] = color
 
 
 
@@ -536,7 +534,7 @@ class TableChannel(SocketChannel):
             return c.monomial_name or None
 
     def get_names_info(self, bidegree):
-        num_classes = len(self.chart.sseq.classes_in_bidegree(*bidegree))
+        num_classes = len(self.chart.sseq.classes_in_degree(*bidegree))
         return [
             (self.get_name(t), self.get_monomial_name(t)) 
             for t in 

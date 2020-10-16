@@ -24,7 +24,9 @@ export type Shape = CharacterShape | BoundedShape | DiacriticShape | { ty : "emp
 
 interface NormalNode {
     shape : Shape;
-    colors : Color[];
+    foreground : Color;
+    stroke : Color;
+    fill : Color;
     strokeThickness? : number;
 };
 export const DefaultNode = "DefaultNode";

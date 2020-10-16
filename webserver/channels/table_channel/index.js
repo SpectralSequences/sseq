@@ -1,8 +1,8 @@
 "use strict"
 import Mousetrap from "mousetrap";
 
-import { SpectralSequenceChart } from "chart/sseq/SpectralSequenceChart.js";
-window.SpectralSequenceChart = SpectralSequenceChart;
+import { SseqChart } from "chart/sseq/SseqChart";
+window.SseqChart = SseqChart;
 
 import ReconnectingWebSocket from 'reconnecting-websocket';
 

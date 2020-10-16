@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="spectralsequence_chart",
-    version="0.0.2",
+    version="0.0.4",
     author="Hood Chatham",
     author_email="roberthoodchatham@gmail.com",
     description="A Python implementation of the spectral sequences chart API",

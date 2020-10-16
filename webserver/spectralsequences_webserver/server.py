@@ -2,7 +2,7 @@
 ## Where do the exceptions go when there's a failure? Nobody knows.
 ## TODO: Does the above ^^ still apply? If so, fix it.
 import asyncio
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 import sys
 
@@ -14,6 +14,13 @@ from . import utils
 from .repl import start_repl_a, Executor, ConsoleIO
 from message_passing_tree import ansi
 import time
+import mimetypes
+import random
+import string
+
+mimetypes.init()
+mimetypes.add_type('application/wasm', '.wasm')
+
 
 def run_server(Server):
     global server
@@ -37,6 +44,24 @@ class Server:
 
     def __init__(self):
         self.app = FastAPI()
+        @self.app.middleware("http")
+        async def log_requests(request: Request, call_next):
+            idem = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+            logger.info(f"{idem} start request path={request.url.path}")
+            start_time = time.time()            
+            response = await call_next(request)
+            # if(request.url.path.endswith(".wasm")):
+            #     self.repl.executor.get_globals()["request"] = request
+            #     self.repl.executor.get_globals()["response"] = response
+            # #     response.headers.update({"content-type" : "application/wasm"})
+
+            process_time = (time.time() - start_time) * 1000
+            formatted_process_time = '{0:.2f}'.format(process_time)
+            logger.info(f"{idem} completed_in={formatted_process_time}ms status_code={response.status_code}")
+            logger.info(f"{idem} response_headers:")
+            logger.info(response.headers)
+            return response
+
         self.repl = None
         self.host = "localhost"
         self.port = config.PORT

@@ -9,9 +9,12 @@ from . import socket_close_codes
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import HTMLResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+import mimetypes
+
 
 import logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 @subscribe_to("*")
 @collect_handlers(inherit = False)
@@ -28,9 +31,19 @@ class SocketChannel(Agent):
         num_routes = len(app.routes)
         cls.set_serving_info(host, port, cls_dir)
         cls.set_repl(repl)
+        dist_static_files = StaticFiles(directory=cls.CHANNEL_DIR / "dist")
+
         @app.get(f"/{cls_dir}/{{channel_name}}")
         async def get_html_a(request: Request, channel_name : str):
-            logger.debug(f"get: {cls_dir}/{channel_name}")
+            if channel_name.endswith(".js") or channel_name.endswith(".wasm"):
+                # Came here from webpack code splitting
+                # redirect to dist
+                scope = request.scope
+                path = dist_static_files.get_path(scope)
+                import pathlib
+                # Pull off the inital /cls_dir from the path
+                path = str(pathlib.Path(path).relative_to(f"{cls_dir}"))
+                return await dist_static_files.get_response(path, scope)
             try:
                 response_data = { 
                     "port" : port, 
@@ -46,8 +59,10 @@ class SocketChannel(Agent):
             except Exception as e:
                 repl.console_io._handle_exception(e)
 
+
         @app.websocket(f"/ws/{cls_dir}/{{channel_name}}")
         async def websocket_subscribe_a(websocket: WebSocket, channel_name : str):
+            mimetypes.add_type('application/wasm', '.wasm')
             logger.debug(f"ws: {cls_dir}/{channel_name}")
             try:
                 channel = await cls.get_channel_a(channel_name, repl)
@@ -63,7 +78,7 @@ class SocketChannel(Agent):
                 repl.console_io._handle_exception(e)
 
 
-        app.mount(f"/client/{cls_dir}", StaticFiles(directory=cls.CHANNEL_DIR / "dist"), name="client")
+        app.mount(f"/client/{cls_dir}", dist_static_files , name="client")
         if (cls.CHANNEL_DIR / "static").is_dir():
             app.mount(f"/static/{cls_dir}", StaticFiles(directory=cls.CHANNEL_DIR / "static"), name="client")
         app.mount(f"/debug/{cls_dir}/chart", StaticFiles(directory=config.CHART_REPOSITORY_ROOT), name="debug")

@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 from os import environ
 from pathlib import Path
 from sys import path
-from uvicorn import run
+import uvicorn
 
 
 def find_free_port(start_number):
@@ -46,6 +46,6 @@ def main():
     environ["INPUT_FILES"] = "[" + ", ".join([f'"{file}"' for file in files]) + "]"
     environ["PORT"] = str(port)
 
-    run("_main:app", host="127.0.0.1", port=port, log_level="warning")
+    uvicorn.run("_main:app", host="127.0.0.1", port=port, log_level="warning")
 
 main()

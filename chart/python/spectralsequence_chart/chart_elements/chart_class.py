@@ -4,15 +4,15 @@ from ..helper_classes import (
 )
 from ..infinity import INFINITY
 from uuid import uuid4
+from .chart_types import UUID_str, Color
+from .chart_shape import Node
 
 from typing import TYPE_CHECKING, List, Any, Tuple, cast, Dict, Union, Optional
 if TYPE_CHECKING:
     from ..chart import SseqChart
     from .chart_edge import ChartEdge
 
-Color = Any
-Shape = Any
-UUID_str = str
+
 
 class ChartClass:
     def __init__(self,
@@ -21,15 +21,12 @@ class ChartClass:
         idx : Optional[int] = None,
         uuid : UUID_str = "",
         name : PagePropertyOrValue[str] = "",
-        shape : PagePropertyOrValue[Shape] = "default",
-        color : PagePropertyOrValue[Color] = "default",
-        fill : PagePropertyOrValue[Color] = "default",
-        stroke : PagePropertyOrValue[Color] = "default",
-        scale : PagePropertyOrValue[float] = 1,
-        opacity : PagePropertyOrValue[int] = 1,
+        max_page : int = INFINITY,
         visible : PagePropertyOrValue[bool] = True,
         x_nudge : PagePropertyOrValue[float] = 0,
         y_nudge : PagePropertyOrValue[float] = 0,
+        scale : PagePropertyOrValue[float] = 1,
+        node : PagePropertyOrValue[Optional[Node]] = None,
         dom_content : Optional[SignalDict[Union[str, PageProperty[str]]]] = None,
         user_data : Optional[SignalDict[Any]] = None
     ):
@@ -39,7 +36,7 @@ class ChartClass:
         self._sseq : SseqChart
         self._degree = tuple(degree)
         self.idx = idx
-        self._max_page = INFINITY
+        self._max_page = max_page
         self._edges : List[ChartEdge] = []
         
         if uuid:
@@ -49,12 +46,8 @@ class ChartClass:
 
         # Type checker has difficulty with PagePropertyOrValue and the typing of ensure_page_property.
         self._name = cast(PageProperty[str], ensure_page_property(name, parent=self))
-        self._shape = cast(PageProperty[Shape], ensure_page_property(shape, parent=self))
-        self._color = cast(PageProperty[Color], ensure_page_property(color, parent=self))
-        self._fill  = cast(PageProperty[Color], ensure_page_property(fill, parent=self))
-        self._stroke = cast(PageProperty[Color], ensure_page_property(stroke, parent=self))
+        self._node = cast(PageProperty[Node], ensure_page_property(node, parent=self))
         self._scale = cast(PageProperty[float], ensure_page_property(scale, parent=self)) 
-        self._opacity = cast(PageProperty[float], ensure_page_property(opacity, parent=self))
         self._visible = cast(PageProperty[bool], ensure_page_property(visible, parent=self))
         self._x_nudge = cast(PageProperty[float], ensure_page_property(x_nudge, parent=self))
         self._y_nudge = cast(PageProperty[float], ensure_page_property(y_nudge, parent=self))
@@ -76,12 +69,9 @@ class ChartClass:
             idx=self.idx,
             uuid=self.uuid,
             name=self.name,
-            shape=self.shape,
-            color=self.color,
-            fill=self.fill,
-            stroke=self.stroke,
+            max_page=self._max_page,
+            node=self.node,
             scale=self.scale,
-            opacity=self.opacity,
             visible=self.visible,
             x_nudge=self.x_nudge,
             y_nudge=self.y_nudge,
@@ -90,7 +80,7 @@ class ChartClass:
         )
 
     def replace(self, **kwargs : Any):
-        """ If a class currently not a "permanent cycle" then set it to be a permanent cycle.
+        """ If a class currently not a "permanent cycle" then set it to be a permanent cycle. \
             Takes keyword arguments to set the properties of the "replaced" class.
             For instance:
                 ``c.replace(color="red", name="2x")``
@@ -118,10 +108,10 @@ class ChartClass:
             e.delete()
 
     def __repr__(self) -> str:
-        fields = [*self.degree, str(self.idx)]
+        fields = [repr(x) for x in (*self.degree, self.idx)]
         if self.name[0] != "":
             fields.append(f'name="{self.name[0]}"')
-        return f"Class({','.join(fields)})"
+        return f"{type(self).__name__}({', '.join(fields)})"
 
     @property
     def degree(self):
@@ -129,22 +119,24 @@ class ChartClass:
 
     @property
     def x(self):
-        """ Get the coordinate on the x-axis that the class will be displayed in. 
-            The result is the dot product of sseq.x_projection with class.degree
+        """ Get the coordinate on the x-axis that the class will be displayed in. \
+            
+            Returns: The dot product of sseq.x_projection with class.degree
         """
         return sum(a*b for (a,b) in zip(self.degree,self._sseq.x_projection))
 
     @property
     def y(self):
-        """ Get the coordinate on the y-axis that the class will be displayed in. 
-            The result is the dot product of sseq.y_projection with class.degree.
+        """ Get the coordinate on the y-axis that the class will be displayed in. \
+            
+            Returns: The dot product of sseq.y_projection with class.degree.
         """
         return sum(a*b for (a,b) in zip(self.degree,self._sseq.y_projection))
 
     @property
     def max_page(self) -> int:
-        """ Get the maximum page the class may appear on. Note that there is also the PageProperty "visible" 
-            which controls whether the class appears on a certain page: the class appears if class.visible[page]
+        """ Get the maximum page the class may appear on. Note that the PageProperty "visible" also
+            affects whether the class appears on a certain page: the class appears if class.visible[page]
             is "True" and page <= max_page.
         """
         return self._max_page
@@ -152,6 +144,7 @@ class ChartClass:
     @max_page.setter
     def max_page(self, v : int):
         self._max_page = v
+        self._sseq._add_class_to_update(self)
 
     @property
     def name(self) -> PageProperty[str]:
@@ -162,62 +155,29 @@ class ChartClass:
         return self._name
 
     @name.setter
-    def name(self, v : str):
-        self._name[:] = v
+    def name(self, v : PagePropertyOrValue[str]): # type: ignore
+        self._name = ensure_page_property(v, parent=self)
+        self._needs_update()
 
     @property
-    def shape(self) -> PageProperty[Shape]:
-        return self._shape
+    def node(self) -> PageProperty[Node]:
+        return self._node
     
-    @shape.setter
-    def shape(self, v : Shape):
+    @node.setter
+    def node(self, v : PagePropertyOrValue[Node]): # type: ignore
         """ Control how to draw the class. Note that it is the responsibility of display implementations to handle these shapes."""
-        self._shape[:] = v
+        self._node = ensure_page_property(v, parent=self)
+        self._needs_update()
 
-    @property
-    def color(self) -> PageProperty[Color]:
-        return self._color
-
-    @color.setter
-    def color(self, v : Color):
-        """ Control the stroke and fill color of the class. How the stroke and fill color are used is up to the discretion of the shape implementation.
-            If class.stroke or class.fill is not "default", the value of that field will be used instead.
-        """
-        self._color[:] = v
-
-    @property
-    def stroke(self) -> PageProperty[Color]:
-        """ Control the stroke color of the class. How the stroke color is used is up to the discretion of the shape implementation."""
-        return self._stroke
-
-    @stroke.setter
-    def stroke(self, v : Color):
-        self._stroke[:] = v
-
-    @property
-    def fill(self) -> PageProperty[Color]:
-        """ Control the fill color of the class. How the fill color is used is up to the discretion of the shape implementation."""
-        return self._fill
-
-    @fill.setter
-    def fill(self, v : Color):
-        self._stroke[:] = v
 
     @property
     def scale(self) -> PageProperty[float]:
         return self._scale
 
-    @scale.setter
-    def scale(self, v : float):
-        self._scale[:] = v
-
-    @property
-    def opacity(self) -> PageProperty[float]:
-        return self._opacity
-        
-    @opacity.setter
-    def opacity(self, v : float):
-        self._opacity[:] = v
+    @scale.setter 
+    def scale(self, v : PagePropertyOrValue[float]): # type: ignore
+        self._scale = ensure_page_property(v, parent=self)
+        self._needs_update()
 
     @property
     def visible(self) -> PageProperty[bool]:
@@ -227,8 +187,9 @@ class ChartClass:
         return self._visible
 
     @visible.setter
-    def visible(self, v : bool):
-        self._visible[:] = v
+    def visible(self, v : PagePropertyOrValue[bool]): # type: ignore
+        self._visible = ensure_page_property(v, parent=self)
+        self._needs_update()
 
     @property
     def x_nudge(self) -> PageProperty[float]:

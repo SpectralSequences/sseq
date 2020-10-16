@@ -1,8 +1,8 @@
 "use strict"
 import Mousetrap from "mousetrap";
 
-import { SpectralSequenceChart } from "chart/sseq/SpectralSequenceChart.js";
-window.SpectralSequenceChart = SpectralSequenceChart;
+import { SseqChart } from "chart/sseq/SseqChart";
+window.SseqChart = SseqChart;
 
 // import ReconnectingWebSocket from 'reconnecting-websocket';
 
@@ -19,6 +19,10 @@ import { PopupElement } from "chart/interface/Popup.js";
 import { SidebarElement } from "chart/interface/Sidebar.js";
 import { TooltipElement } from "chart/interface/Tooltip.js";
 import { UIElement } from "chart/interface/UI.js";
+
+import { parse as parseJSON } from "chart/sseq/json_utils";
+
+window.parseJSON = parseJSON;
 
 import {Mutex, Semaphore, withTimeout} from 'async-mutex';
 

@@ -53,6 +53,7 @@ class PageProperty(Generic[T]):
         if type(p) is int:
             self._setitem_single(p, v)
             self._merge_redundant()
+            self._needs_update()
             return
         if type(p) is not slice:
             raise TypeError("Excepted int or slice!")
@@ -92,7 +93,7 @@ class PageProperty(Generic[T]):
         return self._values == other._values
 
     def to_json(self) -> Dict[str, Any]:
-        return {"type" : "PageProperty", "data" : self._values }
+        return {"type" : "PageProperty", "values" : self._values }
     
     @staticmethod
     def from_json(json_obj : Dict[str, Any]) -> "PageProperty[Any]":

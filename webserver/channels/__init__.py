@@ -1,3 +1,4 @@
+from .basic_channel import BasicChannel
 from .demo_channel import DemoChannel
 from .interact_channel import InteractChannel
 from .resolver_channel import ResolverChannel
