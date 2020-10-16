@@ -45,7 +45,7 @@ module.exports = {
         ],
         alias: {
           // Utilities: path.resolve(__dirname, 'src/utilities/'),
-          "chart" : path.resolve(__dirname, "../../chart/javascript2/src"),
+          "chart" : path.resolve(__dirname, "../../chart/javascript/src"),
           "display" : path.resolve(__dirname, "../../chart/display/src"),
           // "katex" : path.resolve(__dirname, "./node_modules/katex/dist")
         }, 

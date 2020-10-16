@@ -2,10 +2,11 @@ const path = require('path');
 const webpack = require('webpack');
 
 module.exports = {
-    entry: './src/main.js',
+    entry: './src/lib.ts',
+    target: 'node',
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: 'sseq_webclient.js',
+        filename: 'sseq_chart.js',
         strictModuleExceptionHandling: true
     },
     mode : "development",
@@ -28,9 +29,6 @@ module.exports = {
       ],
     },
     resolve: {
-        alias: {
-          'd3': path.resolve(__dirname, 'dist/d3.min.js')
-        },
         extensions: [".webpack.js", ".web.js", ".ts", ".tsx", ".js"]
       },
     stats: {
