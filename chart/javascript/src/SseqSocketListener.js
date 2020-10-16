@@ -21,9 +21,9 @@ export class SseqSocketListener extends SocketListener {
     }
 
 
-    console_log_if_debug(msg) {
+    console_log_if_debug(...args) {
         if(this.debug_mode) {
-            console.log(msg);
+            console.log(args);
         }
     }
 
@@ -44,7 +44,7 @@ let default_message_handlers = {
 
     "initialize.chart.state" : function(cmd, args, kwargs) {
         this.console_log_if_debug("accepted user:", kwargs.state);
-        this.sseq = SpectralSequenceChart.from_JSON(kwargs.state);
+        this.sseq = kwargs.state;
         this.display.y_clip_offset = this.sseq.y_clip_offset;
         let chart = document.querySelector("sseq-chart");
         chart.setSseq(this.sseq);

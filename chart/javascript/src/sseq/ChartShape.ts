@@ -1,7 +1,29 @@
 "use strict";
+import { Color } from "./Color";
+export type Shape = any;
 
-class ChartShape {
-    static draw(context, params) {
+export interface ChartNode {
+    shape : Shape,
+    scale : number,
+    color : Color,
+    stroke : Color,
+    fill : Color,
+    opacity : number
+};
+
+export interface DrawParams {
+    shape : Shape,
+    size : number,
+    x : number,
+    y : number,
+    fillQ : boolean,
+    strokeQ : boolean,
+    node : ChartNode
+};
+
+
+export class ChartShape {
+    static draw(context : CanvasRenderingContext2D, params : DrawParams) {
         let shape;
         if(params.shape === "default"){
             shape = DEFAULT_SHAPE;
@@ -11,7 +33,7 @@ class ChartShape {
         return shape.draw.bind(shape)(context, params);
     }
     
-    static outline(context, params) {
+    static outline(context : CanvasRenderingContext2D | Path2D, params : DrawParams) {
         let shape;
         if(params.shape === "default"){
             shape = DEFAULT_SHAPE;
@@ -21,7 +43,7 @@ class ChartShape {
         return shape.outline.bind(shape)(context, params);
     }
 
-    static fillStrokeContext(context, params) {
+    static fillStrokeContext(context : CanvasRenderingContext2D, params : DrawParams) {
         if(params.strokeQ){
             context.stroke();
         }
@@ -31,16 +53,15 @@ class ChartShape {
     }
 }
 
-exports.ChartShape = ChartShape;
 
 let Shapes = {};
 
-Shapes.text = {
-    outline : function(context, params) {
+Shapes["text"] = {
+    outline : function(context : CanvasRenderingContext2D | Path2D, params : DrawParams) {
         context.moveTo(params.x, params.y);
         context.arc(params.x, params.y, params.size * 0.1, 0, 2*Math.PI);
     },
-    draw : function(context, params) {
+    draw : function(context : CanvasRenderingContext2D, params : DrawParams) {
         let text = params.shape.text;
         let fontFace = params.shape.font;
         context.save();
@@ -54,12 +75,12 @@ Shapes.text = {
 }
 
 
-Shapes.circle = {
-    outline : function(context, params) {
+Shapes["circle"] = {
+    outline : function(context : CanvasRenderingContext2D | Path2D, params : DrawParams) {
         context.moveTo(params.x, params.y);
         context.arc(params.x, params.y, params.size * 0.1, 0, 2*Math.PI);
     },
-    draw: function(context, params) {
+    draw: function(context : CanvasRenderingContext2D, params : DrawParams) {
         // console.log("shape_draw");
         this.outline(context, params);
         ChartShape.fillStrokeContext(context, params);
@@ -67,11 +88,11 @@ Shapes.circle = {
 }
 
 
-Shapes.circlen = {
-    outline : function(context, params) {
+Shapes["circlen"] = {
+    outline : function(context : CanvasRenderingContext2D | Path2D, params : DrawParams) {
         context.arc(params.x, params.y, params.size * 0.1, 0, 2*Math.PI);
     },
-    draw: function(context, params) {
+    draw: function(context : CanvasRenderingContext2D, params : DrawParams) {
         this.outline(context, params);
         ChartShape.fillStrokeContext(context, params);
         
@@ -83,8 +104,8 @@ Shapes.circlen = {
     }
 };
 
-Shapes.square = {
-    outline: function(context, params) {
+Shapes["square"] = {
+    outline: function(context : CanvasRenderingContext2D | Path2D, params : DrawParams) {
         let x = params.x;
         let y = params.y;
         let size = params.size;
@@ -92,16 +113,15 @@ Shapes.square = {
         context.rect(x - hwidth, y - hwidth, 2*hwidth, 2*hwidth);
     },
     
-    draw : function(context, params) {
+    draw : function(context : CanvasRenderingContext2D, params : DrawParams) {
         this.outline(context, params);
         ChartShape.fillStrokeContext(context, params);
     }
-}
+};
 
-let DEFAULT_SHAPE = Shapes.circle;
+let DEFAULT_SHAPE = Shapes["circle"];
 
 
 for(let k of Object.getOwnPropertyNames(Shapes)){
     Shapes[k].name = k;
-    exports[k] = Shapes[k];
 }

@@ -20,13 +20,18 @@ module.exports = {
         {
             test: /\.css$/,
             use: ['to-string-loader', 'css-loader']
-        }
+        },
+        // All files with a '.ts' or '.tsx' extension will be handled by 'awesome-typescript-loader'.
+        { test: /\.tsx?$/, loader: "awesome-typescript-loader" },
+        // All output '.js' files will have any sourcemaps re-processed by 'source-map-loader'.
+        { test: /\.js$/, loader: "source-map-loader" }        
       ],
     },
     resolve: {
         alias: {
           'd3': path.resolve(__dirname, 'dist/d3.min.js')
-        }
+        },
+        extensions: [".webpack.js", ".web.js", ".ts", ".tsx", ".js"]
       },
     stats: {
         // warningsFilter: [

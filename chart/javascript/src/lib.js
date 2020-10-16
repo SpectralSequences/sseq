@@ -1,4 +1,4 @@
-export { INFINITY } from "./infinity.js";
+export { INFINITY } from "./infinity";
 
 export function mod(n,d){
     return (n % d + d)%d;
@@ -9,10 +9,10 @@ import * as EventEmitter from "events";
 export {C2S, EventEmitter};
 
 
-import * as Interface from "./interface/mod.js";
-import * as spectralsequences from "./sseq/mod.js";
+import * as Interface from "./interface/mod";
+import * as spectralsequences from "./sseq/mod";
 export { Interface, spectralsequences };
-export { SocketListener } from "./SocketListener.js";
+export { SocketListener } from "./SocketListener";
 
 
 import * as Mousetrap from "mousetrap";

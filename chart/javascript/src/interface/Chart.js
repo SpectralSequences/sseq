@@ -51,7 +51,7 @@ export class ChartElement extends HTMLElement {
     }
 
     changePage(delta){
-        let min_idx = this.sseq.min_page_idx;
+        let min_idx = 0;
         let max_idx = this.sseq.page_list.length - 1;
         let new_idx = Math.min(Math.max(this.page_idx + delta, min_idx), max_idx)
         if (new_idx !== this.page_idx) {
@@ -73,13 +73,13 @@ export class ChartElement extends HTMLElement {
         if(this.sseq.initial_page_idx){
             this.page_idx = this.sseq.initial_page_idx;
         } else {
-            this.page_idx = this.sseq.min_page_idx;
-        }
-        if(this.page_idx >= this.sseq.page_list.length){
-            console.warn(`Warning: min_page_idx ${this.sseq.min_page_idx} greater than page list length ${this.sseq.page_list.length}. Using 0 for min_page_idx instead.`);
             this.page_idx = 0;
-            this.min_page_idx = 0;
         }
+        // if(this.page_idx >= this.sseq.page_list.length){
+        //     console.warn(`Warning: min_page_idx ${this.sseq.min_page_idx} greater than page list length ${this.sseq.page_list.length}. Using 0 for min_page_idx instead.`);
+        //     this.page_idx = 0;
+        //     this.min_page_idx = 0;
+        // }
         this.setPage();
         this.disp.setInitialXRange(...sseq.initial_x_range);
         this.disp.setInitialYRange(...sseq.initial_y_range);
@@ -213,16 +213,23 @@ export class ChartElement extends HTMLElement {
     }
 
     _drawEdges(disp, context, edges){
-        let grouped_edges = groupByArray(edges, (e) => JSON.stringify([e.color, e.lineWidth, e.opacity, e.dash]));
+        let grouped_edges = groupByArray(edges, (e) => JSON.stringify([e.color[this.page]]));//, e.lineWidth[this.page], e.opacity[this.page], e.dash[this.page]]));
         for(let edge_group of grouped_edges){
             context.save();
             let first_edge = edge_group.values[0];
-            context.strokeStyle = first_edge.color || "black";
+            let color = first_edge.color[this.page] || "black";
+            if(color === "default"){
+                color = "black";
+            }
+            context.strokeStyle = color;
             if(first_edge.lineWidth){
-                context.lineWidth = first_edge.lineWidth;
+                let lineWidth = first_edge.lineWidth[this.page];
+                if(lineWidth !== "default"){
+                    context.lineWidth = lineWidth;
+                }
             }
             if(first_edge.opacity){
-                context.globalAlpha = first_edge.opacity;
+                context.globalAlpha = first_edge.opacity[this.page];
             }
             if(first_edge.dash){
                 context.setLineDash(first_edge.dash);
@@ -239,27 +246,27 @@ export class ChartElement extends HTMLElement {
                     continue;
                 }
 
-                let source_node = e._source;
-                let target_node = e._target;
-                if(!source_node || ! target_node){
+                let source = e.source;
+                let target = e.target;
+                if(!source || ! target){
                     throw ValueError(`Edge ${e} has undefined source or target node`);
                 }
                 e._sourceOffset = e.sourceOffset || {x: 0, y: 0};
                 e._targetOffset = e.targetOffset || {x: 0, y: 0};
 
-                let sourceX = source_node._canvas_x + e._sourceOffset.x;
-                let sourceY = source_node._canvas_y + e._sourceOffset.y;
-                let targetX = target_node._canvas_x + e._targetOffset.x;
-                let targetY = target_node._canvas_y + e._targetOffset.y;
-                
-                if(e.bend ){//&& e.bend !== 0
+                let sourceX = source._canvas_x + e._sourceOffset.x;
+                let sourceY = source._canvas_y + e._sourceOffset.y;
+                let targetX = target._canvas_x + e._targetOffset.x;
+                let targetY = target._canvas_y + e._targetOffset.y;
+                let bend = e.bend[this.page];
+                if(bend){//&& e.bend !== 0
                     let distance = Math.sqrt((targetX - sourceX)*(targetX - sourceX) + (targetY - sourceY)*(targetY - sourceY));
                     let looseness = 0.4;
                     if(e.looseness){
                         looseness = e.looseness;
                     }
                     let angle = Math.atan((targetY - sourceY)/(targetX - sourceX));
-                    let bendAngle = - e.bend * Math.PI/180;
+                    let bendAngle = - bend * Math.PI/180;
                     let control1X = sourceX + Math.cos(angle + bendAngle) * looseness * distance;
                     let control1Y = sourceY + Math.sin(angle + bendAngle) * looseness * distance;
                     let control2X = targetX - Math.cos(angle - bendAngle) * looseness * distance;

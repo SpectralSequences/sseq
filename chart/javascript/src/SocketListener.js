@@ -1,4 +1,6 @@
 import { uuidv4 as uuid4 } from "./interface/utils.js";
+import { parse as parseJSON } from "./sseq/json_utils";
+
 
 function removeErrorConstructorsFromStacktrace(stacktrace){
     let lines = stacktrace.split("\n");
@@ -167,7 +169,7 @@ export class SocketListener {
     onmessage(event) {
         let msg = event.data;
         if(msg.constructor === String){
-            msg = JSON.parse(msg);
+            msg = parseJSON(msg);
         }
         this.handle_message(msg, true);
     }
@@ -187,7 +189,6 @@ export class SocketListener {
         if("cmd" in kwargs) {
             throw ValueError(`Tried to send message with top level "cmd" key`);
         }
-        let uuid = uuid4();
         let obj = Object.assign({ 
                 cmd, args, kwargs,
                 uuid : uuid4()

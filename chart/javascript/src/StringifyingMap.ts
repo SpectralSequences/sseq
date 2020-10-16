@@ -1,8 +1,8 @@
 "use strict";
 
-function stdCatToString(x){
+function stdCatToString(x : any) : string {
     if(x === undefined){
-        return undefined;
+        throw TypeError("Argument is undefined.");
     }
     if(x.getStringifyingMapKey !== undefined){
         return x.getStringifyingMapKey();
@@ -11,8 +11,11 @@ function stdCatToString(x){
     }
 }
 
-var StringifyingMap = (function () {
-    function StringifyingMap(catToString) {
+export default class StringifyingMap<K, V> { 
+    catToString : (arg : K) => string;
+    m : Map<string, V>;
+    key_string_to_key_object : Map<string, K>;
+    constructor(catToString? :(arg : K) => string) {
         if(catToString === undefined){
             catToString = stdCatToString
         }
@@ -20,7 +23,8 @@ var StringifyingMap = (function () {
         this.m = new Map();
         this.key_string_to_key_object = new Map();
     }
-    StringifyingMap.prototype.set = function (k, v) {
+
+    set(k : K, v : V) {
         let key_string = this.catToString(k);
         if(key_string === undefined){
             throw new Error("Key encoding undefined.");
@@ -28,52 +32,55 @@ var StringifyingMap = (function () {
         this.key_string_to_key_object.set(key_string, k);
         let s = this.m.set(key_string, v);
         return s;
-    };
-    StringifyingMap.prototype.get = function (k) {
+    }
+
+    get(k : K) {
         let key_string = this.catToString(k);
         if(key_string === undefined){
             return undefined;
         }
         return this.m.get(this.catToString(k));
-    };
-    StringifyingMap.prototype.delete = function (k) {
+    }
+
+    delete(k : K) {
         this.key_string_to_key_object.delete(this.catToString(k));
         return this.m.delete(this.catToString(k));
-    };
-    StringifyingMap.prototype.has = function (k) {
+    }
+
+    has(k : K) {
         if(k === undefined){
             return false;
         }
         return this.m.has(this.catToString(k));
-    };    
+    }    
 
-    StringifyingMap.prototype.getOrElse = function(key, value) {
+    getOrElse(key : K, value : V) {
       return this.has(key) ? this.get(key) : value;
     };
     
-    StringifyingMap.prototype[Symbol.iterator] = function*(){
-        for(let k of this.m){
-            yield [this.key_string_to_key_object.get(k[0]),k[1]];
-        }
-    };
+    [Symbol.iterator](){
+        return function*(this : StringifyingMap<K, V>){
+            for(let k of this.m){
+                yield [this.key_string_to_key_object.get(k[0]),k[1]];
+            }
+        }.bind(this)();
+    }
 
-    StringifyingMap.prototype.keys = function(){
+    keys(){
         return this.key_string_to_key_object.values();
     };
 
-    StringifyingMap.prototype.toJSON = function(){
+    toJSON(){
         return [...this];
     }
     
-    Object.defineProperty(StringifyingMap.prototype, "size", {
-        get: function () {
-            return this.m.size;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    return StringifyingMap;
-}());
+    // Object.defineProperty(StringifyingMap.prototype, "size", {
+    //     get: function () {
+    //         return this.m.size;
+    //     },
+    //     enumerable: true,
+    //     configurable: true
+    // });
+}
 
 
-module.exports = StringifyingMap;

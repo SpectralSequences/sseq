@@ -1,16 +1,21 @@
-import { INFINITY } from "../infinity.js";
-export class PageProperty {
-    constructor(value){
-        if(value.constructor === Array){
+import { INFINITY } from "../infinity";
+export class PageProperty<V> {
+    values : [number, V][];
+    constructor(value : V | [number, V][]){
+        if(value instanceof Array){
             this.values = value;
         } else {
             this.values = [[-INFINITY, value]];
         }
         return new Proxy(this, {
             get : (obj, key) => {
-                if(Number.isInteger(Number(key))){
+                // key will either be a string or a symbol.
+                // Number(key) works fine if it's a string, but if it's a symbol it throws a type error.
+                // So first use key.toString.
+                if(Number.isInteger(Number(key.toString()))){
                     return obj.valueOnPage(key);
                 } else {
+                    //@ts-ignore
                     return obj[key];
                 }
             },
@@ -19,9 +24,9 @@ export class PageProperty {
                     .replace(/\s/g, '')  // Remove all whitespace.
                     .replace(/,/g, ':')  // Replace commas with colons.
                 if(/^(-?\d+)$/.test(newKey)) {
-                    this.setItemSingle(Number.parseInt(key), value);
+                    this.setItemSingle(Number(key), value);
                     this.mergeRedundant();
-                    return value;
+                    return true;
                 }
                 
                 // Handle slices.
@@ -42,23 +47,24 @@ export class PageProperty {
                 }
                 this.values.splice(start_idx + 1, end_idx - start_idx - 1);
                 this.mergeRedundant();
+                return true;
             }
         })
     }
 
-    findIndex(target_page){
-        let result_idx;
+    findIndex(target_page : number) : [number, boolean] {
+        let result_idx : number;
         for(let idx = 0; idx < this.values.length; idx ++){
-            let [page, value] = this.values[idx]
+            let [page, value] = this.values[idx];
             if(page > target_page){
-                break
+                break;
             }
-            result_idx = idx 
+            result_idx = idx;
         }
-        return [result_idx, this.values[result_idx][0] === target_page]
+        return [result_idx!, this.values[result_idx!][0] === target_page]
     }
 
-    setItemSingle(page, value) {
+    setItemSingle(page : number, value : V) : [number, boolean] {
         let [idx, hit] = this.findIndex(page);
         if(hit){
             this.values[idx][1] = value;
@@ -78,22 +84,46 @@ export class PageProperty {
     }
 
     toJSON(){
-        return {"type" : "PageProperty", "data" : this.values };
+        return {"type" : "PageProperty", "values" : this.values };
+    }
+
+    static fromJSON(obj : any) : PageProperty<any> {
+        return new PageProperty(obj.values);
     }
 
     toString(){
         return `PageProperty(${JSON.stringify(this.values)})`;
     }
 
-    valueOnPage(target_page){
-        let result;
+    valueOnPage(target_page : any) : V {
+        let result : V;
         for(let [page, v] of this.values){
             if(page > target_page){
                 break
             }
             result = v;
         }
-        return result;
+        return result!;
     }
 
+}
+
+export type PagePropertyOrValue<V> = V | PageProperty<V>;
+
+export function PagePropertyOrValueToPageProperty<V>(propertyValue : PageProperty<V> | V ) : PageProperty<V> {
+    if(propertyValue instanceof PageProperty){
+        return propertyValue;
+    } else {
+        return new PageProperty(propertyValue);
+    }
+}
+
+export function initialPagePropertyValue<V>(propertyValue : PageProperty<V> | V | undefined | null, defaultValue : V, propertyName : string, context : string) : PageProperty<V> {
+    if(propertyValue){
+        return PagePropertyOrValueToPageProperty(propertyValue);
+    } else if(defaultValue !== undefined) {
+        return new PageProperty(defaultValue);
+    } else {
+        throw TypeError(`Missing property ${propertyName}${context}`);
+    }
 }

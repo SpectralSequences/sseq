@@ -2,8 +2,8 @@
 
 import * as EventEmitter from "events";
 import * as d3 from "d3";
-import { INFINITY } from "../infinity.js";
-import { sleep, animationFrame } from "./utils.js";
+import { INFINITY } from "../infinity";
+import { sleep, animationFrame } from "./utils";
 
 export class DisplayElement extends HTMLElement {
     constructor() {
