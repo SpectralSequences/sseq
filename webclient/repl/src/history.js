@@ -114,7 +114,7 @@ export class History {
         for(let key of keysToStore){
             let localStorageKey = `${History.stowagePrefix}${key}`;
             let stowedHistory = JSON.parse(localStorage.getItem(localStorageKey));
-            console.log(stowedHistory);
+            // console.log(stowedHistory);
             localStorage.removeItem(localStorageKey);
             for(let histItem of stowedHistory){
                 requests.push(transaction.setItem(length, histItem));

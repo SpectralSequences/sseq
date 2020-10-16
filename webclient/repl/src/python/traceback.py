@@ -1,4 +1,3 @@
-import pygments
 from typing import List
 
 class Traceback:
@@ -24,6 +23,7 @@ class Traceback:
 
     @staticmethod
     def format_traceback(tb_str : str):
+        # import pygments
         # from pygments.lexers import PythonTracebackLexer
         # from pygments.formatters import HtmlFormatter
         # from pygments import highlight

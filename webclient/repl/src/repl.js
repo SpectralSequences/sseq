@@ -23,6 +23,7 @@ class ReplElement extends HTMLElement {
 			scrollBeyondLastLine : true,
 			contextmenu : false,
 			readOnly : true,
+			lineNumbers : "none"
 		};
     }
     
@@ -226,14 +227,11 @@ class ReplElement extends HTMLElement {
             this.querySelector(".root"),
             this.editorOptions
 		);
-		this.editor.updateOptions({
-			lineNumbers : this._getEditorLinePrefix.bind(this)
-		});
 
 		await sleep(10);
 		this.querySelector(".decorationsOverviewRuler").remove();
 		this.readOnly = true;
-		this._displayLoadingPrompt();
+		this._displayLoadingPrompt2();
 		try {
 			await this.executor.ready();
 			this._loaded();
@@ -253,6 +251,31 @@ class ReplElement extends HTMLElement {
 		}
 	}
 
+	async _displayLoadingPrompt2(){
+		let idx = -1;
+		let animation = ["\n\n    -  Loading  -\n\n", "\n\n   -   Loading   -","\n\n   /   Loading   /","\n\n   |   Loading   |","\n\n   \\   Loading   \\","\n\n   -   Loading   -","\n    |\n   /   Loading   /\n                |","     \\\n    |\n   /   Loading   /\n                |\n               \\","     \\-\n    |\n       Loading\n                |\n              -\\","     \\-\n       /\n       Loading\n             /\n              -\\","      -\n       /\n       L|ading\n             /\n              -","\n       /   \\\n       L|ading\n         \\   /\n","          -\n           \\\n       L|ading\n         \\\n          -","         /-\n           \\\n       Loading\n         \\\n          -/","        |/-\n\n       Loading\n\n          -/|","        |/\n      \\\n       Loading\n              \\\n           /|","        |\n      \\\n    -  Loading  -\n              \\\n            |","\n      \\\n    -  Loading  -\n              \\\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n"];
+
+		let observer = new MutationObserver(() => {
+			for(let c of document.querySelectorAll(".cigr, .cigra")){
+				if(c.style.display !== "none"){
+					c.style.display = "none";
+				}
+			}
+		});
+		observer.observe(this, {"subtree" : true, "childList" : true, "attributesFilter" : ["style"] });
+		while(!this.ready){
+			idx ++;
+			idx = idx % animation.length;
+			this.editor.setValue(animation[idx]);
+			if(idx === 0) {
+				await sleep(250);
+			}
+			await sleep(50);
+		}
+		observer.disconnect();
+	}
+
+
 	async _loaded(){
 		this.ready = true;
 		this.editor.onKeyDown(this._onkey.bind(this));
@@ -262,9 +285,12 @@ class ReplElement extends HTMLElement {
 		this.editor.onDidScrollChange(() => this.updateLineOffsets());
 		this.editor.updateOptions({ "readOnly" : false });
 		window.addEventListener("cut", this._oncut.bind(this));
-		
-		delete this.outputModelLines[2];
-		delete this.outputScreenLines[2];
+		this.editor.updateOptions({
+			lineNumbers : this._getEditorLinePrefix.bind(this)
+		});
+
+		this.outputModelLines = { 1 : true};
+		this.outputScreenLines = { 1 : true };
 		this.firstLines[2] = true;
 		this.editor.setValue("\n");
 		this.editor.setPosition(this.endOfInputPosition);
@@ -341,18 +367,18 @@ class ReplElement extends HTMLElement {
 	}	
 
 	_onmousedown(){
-		this.mouseDown = true;
-		this.justSteppedHistory = false;
-		this.updateCursorOffset();
+		// this.mouseDown = true;
+		// this.justSteppedHistory = false;
+		// this.updateCursorOffset();
 	}
 
 	_onmouseup(){
-		this.mouseDown = false;
-		if(this.doesSelectionIntersectReadOnlyRegion() && this.editor.getSelection().isEmpty()){
-			this.editor.setPosition(this.endOfInputPosition);
-			this.revealSelection();
-			this.updateCursorOffset();
-		}
+		// this.mouseDown = false;
+		// if(this.doesSelectionIntersectReadOnlyRegion() && this.editor.getSelection().isEmpty()){
+		// 	this.editor.setPosition(this.endOfInputPosition);
+		// 	this.revealSelection();
+		// 	this.updateCursorOffset();
+		// }
 	}	
 
 	async _onDidChangeCursorSelection(e){
@@ -380,16 +406,18 @@ class ReplElement extends HTMLElement {
 		if(this.doesCurrentSelectionIntersectReadOnlyRegion()){
 			this.editor.updateOptions({ renderLineHighlight : "none" });
 			this.querySelector(".cursor").style.display = "none";
+			await sleep(0);
+			this.querySelector(".cursor").style.display = "none";
 		} else {
 			this.editor.updateOptions({ renderLineHighlight : "line" });
 			this.querySelector(".cursor").style.display = this.readOnly ? "none" : "block";
 		}
-		await sleep(0); // Need to sleep(0) to allow this.mouseDown to update.
-		if(!this.mouseDown && e.selection.isEmpty() && this.doesCurrentSelectionIntersectReadOnlyRegion()){
-			this.editor.setPosition(this.endOfInputPosition);
-			this.revealSelection();
-		}
-		this.updateCursorOffset();
+		// await sleep(0); // Need to sleep(0) to allow this.mouseDown to update.
+		// if(!this.mouseDown && e.selection.isEmpty() && this.doesCurrentSelectionIntersectReadOnlyRegion()){
+		// 	this.editor.setPosition(this.endOfInputPosition);
+		// 	this.revealSelection();
+		// }
+		// this.updateCursorOffset();
 	}
 
 
@@ -491,10 +519,10 @@ class ReplElement extends HTMLElement {
 			if(e.browserEvent.shiftKey){
 				return;
 			}
-			let lastLineContent = this.editor.getModel().getLineContent(this.getModelLineCount());
+			let currentLineContent = this.editor.getModel().getLineContent(this.editor.getPosition().lineNumber);
 			// If the current line is empty except for spaces, outdent it.
 			// TODO: Good choice or no?
-			if(/^ *$/.test(lastLineContent)){
+			if(/^ +$/.test(currentLineContent)){
 				this.editor.getAction("editor.action.outdentLines").run();
 				this.preventKeyEvent();
 			}
@@ -720,6 +748,9 @@ class ReplElement extends HTMLElement {
 		if(event.ctrlKey){
 			return true;
 		}
+		if(this.editor.getPosition().lineNumber !== this.getModelLineCount()){
+			return false;
+		}
 		if(this.getLengthOfLastModelLine() == 0){
 			return true;
 		}
@@ -737,6 +768,7 @@ class ReplElement extends HTMLElement {
 		if(!code.trim()){
 			return;
 		}
+		this.editor.setValue(this.editor.getValue().trimEnd());
 		this.printToConsole("\n");
 		await sleep(0);
 		// editor.setValue seems to undo changes to the console so readOnly has to be set second
@@ -745,6 +777,7 @@ class ReplElement extends HTMLElement {
 		const execution = this.executor.execute(code);
 		this.currentExecution = execution;
 		execution.onStdout((data) => this.printToConsole(data));
+		execution.onStderr((data) => this.printToConsole(data));
 		let syntaxCheck = await execution.validate_syntax(code);
 		if(!syntaxCheck.valid){
 			this.showSyntaxError(syntaxCheck.error);

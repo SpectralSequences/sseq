@@ -1,6 +1,17 @@
 self.languagePluginUrl = '/pyodide-build-custom/'
 importScripts(`${self.languagePluginUrl}pyodide.js`);
 
+import { sleep } from "./utils";
+
+self.sleep = sleep;
+
+self.fetch = fetch.bind(self);
+
+async function is_promise(obj){
+    return obj && typeof obj.then == 'function';
+}
+self.is_promise = is_promise;
+
 /**  
  * NOTE: When pyodide is finished initializing, the original "pyodide" object
  * is stored as "pyodide._module". We don't want to wait for this to happen or worry 
@@ -19,74 +30,45 @@ for(let [k, v] of Object.entries(files_to_install)){
 }
 
 
-function sendMessage(x){
-    postMessage(x);
+function sendMessage(message){
+    self.postMessage(message);
 }
 self.sendMessage = sendMessage;
-self.message_lookup = {};
-self.debug_parso_code_lookup = {};
-
-self.asyncCall = function asyncCall(cmd, message){
-    Object.assign(message, {cmd});
-    self.asyncWorker.postMessage(message);
-
-    // Make an i32 view because Atomics.wait only works on an i32 array.
-    let i32_view = new Int32Array(responseBuffer);
-    Atomics.wait(i32_view, 0, 0);
-    // we stored the byteLength as an i32 as the first four bytes
-    let byteLength = Atomics.load(i32_view, 0);
-    if(byteLength === 0){
-        // No response
-        return;
-    }
-    // The rest is the string, now we know how long it is.
-    let u8_view = new Uint8Array(responseBuffer).subarray(4, byteLength + 4);
-    // text_decoder doesn't work on SharedArrayBuffer (though the standard says it should as of October 2019,
-    // see https://github.com/whatwg/encoding/commit/4716397e04d4f2f9293fb601be8626bbc9e8239c)
-    // Instead we copy into a temporary array and decode that.
-    let copiedU8Array = new Uint8Array(byteLength);
-    copiedU8Array.set(u8_view);
-    let result_json = text_decoder.decode(copiedU8Array);
-    let result = JSON.parse(result_json);
-    return result;
-}
+self.messageLookup = {};
 
 async function startup(){
     try {
         await languagePluginLoader;
         await pyodide.loadPackage([
-            "pygments", 
+            // "pygments", 
             "crappy-python-multitasking",
             "spectralsequence_chart"
         ]);
-        await pyodide.runPython(`
+        pyodide.runPython(`
             import sys
             sys.path.append("/executor")
             from executor import PyodideExecutor
+            from executor.sseq_display import SseqDisplay
             executor = PyodideExecutor()
         `);
-        self.sendMessage({cmd : "ready"});
+        self.postMessage({cmd : "ready"});
     } catch(e){
-        self.sendMessage({cmd : "ready", exception : e});
+        self.postMessage({cmd : "ready", exception : e});
     }
 }
 let startup_promise = startup();
 
-let text_decoder = new TextDecoder();
-self.addEventListener("message", async function(e) { // eslint-disable-line no-unused-vars
+self.subscribers = [];
+
+self.addEventListener("message", async function(e) {
     if(e.data.cmd === "service_worker_channel"){
-        let {port, responseBuffer} = e.data;
-        self.asyncWorker = port;
-        self.responseBuffer = responseBuffer;
-        port.start();
+        registerServiceWorkerPort(e);
         return;
     }
-    
+
     await startup_promise;
-    // console.log("worker received message", e.data);
     const {uuid, interrupt_buffer} = e.data;
-    // delete e.data.interrupt_buffer;
-    message_lookup[uuid] = e.data;
+    messageLookup[uuid] = e.data;
     
     if(interrupt_buffer){
         e.data.interrupt_buffer = function(){
@@ -96,3 +78,36 @@ self.addEventListener("message", async function(e) { // eslint-disable-line no-u
     }
     await self.pyodide.runPythonAsync(`executor.handle_message("${uuid}")`);
 });
+
+
+function registerServiceWorkerPort(e){
+    let { port } = e.data;
+    self.serviceWorker = port;
+    self.serviceWorker.addEventListener("message", handleMessageFromServiceWorker)
+    port.start();
+}
+
+function handleMessageFromServiceWorker(event) {
+    if(event.data.cmd === "subscribe_chart_display"){
+        registerNewSubscriber(event);
+        return;
+    }
+    console.error(`Unknown command: ${event.data.cmd}`, event.data, event);
+    throw Error(`Unknown command: ${event.data.cmd}`);
+}
+
+function registerNewSubscriber(event){
+    let { port, chart_name, uuid, client_id } = event.data;
+    console.log(`New subscriber to ${chart_name}`, event.data);
+    port.addEventListener("message", (e) => handleMessageFromChart(e, port, chart_name, client_id));
+    port.start();
+    self.subscribers.push(port);
+}
+
+function handleMessageFromChart(event, port, chart_name, client_id){
+    let message = event.data;
+    let { uuid } = JSON.parse(message);
+    messageLookup[uuid] = { message, chart_name, port, client_id };
+    console.log("message from chart:", message);
+    pyodide.runPython(`SseqDisplay.dispatch_message("${uuid}")`);
+}

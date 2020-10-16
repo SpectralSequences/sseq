@@ -40,7 +40,6 @@ function getCompletionProvider(monaco, repl) {
         },
         resolveCompletionItem : async function(model, position, item){
             let result = await repl.jedi_value.getCompletionInfo(item.state_id, item.idx);
-            console.log("resolved:", result);
             let {docstring, signature} = result;
             item.detail = signature;
             item.documentation = docstring;

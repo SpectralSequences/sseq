@@ -1,11 +1,16 @@
 import ast
+from asyncio import iscoroutine
+from copy import deepcopy
 import sys
 
+
 from textwrap import dedent
-from .traceback import Traceback
+from .async_js import wrap_promise
 from .send_message import send_message
+from .traceback import Traceback
 from .write_stream import WriteStream
-from js import console
+
+from js import console, is_promise
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import crappy_multitasking as crappy_multitasking_module
 
@@ -13,11 +18,12 @@ import crappy_multitasking as crappy_multitasking_module
 @contextmanager
 def crappy_multitasking(callback, interval):
     crappy_multitasking_module.set_interval(interval)
-    crappy_multitasking_module.start(callback)
+    # crappy_multitasking_module.start(callback)
     try:
-        yield None
+        yield
     finally:
-        crappy_multitasking_module.end()
+        pass
+        # crappy_multitasking_module.end()
 
 def firstlinelen(s):
     res = s.find("\n") 
@@ -54,31 +60,53 @@ class Execution:
             return
         raise KeyboardInterrupt()
 
+    @contextmanager
+    def execution_context(self):
+        from .executor import PyodideExecutor
+        saved_executor = PyodideExecutor.executor
+        with  redirect_stdout(WriteStream(self.send_stdout_write)),\
+              redirect_stderr(WriteStream(self.send_stderr_write)),\
+              crappy_multitasking(self.check_interrupt, self.check_interrupt_interval):
+            try:
+                PyodideExecutor.executor = self.executor
+                yield
+            finally:
+                PyodideExecutor.executor = saved_executor
+
 
     @staticmethod
-    def adjust_ast(mod, code):
-        expr = None
-
+    def adjust_ast(tree, code):
+        target = [ast.Name("EXEC-LAST-EXPRESSION", ctx = ast.Store())]
+        [tree, result] = Execution.get_ast_result(tree, code)
+        tree.body.append(ast.Assign(target, result))
+        ast.fix_missing_locations(tree)
+        return tree
+    
+    @staticmethod
+    def get_ast_result(tree, code):
         if code[-1] == ";":
-            return [mod, None]
+            return [tree, ast.Constant(None, None)]
 
-        if isinstance(mod.body[-1], ast.Expr):
-            expr = ast.Expression(mod.body[-1].value)
-            del mod.body[-1]  
-        elif isinstance(mod.body[-1], ast.Assign):
-            from copy import deepcopy
-            target = mod.body[-1].targets[0] # unclear if targets ever has length greater than 1?
-            expr = ast.Expression(deepcopy(target))
+        last_node = tree.body[-1]
+        if isinstance(last_node, (ast.Expr, ast.Await)):
+            tree.body.pop()
+            return [tree, last_node.value]
+
+        if isinstance(last_node, ast.Assign):
+            target = last_node.targets[0] # unclear if targets ever has length greater than 1?
+            expr = deepcopy(target)
             for x in ast.walk(expr):
                 if hasattr(x, "ctx"):
                     x.ctx = ast.Load()
-        if expr:
-            ast.fix_missing_locations(expr)
-        ast.fix_missing_locations(mod)
-        return [mod, expr]
+            return [tree, expr]
+
+        return [tree, ast.Constant(None, None)]
+
+
+
         
     
-    def run(self):
+    async def run(self):
         """
         Runs a string of code, the last part of which may be an expression.
         """
@@ -104,23 +132,18 @@ class Execution:
             self.send_result(None)
             return
 
-        [mod, expr] = Execution.adjust_ast(mod, self.code)
+        mod = Execution.adjust_ast(mod, self.code)
 
         try:
             flags = self.executor.flags
             ns = self.executor.namespace
-            with \
-              redirect_stdout(WriteStream(self.send_stdout_write)),\
-              redirect_stderr(WriteStream(self.send_stderr_write)),\
-              crappy_multitasking(self.check_interrupt, self.check_interrupt_interval):
-                if len(mod.body):
-                    exec(compile(mod, '<exec>', mode='exec', flags=flags), ns, ns)
-                if expr is not None:
-                    result = eval(compile(expr, '<eval>', mode='eval', flags=flags), ns, ns)
-                    if result is not None:
-                        self.send_result(repr(result))
-                    else:
-                        self.send_result(None)
+            with self.execution_context():
+                res = eval(compile(mod, '<exec>', mode='exec', flags=flags), ns, ns)
+                if iscoroutine(res):
+                    await res
+                result = ns.pop("EXEC-LAST-EXPRESSION")
+                if result is not None:
+                    self.send_result(repr(result))
                 else:
                     self.send_result(None)
         except Exception as e:

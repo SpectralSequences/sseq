@@ -48,8 +48,10 @@ class Completer:
         import jedi
         self.code = code
         state_id = str(uuid4())
+        print("get completions", code)
         completions = jedi.Interpreter(code, [self.executor.namespace]) \
                         .complete(line=lineNumber, column=column - 1, fuzzy=True)
+        print("got completions", code)
         self.states[state_id] = completions
         result = []
         for comp in completions:
@@ -63,7 +65,7 @@ class Completer:
     @handle("completion_detail")
     def get_completion_info(self, subuuid, state_id, idx):
         completion = self.states[state_id][idx]
-        docstring = completion.docstring() or completion._get_docstring()
+        docstring = completion.docstring(raw=True) or completion._get_docstring()
         signature = completion._get_docstring_signature()
         self.send_message("completion_detail", subuuid, docstring=docstring, signature=signature)
     

@@ -8,32 +8,18 @@ export class PythonExecutor {
         this.executions = {};
         this.completers = {};
         this.pyodide_worker = new Worker("pyodide_worker.bundle.js");
-        this.async_worker = new Worker("async_worker.bundle.js");
         this.pyodide_worker.addEventListener("message", this._handleMessage.bind(this));
-        // The pyodide worker needs to be able to send messages to the async worker, so we make a channel
+        // The pyodide worker needs to be able to send messages to the service worker, so we make a channel
         // and send one end to the service worker and the other to the pyodide worker.
-        // This new MessageChannel we created will not be able to send SharedArrayBuffers =(
-        // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer/Planned_changes
-        // section "API changes"
-        // "... postMessage() on Window objects and dedicated workers will function and allow for memory sharing."
-        // This seems to mean that ONLY postMessage on window objects and dedicated worker objects allow memorysharing
-        // and postMessage on our new MessageChannel and postMessage from the serviceWorker indeed seem to silently
-        // fail when handed a SAB.
-        // So now we also make a response buffer and send it to both the service worker and the pyodide worker
-        // along with their MessageChannel ports.
-            
-        let message_channel = new MessageChannel();
-        let responseBuffer = new SharedArrayBuffer(2048);
-        this.async_worker.postMessage({
-            cmd : "pyodide_worker_channel", 
-            port : message_channel.port2,
-            responseBuffer
-        }, [message_channel.port2]);
+        let {port1, port2} = new MessageChannel();
         this.pyodide_worker.postMessage({
             cmd : "service_worker_channel", 
-            port : message_channel.port1,
-            responseBuffer
-        }, [message_channel.port1]);
+            port : port1,
+        }, [port1]);
+        navigator.serviceWorker.controller.postMessage({
+            cmd : "pyodide_worker_channel", 
+            port : port2,
+        }, [port2]);
 
         let _readyPromise = new Promise((resolve, reject) => this._readyPromise = {resolve, reject});
         this._readyPromise.promise = _readyPromise;
