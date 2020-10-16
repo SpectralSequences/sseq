@@ -9,12 +9,9 @@ from . import socket_close_codes
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import HTMLResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-import mimetypes
-
 
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 @subscribe_to("*")
 @collect_handlers(inherit = False)
@@ -62,7 +59,6 @@ class SocketChannel(Agent):
 
         @app.websocket(f"/ws/{cls_dir}/{{channel_name}}")
         async def websocket_subscribe_a(websocket: WebSocket, channel_name : str):
-            mimetypes.add_type('application/wasm', '.wasm')
             logger.debug(f"ws: {cls_dir}/{channel_name}")
             try:
                 channel = await cls.get_channel_a(channel_name, repl)
