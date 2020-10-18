@@ -177,8 +177,8 @@ impl Canvas {
         self.chart_shaders.clear_edges();
     }
 
-    pub fn add_glyph(&mut self, point : &JsPoint, offset : &JsPoint, glyph : &Glyph, scale : f32,  stroke_color : &Vec4,  fill_color : &Vec4 ) -> Result<GlyphInstance, JsValue>  {
-        let glyph_instance = GlyphInstance::new(glyph.clone(), point.into(), offset.into(), scale,  *stroke_color, *fill_color);
+    pub fn add_glyph(&mut self, point : &JsPoint, offset : &JsPoint, glyph : &Glyph, scale : f32,  background_color : &Vec4,  border_color : &Vec4, foreground_color : &Vec4 ) -> Result<GlyphInstance, JsValue>  {
+        let glyph_instance = GlyphInstance::new(glyph.clone(), point.into(), offset.into(), scale,  *background_color, *border_color, *foreground_color);
         self.chart_shaders.add_glyph_instance(glyph_instance.clone())?;
         Ok(glyph_instance)
     }
@@ -200,8 +200,8 @@ impl Canvas {
         edge_options : &EdgeOptions
     ) -> Result<(), JsValue> {        
         self.clear();
-        let start_glyph = GlyphInstance::new(start_glyph.clone(), start_position.into(),  start_offset.into(), scale,  Vec4::new(0.0, 0.0, 0.0, 0.5), Vec4::new(1.0, 0.0, 0.0, 0.5));
-        let end_glyph = GlyphInstance::new(end_glyph.clone(), end_position.into(),  end_offset.into(), scale,  Vec4::new(0.0, 1.0, 0.0, 0.5), Vec4::new(0.0, 0.0, 1.0, 0.5));
+        let start_glyph = GlyphInstance::new(start_glyph.clone(), start_position.into(),  start_offset.into(), scale, Vec4::new(1.0, 0.0, 0.0, 0.5), Vec4::new(0.0, 0.0, 0.0, 0.5), Vec4::new(1.0, 0.0, 0.0, 0.5));
+        let end_glyph = GlyphInstance::new(end_glyph.clone(), end_position.into(),  end_offset.into(), scale,  Vec4::new(0.0, 0.0, 1.0, 0.5), Vec4::new(0.0, 1.0, 0.0, 0.5), Vec4::new(0.0, 0.0, 1.0, 0.5));
         self.chart_shaders.add_glyph_instance(start_glyph.clone())?;
         self.chart_shaders.add_glyph_instance(end_glyph.clone())?;
 
@@ -232,6 +232,7 @@ impl Canvas {
                     point(x as f32, y as f32), 
                     vector(0.0, 0.0),
                     scale, 
+                    Vec4::new(0.0, 0.0, 1.0, 0.5),
                     Vec4::new(0.0, 0.0, 0.0, 0.5), 
                     Vec4::new(0.0, 0.0, 1.0, 0.5)
                 );

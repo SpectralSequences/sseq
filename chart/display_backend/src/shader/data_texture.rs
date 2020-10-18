@@ -147,7 +147,7 @@ impl<T : std::fmt::Debug + std::default::Default> DataTexture<T> {
             WebGl2RenderingContext::TEXTURE_2D, 
             0, // mip level
             0, yoffset, // xoffset, yoffset: i32,
-            self.width as i32, dirty_max as i32, // width, height
+            self.width as i32, (dirty_max - dirty_min) as i32, // width, height
             self.format.base_format(), // format: u32,
             self.format.webgl_type(), // type_: u32,
             Some(&data_view) // pixels: Option<&[u8]>

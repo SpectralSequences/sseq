@@ -9,8 +9,10 @@ uniform sampler2D uGlyphPaths;
 
 in vec4 aPositionOffset;
 in float aScale;
-in uvec4 aColors;
-in uvec4 aGlyphData; // (index, num_fill_vertices, num_stroke_vertices, _)
+in uvec2 aBackgroundColor;
+in uvec2 aBorderColor;
+in uvec2 aForegroundColor;
+in uvec4 aGlyphData; // (index, num_border_vertices, num_background_vertices, num_foreground_vertices)
 
 flat out vec4 fColor;
 
@@ -34,17 +36,25 @@ vec4 uintColorToVec4(uvec2 color){
     return vec4(field1, field2, field3, field4);
 }
 
-void setColor(uint vertexID, uvec2 numVertices){
-    if(vertexID < numVertices[0]) {
-        fColor = uintColorToVec4(aColors.xy);
+void setColor(uint vertexID, uvec4 glyphData){
+    uint numBackgroundVertices = glyphData[1];
+    uint numBorderVertices = glyphData[2];
+    uint numForegroundVertices = glyphData[3];  
+    if(vertexID < numBackgroundVertices) {
+        fColor = uintColorToVec4(aBackgroundColor);
         return;
     }
-    vertexID -= numVertices[0];
-    if(vertexID < numVertices[1]) {
-        fColor = uintColorToVec4(aColors.zw);
+    vertexID -= numBackgroundVertices;
+    if(vertexID < numBorderVertices) {
+        fColor = uintColorToVec4(aBorderColor);
         return;
     }
-    vertexID -= numVertices[1];
+    vertexID -= numBorderVertices;
+    if(vertexID < numForegroundVertices) {
+        fColor = uintColorToVec4(aForegroundColor);
+        return;
+    }
+    vertexID -= numForegroundVertices;    
 }
 
 
@@ -56,13 +66,15 @@ vec4 getValueByIndexFromTexture(sampler2D tex, uint index) {
 }
 
 vec2 getVertexPosition() {
-    uvec4 glyphData =  aGlyphData * 3u;
+    uvec4 glyphData =  aGlyphData * 3u; // multiply by three to convert number of triangles to number of vertices.
     uint glyphIndex = glyphData[0];
-    uint numFillVertices = glyphData[1];
-    uint numStrokeVertices = glyphData[2];
+    uint numBackgroundVertices = glyphData[1];
+    uint numBorderVertices = glyphData[2];
+    uint numForegroundVertices = glyphData[3];
+    uint totalVertices = numBackgroundVertices + numBorderVertices + numForegroundVertices;
     uint vertexID = uint(gl_VertexID);
-    if(vertexID < numFillVertices + numStrokeVertices){
-        setColor(vertexID, uvec2(numFillVertices, numStrokeVertices));
+    if(vertexID < totalVertices){
+        setColor(vertexID, glyphData);
         return getValueByIndexFromTexture(uGlyphPaths, glyphIndex + vertexID).xy * aScale;
     }
     return vec2(0.0, 0.0); // degenerate vertex

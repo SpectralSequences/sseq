@@ -23,9 +23,10 @@ use lyon::tessellation::{
 
 use crate::vector::{Vec4};
 
-use crate::convex_hull::ConvexHull;
+use crate::convex_hull::{ConvexHull};
 
 const FONT_SIZE: f32 = 32.0;
+const SCALE_FACTOR : f32 = 100.0; // TODO: what/why is SCALE_FACTOR? What are the units here?
 
 
 lazy_static!{
@@ -135,39 +136,45 @@ fn lyon_path_to_footile_path<T : Iterator<Item=PathEvent>>(path : T) -> Vec<Path
     }).collect()
 }
 
+#[derive(Copy, Clone, Debug)]
+enum PathType {
+    Foreground,
+    #[allow(dead_code)]
+    Background,
+    Boundary, 
+    BackgroundAndBoundary
+}
+
+#[derive(Clone, Debug)]
 struct GlyphComponent {
     path : Vec<PathEvent>,
-    stroke : Option<StrokeOptions>, 
-    fill : Option<FillOptions>,
+    path_type : PathType // Which of the parts of the glyph should this contribute to?
 }
 
 
 #[wasm_bindgen]
 pub struct GlyphBuilder {
-    paths : Vec<GlyphComponent>,
+    paths : Vec<GlyphComponent>, // List of paths. The last one is assumed to determine the convex hull
     bounding_box : Box2D<f32>,
-    convex_hull_path_idx : usize
 }
 
 
 #[wasm_bindgen]
 impl GlyphBuilder {
-    pub fn from_stix(character : &str) -> Self {
+    pub fn from_stix(character : &str, whole_shape : bool) -> Self {
         let path : Vec<_> = STIX_FONT.render(
             character,
-            (512.0 - 64.0) / FONT_SIZE,
+            (512.0 - 64.0) / FONT_SIZE, // What the heck is this?
             font::TextAlign::Center
         ).0.collect();
         let bounding_box = pathop_bounding_box(path.iter());
         let component = GlyphComponent {
             path : footile_path_to_lyon_path(path.iter().copied()),
-            stroke : Some(StrokeOptions::default().with_line_width(2.0).with_tolerance(0.2)),
-            fill : Some(FillOptions::default().with_tolerance(0.2)),
+            path_type : if whole_shape { PathType::BackgroundAndBoundary } else { PathType::Foreground }
         };
         Self {
             paths : vec![component],
             bounding_box,
-            convex_hull_path_idx : 0,
         }
     }
 
@@ -175,12 +182,10 @@ impl GlyphBuilder {
         Self {
             paths : vec![],
             bounding_box : Box2D::new(point(0.0, 0.0), point(0.0, 0.0)),
-            convex_hull_path_idx : 0,
         }
     }
 
-    pub fn boxed(&mut self, padding : f32) {
-        let padding = padding / 100.0;
+    pub fn boxed(&mut self, padding : f32, include_background : bool ) {
         self.bounding_box = self.bounding_box.inflate(padding, padding);
         let Point { x : xmin, y : ymin, ..} = self.bounding_box.min;
         let Point { x : xmax, y : ymax, ..} = self.bounding_box.max;
@@ -192,19 +197,17 @@ impl GlyphBuilder {
             .close().finish();
         let component = GlyphComponent {
             path : footile_path_to_lyon_path(box_path.iter().copied()),
-            stroke : Some(StrokeOptions::default().with_line_width(4.0).with_tolerance(0.2)),
-            fill : None,
+            path_type : if include_background { PathType::BackgroundAndBoundary } else { PathType::Boundary },
         };        
-        self.convex_hull_path_idx = self.paths.len();
         self.paths.push(component);
     }
 
-    pub fn circled(&mut self, padding : f32) {
-        let padding = padding / 100.0;
+    pub fn circled(&mut self, padding : f32, num_circles : i32, circle_gap : f32, include_background : bool) {
         let bounding_box = self.bounding_box.inflate(padding, padding);
         let radius = bounding_box.min.distance_to(bounding_box.max)/2.0;
         let center = bounding_box.min.lerp(bounding_box.max, 0.5);
-        self.bounding_box = Box2D::new(center - vector(radius, radius), center + vector(radius, radius));
+        let max_radius = radius + (num_circles as f32) * circle_gap;
+        self.bounding_box = Box2D::new(center, center).inflate(max_radius, max_radius);
         let mut circle_path = Path::builder();
         circle_path.move_to(center - vector(radius, 0.0));
         circle_path.arc(center, vector(radius, radius), Angle::two_pi(), Angle::zero());
@@ -212,20 +215,37 @@ impl GlyphBuilder {
         let circle_path : Vec<_> = circle_path.build().iter().collect();
         let component = GlyphComponent {
             path : circle_path,
-            stroke : Some(StrokeOptions::default().with_line_width(4.0).with_tolerance(0.2)),
-            fill : None,
+            path_type : if include_background { PathType::BackgroundAndBoundary } else { PathType::Boundary },
         };            
-        self.convex_hull_path_idx = self.paths.len();
         self.paths.push(component);
+        for i in 1..num_circles {
+            let radius = radius + (i as f32) * circle_gap;
+            let mut circle_path = Path::builder();
+            circle_path.move_to(center - vector(radius, 0.0));
+            circle_path.arc(center, vector(radius, radius), Angle::two_pi(), Angle::zero());
+            circle_path.close();
+            let circle_path : Vec<_> = circle_path.build().iter().collect();
+            let component = GlyphComponent {
+                path : circle_path,
+                path_type : PathType::Boundary,
+            };
+            self.paths.push(component);
+        }
     }
 
-    pub fn build(self) -> Glyph {
-        let GlyphBuilder { paths, bounding_box, convex_hull_path_idx } = self;
-        let convex_hull = Rc::new(ConvexHull::from_path(lyon_path_to_footile_path(paths[convex_hull_path_idx].path.iter().copied()), bounding_box));
+    pub fn build(self, tolerance : f32, line_width : f32) -> Glyph {
+        let GlyphBuilder { paths, bounding_box } = self;
+        let convex_hull = Rc::new(ConvexHull::from_path(
+            lyon_path_to_footile_path(paths.last().unwrap().path.iter().copied()), 
+            bounding_box
+        ));
         let paths = Rc::new(paths);
         Glyph { 
             paths,
             convex_hull,
+            tolerance,
+            line_width,
+            max_scale : SCALE_FACTOR,
             uuid : GlyphUuid(Uuid::new_v4())
         }
     }
@@ -239,37 +259,56 @@ pub struct GlyphUuid(Uuid);
 pub struct Glyph {
     paths : Rc<Vec<GlyphComponent>>,
     convex_hull : Rc<ConvexHull>,
+    tolerance : f32,
+    line_width : f32,
+    max_scale : f32,
     pub(crate) uuid : GlyphUuid
 }
 
 impl Glyph { 
-    pub(crate) fn tessellate_fill(&self,
-        buffers : &mut VertexBuffers<Point, u16>,
-        scale : f32
-    ) -> Result<(), JsValue> {
+    // pub fn width_scale(&self) -> f32 {
+    //     SCALE_FACTOR / self.
+    // }
+
+
+    pub(crate) fn tessellate_boundary(&self, buffers : &mut VertexBuffers<Point, u16>,) -> Result<(), JsValue> {
         let mut vertex_builder = geometry_builder::simple_builder(buffers);
-        let mut fill_tessellator = FillTessellator::new();
-        let transform = Transform::identity().then_translate(- self.convex_hull.center().to_vector()).then_scale(scale, scale);
-        for &GlyphComponent { ref path, stroke : _stroke,  fill } in self.paths.iter() {
-            if let Some(options) = fill {
+        let mut stroke_tessellator = StrokeTessellator::new();
+        let options = StrokeOptions::default().with_line_width(self.line_width).with_tolerance(self.tolerance / self.max_scale);
+        let transform = Transform::identity().then_translate(- self.convex_hull.center().to_vector());        
+        for &GlyphComponent { ref path, path_type} in &*self.paths {
+            if let PathType::Boundary | PathType::BackgroundAndBoundary = path_type {
                 let path = path.iter().copied().transformed(&transform);
-                fill_tessellator.tessellate(path, &options, &mut vertex_builder).map_err(convert_tessellation_error)?;
+                stroke_tessellator.tessellate(path, &options, &mut vertex_builder).map_err(convert_tessellation_error)?;
             }
-        }        
+        }
         Ok(())
     }
 
-    pub(crate) fn tessellate_stroke(&self,
-        buffers : &mut VertexBuffers<Point, u16>,
-        scale : f32
-    ) -> Result<(), JsValue> {
+    
+    pub(crate) fn tessellate_background(&self, buffers : &mut VertexBuffers<Point, u16>) -> Result<(), JsValue> {
         let mut vertex_builder = geometry_builder::simple_builder(buffers);
-        let mut stroke_tessellator = StrokeTessellator::new();
-        let transform = Transform::identity().then_translate(- self.convex_hull.center().to_vector()).then_scale(scale, scale);
-        for &GlyphComponent { ref path, stroke, fill : _fill } in &*self.paths {
-            if let Some(options) = stroke {
+        let mut fill_tessellator = FillTessellator::new();
+        let options = FillOptions::default().with_tolerance(self.tolerance / self.max_scale);
+        let transform = Transform::identity().then_translate(- self.convex_hull.center().to_vector());
+        for &GlyphComponent { ref path, path_type } in &*self.paths {
+            if let PathType::Background | PathType::BackgroundAndBoundary = path_type {
                 let path = path.iter().copied().transformed(&transform);
-                stroke_tessellator.tessellate(path, &options, &mut vertex_builder).map_err(convert_tessellation_error)?;
+                fill_tessellator.tessellate(path, &options, &mut vertex_builder).map_err(convert_tessellation_error)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn tessellate_foreground(&self, buffers : &mut VertexBuffers<Point, u16>) -> Result<(), JsValue> {
+        let mut vertex_builder = geometry_builder::simple_builder(buffers);
+        let mut fill_tessellator = FillTessellator::new();
+        let options = FillOptions::default().with_tolerance(self.tolerance / self.max_scale);
+        let transform = Transform::identity().then_translate(- self.convex_hull.center().to_vector());
+        for &GlyphComponent { ref path, path_type } in &*self.paths {
+            if let PathType::Foreground = path_type {
+                let path = path.iter().copied().transformed(&transform);
+                fill_tessellator.tessellate(path, &options, &mut vertex_builder).map_err(convert_tessellation_error)?;
             }
         }
         Ok(())
@@ -288,8 +327,9 @@ pub struct GlyphInstance {
     pub(crate) position : Point,
     pub(crate) offset : Vector,
     pub(crate) scale : f32,
-    pub(crate) stroke_color : Vec4,
-    pub(crate) fill_color : Vec4,
+    pub(crate) background_color : Vec4,
+    pub(crate) border_color : Vec4,
+    pub(crate) foreground_color : Vec4,
 }
 
 #[wasm_bindgen]
@@ -310,16 +350,18 @@ impl GlyphInstance {
         position : Point, 
         offset : Vector, 
         scale : f32, 
-        stroke_color : Vec4, 
-        fill_color : Vec4
+        background_color : Vec4, 
+        border_color : Vec4,
+        foreground_color : Vec4
     ) -> Self {
         Self {
             glyph,
             position,
             offset,
             scale,
-            stroke_color,
-            fill_color,
+            background_color,
+            border_color,
+            foreground_color,
         }
     }
 }

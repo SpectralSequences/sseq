@@ -13,7 +13,8 @@ use pix::{Raster, el::Pixel, chan::Channel, matte::Matte8};
 
 
 // Must be the same as the angle_resolution constants defined in edge.vert and hit_canvas.vert.
-pub const ANGLE_RESOLUTION : usize = 180; 
+pub const ANGLE_RESOLUTION : usize = 180;
+const RASTER_SCALE_FACTOR : f32 = 100.0;
 
 fn raster_midpoint<P: Pixel>(raster : &Raster<P>) -> Point {
 	Point::new((raster.width()/2) as f32, (raster.height()/2) as f32)
@@ -174,7 +175,7 @@ impl ConvexHull {
 	where T: IntoIterator, T::Item: Borrow<PathOp>, 
 	{
 		let width_and_height = bounding_box.max - bounding_box.min;
-		let raster_scale = 100.0 / f32::min(width_and_height.x, width_and_height.y);
+		let raster_scale = RASTER_SCALE_FACTOR / f32::min(width_and_height.x, width_and_height.y);
 		let width_and_height = (width_and_height * raster_scale).ceil();
 		let width = width_and_height.x as u32;
 		let height = width_and_height.y as u32;
