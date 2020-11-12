@@ -1,3 +1,7 @@
+// This pyodide worker starts the pyodide runtime on a worker thread.
+// It talks to pythonExecutor, which is responsible for wrapping communication between the main thread and the pyodide thread.
+// 
+
 self.languagePluginUrl = '/pyodide-build-custom/'
 importScripts(`${self.languagePluginUrl}pyodide.js`);
 
@@ -12,22 +16,25 @@ async function is_promise(obj){
 }
 self.is_promise = is_promise;
 
-/**  
- * NOTE: When pyodide is finished initializing, the original "pyodide" object
- * is stored as "pyodide._module". We don't want to wait for this to happen or worry 
- * about when the move occurs, so we just store it and use that.
- */
 
-
+// files_to_install is a map file_name => file_contents for the files in the python directory. 
+// It's produced by the webpack prebuild script scripts/bundle_python_sources.py
 import { files_to_install } from "./python_imports";
-
-// The pyodide loader will move what is currently called "pyodide" into pyoide._module.
-let pyodide_FS = pyodide.FS;
-pyodide_FS.mkdir('/executor');
-pyodide_FS.mkdir('/executor/executor');
-for(let [k, v] of Object.entries(files_to_install)){
-    pyodide_FS.writeFile(`/executor/executor/${k}.py`, v);
+function initializeFileSystem(){
+    /**  
+     * NOTE: When pyodide is finished initializing, the original "pyodide" object
+     * is stored as "pyodide._module" (so then FS is pyodide._module.FS). 
+     * We don't want to wait for this to happen and I'm not sure when the exactly
+     * the move occurs, but this code consistently executes before the move.
+     */
+    let pyodide_FS = pyodide.FS;
+    pyodide_FS.mkdir('/executor');
+    pyodide_FS.mkdir('/executor/executor');
+    for(let [k, v] of Object.entries(files_to_install)){
+        pyodide_FS.writeFile(`/executor/executor/${k}.py`, v);
+    }
 }
+initializeFileSystem();
 
 
 function sendMessage(message){
@@ -49,7 +56,7 @@ async function startup(){
             sys.path.append("/executor")
             from executor import PyodideExecutor
             from executor.sseq_display import SseqDisplay
-            executor = PyodideExecutor()
+            executor = PyodideExecutor({ "SseqDisplay" : SseqDisplay })
         `);
         self.postMessage({cmd : "ready"});
     } catch(e){
@@ -67,15 +74,24 @@ self.addEventListener("message", async function(e) {
     }
 
     await startup_promise;
+    // interrupt_buffer is a single byte SharedArrayBuffer used to signal a keyboard interrupt.
+    // If it contains 0, no keyboard interrupt has occurred, on keyboard interrupt is set to 1.
     const {uuid, interrupt_buffer} = e.data;
+    // Store data into message lookup. This allows us to use the FFI to convert the arguments.
     messageLookup[uuid] = e.data;
     
+    // I was unable to access the data in the SharedArrayBuffer directly accross the pyodide FFI.
+    // Best solution I came up with was to pass a wrapper function that indexes the SAB in js
     if(interrupt_buffer){
         e.data.interrupt_buffer = function(){
             return interrupt_buffer[0]; 
-            // return Atomics.load(interrupt_buffer, 0);
+            // I think this Atomics call didn't work for some reason -- for one thing Atomics are limited to
+            // Int32Buffers for some reason, though that isn't a big deal. Of course it isn't critical that 
+            // keyboard interrupts are processed as soon as possible, and the nonatomic read should be sufficient.
+            // return Atomics.load(interrupt_buffer, 0); 
         }
     }
+    // executor.handle_message will look up e.data in messageLookup using uuid.
     await self.pyodide.runPythonAsync(`executor.handle_message("${uuid}")`);
 });
 

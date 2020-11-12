@@ -5,12 +5,24 @@ interface CharacterShape {
     ty: "character";
     font : string;
     char : string;
+    whole_shape : boolean;
 }
 
-interface BoundedShape {
+interface CircledShape {
     ty : "composed";
-    operation : "circled" | "boxed";
+    operation : "circled";
     padding : number;
+    num_circles : number;
+    circle_gap? : number;
+    include_background : boolean;
+    innerShape? : Shape;
+}
+
+interface BoxedShape {
+    ty : "composed";
+    operation : "boxed";
+    padding : number;
+    include_background : boolean;
     innerShape? : Shape;
 }
 
@@ -20,15 +32,5 @@ interface DiacriticShape {
     innerShape : Shape;
 }
 
-export type Shape = CharacterShape | BoundedShape | DiacriticShape | { ty : "empty" };
+export type Shape = CharacterShape | CircledShape | BoxedShape | DiacriticShape | { ty : "empty" };
 
-interface NormalNode {
-    shape : Shape;
-    foreground : Color;
-    stroke : Color;
-    fill : Color;
-    strokeThickness? : number;
-};
-export const DefaultNode = "DefaultNode";
-
-export type Node = NormalNode | (typeof DefaultNode);

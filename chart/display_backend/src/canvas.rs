@@ -177,7 +177,15 @@ impl Canvas {
         self.chart_shaders.clear_edges();
     }
 
-    pub fn add_glyph(&mut self, point : &JsPoint, offset : &JsPoint, glyph : &Glyph, scale : f32,  background_color : &Vec4,  border_color : &Vec4, foreground_color : &Vec4 ) -> Result<GlyphInstance, JsValue>  {
+    pub fn add_glyph(&mut self, 
+        point : &JsPoint, 
+        offset : &JsPoint, 
+        glyph : &Glyph, 
+        scale : f32,  
+        background_color : &Vec4,  
+        border_color : &Vec4, 
+        foreground_color : &Vec4 
+    ) -> Result<GlyphInstance, JsValue>  {
         let glyph_instance = GlyphInstance::new(glyph.clone(), point.into(), offset.into(), scale,  *background_color, *border_color, *foreground_color);
         self.chart_shaders.add_glyph_instance(glyph_instance.clone())?;
         Ok(glyph_instance)

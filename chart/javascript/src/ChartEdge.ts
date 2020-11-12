@@ -2,7 +2,7 @@ import { ChartClass } from "./ChartClass";
 import { 
     PageProperty, PagePropertyOrValue, 
     initialPagePropertyValue, initialOptionalPagePropertyValue,
-    PagePropertyOrValueToPageProperty,
+    pagePropertyOrValueToPageProperty,
     PageProperties, PagePropertyOrValues,
 } from "./PageProperty";
 import { INFINITY } from "./infinity";
@@ -148,20 +148,20 @@ export class ChartStructline extends ChartEdge {
         super._baseUpdate(msg);
         let kwargs = msg.update_fields;
         if(kwargs.visible){
-            this.visible = PagePropertyOrValueToPageProperty(kwargs.visible);
+            this.visible = pagePropertyOrValueToPageProperty(kwargs.visible);
         }
 
         if(kwargs.color){
-            this.color = PagePropertyOrValueToPageProperty(kwargs.color);
+            this.color = pagePropertyOrValueToPageProperty(kwargs.color);
         }
         if(kwargs.dash_pattern){
-            this.dash_pattern = PagePropertyOrValueToPageProperty(kwargs.dash_pattern);
+            this.dash_pattern = pagePropertyOrValueToPageProperty(kwargs.dash_pattern);
         }
         if(kwargs.line_width){
-            this.line_width = PagePropertyOrValueToPageProperty(kwargs.line_width);
+            this.line_width = pagePropertyOrValueToPageProperty(kwargs.line_width);
         }
         if(kwargs.bend){
-            this.bend = PagePropertyOrValueToPageProperty(kwargs.bend);
+            this.bend = pagePropertyOrValueToPageProperty(kwargs.bend);
         }        
     }
 

@@ -17,7 +17,7 @@ mod shader;
 mod coordinate_system;
 mod canvas;
 
-
+mod stroke_tessellation;
 mod glyph;
 
 use crate::canvas::Canvas;

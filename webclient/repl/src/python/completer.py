@@ -48,10 +48,10 @@ class Completer:
         import jedi
         self.code = code
         state_id = str(uuid4())
-        print("get completions", code)
+        # print("get completions", code)
         completions = jedi.Interpreter(code, [self.executor.namespace]) \
                         .complete(line=lineNumber, column=column - 1, fuzzy=True)
-        print("got completions", code)
+        # print("got completions", code)
         self.states[state_id] = completions
         result = []
         for comp in completions:

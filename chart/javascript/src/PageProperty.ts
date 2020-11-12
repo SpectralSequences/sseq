@@ -113,7 +113,7 @@ export class PageProperty<V> {
 
 export type PagePropertyOrValue<V> = V | PageProperty<V>;
 
-export function PagePropertyOrValueToPageProperty<V>(propertyValue : PageProperty<V> | V ) : PageProperty<V> {
+export function pagePropertyOrValueToPageProperty<V>(propertyValue : PageProperty<V> | V ) : PageProperty<V> {
     if(propertyValue instanceof PageProperty){
         return propertyValue;
     } else {
@@ -123,7 +123,7 @@ export function PagePropertyOrValueToPageProperty<V>(propertyValue : PagePropert
 
 export function initialPagePropertyValue<V>(propertyValue : PageProperty<V> | V | undefined | null, defaultValue : V, propertyName : string, context : string) : PageProperty<V> {
     if(propertyValue){
-        return PagePropertyOrValueToPageProperty(propertyValue);
+        return pagePropertyOrValueToPageProperty(propertyValue);
     } else if(defaultValue !== undefined) {
         return PageProperty.fromValue(defaultValue);
     } else {
@@ -133,7 +133,7 @@ export function initialPagePropertyValue<V>(propertyValue : PageProperty<V> | V 
 
 export function initialOptionalPagePropertyValue<V>(propertyValue : PageProperty<V | undefined> | V | undefined | null, propertyName : string, context : string) : PageProperty<V | undefined> {
     if(propertyValue){
-        return PagePropertyOrValueToPageProperty(propertyValue);
+        return pagePropertyOrValueToPageProperty(propertyValue);
     } else { 
         // @ ts-expect-error
         return PageProperty.fromValue(undefined);

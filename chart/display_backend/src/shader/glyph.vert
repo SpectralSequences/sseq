@@ -36,28 +36,6 @@ vec4 uintColorToVec4(uvec2 color){
     return vec4(field1, field2, field3, field4);
 }
 
-void setColor(uint vertexID, uvec4 glyphData){
-    uint numBackgroundVertices = glyphData[1];
-    uint numBorderVertices = glyphData[2];
-    uint numForegroundVertices = glyphData[3];  
-    if(vertexID < numBackgroundVertices) {
-        fColor = uintColorToVec4(aBackgroundColor);
-        return;
-    }
-    vertexID -= numBackgroundVertices;
-    if(vertexID < numBorderVertices) {
-        fColor = uintColorToVec4(aBorderColor);
-        return;
-    }
-    vertexID -= numBorderVertices;
-    if(vertexID < numForegroundVertices) {
-        fColor = uintColorToVec4(aForegroundColor);
-        return;
-    }
-    vertexID -= numForegroundVertices;    
-}
-
-
 vec4 getValueByIndexFromTexture(sampler2D tex, uint index) {
     uint texWidth = uint(textureSize(tex, 0).x);
     int col = int(index % texWidth);
@@ -71,12 +49,28 @@ vec2 getVertexPosition() {
     uint numBackgroundVertices = glyphData[1];
     uint numBorderVertices = glyphData[2];
     uint numForegroundVertices = glyphData[3];
-    uint totalVertices = numBackgroundVertices + numBorderVertices + numForegroundVertices;
     uint vertexID = uint(gl_VertexID);
-    if(vertexID < totalVertices){
-        setColor(vertexID, glyphData);
-        return getValueByIndexFromTexture(uGlyphPaths, glyphIndex + vertexID).xy * aScale;
+
+    uint componentOffset = 0u;
+    if(vertexID < numBackgroundVertices) {
+        fColor = uintColorToVec4(aBackgroundColor);
+        return getValueByIndexFromTexture(uGlyphPaths, glyphIndex + componentOffset + vertexID).xy * aScale;
     }
+    vertexID -= numBackgroundVertices;
+    componentOffset += numBackgroundVertices;
+    // Border has position and normal.
+    if(vertexID < numBorderVertices) {
+        fColor = uintColorToVec4(aBorderColor);
+        return getValueByIndexFromTexture(uGlyphPaths, glyphIndex + componentOffset + /* 2u * */ vertexID).xy * aScale;
+    }
+    vertexID -= numBorderVertices;
+    componentOffset += /* 2u * */ numBorderVertices;
+
+    if(vertexID < numForegroundVertices) {
+        fColor = uintColorToVec4(aForegroundColor);
+        return getValueByIndexFromTexture(uGlyphPaths, glyphIndex + componentOffset + vertexID).xy * aScale;
+    }
+    vertexID -= numForegroundVertices;
     return vec2(0.0, 0.0); // degenerate vertex
 }
 

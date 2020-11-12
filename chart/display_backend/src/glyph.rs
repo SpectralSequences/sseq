@@ -21,19 +21,22 @@ use lyon::tessellation::{
 };
 
 
-use crate::vector::{Vec4};
 
+use crate::vector::{Vec4};
 use crate::convex_hull::{ConvexHull};
+#[allow(unused_imports)]
+use crate::stroke_tessellation::{PositionNormal, PositionNormalConstructor};
 
 const FONT_SIZE: f32 = 32.0;
 const SCALE_FACTOR : f32 = 100.0; // TODO: what/why is SCALE_FACTOR? What are the units here?
-
 
 lazy_static!{
     static ref STIX_FONT : Font<'static> = {
         font::Font::new().push(include_bytes!("../fonts/STIX2Math.otf") as &[u8]).expect("Failed to parse font file")
     };
 }
+
+
 
 fn pt_to_euclid(p : Pt) -> Point {
     point(p.0, p.1)
@@ -269,22 +272,6 @@ impl Glyph {
     // pub fn width_scale(&self) -> f32 {
     //     SCALE_FACTOR / self.
     // }
-
-
-    pub(crate) fn tessellate_boundary(&self, buffers : &mut VertexBuffers<Point, u16>,) -> Result<(), JsValue> {
-        let mut vertex_builder = geometry_builder::simple_builder(buffers);
-        let mut stroke_tessellator = StrokeTessellator::new();
-        let options = StrokeOptions::default().with_line_width(self.line_width).with_tolerance(self.tolerance / self.max_scale);
-        let transform = Transform::identity().then_translate(- self.convex_hull.center().to_vector());        
-        for &GlyphComponent { ref path, path_type} in &*self.paths {
-            if let PathType::Boundary | PathType::BackgroundAndBoundary = path_type {
-                let path = path.iter().copied().transformed(&transform);
-                stroke_tessellator.tessellate(path, &options, &mut vertex_builder).map_err(convert_tessellation_error)?;
-            }
-        }
-        Ok(())
-    }
-
     
     pub(crate) fn tessellate_background(&self, buffers : &mut VertexBuffers<Point, u16>) -> Result<(), JsValue> {
         let mut vertex_builder = geometry_builder::simple_builder(buffers);
@@ -295,6 +282,21 @@ impl Glyph {
             if let PathType::Background | PathType::BackgroundAndBoundary = path_type {
                 let path = path.iter().copied().transformed(&transform);
                 fill_tessellator.tessellate(path, &options, &mut vertex_builder).map_err(convert_tessellation_error)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn tessellate_boundary(&self, buffers : &mut VertexBuffers<Point /*PositionNormal*/, u16>,) -> Result<(), JsValue> {
+        // let mut vertex_builder = geometry_builder::BuffersBuilder::new(buffers, PositionNormalConstructor {});
+        let mut vertex_builder = geometry_builder::simple_builder(buffers);
+        let mut stroke_tessellator = StrokeTessellator::new();
+        let options = StrokeOptions::default().with_line_width(self.line_width).with_tolerance(self.tolerance / self.max_scale);
+        let transform = Transform::identity().then_translate(- self.convex_hull.center().to_vector());        
+        for &GlyphComponent { ref path, path_type} in &*self.paths {
+            if let PathType::Boundary | PathType::BackgroundAndBoundary = path_type {
+                let path = path.iter().copied().transformed(&transform);
+                stroke_tessellator.tessellate(path, &options, &mut vertex_builder).map_err(convert_tessellation_error)?;
             }
         }
         Ok(())

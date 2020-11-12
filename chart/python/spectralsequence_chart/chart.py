@@ -97,7 +97,9 @@ class SseqChart:
         
         
         self._batched_messages : List[Dict[str, Any]] = []
+        # type: ignore
         self._update_keys : Set[str] = set()
+        self._global_fields_to_update : Set[str] = set()
         self._batched_messages_lock = threading.Lock()
         self._initialized : bool = True
 
@@ -280,8 +282,8 @@ class SseqChart:
         self._edges[e.uuid] = e
         e.source = self._classes[e._source_uuid]
         e.target = self._classes[e._target_uuid]
-        e.source._edges.append(e)
-        e.target._edges.append(e)
+        e.source.edges.append(e)
+        e.target.edges.append(e)
         self._add_create_message(e)
 
     def add_page_range(self, page_min : int, page_max : int):
@@ -318,7 +320,7 @@ class SseqChart:
     def _add_edge_to_delete(self, e : ChartEdge):
         self._add_delete_message(e)
 
-    def _add_batched_message(self, key, kwargs : Dict[str, Any]):
+    def _add_batched_message(self, key : str, kwargs : Dict[str, Any]):
         if not self._initialized:
             return        
         if key in self._update_keys:
@@ -326,7 +328,7 @@ class SseqChart:
         with self._batched_messages_lock:
             self._add_batched_message_raw(key, kwargs)
 
-    def _add_batched_message_raw(self, key, kwargs : Dict[str, Any]):
+    def _add_batched_message_raw(self, key : str, kwargs : Dict[str, Any]):
         # If we're actually bothering with locking we need to check again to make sure
         # key is not in dict to make sure that it didn't get inserted before we got the lock.
         if key in self._update_keys:
@@ -381,6 +383,8 @@ class SseqChart:
             by an external class that implements communication with the display).
         """
         with self._batched_messages_lock:
+            if not self._batched_messages:
+                return
             if self._agent:
                 await self._agent.send_batched_messages_a(self._batched_messages)
             self._batched_messages = []

@@ -1,16 +1,16 @@
 import { ReplElement } from "./repl";
 
-import registerServiceWorker, {
-    ServiceWorkerNoSupportError
-} from 'service-worker-loader!./service.worker';
+// import registerServiceWorker, {
+//     ServiceWorkerNoSupportError
+// } from 'service-worker-loader!./service.worker';
  
-registerServiceWorker({ scope: '/dist/' }).then((registration) => {
-    console.log('Service worker loaded');
+navigator.serviceWorker.register("/dist/service_worker.bundle.js", { scope: '/dist/' })
+.then((registration) => {
+    console.log('Service worker loaded', registration);
 }).catch((err) => {
- 
-    if (err instanceof ServiceWorkerNoSupportError) {
-        console.log('Service worker is not supported.');
-    } else {
+    // if (err instanceof ServiceWorkerNoSupportError) {
+    //     console.log('Service worker is not supported.');
+    // } else {
         console.error('Error loading service worker!', err);
-    }
+    // }
 });

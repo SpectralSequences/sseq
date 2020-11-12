@@ -11,36 +11,30 @@ class Shape:
         else:
             self.dict = dict(ty="empty")
     
-    def circled(self, padding : float):
+    def circled(self, padding : float, num_circles : int = 1, circle_gap : float = 0, include_background : bool = True) -> "Shape":
         self.dict = dict(
             ty = "composed",
             operation="circled",
             padding=padding,
+            num_circles=num_circles,
+            circle_gap=circle_gap,
+            include_background=include_background,
             innerShape=self.dict
         )
+        return self
 
-    def boxed(self, padding : float):
+    def boxed(self, padding : float, include_background : bool = True) -> "Shape":
         self.dict = dict(
             ty = "composed",
             operation="boxed",
             padding=padding,
+            include_background=include_background,
             innerShape=self.dict
         )
+        return self
 
     def to_json(self):
         return self.dict
 
-class Node:
-    def __init__(self, 
-        shape : Shape, 
-        foreground : Color = (0, 0, 0, 0), 
-        stroke : Color = (0, 0, 0, 0),
-        fill : Color = (0, 0, 0, 0)
-    ):
-        self.shape = shape
-        self.foreground = foreground
-        self.stroke = stroke
-        self.fill = fill
-
-    def to_json(self):
-        return dict(shape=self.shape, foreground=self.foreground, stroke=self.stroke, fill=self.fill)
+    def __repr__(self):
+        return f"Shape({repr(self.to_json())})"

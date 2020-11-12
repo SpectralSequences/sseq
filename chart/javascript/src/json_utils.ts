@@ -33,7 +33,6 @@ export class Walker {
             return value;
         }
         let result = ty.fromJSON(this, value);
-        console.log("reviver :", value);
         return result;
     }
 

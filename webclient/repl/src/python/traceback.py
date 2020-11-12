@@ -2,7 +2,7 @@ from typing import List
 
 class Traceback:
     @staticmethod
-    def format_exception(exception, file : str = ""):
+    def format_exception(exception, file : str):
         return Traceback.format_traceback_list(Traceback.exception_to_traceback_list(exception, file))
 
     @staticmethod
@@ -35,11 +35,14 @@ class Traceback:
         import traceback
         traceback.clear_frames(exception.__traceback__)
         tb_summary_list = list(traceback.extract_tb(exception.__traceback__))
-
+        # Remove stack frames from the stack trace that come from the repl implementation.
         for line_number, tb_summary in enumerate(tb_summary_list):
             if tb_summary.filename == file:
                 tb_summary_list = tb_summary_list[line_number:]
                 break
+        else:
+            raise Exception("What should happen here??")
+        
 
         if hasattr(exception, "extra_traceback"):
             tb_summary_list.extend(exception.extra_traceback)

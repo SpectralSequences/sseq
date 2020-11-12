@@ -40,10 +40,15 @@
                 background-color: #900;     
                 box-sizing: border-box;
                 margin-left: 80ch;
+                margin-top: 2px; /* prevent it from overlapping with line */
             }
 
-            .repl-error {
+            .repl-error-fade-in {
                 opacity: 0;
+            }
+
+            .repl-error-fade-in[active] {
+                opacity: 1;
             }
 
             .repl-error[transition=show] {
@@ -51,28 +56,25 @@
             }
 
             .repl-error[transition=hide] {
-                transition : 0.2s ease;
-            }        
-
-            .repl-error[active] {
-                opacity: 1;
+                transition : 5s ease;
+                /* transition : 0.2s ease; */
             }
 
-            .repl-error-decoration {
+            .repl-error-decoration-underline {
                 background-color: #900;
                 display: block;
                 width : 80ch;
                 height : 2px;
             }
 
-            .repl-error-decoration-text {
-                color : blue !important;
+            .repl-error-decoration-text[active] {
+                color : rgb(255 198 93) !important;
                 /* margin-left : -4ch; */
             }
 
             .repl-error-decoration-highlight {
                 background-color: #600;
-                padding-right: 1ch;
+                /* padding-right: 1ch; */
             }
         </style>
     </head>

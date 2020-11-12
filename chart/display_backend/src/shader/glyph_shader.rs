@@ -17,6 +17,8 @@ use crate::webgl_wrapper::WebGlWrapper;
 use crate::shader::Program;
 use crate::vector::Vec4;
 
+#[allow(unused_imports)]
+use crate::stroke_tessellation::{PositionNormal};
 use crate::glyph::{GlyphInstance, Glyph};
 
 use crate::shader::attributes::{Format, Type, NumChannels,  Attribute, Attributes};
@@ -150,7 +152,22 @@ impl GlyphShader {
         glyph.tessellate_background(&mut buffers)?;
         let num_background_triangles = buffers.indices.len()  / 3;
         self.glyph_paths.append(buffers.indices.iter().map(|&i| buffers.vertices[i as usize]));
-        
+
+        // Eventually I would like to apply border thickness in glyph shader, haven't gotten it working quite yet.
+
+        // let mut position_normal_buffers : VertexBuffers<PositionNormal, u16> = VertexBuffers::new();
+        // glyph.tessellate_boundary(&mut position_normal_buffers)?;
+        // let num_boundary_triangles = position_normal_buffers.indices.len() / 3;
+        // let v : Vec<_> = position_normal_buffers.indices.iter().map(|&i| position_normal_buffers.vertices[i as usize]).collect();
+        // let len = 2*v.len();
+        // let point_slice = unsafe {
+        //     std::slice::from_raw_parts(
+        //         v.as_ptr() as *const Point, 
+        //         len
+        //     )
+        // };
+        // self.glyph_paths.append(point_slice.iter().copied());
+
         buffers.vertices.clear();
         buffers.indices.clear();
 

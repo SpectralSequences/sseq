@@ -41,6 +41,11 @@ export class History {
 
     async push(value){
         await this.databaseReady;
+        let mostRecentValue = await this.getItem(this.length - 1);
+        // If we use the same command twice, don't add another to history.
+        if(value === mostRecentValue){
+            return;
+        }
         this.historyStrings[this.length] = value;
         this.temporaryValues = [];
         this.undoStack = [];

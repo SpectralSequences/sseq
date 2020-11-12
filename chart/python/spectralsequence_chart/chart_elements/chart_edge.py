@@ -38,7 +38,7 @@ class ChartEdge(ABC):
             self.uuid = uuid 
         else:
             self.uuid = str(uuid4())
-        self._user_data : SignalDict[Any] = SignalDict(user_data if user_data else {})
+        self._user_data : SignalDict[Any] = SignalDict(user_data if user_data else {}) # type: ignore
 
     def __repr__(self):
         fields = [repr(x) for x in [self.source, self.target]]
@@ -57,8 +57,8 @@ class ChartEdge(ABC):
     def delete(self):
         self._sseq._add_edge_to_delete(self)
         del self._sseq._edges[self.uuid]
-        del self.source._edges[self.source._edges.index(self)]
-        del self.target._edges[self.target._edges.index(self)]
+        del self.source.edges[self.source.edges.index(self)]
+        del self.target.edges[self.target.edges.index(self)]
 
     _EDGE_TYPE_DICT : Dict[str, type]
     @staticmethod

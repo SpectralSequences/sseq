@@ -81,7 +81,8 @@ router.get("/api/charts/:name", async (context) => {
 
 router.get("/charts/:name", async (context) => {
     let { name } = context.params;
-    if(name.endsWith(".js")){
+    console.log(`requested: /charts/${name}`);
+    if(name.endsWith(".js") || name.endsWith(".wasm")){
         context.response = fetch(`/dist/charts/${name}`);
         return;
     }
@@ -123,13 +124,13 @@ function handleMessage(event){
 }
 
 let messageDispatch = {
-    pyodide_worker_channel : installPyodidePort,
+    pyodide_worker_channel : installPyodideRepl,
     subscribe_chart_display : passChartChannelToPyodide
 };
 
-function installPyodidePort(event){
+function installPyodideRepl(event){
     let port = event.data.port;
-    console.log(`Service worker :: installing pyodide port :: id : ${event.source.id}`);
+    console.log(`Service worker :: installing pyodide repl :: id : ${event.source.id}`);
     port.addEventListener("message", handlePyodideMessage);
     repls[event.source.id] = port;
     port.start();

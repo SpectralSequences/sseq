@@ -40,7 +40,7 @@ export interface MessageUpdate<T> {
 interface MessageDelete {
     chart_id : string;
     command : "delete";
-    uuid : string;
+    target_uuid : string;
 }
 
 interface MessageCreateClass extends MessageCreate<ChartClass> { target_type : "ChartClass"; }
@@ -315,7 +315,6 @@ export class SseqChart extends EventEmitter<Events> {
     }
 
     handleMessage(msg : Message){
-        console.log("handleMessage", msg);
         switch(msg.command){
             case "create":
                 switch(msg.target_type){
@@ -348,7 +347,7 @@ export class SseqChart extends EventEmitter<Events> {
                 return;
             }
             case "delete": {
-                let target = this.objects.get(msg.uuid);
+                let target = this.objects.get(msg.target_uuid);
                 if(!target){
                     throw new Error(`Asked to delete unknown object: msg "${JSON.stringify(msg)}"`);
                 }

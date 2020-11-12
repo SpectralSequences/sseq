@@ -5,7 +5,7 @@ from ..helper_classes import (
 from ..infinity import INFINITY
 from uuid import uuid4
 from .chart_types import UUID_str, Color
-from .chart_shape import Node
+from .chart_shape import Shape
 
 from typing import TYPE_CHECKING, List, Any, Tuple, cast, Dict, Union, Optional
 if TYPE_CHECKING:
@@ -26,7 +26,11 @@ class ChartClass:
         x_nudge : PagePropertyOrValue[float] = 0,
         y_nudge : PagePropertyOrValue[float] = 0,
         scale : PagePropertyOrValue[float] = 1,
-        node : PagePropertyOrValue[Optional[Node]] = None,
+        shape : PagePropertyOrValue[Shape] = None,
+        background_color : PagePropertyOrValue[Color] = None,
+        border_color : PagePropertyOrValue[Color] = None,
+        border_thickness : PagePropertyOrValue[float] = None,
+        foreground_color : PagePropertyOrValue[Color] = None,
         dom_content : Optional[SignalDict[Union[str, PageProperty[str]]]] = None,
         user_data : Optional[SignalDict[Any]] = None
     ):
@@ -37,7 +41,7 @@ class ChartClass:
         self._degree = tuple(degree)
         self.idx = idx
         self._max_page = max_page
-        self._edges : List[ChartEdge] = []
+        self.edges : List[ChartEdge] = []
         
         if uuid:
             self.uuid = uuid
@@ -46,14 +50,18 @@ class ChartClass:
 
         # Type checker has difficulty with PagePropertyOrValue and the typing of ensure_page_property.
         self._name = cast(PageProperty[str], ensure_page_property(name, parent=self))
-        self._node = cast(PageProperty[Node], ensure_page_property(node, parent=self))
+        self._shape = ensure_page_property(shape or Shape().circled(5), parent=self) 
+        self._background_color = ensure_page_property(background_color or (0, 0, 0, 1), parent=self)
+        self._border_color = ensure_page_property(border_color or (0, 0, 0, 1), parent=self)
+        self._border_thickness = ensure_page_property(border_thickness or 3, parent=self)
+        self._foreground_color = ensure_page_property(foreground_color or (0, 0, 0, 1), parent=self)
         self._scale = cast(PageProperty[float], ensure_page_property(scale, parent=self)) 
         self._visible = cast(PageProperty[bool], ensure_page_property(visible, parent=self))
         self._x_nudge = cast(PageProperty[float], ensure_page_property(x_nudge, parent=self))
         self._y_nudge = cast(PageProperty[float], ensure_page_property(y_nudge, parent=self))
 
-        self._dom_content : SignalDict[Union[str, PageProperty[str]]]  = SignalDict(dom_content if dom_content else {}, parent=self)
-        self._user_data : SignalDict[Any] = SignalDict(user_data if user_data else {}, parent=self)
+        self._dom_content : SignalDict[Union[str, PageProperty[str]]]  = SignalDict(dom_content if dom_content else {}, parent=self) # type: ignore
+        self._user_data : SignalDict[Any] = SignalDict(user_data if user_data else {}, parent=self) # type: ignore
 
     def _needs_update(self):
         self._sseq._add_class_to_update(self)
@@ -70,7 +78,11 @@ class ChartClass:
             uuid=self.uuid,
             name=self.name,
             max_page=self._max_page,
-            node=self.node,
+            shape = self._shape,
+            background_color = self._background_color,
+            border_color = self._border_color,
+            border_thickness = self._border_thickness,
+            foreground_color = self._foreground_color,
             scale=self.scale,
             visible=self.visible,
             x_nudge=self.x_nudge,
@@ -104,7 +116,15 @@ class ChartClass:
         """ Deletes the current class. Also deletes any edges incident to it."""
         self._sseq._add_class_to_delete(self)
         del self._sseq._classes[self.uuid]
-        for e in self._edges:
+        idx = cast(int, self.idx)
+        del self._sseq._classes_by_degree[self.degree][idx]
+        # Update indices of other classes
+        for (idx, c) in enumerate(self._sseq._classes_by_degree[self.degree]):
+            if idx != c.idx:
+                c.idx = idx
+                self._sseq._add_class_to_update(self)
+
+        for e in self.edges:
             e.delete()
 
     def __repr__(self) -> str:
@@ -160,15 +180,54 @@ class ChartClass:
         self._needs_update()
 
     @property
-    def node(self) -> PageProperty[Node]:
-        return self._node
+    def shape(self) -> PageProperty[Shape]:
+        return self._shape
     
-    @node.setter
-    def node(self, v : PagePropertyOrValue[Node]): # type: ignore
+    @shape.setter
+    def shape(self, v : PagePropertyOrValue[Shape]): # type: ignore
         """ Control how to draw the class. Note that it is the responsibility of display implementations to handle these shapes."""
-        self._node = ensure_page_property(v, parent=self)
+        self._shape = ensure_page_property(v, parent=self)
         self._needs_update()
 
+    @property
+    def background_color(self) -> PageProperty[Color]:
+        return self._background_color
+    
+    @background_color.setter
+    def background_color(self, v : PagePropertyOrValue[Color]): # type: ignore
+        """ Control how to draw the class. Note that it is the responsibility of display implementations to handle these shapes."""
+        self._background_color = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def border_color(self) -> PageProperty[Color]:
+        return self._border_color
+    
+    @shape.setter
+    def border_color(self, v : PagePropertyOrValue[Color]): # type: ignore
+        """ Control how to draw the class. Note that it is the responsibility of display implementations to handle these shapes."""
+        self._border_color = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def foreground_color(self) -> PageProperty[Color]:
+        return self._foreground_color
+    
+    @foreground_color.setter
+    def foreground_color(self, v : PagePropertyOrValue[Color]): # type: ignore
+        """ Control how to draw the class. Note that it is the responsibility of display implementations to handle these shapes."""
+        self._foreground_color = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def border_thickness(self) -> PageProperty[float]:
+        return self._border_thickness
+    
+    @border_thickness.setter
+    def border_thickness(self, v : PagePropertyOrValue[float]): # type: ignore
+        """ Control how to draw the class. Note that it is the responsibility of display implementations to handle these shapes."""
+        self._border_thickness = ensure_page_property(v, parent=self)
+        self._needs_update()
 
     @property
     def scale(self) -> PageProperty[float]:

@@ -1,8 +1,8 @@
 import { Color } from "./Color";
-import { Node, DefaultNode } from "./ChartShape";
+import { Shape } from "./ChartShape";
 import { 
     PageProperty, PagePropertyOrValue, 
-    PagePropertyOrValueToPageProperty, initialPagePropertyValue 
+    pagePropertyOrValueToPageProperty, initialPagePropertyValue 
 } from "./PageProperty";
 import { v4 as uuidv4 } from 'uuid';
 import { INFINITY } from "./infinity";
@@ -24,7 +24,11 @@ export interface ChartClassConstructorArgs {
     uuid? : string;// = "";
     name? : PagePropertyOrValue<string>; // = "";
     max_page? : number;
-    node? : PagePropertyOrValue<Node>; // = "default";
+    shape? : PagePropertyOrValue<Shape>; // = "default";
+    background_color? : PagePropertyOrValue<Color>; // = "default";
+    border_color? : PagePropertyOrValue<Color>; // = "default";
+    border_thickness : PagePropertyOrValue<number>;
+    foreground_color? : PagePropertyOrValue<Color>; // = "default";
     scale? : PagePropertyOrValue<number>; // = 1;
     visible? : PagePropertyOrValue<boolean>; // = true;
     x_nudge? : PagePropertyOrValue<number>; // = 0,
@@ -47,7 +51,11 @@ export class ChartClass {
     x_nudge : PageProperty<number>;
     y_nudge : PageProperty<number>;
     scale : PageProperty<number>;
-    node : PageProperty<Node>;
+    shape : PageProperty<Shape>;
+    background_color : PageProperty<Color>; // = "default";
+    border_color : PageProperty<Color>; // = "default";
+    border_thickness : PageProperty<number>;
+    foreground_color : PageProperty<Color>; // = "default";    
     _canvas_x? : number;
     _canvas_y? : number;
     dom_content : Map<string, any>;
@@ -68,7 +76,11 @@ export class ChartClass {
 
         let errorContext = " in constructor for ChartClass.";
         this.name = initialPagePropertyValue(kwargs.name, "", "name", errorContext);
-        this.node = initialPagePropertyValue(kwargs.node, DefaultNode, "shape", errorContext);
+        this.shape = initialPagePropertyValue(kwargs.shape, { ty : "empty" }, "shape", errorContext);
+        this.background_color = initialPagePropertyValue(kwargs.background_color, [0, 0, 0, 1], "shape", errorContext);
+        this.border_color = initialPagePropertyValue(kwargs.border_color, [0, 0, 0, 1], "shape", errorContext);
+        this.border_thickness = initialPagePropertyValue(kwargs.border_thickness, 3, "shape", errorContext);
+        this.foreground_color = initialPagePropertyValue(kwargs.foreground_color, [0, 0, 0, 1], "shape", errorContext);
         this.scale = initialPagePropertyValue(kwargs.scale, 1, "scale", errorContext);
         this.visible = initialPagePropertyValue(kwargs.visible, true, "visible", errorContext);
         this.x_nudge = initialPagePropertyValue(kwargs.x_nudge, 0, "x_nudge", errorContext);
@@ -113,25 +125,38 @@ export class ChartClass {
             this.idx = kwargs.idx;
         }
         if(kwargs.name){
-            this.name = PagePropertyOrValueToPageProperty(kwargs.name);
+            this.name = pagePropertyOrValueToPageProperty(kwargs.name);
         }
         if(kwargs.max_page){
             this.max_page = kwargs.max_page;
         }
-        if(kwargs.node){
-            this.node = PagePropertyOrValueToPageProperty(kwargs.node);
+        if(kwargs.shape){
+            this.shape = pagePropertyOrValueToPageProperty(kwargs.shape);
         }
+        if(kwargs.background_color){
+            this.background_color = pagePropertyOrValueToPageProperty(kwargs.background_color);
+        }
+        if(kwargs.border_color){
+            this.border_color = pagePropertyOrValueToPageProperty(kwargs.border_color);
+        }
+        if(kwargs.border_thickness){
+            this.border_thickness = pagePropertyOrValueToPageProperty(kwargs.border_thickness);
+        }
+        if(kwargs.foreground_color){
+            this.foreground_color = pagePropertyOrValueToPageProperty(kwargs.foreground_color);
+        }
+
         if(kwargs.scale){
-            this.scale = PagePropertyOrValueToPageProperty(kwargs.scale);
+            this.scale = pagePropertyOrValueToPageProperty(kwargs.scale);
         }
         if(kwargs.visible){
-            this.visible = PagePropertyOrValueToPageProperty(kwargs.visible);
+            this.visible = pagePropertyOrValueToPageProperty(kwargs.visible);
         }
         if(kwargs.x_nudge){
-            this.x_nudge = PagePropertyOrValueToPageProperty(kwargs.x_nudge);
+            this.x_nudge = pagePropertyOrValueToPageProperty(kwargs.x_nudge);
         }
         if(kwargs.y_nudge){
-            this.y_nudge = PagePropertyOrValueToPageProperty(kwargs.y_nudge);
+            this.y_nudge = pagePropertyOrValueToPageProperty(kwargs.y_nudge);
         }
         if(kwargs.dom_content){
             this.dom_content = kwargs.dom_content;
@@ -145,7 +170,7 @@ export class ChartClass {
         for(let e of this.edges){
             this._sseq!.edges.delete(e.uuid);
         }
-        this._sseq!.edges.delete(this.uuid);
+        this._sseq!.classes.delete(this.uuid);
     }
 
     toJSON() : any {
@@ -156,7 +181,11 @@ export class ChartClass {
             uuid : this.uuid,
             name : this.name,
             max_page : this.max_page,
-            node : this.node,
+            shape : this.shape,
+            background_color : this.background_color,
+            border_color : this.border_color,
+            border_thickness : this.border_thickness,
+            foreground_color : this.foreground_color,
             scale : this.scale,
             visible : this.visible,
             x_nudge : this.x_nudge,
@@ -167,7 +196,7 @@ export class ChartClass {
     }
 
     static fromJSON(walker : Walker, obj : object) : ChartClass {
-        console.log("ChartClass fromJSON", obj);
+        //@ts-ignore
         return new ChartClass(obj);
     }
 

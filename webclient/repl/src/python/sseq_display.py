@@ -5,16 +5,11 @@ import json
 import pathlib
 
 from spectralsequence_chart import SseqChart
-from spectralsequence_chart.utils import JSON
+from spectralsequence_chart.utils import JSON, arguments\
 
 from .async_js import Fetcher
 from .handler_decorator import collect_handlers, handle
 fetcher = Fetcher("/dist/api/")
-     
-
-class DisplayState:
-    def __init__(self):
-        self.background_color = "#FFFFFF"
 
 @collect_handlers("message_handlers")
 class SseqDisplay:
@@ -28,7 +23,6 @@ class SseqDisplay:
         self.chart = None
         chart = chart or SseqChart(name)
         self.set_sseq(chart)
-        self.display_state = DisplayState()
         self.subscribers = {}
         SseqDisplay.displays[name] = self
         from .executor import PyodideExecutor
@@ -70,7 +64,7 @@ class SseqDisplay:
     async def reset_state_a(self):
         with self.chart._batched_messages_lock:
             self.chart._batched_messages = []
-        await self.send_message_a("chart.state.reset", *arguments(state = self.chart))
+        await self.send_message_a("chart.state.reset", state = self.chart.to_json())
 
     async def update_a(self):
         await self.chart.update_a()
@@ -115,10 +109,7 @@ class SseqDisplay:
     async def new_user__a(self, uuid, port, client_id):
         print("Handling new user...")
         self.subscribers[client_id] = port
-        await self.send_message_to_target_client_a(
-            port, "initialize.chart.state", uuid,
-            state=JSON.stringify(self.chart), display_state=JSON.stringify(self.display_state)
-        )
+        await self.reset_state_a()
 
     @handle("initialize.complete")
     async def initialize__complete__a(self, uuid, port, client_id):

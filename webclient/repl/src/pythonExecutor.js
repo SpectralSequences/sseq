@@ -40,15 +40,19 @@ export class PythonExecutor {
             this._readyPromise.reject(message.exception);
             return;
         }
+        console.log("Pyodide is ready!");
         this._readyPromise.resolve();
     }
 
     _handleExecutionMessage(message){
+        // execution messages get emitted on the execution object.
         const { uuid, subcmd, last_response } = message;
         const execution = this.executions[uuid];
         if(!execution){
             throw new Error(`Invalid execution uuid "${uuid}"`);
         }
+        // Check if there is a handler for the given command, otherwise fail.
+        // All messages are meant to be handled.
         if(execution.listenerCount(subcmd) === 0) {
             throw new Error(`Unexpected command "${subcmd}"`);
         }
@@ -101,9 +105,16 @@ export class PythonExecutor {
 }
 
 export class Execution extends EventEmitter {
+    /* An execution object. This is for attaching handlers / giving out promises for various lifecycle events of the execution.
+       The execution object is created and scheduled by PythonExecutor.execute. Other files do not construct these directly.
+       The Executor also dispatches messages from the pyodide worker to the appropriate execution.
+       See the python file "execution.py" for when python generates the messages this is responding to.
+    */
     constructor(interrupt_buffer){
         super();
         this.interrupt_buffer = interrupt_buffer;
+        // Using "once" here helps us throw a useful error if some logic error causes the pyodide worker to send 
+        // the same event twice.
         this._validate_syntax = new Promise((resolve, reject) => {
             this.once("validate_syntax", resolve);
         });

@@ -1,6 +1,7 @@
 import { Canvas, EdgeOptions, Glyph, GlyphBuilder, GlyphInstance, JsPoint as Vec2, Vec4 as RustColor, Vec4 } from "./display_backend/pkg/sseq_display_backend";
-import { Shape, Node, ChartClass, SpectralSequenceChart, INFINITY } from "./chart/lib";
+import { Shape, ChartClass, SpectralSequenceChart, INFINITY } from "./chart/lib";
 // import { assert } from "console";
+import { shapeToGlyph } from "./ShapeToGlyph"
 import { Color } from "./chart/Color";
 import { throttle } from "./utils";
 
@@ -17,12 +18,7 @@ interface Touch {
     time : number;
 }
 
-interface GlyphAndColors {
-    glyph : Glyph;
-    fill : RustColor;
-    stroke : RustColor;
-    foreground : RustColor;
-}
+
 
 function getTouchesInfo(touchEvent : TouchEvent) : Touch {
     let touches = Array.from(touchEvent.touches);
@@ -52,32 +48,12 @@ function getTime(){
     return new Date().getTime();
 }
 
-function buildShapeGlyph(shape : Shape) : GlyphBuilder {
-    switch (shape.ty) {
-        case "character":
-            if(shape.font === "stix"){
-                return GlyphBuilder.from_stix(shape.char);
-            } else {
-                throw Error("Not implemented");
-            }
-        case "empty":
-            return GlyphBuilder.empty();
-        case "composed":
-            let builder = buildShapeGlyph(shape.innerShape || { ty : "empty" });
-            switch(shape.operation){
-                case "circled":
-                    builder.circled(shape.padding);
-                    break;
-                case "boxed":
-                    builder.boxed(shape.padding);
-                    break;
-                default:
-                    throw Error("Unknown composition operation.");
-            }
-            return builder;
-        case "diacritic":
-            throw Error("Not implemented.")
-    }
+
+interface GlyphAndColors {
+    glyph : Glyph;
+    fill : RustColor;
+    stroke : RustColor;
+    foreground : RustColor;
 }
 
 
@@ -97,7 +73,7 @@ export class ChartElement extends LitElement {
     _resizeObserver : ResizeObserver;
     _mouseDown : boolean = false;
     _glyph_scale : number = 0;
-    shape_to_glyph : Map<Shape, Glyph> = new Map();
+    shape_to_glyph : Map<string, Glyph> = new Map();
     class_to_glyph_instance : Map<ChartClass, GlyphInstance> = new Map();
     glyph_instance_index_to_class : ChartClass[] = [];
     mouseover_class? : ChartClass;
@@ -120,8 +96,8 @@ export class ChartElement extends LitElement {
     constructor(){
         super();
         let gb = GlyphBuilder.empty();
-        gb.circled(15);
-        let glyph = gb.build();
+        gb.circled(15, 1, 0, true);
+        let glyph = gb.build(0.1, 1);
         this.defaultGlyphAndColors = {
             glyph,
             fill : new RustColor(0, 0, 0, 1),
@@ -497,29 +473,30 @@ export class ChartElement extends LitElement {
         this.setPage(0);
     }
 
-    getShapeGlyph(shape : Shape) : Glyph {
-        let cached = this.shape_to_glyph.get(shape);
+    getShapeGlyph(shape : Shape, tolerance : number, line_width : number) : Glyph {
+        let key = JSON.stringify({ shape, tolerance, line_width });
+        let cached = this.shape_to_glyph.get(key);
         if(cached){
             return cached;
         }
-        let glyph = buildShapeGlyph(shape).build();
-        this.shape_to_glyph.set(shape, glyph);
+        let glyph = shapeToGlyph(shape, tolerance, line_width);
+        this.shape_to_glyph.set(key, glyph);
         return glyph;
     }
     
-    getNodeGlyphAndColors(node : Node) : GlyphAndColors {
-        if(!node || node === "DefaultNode"){
-            return this.defaultGlyphAndColors;
-        } else {
-            let glyph = this.getShapeGlyph(node.shape);
-            return {
-                glyph,
-                stroke : new RustColor(...node.stroke),
-                fill : new RustColor(...node.fill),
-                foreground : new RustColor(...node.foreground)
-            };
-        }
-    }
+    // getNodeGlyphAndColors(node : Node) : GlyphAndColors {
+    //     if(!node || node === "DefaultNode"){
+    //         return this.defaultGlyphAndColors;
+    //     } else {
+    //         let glyph = this.getShapeGlyph(node.shape);
+    //         return {
+    //             glyph,
+    //             stroke : new RustColor(...node.stroke),
+    //             fill : new RustColor(...node.fill),
+    //             foreground : new RustColor(...node.foreground)
+    //         };
+    //     }
+    // }
 
     getClassPosition(c : ChartClass) : [number, number] {
         let position = new Vec2(c.x!, c.y!);
@@ -563,11 +540,20 @@ export class ChartElement extends LitElement {
             if(!c.visible[this.page] || c.max_page < this.page){
                 continue;
             }
-            idx ++;
+            idx++;
+            let tolerance = 0.1;
             let position = new Vec2(c.x!, c.y!);
             let offset = new Vec2(c.getXOffset(this.page), c.getYOffset(this.page));
-            let {glyph, stroke, fill} = this.getNodeGlyphAndColors(c.node[this.page]);
-            let glyph_instance = this._canvas!.add_glyph(position, offset, glyph, c.scale[this.page] * 100, stroke, fill);
+            let border_thickness = c.border_thickness[this.page];
+            let glyph = this.getShapeGlyph(c.shape[this.page], tolerance, border_thickness);
+            let background_color : Color = c.background_color[this.page];
+            let border_color : Color = c.border_color[this.page];
+            let foreground_color : Color = c.foreground_color[this.page];
+            let scale = c.scale[this.page] * 2;
+            let glyph_instance = this._canvas!.add_glyph(
+                position, offset, glyph, scale, 
+                new Vec4(...background_color), new Vec4(...border_color), new Vec4(...foreground_color)
+            );
             this.class_to_glyph_instance.set(c, glyph_instance);
             this.glyph_instance_index_to_class[idx] = c;
         }

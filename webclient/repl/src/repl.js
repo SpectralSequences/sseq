@@ -161,10 +161,10 @@ class ReplElement extends HTMLElement {
 		this.firstLines = {};
 		this.outputScreenLines = {};
 		this.outputModelLines = {};
-		this.outputModelLines[1] = true;
-		this.outputModelLines[2] = true;
-		this.outputScreenLines[1] = true;
-		this.outputScreenLines[2] = true;
+		// this.outputModelLines[1] = true;
+		// this.outputModelLines[2] = true;
+		// this.outputScreenLines[1] = true;
+		// this.outputScreenLines[2] = true;
 		// this.firstLines[2] = true; 
 		this.lineOffsetMutationObserver = new MutationObserver((mutationsList, observer) => {
 			this.updateLineOffsets();
@@ -202,6 +202,13 @@ class ReplElement extends HTMLElement {
 				}
 			}
 		});
+
+		this.syntaxErrorDecorationMutationObserver = new MutationObserver(async (mutationsList) => {
+			await sleep(5);
+			for(let m of mutationsList){
+				this.updateSyntaxErrorDecorationAttributesOnElement(m.target, this.syntaxErrorDecorationAttributes);
+			}
+		})
 	}
 
 	async connectedCallback(){
@@ -231,7 +238,7 @@ class ReplElement extends HTMLElement {
 		await sleep(10);
 		this.querySelector(".decorationsOverviewRuler").remove();
 		this.readOnly = true;
-		this._displayLoadingPrompt2();
+		this._displayLoadingPrompt();
 		try {
 			await this.executor.ready();
 			this._loaded();
@@ -251,7 +258,7 @@ class ReplElement extends HTMLElement {
 		}
 	}
 
-	async _displayLoadingPrompt2(){
+	async _displaySillyLoadingPrompt(){
 		let idx = -1;
 		let animation = ["\n\n    -  Loading  -\n\n", "\n\n   -   Loading   -","\n\n   /   Loading   /","\n\n   |   Loading   |","\n\n   \\   Loading   \\","\n\n   -   Loading   -","\n    |\n   /   Loading   /\n                |","     \\\n    |\n   /   Loading   /\n                |\n               \\","     \\-\n    |\n       Loading\n                |\n              -\\","     \\-\n       /\n       Loading\n             /\n              -\\","      -\n       /\n       L|ading\n             /\n              -","\n       /   \\\n       L|ading\n         \\   /\n","          -\n           \\\n       L|ading\n         \\\n          -","         /-\n           \\\n       Loading\n         \\\n          -/","        |/-\n\n       Loading\n\n          -/|","        |/\n      \\\n       Loading\n              \\\n           /|","        |\n      \\\n    -  Loading  -\n              \\\n            |","\n      \\\n    -  Loading  -\n              \\\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n"];
 
@@ -283,6 +290,26 @@ class ReplElement extends HTMLElement {
 		this.editor.onMouseUp(this._onmouseup.bind(this));
 		this.editor.onDidChangeCursorSelection(this._onDidChangeCursorSelection.bind(this));
 		this.editor.onDidScrollChange(() => this.updateLineOffsets());
+		this.editor.onDidChangeModelContent(() => { 
+			this.clearSyntaxError();
+		});
+		// this.editor.onDidChangeModelDecorations(() => {
+		// 	console.log("decs:", this.editor.getLineDecorations(this.editor.getPosition().lineNumber));
+		// 	if(this.syntaxErrorWidget){
+		// 		let elts = [
+		// 			document.querySelector(".repl-error-decoration-highlight"),
+		// 			document.querySelector(".repl-error-decoration-text"),
+		// 			document.querySelector(".repl-error-decoration-underline"),
+		// 			document.querySelector(".repl-error-widget"),
+		// 		];
+		// 		for(let elt of elts){
+		// 			if(!elt){
+		// 				continue;
+		// 			}
+		// 			elt.setAttribute("active");
+		// 		}
+		// 	}
+		// })
 		this.editor.updateOptions({ "readOnly" : false });
 		window.addEventListener("cut", this._oncut.bind(this));
 		this.editor.updateOptions({
@@ -462,8 +489,14 @@ class ReplElement extends HTMLElement {
 
 
 	_onkey(e){
-		if(this.querySelector(".suggest-widget.visible")){
+		// Test if completion suggestion widget is visible.
+		// Usually it is hidden by removing the ".visible" class, but in some unusual circumstances
+		// it ends up with height 0 but still ".visible". So we also test the height.
+		let elt = this.querySelector(".suggest-widget.visible");
+		let suggestWidgetVisibleQ = elt && elt.offsetHeight > 0;
+		if(suggestWidgetVisibleQ){
 			if(
+				// This annoying conditional spells out which keys we want the suggestWidget to handle
 				(e.browserEvent.key !== "PageUp" || !e.browserEvent.shiftKey)
 				&& (!e.browserEvent.ctrlKey || !["x", "Home", "a"].includes(e.browserEvent.key))
 				&& ((!e.shiftKey && !e.altKey) || e.browserEvent.key !== "ArrowUp")
@@ -471,7 +504,7 @@ class ReplElement extends HTMLElement {
 				return;
 			}
 		}
-		if(this.maybeStepHistory(event)){
+		if(this.maybeStepHistory(e.browserEvent)){
 			this.preventKeyEvent();
 			return
 		}
@@ -764,28 +797,39 @@ class ReplElement extends HTMLElement {
 	}
 
 	async submit(){
+		if(this.syntaxErrorWidget){
+			// Don't do anything if there's already a syntax error...
+			return;
+		}
 		const code = this.value;
 		if(!code.trim()){
 			return;
 		}
-		this.editor.setValue(this.editor.getValue().trimEnd());
-		this.printToConsole("\n");
-		await sleep(0);
+		// this.editor.setValue(this.editor.getValue().trimEnd());
+		// this.printToConsole("\n");
+		// await sleep(0);
 		// editor.setValue seems to undo changes to the console so readOnly has to be set second
 		// and we need to sleep first.
 		this.readOnly = true; 
+		// execution is a handle we can use to cancel.
 		const execution = this.executor.execute(code);
 		this.currentExecution = execution;
 		execution.onStdout((data) => this.printToConsole(data));
 		execution.onStderr((data) => this.printToConsole(data));
 		let syntaxCheck = await execution.validate_syntax(code);
 		if(!syntaxCheck.valid){
-			this.showSyntaxError(syntaxCheck.error);
+			await sleep(0);
+			this.showSyntaxError(syntaxCheck.errors);
 			this.currentExecution = undefined;
 			this.readOnly = false;
+			// await sleep(0);
+			// this.editor.setPosition(this.endOfInputPosition);
 			return;
 		}
 
+		this.editor.setValue(this.editor.getValue().trimEnd());
+		this.printToConsole("\n");
+		await sleep(0);
 		this.history.push(code);
         await sleep(0);
 		this.historyIdx = this.history.length;
@@ -795,7 +839,6 @@ class ReplElement extends HTMLElement {
 			result = await execution.result();
 			this.addOutput(result);
 		} catch(e) {
-			console.log(e);
 			this.addOutput(e.traceback);
 		}
 		this.currentExecution = undefined;
@@ -855,34 +898,82 @@ class ReplElement extends HTMLElement {
 		this.revealSelection();
 	}
 
+	updateSyntaxErrorDecorationAttributes(state){
+		let elts = [
+			document.querySelector(".repl-error-decoration-highlight"),
+			document.querySelector(".repl-error-decoration-text"),
+			document.querySelector(".repl-error-decoration-underline"),
+			document.querySelector(".repl-error-widget"),
+		];
+		for(let elt of elts){
+			if(!elt){
+				continue;
+			}
+			this.updateSyntaxErrorDecorationAttributesOnElement(elt, state);
+		}
+	}	
+
+	updateSyntaxErrorDecorationAttributesOnElement(elt, state){
+		for(let [k, v] of Object.entries(state)){
+			if(v === false && elt.hasAttribute(k)){
+				elt.removeAttribute(k);
+			} else if(elt.getAttribute(k) !== v){
+				elt.setAttribute(k, v);
+			}
+		}
+	}
+
+	async clearSyntaxError(){
+		if(!this.syntaxErrorWidget){
+			return;
+		}
+		this.syntaxErrorDecorationAttributes = { "transition" : "hide", "active" : false };
+		this.updateSyntaxErrorDecorationAttributes(this.syntaxErrorDecorationAttributes);
+		await promiseFromDomEvent(document.querySelector(".repl-error-widget"), "transitionend");
+		this.syntaxErrorDecorationAttributes = { "transition" : false, "active" : false };
+		this.updateSyntaxErrorDecorationAttributes(this.syntaxErrorDecorationAttributes);
+		this.editor.removeContentWidget(this.syntaxErrorWidget);
+		this.editor.deltaDecorations(this.decorationIds || [], []);
+		this.decorationIds = [];
+		this.syntaxErrorWidget = undefined;
+	}
 	
-	async showSyntaxError(error){
-		let line = this.readOnlyLines + error.lineno;
-		let col = error.offset;
+	async showSyntaxError(errors){
+		// TODO: maybe handle multiple syntax errors case...? Probably not important...
+		console.log(errors);
+		let error = errors[0];
+		let [start_line, start_col] = error.start_pos;
+		start_line += this.readOnlyLines;
+		let [end_line, end_col] = error.end_pos;
+		end_line += this.readOnlyLines;		
 		let decorations = [{
-			range: new monaco.Range(line, 1, line, 1),
+			range: new monaco.Range(start_line, 1, end_line, 1),
 			options: {
 				isWholeLine: true,
-				afterContentClassName: 'repl-error repl-error-decoration',
+				afterContentClassName: 'repl-error repl-error-fade-in repl-error-decoration-underline',
 			}
 		}];
-		if(col){
-			let endCol = this.editor.getModel().getLineMaxColumn(line);
+		// console.log([start_line, start_col, end_line, end_col + 1]);
+		if(start_line !== end_line || start_col != end_col){
+			// let endCol = this.editor.getModel().getLineMaxColumn(line);
 			decorations.push({
-				range: new monaco.Range(line, col, line, endCol),
+				range: new monaco.Range(start_line, start_col, end_line, end_col + 1),
 				options: {
 					// isWholeLine: true,
-					className: 'repl-error repl-error-decoration-highlight',
-					inlineClassName : 'repl-error-decoration-text'
-
+					className: 'repl-error repl-error-fade-in repl-error-decoration-highlight',
+					inlineClassName : 'repl-error repl-error-decoration-text'
 				}
 			});
 		}
-		this.decorations = this.editor.deltaDecorations([], decorations);
-		this.editor.onDidChangeModelDecorations((e) => {
-			console.log("decs:", this.editor.getLineDecorations(this.editor.getPosition().lineNumber))
-		});
-		this.errorWidget = {
+		await sleep(0);
+		this.editor.deltaDecorations(this.decorationsIds || [], []);
+		await sleep(0);
+		this.decorations = decorations;
+		this.decorationIds = this.editor.deltaDecorations([], decorations);
+		// this.editor.onDidChangeModelDecorations((e) => {
+		// 	console.log("decs:", this.editor.getLineDecorations(this.editor.getPosition().lineNumber))
+		// });
+		this.syntaxErrorWidget = {
 			domNode: null,
 			getId: function() {
 				return 'error.widget';
@@ -890,40 +981,48 @@ class ReplElement extends HTMLElement {
 			getDomNode: function() {
 				if (!this.domNode) {
 					this.domNode = document.createElement('div');
-					this.domNode.innerText = `${error.type}: ${error.msg}`;
+					this.domNode.innerText = `${error.msg}`; //`${error.type}: ${error.msg}`;
 					this.domNode.classList.add("repl-error");
+					this.domNode.classList.add("repl-error-fade-in");
 					this.domNode.classList.add("repl-error-widget");
-					this.domNode.setAttribute("transition", "show");
-					promiseFromDomEvent(this.domNode, "transitionend").then(
-						() => this.domNode.removeAttribute("transition")
-					);
-					sleep(0).then(() => this.domNode.setAttribute("active", ""));
 				}
 				return this.domNode;
 			},
 			getPosition: function() {
 				return {
 					position: {
-						lineNumber: line,
+						lineNumber: start_line, // Is this the best line to choose?
 						column: 1
 					},
 					preference: [monaco.editor.ContentWidgetPositionPreference.BELOW]
 				};
 			}
 		};
-		this.editor.addContentWidget(this.errorWidget);
+		this.editor.addContentWidget(this.syntaxErrorWidget);
 		await sleep(10);
+		document.querySelector(".repl-error-widget")
+		// What is this supposed to do??
 		let elts = [
 			document.querySelector(".repl-error-decoration-highlight"),
-			document.querySelector(".repl-error-decoration"),
+			document.querySelector(".repl-error-decoration-text"),
+			document.querySelector(".repl-error-decoration-underline"),
 		];
-		for(let elt of elts){
-			elt.setAttribute("transition", "show");
-			elt.setAttribute("active", "");
-			promiseFromDomEvent(elt, "transitionend").then(
-				() => elt.removeAttribute("transition")
-			);
-		}
+		// for(let elt of elts){
+		// 	if(!elt){
+		// 		continue;
+		// 	}
+		// 	this.syntaxErrorDecorationMutationObserver.observe(
+		// 		elt,
+		// 		{ "attributeFilter" : ["transition", "active"] }
+		// 	);
+		// }
+
+
+		this.syntaxErrorDecorationAttributes = { "transition" : "show", "active" : "" };
+		this.updateSyntaxErrorDecorationAttributes(this.syntaxErrorDecorationAttributes);
+		await promiseFromDomEvent(document.querySelector(".repl-error-widget"), "transitionend");
+		this.syntaxErrorDecorationAttributes = { "transition" : false, "active" : "" };
+		this.updateSyntaxErrorDecorationAttributes(this.syntaxErrorDecorationAttributes);
 	}
 }
 customElements.define('repl-terminal', ReplElement);

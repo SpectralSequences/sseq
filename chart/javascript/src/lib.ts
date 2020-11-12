@@ -1,4 +1,4 @@
-export { Shape, Node } from "./ChartShape";
+export { Shape } from "./ChartShape";
 export { ChartClass } from "./ChartClass";
 export { ChartEdge, ChartDifferential, ChartStructline, ChartExtension } from "./ChartEdge";
 export { SseqChart as SpectralSequenceChart } from "./SseqChart";

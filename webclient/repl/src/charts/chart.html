@@ -9,16 +9,12 @@
 
 <body>
     <sseq-ui tabindex="-1">
-        <sseq-display id=display style="overflow: hidden; position: relative; flex-grow: 1;">
-            <sseq-axes></sseq-axes>
-            <sseq-grid></sseq-grid>
-            <sseq-chart>
-                <sseq-bidegree-highlighter></sseq-bidegree-highlighter>
-                <sseq-class-highlighter></sseq-class-highlighter>
-                <sseq-page-indicator style="position: absolute; left: 60px; top: 0px; font-family: Arial; font-size: 15px;"></sseq-page-indicator>
-                <sseq-tooltip></sseq-tooltip>
-            </sseq-chart>
-        </sseq-display>
+        <sseq-chart  style="flex-grow: 1;">
+            <sseq-bidegree-highlighter></sseq-bidegree-highlighter>
+            <sseq-class-highlighter></sseq-class-highlighter>
+            <sseq-page-indicator style="position: absolute; left: 60px; top: 0px; font-family: Arial; font-size: 15px;"></sseq-page-indicator>
+            <sseq-tooltip></sseq-tooltip>
+        </sseq-chart>
         <sseq-sidebar max-width=400 initial-width=280>
             <div id="names" tab="Names">
                 <div content="bidegree"></div>
@@ -26,12 +22,6 @@
                 <div content="names-products"></div>
                 <div content="matrix"></div>
                 <div style="flex-grow:1; min-height : 80px;"></div>
-            </div>
-            <div tab="Products">
-                <div content="bidegree"></div>
-                <div content="classes"></div>
-                <div content="factorizations"></div>
-                <div content="outgoing-products"></div>
             </div>
             <sseq-button slot="footer" class="help-btn" 
                 style="

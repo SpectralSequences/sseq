@@ -3,6 +3,26 @@ from spectralsequence_chart.infinity import INFINITY
 from spectralsequence_chart.utils import JSON
 from .test_serialization import assert_serialize_parse
 
+class TestParent:
+    def __init__(self):
+        self.i = 0
+    
+    def _needs_update(self):
+        self.i += 1
+
+
+def test_signal():
+    parent = TestParent()
+    pp : PageProperty[int] = PageProperty(0, parent=parent)
+    pp[:] = 1
+    assert parent.i == 1
+    pp[2] = 2
+    assert parent.i == 2
+    pp[2:] = 3
+    assert parent.i == 3
+    pp[:2] = 3
+    assert parent.i == 4
+
 def test_page_property():
     pp : PageProperty[int] = PageProperty(0)
     pp[:] = 1
