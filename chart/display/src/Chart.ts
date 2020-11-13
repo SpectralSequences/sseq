@@ -114,6 +114,7 @@ export class ChartElement extends LitElement {
             :host {
                 position : relative;
                 overflow : hidden;
+                outline : none;
             }
         `;
     }

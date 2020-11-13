@@ -4,9 +4,11 @@ import Mustache from "mustache";
 // import nonexistent_chart_html from 'raw-loader!./charts/nonexistent-chart.html';
 // import chart_html from 'raw-loader!./charts/chart.html';
 
+console.log("prefix:", self.location.pathname.split("/").slice(0,-1).join("/"));
 const app = new Swork();
 const router = new Router({
-    prefix: "/dist"
+    // /blah/blah/service_worker.bundle.js ==> /blah/blah
+    prefix: self.location.pathname.split("/").slice(0,-1).join("/")
 });
 
 const repls = {};
@@ -82,8 +84,9 @@ router.get("/api/charts/:name", async (context) => {
 router.get("/charts/:name", async (context) => {
     let { name } = context.params;
     console.log(`requested: /charts/${name}`);
+    console.log(self.location.pathname);
     if(name.endsWith(".js") || name.endsWith(".wasm")){
-        context.response = fetch(`/dist/charts/${name}`);
+        context.response = fetch(`charts/${name}`);
         return;
     }
     let owningClient = await get_owning_client(name);
@@ -104,12 +107,8 @@ router.get("/charts/:name", async (context) => {
 });
 
 app.on("message", handleMessage)
-
 app.use(router.routes());
- 
 app.listen();
-
-let pyodideWorkers = {};
 
 function handleMessage(event){
     console.log("service_worker:: received message from a client:", event.data, event);

@@ -4,7 +4,7 @@ import { ReplElement } from "./repl";
 //     ServiceWorkerNoSupportError
 // } from 'service-worker-loader!./service.worker';
  
-navigator.serviceWorker.register("/dist/service_worker.bundle.js", { scope: '/dist/' })
+navigator.serviceWorker.register("service_worker.bundle.js", { scope: '.' })
 .then((registration) => {
     console.log('Service worker loaded', registration);
 }).catch((err) => {

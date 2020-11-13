@@ -5,11 +5,11 @@ import json
 import pathlib
 
 from spectralsequence_chart import SseqChart
-from spectralsequence_chart.utils import JSON, arguments\
+from spectralsequence_chart.utils import JSON, arguments
 
 from .async_js import Fetcher
 from .handler_decorator import collect_handlers, handle
-fetcher = Fetcher("/dist/api/")
+fetcher = Fetcher("api/")
 
 @collect_handlers("message_handlers")
 class SseqDisplay:
@@ -17,6 +17,7 @@ class SseqDisplay:
         All of the data is contained in the field SseqDisplay.chart which is the SseqChart object that is being displayed.
         You may want to store the chart into a variable and use it directly.
     """
+    # 
     displays = {}    
     def __init__(self, name, chart=None):
         self.name = name

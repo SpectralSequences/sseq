@@ -2,7 +2,7 @@
 // It talks to pythonExecutor, which is responsible for wrapping communication between the main thread and the pyodide thread.
 // 
 
-self.languagePluginUrl = '/pyodide-build-custom/'
+self.languagePluginUrl = 'pyodide-build-custom/'
 importScripts(`${self.languagePluginUrl}pyodide.js`);
 
 import { sleep } from "./utils";
