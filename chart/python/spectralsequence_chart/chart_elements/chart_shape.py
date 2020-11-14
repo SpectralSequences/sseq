@@ -6,12 +6,15 @@ class Shape:
             self.dict = dict(
                 ty="character",
                 font=font or "stix",
-                char=character
+                char=character,
+                whole_shape=True
             )
         else:
             self.dict = dict(ty="empty")
     
     def circled(self, padding : float, num_circles : int = 1, circle_gap : float = 0, include_background : bool = True) -> "Shape":
+        if "whole_shape" in self.dict:
+            self.dict["whole_shape"] = False
         self.dict = dict(
             ty = "composed",
             operation="circled",
@@ -24,6 +27,8 @@ class Shape:
         return self
 
     def boxed(self, padding : float, include_background : bool = True) -> "Shape":
+        if "whole_shape" in self.dict:
+            self.dict["whole_shape"] = False
         self.dict = dict(
             ty = "composed",
             operation="boxed",

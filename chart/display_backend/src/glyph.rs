@@ -68,7 +68,7 @@ fn pathop_bounding_box<'a, T : Iterator<Item=&'a PathOp>>(path : T) -> Box2D<f32
     }))
 }
 
-fn footile_path_to_lyon_path<T : Iterator<Item=PathOp>>(path : T) -> Vec<PathEvent> {
+fn footile_path_to_lyon_path<T : Iterator<Item=PathOp>>(path : T) -> impl Iterator<Item=PathEvent> {
     let mut first = point(0.0, 0.0); 
     let mut from = point(0.0, 0.0);
     path.filter_map(move |path_op| {
@@ -104,7 +104,11 @@ fn footile_path_to_lyon_path<T : Iterator<Item=PathOp>>(path : T) -> Vec<PathEve
             PathOp::PenWidth(_) => {unimplemented!()}
         }
         result
-    }).collect()
+    })
+}
+
+fn scale_lyon_path<T : Iterator<Item=PathEvent>>(path : T, scale : f32) -> impl Iterator<Item=PathEvent>{
+    path.map(move |event| event.transformed(&Transform::scale(scale, scale)))
 }
 
 fn lyon_path_to_footile_path<T : Iterator<Item=PathEvent>>(path : T) -> Vec<PathOp> {
@@ -164,15 +168,15 @@ pub struct GlyphBuilder {
 
 #[wasm_bindgen]
 impl GlyphBuilder {
-    pub fn from_stix(character : &str, whole_shape : bool) -> Self {
+    pub fn from_stix(character : &str, scale : f32, whole_shape : bool) -> Self {
         let path : Vec<_> = STIX_FONT.render(
             character,
             (512.0 - 64.0) / FONT_SIZE, // What the heck is this?
             font::TextAlign::Center
         ).0.collect();
-        let bounding_box = pathop_bounding_box(path.iter());
+        let bounding_box = pathop_bounding_box(path.iter()).scale(scale, scale);
         let component = GlyphComponent {
-            path : footile_path_to_lyon_path(path.iter().copied()),
+            path : scale_lyon_path(footile_path_to_lyon_path(path.iter().copied()), scale).collect(),
             path_type : if whole_shape { PathType::BackgroundAndBoundary } else { PathType::Foreground }
         };
         Self {
@@ -199,7 +203,7 @@ impl GlyphBuilder {
             .line_to(xmin, ymax)
             .close().finish();
         let component = GlyphComponent {
-            path : footile_path_to_lyon_path(box_path.iter().copied()),
+            path : footile_path_to_lyon_path(box_path.iter().copied()).collect(),
             path_type : if include_background { PathType::BackgroundAndBoundary } else { PathType::Boundary },
         };        
         self.paths.push(component);

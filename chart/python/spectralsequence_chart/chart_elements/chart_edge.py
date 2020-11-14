@@ -17,28 +17,17 @@ LineWidth = Union[float, str]
 ArrowTip = Any
 
 class ChartEdge(ABC):
-    def __init__(self,
-        source_uuid : UUID_str, target_uuid : UUID_str, *,
-        type : Optional[str] = None, 
-        uuid : UUID_str = "",
-        user_data : Optional[SignalDict[Any]] = None
-    ):
+    """ ChartEdge is the base class of ChartStructline, ChartDifferential, and ChartExtension. """
+    def __init__(self, source_uuid : UUID_str, target_uuid : UUID_str):
         """ Do not call SseqEdge constructor directly, use instead SseqChart.add_structline(),
             SseqChart.add_differential(), SseqChart.add_extension(), or JSON.parse()."""
         self._sseq : SseqChart
         self._source_uuid = source_uuid
         self._target_uuid = target_uuid
         self.source : ChartClass
-        self.target : ChartClass
-
-        if type:
-            assert type == self.__class__.__name__
-        
-        if uuid:
-            self.uuid = uuid 
-        else:
-            self.uuid = str(uuid4())
-        self._user_data : SignalDict[Any] = SignalDict(user_data if user_data else {}) # type: ignore
+        self.target : ChartClass        
+        self._uuid = str(uuid4())
+        self._user_data : SignalDict[Any] = SignalDict({}, parent=self) # type: ignore
 
     def __repr__(self):
         fields = [repr(x) for x in [self.source, self.target]]
@@ -48,13 +37,18 @@ class ChartEdge(ABC):
     def _needs_update(self):
         self._sseq._add_edge_to_update(self)
 
-    def replace_source(self, **kwargs : Any):
+    def replace_source(self, **kwargs : Any) -> "ChartEdge":
+        """ Calls "replace" on the source of the edge. Returns self to be chainable. """
         self.source.replace(**kwargs)
+        return self
     
-    def replace_target(self, **kwargs : Any):
+    def replace_target(self, **kwargs : Any) -> "ChartEdge":
+        """ Calls "replace" on the target of the edge. Returns self to be chainable. """
         self.target.replace(**kwargs)
+        return self
 
     def delete(self):
+        """ Deletes the edge. """
         self._sseq._add_edge_to_delete(self)
         del self._sseq._edges[self.uuid]
         del self.source.edges[self.source.edges.index(self)]
@@ -67,12 +61,33 @@ class ChartEdge(ABC):
             ChartEdge._EDGE_TYPE_DICT = {edge_type.__name__ : edge_type for edge_type in [ChartStructline, ChartDifferential, ChartExtension]}
         edge_type = json["type"]
         if edge_type in ChartEdge._EDGE_TYPE_DICT:
-            return ChartEdge._EDGE_TYPE_DICT[edge_type](**json)
+            init_args = {}
+            for key in ["source_uuid", "target_uuid", "page"]:
+                if key in json:
+                    init_args[key] = json.pop(key)
+            edge = ChartEdge._EDGE_TYPE_DICT[edge_type](**init_args)
+            edge._from_json_helper(**json)
+            return edge
         else:
             type_names = list(ChartEdge._EDGE_TYPE_DICT.keys())
             types_list = ",".join(f'"{type}"' for type in type_names[:-1])
             types_list += f', or "${type_names[-1]}"'
             raise ValueError(f'"edge_type" should be one of {types_list}, not "{edge_type}"')
+
+    @property
+    def uuid(self) -> str:
+        """ A unique id for the edge. For internal use. """
+        return self._uuid
+
+    def _from_json_helper(self,
+        type : Optional[str], 
+        uuid : UUID_str,
+        user_data : Dict[str, Any],
+    ):
+        assert type == self.__class__.__name__
+        self._uuid = uuid
+        self._user_data = SignalDict(user_data, parent=self)
+        
 
     @abstractmethod
     def to_json(self) -> Dict[str, Any]:
@@ -90,24 +105,20 @@ class ChartEdge(ABC):
         )
 
 class ChartStructline(ChartEdge):
-    def __init__(self, 
-        color : PagePropertyOrValue[Color] = (0, 0, 0, 1),
-        dash_pattern : PagePropertyOrValue[DashPattern] = [],
-        line_width : PagePropertyOrValue[float] = 3,
-        bend : PagePropertyOrValue[float] = 0,
-        start_tip : PagePropertyOrValue[ArrowTip] = None,
-        end_tip : PagePropertyOrValue[ArrowTip] = None,
-        visible : PagePropertyOrValue[bool] = True,
-        **kwargs : Any
-    ):
-        super().__init__(**kwargs)
-        self._color = cast(PageProperty[Color], ensure_page_property(color, parent=self))
-        self._dash_pattern = cast(PageProperty[DashPattern], ensure_page_property(dash_pattern, parent=self))
-        self._line_width = cast(PageProperty[Union[float, str]], ensure_page_property(line_width, parent=self))
-        self._bend = cast(PageProperty[float], ensure_page_property(bend, parent=self)) 
-        self._start_tip = cast(PageProperty[ArrowTip], ensure_page_property(start_tip, parent=self)) 
-        self._end_tip = cast(PageProperty[ArrowTip], ensure_page_property(end_tip, parent=self)) 
-        self._visible = cast(PageProperty[bool], ensure_page_property(visible, parent=self))
+    """ A ChartStructline is an edge used to represent some sort of algebraic data on the spectral sequence. 
+        Structlines are typically used to represent multiplication by a few standard elements.
+        A structline will appear on page_range (<page>, <max_differential_length>) if structline.visible[<page>] 
+        is true and both the source and the target class of the structure line are visible.
+    """
+    def __init__(self, source_uuid : UUID_str, target_uuid : UUID_str):
+        super().__init__(source_uuid, target_uuid)
+        self._color = PageProperty((0, 0, 0, 1), parent=self)
+        self._dash_pattern = PageProperty([], parent=self)
+        self._line_width = PageProperty(3, parent=self)
+        self._bend = PageProperty(0, parent=self)
+        self._start_tip = PageProperty(None, parent=self)
+        self._end_tip = PageProperty(None, parent=self)
+        self._visible = PageProperty(True, parent=self)
     
     def to_json(self) -> Dict[str, Any]:
         return dict(
@@ -124,8 +135,28 @@ class ChartStructline(ChartEdge):
             user_data=self._user_data
         )
 
+    def _from_json_helper(self,
+        color : PagePropertyOrValue[Color],
+        dash_pattern : PagePropertyOrValue[DashPattern],
+        line_width : PagePropertyOrValue[float],
+        bend : PagePropertyOrValue[float],
+        start_tip : PagePropertyOrValue[ArrowTip],
+        end_tip : PagePropertyOrValue[ArrowTip],
+        visible : PagePropertyOrValue[bool],
+        **kwargs,
+    ) -> "ChartEdge":
+        super()._from_json_helper(**kwargs)
+        self._color = cast(PageProperty[Color], ensure_page_property(color, parent=self))
+        self._dash_pattern = cast(PageProperty[DashPattern], ensure_page_property(dash_pattern, parent=self))
+        self._line_width = cast(PageProperty[Union[float, str]], ensure_page_property(line_width, parent=self))
+        self._bend = cast(PageProperty[float], ensure_page_property(bend, parent=self)) 
+        self._start_tip = cast(PageProperty[ArrowTip], ensure_page_property(start_tip, parent=self)) 
+        self._end_tip = cast(PageProperty[ArrowTip], ensure_page_property(end_tip, parent=self)) 
+        self._visible = cast(PageProperty[bool], ensure_page_property(visible, parent=self))
+
     @property
     def color(self) -> PageProperty[Color]:
+        """ The color of the edge. """
         return self._color
 
     @color.setter
@@ -135,6 +166,7 @@ class ChartStructline(ChartEdge):
 
     @property
     def dash_pattern(self) -> PageProperty[DashPattern]:
+        """The dash pattern of the edge. A dash pattern is represented as a list of positive integers."""
         return self._dash_pattern
 
     @dash_pattern.setter
@@ -144,6 +176,7 @@ class ChartStructline(ChartEdge):
 
     @property
     def line_width(self) -> PageProperty[LineWidth]:
+        """The width of the edge."""
         return self._line_width
 
 
@@ -154,6 +187,9 @@ class ChartStructline(ChartEdge):
 
     @property
     def bend(self) -> PageProperty[float]:
+        """The bend angle of the edge. If bend is nonzero, the edge is drawn as a circular arc through the start and end points,
+           where the angle between the edge from the start to the end and the tangent vector at the start point is specified by "bend".
+        """
         return self._bend
 
     @bend.setter
@@ -163,6 +199,7 @@ class ChartStructline(ChartEdge):
 
     @property
     def visible(self) -> PageProperty[bool]:
+        """Is the structline visible on the given page?"""
         return self._visible
 
     @visible.setter
@@ -172,6 +209,7 @@ class ChartStructline(ChartEdge):
 
     @property
     def start_tip(self) -> PageProperty[ArrowTip]:
+        """ The start arrow tip. TODO: Explain how we represent arrow tips and make ArrowTip not be any? """
         return self._start_tip
 
 
@@ -182,6 +220,7 @@ class ChartStructline(ChartEdge):
 
     @property
     def end_tip(self) -> PageProperty[ArrowTip]:
+        """ The end arrow tip. TODO: Explain how we represent arrow tips and make ArrowTip not be any? """
         return self._end_tip
 
     @end_tip.setter
@@ -190,17 +229,28 @@ class ChartStructline(ChartEdge):
         self._needs_update()
 
 class SinglePageChartEdge(ChartEdge):
-    def __init__(self, 
-        color : Color = (0, 0, 0, 1),
-        dash_pattern : DashPattern = [],
-        line_width : float = 3,
-        bend : float = 0,
-        start_tip : ArrowTip = None,
-        end_tip : ArrowTip = None,
-        visible : bool = True,
-        **kwargs : Any
-    ):
-        super().__init__(**kwargs)
+    """ SinglePageChartEdge is handles most of the common code between ChartDifferential and ChartExtension. """
+    def __init__(self, source_uuid : UUID_str, target_uuid : UUID_str):
+        super().__init__(source_uuid, target_uuid)
+        self._color = (0, 0, 0, 1)
+        self._dash_pattern = []
+        self._line_width = 3
+        self._bend = 0
+        self._start_tip = None
+        self._end_tip = None
+        self._visible = True
+
+    def _from_json_helper(self,
+        color : Color,
+        dash_pattern : DashPattern,
+        line_width : float,
+        bend : float,
+        start_tip : ArrowTip,
+        end_tip : ArrowTip,
+        visible : bool,
+        **kwargs,
+    ) -> "ChartEdge":
+        super()._from_json_helper(**kwargs)
         self._color = color
         self._dash_pattern = dash_pattern
         self._line_width = line_width
@@ -211,6 +261,7 @@ class SinglePageChartEdge(ChartEdge):
 
     @property
     def color(self) -> Color:
+        """ The color of the edge. """
         return self._color
 
     @color.setter
@@ -220,6 +271,7 @@ class SinglePageChartEdge(ChartEdge):
 
     @property
     def dash_pattern(self) -> DashPattern:
+        """The dash pattern of the edge. A dash pattern is represented as a list of positive integers."""
         return self._dash_pattern
 
     @dash_pattern.setter
@@ -229,6 +281,7 @@ class SinglePageChartEdge(ChartEdge):
 
     @property
     def line_width(self) -> LineWidth:
+        """The width of the edge."""
         return self._line_width
 
 
@@ -239,6 +292,9 @@ class SinglePageChartEdge(ChartEdge):
 
     @property
     def bend(self) -> float:
+        """The bend angle of the edge. If bend is nonzero, the edge is drawn as a circular arc through the start and end points,
+           where the angle between the edge from the start to the end and the tangent vector at the start point is specified by "bend".
+        """
         return self._bend
 
     @bend.setter
@@ -248,6 +304,7 @@ class SinglePageChartEdge(ChartEdge):
 
     @property
     def visible(self) -> bool:
+        """Is the structline visible on the given page?"""
         return self._visible
 
     @visible.setter
@@ -258,6 +315,7 @@ class SinglePageChartEdge(ChartEdge):
 
     @property
     def start_tip(self) -> ArrowTip:
+        """ The start arrow tip. TODO: Explain how we represent arrow tips and make ArrowTip not be any? """
         return self._start_tip
 
 
@@ -268,6 +326,7 @@ class SinglePageChartEdge(ChartEdge):
 
     @property
     def end_tip(self) -> ArrowTip:
+        """ The end arrow tip. TODO: Explain how we represent arrow tips and make ArrowTip not be any? """
         return self._end_tip
 
     @end_tip.setter
@@ -295,8 +354,12 @@ class SinglePageChartEdge(ChartEdge):
 
 
 class ChartDifferential(ChartEdge):
-    def __init__(self, page : int, **kwargs : Any):
-        super().__init__(**kwargs)
+    """ A ChartDifferential is an edge used to represent the behavior of the differential on the spectral sequence. 
+        A chart differential will appear on page_range (<page>, <max_differential_length>) if <page> <= differential.page <= <max_differential_length>
+        and if both the source and target of the differential appear on page <page>.
+    """
+    def __init__(self, source_uuid : UUID_str, target_uuid : UUID_str, page : int):
+        super().__init__(source_uuid, target_uuid)
         self.page : int = page
 
     def to_json(self) -> Dict[str, Any]:
@@ -306,8 +369,9 @@ class ChartDifferential(ChartEdge):
         )
 
 class ChartExtension(ChartEdge):
-    def __init__(self, **kwargs : Any):
-        super().__init__(**kwargs)
-
-    def to_json(self) -> Dict[str, Any]:
-        return super().to_json()
+    """ A ChartExtension is an edge used to represent extensions in the spectral sequence. 
+        Generally extensions represent the same sort of algebraic structure as the structlines.
+        A chart extension will appear on page_range (<page>, <max_differential_length>) if <page> == infinity
+        and both the source and the target of the extension appear on page infinity.
+    """
+    pass

@@ -33,18 +33,7 @@ class SseqChart:
     """ SseqChart is the main class which holds the data structure representing the chart. """
     def __init__(self, 
         name : str, 
-        type : Optional[str] = None,
-        uuid : Optional[str] = None,
-        page_list : Optional[List[Tuple[int, int]]] = None,
-        initial_x_range : Tuple[int, int] = (0, 10),
-        initial_y_range : Tuple[int, int] = (0, 10),
-        x_range : Tuple[int, int] = (0, 10),
-        y_range : Tuple[int, int] = (0, 10),
         num_gradings : int = 2,
-        x_projection : Optional[Tuple[int, ...]] = None,
-        y_projection : Optional[Tuple[int, ...]] = None,
-        classes : Optional[List[ChartClass]] = None,
-        edges : Optional[List[ChartEdge]] = None
     ):
         """      
             Args:
@@ -56,51 +45,32 @@ class SseqChart:
 
             The rest of the optional arguments are for deserialization, not intended for direct usage.
         """
-        self._initialized = False
-        self._agent : Any = None
         self.name = name
-        if type:
-            assert type == self.__class__.__name__
-        self.uuid = uuid or str(uuid4())
-        self.page_list : List[Tuple[int, int]] = page_list or [(2, INFINITY), (INFINITY, INFINITY)]
-        self.initial_x_range = initial_x_range
-        self.initial_y_range = initial_y_range
-        self.x_range = x_range
-        self.y_range = y_range
-    
-
         assert num_gradings >= 2
         self.num_gradings = num_gradings
-        if x_projection:
-            assert len(x_projection) == num_gradings
-        else:
-            x_projection = (1, 0) + (0,) * (num_gradings - 2)
-        if y_projection:
-            assert len(y_projection) == num_gradings 
-        else:
-            y_projection = (0, 1) + (0,) * (num_gradings - 2)       
-        self.x_projection = x_projection
-        self.y_projection = y_projection
+        self._initialized = True
 
-        self._page_list_lock = threading.Lock()
-        
-        self._classes : Dict[str, ChartClass] = {}
-        self._edges : Dict[str, ChartEdge] = {}
-        self._classes_by_degree : Dict[Tuple[int, ...], List[ChartClass]] = {}
-
-        classes = classes or []
-        edges = edges or []
-        for c in classes:
-            self._commit_class(c)
-        for e in edges:
-            self._commit_edge(e)
-        
-        
+        self._agent : Any = None
         self._batched_messages : List[Dict[str, Any]] = []
         # type: ignore
         self._update_keys : Set[str] = set()
         self._global_fields_to_update : Set[str] = set()
         self._batched_messages_lock = threading.Lock()
+
+        self._uuid = str(uuid4())
+
+        self._page_list =  [(2, INFINITY), (INFINITY, INFINITY)]
+        self._initial_x_range = (0, 10)
+        self._initial_y_range = (0, 10)
+        self._x_range = (0, 10)
+        self._y_range = (0, 10)
+  
+        self._page_list_lock = threading.Lock()
+        self._classes : Dict[str, ChartClass] = {}
+        self._edges : Dict[str, ChartEdge] = {}
+        self._classes_by_degree : Dict[Tuple[int, ...], List[ChartClass]] = {}
+        self.x_projection = (1, 0) + (0,) * (num_gradings - 2)
+        self.y_projection = (0, 1) + (0,) * (num_gradings - 2)       
         self._initialized : bool = True
 
     def validate(self):
@@ -170,10 +140,10 @@ class SseqChart:
         return dict(
             type=type(self).__name__,
             name=self.name,
-            initial_x_range=self.initial_x_range,
-            initial_y_range=self.initial_y_range,
-            x_range=self.x_range,
-            y_range=self.y_range,
+            initial_x_range=self._initial_x_range,
+            initial_y_range=self._initial_y_range,
+            x_range=self._x_range,
+            y_range=self._y_range,
             num_gradings=self.num_gradings,
             x_degree=self.x_projection,
             y_degree=self.y_projection,
@@ -185,8 +155,41 @@ class SseqChart:
 
     @staticmethod
     def from_json(json_obj : Dict[str, Any]) -> "SseqChart":
-        result = SseqChart(**json_obj)
+        result = SseqChart._from_json_helper(**json_obj)
         return result
+
+    @staticmethod
+    def _from_json_helper(
+        name : str, 
+        num_gradings : int,
+        type : str,
+        uuid : str,
+        page_list : List[Tuple[int, int]],
+        initial_x_range : Tuple[int, int],
+        initial_y_range : Tuple[int, int],
+        x_range : Tuple[int, int],
+        y_range : Tuple[int, int],
+        x_projection : Tuple[int, ...],
+        y_projection : Tuple[int, ...],
+        classes : List[ChartClass],
+        edges : List[ChartEdge]
+    )  -> "SseqChart":
+        assert type == SseqChart.__name__
+        chart = SseqChart(name, num_gradings)
+        chart._uuid = uuid
+        chart._page_list = page_list
+        chart._initial_x_range = initial_x_range
+        chart._initial_y_range = initial_y_range
+        chart._x_range = x_range
+        chart._y_range = y_range
+        chart._x_projection = x_projection
+        chart._y_projection = y_projection
+        for c in classes:
+            chart._commit_class(c)
+        for e in edges:
+            chart._commit_edge(e)
+        return chart
+        
         
     def add_class(self, *degree : int) -> ChartClass:
         """ Add a class to the spectral sequence. 
@@ -197,7 +200,8 @@ class SseqChart:
             Returns: The class added.
         """
         assert len(degree) == self.num_gradings
-        c = ChartClass(degree)
+        idx = len(self._classes_by_degree.get(degree, []))
+        c = ChartClass(degree, idx)
         self._commit_class(c)
         return c
 
@@ -211,15 +215,12 @@ class SseqChart:
         self._classes[c.uuid] = c
         if c.degree not in self._classes_by_degree:
             self._classes_by_degree[c.degree] = []
-
-        if c.idx is None:
-            c.idx = len(self._classes_by_degree[c.degree])
         self._classes_by_degree[c.degree].append(c)
 
     def add_differential(self, 
         page : int, source_arg : ChartClassArg, target_arg : ChartClassArg, 
         auto : bool = True
-    ) -> ChartEdge:
+    ) -> ChartDifferential:
         """ Add a differential.
 
             Args:
@@ -227,9 +228,8 @@ class SseqChart:
                 source_arg (ChartClassArg): The source class. Represented as either a ChartClass or a list of integers of 
                     length num_gradings or num_gradings + 1.
                 target_arg (ChartClassArg): The target class, same format as source_arg.
-                auto (bool, optional): If 'True', automatically hide source and target after page 'page',
-                        use replace to modify. If False, the edge will be added but no change will be made to the source 
-                        or target classes. Defaults to 'True'.
+                auto (bool, optional): If 'True', automatically set max_page of source and target to 'page'. 
+                    If False, the edge will be added but no change will be made to the source or target classes. Defaults to 'True'.
             
             Returns: The added differential.
         """
@@ -247,7 +247,7 @@ class SseqChart:
     def add_structline(self, source_arg : ChartClassArg, target_arg : ChartClassArg) -> ChartStructline:
         """ Add a structline. By default will appear on all pages on which both the source and target of the edge appear.
             To adjust this behavior modify the page property edge.visible. For instance, if you want to set the edge to be invisible after
-            page p, say edge.visible[p:] = False.
+            page p, say "edge.visible[p:] = False".
 
             Args:
                 source_arg (ChartClassArg): The source class. Represented as either a ChartClass or a list of integers of length num_gradings or num_gradings + 1.
@@ -262,7 +262,7 @@ class SseqChart:
         return e
 
     def add_extension(self, source_arg : ChartClassArg, target_arg : ChartClassArg) -> ChartExtension:
-        """ Add an extension. The extension will only appear on page infinity.
+        """ Add an extension. The extension will only appear on page pairs (infinity, _).
 
             Args:
                 source_arg (ChartClassArg): The source class. Represented as either a ChartClass or a list of integers of length num_gradings or num_gradings + 1.
@@ -434,7 +434,7 @@ class SseqChart:
 
     @property
     def x_min(self):
-        """ int: The minimum x view extent. This represents the minimum x value that is possible to look at with the display.
+        """ The minimum x view extent. This represents the minimum x value that is possible to look at with the display.
             The display will not zoom or scroll left of this value.
         """
         return self.x_range[0]
@@ -443,12 +443,12 @@ class SseqChart:
     def x_min(self, value : int):
         x_range = list(self.x_range)
         x_range[0] = value
-        self.x_range = tuple(x_range)
+        self._x_range = tuple(x_range)
         self._add_setting_message()
 
     @property
     def x_max(self):
-        """ int: The maximum x view extent. This represents the maximum x value that is possible to look at with the display.
+        """ The maximum x view extent. This represents the maximum x value that is possible to look at with the display.
             The display will not zoom or scroll right of this value.
         """
         return self.x_range[1]
@@ -457,12 +457,12 @@ class SseqChart:
     def x_max(self, value : int):
         x_range = list(self.x_range)
         x_range[1] = value
-        self.x_range = tuple(x_range)
+        self._x_range = tuple(x_range)
         self._add_setting_message()
 
     @property
     def y_min(self):
-        """ int: The minimum y view extent. This represents the minimum y value that is possible to look at with the display.
+        """ The minimum y view extent. This represents the minimum y value that is possible to look at with the display.
             The display will not zoom or scroll below this value.
         """
         return self.y_range[0]
@@ -471,12 +471,12 @@ class SseqChart:
     def y_min(self, value : int):
         y_range = list(self.y_range)
         y_range[0] = value
-        self.y_range = tuple(y_range)
+        self._y_range = tuple(y_range)
         self._add_setting_message()
 
     @property
     def y_max(self):
-        """ int: The maximum y view extent. This represents the maximum y value that is possible to look at with the display.
+        """ The maximum y view extent. This represents the maximum y value that is possible to look at with the display.
             The display will not zoom or scroll above this value.
         """
         return self.y_range[1]
@@ -485,13 +485,13 @@ class SseqChart:
     def y_max(self, value : int):
         y_range = list(self.y_range)
         y_range[1] = value
-        self.y_range = tuple(y_range)
+        self._y_range = tuple(y_range)
         self._add_setting_message()
 
 
     @property
     def initial_x_min(self):
-        """ int: The initial x minimum. When the display is first loaded this will be the smallest, leftmost visible x value."""        
+        """ The initial x minimum. When the display is first loaded this will be the smallest, leftmost visible x value."""        
         return self.initial_x_range[0]
 
 
@@ -499,24 +499,24 @@ class SseqChart:
     def initial_x_min(self, value : int):
         initial_x_range = list(self.initial_x_range)
         initial_x_range[0] = value
-        self.initial_x_range = tuple(initial_x_range)
+        self._initial_x_range = tuple(initial_x_range)
         self._add_setting_message()
 
     @property
     def initial_x_max(self):
-        """ int: The initial x maximum. When the display is first loaded this will be the largest, rightmost visible x value."""        
+        """ The initial x maximum. When the display is first loaded this will be the largest, rightmost visible x value."""        
         return self.initial_x_range[1]
 
     @initial_x_max.setter
     def initial_x_max(self, value : int):
         initial_x_range = list(self.initial_x_range)
         initial_x_range[1] = value
-        self.initial_x_range = tuple(initial_x_range)
+        self._initial_x_range = tuple(initial_x_range)
         self._add_setting_message()
 
     @property
     def initial_y_min(self):
-        """ int: The initial y minimum. When the display is first loaded this will be the smallest, bottommost visible y value."""        
+        """ The initial y minimum. When the display is first loaded this will be the smallest, bottommost visible y value."""        
         return self.initial_y_range[0]
 
 
@@ -524,17 +524,72 @@ class SseqChart:
     def initial_y_min(self, value : int):
         initial_y_range = list(self.initial_y_range)
         initial_y_range[0] = value
-        self.initial_y_range = tuple(initial_y_range)
+        self._initial_y_range = tuple(initial_y_range)
         self._add_setting_message()
 
     @property
     def initial_y_max(self):
-        """ int: The initial y maximum. When the display is first loaded this will be the largest, topmost visible y value."""        
+        """ The initial y maximum. When the display is first loaded this will be the largest, topmost visible y value."""        
         return self.initial_y_range[1]
 
     @initial_y_max.setter
     def initial_y_max(self, value : int):
         initial_y_range = list(self.initial_y_range)
         initial_y_range[1] = value
-        self.initial_y_range = tuple(initial_y_range)
+        self._initial_y_range = tuple(initial_y_range)
         self._add_setting_message()
+
+    @property
+    def x_projection(self):
+        """ The x projection for the spectral sequence. Each class c is displayed in x degree the dot product of c.degree and x_projection."""
+        return self._x_projection
+    
+    @x_projection.setter
+    def x_projection(self, value : Tuple[int]):
+        assert len(value) == self.num_gradings
+        self._x_projection = value
+
+    @property
+    def y_projection(self):
+        """ The y projection for the spectral sequence. Each class c is displayed in y degree the dot product of c.degree and y_projection."""
+        return self._y_projection
+    
+    @y_projection.setter
+    def y_projection(self, value : Tuple[int]):
+        assert len(value) == self.num_gradings
+        self._y_projection = value
+
+    @property
+    def uuid(self):
+        """ A unique id for the chart. For internal use. """
+        return self._uuid
+
+    @property
+    def page_list(self):
+        """ The page list for the spectral sequence. This is a list of tuple pairs (<page>, <max_differential_length>).
+            When changing the display page forward or backwards the "display page" steps through each pair in the page list.
+            On a given display page (<page>, <max_differential_length>), all of the classes and structlines will appear as if on page <page>,
+            while differentials will appear if the length of the differential is between <page> and <max_differential_length> inclusive.
+        """
+        return self._page_list
+
+    # @property
+    # def initial_x_range(self):
+    #     """ The initial x range when the display is first loaded. A tuple pair."""
+    #     return self._initial_x_range
+
+    # @property
+    # def initial_y_range(self):
+    #     """ The initial y range when the display is first loaded. A tuple pair."""
+    #     return self._initial_y_range
+
+    # @property
+    # def x_range(self):
+    #     """ The maximum x range. It is impossible to scroll the display horizontally beyond this extent."""
+    #     return self._x_range
+
+    # @property
+    # def y_range(self):
+    #     """ The maximum x range. It is impossible to scroll the display horizontally beyond this extent."""
+    #     return self._y_range
+

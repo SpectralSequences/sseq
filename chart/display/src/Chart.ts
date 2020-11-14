@@ -7,6 +7,7 @@ import { throttle } from "./utils";
 
 import {LitElement, html, css} from 'lit-element';
 
+(<any>window).shapeToGlyph = shapeToGlyph;
 (<any>window).EdgeOptions = EdgeOptions;
 (<any>window).Vec2 = Vec2;
 
