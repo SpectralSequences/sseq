@@ -43,21 +43,21 @@
                 margin-top: 2px; /* prevent it from overlapping with line */
             }
 
-            .repl-error-fade-in {
+            .repl-error-fade-in[not-visible] {
                 opacity: 0;
             }
 
-            .repl-error-fade-in[active] {
+            .repl-error-fade-in {
                 opacity: 1;
             }
 
             .repl-error[transition=show] {
-                transition : 3s ease;
+                transition : 2s ease;
             }
 
             .repl-error[transition=hide] {
-                transition : 5s ease;
-                /* transition : 0.2s ease; */
+                /* transition : 5s ease; */
+                transition : 0.2s ease;
             }
 
             .repl-error-decoration-underline {
@@ -67,7 +67,7 @@
                 height : 2px;
             }
 
-            .repl-error-decoration-text[active] {
+            .repl-error-decoration-text:not([not-visible]) {
                 color : rgb(255 198 93) !important;
                 /* margin-left : -4ch; */
             }

@@ -92,7 +92,11 @@ self.addEventListener("message", async function(e) {
         }
     }
     // executor.handle_message will look up e.data in messageLookup using uuid.
-    await self.pyodide.runPythonAsync(`executor.handle_message("${uuid}")`);
+    try {
+        await self.pyodide.runPythonAsync(`executor.handle_message("${uuid}")`);
+    } finally {
+        // pyo
+    }
 });
 
 

@@ -43,14 +43,13 @@ export class History {
         await this.databaseReady;
         let mostRecentValue = await this.getItem(this.length - 1);
         // If we use the same command twice, don't add another to history.
-        if(value === mostRecentValue){
-            return;
+        if(value !== mostRecentValue){
+            this.historyStrings[this.length] = value;
         }
-        this.historyStrings[this.length] = value;
+        this.idx = this.length;
         this.temporaryValues = [];
         this.undoStack = [];
-        this.redoStack = [];
-        this.idx = this.length;
+        this.redoStack = [];        
     }
 
     step(didx) {

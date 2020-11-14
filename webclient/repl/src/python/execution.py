@@ -150,6 +150,11 @@ class Execution:
         # we need to hand in the source string (self.code) just to check if it ends in a semicolon
         mod = Execution.adjust_ast_to_store_result(result_target, mod, self.code)
         file = '<exec>'
+        # If everything is reasonable then sys.exc_info() should be (None, None, None) here.
+        # Sometimes there is a wasm stack overflow which leaves sys.exc_info() set when it should have been cleared.
+        # Surprisingly these stack overflows don't seem to cause other harm.
+        # Store exc_info ahead of time and don't report these stale trash exceptions as part of our stack trace.
+        trash_exception = sys.exc_info()[1]
         try:
             flags = self.executor.flags
             ns = self.executor.namespace
@@ -163,7 +168,7 @@ class Execution:
                 else:
                     self.send_result(None)
         except Exception as e:
-            self.send_exception(e, file)
+            self.send_exception(e, file, trash_exception)
         except KeyboardInterrupt as e:
             self.send_keyboard_interrupt(e)
 
@@ -188,8 +193,8 @@ class Execution:
     def send_result(self, result):
         self.send_message("result", last_response=True, result=result)
 
-    def send_exception(self, e, file):
-        self.send_message("exception", last_response=True, traceback=Traceback.format_exception(e, file))
+    def send_exception(self, e, file, trash_exception):
+        self.send_message("exception", last_response=True, traceback=Traceback.format_exception(e, file, trash_exception))
 
     def send_keyboard_interrupt(self, e):
         self.send_message("keyboard_interrupt", last_response=True)

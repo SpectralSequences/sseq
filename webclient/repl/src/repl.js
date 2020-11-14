@@ -203,12 +203,12 @@ class ReplElement extends HTMLElement {
 			}
 		});
 
-		this.syntaxErrorDecorationMutationObserver = new MutationObserver(async (mutationsList) => {
-			await sleep(5);
-			for(let m of mutationsList){
-				this.updateSyntaxErrorDecorationAttributesOnElement(m.target, this.syntaxErrorDecorationAttributes);
-			}
-		})
+		// this.syntaxErrorDecorationMutationObserver = new MutationObserver(async (mutationsList) => {
+		// 	await sleep(5);
+		// 	for(let m of mutationsList){
+		// 		this.updateSyntaxErrorDecorationAttributesOnElement(m.target, this.syntaxErrorDecorationAttributes);
+		// 	}
+		// });
 	}
 
 	async connectedCallback(){
@@ -487,6 +487,25 @@ class ReplElement extends HTMLElement {
 		return !newSel || !sel.equalsSelection(newSel);
 	}
 
+	async displaySuggestDetailsInitially(){
+		if(this._displayedSuggestDetails){
+			return;
+		}
+
+		// We can toggle the suggestion details but only when the suggestWidget is open.
+		// I want them to start open I couldn't figure out a better way right now...
+		// In particular, there sadly seems to be no "showSuggestionDetails".
+		// Grepping the source shows that the suggestWidget object has a showSuggestionDetails method,
+		// I have no idea how to get a reference to the suggestWidget though.
+		this.editor.trigger("editor", "toggleSuggestionDetails");
+		this._displayedSuggestDetails = true; // set true first to hopefully prevent doubling up the toggle
+		await sleep(10);
+		// Try to check if we failed.
+		if(!this.querySelector(".suggest-widget.docs-side")){
+			this._displayedSuggestDetails = false;
+		}
+	}
+
 
 	_onkey(e){
 		// Test if completion suggestion widget is visible.
@@ -495,6 +514,7 @@ class ReplElement extends HTMLElement {
 		let elt = this.querySelector(".suggest-widget.visible");
 		let suggestWidgetVisibleQ = elt && elt.offsetHeight > 0;
 		if(suggestWidgetVisibleQ){
+			this.displaySuggestDetailsInitially();
 			if(
 				// This annoying conditional spells out which keys we want the suggestWidget to handle
 				(e.browserEvent.key !== "PageUp" || !e.browserEvent.shiftKey)
@@ -718,6 +738,7 @@ class ReplElement extends HTMLElement {
 		if(!changed){
 			return
 		}
+		this.immedateClearSyntaxError();
 		this.editor.pushUndoStop();
 		// Use a multi cursor before and after the edit operation to indicate that this is a history item
 		// change. In onDidChangeCursorSelection will check for a secondary selection and use the presence 
@@ -905,6 +926,7 @@ class ReplElement extends HTMLElement {
 			document.querySelector(".repl-error-decoration-underline"),
 			document.querySelector(".repl-error-widget"),
 		];
+		// console.log("updateSyntaxErrorDecorationAttributes state:", state, "elts:", elts);
 		for(let elt of elts){
 			if(!elt){
 				continue;
@@ -915,24 +937,38 @@ class ReplElement extends HTMLElement {
 
 	updateSyntaxErrorDecorationAttributesOnElement(elt, state){
 		for(let [k, v] of Object.entries(state)){
-			if(v === false && elt.hasAttribute(k)){
+			if((v === false || v === "false")){
 				elt.removeAttribute(k);
-			} else if(elt.getAttribute(k) !== v){
+			} else {
 				elt.setAttribute(k, v);
 			}
 		}
+	}
+
+	immedateClearSyntaxError(){
+		if(!this.syntaxErrorWidget){
+			return;
+		}		
+		this.editor.removeContentWidget(this.syntaxErrorWidget);
+		this.syntaxErrorWidget = undefined;
+		this.editor.deltaDecorations(this.decorationIds || [], []);
+		this.decorationIds = [];
 	}
 
 	async clearSyntaxError(){
 		if(!this.syntaxErrorWidget){
 			return;
 		}
-		this.syntaxErrorDecorationAttributes = { "transition" : "hide", "active" : false };
-		this.updateSyntaxErrorDecorationAttributes(this.syntaxErrorDecorationAttributes);
+		let syntaxErrorWidget = this.syntaxErrorWidget;
+		for(let i=0; i < 4; i++){
+			// This works rather inconsistently. I don't understand why.
+			// Doing it 4 times seems to work though...
+			this.updateSyntaxErrorDecorationAttributes({ "transition" : "hide", "not-visible" : true });
+			await sleep(10);
+		}
 		await promiseFromDomEvent(document.querySelector(".repl-error-widget"), "transitionend");
-		this.syntaxErrorDecorationAttributes = { "transition" : false, "active" : false };
-		this.updateSyntaxErrorDecorationAttributes(this.syntaxErrorDecorationAttributes);
-		this.editor.removeContentWidget(this.syntaxErrorWidget);
+		this.updateSyntaxErrorDecorationAttributes({ "transition" : false });
+		this.editor.removeContentWidget(syntaxErrorWidget);
 		this.editor.deltaDecorations(this.decorationIds || [], []);
 		this.decorationIds = [];
 		this.syntaxErrorWidget = undefined;
@@ -985,6 +1021,7 @@ class ReplElement extends HTMLElement {
 					this.domNode.classList.add("repl-error");
 					this.domNode.classList.add("repl-error-fade-in");
 					this.domNode.classList.add("repl-error-widget");
+					// this.domNode.setAttribute("not-visible", "");
 				}
 				return this.domNode;
 			},
@@ -999,30 +1036,14 @@ class ReplElement extends HTMLElement {
 			}
 		};
 		this.editor.addContentWidget(this.syntaxErrorWidget);
-		await sleep(10);
-		document.querySelector(".repl-error-widget")
-		// What is this supposed to do??
-		let elts = [
-			document.querySelector(".repl-error-decoration-highlight"),
-			document.querySelector(".repl-error-decoration-text"),
-			document.querySelector(".repl-error-decoration-underline"),
-		];
-		// for(let elt of elts){
-		// 	if(!elt){
-		// 		continue;
-		// 	}
-		// 	this.syntaxErrorDecorationMutationObserver.observe(
-		// 		elt,
-		// 		{ "attributeFilter" : ["transition", "active"] }
-		// 	);
-		// }
-
-
-		this.syntaxErrorDecorationAttributes = { "transition" : "show", "active" : "" };
-		this.updateSyntaxErrorDecorationAttributes(this.syntaxErrorDecorationAttributes);
+		await sleep(0);
+		// console.log(document.querySelector(".repl-error-widget"));
+		this.updateSyntaxErrorDecorationAttributes({ "not-visible" : "", "transition" : "show"});
+		await sleep(30);
+		this.updateSyntaxErrorDecorationAttributes({ "not-visible" : false, "transition" : "show"});
 		await promiseFromDomEvent(document.querySelector(".repl-error-widget"), "transitionend");
-		this.syntaxErrorDecorationAttributes = { "transition" : false, "active" : "" };
-		this.updateSyntaxErrorDecorationAttributes(this.syntaxErrorDecorationAttributes);
+		this.updateSyntaxErrorDecorationAttributes({ "not-visible" : false, "transition" : false});
+		return;
 	}
 }
 customElements.define('repl-terminal', ReplElement);
