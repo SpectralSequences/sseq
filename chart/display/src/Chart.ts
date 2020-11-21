@@ -1,4 +1,4 @@
-import { Canvas, EdgeOptions, Glyph, GlyphBuilder, GlyphInstance, JsPoint as Vec2, Vec4 as RustColor, Vec4 } from "./display_backend/pkg/sseq_display_backend";
+import { Canvas, EdgeOptions, Glyph, GlyphBuilder, GlyphInstance, JsPoint as Vec2, Vec4 as RustColor, Vec4, Arrow } from "./display_backend/pkg/sseq_display_backend";
 import { Shape, ChartClass, SpectralSequenceChart, INFINITY } from "./chart/lib";
 // import { assert } from "console";
 import { shapeToGlyph } from "./ShapeToGlyph"
@@ -18,8 +18,6 @@ interface Touch {
     touchCount : number;
     time : number;
 }
-
-
 
 function getTouchesInfo(touchEvent : TouchEvent) : Touch {
     let touches = Array.from(touchEvent.touches);
@@ -75,6 +73,7 @@ export class ChartElement extends LitElement {
     _mouseDown : boolean = false;
     _glyph_scale : number = 0;
     shape_to_glyph : Map<string, Glyph> = new Map();
+    arrow_tip_cache : Map<string, Arrow> = new Map();
     class_to_glyph_instance : Map<ChartClass, GlyphInstance> = new Map();
     glyph_instance_index_to_class : ChartClass[] = [];
     mouseover_class? : ChartClass;
@@ -268,6 +267,7 @@ export class ChartElement extends LitElement {
             let type;
             if(averageDistance !== 0 && previous.averageDistance !== 0) {
                 this._canvas!.scale_around(averageDistance / previous.averageDistance, new Vec2(previous.centerX, previous.centerY));
+                this._canvas!.translate(new Vec2(centerX - previous.centerX, centerY - previous.centerY));
                 this._requestScaleUpdateZoom();
             } else {
                 this._canvas!.translate(new Vec2(centerX - previous.centerX, centerY - previous.centerY));
@@ -457,7 +457,7 @@ export class ChartElement extends LitElement {
         this.pageRange = this.sseq.page_list[this.page_idx];
         this.page = this.pageRange[0];
 
-        this._updateChart();
+        this.updateChart();
         this.dispatchCustomEvent("page-change", {page : this.page, pageRange : this.pageRange, idx : this.page_idx });
     }
 
@@ -472,6 +472,45 @@ export class ChartElement extends LitElement {
 
     setSseq(sseq : SpectralSequenceChart){
         this.sseq = sseq;
+    }
+
+    handleMessage(message : any){
+        if(!message.cmd.startsWith("chart.")){
+            console.error("Message with unrecognized command:", message);
+            throw Error("Message has command that doesn't begin with 'chart.'");
+        }
+        switch(message.cmd){
+            case "chart.state.initialize":
+                this.initializeSseq(message.kwargs.state);
+                return;            
+            case "chart.state.reset":
+                this.setSseq(message.kwargs.state);
+                this.updateChart();
+                return;
+            case "chart.update":
+                if(!this.sseq){
+                    throw Error("Asked to update sseq but sseq is null.");
+                }
+                for(let update of message.kwargs.messages){
+                    this.sseq.handleMessage(update);
+                }
+                this.updateChart();
+                return
+        }
+        console.error("Message with unrecognized command:", message);
+        throw Error(`Unrecognized command ${message.cmd}`);
+    }
+
+
+    initializeSseq(sseq : SpectralSequenceChart){
+        this.setSseq(sseq);
+        this.setInitialRange();
+        this.updateChart();
+    }
+
+    setInitialRange(){
+        this._canvas!.set_current_xrange(this.sseq!.initial_x_range[0], this.sseq!.initial_x_range[1]);
+        this._canvas!.set_current_yrange(this.sseq!.initial_y_range[0], this.sseq!.initial_y_range[1]);
         this.setPage(0);
     }
 
@@ -484,6 +523,17 @@ export class ChartElement extends LitElement {
         let glyph = shapeToGlyph(shape, tolerance, line_width);
         this.shape_to_glyph.set(key, glyph);
         return glyph;
+    }
+
+    getArrowTip(arrow_spec : object) : Arrow {
+        let key = "key";
+        let cached = this.arrow_tip_cache.get(key);
+        if(cached){
+            return cached;
+        }
+        let arrow = Arrow.normal_arrow(2, true, true, false, false);
+        this.arrow_tip_cache.set(key, arrow);
+        return arrow;
     }
     
     // getNodeGlyphAndColors(node : Node) : GlyphAndColors {
@@ -529,13 +579,15 @@ export class ChartElement extends LitElement {
         if(!glyph_instance){
             return;
         }
-        return glyph_instance.outer_radius() * this._glyph_scale * 100.0;
+        return glyph_instance.outer_radius() * this._glyph_scale * c.scale[this.page] * 2/** 100.0*/;
     }
 
-    _updateChart(){
+    updateChart(){
         if(!this.sseq){
             return;
         }
+        this._canvas!.set_max_xrange(this.sseq.x_range[0], this.sseq.x_range[1]);
+        this._canvas!.set_max_yrange(this.sseq.y_range[0], this.sseq.y_range[1]);
         this._canvas!.clear();
         let idx = -1;
         for(let c of this.sseq.classes.values()){
@@ -546,8 +598,8 @@ export class ChartElement extends LitElement {
             let tolerance = 0.1;
             let position = new Vec2(c.x!, c.y!);
             let offset = new Vec2(c.getXOffset(this.page), c.getYOffset(this.page));
-            let border_thickness = c.border_thickness[this.page];
-            let glyph = this.getShapeGlyph(c.shape[this.page], tolerance, border_thickness);
+            let border_width = c.border_width[this.page];
+            let glyph = this.getShapeGlyph(c.shape[this.page], tolerance, border_width);
             let background_color : Color = c.background_color[this.page];
             let border_color : Color = c.border_color[this.page];
             let foreground_color : Color = c.foreground_color[this.page];
@@ -571,6 +623,14 @@ export class ChartElement extends LitElement {
             options.set_thickness(line_width);
             options.set_dash_pattern(new Uint8Array(dash_pattern));
             options.set_color(new Vec4(...color));
+            if(start_tip){
+                let arrow = this.getArrowTip(start_tip);
+                options.set_start_tip(arrow);
+            }
+            if(end_tip){
+                let arrow = this.getArrowTip(end_tip);
+                options.set_end_tip(arrow);
+            }
             this._canvas!.add_edge(start_glyph, end_glyph, options);
         }
         this._requestRedraw();

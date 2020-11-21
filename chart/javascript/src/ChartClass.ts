@@ -27,13 +27,12 @@ export interface ChartClassConstructorArgs {
     shape? : PagePropertyOrValue<Shape>; // = "default";
     background_color? : PagePropertyOrValue<Color>; // = "default";
     border_color? : PagePropertyOrValue<Color>; // = "default";
-    border_thickness : PagePropertyOrValue<number>;
+    border_width : PagePropertyOrValue<number>;
     foreground_color? : PagePropertyOrValue<Color>; // = "default";
     scale? : PagePropertyOrValue<number>; // = 1;
     visible? : PagePropertyOrValue<boolean>; // = true;
     x_nudge? : PagePropertyOrValue<number>; // = 0,
     y_nudge? : PagePropertyOrValue<number>; // = 0,
-    dom_content? : Map<string, PagePropertyOrValue<string>>;
     user_data? : Map<string, any>;
 }
 
@@ -54,11 +53,10 @@ export class ChartClass {
     shape : PageProperty<Shape>;
     background_color : PageProperty<Color>; // = "default";
     border_color : PageProperty<Color>; // = "default";
-    border_thickness : PageProperty<number>;
+    border_width : PageProperty<number>;
     foreground_color : PageProperty<Color>; // = "default";    
     _canvas_x? : number;
     _canvas_y? : number;
-    dom_content : Map<string, any>;
     user_data : Map<string, any>;
     edges : Set<ChartEdge> = new Set();
     extra_tooltip? : string;
@@ -79,13 +77,12 @@ export class ChartClass {
         this.shape = initialPagePropertyValue(kwargs.shape, { ty : "empty" }, "shape", errorContext);
         this.background_color = initialPagePropertyValue(kwargs.background_color, [0, 0, 0, 1], "shape", errorContext);
         this.border_color = initialPagePropertyValue(kwargs.border_color, [0, 0, 0, 1], "shape", errorContext);
-        this.border_thickness = initialPagePropertyValue(kwargs.border_thickness, 3, "shape", errorContext);
+        this.border_width = initialPagePropertyValue(kwargs.border_width, 3, "shape", errorContext);
         this.foreground_color = initialPagePropertyValue(kwargs.foreground_color, [0, 0, 0, 1], "shape", errorContext);
         this.scale = initialPagePropertyValue(kwargs.scale, 1, "scale", errorContext);
         this.visible = initialPagePropertyValue(kwargs.visible, true, "visible", errorContext);
         this.x_nudge = initialPagePropertyValue(kwargs.x_nudge, 0, "x_nudge", errorContext);
         this.y_nudge = initialPagePropertyValue(kwargs.y_nudge, 0, "y_nudge", errorContext);
-        this.dom_content = kwargs.dom_content || new Map();
         this.user_data = kwargs.user_data || new Map();
     }
 
@@ -139,8 +136,8 @@ export class ChartClass {
         if(kwargs.border_color){
             this.border_color = pagePropertyOrValueToPageProperty(kwargs.border_color);
         }
-        if(kwargs.border_thickness){
-            this.border_thickness = pagePropertyOrValueToPageProperty(kwargs.border_thickness);
+        if(kwargs.border_width){
+            this.border_width = pagePropertyOrValueToPageProperty(kwargs.border_width);
         }
         if(kwargs.foreground_color){
             this.foreground_color = pagePropertyOrValueToPageProperty(kwargs.foreground_color);
@@ -157,9 +154,6 @@ export class ChartClass {
         }
         if(kwargs.y_nudge){
             this.y_nudge = pagePropertyOrValueToPageProperty(kwargs.y_nudge);
-        }
-        if(kwargs.dom_content){
-            this.dom_content = kwargs.dom_content;
         }
         if(kwargs.user_data){
             this.user_data = kwargs.user_data;
@@ -184,13 +178,12 @@ export class ChartClass {
             shape : this.shape,
             background_color : this.background_color,
             border_color : this.border_color,
-            border_thickness : this.border_thickness,
+            border_width : this.border_width,
             foreground_color : this.foreground_color,
             scale : this.scale,
             visible : this.visible,
             x_nudge : this.x_nudge,
             y_nudge : this.y_nudge,
-            dom_content : this.dom_content,
             user_data : this.user_data
         };
     }

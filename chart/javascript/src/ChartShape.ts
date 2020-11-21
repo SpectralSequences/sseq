@@ -5,6 +5,7 @@ interface CharacterShape {
     ty: "character";
     font : string;
     char : string;
+    scale? : number;
     whole_shape : boolean;
 }
 

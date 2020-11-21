@@ -151,6 +151,14 @@ export class ChartStructline extends ChartEdge {
             this.visible = pagePropertyOrValueToPageProperty(kwargs.visible);
         }
 
+        if(kwargs.start_tip){
+            this.start_tip = pagePropertyOrValueToPageProperty(kwargs.start_tip);
+        }
+
+        if(kwargs.end_tip){
+            this.end_tip = pagePropertyOrValueToPageProperty(kwargs.end_tip);
+        }
+
         if(kwargs.color){
             this.color = pagePropertyOrValueToPageProperty(kwargs.color);
         }
@@ -166,7 +174,7 @@ export class ChartStructline extends ChartEdge {
     }
 
     drawOnPageQ(pageRange : [number, number]) : boolean {
-        return this.visible[pageRange[0]];
+        return this.visible[pageRange[0]] && this.source!.drawOnPageQ(pageRange[0]) && this.target!.drawOnPageQ(pageRange[0]);
     }
 
     getEdgeStyle(page : number) : EdgeStyle {
@@ -237,7 +245,14 @@ abstract class SinglePageChartEdge extends ChartEdge {
         }
         if(kwargs.bend){
             this.bend = kwargs.bend;
-        }      
+        }
+        if(kwargs.start_tip){
+            this.start_tip = kwargs.start_tip;
+        }
+
+        if(kwargs.end_tip){
+            this.end_tip = kwargs.end_tip;
+        }        
     }
 
 

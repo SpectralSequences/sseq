@@ -83,6 +83,12 @@ function getJsonTypes(){
     ]){
         jsonTypes.set(t.name, t);
     }
+    let trivialDeserializer = { fromJSON : (walker : Walker, obj : object) => { delete obj["type"]; return obj }};
+    jsonTypes.set("ArrowTip", trivialDeserializer);
+    jsonTypes.set("Shape", trivialDeserializer);
+    jsonTypes.set("SignalDict", trivialDeserializer);
+    jsonTypes.set("SignalList", { fromJSON : (walker : Walker, obj : object) => obj["list"] });
+    jsonTypes.set("Color", { fromJSON : (walker : Walker, obj : object) => obj["color"] });
     return jsonTypes;
 }
 

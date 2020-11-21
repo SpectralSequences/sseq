@@ -74,7 +74,7 @@ interface Events {
 
 
 export class SseqChart extends EventEmitter<Events> {
-    readonly name : string = "";
+    name : string = "";
     readonly uuid : string;
     page_list : [number, number][] = [[2, 2], [INFINITY, INFINITY]];
     initial_x_range : [number, number] = [0, 10];
@@ -101,16 +101,44 @@ export class SseqChart extends EventEmitter<Events> {
 
     static charts : Map<string, SseqChart> = new Map();
 
-    constructor(kwargs? : any) {
+    constructor(name : string, num_gradings : number, uuid? : string) {
         super();
-        this.uuid = uuidv4();
+        // assert num_gradings >= 2;
+        this.name = name;
+        this.uuid = uuid ? uuid : uuidv4();
         SseqChart.charts.set(this.uuid, this);
-        if(kwargs.name){
-            this.name = kwargs.name;
-        }
-        if(kwargs.offset_size){
-            this.offset_size = kwargs.offset_size;
-        }
+        this.page_list = [[2, INFINITY], [INFINITY, INFINITY]];
+        this.initial_x_range = [0, 10];
+        this.initial_y_range = [0, 10];
+        this.x_range = [0, 10];
+        this.y_range = [0, 10];
+        this.classes = new Map();
+        this.edges = new Map();
+        this.x_projection = [1, 0].concat(Array(num_gradings - 2).fill(0));
+        this.y_projection = [0, 1].concat(Array(num_gradings - 2).fill(0));
+    }
+
+    static visit(walker : Walker, obj : any) {
+        walker.visitChildren(obj);
+    }
+
+    static fromJSON(walker : Walker, json : any) : any {   
+        let chart = new SseqChart(json.name, json.num_gradings, json.uuid);
+        chart._fromJSONHelper(json);
+        return chart;
+    }
+
+    _fromJSONHelper(kwargs : any){
+        this.page_list = kwargs.page_list;
+        this.name = kwargs.name;
+        this.initial_x_range = kwargs.initial_x_range;
+        this.initial_y_range = kwargs.initial_y_range;
+        this.x_range = kwargs.x_range;
+        this.y_range = kwargs.y_range;
+        this.x_projection = kwargs.x_projection;
+        this.y_projection = kwargs.y_projection;
+
+        // this.offset_size = kwargs.offset_size;
         // if(kwargs.min_class_size){
         //     this.min_class_size = kwargs.min_class_size;
         // }
@@ -121,42 +149,13 @@ export class SseqChart extends EventEmitter<Events> {
         //     this.highlightScale = kwargs.highlightScale;
         // }
 
-        if(kwargs.initial_x_range){
-            this.initial_x_range = kwargs.initial_x_range;
-        }
-        if(kwargs.initial_y_range){
-            this.initial_y_range = kwargs.initial_y_range;
-        }
-        if(kwargs.x_range){
-            this.x_range = kwargs.x_range;
-        }
-        if(kwargs.y_range){
-            this.y_range = kwargs.y_range;
-        }
-        if(kwargs.page_list){
-            this.page_list = kwargs.page_list;
-        }
-        if(kwargs.num_gradings){
-            this.num_gradings = kwargs.num_gradings;
-        }
-        if(kwargs.classes){
-            for(let c of kwargs.classes){
-                this._commit_class(c);
-            }
-        }
-        if(kwargs.edges){
-            for(let c of kwargs.edges){
-                this._commit_edge(c);
-            }
-        }        
-    }
 
-    static visit(walker : Walker, obj : any) {
-        walker.visitChildren(obj);
-    }
-
-    static fromJSON(walker : Walker, json : any) : any {   
-        return new SseqChart(json);
+        for(let c of kwargs.classes){
+            this._commit_class(c);
+        }
+        for(let c of kwargs.edges){
+            this._commit_edge(c);
+        }
     }
 
     classes_in_degree(...args : number[]) : ChartClass[] {
@@ -314,6 +313,10 @@ export class SseqChart extends EventEmitter<Events> {
         }
     }
 
+    update(msg : MessageUpdateGlobal){
+        Object.assign(this, msg.target_fields);
+    }
+
     handleMessage(msg : Message){
         switch(msg.command){
             case "create":
@@ -332,7 +335,7 @@ export class SseqChart extends EventEmitter<Events> {
                 }
             case "update": {
                 if(msg.target_type === "SseqChart"){
-                    Object.assign(this, msg);
+                    this.update(msg);
                     return;
                 }
                 const target = this.objects.get(msg.update_fields.uuid);

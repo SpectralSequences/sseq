@@ -1,5 +1,6 @@
 import {LitElement, html, css} from 'lit-element';
 import { promiseFromDomEvent, findAncestorElement } from "./utils.js";
+import { renderLatex } from "./latex.js";
 
 const MARGIN = 10;
 
@@ -88,7 +89,7 @@ export class TooltipElement extends LitElement {
         this.cls = cls;
         let sseq = this.disp.sseq;
         let page = this.disp.page;
-        this.setHTML(sseq.getClassTooltip(cls, page));
+        this.setHTML(renderLatex(sseq.getClassTooltip(cls, page)));
         this.show();
     }
 
