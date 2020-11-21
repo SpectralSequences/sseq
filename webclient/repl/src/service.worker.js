@@ -4,12 +4,14 @@ import Mustache from "mustache";
 // import nonexistent_chart_html from 'raw-loader!./charts/nonexistent-chart.html';
 // import chart_html from 'raw-loader!./charts/chart.html';
 
+
 console.log("prefix:", self.location.pathname.split("/").slice(0,-1).join("/"));
 const app = new Swork();
 const router = new Router({
     // /blah/blah/service_worker.bundle.js ==> /blah/blah
     prefix: self.location.pathname.split("/").slice(0,-1).join("/")
 });
+
 
 const repls = {};
 const charts = {};
@@ -106,7 +108,17 @@ router.get("/charts/:name", async (context) => {
     );
 });
 
-app.on("message", handleMessage)
+app.on("install", () => {
+    console.log("skipWaiting");
+    self.skipWaiting();
+});
+
+app.on("activate", async () => {
+    console.log("claim");
+    await clients.claim();
+});
+
+app.on("message", handleMessage);
 app.use(router.routes());
 app.listen();
 
