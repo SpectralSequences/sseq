@@ -1,11 +1,11 @@
 import setuptools
-
+from spectralsequence_chart import __version__
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="spectralsequence_chart",
-    version="0.0.5",
+    version=__version__,
     author="Hood Chatham",
     author_email="roberthoodchatham@gmail.com",
     description="A Python implementation of the spectral sequences chart API",

@@ -1,4 +1,4 @@
-from ..infinity import INFINITY
+from .infinity import INFINITY
 import json
 from typing import List, Tuple, Any, Union, TypeVar, Generic, Optional, Dict, cast, Callable
 
@@ -16,10 +16,10 @@ class PageProperty(Generic[T]):
     ):
         """ Initialize the PageProperty to always have value v."""
         self._values : List[Tuple[int, T]] = [(-INFINITY, value)]
-        self._set_parent(parent)
+        self.set_parent(parent)
         self._callback = callback
 
-    def _set_parent(self, parent : Optional[Any]):
+    def set_parent(self, parent : Optional[Any]):
         self._parent = parent
     
     def _needs_update(self):
@@ -50,6 +50,8 @@ class PageProperty(Generic[T]):
 
 
     def __setitem__(self, p : Union[int, slice], v : T) -> None:
+        if hasattr(v, "set_parent"):
+            v.set_parent(self)
         if type(p) is int:
             self._setitem_single(p, v)
             self._merge_redundant()
@@ -93,12 +95,15 @@ class PageProperty(Generic[T]):
         return self._values == other._values
 
     def to_json(self) -> Dict[str, Any]:
-        return {"type" : "PageProperty", "values" : self._values }
+        if len(self._values) == 1:
+            return self._values[0][1]
+        else:
+            return {"type" : "PageProperty", "values" : self._values }
     
     @staticmethod
     def from_json(json_obj : Dict[str, Any]) -> "PageProperty[Any]":
         result : PageProperty[Any] = PageProperty(None)
-        result._values = [cast(Tuple[int, Any], tuple(x)) for x in json_obj["data"]]
+        result._values = [cast(Tuple[int, Any], tuple(x)) for x in json_obj["values"]]
         return result
 
 S = TypeVar('S')
@@ -110,5 +115,5 @@ def ensure_page_property(v : PagePropertyOrValue[S], parent : Optional[Any] = No
     else:
         result = PageProperty(v)
     if parent:
-        result._set_parent(parent)
+        result.set_parent(parent)
     return result

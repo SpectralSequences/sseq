@@ -1,5 +1,6 @@
 import json
-from typing import Tuple, Any, Dict, Union, cast, Protocol
+from typing import Tuple, Any, Dict, Union, cast #, Protocol 
+# Protocol absent from Python 3.6, comment out until I figure out how to get sphinx to use python 3.8
 
 def stringifier(obj : Any) -> Union[str, Dict[str, Any]]:
     if hasattr(obj, "to_json"):
@@ -10,7 +11,7 @@ def stringifier(obj : Any) -> Union[str, Dict[str, Any]]:
         return str(obj)
 
 # To make typechecker happy...
-class Serializable(Protocol):
+class Serializable: #(Protocol):
     @staticmethod
     def from_json(json : Dict[str, Any]):
         return Serializable()
@@ -39,13 +40,19 @@ class JSON:
     def ensure_types_are_initialized():
         if hasattr(JSON, "types"):
             return
-        from .chart import (SseqChart, ChartClass, ChartStructline, ChartDifferential, ChartExtension)
-        from .helper_classes import PageProperty
+        from .chart import SseqChart 
+        from .chart_class import (ChartClass, ChartClassStyle)
+        from .chart_edge import (
+            ChartEdgeStyle, ChartStructline, ChartDifferential, ChartExtension
+        )
+        from .display_primitives import (
+            ArrowTip, Color, Shape
+        )
+        from .page_property import PageProperty
         JSON.types = { t.__name__ : cast(Serializable, t) for t in [
             SseqChart,
-            ChartClass, ChartStructline, ChartDifferential, ChartExtension,
+            ChartClass, ChartClassStyle,
+            ChartEdgeStyle, ChartStructline, ChartDifferential, ChartExtension,
+            ArrowTip, Color, Shape,
             PageProperty
         ]}
-
-def arguments(*args : Any, **kwargs : Any) -> Tuple[Tuple, Dict[str, Any]]:
-    return (args, kwargs)
