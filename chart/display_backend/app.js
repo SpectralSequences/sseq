@@ -191,7 +191,7 @@ export class App {
         this._mouseDown = true;
         this._previousMouseX = x;
         this._previousMouseY = y;
-        console.log(this._canvas.object_underneath_pixel(new Vec2(x, y)));
+        // console.log(this._canvas.object_underneath_pixel(new Vec2(x, y)));
     }
     
     handleMouseMove(event) {
