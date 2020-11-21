@@ -91,7 +91,8 @@ class ReplElement extends HTMLElement {
 	}
 
 	get lineHeight(){
-		return Number(this.querySelector(".view-line").style.height.slice(0,-2));
+		let elt = this.querySelector(".view-line");
+		return elt && Number(elt.style.height.slice(0,-2));
 	}
 
 	get screenHeight(){
@@ -151,9 +152,6 @@ class ReplElement extends HTMLElement {
 		this._visible = true;
 		this.editorOptions = Object.assign(ReplElement.defaultEditorOptions, options);
 		this.readOnlyLines = 1;
-		this.executor = new PythonExecutor();
-		this.jedi_history = this.executor.new_completer();
-		this.jedi_value = this.executor.new_completer();
 		updatePythonLanguageDefinition(monaco, this);
         this.history = new History();
 		this.historyIdx = this.history.length || 0;
@@ -222,7 +220,7 @@ class ReplElement extends HTMLElement {
 		this.dummyTextArea.style.position = "absolute";
 		this.dummyTextArea.style.opacity = 0;
 		
-		this.appendChild(this.dummyTextArea);
+		this.appendChild(this.dummyTextArea); // preventKeyEvent uses this text area 
 		let div = document.createElement("div");
 		this.overflowMutationObserver.observe(div, {"childList" : true, "subtree" : true});
         div.className = "root";
@@ -248,13 +246,26 @@ class ReplElement extends HTMLElement {
 
 		await sleep(10);
 		this.querySelector(".decorationsOverviewRuler").remove();
+		this.showSuggestDetails();
 		this.readOnly = true;
 		this._displayLoadingPrompt();
+		this.start();
+	}
+
+	async start(){
 		try {
+			if(navigator.serviceWorker.controller === null){
+				await new Promise(resolve => navigator.serviceWorker.oncontrollerchange = resolve );
+			}
+			// await navigator.serviceWorker.ready;
+			this.executor = new PythonExecutor();
+			this.jedi_history = this.executor.new_completer();
+			this.jedi_value = this.executor.new_completer();			
 			await this.executor.ready();
 			this._loaded();
 		} catch(e){
 			this._loadingFailed(e);
+			throw e;
 		}
 	}
 
@@ -498,33 +509,10 @@ class ReplElement extends HTMLElement {
 		return !newSel || !sel.equalsSelection(newSel);
 	}
 
-	// async toggleSuggestDetails(){
-	// 	this.editor.trigger("editor", "editor.action.triggerSuggest");
-	// 	await sleep(0);
-	// 	this.editor.trigger("editor", "toggleSuggestionDetails");
-	// 	await sleep(0);
-	// 	this.editor.trigger("editor", "editor.action.hideSuggestWidget");
-	// }
-
-	async displaySuggestDetailsInitially(){
-		if(this._displayedSuggestDetails){
-			return;
-		}
-
-		// We can toggle the suggestion details but only when the suggestWidget is open.
-		// I want them to start open I couldn't figure out a better way right now...
-		// In particular, there sadly seems to be no "showSuggestionDetails".
-		// Grepping the source shows that the suggestWidget object has a showSuggestionDetails method,
-		// I have no idea how to get a reference to the suggestWidget though.
-		this.editor.trigger("editor", "toggleSuggestionDetails");
-		this._displayedSuggestDetails = true; // set true first to hopefully prevent doubling up the toggle
-		await sleep(10);
-		// Try to check if we failed.
-		if(!this.querySelector(".suggest-widget.docs-side")){
-			this._displayedSuggestDetails = false;
-		}
+	showSuggestDetails(){
+		let widget = this.editor.getContribution("editor.contrib.suggestController").widget.getValue();
+		widget.updateExpandDocsSetting(true);
 	}
-
 
 	_onkey(e){
 		// Test if completion suggestion widget is visible.
@@ -533,7 +521,6 @@ class ReplElement extends HTMLElement {
 		let elt = this.querySelector(".suggest-widget.visible");
 		let suggestWidgetVisibleQ = elt && elt.offsetHeight > 0;
 		if(suggestWidgetVisibleQ){
-			this.displaySuggestDetailsInitially();
 			if(
 				// This annoying conditional spells out which keys we want the suggestWidget to handle
 				(e.browserEvent.key !== "PageUp" || !e.browserEvent.shiftKey)
