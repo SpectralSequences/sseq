@@ -67,17 +67,17 @@ impl EdgeOptions {
         self.color = color;
     }
 
-    pub fn set_tips(&mut self, arrow : Arrow) {
+    pub fn set_tips(&mut self, arrow : &Arrow) {
         self.start_tip = Some(arrow.clone());
-        self.end_tip = Some(arrow);
+        self.end_tip = Some(arrow.clone());
     }
 
-    pub fn set_start_tip(&mut self, arrow : Arrow) {
-        self.start_tip = Some(arrow);
+    pub fn set_start_tip(&mut self, arrow : &Arrow) {
+        self.start_tip = Some(arrow.clone());
     }
 
-    pub fn set_end_tip(&mut self, arrow : Arrow) {
-        self.end_tip = Some(arrow);
+    pub fn set_end_tip(&mut self, arrow : &Arrow) {
+        self.end_tip = Some(arrow.clone());
     }
 
     pub fn no_tips(&mut self) {
