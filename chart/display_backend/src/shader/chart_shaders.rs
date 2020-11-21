@@ -26,6 +26,8 @@ struct UniformBufferData {
     origin : Point,
     scale : Vector,
     glyph_scale : f32,
+    // We have to be aligned to a multiple of 4 floats. This padding brings us up to 20.
+    padding : [f32 ; 3] 
 }
 
 impl From<CoordinateSystem> for UniformBufferData {
@@ -39,7 +41,8 @@ impl From<CoordinateSystem> for UniformBufferData {
             ],
             origin : c.origin,
             scale : c.scale,
-            glyph_scale : c.glyph_scale
+            glyph_scale : c.glyph_scale,
+            padding : [0.0, 0.0, 0.0]
         }
     }
 }
