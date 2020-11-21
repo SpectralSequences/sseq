@@ -145,6 +145,7 @@ async function passChartChannelToPyodide(event){
     event.data.client_id = event.source.id;
     let owningClient = await get_owning_client(chart_name);
     console.log(`Owning client Id : ${owningClient.id}`);
+    console.log(repls);
     let repl_port = repls[owningClient.id];
     repl_port.postMessage(event.data, [port]);
 }

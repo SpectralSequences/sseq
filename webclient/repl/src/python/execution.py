@@ -12,23 +12,7 @@ from .write_stream import WriteStream
 
 from js import console, is_promise
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
-import crappy_multitasking as crappy_multitasking_module
-
-
-@contextmanager
-def crappy_multitasking(callback, interval):
-    """ Executes callback every interval many opcodes of Python bytecode. Uses tracing machinery. 
-        We're going to use this to handle user interrupts.
-    """
-    crappy_multitasking_module.set_interval(interval)
-    crappy_multitasking_module.start(callback)
-    # Oh god does this try yield finally pass bullshit do anything? 
-    # TODO: demystify.
-    try:
-        yield
-    finally:
-        pass
-        crappy_multitasking_module.end()
+from .crappy_multitasking import crappy_multitasking
 
 def firstlinelen(s):
     res = s.find("\n") 

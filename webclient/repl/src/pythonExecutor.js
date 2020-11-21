@@ -3,6 +3,14 @@ import { v4 as uuid4 } from "uuid";
 import { sleep } from "./utils";
 import { EventEmitter } from "eventemitter3";
 
+function createInterruptBuffer(){
+    if(window.SharedArrayBuffer){
+        return new Int32Array(new SharedArrayBuffer(4))
+    } else {
+        return new Int32Array(new ArrayBuffer(4));
+    }
+}
+
 export class PythonExecutor {
     constructor(){
         this.executions = {};
@@ -86,7 +94,7 @@ export class PythonExecutor {
 
 
     execute(code){
-        const interrupt_buffer = new Int32Array(new SharedArrayBuffer(4));
+        const interrupt_buffer = createInterruptBuffer();
         const uuid = uuid4();
         const execution = new Execution(interrupt_buffer);
         this.executions[uuid] = execution;
@@ -173,7 +181,7 @@ export class Completer extends EventEmitter {
         this.executor = executor;
         this.uuid = uuid;
         this.responses = {};
-        for(let cmd of ["completions", "completion_detail"]){
+        for(let cmd of ["signatures", "completions", "completion_detail"]){
             this._attachResponseHandler(cmd);
         }
     }
@@ -191,30 +199,45 @@ export class Completer extends EventEmitter {
         });
     }
 
+    _getResponsePromise(cmd){
+        let subuuid = uuid4();
+        return [subuuid, new Promise((resolve, reject) => 
+            this.responses[subuuid] = {resolve, reject, cmd }
+        )];
+    }
+
     _postMessage(subcmd, msg){
         Object.assign(msg, {subcmd});
         this.executor._postMessage("complete", this.uuid, msg);
     }
 
-    async getCompletions(code, position){
-        let subuuid = uuid4();
-        let response_promise = new Promise((resolve, reject) => 
-            this.responses[subuuid] = {resolve, reject, cmd : "completions"}
-        );
+    async getSignatures(code, position, cancellation_token){
+        let [subuuid, response_promise] = this._getResponsePromise("signatures");
         let {lineNumber, column} = position;
-        this._postMessage("completions", { subuuid, code, lineNumber, column });
-        let response = await response_promise;
-        return [response.state_id, response.completions];
+        let interrupt_buffer = createInterruptBuffer();
+        cancellation_token.onCancellationRequested(() => {interrupt_buffer[0] = 2});
+        this._postMessage("signatures", { subuuid, interrupt_buffer, code, lineNumber, column });
+        let { signatures } = await response_promise;
+        return signatures
     }
 
-    async getCompletionInfo(state_id, idx){
-        let subuuid = uuid4();
-        let response_promise = new Promise((resolve, reject) => 
-            this.responses[subuuid] = {resolve, reject, cmd : "completion_detail"}
-        );
-        this._postMessage("completion_detail", { subuuid, idx, state_id });
-        let {docstring, signature} = await response_promise;
-        return {docstring, signature};
+    async getCompletions(code, position, cancellation_token){
+        let [subuuid, response_promise] = this._getResponsePromise("completions");
+        let interrupt_buffer = createInterruptBuffer();
+        cancellation_token.onCancellationRequested(() => {interrupt_buffer[0] = 2});
+        let {lineNumber, column} = position;
+        this._postMessage("completions", { subuuid,  interrupt_buffer, code, lineNumber, column });
+        let {state_id, completions} = await response_promise;
+        return [state_id, completions];
+    }
+
+    async getCompletionInfo(state_id, idx, cancellation_token){
+        let [subuuid, response_promise] = this._getResponsePromise("completion_detail");
+        let interrupt_buffer = createInterruptBuffer();
+        cancellation_token.onCancellationRequested(() => {interrupt_buffer[0] = 2});
+        this._postMessage("completion_detail", { subuuid, interrupt_buffer, idx, state_id });
+        let {docstring, signature, full_name, root} = await response_promise;
+        return {docstring, signature, full_name, root};
     }
 
     close(){

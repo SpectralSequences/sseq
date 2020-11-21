@@ -4,6 +4,7 @@ import { sleep } from './utils';
 import { PythonExecutor } from "./pythonExecutor";
 import { History } from "./history";
 import { promiseFromDomEvent } from "./utils"
+import { v4 as uuidv4 } from "uuid";
 
 class ReplElement extends HTMLElement {
 	static get defaultEditorOptions(){
@@ -234,6 +235,16 @@ class ReplElement extends HTMLElement {
             this.querySelector(".root"),
             this.editorOptions
 		);
+
+		// Links in the "suggest widget" put their target in the data-href attribute.
+		// If we click on one of those links, we want to go to url in the data-href.
+		// Make sure to do mousedown event and not just click in case they use some other mouse button.
+		this.addEventListener("mousedown", (e) => {
+			let element = e.target;
+			if (element.matches("a[data-href]")) {
+				element.href = element.getAttribute("data-href");
+			}
+		});
 
 		await sleep(10);
 		this.querySelector(".decorationsOverviewRuler").remove();
@@ -487,6 +498,14 @@ class ReplElement extends HTMLElement {
 		return !newSel || !sel.equalsSelection(newSel);
 	}
 
+	// async toggleSuggestDetails(){
+	// 	this.editor.trigger("editor", "editor.action.triggerSuggest");
+	// 	await sleep(0);
+	// 	this.editor.trigger("editor", "toggleSuggestionDetails");
+	// 	await sleep(0);
+	// 	this.editor.trigger("editor", "editor.action.hideSuggestWidget");
+	// }
+
 	async displaySuggestDetailsInitially(){
 		if(this._displayedSuggestDetails){
 			return;
@@ -556,11 +575,26 @@ class ReplElement extends HTMLElement {
 			this.preventKeyEvent();
 			return;
 		}
+		if(e.browserEvent.key === "Tab" && !e.browserEvent.shiftKey){
+			this._onTab();
+			return;
+		}
 		this.enforceReadOnlyRegion(e);
 		if(e.browserEvent.key === "Escape"){
 			if(this.currentExecution){
 				this.currentExecution.keyboardInterrupt();
 			}
+		}
+
+		if([",", "("].includes(e.browserEvent.key)) {
+			if(e.browserEvent.key === "(" && !this.editor.getSelection().isEmpty()){
+				return;
+			}
+			// If the suggest widget is already open this fails to open parameter hints.
+			// I tried various combinations of sleeping and trying again, explicitly closing suggest widget,
+			// etc but none seem to work.
+			this.editor.trigger("editor", "editor.action.triggerParameterHints");
+			return;
 		}
 
 		if(e.browserEvent.key === "Enter") {
@@ -579,8 +613,18 @@ class ReplElement extends HTMLElement {
 				this.editor.getAction("editor.action.outdentLines").run();
 				this.preventKeyEvent();
 			}
-		}		
+		}
 	}
+
+	// async triggerParameterHints(){
+	// 	this.editor.trigger("editor", "editor.action.hideSuggestWidget");
+	// 	await sleep(0);
+	// 	this.editor.trigger("editor", "editor.action.triggerParameterHints");
+	// 	await sleep(10);
+	// 	this.editor.trigger("editor", "editor.action.triggerParameterHints");
+	// 	await sleep(50);
+	// 	this.editor.trigger("editor", "editor.action.triggerParameterHints");
+	// }
 
 	static get _ctrlCmdHandlers(){
 		return {
@@ -588,8 +632,46 @@ class ReplElement extends HTMLElement {
 			"v" : ReplElement.prototype._onCtrlV,
 			"x" : ReplElement.prototype._onCtrlX,
 			"a" : ReplElement.prototype._onCtrlA,
-			"Home" : ReplElement.prototype._onCtrlHome
+			"Home" : ReplElement.prototype._onCtrlHome,
+			"K" : ReplElement.prototype._onCtrlShiftK
 		};
+	}
+
+	_onTab(){
+		let sel = this.editor.getSelection();
+		if(sel.startLineNumber !== sel.endLineNumber){
+			// selection crosses multiple lines
+			return;
+		}
+		if(sel.startColumn === 1 && sel.endColumn === this.editor.getModel().getLineLength(sel.startLineNumber)){
+			// selection is of one whole line
+			return;
+		}
+		let previousCharacters = 
+			this.editor.getModel().getValueInRange(new monaco.Range(sel.startLineNumber, 1, sel.startLineNumber, sel.startColumn));
+		let previousCharactersTrimmed = previousCharacters.trim();
+		if(previousCharactersTrimmed.length > 0){
+			this.preventKeyEvent();
+			if(!sel.isEmpty()){
+				this.editor.executeEdits(
+					"tab", 
+					[{
+						range : sel,
+						text : ""
+					}],
+					// [this.endOfInputSelection]
+				);
+				this.editor.pushUndoStop();
+			}			
+		}
+		if(/[a-zA-Z.]/.test(previousCharacters.charAt(previousCharacters.length - 1))){
+			this.editor.trigger("editor", "editor.action.triggerSuggest");
+			this.preventKeyEvent();
+		}
+		if(/[,(]/.test(previousCharactersTrimmed.charAt(previousCharactersTrimmed.length - 1))){
+			this.editor.trigger("editor", "editor.action.triggerParameterHints");
+			this.preventKeyEvent();
+		}
 	}
 
 	_onCtrlC() {}
@@ -607,6 +689,12 @@ class ReplElement extends HTMLElement {
 			this.editor.setPosition(this.endOfInputPosition);
 			this.revealSelection();
 		}
+	}
+
+	_onCtrlShiftK(){
+		// This is another way to delete lines. We want to prevent this, no one is likely to want to use it
+		// so not worth working out anything special.
+		this.preventKeyEvent();
 	}
 
 	_onCtrlX() {
@@ -724,14 +812,6 @@ class ReplElement extends HTMLElement {
 		// Otherwise, allow default page up behavior
 	}
 
-	async nextHistory(n = 1){
-        await this.stepHistory(n);
-    }
-    
-    async previousHistory(n = 1){
-        await this.stepHistory(-n);
-    }
-
     async stepHistory(didx) {
 		this.history.setTemporaryValue(this.value);
 		const changed = this.history.step(didx);
@@ -763,6 +843,14 @@ class ReplElement extends HTMLElement {
 		this.historyIndexRedoStack = [];
 		this.historyIndexUndoStack.push(didx);
 		this.justSteppedHistory = true;
+		let uuid = uuidv4();
+		this.historyStepUUID = uuid;
+		await sleep(5000);
+		// Clear the special state after an interlude to avoid surprising weird state if the user
+		// comes back after doing something else.
+		if(this.historyStepUUID === uuid){
+			this.justSteppedHistory = false;
+		}
 	}
 
 	
@@ -976,7 +1064,6 @@ class ReplElement extends HTMLElement {
 	
 	async showSyntaxError(errors){
 		// TODO: maybe handle multiple syntax errors case...? Probably not important...
-		console.log(errors);
 		let error = errors[0];
 		let [start_line, start_col] = error.start_pos;
 		start_line += this.readOnlyLines;

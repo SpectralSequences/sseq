@@ -92,6 +92,11 @@ const configMain = Object.assign({}, commonConfig, {
                 { from: 'src/charts/nonexistent-chart.html', to: 'charts/nonexistent-chart.html' },
             ],
         }),
+        new WebpackShellPlugin({
+            onBuildStart: ["./scripts/prebuild.sh"],
+            dev : false // Rerun prebuild everytime webpack-dev-server rebuilds please.
+            // onBuildEnd: ['python script.py && node script.js']
+        }),        
         // new CleanWebpackPlugin({
         //     cleanOnceBeforeBuildPatterns: [],
         // }),        

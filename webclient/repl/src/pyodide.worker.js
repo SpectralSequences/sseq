@@ -56,7 +56,13 @@ async function startup(){
             sys.path.append("/executor")
             from executor import PyodideExecutor
             from executor.sseq_display import SseqDisplay
-            executor = PyodideExecutor({ "SseqDisplay" : SseqDisplay })
+            import spectralsequence_chart
+            import jedi # This is slow but better to do it up front.
+            namespace = { "SseqDisplay" : SseqDisplay }
+            namespace.update(
+                { k : getattr(spectralsequence_chart,k) for k in dir(spectralsequence_chart) if not k.startswith("_")}
+            )
+            executor = PyodideExecutor(namespace)
         `);
         self.postMessage({cmd : "ready"});
     } catch(e){

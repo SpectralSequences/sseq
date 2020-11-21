@@ -1,11 +1,12 @@
 from js import (
-    location, messageLookup as js_message_lookup
+    location, messageLookup as js_message_lookup,
+    console
 )
 import json
 import pathlib
 
 from spectralsequence_chart import SseqChart
-from spectralsequence_chart.utils import JSON, arguments
+from spectralsequence_chart.serialization import JSON
 
 from .async_js import Fetcher
 from .handler_decorator import collect_handlers, handle
@@ -64,16 +65,15 @@ class SseqDisplay:
 
     async def reset_state_a(self):
         with self.chart._batched_messages_lock:
-            self.chart._batched_messages = []
+            self.chart._clear_batched_messages()
         await self.send_message_a("chart.state.reset", state = self.chart.to_json())
 
     async def update_a(self):
         await self.chart.update_a()
 
     async def send_batched_messages_a(self, messages):
-        print("Sending batched messages...")
-        print("Messages:", messages)
-        await self.send_message_a("chart.batched", messages = messages)
+        console.log("Sending batched messages:", messages)
+        await self.send_message_a("chart.update", messages = messages)
 
     @staticmethod
     def dispatch_message(message_id):
@@ -89,14 +89,17 @@ class SseqDisplay:
 
     def handle_message(self, cmd, args, port, client_id, uuid, kwargs):
         kwargs = dict(kwargs)
-        print(f"SseqDisplay.handle_message({cmd}, {JSON.stringify(kwargs)})")
+        console.log(f"SseqDisplay.handle_message({cmd}, {JSON.stringify(kwargs)})")
         self.executor.loop.call_soon(self.message_handlers[cmd](
             self, uuid=uuid, port=port, client_id=client_id, **kwargs
         ))
 
+    @staticmethod
+    def _create_message(cmd, kwargs):
+        return JSON.stringify(dict(cmd=cmd, args=[], kwargs=kwargs))
+
     async def send_message_a(self, cmd, **kwargs):
-        kwargs.update(cmd=cmd)
-        message = JSON.stringify(dict(cmd=cmd, args=[], kwargs=kwargs))
+        message = SseqDisplay._create_message(cmd, kwargs)
         for port in self.subscribers.values():
             port.postMessage(message)
 
@@ -109,8 +112,13 @@ class SseqDisplay:
     @handle("new_user")
     async def new_user__a(self, uuid, port, client_id):
         print("Handling new user...")
+        # Might as well make sure that we don't have other charts that are out of date.
+        # So let's send an update to the existing charts first.
+        await self.update_a() 
         self.subscribers[client_id] = port
-        await self.reset_state_a()
+        # "initialize" command sets chart range and page in addition to setting the chart.
+        # "initialize" does a superset of what "reset" does.
+        await self.send_message_a("chart.state.initialize", state = self.chart.to_json())
 
     @handle("initialize.complete")
     async def initialize__complete__a(self, uuid, port, client_id):

@@ -64,6 +64,7 @@ class ReplDisplayUI {
 
         this.uiElement = uiElement;
         this.chartElement = uiElement.querySelector("sseq-chart")
+        this.mousetrap = new Mousetrap(this.chartElement);
         this.popup = uiElement.querySelector("sseq-popup");
         this.sidebar = uiElement.querySelector("sseq-sidebar");    
         this.port = port2;
@@ -73,7 +74,7 @@ class ReplDisplayUI {
     async start(){
         await chart_loaded;
         await navigator.serviceWorker.ready;
-        // this.setupUIBindings();
+        this.setupUIBindings();
         this.setupSocketMessageBindings();
         this.send("initialize.complete", {});  // Who reads this message?
         await this.uiElement.start();
@@ -83,21 +84,13 @@ class ReplDisplayUI {
 
 
     onmessage(event){
-        console.log("chart.update", event.data);
         let data = parse(event.data);
-        switch(data.cmd/*[0]*/){
-            case "chart.state.reset":
-                console.log("chart.update", data.kwargs.state);
-                this.chartElement.setSseq(data.kwargs.state);
-                return;
-            case "chart.batched":
-                for(let update of data.kwargs.messages){
-                    this.chartElement.sseq.handleMessage(update);
-                }
-                this.chartElement._updateChart();
-                return
+        if(data.cmd.startsWith("chart.")){
+            this.chartElement.handleMessage(data);
+            return;
         }
-        console.log("Unrecognized message:", data);
+        console.error("Message with unrecognized command:", message);
+        throw Error(`Unrecognized command ${message.cmd}`);
     }
 
     setupSocketMessageBindings(){}
@@ -125,6 +118,11 @@ class ReplDisplayUI {
         );
         let json_str = JSON.stringify(obj);
         this.port.postMessage(json_str);
+    }
+
+    setupUIBindings(){
+        Mousetrap.bind("left", () => this.chartElement.previousPage());
+        Mousetrap.bind("right", () => this.chartElement.nextPage());
     }
     
 }
