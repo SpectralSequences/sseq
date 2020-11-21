@@ -19,6 +19,35 @@ self.is_promise = is_promise;
 
 // files_to_install is a map file_name => file_contents for the files in the python directory. 
 // It's produced by the webpack prebuild script scripts/bundle_python_sources.py
+
+let outBuffer = [];
+let lastStreamFunc = undefined;
+function makeOutputStream(streamFunc){
+    function writeToStream(charCode){
+        // console.log("hi?");
+        // console.error("writeToStream", charCode);
+        // outBuffer.push(String.fromCharCode(charCode));
+        if(lastStreamFunc && lastStreamFunc !== streamFunc){
+            // console.error("writing!");
+            lastStreamFunc(outBuffer.join(""));
+            outBuffer = [];
+            lastStreamFunc = undefined;
+        }
+        if(charCode === 10 || !charCode){
+            // console.error("writing!");
+            // console.log(outBuffer.join(""));
+            streamFunc(outBuffer.join(""));
+            outBuffer = [];
+            lastStreamFunc = undefined;
+        } else {
+            // lastStreamFunc = streamFunc;
+            outBuffer.push(String.fromCharCode(charCode));
+            // console.log("ip::", outBuffer.join(""));
+        }
+    }
+    return writeToStream;
+}
+
 import { files_to_install } from "./python_imports";
 function initializeFileSystem(){
     /**  
@@ -28,6 +57,10 @@ function initializeFileSystem(){
      * the move occurs, but this code consistently executes before the move.
      */
     let pyodide_FS = pyodide.FS;
+    let stdoutStream = makeOutputStream(console.log);
+    let stderrStream = makeOutputStream(console.error);
+
+    pyodide_FS.init(() => null, stdoutStream, stderrStream);
     pyodide_FS.mkdir('/executor');
     pyodide_FS.mkdir('/executor/executor');
     for(let [k, v] of Object.entries(files_to_install)){
@@ -47,21 +80,26 @@ async function startup(){
     try {
         await languagePluginLoader;
         await pyodide.loadPackage([
-            // "pygments", 
-            "crappy-python-multitasking",
-            "spectralsequence_chart"
-        ]);
+                // "pygments", 
+                "crappy-python-multitasking",
+                "spectralsequence_chart"
+            ],
+            (msg) => console.log(msg),
+            (err) => console.error(msg)
+        );
         pyodide.runPython(`
             import sys
             sys.path.append("/executor")
             from executor import PyodideExecutor
             from executor.sseq_display import SseqDisplay
             import spectralsequence_chart
-            import jedi # This is slow but better to do it up front.
-            namespace = { "SseqDisplay" : SseqDisplay }
+            from spectralsequence_chart.display_primitives import Color
+            namespace = { "SseqDisplay" : SseqDisplay, "Color" : Color }
             namespace.update(
                 { k : getattr(spectralsequence_chart,k) for k in dir(spectralsequence_chart) if not k.startswith("_")}
             )
+            import jedi # This is slow but better to do it up front.
+            jedi.Interpreter("SseqDisplay", [namespace]).completions() # Maybe this will reduce Jedi initialization time?
             executor = PyodideExecutor(namespace)
         `);
         self.postMessage({cmd : "ready"});
