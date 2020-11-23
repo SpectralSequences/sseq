@@ -135,8 +135,8 @@ export class ChartElement extends LitElement {
     }
 
     firstUpdated(){
-        let uiElt = this.uiElt();
-        uiElt.addEventListener("started", this._start.bind(this));
+        // let uiElt = this.uiElt();
+        // uiElt.addEventListener("started", this._start.bind(this));
     }
 
     startContinuousRedraw(){
@@ -147,7 +147,7 @@ export class ChartElement extends LitElement {
         this._continuousRedraw --;
     }
 
-    _start(){
+    start(){
         let uiElt = this.uiElt();
         uiElt.addEventListener("begin-reflow", () => this.startContinuousRedraw() );
         uiElt.addEventListener("end-reflow", () => this.endContinuousRedraw());
@@ -164,8 +164,7 @@ export class ChartElement extends LitElement {
         this._canvas = new Canvas(canvasContext);
         this._canvas.set_margins(this.leftMargin, this.rightMargin, this.bottomMargin, this.topMargin);
         this._canvas.resize(this.offsetWidth, this.offsetHeight, window.devicePixelRatio);
-        this._canvas.set_current_xrange(-10, 10);
-        this._canvas.set_current_yrange(-10, 10);
+        this.setInitialRange();
         this._resizeObserver.observe(this);
 
         this._requestRedraw();
@@ -326,7 +325,7 @@ export class ChartElement extends LitElement {
         this._previousMouseX = x;
         this._previousMouseY = y;
         if(this.mouseover_class){
-            (<any>document.querySelector("sseq-class-highlighter")).fire([this.mouseover_class]);
+            this.dispatchCustomEvent("click-class", { cls : this.mouseover_class });
         }
     }
     
@@ -504,13 +503,20 @@ export class ChartElement extends LitElement {
 
     initializeSseq(sseq : SpectralSequenceChart){
         this.setSseq(sseq);
-        this.setInitialRange();
-        this.updateChart();
+        if(this._canvas){
+            this.setInitialRange();
+            this.updateChart();
+        }
     }
 
     setInitialRange(){
-        this._canvas!.set_current_xrange(this.sseq!.initial_x_range[0], this.sseq!.initial_x_range[1]);
-        this._canvas!.set_current_yrange(this.sseq!.initial_y_range[0], this.sseq!.initial_y_range[1]);
+        if(this.sseq){
+            this._canvas!.set_current_xrange(this.sseq.initial_x_range[0], this.sseq.initial_x_range[1]);
+            this._canvas!.set_current_yrange(this.sseq.initial_y_range[0], this.sseq.initial_y_range[1]);
+        } else {
+            this._canvas!.set_current_xrange(-10, 10);
+            this._canvas!.set_current_yrange(-10, 10);
+        }
         this.setPage(0);
     }
 
@@ -591,7 +597,7 @@ export class ChartElement extends LitElement {
         this._canvas!.clear();
         let idx = -1;
         for(let c of this.sseq.classes.values()){
-            if(!c.visible[this.page] || c.max_page < this.page){
+            if(!c.drawOnPageQ(this.page)){
                 continue;
             }
             idx++;

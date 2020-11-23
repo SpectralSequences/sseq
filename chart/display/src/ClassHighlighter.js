@@ -142,6 +142,14 @@ export class ClassHighlighterElement extends LitElement {
         delete elt.fireID;
     }
 
+    async clearClasses(classes){
+        let promises = [];
+        for(let cls of classes){
+            promises.push(this.clearClass(cls));
+        }
+        await Promise.all(promises);
+    }
+
     async clear(){
         let promises = [];
         for(let elt of this.highlighterElements()){
@@ -151,14 +159,6 @@ export class ClassHighlighterElement extends LitElement {
         }
         await Promise.all(promises);
     }
-
-    async clearClasses(classes){
-        let promises = [];
-        for(let cls of classes){
-            promises.push(this.clearClass(cls));
-        }
-        await Promise.all(promises);
-    }    
 
     async highlight(classes){
         if(classes.constructor != Array){

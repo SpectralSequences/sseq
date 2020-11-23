@@ -42,6 +42,7 @@ export class UIElement extends HTMLElement {
     }
 
     connectedCallback(){
+        // console.log("uiElement connected callback");
         this.style.display = "";
         this.setAttribute("tab-index", "-1");
         if(this.hasAttribute("start")){
