@@ -212,11 +212,15 @@ class SseqChart:
         """ Add a differential.
 
             Args:
+
                 page (int): which page should the differential appear on.
+
                 source_arg (ChartClassArg): The source class, specified by either a `ChartClass` or a tuple with the bidegree and index of the class.
+
                 target_arg (ChartClassArg): The target class, specified by either a `ChartClass` or a tuple with the bidegree and index of the class.
+
                 auto (bool, optional): If 'True', automatically set max_page of source and target to 'page'. 
-                    If False, the edge will be added but no change will be made to the source or target classes. Defaults to 'True'.
+                If False, the edge will be added but no change will be made to the source or target classes. Defaults to 'True'.
             
             Returns: The added differential.
         """

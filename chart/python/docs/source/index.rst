@@ -9,6 +9,9 @@ spectralsequence_chart documentation
    :maxdepth: 2
    :caption: Contents:
    
+   :glob:
+   tutorials/*
+
 .. autosummary::
    :toctree: _autosummary
    :template: custom-module-template.rst

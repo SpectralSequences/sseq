@@ -48,11 +48,13 @@ class JSON:
         from .display_primitives import (
             ArrowTip, Color, Shape
         )
+        from .signal_dict import (SignalDict, SignalList)
         from .page_property import PageProperty
         JSON.types = { t.__name__ : cast(Serializable, t) for t in [
             SseqChart,
             ChartClass, ChartClassStyle,
             ChartEdgeStyle, ChartStructline, ChartDifferential, ChartExtension,
             ArrowTip, Color, Shape,
-            PageProperty
+            PageProperty,
+            SignalDict, SignalList
         ]}

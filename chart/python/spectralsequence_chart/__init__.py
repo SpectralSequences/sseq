@@ -17,19 +17,5 @@ from .chart_edge import (
 from .infinity import INFINITY
 from .chart import SseqChart
 
-__version__ = "0.0.11"
-# __all__ = [*(x.__name__ for x in [
-#     SseqChart, 
-#     ChartClass, ChartClassStyle, Shape,
-#     ChartEdge, ChartEdgeStyle,
-#     ChartStructline, ChartDifferential, ChartExtension
-# ]), "INFINITY"]
-
-# __all__ = [*(x.__name__ for x in [
-#     SseqChart, 
-#     ChartClass, ChartClassStyle, Shape,
-#     ChartEdge, ChartEdgeStyle,
-#     ChartStructline, ChartDifferential, ChartExtension
-# ]), "INFINITY"]
-  
-# __all__ = ["chart", "chart_elements"] 
+__version__ = "0.0.12"
+# __all__ = [ChartClass, ChartClassStyle, Shape, ]

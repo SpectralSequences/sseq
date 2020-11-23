@@ -35,6 +35,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.viewcode',
+    'recommonmark'
     # 'sphinx_autodoc_typehints'
 ]
 
