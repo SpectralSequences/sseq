@@ -9,17 +9,20 @@ class SignalDict(MutableMapping, Generic[T]):
         or both.
     """
     def __init__(self, 
-        d : Dict[str, T] = {}, 
+        d : Dict[str, T] = None, 
         *, 
         parent : Any = None, 
         callback : Optional[Callable[[], None]] = None,
     ):
-        self._dict = d
+        self._dict = d or {}
         self.set_parent(parent)
         self._callback = callback
     
     def set_parent(self, parent):
         self._parent = parent
+
+    def set_callback(self, callback):
+        self._callback = callback
 
     def needs_update(self):
         if self._parent:
@@ -60,23 +63,29 @@ class SignalDict(MutableMapping, Generic[T]):
     def __len__(self):
         return len(self._dict)
 
+    def __repr__(self):
+        return repr(self._dict)
+
 class SignalList(MutableSequence, Generic[T]):
     """ This is a list that signals when it is changed, by calling self._parent._needs_update()
         if self._parent is defined or by calling self._callback() if self._callback is defined,
         or both.
     """
     def __init__(self, 
-        l : List[T] = [],
+        l : List[T] = None,
         *, 
         parent : Any = None, 
         callback : Optional[Callable[[], None]] = None,
     ):
-        self._list = l
+        self._list = l or []
         self.set_parent(parent)
         self._callback = callback
     
     def set_parent(self, parent):
         self._parent = parent
+
+    def set_callback(self, callback):
+        self._callback = callback
 
     def to_json(self):
         return dict(type=type(self).__name__, list = self._list)
@@ -115,4 +124,8 @@ class SignalList(MutableSequence, Generic[T]):
         return len(self._list)
     
     def insert(self, index: int, value: T) -> None:
+        self._needs_update()
         self._list.insert(index, value)
+
+    def __repr__(self):
+        return repr(self._list)

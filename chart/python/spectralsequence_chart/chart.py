@@ -1,6 +1,7 @@
 """ SseqChart is the main class which holds the data structure representing the chart. """
 
 
+from spectralsequence_chart.signal_dict import SignalList
 import threading
 from typing import (
     Any, Dict, Iterable, List, 
@@ -40,7 +41,7 @@ class SseqChart:
 
         self._uuid = str(uuid4())
 
-        self._page_list =  [(2, INFINITY), (INFINITY, INFINITY)]
+        self._page_list =  SignalList([(2, INFINITY), (INFINITY, INFINITY)], callback=self._add_setting_message)
         self._initial_x_range = (0, 10)
         self._initial_y_range = (0, 10)
         self._x_range = (0, 10)
@@ -161,6 +162,7 @@ class SseqChart:
         assert type == SseqChart.__name__
         self._uuid = uuid
         self._page_list = page_list
+        page_list.set_callback(self._add_setting_message)
         self._initial_x_range = initial_x_range
         self._initial_y_range = initial_y_range
         self._x_range = x_range
@@ -300,7 +302,6 @@ class SseqChart:
             else:
                 idx = len(self.page_list)
             self.page_list.insert(idx, page_range)
-            self._add_setting_message()
     
 
     def _add_class_to_update(self, c : ChartClass):
@@ -635,6 +636,12 @@ class SseqChart:
             while differentials will appear if the length of the differential is between ``page`` and ``max_differential_length`` inclusive.
         """
         return self._page_list
+
+    @page_list.setter
+    def page_list(self, v : List[Tuple[int, int]]):
+        self._page_list = SignalList(v, callback=self._add_setting_message)
+        self._add_setting_message()
+
 
     def register_class_style(self, class_style : ChartClassStyle):
         """ Register class style. This uses `class_style.group_name <ChartClassStyle.group_name>` as an index.
