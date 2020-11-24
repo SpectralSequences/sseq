@@ -460,6 +460,15 @@ export class ChartElement extends LitElement {
         this.dispatchCustomEvent("page-change", {page : this.page, pageRange : this.pageRange, idx : this.page_idx });
     }
 
+    fixPageRangeAndIndex(){
+        if(!this.sseq){
+            return;
+        }
+        let idx = this.sseq.page_list.map(e => JSON.stringify(e)).indexOf(JSON.stringify(this.pageRange));
+        this.pageRange = this.sseq.page_list[this.page_idx];
+        this.page = this.pageRange[0];
+    }
+
     setMargins(leftMargin : number, rightMargin : number, topMargin : number, bottomMargin : number){
         this.leftMargin = leftMargin;
         this.rightMargin = rightMargin;
@@ -471,6 +480,7 @@ export class ChartElement extends LitElement {
 
     setSseq(sseq : SpectralSequenceChart){
         this.sseq = sseq;
+        this.fixPageRangeAndIndex();
     }
 
     handleMessage(message : any){
@@ -484,6 +494,7 @@ export class ChartElement extends LitElement {
                 return;            
             case "chart.state.reset":
                 this.setSseq(message.kwargs.state);
+                this.fixPageRangeAndIndex();
                 this.updateChart();
                 return;
             case "chart.update":
@@ -493,6 +504,7 @@ export class ChartElement extends LitElement {
                 for(let update of message.kwargs.messages){
                     this.sseq.handleMessage(update);
                 }
+                this.fixPageRangeAndIndex();
                 this.updateChart();
                 return
         }
@@ -589,12 +601,12 @@ export class ChartElement extends LitElement {
     }
 
     updateChart(){
-        if(!this.sseq){
+        if(!this.sseq || !this._canvas){
             return;
         }
-        this._canvas!.set_max_xrange(this.sseq.x_range[0], this.sseq.x_range[1]);
-        this._canvas!.set_max_yrange(this.sseq.y_range[0], this.sseq.y_range[1]);
-        this._canvas!.clear();
+        this._canvas.set_max_xrange(this.sseq.x_range[0], this.sseq.x_range[1]);
+        this._canvas.set_max_yrange(this.sseq.y_range[0], this.sseq.y_range[1]);
+        this._canvas.clear();
         let idx = -1;
         for(let c of this.sseq.classes.values()){
             if(!c.drawOnPageQ(this.page)){
@@ -640,6 +652,9 @@ export class ChartElement extends LitElement {
             this._canvas!.add_edge(start_glyph, end_glyph, options);
         }
         this._requestRedraw();
+        if(this.mouseover_class){
+            this.dispatchCustomEvent("mouseover-class", { cls : this.mouseover_class });
+        }
     }
 
     _updateClassScale(){

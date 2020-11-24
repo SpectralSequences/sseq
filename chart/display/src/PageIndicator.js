@@ -41,7 +41,7 @@ export class PageIndicatorElement extends LitElement {
             return `Page ${pageRange[0]}`;
         }
 
-        return `Page ${pageRange[0]} with differentials of length ${pageRange[0]} – ${pageRange[1]}`;
+        return `Page ${pageRange[0]} with differentials of length ≤ ${pageRange[1]}`;
     }
 
     render() {
