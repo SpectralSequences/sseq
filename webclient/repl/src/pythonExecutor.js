@@ -36,11 +36,52 @@ export class PythonExecutor {
     _handleMessage(event){
         let message = event.data;
         let message_cmd = message.cmd;
-        let subhandler_name = ({"execute" : "_handleExecutionMessage", "complete" : "_handleCompletionMessage", "ready" : "_handleReadyMessage"})[message_cmd];
+        let subhandlers = { 
+            execute : "_handleExecutionMessage", 
+            complete : "_handleCompletionMessage", 
+            ready : "_handleReadyMessage",
+            file_picker : "file_picker",
+            request_handle_permission : "_handleRequestHandlePermission"
+        };
+        let subhandler_name = subhandlers[message_cmd];
         if(!subhandler_name){
             throw new Error(`Unknown command "${message_cmd}"`);
         }
         this[subhandler_name](message);
+    }
+
+    async file_picker(message){
+        let pickerFunction = { directory : showDirectoryPicker, read : showOpenFilePicker, readwrite : showSaveFilePicker}[message.type];
+        try {
+            let handle = await pickerFunction();
+            if(message.type !== "read"){
+                // In case "read", it returns a list.
+                // In remaining cases, it returns a single handle.
+                // Allow more consistent handling by always giving a list.
+                handle = [handle]; 
+            }
+            this.pyodide_worker.postMessage({
+                cmd : "respondToQuery",
+                handle,
+                uuid : message.uuid
+            });
+        } catch(error){
+            this.pyodide_worker.postMessage({
+                cmd : "respondToQuery",
+                error,
+                uuid : message.uuid
+            });
+        }
+    }
+    
+    async _handleRequestHandlePermission(message){
+        let { uuid, handle, mode } = message;
+        let status = await handle.requestPermission({mode});
+        this.pyodide_worker.postMessage({
+            cmd : "respondToQuery",
+            uuid,
+            status,
+        });
     }
     
     _handleReadyMessage(message){
@@ -217,8 +258,7 @@ export class Completer extends EventEmitter {
         let interrupt_buffer = createInterruptBuffer();
         cancellation_token.onCancellationRequested(() => {interrupt_buffer[0] = 2});
         this._postMessage("signatures", { subuuid, interrupt_buffer, code, lineNumber, column });
-        let { signatures } = await response_promise;
-        return signatures
+        return await response_promise;
     }
 
     async getCompletions(code, position, cancellation_token){
@@ -227,8 +267,7 @@ export class Completer extends EventEmitter {
         cancellation_token.onCancellationRequested(() => {interrupt_buffer[0] = 2});
         let {lineNumber, column} = position;
         this._postMessage("completions", { subuuid,  interrupt_buffer, code, lineNumber, column });
-        let {state_id, completions} = await response_promise;
-        return [state_id, completions];
+        return await response_promise;
     }
 
     async getCompletionInfo(state_id, idx, cancellation_token){
@@ -236,8 +275,7 @@ export class Completer extends EventEmitter {
         let interrupt_buffer = createInterruptBuffer();
         cancellation_token.onCancellationRequested(() => {interrupt_buffer[0] = 2});
         this._postMessage("completion_detail", { subuuid, interrupt_buffer, idx, state_id });
-        let {docstring, signature, full_name, root} = await response_promise;
-        return {docstring, signature, full_name, root};
+        return await response_promise;
     }
 
     close(){

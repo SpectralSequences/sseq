@@ -240,7 +240,8 @@ class ReplElement extends HTMLElement {
 		this.addEventListener("mousedown", (e) => {
 			let element = e.target;
 			if (element.matches("a[data-href]")) {
-				element.href = element.getAttribute("data-href");
+				let href = element.getAttribute("data-href");
+				window.open(href, "apidocs");
 			}
 		});
 
@@ -315,25 +316,7 @@ class ReplElement extends HTMLElement {
 		this.editor.onDidChangeModelContent(() => { 
 			this.clearSyntaxError();
 		});
-		// this.editor.onDidChangeModelDecorations(() => {
-		// 	console.log("decs:", this.editor.getLineDecorations(this.editor.getPosition().lineNumber));
-		// 	if(this.syntaxErrorWidget){
-		// 		let elts = [
-		// 			document.querySelector(".repl-error-decoration-highlight"),
-		// 			document.querySelector(".repl-error-decoration-text"),
-		// 			document.querySelector(".repl-error-decoration-underline"),
-		// 			document.querySelector(".repl-error-widget"),
-		// 		];
-		// 		for(let elt of elts){
-		// 			if(!elt){
-		// 				continue;
-		// 			}
-		// 			elt.setAttribute("active");
-		// 		}
-		// 	}
-		// })
 		this.editor.updateOptions({ "readOnly" : false });
-		window.addEventListener("cut", this._oncut.bind(this));
 		this.editor.updateOptions({
 			lineNumbers : this._getEditorLinePrefix.bind(this)
 		});
@@ -542,6 +525,11 @@ class ReplElement extends HTMLElement {
 				return
 			}
 		}
+		if(e.browserEvent.shiftKey && e.browserEvent.key === "Delete"){
+			this._handleCut();
+			return;
+		}
+
 		if(e.browserEvent.key === "PageUp"){
 			this._onPageUp(e);
 			return;
@@ -620,7 +608,8 @@ class ReplElement extends HTMLElement {
 			"x" : ReplElement.prototype._onCtrlX,
 			"a" : ReplElement.prototype._onCtrlA,
 			"Home" : ReplElement.prototype._onCtrlHome,
-			"K" : ReplElement.prototype._onCtrlShiftK
+			"K" : ReplElement.prototype._handleCut,
+			"x" : ReplElement.prototype._handleCut,
 		};
 	}
 
@@ -678,53 +667,29 @@ class ReplElement extends HTMLElement {
 		}
 	}
 
-	_onCtrlShiftK(){
-		// This is another way to delete lines. We want to prevent this, no one is likely to want to use it
-		// so not worth working out anything special.
-		this.preventKeyEvent();
-	}
 
-	_onCtrlX() {
-		// In these cases, we do special handling in the "window.oncut" event listener see _oncut
-		if(
-			this.readOnly ||
-			this.doesCurrentSelectionIntersectReadOnlyRegion() 
-			|| this.value.indexOf("\n") === -1 && this.editor.getSelection().isEmpty()
-		){
-			this.preventKeyEvent();
-		}
-		// Otherwise allow default behavior
-		return
-	}
-
-	_oncut(e) {
-		e.preventDefault();
+	_handleCut(){
 		if(this.editor.getSelection().isEmpty()){
-			if(this.value.indexOf("\n") === -1 || this.readOnly){
-				event.clipboardData.setData('text/plain', this.value + "\n");
-				this.editor.pushUndoStop();
-				this.editor.executeEdits(
-					"cut", 
-					[{
-						range : this.allOfInputSelection,
-						text : ""
-					}],
-					[this.endOfInputSelection]
-				);
-				this.editor.pushUndoStop();
+			if(this.value === ""){
 				this.preventKeyEvent();
-				return;
+				return true;
+			}
+			if(this.value.indexOf("\n") === -1 || this.readOnly){
+				this.editor.setSelection(this.allOfInputSelection);
+				this.editor.trigger("editor", "editor.action.clipboardCutAction");
+				this.preventKeyEvent();
+				return true;
 			}
 			// Else allow default handling
-			return;
+			return true;
 		}
 		if(this.doesCurrentSelectionIntersectReadOnlyRegion() || this.readOnly){ 
-			event.clipboardData.setData('text/plain', this.editor.getModel().getValueInRange(this.editor.getSelection()));
+			this.editor.trigger("editor", "editor.action.clipboardCopyAction");
 			this.preventKeyEvent();
 			return;
-		}
-		// Else allow default handling
+		}		
 	}
+
 
 	_onCtrlA(){
 		if(this.altKey){
@@ -760,7 +725,14 @@ class ReplElement extends HTMLElement {
 		}
 		// If in input region, select from start of current selection to start of input region
 		if(e.browserEvent.shiftKey){
-			this.editor.setSelection(this.editor.getSelection().setEndPosition(this.startOfInputPosition));
+			let {lineNumber, column} = this.startOfInputPosition;
+			let selection = this.editor.getSelection();
+			if(selection.getDirection() === 0){
+				selection = selection.setEndPosition(lineNumber, column);
+			} else {
+				selection = selection.setStartPosition(lineNumber, column);
+			}
+			this.editor.setSelection(selection);
 		} else {
 			this.editor.setPosition(this.startOfInputPosition);
 		}
@@ -798,6 +770,37 @@ class ReplElement extends HTMLElement {
 		}
 		// Otherwise, allow default page up behavior
 	}
+
+	setValue(value){
+		this.editor.getModel().pushEditOperations(
+			[this.editor.getSelection()],
+			[{
+				range : this.allOfInputSelection,
+				text : value
+			}],
+			() => [this.endOfInputSelection]
+		);
+		this.editor.setPosition(this.endOfInputPosition);
+		this.editor.pushUndoStop();
+	}
+
+	/**
+	 * Programmatically submit command into the repl. For demos.
+	 */
+	async submitPythonCommand(command, addToHistory=false){
+		this.setValue(command);
+		await this.submit(addToHistory);
+	}
+
+	/**
+	 * Programmatically submit sequence of commands into the repl. For demos.
+	 */
+	async submitPythonCommands(commands, addToHistory=false){
+		for(let command of commands){
+			await this.submitPythonCommand(command, addToHistory);
+		}
+	}
+
 
     async stepHistory(didx) {
 		this.history.setTemporaryValue(this.value);
@@ -892,7 +895,7 @@ class ReplElement extends HTMLElement {
         return true;
 	}
 
-	async submit(){
+	async submit(addToHistory=true){
 		if(this.syntaxErrorWidget){
 			// Don't do anything if there's already a syntax error...
 			return;
@@ -926,7 +929,9 @@ class ReplElement extends HTMLElement {
 		this.editor.setValue(this.editor.getValue().trimEnd());
 		this.printToConsole("\n");
 		await sleep(0);
-		this.history.push(code);
+		if(addToHistory){
+			this.history.push(code);
+		}
         await sleep(0);
 		this.historyIdx = this.history.length;
 

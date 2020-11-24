@@ -10,7 +10,7 @@ class Traceback:
         # If there's a wasm stack overflow it may leave some orphaned exception in sys.exc_info()
         # This is trash_exception. We don't want to report trash_exception as part of our error message.
         exception_chain = [exception]
-        while (exception := exception.__context__) is not trash_exception:
+        while (exception := exception.__context__) not in [trash_exception, None]:
             exception_chain.append(exception)
         return [Traceback.exception_to_traceback(e, file) for e in reversed(exception_chain)]
 

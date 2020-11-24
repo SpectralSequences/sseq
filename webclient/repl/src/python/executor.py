@@ -29,7 +29,7 @@ class PyodideExecutor:
         if cmd not in self.message_handlers:
             raise Exception(f'Message with unrecognized command "{cmd}"')
         self.loop.call_soon(self.message_handlers[cmd](self, **kwargs))
-        
+
     @handle("execute")
     async def execute(self, **kwargs):
         self.loop.call_soon(Execution(self, **kwargs).run())

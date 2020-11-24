@@ -79,6 +79,7 @@ class Response:
     async def text(self):
         result = await wrap_promise(self._response.text())
         return result
+        
     async def read_chunks(self):
         stream_reader = self._response.body.getReader()
 
@@ -131,3 +132,4 @@ def sleep(time):
 
 class PromiseException(RuntimeError):
     pass
+

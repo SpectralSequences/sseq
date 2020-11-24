@@ -9,6 +9,7 @@ from spectralsequence_chart import SseqChart
 from spectralsequence_chart.serialization import JSON
 
 from .async_js import Fetcher
+from .filesystem import FileHandle
 from .handler_decorator import collect_handlers, handle
 fetcher = Fetcher("api/")
 
@@ -23,6 +24,8 @@ class SseqDisplay:
     def __init__(self, name, chart=None):
         self.name = name
         self.chart = None
+        self.save_file_handle = FileHandle()
+        self.autosave = False
         chart = chart or SseqChart(name)
         self.set_sseq(chart)
         self.subscribers = {}
@@ -67,6 +70,7 @@ class SseqDisplay:
         with self.chart._batched_messages_lock:
             self.chart._clear_batched_messages()
         await self.send_message_a("chart.state.reset", state = self.chart.to_json())
+        await self.maybe_autosave_a()
 
     async def update_a(self):
         await self.chart.update_a()
@@ -74,6 +78,25 @@ class SseqDisplay:
     async def send_batched_messages_a(self, messages):
         console.log("Sending batched messages:", messages)
         await self.send_message_a("chart.update", messages = messages)
+        await self.maybe_autosave_a()
+
+    async def maybe_autosave_a(self):
+        if self.autosave and self.save_file_handle.is_open():
+            await self.save_a()
+
+    async def save_a(self):
+        await self.save_file_handle.ensure_open_a(modify=True)
+        await self.save_file_handle.write_text_a(JSON.stringify(self.chart))
+
+    async def save_as_a(self):
+        self.save_file_handle = FileHandle()
+        await self.save_a()
+
+    async def load_a(self):
+        self.save_file_handle = FileHandle()
+        await self.save_file_handle.open_a()
+        self.set_sseq(JSON.parse(await self.save_file_handle.read_text_a()))
+        await self.reset_state_a()
 
     @staticmethod
     def dispatch_message(message_id):
@@ -95,11 +118,11 @@ class SseqDisplay:
         ))
 
     @staticmethod
-    def _create_message(cmd, kwargs):
+    def _create_message(cmd, **kwargs):
         return JSON.stringify(dict(cmd=cmd, args=[], kwargs=kwargs))
 
     async def send_message_a(self, cmd, **kwargs):
-        message = SseqDisplay._create_message(cmd, kwargs)
+        message = SseqDisplay._create_message(cmd, **kwargs)
         for port in self.subscribers.values():
             port.postMessage(message)
 
@@ -118,8 +141,8 @@ class SseqDisplay:
         self.subscribers[client_id] = port
         # "initialize" command sets chart range and page in addition to setting the chart.
         # "initialize" does a superset of what "reset" does.
-        await self.send_message_a("chart.state.initialize", state = self.chart.to_json())
+        port.postMessage(SseqDisplay._create_message("chart.state.initialize", state = self.chart.to_json()))
 
     @handle("initialize.complete")
     async def initialize__complete__a(self, uuid, port, client_id):
-        pass
+        print("initialize.complete")

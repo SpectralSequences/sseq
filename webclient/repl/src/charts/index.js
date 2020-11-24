@@ -4,6 +4,7 @@ import Mousetrap from "mousetrap";
 import { SseqChart } from "chart/SseqChart";
 window.SseqChart = SseqChart;
 
+import { renderLatex } from "display/latex.js";
 
 import { promiseFromDomEvent, sleep } from "display/utils"
 // import ReconnectingWebSocket from 'reconnecting-websocket';
@@ -77,8 +78,8 @@ class ReplDisplayUI {
         this.setupUIBindings();
         this.setupSocketMessageBindings();
         this.send("initialize.complete", {});  // Who reads this message?
-        await this.uiElement.start();
         this.send("new_user", {});
+        // Start UI after handling "chart.state.initialize" in onmessage handler.
     }
 
 
@@ -87,6 +88,10 @@ class ReplDisplayUI {
         let data = parse(event.data);
         if(data.cmd.startsWith("chart.")){
             this.chartElement.handleMessage(data);
+            if(data.cmd === "chart.state.initialize"){
+                console.log("starting ui...");
+                this.uiElement.start();
+            }
             return;
         }
         console.error("Message with unrecognized command:", message);
@@ -120,9 +125,37 @@ class ReplDisplayUI {
         this.port.postMessage(json_str);
     }
 
+    async showHelpWindow() {
+        this.resizeHelpWindow();
+        let help_popup = this.uiElement.querySelector(".help");        
+        help_popup.show();
+        help_popup.focus();
+    }
+
+    resizeHelpWindow(){
+        let help_popup = this.uiElement.querySelector(".help");
+        let display_rect = this.uiElement.querySelector("sseq-chart").getBoundingClientRect();
+        help_popup.left = 0.2  * display_rect.width;
+        help_popup.top = 0.1 * display_rect.height;
+        help_popup.width = `${0.6 * display_rect.width}px`;
+        help_popup.height = "70vh";//`${0.6 * display_rect.height}px`;
+    }
+
+
     setupUIBindings(){
         Mousetrap.bind("left", () => this.chartElement.previousPage());
         Mousetrap.bind("right", () => this.chartElement.nextPage());
+        this.uiElement.mousetrap.bind("h", this.showHelpWindow.bind(this));
+        this.uiElement.querySelector(".help-btn").addEventListener("click", this.showHelpWindow.bind(this))        
+        this.chartElement.addEventListener("click-class", (event) => {
+            let highlighter = this.uiElement.querySelector("sseq-class-highlighter");
+            highlighter.clear();
+            let cls = event.detail.cls;
+            highlighter.fire([cls]);
+            let page = this.chartElement.page;
+            let div = this.uiElement.querySelector("sseq-sidebar").querySelector("#names");
+            div.innerHTML = `Name: ${renderLatex("\\(" + cls.name[page] + "\\)")}`;
+        });
     }
     
 }

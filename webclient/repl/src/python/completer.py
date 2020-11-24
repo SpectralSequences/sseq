@@ -27,6 +27,8 @@ def format_docstring(contents):
     Until we can find a fast enough way of discovering and parsing each format,
     we can do a little better by at least preserving indentation.
     """
+    if contents is None:
+        return contents
     contents = contents.replace('\t', u'\u00A0' * 4)
     contents = contents.replace('  ', u'\u00A0' * 2)
     return contents
@@ -83,23 +85,33 @@ class Completer:
         import jedi
         try:
             with crappy_multitasking(check_interrupt(interrupt_buffer), 10_000):
-                signatures = jedi.Interpreter(code, [self.executor.namespace]) \
-                                .get_signatures(line=lineNumber, column=column)                 
-                signatures = self.get_signature_help_helper(signatures)
-                self.send_message("signatures", subuuid, signatures=signatures)
+                interpreter = jedi.Interpreter(code, [self.executor.namespace])
+                jedi_signatures =  interpreter.get_signatures(line=lineNumber, column=column)
+                # For some reason, get_type_hint doesn't work the same on signatures as on completions...
+                [signatures, full_name, root] = self.get_signature_help_helper(jedi_signatures, code)
+                self.send_message("signatures", subuuid, signatures=signatures, full_name=full_name, root=root)
         except KeyboardInterrupt:
             pass
     
-    def get_signature_help_helper(self, signatures):
+    def get_signature_help_helper(self, jedi_signatures, code):
         import jedi
-        if not signatures:
-            return
+        if not jedi_signatures:
+            return [None, None, None]
 
-        s = signatures[0]
-
-        # Docstring contains one or more lines of signature, followed by empty line, followed by docstring
-        function_sig_lines = (s.docstring().split('\n\n') or [''])[0].splitlines()
-        function_sig = ' '.join([line.strip() for line in function_sig_lines])
+        s = jedi_signatures[0]
+        # docstring() returns a signature with fully qualified type names.
+        # This is ugly. get_type_hint() does better but it only works on Completion objects,
+        # not on Signature. Thus, we get a completion object. To do so, we ask for a completion at
+        # the open bracket of the current function.
+        completion = jedi.Interpreter(code, [self.executor.namespace]).complete(*s.bracket_start)[0]
+        try:
+            function_sig = completion.get_type_hint()
+        except NotImplementedError:
+            return [None, None, None]
+            
+        [full_name, root] = self.get_fullname_root(completion)
+        if function_sig and completion.parent().type == "instance":
+            function_sig = function_sig.replace("self, ", "")
         sig = {
             'label': function_sig,
             'documentation': format_docstring(s.docstring(raw=True))
@@ -118,7 +130,7 @@ class Completer:
         if s.index is not None and s.params:
             # Then we know which parameter we're looking at
             sig_info['activeParameter'] = s.index
-        return sig_info
+        return [sig_info, full_name, root]
 
     @handle("completions")
     def get_completions(self, subuuid, interrupt_buffer, code, lineNumber, column):
@@ -151,7 +163,6 @@ class Completer:
                     # Try getting name and root for link to api docs.
                     # Will fail on properties.
                     [full_name, root] = self.get_fullname_root(completion)
-                    print("full_name:", full_name, "root:", root)
                     if completion.type == "instance":
                         [docstring, signature, full_name, root] = self.get_completion_info_instance(subuuid, completion)
                     elif completion.type in ["function", "method"]:
@@ -236,9 +247,10 @@ class Completer:
         docstring = completion.docstring(raw=True) or completion._get_docstring()
         try:
             # Collect the return type signature for the method. TODO: this only should be used for type function or method.
+            # docstring() returns a signature with fully qualified type names.
+            # This is ugly, so we use get_type_hint() instead.
             signature = completion.get_type_hint()
-            object = completion.get_signatures()[0]._name._value.access_handle.access._obj
-            if type(object).__name__ == "method":
+            if completion.parent().type == "instance":
                 signature = signature.replace("self, ", "")
         except (AttributeError, TypeError, NotImplementedError):
             signature = completion._get_docstring_signature()

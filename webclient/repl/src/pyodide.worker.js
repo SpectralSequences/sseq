@@ -1,11 +1,12 @@
 // This pyodide worker starts the pyodide runtime on a worker thread.
 // It talks to pythonExecutor, which is responsible for wrapping communication between the main thread and the pyodide thread.
 // 
+import { v4 as uuid4 } from "uuid";
+import { sleep } from "./utils";
+
 
 self.languagePluginUrl = 'pyodide-build-custom/'
 importScripts(`${self.languagePluginUrl}pyodide.js`);
-
-import { sleep } from "./utils";
 
 self.sleep = sleep;
 
@@ -61,10 +62,10 @@ function initializeFileSystem(){
     let stderrStream = makeOutputStream(console.error);
 
     pyodide_FS.init(() => null, stdoutStream, stderrStream);
-    pyodide_FS.mkdir('/executor');
-    pyodide_FS.mkdir('/executor/executor');
+    pyodide_FS.mkdir('/repl');
+    pyodide_FS.mkdir('/repl/repl');
     for(let [k, v] of Object.entries(files_to_install)){
-        pyodide_FS.writeFile(`/executor/executor/${k}.py`, v);
+        pyodide_FS.writeFile(`/repl/repl/${k}.py`, v);
     }
 }
 initializeFileSystem();
@@ -75,6 +76,8 @@ function sendMessage(message){
 }
 self.sendMessage = sendMessage;
 self.messageLookup = {};
+
+
 
 async function startup(){
     try {
@@ -89,15 +92,9 @@ async function startup(){
         );
         pyodide.runPython(`
             import sys
-            sys.path.append("/executor")
-            from executor import PyodideExecutor
-            from executor.sseq_display import SseqDisplay
-            import spectralsequence_chart
-            from spectralsequence_chart.display_primitives import Color
-            namespace = { "SseqDisplay" : SseqDisplay, "Color" : Color }
-            namespace.update(
-                { k : getattr(spectralsequence_chart,k) for k in dir(spectralsequence_chart) if not k.startswith("_")}
-            )
+            sys.path.append("/repl")
+            from repl import PyodideExecutor, get_namespace, SseqDisplay
+            namespace = get_namespace()
             import jedi # This is slow but better to do it up front.
             jedi.Interpreter("SseqDisplay", [namespace]).completions() # Maybe this will reduce Jedi initialization time?
             executor = PyodideExecutor(namespace)
@@ -111,12 +108,16 @@ let startup_promise = startup();
 
 self.subscribers = [];
 
+let handledCommands = {
+    service_worker_channel : registerServiceWorkerPort,
+    respondToQuery : handleQueryResponse
+}
+
 self.addEventListener("message", async function(e) {
-    if(e.data.cmd === "service_worker_channel"){
-        registerServiceWorkerPort(e);
+    if(handledCommands[e.data.cmd]){
+        handledCommands[e.data.cmd](e);
         return;
     }
-
     await startup_promise;
     // interrupt_buffer is a single byte SharedArrayBuffer used to signal a keyboard interrupt.
     // If it contains 0, no keyboard interrupt has occurred, on keyboard interrupt is set to 1.
@@ -142,6 +143,42 @@ self.addEventListener("message", async function(e) {
         // pyo
     }
 });
+
+let responses = {};
+function handleQueryResponse(e){
+    responses[e.data.uuid].resolve(e.data);
+}
+
+function getResponsePromise(){
+    let subuuid = uuid4();
+    return [subuuid, new Promise((resolve, reject) => 
+        responses[subuuid] = { resolve, reject }
+    )];
+}
+
+
+async function filePicker(type){
+    let [uuid, promise] = getResponsePromise();
+    self.postMessage({cmd : "file_picker", uuid, type });
+    let response = await promise;
+    if(response.handle){
+        return response.handle;
+    } else {
+        throw Error(response.error);
+    }
+}
+self.filePicker = filePicker;
+
+async function requestHandlePermission(handle, mode){
+    let [uuid, promise] = getResponsePromise();
+    self.postMessage({cmd : "request_handle_permission", handle, mode, uuid});
+    let response = await promise;
+    return response.status;
+}
+self.requestHandlePermission = requestHandlePermission;
+
+
+
 
 
 function registerServiceWorkerPort(e){

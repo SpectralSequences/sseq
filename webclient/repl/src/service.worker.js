@@ -13,8 +13,8 @@ const router = new Router({
 });
 
 
-const repls = {};
-const charts = {};
+const repl_message_ports = {};
+const chart_owning_repls = {};
 
 function make_json_response(body, status){
     status.headers = new Headers({
@@ -30,38 +30,38 @@ function make_html_response(body, status){
     return new Response(body, status);
 }
 
-async function get_owning_client(chart_name){
-    if(!(chart_name in charts)){
+async function get_owning_repl(chart_name){
+    if(!(chart_name in chart_owning_repls)){
         return undefined;
     }
-    let owningClientId = charts[chart_name];
-    let owningClient = await self.clients.get(owningClientId);
-    if(!owningClient){
-        console.log("Undefiend owning client, deleting chart.");
-        if(owningClientId in repls){
-            repls[owningClientId].close();
-            delete repls[owningClientId];
+    let owningReplId = chart_owning_repls[chart_name];
+    let owningRepl = await self.clients.get(owningReplId);
+    if(!owningRepl){
+        console.log("Undefined owning repl, deleting chart.");
+        if(owningReplId in repl_message_ports){
+            repl_message_ports[owningReplId].close();
+            delete repl_message_ports[owningReplId];
         }
-        delete charts[chart_name];
+        delete chart_owning_repls[chart_name];
     }
-    return owningClient;
+    return owningRepl;
 }
 
 router.put("/api/charts/:name", async (context) => {
     let clientId = context.event.clientId;
     let name = context.params.name;
-    let owningClient = await get_owning_client(name);
-    if(owningClient){
+    let owningRepl = await get_owning_repl(name);
+    if(owningRepl){
         context.response = make_json_response({ 
                 response : `Chart "${name}" already exists.`,
                 code : "put-chart::failed::already-exists",
-                same_repl_owns_chart : clientId === owningClient.id
+                same_repl_owns_chart : clientId === owningRepl.id
             }, 
             { status : 409,  statusText : "Chart already exists" }
         );
         return;
     }
-    charts[name] = clientId;
+    chart_owning_repls[name] = clientId;
     context.response = make_json_response(
         { response : `Created chart "${name}".`, code : "put-chart::succeeded" },
         { status : 201,   statusText : "Created chart." }
@@ -71,7 +71,7 @@ router.put("/api/charts/:name", async (context) => {
 
 router.get("/api/charts/:name", async (context) => {
     let { name } = context.params;
-    let owningClient = await get_owning_client(name);
+    let owningClient = await get_owning_repl(name);
     if(owningClient){
         context.response = make_json_response(
             { clientId : owningClient.id, code : "get-chart::succeeded" },
@@ -91,12 +91,12 @@ router.get("/charts/:name", async (context) => {
         context.response = fetch(`charts/${name}`);
         return;
     }
-    let owningClient = await get_owning_client(name);
-    if(owningClient){
+    let owningRepl = await get_owning_repl(name);
+    if(owningRepl){
         let chart_html = await (await fetch("charts/chart.html")).text();
         context.response = make_html_response(
             Mustache.render(chart_html,
-                { clientId : owningClient.id, chart_name : name }),
+                { clientId : owningRepl.id, chart_name : name }),
             { status : 200, statusText : "Found chart" }
         );
         return;
@@ -136,14 +136,15 @@ function handleMessage(event){
 
 let messageDispatch = {
     pyodide_worker_channel : installPyodideRepl,
-    subscribe_chart_display : passChartChannelToPyodide
+    subscribe_chart_display : passChartChannelToPyodide,
+    chart_display_focus_repl : focusRepl,
 };
 
 function installPyodideRepl(event){
     let port = event.data.port;
     console.log(`Service worker :: installing pyodide repl :: id : ${event.source.id}`);
     port.addEventListener("message", handlePyodideMessage);
-    repls[event.source.id] = port;
+    repl_message_ports[event.source.id] = port;
     port.start();
 }
 
@@ -154,10 +155,17 @@ function handlePyodideMessage(event){
 
 async function passChartChannelToPyodide(event){
     let { port, chart_name } = event.data;
+    chart_owning_repls[event.source.id] = chart_name;
     event.data.client_id = event.source.id;
-    let owningClient = await get_owning_client(chart_name);
-    console.log(`Owning client Id : ${owningClient.id}`);
-    console.log(repls);
-    let repl_port = repls[owningClient.id];
+    let owningRepl = await get_owning_repl(chart_name);
+    console.log(`Owning client Id : ${owningRepl.id}`);
+    console.log(repl_message_ports);
+    let repl_port = repl_message_ports[owningRepl.id];
     repl_port.postMessage(event.data, [port]);
+}
+
+async function focusRepl(event){
+    let chart_name = chart_owning_repls[event.source.id];
+    let owningRepl = await get_owning_repl(chart_name);
+    owningRepl.focus();
 }

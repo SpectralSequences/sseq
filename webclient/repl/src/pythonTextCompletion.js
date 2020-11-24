@@ -31,8 +31,7 @@ function getCompletionProvider(monaco, repl) {
             lineNumber -= repl.readOnlyLines;
             column--;
             position = {lineNumber, column};
-            // TODO: If SAB is present, use CancellationToken
-            let [state_id, completions] = await repl.jedi_value.getCompletions(repl.value, position, token);
+            let {state_id, completions} = await repl.jedi_value.getCompletions(repl.value, position, token);
             for(let {name, kind} of completions){
                 let label = name;
                 let suggestion = makeSuggestion(label, monaco.languages.CompletionItemKind[kind_map[kind]]);
@@ -45,23 +44,14 @@ function getCompletionProvider(monaco, repl) {
         resolveCompletionItem : async function(model, position, item, token){
             let result = await repl.jedi_value.getCompletionInfo(item.state_id, item.idx, token);
             let {docstring, signature, full_name, root} = result;
-            console.log("full_name:", full_name, "root:", root);
             item.detail = signature;
             if(full_name){
                 let doclink = `apidocs/_autosummary/${root}.html#${full_name}`;
                 docstring += `\n\n[API Docs](${doclink})`;
             }
-
             item.documentation = {
                 isTrusted : true,
                 value : docstring,
-                uris : [{
-                    authority : "www.google.com",
-                    query : "",
-                    fragment : "",
-                    path : "",
-                    scheme : "https",
-                }]
             };
             return item;
         }
@@ -77,9 +67,19 @@ function getSignatureHelpProvider(monaco, repl) {
             lineNumber -= repl.readOnlyLines;
             column--;
             position = {lineNumber, column};
-            let signatures = await repl.jedi_value.getSignatures(repl.value, position, token);
+            let {signatures, full_name, root} = await repl.jedi_value.getSignatures(repl.value, position, token);
             if(!signatures){
                 return;
+            }
+            if(full_name){
+                let doclink = `apidocs/_autosummary/${root}.html#${full_name}`;
+                let sig = signatures.signatures[0];
+                let documentation = sig.documentation;
+                documentation += `\n\n[API Docs](${doclink})`
+                sig.documentation = {
+                    isTrusted : true,
+                    value : documentation,
+                };
             }
             return { 
                 value : signatures,
@@ -92,44 +92,48 @@ function getSignatureHelpProvider(monaco, repl) {
 function getColorProvider(monaco, repl){
     return {
         provideColorPresentations: (model, colorInfo, cancellationToken) => {
-            console.log(colorInfo);
+            let {red, green, blue, alpha} = colorInfo.color;
+            let colorStrs = [red, green, blue, alpha].map(e => e.toFixed(3).replace(/0*$/,"").replace(/\.$/,""));
             return [
                 {
-                    label: JSON.stringify(colorInfo.color)
+                    label: `Color(${colorStrs})`,
+                    textEdit : {
+                        range : colorInfo.range,
+                        text : `Color(${colorStrs})`
+                    }
                 }
             ];
         },
 
         provideDocumentColors: (model, cancellationToken) => {
-            return [
-                // {
-                //     color: { red: 255, blue: 0, green: 0, },
-                //     range:{
-                //         startLineNumber: 1,
-                //         startColumn: 0,
-                //         endLineNumber: 1,
-                //         endColumn: 0
-                //     }
-                // },
-                // {
-                //     color: { red: 0, blue: 255, green: 0, },
-                //     range:{
-                //         startLineNumber: 2,
-                //         startColumn: 0,
-                //         endLineNumber: 2,
-                //         endColumn: 0
-                //     }
-                // },
-                // {
-                //     color: { red: 0, blue: 0, green: 255, },
-                //     range:{
-                //         startLineNumber: 3,
-                //         startColumn: 0,
-                //         endLineNumber: 3,
-                //         endColumn: 0
-                //     }
-                // }
-            ]
+            if(!repl.editor){
+                return [];
+            }
+            let startLine = repl.startOfInputPosition.lineNumber;
+            let endLine = repl.endOfInputPosition.lineNumber;
+            let result = [];
+            for(let line = startLine; line <= endLine; line++){
+                let value = model.getLineContent(line);
+                for(let match of value.matchAll(/Color\(([^)]*)\)/g)){
+                    let startColumn = match.index + 1;
+                    let endColumn = startColumn + match[0].length + 1;
+                    let [red, green, blue, alpha] = match[1].split(",").map(s => Number.parseFloat(s)); 
+                    red = red || 0;
+                    blue = blue || 0;
+                    green = green || 0;
+                    alpha = alpha || 1;
+                    result.push({
+                        color : {red, blue, green, alpha},
+                        range : {
+                            startLineNumber: line,
+                            startColumn,
+                            endLineNumber: line,
+                            endColumn,
+                        }
+                    });
+                }
+            }
+            return result;
         }
     }
 }
@@ -145,5 +149,3 @@ export function updatePythonLanguageDefinition(monaco, repl){
     monaco.languages.registerSignatureHelpProvider('python', getSignatureHelpProvider(monaco, repl));
     monaco.languages.registerColorProvider('python', getColorProvider(monaco, repl));
 }
-
-
