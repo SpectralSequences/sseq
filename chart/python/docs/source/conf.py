@@ -12,8 +12,11 @@
 #
 import os
 import sys
+import textwrap
 sys.path.insert(0, os.path.abspath('../..'))
 
+
+from spectralsequence_chart import __version__
 
 # -- Project information -----------------------------------------------------
 
@@ -22,7 +25,7 @@ copyright = '2020, Hood Chatham'
 author = 'Hood Chatham'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.11'
+release = __version__
 
 
 # -- General configuration ---------------------------------------------------
@@ -35,7 +38,8 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.viewcode',
-    'recommonmark'
+    'sphinx.ext.mathjax',
+    # 'recommonmark',
     # 'sphinx_autodoc_typehints'
 ]
 
@@ -86,8 +90,10 @@ napoleon_numpy_docstring = False
 def setup(app):
     app.connect('autodoc-process-signature', get_signature_from_ast)
     app.connect('autodoc-process-docstring', autodoc_process_docstring)
+    app.connect('source-read', source_read)
     app.connect('autodoc-skip-member', autodoc_skip_member_handler)
     app.add_css_file("table_wrap.css")
+    app.add_js_file("index.js")
 
 
 
@@ -100,8 +106,9 @@ from spectralsequence_chart.display_primitives import (
     ArrowTip, Color, Shape
 )
 from spectralsequence_chart.serialization import JSON
-
-
+from spectralsequence_chart.page_property import PageProperty
+from spectralsequence_chart.utils import format_monomial
+chart = SseqChart
 
 
 # Monkey patch signature cross reference producer
@@ -217,26 +224,49 @@ def get_signature_from_ast(app, what, name, obj, options, signature,
 # Subsitute `SseqChart.add_class` ==> :meth:`SseqChart.add_class`
 # Substitute `chart.add_class <SseqChart.add_class>` ==> :meth:`chart.add_class <SseqChart.add_class>`
 import re
-link_regex = re.compile(r"(?<!:)`([_.A-Za-z]*)(?: <([_.A-Za-z]*)>)?`")
 
+
+def source_read(app, docname, source):
+    if docname.startswith("_autosummary"):
+        return
+    lines = source[0].split("\n")
+    make_sphinx_links(lines)
+    source[0] = "\n".join(lines)
 
 def autodoc_process_docstring(app, what, name, obj, options, lines):
-    def replacer(match):
-        # print(f"---- {match.group(0)}")
-        text = match.group(1)
-        qual = match.group(2) or text
-        # print(f"--- qual: {qual}")
-        inferences = get_inferences(qual)
-        if not inferences:
-            return match.group(0)
-        full_name = get_inference_full_name(inferences[0])
-        sphinx_type = get_inference_sphinx_type(inferences[0])
+    make_sphinx_links(lines)
 
-        # print(f" === :{sphinx_type}:`{text} <{full_name}>`")
-        return f":{sphinx_type}:`{text} <{full_name}>`"
-    
+link_regex = re.compile(r"(?<!:)`([^<>`]*)(?: <([_.A-Za-z]*)>)?`")
+def link_replacer(match):
+    # print(f"---- {match.group(0)}")
+    text = match.group(1)
+    qual = match.group(2) or text
+    # print(f"--- qual: {qual}")
+    inferences = get_inferences(qual)
+    if not inferences:
+        return match.group(0)
+    full_name = get_inference_full_name(inferences[0])
+    sphinx_type = get_inference_sphinx_type(inferences[0])
+
+    # print(f" === :{sphinx_type}:`{text} <{full_name}>`")
+    return f":{sphinx_type}:`{text} <{full_name}>`"
+
+inline_math_regex = re.compile(r"(?<!\\)\$([^$]*)(?<!\\)\$")
+def inline_math_replacer(match):
+    math = match.group(1)
+    return f":math:`{math}`"
+
+display_math_regex = re.compile(r"\\\[([^$]*)\\\]")
+def display_math_replacer(match):
+    math = match.group(1)
+    math = textwrap.indent(math, "   ")
+    return f".. math::\n\n`{math}`"
+
+def make_sphinx_links(lines):
     for i in range(len(lines)):
-        lines[i] = link_regex.sub(replacer, lines[i])
+        lines[i] = link_regex.sub(link_replacer, lines[i])
+        lines[i] = inline_math_regex.sub(inline_math_replacer, lines[i])
+        lines[i] = display_math_regex.sub(display_math_replacer, lines[i])
 
 def autodoc_skip_member_handler(app, what, name, obj, skip, options):
     return name.endswith("from_json") or name.endswith("to_json") or name.startswith("_")

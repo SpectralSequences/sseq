@@ -5,15 +5,20 @@
 
 spectralsequence_chart documentation
 ===================================================
+
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-   
    :glob:
+   :maxdepth: 3
+   :caption: Tutorials:
+   
    tutorials/*
 
+   
+API Documentation:
+-----------------
 .. autosummary::
    :toctree: _autosummary
+   :caption: API Documentation:
    :template: custom-module-template.rst
    :recursive:
 
