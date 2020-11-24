@@ -1,6 +1,6 @@
 from .infinity import INFINITY
 import json
-from typing import List, Tuple, Any, Union, TypeVar, Generic, Optional, Dict, cast, Callable
+from typing import List, Tuple, Any, Type, Union, TypeVar, Generic, Optional, Dict, cast, Callable
 
 T = TypeVar('T')
 class PageProperty(Generic[T]):
@@ -15,7 +15,7 @@ class PageProperty(Generic[T]):
         callback : Optional[Callable[[], None]] = None,
     ):
         """ Initialize the PageProperty to always have value v."""
-        self._values : List[Tuple[int, T]] = [(-INFINITY, value)]
+        self._values : List[Tuple[int, T]] = [(0, value)]
         self.set_parent(parent)
         self._callback = callback
 
@@ -36,16 +36,24 @@ class PageProperty(Generic[T]):
             result_idx = idx 
         # We need to help out the type checker here
         if result_idx is None: 
-            assert False, "Unreachable" 
+            raise ValueError(f"Page Property indexed with negative index: {target_page}")
         return (result_idx, self._values[result_idx][0] == target_page)
 
     def __getitem__(self, x : Union[int, slice]) -> T:
+        stop = None
         if type(x) == slice:
-            raise TypeError("Can only assign to slice index, cannot retreive.")
+            stop = x.stop or INFINITY
+            x = x.start or 0
+
         if type(x) != int:
             raise TypeError(f"Expected integer, got {type(x).__name__}.")
+
         assert type(x) is int # Make type analysis thing happy
         (idx, _) = self._find_index(x)
+        if stop:
+            (idx2, _) = self._find_index(stop - 1)
+            if idx != idx2:
+                raise ValueError("Indexed with slice but value is inconsistent across slice.")
         return self._values[idx][1]
 
 
@@ -59,7 +67,7 @@ class PageProperty(Generic[T]):
             return
         if type(p) is not slice:
             raise TypeError("Excepted int or slice!")
-        start = p.start or -INFINITY
+        start = p.start or 0
         stop = p.stop or INFINITY
         orig_value = self[stop]
         (start_idx, _) = self._setitem_single(start, v)

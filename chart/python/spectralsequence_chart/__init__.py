@@ -17,5 +17,5 @@ from .chart_edge import (
 from .infinity import INFINITY
 from .chart import SseqChart
 
-__version__ = "0.0.14"
+__version__ = "0.0.15"
 # __all__ = [ChartClass, ChartClassStyle, Shape, ]
