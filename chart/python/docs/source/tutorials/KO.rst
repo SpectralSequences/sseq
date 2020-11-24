@@ -1,14 +1,6 @@
 KO HFPSS Tutorial
 =================
 
->>> from spectralsequence_chart.utils import format_power
-... def format_monomial(*exponents):
-...     result = " ".join(format_power(var, e) for [var,e] in exponents if e)
-...     if result.strip() == "":
-...         result = "1"
-...     return result
-
-
 Now we will make the HFPSS for KO. First we need to create our display object:
 
 >>> disp = SseqDisplay("KO-HFPSS")
