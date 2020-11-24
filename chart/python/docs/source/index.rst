@@ -11,7 +11,8 @@ spectralsequence_chart documentation
    :maxdepth: 3
    :caption: Tutorials:
    
-   tutorials/*
+   tutorials/intro
+   tutorials/KO
 
    
 API Documentation:
