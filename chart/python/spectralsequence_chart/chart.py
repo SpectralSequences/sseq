@@ -1,6 +1,7 @@
 """ SseqChart is the main class which holds the data structure representing the chart. """
 
 
+import spectralsequence_chart
 from spectralsequence_chart.signal_dict import SignalList
 import threading
 from typing import (
@@ -125,6 +126,7 @@ class SseqChart:
     def to_json(self) -> Dict[str, Any]:
         return dict(
             type=type(self).__name__,
+            version=spectralsequence_chart.__version__,
             uuid=self.uuid,
             name=self.name,
             initial_x_range=self._initial_x_range,
