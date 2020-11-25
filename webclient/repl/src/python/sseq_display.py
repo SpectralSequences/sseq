@@ -33,8 +33,8 @@ class SseqDisplay:
         self.set_sseq(chart)
         self.subscribers = {}
         SseqDisplay.displays[name] = self
-        from .executor import PyodideExecutor
-        self.executor = PyodideExecutor.executor
+        from repl.executor import Executor
+        self.executor = Executor.executor
         self._started = False
     
     def __repr__(self):

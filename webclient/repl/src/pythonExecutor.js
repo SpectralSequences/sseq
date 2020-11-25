@@ -15,6 +15,7 @@ export class PythonExecutor {
     constructor(){
         this.executions = {};
         this.completers = {};
+        window.loadingWidget.addLoadingMessage("Loading pyodide");
         this.pyodide_worker = new Worker("pyodide_worker.bundle.js");
         this.pyodide_worker.addEventListener("message", this._handleMessage.bind(this));
         // The pyodide worker needs to be able to send messages to the service worker, so we make a channel
@@ -41,7 +42,9 @@ export class PythonExecutor {
             complete : "_handleCompletionMessage",
             ready : "_handleReadyMessage",
             file_picker : "file_picker",
-            request_handle_permission : "_handleRequestHandlePermission"
+            request_handle_permission : "_handleRequestHandlePermission",
+            loadingMessage : "_handleLoadingMessage",
+            loadingError : "_handleLoadingError",
         };
         let subhandler_name = subhandlers[message_cmd];
         if(!subhandler_name){
@@ -73,6 +76,15 @@ export class PythonExecutor {
             });
         }
     }
+
+    _handleLoadingMessage(message){
+        window.loadingWidget.addLoadingMessage(message.text);
+    }
+
+    _handleLoadingError(message){
+        console.error(message);
+        throw Error("TODO: handle me!");
+    }
     
     async _handleRequestHandlePermission(message){
         let { uuid, handle, mode } = message;
@@ -89,6 +101,7 @@ export class PythonExecutor {
             this._readyPromise.reject(message.exception);
             return;
         }
+        window.loadingWidget.addLoadingMessage("Pyodide is ready!");
         console.log("Pyodide is ready!");
         this._readyPromise.resolve();
     }

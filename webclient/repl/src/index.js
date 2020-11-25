@@ -1,13 +1,10 @@
 import { ReplElement } from "./repl";
 
-// import registerServiceWorker, {
-//     ServiceWorkerNoSupportError
-// } from 'service-worker-loader!./service.worker';
- 
+
 navigator.serviceWorker.register("service_worker.bundle.js", { scope: '.' })
 .then((registration) => {
+    window.loadingWidget.addLoadingMessage("Downloading Monaco");
     console.log('Service worker loaded', registration);
-    // console.log("controller:", navigator.serviceWorker.controller);
 }).catch((err) => {
     console.error('Error loading service worker!', err);
 });

@@ -18,6 +18,14 @@ async function is_promise(obj){
 self.is_promise = is_promise;
 
 
+function loadingMessage(text){
+    postMessage({ cmd : "loadingMessage", text});
+}
+
+function loadingError(text){
+    postMessage({ cmd : "loadingError", text});
+}
+
 // files_to_install is a map file_name => file_contents for the files in the python directory. 
 // It's produced by the webpack prebuild script scripts/bundle_python_sources.py
 
@@ -52,10 +60,10 @@ function initializeFileSystem(){
      * the move occurs, but this code consistently executes before the move.
      */
     let pyodide_FS = pyodide.FS;
-    let stdoutStream = makeOutputStream(console.log);
-    let stderrStream = makeOutputStream(console.error);
+    // let stdoutStream = makeOutputStream(loadingMessage);
+    // let stderrStream = makeOutputStream(loadingError);
 
-    pyodide_FS.init(() => null, stdoutStream, stderrStream);
+    // pyodide_FS.init(() => null, stdoutStream, stderrStream);
     pyodide_FS.mkdir('/repl');
     for(let dir of directories_to_install){
         pyodide_FS.mkdir(`/repl/${dir}`);
@@ -77,14 +85,15 @@ self.messageLookup = {};
 
 async function startup(){
     try {
+        loadingMessage("Initializing Python runtime");
         await languagePluginLoader;
         await pyodide.loadPackage([
                 // "pygments", 
                 "crappy-python-multitasking",
                 "spectralsequence_chart"
             ],
-            (msg) => console.log(msg),
-            (err) => console.error(msg)
+            // loadingMessage,
+            // loadingError,
         );
         pyodide.runPython(`
             import sys

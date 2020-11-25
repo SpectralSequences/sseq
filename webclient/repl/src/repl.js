@@ -10,7 +10,6 @@ class ReplElement extends HTMLElement {
 	static get defaultEditorOptions(){
 		return {
 			value: "",
-			language: "python",
 			folding : false,
 			theme : "vs-dark",
 			roundedSelection : false,
@@ -160,11 +159,6 @@ class ReplElement extends HTMLElement {
 		this.firstLines = {};
 		this.outputScreenLines = {};
 		this.outputModelLines = {};
-		// this.outputModelLines[1] = true;
-		// this.outputModelLines[2] = true;
-		// this.outputScreenLines[1] = true;
-		// this.outputScreenLines[2] = true;
-		// this.firstLines[2] = true; 
 		this.lineOffsetMutationObserver = new MutationObserver((mutationsList, observer) => {
 			this.updateLineOffsets();
 		});
@@ -249,14 +243,15 @@ class ReplElement extends HTMLElement {
 		this.querySelector(".decorationsOverviewRuler").remove();
 		this.showSuggestDetails();
 		this.readOnly = true;
-		this._displayLoadingPrompt();
 		this.start();
 	}
 
 	async start(){
 		try {
 			if(navigator.serviceWorker.controller === null){
+				window.loadingWidget.addLoadingMessage("Waiting for service worker (try refreshing page?).");
 				await new Promise(resolve => navigator.serviceWorker.oncontrollerchange = resolve );
+				window.loadingWidget.addLoadingMessage("Service worker ready.");
 			}
 			// await navigator.serviceWorker.ready;
 			this.executor = new PythonExecutor();
@@ -267,17 +262,6 @@ class ReplElement extends HTMLElement {
 		} catch(e){
 			this._loadingFailed(e);
 			throw e;
-		}
-	}
-
-	async _displayLoadingPrompt(){
-		let idx = 0;
-		let loadingSpinner = ["|",  "/", "—", "\\"];
-		while(!this.ready){
-			idx ++;
-			idx = idx % loadingSpinner.length;
-			this.editor.setValue(`Loading... ${loadingSpinner[idx]}`);
-			await sleep(50);
 		}
 	}
 
@@ -307,7 +291,6 @@ class ReplElement extends HTMLElement {
 
 
 	async _loaded(){
-		this.ready = true;
 		this.editor.onKeyDown(this._onkey.bind(this));
 		this.editor.onMouseDown(this._onmousedown.bind(this));
 		this.editor.onMouseUp(this._onmouseup.bind(this));
@@ -316,18 +299,20 @@ class ReplElement extends HTMLElement {
 		this.editor.onDidChangeModelContent(() => { 
 			this.clearSyntaxError();
 		});
-		this.editor.updateOptions({ "readOnly" : false });
-		this.editor.updateOptions({
+		monaco.editor.setModelLanguage(this.editor.getModel(), "python");
+		this.editor.updateOptions({ 
+			readOnly : false,
 			lineNumbers : this._getEditorLinePrefix.bind(this)
 		});
 
-		this.outputModelLines = { 1 : true};
+		this.outputModelLines = { 1 : true };
 		this.outputScreenLines = { 1 : true };
 		this.firstLines[2] = true;
 		this.editor.setValue("\n");
 		this.editor.setPosition(this.endOfInputPosition);
 		this.focus();
 		await sleep(0);
+		window.loadingWidget.ready = true;
 		this.readOnly = false;
 	}
 
