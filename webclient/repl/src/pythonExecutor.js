@@ -102,7 +102,6 @@ export class PythonExecutor {
             return;
         }
         window.loadingWidget.addLoadingMessage("Pyodide is ready!");
-        console.log("Pyodide is ready!");
         this._readyPromise.resolve();
     }
 

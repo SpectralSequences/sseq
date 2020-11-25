@@ -10,6 +10,7 @@ class ReplElement extends HTMLElement {
 	static get defaultEditorOptions(){
 		return {
 			value: "",
+			language : "python",
 			folding : false,
 			theme : "vs-dark",
 			roundedSelection : false,
@@ -299,7 +300,6 @@ class ReplElement extends HTMLElement {
 		this.editor.onDidChangeModelContent(() => { 
 			this.clearSyntaxError();
 		});
-		monaco.editor.setModelLanguage(this.editor.getModel(), "python");
 		this.editor.updateOptions({ 
 			readOnly : false,
 			lineNumbers : this._getEditorLinePrefix.bind(this)

@@ -60,10 +60,10 @@ function initializeFileSystem(){
      * the move occurs, but this code consistently executes before the move.
      */
     let pyodide_FS = pyodide.FS;
-    // let stdoutStream = makeOutputStream(loadingMessage);
-    // let stderrStream = makeOutputStream(loadingError);
+    let stdoutStream = makeOutputStream(loadingMessage);
+    let stderrStream = makeOutputStream(loadingError);
 
-    // pyodide_FS.init(() => null, stdoutStream, stderrStream);
+    pyodide_FS.init(() => null, stdoutStream, stderrStream);
     pyodide_FS.mkdir('/repl');
     for(let dir of directories_to_install){
         pyodide_FS.mkdir(`/repl/${dir}`);
@@ -82,10 +82,10 @@ self.sendMessage = sendMessage;
 self.messageLookup = {};
 
 
-
+self.loadingMessage = loadingMessage;
 async function startup(){
     try {
-        loadingMessage("Initializing Python runtime");
+        loadingMessage("Loading Pyodide packages");
         await languagePluginLoader;
         await pyodide.loadPackage([
                 // "pygments", 
@@ -95,7 +95,9 @@ async function startup(){
             // loadingMessage,
             // loadingError,
         );
+        loadingMessage("Initializing Python Executor");
         pyodide.runPython(`
+            from js import loadingMessage
             import sys
             sys.path.append("/repl")
             from namespace import get_namespace
@@ -104,6 +106,7 @@ async function startup(){
             from js_wrappers.async_js import WebLoop
             from js_wrappers.messages import send_message_a
             namespace = get_namespace()
+            loadingMessage("Initializing Jedi completion engine")
             import jedi # This is slow but better to do it up front.
             jedi.Interpreter("SseqDisplay", [namespace]).completions() # Maybe this will reduce Jedi initialization time?
             executor = Executor(WebLoop(), send_message_a,  namespace)

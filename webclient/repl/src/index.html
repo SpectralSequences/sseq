@@ -100,8 +100,14 @@
             this.loadingElement = document.querySelector(".loading");
         }
 
+        elapsedSeconds(){
+            let finishedLoadingTime = new Date().getTime();
+            return ((finishedLoadingTime - this.startedLoadingTime)/1000).toFixed(1);
+        }
+
         addLoadingMessage(msg){
             this.loadingMessages.push(msg);
+            console.log(`${msg} (${this.elapsedSeconds()} seconds)`);
         }    
 
         async displayLoadingPrompt(){
@@ -117,13 +123,13 @@
                 await sleep(50);
             }
             this.loadingElement.hidden = true;
-            let finishedLoadingTime = new Date().getTime();
-            let loading_seconds = ((finishedLoadingTime - this.startedLoadingTime)/1000).toFixed(1);
-            console.log(`Finished loading in ${loading_seconds} seconds`);            
+
+            console.log(`Finished loading in ${this.elapsedSeconds()} seconds`);            
         }
     }
     window.loadingWidget = new LoadingWidget();
     loadingWidget.displayLoadingPrompt();
+    window.loadingWidget.addLoadingMessage("Downloading Monaco");
 </script>
 <script src="monaco.dll.js"></script>
 <script src="index.bundle.js"></script>
