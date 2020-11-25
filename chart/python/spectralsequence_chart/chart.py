@@ -151,6 +151,7 @@ class SseqChart:
     def _from_json_helper(self,
         type : str,
         uuid : str,
+        version : str,
         page_list : List[Tuple[int, int]],
         initial_x_range : Tuple[int, int],
         initial_y_range : Tuple[int, int],
