@@ -1,6 +1,3 @@
-from os import name
-
-
 def get_namespace():
     from .sseq_display import SseqDisplay
     from spectralsequence_chart.chart import SseqChart 

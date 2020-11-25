@@ -8,9 +8,15 @@ def crappy_multitasking(callback, interval):
     """
     crappy_multitasking_module.set_interval(interval)
     crappy_multitasking_module.start(callback)
-    # Oh god does this try yield finally pass bullshit do anything? 
-    # TODO: demystify.
     try:
         yield
     finally:
         crappy_multitasking_module.end()
+
+
+def check_interrupt(interrupt_buffer):
+    def helper():
+        if interrupt_buffer() == 0:
+            return
+        raise KeyboardInterrupt()
+    return helper

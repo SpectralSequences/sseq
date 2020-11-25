@@ -25,31 +25,25 @@ let outBuffer = [];
 let lastStreamFunc = undefined;
 function makeOutputStream(streamFunc){
     function writeToStream(charCode){
-        // console.log("hi?");
-        // console.error("writeToStream", charCode);
-        // outBuffer.push(String.fromCharCode(charCode));
         if(lastStreamFunc && lastStreamFunc !== streamFunc){
-            // console.error("writing!");
             lastStreamFunc(outBuffer.join(""));
             outBuffer = [];
             lastStreamFunc = undefined;
         }
         if(charCode === 10 || !charCode){
-            // console.error("writing!");
-            // console.log(outBuffer.join(""));
             streamFunc(outBuffer.join(""));
             outBuffer = [];
             lastStreamFunc = undefined;
         } else {
-            // lastStreamFunc = streamFunc;
+            lastStreamFunc = streamFunc;
             outBuffer.push(String.fromCharCode(charCode));
-            // console.log("ip::", outBuffer.join(""));
         }
     }
     return writeToStream;
 }
 
-import { files_to_install } from "./python_imports";
+// See scripts/bundle_python_sources.py
+import { files_to_install, directories_to_install } from "./python_imports";
 function initializeFileSystem(){
     /**  
      * NOTE: When pyodide is finished initializing, the original "pyodide" object
@@ -64,14 +58,18 @@ function initializeFileSystem(){
     pyodide_FS.init(() => null, stdoutStream, stderrStream);
     pyodide_FS.mkdir('/repl');
     pyodide_FS.mkdir('/repl/repl');
+    for(let dir of directories_to_install){
+        pyodide_FS.mkdir(`/repl/repl/${dir}`);
+    }
     for(let [k, v] of Object.entries(files_to_install)){
-        pyodide_FS.writeFile(`/repl/repl/${k}.py`, v);
+        pyodide_FS.writeFile(`/repl/repl/${k}`, v);
     }
 }
 initializeFileSystem();
 
 
 function sendMessage(message){
+    console.log("sending message:", message);
     self.postMessage(message);
 }
 self.sendMessage = sendMessage;
@@ -93,11 +91,13 @@ async function startup(){
         pyodide.runPython(`
             import sys
             sys.path.append("/repl")
-            from repl import PyodideExecutor, get_namespace, SseqDisplay
+            from repl import Executor, get_namespace, SseqDisplay
+            from repl.js_wrappers.async_js import WebLoop
+            from repl.js_wrappers.messages import send_message_a
             namespace = get_namespace()
             import jedi # This is slow but better to do it up front.
             jedi.Interpreter("SseqDisplay", [namespace]).completions() # Maybe this will reduce Jedi initialization time?
-            executor = PyodideExecutor(namespace)
+            executor = Executor(WebLoop(), send_message_a,  namespace)
         `);
         self.postMessage({cmd : "ready"});
     } catch(e){
@@ -122,9 +122,7 @@ self.addEventListener("message", async function(e) {
     // interrupt_buffer is a single byte SharedArrayBuffer used to signal a keyboard interrupt.
     // If it contains 0, no keyboard interrupt has occurred, on keyboard interrupt is set to 1.
     const {uuid, interrupt_buffer} = e.data;
-    // Store data into message lookup. This allows us to use the FFI to convert the arguments.
-    messageLookup[uuid] = e.data;
-    
+
     // I was unable to access the data in the SharedArrayBuffer directly accross the pyodide FFI.
     // Best solution I came up with was to pass a wrapper function that indexes the SAB in js
     if(interrupt_buffer){
@@ -135,10 +133,21 @@ self.addEventListener("message", async function(e) {
             // keyboard interrupts are processed as soon as possible, and the nonatomic read should be sufficient.
             // return Atomics.load(interrupt_buffer, 0); 
         }
+    } else {
+        e.data.interrupt_buffer = () => 0;
     }
-    // executor.handle_message will look up e.data in messageLookup using uuid.
+    // Store data into message lookup. This allows us to use the FFI to convert the arguments.
+    messageLookup[uuid] = e.data;
+    // get_message looks up e.data in messageLookup using uuid.
     try {
-        await self.pyodide.runPythonAsync(`executor.handle_message("${uuid}")`);
+        await self.pyodide.runPythonAsync(`
+            from repl.js_wrappers.messages import get_message
+            from repl.js_wrappers.crappy_multitasking import (crappy_multitasking, check_interrupt)
+            msg = get_message("${uuid}")
+            interrupt_buffer = msg.pop("interrupt_buffer")
+            with crappy_multitasking(check_interrupt(interrupt_buffer), 10_000):
+                executor.handle_message(**msg)
+        `);
     } finally {
         // pyo
     }
@@ -210,5 +219,5 @@ function handleMessageFromChart(event, port, chart_name, client_id){
     let { uuid } = JSON.parse(message);
     messageLookup[uuid] = { message, chart_name, port, client_id };
     console.log("message from chart:", message);
-    pyodide.runPython(`SseqDisplay.dispatch_message("${uuid}")`);
+    pyodide.runPython(`SseqDisplay.dispatch_message(get_message("${uuid}"))`);
 }

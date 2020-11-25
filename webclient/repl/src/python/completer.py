@@ -1,9 +1,10 @@
-from .send_message import send_message
+from js import console
+
 from .handler_decorator import *
+
+import jedi
 from uuid import uuid4
 from collections import OrderedDict
-from .crappy_multitasking import crappy_multitasking
-# from js import console
 import re
 
 SPHINX = re.compile(r"\s*:param\s+(?P<param>\w+):\s*(?P<doc>[^\n]+)")
@@ -34,13 +35,6 @@ def format_docstring(contents):
     return contents
 
 
-def check_interrupt(interrupt_buffer):
-    def helper():
-        if interrupt_buffer() == 0:
-            return
-        raise KeyboardInterrupt()
-    return helper
-
 class LRU(OrderedDict):
     'Limit size, evicting the least recently looked-up key when full'
 
@@ -69,27 +63,25 @@ class Completer:
         self.code = None
         self.states = LRU()
 
-    def handle_message(self, subcmd, **kwargs):
+    async def handle_message_a(self, subcmd, **kwargs):
         if subcmd not in self.message_handlers:
             raise Exception(f'Message with unrecognized subcommand "{subcmd}"')
         handler = self.message_handlers[subcmd]
-        handler(self, **kwargs)
+        await handler(self, **kwargs)
 
-    def send_message(self, subcmd, subuuid, **kwargs):
-        send_message("complete", self.uuid, subcmd=subcmd, subuuid=subuuid, **kwargs)
+    async def send_message_a(self, subcmd, subuuid, **kwargs):
+        console.log("completer send mesage:", subcmd, kwargs)
+        await self.executor.send_message_a("complete", self.uuid, subcmd=subcmd, subuuid=subuuid, **kwargs)
     
     @handle("signatures")
-    def get_signature_help(self, subuuid, interrupt_buffer, code, lineNumber, column):
-        # IMPORTANT: import jedi outside of interrupt handling.
-        # If an interrupt is triggered while jedi is loading, it will break.
-        import jedi
+    async def get_signature_help_a(self, subuuid, code, lineNumber, column):
         try:
-            with crappy_multitasking(check_interrupt(interrupt_buffer), 10_000):
-                interpreter = jedi.Interpreter(code, [self.executor.namespace])
-                jedi_signatures =  interpreter.get_signatures(line=lineNumber, column=column)
-                # For some reason, get_type_hint doesn't work the same on signatures as on completions...
-                [signatures, full_name, root] = self.get_signature_help_helper(jedi_signatures, code)
-                self.send_message("signatures", subuuid, signatures=signatures, full_name=full_name, root=root)
+
+            interpreter = jedi.Interpreter(code, [self.executor.namespace])
+            jedi_signatures =  interpreter.get_signatures(line=lineNumber, column=column)
+            # For some reason, get_type_hint doesn't work the same on signatures as on completions...
+            [signatures, full_name, root] = self.get_signature_help_helper(jedi_signatures, code)
+            await self.send_message_a("signatures", subuuid, signatures=signatures, full_name=full_name, root=root)
         except KeyboardInterrupt:
             pass
     
@@ -133,55 +125,51 @@ class Completer:
         return [sig_info, full_name, root]
 
     @handle("completions")
-    def get_completions(self, subuuid, interrupt_buffer, code, lineNumber, column):
-        # IMPORTANT: import jedi outside of interrupt handling.
-        # If an interrupt is triggered while jedi is loading, it will break.
-        import jedi
+    async def get_completions_a(self, subuuid, code, lineNumber, column):
         try:
-            with crappy_multitasking(check_interrupt(interrupt_buffer), 10_000):
-                self.code = code
-                state_id = str(uuid4())
-                completions = jedi.Interpreter(code, [self.executor.namespace]) \
-                                .complete(line=lineNumber, column=column, fuzzy=True)
-                self.states[state_id] = completions
-                result = []
-                for comp in completions:
-                    result.append(dict(
-                        name=comp.name, 
-                        kind=comp.type
-                    ))
-                self.send_message("completions", subuuid, completions=result, state_id=state_id)
+            console.log("get_completions", code)
+            self.code = code
+            state_id = str(uuid4())
+            completions = jedi.Interpreter(code, [self.executor.namespace]) \
+                            .complete(line=lineNumber, column=column, fuzzy=True)
+            self.states[state_id] = completions
+            result = []
+            for comp in completions:
+                result.append(dict(
+                    name=comp.name, 
+                    kind=comp.type
+                ))
+            await self.send_message_a("completions", subuuid, completions=result, state_id=state_id)
         except KeyboardInterrupt:
-            pass 
+                pass 
 
     @handle("completion_detail")
-    def get_completion_info(self, subuuid, interrupt_buffer, state_id, idx):
+    async def get_completion_info_a(self, subuuid, state_id, idx):
+        completion = self.states[state_id][idx]
         try:
-            with crappy_multitasking(check_interrupt(interrupt_buffer), 10_000):
-                completion = self.states[state_id][idx]
-                try:
-                    # Try getting name and root for link to api docs.
-                    # Will fail on properties.
-                    [full_name, root] = self.get_fullname_root(completion)
-                    if completion.type == "instance":
-                        [docstring, signature, full_name, root] = self.get_completion_info_instance(subuuid, completion)
-                    elif completion.type in ["function", "method"]:
-                        [docstring, signature] = self.get_completion_info_function_or_method(subuuid, completion)
-                    elif completion.type == "module":
-                        signature = completion.infer()[0].full_name
-                        docstring = completion.docstring(raw=True)
-                    else:
-                        signature = completion._get_docstring_signature()
-                        docstring = completion.docstring(raw=True)
-                except Exception as e:
-                    print("Error triggered during completion detail for", completion.name, "type:", completion.type)
-                    raise
-                # import re
-                # regex = re.compile('(?<!\n)\n(?!\n)', re.MULTILINE) # Remove isolated newline characters.
-                # docstring = regex.sub("", docstring)
-                self.send_message("completion_detail", subuuid, docstring=format_docstring(docstring), signature=signature, full_name=full_name, root=root)
+            # Try getting name and root for link to api docs.
+            # Will fail on properties.
+            [full_name, root] = self.get_fullname_root(completion)
+            if completion.type == "instance":
+                [docstring, signature, full_name, root] = self.get_completion_info_instance(subuuid, completion)
+            elif completion.type in ["function", "method"]:
+                [docstring, signature] = self.get_completion_info_function_or_method(subuuid, completion)
+            elif completion.type == "module":
+                signature = completion.infer()[0].full_name
+                docstring = completion.docstring(raw=True)
+            else:
+                signature = completion._get_docstring_signature()
+                docstring = completion.docstring(raw=True)
+        except Exception as e:
+            print("Error triggered during completion detail for", completion.name, "type:", completion.type)
+            raise
         except KeyboardInterrupt:
-            pass
+            return
+
+        # import re
+        # regex = re.compile('(?<!\n)\n(?!\n)', re.MULTILINE) # Remove isolated newline characters.
+        # docstring = regex.sub("", docstring)
+        await self.send_message_a("completion_detail", subuuid, docstring=format_docstring(docstring), signature=signature, full_name=full_name, root=root)
 
     def get_fullname_root(self, completion):
         if completion.name.startswith("_") or completion.name in ["from_json", "to_json"]:

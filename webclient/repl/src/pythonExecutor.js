@@ -36,9 +36,9 @@ export class PythonExecutor {
     _handleMessage(event){
         let message = event.data;
         let message_cmd = message.cmd;
-        let subhandlers = { 
-            execute : "_handleExecutionMessage", 
-            complete : "_handleCompletionMessage", 
+        let subhandlers = {
+            execute : "_handleExecutionMessage",
+            complete : "_handleCompletionMessage",
             ready : "_handleReadyMessage",
             file_picker : "file_picker",
             request_handle_permission : "_handleRequestHandlePermission"
@@ -132,7 +132,6 @@ export class PythonExecutor {
     async ready(){
         return await this._readyPromise.promise;
     }
-
 
     execute(code){
         const interrupt_buffer = createInterruptBuffer();

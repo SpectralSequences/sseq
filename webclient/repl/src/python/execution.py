@@ -3,16 +3,11 @@ from asyncio import iscoroutine
 from copy import deepcopy
 import sys
 
-
 from textwrap import dedent
-from .async_js import wrap_promise
-from .send_message import send_message
 from .traceback import Traceback
 from .write_stream import WriteStream
 
-from js import console, is_promise
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
-from .crappy_multitasking import crappy_multitasking
 
 def firstlinelen(s):
     res = s.find("\n") 
@@ -30,19 +25,16 @@ def dedent_code(code):
 
 
 class Execution:
-    def __init__(self, executor, code, uuid, interrupt_buffer):
+    def __init__(self, executor, code, uuid):
         self.executor = executor
         self.uuid = uuid
         [code, dedent_offset] = dedent_code(code)
         self.code = code
         self.dedent_offset = dedent_offset
-        self.read_interrupt_buffer = interrupt_buffer
-        self.check_interrupt_interval = 10_000
 
 
-    def send_message(self, subcmd, *, last_response, **kwargs):
-        from .executor import PyodideExecutor
-        send_message("execute", self.uuid, subcmd=subcmd, last_response=last_response, **kwargs)
+    async def send_message_a(self, subcmd, *, last_response, **kwargs):
+        await self.executor.send_message_a("execute", self.uuid, subcmd=subcmd, last_response=last_response, **kwargs)
 
     def check_interrupt(self):
         if self.read_interrupt_buffer() == 0:
@@ -51,16 +43,15 @@ class Execution:
 
     @contextmanager
     def execution_context(self):
-        from .executor import PyodideExecutor
-        saved_executor = PyodideExecutor.executor
+        from .executor import Executor
+        saved_executor = Executor.executor
         with  redirect_stdout(WriteStream(self.send_stdout_write)),\
-              redirect_stderr(WriteStream(self.send_stderr_write)),\
-              crappy_multitasking(self.check_interrupt, self.check_interrupt_interval):
+              redirect_stderr(WriteStream(self.send_stderr_write)):
             try:
-                PyodideExecutor.executor = self.executor
+                Executor.executor = self.executor
                 yield
             finally:
-                PyodideExecutor.executor = saved_executor
+                Executor.executor = saved_executor
 
 
     @staticmethod
@@ -102,7 +93,7 @@ class Execution:
 
         
     
-    async def run(self):
+    async def run_a(self):
         """
         Runs a string of code, the last part of which may be an expression.
         """
@@ -120,12 +111,12 @@ class Execution:
                     msg=error.message
                 )
                 errors.append(error_dict)
-            self.send_syntax_errors(errors)
+            await self.send_syntax_errors_a(errors)
             return
-        self.send_syntax_is_valid()
+        await self.send_syntax_is_valid_a()
 
         if len(mod.body) == 0:
-            self.send_result(None)
+            await self.send_result_a(None)
             return
 
         # The string chosen is not a valid identifier to minimize chances of accidental collision with a user's variables.
@@ -148,41 +139,42 @@ class Execution:
                     await res
                 result = ns.pop(result_target)
                 if result is not None:
-                    self.send_result(repr(result))
+                    await self.send_result_a(repr(result))
                 else:
-                    self.send_result(None)
+                    await self.send_result_a(None)
         except Exception as e:
-            self.send_exception(e, file, trash_exception)
+            await self.send_exception_a(e, file, trash_exception)
         except KeyboardInterrupt as e:
-            self.send_keyboard_interrupt(e)
+            await self.send_keyboard_interrupt_a(e)
 
 
-    def send_syntax_is_valid(self):
-        self.send_message("validate_syntax", last_response=False, valid=True)
+    async def send_syntax_is_valid_a(self):
+        await self.send_message_a("validate_syntax", last_response=False, valid=True)
 
-    def send_syntax_errors(self, errors):
-        self.send_message("validate_syntax",  last_response=True, 
+    async def send_syntax_errors_a(self, errors):
+        await self.send_message_a("validate_syntax",  last_response=True, 
             valid=False,
             errors=errors
         )
-
     
     def send_stdout_write(self, data):
-        self.send_message("stdout", last_response=False, data=data)
+        coroutine = self.send_message_a("stdout", last_response=False, data=data)
+        self.executor.loop.call_soon(coroutine)
     
     def send_stderr_write(self, data):
-        self.send_message("stderr", last_response=False, data=data)
+        coroutine = self.send_message_a("stderr", last_response=False, data=data)
+        self.executor.loop.call_soon(coroutine)
 
 
-    def send_result(self, result):
-        self.send_message("result", last_response=True, result=result)
+    async def send_result_a(self, result):
+        await self.send_message_a("result", last_response=True, result=result)
 
-    def send_exception(self, e, file, trash_exception):
-        self.send_message("exception", last_response=True, traceback=Traceback.format_exception(e, file, trash_exception))
+    async def send_exception_a(self, e, file, trash_exception):
+        await self.send_message_a("exception", last_response=True, traceback=Traceback.format_exception(e, file, trash_exception))
 
-    def send_keyboard_interrupt(self, e):
-        self.send_message("keyboard_interrupt", last_response=True)
+    async def send_keyboard_interrupt_a(self, e):
+        await self.send_message_a("keyboard_interrupt", last_response=True)
 
-    def format_stack_trace(self, e):
-        # TODO...
-        pygments.highlight("def temp(x):\n return x*x+1", pygments.lexers.PythonTracebackLexer)
+    # def format_stack_trace(self, e):
+    #     # TODO...
+    #     pygments.highlight("def temp(x):\n return x*x+1", pygments.lexers.PythonTracebackLexer)

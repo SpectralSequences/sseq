@@ -1,15 +1,18 @@
 from js import (
-    location, messageLookup as js_message_lookup,
+    location,
     console
 )
+
+from .js_wrappers.async_js import Fetcher
+from .js_wrappers.filesystem import FileHandle
+
+
 import json
 import pathlib
 
 from spectralsequence_chart import SseqChart
 from spectralsequence_chart.serialization import JSON
 
-from .async_js import Fetcher
-from .filesystem import FileHandle
 from .handler_decorator import collect_handlers, handle
 fetcher = Fetcher("api/")
 
@@ -99,12 +102,10 @@ class SseqDisplay:
         await self.reset_state_a()
 
     @staticmethod
-    def dispatch_message(message_id):
-        obj = js_message_lookup[message_id]
+    def dispatch_message(obj):
         message = json.loads(obj["message"])
         del obj["message"]
         message.update(obj)        
-        del js_message_lookup[message_id]
         chart_name = message["chart_name"]
         del message["chart_name"]
         display = SseqDisplay.displays[chart_name]
