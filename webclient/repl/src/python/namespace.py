@@ -1,5 +1,5 @@
 def get_namespace():
-    from .sseq_display import SseqDisplay
+    from sseq_display import SseqDisplay
     from spectralsequence_chart.chart import SseqChart 
     from spectralsequence_chart.chart_class import (ChartClass, ChartClassArg, ChartClassStyle)
     from spectralsequence_chart.chart_edge import (

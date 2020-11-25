@@ -1,5 +1,3 @@
-from js import console
-
 from .handler_decorator import *
 
 import jedi
@@ -70,7 +68,6 @@ class Completer:
         await handler(self, **kwargs)
 
     async def send_message_a(self, subcmd, subuuid, **kwargs):
-        console.log("completer send mesage:", subcmd, kwargs)
         await self.executor.send_message_a("complete", self.uuid, subcmd=subcmd, subuuid=subuuid, **kwargs)
     
     @handle("signatures")
@@ -127,7 +124,6 @@ class Completer:
     @handle("completions")
     async def get_completions_a(self, subuuid, code, lineNumber, column):
         try:
-            console.log("get_completions", code)
             self.code = code
             state_id = str(uuid4())
             completions = jedi.Interpreter(code, [self.executor.namespace]) \

@@ -3,8 +3,8 @@ from js import (
     console
 )
 
-from .js_wrappers.async_js import Fetcher
-from .js_wrappers.filesystem import FileHandle
+from js_wrappers.async_js import Fetcher
+from js_wrappers.filesystem import FileHandle
 
 
 import json
@@ -13,7 +13,7 @@ import pathlib
 from spectralsequence_chart import SseqChart
 from spectralsequence_chart.serialization import JSON
 
-from .handler_decorator import collect_handlers, handle
+from repl.handler_decorator import collect_handlers, handle
 fetcher = Fetcher("api/")
 
 @collect_handlers("message_handlers")

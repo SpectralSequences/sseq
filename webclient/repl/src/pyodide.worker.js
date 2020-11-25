@@ -57,19 +57,17 @@ function initializeFileSystem(){
 
     pyodide_FS.init(() => null, stdoutStream, stderrStream);
     pyodide_FS.mkdir('/repl');
-    pyodide_FS.mkdir('/repl/repl');
     for(let dir of directories_to_install){
-        pyodide_FS.mkdir(`/repl/repl/${dir}`);
+        pyodide_FS.mkdir(`/repl/${dir}`);
     }
     for(let [k, v] of Object.entries(files_to_install)){
-        pyodide_FS.writeFile(`/repl/repl/${k}`, v);
+        pyodide_FS.writeFile(`/repl/${k}`, v);
     }
 }
 initializeFileSystem();
 
 
 function sendMessage(message){
-    console.log("sending message:", message);
     self.postMessage(message);
 }
 self.sendMessage = sendMessage;
@@ -91,9 +89,11 @@ async function startup(){
         pyodide.runPython(`
             import sys
             sys.path.append("/repl")
-            from repl import Executor, get_namespace, SseqDisplay
-            from repl.js_wrappers.async_js import WebLoop
-            from repl.js_wrappers.messages import send_message_a
+            from namespace import get_namespace
+            from sseq_display import SseqDisplay
+            from repl import Executor
+            from js_wrappers.async_js import WebLoop
+            from js_wrappers.messages import send_message_a
             namespace = get_namespace()
             import jedi # This is slow but better to do it up front.
             jedi.Interpreter("SseqDisplay", [namespace]).completions() # Maybe this will reduce Jedi initialization time?
@@ -110,12 +110,13 @@ self.subscribers = [];
 
 let handledCommands = {
     service_worker_channel : registerServiceWorkerPort,
-    respondToQuery : handleQueryResponse
+    respondToQuery : handleQueryResponse,
+    subscribe_chart_display : handleSubscribeChartDisplay,
 }
 
 self.addEventListener("message", async function(e) {
     if(handledCommands[e.data.cmd]){
-        handledCommands[e.data.cmd](e);
+        await handledCommands[e.data.cmd](e);
         return;
     }
     await startup_promise;
@@ -141,8 +142,8 @@ self.addEventListener("message", async function(e) {
     // get_message looks up e.data in messageLookup using uuid.
     try {
         await self.pyodide.runPythonAsync(`
-            from repl.js_wrappers.messages import get_message
-            from repl.js_wrappers.crappy_multitasking import (crappy_multitasking, check_interrupt)
+            from js_wrappers.messages import get_message
+            from js_wrappers.crappy_multitasking import (crappy_multitasking, check_interrupt)
             msg = get_message("${uuid}")
             interrupt_buffer = msg.pop("interrupt_buffer")
             with crappy_multitasking(check_interrupt(interrupt_buffer), 10_000):
@@ -152,6 +153,17 @@ self.addEventListener("message", async function(e) {
         // pyo
     }
 });
+
+async function handleSubscribeChartDisplay(e){
+    let uuid = e.data;
+    messageLookup[uuid] = e.data; 
+    await self.pyodide.runPythonAsync(`
+        from js_wrappers.messages import get_message
+        msg = get_message("${uuid}")
+        display = SseqDisplay.displays[msg["chart_name"]]
+        await display.add_subscriber(msg["uuid"], msg["port"])
+    `);
+}
 
 let responses = {};
 function handleQueryResponse(e){
