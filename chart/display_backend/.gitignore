@@ -1,6 +1,5 @@
 node_modules
 dist
-fonts
 target
 Cargo.lock
 package-lock.json
