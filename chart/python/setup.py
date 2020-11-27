@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import setuptools
 from spectralsequence_chart import __version__
 with open("README.md", "r") as fh:
