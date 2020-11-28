@@ -23,15 +23,13 @@ TEMPLATE = '''
         throw 'using preloaded data can only be done on a web page or in a web worker';
       }
       var PACKAGE_NAME = '%s.data';
-      var REMOTE_PACKAGE_BASE = PACKAGE_NAME;
       if (typeof Module['locateFilePackage'] === 'function' && !Module['locateFile']) {
         Module['locateFile'] = Module['locateFilePackage'];
         err('warning: you defined Module.locateFilePackage, that has been renamed to Module.locateFile (using your locateFilePackage for now)');
       }
-      var REMOTE_PACKAGE_NAME = Module['locateFile'] ? Module['locateFile'](REMOTE_PACKAGE_BASE, '') : REMOTE_PACKAGE_BASE;
+      var REMOTE_PACKAGE_NAME = Module['locateFile'] ? Module['locateFile'](PACKAGE_NAME, '') : PACKAGE_NAME;
 
       var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
-      var PACKAGE_UUID = metadata['package_uuid'];
 
       function fetchRemotePackage(packageName, packageSize, callback, errback) {
         var xhr = new XMLHttpRequest();
@@ -184,7 +182,6 @@ TEMPLATE = '''
 
 import os
 import json
-import uuid
 
 files = (x for x in os.listdir(PACKAGE) if x.endswith(".py"))
 metadata = []
@@ -208,5 +205,4 @@ with open("%s.js" % PACKAGE, "w") as f:
     f.write(TEMPLATE % (PACKAGE, json.dumps({
         "files": metadata,
         "remote_package_size": start,
-        "package_uuid": str(uuid.uuid4())
     })))
