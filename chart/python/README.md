@@ -3,6 +3,7 @@ This project is a Python implementation of the spectralsequence chart API.
 The Python chart API is a work in progress, and in particular there is currently no published spec.
 Hopefully I will make one soon.
 
+The script packager.py packages the library into an emscripten virtual file system, reverse engineered from [https://github.com/emscripten-core/emscripten/blob/master/tools/file_packager.py](https://github.com/emscripten-core/emscripten/blob/master/tools/file_packager.py)
 
 Changelog:
 ==========
