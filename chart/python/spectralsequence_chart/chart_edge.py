@@ -61,7 +61,7 @@ class ChartEdgeStyle:
 
     @color.setter
     def color(self, v : Color):
-        self._color = v
+        self._color = self._sseq.get_color(v)
 
     @property
     def dash_pattern(self) -> DashPattern:
@@ -141,13 +141,31 @@ class ChartEdge(ABC):
         if hasattr(self, "_sseq"):
             self._sseq._add_edge_to_update(self)
 
-    def replace_source(self, style : ChartClassStyle = None) -> "ChartEdge":
-        """ Calls "replace" on the source of the edge. Returns self to be chainable. """
+    def replace_source(self, style : Union[ChartClassStyle, str]) -> "ChartEdge":
+        """ Calls `self.source.replace(style) <ChartClass.replace>`. 
+
+            Arguments:
+                style (ChartClassStyle | str): The style to set. If ``style`` is a string,
+                    then the appropriate style is looked up in the dictionary `SseqChart.chart_class_styles`.
+                    Otherwise, we use the `ChartClassStyle` provided.
+
+            Returns:
+                self (chainable)
+        """
         self.source.replace(style)
         return self
     
-    def replace_target(self, style : ChartClassStyle = None) -> "ChartEdge":
-        """ Calls "replace" on the target of the edge. Returns self to be chainable. """
+    def replace_target(self, style : Union[ChartClassStyle, str]) -> "ChartEdge":
+        """ Calls `self.target.replace(style) <ChartClass.replace>`. 
+        
+            Arguments:
+                style (ChartClassStyle | str): The style to set. If ``style`` is a string,
+                    then the appropriate style is looked up in the dictionary `SseqChart.chart_class_styles`.
+                    Otherwise, we use the `ChartClassStyle` provided.
+
+            Returns:
+                self (chainable) 
+        """
         self.target.replace(style)
         return self
 
@@ -231,6 +249,19 @@ class ChartStructline(ChartEdge):
         self.visible = True
 
     def set_style(self, style : Union[str, ChartEdgeStyle], page : Union[int, Tuple[int, int]] = None ) -> "ChartStructline":
+        """ Sets the display style of the structline. 
+            
+            Arguments:
+                style (ChartEdgeStyle | str): The style to set. If ``style`` is a string,
+                    then the appropriate style is looked up in the dictionary `SseqChart.chart_edge_styles`.
+                    Otherwise, we use the `ChartEdgeStyle` provided.
+                
+                page (int | Tuple[int, int]):
+                    If argument ``page`` is omitted or ``None`` then the style is set on all pages.
+                    If ``page`` is a single integer, then the stlye is set starting on that page and all later pages.
+                    If ``page`` is a pair of integers, the style is set on that range of pages inclusive of the lower 
+                    endpoint and exclusive of the upper endpoint.
+        """ 
         if page is None:
             page = slice(None)
         if isinstance(page, (tuple, list)):
@@ -245,7 +276,12 @@ class ChartStructline(ChartEdge):
         self.end_tip[page] = style.end_tip
         return self
     
-    def get_style(self, page : int = 0):
+    def get_style(self, page : int = 0) -> ChartEdgeStyle:
+        """ Gets the display style of the structline.
+
+            Args:
+                page (int): The page on which to get the display style.
+        """
         return ChartEdgeStyle(
             action = self.action,
             color = self.color[page],
@@ -296,7 +332,7 @@ class ChartStructline(ChartEdge):
 
     @property
     def action(self) -> PageProperty[str]:
-        """ The action of the edge. See also `ChartClass.group_name`. """
+        """ The action of the edge. Similar to `ChartClass.group_name`. """
         return self._action
 
     @action.setter
@@ -311,7 +347,13 @@ class ChartStructline(ChartEdge):
 
     @color.setter
     def color(self, v : PagePropertyOrValue[Color]): # type: ignore
-        self._color = ensure_page_property(v, parent=self)
+        pp = ensure_page_property(v, parent=self)
+        def callback():
+            if self._sseq:
+                pp.map_values_in_place(self._sseq.get_color)
+        callback()
+        pp.set_callback(callback)
+        self._color = pp
         self._needs_update()
 
     @property
@@ -326,7 +368,7 @@ class ChartStructline(ChartEdge):
 
     @property
     def line_width(self) -> PageProperty[LineWidth]:
-        """The width of the edge."""
+        """ The width of the edge. """
         return self._line_width
 
 
@@ -337,8 +379,8 @@ class ChartStructline(ChartEdge):
 
     @property
     def bend(self) -> PageProperty[float]:
-        """The bend angle of the edge. If bend is nonzero, the edge is drawn as a circular arc through the start and end points,
-           where the angle between the edge from the start to the end and the tangent vector at the start point is specified by "bend".
+        """ The bend angle of the edge. If bend is nonzero, the edge is drawn as a circular arc through the start and end points,
+            where the angle between the edge from the start to the end and the tangent vector at the start point is specified by "bend".
         """
         return self._bend
 
@@ -349,7 +391,7 @@ class ChartStructline(ChartEdge):
 
     @property
     def visible(self) -> PageProperty[bool]:
-        """Is the structline visible on the given page?"""
+        """ Is the structline visible on the given page? """
         return self._visible
 
     @visible.setter
@@ -359,7 +401,7 @@ class ChartStructline(ChartEdge):
 
     @property
     def start_tip(self) -> PageProperty[Optional[ArrowTip]]:
-        """ The start arrow tip. TODO: Explain how we represent arrow tips and make ArrowTip not be any? """
+        """ The start arrow tip. TODO: Explain how we represent arrow tips """
         return self._start_tip
 
 
@@ -370,7 +412,7 @@ class ChartStructline(ChartEdge):
 
     @property
     def end_tip(self) -> PageProperty[Optional[ArrowTip]]:
-        """ The end arrow tip. TODO: Explain how we represent arrow tips and make ArrowTip not be any? """
+        """ The end arrow tip. TODO: Explain how we represent arrow tips """
         return self._end_tip
 
     @end_tip.setter
@@ -379,7 +421,7 @@ class ChartStructline(ChartEdge):
         self._needs_update()
 
 class SinglePageChartEdge(ChartEdge):
-    """ SinglePageChartEdge is handles most of the common code between ChartDifferential and ChartExtension. """
+    """ SinglePageChartEdge handles most of the common code between ChartDifferential and ChartExtension. """
     def __init__(self, source_uuid : UUID_str, target_uuid : UUID_str):
         super().__init__(source_uuid, target_uuid)
         self._action = ""
@@ -392,6 +434,16 @@ class SinglePageChartEdge(ChartEdge):
         self._visible = True
 
     def set_style(self, style : ChartEdgeStyle) -> "SinglePageChartEdge":
+        """ Sets the display style of the edge. 
+            
+            Arguments:
+                style (ChartEdgeStyle | str): The style to set. If ``style`` is a string,
+                    then the appropriate style is looked up in the dictionary `SseqChart.chart_edge_styles`.
+                    Otherwise, we use the `ChartEdgeStyle` provided.
+            
+            Returns:
+                self (chainable)
+        """         
         self.action = style.action
         self.color = style.color
         self.dash_pattern = style.dash_pattern
@@ -400,7 +452,8 @@ class SinglePageChartEdge(ChartEdge):
         self.end_tip = style.end_tip
         return self
     
-    def get_style(self, page : int = 0):
+    def get_style(self) -> ChartEdgeStyle:
+        """ Get the style of the edge """ 
         return ChartEdgeStyle(
             action = self.action,
             color = self.color,
@@ -466,12 +519,12 @@ class SinglePageChartEdge(ChartEdge):
 
     @color.setter
     def color(self, v : Color):
-        self._color = v
+        self._color = self._sseq.get_color(v)
         self._needs_update()
 
     @property
     def dash_pattern(self) -> DashPattern:
-        """The dash pattern of the edge. A dash pattern is represented as a list of positive integers."""
+        """ The dash pattern of the edge. A dash pattern is represented as a list of positive integers. """
         return self._dash_pattern
 
     @dash_pattern.setter
@@ -481,7 +534,7 @@ class SinglePageChartEdge(ChartEdge):
 
     @property
     def line_width(self) -> LineWidth:
-        """The width of the edge."""
+        """ The width of the edge. """
         return self._line_width
 
 
@@ -492,8 +545,8 @@ class SinglePageChartEdge(ChartEdge):
 
     @property
     def bend(self) -> float:
-        """The bend angle of the edge. If bend is nonzero, the edge is drawn as a circular arc through the start and end points,
-           where the angle between the edge from the start to the end and the tangent vector at the start point is specified by "bend".
+        """ The bend angle of the edge. If bend is nonzero, the edge is drawn as a circular arc through the start and end points,
+            where the angle between the edge from the start to the end and the tangent vector at the start point is specified by "bend".
         """
         return self._bend
 
@@ -504,7 +557,7 @@ class SinglePageChartEdge(ChartEdge):
 
     @property
     def visible(self) -> bool:
-        """Is the structline visible on the given page?"""
+        """ Is the structline visible on the given page? """
         return self._visible
 
     @visible.setter
@@ -515,7 +568,7 @@ class SinglePageChartEdge(ChartEdge):
 
     @property
     def start_tip(self) -> Optional[ArrowTip]:
-        """ The start arrow tip. TODO: Explain how we represent arrow tips and make ArrowTip not be any? """
+        """ The start arrow tip. TODO: Explain how we represent arrow tips. """
         return self._start_tip
 
 
@@ -526,7 +579,7 @@ class SinglePageChartEdge(ChartEdge):
 
     @property
     def end_tip(self) -> Optional[ArrowTip]:
-        """ The end arrow tip. TODO: Explain how we represent arrow tips and make ArrowTip not be any? """
+        """ The end arrow tip. TODO: Explain how we represent arrow tips. """
         return self._end_tip
 
     @end_tip.setter

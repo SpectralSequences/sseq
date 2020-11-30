@@ -2,12 +2,16 @@ from typing import Union, List
 
 UUID_str = str
 DashPattern = List[int]
-LineWidth = Union[float, str]
+LineWidth = float
+
+from .css_colors import CSS_COLORS_JSON
+
 
 class Color:
     """ Represents a color in RGBA colorspace. Each channel ranges from 0 to 1, values outside of this range will be clipped.
 
     """ 
+    CSS_COLORS = None
     def __init__(self, r : float, g : float, b : float, a : float = 1):
         """
             Args:
@@ -19,7 +23,26 @@ class Color:
                 
                 a (float): The alpha / transparency color channel.
         """
+        self._name = None
         self._color = (r, g, b, a)
+
+    @staticmethod
+    def from_string(color : str) -> "Color":
+        if color.startswith("#"):
+            return Color.from_hex(color)
+        if color in Color.CSS_COLORS:
+            return Color.CSS_COLORS[color]
+        raise ValueError(f"Unrecognized color '{color}'")
+
+    @staticmethod
+    def from_hex(hex_str : str) -> "Color":
+        assert hex_str.startswith("#")
+        assert len(hex_str) == 7
+        parts = [int(s, 16)/255 for s in (hex_str[1:3], hex_str[3:5], hex_str[5:])]
+        result = Color(*parts)
+        result._name = hex_str
+        return result
+
     
     def lerp(self, other : "Color", t : float) -> "Color":
         """ Linearly interpolate between two colors.
@@ -41,7 +64,16 @@ class Color:
         return Color(*json["color"])
 
     def __repr__(self):
-        return f"Color{self._color}"
+        if self._name:
+            return f'Color("{self._name}")'
+        return f'Color{self._color}'
+
+Color.CSS_COLORS = {}
+for (name, value) in CSS_COLORS_JSON.items():
+    c = Color(*value)
+    c._name = name
+    Color.CSS_COLORS[name] = c
+
 
 Color.BLACK = Color(0, 0, 0, 1)
 Color.RED =   Color(1, 0, 0, 1)

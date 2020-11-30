@@ -119,10 +119,13 @@ class ChartClassStyle:
 
 
 class ChartClass:
-    """Blah blah blah """
+    """ A `ChartClass` is roughly intended to represent a summand of the the E2 page in a particular bidegree.
+        The class may change its appearance from page to page, typically whenever some part of that summand is either in
+        the image of a differential or supports a nontrivial differential. 
+    """
     def __init__(self, degree : Tuple[int, ...], idx : int):
         """ Do not call `ChartClass` constructor directly, use instead `SseqChart.add_class`, or `JSON.parse`."""
-        self._sseq : SseqChart
+        self._sseq : SseqChart = None
         self._degree = tuple(degree)
         self._idx = idx
         self._max_page = INFINITY
@@ -145,8 +148,8 @@ class ChartClass:
         self._user_data = SignalDict({}, parent=self)
 
     def get_style(self, page : int) -> ChartClassStyle:
-        """ Gets the display style of the class on the given page. This can be stored in :meth:`SseqChart.class_styles` 
-            or applied to other classes with :meth:`ChartClass.set_style`.
+        """ Gets the display style of the class on the given page. This can be stored in `SseqChart.class_styles` 
+            or applied to other classes with `ChartClass.set_style`.
         """
         result = ChartClassStyle(
             group_name=self.group_name[page],
@@ -162,12 +165,26 @@ class ChartClass:
         return result
 
     def set_style(self, style : Union[ChartClassStyle, str], page : Union[int, Tuple[int, int]] = None) -> "ChartClass":
-        """ Sets the display style of the class """
+        """ Sets the display style of the class. 
+            
+            Arguments:
+                style (ChartClassStyle | str): The style to set. If ``style`` is a string,
+                    then the appropriate style is looked up in the dictionary `SseqChart.chart_class_styles`.
+                    Otherwise, we use the `ChartClassStyle` provided.
+                
+                page (int | Tuple[int, int]):
+                    If argument ``page`` is omitted or ``None`` then the style is set on all pages.
+                    If ``page`` is a single integer, then the stlye is set starting on that page and all later pages.
+                    If ``page`` is a pair of integers, the style is set on that range of pages inclusive of the lower 
+                    endpoint and exclusive of the upper endpoint.
+        """ 
         if page is None:
             page = slice(None)
         if isinstance(page, (tuple, list)):
             page = slice(page[0], page[1])
         if type(style) is str:
+            if style not in self._sseq.class_styles:
+                raise ValueError(f'Unknown class style "{style}". Register a class style with this group name using SseqChart.register_class_style first.')
             style = self._sseq._class_styles[style]
         self.group_name[page] = style.group_name
         self.shape[page] = style.shape
@@ -178,7 +195,7 @@ class ChartClass:
         return self
 
     def _needs_update(self):
-        if hasattr(self, "_sseq"):
+        if self._sseq:
             self._sseq._add_class_to_update(self)
 
     @staticmethod
@@ -208,16 +225,16 @@ class ChartClass:
         self._uuid = uuid
         self._max_page = max_page
         # Type checker has difficulty with PagePropertyOrValue and the typing of ensure_page_property.
-        self._name = cast(PageProperty[str], ensure_page_property(name, parent=self))
-        self._shape = ensure_page_property(shape, parent=self) 
-        self._background_color = ensure_page_property(background_color, parent=self)
-        self._border_color = ensure_page_property(border_color, parent=self)
-        self._border_width = ensure_page_property(border_width, parent=self)
-        self._foreground_color = ensure_page_property(foreground_color, parent=self)
-        self._scale = cast(PageProperty[float], ensure_page_property(scale, parent=self)) 
-        self._visible = cast(PageProperty[bool], ensure_page_property(visible, parent=self))
-        self._x_nudge = cast(PageProperty[float], ensure_page_property(x_nudge, parent=self))
-        self._y_nudge = cast(PageProperty[float], ensure_page_property(y_nudge, parent=self))
+        self.name = name
+        self.shape = shape
+        self.background_color = background_color
+        self.border_color = border_color
+        self.border_width = border_width
+        self.foreground_color = foreground_color
+        self.scale = scale
+        self.visible = visible
+        self.x_nudge = x_nudge
+        self.y_nudge = y_nudge
 
         self._user_data = user_data # type: ignore
         user_data.set_parent(self)
@@ -242,20 +259,17 @@ class ChartClass:
             user_data=self.user_data
         )
 
-    def replace(self, style : ChartClassStyle = None) -> "ChartClass":
-        """ If a class currently not a "permanent cycle" then set it to be a permanent cycle.
-            Takes keyword arguments to set the properties of the "replaced" class.
+    def replace(self, style : Union[ChartClassStyle, str]) -> "ChartClass":
+        """ If the class has ``ChartClass.max_page`` less than infinity, then set it to be a permanent cycle.
             For instance::
 
-                style_2Z = ChartClassStyle(background_color= (1, 0, 0, 1), group_name= "2Z")
-                c.replace(style_2Z)
+                c.replace(some_style)
             
             Is the same as::
             
                 page = c.max_page + 1
                 c.max_page = INFINITY
-                c.color[page:] = (1, 0, 0, 1)
-                c.group_name[page:] = "2Z"
+                c.set_style(some_style, page)
         """
         if self.max_page == INFINITY:
             raise ValueError("Class is already alive")
@@ -313,9 +327,9 @@ class ChartClass:
 
     @property
     def max_page(self) -> int:
-        """ The maximum page the class may appear on. Note that the PageProperty "visible" also
-            affects whether the class appears on a certain page: the class appears if class.visible[page]
-            is "True" and page <= max_page.
+        """ The maximum page the class may appear on. Note that the `PageProperty` `class.visible` also
+            affects whether the class appears on a certain page: the class appears if ``class.visible[page]``
+            is ``True`` and $page \leq max_page$.
         """
         return self._max_page
     
@@ -354,7 +368,13 @@ class ChartClass:
     
     @shape.setter
     def shape(self, v : PagePropertyOrValue[Shape]): # type: ignore
-        self._shape = ensure_page_property(v, parent=self)
+        pp = ensure_page_property(v, parent=self)
+        def callback():
+            if self._sseq:
+                pp.map_values_in_place(self._sseq.get_shape)
+        callback()
+        pp.set_callback(callback)
+        self._shape = pp
         self._needs_update()
 
     @property
@@ -364,7 +384,13 @@ class ChartClass:
     
     @background_color.setter
     def background_color(self, v : PagePropertyOrValue[Color]): # type: ignore
-        self._background_color = ensure_page_property(v, parent=self)
+        pp = ensure_page_property(v, parent=self)
+        def callback():
+            if self._sseq:
+                pp.map_values_in_place(self._sseq.get_color)
+        callback()
+        pp.set_callback(callback)
+        self._background_color = pp
         self._needs_update()
 
     @property
@@ -374,7 +400,13 @@ class ChartClass:
     
     @border_color.setter
     def border_color(self, v : PagePropertyOrValue[Color]): # type: ignore
-        self._border_color = ensure_page_property(v, parent=self)
+        pp = ensure_page_property(v, parent=self)
+        def callback():
+            if self._sseq:
+                pp.map_values_in_place(self._sseq.get_color)
+        callback()
+        pp.set_callback(callback)   
+        self._border_color = pp
         self._needs_update()
 
     @property
@@ -384,7 +416,13 @@ class ChartClass:
     
     @foreground_color.setter
     def foreground_color(self, v : PagePropertyOrValue[Color]): # type: ignore
-        self._foreground_color = ensure_page_property(v, parent=self)
+        pp = ensure_page_property(v, parent=self)
+        def callback():
+            if self._sseq:
+                pp.map_values_in_place(self._sseq.get_color)
+        callback()
+        pp.set_callback(callback)
+        self._foreground_color = pp
         self._needs_update()
 
     @property
@@ -455,6 +493,8 @@ else:
         """ This is a type name which refers to either a `ChartClass` or a tuple of ints.
             It is used as an input to various `SseqChart` methods.
             To specify a class as an argument, either pass a reference to a `ChartClass` 
-            or a tuple which will be passed to `SseqChart.get_class`
+            or a tuple which will be passed to `SseqChart.get_class`.
+            For instance ``(0,0)`` and ``(0, 0, 0)`` both refer to the class of index 0 at position (0, 0).
+            ``(0, 0, 1)`` refers tot the class of index 1.
         """
         pass

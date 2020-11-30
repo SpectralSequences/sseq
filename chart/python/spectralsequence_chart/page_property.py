@@ -8,6 +8,15 @@ class PageProperty(Generic[T]):
         A class to represent a property that varies depending on the pages of a spectral sequence. 
         This is the main helper class that encapsulates any property of a class, edge, or chart
         that varies depending on the page.
+
+        Examples:
+
+            >>> p = PageProperty(1)
+            >>> p[4] = 7
+            >>> p[2]
+            1
+            >>> p[4]
+            7
     """
     def __init__(self, 
         value : T, 
@@ -22,6 +31,10 @@ class PageProperty(Generic[T]):
     def set_parent(self, parent : Optional[Any]):
         self._parent = parent
     
+
+    def set_callback(self, callback : Callable[[], None]):
+        self._callback = callback
+
     def _needs_update(self):
         if self._parent:
             self._parent._needs_update()
@@ -101,6 +114,11 @@ class PageProperty(Generic[T]):
         if type(other) != PageProperty:
             return False
         return self._values == other._values
+
+    def map_values_in_place(self, f):
+        for i in range(len(self._values)):
+            (p, v) = self._values[i]
+            self._values[i] = (p, f(v))
 
     def to_json(self) -> Dict[str, Any]:
         if len(self._values) == 1:

@@ -1,18 +1,20 @@
-""" SseqChart is the main class which holds the data structure representing the chart. """
+""" SseqChart is the main class which holds the data structure representing the chart."""
 
 
+from spectralsequence_chart.page_property import PageProperty
+from spectralsequence_chart.display_primitives import ArrowTip, Color, Shape
 import spectralsequence_chart
 from spectralsequence_chart.signal_dict import SignalList
 import threading
 from typing import (
     Any, Dict, Iterable, List, 
-    Set, Tuple, 
+    Set, Tuple, Union
 )
 from uuid import uuid4
 
+from .infinity import INFINITY
 from .chart_class import (ChartClass, ChartClassArg, ChartClassStyle)
 from .chart_edge import (ChartStructline, ChartDifferential, ChartExtension, ChartEdge, ChartEdgeStyle)
-from .infinity import INFINITY
 
 
 class SseqChart:
@@ -20,7 +22,7 @@ class SseqChart:
     def __init__(self, 
         name : str, 
         num_gradings : int = 2,
-    ):
+    ): 
         """      
             Args:
                 name (str): the name of the chart.
@@ -50,10 +52,12 @@ class SseqChart:
   
         self._default_class_style = ChartClassStyle()
         self._default_structline_style = ChartEdgeStyle()
-        self._default_differential_style = ChartEdgeStyle()
+        self._default_differential_style = ChartEdgeStyle(color=Color.BLUE, end_tip=ArrowTip())
         self._default_extension_style = ChartEdgeStyle()
         self._class_styles : Dict[str, ChartClassStyle] = {}
         self._edge_styles : Dict[str, ChartEdgeStyle] = {}
+        self._shapes : Dict[str, Shape] = {}
+        self._colors : Dict[str, Color] = {}
 
         self._page_list_lock = threading.Lock()
         self._classes : Dict[str, ChartClass] = {}
@@ -111,14 +115,15 @@ class SseqChart:
     @property
     def edges(self) -> List[ChartEdge]:
         """ Get the list of all edges in the chart. This performs a copy. 
-            This is the same as `list(self.edges_iter())`.
+            This is the same as ``list(self.edges_iter())``.
         """
         return list(self._edges.values())
 
     @property
     def edges_iter(self) -> Iterable[ChartClass]:
         """ Return an iterable for all the edges in the chart. 
-            This performs no copy, will raise if `SseqChart.add_edge`, `ChartEdge`, or `ChartClass.delete` are called while iterating.
+            This performs no copy, will raise if `SseqChart.add_structline`, `SseqChart.add_differential`,
+            `SseqChart.add_extension`, `ChartEdge.delete`, or `ChartClass.delete` are called while iterating.
         """        
         return self._classes.values()
 
@@ -225,7 +230,7 @@ class SseqChart:
                 target_arg (ChartClassArg): The target class, specified by either a `ChartClass` or a tuple with the bidegree and index of the class.
 
                 auto (bool, optional): If 'True', automatically set max_page of source and target to 'page'. 
-                If False, the edge will be added but no change will be made to the source or target classes. Defaults to 'True'.
+                    If False, the edge will be added but no change will be made to the source or target classes. Defaults to 'True'.
             
             Returns: The added differential.
         """
@@ -384,7 +389,7 @@ class SseqChart:
             replace=True
         )
 
-    def get_settings(self):
+    def get_settings(self) -> Dict[str, any]:
         return dict(
             page_list=self._page_list,
             x_projection=self.x_projection,
@@ -437,7 +442,7 @@ class SseqChart:
                     The first ``num_gradings`` arguments indicate the polydegree of the class, the last argument indicates the index.
                     You may optionally leave off the index in which case it is assumed to be 0.
             
-            Example:            
+            Examples:            
                 ``chart.get_class(0, 0)`` or ``chart.get_class(0, 0, 0)`` both get the class of index 0 in bidegree (0, 0). 
                 ``chart.get_class(0,0,1)`` gets the class of index 1.
 
@@ -461,7 +466,9 @@ class SseqChart:
 
     @property
     def default_class_style(self) -> ChartClassStyle:
-        """ The default style for all new classes. Changes to the default will not affect existing classes. """
+        """ :test:
+            The default style for all new classes. Changes to the default will not affect existing classes. 
+        """
         return self._default_class_style
 
     @default_class_style.setter
@@ -651,7 +658,8 @@ class SseqChart:
             Once registered, `class_style.group_name <ChartClassStyle.group_name>` may be used as a style in the arguments of 
             to `ChartClass.set_style`, `ChartClass.replace`, `ChartEdge.replace_source` and `ChartEdge.replace_target`.
 
-            Example:
+            Example::
+
                 style = ChartClassStyle(shape = Shape().boxed(10), group_name="Z")
                 chart.register_class_style(style)
                 chart.add_class(0, 0).set_style("Z")
@@ -685,7 +693,11 @@ class SseqChart:
         from copy import deepcopy
         self._edge_styles[edge_style.action] = deepcopy(edge_style)
 
+    def register_shape(self, name : str, shape : Shape):
+        self._shapes[name] = shape
 
+    def register_color(self, name : str, color : ):
+        self._colors[name] = color
 
     @property
     def class_styles(self) -> Dict[str, ChartClassStyle]:
@@ -712,11 +724,52 @@ class SseqChart:
             
             Keys for this dictionary may be used as arguments for `ChartEdge.set_style`.
         """
-        return self._edge_styles
+        return self._edge_styles 
 
     @edge_styles.setter
     def edge_styles(self, v : Dict[str, ChartEdgeStyle]):
         self._edge_styles = v
+
+
+    @property
+    def shapes(self) -> Dict[str, Shape]:
+        """ A dictionary of `Shapes <Shape>`. `SseqChart.register_shape` adds shapes to this dictionary. 
+            You can use this to unregister shapes, etc.
+            If you set the shape of a class to a string, the actual `Shape` will be looked up in this dictionary.            
+        """
+        return self._shapes 
+
+    @shapes.setter
+    def shapes(self, v : Dict[str, Shape]):
+        self._shapes = v
+
+    @property
+    def colors(self) -> Dict[str, Color]:
+        """ A dictionary of `Colors <Color>`. `SseqChart.register_color` adds colors to this dictionary. 
+            You can use this to unregister shapes, etc.
+            If you set the color of a class or edge to a string, the actual `Color` will be looked up in this dictionary.
+        """
+        return self._colors 
+
+    @colors.setter
+    def colors(self, v : Dict[str, Color]):
+        self._colors = v
+
+    def get_shape(self, shape : Union[str, Shape]) -> Shape:
+        if type(shape) is Shape:
+            return shape
+        if shape in self.shapes:
+            return self.shapes[shape]
+        raise ValueError(f"Unrecognized shape '{shape}'")
+
+    def get_color(self, color : Union[str, Color]) -> Color:
+        if type(color) is Color:
+            return color
+        if type(color) is not str:
+            raise TypeError(f"Expected argument to be of type 'Color' or 'str' not '{type(color)}'")
+        if color in self.colors:
+            return self.colors[color]
+        return Color.from_string(color)
 
     # @property
     # def initial_x_range(self):
