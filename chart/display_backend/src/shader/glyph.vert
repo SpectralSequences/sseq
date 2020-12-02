@@ -27,11 +27,11 @@ vec2 getPosition(vec4 position_offset){
 
 vec4 uintColorToVec4(uvec2 color){
     float field1 = float(color[0] & 255u)/255.0;
-    color[0] >>= 4;
+    color[0] >>= 8;
     float field2 = float(color[0] & 255u)/255.0;
-    // color >>= 4;
+    // color >>= 8;
     float field3 = float(color[1] & 255u)/255.0;
-    color[1] >>= 4;
+    color[1] >>= 8;
     float field4 = float(color[1] & 255u)/255.0;
     return vec4(field1, field2, field3, field4);
 }

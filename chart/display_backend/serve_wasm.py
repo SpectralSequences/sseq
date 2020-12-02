@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
+PORT = 8101
 
 import http.server
 import socketserver
 
-PORT = 8101
 
 Handler = http.server.SimpleHTTPRequestHandler
 Handler.extensions_map.update({
