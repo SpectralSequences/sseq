@@ -124,7 +124,7 @@ class ChartEdge(ABC):
     def __init__(self, source_uuid : UUID_str, target_uuid : UUID_str):
         """ Do not call SseqEdge constructor directly, use instead SseqChart.add_structline(),
             SseqChart.add_differential(), SseqChart.add_extension(), or JSON.parse()."""
-        self._sseq : SseqChart
+        self._sseq : SseqChart = None
         self._source_uuid = source_uuid
         self._target_uuid = target_uuid
         self._source : ChartClass

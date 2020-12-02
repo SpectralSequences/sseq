@@ -8,11 +8,11 @@ from .css_colors import CSS_COLORS_JSON
 
 
 class Color:
-    """ Represents a color in RGBA colorspace. Each channel ranges from 0 to 1, values outside of this range will be clipped.
+    """ Represents a color in RGBA colorspace. Each channel should be an integer from 0 to 255, values outside of this range will be clipped.
 
     """ 
     CSS_COLORS = None
-    def __init__(self, r : float, g : float, b : float, a : float = 1):
+    def __init__(self, r : int, g : int, b : int, a : int = 255):
         """
             Args:
                 r (float): The red color channel.
@@ -24,7 +24,7 @@ class Color:
                 a (float): The alpha / transparency color channel.
         """
         self._name = None
-        self._color = (r, g, b, a)
+        self._color = tuple(min(max(int(s), 0),255) for s in (r, g, b, a))
 
     @staticmethod
     def from_string(color : str) -> "Color":
@@ -38,7 +38,7 @@ class Color:
     def from_hex(hex_str : str) -> "Color":
         assert hex_str.startswith("#")
         assert len(hex_str) == 7
-        parts = [int(s, 16)/255 for s in (hex_str[1:3], hex_str[3:5], hex_str[5:])]
+        parts = [int(s, 16) for s in (hex_str[1:3], hex_str[3:5], hex_str[5:])]
         result = Color(*parts)
         result._name = hex_str
         return result
@@ -55,7 +55,7 @@ class Color:
     def to_json(self):
         return dict(
             type=type(self).__name__,
-            color=self._color
+            color= "#" + "".join([hex(s)[2:] for s in self._color])
         )
 
     @classmethod
@@ -75,10 +75,10 @@ for (name, value) in CSS_COLORS_JSON.items():
     Color.CSS_COLORS[name] = c
 
 
-Color.BLACK = Color(0, 0, 0, 1)
-Color.RED =   Color(1, 0, 0, 1)
-Color.GREEN = Color(0, 1, 0, 1)
-Color.BLUE =  Color(0, 0, 1, 1)
+Color.BLACK = Color(0, 0, 0, 255)
+Color.RED =   Color(255, 0, 0, 255)
+Color.GREEN = Color(0, 255, 0, 255)
+Color.BLUE =  Color(0, 0, 255, 255)
 Color.TRANSPARENT = Color(0,0,0,0)
 
 class ArrowTip:

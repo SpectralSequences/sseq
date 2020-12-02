@@ -1,3 +1,4 @@
+import { hexStringToColor } from "./Color";
 import { ChartClass } from "./ChartClass";
 import { ChartStructline, ChartDifferential, ChartExtension } from "./ChartEdge";
 import { PageProperty } from "./PageProperty";
@@ -88,7 +89,7 @@ function getJsonTypes(){
     jsonTypes.set("Shape", trivialDeserializer);
     jsonTypes.set("SignalDict", trivialDeserializer);
     jsonTypes.set("SignalList", { fromJSON : (walker : Walker, obj : object) => obj["list"] });
-    jsonTypes.set("Color", { fromJSON : (walker : Walker, obj : object) => obj["color"] });
+    jsonTypes.set("Color", { fromJSON : (walker : Walker, obj : object) => hexStringToColor(obj["color"]) });
     return jsonTypes;
 }
 
