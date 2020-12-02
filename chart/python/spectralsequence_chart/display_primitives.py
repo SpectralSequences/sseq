@@ -136,7 +136,15 @@ class Shape:
             )
         else:
             self.dict = dict(ty="empty")
+
+    @staticmethod
+    def square(size : float):
+        return Shape().boxed(size)
     
+    @staticmethod
+    def circle(size : float):
+        return Shape().circled(size)
+
     def circled(self, padding : float, num_circles : int = 1, circle_gap : float = 0, include_background : bool = True) -> "Shape":
         """ Circle the existing shape with one or more circles. 
 

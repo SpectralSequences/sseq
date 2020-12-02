@@ -109,6 +109,7 @@ Module.expectedDataFileDownloads++;
     Module['FS_createPath']('/lib', 'python{python_version}', true, true);
     Module['FS_createPath']('/lib/python{python_version}', 'site-packages', true, true);
     Module['FS_createPath']('/lib/python{python_version}/site-packages', '{package}', true, true);
+    Module['FS_createPath']('/lib/python{python_version}/site-packages', '{package}.egg-info', true, true);
 
     function DataRequest(start, end, audio) {{
       this.start = start;
@@ -193,33 +194,38 @@ Module.expectedDataFileDownloads++;
 }})();
 '''
 
-import os
+import pathlib
 import json
+from uuid import uuid4
 
-files = (x for x in os.listdir(PACKAGE) if x.endswith(".py"))
+files = list(pathlib.Path(PACKAGE).glob("*.py"))
+files.extend(pathlib.Path(f"{PACKAGE}.egg-info").glob("*"))
 metadata = []
 start = 0
-with open("%s.data" % PACKAGE, "wb") as f:
-    for filename in files:
-        info = {
-                "filename": "/lib/python{}/site-packages/{}/{}".format(PYTHON_VERSION, PACKAGE, filename),
-                "start": start,
-                "audio": 0,
-        }
+data = []
+for file in files:
+    info = {
+        "filename": f"/lib/python{PYTHON_VERSION}/site-packages/{file}",
+        "start": start,
+        "audio": 0,
+    }
 
-        with open(PACKAGE + "/" + filename, "rb") as g:
-            cur = g.read()
+    cur = file.read_bytes()
+    start += len(cur)
+    info['end'] = start
+    data.append(cur)
+    metadata.append(info)
 
-        start += len(cur)
-        info['end'] = start
-        f.write(cur)
-        metadata.append(info)
+pathlib.Path(f"{PACKAGE}.data").write_bytes(b"".join(data))
 
-with open("%s.js" % PACKAGE, "w") as f:
-    f.write(TEMPLATE.format(
+pathlib.Path(f"{PACKAGE}.js").write_text(
+    TEMPLATE.format(
         package=PACKAGE,
         python_version=PYTHON_VERSION,
         files=json.dumps({
-        "files": metadata,
-        "remote_package_size": start,
-    })))
+            "files": metadata,
+            "remote_package_size": start,
+            "package_uuid" : str(uuid4())
+        })
+    )
+)

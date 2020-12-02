@@ -466,7 +466,7 @@ class SseqChart:
 
     @property
     def default_class_style(self) -> ChartClassStyle:
-        """ :test:
+        """
             The default style for all new classes. Changes to the default will not affect existing classes. 
         """
         return self._default_class_style
@@ -696,7 +696,8 @@ class SseqChart:
     def register_shape(self, name : str, shape : Shape):
         self._shapes[name] = shape
 
-    def register_color(self, name : str, color : ):
+    def register_color(self, name : str, color : Color):
+        color._name = name
         self._colors[name] = color
 
     @property
