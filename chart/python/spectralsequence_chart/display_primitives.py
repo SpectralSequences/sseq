@@ -70,7 +70,7 @@ class Color:
 
 Color.CSS_COLORS = {}
 for (name, value) in CSS_COLORS_JSON.items():
-    c = Color(*value)
+    c = Color.from_hex(value)
     c._name = name
     Color.CSS_COLORS[name] = c
 
