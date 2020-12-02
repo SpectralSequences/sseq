@@ -1,5 +1,6 @@
 """ SseqChart is the main class which holds the data structure representing the chart."""
 
+import asyncio
 
 from spectralsequence_chart.page_property import PageProperty
 from spectralsequence_chart.display_primitives import ArrowTip, Color, Shape
@@ -406,10 +407,20 @@ class SseqChart:
             self._batched_messages = []
             self._update_keys = {}
             
+    def update(self):
+        """ If the chart is attached to a display, update the attached display. 
+            This will send a message to the display instructing it about how to 
+            "catch up with" the current state of the `SseqChart` in the Python runtime.
+            This is a wrapper around `SseqChart.update_a`.
+        """
+        asyncio.get_event_loop().call_soon(self.update_a())
+
     async def update_a(self):
         """ If the chart is attached to a display, update the attached display. 
             This will send a message to the display instructing it about how to 
-            "catch up with" the current state of the `SseqChart` in the Python runtime.            
+            "catch up with" the current state of the `SseqChart` in the Python runtime.
+            This is an asynchronous method and must be called like ``await chart.update_a()``.
+            See `SseqChart.update` for a convenient synchronous wrapper.
         """
         with self._batched_messages_lock:
             if not self._batched_messages:
