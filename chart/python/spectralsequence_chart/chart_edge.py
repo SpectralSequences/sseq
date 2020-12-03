@@ -61,7 +61,7 @@ class ChartEdgeStyle:
 
     @color.setter
     def color(self, v : Color):
-        self._color = self._sseq.get_color(v)
+        self._color = v
 
     @property
     def dash_pattern(self) -> DashPattern:
@@ -138,7 +138,7 @@ class ChartEdge(ABC):
 
 
     def _needs_update(self):
-        if hasattr(self, "_sseq"):
+        if self._sseq:
             self._sseq._add_edge_to_update(self)
 
     def replace_source(self, style : Union[ChartClassStyle, str]) -> "ChartEdge":
@@ -519,7 +519,10 @@ class SinglePageChartEdge(ChartEdge):
 
     @color.setter
     def color(self, v : Color):
-        self._color = self._sseq.get_color(v)
+        if self._sseq:
+            self._color = self._sseq.get_color(v)
+        else:
+            self._color = v
         self._needs_update()
 
     @property

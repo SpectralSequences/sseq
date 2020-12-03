@@ -39,9 +39,10 @@ class Color:
         assert hex_str.startswith("#")
         assert len(hex_str) == 7
         parts = [int(s, 16) for s in (hex_str[1:3], hex_str[3:5], hex_str[5:])]
-        result = Color(*parts)
-        result._name = hex_str
-        return result
+        return Color(*parts)
+    
+    def to_hex(self) -> str:
+        return "#" + "".join([hex(s)[2:].zfill(2) for s in self._color])
 
     
     def lerp(self, other : "Color", t : float) -> "Color":
@@ -53,20 +54,24 @@ class Color:
         return Color(*(self._color[i] * t + other[i] * (1 - t) for i in range(4)))
 
     def to_json(self):
-        return dict(
+        result = dict(
             type=type(self).__name__,
-            color= "#" + "".join([hex(s)[2:] for s in self._color])
+            color= self.to_hex()
         )
-
+        if self._name:
+            result["name"] = self._name
+        return result
     @classmethod
     def from_json(cls, json):
         assert json["type"] == cls.__name__
-        return Color(*json["color"])
+        result = Color.from_hex(*json["color"])
+        result._name = result.get("name")
+        return result
 
     def __repr__(self):
         if self._name:
             return f'Color("{self._name}")'
-        return f'Color{self._color}'
+        return f'Color("{self.to_hex()}")'
 
 Color.CSS_COLORS = {}
 for (name, value) in CSS_COLORS_JSON.items():

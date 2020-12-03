@@ -5,7 +5,6 @@ Now we will make the HFPSS for KO. First we need to create our display object:
 
 >>> disp = SseqDisplay("KO-HFPSS")
 ... chart = disp.chart
-... await disp.start_a()
 
 Let's set the range to be a bit larger: how about setting the x range to be from -20 to 20.
 We do this with `chart.x_min`, `chart.x_max`. The attributes `chart.initial_x_min` and `chart.initial_x_max` determine
@@ -15,12 +14,12 @@ the size of the view of the chart when we first open it.
 ... chart.x_max = 20
 ... chart.initial_x_min = -8
 ... chart.initial_x_max = 8
-... await chart.update_a()
+... chart.update()
 
 Okay, now let's create the styles for the groups we will use. The only groups that appear are $\mathbb{Z}$, $2\cdot\mathbb{Z}$ and $\mathbb{Z}/2$.
 We will use the standard circle for $\mathbb{Z}/2$, a solid black square `Shape` for $\mathbb{Z}$, and an outline-only square for $2\cdot\mathbb{Z}$.
 
->>> square = Shape().boxed(10)
+>>> square = Shape.square(10)
 ... style = ChartClassStyle(group_name="Z", shape = square)
 
 So ``style`` is now the style for our $\mathbb{Z}$ classes. We register this style with the chart using `chart.register_class_style`:
@@ -41,6 +40,7 @@ Now let's add the classes:
 ...     for i in range(1, 20):
 ...         c = chart.add_class(4*v + i, i)
 ...         chart.add_structline((4*v+i-1, i-1), c)
+... chart.update()
 
 (Python ranges include the left endpoint and exclude the right endpoint, so for instance in the loop above $v\in \{-8, -7, \ldots, 8\}$.)
 
@@ -53,15 +53,9 @@ See `the backslash plague <https://docs.python.org/3/howto/regex.html#the-backsl
 ...     for i in range(0, 20):
 ...         c = chart.get_class(4*v + i, i)
 ...         c.name = format_monomial(["v", v], [r"\eta", i])
-... await chart.update_a()
+... chart.update()
 
-Now we want to add differentials. Let's make all new differentials blue and end with an arrow tip first.
-The default differential style is `chart.default_differential_style` which is a `ChartEdgeStyle`. 
-
->>> chart.default_differential_style.color = Color.BLUE
-... chart.default_differential_style.end_tip = ArrowTip()
-
-Now an appropriate loop to add the differentials. We use `ChartClass.replace` on the zero line sources to indicate
+Now we want to add differentials. We use `ChartClass.replace` on the zero line sources to indicate
 that twice these classes survive.
 
 >>> for v in range(-7, 9, 2): # step from -7 to 7 by 2
@@ -70,7 +64,7 @@ that twice these classes survive.
 ...     c = chart.get_class(4*v, 0)
 ...     c.replace("2Z") # Use 2Z style starting on E_4 page
 ...     c.name[4] = rf"2\cdot {c.name[0]}"
-... await chart.update_a()
+... chart.update()
 
 Lastly, we can clean up the page names. Rather than "page 2 with all differentials" we could just call it page 3.
 We can see the list of pages in `chart.page_list`:
@@ -81,7 +75,7 @@ We can see the list of pages in `chart.page_list`:
 Let's replace the first pair with (3,3):
 
 >>> chart.page_list[0] = (3,3)
-... await chart.update_a()
+... chart.update()
 
 Finally we can save the chart:
 

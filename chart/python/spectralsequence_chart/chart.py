@@ -406,6 +406,10 @@ class SseqChart:
     def _clear_batched_messages(self):
             self._batched_messages = []
             self._update_keys = {}
+
+    @property
+    def display(self):
+        return self._agent
             
     def update(self):
         """ If the chart is attached to a display, update the attached display. 
@@ -428,6 +432,22 @@ class SseqChart:
             if self._agent:
                 await self._agent.send_batched_messages_a(self._batched_messages)
             self._clear_batched_messages()
+    
+    async def save_a(self):
+        if not self._agent or not hasattr(self._agent, "save_a"):
+            raise RuntimeError("Unsupported operation")
+        await self._agent.save_a()
+
+    async def save_as_a(self):
+        if not self._agent or not hasattr(self._agent, "save_as_a"):
+            raise RuntimeError("Unsupported operation")
+        await self._agent.save_as_a()
+
+    async def load_a(self):
+        if not self._agent or not hasattr(self._agent, "load_a"):
+            raise RuntimeError("Unsupported operation")
+        await self._agent.load_a()
+
     
     def _normalize_class_argument(self, class_arg : ChartClassArg) -> ChartClass:
         """ If the argument is of type `ChartClass`, return it unmodified.

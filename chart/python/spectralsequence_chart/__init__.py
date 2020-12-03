@@ -32,5 +32,5 @@ from .chart_edge import (
 from .display_primitives import ArrowTip, Color, Shape
 
 
-__version__ = "0.0.21"
+__version__ = "0.0.26"
 # __all__ = [ChartClass, ChartClassStyle, Shape, ]
