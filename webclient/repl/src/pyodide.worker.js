@@ -3,19 +3,42 @@
 // 
 import { v4 as uuid4 } from "uuid";
 import { sleep } from "./utils";
+import { IndexedDBStorage } from "./indexedDB";
 
+self.loaded = false;
 
 self.languagePluginUrl = 'pyodide-build-custom/'
 importScripts(`${self.languagePluginUrl}pyodide.js`);
 
 self.sleep = sleep;
-
 self.fetch = fetch.bind(self);
 
 async function is_promise(obj){
     return obj && typeof obj.then == 'function';
 }
 self.is_promise = is_promise;
+
+self.store = new IndexedDBStorage("pyodide-config", 2);
+
+async function setWorkingDirectory(directoryHandle){
+    await self.store.open();
+    await self.store.writeTransaction().setItem("working_directory", directoryHandle);
+}
+self.setWorkingDirectory = setWorkingDirectory;
+
+async function getWorkingDirectory(){
+    await self.store.open();
+    let result = await self.store.readTransaction().getItem("working_directory");
+    if(!result){
+        return;
+    }
+    let permission = await requestHandlePermission(result, "readwrite");
+    if(permission === "granted"){
+        return result
+    }    
+}
+self.getWorkingDirectory = getWorkingDirectory;
+
 
 
 function loadingMessage(text){
@@ -60,8 +83,20 @@ function initializeFileSystem(){
      * the move occurs, but this code consistently executes before the move.
      */
     let pyodide_FS = pyodide.FS;
-    let stdoutStream = makeOutputStream(loadingMessage);
-    let stderrStream = makeOutputStream(loadingError);
+    let stdoutStream = makeOutputStream((m) => {
+        if(self.loaded){
+            console.log("pyodide stdout::", m);
+        } else {
+            loadingMessage(m);
+        }
+    });
+    let stderrStream = makeOutputStream((m) => {
+        if(self.loaded){
+            console.error("pyodide stderr::", m);
+        } else {
+            loadingError(m);
+        }
+    });
 
     pyodide_FS.init(() => null, stdoutStream, stderrStream);
     pyodide_FS.mkdir('/repl');
@@ -90,27 +125,22 @@ async function startup(){
         await pyodide.loadPackage([
                 // "pygments", 
                 "crappy-python-multitasking",
-                "spectralsequence_chart"
+                "spectralsequence_chart",
+                // "astunparse",
+                "micropip",
             ],
             // loadingMessage,
             // loadingError,
         );
         loadingMessage("Initializing Python Executor");
-        pyodide.runPython(`
-            from js import loadingMessage
+        await pyodide.runPythonAsync(`
+            import crappy_multitasking
             import sys
             sys.path.append("/repl")
-            from namespace import get_namespace
-            from sseq_display import SseqDisplay
-            from repl import Executor
-            from js_wrappers.async_js import WebLoop
-            from js_wrappers.messages import send_message_a
-            namespace = get_namespace()
-            loadingMessage("Initializing Jedi completion engine")
-            import jedi # This is slow but better to do it up front.
-            jedi.Interpreter("SseqDisplay", [namespace]).completions() # Maybe this will reduce Jedi initialization time?
-            executor = Executor(WebLoop(), send_message_a,  namespace)
+            sys.setrecursionlimit(150) # 150?
+            from initialize_pyodide import *
         `);
+        self.loaded = true;
         self.postMessage({cmd : "ready"});
     } catch(e){
         self.postMessage({cmd : "ready", exception : e});
@@ -149,22 +179,17 @@ self.addEventListener("message", async function(e) {
     } else {
         e.data.interrupt_buffer = () => 0;
     }
+
     // Store data into message lookup. This allows us to use the FFI to convert the arguments.
     messageLookup[uuid] = e.data;
     // get_message looks up e.data in messageLookup using uuid.
     try {
-        await self.pyodide.runPythonAsync(`
-            from js_wrappers.messages import get_message
-            from js_wrappers.crappy_multitasking import (crappy_multitasking, check_interrupt)
-            msg = get_message("${uuid}")
-            interrupt_buffer = msg.pop("interrupt_buffer")
-            with crappy_multitasking(check_interrupt(interrupt_buffer), 10_000):
-                executor.handle_message(**msg)
-        `);
+        self.pyodide.globals["handle_message"](uuid);
     } finally {
         // pyo
     }
 });
+
 
 async function handleSubscribeChartDisplay(e){
     let uuid = e.data;

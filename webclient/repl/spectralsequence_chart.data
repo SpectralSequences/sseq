@@ -1,0 +1,2717 @@
+""" SseqChart is the main class which holds the data structure representing the chart."""
+
+
+from spectralsequence_chart.page_property import PageProperty
+from spectralsequence_chart.display_primitives import ArrowTip, Color, Shape
+import spectralsequence_chart
+from spectralsequence_chart.signal_dict import SignalList
+import threading
+from typing import (
+    Any, Dict, Iterable, List, 
+    Set, Tuple, Union
+)
+from uuid import uuid4
+
+from .infinity import INFINITY
+from .chart_class import (ChartClass, ChartClassArg, ChartClassStyle)
+from .chart_edge import (ChartStructline, ChartDifferential, ChartExtension, ChartEdge, ChartEdgeStyle)
+
+
+class SseqChart:
+    """ SseqChart is the main class which holds the data structure representing the chart. """
+    def __init__(self, 
+        name : str, 
+        num_gradings : int = 2,
+    ): 
+        """      
+            Args:
+                name (str): the name of the chart.
+                num_gradings (int, optional): how many gradings the chart should have. Defaults to 2. 
+                    If there are more than two gradings, the chart will still be displayed in 2d.
+                    By default, the display projects onto the first two coordinates. The projection
+                    can be modified by updating the fields "x_projection" and "y_projection".
+        """
+        self.name = name
+        assert num_gradings >= 2
+        self.num_gradings = num_gradings
+
+        self._agent : Any = None
+        self._batched_messages : List[Dict[str, Any]] = []
+        # type: ignore
+        self._update_keys : Dict[str, int] = {}
+        self._global_fields_to_update : Set[str] = set()
+        self._batched_messages_lock = threading.Lock()
+
+        self._uuid = str(uuid4())
+
+        self._page_list =  SignalList([(2, INFINITY), (INFINITY, INFINITY)], callback=self._add_setting_message)
+        self._initial_x_range = (0, 10)
+        self._initial_y_range = (0, 10)
+        self._x_range = (0, 10)
+        self._y_range = (0, 10)
+  
+        self._default_class_style = ChartClassStyle()
+        self._default_structline_style = ChartEdgeStyle()
+        self._default_differential_style = ChartEdgeStyle(color=Color.BLUE, end_tip=ArrowTip())
+        self._default_extension_style = ChartEdgeStyle()
+        self._class_styles : Dict[str, ChartClassStyle] = {}
+        self._edge_styles : Dict[str, ChartEdgeStyle] = {}
+        self._shapes : Dict[str, Shape] = {}
+        self._colors : Dict[str, Color] = {}
+
+        self._page_list_lock = threading.Lock()
+        self._classes : Dict[str, ChartClass] = {}
+        self._edges : Dict[str, ChartEdge] = {}
+        self._classes_by_degree : Dict[Tuple[int, ...], List[ChartClass]] = {}
+        self.x_projection = (1, 0) + (0,) * (num_gradings - 2)
+        self.y_projection = (0, 1) + (0,) * (num_gradings - 2)       
+        self._initialized : bool = True
+
+    # def validate(self):
+    #     if not self._initialized:
+    #         raise RuntimeError("Uninitialized chart.")
+    #     if self._agent and not hasattr(self._agent, "send_batched_messages_a"):
+    #         raise TypeError(f"_agent is of type {type(self._agent).__name__} which has no attribute send_batched_messages_a")
+        
+    #     if not isinstance(self.num_gradings, int) and self.num_gradings >= 2:
+    #         raise TypeError(f"num_gradings should be an integer greater than or equal to 2, instead is {self.num_gradings}.")
+
+    #     if len(self.x_projection) != self.num_gradings:
+    #         raise TypeError(f"x_projection has length {len(self.x_projection)} not equal to num_gradings {self.num_gradings}")
+
+    #     if len(self.y_projection) != self.num_gradings:
+    #         raise TypeError(f"y_projection has length {len(self.y_projection)} not equal to num_gradings {self.num_gradings}")
+        
+    #     for c in self.classes_iter:
+    #         pass
+
+    #     for e in self.edges_iter:
+    #         pass
+
+
+    def __repr__(self):
+        fields = []
+        fields.append(f'"{self.name}"')
+        nc = len(self._classes)
+        ne = len(self._edges)
+        fields.append(f"classes=[{nc} class{'es' if nc != 1 else ''}]")
+        fields.append(f"edges=[{ne} edge{'s' if ne != 1 else ''}]")
+        return f"{type(self).__name__}({', '.join(fields)})"
+
+    @property
+    def classes(self) -> List[ChartClass]:
+        """ Get the list of all classes in the chart. This performs a copy. 
+            This is the same as ``list(self.classes_iter())``.
+        """
+        return list(self._classes.values())
+
+    @property
+    def classes_iter(self) -> Iterable[ChartClass]:
+        """ Return an iterable for all the classes in the chart. 
+            This performs no copy, will raise an exception if `SseqChart.add_class` or `ChartClass.delete` are called while iterating.
+        """
+        return self._classes.values()
+
+    @property
+    def edges(self) -> List[ChartEdge]:
+        """ Get the list of all edges in the chart. This performs a copy. 
+            This is the same as ``list(self.edges_iter())``.
+        """
+        return list(self._edges.values())
+
+    @property
+    def edges_iter(self) -> Iterable[ChartClass]:
+        """ Return an iterable for all the edges in the chart. 
+            This performs no copy, will raise if `SseqChart.add_structline`, `SseqChart.add_differential`,
+            `SseqChart.add_extension`, `ChartEdge.delete`, or `ChartClass.delete` are called while iterating.
+        """        
+        return self._classes.values()
+
+
+    def to_json(self) -> Dict[str, Any]:
+        return dict(
+            type=type(self).__name__,
+            version=spectralsequence_chart.__version__,
+            uuid=self.uuid,
+            name=self.name,
+            initial_x_range=self._initial_x_range,
+            initial_y_range=self._initial_y_range,
+            x_range=self._x_range,
+            y_range=self._y_range,
+            num_gradings=self.num_gradings,
+            x_projection=self.x_projection,
+            y_projection=self.y_projection,
+            page_list=self.page_list,
+            classes=list(self._classes.values()),
+            edges=list(self._edges.values())
+        )
+        
+
+    @staticmethod
+    def from_json(json_obj : Dict[str, Any]) -> "SseqChart":
+        chart = SseqChart(json_obj.pop("name"), json_obj.pop("num_gradings"))
+        chart._from_json_helper(**json_obj)
+        return chart
+
+    def _from_json_helper(self,
+        type : str,
+        uuid : str,
+        version : str,
+        page_list : List[Tuple[int, int]],
+        initial_x_range : Tuple[int, int],
+        initial_y_range : Tuple[int, int],
+        x_range : Tuple[int, int],
+        y_range : Tuple[int, int],
+        x_projection : Tuple[int, ...],
+        y_projection : Tuple[int, ...],
+        classes : List[ChartClass],
+        edges : List[ChartEdge]
+    ):
+        assert type == SseqChart.__name__
+        self._uuid = uuid
+        self._page_list = page_list
+        page_list.set_callback(self._add_setting_message)
+        self._initial_x_range = initial_x_range
+        self._initial_y_range = initial_y_range
+        self._x_range = x_range
+        self._y_range = y_range
+        self._x_projection = x_projection
+        self._y_projection = y_projection
+        for c in classes:
+            self._commit_class(c)
+        for e in edges:
+            self._commit_edge(e)
+        
+        
+    def add_class(self, *degree : int) -> ChartClass:
+        """ Add a `ChartClass` to the spectral sequence.
+
+            Example: 
+                ``chart.add_class(2, 3)`` 
+                If you want to create a new class and set the style try: ``chart.add_class(2, 3).set_style("Z")``
+
+            Args:
+                *degree (int): A list of integers of length self.num_gradings.
+
+            Returns: 
+                The `ChartClass` added.
+        """
+        assert len(degree) == self.num_gradings
+        idx = len(self._classes_by_degree.get(degree, []))
+        c = ChartClass(degree, idx)
+        c.set_style(self.default_class_style)
+        self._commit_class(c)
+        return c
+
+    def _commit_class(self, c : ChartClass):
+        """ Common logic between add_class and deserialization of classes."""
+        if len(c.degree) != self.num_gradings:
+            raise ValueError(f"Wrong number of gradings: degree {c.degree} has length {len(c.degree)} but num_gradings is {self.num_gradings}")
+
+        c._sseq = self
+        self._add_create_message(c)
+        self._classes[c.uuid] = c
+        if c.degree not in self._classes_by_degree:
+            self._classes_by_degree[c.degree] = []
+        self._classes_by_degree[c.degree].append(c)
+
+    def add_differential(self, 
+        page : int, source_arg : ChartClassArg, target_arg : ChartClassArg, 
+        auto : bool = True
+    ) -> ChartDifferential:
+        """ Add a differential.
+
+            Args:
+
+                page (int): which page should the differential appear on.
+
+                source_arg (ChartClassArg): The source class, specified by either a `ChartClass` or a tuple with the bidegree and index of the class.
+
+                target_arg (ChartClassArg): The target class, specified by either a `ChartClass` or a tuple with the bidegree and index of the class.
+
+                auto (bool, optional): If 'True', automatically set max_page of source and target to 'page'. 
+                    If False, the edge will be added but no change will be made to the source or target classes. Defaults to 'True'.
+            
+            Returns: The added differential.
+        """
+        source = self._normalize_class_argument(source_arg)
+        target = self._normalize_class_argument(target_arg)
+        if auto:
+            # TODO: Does any sort of checking belong here?
+            # if source._max_page < page:
+            
+            source._max_page = page
+            target._max_page = page
+            # self.add_page_range(page,page)
+        e = ChartDifferential(page=page, source_uuid=source.uuid, target_uuid=target.uuid)
+        e.set_style(self._default_differential_style)
+        self._edges[e.uuid] = e
+        self._commit_edge(e)        
+        return e
+
+    def add_structline(self, source_arg : ChartClassArg, target_arg : ChartClassArg) -> ChartStructline:
+        """ Add a structline. By default will appear on all pages on which both the source and target of the edge appear.
+            To adjust this behavior modify the page property edge.visible. For instance, if you want to set the edge to be invisible after
+            page p, say ``edge.visible[p:] = False``.
+
+            Args:
+                source_arg (ChartClassArg): The source class, specified by either a `ChartClass` or by a tuple which is passed to `SseqChart.get_class` to get the class.
+                target_arg (ChartClassArg): The target class, specified by either a `ChartClass` or by a tuple which is passed to `SseqChart.get_class` to get the class.
+
+            Returns: The added structline.
+        """
+        source = self._normalize_class_argument(source_arg)
+        target = self._normalize_class_argument(target_arg)
+        e = ChartStructline(source_uuid=source.uuid, target_uuid=target.uuid)
+        e.set_style(self._default_structline_style)
+        self._commit_edge(e)
+        return e
+
+    def add_extension(self, source_arg : ChartClassArg, target_arg : ChartClassArg) -> ChartExtension:
+        """ Add an extension. The extension will only appear on page pairs (infinity, _).
+
+            Args:
+                source_arg (ChartClassArg): The source class, specified by either a `ChartClass` or by a tuple which is passed to `SseqChart.get_class` to get the class.
+                target_arg (ChartClassArg): The target class, specified by either a `ChartClass` or by a tuple which is passed to `SseqChart.get_class` to get the class.
+
+            Returns: The added extension.
+        """        
+        source = self._normalize_class_argument(source_arg)
+        target = self._normalize_class_argument(target_arg)
+        e = ChartExtension(source_uuid=source.uuid, target_uuid=target.uuid)
+        e.set_style(self._default_extension_style)
+        self._commit_edge(e)
+        return e
+    
+    def _commit_edge(self, e : ChartEdge):
+        """ Common logic between add_structline, add_differential, add_extension, and deserialization."""
+        e._sseq = self
+        self._edges[e.uuid] = e
+        e._source = self._classes[e._source_uuid]
+        e._target = self._classes[e._target_uuid]
+        e.source.edges.append(e)
+        e.target.edges.append(e)
+        self._add_create_message(e)
+
+    def add_page_range(self, page_min : int, page_max : int):
+        """ Add a range of pages to the list of page_views. This indicates to the display that when stepping 
+            through the page views the new page range should be included.
+        """
+        page_range = (page_min, page_max)
+        if page_range in self.page_list:
+            return
+        with self._page_list_lock:
+            if page_range in self.page_list:
+                return
+            for (i, p) in enumerate(self.page_list):
+                if p[0] > page_range[0]:
+                    idx = i
+                    break
+            else:
+                idx = len(self.page_list)
+            self.page_list.insert(idx, page_range)
+    
+
+    def _add_class_to_update(self, c : ChartClass):
+        self._add_update_message(c)
+
+    def _add_class_to_delete(self, c : ChartClass):
+        self._add_delete_message(c)
+
+    def _add_edge_to_update(self, e : ChartEdge):
+        self._add_update_message(e)
+
+    def _add_edge_to_delete(self, e : ChartEdge):
+        self._add_delete_message(e)
+
+    def _add_batched_message(self, key : str, kwargs : Dict[str, Any], replace=False):
+        """ If replace is False, then if key """
+        if not self._initialized:
+            return        
+        if key in self._update_keys and not replace:
+            return
+        with self._batched_messages_lock:
+            self._add_batched_message_raw(key, kwargs, replace)
+
+    def _add_batched_message_raw(self, key : str, kwargs : Dict[str, Any], replace):
+        # If we're actually bothering with locking we need to check again to make sure
+        # key is not in dict to make sure that it didn't get inserted before we got the lock.
+        if key in self._update_keys:
+            if replace:
+                self._batched_messages[self._update_keys[key]] = kwargs
+            return
+        if key is not None:       
+            self._update_keys[key] = len(self._batched_messages)
+        self._batched_messages.append(kwargs)
+
+    def _add_create_message(self, target_object : Any):
+        self._add_batched_message(
+            target_object.uuid,
+            dict(
+                chart_id=self.uuid,
+                target_type=type(target_object).__name__,
+                command="create",
+                target=target_object
+            )
+        )
+
+    def _add_update_message(self, target_object : Any):
+        self._add_batched_message(
+            target_object.uuid,
+            dict(
+                chart_id=self.uuid, # okay to merge update with earlier create.
+                target_type=type(target_object).__name__,
+                command="update",
+                target_uuid=target_object.uuid,
+                update_fields=target_object
+            )
+        )
+
+    def _add_delete_message(self, target_object : Any):
+        self._add_batched_message(
+            target_object.uuid + "--delete", # Don't merge delete event with earlier update
+            dict(
+                chart_id=self.uuid,
+                target_type=type(target_object).__name__,
+                command="delete",
+                target_uuid=target_object.uuid,
+            )
+        )
+
+    def _add_setting_message(self):
+        self._add_batched_message("settings", 
+            dict(
+                chart_id=self.uuid,
+                target_type=type(self).__name__,
+                command="update",
+                target_fields=self.get_settings(),
+            ),
+            replace=True
+        )
+
+    def get_settings(self) -> Dict[str, any]:
+        return dict(
+            page_list=self._page_list,
+            x_projection=self.x_projection,
+            y_projection=self.y_projection,
+            x_range=self._x_range,
+            y_range=self._y_range,
+            # default_class_style=self.default_class_style,
+            # default_structline_style=self.default_structline_style,
+            # default_differential_style=self.default_differential_style,
+            # default_extension_style=self.default_extension_style,
+        )
+
+    def _clear_batched_messages(self):
+            self._batched_messages = []
+            self._update_keys = {}
+            
+    async def update_a(self):
+        """ If the chart is attached to a display, update the attached display. 
+            This will send a message to the display instructing it about how to 
+            "catch up with" the current state of the `SseqChart` in the Python runtime.            
+        """
+        with self._batched_messages_lock:
+            if not self._batched_messages:
+                return
+            if self._agent:
+                await self._agent.send_batched_messages_a(self._batched_messages)
+            self._clear_batched_messages()
+    
+    def _normalize_class_argument(self, class_arg : ChartClassArg) -> ChartClass:
+        """ If the argument is of type `ChartClass`, return it unmodified.
+            Otherwise, the argument is passed to `SseqChart.get_class`.
+        """
+        if type(class_arg) is ChartClass:
+            return class_arg
+        if not isinstance(class_arg, Iterable):
+            raise TypeError(f'Class specifier argument must either be of type "ChartClass" or an iterable of integers.')
+        if isinstance(class_arg, (list, tuple)):
+            class_arg2 = class_arg
+        else:
+            class_arg2 = list(class_arg)
+        if not self.num_gradings <= len(class_arg2) <= self.num_gradings + 1:
+            raise TypeError(f'Class specifier argument argument must have length "num_gradings" = {self.num_gradings} or "num_gradings" + 1 = {self.num_gradings+1}')
+        return self.get_class(*class_arg2)
+
+    def get_class(self, *args : int) -> ChartClass:
+        """ Get a specific class in the given degree.
+
+            Args:
+                *args (int): A sequence of integers of length ``num_gradings + 1``.
+                    The first ``num_gradings`` arguments indicate the polydegree of the class, the last argument indicates the index.
+                    You may optionally leave off the index in which case it is assumed to be 0.
+            
+            Examples:            
+                ``chart.get_class(0, 0)`` or ``chart.get_class(0, 0, 0)`` both get the class of index 0 in bidegree (0, 0). 
+                ``chart.get_class(0,0,1)`` gets the class of index 1.
+
+        """
+        if not self.num_gradings <= len(args) <= self.num_gradings + 1:
+            raise TypeError(f'Iterable class specifier argument argument must have length "num_gradings" = {self.num_gradings} or "num_gradings" + 1 = {self.num_gradings+1}')
+        if len(args) == self.num_gradings + 1:
+            index = args[-1]
+            args = args[:-1]
+        else:
+            index = 0
+        return self.classes_in_degree(*args)[index]
+
+    def classes_in_degree(self, *args : int) -> List[ChartClass]:
+        """ Get the list of classes in a given degree.
+            The arguments should be a sequence of integers of length ``num_gradings``.
+        """
+        if len(args) != self.num_gradings:
+            raise TypeError(f'Argument to "classes_in_degree" must have length "num_gradings" = {self.num_gradings}')
+        return self._classes_by_degree.get(args, [])
+
+    @property
+    def default_class_style(self) -> ChartClassStyle:
+        """
+            The default style for all new classes. Changes to the default will not affect existing classes. 
+        """
+        return self._default_class_style
+
+    @default_class_style.setter
+    def default_class_style(self, value : ChartClassStyle):
+        self._default_class_style = value
+        self.chart_styles["default"] = value
+        self.add_class()
+        range(2)
+
+    @property
+    def default_structline_style(self) -> ChartEdgeStyle:
+        """ The default style for all new structlines. Changes to the default will not affect existing structlines. """
+        return self._default_structline_style
+
+    @default_structline_style.setter
+    def default_structline_style(self, value : ChartEdgeStyle):
+        self._default_structline_style = value
+
+    @property
+    def default_differential_style(self) -> ChartEdgeStyle:
+        """ The default style for all new differentials. Changes to the default will not affect existing differentials. """
+        return self._default_differential_style
+
+    @default_differential_style.setter
+    def default_differential_style(self, value : ChartEdgeStyle):
+        self._default_differential_style = value
+
+    @property
+    def default_extension_style(self) -> ChartEdgeStyle:
+        """ The default style for all new extensions. Changes to the default will not affect existing extensions. """
+        return self._default_extension_style
+
+    @default_extension_style.setter
+    def default_extension_style(self, value : ChartEdgeStyle):
+        self._default_extension_style = value
+
+
+    @property
+    def x_min(self):
+        """ The minimum x view extent. This represents the minimum x value that is possible to look at with the display.
+            The display will not zoom or scroll left of this value.
+        """
+        return self._x_range[0]
+
+    @x_min.setter
+    def x_min(self, value : int):
+        x_range = list(self._x_range)
+        x_range[0] = value
+        self._x_range = tuple(x_range)
+        self._add_setting_message()
+
+    @property
+    def x_max(self):
+        """ The maximum x view extent. This represents the maximum x value that is possible to look at with the display.
+            The display will not zoom or scroll right of this value.
+        """
+        return self._x_range[1]
+
+    @x_max.setter
+    def x_max(self, value : int):
+        x_range = list(self._x_range)
+        x_range[1] = value
+        self._x_range = tuple(x_range)
+        self._add_setting_message()
+
+    @property
+    def y_min(self):
+        """ The minimum y view extent. This represents the minimum y value that is possible to look at with the display.
+            The display will not zoom or scroll below this value.
+        """
+        return self._y_range[0]
+    
+    @y_min.setter
+    def y_min(self, value : int):
+        y_range = list(self._y_range)
+        y_range[0] = value
+        self._y_range = tuple(y_range)
+        self._add_setting_message()
+
+    @property
+    def y_max(self):
+        """ The maximum y view extent. This represents the maximum y value that is possible to look at with the display.
+            The display will not zoom or scroll above this value.
+        """
+        return self._y_range[1]
+
+    @y_max.setter
+    def y_max(self, value : int):
+        y_range = list(self._y_range)
+        y_range[1] = value
+        self._y_range = tuple(y_range)
+        self._add_setting_message()
+
+
+    @property
+    def initial_x_min(self):
+        """ The initial x minimum. When the display is first loaded this will be the smallest, leftmost visible x value."""        
+        return self._initial_x_range[0]
+
+
+    @initial_x_min.setter
+    def initial_x_min(self, value : int):
+        initial_x_range = list(self._initial_x_range)
+        initial_x_range[0] = value
+        self._initial_x_range = tuple(initial_x_range)
+        self._add_setting_message()
+
+    @property
+    def initial_x_max(self):
+        """ The initial x maximum. When the display is first loaded this will be the largest, rightmost visible x value."""        
+        return self._initial_x_range[1]
+
+    @initial_x_max.setter
+    def initial_x_max(self, value : int):
+        initial_x_range = list(self._initial_x_range)
+        initial_x_range[1] = value
+        self._initial_x_range = tuple(initial_x_range)
+        self._add_setting_message()
+
+    @property
+    def initial_y_min(self):
+        """ The initial y minimum. When the display is first loaded this will be the smallest, bottommost visible y value."""        
+        return self._initial_y_range[0]
+
+
+    @initial_y_min.setter
+    def initial_y_min(self, value : int):
+        initial_y_range = list(self._initial_y_range)
+        initial_y_range[0] = value
+        self._initial_y_range = tuple(initial_y_range)
+        self._add_setting_message()
+
+    @property
+    def initial_y_max(self):
+        """ The initial y maximum. When the display is first loaded this will be the largest, topmost visible y value."""        
+        return self._initial_y_range[1]
+
+    @initial_y_max.setter
+    def initial_y_max(self, value : int):
+        initial_y_range = list(self._initial_y_range)
+        initial_y_range[1] = value
+        self._initial_y_range = tuple(initial_y_range)
+        self._add_setting_message()
+
+    @property
+    def x_projection(self):
+        """ The x projection for the spectral sequence. Each class c is displayed in x degree the dot product of c.degree and x_projection."""
+        return self._x_projection
+    
+    @x_projection.setter
+    def x_projection(self, value : Tuple[int]):
+        assert len(value) == self.num_gradings
+        self._x_projection = value
+
+    @property
+    def y_projection(self):
+        """ The y projection for the spectral sequence. Each class c is displayed in y degree the dot product of c.degree and y_projection."""
+        return self._y_projection
+    
+    @y_projection.setter
+    def y_projection(self, value : Tuple[int]):
+        assert len(value) == self.num_gradings
+        self._y_projection = value
+
+    @property
+    def uuid(self):
+        """ A unique id for the chart. For internal use. """
+        return self._uuid
+
+    @property
+    def page_list(self):
+        """ The page list for the spectral sequence. This is a list of tuple pairs ``(page, max_differential_length)``.
+            When changing the display page forward or backwards the "display page" steps through each pair in the page list.
+            On a given display page ``(page, max_differential_length)``, all of the classes and structlines will appear as if on page ``page``,
+            while differentials will appear if the length of the differential is between ``page`` and ``max_differential_length`` inclusive.
+        """
+        return self._page_list
+
+    @page_list.setter
+    def page_list(self, v : List[Tuple[int, int]]):
+        self._page_list = SignalList(v, callback=self._add_setting_message)
+        self._add_setting_message()
+
+
+    def register_class_style(self, class_style : ChartClassStyle):
+        """ Register class style. This uses `class_style.group_name <ChartClassStyle.group_name>` as an index.
+            Once registered, `class_style.group_name <ChartClassStyle.group_name>` may be used as a style in the arguments of 
+            to `ChartClass.set_style`, `ChartClass.replace`, `ChartEdge.replace_source` and `ChartEdge.replace_target`.
+
+            Example::
+
+                style = ChartClassStyle(shape = Shape().boxed(10), group_name="Z")
+                chart.register_class_style(style)
+                chart.add_class(0, 0).set_style("Z")
+
+            Args:
+                class_style (ChartClassStyle): The class style to register.
+        """    
+        if not class_style.group_name:
+            raise ValueError("register_class_style called on class_style with empty group_name.")
+        if class_style.group_name in self._class_styles:
+            if class_style.to_json() == self._class_styles[class_style.group_name].to_json():
+                return
+            raise ValueError(f'A different class_style with group_name "{class_style.group_name}" is already registered.')
+        from copy import deepcopy
+        self._class_styles[class_style.group_name] = deepcopy(class_style)
+
+    def register_edge_style(self, edge_style : ChartEdgeStyle):
+        """ Register edge style. This uses `edge_style.action <ChartEdgeStyle.action>` as an index.
+            Once registered, `edge_style.action <ChartEdgeStyle.action>` may be used as a style in the arguments of
+            `ChartEdge.set_style`.
+
+            Args:
+                edge_style (ChartEdgeStyle): The edge style to register.
+        """    
+        if not edge_style.action:
+            raise ValueError("register_class_style called on class_style with empty action.")
+        if edge_style.action in self._edge_styles:
+            if edge_style.to_json() == self._edge_styles[edge_style.action].to_json():
+                return
+            raise ValueError(f'A different class_style with action "{edge_style.action}" is already registered.')
+        from copy import deepcopy
+        self._edge_styles[edge_style.action] = deepcopy(edge_style)
+
+    def register_shape(self, name : str, shape : Shape):
+        self._shapes[name] = shape
+
+    def register_color(self, name : str, color : Color):
+        color._name = name
+        self._colors[name] = color
+
+    @property
+    def class_styles(self) -> Dict[str, ChartClassStyle]:
+        """ A dictionary of `ChartClassStyles <ChartClassStyle>`. `SseqChart.register_class_style` adds styles to this.
+            You can use this to unregister class styles, etc.
+            If you pass a string argument to `ChartClass.set_style`, it will look up the style in this dictionary. 
+            
+            Keys for this dictionary may be used as arguments for `ChartClass.set_style`, `ChartClass.replace`, 
+            `ChartEdge.replace_source` and `ChartEdge.replace_target`.
+        """
+        return self._class_styles
+
+    @class_styles.setter
+    def class_styles(self, v : Dict[str, ChartClassStyle]):
+        self._class_styles = v
+        self._class_styles["default"] = self._default_class_style
+
+
+    @property
+    def edge_styles(self) -> Dict[str, ChartEdgeStyle]:
+        """ A dictionary of `ChartEdgeStyles <ChartEdgeStyle>`. `SseqChart.register_edge_style` adds styles to this dictionary. 
+            You can use this to unregister edge styles, etc.
+            If you pass a string argument to `ChartEdge.set_style`, it will look up the style in this dictionary. 
+            
+            Keys for this dictionary may be used as arguments for `ChartEdge.set_style`.
+        """
+        return self._edge_styles 
+
+    @edge_styles.setter
+    def edge_styles(self, v : Dict[str, ChartEdgeStyle]):
+        self._edge_styles = v
+
+
+    @property
+    def shapes(self) -> Dict[str, Shape]:
+        """ A dictionary of `Shapes <Shape>`. `SseqChart.register_shape` adds shapes to this dictionary. 
+            You can use this to unregister shapes, etc.
+            If you set the shape of a class to a string, the actual `Shape` will be looked up in this dictionary.            
+        """
+        return self._shapes 
+
+    @shapes.setter
+    def shapes(self, v : Dict[str, Shape]):
+        self._shapes = v
+
+    @property
+    def colors(self) -> Dict[str, Color]:
+        """ A dictionary of `Colors <Color>`. `SseqChart.register_color` adds colors to this dictionary. 
+            You can use this to unregister shapes, etc.
+            If you set the color of a class or edge to a string, the actual `Color` will be looked up in this dictionary.
+        """
+        return self._colors 
+
+    @colors.setter
+    def colors(self, v : Dict[str, Color]):
+        self._colors = v
+
+    def get_shape(self, shape : Union[str, Shape]) -> Shape:
+        if type(shape) is Shape:
+            return shape
+        if shape in self.shapes:
+            return self.shapes[shape]
+        raise ValueError(f"Unrecognized shape '{shape}'")
+
+    def get_color(self, color : Union[str, Color]) -> Color:
+        if type(color) is Color:
+            return color
+        if type(color) is not str:
+            raise TypeError(f"Expected argument to be of type 'Color' or 'str' not '{type(color)}'")
+        if color in self.colors:
+            return self.colors[color]
+        return Color.from_string(color)
+
+    # @property
+    # def initial_x_range(self):
+    #     """ The initial x range when the display is first loaded. A tuple pair."""
+    #     return self._initial_x_range
+
+    # @property
+    # def initial_y_range(self):
+    #     """ The initial y range when the display is first loaded. A tuple pair."""
+    #     return self._initial_y_range
+
+    # @property
+    # def x_range(self):
+    #     """ The maximum x range. It is impossible to scroll the display horizontally beyond this extent."""
+    #     return self._x_range
+
+    # @property
+    # def y_range(self):
+    #     """ The maximum x range. It is impossible to scroll the display horizontally beyond this extent."""
+    #     return self._y_range
+
+from .page_property import (PageProperty, PagePropertyOrValue, ensure_page_property)
+from .signal_dict import SignalDict
+
+from .infinity import INFINITY
+from uuid import uuid4  
+from .display_primitives import UUID_str, Color, Shape
+# from .chart_edge import ChartEdge
+
+from typing import TYPE_CHECKING, List, Any, Tuple, cast, Dict, Union, NewType, Iterable
+if TYPE_CHECKING:
+    from .chart import SseqChart
+    from .chart_edge import ChartEdge
+ 
+
+ 
+class ChartClassStyle:
+    """ The data that determine the visual style of a class on a particular page. 
+        We also include a field `ChartClassStyle.group_name` which is used as shorthand
+        to represent the `ChartClassStyle` and as a signifier of the intended purpose of the style.
+    """
+    def __init__(self,
+        group_name : str = "",
+        shape : Shape = Shape().circled(5),  
+        background_color : Color = Color.BLACK,
+        border_color : Color = Color.BLACK,  
+        foreground_color : Color = Color.BLACK,
+        border_width : float = 2,
+    ):
+        self._group_name = group_name
+        self._shape = shape
+        self._background_color = background_color
+        self._border_color = border_color
+        self._foreground_color = foreground_color
+        self._border_width = border_width
+
+    def to_json(self) -> Dict[str, Any]:
+        return dict(
+            type=type(self).__name__,
+            group_name = self._group_name,
+            shape = self._shape,
+            background_color = self._background_color,
+            border_color = self._border_color,
+            border_width = self._border_width,
+            foreground_color = self._foreground_color,
+        )
+
+    @classmethod
+    def from_json(cls, json : Dict[str, Any]) -> "ChartClassStyle":
+        assert json.pop("type") == cls.__name__
+        return cls(**json)
+
+    @property
+    def group_name(self) -> str:
+        """ The name of the "group" represented by the current glyph. This does not directly affect the rendered chart. 
+            If :attr:`group_name` is present it is treated as if it uniquely identifies the `ChartClassStyle`.
+            For instance, if you register the `ChartClassStyle` with `SseqChart.register_class_style`
+            then methods such as `ChartClass.set_style` that accept a `ChartClassStyle` as an argument
+            will treat the string :attr:`group_name` as an alias for the registered `ChartClassStyle`. 
+        """        
+        return self._group_name
+    
+    @group_name.setter
+    def group_name(self, v : str):
+        self._group_name = v
+
+    @property
+    def shape(self) -> Shape:
+        """ Control how to draw the class. """
+        return self._shape
+    
+    @shape.setter
+    def shape(self, v : Shape): # type: ignore
+        self._shape = v
+
+    @property
+    def background_color(self) -> Color:
+        """ The `color` to use to draw the shape background. """
+        return self._background_color
+    
+    @background_color.setter
+    def background_color(self, v : Color): # type: ignore
+        """ Sets the `Color` to use to draw the background component of the `Shape`."""
+        self._background_color = v
+
+    @property
+    def border_color(self) -> Color:
+        """ The `Color` to use to draw the shape border. """
+        return self._border_color
+    
+    @border_color.setter
+    def border_color(self, v : Color): # type: ignore
+        self._border_color = v
+
+    @property
+    def foreground_color(self) -> Color:
+        """ The `Color` to use to draw the foreground component of the `Shape`."""
+        return self._foreground_color
+    
+    @foreground_color.setter
+    def foreground_color(self, v : Color): # type: ignore
+        self._foreground_color = v
+
+    @property
+    def border_width(self) -> float:
+        """ The thickness to draw the border of the `Shape`. """
+        return self._border_width
+    
+    @border_width.setter
+    def border_width(self, v : float): # type: ignore
+        self._border_width = v
+
+    def __repr__(self):
+        if self.group_name:
+            return f"ClassStyle({self.group_name})"
+        d = self.to_json()
+        del d["type"]
+        del d["group_name"]
+        return f"ClassStyle({d})"
+
+
+class ChartClass:
+    """ A `ChartClass` is roughly intended to represent a summand of the the E2 page in a particular bidegree.
+        The class may change its appearance from page to page, typically whenever some part of that summand is either in
+        the image of a differential or supports a nontrivial differential. 
+    """
+    def __init__(self, degree : Tuple[int, ...], idx : int):
+        """ Do not call `ChartClass` constructor directly, use instead `SseqChart.add_class`, or `JSON.parse`."""
+        self._sseq : SseqChart = None
+        self._degree = tuple(degree)
+        self._idx = idx
+        self._max_page = INFINITY
+        self._edges : List["ChartEdge"] = []
+        self._uuid = str(uuid4())
+
+        # These values don't really matter, just need to initialize the PageProperties or set_style will raise.
+        self.group_name = ""
+        self.shape = Shape().circled(5)
+        self.background_color = (0, 0, 0, 1)
+        self.border_color = (0, 0, 0, 1)
+        self.foreground_color = (0, 0, 0, 1)
+        self.border_width = 2
+
+        self.name = ""
+        self.scale = 1
+        self.visible = True
+        self.x_nudge = 0
+        self.y_nudge = 0 
+        self._user_data = SignalDict({}, parent=self)
+
+    def get_style(self, page : int) -> ChartClassStyle:
+        """ Gets the display style of the class on the given page. This can be stored in `SseqChart.class_styles` 
+            or applied to other classes with `ChartClass.set_style`.
+        """
+        result = ChartClassStyle(
+            group_name=self.group_name[page],
+            shape=self.shape[page],
+            background_color=self.background_color[page],
+            border_color=self.border_color[page],
+            foreground_color=self.foreground_color[page],
+            border_width=self.border_width[page]
+        )
+        if result.group_name in self._sseq.class_styles:
+            if result != self._sseq.class_styles[result.group_name]:
+                result.group_name = result.group_name + " (modified)"
+        return result
+
+    def set_style(self, style : Union[ChartClassStyle, str], page : Union[int, Tuple[int, int]] = None) -> "ChartClass":
+        """ Sets the display style of the class. 
+            
+            Arguments:
+                style (ChartClassStyle | str): The style to set. If ``style`` is a string,
+                    then the appropriate style is looked up in the dictionary `SseqChart.chart_class_styles`.
+                    Otherwise, we use the `ChartClassStyle` provided.
+                
+                page (int | Tuple[int, int]):
+                    If argument ``page`` is omitted or ``None`` then the style is set on all pages.
+                    If ``page`` is a single integer, then the stlye is set starting on that page and all later pages.
+                    If ``page`` is a pair of integers, the style is set on that range of pages inclusive of the lower 
+                    endpoint and exclusive of the upper endpoint.
+        """ 
+        if page is None:
+            page = slice(None)
+        if isinstance(page, (tuple, list)):
+            page = slice(page[0], page[1])
+        if type(style) is str:
+            if style not in self._sseq.class_styles:
+                raise ValueError(f'Unknown class style "{style}". Register a class style with this group name using SseqChart.register_class_style first.')
+            style = self._sseq._class_styles[style]
+        self.group_name[page] = style.group_name
+        self.shape[page] = style.shape
+        self.background_color[page] = style.background_color
+        self.border_color[page] = style.border_color
+        self.foreground_color[page] = style.foreground_color
+        self.border_width[page] = style.border_width
+        return self
+
+    def _needs_update(self):
+        if self._sseq:
+            self._sseq._add_class_to_update(self)
+
+    @staticmethod
+    def from_json(json : Dict[str, Any]) -> "ChartClass":
+        assert json.pop("type") == ChartClass.__name__
+        degree = json.pop("degree")
+        idx = json.pop("idx")
+        c = ChartClass(degree, idx)
+        c._from_json_helper(**json)
+        return c
+
+    def _from_json_helper(self,     
+        uuid : UUID_str,
+        name : PagePropertyOrValue[str],
+        max_page : int,
+        visible : PagePropertyOrValue[bool],
+        x_nudge : PagePropertyOrValue[float],
+        y_nudge : PagePropertyOrValue[float],
+        scale : PagePropertyOrValue[float],
+        shape : PagePropertyOrValue[Shape],
+        background_color : PagePropertyOrValue[Color],
+        border_color : PagePropertyOrValue[Color],
+        border_width : PagePropertyOrValue[float],
+        foreground_color : PagePropertyOrValue[Color],
+        user_data : SignalDict[Any]
+    ):
+        self._uuid = uuid
+        self._max_page = max_page
+        # Type checker has difficulty with PagePropertyOrValue and the typing of ensure_page_property.
+        self.name = name
+        self.shape = shape
+        self.background_color = background_color
+        self.border_color = border_color
+        self.border_width = border_width
+        self.foreground_color = foreground_color
+        self.scale = scale
+        self.visible = visible
+        self.x_nudge = x_nudge
+        self.y_nudge = y_nudge
+
+        self._user_data = user_data # type: ignore
+        user_data.set_parent(self)
+
+    def to_json(self) -> Dict[str, Any]:
+        return dict(
+            type=type(self).__name__,
+            degree=self.degree,
+            idx=self.idx,
+            uuid=self.uuid,
+            name=self.name,
+            max_page=self._max_page,
+            shape = self._shape,
+            background_color = self._background_color,
+            border_color = self._border_color,
+            border_width = self._border_width,
+            foreground_color = self._foreground_color,
+            scale=self.scale,
+            visible=self.visible,
+            x_nudge=self.x_nudge,
+            y_nudge=self.y_nudge,
+            user_data=self.user_data
+        )
+
+    def replace(self, style : Union[ChartClassStyle, str]) -> "ChartClass":
+        """ If the class has ``ChartClass.max_page`` less than infinity, then set it to be a permanent cycle.
+            For instance::
+
+                c.replace(some_style)
+            
+            Is the same as::
+            
+                page = c.max_page + 1
+                c.max_page = INFINITY
+                c.set_style(some_style, page)
+        """
+        if self.max_page == INFINITY:
+            raise ValueError("Class is already alive")
+        page = self.max_page + 1
+        self._max_page = INFINITY
+        if style:
+            self.set_style(style, page)
+        self._needs_update()
+        return self
+
+    def delete(self):
+        """ Deletes the class. Also deletes any edges incident to it."""
+        self._sseq._add_class_to_delete(self)
+        del self._sseq._classes[self.uuid]
+        for e in self.edges:
+            e.delete()
+
+    def __repr__(self) -> str:
+        fields = [repr(x) for x in (*self.degree, self.idx)]
+        if self.name[0] != "":
+            fields.append(f'name="{self.name[0]}"')
+        return f"{type(self).__name__}({', '.join(fields)})"
+
+    @property
+    def idx(self) -> str:
+        """ The index of the class. Used to distinguish between classes in same bidegree and determine placement. """
+        return self._idx
+
+    @property
+    def uuid(self) -> str:
+        """ A unique id for the class. For internal use. """
+        return self._uuid
+
+    @property
+    def edges(self) -> List["ChartEdge"]:
+        """The list of edges incident to the class. Includes structure lines, differentials, and extensions. Order is arbitrary."""
+        return self._edges
+
+    @property
+    def degree(self) -> Tuple[int, ...]:
+        """The multigrading of the class."""
+        return self._degree
+
+    @property
+    def x(self) -> int:
+        """ The coordinate on the x-axis that the class will be displayed in, calculated as the dot product of sseq.x_projection and class.degree
+        """
+        return sum(a*b for (a,b) in zip(self.degree,self._sseq.x_projection))
+
+    @property
+    def y(self) -> int:
+        """ The coordinate on the y-axis that the class will be displayed in, calculated as the dot product of sseq.y_projection and class.degree.
+        """
+        return sum(a*b for (a,b) in zip(self.degree,self._sseq.y_projection))
+
+    @property
+    def max_page(self) -> int:
+        """ The maximum page the class may appear on. Note that the `PageProperty` `class.visible` also
+            affects whether the class appears on a certain page: the class appears if ``class.visible[page]``
+            is ``True`` and $page \leq max_page$.
+        """
+        return self._max_page
+    
+    @max_page.setter
+    def max_page(self, v : int):
+        self._max_page = v
+        self._needs_update()
+
+    @property
+    def name(self) -> PageProperty[str]:
+        """ The name of the class. This appears in the tooltip in the display among other places. """
+        return self._name
+
+    @name.setter
+    def name(self, v : PagePropertyOrValue[str]): # type: ignore
+        self._name = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def group_name(self) -> PageProperty[str]:
+        """ The name of the "group" represented by the current class style. This does not directly affect the rendered chart, 
+            it is intended for clerical purposes.
+        """
+        return self._group_name
+    
+
+    @group_name.setter
+    def group_name(self, v : PagePropertyOrValue[str]):
+        self._group_name = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def shape(self) -> PageProperty[Shape]:
+        """ Control how to draw the class. """
+        return self._shape
+    
+    @shape.setter
+    def shape(self, v : PagePropertyOrValue[Shape]): # type: ignore
+        pp = ensure_page_property(v, parent=self)
+        def callback():
+            if self._sseq:
+                pp.map_values_in_place(self._sseq.get_shape)
+        callback()
+        pp.set_callback(callback)
+        self._shape = pp
+        self._needs_update()
+
+    @property
+    def background_color(self) -> PageProperty[Color]:
+        """ The `Color` to use to draw the background component of the `Shape`."""
+        return self._background_color
+    
+    @background_color.setter
+    def background_color(self, v : PagePropertyOrValue[Color]): # type: ignore
+        pp = ensure_page_property(v, parent=self)
+        def callback():
+            if self._sseq:
+                pp.map_values_in_place(self._sseq.get_color)
+        callback()
+        pp.set_callback(callback)
+        self._background_color = pp
+        self._needs_update()
+
+    @property
+    def border_color(self) -> PageProperty[Color]:
+        """ The `Color` to use to draw the border component of the `Shape`. """
+        return self._border_color
+    
+    @border_color.setter
+    def border_color(self, v : PagePropertyOrValue[Color]): # type: ignore
+        pp = ensure_page_property(v, parent=self)
+        def callback():
+            if self._sseq:
+                pp.map_values_in_place(self._sseq.get_color)
+        callback()
+        pp.set_callback(callback)   
+        self._border_color = pp
+        self._needs_update()
+
+    @property
+    def foreground_color(self) -> PageProperty[Color]:
+        """ The `Color` to use to draw the foreground component of the `Shape`."""
+        return self._foreground_color
+    
+    @foreground_color.setter
+    def foreground_color(self, v : PagePropertyOrValue[Color]): # type: ignore
+        pp = ensure_page_property(v, parent=self)
+        def callback():
+            if self._sseq:
+                pp.map_values_in_place(self._sseq.get_color)
+        callback()
+        pp.set_callback(callback)
+        self._foreground_color = pp
+        self._needs_update()
+
+    @property
+    def border_width(self) -> PageProperty[float]:
+        """ The thickness to draw the border of the `Shape`. """
+        return self._border_width
+    
+    @border_width.setter
+    def border_width(self, v : PagePropertyOrValue[float]): # type: ignore
+        self._border_width = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def scale(self) -> PageProperty[float]:
+        """ Scale the shape drawn on the screen. The apparent size of the shape depends on this scale factor,
+            the intrinsic size of the `Shape`, the global chart scale factor, and the current zoom factor in the display.
+        """
+        return self._scale
+
+    @scale.setter 
+    def scale(self, v : PagePropertyOrValue[float]): # type: ignore
+        self._scale = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def visible(self) -> PageProperty[bool]:
+        """ Determine whether the class is visible on a certain page. Note that the field "max_page" also determines whether the class
+            appears on a given page. The class appears if "class.visible[page] and sseq.page_range[0] <= class.max_page".
+        """        
+        return self._visible
+
+    @visible.setter
+    def visible(self, v : PagePropertyOrValue[bool]): # type: ignore
+        self._visible = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def x_nudge(self) -> PageProperty[float]:
+        """ The x displacement of the class from its default position. """
+        return self._x_nudge
+
+    @x_nudge.setter
+    def x_nudge(self, v : PagePropertyOrValue[float]): # type: ignore
+        self._x_nudge = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+
+    @property
+    def y_nudge(self) -> PageProperty[float]:
+        """ The y displacement of the class from its default position. """
+        return self._y_nudge
+
+    @y_nudge.setter
+    def y_nudge(self, v : PagePropertyOrValue[float]): # type: ignore
+        self._y_nudge = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def user_data(self) -> SignalDict[Any]:
+        """ Miscellaneous extra data that the user wants to add. All data added must be serializable. """
+        return self._user_data
+
+
+if TYPE_CHECKING:
+    ChartClassArg = NewType("ChartClassArg", Union[ChartClass, Iterable[int]])
+else:
+    class ChartClassArg:
+        """ This is a type name which refers to either a `ChartClass` or a tuple of ints.
+            It is used as an input to various `SseqChart` methods.
+            To specify a class as an argument, either pass a reference to a `ChartClass` 
+            or a tuple which will be passed to `SseqChart.get_class`.
+            For instance ``(0,0)`` and ``(0, 0, 0)`` both refer to the class of index 0 at position (0, 0).
+            ``(0, 0, 1)`` refers tot the class of index 1.
+        """
+        passfrom abc import ABC, abstractmethod
+from .page_property import (PageProperty, PagePropertyOrValue, ensure_page_property)
+from .signal_dict import SignalDict
+from uuid import uuid4
+from .chart_class import ChartClass, ChartClassStyle
+
+from typing import Optional, TYPE_CHECKING, Any, Dict, cast, Union, Optional, Tuple
+if TYPE_CHECKING:
+    from .chart import SseqChart
+    from .chart_class import ChartClass, ChartClassStyle
+    from .display_primitives import Shape
+
+from .display_primitives import UUID_str, Color, DashPattern, LineWidth, ArrowTip
+
+class ChartEdgeStyle:
+    def __init__(self, 
+        action : str = "",
+        color : Color = Color.BLACK,
+        dash_pattern : DashPattern = [],
+        line_width : float = 2,
+        start_tip : Optional[ArrowTip] = None,
+        end_tip : Optional[ArrowTip] = None,
+    ):
+        self._action : str = ""
+        self._color : Color = color
+        self._dash_pattern : DashPattern = dash_pattern
+        self._line_width : float = line_width
+        self._start_tip : Optional[ArrowTip] = start_tip
+        self._end_tip : Optional[ArrowTip] = end_tip
+
+
+    def to_json(self) -> Dict[str, Any]:
+        return dict(
+            type=type(self).__name__,
+            action = self._action,
+            color = self._color,
+            dash_pattern = self._dash_pattern,
+            line_width = self._line_width,
+            start_tip = self._start_tip,
+            end_tip = self._end_tip,
+        )
+
+    @classmethod
+    def from_json(cls, json : Dict[str, Any]) -> "ChartEdgeStyle":
+        assert json.pop("type") == cls.__name__
+        return cls(**json)
+
+    @property
+    def action(self) -> str:
+        """ The action of the edge. """
+        return self._action
+
+    @action.setter
+    def action(self, v : str):
+        self._action = v
+
+    @property
+    def color(self) -> Color:
+        """ The color of the edge. """
+        return self._color
+
+    @color.setter
+    def color(self, v : Color):
+        self._color = self._sseq.get_color(v)
+
+    @property
+    def dash_pattern(self) -> DashPattern:
+        """The dash pattern of the edge. A dash pattern is represented as a list of positive integers."""
+        return self._dash_pattern
+
+    @dash_pattern.setter
+    def dash_pattern(self, v : DashPattern):
+        self._dash_pattern = v
+
+    @property
+    def line_width(self) -> LineWidth:
+        """The width of the edge."""
+        return self._line_width
+
+    @line_width.setter
+    def line_width(self, v : LineWidth):
+        self._line_width = v
+
+    @property
+    def bend(self) -> float:
+        """The bend angle of the edge. If bend is nonzero, the edge is drawn as a circular arc through the start and end points,
+           where the angle between the edge from the start to the end and the tangent vector at the start point is specified by "bend".
+        """
+        return self._bend
+
+    @bend.setter
+    def bend(self, v : float):
+        self._bend = v
+
+    @property
+    def start_tip(self) -> Optional[ArrowTip]:
+        """ The start arrow tip. TODO: Explain how we represent arrow tips? """
+        return self._start_tip
+
+    @start_tip.setter
+    def start_tip(self, v : Optional[ArrowTip]):
+        self._start_tip = v
+
+    @property
+    def end_tip(self) -> Optional[ArrowTip]:
+        """ The end arrow tip. TODO: Explain how we represent arrow tips? """
+        return self._end_tip
+
+    @end_tip.setter
+    def end_tip(self, v : Optional[ArrowTip]):
+        self._end_tip = v
+    
+    def __repr__(self):
+        if self.action:
+            return f"EdgeStyle({self.action})"
+        d = self.to_json()
+        del d["type"]
+        del d["action"]
+        return f"EdgeStyle({d})"
+
+
+class ChartEdge(ABC):
+    """ ChartEdge is the base class of ChartStructline, ChartDifferential, and ChartExtension. """
+    def __init__(self, source_uuid : UUID_str, target_uuid : UUID_str):
+        """ Do not call SseqEdge constructor directly, use instead SseqChart.add_structline(),
+            SseqChart.add_differential(), SseqChart.add_extension(), or JSON.parse()."""
+        self._sseq : SseqChart
+        self._source_uuid = source_uuid
+        self._target_uuid = target_uuid
+        self._source : ChartClass
+        self._target : ChartClass        
+        self._uuid = str(uuid4())
+        self._user_data : SignalDict[Any] = SignalDict({}, parent=self) # type: ignore
+
+    def __repr__(self):
+        fields = [repr(x) for x in [self.source, self.target]]
+        return f"{type(self).__name__}({', '.join(fields)})"
+
+
+    def _needs_update(self):
+        if hasattr(self, "_sseq"):
+            self._sseq._add_edge_to_update(self)
+
+    def replace_source(self, style : Union[ChartClassStyle, str]) -> "ChartEdge":
+        """ Calls `self.source.replace(style) <ChartClass.replace>`. 
+
+            Arguments:
+                style (ChartClassStyle | str): The style to set. If ``style`` is a string,
+                    then the appropriate style is looked up in the dictionary `SseqChart.chart_class_styles`.
+                    Otherwise, we use the `ChartClassStyle` provided.
+
+            Returns:
+                self (chainable)
+        """
+        self.source.replace(style)
+        return self
+    
+    def replace_target(self, style : Union[ChartClassStyle, str]) -> "ChartEdge":
+        """ Calls `self.target.replace(style) <ChartClass.replace>`. 
+        
+            Arguments:
+                style (ChartClassStyle | str): The style to set. If ``style`` is a string,
+                    then the appropriate style is looked up in the dictionary `SseqChart.chart_class_styles`.
+                    Otherwise, we use the `ChartClassStyle` provided.
+
+            Returns:
+                self (chainable) 
+        """
+        self.target.replace(style)
+        return self
+
+    def delete(self):
+        """ Deletes the edge. """
+        self._sseq._add_edge_to_delete(self)
+        del self._sseq._edges[self.uuid]
+        del self.source.edges[self.source.edges.index(self)]
+        del self.target.edges[self.target.edges.index(self)]
+
+    _EDGE_TYPE_DICT : Dict[str, type]
+    @staticmethod
+    def from_json(json : Dict[str, Any]) -> "ChartEdge":
+        if not hasattr(ChartEdge, "EDGE_TYPE_DICT"):
+            ChartEdge._EDGE_TYPE_DICT = {edge_type.__name__ : edge_type for edge_type in [ChartStructline, ChartDifferential, ChartExtension]}
+        edge_type = json["type"]
+        if edge_type in ChartEdge._EDGE_TYPE_DICT:
+            init_args = {}
+            for key in ["source_uuid", "target_uuid", "page"]:
+                if key in json:
+                    init_args[key] = json.pop(key)
+            edge = ChartEdge._EDGE_TYPE_DICT[edge_type](**init_args)
+            edge._from_json_helper(**json)
+            return edge
+        else:
+            type_names = list(ChartEdge._EDGE_TYPE_DICT.keys())
+            types_list = ",".join(f'"{type}"' for type in type_names[:-1])
+            types_list += f', or "${type_names[-1]}"'
+            raise ValueError(f'"edge_type" should be one of {types_list}, not "{edge_type}"')
+
+    @property
+    def uuid(self) -> str:
+        """ A unique id for the edge. For internal use. """
+        return self._uuid
+
+    @property
+    def source(self) -> "ChartEdge":
+        """ The start class of the edge. (All edges are directed.) """
+        return self._source
+
+    @property
+    def target(self) -> "ChartEdge":
+        """ The end class of the edge. (All edges are directed.) """
+        return self._target
+
+    def _from_json_helper(self,
+        type : Optional[str], 
+        uuid : UUID_str,
+        user_data : Dict[str, Any],
+    ):
+        assert type == self.__class__.__name__
+        self._uuid = uuid
+        self._user_data = SignalDict(user_data, parent=self)
+        
+
+    @abstractmethod
+    def to_json(self) -> Dict[str, Any]:
+        return dict(
+            type=self.__class__.__name__,
+            uuid=self.uuid,
+            source_uuid=self._source_uuid,
+            target_uuid=self._target_uuid,
+            user_data=self._user_data
+        )
+
+class ChartStructline(ChartEdge):
+    """ A ChartStructline is an edge used to represent some sort of algebraic data on the spectral sequence. 
+        Structlines are typically used to represent multiplication by a few standard elements.
+        A structline will appear on page_range (<page>, <max_differential_length>) if structline.visible[<page>] 
+        is true and both the source and the target class of the structure line are visible.
+    """
+    def __init__(self, source_uuid : UUID_str, target_uuid : UUID_str):
+        super().__init__(source_uuid, target_uuid)
+        self.action = ""
+        self.color = (0, 0, 0, 1)
+        self.dash_pattern = []
+        self.line_width = 2
+        self.bend = 0
+        self.start_tip = None
+        self.end_tip = None
+        self.visible = True
+
+    def set_style(self, style : Union[str, ChartEdgeStyle], page : Union[int, Tuple[int, int]] = None ) -> "ChartStructline":
+        """ Sets the display style of the structline. 
+            
+            Arguments:
+                style (ChartEdgeStyle | str): The style to set. If ``style`` is a string,
+                    then the appropriate style is looked up in the dictionary `SseqChart.chart_edge_styles`.
+                    Otherwise, we use the `ChartEdgeStyle` provided.
+                
+                page (int | Tuple[int, int]):
+                    If argument ``page`` is omitted or ``None`` then the style is set on all pages.
+                    If ``page`` is a single integer, then the stlye is set starting on that page and all later pages.
+                    If ``page`` is a pair of integers, the style is set on that range of pages inclusive of the lower 
+                    endpoint and exclusive of the upper endpoint.
+        """ 
+        if page is None:
+            page = slice(None)
+        if isinstance(page, (tuple, list)):
+            page = slice(page[0], page[1])
+        if type(style) is str:
+            style = self._sseq._edge_styles[style]
+        self.action[page] = style.action
+        self.color[page] = style.color
+        self.dash_pattern[page] = style.dash_pattern
+        self.line_width[page] = style.line_width
+        self.start_tip[page] = style.start_tip
+        self.end_tip[page] = style.end_tip
+        return self
+    
+    def get_style(self, page : int = 0) -> ChartEdgeStyle:
+        """ Gets the display style of the structline.
+
+            Args:
+                page (int): The page on which to get the display style.
+        """
+        return ChartEdgeStyle(
+            action = self.action,
+            color = self.color[page],
+            dash_pattern=self.dash_pattern[page],
+            line_width=self.line_width[page],
+            start_tip=self.start_tip[page],
+            end_tip=self.end_tip[page]
+        )
+    
+    def to_json(self) -> Dict[str, Any]:
+        return dict(
+            super().to_json(),
+            type=self.__class__.__name__,
+            uuid=self.uuid,
+            source_uuid=self._source_uuid,
+            target_uuid=self._target_uuid,
+            action=self.action,
+            color=self.color,
+            dash_pattern=self.dash_pattern,
+            line_width=self.line_width,
+            bend=self.bend,
+            start_tip=self.start_tip,
+            end_tip=self.end_tip,
+            visible=self.visible,
+            user_data=self._user_data
+        )
+
+    def _from_json_helper(self,
+        action : PagePropertyOrValue[str], 
+        color : PagePropertyOrValue[Color],
+        dash_pattern : PagePropertyOrValue[DashPattern],
+        line_width : PagePropertyOrValue[float],
+        bend : PagePropertyOrValue[float],
+        start_tip : PagePropertyOrValue[Optional[ArrowTip]],
+        end_tip : PagePropertyOrValue[Optional[ArrowTip]],
+        visible : PagePropertyOrValue[bool],
+        **kwargs,
+    ) -> "ChartEdge":
+        super()._from_json_helper(**kwargs)
+        self._action =cast(PageProperty[str], ensure_page_property(action, parent=self)) 
+        self._color = cast(PageProperty[Color], ensure_page_property(color, parent=self))
+        self._dash_pattern = cast(PageProperty[DashPattern], ensure_page_property(dash_pattern, parent=self))
+        self._line_width = cast(PageProperty[Union[float, str]], ensure_page_property(line_width, parent=self))
+        self._bend = cast(PageProperty[float], ensure_page_property(bend, parent=self)) 
+        self._start_tip = cast(PageProperty[Optional[ArrowTip]], ensure_page_property(start_tip, parent=self)) 
+        self._end_tip = cast(PageProperty[Optional[ArrowTip]], ensure_page_property(end_tip, parent=self)) 
+        self._visible = cast(PageProperty[bool], ensure_page_property(visible, parent=self))
+
+    @property
+    def action(self) -> PageProperty[str]:
+        """ The action of the edge. Similar to `ChartClass.group_name`. """
+        return self._action
+
+    @action.setter
+    def action(self, v : PagePropertyOrValue[str]):
+        self._action = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def color(self) -> PageProperty[Color]:
+        """ The color of the edge. """
+        return self._color
+
+    @color.setter
+    def color(self, v : PagePropertyOrValue[Color]): # type: ignore
+        pp = ensure_page_property(v, parent=self)
+        def callback():
+            if self._sseq:
+                pp.map_values_in_place(self._sseq.get_color)
+        callback()
+        pp.set_callback(callback)
+        self._color = pp
+        self._needs_update()
+
+    @property
+    def dash_pattern(self) -> PageProperty[DashPattern]:
+        """The dash pattern of the edge. A dash pattern is represented as a list of positive integers."""
+        return self._dash_pattern
+
+    @dash_pattern.setter
+    def dash_pattern(self, v : PagePropertyOrValue[DashPattern]): # type: ignore
+        self._dash_pattern = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def line_width(self) -> PageProperty[LineWidth]:
+        """ The width of the edge. """
+        return self._line_width
+
+
+    @line_width.setter
+    def line_width(self, v : PagePropertyOrValue[LineWidth]): # type: ignore
+        self._line_width = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def bend(self) -> PageProperty[float]:
+        """ The bend angle of the edge. If bend is nonzero, the edge is drawn as a circular arc through the start and end points,
+            where the angle between the edge from the start to the end and the tangent vector at the start point is specified by "bend".
+        """
+        return self._bend
+
+    @bend.setter
+    def bend(self, v : PagePropertyOrValue[float]): # type: ignore
+        self._bend = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def visible(self) -> PageProperty[bool]:
+        """ Is the structline visible on the given page? """
+        return self._visible
+
+    @visible.setter
+    def visible(self, v : PagePropertyOrValue[bool]): # type: ignore
+        self._visible = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def start_tip(self) -> PageProperty[Optional[ArrowTip]]:
+        """ The start arrow tip. TODO: Explain how we represent arrow tips """
+        return self._start_tip
+
+
+    @start_tip.setter
+    def start_tip(self, v : PagePropertyOrValue[Optional[ArrowTip]]):
+        self._start_tip = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+    @property
+    def end_tip(self) -> PageProperty[Optional[ArrowTip]]:
+        """ The end arrow tip. TODO: Explain how we represent arrow tips """
+        return self._end_tip
+
+    @end_tip.setter
+    def end_tip(self, v : PagePropertyOrValue[Optional[ArrowTip]]):
+        self._end_tip = ensure_page_property(v, parent=self)
+        self._needs_update()
+
+class SinglePageChartEdge(ChartEdge):
+    """ SinglePageChartEdge handles most of the common code between ChartDifferential and ChartExtension. """
+    def __init__(self, source_uuid : UUID_str, target_uuid : UUID_str):
+        super().__init__(source_uuid, target_uuid)
+        self._action = ""
+        self._color : Color = (0, 0, 0, 1)
+        self._dash_pattern = []
+        self._line_width = 3
+        self._bend = 0
+        self._start_tip = None
+        self._end_tip = None
+        self._visible = True
+
+    def set_style(self, style : ChartEdgeStyle) -> "SinglePageChartEdge":
+        """ Sets the display style of the edge. 
+            
+            Arguments:
+                style (ChartEdgeStyle | str): The style to set. If ``style`` is a string,
+                    then the appropriate style is looked up in the dictionary `SseqChart.chart_edge_styles`.
+                    Otherwise, we use the `ChartEdgeStyle` provided.
+            
+            Returns:
+                self (chainable)
+        """         
+        self.action = style.action
+        self.color = style.color
+        self.dash_pattern = style.dash_pattern
+        self.line_width = style.line_width
+        self.start_tip = style.start_tip
+        self.end_tip = style.end_tip
+        return self
+    
+    def get_style(self) -> ChartEdgeStyle:
+        """ Get the style of the edge """ 
+        return ChartEdgeStyle(
+            action = self.action,
+            color = self.color,
+            dash_pattern=self.dash_pattern,
+            line_width=self.line_width,
+            start_tip=self.start_tip,
+            end_tip=self.end_tip
+        )
+
+    def to_json(self) -> Dict[str, Any]:
+        return dict(
+            super().to_json(),
+            type=self.__class__.__name__,
+            uuid=self.uuid,
+            source_uuid=self._source_uuid,
+            target_uuid=self._target_uuid,
+            action=self.action,
+            color=self.color,
+            start_tip=self.start_tip,
+            end_tip=self.end_tip,
+            dash_pattern=self.dash_pattern,
+            line_width=self.line_width,
+            bend=self.bend,
+            visible=self.visible,
+            user_data=self._user_data
+        )
+
+    def _from_json_helper(self,
+        action : str,
+        color : Color,
+        dash_pattern : DashPattern,
+        line_width : float,
+        bend : float,
+        start_tip : Optional[ArrowTip],
+        end_tip : Optional[ArrowTip],
+        visible : bool,
+        **kwargs,
+    ) -> "ChartEdge":
+        super()._from_json_helper(**kwargs)
+        self._action = action
+        self._color = color
+        self._dash_pattern = dash_pattern
+        self._line_width = line_width
+        self._bend = bend
+        self._start_tip = start_tip
+        self._end_tip = end_tip
+        self._visible = visible
+
+    @property
+    def action(self) -> str:
+        """ The action of the edge. """
+        return self._action
+
+    @action.setter
+    def action(self, v : str):
+        self._action = v
+        self._needs_update()
+
+    @property
+    def color(self) -> Color:
+        """ The color of the edge. """
+        return self._color
+
+    @color.setter
+    def color(self, v : Color):
+        self._color = self._sseq.get_color(v)
+        self._needs_update()
+
+    @property
+    def dash_pattern(self) -> DashPattern:
+        """ The dash pattern of the edge. A dash pattern is represented as a list of positive integers. """
+        return self._dash_pattern
+
+    @dash_pattern.setter
+    def dash_pattern(self, v : DashPattern):
+        self._dash_pattern = v
+        self._needs_update()
+
+    @property
+    def line_width(self) -> LineWidth:
+        """ The width of the edge. """
+        return self._line_width
+
+
+    @line_width.setter
+    def line_width(self, v : LineWidth):
+        self._line_width = v
+        self._needs_update()
+
+    @property
+    def bend(self) -> float:
+        """ The bend angle of the edge. If bend is nonzero, the edge is drawn as a circular arc through the start and end points,
+            where the angle between the edge from the start to the end and the tangent vector at the start point is specified by "bend".
+        """
+        return self._bend
+
+    @bend.setter
+    def bend(self, v : float):
+        self._bend = v
+        self._needs_update()
+
+    @property
+    def visible(self) -> bool:
+        """ Is the structline visible on the given page? """
+        return self._visible
+
+    @visible.setter
+    def visible(self, v : bool):
+        self._visible = v
+        self._needs_update()
+
+
+    @property
+    def start_tip(self) -> Optional[ArrowTip]:
+        """ The start arrow tip. TODO: Explain how we represent arrow tips. """
+        return self._start_tip
+
+
+    @start_tip.setter
+    def start_tip(self, v : Optional[ArrowTip]):
+        self._start_tip = v
+        self._needs_update()
+
+    @property
+    def end_tip(self) -> Optional[ArrowTip]:
+        """ The end arrow tip. TODO: Explain how we represent arrow tips. """
+        return self._end_tip
+
+    @end_tip.setter
+    def end_tip(self, v : Optional[ArrowTip]):
+        self._end_tip = v
+        self._needs_update()
+
+
+class ChartDifferential(SinglePageChartEdge):
+    """ A ChartDifferential is an edge used to represent the behavior of the differential on the spectral sequence. 
+        A chart differential will appear on page_range (<page>, <max_differential_length>) if <page> <= differential.page <= <max_differential_length>
+        and if both the source and target of the differential appear on page <page>.
+    """
+    def __init__(self, source_uuid : UUID_str, target_uuid : UUID_str, page : int):
+        super().__init__(source_uuid, target_uuid)
+        self.page : int = page
+
+    def to_json(self) -> Dict[str, Any]:
+        return dict(
+            super().to_json(),
+            page=self.page
+        )
+
+class ChartExtension(SinglePageChartEdge):
+    """ A ChartExtension is an edge used to represent extensions in the spectral sequence. 
+        Generally extensions represent the same sort of algebraic structure as the structlines.
+        A chart extension will appear on page_range (<page>, <max_differential_length>) if <page> == infinity
+        and both the source and the target of the extension appear on page infinity.
+    """
+    passCSS_COLORS_JSON = {
+  "aliceblue": [240, 248, 255, 1],
+  "antiquewhite": [250, 235, 215, 1],
+  "aqua": [0, 255, 255, 1],
+  "aquamarine": [127, 255, 212, 1],
+  "azure": [240, 255, 255, 1],
+  "beige": [245, 245, 220, 1],
+  "bisque": [255, 228, 196, 1],
+  "black": [0, 0, 0, 1],
+  "blanchedalmond": [255, 235, 205, 1],
+  "blue": [0, 0, 255, 1],
+  "blueviolet": [138, 43, 226, 1],
+  "brown": [165, 42, 42, 1],
+  "burlywood": [222, 184, 135, 1],
+  "cadetblue": [95, 158, 160, 1],
+  "chartreuse": [127, 255, 0, 1],
+  "chocolate": [210, 105, 30, 1],
+  "coral": [255, 127, 80, 1],
+  "cornflowerblue": [100, 149, 237, 1],
+  "cornsilk": [255, 248, 220, 1],
+  "crimson": [220, 20, 60, 1],
+  "cyan": [0, 255, 255, 1],
+  "darkblue": [0, 0, 139, 1],
+  "darkcyan": [0, 139, 139, 1],
+  "darkgoldenrod": [184, 134, 11, 1],
+  "darkgray": [169, 169, 169, 1],
+  "darkgreen": [0, 100, 0, 1],
+  "darkgrey": [169, 169, 169, 1],
+  "darkkhaki": [189, 183, 107, 1],
+  "darkmagenta": [139, 0, 139, 1],
+  "darkolivegreen": [85, 107, 47, 1],
+  "darkorange": [255, 140, 0, 1],
+  "darkorchid": [153, 50, 204, 1],
+  "darkred": [139, 0, 0, 1],
+  "darksalmon": [233, 150, 122, 1],
+  "darkseagreen": [143, 188, 143, 1],
+  "darkslateblue": [72, 61, 139, 1],
+  "darkslategray": [47, 79, 79, 1],
+  "darkslategrey": [47, 79, 79, 1],
+  "darkturquoise": [0, 206, 209, 1],
+  "darkviolet": [148, 0, 211, 1],
+  "deeppink": [255, 20, 147, 1],
+  "deepskyblue": [0, 191, 255, 1],
+  "dimgray": [105, 105, 105, 1],
+  "dimgrey": [105, 105, 105, 1],
+  "dodgerblue": [30, 144, 255, 1],
+  "firebrick": [178, 34, 34, 1],
+  "floralwhite": [255, 250, 240, 1],
+  "forestgreen": [34, 139, 34, 1],
+  "fuchsia": [255, 0, 255, 1],
+  "gainsboro": [220, 220, 220, 1],
+  "ghostwhite": [248, 248, 255, 1],
+  "gold": [255, 215, 0, 1],
+  "goldenrod": [218, 165, 32, 1],
+  "gray": [128, 128, 128, 1],
+  "green": [0, 128, 0, 1],
+  "greenyellow": [173, 255, 47, 1],
+  "grey": [128, 128, 128, 1],
+  "honeydew": [240, 255, 240, 1],
+  "hotpink": [255, 105, 180, 1],
+  "indianred": [205, 92, 92, 1],
+  "indigo": [75, 0, 130, 1],
+  "ivory": [255, 255, 240, 1],
+  "khaki": [240, 230, 140, 1],
+  "lavender": [230, 230, 250, 1],
+  "lavenderblush": [255, 240, 245, 1],
+  "lawngreen": [124, 252, 0, 1],
+  "lemonchiffon": [255, 250, 205, 1],
+  "lightblue": [173, 216, 230, 1],
+  "lightcoral": [240, 128, 128, 1],
+  "lightcyan": [224, 255, 255, 1],
+  "lightgoldenrodyellow": [250, 250, 210, 1],
+  "lightgray": [211, 211, 211, 1],
+  "lightgreen": [144, 238, 144, 1],
+  "lightgrey": [211, 211, 211, 1],
+  "lightpink": [255, 182, 193, 1],
+  "lightsalmon": [255, 160, 122, 1],
+  "lightseagreen": [32, 178, 170, 1],
+  "lightskyblue": [135, 206, 250, 1],
+  "lightslategray": [119, 136, 153, 1],
+  "lightslategrey": [119, 136, 153, 1],
+  "lightsteelblue": [176, 196, 222, 1],
+  "lightyellow": [255, 255, 224, 1],
+  "lime": [0, 255, 0, 1],
+  "limegreen": [50, 205, 50, 1],
+  "linen": [250, 240, 230, 1],
+  "magenta": [255, 0, 255, 1],
+  "maroon": [128, 0, 0, 1],
+  "mediumaquamarine": [102, 205, 170, 1],
+  "mediumblue": [0, 0, 205, 1],
+  "mediumorchid": [186, 85, 211, 1],
+  "mediumpurple": [147, 112, 219, 1],
+  "mediumseagreen": [60, 179, 113, 1],
+  "mediumslateblue": [123, 104, 238, 1],
+  "mediumspringgreen": [0, 250, 154, 1],
+  "mediumturquoise": [72, 209, 204, 1],
+  "mediumvioletred": [199, 21, 133, 1],
+  "midnightblue": [25, 25, 112, 1],
+  "mintcream": [245, 255, 250, 1],
+  "mistyrose": [255, 228, 225, 1],
+  "moccasin": [255, 228, 181, 1],
+  "navajowhite": [255, 222, 173, 1],
+  "navy": [0, 0, 128, 1],
+  "oldlace": [253, 245, 230, 1],
+  "olive": [128, 128, 0, 1],
+  "olivedrab": [107, 142, 35, 1],
+  "orange": [255, 165, 0, 1],
+  "orangered": [255, 69, 0, 1],
+  "orchid": [218, 112, 214, 1],
+  "palegoldenrod": [238, 232, 170, 1],
+  "palegreen": [152, 251, 152, 1],
+  "paleturquoise": [175, 238, 238, 1],
+  "palevioletred": [219, 112, 147, 1],
+  "papayawhip": [255, 239, 213, 1],
+  "peachpuff": [255, 218, 185, 1],
+  "peru": [205, 133, 63, 1],
+  "pink": [255, 192, 203, 1],
+  "plum": [221, 160, 221, 1],
+  "powderblue": [176, 224, 230, 1],
+  "purple": [128, 0, 128, 1],
+  "red": [255, 0, 0, 1],
+  "rosybrown": [188, 143, 143, 1],
+  "royalblue": [65, 105, 225, 1],
+  "saddlebrown": [139, 69, 19, 1],
+  "salmon": [250, 128, 114, 1],
+  "sandybrown": [244, 164, 96, 1],
+  "seagreen": [46, 139, 87, 1],
+  "seashell": [255, 245, 238, 1],
+  "sienna": [160, 82, 45, 1],
+  "silver": [192, 192, 192, 1],
+  "skyblue": [135, 206, 235, 1],
+  "slateblue": [106, 90, 205, 1],
+  "slategray": [112, 128, 144, 1],
+  "slategrey": [112, 128, 144, 1],
+  "snow": [255, 250, 250, 1],
+  "springgreen": [0, 255, 127, 1],
+  "steelblue": [70, 130, 180, 1],
+  "tan": [210, 180, 140, 1],
+  "teal": [0, 128, 128, 1],
+  "thistle": [216, 191, 216, 1],
+  "tomato": [255, 99, 71, 1],
+  "transparent": [0, 0, 0, 0],
+  "turquoise": [64, 224, 208, 1],
+  "violet": [238, 130, 238, 1],
+  "wheat": [245, 222, 179, 1],
+  "white": [255, 255, 255, 1],
+  "whitesmoke": [245, 245, 245, 1],
+  "yellow": [255, 255, 0, 1],
+  "yellowgreen": [154, 205, 50, 1],
+  "rebeccapurple": [102, 51, 153, 1]
+}
+from typing import Union, List
+
+UUID_str = str
+DashPattern = List[int]
+LineWidth = float
+
+from .css_colors import CSS_COLORS_JSON
+
+
+class Color:
+    """ Represents a color in RGBA colorspace. Each channel ranges from 0 to 1, values outside of this range will be clipped.
+
+    """ 
+    CSS_COLORS = None
+    def __init__(self, r : float, g : float, b : float, a : float = 1):
+        """
+            Args:
+                r (float): The red color channel.
+                
+                g (float): The green color channel.
+                
+                b (float): The blue color channel.
+                
+                a (float): The alpha / transparency color channel.
+        """
+        self._name = None
+        self._color = (r, g, b, a)
+
+    @staticmethod
+    def from_string(color : str) -> "Color":
+        if color.startswith("#"):
+            return Color.from_hex(color)
+        if color in Color.CSS_COLORS:
+            return Color.CSS_COLORS[color]
+        raise ValueError(f"Unrecognized color '{color}'")
+
+    @staticmethod
+    def from_hex(hex_str : str) -> "Color":
+        assert hex_str.startswith("#")
+        assert len(hex_str) == 7
+        parts = [int(s, 16)/255 for s in (hex_str[1:3], hex_str[3:5], hex_str[5:])]
+        result = Color(*parts)
+        result._name = hex_str
+        return result
+
+    
+    def lerp(self, other : "Color", t : float) -> "Color":
+        """ Linearly interpolate between two colors.
+
+            Returns:
+                t * self + (1-t) * other.
+        """
+        return Color(*(self._color[i] * t + other[i] * (1 - t) for i in range(4)))
+
+    def to_json(self):
+        return dict(
+            type=type(self).__name__,
+            color=self._color
+        )
+
+    @classmethod
+    def from_json(cls, json):
+        assert json["type"] == cls.__name__
+        return Color(*json["color"])
+
+    def __repr__(self):
+        if self._name:
+            return f'Color("{self._name}")'
+        return f'Color{self._color}'
+
+Color.CSS_COLORS = {}
+for (name, value) in CSS_COLORS_JSON.items():
+    c = Color(*value)
+    c._name = name
+    Color.CSS_COLORS[name] = c
+
+
+Color.BLACK = Color(0, 0, 0, 1)
+Color.RED =   Color(1, 0, 0, 1)
+Color.GREEN = Color(0, 1, 0, 1)
+Color.BLUE =  Color(0, 0, 1, 1)
+Color.TRANSPARENT = Color(0,0,0,0)
+
+class ArrowTip:
+    """ An ArrowTip. Curently the only possible arrow tip is the standard one. 
+        TODO: support for hook, some parameters.
+    """
+    def __init__(self, tip="standard"):
+        self._tip = tip
+
+    # @property
+    # def tip(self):
+    #     return self._tip
+    
+    def to_json(self):
+        return dict(
+            type=type(self).__name__,
+            tip = self._tip,
+        )
+
+    @staticmethod
+    def from_json(json):
+        assert json.pop("type") == ArrowTip.__name__
+        return ArrowTip(**json)
+
+    def __repr__(self):
+        return f"ArrowTip('{self._tip}')"
+
+from copy import deepcopy
+
+class Shape:
+    """ A Shape. A Shape has three components: a background, a foreground, and a border (some of these may be empty).
+        The shape can be iteratively built up by starting with a string to be drawn at the center and wrapping it 
+        with accents and border shapes.
+
+        If the whole shape is a single character, then the character will be rendered as the "background"
+        and the "border" will outline the border of the character.
+        If the characters are wrapped in a circle or rectangle, then the characters will be drawn in the "foreground" component,
+        the "background" component will consist of the interior of the bounding circle / rectangle, and the border will be the border 
+        of the circle / rectangle.
+    """
+    def __init__(self, character : str = None, font : str = None):
+        """
+            TODO: Link to StixTwoMath.
+            
+            Args:
+                character (str): The characters to render at the center of the shape. 
+                font (str): The font to render the characters in. Currently the only supported font is "stix".                  
+        """
+        if character:
+            self.dict = dict(
+                ty="character",
+                font=font or "stix",
+                char=character,
+                whole_shape=True
+            )
+        else:
+            self.dict = dict(ty="empty")
+
+    @staticmethod
+    def square(size : float):
+        return Shape().boxed(size)
+    
+    @staticmethod
+    def circle(size : float):
+        return Shape().circled(size)
+
+    def circled(self, padding : float, num_circles : int = 1, circle_gap : float = 0, include_background : bool = True) -> "Shape":
+        """ Circle the existing shape with one or more circles. 
+
+            Args:
+                padding (float): How much space to leave between the circle and the shape we are circling.
+                
+                num_circles (int): How many concentric circles to draw. Because the padding is computed based on a bounding box,
+                    repeatedly using `Shape.circled` leads to inconsistent spacing between the circles.
+                
+                circle_gap (int): If num_circles > 1, how much space to leave between circles. If num_circles == 1, has no effect.
+
+                include_background (bool): If True, the background of the circle goes in the background component, if False, 
+                    the new circle makes no contribution to the background component.
+
+        """
+        copy_dict = deepcopy(self.dict)
+        if "whole_shape" in copy_dict:
+            copy_dict["whole_shape"] = False
+        result = Shape()
+        result.dict = dict(
+            ty = "composed",
+            operation="circled",
+            padding=padding,
+            num_circles=num_circles,
+            circle_gap=circle_gap,
+            include_background=include_background,
+            innerShape=copy_dict
+        )
+        return result
+
+    def boxed(self, padding : float, include_background : bool = True) -> "Shape":
+        """ Box the existing shape. 
+
+            Args:
+                padding (float): How much space to leave between the box and the shape we are boxing.
+                
+                include_background (bool): If True, the background of the box goes in the background component, if False, 
+                    the new box makes no contribution to the background component.
+        """        
+        copy_dict = deepcopy(self.dict)
+        if "whole_shape" in copy_dict:
+            copy_dict["whole_shape"] = False
+        result = Shape()
+        result.dict = dict(
+            ty = "composed",
+            operation="boxed",
+            padding=padding,
+            include_background=include_background,
+            innerShape=copy_dict
+        )
+        return result
+
+    def to_json(self):
+        result = {"type" : type(self).__name__}
+        result.update(self.dict)
+        return result
+    
+    @staticmethod
+    def from_json(json):
+        assert json.pop("type") == Shape.__name__
+        result = Shape()
+        result.dict = json
+        return result
+
+    def __repr__(self):
+        return f"Shape({repr(self.dict)})""""Defines the constant INFINITY = 65535."""
+INFINITY : int = 65535
+""" int: 65535 """from .infinity import INFINITY
+import json
+from typing import List, Tuple, Any, Type, Union, TypeVar, Generic, Optional, Dict, cast, Callable
+
+T = TypeVar('T')
+class PageProperty(Generic[T]):
+    """
+        A class to represent a property that varies depending on the pages of a spectral sequence. 
+        This is the main helper class that encapsulates any property of a class, edge, or chart
+        that varies depending on the page.
+
+        Examples:
+
+            >>> p = PageProperty(1)
+            >>> p[4] = 7
+            >>> p[2]
+            1
+            >>> p[4]
+            7
+    """
+    def __init__(self, 
+        value : T, 
+        parent : Optional[Any] = None,
+        callback : Optional[Callable[[], None]] = None,
+    ):
+        """ Initialize the PageProperty to always have value v."""
+        self._values : List[Tuple[int, T]] = [(0, value)]
+        self.set_parent(parent)
+        self._callback = callback
+
+    def set_parent(self, parent : Optional[Any]):
+        self._parent = parent
+    
+
+    def set_callback(self, callback : Callable[[], None]):
+        self._callback = callback
+
+    def _needs_update(self):
+        if self._parent:
+            self._parent._needs_update()
+        if self._callback:
+            self._callback()
+
+    def _find_index(self, target_page : int) -> Tuple[int, bool]:
+        result_idx = None
+        for (idx, (page, _)) in enumerate(self._values):
+            if page > target_page:
+                break
+            result_idx = idx 
+        # We need to help out the type checker here
+        if result_idx is None: 
+            raise ValueError(f"Page Property indexed with negative index: {target_page}")
+        return (result_idx, self._values[result_idx][0] == target_page)
+
+    def __getitem__(self, x : Union[int, slice]) -> T:
+        stop = None
+        if type(x) == slice:
+            stop = x.stop or INFINITY
+            x = x.start or 0
+
+        if type(x) != int:
+            raise TypeError(f"Expected integer, got {type(x).__name__}.")
+
+        assert type(x) is int # Make type analysis thing happy
+        (idx, _) = self._find_index(x)
+        if stop:
+            (idx2, _) = self._find_index(stop - 1)
+            if idx != idx2:
+                raise ValueError("Indexed with slice but value is inconsistent across slice.")
+        return self._values[idx][1]
+
+
+    def __setitem__(self, p : Union[int, slice], v : T) -> None:
+        if hasattr(v, "set_parent"):
+            v.set_parent(self)
+        if type(p) is int:
+            self._setitem_single(p, v)
+            self._merge_redundant()
+            self._needs_update()
+            return
+        if type(p) is not slice:
+            raise TypeError("Excepted int or slice!")
+        start = p.start or 0
+        stop = p.stop or INFINITY
+        orig_value = self[stop]
+        (start_idx, _) = self._setitem_single(start, v)
+        (end_idx, hit_end) = self._find_index(stop)
+        if not hit_end and stop < INFINITY:
+            (end_idx, _) = self._setitem_single(stop, orig_value)
+        if stop == INFINITY:
+            end_idx += 1
+        del self._values[start_idx + 1 : end_idx]
+        self._merge_redundant()
+        self._needs_update()
+    
+    def _setitem_single(self, p : int, v : T):
+        (idx, hit) = self._find_index(p)
+        if hit:
+            self._values[idx] = (p, v)
+        else:
+            idx += 1
+            self._values.insert(idx, (p, v))
+        return (idx, hit)
+
+    def _merge_redundant(self):
+        for i in range(len(self._values) - 1, 0, -1):
+            if self._values[i][1] == self._values[i-1][1]:
+                del self._values[i]
+    
+    def __repr__(self) -> str:
+        return f"PageProperty({repr(self._values)})"
+
+    def __eq__(self, other):
+        if type(other) != PageProperty:
+            return False
+        return self._values == other._values
+
+    def map_values_in_place(self, f):
+        for i in range(len(self._values)):
+            (p, v) = self._values[i]
+            self._values[i] = (p, f(v))
+
+    def to_json(self) -> Dict[str, Any]:
+        if len(self._values) == 1:
+            return self._values[0][1]
+        else:
+            return {"type" : "PageProperty", "values" : self._values }
+    
+    @staticmethod
+    def from_json(json_obj : Dict[str, Any]) -> "PageProperty[Any]":
+        result : PageProperty[Any] = PageProperty(None)
+        result._values = [cast(Tuple[int, Any], tuple(x)) for x in json_obj["values"]]
+        return result
+
+S = TypeVar('S')
+PagePropertyOrValue = Union[S, PageProperty[S]]
+
+def ensure_page_property(v : PagePropertyOrValue[S], parent : Optional[Any] = None) -> PageProperty[S]:
+    if(type(v) is PageProperty):
+        result = v
+    else:
+        result = PageProperty(v)
+    if parent:
+        result.set_parent(parent)
+    return resultimport json
+from typing import Tuple, Any, Dict, Union, cast #, Protocol 
+# Protocol absent from Python 3.6, comment out until I figure out how to get sphinx to use python 3.8
+
+def stringifier(obj : Any) -> Union[str, Dict[str, Any]]:
+    if hasattr(obj, "to_json"):
+        return obj.to_json()
+    elif hasattr(obj, "__dict__"):
+        return obj.__dict__
+    else:
+        return str(obj)
+
+# To make typechecker happy...
+class Serializable: #(Protocol):
+    @staticmethod
+    def from_json(json : Dict[str, Any]):
+        return Serializable()
+
+
+class JSON:
+    @staticmethod
+    def stringify(obj : Any):
+        # sort_keys needed to ensure that object equality ==> string equality,
+        # useful for ease of testing.
+        return json.dumps(obj, default=stringifier, sort_keys=True) 
+
+    @staticmethod
+    def parse(json_str : str) -> Any:
+        return json.loads(json_str, object_hook = JSON.parser_object_hook )
+
+    @staticmethod
+    def parser_object_hook(json_dict : Dict[str, Any]) -> Any:
+        JSON.ensure_types_are_initialized()
+        if "type" not in json_dict:
+            return json_dict
+        return JSON.types[json_dict["type"]].from_json(json_dict)
+
+    types : Dict[str, Serializable]
+    @staticmethod
+    def ensure_types_are_initialized():
+        if hasattr(JSON, "types"):
+            return
+        from .chart import SseqChart 
+        from .chart_class import (ChartClass, ChartClassStyle)
+        from .chart_edge import (
+            ChartEdgeStyle, ChartStructline, ChartDifferential, ChartExtension
+        )
+        from .display_primitives import (
+            ArrowTip, Color, Shape
+        )
+        from .signal_dict import (SignalDict, SignalList)
+        from .page_property import PageProperty
+        JSON.types = { t.__name__ : cast(Serializable, t) for t in [
+            SseqChart,
+            ChartClass, ChartClassStyle,
+            ChartEdgeStyle, ChartStructline, ChartDifferential, ChartExtension,
+            ArrowTip, Color, Shape,
+            PageProperty,
+            SignalDict, SignalList
+        ]}from typing import TypeVar, Generic, Dict, Any, Callable, Optional, List, Iterable
+from collections.abc import MutableMapping, MutableSequence
+
+
+T = TypeVar("T")
+class SignalDict(MutableMapping, Generic[T]):
+    """ This is a dict that signals when it is changed, by calling self._parent._needs_update()
+        if self._parent is defined or by calling self._callback() if self._callback is defined,
+        or both.
+    """
+    def __init__(self, 
+        d : Dict[str, T] = None, 
+        *, 
+        parent : Any = None, 
+        callback : Optional[Callable[[], None]] = None,
+    ):
+        self._dict = d or {}
+        self.set_parent(parent)
+        self._callback = callback
+    
+    def set_parent(self, parent):
+        self._parent = parent
+
+    def set_callback(self, callback):
+        self._callback = callback
+
+    def needs_update(self):
+        if self._parent:
+            self._parent._needs_update()
+        if self._callback:
+            self._callback()
+
+    def to_json(self):
+        result = dict(type=type(self).__name__)
+        result.update(self._dict)
+        return result
+
+    @classmethod
+    def from_json(cls, json):
+        assert json.pop("type") == cls.__name__
+        result = SignalDict(json)
+        for v in result.values():
+            if hasattr(v, "set_parent"):
+                v.set_parent(result)
+        return result
+
+    def __setitem__(self, key : str, val : T):
+        if hasattr(val, "set_parent"):
+            val.set_parent(self)
+        self._needs_update()
+        self._dict[key] = val
+
+    def __getitem__(self, key : str) -> T:
+        return self._dict[key]
+    
+    def __delitem__(self, key : str):
+        self._needs_update()
+        del self._dict[key]
+
+    def __iter__(self):
+        return self._dict.__iter__()
+
+    def __len__(self):
+        return len(self._dict)
+
+    def __repr__(self):
+        return repr(self._dict)
+
+class SignalList(MutableSequence, Generic[T]):
+    """ This is a list that signals when it is changed, by calling self._parent._needs_update()
+        if self._parent is defined or by calling self._callback() if self._callback is defined,
+        or both.
+    """
+    def __init__(self, 
+        l : List[T] = None,
+        *, 
+        parent : Any = None, 
+        callback : Optional[Callable[[], None]] = None,
+    ):
+        self._list = l or []
+        self.set_parent(parent)
+        self._callback = callback
+    
+    def set_parent(self, parent):
+        self._parent = parent
+
+    def set_callback(self, callback):
+        self._callback = callback
+
+    def to_json(self):
+        return dict(type=type(self).__name__, list = self._list)
+        
+    @classmethod
+    def from_json(cls, json):
+        assert json.pop("type") == cls.__name__
+        result = SignalList(json["list"])
+        for value in result:
+            if hasattr(value, "set_parent"):
+                value.set_parent(result)
+        return result
+
+    def _needs_update(self):
+        if self._parent:
+            self._parent._needs_update()
+        if self._callback:
+            self._callback()
+
+    def __setitem__(self, key: slice, vals: Iterable[T]) -> None:
+        self._needs_update()
+        self._list[key] = vals
+        for val in self._list[key]:
+            if hasattr(val, "set_parent"):
+                val.set_parent(self)        
+        return 
+
+    def __getitem__(self, key : slice) -> T:
+        return self._list[key]
+
+    def __delitem__(self, i: slice):
+        self._needs_update()
+        del self._list[i]
+    
+    def __len__(self) -> int:
+        return len(self._list)
+    
+    def insert(self, index: int, value: T) -> None:
+        self._needs_update()
+        self._list.insert(index, value)
+
+    def __repr__(self):
+        return repr(self._list)def format_power(var, n, zeroth_power=""):
+    if n == 0:
+        return zeroth_power
+    elif n==1:
+        return var
+    else:
+        # if var.find("'") > -1:
+        #     var = f"({var})"
+        return f"{var}^{{{n}}}"
+
+def format_monomial(*exponents):
+    """ Format a monomial. Automatically drops variables raise to the power zero, 
+        omits exponent for variables raised to the first power. The empty monomial
+        is represented as "1".
+    """
+    result = " ".join(format_power(var, e) for [var,e] in exponents if e)
+    if result.strip() == "":
+        result = "1"
+    return result""" Represent spectral sequence charts.
+Spectral sequence charts are rather inexact representations of the linear algebra data in a mathematical spectral sequence, 
+and so in many situations disgression is necessary to decide what information about the mathematical spectral sequence to encode
+and how to encode it. The goal of this package is to provide a toolkit for users to present charts.
+Because of the intrinsic fuzziness of the situation, the emphasis of the package is to provide a good mixture of flexibility and 
+ease of use. In particular, the package very unopionated about the particular way that the display models mathematics or any constraints.
+
+At a basic level, the chart consists of `ChartClasses <ChartClass>` and `ChartEdges <ChartEdge>`. 
+
+The appearance of the classes is controlled by a collection of properties which are allowed to vary from page to page. A class is fixed to a 
+particular position but everything else about its appearance may change from page to page: the basic glyph designating the class, colors of the glyph,
+the tooltip, and whether it appears at all.
+
+The edges are divided into `ChartDifferentials <ChartDifferential>` which only appear on one page, `ChartExtensions <ChartExtension>` which only appear on the infinity page,
+and `ChartStructlines <ChartStructline>`, which like classes may have all aspects of their appearance change from page to page.
+"""
+
+# from __future__ import annotations
+
+# from spectralsequence_chart import chart_elements
+# import spectralsequence_chart.chart
+# import spectralsequence_chart.chart_elements
+# import spectralsequence_chart.helper_classes
+
+from .infinity import INFINITY
+from .chart import SseqChart
+from .chart_class import ChartClass, ChartClassStyle, Shape
+from .chart_edge import (
+    ChartEdge, ChartEdgeStyle,
+    ChartStructline, ChartDifferential, ChartExtension,
+)
+from .display_primitives import ArrowTip, Color, Shape
+
+
+__version__ = "0.0.18"
+# __all__ = [ChartClass, ChartClassStyle, Shape, ]
+Metadata-Version: 2.1
+Name: spectralsequence-chart
+Version: 0.0.18
+Summary: A Python implementation of the spectral sequences chart API
+Home-page: https://github.com/SpectralSequences/sseq
+Author: Hood Chatham
+Author-email: roberthoodchatham@gmail.com
+License: UNKNOWN
+Description: # spectralsequence_chart
+        This project is a Python implementation of the spectralsequence chart API.
+        The Python chart API is a work in progress, and in particular there is currently no published spec.
+        Hopefully I will make one soon.
+        
+        
+        Changelog:
+        ==========
+        ## [0.0.4]
+        ### Fixed:
+        - Repr of ChartClassArg
+        
+        ## [0.0.4]
+        ### Fixed:
+        - reprs of SseqChart, ChartClass, ChartEdge
+        
+        ## [0.0.3]
+        ### Fixed:
+        - Deserialization didn't work correctly.
+        
+        ### Added:
+        - Doc strings for a lot of the main functions.
+        
+        ### Changed:
+        - Many private methods in SseqChart have had underscores added in front of their names.
+        
+        ## [0.0.2]
+        ### Fixed: 
+        - Removed whisker operator for compatibility with Python versions before 3.8
+        
+        ## [0.0.1] (2020-07-15)
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+README.md
+setup.py
+spectralsequence_chart/__init__.py
+spectralsequence_chart/chart.py
+spectralsequence_chart/chart_class.py
+spectralsequence_chart/chart_edge.py
+spectralsequence_chart/display_primitives.py
+spectralsequence_chart/infinity.py
+spectralsequence_chart/page_property.py
+spectralsequence_chart/serialization.py
+spectralsequence_chart/signal_dict.py
+spectralsequence_chart/utils.py
+spectralsequence_chart.egg-info/PKG-INFO
+spectralsequence_chart.egg-info/SOURCES.txt
+spectralsequence_chart.egg-info/dependency_links.txt
+spectralsequence_chart.egg-info/top_level.txtspectralsequence_chart

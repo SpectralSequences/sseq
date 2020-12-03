@@ -79,6 +79,8 @@ class Completer:
             # For some reason, get_type_hint doesn't work the same on signatures as on completions...
             [signatures, full_name, root] = self.get_signature_help_helper(jedi_signatures, code)
             await self.send_message_a("signatures", subuuid, signatures=signatures, full_name=full_name, root=root)
+        except RecursionError:
+            await self.send_message_a("signatures", subuuid, signatures=None, full_name=None, root=None)
         except KeyboardInterrupt:
             pass
     
@@ -136,8 +138,10 @@ class Completer:
                     kind=comp.type
                 ))
             await self.send_message_a("completions", subuuid, completions=result, state_id=state_id)
+        except RecursionError:
+            await self.send_message_a("completions", subuuid, completions=[], state_id=None)
         except KeyboardInterrupt:
-                pass 
+            pass 
 
     @handle("completion_detail")
     async def get_completion_info_a(self, subuuid, state_id, idx):
@@ -162,9 +166,9 @@ class Completer:
         except KeyboardInterrupt:
             return
 
-        # import re
         # regex = re.compile('(?<!\n)\n(?!\n)', re.MULTILINE) # Remove isolated newline characters.
-        # docstring = regex.sub("", docstring)
+        remove_links = re.compile('`(\S*) <\S*>`')
+        docstring = remove_links.sub(r"`\1`", docstring)
         await self.send_message_a("completion_detail", subuuid, docstring=format_docstring(docstring), signature=signature, full_name=full_name, root=root)
 
     def get_fullname_root(self, completion):

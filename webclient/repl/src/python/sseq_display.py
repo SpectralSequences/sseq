@@ -12,7 +12,8 @@ import pathlib
 
 from spectralsequence_chart import SseqChart
 from spectralsequence_chart.serialization import JSON
-
+from working_directory import get_working_directory_a, set_working_directory_a
+from functools import wraps
 from repl.handler_decorator import collect_handlers, handle
 fetcher = Fetcher("api/")
 
@@ -36,11 +37,24 @@ class SseqDisplay:
         from repl.executor import Executor
         self.executor = Executor.executor
         self._started = False
-    
+        self.executor.loop.call_soon(self.start_a())
+
     def __repr__(self):
         if self._started:
             return f'{type(self).__name__}(name="{self.name}", url="{self.url}", chart={self.chart})'
         return f"""{type(self).__name__}(name="{self.name}", state="Not started, run 'await display.start_a()' to start.")"""
+
+    # def __dir__(self):
+    #     """ getattr and dir have to be set up carefully to allow jedi to provide good docs for the SseqChart functions. """ 
+    #     result = self.chart.__dir__()
+    #     result.extend(self.__dict__.keys())
+    #     return sorted(set(result))
+    
+    # def __getattr__(self, name):
+    #     """ getattr and dir have to be set up carefully to allow jedi to provide good docs for the SseqChart functions. """ 
+    #     if not hasattr(self.chart, name):
+    #         raise AttributeError(f'Instance of {self.__class__.__name__} has no attribute {name}')
+    #     return getattr(self.chart, name)
 
 
     def load_json(self, json_obj):
@@ -75,6 +89,9 @@ class SseqDisplay:
         await self.send_message_a("chart.state.reset", state = self.chart.to_json())
         await self.maybe_autosave_a()
 
+    def update(self):
+        self.executor.loop.call_soon(self.update_a())
+
     async def update_a(self):
         await self.chart.update_a()
 
@@ -91,13 +108,25 @@ class SseqDisplay:
         await self.save_file_handle.ensure_open_a(modify=True)
         await self.save_file_handle.write_text_a(JSON.stringify(self.chart))
 
-    async def save_as_a(self):
-        self.save_file_handle = FileHandle()
+    async def save_as_a(self, path = None):
+        if path:
+            working_directory = await get_working_directory_a()
+            if not working_directory:
+                raise RuntimeError("...")
+            self.save_file_handle = await working_directory.path(path).resolve_file_handle_a(create=True)
+        else:
+            self.save_file_handle = FileHandle()
         await self.save_a()
 
-    async def load_a(self):
-        self.save_file_handle = FileHandle()
-        await self.save_file_handle.open_a()
+    async def load_a(self, path = None):
+        if path:
+            working_directory = await get_working_directory_a()
+            if not working_directory:
+                raise RuntimeError("...")            
+            self.save_file_handle = await working_directory.path(path).resolve_file_handle_a()
+        else:
+            self.save_file_handle = FileHandle()
+            await self.save_file_handle.open_a()
         self.set_sseq(JSON.parse(await self.save_file_handle.read_text_a()))
         await self.reset_state_a()
 
@@ -147,3 +176,42 @@ class SseqDisplay:
     @handle("initialize.complete")
     async def initialize__complete__a(self, uuid, port, client_id):
         print("initialize.complete")
+
+
+
+
+def _wrap_chart_func(func):
+    @wraps(func)
+    def wrap(self, *args, **kwargs):
+        return func(self.chart, *args, **kwargs)
+    return wrap
+
+def _bind_chart_attribute(name):
+    func = getattr(SseqChart, name)
+    func_type_name = type(func).__name__
+    if func_type_name == "function":
+        wrapped = _wrap_chart_func(func)
+    elif func_type_name == "property":
+        wrapped_fget = None
+        wrapped_fset = None
+        wrapped_fdel = None
+        if func.fget:
+            wrapped_fget = _wrap_chart_func(func.fget)
+        if func.fset:
+            wrapped_fset = _wrap_chart_func(func.fset)
+        if func.fdel:
+            wrapped_fdel = _wrap_chart_func(func.fdel)
+        wrapped = property(wrapped_fget, wrapped_fset, wrapped_fdel)
+    else:
+        raise AssertionError()
+    setattr(SseqDisplay, name, wrapped)
+
+# for a in dir(SseqChart): 
+#     if a.startswith("_") or a in dir(SseqDisplay):
+#         continue
+#     # The __getattr__ and __dir__ methods above aren't enough to get docs for properties.
+#     # For properties, we copy a wrapper from SseqChart to SseqDisplay.
+#     # Note that if we do this for methods too, it screws up jedi get_signatures.
+#     # So __dir__ / __getattr__ work only for methods and this works only for properties...
+#     if type(getattr(SseqChart, a)) is property:
+#         _bind_chart_attribute(a)

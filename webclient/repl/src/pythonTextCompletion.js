@@ -1,3 +1,6 @@
+import css_colors from "./css-color-names.json";
+let color_list_regex = new RegExp('"(' + Object.keys(css_colors).join("|") + ')"', "g");
+
 const kind_map = {
     "module" : "Module",
     "class" : "Class",
@@ -112,26 +115,55 @@ function getColorProvider(monaco, repl){
             let startLine = repl.startOfInputPosition.lineNumber;
             let endLine = repl.endOfInputPosition.lineNumber;
             let result = [];
+            function hex_string_to_color(s){
+                let hexs = [s.slice(1,3), s.slice(3,5), s.slice(5,7)];
+                return hexs.map(s => Number.parseInt(s, 16)/255);
+            }
+            function get_color(red, green, blue, alpha){
+                red = red || 0;
+                green = green || 0;
+                blue = blue || 0;
+                alpha = alpha || 1;
+                return {red, blue, green, alpha};
+            }
+            function get_range(line, startColumn, endColumn){
+                return {
+                    startLineNumber: line,
+                    startColumn,
+                    endLineNumber: line,
+                    endColumn,
+                }
+            }
+
             for(let line = startLine; line <= endLine; line++){
                 let value = model.getLineContent(line);
+                for(let match of value.matchAll(color_list_regex)){
+                    let startColumn = match.index;
+                    let endColumn = startColumn + match[0].length + 2;
+                    let [red, green, blue] = hex_string_to_color(css_colors[match[1]]);
+                    result.push({
+                        color :  get_color(red, green, blue),
+                        range : get_range(line, startColumn, endColumn)
+                    });
+                }
+                for(let match of value.matchAll(/"(#[0-9A-Fa-f]{6})"/g)){
+                    let startColumn = match.index + 1;
+                    let endColumn = startColumn + match[0].length + 1;
+                    let [red, green, blue] = hex_string_to_color(match[1]); 
+                    result.push({
+                        color :  get_color(red, green, blue),
+                        range : get_range(line, startColumn, endColumn)
+                    });
+                }
                 for(let match of value.matchAll(/Color\(([^)]*)\)/g)){
                     let startColumn = match.index + 1;
                     let endColumn = startColumn + match[0].length + 1;
                     let [red, green, blue, alpha] = match[1].split(",").map(s => Number.parseFloat(s)); 
-                    red = red || 0;
-                    blue = blue || 0;
-                    green = green || 0;
-                    alpha = alpha || 1;
                     result.push({
-                        color : {red, blue, green, alpha},
-                        range : {
-                            startLineNumber: line,
-                            startColumn,
-                            endLineNumber: line,
-                            endColumn,
-                        }
+                        color :  get_color(red, green, blue, alpha),
+                        range : get_range(line, startColumn, endColumn)
                     });
-                }
+                }                
             }
             return result;
         }

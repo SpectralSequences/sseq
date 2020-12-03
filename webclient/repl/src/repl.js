@@ -339,7 +339,8 @@ class ReplElement extends HTMLElement {
 				}
 				return "   ";
 			}
-		});		
+		});
+		window.loadingWidget.ready = true;
 		this.editor.setValue(`Fatal Error! \n \n ${e.toString().replace(/\n/g,"\n ")}`);
 		this.editor.updateOptions({
 			rulers : []

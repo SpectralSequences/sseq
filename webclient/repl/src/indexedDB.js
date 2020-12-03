@@ -1,4 +1,4 @@
-export function openDatabase(name, version){
+function openDatabase(name, version){
     const request = indexedDB.open(name, version);
     request.onupgradeneeded = (e) => {
         const db = e.target.result;

@@ -4,14 +4,14 @@ from js import sleep
 from js import fetch as jsfetch
 import json
 
-class WebLoop(AbstractEventLoop):
-    def call_soon(self, coro):
-        self.step(coro)
+async def sleep_a(time):
+    await wrap_promise(jssleep(time))
 
-    def step(self, coro, arg=None):
+class WebLoop(AbstractEventLoop):
+    def call_soon(self, coro, arg=None):
         try:
             x = coro.send(arg)
-            x = x.then(partial(self.step, coro))
+            x = x.then(partial(self.call_soon, coro))
             x.catch(partial(self.fail,coro))
         except StopIteration as result:
             pass
@@ -22,14 +22,6 @@ class WebLoop(AbstractEventLoop):
         except StopIteration:
             pass
 
-
-class Waiter:
-    def __init__(self, time):
-        self.time = time
-    def __await__(self):
-        promise = sleep(self.time)
-        yield promise
-        return self.time
 
 class Request:
     def __init__(self, promise):
@@ -126,9 +118,6 @@ class Fetcher:
             body= json.dumps(body)
         ))
         return Request(promise)
-
-def sleep(time):
-    return Waiter(time)
 
 class PromiseException(RuntimeError):
     pass

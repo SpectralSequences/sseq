@@ -15,7 +15,7 @@ export class PythonExecutor {
     constructor(){
         this.executions = {};
         this.completers = {};
-        window.loadingWidget.addLoadingMessage("Loading pyodide");
+        window.loadingWidget.addLoadingMessage("Loading Pyodide");
         this.pyodide_worker = new Worker("pyodide_worker.bundle.js");
         this.pyodide_worker.addEventListener("message", this._handleMessage.bind(this));
         // The pyodide worker needs to be able to send messages to the service worker, so we make a channel
@@ -33,6 +33,11 @@ export class PythonExecutor {
         let _readyPromise = new Promise((resolve, reject) => this._readyPromise = {resolve, reject});
         this._readyPromise.promise = _readyPromise;
     }
+
+    _postMessage(cmd, uuid, msg){
+        Object.assign(msg, {cmd, uuid});
+        this.pyodide_worker.postMessage(msg);
+    }    
 
     _handleMessage(event){
         let message = event.data;
@@ -63,17 +68,9 @@ export class PythonExecutor {
                 // Allow more consistent handling by always giving a list.
                 handle = [handle]; 
             }
-            this.pyodide_worker.postMessage({
-                cmd : "respondToQuery",
-                handle,
-                uuid : message.uuid
-            });
+            this._postMessage("respondToQuery", message.uuid, { handle });
         } catch(error){
-            this.pyodide_worker.postMessage({
-                cmd : "respondToQuery",
-                error,
-                uuid : message.uuid
-            });
+            this._postMessage("respondToQuery", message.uuid, { error });
         }
     }
 
@@ -89,7 +86,7 @@ export class PythonExecutor {
     async _handleRequestHandlePermission(message){
         let { uuid, handle, mode } = message;
         let status = await handle.requestPermission({mode});
-        this.pyodide_worker.postMessage({
+        this._postMessage({
             cmd : "respondToQuery",
             uuid,
             status,
@@ -134,11 +131,6 @@ export class PythonExecutor {
             throw new Error(`Unexpected command "${subcmd}"`);
         }
         completer.emit(subcmd, message);
-    }
-
-    _postMessage(cmd, uuid, msg){
-        Object.assign(msg, {cmd, uuid});
-        this.pyodide_worker.postMessage(msg);
     }
 
     async ready(){
