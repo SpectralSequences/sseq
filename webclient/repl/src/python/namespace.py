@@ -1,5 +1,5 @@
 def get_namespace():
-    from sseq_display import SseqDisplay
+    from sseq_display import create_display, load_display_a
     from spectralsequence_chart.chart import SseqChart 
     from spectralsequence_chart.chart_class import (ChartClass, ChartClassArg, ChartClassStyle)
     from spectralsequence_chart.chart_edge import (
@@ -14,7 +14,8 @@ def get_namespace():
     from spectralsequence_chart.infinity import INFINITY
 
     objects = [
-        SseqDisplay, SseqChart, 
+        create_display, load_display_a,
+        SseqChart, 
         ChartClassStyle, ChartEdgeStyle,
         ArrowTip, Color, Shape,
         format_monomial, JSON

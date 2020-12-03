@@ -17,6 +17,16 @@ from functools import wraps
 from repl.handler_decorator import collect_handlers, handle
 fetcher = Fetcher("api/")
 
+def create_display(name):
+    disp = SseqDisplay(name)
+    print(f"Creating display at {disp.url}")
+    return disp.chart
+
+async def load_display_a(name):
+    disp = SseqDisplay(name)
+    await disp.load_a()
+    return disp.chart
+
 @collect_handlers("message_handlers")
 class SseqDisplay:
     """ A Spectral Sequence display. This contains the logic to communicate between the SseqChart and the browser.
