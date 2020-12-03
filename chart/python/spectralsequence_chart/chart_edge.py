@@ -15,7 +15,7 @@ from .display_primitives import UUID_str, Color, DashPattern, LineWidth, ArrowTi
 class ChartEdgeStyle:
     def __init__(self, 
         action : str = "",
-        color : Color = Color.BLACK,
+        color : Union[Color, str] = "black",
         dash_pattern : DashPattern = [],
         line_width : float = 2,
         start_tip : Optional[ArrowTip] = None,
@@ -240,13 +240,16 @@ class ChartStructline(ChartEdge):
     def __init__(self, source_uuid : UUID_str, target_uuid : UUID_str):
         super().__init__(source_uuid, target_uuid)
         self.action = ""
-        self.color = (0, 0, 0, 1)
+        self.color = "black"
         self.dash_pattern = []
         self.line_width = 2
         self.bend = 0
         self.start_tip = None
         self.end_tip = None
         self.visible = True
+    
+    def _normalize_attributes(self):
+        self.color._callback()
 
     def set_style(self, style : Union[str, ChartEdgeStyle], page : Union[int, Tuple[int, int]] = None ) -> "ChartStructline":
         """ Sets the display style of the structline. 
@@ -321,14 +324,14 @@ class ChartStructline(ChartEdge):
         **kwargs,
     ) -> "ChartEdge":
         super()._from_json_helper(**kwargs)
-        self._action =cast(PageProperty[str], ensure_page_property(action, parent=self)) 
-        self._color = cast(PageProperty[Color], ensure_page_property(color, parent=self))
-        self._dash_pattern = cast(PageProperty[DashPattern], ensure_page_property(dash_pattern, parent=self))
-        self._line_width = cast(PageProperty[Union[float, str]], ensure_page_property(line_width, parent=self))
-        self._bend = cast(PageProperty[float], ensure_page_property(bend, parent=self)) 
-        self._start_tip = cast(PageProperty[Optional[ArrowTip]], ensure_page_property(start_tip, parent=self)) 
-        self._end_tip = cast(PageProperty[Optional[ArrowTip]], ensure_page_property(end_tip, parent=self)) 
-        self._visible = cast(PageProperty[bool], ensure_page_property(visible, parent=self))
+        self.action = action
+        self.color = color
+        self.dash_pattern = dash_pattern
+        self.line_width = line_width
+        self.bend = bend
+        self.start_tip = start_tip
+        self.end_tip = end_tip
+        self.visible = visible
 
     @property
     def action(self) -> PageProperty[str]:
@@ -425,13 +428,16 @@ class SinglePageChartEdge(ChartEdge):
     def __init__(self, source_uuid : UUID_str, target_uuid : UUID_str):
         super().__init__(source_uuid, target_uuid)
         self._action = ""
-        self._color : Color = (0, 0, 0, 1)
+        self._color : Color = "black"
         self._dash_pattern = []
         self._line_width = 3
         self._bend = 0
         self._start_tip = None
         self._end_tip = None
         self._visible = True
+
+    def _normalize_attributes(self):
+        self.color = self.color
 
     def set_style(self, style : ChartEdgeStyle) -> "SinglePageChartEdge":
         """ Sets the display style of the edge. 

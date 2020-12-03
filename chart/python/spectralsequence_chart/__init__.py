@@ -30,7 +30,7 @@ from .chart_edge import (
     ChartStructline, ChartDifferential, ChartExtension,
 )
 from .display_primitives import ArrowTip, Color, Shape
+from .serialization import JSON
 
-
-__version__ = "0.0.26"
+__version__ = "0.0.28"
 # __all__ = [ChartClass, ChartClassStyle, Shape, ]

@@ -20,10 +20,10 @@ class ChartClassStyle:
     """
     def __init__(self,
         group_name : str = "",
-        shape : Shape = Shape().circled(5),  
-        background_color : Color = Color.BLACK,
-        border_color : Color = Color.BLACK,  
-        foreground_color : Color = Color.BLACK,
+        shape : Union[Shape, str] = "stdcircle",
+        background_color : Union[Color, str] = "black",
+        border_color : Union[Color, str] = "black",  
+        foreground_color : Union[Color, str] = "black",
         border_width : float = 2,
     ):
         self._group_name = group_name
@@ -193,6 +193,12 @@ class ChartClass:
         self.foreground_color[page] = style.foreground_color
         self.border_width[page] = style.border_width
         return self
+    
+    def _normalize_attributes(self):
+        self.shape._callback()
+        self.background_color._callback()
+        self.border_color._callback()
+        self.foreground_color._callback()
 
     def _needs_update(self):
         if self._sseq:

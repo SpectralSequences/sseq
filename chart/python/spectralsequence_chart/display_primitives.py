@@ -37,8 +37,11 @@ class Color:
     @staticmethod
     def from_hex(hex_str : str) -> "Color":
         assert hex_str.startswith("#")
-        assert len(hex_str) == 7
-        parts = [int(s, 16) for s in (hex_str[1:3], hex_str[3:5], hex_str[5:])]
+        assert len(hex_str) == 7 or len(hex_str) == 9
+        parts = [hex_str[1:3], hex_str[3:5], hex_str[5:7]]
+        if len(hex_str) == 9:
+            parts.append(hex_str[7:])        
+        parts = [int(s, 16) for s in parts]
         return Color(*parts)
     
     def to_hex(self) -> str:
@@ -64,8 +67,8 @@ class Color:
     @classmethod
     def from_json(cls, json):
         assert json["type"] == cls.__name__
-        result = Color.from_hex(*json["color"])
-        result._name = result.get("name")
+        result = Color.from_hex(json["color"])
+        result._name = json.get("name")
         return result
 
     def __repr__(self):
@@ -79,12 +82,8 @@ for (name, value) in CSS_COLORS_JSON.items():
     c._name = name
     Color.CSS_COLORS[name] = c
 
-
-Color.BLACK = Color(0, 0, 0, 255)
-Color.RED =   Color(255, 0, 0, 255)
-Color.GREEN = Color(0, 255, 0, 255)
-Color.BLUE =  Color(0, 0, 255, 255)
-Color.TRANSPARENT = Color(0,0,0,0)
+Color.CSS_COLORS["transparent"] = Color(0,0,0,0)
+Color.CSS_COLORS["transparent"]._name = "transparent"
 
 class ArrowTip:
     """ An ArrowTip. Curently the only possible arrow tip is the standard one. 
@@ -132,6 +131,7 @@ class Shape:
                 character (str): The characters to render at the center of the shape. 
                 font (str): The font to render the characters in. Currently the only supported font is "stix".                  
         """
+        self._name = None
         if character:
             self.dict = dict(
                 ty="character",
@@ -205,14 +205,20 @@ class Shape:
     def to_json(self):
         result = {"type" : type(self).__name__}
         result.update(self.dict)
+        if self._name:
+            result["name"] = self._name
         return result
     
     @staticmethod
     def from_json(json):
         assert json.pop("type") == Shape.__name__
         result = Shape()
+        if "name" in json:
+            result._name = json.pop("name")
         result.dict = json
         return result
 
     def __repr__(self):
+        if self._name:
+            return f'Shape("{self._name}")'
         return f"Shape({repr(self.dict)})"

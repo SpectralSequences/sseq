@@ -8,19 +8,12 @@ Navigate to the site https://spectralsequences.com/repl/ and wait for the page t
 
 First create a ``SseqDisplay``:
 
->>> disp = SseqDisplay("my_chart")
-SseqDisplay(name="my_chart", url="https://spectralsequences.com/dist/charts/my_chart", chart=SseqChart("my_chart", classes=[0 classes], edges=[0 edges]))
+>>> chart = create_display("my_chart")
 
 If you press :kbd:`Control` and click on the link, it will open a new tab with the chart. You should see a blank chart.
 
 ..
     ADD IMAGES HERE
-
-The display has an associated `SseqChart` object which holds the state of the spectral sequence chart. 
-Most of the manipulations we do will be on the chart, so it's a good idea to store the chart into a variable:
-
->>> chart = disp.chart
-SseqChart("my_chart", classes=[0 classes], edges=[0 edges])
 
 We can add a `ChartClass` to the chart with `chart.add_class <SseqChart.add_class>`:
 
@@ -109,7 +102,7 @@ It was set to 1 automatically when we added the differential. We can set that ba
 
 Now we want set the background_color to be transparent starting on page 2:
 
->>> c.background_color[2] = Color.TRANSPARENT
+>>> c.background_color[2] = "transparent"
 
 If we add an extension, it will only show on the $E_{\infty}$ page:
 
@@ -118,6 +111,6 @@ If we add an extension, it will only show on the $E_{\infty}$ page:
 
 You can save the chart with:
 
->>> await disp.save_a()
+>>> await chart.save_a()
 
-A save dialog will open and you can choose a location to save the file.
+A file picker dialog will open and you can choose where to save the chart. It can later be loaded with ``chart = await load_display_a("display_name")``.

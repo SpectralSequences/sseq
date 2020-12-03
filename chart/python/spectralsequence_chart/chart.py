@@ -53,12 +53,14 @@ class SseqChart:
   
         self._default_class_style = ChartClassStyle()
         self._default_structline_style = ChartEdgeStyle()
-        self._default_differential_style = ChartEdgeStyle(color=Color.BLUE, end_tip=ArrowTip())
+        self._default_differential_style = ChartEdgeStyle(color="blue", end_tip=ArrowTip())
         self._default_extension_style = ChartEdgeStyle()
         self._class_styles : Dict[str, ChartClassStyle] = {}
         self._edge_styles : Dict[str, ChartEdgeStyle] = {}
         self._shapes : Dict[str, Shape] = {}
         self._colors : Dict[str, Color] = {}
+
+        self.register_shape("stdcircle", Shape.circle(5))
 
         self._page_list_lock = threading.Lock()
         self._classes : Dict[str, ChartClass] = {}
@@ -210,6 +212,7 @@ class SseqChart:
             raise ValueError(f"Wrong number of gradings: degree {c.degree} has length {len(c.degree)} but num_gradings is {self.num_gradings}")
 
         c._sseq = self
+        c._normalize_attributes()
         self._add_create_message(c)
         self._classes[c.uuid] = c
         if c.degree not in self._classes_by_degree:
@@ -287,6 +290,7 @@ class SseqChart:
     def _commit_edge(self, e : ChartEdge):
         """ Common logic between add_structline, add_differential, add_extension, and deserialization."""
         e._sseq = self
+        e._normalize_attributes()
         self._edges[e.uuid] = e
         e._source = self._classes[e._source_uuid]
         e._target = self._classes[e._target_uuid]
@@ -433,20 +437,20 @@ class SseqChart:
                 await self._agent.send_batched_messages_a(self._batched_messages)
             self._clear_batched_messages()
     
-    async def save_a(self):
+    async def save_a(self, *args, **kwargs):
         if not self._agent or not hasattr(self._agent, "save_a"):
             raise RuntimeError("Unsupported operation")
-        await self._agent.save_a()
+        await self._agent.save_a(*args, **kwargs)
 
-    async def save_as_a(self):
+    async def save_as_a(self, *args, **kwargs):
         if not self._agent or not hasattr(self._agent, "save_as_a"):
             raise RuntimeError("Unsupported operation")
-        await self._agent.save_as_a()
+        await self._agent.save_as_a(*args, **kwargs)
 
-    async def load_a(self):
+    async def load_a(self, *args, **kwargs):
         if not self._agent or not hasattr(self._agent, "load_a"):
             raise RuntimeError("Unsupported operation")
-        await self._agent.load_a()
+        await self._agent.load_a(*args, **kwargs)
 
     
     def _normalize_class_argument(self, class_arg : ChartClassArg) -> ChartClass:
@@ -725,6 +729,7 @@ class SseqChart:
         self._edge_styles[edge_style.action] = deepcopy(edge_style)
 
     def register_shape(self, name : str, shape : Shape):
+        shape._name = name
         self._shapes[name] = shape
 
     def register_color(self, name : str, color : Color):

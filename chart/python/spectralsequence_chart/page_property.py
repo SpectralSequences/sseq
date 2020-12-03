@@ -108,7 +108,8 @@ class PageProperty(Generic[T]):
                 del self._values[i]
     
     def __repr__(self) -> str:
-        return f"PageProperty({repr(self._values)})"
+        values = ", ".join([f"{page}: {value}" for (page, value) in self._values])
+        return f"PageProperty{{{values}}}" 
 
     def __eq__(self, other):
         if type(other) != PageProperty:

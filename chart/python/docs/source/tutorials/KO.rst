@@ -3,8 +3,7 @@ KO HFPSS Tutorial
 
 Now we will make the HFPSS for KO. First we need to create our display object:
 
->>> disp = SseqDisplay("KO-HFPSS")
-... chart = disp.chart
+>>> chart = create_display("KO-HFPSS")
 
 Let's set the range to be a bit larger: how about setting the x range to be from -20 to 20.
 We do this with `chart.x_min`, `chart.x_max`. The attributes `chart.initial_x_min` and `chart.initial_x_max` determine
@@ -30,7 +29,7 @@ This allows us to use "Z" as a short-hand for a solid black square.
 Let's also make a "2Z" style with a transparent background by setting `ChartClassStyle.background_color`:
 
 >>> style.group_name = "2Z"
-... style.background_color = Color.TRANSPARENT
+... style.background_color = "transparent"
 ... chart.register_class_style(style)
 
 Now let's add the classes:
@@ -79,6 +78,6 @@ Let's replace the first pair with (3,3):
 
 Finally we can save the chart:
 
->>> await disp.save_a()
+>>> await chart.save_a()
 
-A file picker dialog will open and you can choose where to save the chart. It can later be loaded with ``disp.load_a``.
+A file picker dialog will open and you can choose where to save the chart. It can later be loaded with ``chart = await load_display_a("display_name")``.
