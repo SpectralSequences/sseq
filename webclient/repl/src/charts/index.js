@@ -1,4 +1,5 @@
 "use strict";
+import css from "./katex.min.css"
 import Mousetrap from "mousetrap";
 
 import { SseqChart } from "chart/SseqChart";

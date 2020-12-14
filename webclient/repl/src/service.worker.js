@@ -87,7 +87,7 @@ router.get("/charts/:name", async (context) => {
     let { name } = context.params;
     console.log(`requested: /charts/${name}`);
     console.log(self.location.pathname);
-    if(name.endsWith(".js") || name.endsWith(".wasm")){
+    if(name.endsWith(".js") || name.endsWith(".wasm") || name.endsWith(".css")){
         context.response = fetch(`charts/${name}`);
         return;
     }

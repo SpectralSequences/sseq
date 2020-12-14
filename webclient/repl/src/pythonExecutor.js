@@ -5,7 +5,7 @@ import { EventEmitter } from "eventemitter3";
 
 function createInterruptBuffer(){
     if(window.SharedArrayBuffer){
-        return new Int32Array(new SharedArrayBuffer(4))
+        return new Int32Array(new SharedArrayBuffer(4));
     } else {
         return new Int32Array(new ArrayBuffer(4));
     }

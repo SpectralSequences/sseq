@@ -18,7 +18,7 @@ const commonConfig = {
           },
           {
               test: /\.css$/,
-              use: ['to-string-loader', 'css-loader']
+              use: ["style-loader", 'css-loader']
           },
           { test: /\.tsx?$/, loader: "awesome-typescript-loader" },
         ],

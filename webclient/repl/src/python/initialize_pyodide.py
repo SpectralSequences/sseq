@@ -37,11 +37,19 @@ executor = Executor(send_message_a,  namespace)
 
 
 from js_wrappers.messages import get_message
-from js_wrappers.crappy_multitasking import (crappy_multitasking, check_interrupt)
+
+from pyodide_interrupts import check_interrupts
+
+def check_for_interrupt(interrupt_buffer):
+    def helper():
+        if interrupt_buffer() == 0:
+            return
+        raise KeyboardInterrupt()
+    return helper
 
 def handle_message(uuid):
-    sys.setrecursionlimit(135)    
+    sys.setrecursionlimit(135)
     msg = get_message(uuid)
     interrupt_buffer = msg.pop("interrupt_buffer")
-    with crappy_multitasking(check_interrupt(interrupt_buffer), 10_000):
+    with check_interrupts(check_for_interrupt(interrupt_buffer), 10_000):
         executor.handle_message(**msg)

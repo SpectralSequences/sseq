@@ -124,7 +124,7 @@ async function startup(){
         await languagePluginLoader;
         await pyodide.loadPackage([
                 // "pygments", 
-                "crappy-python-multitasking",
+                "pyodide-interrupts",
                 "spectralsequence_chart",
                 // "astunparse",
                 "micropip",
@@ -134,7 +134,6 @@ async function startup(){
         );
         loadingMessage("Initializing Python Executor");
         await pyodide.runPythonAsync(`
-            import crappy_multitasking
             import sys
             sys.path.append("/repl")
             sys.setrecursionlimit(150) # 150?
