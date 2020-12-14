@@ -17,18 +17,10 @@ export class PythonExecutor {
         this.completers = {};
         window.loadingWidget.addLoadingMessage("Loading Pyodide");
         this.pyodide_worker = new Worker("pyodide_worker.bundle.js");
-        this.pyodide_worker.addEventListener("message", this._handleMessage.bind(this));
+        this.pyodide_worker.addEventListener("message", this._handlePyodideMessage.bind(this));
         // The pyodide worker needs to be able to send messages to the service worker, so we make a channel
         // and send one end to the service worker and the other to the pyodide worker.
-        let {port1, port2} = new MessageChannel();
-        this.pyodide_worker.postMessage({
-            cmd : "service_worker_channel", 
-            port : port1,
-        }, [port1]);
-        navigator.serviceWorker.controller.postMessage({
-            cmd : "pyodide_worker_channel", 
-            port : port2,
-        }, [port2]);
+        navigator.serviceWorker.addEventListener("message", this._handleServiceWorkerMessage.bind(this))
 
         let _readyPromise = new Promise((resolve, reject) => this._readyPromise = {resolve, reject});
         this._readyPromise.promise = _readyPromise;
@@ -37,9 +29,27 @@ export class PythonExecutor {
     _postMessage(cmd, uuid, msg){
         Object.assign(msg, {cmd, uuid});
         this.pyodide_worker.postMessage(msg);
-    }    
+    }
 
-    _handleMessage(event){
+    _handleServiceWorkerMessage(event){
+        if(event.data.cmd !== "connect_to_pyodide"){
+            throw Error("Unexpected command from service worker!");
+        }
+        this._handleServiceWorkerConnection(event);
+    }
+
+    _handleServiceWorkerConnection(event){
+        console.log("handle service worker connection");
+        let msg = event.data;
+        let { port, repl_id } = msg;
+        this.pyodide_worker.postMessage({
+            cmd : "service_worker_channel", 
+            port,
+            repl_id
+        }, [port]);
+    }
+
+    _handlePyodideMessage(event){
         let message = event.data;
         let message_cmd = message.cmd;
         let subhandlers = {

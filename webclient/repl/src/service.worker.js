@@ -13,7 +13,8 @@ const router = new Router({
 });
 
 
-const repl_message_ports = {};
+const repl_connections = {};
+const repl_connection_promises = {};
 const chart_owning_repls = {};
 
 function make_json_response(body, status){
@@ -38,9 +39,9 @@ async function get_owning_repl(chart_name){
     let owningRepl = await self.clients.get(owningReplId);
     if(!owningRepl){
         console.log("Undefined owning repl, deleting chart.");
-        if(owningReplId in repl_message_ports){
-            repl_message_ports[owningReplId].close();
-            delete repl_message_ports[owningReplId];
+        if(owningReplId in repl_connections){
+            repl_connections[owningReplId].close();
+            delete repl_connections[owningReplId];
         }
         delete chart_owning_repls[chart_name];
     }
@@ -135,32 +136,57 @@ function handleMessage(event){
 }
 
 let messageDispatch = {
-    pyodide_worker_channel : installPyodideRepl,
     subscribe_chart_display : passChartChannelToPyodide,
     chart_display_focus_repl : focusRepl,
 };
 
-function installPyodideRepl(event){
-    let port = event.data.port;
-    console.log(`Service worker :: installing pyodide repl :: id : ${event.source.id}`);
-    port.addEventListener("message", handlePyodideMessage);
-    repl_message_ports[event.source.id] = port;
-    port.start();
-}
 
 function handlePyodideMessage(event){
+    if(event.data.cmd === "ready"){
+        repl_connection_promises[event.data.repl_id].resolve();
+        return;
+    }
     console.error(`Unexpected message from pyodide repl`, event.data, event);
     throw Error("Unexpected message from pyodide repl:", event.data);
 }
+
+async function getPyodidePort(target_repl){
+    if(!repl_connection_promises[target_repl.id]){
+        // Not already connected or in the process of connecting
+        installPyodideRepl(target_repl);
+    }
+    await repl_connection_promises[target_repl.id].promise;
+    return repl_connections[target_repl.id];
+}
+
+function installPyodideRepl(target_repl){
+    // The pyodide worker needs to be able to send messages to the service worker, so we make a channel.
+    // We keep one and send the other to the pyodide worker.    
+    let {port1, port2} = new MessageChannel();
+    // It would be great if there were any way to detect and manage failure for this.
+    // Not sure how though.
+    target_repl.postMessage({
+        cmd : "connect_to_pyodide",
+        repl_id : target_repl.id,
+        port : port2,
+    }, [port2]);
+    let promise = {};
+    promise.promise = new Promise((resolve, reject) => Object.assign(promise, {resolve, reject}));
+    repl_connection_promises[target_repl.id] = promise;
+    repl_connections[target_repl.id] = port1;
+    port1.addEventListener("message", handlePyodideMessage);
+    port1.start();
+}
+
+
 
 async function passChartChannelToPyodide(event){
     let { port, chart_name } = event.data;
     chart_owning_repls[event.source.id] = chart_name;
     event.data.client_id = event.source.id;
     let owningRepl = await get_owning_repl(chart_name);
-    console.log(`Owning client Id : ${owningRepl.id}`);
-    console.log(repl_message_ports);
-    let repl_port = repl_message_ports[owningRepl.id];
+    let repl_port = await getPyodidePort(owningRepl);
+    console.log("repl_port:", repl_port);
     repl_port.postMessage(event.data, [port]);
 }
 

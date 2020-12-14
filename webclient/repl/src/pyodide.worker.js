@@ -239,10 +239,12 @@ self.requestHandlePermission = requestHandlePermission;
 
 
 function registerServiceWorkerPort(e){
-    let { port } = e.data;
+    console.log("registerServiceWorkerPort");
+    let { port, repl_id } = e.data;
     self.serviceWorker = port;
     self.serviceWorker.addEventListener("message", handleMessageFromServiceWorker)
     port.start();
+    port.postMessage({ cmd : "ready", repl_id });
 }
 
 function handleMessageFromServiceWorker(event) {
