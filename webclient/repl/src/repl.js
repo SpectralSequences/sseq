@@ -160,6 +160,9 @@ class ReplElement extends HTMLElement {
 		this.firstLines = {};
 		this.outputScreenLines = {};
 		this.outputModelLines = {};
+		this.connectedPromise = {};
+		this.connectedPromise.promise = new Promise((resolve, reject) => Object.assign(this.connectedPromise, {resolve, reject}));
+
 		this.lineOffsetMutationObserver = new MutationObserver((mutationsList, observer) => {
 			this.updateLineOffsets();
 		});
@@ -206,6 +209,13 @@ class ReplElement extends HTMLElement {
 	}
 
 	async connectedCallback(){
+		this.connectedPromise.resolve();
+	}
+
+	async start(executor){
+		console.log("start:: awaiting on connected promise");
+		await this.connectedPromise.promise;
+		console.log("start:: working...");
         let styles = document.createElement("style");
 		styles.innerText = ReplElement.styles;
 		this.appendChild(styles);
@@ -244,52 +254,13 @@ class ReplElement extends HTMLElement {
 		this.querySelector(".decorationsOverviewRuler").remove();
 		this.showSuggestDetails();
 		this.readOnly = true;
-		this.start();
+
+		// await navigator.serviceWorker.ready;
+		this.executor = executor;
+		this.jedi_value = this.executor.new_completer();			
+		await this.executor.ready();
+		this._loaded();
 	}
-
-	async start(){
-		try {
-			if(navigator.serviceWorker.controller === null){
-				window.loadingWidget.addLoadingMessage("Waiting for service worker (try refreshing page?).");
-				await new Promise(resolve => navigator.serviceWorker.oncontrollerchange = resolve );
-				window.loadingWidget.addLoadingMessage("Service worker ready.");
-			}
-			// await navigator.serviceWorker.ready;
-			this.executor = new PythonExecutor();
-			this.jedi_history = this.executor.new_completer();
-			this.jedi_value = this.executor.new_completer();			
-			await this.executor.ready();
-			this._loaded();
-		} catch(e){
-			this._loadingFailed(e);
-			throw e;
-		}
-	}
-
-	async _displaySillyLoadingPrompt(){
-		let idx = -1;
-		let animation = ["\n\n    -  Loading  -\n\n", "\n\n   -   Loading   -","\n\n   /   Loading   /","\n\n   |   Loading   |","\n\n   \\   Loading   \\","\n\n   -   Loading   -","\n    |\n   /   Loading   /\n                |","     \\\n    |\n   /   Loading   /\n                |\n               \\","     \\-\n    |\n       Loading\n                |\n              -\\","     \\-\n       /\n       Loading\n             /\n              -\\","      -\n       /\n       L|ading\n             /\n              -","\n       /   \\\n       L|ading\n         \\   /\n","          -\n           \\\n       L|ading\n         \\\n          -","         /-\n           \\\n       Loading\n         \\\n          -/","        |/-\n\n       Loading\n\n          -/|","        |/\n      \\\n       Loading\n              \\\n           /|","        |\n      \\\n    -  Loading  -\n              \\\n            |","\n      \\\n    -  Loading  -\n              \\\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n","\n\n    -  Loading  -\n\n"];
-
-		let observer = new MutationObserver(() => {
-			for(let c of document.querySelectorAll(".cigr, .cigra")){
-				if(c.style.display !== "none"){
-					c.style.display = "none";
-				}
-			}
-		});
-		observer.observe(this, {"subtree" : true, "childList" : true, "attributesFilter" : ["style"] });
-		while(!this.ready){
-			idx ++;
-			idx = idx % animation.length;
-			this.editor.setValue(animation[idx]);
-			if(idx === 0) {
-				await sleep(250);
-			}
-			await sleep(50);
-		}
-		observer.disconnect();
-	}
-
 
 	async _loaded(){
 		this.editor.onKeyDown(this._onkey.bind(this));
@@ -312,39 +283,7 @@ class ReplElement extends HTMLElement {
 		this.editor.setPosition(this.endOfInputPosition);
 		this.focus();
 		await sleep(0);
-		window.loadingWidget.ready = true;
 		this.readOnly = false;
-	}
-
-	_loadingFailed(e){
-		this.ready = true;
-		let observer = new MutationObserver(() => {
-			for(let c of document.querySelectorAll(".cigr, .cigra")){
-				if(
-					Number(c.parentElement.style.top.slice(0,-2))/27 >= 2
-					&& c.style.left === "0px"
-				){
-					continue;
-				}
-				if(c.style.display !== "none"){
-					c.style.display = "none";
-				}
-			}
-		});
-		observer.observe(this, {"subtree" : true, "childList" : true, "attributesFilter" : ["style"] });
-		this.editor.updateOptions({
-			lineNumbers : (n) => {
-				if(n in this.outputModelLines){
-					return "";
-				}
-				return "   ";
-			}
-		});
-		window.loadingWidget.ready = true;
-		this.editor.setValue(`Fatal Error! \n \n ${e.toString().replace(/\n/g,"\n ")}`);
-		this.editor.updateOptions({
-			rulers : []
-		});
 	}
 
 	_getEditorLinePrefix(n){
@@ -382,22 +321,7 @@ class ReplElement extends HTMLElement {
 				e.style.marginLeft = targetMargin;
 			}
 		});
-	}	
-
-	_onmousedown(){
-		// this.mouseDown = true;
-		// this.justSteppedHistory = false;
-		// this.updateCursorOffset();
 	}
-
-	_onmouseup(){
-		// this.mouseDown = false;
-		// if(this.doesSelectionIntersectReadOnlyRegion() && this.editor.getSelection().isEmpty()){
-		// 	this.editor.setPosition(this.endOfInputPosition);
-		// 	this.revealSelection();
-		// 	this.updateCursorOffset();
-		// }
-	}	
 
 	async _onDidChangeCursorSelection(e){
 		// This means this was a history change event.

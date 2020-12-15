@@ -126,6 +126,10 @@
 
             console.log(`Finished loading in ${this.elapsedSeconds()} seconds`);            
         }
+
+        loadingFailed(e){
+            this.loadingElement.innerText = `Fatal Error! \n \n ${e.toString().replace(/\n/g,"\n ")}`;
+        }
     }
     window.loadingWidget = new LoadingWidget();
     loadingWidget.displayLoadingPrompt();

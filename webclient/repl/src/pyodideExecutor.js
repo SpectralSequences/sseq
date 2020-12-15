@@ -26,6 +26,27 @@ export class PythonExecutor {
         this._readyPromise.promise = _readyPromise;
     }
 
+    async ready(){
+        return await this._readyPromise.promise;
+    }
+
+    execute(code){
+        const interrupt_buffer = createInterruptBuffer();
+        const uuid = uuid4();
+        const execution = new Execution(interrupt_buffer);
+        this.executions[uuid] = execution;
+        this._postMessage("execute", uuid, {code, interrupt_buffer});
+        return execution;
+    }
+
+    new_completer(){
+        const uuid = uuid4();
+        const completer = new Completer(this, uuid);
+        this.completers[uuid] = completer;
+        this._postMessage("complete", uuid, {subcmd : "new_completer"});
+        return completer;
+    }    
+
     _postMessage(cmd, uuid, msg){
         Object.assign(msg, {cmd, uuid});
         this.pyodide_worker.postMessage(msg);
@@ -56,7 +77,7 @@ export class PythonExecutor {
             execute : "_handleExecutionMessage",
             complete : "_handleCompletionMessage",
             ready : "_handleReadyMessage",
-            file_picker : "file_picker",
+            file_picker : "_file_picker",
             request_handle_permission : "_handleRequestHandlePermission",
             loadingMessage : "_handleLoadingMessage",
             loadingError : "_handleLoadingError",
@@ -68,7 +89,7 @@ export class PythonExecutor {
         this[subhandler_name](message);
     }
 
-    async file_picker(message){
+    async _file_picker(message){
         let pickerFunction = { directory : showDirectoryPicker, read : showOpenFilePicker, readwrite : showSaveFilePicker}[message.type];
         try {
             let handle = await pickerFunction();
@@ -142,28 +163,6 @@ export class PythonExecutor {
         }
         completer.emit(subcmd, message);
     }
-
-    async ready(){
-        return await this._readyPromise.promise;
-    }
-
-    execute(code){
-        const interrupt_buffer = createInterruptBuffer();
-        const uuid = uuid4();
-        const execution = new Execution(interrupt_buffer);
-        this.executions[uuid] = execution;
-        this._postMessage("execute", uuid, {code, interrupt_buffer});
-        return execution;
-    }
-
-    new_completer(){
-        const uuid = uuid4();
-        const completer = new Completer(this, uuid);
-        this.completers[uuid] = completer;
-        this._postMessage("complete", uuid, {subcmd : "new_completer"});
-        return completer;
-    }
-
 }
 
 export class Execution extends EventEmitter {
@@ -240,31 +239,6 @@ export class Completer extends EventEmitter {
         }
     }
 
-    _attachResponseHandler(cmd){
-        this.on(cmd, (msg) => {
-            let promise_obj = this.responses[msg.subuuid];
-            if(!promise_obj){
-                throw Error(`Unknown subuuid ${subuuid}`);
-            }
-            if(cmd !== promise_obj.cmd) {
-                throw new Error(`Wrong command for response subuuid ${subuuid}. Was expecting command to be "${cmd}" but got "${promise_obj.cmd}"`);
-            }
-            promise_obj.resolve(msg);
-        });
-    }
-
-    _getResponsePromise(cmd){
-        let subuuid = uuid4();
-        return [subuuid, new Promise((resolve, reject) => 
-            this.responses[subuuid] = {resolve, reject, cmd }
-        )];
-    }
-
-    _postMessage(subcmd, msg){
-        Object.assign(msg, {subcmd});
-        this.executor._postMessage("complete", this.uuid, msg);
-    }
-
     async getSignatures(code, position, cancellation_token){
         let [subuuid, response_promise] = this._getResponsePromise("signatures");
         let {lineNumber, column} = position;
@@ -294,6 +268,30 @@ export class Completer extends EventEmitter {
     close(){
         delete this.executor.completers[this.uuid];
         delete this.executor;
+    }    
+
+    _attachResponseHandler(cmd){
+        this.on(cmd, (msg) => {
+            let promise_obj = this.responses[msg.subuuid];
+            if(!promise_obj){
+                throw Error(`Unknown subuuid ${subuuid}`);
+            }
+            if(cmd !== promise_obj.cmd) {
+                throw new Error(`Wrong command for response subuuid ${subuuid}. Was expecting command to be "${cmd}" but got "${promise_obj.cmd}"`);
+            }
+            promise_obj.resolve(msg);
+        });
     }
 
+    _getResponsePromise(cmd){
+        let subuuid = uuid4();
+        return [subuuid, new Promise((resolve, reject) => 
+            this.responses[subuuid] = {resolve, reject, cmd }
+        )];
+    }
+
+    _postMessage(subcmd, msg){
+        Object.assign(msg, {subcmd});
+        this.executor._postMessage("complete", this.uuid, msg);
+    }
 }
