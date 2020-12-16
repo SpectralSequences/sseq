@@ -1,6 +1,5 @@
 const path = require('path');
 const webpack = require('webpack');
-const ExtraWatchWebpackPlugin = require('extra-watch-webpack-plugin');
 
 const commonConfig = {
     module: {
