@@ -134,6 +134,10 @@ async function startup(){
         let path = self.location.href;
         path = path.substring(0, path.lastIndexOf("/"))
 
+        // This is correct. pyodide.runPython executes the python code, blocks
+        // until it completes, and returns the python object given by the final
+        // line. In this case, micropip.install returns a Promise object
+        // *inside* Python, which we await for.
         await pyodide.runPython(`
             import micropip
             micropip.install('${path}/spectralsequence_chart-0.0.28-py3-none-any.whl')
