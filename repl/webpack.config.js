@@ -1,9 +1,6 @@
 const path = require('path');
 const webpack = require('webpack');
-const CopyPlugin = require('copy-webpack-plugin');
-const WebpackShellPlugin = require('webpack-shell-plugin');
 const ExtraWatchWebpackPlugin = require('extra-watch-webpack-plugin');
-const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 
 const commonConfig = {
     module: {
@@ -26,28 +23,6 @@ const commonConfig = {
     watchOptions: {
       ignored: ["**/python_imports.js"]
     },
-    // plugins : [
-    //     // new webpack.DllReferencePlugin({
-    //     //     context: path.resolve(__dirname),
-    //     //     manifest: require(path.resolve(__dirname, 'monaco.json'))
-    //     // }),
-    //     // new CopyPlugin({
-    //     //     patterns: [
-    //     //         { from: 'src/index.html', to: 'dist/index.html' },
-    //     //         { from: 'src/charts/chart.html', to: 'dist/charts/chart.html' },
-    //     //         { from: 'src/charts/nonexistent-chart.html', to: 'dist/charts/nonexistent-chart.html' },
-    //     //     ],
-    //     // }),
-    //   // new WebpackShellPlugin({
-    //   //   onBuildStart: ["./scripts/prebuild.sh"],
-    //   //   dev : false // Rerun prebuild everytime webpack-dev-server rebuilds please.
-    //   //   // onBuildEnd: ['python script.py && node script.js']
-    //   // }),
-    //   // new ExtraWatchWebpackPlugin({
-    //   //   files: [ './src/python/*' ],
-    //   //   dirs: [ './src/python' ],
-    //   // }),
-    // ],  
     mode : "development",
     devtool: 'eval-source-map',
     // mode : "production",
@@ -85,22 +60,6 @@ const configMain = Object.assign({}, commonConfig, {
             context: path.resolve(__dirname),
             manifest: require(path.resolve(__dirname, 'monaco.json'))
         }),
-        new CopyPlugin({
-            patterns: [
-                { from: 'src/index.html', to: 'index.html' },
-                { from: 'src/charts/chart.html', to: 'charts/chart.html' },
-                { from: 'src/charts/nonexistent-chart.html', to: 'charts/nonexistent-chart.html' },
-                { from: '../chart/python/dist/spectralsequence_chart-0.0.28-py3-none-any.whl', to: 'spectralsequence_chart-0.0.28-py3-none-any.whl' },
-            ],
-        }),
-        new WebpackShellPlugin({
-            onBuildStart: ["./scripts/prebuild.sh"],
-            dev : false // Rerun prebuild everytime webpack-dev-server rebuilds please.
-            // onBuildEnd: ['python script.py && node script.js']
-        }),        
-        // new CleanWebpackPlugin({
-        //     cleanOnceBeforeBuildPatterns: [],
-        // }),        
     ],
 });
 
@@ -108,11 +67,7 @@ const configCharts = Object.assign({}, commonConfig, {
     entry: {
         "index" : "./src/charts/index.js"
     },
-    plugins : [
-        new CleanWebpackPlugin({
-            cleanOnceBeforeBuildPatterns: [],
-        }),        
-    ],
+    plugins : [],
     output: {
         path: path.resolve(__dirname, "dist/charts"),
         // publicPath : "/dist/",
