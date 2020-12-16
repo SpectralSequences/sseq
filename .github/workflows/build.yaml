@@ -33,3 +33,15 @@ jobs:
 
     - name: Build all
       run: make
+
+    - name: Check that no files are overwritten
+      run: git diff --exit-code
+
+  clean:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Make clean does not remove commited files
+      run: make clean && git diff --exit-code
