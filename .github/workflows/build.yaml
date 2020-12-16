@@ -17,7 +17,7 @@ jobs:
               ~/.local/lib/python*/
               **/node_modules
               **/target
-          key: ${{ runner.os }}-${{ hashFiles('**/package.json') }}-${{ hashFiles('**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ hashFiles('**/package.json', '**/Cargo.toml') }}
 
     - name: Install python build dependencies
       run: python3 -m pip install setuptools wheel
