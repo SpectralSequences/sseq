@@ -8,15 +8,19 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Cache rustup and cargo
+    - name: Cache files
       uses: actions/cache@v2
       with:
           path: |
               ~/.rustup
               ~/.cargo
+              ~/.local/lib/python*/
               **/node_modules
               **/target
           key: ${{ runner.os }}-${{ hashFiles('**/package.json') }}-${{ hashFiles('**/Cargo.toml') }}
+
+    - name: Install python build dependencies
+      uses: python3 -m pip install setuptools wheel
 
     - name: Install rustup
       uses: actions-rs/toolchain@v1
