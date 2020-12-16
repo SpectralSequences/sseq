@@ -1,0 +1,16 @@
+(1) In addition to the build prerequisites listed by the readme, I also had to install:
+    sudo apt-get install zlib1g-dev
+    sudo apt-get install libffi-dev
+
+(2) matplotlib wouldn't build because it tries to look up the linux distro in order to use it in a help message.
+    I don't want matplotlib anyways so I removed it but there were other packages relying on it. I modified buildall.py
+    in order to list out packages that had missing dependencies so I could remove them too.
+
+(3) I wanted to use jedi version 0.17 instead of the bundled version 0.15. There were quite a few references to 0.15.
+    I had to delete all of the 0.15 files and then fix the errors. Run "pyodide/bin/pyodide mkpkg my_pkg", adjust the version in the 
+    makefile in pyodide/packages/my_pkg/makefile, adjust the version in the makefile pyodide/Makefile.
+
+(4) If you rebuild, the process will damage the files pyodide/build/pyodide.* make sure to delete these before rebuilding.
+
+(5) To rebuild, run "pyodide --package-abi 1 packages pyodide_build". The argument "--package-abi" is mandatory. The value provided doesn't 
+    seem to matter except that it needs to be consistent across all packages in the build.

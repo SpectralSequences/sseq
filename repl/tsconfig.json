@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+        "outDir": "./built",
+        "allowJs": true,
+        "target": "es6",
+        "suppressImplicitAnyIndexErrors": true,
+        "alwaysStrict": true,
+        "strict": true,
+        "lib": ["es2017", "dom", "webworker"],
+        "moduleResolution": "node",
+        "types": []
+    },
+    "include": ["./src/**/*"]
+}
