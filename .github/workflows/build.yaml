@@ -1,0 +1,30 @@
+name Test build
+
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Cache rustup and cargo
+      uses: actions/cache@v2
+      with:
+          path: |
+              ~/.rustup
+              ~/.cargo
+              **/node_modules
+              **/target
+          key: ${{ runner.os }}-${{ hashFiles('**/package.json') }}-${{ hashFiles('**/Cargo.toml') }}
+
+    - name: Install rustup
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: stable
+
+    - name: Install wasm-pack
+      run: cargo install wasm-pack
+
+    - name: Build chart
+      run: make -C chart
