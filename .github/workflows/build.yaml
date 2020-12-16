@@ -31,5 +31,5 @@ jobs:
     - name: Install wasm-pack
       run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-    - name: Build chart
-      run: make -C chart
+    - name: Build all
+      run: make
