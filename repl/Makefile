@@ -1,10 +1,16 @@
-dist/index.html: src/python_imports.js
-	npm i && npm run build
+.PHONY: dist/index.html
 
-src/python_imports.js:
-	python3 scripts/bundle_python_sources.py
+dist/index.html: monaco.json node_modules
+	npx webpack
+
+monaco.json dist/editor.worker.js: library.webpack.config.js src/monaco.js node_modules
+	npx webpack --config library.webpack.config.js
+
+node_modules: package.json package-lock.json
+	npm i
+	touch -m node_modules
 
 .PHONY: clean
 
 clean:
-	rm -r dist monaco.json src/python_imports.js
+	rm -r dist monaco.json src/python_imports.js node_modules
