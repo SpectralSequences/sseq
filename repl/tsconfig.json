@@ -8,7 +8,7 @@
         "strict": true,
         "lib": ["es2017", "dom", "webworker"],
         "moduleResolution": "node",
-        "types": []
+        "types": ["resize-observer-browser"]
     },
     "include": ["./src/**/*"]
 }
