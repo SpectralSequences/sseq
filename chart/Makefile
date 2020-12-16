@@ -5,7 +5,7 @@ DISPLAY_BACKEND = display_backend/pkg/sseq_display_backend.js
 DISPLAY = display/dist/sseq_chart.js
 JAVASCRIPT = javascript/dist/sseq_chart.js
 
-.PHONY: all display
+.PHONY: all display $(DISPLAY) $(DISPLAY_BACKEND) $(SPECTRALSEQUENCE_CHART_WHEEL) $(JAVASCRIPT)
 
 all: $(SPECTRALSEQUENCE_CHART_WHEEL) display
 
