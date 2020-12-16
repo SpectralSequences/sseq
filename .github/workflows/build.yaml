@@ -20,7 +20,7 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('**/package.json') }}-${{ hashFiles('**/Cargo.toml') }}
 
     - name: Install python build dependencies
-      uses: python3 -m pip install setuptools wheel
+      run: python3 -m pip install setuptools wheel
 
     - name: Install rustup
       uses: actions-rs/toolchain@v1
