@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Hood Chatham"]
 edition = "2018"
 
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Os", "--enable-mutable-globals"]
+
 [lib]
 crate-type = ["cdylib"]
 
