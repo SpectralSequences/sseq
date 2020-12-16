@@ -90,6 +90,7 @@ const configMain = Object.assign({}, commonConfig, {
                 { from: 'src/index.html', to: 'index.html' },
                 { from: 'src/charts/chart.html', to: 'charts/chart.html' },
                 { from: 'src/charts/nonexistent-chart.html', to: 'charts/nonexistent-chart.html' },
+                { from: '../chart/python/dist/spectralsequence_chart-0.0.28-py3-none-any.whl', to: 'spectralsequence_chart-0.0.28-py3-none-any.whl' },
             ],
         }),
         new WebpackShellPlugin({

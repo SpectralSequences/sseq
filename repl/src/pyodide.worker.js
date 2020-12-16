@@ -7,8 +7,8 @@ import { IndexedDBStorage } from "./indexedDB";
 
 self.loaded = false;
 
-self.languagePluginUrl = 'pyodide-build-custom/'
-importScripts(`${self.languagePluginUrl}pyodide.js`);
+self.languagePluginUrl = 'https://cdn.jsdelivr.net/pyodide/dev/full/pyodide.js'
+importScripts(`https://cdn.jsdelivr.net/pyodide/dev/full/pyodide.js`);
 
 self.sleep = sleep;
 self.fetch = fetch.bind(self);
@@ -125,15 +125,21 @@ async function startup(){
         await pyodide.loadPackage([
                 // "pygments", 
                 "pyodide-interrupts",
-                "spectralsequence_chart",
                 // "astunparse",
                 "micropip",
             ],
             // loadingMessage,
             // loadingError,
         );
+        let path = self.location.href;
+        path = path.substring(0, path.lastIndexOf("/"))
+
+        await pyodide.runPython(`
+            import micropip
+            micropip.install('${path}/spectralsequence_chart-0.0.28-py3-none-any.whl')
+        `);
         loadingMessage("Initializing Python Executor");
-        await pyodide.runPythonAsync(`
+        pyodide.runPython(`
             import sys
             sys.path.append("/repl")
             sys.setrecursionlimit(150) # 150?
