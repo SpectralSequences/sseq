@@ -7,8 +7,8 @@ import { IndexedDBStorage } from "./indexedDB";
 
 self.loaded = false;
 
-self.languagePluginUrl = 'https://cdn.jsdelivr.net/pyodide/dev/full/pyodide.js'
-importScripts(`https://cdn.jsdelivr.net/pyodide/dev/full/pyodide.js`);
+self.languagePluginUrl = 'https://cdn.jsdelivr.net/pyodide/0.16.1/full/pyodide.js'
+importScripts(`https://cdn.jsdelivr.net/pyodide/0.16.1/full/pyodide.js`);
 
 self.sleep = sleep;
 self.fetch = fetch.bind(self);
