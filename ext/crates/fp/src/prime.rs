@@ -152,7 +152,7 @@ pub fn logp(p : u32, mut n : u32) -> u32 {
 // which gives a somewhat significant overhead.
 
 //Multinomial coefficient of the list l
-fn multinomial2(l : &[u32]) -> u32 {
+pub fn multinomial2(l : &[u32]) -> u32 {
     let mut bit_or = 0u32;
     let mut sum = 0u32;
     for &e in l {
