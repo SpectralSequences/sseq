@@ -24,6 +24,7 @@ serde_json = "1.0.0"
 serde = { version = "1.0.0", features = ["derive"] }
 thread-token = { path = "crates/thread-token", optional = true }
 time = "0.2.9"
+syn = "=1.0.57"
 
 [target.'cfg(not(target_arch = "wasm32-unknown-unknown"))'.dependencies.clap]
 version = "2.33.0"
