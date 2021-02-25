@@ -152,15 +152,12 @@ pub fn logp(p : u32, mut n : u32) -> u32 {
 // which gives a somewhat significant overhead.
 
 //Multinomial coefficient of the list l
-fn multinomial2(l : &mut [u32]) -> u32 {
+fn multinomial2(l : &[u32]) -> u32 {
     let mut bit_or = 0u32;
     let mut sum = 0u32;
-    for &mut e in l {
+    for &e in l {
         sum += e;
         bit_or |= e;
-//        if(bit_or < sum){
-//            return 0;
-//        }
     }
     if bit_or == sum { 1 } else { 0 }
 }
@@ -255,6 +252,48 @@ pub fn binomial(p : ValidPrime, n : i32, k : i32) -> u32 {
         binomial2(n, k)
     } else {
         binomial_odd(p, n, k)
+    }
+}
+
+/// Binomial coefficients mod 4 up to a sign (we always return 0, 1 or 2)
+/// This uses the fact that v_2(n choose r) is the number of borrows performed when subtracting r
+/// from n
+pub fn binomial4(n: u32, k: u32) -> u32 {
+    if (n - k) & k == 0 {
+        return 1
+    } else {
+        // 1 at the first borrow position
+        let fb = 1 << ((n - k) & k).trailing_zeros();
+        if n & (fb << 1) == 0 {
+            // This borrow requires a further borrow on the left
+            return 0;
+        } else if k & (fb << 1) != 0 {
+            // In n there is a 1 to the left, but there is a 1 in k as well, so we need to borrow
+            // once more
+            return 0;
+        } else {
+            // Remove the digit where we need to borrow. Check there is no further need to borrow
+            let k2 = k ^ fb;
+            if (n - k2) & k2 == 0 {
+                return 2;
+            } else {
+                return 0;
+            }
+        }
+    }
+}
+
+pub fn multinomial4(l: &[u32]) -> u32 {
+    if l.len() < 2 {
+        1
+    } else {
+        let sum = l.iter().sum();
+        match binomial4(sum, l[0]) {
+            0 => 0,
+            1 => multinomial4(&l[1..]),
+            2 => 2 * multinomial2(&l[1..]),
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -397,6 +436,32 @@ mod tests {
             }
         }
     }
+
+    fn binomial_full(n: u32, j: u32) -> u32 {
+        let mut res = 1;
+        for k in j + 1 ..= n {
+            res *= k;
+        }
+        for k in 1 ..= (n - j) {
+            res /= k;
+        }
+        res
+    }
+
+    #[test]
+    fn test_binomial4() {
+        for n in 0 .. 12 {
+            for j in 0 ..= (n + 1) / 2 {
+                let mut ans = match binomial_full(n, j) % 4 {
+                    1 | 3 => 1,
+                    2 => 2,
+                    _ => 0
+                };
+                assert_eq!(binomial4(n, j), ans);
+            }
+        }
+    }
+
 }
 
 pub const PRIME_TO_INDEX_MAP : [usize; MAX_PRIME+1] = [
