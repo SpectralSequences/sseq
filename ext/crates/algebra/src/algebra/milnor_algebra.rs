@@ -44,9 +44,9 @@ pub struct QPart {
     q_part : u32
 }
 
-type PPart = Vec<u32>;
+pub type PPart = Vec<u32>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MilnorBasisElement {
     pub q_part : u32,
     pub p_part : PPart,
@@ -671,7 +671,7 @@ impl MilnorAlgebra {
         new_result
     }
 
-    fn multiply(&self, res : &mut FpVector, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement) {
+    pub fn multiply(&self, res : &mut FpVector, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement) {
         let target_dim = m1.degree + m2.degree;
         if self.generic {
             let m1f = self.multiply_qpart(m1, m2.q_part);
@@ -751,7 +751,7 @@ impl<'a>  PPartMultiplier<'a> {
     }
 
     #[allow(clippy::ptr_arg)]
-    fn new (p : ValidPrime, r : &'a PPart, s : &'a PPart, mod_4: bool) -> PPartMultiplier<'a> {
+    pub fn new (p : ValidPrime, r : &'a PPart, s : &'a PPart, mod_4: bool) -> PPartMultiplier<'a> {
         if mod_4 {
             assert_eq!(*p, 2);
         }
@@ -809,7 +809,7 @@ impl<'a>  PPartMultiplier<'a> {
         false
     }
 
-    fn next(&mut self, basis: &mut MilnorBasisElement) -> Option<u32> {
+    pub fn next(&mut self, basis: &mut MilnorBasisElement) -> Option<u32> {
         let new_p = &mut basis.p_part;
         new_p.clear();
         let mut coef = 1;
