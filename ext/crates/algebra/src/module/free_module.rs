@@ -17,14 +17,18 @@ pub struct OperationGeneratorPair {
     pub generator_index: usize,
 }
 
+/// We have a linear enumeration of all generators among all degrees, and the index in this
+/// enumeration is the internal index.
 pub struct FreeModule<A: Algebra> {
     pub algebra: Arc<A>,
     pub name: String,
     pub min_degree: i32,
     pub gen_names: OnceBiVec<Vec<String>>,
+    /// degree -> internal index of first generator in degree
     gen_deg_idx_to_internal_idx: OnceBiVec<usize>,
     num_gens : OnceBiVec<usize>,
     pub basis_element_to_opgen : OnceBiVec<OnceVec<OperationGeneratorPair>>,
+    /// degree -> internal_gen_idx -> the offset of the generator in degree
     pub generator_to_index : OnceBiVec<OnceVec<usize>>
 }
 
@@ -247,8 +251,8 @@ impl<A: Algebra> FreeModule<A> {
         }
     }
 
-
-
+    /// Given a generator `(gen_deg, gen_idx)`, find the first index in degree `degree` with
+    /// elements from the generator.
     pub fn generator_offset(&self, degree: i32, gen_deg: i32, gen_idx: usize) -> usize {
         assert!(gen_deg >= self.min_degree);
         let internal_gen_idx = self.gen_deg_idx_to_internal_idx[gen_deg] + gen_idx;
