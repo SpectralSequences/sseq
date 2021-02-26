@@ -15,6 +15,7 @@ pub struct FreeModuleHomomorphism<M: Module> {
     pub quasi_inverse: OnceBiVec<QuasiInverse>,
     min_degree: i32,
     lock: Mutex<()>,
+    /// degree shift, such that ouptut_degree = input_degree - degree_shift
     degree_shift: i32,
 }
 
@@ -288,7 +289,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
     }
 
     fn check_mutex(&self, lock: &MutexGuard<()>) {
-        assert!(std::ptr::eq(lock_api::MutexGuard::mutex(&lock), &self.lock));
+        assert!(std::ptr::eq(parking_lot::lock_api::MutexGuard::mutex(&lock), &self.lock));
     }
 }
 

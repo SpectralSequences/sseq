@@ -13,7 +13,6 @@ serde = { version = "1.0.0", features = ["derive"] }
 enum_dispatch = "0.2.0"
 itertools = "0.9.0"
 lazy_static = "1.2.0"
-lock_api = "0.3"
 nom = "5.0.0"
 parking_lot = "0.10"
 twox-hash = "1.5.0"
