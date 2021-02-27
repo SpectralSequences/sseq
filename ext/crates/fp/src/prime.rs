@@ -13,8 +13,8 @@ pub struct ValidPrime {
 }
 
 impl ValidPrime {
-    pub fn new(p: u32) -> Self {
-        assert!(is_valid_prime(p), "Invalid prime: {}", p);
+    pub const fn new(p: u32) -> Self {
+        assert!(is_valid_prime(p));
 
         #[cfg(not(feature = "prime-two"))]
         { Self { p } }
@@ -29,14 +29,6 @@ impl ValidPrime {
         } else {
             None
         }
-    }
-
-    /// Create a ValidPrime without checking the number is a valid prime. Calling with an invalid
-    /// value invokes undefined behaviour. The main reason for this is that
-    /// [ValidPrime::new](ValidPrime::new) is not const due to the checks. If the checked version
-    /// can be made const, we can remove this function
-    pub const unsafe fn new_unsafe(p: u32) -> Self {
-        Self { p }
     }
 }
 
@@ -86,12 +78,12 @@ impl<'de> Deserialize<'de> for ValidPrime {
 }
 
 #[cfg(not(feature = "prime-two"))]
-pub fn is_valid_prime(p : u32) -> bool {
+pub const fn is_valid_prime(p : u32) -> bool {
     (p as usize) < MAX_PRIME && PRIME_TO_INDEX_MAP[p as usize] != NOT_A_PRIME
 }
 
 #[cfg(feature = "prime-two")]
-pub fn is_valid_prime(p : u32) -> bool {
+pub const fn is_valid_prime(p : u32) -> bool {
     p == 2
 }
 
