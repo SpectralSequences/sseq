@@ -472,6 +472,8 @@ mod tests {
 
 }
 
+pub const PRIMES: [u32; NUM_PRIMES] = [2, 3, 5, 7, 11, 13, 17, 19];
+
 pub const PRIME_TO_INDEX_MAP : [usize; MAX_PRIME+1] = [
     !1, !1, 0, 1, !1, 2, !1, 3, !1, !1, !1, 4, !1, 5, !1, !1, !1, 6, !1, 7
 ];
