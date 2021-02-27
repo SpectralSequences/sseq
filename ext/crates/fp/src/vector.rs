@@ -838,7 +838,7 @@ pub trait FpVectorT {
     }
 
     fn entry(&self, index : usize) -> u32 {
-        debug_assert!(index < self.dimension(), format!("Index {} too large, dimension of vector is only {}.", index, self.dimension()));
+        debug_assert!(index < self.dimension(), "Index {} too large, dimension of vector is only {}.", index, self.dimension());
         let p = self.prime();
         let bit_mask = bitmask(p);
         let limb_index = limb_bit_index_pair(p, index + self.min_index());

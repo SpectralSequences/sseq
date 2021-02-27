@@ -505,13 +505,13 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
             struct OutputStruct {
                 gen: String,
                 coeff: u32,
-            };
+            }
             #[derive(Deserialize)]
             struct ActionStruct {
                 op: Value,
                 input: String,
                 output: Vec<OutputStruct>,
-            };
+            }
 
             let actions_value = json[format!("{}_actions", algebra.algebra_type())].take();
             let actions: Vec<ActionStruct> = serde_json::from_value(actions_value)?;

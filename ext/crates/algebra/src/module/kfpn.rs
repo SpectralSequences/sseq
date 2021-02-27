@@ -143,7 +143,7 @@ impl<A : AdemAlgebraT> PolynomialAlgebra for KFpn<A> {
     fn frobenius_on_generator(&self, degree : i32, index : usize) -> Option<usize> {
         let p = *Module::prime(self) as i32;
         debug_assert!(p*degree <= Module::max_computed_degree(self), 
-            format!("degree : {}, max_computed_degree : {}", degree, Module::max_computed_degree(self))
+            "degree : {}, max_computed_degree : {}", degree, Module::max_computed_degree(self)
         );
         let two_or_one = if self.adem_algebra().generic { 2 } else { 1 };
         Some(self.frobenius_table[degree as usize / two_or_one][index])

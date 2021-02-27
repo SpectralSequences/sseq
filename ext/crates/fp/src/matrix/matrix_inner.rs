@@ -809,7 +809,7 @@ impl Matrix {
         let early_end_column = std::cmp::min(end_column, desired_pivots.len() + start_column);
         for i in start_column .. early_end_column {
             debug_assert!(self.pivots()[i] < 0 || desired_pivots[i - start_column] >= 0,
-                format!("current_pivots : {:?}, desired_pivots : {:?}", self.pivots(), desired_pivots));
+                "current_pivots : {:?}, desired_pivots : {:?}", self.pivots(), desired_pivots);
             if self.pivots()[i] >= 0 || desired_pivots[i - start_column] < 0 {
                 continue;
             }
