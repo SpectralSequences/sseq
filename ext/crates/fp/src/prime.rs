@@ -256,30 +256,51 @@ pub fn binomial(p : ValidPrime, n : i32, k : i32) -> u32 {
 }
 
 /// Binomial coefficients mod 4 up to a sign (we always return 0, 1 or 2)
-/// This uses the fact that v_2(n choose r) is the number of borrows performed when subtracting r
-/// from n
-pub fn binomial4(n: u32, k: u32) -> u32 {
-    if (n - k) & k == 0 {
-        return 1
+/// This uses the algorithm from https://www.fq.math.ca/Scanned/29-1/davis.pdf
+pub fn binomial4(n: u32, j: u32) -> u32 {
+    if n < 2 {
+        return 1;
+    }
+    if (n - j) & j == 0 {
+        // Answer is odd
+        let k = 32 - n.leading_zeros() - 1;
+        let l = n - (1 << k);
+        if l < (1 << (k - 1)) {
+            if j <= l {
+                binomial4(l, j)
+            } else {
+                binomial4(l, j - (1 << k))
+            }
+        } else {
+            if j < (1 << (k - 1)) {
+                binomial4(l, j)
+            } else if j <= l {
+                (binomial4(l, j) + 2 * binomial2(l as i32, (j - (1 << k - 1)) as i32)) % 4
+            } else if j <= l + (1 << k) {
+                (2 * binomial2(l as i32, (j - (1 << k - 1)) as i32) + binomial4(l, j - (1 << k))) % 4
+            } else {
+                binomial4(l, j - (1 << k))
+            }
+        }
     } else {
         // 1 at the first borrow position
-        let fb = 1 << ((n - k) & k).trailing_zeros();
+        let fb = 1 << ((n - j) & j).trailing_zeros();
         if n & (fb << 1) == 0 {
             // This borrow requires a further borrow on the left
             return 0;
-        } else if k & (fb << 1) != 0 {
-            // In n there is a 1 to the left, but there is a 1 in k as well, so we need to borrow
+        } else if j & (fb << 1) != 0 {
+            // In n there is a 1 to the left, but there is a 1 in j as well, so we need to borrow
             // once more
             return 0;
-        } else {
-            // Remove the digit where we need to borrow. Check there is no further need to borrow
-            let k2 = k ^ fb;
-            if (n - k2) & k2 == 0 {
+         } else {
+            // Remove the digit where we need to borrow. Checj there is no further need to borrow
+            let j2 = j ^ fb;
+            if (n - j2) & j2 == 0 {
                 return 2;
             } else {
                 return 0;
             }
-        }
+         }
     }
 }
 
@@ -290,9 +311,8 @@ pub fn multinomial4(l: &[u32]) -> u32 {
         let sum = l.iter().sum();
         match binomial4(sum, l[0]) {
             0 => 0,
-            1 => multinomial4(&l[1..]),
             2 => 2 * multinomial2(&l[1..]),
-            _ => unreachable!(),
+            x => (x * multinomial4(&l[1..])) % 4,
         }
     }
 }
@@ -449,19 +469,13 @@ mod tests {
     }
 
     #[test]
-    fn test_binomial4() {
+    fn binomial4_cmp() {
         for n in 0 .. 12 {
             for j in 0 ..= (n + 1) / 2 {
-                let mut ans = match binomial_full(n, j) % 4 {
-                    1 | 3 => 1,
-                    2 => 2,
-                    _ => 0
-                };
-                assert_eq!(binomial4(n, j), ans);
+                assert_eq!(binomial4(n, j), binomial_full(n, j) % 4);
             }
         }
     }
-
 }
 
 pub const PRIMES: [u32; NUM_PRIMES] = [2, 3, 5, 7, 11, 13, 17, 19];
