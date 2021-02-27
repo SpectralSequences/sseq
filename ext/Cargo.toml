@@ -46,3 +46,14 @@ debug = true
 cache-multiplication = []
 concurrent = ["thread-token"]
 prime-two = ["fp/prime-two"]
+
+[workspace]
+members = [
+    "crates/algebra",
+    "crates/bivec",
+    "crates/fp",
+    "crates/once",
+    "crates/saveload",
+    "crates/thread-token",
+    "crates/error",
+]
