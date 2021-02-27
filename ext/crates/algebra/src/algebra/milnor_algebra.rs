@@ -676,7 +676,7 @@ impl MilnorAlgebra {
         if self.generic {
             let m1f = self.multiply_qpart(m1, m2.q_part);
             for (cc, basis) in m1f {
-                let mut multiplier = PPartMultiplier::new(self.prime(), &(basis.p_part), &(m2.p_part), false);
+                let mut multiplier = PPartMultiplier::<false>::new(self.prime(), &(basis.p_part), &(m2.p_part));
                 let mut new = MilnorBasisElement {
                     degree : target_dim,
                     q_part : basis.q_part,
@@ -688,7 +688,7 @@ impl MilnorAlgebra {
                 }
             }
         } else {
-            let mut multiplier = PPartMultiplier::new(self.prime(), &(m1.p_part), &(m2.p_part), false);
+            let mut multiplier = PPartMultiplier::<false>::new(self.prime(), &(m1.p_part), &(m2.p_part));
             let mut new = MilnorBasisElement {
                 degree: target_dim,
                 q_part: 0,
@@ -732,11 +732,10 @@ impl std::ops::IndexMut<usize> for Matrix2D {
 }
 
 #[allow(non_snake_case)]
-pub struct PPartMultiplier<'a> {
+pub struct PPartMultiplier<'a, const MOD4: bool> {
     p : ValidPrime,
     M : Matrix2D,
     r : &'a PPart,
-    mod_4: bool,
     rows : usize,
     cols : usize,
     diag_num : usize,
@@ -745,14 +744,14 @@ pub struct PPartMultiplier<'a> {
 }
 
 #[allow(non_snake_case)]
-impl<'a>  PPartMultiplier<'a> {
+impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
     fn prime(&self) -> ValidPrime {
         self.p
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn new (p : ValidPrime, r : &'a PPart, s : &'a PPart, mod_4: bool) -> PPartMultiplier<'a> {
-        if mod_4 {
+    pub fn new (p : ValidPrime, r : &'a PPart, s : &'a PPart) -> Self {
+        if MOD4 {
             assert_eq!(*p, 2);
         }
         let rows = r.len() + 1;
@@ -767,7 +766,7 @@ impl<'a>  PPartMultiplier<'a> {
         }
         M[0][1..cols].clone_from_slice(&s[0..(cols - 1)]);
 
-        PPartMultiplier { p, M, r, rows, cols, diag_num, diagonal, init : true, mod_4 }
+        PPartMultiplier { p, M, r, rows, cols, diag_num, diagonal, init : true }
     }
 
     fn update(&mut self) -> bool {
@@ -817,7 +816,7 @@ impl<'a>  PPartMultiplier<'a> {
         if self.init {
             self.init = false;
             for i in 1 .. std::cmp::min(self.cols, self.rows) {
-                if self.mod_4 {
+                if MOD4 {
                     coef *= fp::prime::binomial4(self.M[i][0] + self.M[0][i], self.M[0][i]);
                 } else {
                     coef *= fp::prime::binomial(self.prime(), (self.M[i][0] + self.M[0][i]) as i32, self.M[0][i] as i32);
@@ -852,7 +851,7 @@ impl<'a>  PPartMultiplier<'a> {
                 if sum == 0  {
                     continue;
                 }
-                if self.mod_4 {
+                if MOD4 {
                     if coef == 2 {
                         coef *= fp::prime::multinomial2(&self.diagonal);
                     } else {
