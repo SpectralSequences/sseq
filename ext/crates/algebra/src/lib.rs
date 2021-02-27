@@ -1,6 +1,5 @@
 #![macro_use]
 #![feature(drain_filter)]
-#![feature(try_blocks)]
 
 #![allow(clippy::many_single_char_names)]
 #![allow(clippy::unreadable_literal)]
