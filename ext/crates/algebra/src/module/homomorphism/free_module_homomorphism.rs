@@ -233,6 +233,17 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         self.outputs.push(new_outputs);
     }
 
+    pub fn add_generators_from_rows(
+        &self,
+        lock: &MutexGuard<()>,
+        degree: i32,
+        rows: Vec<FpVector>,
+    ) {
+        self.check_mutex(lock);
+        assert_eq!(degree, self.outputs.len());
+        self.outputs.push(rows);
+    }
+
     pub fn apply_to_generator(&self, result: &mut FpVector, coeff: u32, degree: i32, idx: usize) {
         let output_on_gen = self.output(degree, idx);
         result.add(output_on_gen, coeff);
