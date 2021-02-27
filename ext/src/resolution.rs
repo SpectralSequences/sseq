@@ -2,7 +2,7 @@ use parking_lot::{RwLock, Mutex};
 use std::cmp::{min, max};
 use std::sync::{Arc, Weak};
 use std::collections::HashSet;
-// use time::Instant;
+// use std::time::Instant;
 
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
