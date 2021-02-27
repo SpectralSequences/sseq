@@ -1160,8 +1160,6 @@ impl Matrix {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::Rng;
-    use rstest::rstest;
 
     #[test]
     fn test_augmented_matrix() {
@@ -1221,12 +1219,4 @@ mod tests {
             assert_eq!(m.pivots(), &goal_pivots)
         }
     }
-
-    fn random_vector(p : u32, v : &mut Vec<u32>){
-        let mut rng = rand::thread_rng();
-        for i in 0 .. v.len() {
-            v[i] = rng.gen::<u32>() % p;
-        }
-    }
-    
 }

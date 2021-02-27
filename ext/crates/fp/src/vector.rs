@@ -2990,7 +2990,7 @@ mod tests {
                     ));
                 }
             }
-            assert!(diffs == [], diffs_str);
+            assert!(diffs == [], "{}", diffs_str);
         }
     }
 
@@ -3012,7 +3012,7 @@ mod tests {
         v.set_entry(1, 1);
         v.set_entry(2, 1);
         v.set_slice(0, 1);
-        for (i, v) in v.iter_nonzero() {
+        for (i, _) in v.iter_nonzero() {
             assert!(i == 0);
         }
     }
@@ -3069,7 +3069,7 @@ mod tests {
             // for i in 0 .. std::cmp::min(result.len(), comparison_result.len()) {
             //     println!("res : {:?}, comp : {:?}", result[i], comparison_result[i]);
             // }
-            assert!(diffs_str == "", diffs_str);
+            assert!(diffs_str == "", "{}", diffs_str);
         }
     }
 
@@ -3164,7 +3164,7 @@ mod tests {
                     "   Inputs: {:x?}\n      expected {:?}, got {:?}. popcnts: {:?}", tuple,  res, test_res, popcnts
                 ))
             );
-            assert!(false, format!("\nFailed test cases:\n {}", formatter));
+            assert!(false, "\nFailed test cases:\n {}", formatter);
         }
     }
 }
