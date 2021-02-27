@@ -30,6 +30,14 @@ impl ValidPrime {
             None
         }
     }
+
+    /// Create a ValidPrime without checking the number is a valid prime. Calling with an invalid
+    /// value invokes undefined behaviour. The main reason for this is that
+    /// [ValidPrime::new](ValidPrime::new) is not const due to the checks. If the checked version
+    /// can be made const, we can remove this function
+    pub const unsafe fn new_unsafe(p: u32) -> Self {
+        Self { p }
+    }
 }
 
 impl std::ops::Deref for ValidPrime {
