@@ -1,11 +1,13 @@
+#![feature(backtrace)]
 use std::error::Error as StdError;
+use std::backtrace::Backtrace;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub struct Error {
     error: Box<dyn StdError + Send + Sync + 'static>,
-    backtrace: backtrace::Backtrace,
+    backtrace: Backtrace,
 }
 
 impl Error {
@@ -16,7 +18,7 @@ impl Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.error)?;
-        writeln!(f, "{:?}", self.backtrace)?;
+        writeln!(f, "{}", self.backtrace)?;
         Ok(())
     }
 }
@@ -25,7 +27,7 @@ impl<E: StdError + Send + Sync + 'static> From<E> for Error {
     fn from(error: E) -> Error {
         Self {
             error: Box::new(error),
-            backtrace: backtrace::Backtrace::new(),
+            backtrace: Backtrace::capture(),
         }
     }
 }
