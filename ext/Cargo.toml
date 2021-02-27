@@ -14,7 +14,6 @@ enum_dispatch = "0.2.0"
 error = { path = "crates/error"}
 fp = { path = "crates/fp" }
 lazy_static = "1.2.0"
-nom = "5.0.0"
 once = { path = "crates/once"}
 parking_lot = "0.11"
 saveload = { path = "crates/saveload" }
