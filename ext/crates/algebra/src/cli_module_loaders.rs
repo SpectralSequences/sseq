@@ -214,7 +214,7 @@ pub fn interactive_module_define_fdmodule(output_json : &mut Value, p : ValidPri
 
 fn get_relation(adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra, module : &FreeModule<SteenrodAlgebra>, basis_elt_lookup : &HashMap<String, (i32, usize)>) -> Result<(i32, FpVector), String> {
     let relation : String = query("Relation", Ok);
-    if relation == "" {
+    if relation.is_empty() {
         return Err("".to_string());
     }
     evaluate_module(adem_algebra, milnor_algebra, module, basis_elt_lookup, &relation).map_err(|err| err.to_string())
@@ -267,7 +267,7 @@ pub fn interactive_module_define_fpmodule(output_json : &mut Value, p : ValidPri
     loop {
         match get_relation(&adem_algebra, &milnor_algebra, &adem_module.generators, &basis_elt_lookup) {
             Err(x) => {
-                if x != "" {
+                if x.is_empty() {
                     println!("Invalid relation: {}. Try again.", x);
                     continue;
                 }

@@ -40,8 +40,8 @@ pub struct PolynomialAlgebraTableEntry {
     pub monomial_to_index : HashMap<PolynomialAlgebraMonomial, usize>, // degree -> AdemBasisElement -> index
 }
 
-impl PolynomialAlgebraTableEntry {
-    pub fn new() -> Self {
+impl Default for PolynomialAlgebraTableEntry {
+    fn default() -> Self {
         Self {
             index_to_monomial : Vec::new(),
             monomial_to_index : HashMap::new()
@@ -49,6 +49,13 @@ impl PolynomialAlgebraTableEntry {
     }
 }
 
+impl PolynomialAlgebraTableEntry {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+#[allow(clippy::derive_hash_xor_eq)]
 impl std::hash::Hash for PolynomialAlgebraMonomial {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.poly.hash(state);
@@ -108,7 +115,7 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
 
     
     fn monomial_to_index(&self, monomial : &PolynomialAlgebraMonomial) -> usize {
-        self.basis_table()[monomial.degree as usize].monomial_to_index.get(monomial).map(|x| *x)
+        self.basis_table()[monomial.degree as usize].monomial_to_index.get(monomial).copied()
             .unwrap_or_else(|| panic!("Didn't find monomial: {}", monomial))
     }
     
@@ -176,7 +183,7 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
             let nonzero_result = self.multiply_monomials(&mut target_mono,  &right_mono);
             if let Some(c) = nonzero_result {
                 let idx = self.monomial_to_index(&target_mono);
-                target.add_basis_element(idx, (left_entry * 1 * c * coeff)%p);
+                target.add_basis_element(idx, (left_entry * c * coeff)%p);
             }
         }
     }
@@ -191,7 +198,7 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
             let nonzero_result = self.multiply_monomials(&mut target_mono,  &right_mono);
             if let Some(c) = nonzero_result {
                 let idx = self.monomial_to_index(&target_mono);
-                target.add_basis_element(idx, (1 * right_entry * c * coeff)%p);
+                target.add_basis_element(idx, (right_entry * c * coeff)%p);
             }
         }
     }
@@ -254,7 +261,7 @@ impl<A : PolynomialAlgebra> Algebra for A {
                 }),
                 |x, y| x.1 < y.1
             ).map(|(v, _gen_deg)| v).join(" ");
-        if result.len() == 0 {
+        if result.is_empty() {
             "1".to_string()
         } else {
             result

@@ -251,7 +251,7 @@ fn module_expr(i: &str) -> IResult<&str, ModuleParseNode> {
 
 pub fn parse_algebra(i : &str) -> Result<AlgebraParseNode, ParseError> {
     let (rest, parse_tree) = algebra_expr(i)
-        .or_else(|err| Err(ParseError{info : format!("{:#?}", err) }))?;
+        .map_err(|err| ParseError{info : format!("{:#?}", err) })?;
     if rest.is_empty() {
         Ok(parse_tree)
     } else {
@@ -261,7 +261,7 @@ pub fn parse_algebra(i : &str) -> Result<AlgebraParseNode, ParseError> {
 
 pub fn parse_module(i : &str) -> Result<ModuleParseNode, ParseError> {
     let (rest, parse_tree) = module_expr(i)
-        .or_else(|err| Err(ParseError{info : format!("{:#?}", err) }))?;
+        .map_err(|err| ParseError{info : format!("{:#?}", err) })?;
     if rest.is_empty() {
         Ok(parse_tree)
     } else {

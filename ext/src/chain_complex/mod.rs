@@ -43,7 +43,7 @@ pub trait FreeChainComplex:
                     _ => result.push_str(&format!("{} ", n))
                 }
             }
-            result.push_str("\n");
+            result.push('\n');
             // If it is empty so far, don't print anything
             if result.trim_start().is_empty() {
                 result = String::new();

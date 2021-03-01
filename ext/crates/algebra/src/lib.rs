@@ -6,6 +6,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::implicit_hasher)]
+#![allow(clippy::inconsistent_struct_constructor)]
 #![warn(clippy::default_trait_access)]
 #![warn(clippy::if_not_else)]
 #![warn(clippy::needless_continue)]

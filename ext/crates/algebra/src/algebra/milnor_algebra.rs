@@ -791,7 +791,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                     continue;
                 }
                 // Check if any entry in column j above row i is nonzero. I'm still not sure why tbh.
-                if (0..i).find(|&k| self.M[k][j] != 0).is_some() {
+                if (0..i).any(|k| self.M[k][j] != 0) {
                     // If so, we found our next matrix.
                     for row in 1..i {
                         self.M[row][0] = self.r[row-1];

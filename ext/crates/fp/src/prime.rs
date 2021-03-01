@@ -261,6 +261,7 @@ pub fn binomial4(n: u32, j: u32) -> u32 {
     if n < 2 {
         return 1;
     }
+    #[allow(clippy::collapsible_else_if)]
     if (n - j) & j == 0 {
         // Answer is odd
         let k = 32 - n.leading_zeros() - 1;
@@ -285,12 +286,8 @@ pub fn binomial4(n: u32, j: u32) -> u32 {
     } else {
         // 1 at the first borrow position
         let fb = 1 << ((n - j) & j).trailing_zeros();
-        if n & (fb << 1) == 0 {
-            // This borrow requires a further borrow on the left
-            0
-        } else if j & (fb << 1) != 0 {
-            // In n there is a 1 to the left, but there is a 1 in j as well, so we need to borrow
-            // once more
+        if n & (fb << 1) == 0 || // This borrow requires a further borrow on the left
+           j & (fb << 1) != 0 { // In n there is a 1 to the left, but there is a 1 in j as well, so we need to borrow once more
             0
         } else {
             // Remove the digit where we need to borrow. Checj there is no further need to borrow

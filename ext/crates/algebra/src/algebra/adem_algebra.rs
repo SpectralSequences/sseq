@@ -79,18 +79,15 @@ pub enum PorBockstein {
 impl AdemBasisElement {
     fn iter_filtered(&self) -> impl Iterator<Item=PorBockstein> + '_ {
         BitflagIterator::new(self.bocksteins as u64)
-        .map(|b| PorBockstein::Bockstein(b))
+        .map(PorBockstein::Bockstein)
         .interleave(
             self.ps.iter().map(|b| PorBockstein::P(*b))
-        ).filter(|b| match b {
-            PorBockstein::Bockstein(false) => false,
-            _ => true
-        })
+        ).filter(|b| matches!(b, PorBockstein::Bockstein(false)))
     }
 
     fn iter_full(&self) -> impl Iterator<Item=PorBockstein> + '_ {
         BitflagIterator::new_fixed_length(self.bocksteins as u64, self.ps.len() + 1)
-        .map(|b| PorBockstein::Bockstein(b))
+        .map(PorBockstein::Bockstein)
         .interleave(
             self.ps.iter().map(|b| PorBockstein::P(*b))
         )
@@ -477,8 +474,7 @@ impl AdemAlgebra {
 
     fn generate_basis_even(&self, mut next_degree : i32, max_degree : i32){
         if next_degree == 0 {
-            let mut table = Vec::with_capacity(1);
-            table.push(
+            self.even_basis_table.push(vec![
                 AdemBasisElement {
                     degree : 0,
                     excess : 0,
@@ -486,8 +482,7 @@ impl AdemAlgebra {
                     ps : vec![],
                     p_or_sq : *self.prime() != 2
                 }
-            );
-            self.even_basis_table.push(table);
+            ]);
             next_degree += 1;
         }
 
@@ -1156,8 +1151,7 @@ impl AdemAlgebra {
         let mut out_vec = FpVector::new(ValidPrime::new(2), self.dimension(degree, i32::max_value()));
         self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, i32::max_value());
         out_vec.set_entry(idx, 0);
-        let mut result = Vec::new();
-        result.push((1, (first_degree, first_idx), (second_degree, second_idx)));
+        let mut result = vec![(1, (first_degree, first_idx), (second_degree, second_idx))];
         for (i, _v) in out_vec.iter_nonzero() {
             result.extend(self.decompose_basis_element_2(degree, i));
         }
@@ -1341,7 +1335,7 @@ impl Bialgebra for AdemAlgebra {
             result
         } else {
             let elt = &self.basis_table[op_deg as usize][op_idx];
-            elt.ps.iter().rev().map(|i| (*i as i32, 0 as usize)).collect::<Vec<_>>()
+            elt.ps.iter().rev().map(|i| (*i as i32, 0)).collect::<Vec<_>>()
         }
     }
 
@@ -1362,7 +1356,7 @@ impl Bialgebra for AdemAlgebra {
             }
         } else {
             assert_eq!(op_idx, 0);
-            (0 ..= op_deg).map(|j| (j, 0 as usize, op_deg - j, 0 as usize)).collect::<Vec<_>>()
+            (0 ..= op_deg).map(|j| (j, 0, op_deg - j, 0)).collect::<Vec<_>>()
         }
     }
 }

@@ -423,7 +423,7 @@ where
             // Compute d (x) 1
             let mut target_offset = 0;
             let mut row_count = {
-                let m = &self.source.modules[0 as usize];
+                let m = &self.source.modules[0usize];
                 m.left.dimension(left_t) * m.right.dimension(right_t)
             };
             for s in 1..=self.source_s {

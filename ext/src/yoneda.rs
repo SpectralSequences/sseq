@@ -352,7 +352,7 @@ where TCM : BoundedModule<Algebra = SteenrodAlgebra>,
                     (strategy(&*source.module.module, subspace, t, i), i)
                 })
                 .collect::<Vec<_>>();
-            pivot_columns.sort();
+            pivot_columns.sort_unstable();
 
             let image_pivots = images.find_pivots_permutation(pivot_columns.iter().map(|(_p, i)| *i));
 

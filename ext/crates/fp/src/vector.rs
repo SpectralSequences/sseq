@@ -396,6 +396,7 @@ pub trait FpVectorT {
         let min_limb = self.min_limb();
         let max_limb = self.max_limb();
         let mut target_limbs = self.take_limbs();
+        #[allow(clippy::needless_range_loop)]
         for i in min_limb .. max_limb {
             target_limbs[i] = self.reduce_limb(self.add_limb(target_limbs[i], other.limbs()[i], c));
         }
@@ -655,6 +656,7 @@ pub trait FpVectorT {
     }
 
     /// Drops every element in the fp_vector that is not in the current slice.
+    #[allow(clippy::wrong_self_convention)]
     fn into_slice(&mut self) {
         let p = self.prime();
         let container = self.vector_container_mut();
@@ -1305,7 +1307,7 @@ impl FpVectorT for FpVector5 {
         let mut c = (m >> 3) & bottom_bit;
         c |= c << 1;
         let d = m & bottom_three_bits;
-        return d + c - bottom_two_bits;
+        d + c - bottom_two_bits
     }
 
     // This code contributed by Robert Burklund
@@ -1484,12 +1486,12 @@ impl FpVector {
         let bit_min = 0usize;
         let bit_max = bit_length * entries_per_64_bits;
         let mut result = String::new();
-        result.push_str("[");
+        result.push('[');
         for j in (bit_min .. bit_max).step_by(bit_length) {
             let s = format!("{}, ", ((limb >> j) & bit_mask) as u32);
             result.push_str(&s);
         }
-        result.push_str("]");  
+        result.push(']');
         result
     }
 
@@ -2254,9 +2256,10 @@ pub struct VectorDiffEntry {
 }
 
 impl FpVector {
-    pub fn diff_list(&self, other : &Vec<u32>) -> Vec<VectorDiffEntry> {
+    pub fn diff_list(&self, other : &[u32]) -> Vec<VectorDiffEntry> {
         assert!(self.dimension() == other.len());
         let mut result = Vec::new();
+        #[allow(clippy::needless_range_loop)]
         for index in 0 .. self.dimension() {
             let left = self.entry(index);
             let right = other[index];
@@ -2295,7 +2298,7 @@ impl FpVector {
         format!("{}", data_formatter)
     }
 
-    pub fn assert_list_eq(&self, other : &Vec<u32>){
+    pub fn assert_list_eq(&self, other : &[u32]){
         let diff = self.diff_list(other);
         if diff.is_empty() {
             return;

@@ -90,7 +90,7 @@ pub trait Algebra : Send + Sync + 'static {
             result.push_str(&format!("{} + ", b));
         }
         if zero {
-            result.push_str("0");
+            result.push('0');
         } else {
             // Remove trailing " + "
             result.pop();

@@ -67,9 +67,7 @@ impl<A : AdemAlgebraT> Dickson2<A> {
     fn klfrob(&self, degree : i32) -> Option<(i32, i32, i32)>{
         let frob_plus_k = degree.trailing_zeros()  as i32;
         let two_to_the_frob_plus_n = degree + (1 << frob_plus_k);
-        if two_to_the_frob_plus_n.count_ones() != 1 {
-            None
-        } else {
+        if two_to_the_frob_plus_n.count_ones() == 1 {
             let frob_plus_n = two_to_the_frob_plus_n.trailing_zeros()  as i32;
             let frob = frob_plus_n - self.n;
             let k = frob_plus_k - frob;
@@ -79,6 +77,8 @@ impl<A : AdemAlgebraT> Dickson2<A> {
             } else {
                 Some((k, l, frob))
             }
+        } else {
+            None
         }
     }
 }

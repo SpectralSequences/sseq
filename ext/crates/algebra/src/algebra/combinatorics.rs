@@ -222,7 +222,7 @@ impl<'a> PartitionIterator<'a> {
     pub fn new(max_degree : i32, num_parts : u32, parts : &'a [i32]) -> Self {
         let mut remaining = max_degree;
         let mut partition = vec![0; parts.len()];
-        if parts.len() == 0 {
+        if parts.is_empty() {
             return Self { 
                 remaining : -1,
                 parts,

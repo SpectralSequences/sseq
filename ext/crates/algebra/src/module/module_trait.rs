@@ -134,7 +134,7 @@ pub trait Module: Send + Sync + 'static {
             let basis_elt = self.basis_element_to_string(degree, idx);
             format!("{}{}", coeff, basis_elt)
         }).join(" + ");
-        if result.len() == 0 {
+        if result.is_empty() {
             "0".to_string()
         } else {
             result
@@ -213,7 +213,7 @@ pub trait Module: Send + Sync + 'static {
     fn test_relations(&self, max_degree : i32, max_failures_to_display : usize){
         let discrepancies = self.check_relations(max_degree);
         let algebra = self.algebra();
-        if discrepancies.len() != 0 {
+        if !discrepancies.is_empty() {
             let formatter = discrepancies.iter().take(max_failures_to_display).format_with("\n\n   ========= \n\n  ", 
                 |(
                     tuple,
@@ -236,7 +236,7 @@ pub trait Module: Send + Sync + 'static {
                     ))
                 }
             );
-            assert!(false, "Discrepancies:\n  {}",formatter);
+            panic!("Discrepancies:\n  {}",formatter);
         }
     }
 }

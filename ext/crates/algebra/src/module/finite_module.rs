@@ -153,10 +153,7 @@ impl Module for FiniteModule {
 
     /// Whether act_on_basis_borrow is available.
     fn borrow_output(&self) -> bool {
-        match self {
-            FiniteModule::FDModule(_) => true,
-            _ => false,
-        }
+        self.is_fd_module()
     }
 
     fn act_on_basis_borrow(
@@ -229,24 +226,15 @@ impl FiniteModule {
     }
 
     pub fn is_real_projective_space(&self) -> bool {
-        match self {
-            FiniteModule::RealProjectiveSpace(_) => true,
-            _ => false,
-        }
+        matches!(self, FiniteModule::RealProjectiveSpace(_))
     }
 
     pub fn is_fp_module(&self) -> bool {
-        match self {
-            FiniteModule::FPModule(_) => true,
-            _ => false,
-        }
+        matches!(self, FiniteModule::FPModule(_))
     }
 
     pub fn is_fd_module(&self) -> bool {
-        match self {
-            FiniteModule::FDModule(_) => true,
-            _ => false,
-        }
+        matches!(self, FiniteModule::FDModule(_))
     }
 
     pub fn into_real_projective_space(self) -> Option<RealProjectiveSpace<SteenrodAlgebra>> {

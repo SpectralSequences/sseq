@@ -88,6 +88,7 @@ impl<M: SteenrodModule> From<FPModuleHomomorphism<FiniteModule, M>>
 }
 
 // Finite Module Homomorphism Interior
+#[allow(clippy::upper_case_acronyms)]
 enum FMHI<M: SteenrodModule> {
     FD(BoundedModuleHomomorphism<FiniteModule, M>),
     FP(FPModuleHomomorphism<FiniteModule, M>),

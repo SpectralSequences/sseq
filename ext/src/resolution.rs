@@ -573,7 +573,7 @@ impl<CC : ChainComplex> ChainComplex for ResolutionInner<CC> {
 
     fn compute_through_bidegree(&self, s : u32, t : i32) {
         assert!(self.modules.len() > s as usize);
-        assert!(self.modules[0 as usize].max_computed_degree() >= t);
+        assert!(self.modules[0usize].max_computed_degree() >= t);
     }
 }
 
