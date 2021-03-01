@@ -2816,7 +2816,7 @@ mod tests {
             let w_arr = random_vector(p, dim);
             v.pack(&v_arr);
             w.pack(&w_arr);
-            let ok_q = v.add_truncate(&w, 1).is_ok();
+            let ok_q = v.add_truncate(&w, 1).is_some();
             v.clear_slice();
             if ok_q {
                 for i in 0..dim {
@@ -2854,7 +2854,7 @@ mod tests {
             w.pack(&w_arr);
             v.set_slice(slice_start + 2, slice_end + 2);
             w.set_slice(slice_start, slice_end);
-            let ok_q = v.add_truncate(&w, 1).is_ok();
+            let ok_q = v.add_truncate(&w, 1).is_some();
             v.clear_slice();
             println!("\nok_q: {}\n" , ok_q);
             if ok_q {
@@ -2893,7 +2893,7 @@ mod tests {
             w.pack(&w_arr);
             v.set_slice(slice_start - 2, slice_end - 2);
             w.set_slice(slice_start, slice_end);
-            let ok_q = v.add_truncate(&w, 1).is_ok();
+            let ok_q = v.add_truncate(&w, 1).is_some();
             v.clear_slice();
             if ok_q {
                 for i in slice_start - 2 .. slice_end - 2 {

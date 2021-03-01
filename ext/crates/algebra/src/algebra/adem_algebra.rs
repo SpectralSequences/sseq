@@ -82,7 +82,7 @@ impl AdemBasisElement {
         .map(PorBockstein::Bockstein)
         .interleave(
             self.ps.iter().map(|b| PorBockstein::P(*b))
-        ).filter(|b| matches!(b, PorBockstein::Bockstein(false)))
+        ).filter(|b| !matches!(b, PorBockstein::Bockstein(false)))
     }
 
     fn iter_full(&self) -> impl Iterator<Item=PorBockstein> + '_ {
