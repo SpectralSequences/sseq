@@ -68,12 +68,12 @@ impl Manager {
 
             for msg in res_receiver {
                 let action_string = format!("{}", msg);
-                let start = OffsetDateTime::now_local();
+                let start = OffsetDateTime::now_utc();
                 println!("{}\n", wrapper.fill(&format!("{} ResolutionManager: Processing {}", start.format("%F %T"), action_string)));
 
                 resolution_manager.process_message(msg).unwrap();
 
-                let end = OffsetDateTime::now_local();
+                let end = OffsetDateTime::now_utc();
                 let time_diff = (end - start).whole_milliseconds();
                 println!("{}\n", wrapper.fill(&format!("{} ResolutionManager: Completed in {}", end.format("%F %T"), ms_to_string(time_diff))));
             }
@@ -90,7 +90,7 @@ impl Manager {
             for msg in sseq_receiver {
                 let action_string = format!("{}", msg);
                 let user = SseqManager::is_user(&msg.action);
-                let start = OffsetDateTime::now_local();
+                let start = OffsetDateTime::now_utc();
 
                 if user {
                     println!("{}\n", wrapper.fill(&format!("{} SseqManager: Processing {}", start.format("%F %T"), action_string)));
@@ -99,7 +99,7 @@ impl Manager {
                 sseq_manager.process_message(msg).unwrap();
 
                 if user {
-                    let end = OffsetDateTime::now_local();
+                    let end = OffsetDateTime::now_utc();
                     let time_diff = (end - start).whole_milliseconds();
                     println!("{}\n", wrapper.fill(&format!("{} SseqManager: Completed in {}", end.format("%F %T"), ms_to_string(time_diff))));
                 }

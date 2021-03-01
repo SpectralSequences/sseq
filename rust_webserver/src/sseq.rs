@@ -87,7 +87,7 @@ impl Differential {
 
         last_row.set_slice(source_dim, source_dim + target_dim);
         match target {
-            Some(t) => last_row.shift_add(t, 1),
+            Some(t) => last_row.add(t, 1),
             None => last_row.set_to_zero()
         };
         last_row.clear_slice();
@@ -117,7 +117,7 @@ impl Differential {
                 d.clear_slice();
 
                 d.set_slice(source_dim, source_dim + target_dim);
-                target.shift_add(&d, 1);
+                target.add(&d, 1);
                 d.clear_slice();
                 (source, target)
             }).collect::<Vec<_>>()
@@ -596,7 +596,7 @@ impl Sseq {
             result.clear_slice();
 
             result.set_slice(source_dim, source_dim + target_dim);
-            result.shift_add(&dvec, 1);
+            result.add(&dvec, 1);
             result.clear_slice();
 
             vectors.push(result);
