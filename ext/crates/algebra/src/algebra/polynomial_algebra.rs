@@ -128,7 +128,7 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
         }
     }
 
-    fn multiply_monomials(&self, target : &mut PolynomialAlgebraMonomial, source : &PolynomialAlgebraMonomial) -> Result<u32, ()> {
+    fn multiply_monomials(&self, target : &mut PolynomialAlgebraMonomial, source : &PolynomialAlgebraMonomial) -> Option<u32> {
         let minus_one = *self.prime() - 1;
         self.set_monomial_degree(target, target.degree + source.degree);
         let mut temp_source_ext = source.ext.clone();
@@ -149,7 +149,7 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
                 carry_vec[0].set_to_zero_pure();
             }
         }
-        Ok(coeff)
+        Some(coeff)
     }
 
     fn multiply_polynomials(&self, target : &mut FpVector, coeff : u32, left_degree : i32, left : &FpVector, right_degree : i32, right : &FpVector) {
@@ -160,7 +160,7 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
                 let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone();
                 let source_mono = self.index_to_monomial(right_degree, right_idx);
                 let nonzero_result = self.multiply_monomials(&mut target_mono,  &source_mono);
-                if let Ok(c) = nonzero_result {
+                if let Some(c) = nonzero_result {
                     let idx = self.monomial_to_index(&target_mono);
                     target.add_basis_element(idx, (left_entry * right_entry * c * coeff)%p);
                 }
@@ -174,7 +174,7 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
         for (left_idx, left_entry) in left.iter_nonzero() {
             let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone(); // Could reduce cloning a bit but probably best not to worry.
             let nonzero_result = self.multiply_monomials(&mut target_mono,  &right_mono);
-            if let Ok(c) = nonzero_result {
+            if let Some(c) = nonzero_result {
                 let idx = self.monomial_to_index(&target_mono);
                 target.add_basis_element(idx, (left_entry * 1 * c * coeff)%p);
             }
@@ -189,7 +189,7 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
             let mut target_mono = left_mono.clone(); // Could reduce cloning a bit but probably best not to worry.
             let right_mono = self.index_to_monomial(right_degree, right_idx);
             let nonzero_result = self.multiply_monomials(&mut target_mono,  &right_mono);
-            if let Ok(c) = nonzero_result {
+            if let Some(c) = nonzero_result {
                 let idx = self.monomial_to_index(&target_mono);
                 target.add_basis_element(idx, (1 * right_entry * c * coeff)%p);
             }
@@ -267,7 +267,7 @@ impl<A : PolynomialAlgebra> Algebra for A {
         }
         let mut target = self.index_to_monomial(left_degree, left_idx).clone();
         let source = self.index_to_monomial(right_degree, right_idx);
-        if self.multiply_monomials(&mut target, &source).is_ok() {
+        if self.multiply_monomials(&mut target, &source).is_some() {
             let idx = self.monomial_to_index(&target);
             result.add_basis_element(idx, coeff);
         }
