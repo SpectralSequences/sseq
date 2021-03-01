@@ -21,6 +21,7 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
           toolchain: nightly-2021-02-27
+          components: clippy
 
     - name: Run tests
       run: make -C ext test
