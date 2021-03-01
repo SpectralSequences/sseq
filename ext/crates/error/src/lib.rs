@@ -4,7 +4,6 @@ use std::backtrace::Backtrace;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug)]
 pub struct Error {
     error: Box<dyn StdError + Send + Sync + 'static>,
     backtrace: Backtrace,
@@ -19,6 +18,13 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.error)?;
         writeln!(f, "{}", self.backtrace)?;
+        Ok(())
+    }
+}
+
+impl std::fmt::Debug for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{:?}", self.error)?;
         Ok(())
     }
 }
