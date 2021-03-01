@@ -31,3 +31,4 @@ use crate::module::homomorphism::FiniteModuleHomomorphism;
 pub type CCC = FiniteChainComplex<FiniteModule, FiniteModuleHomomorphism<FiniteModule>>;
 
 pub mod utils;
+pub mod secondary;

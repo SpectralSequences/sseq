@@ -501,5 +501,16 @@ pub fn steenrod() -> error::Result<String> {
 }
 
 pub fn test(_config: &Config) -> error::Result<String> {
+    let bundle = ext::utils::construct_s_2("milnor");
+    let resolution = &*bundle.resolution.read();
+
+    let s = 7;
+    let t = 58;
+
+    resolution.resolve_through_bidegree(s, t);
+    let deltas = ext::secondary::compute_delta(&resolution.inner, s, t);
+
+    println!("d_2(D_1) = [{}]", deltas[s as usize - 2].output(t, 0).iter().last().unwrap());
+
     Ok(String::new())
 }

@@ -130,6 +130,12 @@ pub fn load_module_from_file(config : &Config) -> error::Result<String> {
     }.into())
 }
 
+pub fn construct_s_2(algebra: &str) -> AlgebraicObjectsBundle {
+    let json = r#"{"type" : "finite dimensional module","p": 2, "generic": false, "gens": {"x0": 0}, "milnor_actions": []}"#;
+    let json = serde_json::from_str(json).unwrap();
+    construct_from_json(json, algebra.to_string()).unwrap()
+}
+
 #[derive(Debug)]
 struct ModuleFileNotFoundError {
     name : String

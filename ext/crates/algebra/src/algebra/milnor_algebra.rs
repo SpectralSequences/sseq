@@ -827,22 +827,23 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
             for i in 1 .. std::cmp::min(self.cols, self.rows) {
                 if MOD4 {
                     coef *= fp::prime::binomial4(self.M[i][0] + self.M[0][i], self.M[0][i]);
+                    coef %= 4;
                 } else {
                     coef *= fp::prime::binomial(self.prime(), (self.M[i][0] + self.M[0][i]) as i32, self.M[0][i] as i32);
+                    coef %= *self.prime();
+                }
+                if coef == 0 {
+                    return self.next(basis);
                 }
             }
-            if coef == 0 {
-                self.next(basis)
-            } else {
-                new_p.extend_from_slice(&self.M[0][1..self.cols]);
-                if self.rows > self.cols {
-                    new_p.resize(self.r.len(), 0);
-                }
-                for (i, &entry) in self.r.iter().enumerate() {
-                    new_p[i] += entry;
-                }
-                Some(coef)
+            new_p.extend_from_slice(&self.M[0][1..self.cols]);
+            if self.rows > self.cols {
+                new_p.resize(self.r.len(), 0);
             }
+            for (i, &entry) in self.r.iter().enumerate() {
+                new_p[i] += entry;
+            }
+            Some(coef)
         } else if self.update() {
             for diag_idx in 1..=self.diag_num {
                 let i_min = if diag_idx + 1 > self.cols { diag_idx + 1 - self.cols } else {0} ;
