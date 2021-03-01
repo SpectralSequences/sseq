@@ -1,0 +1,28 @@
+name: Test rust_ext
+
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Cache files
+      uses: actions/cache@v2
+      with:
+          path: |
+              ~/.rustup
+              ~/.cargo
+              **/target
+          key: ${{ runner.os }}-${{ hashFiles('ext/Cargo.*') }}
+
+    - name: Install rustup
+      uses: actions-rs/toolchain@v1
+          toolchain: nightly-2021-02-27
+
+    - name: Run tests
+      run: make -C ext test
+
+    - name: Run lint
+      run: make -C ext lint
