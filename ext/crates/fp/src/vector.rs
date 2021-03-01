@@ -1182,9 +1182,9 @@ impl FpVector2 {
             }
         }
         target_limbs = cur_vec.take_limbs();
-        target_limbs[idx] = target_limbs[idx] ^ carry;
+        target_limbs[idx] ^=  carry;
         cur_vec.put_limbs(target_limbs);
-        return true;
+        true
     }
 
     pub fn add_carry_shift_none2(&mut self, other : &FpVector, rest : &mut [FpVector]) -> bool {
@@ -1265,7 +1265,7 @@ impl FpVectorT for FpVector3 {
         let mut limb_3s = limb_2 & (limb_2 >> 1);
         limb_3s |= limb_3s << 1;
         limb_2 ^= limb_3s;
-        return limb_2;
+        limb_2
     }
 
     fn reduce_quotient_limb(&self, limb : u64) -> (u64, u64) {
@@ -1371,7 +1371,7 @@ impl FpVector {
         let limbs = vec![0; number_of_limbs];
         let slice_start = 0;
         let slice_end = dimension;
-        let vector_container = VectorContainer { dimension, limbs, slice_start, slice_end };
+        let vector_container = VectorContainer { dimension, slice_start, slice_end, limbs };
 
         #[cfg(feature = "prime-two")]
         {
@@ -1500,12 +1500,12 @@ impl FpVector {
         let bit_min = 0usize;
         let bit_max = bit_length * entries_per_64_bits;
         let mut result = String::new();
-        result.push_str("[");
+        result.push('[');
         for j in (bit_min .. bit_max).step_by(bit_length) {
             let s = format!("{:b}, ",  ((limb >> j) & bit_mask) as u32);
             result.push_str(&s);
         }
-        result.push_str("]");  
+        result.push(']');
         result
     }
 
@@ -1587,7 +1587,7 @@ impl FpVector {
             target_limbs[i + min_target_limb] = cur_vec.reduce_limb(target_limbs[i + min_target_limb]);
         }
         cur_vec.put_limbs(target_limbs);
-        return true;
+        true
     }
 
     pub fn add_carry_shift_none(&mut self, other : &FpVector, c : u32, rest : &mut [FpVector]) -> bool {
@@ -2243,7 +2243,7 @@ impl FpVectorMask {
                 return false;
             }
         }
-        return true;
+        true
     }    
 }
 
@@ -2297,7 +2297,7 @@ impl FpVector {
 
     pub fn assert_list_eq(&self, other : &Vec<u32>){
         let diff = self.diff_list(other);
-        if diff.len() == 0 {
+        if diff.is_empty() {
             return;
         }
         println!("assert {} == {:?}", self,other);
@@ -2306,7 +2306,7 @@ impl FpVector {
 
     pub fn assert_vec_eq(&self, other : &FpVector){
         let diff = self.diff_vec(other);
-        if diff.len() == 0 {
+        if diff.is_empty() {
             return;
         }
         println!("assert {} == {}", self,other);
@@ -2945,13 +2945,13 @@ mod tests {
             for e in 0 ..= E_MAX {
                 println!("in {}: {}", e, v[e]);
             }
-            println!("");
+            println!();
             
             println!("in  : {:?}", w_arr);
             for e in 0 ..= E_MAX {
                 println!("in {}: {}", e, w[e]);
             }
-            println!("");
+            println!();
 
             for e in 0 ..= E_MAX {
                 let (first, rest) = v[e..].split_at_mut(1);
@@ -2969,7 +2969,7 @@ mod tests {
             for e in 0 ..= E_MAX {
                 println!("out{}: {}", e, v[e]);
             }
-            println!("");
+            println!();
 
             let mut comparison_result = vec![0; dim];
             for i in 0 .. dim {
@@ -3085,6 +3085,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_sign_rule(){
         let p = 2;
         let p_ = ValidPrime::new(p);        

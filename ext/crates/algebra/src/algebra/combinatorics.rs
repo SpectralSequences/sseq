@@ -425,7 +425,7 @@ mod tests {
         for d in 0 .. tp.parts.len() {
             for (idx, part) in tp.parts[d].iter().enumerate() {
                 assert!(expected[d][idx] == format!("{}", part), 
-                    format!("Discrepancy : degree : {}, idx : {} expected : {}, got : {}", d, idx, expected[d][idx], part)
+                    "Discrepancy : degree : {}, idx : {} expected : {}, got : {}", d, idx, expected[d][idx], part
                 );
             }
         }

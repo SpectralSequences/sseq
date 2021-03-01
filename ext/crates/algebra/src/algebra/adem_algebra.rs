@@ -1438,11 +1438,11 @@ mod tests {
                     algebra.multiply_basis_elements(&mut out_vec, coeff, first_degree, first_idx, second_degree, second_idx, i32::max_value());
                 }
                 assert!(out_vec.entry(j) == 1, 
-                    format!("{} != {}", algebra.basis_element_to_string(i, j), algebra.element_to_string(i, &out_vec)));
+                    "{} != {}", algebra.basis_element_to_string(i, j), algebra.element_to_string(i, &out_vec));
                 out_vec.set_entry(j, 0);
-                assert!(out_vec.is_zero(), 
-                    format!("\n{} != {}", 
-                        algebra.basis_element_to_string(i, j), algebra.element_to_string(i, &out_vec)));
+                assert!(out_vec.is_zero(),
+                    "\n{} != {}",
+                        algebra.basis_element_to_string(i, j), algebra.element_to_string(i, &out_vec));
             }
         }
     }

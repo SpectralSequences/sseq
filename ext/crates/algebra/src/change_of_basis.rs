@@ -248,18 +248,18 @@ mod tests {
                 milnor_to_adem_on_basis(&adem, &milnor, &mut adem_result, 1, degree, i);
                 adem_to_milnor(&adem, &milnor, &mut milnor_result, 1, degree, &adem_result);
                 assert!(milnor_result.entry(i) == 1, 
-                    format!("{} ==> {} ==> {}", 
+                    "{} ==> {} ==> {}",
                         milnor.basis_element_to_string(degree, i),
                         adem.element_to_string(degree, &adem_result),
                         milnor.element_to_string(degree, &milnor_result)
-                ));
+                );
                 milnor_result.set_entry(i, 0);
                 assert!(milnor_result.is_zero(),
-                    format!("{} ==> {} ==> {}", 
+                    "{} ==> {} ==> {}",
                         milnor.basis_element_to_string(degree, i),
                         adem.element_to_string(degree, &adem_result),
                         milnor.element_to_string(degree, &milnor_result)
-                ));
+                );
                 println!("    {} ==> {}", milnor.basis_element_to_string(degree,i), adem.element_to_string(degree, &adem_result));
                 adem_result.set_to_zero();
                 milnor_result.set_to_zero();

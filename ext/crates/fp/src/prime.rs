@@ -275,9 +275,9 @@ pub fn binomial4(n: u32, j: u32) -> u32 {
             if j < (1 << (k - 1)) {
                 binomial4(l, j)
             } else if j <= l {
-                (binomial4(l, j) + 2 * binomial2(l as i32, (j - (1 << k - 1)) as i32)) % 4
+                (binomial4(l, j) + 2 * binomial2(l as i32, (j - (1 << (k - 1))) as i32)) % 4
             } else if j <= l + (1 << k) {
-                (2 * binomial2(l as i32, (j - (1 << k - 1)) as i32) + binomial4(l, j - (1 << k))) % 4
+                (2 * binomial2(l as i32, (j - (1 << (k - 1))) as i32) + binomial4(l, j - (1 << k))) % 4
             } else {
                 binomial4(l, j - (1 << k))
             }
@@ -287,18 +287,18 @@ pub fn binomial4(n: u32, j: u32) -> u32 {
         let fb = 1 << ((n - j) & j).trailing_zeros();
         if n & (fb << 1) == 0 {
             // This borrow requires a further borrow on the left
-            return 0;
+            0
         } else if j & (fb << 1) != 0 {
             // In n there is a 1 to the left, but there is a 1 in j as well, so we need to borrow
             // once more
-            return 0;
-         } else {
+            0
+        } else {
             // Remove the digit where we need to borrow. Checj there is no further need to borrow
             let j2 = j ^ fb;
             if (n - j2) & j2 == 0 {
-                return 2;
+                2
             } else {
-                return 0;
+                0
             }
          }
     }

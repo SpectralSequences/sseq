@@ -51,7 +51,7 @@ impl Basis {
                 return true;
             }
         }
-        return false;
+        false
     }
 
 

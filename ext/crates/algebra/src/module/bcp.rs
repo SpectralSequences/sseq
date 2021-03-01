@@ -146,6 +146,7 @@ mod tests {
     use crate::module::Module;
 
     #[rstest(p, case(2), case(3), case(5))]
+    #[ignore]
     fn test_bcp(p : u32){
         let p_ = ValidPrime::new(p);
         let algebra = Arc::new(AdemAlgebra::new(p_, p != 2, false, false));

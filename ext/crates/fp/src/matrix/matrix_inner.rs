@@ -1140,7 +1140,7 @@ impl Matrix {
 
     pub fn assert_list_eq(&self, other : &[Vec<u32>]){
         let diff = self.diff_list(other);
-        if diff.len() == 0 {
+        if diff.is_empty() {
             return;
         }
         println!("assert {} == {:?}", self,other);
@@ -1149,7 +1149,7 @@ impl Matrix {
 
     pub fn assert_matrix_eq(&self, other : &Matrix){
         let diff = self.diff_matrix(other);
-        if diff.len() == 0 {
+        if diff.is_empty() {
             return;
         }
         println!("assert {} == {}", self, other);
