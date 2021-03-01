@@ -1,0 +1,47 @@
+name: Test chart build
+
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Cache files
+      uses: actions/cache@v2
+      with:
+          path: |
+              ~/.rustup
+              ~/.cargo
+              ~/.local/lib/python*/
+              **/node_modules
+              **/target
+          key: ${{ runner.os }}-${{ hashFiles('**/package.json', '**/Cargo.toml') }}
+
+    - name: Install python build dependencies
+      run: python3 -m pip install setuptools wheel
+
+    - name: Install rustup
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+
+    - name: Install wasm-pack
+      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+    - name: Build all
+      run: make
+
+    - name: Check that no files are overwritten
+      run: git diff --exit-code
+
+  clean:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Make clean does not remove commited files
+      run: make clean && git diff --exit-code
