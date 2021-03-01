@@ -19,6 +19,7 @@ jobs:
 
     - name: Install rustup
       uses: actions-rs/toolchain@v1
+      with:
           toolchain: nightly-2021-02-27
 
     - name: Run tests
