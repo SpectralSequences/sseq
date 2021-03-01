@@ -55,8 +55,17 @@ pub struct MilnorBasisElement {
 
 const ZERO_QPART : QPart = QPart { degree : 0, q_part : 0 };
 
-fn from_p (p : PPart, dim : i32) -> MilnorBasisElement {
-    MilnorBasisElement { p_part : p, q_part : 0, degree : dim }
+impl MilnorBasisElement {
+    fn from_p (p : PPart, dim : i32) -> Self {
+        Self { p_part : p, q_part : 0, degree : dim }
+    }
+
+    pub fn clone_into(&self, other: &mut Self) {
+        other.q_part = self.q_part;
+        other.degree = self.degree;
+        other.p_part.clear();
+        other.p_part.extend_from_slice(&self.p_part);
+    }
 }
 
 impl std::cmp::PartialEq for MilnorBasisElement {
@@ -592,7 +601,7 @@ impl MilnorAlgebra {
             self.basis_table.push(
                 self.ppart_table[i]
                 .iter()
-                .map(|p| from_p(p.clone(), i as i32))
+                .map(|p| MilnorBasisElement::from_p(p.clone(), i as i32))
                 .collect());
         }
     }
@@ -890,7 +899,7 @@ impl MilnorAlgebra {
             let q_degree = (2 * ppow - 1) as i32;
             let p_degree = (ppow * (2 * (*self.prime()) - 2)) as i32;
 
-            let p_idx = self.basis_element_to_index(&from_p(vec![ppow], p_degree)).to_owned();
+            let p_idx = self.basis_element_to_index(&MilnorBasisElement::from_p(vec![ppow], p_degree)).to_owned();
 
             let q_idx =  self.basis_element_to_index(
                 &MilnorBasisElement {
@@ -1076,7 +1085,22 @@ mod tests {
                 }
             }
         }
-    }    
+    }
+
+    #[test]
+    fn test_clone_into() {
+        let mut other = MilnorBasisElement::default();
+
+        let mut check = |a: &MilnorBasisElement| {
+            a.clone_into(&mut other);
+            assert_eq!(a, &other);
+        };
+
+        check(&MilnorBasisElement { q_part: 3, p_part: vec![3, 2], degree: 12 });
+        check(&MilnorBasisElement { q_part: 1, p_part: vec![3], degree: 11 });
+        check(&MilnorBasisElement { q_part: 5, p_part: vec![1, 3, 5, 2], degree: 7 });
+        check(&MilnorBasisElement { q_part: 0, p_part: vec![], degree: 2 });
+    }
 }
 
 impl MilnorAlgebra {
