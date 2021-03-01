@@ -104,7 +104,7 @@ export class ChartElement extends LitElement {
             stroke : new RustColor(0, 0, 0, 1),
             foreground : new RustColor(0, 0, 0, 1)
         };
-        this._resizeObserver = new ResizeObserver(_entries => {
+        this._resizeObserver = new ResizeObserver(() => {
             this._resize();
         });
     }
