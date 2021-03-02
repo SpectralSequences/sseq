@@ -18,6 +18,47 @@ type FMH = FreeModuleHomomorphism<FreeModule<SteenrodAlgebra>>;
 
 const TWO: ValidPrime = ValidPrime::new(2);
 
+/// An element in the Milnor algebra
+pub struct MilnorClass {
+    elements: Vec<MilnorElt>,
+    degree: i32,
+}
+
+impl MilnorClass {
+    #[cfg(test)]
+    fn from_elements(elements: Vec<MilnorElt>) -> Self {
+        let degree = elements.get(0).map(|x| x.degree).unwrap_or(0);
+
+        Self { elements, degree }
+    }
+
+    fn from_module_row(
+        vec: &FpVector,
+        module: &FreeModule<SteenrodAlgebra>,
+        degree: i32,
+        gen_t: i32,
+        gen_idx: usize,
+    ) -> Self {
+        let algebra = module.algebra();
+        let algebra = algebra.milnor_algebra();
+
+        let offset = module.generator_offset(degree, gen_t, gen_idx);
+
+        let elements = algebra.basis_table[(degree - gen_t) as usize]
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| vec.entry(offset + i) != 0)
+            .map(|(_, x)| x.clone())
+            .collect();
+
+        Self { elements, degree: degree - gen_t }
+    }
+
+    fn iter_mut(&mut self) -> impl Iterator<Item = &mut MilnorElt> {
+        self.elements.iter_mut()
+    }
+}
+
 pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
     if max_s < 2 {
         return vec![];
@@ -62,29 +103,19 @@ pub fn d_delta_g(
     result: &mut FpVector,
     prev_delta: &FMH,
 ) {
-    let algebra = res.algebra();
-    let algebra = algebra.milnor_algebra();
-
     let m = res.module(gen_s - 1);
 
     let d = res.differential(gen_s);
     let dg = d.output(gen_t, gen_idx);
 
-    let mut op = MilnorElt::default();
-    for (i, _) in dg.iter_nonzero() {
-        let elt = m.index_to_op_gen(gen_t, i);
-        algebra
-            .basis_element_from_index(elt.operation_degree, elt.operation_index)
-            .clone_into(&mut op);
+    for t in 0..gen_t {
+        for idx in 0..m.number_of_gens_in_degree(t) {
+            let mut a_list = MilnorClass::from_module_row(&dg, &m, gen_t, t, idx);
 
-        a_dd(
-            res,
-            &mut op,
-            gen_s - 1,
-            elt.generator_degree,
-            elt.generator_index,
-            result,
-        );
+            if !a_list.elements.is_empty() {
+                a_dd(res, &mut a_list, gen_s - 1, t, idx, result);
+            }
+        }
     }
 
     if gen_s > 3 {
@@ -104,93 +135,6 @@ pub fn d_delta_g(
             gen_t,
             r
         );
-    }
-}
-
-/// Computes A(a, ddg)
-pub fn a_dd(
-    res: &Resolution,
-    a: &mut MilnorElt,
-    gen_s: u32,
-    gen_t: i32,
-    gen_idx: usize,
-    result: &mut FpVector,
-) {
-    let target_deg = a.degree + gen_t - 1;
-
-    let algebra = res.algebra();
-    let algebra = algebra.milnor_algebra();
-
-    let d = res.differential(gen_s);
-    let dg = d.output(gen_t, gen_idx);
-    let differential_l = res.differential(gen_s - 1);
-
-    let module_h = res.module(gen_s - 1);
-    let module_l = res.module(gen_s - 2);
-
-    // (gen_t, gen_idx, target_element) -> coefficient
-    let mut coefs: HashMap<(i32, usize, MilnorElt), u32> = HashMap::new();
-    let mut temp = MilnorElt::default();
-
-    let mut b = MilnorElt::default();
-    let mut c = MilnorElt::default();
-    for (i, _) in dg.iter_nonzero() {
-        let elt = module_h.index_to_op_gen(gen_t, i);
-        algebra
-            .basis_element_from_index(elt.operation_degree, elt.operation_index)
-            .clone_into(&mut b);
-
-        let ddg = differential_l.output(elt.generator_degree, elt.generator_index);
-        for (j, _) in ddg.iter_nonzero() {
-            let elt2 = module_l.index_to_op_gen(elt.generator_degree, j);
-            algebra
-                .basis_element_from_index(elt2.operation_degree, elt2.operation_index)
-                .clone_into(&mut c);
-
-            let offset =
-                module_l.generator_offset(target_deg, elt2.generator_degree, elt2.generator_index);
-            let num_ops = algebra.dimension(a.degree + b.degree + c.degree - 1, 0);
-
-            a_tau_y(
-                algebra,
-                a,
-                &mut b,
-                &mut c,
-                &mut *result.borrow_slice(offset, offset + num_ops),
-            );
-
-            if a.p_part[0] > 0 {
-                let mut multiplier = PPartMultiplier::<true>::new(TWO, &b.p_part, &c.p_part);
-                temp.degree = b.degree + c.degree;
-                while let Some(c_) = multiplier.next(&mut temp) {
-                    let key = (elt2.generator_degree, elt2.generator_index, temp.clone());
-                    let val = (c_ + coefs.get(&key).copied().unwrap_or(0)) % 4;
-                    coefs.insert(key, val);
-                }
-            }
-        }
-    }
-    if a.p_part[0] > 0 {
-        a.p_part[0] -= 1;
-        a.degree -= 1;
-        for ((gen_t, gen_idx, elt), c) in coefs {
-            if c == 0 {
-                continue;
-            }
-            debug_assert_eq!(c, 2);
-
-            let offset = module_l.generator_offset(a.degree + gen_t + elt.degree, gen_t, gen_idx);
-            let num_ops = algebra.dimension(a.degree + elt.degree, 0);
-
-            algebra.multiply(
-                &mut *result.borrow_slice(offset, offset + num_ops),
-                1,
-                &a,
-                &elt,
-            );
-        }
-        a.p_part[0] += 1;
-        a.degree += 1;
     }
 }
 
@@ -214,10 +158,102 @@ macro_rules! unsub {
     };
 }
 
+/// Computes A(a, ddg)
+pub fn a_dd(
+    res: &Resolution,
+    a_list: &mut MilnorClass,
+    gen_s: u32,
+    gen_t: i32,
+    gen_idx: usize,
+    result: &mut FpVector,
+) {
+    let target_deg = a_list.degree + gen_t - 1;
+
+    let algebra = res.algebra();
+    let algebra = algebra.milnor_algebra();
+
+    let d = res.differential(gen_s);
+    let dg = d.output(gen_t, gen_idx);
+    let differential_l = res.differential(gen_s - 1);
+
+    let module_h = res.module(gen_s - 1);
+    let module_l = res.module(gen_s - 2);
+
+    // (gen_t, gen_idx, target_element) -> coefficient
+    let mut coefs: HashMap<(i32, usize, MilnorElt), u32> = HashMap::new();
+    let mut temp = MilnorElt::default();
+
+    let mut b = MilnorElt::default();
+    let mut c = MilnorElt::default();
+
+    let process_mu0 = a_list.elements.iter().any(|x| x.p_part[0] > 0);
+
+    for (i, _) in dg.iter_nonzero() {
+        let elt = module_h.index_to_op_gen(gen_t, i);
+        algebra
+            .basis_element_from_index(elt.operation_degree, elt.operation_index)
+            .clone_into(&mut b);
+
+        let ddg = differential_l.output(elt.generator_degree, elt.generator_index);
+        for (j, _) in ddg.iter_nonzero() {
+            let elt2 = module_l.index_to_op_gen(elt.generator_degree, j);
+            algebra
+                .basis_element_from_index(elt2.operation_degree, elt2.operation_index)
+                .clone_into(&mut c);
+
+            let offset =
+                module_l.generator_offset(target_deg, elt2.generator_degree, elt2.generator_index);
+            let num_ops = algebra.dimension(a_list.degree + b.degree + c.degree - 1, 0);
+
+            a_tau_y(
+                algebra,
+                a_list,
+                &mut b,
+                &mut c,
+                &mut *result.borrow_slice(offset, offset + num_ops),
+            );
+
+            if process_mu0 {
+                let mut multiplier = PPartMultiplier::<true>::new(TWO, &b.p_part, &c.p_part);
+                temp.degree = b.degree + c.degree;
+                while let Some(c_) = multiplier.next(&mut temp) {
+                    let key = (elt2.generator_degree, elt2.generator_index, temp.clone());
+                    let val = (c_ + coefs.get(&key).copied().unwrap_or(0)) % 4;
+                    coefs.insert(key, val);
+                }
+            }
+        }
+    }
+    if process_mu0 {
+        for ((gen_t, gen_idx, elt), c) in coefs {
+            if c == 0 {
+                continue;
+            }
+            debug_assert_eq!(c, 2);
+
+            for a in &mut a_list.elements {
+                sub!(a, 1, 0);
+
+                let offset =
+                    module_l.generator_offset(a.degree + gen_t + elt.degree, gen_t, gen_idx);
+                let num_ops = algebra.dimension(a.degree + elt.degree, 0);
+
+                algebra.multiply(
+                    &mut *result.borrow_slice(offset, offset + num_ops),
+                    1,
+                    &a,
+                    &elt,
+                );
+                unsub!(a, 1, 0);
+            }
+        }
+    }
+}
+
 /// Compute the Y terms of A(a, τ(b, c))
 fn a_tau_y(
     algebra: &Algebra,
-    a: &mut MilnorElt,
+    a: &mut MilnorClass,
     b: &mut MilnorElt,
     c: &mut MilnorElt,
     result: &mut FpVector,
@@ -249,7 +285,7 @@ fn a_tau_y(
 // Computes A(a, Y_{k, l} u)
 fn a_y(
     algebra: &Algebra,
-    a: &mut MilnorElt,
+    a_list: &mut MilnorClass,
     k: usize,
     l: usize,
     u: &MilnorElt,
@@ -261,40 +297,42 @@ fn a_y(
     let mut temp2 = MilnorElt {
         q_part: 0,
         p_part: vec![],
-        degree: a.degree + u.degree + (1 << k) + (1 << l) - 2,
+        degree: a_list.degree + u.degree + (1 << k) + (1 << l) - 2,
     };
 
-    for i in 0..=a.p_part.len() {
-        if i + k < l {
-            continue;
-        }
-
-        sub!(a, i, k);
-        for j in 0..=std::cmp::min(i + k - l, a.p_part.len()) {
-            sub!(a, j, l);
-
-            rem.clear();
-            rem.resize(k + i, 0);
-
-            rem[k + i - 1] += 1;
-            rem[l + j - 1] += 1;
-
-            debug_assert_eq!(
-                temp2.degree,
-                a.degree + u.degree + (1 << (k + i)) + (1 << (l + j)) - 2
-            );
-            let mut m = PPartMultiplier::<false>::new(TWO, &a.p_part, &u.p_part);
-            while m.next(&mut temp).is_some() {
-                let mut m2 = PPartMultiplier::<false>::new(TWO, &rem, &temp.p_part);
-                while m2.next(&mut temp2).is_some() {
-                    let idx = algebra.basis_element_to_index(&temp2);
-                    result.add_basis_element(idx, 1);
-                }
+    for a in a_list.iter_mut() {
+        for i in 0..=a.p_part.len() {
+            if i + k < l {
+                continue;
             }
 
-            unsub!(a, j, l);
+            sub!(a, i, k);
+            for j in 0..=std::cmp::min(i + k - l, a.p_part.len()) {
+                sub!(a, j, l);
+
+                rem.clear();
+                rem.resize(k + i, 0);
+
+                rem[k + i - 1] += 1;
+                rem[l + j - 1] += 1;
+
+                debug_assert_eq!(
+                    temp2.degree,
+                    a.degree + u.degree + (1 << (k + i)) + (1 << (l + j)) - 2
+                );
+                let mut m = PPartMultiplier::<false>::new(TWO, &a.p_part, &u.p_part);
+                while m.next(&mut temp).is_some() {
+                    let mut m2 = PPartMultiplier::<false>::new(TWO, &rem, &temp.p_part);
+                    while m2.next(&mut temp2).is_some() {
+                        let idx = algebra.basis_element_to_index(&temp2);
+                        result.add_basis_element(idx, 1);
+                    }
+                }
+
+                unsub!(a, j, l);
+            }
+            unsub!(a, i, k);
         }
-        unsub!(a, i, k);
     }
 }
 
@@ -324,7 +362,7 @@ mod test {
         let mut result = FpVector::new(TWO, 0);
 
         let mut check = |p_part: &[u32], k, l, u: &MilnorElt, ans: &str| {
-            let mut a = from_p_part(p_part);
+            let mut a = MilnorClass::from_elements(vec![from_p_part(p_part)]);
 
             let target_deg = a.degree + u.degree + (1 << k) + (1 << l) - 2;
             algebra.compute_basis(target_deg + 1);
@@ -334,7 +372,7 @@ mod test {
                 &algebra.element_to_string(target_deg, &result),
                 ans,
                 "{} U_({},{})",
-                a,
+                a.elements[0],
                 k,
                 l
             );
@@ -356,7 +394,7 @@ mod test {
         let mut result = FpVector::new(TWO, 0);
 
         let mut check = |a: &[u32], b: &[u32], c: &[u32], ans: &str| {
-            let mut a = from_p_part(a);
+            let mut a = MilnorClass::from_elements(vec![from_p_part(a)]);
             let mut b = from_p_part(b);
             let mut c = from_p_part(c);
 
@@ -368,7 +406,7 @@ mod test {
                 &algebra.element_to_string(target_deg, &result),
                 ans,
                 "A({}, τ({},{}))",
-                a,
+                a.elements[0],
                 b,
                 c
             );
@@ -390,7 +428,7 @@ mod test {
         let mut result = FpVector::new(TWO, 0);
 
         let mut check = |a: &[u32], gen_s: u32, gen_t: i32, gen_idx, ans: &str| {
-            let mut a = from_p_part(a);
+            let mut a = MilnorClass::from_elements(vec![from_p_part(a)]);
 
             let target_deg = a.degree + gen_t - 1;
             resolution.resolve_through_bidegree(gen_s, target_deg);
@@ -409,7 +447,7 @@ mod test {
                 &m.element_to_string(target_deg, &result),
                 ans,
                 "A({}, dd x_({}, {}))",
-                a,
+                a.elements[0],
                 gen_t - gen_s as i32,
                 gen_s
             );

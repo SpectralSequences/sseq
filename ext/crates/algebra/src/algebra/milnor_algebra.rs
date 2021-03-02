@@ -119,7 +119,7 @@ pub struct MilnorAlgebra {
     pub generic : bool,
     ppart_table : OnceVec<Vec<PPart>>,
     qpart_table : Vec<OnceVec<QPart>>,
-    basis_table : OnceVec<Vec<MilnorBasisElement>>,
+    pub basis_table : OnceVec<Vec<MilnorBasisElement>>,
     basis_element_to_index_map : OnceVec<HashMap<MilnorBasisElement, usize>>, // degree -> MilnorBasisElement -> index
     #[cfg(feature = "cache-multiplication")]
     multiplication_table : OnceVec<OnceVec<Vec<Vec<FpVector>>>> // source_deg -> target_deg -> source_op -> target_op
