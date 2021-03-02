@@ -171,7 +171,7 @@ pub fn ascii_num(n: usize) -> char {
         3 => '∴',
         4 => '⁘',
         5 => '⁙',
-        6 | 7 | 8 | 9 => ('0' as u8 + n as u8) as char,
+        6 | 7 | 8 | 9 => (b'0' + n as u8) as char,
         _ => '*',
     }
 }

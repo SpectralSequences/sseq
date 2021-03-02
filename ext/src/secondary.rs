@@ -153,7 +153,6 @@ pub fn compute_delta_concurrent(
     let res_ = Arc::clone(res);
     let (p_sender, p_receiver) = mpsc::channel();
     handles.push(thread::spawn(move || {
-        print!("\x1b[2J");
         let mut processed = std::collections::HashSet::new();
         for s in 0..3 {
             for t in min_degree..=max_t {
@@ -166,7 +165,7 @@ pub fn compute_delta_concurrent(
                 Err(mpsc::RecvTimeoutError::Timeout) => (),
                 Err(_) => break,
             }
-            print!("\x1b[H");
+            print!("\x1b[2J\x1b[H");
             println!(
                 "Time elapsed: {:.2?}; Processed bidegrees:",
                 start.elapsed()

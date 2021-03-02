@@ -544,21 +544,6 @@ pub fn secondary() -> error::Result<String> {
         println!("{:.2?}", start.elapsed());
     };
 
-    #[cfg(feature = "concurrent")]
-    let deltas = {
-        let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
-        let bucket = Arc::new(TokenBucket::new(num_threads));
-
-        print!("Resolving module: ");
-        let start = Instant::now();
-        resolution.resolve_through_bidegree_concurrent(s, t, &bucket);
-        println!("{:.2?}", start.elapsed());
-
-        save();
-
-        ext::secondary::compute_delta_concurrent(&resolution.inner, s, t, &bucket)
-    };
-
     #[cfg(not(feature = "concurrent"))]
     let deltas = {
         print!("Resolving module: ");
