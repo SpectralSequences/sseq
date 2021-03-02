@@ -27,10 +27,10 @@ wasm-bindgen = "0.2.0"
 js-sys = "0.3.0"
 
 [features]
-default = []
+default = ["odd-primes", "concurrent"]
 cache-multiplication = ["ext/cache-multiplication"]
 concurrent = ["thread-token", "ext/concurrent"]
-prime-two = ["fp/prime-two", "ext/prime-two"]
+odd-primes = ["fp/odd-primes", "ext/odd-primes"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

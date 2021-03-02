@@ -52,7 +52,7 @@ pub struct Manager {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl Manager {
-    fn new<T>(f : T) -> Self where T : Fn(String) -> () + Send + 'static
+    fn new<T>(f : T) -> Self where T : Fn(String) + Send + 'static
     {
         let (sseq_sender, sseq_receiver) = mpsc::channel();
         let (server_sender, server_receiver) = mpsc::channel();

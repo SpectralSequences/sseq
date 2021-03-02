@@ -57,7 +57,7 @@ impl ResolutionManager {
     pub fn process_message(&mut self, msg : Message) -> error::Result<()> {
         // If the message is BlockRefresh, SseqManager is responsible for marking
         // it as complete.
-        let isblock = match msg.action { Action::BlockRefresh(_) => true, _ => false };
+        let isblock = matches!(msg.action, Action::BlockRefresh(_));
         let target_sseq = msg.sseq;
 
         let mut ret = None;
@@ -270,15 +270,15 @@ impl SseqManager {
     /// Whether this was a user action. If it is a user action, we want to send a "Complete" when
     /// completed, and also report the time.
     pub fn is_user(action : &Action) -> bool{
-        match action {
-            Action::AddClass(_) => false,
-            Action::AddProduct(_) => false,
-            Action::Complete(_) => false,
-            Action::QueryTableResult(_) => false,
-            Action::QueryCocycleStringResult(_) => false,
-            Action::Resolving(_) => false,
-            _ => true
-        }
+        !matches!(
+            action,
+            Action::AddClass(_)
+                | Action::AddProduct(_)
+                | Action::Complete(_)
+                | Action::QueryTableResult(_)
+                | Action::QueryCocycleStringResult(_)
+                | Action::Resolving(_)
+        )
     }
 
     pub fn process_message(&mut self, msg : Message) -> error::Result<bool> {

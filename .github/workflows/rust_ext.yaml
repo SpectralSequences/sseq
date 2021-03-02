@@ -31,3 +31,6 @@ jobs:
 
     - name: Run lint
       run: make -C ext lint
+
+    - name: Lint rust_webserver
+      run: make -C rust_webserver lint
