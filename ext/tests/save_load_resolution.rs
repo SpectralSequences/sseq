@@ -1,6 +1,7 @@
 use saveload::{Save, Load};
 use std::io::{Read, Cursor, SeekFrom, Seek};
 use ext::{resolution::Resolution, utils::construct_from_json};
+use algebra::module::homomorphism::ModuleHomomorphism;
 
 #[test]
 fn test_save_load() {
@@ -25,4 +26,6 @@ fn test_save_load() {
     resolution2.resolve_through_degree(20);
 
     assert_eq!(resolution1.graded_dimension_string(), resolution2.graded_dimension_string());
+
+    assert_eq!(resolution1.differential(5).quasi_inverse(7), resolution2.differential(5).quasi_inverse(7));
 }

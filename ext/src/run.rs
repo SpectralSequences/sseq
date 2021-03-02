@@ -517,7 +517,7 @@ pub fn steenrod() -> error::Result<String> {
 
 pub fn secondary() -> error::Result<String> {
     let bundle = ext::utils::construct_s_2("milnor");
-    let mut resolution = &*bundle.resolution.read();
+    let resolution = &*bundle.resolution.read();
 
     let s = query_with_default("Max s", 7, Ok);
     let t = query_with_default("Max t", 30, Ok);

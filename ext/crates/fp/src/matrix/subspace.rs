@@ -9,7 +9,7 @@ use super::Matrix;
 ///  * `pivots` - If the column is a pivot column, the entry is the row the pivot
 ///  corresponds to. If the column is not a pivot column, this is some negative number &mdash; not
 ///  necessarily -1!
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Subspace {
     pub matrix : Matrix

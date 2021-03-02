@@ -312,6 +312,8 @@ use std::io::{Read, Write};
 impl<M: Module> Save for FreeModuleHomomorphism<M> {
     fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
         self.outputs.save(buffer)?;
+        self.kernel.save(buffer)?;
+        self.quasi_inverse.save(buffer)?;
 
         Ok(())
     }
@@ -328,18 +330,9 @@ impl<M: Module> Load for FreeModuleHomomorphism<M> {
         let p = source.prime();
 
         let outputs: OnceBiVec<Vec<FpVector>> = Load::load(buffer, &(min_degree, p))?;
-        let max_degree = outputs.max_degree();
 
-        let kernel = OnceBiVec::new(min_degree);
-        let quasi_inverse = OnceBiVec::new(min_degree);
-
-        for _ in min_degree..=max_degree {
-            kernel.push(Subspace::new(p, 0, 0));
-            quasi_inverse.push(QuasiInverse {
-                image: None,
-                preimage: Matrix::new(p, 0, 0),
-            });
-        }
+        let kernel = OnceBiVec::<Subspace>::load(buffer, &(min_degree, p))?;
+        let quasi_inverse = OnceBiVec::<QuasiInverse>::load(buffer, &(min_degree, p))?;
 
         Ok(Self {
             source,

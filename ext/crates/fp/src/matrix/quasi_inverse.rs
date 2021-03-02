@@ -13,7 +13,7 @@ use super::{
 ///  everything (with the standard basis).
 ///  * `preimage` - The actual quasi-inverse, where the basis of the image is that given by
 ///  `image`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuasiInverse {
     pub image : Option<Subspace>,
     pub preimage : Matrix
@@ -46,5 +46,28 @@ impl QuasiInverse {
             }
             row += 1;
         }
+    }
+}
+
+use std::io;
+use std::io::{Read, Write};
+use saveload::{Save, Load};
+
+impl Save for QuasiInverse {
+    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+        self.image.save(buffer)?;
+        self.preimage.save(buffer)?;
+        Ok(())
+    }
+}
+
+impl Load for QuasiInverse {
+    type AuxData = ValidPrime;
+
+    fn load(buffer : &mut impl Read, p : &ValidPrime) -> io::Result<Self> {
+        Ok(Self {
+            image: Option::<Subspace>::load(buffer, &Some(*p))?,
+            preimage: Matrix::load(buffer, p)?,
+        })
     }
 }
