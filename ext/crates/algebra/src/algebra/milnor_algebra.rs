@@ -710,6 +710,11 @@ impl MilnorAlgebra {
         }
     }
 
+    pub fn multiply_element_by_basis_internal(&self, res: &mut FpVector, coef: u32, r_deg: i32, r: &FpVector, m2: &MilnorBasisElement) {
+        for (i, c) in r.iter_nonzero() {
+            self.multiply(res, coef * c, self.basis_element_from_index(r_deg, i), &m2);
+        }
+    }
 }
 
 struct Matrix2D {

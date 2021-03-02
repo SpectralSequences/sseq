@@ -501,6 +501,8 @@ fn a_tau_y(
     result: &mut FpVector,
 ) {
     let mut u = MilnorElt::default();
+    let mut scratch = FpVector::new(TWO, 0);
+    let mut scratch2 = FpVector::new(TWO, 0);
 
     // First compute τ(b, c)
     for k in 0..c.p_part.len() {
@@ -512,10 +514,15 @@ fn a_tau_y(
                 sub!(b, m, k);
                 u.degree = b.degree + c.degree;
 
-                let mut multiplier = PPartMultiplier::<false>::new(TWO, &b.p_part, &c.p_part);
-                while multiplier.next(&mut u).is_some() {
-                    a_y(algebra, a, m + k, n + k, &u, result);
-                }
+                let ay_degree = a.degree + (1 << (m + k)) + (1 << (n + k)) - 2;
+                scratch.set_scratch_vector_size(algebra.dimension(ay_degree, 0));
+                a_y(algebra, a, m + k, n + k, &mut scratch);
+
+                scratch2.set_scratch_vector_size(algebra.dimension(ay_degree + b.degree, 0));
+
+                algebra.multiply_element_by_basis_internal(&mut scratch2, 1, ay_degree, &scratch, &b);
+                algebra.multiply_element_by_basis_internal(result, 1, ay_degree + b.degree, &scratch2, &c);
+
                 unsub!(b, m, k);
             }
             unsub!(b, n, k);
@@ -524,22 +531,18 @@ fn a_tau_y(
     }
 }
 
-// Computes A(a, Y_{k, l} u)
+// Computes A(a, Y_{k, l})
 fn a_y(
     algebra: &Algebra,
     a_list: &mut MilnorClass,
     k: usize,
     l: usize,
-    u: &MilnorElt,
     result: &mut FpVector,
 ) {
-    let mut rem = vec![];
-
-    let mut temp = MilnorElt::default();
-    let mut temp2 = MilnorElt {
+    let mut t = MilnorElt {
         q_part: 0,
         p_part: vec![],
-        degree: a_list.degree + u.degree + (1 << k) + (1 << l) - 2,
+        degree: 0,
     };
 
     for a in a_list.iter_mut() {
@@ -552,24 +555,15 @@ fn a_y(
             for j in 0..=std::cmp::min(i + k - l, a.p_part.len()) {
                 sub!(a, j, l);
 
-                rem.clear();
-                rem.resize(k + i, 0);
+                t.p_part.clear();
+                t.p_part.resize(k + i, 0);
 
-                rem[k + i - 1] += 1;
-                rem[l + j - 1] += 1;
+                t.p_part[k + i - 1] += 1;
+                t.p_part[l + j - 1] += 1;
 
-                debug_assert_eq!(
-                    temp2.degree,
-                    a.degree + u.degree + (1 << (k + i)) + (1 << (l + j)) - 2
-                );
-                let mut m = PPartMultiplier::<false>::new(TWO, &a.p_part, &u.p_part);
-                while m.next(&mut temp).is_some() {
-                    let mut m2 = PPartMultiplier::<false>::new(TWO, &rem, &temp.p_part);
-                    while m2.next(&mut temp2).is_some() {
-                        let idx = algebra.basis_element_to_index(&temp2);
-                        result.add_basis_element(idx, 1);
-                    }
-                }
+                t.degree = (1 << (k + i)) + (1 << (l + j)) - 2;
+
+                algebra.multiply(result, 1, &t, &a);
 
                 unsub!(a, j, l);
             }
@@ -603,13 +597,13 @@ mod test {
 
         let mut result = FpVector::new(TWO, 0);
 
-        let mut check = |p_part: &[u32], k, l, u: &MilnorElt, ans: &str| {
+        let mut check = |p_part: &[u32], k, l, ans: &str| {
             let mut a = MilnorClass::from_elements(vec![from_p_part(p_part)]);
 
-            let target_deg = a.degree + u.degree + (1 << k) + (1 << l) - 2;
+            let target_deg = a.degree + (1 << k) + (1 << l) - 2;
             algebra.compute_basis(target_deg + 1);
             result.set_scratch_vector_size(algebra.dimension(target_deg, 0));
-            a_y(&algebra, &mut a, k, l, u, &mut result);
+            a_y(&algebra, &mut a, k, l,&mut result);
             assert_eq!(
                 &algebra.element_to_string(target_deg, &result),
                 ans,
@@ -620,13 +614,11 @@ mod test {
             );
         };
 
-        let e = MilnorElt::default();
-        check(&[1], 0, 1, &e, "P(2)");
-        check(&[1], 1, 2, &e, "0");
-        check(&[0, 1], 0, 1, &e, "P(1, 1)");
-        check(&[0, 2], 1, 3, &e, "P(0, 0, 2)");
-        check(&[1, 2], 0, 1, &e, "P(2, 2)");
-        check(&[1], 0, 1, &from_p_part(&[1]), "P(3) + P(0, 1)");
+        check(&[1], 0, 1, "P(2)");
+        check(&[1], 1, 2, "0");
+        check(&[0, 1], 0, 1, "P(1, 1)");
+        check(&[0, 2], 1, 3, "P(0, 0, 2)");
+        check(&[1, 2], 0, 1, "P(2, 2)");
     }
 
     #[test]
