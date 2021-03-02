@@ -69,14 +69,13 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
     if max_s < 2 {
         return vec![];
     }
-    let deltas = (2 ..= max_s).map(|s|
+    let deltas = (3 ..= max_s).map(|s|
         FreeModuleHomomorphism::new(res.module(s), res.module(s - 2), 1)
     ).collect::<Vec<_>>();
-    deltas[0].extend_by_zero_safe(max_t);
 
     let mut scratch = FpVector::new(TWO, 0);
     for s in 3..=max_s {
-        let delta = &deltas[s as usize - 2];
+        let delta = &deltas[s as usize - 3];
         let d = res.differential(s - 2);
         let m = res.module(s);
 
@@ -88,7 +87,7 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
 
             scratch.set_scratch_vector_size(res.module(s - 3).dimension(t - 1));
             for (idx, result) in results.iter_mut().enumerate() {
-                d_delta_g(res, s, t, idx, &mut scratch, Some(&deltas[s as usize - 3]));
+                d_delta_g(res, s, t, idx, &mut scratch, if s > 3 { Some(&deltas[s as usize - 4]) } else { None });
                 d.quasi_inverse(t - 1).apply(result, 1, &scratch);
                 scratch.set_to_zero_pure();
             }
