@@ -3,7 +3,7 @@ use crate::resolution::ResolutionInner;
 use crate::CCC;
 use algebra::combinatorics;
 use algebra::milnor_algebra::{
-    MilnorAlgebra as Algebra, MilnorBasisElement as MilnorElt, PPartMultiplier,
+    MilnorAlgebra as Algebra, MilnorBasisElement as MilnorElt, PPartAllocation, PPartMultiplier,
 };
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::FreeModule;
@@ -13,17 +13,17 @@ use algebra::{Algebra as _, MilnorAlgebraT, SteenrodAlgebra};
 use bivec::BiVec;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
-use std::collections::HashMap;
 #[cfg(feature = "concurrent")]
 use saveload::{Load, Save};
+use std::collections::HashMap;
 
 #[cfg(feature = "concurrent")]
 use std::{
+    io::{BufReader, BufWriter, Read, Write},
+    path::Path,
     sync::{mpsc, Arc, Mutex},
     thread,
     time::Instant,
-    io::{Read, Write, BufReader, BufWriter},
-    path::Path
 };
 
 #[cfg(feature = "concurrent")]
@@ -176,7 +176,9 @@ pub fn compute_delta_concurrent(
         let mut prev = Instant::now();
         loop {
             match p_receiver.recv_timeout(std::time::Duration::from_secs(1)) {
-                Ok(data) => { processed.insert(data); },
+                Ok(data) => {
+                    processed.insert(data);
+                }
                 Err(mpsc::RecvTimeoutError::Timeout) => (),
                 Err(_) => break,
             }
@@ -203,10 +205,11 @@ pub fn compute_delta_concurrent(
     // bidegrees, so we use a thread pool for this. The ddeltas store the results as a vector:
     // source_s -> source_t -> gen_idx -> value. Since they are not populated in order of source_s
     // and source_t, we pre-populate with None and replace with Some.
-    let mut ddeltas = vec![
-        BiVec::from_vec(min_degree + 1, vec![None; (max_t - min_degree) as usize]);
-        max_s as usize - 2
-    ];
+    let mut ddeltas =
+        vec![
+            BiVec::from_vec(min_degree + 1, vec![None; (max_t - min_degree) as usize]);
+            max_s as usize - 2
+        ];
     if Path::new("ddelta.save").exists() {
         let f = std::fs::File::open("ddelta.save").unwrap();
         let mut f = BufReader::new(f);
@@ -225,7 +228,11 @@ pub fn compute_delta_concurrent(
 
     let ddeltas = Arc::new(Mutex::new(ddeltas));
 
-    let save_file = std::fs::OpenOptions::new().create(true).append(true).open("ddelta.save").unwrap();
+    let save_file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("ddelta.save")
+        .unwrap();
     let save_file = Arc::new(Mutex::new(BufWriter::new(save_file)));
 
     let (sender, receiver) = mpsc::channel();
@@ -429,6 +436,7 @@ pub fn a_dd(
     let mut c = MilnorElt::default();
 
     let process_mu0 = a_list.elements.iter().any(|x| x.p_part[0] > 0);
+    let mut allocation = PPartAllocation::default();
 
     for (i, _) in dg.iter_nonzero() {
         let elt = module_h.index_to_op_gen(gen_t, i);
@@ -456,13 +464,16 @@ pub fn a_dd(
             );
 
             if process_mu0 {
-                let mut multiplier = PPartMultiplier::<true>::new(TWO, &b.p_part, &c.p_part);
+                let mut multiplier = PPartMultiplier::<true>::new_from_allocation(
+                    TWO, &b.p_part, &c.p_part, allocation,
+                );
                 temp.degree = b.degree + c.degree;
                 while let Some(c_) = multiplier.next(&mut temp) {
                     let key = (elt2.generator_degree, elt2.generator_index, temp.clone());
                     let val = (c_ + coefs.get(&key).copied().unwrap_or(0)) % 4;
                     coefs.insert(key, val);
                 }
+                allocation = multiplier.into_allocation();
             }
         }
     }
@@ -480,11 +491,12 @@ pub fn a_dd(
                     module_l.generator_offset(a.degree + gen_t + elt.degree, gen_t, gen_idx);
                 let num_ops = algebra.dimension(a.degree + elt.degree, 0);
 
-                algebra.multiply(
+                allocation = algebra.multiply_with_allocation(
                     &mut *result.borrow_slice(offset, offset + num_ops),
                     1,
                     &a,
                     &elt,
+                    allocation,
                 );
                 unsub!(a, 1, 0);
             }
@@ -503,6 +515,7 @@ fn a_tau_y(
     let mut u = MilnorElt::default();
     let mut scratch = FpVector::new(TWO, 0);
     let mut scratch2 = FpVector::new(TWO, 0);
+    let mut allocation = algebra::milnor_algebra::PPartAllocation::default();
 
     // First compute τ(b, c)
     for k in 0..c.p_part.len() {
@@ -520,8 +533,22 @@ fn a_tau_y(
 
                 scratch2.set_scratch_vector_size(algebra.dimension(ay_degree + b.degree, 0));
 
-                algebra.multiply_element_by_basis_internal(&mut scratch2, 1, ay_degree, &scratch, &b);
-                algebra.multiply_element_by_basis_internal(result, 1, ay_degree + b.degree, &scratch2, &c);
+                allocation = algebra.multiply_element_by_basis_with_allocation(
+                    &mut scratch2,
+                    1,
+                    ay_degree,
+                    &scratch,
+                    &b,
+                    allocation,
+                );
+                allocation = algebra.multiply_element_by_basis_with_allocation(
+                    result,
+                    1,
+                    ay_degree + b.degree,
+                    &scratch2,
+                    &c,
+                    allocation,
+                );
 
                 unsub!(b, m, k);
             }
@@ -532,13 +559,7 @@ fn a_tau_y(
 }
 
 // Computes A(a, Y_{k, l})
-fn a_y(
-    algebra: &Algebra,
-    a_list: &mut MilnorClass,
-    k: usize,
-    l: usize,
-    result: &mut FpVector,
-) {
+fn a_y(algebra: &Algebra, a_list: &mut MilnorClass, k: usize, l: usize, result: &mut FpVector) {
     let mut t = MilnorElt {
         q_part: 0,
         p_part: vec![],
@@ -603,7 +624,7 @@ mod test {
             let target_deg = a.degree + (1 << k) + (1 << l) - 2;
             algebra.compute_basis(target_deg + 1);
             result.set_scratch_vector_size(algebra.dimension(target_deg, 0));
-            a_y(&algebra, &mut a, k, l,&mut result);
+            a_y(&algebra, &mut a, k, l, &mut result);
             assert_eq!(
                 &algebra.element_to_string(target_deg, &result),
                 ans,

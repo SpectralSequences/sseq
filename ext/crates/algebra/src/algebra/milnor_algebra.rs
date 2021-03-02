@@ -681,11 +681,15 @@ impl MilnorAlgebra {
     }
 
     pub fn multiply(&self, res : &mut FpVector, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement) {
+        self.multiply_with_allocation(res, coef, m1, m2, PPartAllocation::default());
+    }
+
+    pub fn multiply_with_allocation(&self, res : &mut FpVector, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement, mut allocation: PPartAllocation) -> PPartAllocation {
         let target_dim = m1.degree + m2.degree;
         if self.generic {
             let m1f = self.multiply_qpart(m1, m2.q_part);
             for (cc, basis) in m1f {
-                let mut multiplier = PPartMultiplier::<false>::new(self.prime(), &(basis.p_part), &(m2.p_part));
+                let mut multiplier = PPartMultiplier::<false>::new_from_allocation(self.prime(), &(basis.p_part), &(m2.p_part), allocation);
                 let mut new = MilnorBasisElement {
                     degree : target_dim,
                     q_part : basis.q_part,
@@ -695,9 +699,10 @@ impl MilnorAlgebra {
                     let idx = self.basis_element_to_index(&new);
                     res.add_basis_element(idx, c * cc * coef);
                 }
+                allocation = multiplier.into_allocation()
             }
         } else {
-            let mut multiplier = PPartMultiplier::<false>::new(self.prime(), &(m1.p_part), &(m2.p_part));
+            let mut multiplier = PPartMultiplier::<false>::new_from_allocation(self.prime(), &(m1.p_part), &(m2.p_part), allocation);
             let mut new = MilnorBasisElement {
                 degree: target_dim,
                 q_part: 0,
@@ -707,13 +712,16 @@ impl MilnorAlgebra {
                 let idx = self.basis_element_to_index(&new);
                 res.add_basis_element(idx, c * coef);
             }
+            allocation = multiplier.into_allocation()
         }
+        allocation
     }
 
-    pub fn multiply_element_by_basis_internal(&self, res: &mut FpVector, coef: u32, r_deg: i32, r: &FpVector, m2: &MilnorBasisElement) {
+    pub fn multiply_element_by_basis_with_allocation(&self, res: &mut FpVector, coef: u32, r_deg: i32, r: &FpVector, m2: &MilnorBasisElement, mut allocation: PPartAllocation) -> PPartAllocation {
         for (i, c) in r.iter_nonzero() {
-            self.multiply(res, coef * c, self.basis_element_from_index(r_deg, i), &m2);
+            allocation = self.multiply_with_allocation(res, coef * c, self.basis_element_from_index(r_deg, i), &m2, allocation);
         }
+        allocation
     }
 }
 
@@ -729,6 +737,18 @@ impl Matrix2D {
             inner: vec![0; rows * cols]
         }
     }
+
+    fn reset(&mut self, rows: usize, cols: usize) {
+        self.cols = cols;
+        self.inner.clear();
+        self.inner.resize(rows * cols, 0);
+    }
+}
+
+impl Default for Matrix2D {
+    fn default() -> Self {
+        Self::new(0, 0)
+    }
 }
 
 impl std::ops::Index<usize> for Matrix2D {
@@ -743,6 +763,12 @@ impl std::ops::IndexMut<usize> for Matrix2D {
     fn index_mut(&mut self, row: usize) -> &mut Self::Output {
         &mut self.inner[row * self.cols .. (row + 1) * self.cols]
     }
+}
+
+#[derive(Default)]
+pub struct PPartAllocation {
+    m: Matrix2D,
+    diagonal: Vec<u32>,
 }
 
 #[allow(non_snake_case)]
@@ -765,15 +791,23 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
 
     #[allow(clippy::ptr_arg)]
     pub fn new (p : ValidPrime, r : &'a PPart, s : &'a PPart) -> Self {
+        Self::new_from_allocation(p, r, s, PPartAllocation::default())
+    }
+
+    #[allow(clippy::ptr_arg)]
+    pub fn new_from_allocation(p: ValidPrime, r: &'a PPart, s: &'a PPart, allocation: PPartAllocation) -> Self {
         if MOD4 {
             assert_eq!(*p, 2);
         }
         let rows = r.len() + 1;
         let cols = s.len() + 1;
         let diag_num = r.len() + s.len();
-        let diagonal = Vec::with_capacity(std::cmp::max(rows, cols));
+        let mut diagonal = allocation.diagonal;
+        diagonal.clear();
+        diagonal.reserve_exact(std::cmp::max(rows, cols));
 
-        let mut M = Matrix2D::new(rows, cols);
+        let mut M = allocation.m;
+        M.reset(rows, cols);
 
         for i in 1 .. rows {
             M[i][0] = r[i - 1];
@@ -781,6 +815,13 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         M[0][1..cols].clone_from_slice(&s[0..(cols - 1)]);
 
         PPartMultiplier { p, M, r, rows, cols, diag_num, diagonal, init : true }
+    }
+
+    pub fn into_allocation(self) -> PPartAllocation {
+        PPartAllocation {
+            m: self.M,
+            diagonal: self.diagonal
+        }
     }
 
     fn update(&mut self) -> bool {
