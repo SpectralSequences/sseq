@@ -160,8 +160,12 @@ pub fn compute_delta_concurrent(
                 processed.insert((s, t));
             }
         }
-        while let Ok(data) = p_receiver.recv() {
-            processed.insert(data);
+        loop {
+            match p_receiver.recv_timeout(std::time::Duration::from_secs(1)) {
+                Ok(data) => { processed.insert(data); },
+                Err(mpsc::RecvTimeoutError::Timeout) => (),
+                Err(_) => break,
+            }
             print!("\x1b[H");
             println!(
                 "Time elapsed: {:.2?}; Processed bidegrees:",
