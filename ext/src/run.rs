@@ -517,10 +517,32 @@ pub fn steenrod() -> error::Result<String> {
 
 pub fn secondary() -> error::Result<String> {
     let bundle = ext::utils::construct_s_2("milnor");
-    let resolution = &*bundle.resolution.read();
+    let mut resolution = &*bundle.resolution.read();
+
+    let saved_resolution;
+
+    if Path::new("resolution.save").exists() {
+        print!("Loading saved resolution: ");
+        let start = Instant::now();
+        let f = File::open("resolution.save")?;
+        let mut f = BufReader::new(f);
+        saved_resolution = Resolution::load(&mut f, &bundle.chain_complex)?;
+        resolution = &saved_resolution;
+        println!("{:?}", start.elapsed());
+    }
 
     let s = query_with_default("Max s", 7, Ok);
     let t = query_with_default("Max t", 30, Ok);
+
+    let save = || {
+        print!("Saving resolution: ");
+        let start = Instant::now();
+        let file = File::create("resolution.save").unwrap();
+        let mut file = BufWriter::new(file);
+        resolution.save(&mut file).unwrap();
+        drop(file);
+        println!("{:?}", start.elapsed());
+    };
 
     #[cfg(feature = "concurrent")]
     let deltas = {
@@ -532,6 +554,8 @@ pub fn secondary() -> error::Result<String> {
         resolution.resolve_through_bidegree_concurrent(s, t, &bucket);
         println!("{:?}", start.elapsed());
 
+        save();
+
         ext::secondary::compute_delta_concurrent(&resolution.inner, s, t, &bucket)
     };
 
@@ -541,6 +565,8 @@ pub fn secondary() -> error::Result<String> {
         let start = Instant::now();
         resolution.resolve_through_bidegree(s, t);
         println!("{:?}", start.elapsed());
+
+        save();
 
         ext::secondary::compute_delta(&resolution.inner, s, t)
     };
