@@ -5,6 +5,7 @@ all:
 
 test:
 	cargo test --workspace
+	cargo test --features concurrent
 
 lint:
 	cargo clippy

@@ -520,7 +520,7 @@ pub fn secondary() -> error::Result<String> {
     let resolution = &*bundle.resolution.read();
 
     let s = query_with_default("Max s", 7, Ok);
-    let t = query_with_default("Max t", 58, Ok);
+    let t = query_with_default("Max t", 30, Ok);
 
     #[cfg(feature = "concurrent")]
     let deltas = {

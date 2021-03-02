@@ -10,7 +10,7 @@ use parking_lot::{Mutex, Condvar};
 ///
 /// A `TokenBucket` is useful for limiting the number of active threads used by a function/program.
 pub struct TokenBucket {
-    max_threads : usize,
+    pub max_threads : usize,
     running_threads : Mutex<usize>,
     condvar : Condvar
 }
