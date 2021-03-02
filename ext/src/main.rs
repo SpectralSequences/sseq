@@ -34,6 +34,9 @@ fn main() -> error::Result<()> {
         ("steenrod", Some(_)) => {
             run::steenrod()?
         }
+        ("secondary", Some(_)) => {
+            run::secondary()?
+        }
         (_, _) => {
             run::resolve(&get_config(matches))?
         }

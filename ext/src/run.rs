@@ -515,17 +515,54 @@ pub fn steenrod() -> error::Result<String> {
     }
 }
 
-pub fn test(_config: &Config) -> error::Result<String> {
+pub fn secondary() -> error::Result<String> {
     let bundle = ext::utils::construct_s_2("milnor");
     let resolution = &*bundle.resolution.read();
 
-    let s = 7;
-    let t = 58;
+    let s = query_with_default("Max s", 7, Ok);
+    let t = query_with_default("Max t", 58, Ok);
 
-    resolution.resolve_through_bidegree(s, t);
-    let deltas = ext::secondary::compute_delta(&resolution.inner, s, t);
+    #[cfg(feature = "concurrent")]
+    let deltas = {
+        let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
+        let bucket = Arc::new(TokenBucket::new(num_threads));
+        resolution.resolve_through_bidegree_concurrent(s, t, &bucket);
+        ext::secondary::compute_delta_concurrent(&resolution.inner, s, t, &bucket)
+    };
 
-    println!("d_2(D_1) = [{}]", deltas[s as usize - 2].output(t, 0).iter().last().unwrap());
+    #[cfg(not(feature = "concurrent"))]
+    let deltas = {
+        resolution.resolve_through_bidegree(s, t);
+        ext::secondary::compute_delta(&resolution.inner, s, t)
+    };
 
+    for s_ in 3..=s {
+        for t_ in s_ as i32..=t {
+            let module = resolution.module(s_);
+            let module2 = resolution.module(s_ - 2);
+            if module2.number_of_gens_in_degree(t_ - 1) == 0 {
+                continue;
+            }
+
+            let start = module2.generator_offset(t_ - 1, t_ - 1, 0);
+            for idx in 0..module.number_of_gens_in_degree(t_) {
+                println!(
+                        "d_2* (x_({}, {})^({})]) = {:?}",
+                        t_ - s_ as i32,
+                        s_,
+                        idx,
+                        deltas[s_ as usize - 2]
+                        .output(t_, idx)
+                        .iter()
+                        .skip(start)
+                        .collect::<Vec<_>>()
+                );
+            }
+        }
+    }
+    Ok(String::new())
+}
+
+pub fn test(_config: &Config) -> error::Result<String> {
     Ok(String::new())
 }

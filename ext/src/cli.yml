@@ -27,5 +27,7 @@ subcommands:
         about: Construct Yoneda representatives for Ext classes
     - steenrod:
         about: Compute some Steenrod squares
+    - secondary:
+        about: Compute d2's of the sphere using the secondary Steenrod algebra
     - test:
         about: "Separate entrypoint for devs"
