@@ -615,7 +615,7 @@ pub fn secondary() -> error::Result<String> {
                     first = false;
                     write!(output, "{}", row[n]).unwrap();
                 }
-                write!(output, "]\n").unwrap();
+                writeln!(output, "]").unwrap();
             }
         }
     }
