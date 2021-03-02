@@ -105,15 +105,9 @@ pub fn compute_delta_concurrent(res: &Arc<Resolution>, max_s: u32, max_t: i32, b
         return vec![];
     }
     let start = std::time::Instant::now();
-    let ddeltas = (3 ..= max_s).map(|s|
-        FreeModuleHomomorphism::new(res.module(s), res.module(s - 3), 1)
-    ).collect::<Vec<_>>();
+    let ddeltas = vec![vec![None; (max_t - res.min_degree()) as usize]; max_s as usize - 2];
 
-    let ddeltas = Arc::new(ddeltas);
-
-    for d in &*ddeltas {
-        d.extend_by_zero_safe(res.min_degree());
-    }
+    let ddeltas = Arc::new(Mutex::new(ddeltas));
 
     let (sender, receiver) = mpsc::channel();
     let receiver = Arc::new(Mutex::new(receiver));
@@ -124,9 +118,10 @@ pub fn compute_delta_concurrent(res: &Arc<Resolution>, max_s: u32, max_t: i32, b
         let receiver = Arc::clone(&receiver);
         let res = Arc::clone(res);
 
-        handles.push(thread::spawn(move || {
-            while let Ok((s, t)) = receiver.lock().unwrap().recv() {
-                let ddelta = &ddeltas[s as usize - 3];
+        handles.push(thread::spawn(move || loop {
+            let job = receiver.lock().unwrap().recv().ok();
+
+            if let Some((s, t)) = job {
                 let m = res.module(s);
 
                 let num_gens = m.number_of_gens_in_degree(t);
@@ -136,9 +131,11 @@ pub fn compute_delta_concurrent(res: &Arc<Resolution>, max_s: u32, max_t: i32, b
                 for (idx, result) in results.iter_mut().enumerate() {
                     d_delta_g(&*res, s, t, idx, result, None);
                 }
-                ddelta.add_generators_from_rows(&ddelta.lock(), t, results);
+                ddeltas.lock().unwrap()[s as usize - 3][(t - res.min_degree() - 1) as usize] = Some(results);
 
                 println!("Computed s = {}, t = {}", s, t);
+            } else {
+                break;
             }
         }));
     }
@@ -153,17 +150,19 @@ pub fn compute_delta_concurrent(res: &Arc<Resolution>, max_s: u32, max_t: i32, b
     for handle in handles {
         handle.join().unwrap();
     }
+
+    let ddeltas = ddeltas.lock().unwrap();
+
     println!("Computed A terms in {:?}", start.elapsed());
     let start = std::time::Instant::now();
 
-    let deltas = (2 ..= max_s).map(|s|
+    let deltas = (3 ..= max_s).map(|s|
         FreeModuleHomomorphism::new(res.module(s), res.module(s - 2), 1)
     ).collect::<Vec<_>>();
-    deltas[0].extend_by_zero_safe(max_t);
 
     let mut scratch = FpVector::new(TWO, 0);
     for s in 3..=max_s {
-        let delta = &deltas[s as usize - 2];
+        let delta = &deltas[s as usize - 3];
         let d = res.differential(s - 2);
         let m = res.module(s);
 
@@ -172,12 +171,13 @@ pub fn compute_delta_concurrent(res: &Arc<Resolution>, max_s: u32, max_t: i32, b
             let num_gens = m.number_of_gens_in_degree(t);
             let target_dim = res.module(s - 2).dimension(t - 1);
             let mut results = vec![FpVector::new(TWO, target_dim); num_gens];
+            let ddelta = &ddeltas[s as usize - 3][(t - res.min_degree() - 1) as usize].as_ref().unwrap();
 
             scratch.set_scratch_vector_size(res.module(s - 3).dimension(t - 1));
             for (idx, result) in results.iter_mut().enumerate() {
-                scratch.add(ddeltas[s as usize - 3].output(t, idx), 1);
+                scratch.add(&ddelta[idx], 1);
                 if s > 3 {
-                    deltas[s as usize - 3].apply(&mut scratch, 1, t, res.differential(s).output(t, idx));
+                    deltas[s as usize - 4].apply(&mut scratch, 1, t, res.differential(s).output(t, idx));
                 }
 
                 d.quasi_inverse(t - 1).apply(result, 1, &scratch);
@@ -600,7 +600,7 @@ mod test {
                         t_ - s_ as i32,
                         s_,
                         idx,
-                        deltas[s_ as usize - 2]
+                        deltas[s_ as usize - 3]
                             .output(t_, idx)
                             .iter()
                             .skip(start)

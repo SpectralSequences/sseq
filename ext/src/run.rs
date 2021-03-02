@@ -57,7 +57,7 @@ pub fn resolve(config: &Config) -> error::Result<String> {
 }
 
 #[cfg(not(feature = "yoneda"))]
-pub fn yoneda(config: &Config) -> error::Result<String> {
+pub fn yoneda(_: &Config) -> error::Result<String> {
     error::from_string("Compile with yoneda feature to enable yoneda command")
 }
 
@@ -517,7 +517,7 @@ pub fn steenrod() -> error::Result<String> {
 
 pub fn secondary() -> error::Result<String> {
     let bundle = ext::utils::construct_s_2("milnor");
-    let resolution = &*bundle.resolution.read();
+    let mut resolution = &*bundle.resolution.read();
 
     let s = query_with_default("Max s", 7, Ok);
     let t = query_with_default("Max t", 30, Ok);
@@ -526,13 +526,22 @@ pub fn secondary() -> error::Result<String> {
     let deltas = {
         let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
         let bucket = Arc::new(TokenBucket::new(num_threads));
+
+        print!("Resolving module: ");
+        let start = Instant::now();
         resolution.resolve_through_bidegree_concurrent(s, t, &bucket);
+        println!("{:?}", start.elapsed());
+
         ext::secondary::compute_delta_concurrent(&resolution.inner, s, t, &bucket)
     };
 
     #[cfg(not(feature = "concurrent"))]
     let deltas = {
+        print!("Resolving module: ");
+        let start = Instant::now();
         resolution.resolve_through_bidegree(s, t);
+        println!("{:?}", start.elapsed());
+
         ext::secondary::compute_delta(&resolution.inner, s, t)
     };
 
@@ -551,7 +560,7 @@ pub fn secondary() -> error::Result<String> {
                         t_ - s_ as i32,
                         s_,
                         idx,
-                        deltas[s_ as usize - 2]
+                        deltas[s_ as usize - 3]
                         .output(t_, idx)
                         .iter()
                         .skip(start)
