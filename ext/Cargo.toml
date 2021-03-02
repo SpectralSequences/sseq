@@ -36,9 +36,11 @@ opt-level = 3
 debug = true
 
 [features]
+default = ["odd-primes"]
+
 cache-multiplication = []
 concurrent = ["thread-token"]
-prime-two = ["fp/prime-two"]
+odd-primes = ["fp/odd-primes"]
 
 [workspace]
 members = [

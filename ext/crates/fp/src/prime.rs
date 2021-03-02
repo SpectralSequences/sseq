@@ -1,6 +1,6 @@
 pub const NUM_PRIMES : usize = 8;
 pub const MAX_PRIME : usize = 19;
-#[cfg(not(feature = "prime-two"))]
+#[cfg(feature = "odd-primes")]
 const NOT_A_PRIME : usize = !1;
 pub const MAX_MULTINOMIAL_LEN : usize = 10;
 #[cfg(feature = "json")]
@@ -8,7 +8,7 @@ use serde::{Serialize, Deserialize, Serializer, Deserializer};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct ValidPrime {
-    #[cfg(not(feature = "prime-two"))]
+    #[cfg(feature = "odd-primes")]
     p: u32
 }
 
@@ -16,10 +16,10 @@ impl ValidPrime {
     pub const fn new(p: u32) -> Self {
         assert!(is_valid_prime(p));
 
-        #[cfg(not(feature = "prime-two"))]
+        #[cfg(feature = "odd-primes")]
         { Self { p } }
 
-        #[cfg(feature = "prime-two")]
+        #[cfg(not(feature = "odd-primes"))]
         { Self {} }
     }
 
@@ -35,12 +35,12 @@ impl ValidPrime {
 impl std::ops::Deref for ValidPrime {
     type Target = u32;
 
-    #[cfg(feature = "prime-two")]
+    #[cfg(not(feature = "odd-primes"))]
     fn deref(&self) -> &Self::Target {
         &2
     }
 
-    #[cfg(not(feature = "prime-two"))]
+    #[cfg(feature = "odd-primes")]
     fn deref(&self) -> &Self::Target {
         let p = self.p;
         unsafe {
@@ -77,12 +77,12 @@ impl<'de> Deserialize<'de> for ValidPrime {
     }
 }
 
-#[cfg(not(feature = "prime-two"))]
+#[cfg(feature = "odd-primes")]
 pub const fn is_valid_prime(p : u32) -> bool {
     (p as usize) < MAX_PRIME && PRIME_TO_INDEX_MAP[p as usize] != NOT_A_PRIME
 }
 
-#[cfg(feature = "prime-two")]
+#[cfg(not(feature = "odd-primes"))]
 pub const fn is_valid_prime(p : u32) -> bool {
     p == 2
 }

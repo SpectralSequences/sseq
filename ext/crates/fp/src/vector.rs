@@ -129,7 +129,7 @@ fn limb_bit_index_pair(p : ValidPrime, idx : usize) -> LimbBitIndexPair {
 
 #[enum_dispatch]
 #[derive(Debug, Clone)]
-#[cfg(not(feature = "prime-two"))]
+#[cfg(feature = "odd-primes")]
 pub enum FpVector {
     FpVector2,
     FpVector3,
@@ -139,7 +139,7 @@ pub enum FpVector {
 
 #[enum_dispatch]
 #[derive(Debug, Clone)]
-#[cfg(feature = "prime-two")]
+#[cfg(not(feature = "odd-primes"))]
 pub enum FpVector {
     FpVector2,
 }
@@ -1375,12 +1375,12 @@ impl FpVector {
         let slice_end = dimension;
         let vector_container = VectorContainer { dimension, slice_start, slice_end, limbs };
 
-        #[cfg(feature = "prime-two")]
+        #[cfg(not(feature = "odd-primes"))]
         {
             Self::from(FpVector2 { vector_container })
         }
 
-        #[cfg(not(feature = "prime-two"))]
+        #[cfg(feature = "odd-primes")]
         {
             match *p  {
                 2 => Self::from(FpVector2 { vector_container }),
@@ -2360,10 +2360,10 @@ impl Load for FpVector {
             limbs
         };
 
-        #[cfg(feature = "prime-two")]
+        #[cfg(not(feature = "odd-primes"))]
         let result = FpVector::from(FpVector2 { vector_container });
 
-        #[cfg(not(feature = "prime-two"))]
+        #[cfg(feature = "odd-primes")]
         let result = match *p  {
             2 => FpVector::from(FpVector2 { vector_container }),
             3 => FpVector::from(FpVector3 { vector_container }),

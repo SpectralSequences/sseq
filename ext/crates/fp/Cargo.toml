@@ -20,7 +20,9 @@ rstest = "0.5.0"
 bencher = "0.1.5"
 
 [features]
-prime-two = []
+default = ["json", "odd-primes"]
+
+odd-primes = []
 json = ["serde_json", "serde"]
 
 [[bench]]
