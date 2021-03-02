@@ -9,7 +9,7 @@ use algebra::module::{FiniteModule, Module, BoundedModule};
 use algebra::module::homomorphism::FreeModuleHomomorphism;
 use fp::matrix::Matrix;
 use fp::vector::FpVectorT;
-use crate::chain_complex::{FiniteChainComplex, ChainMap};
+use crate::chain_complex::{FreeChainComplex, FiniteChainComplex, ChainMap};
 use crate::resolution::Resolution;
 #[cfg(feature = "yoneda")]
 use crate::yoneda::yoneda_representative;
@@ -157,5 +157,34 @@ impl std::fmt::Display for ModuleFileNotFoundError {
 impl Error for ModuleFileNotFoundError {
     fn description(&self) -> &str {
         "Module file not found"
+    }
+}
+
+const RED_ANSI_CODE: &str = "\x1b[31;1m";
+const WHITE_ANSI_CODE: &str = "\x1b[0m";
+
+pub fn ascii_num(n: usize) -> char {
+    match n {
+        0 => ' ',
+        1 => '·',
+        2 => ':',
+        3 => '∴',
+        4 => '⁘',
+        5 => '⁙',
+        6 | 7 | 8 | 9 => ('0' as u8 + n as u8) as char,
+        _ => '*',
+    }
+}
+
+pub fn print_resolution_color<C: FreeChainComplex>(res: &C, max_s: u32, max_t: i32, highlight: &std::collections::HashSet<(u32, i32)>) {
+    for s in (0 ..= max_s).rev() {
+        for t in s as i32 ..= max_t {
+            if highlight.contains(&(s, t)) {
+                print!("{}{}{} ", RED_ANSI_CODE, ascii_num(res.module(s).number_of_gens_in_degree(t)), WHITE_ANSI_CODE);
+            } else {
+                print!("{} ", ascii_num(res.module(s).number_of_gens_in_degree(t)));
+            }
+        }
+        println!()
     }
 }

@@ -108,15 +108,36 @@ pub fn compute_delta_concurrent(res: &Arc<Resolution>, max_s: u32, max_t: i32, b
 
     let ddeltas = Arc::new(Mutex::new(ddeltas));
 
+    let (p_sender, p_receiver) = mpsc::channel();
     let (sender, receiver) = mpsc::channel();
     let receiver = Arc::new(Mutex::new(receiver));
-    let mut handles = Vec::with_capacity(bucket.max_threads);
+    let mut handles = Vec::with_capacity(bucket.max_threads + 1);
+
+    let res_ = Arc::clone(res);
+
+    // Pretty print first step progress
+    handles.push(thread::spawn(move || {
+        print!("\x1b[2J");
+        let mut processed = std::collections::HashSet::new();
+        for s in 0 .. 3 {
+            for t in res_.min_degree() ..= max_t {
+                processed.insert((s, t));
+            }
+        }
+        while let Ok(data) = p_receiver.recv() {
+            processed.insert(data);
+            print!("\x1b[H");
+            println!("Time elapsed: {:#?}; Processed bidegrees:", start.elapsed());
+            crate::utils::print_resolution_color(&*res_, std::cmp::min(max_s, ((max_t - res_.min_degree()) as u32 + 2) / 3), max_t, &processed);
+        }
+    }));
 
     for _ in 0 .. bucket.max_threads {
         let ddeltas = Arc::clone(&ddeltas);
         let receiver = Arc::clone(&receiver);
         let res = Arc::clone(res);
 
+        let p_sender = p_sender.clone();
         handles.push(thread::spawn(move || loop {
             let job = receiver.lock().unwrap().recv().ok();
 
@@ -132,15 +153,16 @@ pub fn compute_delta_concurrent(res: &Arc<Resolution>, max_s: u32, max_t: i32, b
                 }
                 ddeltas.lock().unwrap()[s as usize - 3][(t - res.min_degree() - 1) as usize] = Some(results);
 
-                println!("Computed s = {}, t = {}", s, t);
+                p_sender.send((s, t)).unwrap();
             } else {
                 break;
             }
         }));
     }
+    drop(p_sender);
 
-    for s in 3 ..= max_s {
-        for t in res.min_degree() + 1 ..= max_t {
+    for t in (res.min_degree() + 1 ..= max_t).rev() {
+        for s in 3 ..= max_s {
             sender.send((s, t)).unwrap();
         }
     }

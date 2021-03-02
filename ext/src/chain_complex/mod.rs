@@ -7,6 +7,7 @@ mod tensor_product_chain_complex;
 use crate::algebra::Algebra;
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::module::{FDModule, FiniteModule, FreeModule, Module};
+use crate::utils::ascii_num;
 use crate::CCC;
 use bivec::BiVec;
 use fp::matrix::Subquotient;
@@ -35,16 +36,8 @@ pub trait FreeChainComplex:
         let min_degree = self.min_degree();
         for i in (0 ..= max_hom_deg).rev() {
             for j in min_degree + i as i32 ..= max_degree {
-                let n = self.module(i).number_of_gens_in_degree(j);
-                match n {
-                    0 => result.push_str("  "),
-                    1 => result.push_str("· "),
-                    2 => result.push_str(": "),
-                    3 => result.push_str("∴ "),
-                    4 => result.push_str("⁘ "),
-                    5 => result.push_str("⁙ "),
-                    _ => result.push_str(&format!("{} ", n))
-                }
+                result.push(ascii_num(self.module(i).number_of_gens_in_degree(j)));
+                result.push(' ');
             }
             result.push('\n');
             // If it is empty so far, don't print anything
