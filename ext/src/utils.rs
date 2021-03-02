@@ -188,6 +188,6 @@ pub fn print_resolution_color<C: FreeChainComplex>(res: &C, max_s: u32, max_t: i
                 write!(stdout, "{} ", ascii_num(res.module(s).number_of_gens_in_degree(t))).unwrap();
             }
         }
-        write!(stdout, "\n").unwrap();
+        writeln!(stdout).unwrap();
     }
 }
