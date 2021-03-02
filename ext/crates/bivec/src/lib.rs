@@ -116,6 +116,13 @@ impl<T> BiVec<T> {
             // .collect()
     }
 
+    pub fn into_iter_enum(self) -> impl DoubleEndedIterator<Item = (i32, T)> {
+        let min_degree = self.min_degree;
+        self.data.into_iter().enumerate()
+            .map(move |(i, t)| (i as i32 + min_degree, t))
+            // .collect()
+    }
+
     /// Extends the bivec such that `max_degree()` is at least `max`. If `max_degree()` is
     /// already at least `max`, the function does nothing. Otherwise, it fills the new entries
     /// with the return value of `F(i)`, where i is the index of the new entry.

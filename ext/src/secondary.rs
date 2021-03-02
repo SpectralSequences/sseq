@@ -9,12 +9,17 @@ use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::FreeModule;
 use algebra::module::Module;
 use algebra::{Algebra as _, MilnorAlgebraT, SteenrodAlgebra};
+#[cfg(feature = "concurrent")]
+use bivec::BiVec;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use std::collections::HashMap;
 
 #[cfg(feature = "concurrent")]
-use std::{thread, sync::{mpsc, Arc, Mutex}};
+use std::{
+    sync::{mpsc, Arc, Mutex},
+    thread,
+};
 
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
@@ -23,6 +28,15 @@ type Resolution = ResolutionInner<CCC>;
 type FMH = FreeModuleHomomorphism<FreeModule<SteenrodAlgebra>>;
 
 const TWO: ValidPrime = ValidPrime::new(2);
+
+// The normal unwrap requires implementing debug
+#[cfg(feature = "concurrent")]
+fn unwrap<T, S>(x: Result<T, S>) -> T {
+    match x {
+        Ok(x) => x,
+        _ => panic!(),
+    }
+}
 
 /// An element in the Milnor algebra
 pub struct MilnorClass {
@@ -57,7 +71,10 @@ impl MilnorClass {
             .map(|(_, x)| x.clone())
             .collect();
 
-        Self { elements, degree: degree - gen_t }
+        Self {
+            elements,
+            degree: degree - gen_t,
+        }
     }
 
     fn iter_mut(&mut self) -> impl Iterator<Item = &mut MilnorElt> {
@@ -65,13 +82,15 @@ impl MilnorClass {
     }
 }
 
+/// A non-concurrent version for computing delta. In practice the concurrent version will be used,
+/// and this function should have clear logic rather than being optimal.
 pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
     if max_s < 2 {
         return vec![];
     }
-    let deltas = (3 ..= max_s).map(|s|
-        FreeModuleHomomorphism::new(res.module(s), res.module(s - 2), 1)
-    ).collect::<Vec<_>>();
+    let deltas = (3..=max_s)
+        .map(|s| FreeModuleHomomorphism::new(res.module(s), res.module(s - 2), 1))
+        .collect::<Vec<_>>();
 
     let mut scratch = FpVector::new(TWO, 0);
     for s in 3..=max_s {
@@ -87,7 +106,24 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
 
             scratch.set_scratch_vector_size(res.module(s - 3).dimension(t - 1));
             for (idx, result) in results.iter_mut().enumerate() {
-                d_delta_g(res, s, t, idx, &mut scratch, if s > 3 { Some(&deltas[s as usize - 4]) } else { None });
+                d_delta_g(res, s, t, idx, &mut scratch);
+
+                if s > 3 {
+                    deltas[s as usize - 4].apply(
+                        &mut scratch,
+                        1,
+                        t,
+                        res.differential(s).output(t, idx),
+                    );
+                }
+
+                #[cfg(debug_assertions)]
+                if s > 3 {
+                    let mut r = FpVector::new(TWO, res.module(s - 4).dimension(t - 1));
+                    res.differential(s - 3).apply(&mut r, 1, t - 1, &scratch);
+                    assert!(r.is_zero(), "dd != 0 at s = {}, t = {}", s, t);
+                }
+
                 d.quasi_inverse(t - 1).apply(result, 1, &scratch);
                 scratch.set_to_zero_pure();
             }
@@ -99,40 +135,62 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
 }
 
 #[cfg(feature = "concurrent")]
-pub fn compute_delta_concurrent(res: &Arc<Resolution>, max_s: u32, max_t: i32, bucket: &Arc<TokenBucket>) -> Vec<FMH> {
+pub fn compute_delta_concurrent(
+    res: &Arc<Resolution>,
+    max_s: u32,
+    max_t: i32,
+    bucket: &Arc<TokenBucket>,
+) -> Vec<FMH> {
     if max_s < 2 {
         return vec![];
     }
+    let min_degree = res.min_degree();
+
     let start = std::time::Instant::now();
-    let ddeltas = vec![vec![None; (max_t - res.min_degree()) as usize]; max_s as usize - 2];
-
-    let ddeltas = Arc::new(Mutex::new(ddeltas));
-
-    let (p_sender, p_receiver) = mpsc::channel();
-    let (sender, receiver) = mpsc::channel();
-    let receiver = Arc::new(Mutex::new(receiver));
     let mut handles = Vec::with_capacity(bucket.max_threads + 1);
 
+    // Pretty print progress of first step
     let res_ = Arc::clone(res);
-
-    // Pretty print first step progress
+    let (p_sender, p_receiver) = mpsc::channel();
     handles.push(thread::spawn(move || {
         print!("\x1b[2J");
         let mut processed = std::collections::HashSet::new();
-        for s in 0 .. 3 {
-            for t in res_.min_degree() ..= max_t {
+        for s in 0..3 {
+            for t in min_degree..=max_t {
                 processed.insert((s, t));
             }
         }
         while let Ok(data) = p_receiver.recv() {
             processed.insert(data);
             print!("\x1b[H");
-            println!("Time elapsed: {:#?}; Processed bidegrees:", start.elapsed());
-            crate::utils::print_resolution_color(&*res_, std::cmp::min(max_s, ((max_t - res_.min_degree()) as u32 + 2) / 3), max_t, &processed);
+            println!(
+                "Time elapsed: {:.2?}; Processed bidegrees:",
+                start.elapsed()
+            );
+            crate::utils::print_resolution_color(
+                &*res_,
+                std::cmp::min(max_s, ((max_t - min_degree) as u32 + 2) / 3),
+                max_t,
+                &processed,
+            );
+            println!();
         }
     }));
 
-    for _ in 0 .. bucket.max_threads {
+    // We now compute the A terms of dδg. There are no dependencies between the different
+    // bidegrees, so we use a thread pool for this. The ddeltas store the results as a vector:
+    // source_s -> source_t -> gen_idx -> value. Since they are not populated in order of source_s
+    // and source_t, we pre-populate with None and replace with Some.
+    let ddeltas = vec![
+        BiVec::from_vec(min_degree + 1, vec![None; (max_t - min_degree) as usize]);
+        max_s as usize - 2
+    ];
+    let ddeltas = Arc::new(Mutex::new(ddeltas));
+
+    let (sender, receiver) = mpsc::channel();
+    let receiver = Arc::new(Mutex::new(receiver));
+
+    for _ in 0..bucket.max_threads {
         let ddeltas = Arc::clone(&ddeltas);
         let receiver = Arc::clone(&receiver);
         let res = Arc::clone(res);
@@ -149,9 +207,9 @@ pub fn compute_delta_concurrent(res: &Arc<Resolution>, max_s: u32, max_t: i32, b
                 let mut results = vec![FpVector::new(TWO, target_dim); num_gens];
 
                 for (idx, result) in results.iter_mut().enumerate() {
-                    d_delta_g(&*res, s, t, idx, result, None);
+                    d_delta_g(&*res, s, t, idx, result);
                 }
-                ddeltas.lock().unwrap()[s as usize - 3][(t - res.min_degree() - 1) as usize] = Some(results);
+                ddeltas.lock().unwrap()[s as usize - 3][t] = Some(results);
 
                 p_sender.send((s, t)).unwrap();
             } else {
@@ -161,8 +219,9 @@ pub fn compute_delta_concurrent(res: &Arc<Resolution>, max_s: u32, max_t: i32, b
     }
     drop(p_sender);
 
-    for t in (res.min_degree() + 1 ..= max_t).rev() {
-        for s in 3 ..= max_s {
+    // Iterate in reverse order to do the slower ones first
+    for t in (min_degree + 1..=max_t).rev() {
+        for s in 3..=max_s {
             sender.send((s, t)).unwrap();
         }
     }
@@ -172,54 +231,84 @@ pub fn compute_delta_concurrent(res: &Arc<Resolution>, max_s: u32, max_t: i32, b
         handle.join().unwrap();
     }
 
-    let ddeltas = ddeltas.lock().unwrap();
+    let ddeltas = unwrap(Arc::try_unwrap(ddeltas)).into_inner().unwrap();
 
-    println!("Computed A terms in {:?}", start.elapsed());
+    println!("Computed A terms in {:.2?}", start.elapsed());
+
+    // We now compute the rest of the terms. This step is substantially faster than the previous
+    // step, so we don't have to be so careful about optimization (the cost is the cost of
+    // computing one product, which is not too much). To compute delta[s][t], we need to know
+    // delta[s - 1][k] for k < t. However, it is easier to require computing everything to the
+    // bottom and left of delta[s][t], so might as well do it that way.
+
     let start = std::time::Instant::now();
 
-    let deltas = (3 ..= max_s).map(|s|
-        FreeModuleHomomorphism::new(res.module(s), res.module(s - 2), 1)
-    ).collect::<Vec<_>>();
+    let deltas = (3..=max_s)
+        .map(|s| FreeModuleHomomorphism::new(res.module(s), res.module(s - 2), 1))
+        .collect::<Vec<_>>();
 
-    let mut scratch = FpVector::new(TWO, 0);
-    for s in 3..=max_s {
-        let delta = &deltas[s as usize - 3];
-        let d = res.differential(s - 2);
-        let m = res.module(s);
+    let deltas = Arc::new(deltas);
 
-        delta.extend_by_zero_safe(res.min_degree());
-        for t in res.min_degree() + 1..=max_t {
-            let num_gens = m.number_of_gens_in_degree(t);
-            let target_dim = res.module(s - 2).dimension(t - 1);
-            let mut results = vec![FpVector::new(TWO, target_dim); num_gens];
-            let ddelta = &ddeltas[s as usize - 3][(t - res.min_degree() - 1) as usize].as_ref().unwrap();
+    let mut last_receiver: Option<mpsc::Receiver<()>> = None;
+    for (s, ddeltas_) in ddeltas.into_iter().enumerate() {
+        let s = s as u32 + 3;
 
-            scratch.set_scratch_vector_size(res.module(s - 3).dimension(t - 1));
-            for (idx, result) in results.iter_mut().enumerate() {
-                scratch.add(&ddelta[idx], 1);
-                if s > 3 {
-                    deltas[s as usize - 4].apply(&mut scratch, 1, t, res.differential(s).output(t, idx));
+        let (sender, receiver) = mpsc::channel();
+
+        let deltas = Arc::clone(&deltas);
+        let bucket = Arc::clone(bucket);
+
+        let source_d = res.differential(s);
+        let target_d = res.differential(s - 2);
+        let source_module = res.module(s);
+        let target_module = res.module(s - 2);
+
+        #[cfg(debug_assertions)]
+        let res = Arc::clone(res);
+
+        thread::spawn(move || {
+            let delta = &deltas[s as usize - 3];
+
+            delta.extend_by_zero_safe(min_degree);
+            let mut token = bucket.take_token();
+            for (t, ddelta) in ddeltas_.into_iter_enum() {
+                let mut ddelta = ddelta.unwrap();
+                token = bucket.recv_or_release(token, &last_receiver);
+
+                let num_gens = source_module.number_of_gens_in_degree(t);
+                let target_dim = target_module.dimension(t - 1);
+                let mut results = vec![FpVector::new(TWO, target_dim); num_gens];
+
+                for (idx, result) in results.iter_mut().enumerate() {
+                    let row: &mut FpVector = &mut ddelta[idx];
+                    if s > 3 {
+                        deltas[s as usize - 4].apply(row, 1, t, source_d.output(t, idx));
+                    }
+
+                    #[cfg(debug_assertions)]
+                    if s > 3 {
+                        let mut r = FpVector::new(TWO, res.module(s - 4).dimension(t - 1));
+                        res.differential(s - 3).apply(&mut r, 1, t - 1, &row);
+                        assert!(r.is_zero(), "dd != 0 at s = {}, t = {}", s, t);
+                    }
+
+                    target_d.quasi_inverse(t - 1).apply(result, 1, row);
                 }
-
-                d.quasi_inverse(t - 1).apply(result, 1, &scratch);
-                scratch.set_to_zero_pure();
+                delta.add_generators_from_rows(&delta.lock(), t, results);
+                sender.send(()).unwrap();
             }
-            delta.add_generators_from_rows(&delta.lock(), t, results);
-        }
+        });
+        last_receiver = Some(receiver);
     }
-    println!("Computed δd terms in {:?}", start.elapsed());
-    deltas
+    if let Some(x) = last_receiver {
+        x.into_iter().last();
+    }
+    println!("Computed δd terms in {:.2?}", start.elapsed());
+    unwrap(Arc::try_unwrap(deltas))
 }
 
 /// Computes d(delta(g));
-pub fn d_delta_g(
-    res: &Resolution,
-    gen_s: u32,
-    gen_t: i32,
-    gen_idx: usize,
-    result: &mut FpVector,
-    prev_delta: Option<&FMH>,
-) {
+pub fn d_delta_g(res: &Resolution, gen_s: u32, gen_t: i32, gen_idx: usize, result: &mut FpVector) {
     let m = res.module(gen_s - 1);
 
     let d = res.differential(gen_s);
@@ -233,27 +322,6 @@ pub fn d_delta_g(
                 a_dd(res, &mut a_list, gen_s - 1, t, idx, result);
             }
         }
-    }
-
-    if gen_s > 3 {
-        if let Some(prev_delta) = prev_delta {
-            debug_assert!(std::sync::Arc::ptr_eq(&prev_delta.source(), &d.target()));
-            prev_delta.apply(result, 1, gen_t, dg);
-        }
-    }
-
-    #[cfg(debug_assertions)]
-    if gen_s > 3 && prev_delta.is_some() {
-        let mut r = FpVector::new(TWO, res.module(gen_s - 4).dimension(gen_t - 1));
-        res.differential(gen_s - 3)
-            .apply(&mut r, 1, gen_t - 1, result);
-        assert!(
-            r.is_zero(),
-            "dd != 0 at s = {}, t = {}, {}",
-            gen_s,
-            gen_t,
-            r
-        );
     }
 }
 

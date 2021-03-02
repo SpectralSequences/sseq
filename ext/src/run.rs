@@ -2,7 +2,7 @@
 
 use serde_json::value::Value;
 use std::fs::File;
-use std::io::{BufReader, BufWriter};
+use std::io::{BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
@@ -528,7 +528,7 @@ pub fn secondary() -> error::Result<String> {
         let mut f = BufReader::new(f);
         saved_resolution = Resolution::load(&mut f, &bundle.chain_complex)?;
         resolution = &saved_resolution;
-        println!("{:?}", start.elapsed());
+        println!("{:.2?}", start.elapsed());
     }
 
     let s = query_with_default("Max s", 7, Ok);
@@ -541,7 +541,7 @@ pub fn secondary() -> error::Result<String> {
         let mut file = BufWriter::new(file);
         resolution.save(&mut file).unwrap();
         drop(file);
-        println!("{:?}", start.elapsed());
+        println!("{:.2?}", start.elapsed());
     };
 
     #[cfg(feature = "concurrent")]
@@ -552,7 +552,7 @@ pub fn secondary() -> error::Result<String> {
         print!("Resolving module: ");
         let start = Instant::now();
         resolution.resolve_through_bidegree_concurrent(s, t, &bucket);
-        println!("{:?}", start.elapsed());
+        println!("{:.2?}", start.elapsed());
 
         save();
 
@@ -564,12 +564,33 @@ pub fn secondary() -> error::Result<String> {
         print!("Resolving module: ");
         let start = Instant::now();
         resolution.resolve_through_bidegree(s, t);
-        println!("{:?}", start.elapsed());
+        println!("{:.2?}", start.elapsed());
 
         save();
 
         ext::secondary::compute_delta(&resolution.inner, s, t)
     };
+
+    #[cfg(feature = "concurrent")]
+    let deltas = {
+        let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
+        let bucket = Arc::new(TokenBucket::new(num_threads));
+
+        print!("Resolving module: ");
+        let start = Instant::now();
+        resolution.resolve_through_bidegree_concurrent(s, t, &bucket);
+        println!("{:.2?}", start.elapsed());
+
+        save();
+
+        ext::secondary::compute_delta_concurrent(&resolution.inner, s, t, &bucket)
+    };
+
+    let mut filename = String::from("d2");
+    while Path::new(&filename).exists() {
+        filename.push('_');
+    }
+    let mut output = File::create(&filename).unwrap();
 
     for s_ in 3..=s {
         for t_ in s_ as i32..=t {
@@ -581,8 +602,8 @@ pub fn secondary() -> error::Result<String> {
 
             let start = module2.generator_offset(t_ - 1, t_ - 1, 0);
             for idx in 0..module.number_of_gens_in_degree(t_) {
-                println!(
-                        "d_2* (x_({}, {})^({})]) = {:?}",
+                writeln!(output,
+                        "d_2* x_({}, {}, {}) = {:.2?}",
                         t_ - s_ as i32,
                         s_,
                         idx,
@@ -591,7 +612,7 @@ pub fn secondary() -> error::Result<String> {
                         .iter()
                         .skip(start)
                         .collect::<Vec<_>>()
-                );
+                ).unwrap();
             }
         }
     }
