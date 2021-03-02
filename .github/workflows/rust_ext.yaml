@@ -26,5 +26,8 @@ jobs:
     - name: Run tests
       run: make -C ext test
 
+    - name: Run concurrent tests
+      run: make -C ext test-concurrent
+
     - name: Run lint
       run: make -C ext lint

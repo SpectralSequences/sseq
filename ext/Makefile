@@ -5,6 +5,8 @@ all:
 
 test:
 	cargo test --workspace
+
+test-concurrent:
 	cargo test --features concurrent
 
 lint:

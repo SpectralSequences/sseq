@@ -213,8 +213,10 @@ pub fn compute_delta_concurrent(
         loop {
             match read_saved_data(&mut f) {
                 Ok((s, t, data)) => {
-                    ddeltas[s as usize - 3][t] = Some(data);
-                    p_sender.send((s, t)).unwrap();
+                    if s <= max_s && t <= max_t {
+                        ddeltas[s as usize - 3][t] = Some(data);
+                        p_sender.send((s, t)).unwrap();
+                    }
                 }
                 Err(_) => break,
             }
@@ -223,7 +225,7 @@ pub fn compute_delta_concurrent(
 
     let ddeltas = Arc::new(Mutex::new(ddeltas));
 
-    let save_file = std::fs::OpenOptions::new().append(true).open("ddelta.save").unwrap();
+    let save_file = std::fs::OpenOptions::new().create(true).append(true).open("ddelta.save").unwrap();
     let save_file = Arc::new(Mutex::new(BufWriter::new(save_file)));
 
     let (sender, receiver) = mpsc::channel();
@@ -348,6 +350,8 @@ pub fn compute_delta_concurrent(
                 delta.add_generators_from_rows(&delta.lock(), t, results);
                 sender.send(()).unwrap();
             }
+            // Make sure deltas is dropped before sender
+            drop(deltas);
         });
         last_receiver = Some(receiver);
     }
