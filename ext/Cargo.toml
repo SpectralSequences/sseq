@@ -8,7 +8,7 @@ repository = "https://github.com/SpectralSequences/ext/"
 license = "(MIT OR Apache-2.0)"
 
 [dependencies]
-algebra = { path = "crates/algebra" }
+algebra = { path = "crates/algebra", default-features = false }
 bivec = { path = "crates/bivec"}
 error = { path = "crates/error"}
 fp = { path = "crates/fp" }
@@ -36,8 +36,10 @@ opt-level = 3
 debug = true
 
 [features]
-default = ["odd-primes"]
+default = ["odd-primes", "yoneda", "extras"]
 
+extras = ["algebra/extras"]
+yoneda = ["extras"]
 cache-multiplication = []
 concurrent = ["thread-token"]
 odd-primes = ["fp/odd-primes"]

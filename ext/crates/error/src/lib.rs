@@ -66,3 +66,7 @@ impl std::fmt::Display for GenericError {
 }
 
 impl std::error::Error for GenericError {}
+
+pub fn from_string<T>(s: &str) -> Result<T> {
+    Err(GenericError(s.into()).into())
+}

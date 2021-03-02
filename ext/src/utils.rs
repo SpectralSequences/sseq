@@ -11,6 +11,7 @@ use fp::matrix::Matrix;
 use fp::vector::FpVectorT;
 use crate::chain_complex::{FiniteChainComplex, ChainMap};
 use crate::resolution::Resolution;
+#[cfg(feature = "yoneda")]
 use crate::yoneda::yoneda_representative;
 
 use crate::CCC;
@@ -42,6 +43,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> error::Re
     let mut resolution = Resolution::new(Arc::clone(&chain_complex), None, None);
 
     let cofiber = &json["cofiber"];
+    #[cfg(feature = "yoneda")]
     if !cofiber.is_null() {
         let s = cofiber["s"].as_u64().unwrap() as u32;
         let t = cofiber["t"].as_i64().unwrap() as i32;
@@ -68,6 +70,11 @@ pub fn construct_from_json(mut json : Value, algebra_name : String) -> error::Re
 
         chain_complex = Arc::new(yoneda);
         resolution = Resolution::new(Arc::clone(&chain_complex), None, None);
+    }
+
+    #[cfg(not(feature = "yoneda"))]
+    if !cofiber.is_null() {
+        panic!("cofiber not supported. Compile with yoneda feature enabled");
     }
 
     let products_value = &mut json["products"];

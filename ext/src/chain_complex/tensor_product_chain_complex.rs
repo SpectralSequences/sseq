@@ -554,6 +554,7 @@ impl AugmentedChainComplex
 }
 
 #[cfg(test)]
+#[cfg(feature = "yoneda")]
 mod tests {
     #![allow(non_snake_case)]
 

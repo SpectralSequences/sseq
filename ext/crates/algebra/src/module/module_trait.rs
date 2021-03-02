@@ -7,6 +7,7 @@ use fp::vector::{FpVector, FpVectorT};
 
 use crate::algebra::Algebra;
 use crate::module::FDModule;
+#[cfg(feature = "extras")]
 use crate::module::TruncatedModule;
 use crate::module::bounded_module::BoundedModule;
 
@@ -143,6 +144,7 @@ pub trait Module: Send + Sync + 'static {
 
     /// This truncates the module to `max_dim` and represents it as an `FDModule`. This retains the
     /// original name of the module
+    #[cfg(feature = "extras")]
     fn truncate_to_fd_module(self: Arc<Self>, max_deg: i32) -> FDModule<Self::Algebra> {
         let name = self.name();
         let mut m = TruncatedModule::new(self, max_deg).to_fd_module();
