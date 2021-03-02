@@ -7,10 +7,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 
-use fp::matrix::Matrix;
-use fp::prime::ValidPrime;
-use fp::vector::{FpVector, FpVectorT};
 use ext::chain_complex::ChainComplex;
+#[cfg(feature = "yoneda")]
+use ext::chain_complex::TensorChainComplex;
 use ext::module::homomorphism::{
     FiniteModuleHomomorphism, FreeModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
 };
@@ -20,8 +19,9 @@ use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::{construct, construct_from_json, Config};
 #[cfg(feature = "yoneda")]
 use ext::yoneda::yoneda_representative_element;
-#[cfg(feature = "yoneda")]
-use ext::chain_complex::TensorChainComplex;
+use fp::matrix::Matrix;
+use fp::prime::ValidPrime;
+use fp::vector::{FpVector, FpVectorT};
 
 use bivec::BiVec;
 use query::*;
@@ -581,23 +581,41 @@ pub fn secondary() -> error::Result<String> {
         for t_ in s_ as i32..=t {
             let module = resolution.module(s_);
             let module2 = resolution.module(s_ - 2);
-            if module2.number_of_gens_in_degree(t_ - 1) == 0 {
+            if module2.number_of_gens_in_degree(t_ - 1) == 0
+                || module.number_of_gens_in_degree(t_) == 0
+            {
                 continue;
             }
 
             let start = module2.generator_offset(t_ - 1, t_ - 1, 0);
-            for idx in 0..module.number_of_gens_in_degree(t_) {
-                writeln!(output,
-                        "d_2* x_({}, {}, {}) = {:.2?}",
-                        t_ - s_ as i32,
-                        s_,
-                        idx,
-                        deltas[s_ as usize - 3]
+            let matrix: Vec<Vec<u32>> = (0..module.number_of_gens_in_degree(t_))
+                .map(|idx| {
+                    deltas[s_ as usize - 3]
                         .output(t_, idx)
                         .iter()
                         .skip(start)
                         .collect::<Vec<_>>()
-                ).unwrap();
+                })
+                .collect();
+
+            for n in 0..matrix[0].len() {
+                write!(
+                    output,
+                    "d_2 x_({}, {}, {}) = [",
+                    t_ + 1 - s_ as i32,
+                    s_ - 2,
+                    n,
+                )
+                .unwrap();
+                let mut first = true;
+                for row in &matrix {
+                    if !first {
+                        write!(output, ", ").unwrap()
+                    }
+                    first = false;
+                    write!(output, "{}", row[n]).unwrap();
+                }
+                write!(output, "]\n").unwrap();
             }
         }
     }
