@@ -26,7 +26,7 @@ impl Load for bool {
         } else if bytes[0] == 0 {
             Ok(false)
         } else {
-            panic!("Invalid encoding of boolean")
+            Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid encoding of boolean"))
         }
     }
 }

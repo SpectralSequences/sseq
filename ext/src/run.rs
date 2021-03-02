@@ -558,7 +558,7 @@ pub fn secondary() -> error::Result<String> {
 
     #[cfg(feature = "concurrent")]
     let deltas = {
-        let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
+        let num_threads = query_with_default("Number of threads", 2, Ok);
         let bucket = Arc::new(TokenBucket::new(num_threads));
 
         print!("Resolving module: ");

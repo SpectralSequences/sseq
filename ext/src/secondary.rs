@@ -14,11 +14,16 @@ use bivec::BiVec;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use std::collections::HashMap;
+#[cfg(feature = "concurrent")]
+use saveload::{Load, Save};
 
 #[cfg(feature = "concurrent")]
 use std::{
     sync::{mpsc, Arc, Mutex},
     thread,
+    time::Instant,
+    io::{Read, Write, BufReader, BufWriter},
+    path::Path
 };
 
 #[cfg(feature = "concurrent")]
@@ -135,6 +140,15 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
 }
 
 #[cfg(feature = "concurrent")]
+fn read_saved_data(buffer: &mut impl Read) -> std::io::Result<(u32, i32, Vec<FpVector>)> {
+    let s = u32::load(buffer, &())?;
+    let t = i32::load(buffer, &())?;
+    let data = Vec::<FpVector>::load(buffer, &TWO)?;
+
+    Ok((s, t, data))
+}
+
+#[cfg(feature = "concurrent")]
 pub fn compute_delta_concurrent(
     res: &Arc<Resolution>,
     max_s: u32,
@@ -146,7 +160,7 @@ pub fn compute_delta_concurrent(
     }
     let min_degree = res.min_degree();
 
-    let start = std::time::Instant::now();
+    let start = Instant::now();
     let mut handles = Vec::with_capacity(bucket.max_threads + 1);
 
     // Pretty print progress of first step
@@ -159,11 +173,15 @@ pub fn compute_delta_concurrent(
                 processed.insert((s, t));
             }
         }
+        let mut prev = Instant::now();
         loop {
             match p_receiver.recv_timeout(std::time::Duration::from_secs(1)) {
                 Ok(data) => { processed.insert(data); },
                 Err(mpsc::RecvTimeoutError::Timeout) => (),
                 Err(_) => break,
+            }
+            if prev.elapsed().as_millis() < 100 {
+                continue;
             }
             print!("\x1b[2J\x1b[H");
             println!(
@@ -177,6 +195,7 @@ pub fn compute_delta_concurrent(
                 &processed,
             );
             println!();
+            prev = Instant::now();
         }
     }));
 
@@ -184,11 +203,28 @@ pub fn compute_delta_concurrent(
     // bidegrees, so we use a thread pool for this. The ddeltas store the results as a vector:
     // source_s -> source_t -> gen_idx -> value. Since they are not populated in order of source_s
     // and source_t, we pre-populate with None and replace with Some.
-    let ddeltas = vec![
+    let mut ddeltas = vec![
         BiVec::from_vec(min_degree + 1, vec![None; (max_t - min_degree) as usize]);
         max_s as usize - 2
     ];
+    if Path::new("ddelta.save").exists() {
+        let f = std::fs::File::open("ddelta.save").unwrap();
+        let mut f = BufReader::new(f);
+        loop {
+            match read_saved_data(&mut f) {
+                Ok((s, t, data)) => {
+                    ddeltas[s as usize - 3][t] = Some(data);
+                    p_sender.send((s, t)).unwrap();
+                }
+                Err(_) => break,
+            }
+        }
+    }
+
     let ddeltas = Arc::new(Mutex::new(ddeltas));
+
+    let save_file = std::fs::OpenOptions::new().append(true).open("ddelta.save").unwrap();
+    let save_file = Arc::new(Mutex::new(BufWriter::new(save_file)));
 
     let (sender, receiver) = mpsc::channel();
     let receiver = Arc::new(Mutex::new(receiver));
@@ -197,12 +233,16 @@ pub fn compute_delta_concurrent(
         let ddeltas = Arc::clone(&ddeltas);
         let receiver = Arc::clone(&receiver);
         let res = Arc::clone(res);
+        let save_file = Arc::clone(&save_file);
 
         let p_sender = p_sender.clone();
         handles.push(thread::spawn(move || loop {
             let job = receiver.lock().unwrap().recv().ok();
 
             if let Some((s, t)) = job {
+                if ddeltas.lock().unwrap()[s as usize - 3][t].is_some() {
+                    continue;
+                }
                 let m = res.module(s);
 
                 let num_gens = m.number_of_gens_in_degree(t);
@@ -212,6 +252,14 @@ pub fn compute_delta_concurrent(
                 for (idx, result) in results.iter_mut().enumerate() {
                     d_delta_g(&*res, s, t, idx, result);
                 }
+
+                let mut sf = save_file.lock().unwrap();
+                s.save(&mut *sf).unwrap();
+                t.save(&mut *sf).unwrap();
+                results.save(&mut *sf).unwrap();
+                sf.flush().unwrap();
+                drop(sf);
+
                 ddeltas.lock().unwrap()[s as usize - 3][t] = Some(results);
 
                 p_sender.send((s, t)).unwrap();
