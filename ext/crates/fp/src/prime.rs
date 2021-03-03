@@ -6,6 +6,17 @@ pub const MAX_MULTINOMIAL_LEN : usize = 10;
 #[cfg(feature = "json")]
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 
+#[macro_export]
+macro_rules! const_for {
+    ($i:ident in $a:literal .. $b:ident $contents:block) => {
+        let mut $i = 0;
+        while $i < $b {
+            $contents;
+            $i += 1;
+        }
+    };
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct ValidPrime {
     #[cfg(feature = "odd-primes")]
@@ -269,11 +280,25 @@ pub fn binomial(p : ValidPrime, n : i32, k : i32) -> u32 {
     }
 }
 
+const BINOMIAL4_TABLE_SIZE: usize = 50;
+
+const BINOMIAL4_TABLE: [[u32; BINOMIAL4_TABLE_SIZE]; BINOMIAL4_TABLE_SIZE] = {
+    let mut res = [[0; BINOMIAL4_TABLE_SIZE]; BINOMIAL4_TABLE_SIZE];
+    res[0][0] = 1;
+    const_for! { n in 0 .. BINOMIAL4_TABLE_SIZE {
+        res[n][0] = 1;
+        const_for! { k in 0 .. n {
+            res[n][k + 1] = (res[n - 1][k] + res[n - 1][k + 1]) % 4;
+        }}
+    }}
+    res
+};
+
 /// Binomial coefficients mod 4 up to a sign (we always return 0, 1 or 2)
 /// This uses the algorithm from https://www.fq.math.ca/Scanned/29-1/davis.pdf
 pub fn binomial4(n: u32, j: u32) -> u32 {
-    if n < 2 {
-        return 1;
+    if (n as usize) < BINOMIAL4_TABLE_SIZE {
+        return BINOMIAL4_TABLE[n as usize][j as usize];
     }
     #[allow(clippy::collapsible_else_if)]
     if (n - j) & j == 0 {
@@ -297,21 +322,10 @@ pub fn binomial4(n: u32, j: u32) -> u32 {
                 binomial4(l, j - (1 << k))
             }
         }
+    } else if (n - j).count_ones() + j.count_ones() - n.count_ones() == 1 {
+        2
     } else {
-        // 1 at the first borrow position
-        let fb = 1 << ((n - j) & j).trailing_zeros();
-        if n & (fb << 1) == 0 || // This borrow requires a further borrow on the left
-           j & (fb << 1) != 0 { // In n there is a 1 to the left, but there is a 1 in j as well, so we need to borrow once more
-            0
-        } else {
-            // Remove the digit where we need to borrow. Checj there is no further need to borrow
-            let j2 = j ^ fb;
-            if (n - j2) & j2 == 0 {
-                2
-            } else {
-                0
-            }
-         }
+        0
     }
 }
 

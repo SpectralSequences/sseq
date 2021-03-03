@@ -2,17 +2,9 @@ use once::OnceVec;
 use fp::prime::*;
 use fp::vector::{FpVector, FpVectorT};
 
-pub const MAX_XI_TAU : usize = fp::prime::MAX_MULTINOMIAL_LEN;
+use fp::const_for;
 
-macro_rules! const_for {
-    ($i:ident in $a:literal .. $b:ident $contents:block) => {
-        let mut $i = 0;
-        while $i < $b {
-            $contents;
-            $i += 1;
-        }
-    };
-}
+pub const MAX_XI_TAU : usize = fp::prime::MAX_MULTINOMIAL_LEN;
 
 /// If p is the nth prime, then XI_DEGREES[n][i - 1] is the degree of ξ_i at the prime p divided by
 /// q, where q = 2p - 2 if p != 2 and 1 if p = 2.
