@@ -1,6 +1,3 @@
-#![macro_use]
-#![feature(drain_filter)]
-
 #![allow(clippy::many_single_char_names)]
 #![allow(clippy::unreadable_literal)]
 #![allow(clippy::too_many_arguments)]
