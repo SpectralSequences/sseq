@@ -928,71 +928,73 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
 
     pub fn next(&mut self, basis: &mut MilnorBasisElement) -> Option<u32> {
         let new_p = &mut basis.p_part;
-        new_p.clear();
-        let mut coef = 1;
+        'outer: loop {
+            new_p.clear();
+            let mut coef = 1;
 
-        if self.init {
-            self.init = false;
-            for i in 1 .. std::cmp::min(self.cols, self.rows) {
-                if MOD4 {
-                    coef *= fp::prime::binomial4(self.M[i][0] + self.M[0][i], self.M[0][i]);
-                    coef %= 4;
-                } else {
-                    coef *= fp::prime::binomial(self.prime(), (self.M[i][0] + self.M[0][i]) as i32, self.M[0][i] as i32);
-                    coef %= *self.prime();
-                }
-                if coef == 0 {
-                    return self.next(basis);
-                }
-            }
-            new_p.extend_from_slice(&self.M[0][1..self.cols]);
-            if self.rows > self.cols {
-                new_p.resize(self.r.len(), 0);
-            }
-            for (i, &entry) in self.r.iter().enumerate() {
-                new_p[i] += entry;
-            }
-            Some(coef)
-        } else if self.update() {
-            for diag_idx in 1..=self.diag_num {
-                let i_min = if diag_idx + 1 > self.cols { diag_idx + 1 - self.cols } else {0} ;
-                let i_max = std::cmp::min(1 + diag_idx, self.rows);
-                let mut sum = 0;
-
-                self.diagonal.clear();
-
-                for i in i_min..i_max {
-                    self.diagonal.push(self.M[i][diag_idx - i]);
-                    sum += self.M[i][diag_idx - i];
-                }
-                new_p.push(sum);
-
-                if sum == 0  {
-                    continue;
-                }
-                if MOD4 {
-                    if coef == 2 {
-                        coef *= fp::prime::multinomial2(&self.diagonal);
+            if self.init {
+                self.init = false;
+                for i in 1 .. std::cmp::min(self.cols, self.rows) {
+                    if MOD4 {
+                        coef *= fp::prime::binomial4(self.M[i][0] + self.M[0][i], self.M[0][i]);
+                        coef %= 4;
                     } else {
-                        coef *= fp::prime::multinomial4(&self.diagonal);
+                        coef *= fp::prime::binomial(self.prime(), (self.M[i][0] + self.M[0][i]) as i32, self.M[0][i] as i32);
+                        coef %= *self.prime();
                     }
-                    coef %= 4;
-                } else {
-                    coef *= fp::prime::multinomial(self.prime(), &mut self.diagonal);
-                    coef %= *self.prime();
+                    if coef == 0 {
+                        continue 'outer;
+                    }
                 }
-                if coef == 0 {
-                    return self.next(basis);
+                new_p.extend_from_slice(&self.M[0][1..self.cols]);
+                if self.rows > self.cols {
+                    new_p.resize(self.r.len(), 0);
                 }
-            }
-            // If new_p ends with 0, drop them
-            while let Some(0) = new_p.last() {
-                new_p.pop();
-            }
+                for (i, &entry) in self.r.iter().enumerate() {
+                    new_p[i] += entry;
+                }
+                return Some(coef);
+            } else if self.update() {
+                for diag_idx in 1..=self.diag_num {
+                    let i_min = if diag_idx + 1 > self.cols { diag_idx + 1 - self.cols } else {0} ;
+                    let i_max = std::cmp::min(1 + diag_idx, self.rows);
+                    let mut sum = 0;
 
-            Some(coef)
-        } else {
-            None
+                    self.diagonal.clear();
+
+                    for i in i_min..i_max {
+                        self.diagonal.push(self.M[i][diag_idx - i]);
+                        sum += self.M[i][diag_idx - i];
+                    }
+                    new_p.push(sum);
+
+                    if sum == 0  {
+                        continue;
+                    }
+                    if MOD4 {
+                        if coef == 2 {
+                            coef *= fp::prime::multinomial2(&self.diagonal);
+                        } else {
+                            coef *= fp::prime::multinomial4(&self.diagonal);
+                        }
+                        coef %= 4;
+                    } else {
+                        coef *= fp::prime::multinomial(self.prime(), &mut self.diagonal);
+                        coef %= *self.prime();
+                    }
+                    if coef == 0 {
+                        continue 'outer;
+                    }
+                }
+                // If new_p ends with 0, drop them
+                while let Some(0) = new_p.last() {
+                    new_p.pop();
+                }
+
+                return Some(coef);
+            } else {
+                return None;
+            }
         }
     }
 }
