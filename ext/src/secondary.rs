@@ -362,7 +362,7 @@ pub fn compute_delta_concurrent(
         last_receiver = Some(receiver);
     }
     for handle in handles {
-        handle.join();
+        handle.join().unwrap();
     }
     println!("Computed δd terms in {:.2?}", start.elapsed());
     unwrap(Arc::try_unwrap(deltas))
