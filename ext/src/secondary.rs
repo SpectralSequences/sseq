@@ -310,6 +310,7 @@ pub fn compute_delta_concurrent(
     let deltas = Arc::new(deltas);
 
     let mut last_receiver: Option<mpsc::Receiver<()>> = None;
+    let mut handles = Vec::with_capacity(ddeltas.len());
     for (s, ddeltas_) in ddeltas.into_iter().enumerate() {
         let s = s as u32 + 3;
 
@@ -326,7 +327,7 @@ pub fn compute_delta_concurrent(
         #[cfg(debug_assertions)]
         let res = Arc::clone(res);
 
-        thread::spawn(move || {
+        handles.push(thread::spawn(move || {
             let delta = &deltas[s as usize - 3];
 
             delta.extend_by_zero_safe(min_degree);
@@ -357,13 +358,11 @@ pub fn compute_delta_concurrent(
                 delta.add_generators_from_rows(&delta.lock(), t, results);
                 sender.send(()).unwrap();
             }
-            // Make sure deltas is dropped before sender
-            drop(deltas);
-        });
+        }));
         last_receiver = Some(receiver);
     }
-    if let Some(x) = last_receiver {
-        x.into_iter().last();
+    for handle in handles {
+        handle.join();
     }
     println!("Computed δd terms in {:.2?}", start.elapsed());
     unwrap(Arc::try_unwrap(deltas))
