@@ -824,8 +824,21 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         }
     }
 
+    /// We have a matrix of the form
+    ///    | s₁  s₂  s₃ ...
+    /// --------------------
+    /// r₁ |
+    /// r₂ |     x_{ij}
+    /// r₃ |
+    ///
+    /// We think of ourselves as modifiying the center pieces x_{ij}, while the r_i's and s_j's are
+    /// only there to ensure the x_{ij}'s don't get too big. The idea is to sweep through the
+    /// matrix row by row, from top-to-bottom, and left-to-right. In each pass, we find the first
+    /// entry that can be incremented. We then increment it and zero out all the entries that
+    /// appear before it. This will give us all valid entries.
     fn update(&mut self) -> bool {
         for i in 1..self.rows {
+            // total is sum x_{ij} p^j up to the jth column
             let mut total = self.M[i][0];
             let mut p_to_the_j = 1;
             for j in 1..self.cols {
@@ -836,7 +849,8 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                     total += self.M[i][j] * p_to_the_j;
                     continue;
                 }
-                // Check if any entry in column j above row i is nonzero. I'm still not sure why tbh.
+                // The remaining obstacle to incrementing this entry is the column sum condition.
+                // For this, we only need a non-zero entry in the column j above row i.
                 if (0..i).any(|k| self.M[k][j] != 0) {
                     // If so, we found our next matrix.
                     for row in 1..i {
