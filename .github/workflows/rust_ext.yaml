@@ -4,6 +4,8 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+        RUST_BACKTRACE: 1
 
     steps:
     - uses: actions/checkout@v2
