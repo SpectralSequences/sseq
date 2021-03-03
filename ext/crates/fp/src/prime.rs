@@ -214,7 +214,7 @@ fn multinomial_odd(p_ : ValidPrime, l : &mut [u32]) -> u32 {
 }
 
 //Mod p binomial coefficient n choose k. If p is 2, more efficient to use Binomial2.
-fn binomial_odd(p_ : ValidPrime, n : i32, k : i32) -> u32 {
+pub fn binomial_odd(p_ : ValidPrime, n : i32, k : i32) -> u32 {
     let p = *p_;
 
     if n < k || k < 0 {
@@ -234,6 +234,20 @@ fn binomial_odd(p_ : ValidPrime, n : i32, k : i32) -> u32 {
         k /= p;
     }
     answer
+}
+
+#[inline]
+pub fn binomial_odd_is_zero(p: ValidPrime, mut n: u32, mut k: u32) -> bool {
+    let p = *p;
+
+    while n > 0 {
+        if n % p < k % p {
+            return true;
+        }
+        n /= p;
+        k /= p;
+    }
+    false
 }
 
 /// This computes the multinomial coefficient $\binom{n}{l_1 \ldots l_k}\bmod p$, where $n$

@@ -824,6 +824,33 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         }
     }
 
+    /// This compute the first l > k such that (sum + l) choose l != 0 mod p, stopping if we reach
+    /// max + 1. This is useful for incrementing the matrix.
+    ///
+    /// TODO: Improve odd prime performance
+    fn next_val(&self, sum: u32, k: u32, max: u32) -> u32 {
+        match *self.prime() {
+            2 => {
+                if MOD4 {
+                    // x.count_ones() + y.count_ones() - (x + y).count_ones() is the number of
+                    // carries when adding x to y.
+                    //
+                    // The p-adic valuation of (n + r) choose r is the number of carries when
+                    // adding r to n in base p.
+                    (k + 1 .. max + 1).find(|&l| {
+                        sum & l == 0 ||
+                        (sum.count_ones() + l.count_ones()) - (sum + l).count_ones() == 1
+                    }).unwrap_or(max + 1)
+                } else {
+                    ((k | sum) + 1) & !sum
+                }
+            }
+            _ => {
+                (k + 1 .. max + 1).find(|&l| !fp::prime::binomial_odd_is_zero(self.prime(), sum + l, l)).unwrap_or(max + 1)
+            }
+        }
+    }
+
     /// We have a matrix of the form
     ///    | s₁  s₂  s₃ ...
     /// --------------------
@@ -849,9 +876,30 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                     total += self.M[i][j] * p_to_the_j;
                     continue;
                 }
+                let col_sum: u32 = (0 .. i).map(|k| self.M[k][j]).sum();
+                if col_sum == 0 {
+                    total += self.M[i][j] * p_to_the_j;
+                    continue;
+                }
+
+                let max_inc = std::cmp::min(col_sum, total / p_to_the_j);
+
+                // Compute the sum of entries along the diagonal to the bottom-left
+                let mut sum = 0;
+                for c in (i + j + 1).saturating_sub(self.rows) .. j {
+                    sum += self.M[i + j - c][c];
+                }
+
+                // Find the next possible value we can increment M[i][j] to without setting the
+                // coefficient to 0. The coefficient is the multinomial coefficient of the
+                // diagonal, and if the multinomial coefficient of any subset is zero, so is the
+                // coefficient of the whole diagonal.
+                let next_val = self.next_val(sum, self.M[i][j], max_inc + self.M[i][j]);
+                let inc = next_val - self.M[i][j];
+
                 // The remaining obstacle to incrementing this entry is the column sum condition.
                 // For this, we only need a non-zero entry in the column j above row i.
-                if (0..i).any(|k| self.M[k][j] != 0) {
+                if inc <= max_inc {
                     // If so, we found our next matrix.
                     for row in 1..i {
                         self.M[row][0] = self.r[row-1];
@@ -864,9 +912,9 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                         self.M[0][col] += self.M[i][col];
                         self.M[i][col] = 0;
                     }
-                    self.M[0][j] -= 1;
-                    self.M[i][j] += 1;
-                    self.M[i][0] = total - p_to_the_j;
+                    self.M[0][j] -= inc;
+                    self.M[i][j] += inc;
+                    self.M[i][0] = total - p_to_the_j * inc;
                     return true;
                 }
                 // All the cells above this one are zero so we didn't find our next matrix.
