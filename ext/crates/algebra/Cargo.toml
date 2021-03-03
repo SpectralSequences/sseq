@@ -33,3 +33,7 @@ bencher = "0.1.5"
 
 [features]
 extras = []
+
+[[bench]]
+name = "milnor"
+harness = false
