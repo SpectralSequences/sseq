@@ -883,11 +883,11 @@ impl<CC : UnitChainComplex> Resolution<CC> {
         }
     }
 
-    fn max_computed_degree(&self) -> i32 {
+    pub fn max_computed_degree(&self) -> i32 {
         *self.next_t.lock() - 1
     }
 
-    fn max_computed_homological_degree(&self) -> u32 {
+    pub fn max_computed_homological_degree(&self) -> u32 {
         *self.next_s.lock() - 1
     }
 

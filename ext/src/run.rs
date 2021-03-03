@@ -534,6 +534,8 @@ pub fn secondary() -> error::Result<String> {
     let s = query_with_default("Max s", 7, Ok);
     let t = query_with_default("Max t", 30, Ok);
 
+    let should_resolve = s > resolution.max_computed_homological_degree() ||  t > resolution.max_computed_degree();
+
     let save = || {
         print!("Saving resolution: ");
         let start = Instant::now();
@@ -546,12 +548,14 @@ pub fn secondary() -> error::Result<String> {
 
     #[cfg(not(feature = "concurrent"))]
     let deltas = {
-        print!("Resolving module: ");
-        let start = Instant::now();
-        resolution.resolve_through_bidegree(s, t);
-        println!("{:.2?}", start.elapsed());
+        if should_resolve {
+            print!("Resolving module: ");
+            let start = Instant::now();
+            resolution.resolve_through_bidegree(s, t);
+            println!("{:.2?}", start.elapsed());
 
-        save();
+            save();
+        }
 
         ext::secondary::compute_delta(&resolution.inner, s, t)
     };
@@ -561,12 +565,14 @@ pub fn secondary() -> error::Result<String> {
         let num_threads = query_with_default("Number of threads", 2, Ok);
         let bucket = Arc::new(TokenBucket::new(num_threads));
 
-        print!("Resolving module: ");
-        let start = Instant::now();
-        resolution.resolve_through_bidegree_concurrent(s, t, &bucket);
-        println!("{:.2?}", start.elapsed());
+        if should_resolve {
+            print!("Resolving module: ");
+            let start = Instant::now();
+            resolution.resolve_through_bidegree_concurrent(s, t, &bucket);
+            println!("{:.2?}", start.elapsed());
 
-        save();
+            save();
+        }
 
         ext::secondary::compute_delta_concurrent(&resolution.inner, s, t, &bucket)
     };
