@@ -9,7 +9,7 @@ use serde::Deserialize;
 use serde_json::json;
 use serde_json::value::Value;
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -263,7 +263,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         let min_degree = degrees.iter().copied().min().unwrap_or(0);
         let max_degree = degrees.iter().copied().max().unwrap_or(-1) + 1;
 
-        let mut gen_to_idx = HashMap::new();
+        let mut gen_to_idx = HashMap::default();
         let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree);
         let mut gen_names = BiVec::with_capacity(min_degree, max_degree);
 

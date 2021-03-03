@@ -16,6 +16,7 @@ lazy_static = "1.2.0"
 nom = { version = "5.0.0", default-features = false, features = ["alloc"] }
 parking_lot = "0.11"
 syn = "=1.0.57"
+rustc-hash = "1.1.0"
 
 
 bivec = { path = "../bivec"}

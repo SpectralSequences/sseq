@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use parking_lot::Mutex;
 use serde_json::value::Value;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use once::OnceVec;
 use fp::prime::{integer_power, ValidPrime, BitflagIterator};
@@ -254,7 +254,8 @@ impl Algebra for MilnorAlgebra {
         // Populate hash map
         for d in *next_degree as usize ..= max_degree as usize {
             let basis = &self.basis_table[d];
-            let mut map = HashMap::with_capacity(basis.len());
+            let mut map = HashMap::default();
+            map.reserve(basis.len());
             for (i, b) in basis.iter().enumerate() {
                 map.insert(b.clone(), i);
             }

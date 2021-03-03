@@ -9,7 +9,7 @@ use crate::module::{QuotientModule as QM, TruncatedModule as TM};
 
 use bivec::BiVec;
 
-use std::collections::HashSet;
+use rustc_hash::FxHashSet as HashSet;
 use std::sync::Arc;
 
 const PENALTY_UNIT : i32 = 10000;
@@ -356,7 +356,7 @@ where TCM : BoundedModule<Algebra = SteenrodAlgebra>,
 
             let image_pivots = images.find_pivots_permutation(pivot_columns.iter().map(|(_p, i)| *i));
 
-            let mut chosen_cols : HashSet<usize> = HashSet::new();
+            let mut chosen_cols : HashSet<usize> = HashSet::default();
 
             for image in image_pivots {
                 chosen_cols.insert(image);

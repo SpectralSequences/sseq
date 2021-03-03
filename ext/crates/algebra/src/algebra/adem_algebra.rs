@@ -10,7 +10,7 @@ use nom::{
     sequence::{delimited, pair},
 };
 use parking_lot::Mutex;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::format;
 use serde_json::value::Value;
 
@@ -631,7 +631,8 @@ impl AdemAlgebra {
     fn generate_basis_element_to_index_map(&self, next_degree : i32, max_degree : i32){
         for n in next_degree ..= max_degree {
             let basis = &self.basis_table[n as usize];
-            let mut map = HashMap::with_capacity(basis.len());
+            let mut map = HashMap::default();
+            map.reserve(basis.len());
             for (i, basis) in basis.iter().enumerate() {
                 map.insert(basis.clone(), i);
             }

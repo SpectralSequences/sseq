@@ -176,7 +176,7 @@ pub fn ascii_num(n: usize) -> char {
     }
 }
 
-pub fn print_resolution_color<C: FreeChainComplex>(res: &C, max_s: u32, max_t: i32, highlight: &std::collections::HashSet<(u32, i32)>) {
+pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(res: &C, max_s: u32, max_t: i32, highlight: &std::collections::HashSet<(u32, i32), S>) {
     use std::io::Write;
     let stdout = std::io::stdout();
     let mut stdout = stdout.lock();

@@ -1,7 +1,7 @@
 use std::io::{stdout, Write};
 use std::sync::Arc;
 use std::path::PathBuf;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use serde_json::Value;
 use serde_json::json;
@@ -255,7 +255,7 @@ pub fn interactive_module_define_fpmodule(output_json : &mut Value, p : ValidPri
     }
     println!("There is currently a hard-coded maximum degree of {} for relations (this is the maximum allowed degree of an operator acting on the generators). One can raise this number by editing the max_degree variable in the interactive_module_define_fpmodule function of src/cli_module_loaders.rs. Apologies.", max_degree);
 
-    let mut basis_elt_lookup = HashMap::new();
+    let mut basis_elt_lookup = HashMap::default();
     for (i, deg_i_gens) in gens.iter_enum() {
         for (j, gen) in deg_i_gens.iter().enumerate() {
             let k = adem_module.generators.operation_generator_to_index(0, 0, i, j);

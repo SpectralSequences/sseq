@@ -6,7 +6,7 @@ use crate::steenrod_parser::BocksteinOrSq;
 use crate::module::Module;
 use crate::steenrod_parser::*;
 use crate::change_of_basis;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 pub struct SteenrodCalculator {
     adem_algebra : AdemAlgebra,

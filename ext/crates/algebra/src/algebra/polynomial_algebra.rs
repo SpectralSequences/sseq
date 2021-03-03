@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::fmt;
 
 use once::OnceVec;
@@ -44,7 +44,7 @@ impl Default for PolynomialAlgebraTableEntry {
     fn default() -> Self {
         Self {
             index_to_monomial : Vec::new(),
-            monomial_to_index : HashMap::new()
+            monomial_to_index : HashMap::default()
         }
     }
 }
@@ -241,7 +241,7 @@ impl<A : PolynomialAlgebra> Algebra for A {
 
     fn basis_element_to_string(&self, degree: i32, index: usize) -> String {
         let mono = self.index_to_monomial(degree, index);
-        let mut exp_map = HashMap::new();
+        let mut exp_map = HashMap::default();
         for (i, e) in mono.poly.iter_nonzero() {
             let (gen_deg, gen_idx) = self.polynomial_monomials().internal_idx_to_gen_deg(i);
             let (var, var_exp) = self.repr_poly_generator(gen_deg, gen_idx);

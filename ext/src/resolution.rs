@@ -1,7 +1,7 @@
 use parking_lot::{RwLock, Mutex};
 use std::cmp::{min, max};
 use std::sync::{Arc, Weak};
-use std::collections::HashSet;
+use rustc_hash::FxHashSet as HashSet;
 // use std::time::Instant;
 
 use fp::prime::ValidPrime;
@@ -687,7 +687,7 @@ impl<CC : UnitChainComplex> Resolution<CC> {
 
             chain_maps_to_unit_resolution : OnceVec::new(),
             max_product_homological_degree : 0,
-            product_names : HashSet::new(),
+            product_names : HashSet::default(),
             product_list : Vec::new(),
             unit_resolution : None,
             unit_resolution_owner : None,

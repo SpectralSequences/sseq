@@ -15,7 +15,7 @@ use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 #[cfg(feature = "concurrent")]
 use saveload::{Load, Save};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 #[cfg(feature = "concurrent")]
 use std::{
@@ -167,7 +167,7 @@ pub fn compute_delta_concurrent(
     let res_ = Arc::clone(res);
     let (p_sender, p_receiver) = mpsc::channel();
     handles.push(thread::spawn(move || {
-        let mut processed = std::collections::HashSet::new();
+        let mut processed = rustc_hash::FxHashSet::default();
         for s in 0..3 {
             for t in min_degree..=max_t {
                 processed.insert((s, t));
@@ -428,7 +428,7 @@ pub fn a_dd(
     let module_l = res.module(gen_s - 2);
 
     // (gen_t, gen_idx, target_element) -> coefficient
-    let mut coefs: HashMap<(i32, usize, MilnorElt), u32> = HashMap::new();
+    let mut coefs: HashMap<(i32, usize, MilnorElt), u32> = HashMap::default();
     let mut temp = MilnorElt::default();
 
     let mut b = MilnorElt::default();

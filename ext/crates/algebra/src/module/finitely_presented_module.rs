@@ -1,5 +1,5 @@
 use serde_json::Value;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::sync::Arc;
 
 use crate::algebra::Algebra;
@@ -100,7 +100,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
                 max_degree = degree + 1;
             }
         }
-        let mut gen_to_idx = HashMap::new();
+        let mut gen_to_idx = HashMap::default();
         let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree);
         let mut gen_names = BiVec::with_capacity(min_degree, max_degree);
 
