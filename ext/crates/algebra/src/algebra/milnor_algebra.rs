@@ -29,7 +29,7 @@ pub trait MilnorAlgebraT : Send + Sync + 'static + Algebra {
 pub struct MilnorProfile {
     pub truncated : bool,
     pub q_part : u32,
-    pub p_part : Vec<u32>
+    pub p_part : PPart,
 }
 
 impl MilnorProfile {
@@ -310,7 +310,7 @@ impl Algebra for MilnorAlgebra {
         let mut degree = 0;
 
         if self.generic {
-            let (q_list, p_list): (Vec<u8>, Vec<u32>) = serde_json::from_value(json)?;
+            let (q_list, p_list): (Vec<u8>, PPart) = serde_json::from_value(json)?;
             let q = (2 * (*self.prime()) - 2) as i32;
 
             for (i, val) in p_list.into_iter().enumerate() {
@@ -323,7 +323,7 @@ impl Algebra for MilnorAlgebra {
                 degree += tau_degrees[k as usize];
             }
         } else {
-            let p_list: Vec<u32> = serde_json::from_value(json)?;
+            let p_list: PPart = serde_json::from_value(json)?;
             for (i, val) in p_list.into_iter().enumerate() {
                 p_part.push(val);
                 degree += (val as i32) * xi_degrees[i];
@@ -728,7 +728,7 @@ impl MilnorAlgebra {
 
 struct Matrix2D {
     cols: usize,
-    inner: Vec<u32>,
+    inner: PPart,
 }
 
 impl Matrix2D {
@@ -769,7 +769,7 @@ impl std::ops::IndexMut<usize> for Matrix2D {
 #[derive(Default)]
 pub struct PPartAllocation {
     m: Matrix2D,
-    diagonal: Vec<u32>,
+    diagonal: PPart,
 }
 
 #[allow(non_snake_case)]
@@ -781,7 +781,7 @@ pub struct PPartMultiplier<'a, const MOD4: bool> {
     cols : usize,
     diag_num : usize,
     init : bool,
-    diagonal: Vec<u32>,
+    diagonal: PPart,
 }
 
 #[allow(non_snake_case)]
@@ -1217,7 +1217,7 @@ mod tests {
 
 impl MilnorAlgebra {
     /// Returns `true` if the new element is not within the bounds
-    fn increment_p_part(element: &mut Vec<u32>, max : &[u32]) -> bool {
+    fn increment_p_part(element: &mut PPart, max : &[u32]) -> bool {
         element[0] += 1;
         for i in 0 .. element.len() - 1{
             if element[i] > max[i] {
