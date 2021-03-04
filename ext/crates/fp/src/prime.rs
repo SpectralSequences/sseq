@@ -90,7 +90,7 @@ impl<'de> Deserialize<'de> for ValidPrime {
 
 #[cfg(feature = "odd-primes")]
 pub const fn is_valid_prime(p : u32) -> bool {
-    (p as usize) < MAX_PRIME && PRIME_TO_INDEX_MAP[p as usize] != NOT_A_PRIME
+    (p as usize) <= MAX_PRIME && PRIME_TO_INDEX_MAP[p as usize] != NOT_A_PRIME
 }
 
 #[cfg(not(feature = "odd-primes"))]
