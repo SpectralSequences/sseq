@@ -13,9 +13,10 @@ use algebra::{Algebra as _, MilnorAlgebraT, SteenrodAlgebra};
 use bivec::BiVec;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
+use rustc_hash::FxHashMap as HashMap;
 #[cfg(feature = "concurrent")]
 use saveload::{Load, Save};
-use rustc_hash::FxHashMap as HashMap;
+use std::cell::RefCell;
 
 #[cfg(feature = "concurrent")]
 use std::{
@@ -80,6 +81,10 @@ impl MilnorClass {
             elements,
             degree: degree - gen_t,
         }
+    }
+
+    fn iter(&self) -> impl Iterator<Item = &MilnorElt> {
+        self.elements.iter()
     }
 
     fn iter_mut(&mut self) -> impl Iterator<Item = &mut MilnorElt> {
@@ -434,7 +439,7 @@ pub fn a_dd(
     let mut b = MilnorElt::default();
     let mut c = MilnorElt::default();
 
-    let process_mu0 = a_list.elements.iter().any(|x| x.p_part[0] > 0);
+    let process_mu0 = a_list.iter().any(|x| x.p_part[0] > 0);
     let mut allocation = PPartAllocation::default();
 
     for (i, _) in dg.iter_nonzero() {
@@ -483,7 +488,7 @@ pub fn a_dd(
             }
             debug_assert_eq!(c, 2);
 
-            for a in &mut a_list.elements {
+            for a in a_list.iter_mut() {
                 sub!(a, 1, 0);
 
                 let offset =
@@ -557,38 +562,69 @@ fn a_tau_y(
     }
 }
 
-// Computes A(a, Y_{k, l})
-fn a_y(algebra: &Algebra, a_list: &mut MilnorClass, k: usize, l: usize, result: &mut FpVector) {
+// Use thread-local storage to memoize a_y computation. Since the possible values of k, l grow as
+// log n, in practice it is going to be at most, say, 64, and the memory usage here should be
+// dwarfed by that of storing a single quasi-inverse
+
+thread_local! {
+    static AY_CACHE: RefCell<HashMap<(MilnorElt, usize, usize), FpVector>> = RefCell::new(HashMap::default());
+}
+
+fn a_y(algebra: &Algebra, a_list: &MilnorClass, k: usize, l: usize, result: &mut FpVector) {
+    for a in a_list.iter() {
+        a_y_cached(algebra, a, k, l, result);
+    }
+}
+
+fn a_y_cached(algebra: &Algebra, a: &MilnorElt, k: usize, l: usize, result: &mut FpVector) {
+    AY_CACHE.with(|cache| {
+        let mut key = (a.clone(), k, l);
+        let cache = &mut *cache.try_borrow_mut().unwrap();
+        match cache.get(&key) {
+            Some(v) => result.add_shift_none_pure(v, 1),
+            None => {
+                let mut v = FpVector::new(
+                    TWO,
+                    algebra.dimension(a.degree + (1 << k) + (1 << l) - 2, 0),
+                );
+                a_y_inner(algebra, &mut key.0, k, l, &mut v);
+                result.add_shift_none_pure(&v, 1);
+                cache.insert(key, v);
+            }
+        }
+    });
+}
+
+/// Computes A(a, Y_{k, l})
+fn a_y_inner(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize, result: &mut FpVector) {
     let mut t = MilnorElt {
         q_part: 0,
         p_part: vec![],
         degree: 0,
     };
 
-    for a in a_list.iter_mut() {
-        for i in 0..=a.p_part.len() {
-            if i + k < l {
-                continue;
-            }
-
-            sub!(a, i, k);
-            for j in 0..=std::cmp::min(i + k - l, a.p_part.len()) {
-                sub!(a, j, l);
-
-                t.p_part.clear();
-                t.p_part.resize(k + i, 0);
-
-                t.p_part[k + i - 1] += 1;
-                t.p_part[l + j - 1] += 1;
-
-                t.degree = (1 << (k + i)) + (1 << (l + j)) - 2;
-
-                algebra.multiply(result, 1, &t, &a);
-
-                unsub!(a, j, l);
-            }
-            unsub!(a, i, k);
+    for i in 0..=a.p_part.len() {
+        if i + k < l {
+            continue;
         }
+
+        sub!(a, i, k);
+        for j in 0..=std::cmp::min(i + k - l, a.p_part.len()) {
+            sub!(a, j, l);
+
+            t.p_part.clear();
+            t.p_part.resize(k + i, 0);
+
+            t.p_part[k + i - 1] += 1;
+            t.p_part[l + j - 1] += 1;
+
+            t.degree = (1 << (k + i)) + (1 << (l + j)) - 2;
+
+            algebra.multiply(result, 1, &t, &a);
+
+            unsub!(a, j, l);
+        }
+        unsub!(a, i, k);
     }
 }
 
