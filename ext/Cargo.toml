@@ -55,3 +55,7 @@ members = [
     "crates/thread-token",
     "crates/error",
 ]
+
+[[bench]]
+name = "resolve"
+harness = false
