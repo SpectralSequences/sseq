@@ -6,6 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
         RUST_BACKTRACE: 1
+        RUST_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:
       matrix:
@@ -27,7 +28,6 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
           toolchain: ${{ matrix.toolchain }}
-          override: true
           components: clippy
 
     - name: Run tests
