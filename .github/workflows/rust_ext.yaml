@@ -26,7 +26,7 @@ jobs:
     - name: Install rustup
       uses: actions-rs/toolchain@v1
       with:
-          toolchain: {{ matrix.toolchain }}
+          toolchain: ${{ matrix.toolchain }}
           override: true
           components: clippy
 
