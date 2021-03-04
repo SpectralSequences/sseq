@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
         RUST_BACKTRACE: 1
-        RUST_TOOLCHAIN: ${{ matrix.toolchain }}
+        RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:
       matrix:
