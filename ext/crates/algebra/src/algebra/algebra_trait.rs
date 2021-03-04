@@ -44,7 +44,6 @@ pub trait Algebra : Send + Sync + 'static {
     fn multiply_basis_element_by_element(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r_idx : usize, s_degree : i32, s : &FpVector, excess : i32){
         let p = self.prime();
         for (i, v) in s.iter_nonzero() {
-            if v == 0 { continue; }
             self.multiply_basis_elements(result, (coeff * v) % *p, r_degree, r_idx, s_degree, i, excess);
         }
     }
