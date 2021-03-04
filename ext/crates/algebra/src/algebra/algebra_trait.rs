@@ -44,7 +44,6 @@ pub trait Algebra : Send + Sync + 'static {
     fn multiply_basis_element_by_element(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r_idx : usize, s_degree : i32, s : &FpVector, excess : i32){
         let p = self.prime();
         for (i, v) in s.iter_nonzero() {
-            if v == 0 { continue; }
             self.multiply_basis_elements(result, (coeff * v) % *p, r_degree, r_idx, s_degree, i, excess);
         }
     }
@@ -140,66 +139,4 @@ pub trait Algebra : Send + Sync + 'static {
 
     /// Get any relations that the algebra wants checked to ensure the consistency of module.
     fn relations_to_check(&self, _degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> { unimplemented!() }
-}
-
-
-#[macro_export]
-macro_rules! dispatch_algebra {
-    ($dispatch_macro : ident) => {
-        fn algebra_type(&self) -> &str {
-            $dispatch_macro!(algebra_type, self,)
-        }
-
-        fn prime(&self) -> fp::prime::ValidPrime {
-            $dispatch_macro!(prime, self, )
-        }
-
-        fn compute_basis(&self, degree : i32) {
-            $dispatch_macro!(compute_basis, self, degree)
-        }
-
-        fn max_computed_degree(&self) -> i32 {
-            $dispatch_macro!(max_computed_degree, self, )
-        }
-
-        fn dimension(&self, degree : i32, excess : i32) -> usize {
-            $dispatch_macro!(dimension, self, degree, excess)
-        }
-
-        fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, 
-            r_deg : i32, r_idx : usize,
-            s_deg : i32, s_idx : usize,
-            excess : i32
-        ){
-            $dispatch_macro!(multiply_basis_elements, self, result, coeff, r_deg, r_idx, s_deg, s_idx, excess)
-        }
-
-        fn json_to_basis(&self, json : serde_json::Value) -> error::Result<(i32, usize)> {
-            $dispatch_macro!(json_to_basis, self, json)
-        }
-
-        fn json_from_basis(&self, degree : i32, idx : usize) -> serde_json::Value {
-            $dispatch_macro!(json_from_basis, self, degree, idx)
-        }
-
-        fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
-            $dispatch_macro!(basis_element_to_string, self, degree, idx)
-        }
-
-        fn generators(&self, degree : i32) -> Vec<usize> { 
-            $dispatch_macro!(generators, self, degree)
-        }
-
-        fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> nom::IResult<&'b str, (i32, usize)> { 
-            $dispatch_macro!(string_to_generator, self, input)
-        }
-
-        fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
-            $dispatch_macro!(decompose_basis_element, self, degree, idx)
-        }
-        
-        fn relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> { 
-            $dispatch_macro!(relations_to_check, self, degree)
-        }
-    }
 }
