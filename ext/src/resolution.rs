@@ -501,16 +501,11 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
 
 
     pub fn cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
-        let p = self.prime();
         let d = self.differential(hom_deg);
-        let source = self.module(hom_deg);
         let target = d.target();
-        let dimension = target.dimension(int_deg);
-        let basis_idx = source.operation_generator_to_index(0, 0, int_deg, idx);
-        let mut result_vector = fp::vector::FpVector::new(p, dimension);
-        d.apply_to_basis_element(&mut result_vector, 1, int_deg, basis_idx);
+        let result_vector = d.output(int_deg, idx);
 
-        target.element_to_string(int_deg, &result_vector)
+        target.element_to_string_pretty(hom_deg, int_deg, &result_vector)
     }
 
     pub fn complex(&self) -> Arc<CC> {

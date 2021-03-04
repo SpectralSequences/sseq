@@ -353,6 +353,32 @@ impl<A: Algebra> FreeModule<A> {
         max
     }
 
+    /// A version of element_to_string that names the generator as x_{t - s, s, idx}. The input s
+    /// only affects how the output is displayed.
+    pub fn element_to_string_pretty(&self, s: u32, t: i32, vec: &FpVector) -> String {
+        let mut first = true;
+
+        let mut result = String::new();
+        for (i, c) in vec.iter_nonzero() {
+            if !first {
+                result.push_str(" + ");
+            }
+            first = false;
+
+            if c != 1 {
+                result.push_str(&*format!("{} ", c));
+            }
+            let opgen = self.index_to_op_gen(t, i);
+            let op_str = self.algebra().basis_element_to_string(opgen.operation_degree, opgen.operation_index);
+            if op_str != "1" {
+                result.push_str(&*op_str);
+                result.push(' ');
+            }
+            result.push_str(&*format!("x_{{{},{},{}}}", opgen.generator_degree - s as i32 + 1, s - 1, opgen.generator_index));
+
+        }
+        result
+    }
 }
 
 use saveload::{Load, Save};
