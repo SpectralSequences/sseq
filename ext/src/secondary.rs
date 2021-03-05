@@ -1,5 +1,6 @@
 use crate::chain_complex::ChainComplex;
 use crate::resolution::ResolutionInner;
+use crate::utils::HashMapTuple;
 use crate::CCC;
 use algebra::combinatorics;
 use algebra::milnor_algebra::{
@@ -567,28 +568,29 @@ fn a_tau_y(
 // dwarfed by that of storing a single quasi-inverse
 
 thread_local! {
-    static AY_CACHE: RefCell<HashMap<(MilnorElt, usize, usize), FpVector>> = RefCell::new(HashMap::default());
+    static AY_CACHE: RefCell<HashMap<(MilnorElt, (usize, usize)), FpVector>> = RefCell::new(HashMap::default());
 }
 
-fn a_y(algebra: &Algebra, a_list: &MilnorClass, k: usize, l: usize, result: &mut FpVector) {
-    for a in a_list.iter() {
+fn a_y(algebra: &Algebra, a_list: &mut MilnorClass, k: usize, l: usize, result: &mut FpVector) {
+    for a in a_list.iter_mut() {
         a_y_cached(algebra, a, k, l, result);
     }
 }
 
-fn a_y_cached(algebra: &Algebra, a: &MilnorElt, k: usize, l: usize, result: &mut FpVector) {
+fn a_y_cached(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize, result: &mut FpVector) {
     AY_CACHE.with(|cache| {
-        let mut key = (a.clone(), k, l);
         let cache = &mut *cache.try_borrow_mut().unwrap();
-        match cache.get(&key) {
+        match cache.get_tuple(a, &(k, l)) {
             Some(v) => result.add_shift_none_pure(v, 1),
             None => {
                 let mut v = FpVector::new(
                     TWO,
                     algebra.dimension(a.degree + (1 << k) + (1 << l) - 2, 0),
                 );
-                a_y_inner(algebra, &mut key.0, k, l, &mut v);
+                a_y_inner(algebra, a, k, l, &mut v);
                 result.add_shift_none_pure(&v, 1);
+
+                let key = (a.clone(), (k, l));
                 cache.insert(key, v);
             }
         }

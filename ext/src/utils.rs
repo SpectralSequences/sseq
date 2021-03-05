@@ -191,3 +191,40 @@ pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(re
         writeln!(stdout).unwrap();
     }
 }
+
+use std::hash::{Hash, Hasher, BuildHasher};
+use std::collections::HashMap;
+
+pub trait HashMapTuple<A, B, C> {
+    fn get_tuple(&self, a: &A, b: &B) -> Option<&C>;
+}
+
+impl<A: Eq + Hash, B: Eq + Hash, C, S: BuildHasher> HashMapTuple<A, B, C> for HashMap<(A, B), C, S> {
+    fn get_tuple(&self, a: &A, b: &B) -> Option<&C> {
+        let mut hasher = self.hasher().build_hasher();
+        a.hash(&mut hasher);
+        b.hash(&mut hasher);
+        let raw_entry = self.raw_entry();
+
+        raw_entry.from_hash(
+            hasher.finish(),
+            |v| &v.0 == a && &v.1 == b,
+        ).map(|(_, y)| y)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_hashmap_tuple() {
+        let mut x: HashMap<(u32, u32), bool> = HashMap::new();
+        x.insert((5, 3), true);
+
+        assert_eq!(x.get_tuple(&5, &3), Some(&true));
+        assert_eq!(x.get_tuple(&3, &5), None);
+        assert_eq!(x.get_tuple(&7, &12), None);
+
+    }
+}
