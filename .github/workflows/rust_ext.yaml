@@ -28,7 +28,7 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
           toolchain: ${{ matrix.toolchain }}
-          components: clippy rustfmt
+          components: clippy, rustfmt
 
     - name: Run tests
       run: make -C ext test
