@@ -11,7 +11,7 @@ license = "(MIT OR Apache-2.0)"
 algebra = { path = "crates/algebra", default-features = false }
 bivec = { path = "crates/bivec"}
 error = { path = "crates/error"}
-fp = { path = "crates/fp" }
+fp = { path = "crates/fp", default-features = false, features = ["json"] }
 once = { path = "crates/once"}
 saveload = { path = "crates/saveload" }
 query = { path = "crates/query" }
@@ -44,7 +44,7 @@ extras = ["algebra/extras"]
 yoneda = ["extras"]
 cache-multiplication = []
 concurrent = ["thread-token", "crossbeam-channel"]
-odd-primes = ["fp/odd-primes"]
+odd-primes = ["fp/odd-primes", "algebra/odd-primes"]
 
 [workspace]
 members = [

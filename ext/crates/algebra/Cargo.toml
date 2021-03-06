@@ -21,7 +21,7 @@ rustc-hash = "1.1.0"
 
 bivec = { path = "../bivec"}
 error = { path = "../error" }
-fp = { path = "../fp" }
+fp = { path = "../fp", default-features = false }
 once = { path = "../once" }
 query = { path = "../query" }
 saveload = { path = "../saveload" }
@@ -32,7 +32,9 @@ rstest = "0.5.0"
 bencher = "0.1.5"
 
 [features]
+default = ["odd-primes"]
 extras = []
+odd-primes = ["fp/odd-primes"]
 
 [[bench]]
 name = "milnor"

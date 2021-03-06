@@ -10,9 +10,9 @@ edition = "2018"
 bivec = { path = "ext/crates/bivec" }
 enum_dispatch = "0.2.0"
 error = { path = "ext/crates/error" }
-fp = { path = "ext/crates/fp", features = ["json"] }
+fp = { path = "ext/crates/fp", features = ["json"], default-features = false }
 parking_lot = "0.11"
-ext = { path = "ext" }
+ext = { path = "ext", default-features = false }
 serde_json = "1.0.0"
 serde = { version = "1.0.0", features = ["derive"] }
 thread-token = { path = "ext/crates/thread-token", optional = true }
@@ -30,7 +30,7 @@ js-sys = "0.3.0"
 [features]
 default = ["odd-primes", "concurrent"]
 cache-multiplication = ["ext/cache-multiplication"]
-odd-primes = ["fp/odd-primes", "ext/odd-primes"]
+odd-primes = ["fp/odd-primes", "algebra/odd-primes", "ext/odd-primes"]
 concurrent = ["thread-token", "ext/concurrent", "crossbeam-channel"]
 
 [lib]
