@@ -18,4 +18,4 @@ pub mod wasm_bindings;
 pub type Sender = wasm_bindings::Sender;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub type Sender = std::sync::mpsc::Sender<actions::Message>;
+pub type Sender = crossbeam_channel::Sender<actions::Message>;

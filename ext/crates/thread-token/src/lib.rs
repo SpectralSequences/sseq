@@ -1,5 +1,5 @@
 #![allow(clippy::mutex_atomic)]
-use std::sync::mpsc;
+use crossbeam_channel::{Receiver, TryRecvError};
 use parking_lot::{Mutex, Condvar};
 
 /// A `TokenBucket` is a bucket containing a fixed number of "tokens". Threads can take request to
@@ -42,16 +42,16 @@ impl TokenBucket {
     /// This function attempts to read a message from `receiver` (if available). If a message is
     /// received, it returns the same token. If not, it releases the existing token. It then waits
     /// for a message, and then queues for a new token. The new token is then returned.
-    pub fn recv_or_release<'a>(&'a self, mut token : Token<'a>, receiver : &Option<mpsc::Receiver<()>>) -> Token<'a> {
+    pub fn recv_or_release<'a>(&'a self, mut token : Token<'a>, receiver : &Option<Receiver<()>>) -> Token<'a> {
         if let Some(recv) = &receiver {
             match recv.try_recv() {
                 Ok(_) => (),
-                Err(mpsc::TryRecvError::Empty) => {
+                Err(TryRecvError::Empty) => {
                     token.release();
                     recv.recv().unwrap();
                     token = self.take_token();
                 },
-                Err(mpsc::TryRecvError::Disconnected) => panic!("Sender
+                Err(TryRecvError::Disconnected) => panic!("Sender
                             disconnected")
             }
         }
@@ -61,7 +61,7 @@ impl TokenBucket {
     /// This function attempts to read a message from `receiver` (if available). If a message is
     /// received, it returns the same token. If not, it releases the existing token. It then waits
     /// for a message, and then queues for a new token. The new token is then returned.
-    pub fn recv2_or_release<'a>(&'a self, mut token : Token<'a>, receiver1 : &Option<mpsc::Receiver<()>>, receiver2 : &Option<mpsc::Receiver<()>>) -> Token<'a> {
+    pub fn recv2_or_release<'a>(&'a self, mut token : Token<'a>, receiver1 : &Option<Receiver<()>>, receiver2 : &Option<Receiver<()>>) -> Token<'a> {
         if receiver1.is_none() {
             return self.recv_or_release(token, receiver2);
         } else if receiver2.is_none() {
@@ -74,7 +74,7 @@ impl TokenBucket {
             Ok(_) => {
                 token = self.recv_or_release(token, receiver2);
             },
-            Err(mpsc::TryRecvError::Empty) => {
+            Err(TryRecvError::Empty) => {
                 token.release();
 
                 let recv2 = receiver2.as_ref().unwrap();
@@ -85,16 +85,16 @@ impl TokenBucket {
                         token = self.take_token();
                     },
                     // We are waiting for both recv1 and recv2
-                    Err(mpsc::TryRecvError::Empty) => {
+                    Err(TryRecvError::Empty) => {
                         recv1.recv().unwrap();
                         recv2.recv().unwrap();
                         token = self.take_token();
                     },
-                    Err(mpsc::TryRecvError::Disconnected) => panic!("Sender
+                    Err(TryRecvError::Disconnected) => panic!("Sender
                             disconnected")
                 }
             },
-            Err(mpsc::TryRecvError::Disconnected) => panic!("Sender
+            Err(TryRecvError::Disconnected) => panic!("Sender
                             disconnected")
         }
         token

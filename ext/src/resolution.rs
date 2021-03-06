@@ -15,7 +15,11 @@ use crate::chain_complex::{ChainComplex, AugmentedChainComplex, UnitChainComplex
 use crate::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorphismToUnit};
 
 #[cfg(feature = "concurrent")]
-use std::{thread, sync::mpsc};
+use std::thread;
+
+#[cfg(feature = "concurrent")]
+use crossbeam_channel::{Receiver, unbounded};
+
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 
@@ -718,15 +722,15 @@ impl<CC : UnitChainComplex> Resolution<CC> {
             }
         }
 
-        let (pp_sender, pp_receiver) = mpsc::channel();
-        let mut last_receiver : Option<mpsc::Receiver<()>> = None;
+        let (pp_sender, pp_receiver) = unbounded();
+        let mut last_receiver : Option<Receiver<()>> = None;
         for t in min_degree ..= max_t {
             let next_t = *next_t;
             let next_s = *next_s;
 
             let start = if t < next_t { next_s } else { 0 };
 
-            let (sender, receiver) = mpsc::channel();
+            let (sender, receiver) = unbounded();
 
             let bucket = Arc::clone(bucket);
             let inner = Arc::clone(&self.inner);

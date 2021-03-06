@@ -23,10 +23,13 @@ use std::cell::RefCell;
 use std::{
     io::{BufReader, BufWriter, Read, Write},
     path::Path,
-    sync::{mpsc, Arc, Mutex},
+    sync::{Arc, Mutex},
     thread,
     time::Instant,
 };
+
+#[cfg(feature = "concurrent")]
+use crossbeam_channel::{unbounded, Receiver, RecvTimeoutError};
 
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
@@ -172,7 +175,7 @@ pub fn compute_delta_concurrent(
 
     // Pretty print progress of first step
     let res_ = Arc::clone(res);
-    let (p_sender, p_receiver) = mpsc::channel();
+    let (p_sender, p_receiver) = unbounded();
     handles.push(thread::spawn(move || {
         let mut processed = rustc_hash::FxHashSet::default();
         for s in 0..3 {
@@ -184,10 +187,10 @@ pub fn compute_delta_concurrent(
         loop {
             match p_receiver.recv_timeout(std::time::Duration::from_secs(1)) {
                 Ok(data) => {
-                    processed.insert(data);
+                    *processed.get_mut(&data).unwrap() -= 1;
                 }
-                Err(mpsc::RecvTimeoutError::Timeout) => (),
-                Err(_) => break,
+                Err(RecvTimeoutError::Timeout) => (),
+                Err(RecvTimeoutError::Disconnected) => break,
             }
             if prev.elapsed().as_millis() < 100 {
                 continue;
@@ -246,7 +249,7 @@ pub fn compute_delta_concurrent(
         Arc::new(Some(Mutex::new(BufWriter::new(f))))
     };
 
-    let (sender, receiver) = mpsc::channel();
+    let (sender, receiver) = unbounded::<(u32, i32, usize)>();
     let receiver = Arc::new(Mutex::new(receiver));
 
     for _ in 0..bucket.max_threads {
@@ -322,12 +325,12 @@ pub fn compute_delta_concurrent(
 
     let deltas = Arc::new(deltas);
 
-    let mut last_receiver: Option<mpsc::Receiver<()>> = None;
+    let mut last_receiver: Option<Receiver<()>> = None;
     let mut handles = Vec::with_capacity(ddeltas.len());
     for (s, ddeltas_) in ddeltas.into_iter().enumerate() {
         let s = s as u32 + 3;
 
-        let (sender, receiver) = mpsc::channel();
+        let (sender, receiver) = unbounded();
 
         let deltas = Arc::clone(&deltas);
         let bucket = Arc::clone(bucket);

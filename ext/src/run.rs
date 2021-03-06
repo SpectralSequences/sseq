@@ -28,7 +28,10 @@ use query::*;
 use saveload::{Load, Save};
 
 #[cfg(feature = "concurrent")]
-use std::{sync::mpsc, thread, thread::JoinHandle};
+use std::{thread, thread::JoinHandle};
+
+#[cfg(feature = "concurrent")]
+use crossbeam_channel::{unbounded, Receiver};
 
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
@@ -316,7 +319,7 @@ pub fn steenrod() -> error::Result<String> {
         }
 
         #[cfg(feature = "concurrent")]
-        let mut prev_i_receivers: Vec<Option<mpsc::Receiver<()>>> = Vec::new();
+        let mut prev_i_receivers: Vec<Option<Receiver<()>>> = Vec::new();
         #[cfg(feature = "concurrent")]
         for _ in 0..=2 * s {
             prev_i_receivers.push(None);
@@ -339,7 +342,7 @@ pub fn steenrod() -> error::Result<String> {
                 Vec::with_capacity((2 * s - i + 1) as usize);
 
             #[cfg(feature = "concurrent")]
-            let mut last_receiver: Option<mpsc::Receiver<()>> = None;
+            let mut last_receiver: Option<Receiver<()>> = None;
 
             #[cfg(feature = "concurrent")]
             let top_s = 2 * s - i;
@@ -375,9 +378,9 @@ pub fn steenrod() -> error::Result<String> {
                 };
 
                 #[cfg(feature = "concurrent")]
-                let (sender, new_receiver) = mpsc::channel();
+                let (sender, new_receiver) = unbounded();
                 #[cfg(feature = "concurrent")]
-                let (prev_i_sender, new_prev_i_receiver) = mpsc::channel();
+                let (prev_i_sender, new_prev_i_receiver) = unbounded();
 
                 #[cfg(feature = "concurrent")]
                 let bucket = Arc::clone(&bucket);

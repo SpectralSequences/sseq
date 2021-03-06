@@ -1,5 +1,5 @@
 use std::{fs, thread};
-use std::sync::mpsc;
+use crossbeam_channel::unbounded;
 use ws::{listen, Handler, Request, Response, Sender as WsSender, Result as WsResult};
 use textwrap::Wrapper;
 use time::OffsetDateTime;
@@ -54,9 +54,9 @@ pub struct Manager {
 impl Manager {
     fn new<T>(f : T) -> Self where T : Fn(String) + Send + 'static
     {
-        let (sseq_sender, sseq_receiver) = mpsc::channel();
-        let (server_sender, server_receiver) = mpsc::channel();
-        let (res_sender, res_receiver) = mpsc::channel();
+        let (sseq_sender, sseq_receiver) = unbounded();
+        let (server_sender, server_receiver) = unbounded();
+        let (res_sender, res_receiver) = unbounded();
 
         // ResolutionManager thread
         let sender = sseq_sender.clone();
