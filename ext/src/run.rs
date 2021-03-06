@@ -524,8 +524,8 @@ pub fn secondary() -> error::Result<String> {
 
     let saved_resolution;
 
-    let s = query_with_default("Max s", 7, Ok);
-    let t = query_with_default("Max t", 30, Ok);
+    let max_s = query_with_default("Max s", 7, Ok);
+    let max_t = query_with_default("Max t", 30, Ok);
 
     let res_save_file: String = query_with_default("Resolution save file", String::from("resolution.save"), Ok);
     #[cfg(feature = "concurrent")]
@@ -544,7 +544,7 @@ pub fn secondary() -> error::Result<String> {
         println!("{:.2?}", start.elapsed());
     }
 
-    let should_resolve = s >= *resolution.next_s.lock() || t >= *resolution.next_t.lock();
+    let should_resolve = max_s >= *resolution.next_s.lock() || max_t >= *resolution.next_t.lock();
 
     let save = || {
         if res_save_file != "-" {
@@ -563,13 +563,13 @@ pub fn secondary() -> error::Result<String> {
         if should_resolve {
             print!("Resolving module: ");
             let start = Instant::now();
-            resolution.resolve_through_bidegree(s, t);
+            resolution.resolve_through_bidegree(max_s, max_t);
             println!("{:.2?}", start.elapsed());
 
             save();
         }
 
-        ext::secondary::compute_delta(&resolution.inner, s, t)
+        ext::secondary::compute_delta(&resolution.inner, max_s, max_t)
     };
 
     #[cfg(feature = "concurrent")]
@@ -579,13 +579,13 @@ pub fn secondary() -> error::Result<String> {
         if should_resolve {
             print!("Resolving module: ");
             let start = Instant::now();
-            resolution.resolve_through_bidegree_concurrent(s, t, &bucket);
+            resolution.resolve_through_bidegree_concurrent(max_s, max_t, &bucket);
             println!("{:.2?}", start.elapsed());
 
             save();
         }
 
-        ext::secondary::compute_delta_concurrent(&resolution.inner, s, t, &bucket, &*del_save_file)
+        ext::secondary::compute_delta_concurrent(&resolution.inner, max_s, max_t, &bucket, &*del_save_file)
     };
 
     let mut filename = String::from("d2");
@@ -594,45 +594,19 @@ pub fn secondary() -> error::Result<String> {
     }
     let mut output = File::create(&filename).unwrap();
 
-    for s_ in 3..=s {
-        for t_ in s_ as i32..=t {
-            let module = resolution.module(s_);
-            let module2 = resolution.module(s_ - 2);
-            if module2.number_of_gens_in_degree(t_ - 1) == 0
-                || module.number_of_gens_in_degree(t_) == 0
-            {
+    for s in 1.. (max_s - 1) {
+        let delta = &deltas[s as usize - 1];
+
+        for t in s as i32 + 1 .. max_t {
+            if delta.source().number_of_gens_in_degree(t + 1) == 0 {
                 continue;
             }
+            let d = delta.hom_k(t);
 
-            let start = module2.generator_offset(t_ - 1, t_ - 1, 0);
-            let matrix: Vec<Vec<u32>> = (0..module.number_of_gens_in_degree(t_))
-                .map(|idx| {
-                    deltas[s_ as usize - 3]
-                        .output(t_, idx)
-                        .iter()
-                        .skip(start)
-                        .collect::<Vec<_>>()
-                })
-                .collect();
-
-            for n in 0..matrix[0].len() {
-                write!(
-                    output,
-                    "d_2 x_({}, {}, {}) = [",
-                    t_ + 1 - s_ as i32,
-                    s_ - 2,
-                    n,
-                )
-                .unwrap();
-                let mut first = true;
-                for row in &matrix {
-                    if !first {
-                        write!(output, ", ").unwrap()
-                    }
-                    first = false;
-                    write!(output, "{}", row[n]).unwrap();
-                }
-                writeln!(output, "]").unwrap();
+            for (i, entry) in d.into_iter().enumerate() {
+                writeln!(output,
+                    "d_2 x_({}, {}, {}) = {:?}", t - s as i32, s, i, entry
+                ).unwrap();
             }
         }
     }

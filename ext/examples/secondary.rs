@@ -3,7 +3,6 @@
 use ext::resolution::Resolution;
 use ext::secondary::compute_delta;
 use ext::utils::construct_s_2;
-use fp::vector::FpVectorT;
 
 use std::fs::File;
 use std::io::BufReader;
@@ -36,12 +35,11 @@ fn main() -> std::io::Result<()> {
     let deltas = compute_delta(&resolution.inner, 6, 70);
     println!("Time elapsed: {:.2?}", start.elapsed());
 
-    // We can read off d_2(x_{65, 4}) ∈ R_{70, 6}. We first get the output of δ at the unique
-    // generator in bidegree (s, t) = (76, 6).
-    let output = deltas[6 - 3].output(70, 0);
+    // We can now get the matrix of the d_2 starting at (65, 4).
+    let output = deltas[6 - 3].hom_k(69);
 
     // dim R_{65, 4} = 1 and the generator is the last basis element.
-    println!("d_2 x_{{65, 4}} = {}", output.entry(output.dimension() - 1));
+    println!("d_2 x_{{65, 4}} = {}", output[0][0]);
 
     Ok(())
 }

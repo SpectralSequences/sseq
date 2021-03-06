@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::module::homomorphism::ModuleHomomorphism;
 use crate::module::{FreeModule, Module};
+use crate::algebra::Algebra;
 use fp::matrix::{Matrix, QuasiInverse, Subspace};
 use fp::vector::{FpVector, FpVectorT};
 use once::OnceBiVec;
@@ -304,6 +305,27 @@ impl<M: Module> FreeModuleHomomorphism<M> {
     }
 }
 
+impl<A: Algebra> FreeModuleHomomorphism<FreeModule<A>> {
+    /// Given f: M -> N, compute the dual f*: Hom(N, k) -> Hom(M, k) in source (N) degree t.
+    pub fn hom_k(&self, t: i32) -> Vec<Vec<u32>> {
+        let source_dim = self.source.number_of_gens_in_degree(t + self.degree_shift);
+        let target_dim = self.target.number_of_gens_in_degree(t);
+        if target_dim == 0 {
+            return vec![];
+        }
+        let mut result = vec![vec![0; source_dim]; target_dim];
+
+        let offset = self.target.generator_offset(t, t, 0);
+        for i in 0 .. source_dim {
+            let output = self.output(t + self.degree_shift, i);
+            #[allow(clippy::needless_range_loop)]
+            for j in 0 .. target_dim {
+                result[j][i] = output.entry(offset + j);
+            }
+        }
+        result
+    }
+}
 
 use saveload::{Load, Save};
 use std::io;
