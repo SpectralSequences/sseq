@@ -96,7 +96,7 @@ impl ResolutionManager {
     fn construct_json(&mut self, action : ConstructJson) -> error::Result<()> {
         let json_data = serde_json::from_str(&action.data)?;
 
-        let bundle = ext::utils::construct_from_json(json_data, action.algebra_name).unwrap();
+        let bundle = ext::utils::construct_from_json(json_data, &action.algebra_name).unwrap();
 
         self.process_bundle(bundle);
 
