@@ -521,29 +521,35 @@ pub fn secondary() -> error::Result<String> {
 
     let saved_resolution;
 
-    if Path::new("resolution.save").exists() {
+    let s = query_with_default("Max s", 7, Ok);
+    let t = query_with_default("Max t", 30, Ok);
+
+    let res_save_file: String = query_with_default("Resolution save file", String::from("resolution.save"), Ok);
+    #[cfg(feature = "concurrent")]
+    let del_save_file: String = query_with_default("Delta save file", String::from("ddelta.save"), Ok);
+
+    if res_save_file != "-" && Path::new(&*res_save_file).exists() {
         print!("Loading saved resolution: ");
         let start = Instant::now();
-        let f = File::open("resolution.save")?;
+        let f = File::open(&*res_save_file)?;
         let mut f = BufReader::new(f);
         saved_resolution = Resolution::load(&mut f, &bundle.chain_complex)?;
         resolution = &saved_resolution;
         println!("{:.2?}", start.elapsed());
     }
 
-    let s = query_with_default("Max s", 7, Ok);
-    let t = query_with_default("Max t", 30, Ok);
-
-    let should_resolve = s > resolution.max_computed_homological_degree() ||  t > resolution.max_computed_degree();
+    let should_resolve = s >= *resolution.next_s.lock() || t >= *resolution.next_t.lock();
 
     let save = || {
-        print!("Saving resolution: ");
-        let start = Instant::now();
-        let file = File::create("resolution.save").unwrap();
-        let mut file = BufWriter::new(file);
-        resolution.save(&mut file).unwrap();
-        drop(file);
-        println!("{:.2?}", start.elapsed());
+        if res_save_file != "-" {
+            print!("Saving resolution: ");
+            let start = Instant::now();
+            let file = File::create(&*res_save_file).unwrap();
+            let mut file = BufWriter::new(file);
+            resolution.save(&mut file).unwrap();
+            drop(file);
+            println!("{:.2?}", start.elapsed());
+        }
     };
 
     #[cfg(not(feature = "concurrent"))]
@@ -574,7 +580,7 @@ pub fn secondary() -> error::Result<String> {
             save();
         }
 
-        ext::secondary::compute_delta_concurrent(&resolution.inner, s, t, &bucket)
+        ext::secondary::compute_delta_concurrent(&resolution.inner, s, t, &bucket, &*del_save_file)
     };
 
     let mut filename = String::from("d2");

@@ -630,8 +630,8 @@ pub type AddStructlineFn = Box<dyn Fn(
 pub struct Resolution<CC : UnitChainComplex> {
     pub inner : Arc<ResolutionInner<CC>>,
 
-    next_s : Mutex<u32>,
-    next_t : Mutex<i32>,
+    pub next_s : Mutex<u32>,
+    pub next_t : Mutex<i32>,
     pub add_class : Option<AddClassFn>,
     pub add_structline : Option<AddStructlineFn>,
 
