@@ -2423,7 +2423,7 @@ mod tests {
             v.pack(&v_arr);
             v.reduce_limbs(v.min_limb(), v.max_limb());
             for i in 0..dim {
-                v_arr[i] = v_arr[i] % p;
+                v_arr[i] %= p;
             }
             v.assert_list_eq(&v_arr);
         }
@@ -2649,9 +2649,7 @@ mod tests {
             v.assign(&w);
             v.clear_slice();
             w.clear_slice();
-            for i in slice_start .. slice_end {
-                v_arr[i] = w_arr[i];
-            }
+            v_arr[slice_start .. slice_end].clone_from_slice(&w_arr[slice_start .. slice_end]);
             v.assert_list_eq(&v_arr);
         }
     }
@@ -2993,7 +2991,7 @@ mod tests {
                     ));
                 }
             }
-            assert!(diffs == [], "{}", diffs_str);
+            assert!(diffs.is_empty(), "{}", diffs_str);
         }
     }
 
@@ -3002,7 +3000,7 @@ mod tests {
         let p_ = ValidPrime::new(p);
         let v = FpVector::new(p_, 0);
         for (_idx, _v) in v.iter_nonzero() {
-            assert!(false);
+            panic!();
         }
     }
 
@@ -3072,7 +3070,7 @@ mod tests {
             // for i in 0 .. std::cmp::min(result.len(), comparison_result.len()) {
             //     println!("res : {:?}, comp : {:?}", result[i], comparison_result[i]);
             // }
-            assert!(diffs_str == "", "{}", diffs_str);
+            assert!(diffs_str.is_empty(), "{}", diffs_str);
         }
     }
 
@@ -3168,7 +3166,7 @@ mod tests {
                     "   Inputs: {:x?}\n      expected {:?}, got {:?}. popcnts: {:?}", tuple,  res, test_res, popcnts
                 ))
             );
-            assert!(false, "\nFailed test cases:\n {}", formatter);
+            panic!("\nFailed test cases:\n {}", formatter);
         }
     }
 }

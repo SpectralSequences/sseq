@@ -295,7 +295,7 @@ mod tests {
     fn test_kfpn_action(p : u32, n : i32){
         let p_ = ValidPrime::new(p);
         let algebra = Arc::new(AdemAlgebra::new(p_, p != 2, false, true));
-        let kfpn = KFpn::new(algebra.clone(), n);
+        let kfpn = KFpn::new(algebra, n);
         kfpn.test_relations(30, 5);
         // Module::compute_basis(&kfpn, 17);
         // let mut scratch_vec = FpVector::new(p_, 0);

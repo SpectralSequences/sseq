@@ -231,7 +231,7 @@ mod tests {
         let p = 2;
         let p_ = ValidPrime::new(p);
         let algebra = Arc::new(AdemAlgebra::new(p_, p != 2, false, true));
-        let dickson = Dickson2::new(algebra.clone(), n);
+        let dickson = Dickson2::new(algebra, n);
         dickson.test_relations(5, 5);
     }
 

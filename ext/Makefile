@@ -10,4 +10,4 @@ test-concurrent:
 	cargo test --features concurrent
 
 lint:
-	cargo clippy
+	cargo clippy --workspace --all-targets

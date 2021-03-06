@@ -414,8 +414,8 @@ mod tests {
                 println!("      {}", part);
             }
         }
-        for d in 0 .. tp.parts.len() {
-            for (idx, part) in tp.parts[d].iter().enumerate() {
+        for (d, parts) in tp.parts.iter().enumerate() {
+            for (idx, part) in parts.iter().enumerate() {
                 assert!(expected[d][idx] == format!("{}", part), 
                     "Discrepancy : degree : {}, idx : {} expected : {}, got : {}", d, idx, expected[d][idx], part
                 );

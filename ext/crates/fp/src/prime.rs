@@ -375,9 +375,8 @@ mod tests {
 
     #[test]
     fn inverse_test() {
-        for i in 0 .. NUM_PRIMES {
-            println!("{}", PRIMES[i]);
-            let p = ValidPrime::new(PRIMES[i]);
+        for &p in PRIMES.iter() {
+            let p = ValidPrime::new(p);
             for k in 1 .. *p {
                 assert_eq!((inverse(p, k) * k) % *p, 1);
             }
