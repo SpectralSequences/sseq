@@ -7,6 +7,6 @@ fn module_construct_error() {
 }
 
 fn test(json: &str) {
-    matches!(construct_from_json(serde_json::from_str(json).unwrap(), "adem".to_string()), Err(_));
-    matches!(construct_from_json(serde_json::from_str(json).unwrap(), "milnor".to_string()), Err(_));
+    matches!(construct_from_json(serde_json::from_str(json).unwrap(), "adem"), Err(_));
+    matches!(construct_from_json(serde_json::from_str(json).unwrap(), "milnor"), Err(_));
 }

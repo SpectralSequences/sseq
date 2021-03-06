@@ -31,8 +31,8 @@ fn test_iterate(config: &Config) {
     let module_def = load_module_from_file(&config).unwrap();
     let json : Value = serde_json::from_str(&module_def).unwrap();
 
-    let first = construct_from_json(json.clone(), config.algebra_name.clone()).unwrap();
-    let second = construct_from_json(json, config.algebra_name.clone()).unwrap();
+    let first = construct_from_json(json.clone(), &config.algebra_name).unwrap();
+    let second = construct_from_json(json, &config.algebra_name).unwrap();
 
     first.resolution.read().resolve_through_degree(20);
 

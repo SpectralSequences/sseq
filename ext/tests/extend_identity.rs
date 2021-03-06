@@ -64,7 +64,7 @@ fn extend_identity2() {
 
 fn check2(json: &str, max_degree: i32, algebra_name: &str) {
     println!("Module: {}", json);
-    let bundle = construct_from_json(serde_json::from_str(json).unwrap(), algebra_name.to_string()).unwrap();
+    let bundle = construct_from_json(serde_json::from_str(json).unwrap(), algebra_name).unwrap();
 
     let resolution = bundle.resolution.read();
 

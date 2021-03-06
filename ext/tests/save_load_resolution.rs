@@ -7,7 +7,7 @@ use algebra::module::homomorphism::ModuleHomomorphism;
 fn test_save_load() {
     let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
     let k = serde_json::from_str(k).unwrap();
-    let bundle = construct_from_json(k, "adem".to_string()).unwrap();
+    let bundle = construct_from_json(k, "adem").unwrap();
 
     let resolution1 = bundle.resolution.read();
     resolution1.resolve_through_degree(10);

@@ -579,7 +579,7 @@ mod tests {
         let p = ValidPrime::new(2);
 
         let k = serde_json::from_str(k).unwrap();
-        let bundle = construct_from_json(k, "adem".to_string()).unwrap();
+        let bundle = construct_from_json(k, "adem").unwrap();
         let resolution = bundle.resolution.read();
         resolution.resolve_through_bidegree(2 * s, 2 * t);
 

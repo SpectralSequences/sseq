@@ -33,10 +33,10 @@ pub fn construct(config : &Config) -> error::Result<AlgebraicObjectsBundle> {
     let contents = load_module_from_file(config)?;
     let json = serde_json::from_str(&contents)?;
 
-    construct_from_json(json, config.algebra_name.clone())
+    construct_from_json(json, &config.algebra_name)
 }
 
-pub fn construct_from_json(mut json : Value, algebra_name : String) -> error::Result<AlgebraicObjectsBundle> {
+pub fn construct_from_json(mut json : Value, algebra_name : &str) -> error::Result<AlgebraicObjectsBundle> {
     let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra_name)?);
     let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut json)?);
     let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
@@ -140,7 +140,7 @@ pub fn load_module_from_file(config : &Config) -> error::Result<String> {
 pub fn construct_s_2(algebra: &str) -> AlgebraicObjectsBundle {
     let json = r#"{"type" : "finite dimensional module","p": 2, "generic": false, "gens": {"x0": 0}, "milnor_actions": []}"#;
     let json = serde_json::from_str(json).unwrap();
-    construct_from_json(json, algebra.to_string()).unwrap()
+    construct_from_json(json, algebra).unwrap()
 }
 
 #[derive(Debug)]

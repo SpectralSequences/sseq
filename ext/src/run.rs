@@ -183,7 +183,7 @@ pub fn steenrod() -> error::Result<String> {
 pub fn steenrod() -> error::Result<String> {
     let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
     let k = serde_json::from_str(k)?;
-    let bundle = construct_from_json(k, "adem".to_string())?;
+    let bundle = construct_from_json(k, "adem")?;
     let mut resolution = &*bundle.resolution.read();
     let module = bundle.chain_complex.module(0);
 

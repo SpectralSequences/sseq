@@ -87,22 +87,25 @@ struct AlgebraSpec {
 }
 
 impl SteenrodAlgebra {
-    pub fn from_json(json : &Value, mut algebra_name : String) -> error::Result<SteenrodAlgebra> {
+    pub fn from_json(json : &Value, algebra_name : &str) -> error::Result<SteenrodAlgebra> {
+        // This line secretly redefines the lifetime of algebra_name so that we can reassign it
+        // later on.
+        let mut algebra_name = algebra_name;
         let spec : AlgebraSpec = serde_json::from_value(json.clone())?;
 
         let p = ValidPrime::try_new(spec.p)
             .ok_or_else(|| error::GenericError::new(format!("Invalid prime: {}", spec.p)))?;
 
-        if let Some(mut list) = spec.algebra {
-            if !list.contains(&algebra_name) {
+        if let Some(list) = spec.algebra.as_ref() {
+            if !list.iter().any(|x| x == algebra_name) {
                 println!("Module does not support algebra {}", algebra_name);
                 println!("Using {} instead", list[0]);
-                algebra_name = list.remove(0);
+                algebra_name = &list[0];
             }
         }
 
         let algebra : SteenrodAlgebra;
-        match algebra_name.as_ref() {
+        match algebra_name {
             "adem" => algebra = SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, *p != 2, false, false)),
             "milnor" => {
                 let mut algebra_inner = MilnorAlgebra::new(p);
@@ -119,7 +122,7 @@ impl SteenrodAlgebra {
                 }
                 algebra = SteenrodAlgebra::MilnorAlgebra(algebra_inner);
             }
-            _ => { return Err(InvalidAlgebraError { name : algebra_name }.into()); }
+            _ => { return Err(InvalidAlgebraError { name : algebra_name.into() }.into()); }
         };
         Ok(algebra)
     }
