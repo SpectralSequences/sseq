@@ -11,6 +11,7 @@ test-concurrent:
 
 lint:
 	cargo clippy --workspace --all-targets
+	rustfmt --check tests/*.rs examples/*.rs
 
 run_examples: $(patsubst examples/%.rs, target/release/examples/%, $(wildcard examples/*.rs))
 
