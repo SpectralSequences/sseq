@@ -531,6 +531,9 @@ pub fn secondary() -> error::Result<String> {
     #[cfg(feature = "concurrent")]
     let del_save_file: String = query_with_default("Delta save file", String::from("ddelta.save"), Ok);
 
+    #[cfg(feature = "concurrent")]
+    let num_threads = query_with_default("Number of threads", 2, Ok);
+
     if res_save_file != "-" && Path::new(&*res_save_file).exists() {
         print!("Loading saved resolution: ");
         let start = Instant::now();
@@ -571,7 +574,6 @@ pub fn secondary() -> error::Result<String> {
 
     #[cfg(feature = "concurrent")]
     let deltas = {
-        let num_threads = query_with_default("Number of threads", 2, Ok);
         let bucket = Arc::new(TokenBucket::new(num_threads));
 
         if should_resolve {
