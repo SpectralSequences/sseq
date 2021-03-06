@@ -19,3 +19,7 @@ dist
 package-lock.json
 resolution.save
 ddelta.save
+
+**/flamegraph.svg
+**/perf.data
+**/perf.data.old
