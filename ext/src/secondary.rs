@@ -451,7 +451,6 @@ pub fn a_dd(
 
     // (gen_t, gen_idx, target_element) -> coefficient
     let mut coefs: HashMap<(i32, usize, MilnorElt), u32> = HashMap::default();
-    let mut temp = MilnorElt::default();
 
     let mut b = MilnorElt::default();
     let mut c = MilnorElt::default();
@@ -485,7 +484,7 @@ pub fn a_dd(
             );
 
             if process_mu0 {
-                let mut multiplier = PPartMultiplier::<true>::new_from_allocation(
+                let (mut temp, mut multiplier) = PPartMultiplier::<true>::new_from_allocation(
                     TWO, &b.p_part, &c.p_part, allocation,
                 );
                 temp.degree = b.degree + c.degree;
@@ -494,7 +493,7 @@ pub fn a_dd(
                     let val = (c_ + coefs.get(&key).copied().unwrap_or(0)) % 4;
                     coefs.insert(key, val);
                 }
-                allocation = multiplier.into_allocation();
+                allocation = multiplier.into_allocation(temp);
             }
         }
     }

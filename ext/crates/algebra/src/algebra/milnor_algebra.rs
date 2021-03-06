@@ -691,34 +691,29 @@ impl MilnorAlgebra {
     }
 
     pub fn multiply_with_allocation(&self, res : &mut FpVector, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement, mut allocation: PPartAllocation) -> PPartAllocation {
-        let target_dim = m1.degree + m2.degree;
+        let target_deg = m1.degree + m2.degree;
         if self.generic {
             let m1f = self.multiply_qpart(m1, m2.q_part);
             for (cc, basis) in m1f {
-                let mut multiplier = PPartMultiplier::<false>::new_from_allocation(self.prime(), &(basis.p_part), &(m2.p_part), allocation);
-                let mut new = MilnorBasisElement {
-                    degree : target_dim,
-                    q_part : basis.q_part,
-                    p_part : Vec::with_capacity(multiplier.diag_num)
-                };
+                let (mut new, mut multiplier) = PPartMultiplier::<false>::new_from_allocation(self.prime(), &(basis.p_part), &(m2.p_part), allocation);
+
+                new.degree = target_deg;
+                new.q_part = basis.q_part;
                 while let Some(c) = multiplier.next(&mut new) {
                     let idx = self.basis_element_to_index(&new);
                     res.add_basis_element(idx, c * cc * coef);
                 }
-                allocation = multiplier.into_allocation()
+                allocation = multiplier.into_allocation(new)
             }
         } else {
-            let mut multiplier = PPartMultiplier::<false>::new_from_allocation(self.prime(), &(m1.p_part), &(m2.p_part), allocation);
-            let mut new = MilnorBasisElement {
-                degree: target_dim,
-                q_part: 0,
-                p_part: Vec::with_capacity(multiplier.diag_num)
-            };
+            let (mut new, mut multiplier) = PPartMultiplier::<false>::new_from_allocation(self.prime(), &(m1.p_part), &(m2.p_part), allocation);
+            new.degree = target_deg;
+
             while let Some(c) = multiplier.next(&mut new) {
                 let idx = self.basis_element_to_index(&new);
                 res.add_basis_element(idx, c * coef);
             }
-            allocation = multiplier.into_allocation()
+            allocation = multiplier.into_allocation(new)
         }
         allocation
     }
@@ -737,13 +732,6 @@ struct Matrix2D {
 }
 
 impl Matrix2D {
-    fn new(rows: usize, cols: usize) -> Self {
-        Matrix2D {
-            cols,
-            inner: vec![0; rows * cols]
-        }
-    }
-
     fn reset(&mut self, rows: usize, cols: usize) {
         self.cols = cols;
         self.inner.clear();
@@ -753,7 +741,12 @@ impl Matrix2D {
 
 impl Default for Matrix2D {
     fn default() -> Self {
-        Self::new(0, 0)
+        Self {
+            cols: 0,
+            // Preallocate more space to avoid future reallocation. For the dimension to be > 49,
+            // we need at least one side to have 8 entries, which happens in degree 256 at p = 2
+            inner: Vec::with_capacity(49),
+        }
     }
 }
 
@@ -771,10 +764,21 @@ impl std::ops::IndexMut<usize> for Matrix2D {
     }
 }
 
-#[derive(Default)]
 pub struct PPartAllocation {
     m: Matrix2D,
     diagonal: PPart,
+    p_part: PPart,
+}
+
+impl Default for PPartAllocation {
+    fn default() -> Self {
+        Self {
+            m: Matrix2D::default(),
+            // For these to have length > 8 we need to get to degree 256 at p = 2
+            diagonal: Vec::with_capacity(8),
+            p_part: Vec::with_capacity(8),
+        }
+    }
 }
 
 #[allow(non_snake_case)]
@@ -796,12 +800,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn new (p : ValidPrime, r : &'a PPart, s : &'a PPart) -> Self {
-        Self::new_from_allocation(p, r, s, PPartAllocation::default())
-    }
-
-    #[allow(clippy::ptr_arg)]
-    pub fn new_from_allocation(p: ValidPrime, r: &'a PPart, s: &'a PPart, allocation: PPartAllocation) -> Self {
+    pub fn new_from_allocation(p: ValidPrime, r: &'a PPart, s: &'a PPart, allocation: PPartAllocation) -> (MilnorBasisElement, Self) {
         if MOD4 {
             assert_eq!(*p, 2);
         }
@@ -820,13 +819,19 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         }
         M[0][1..cols].clone_from_slice(&s[0..(cols - 1)]);
 
-        PPartMultiplier { p, M, r, rows, cols, diag_num, diagonal, init : true }
+        let elt = MilnorBasisElement {
+            q_part: 0,
+            p_part: allocation.p_part,
+            degree: 0,
+        };
+        (elt, PPartMultiplier { p, M, r, rows, cols, diag_num, diagonal, init : true })
     }
 
-    pub fn into_allocation(self) -> PPartAllocation {
+    pub fn into_allocation(self, elt: MilnorBasisElement) -> PPartAllocation {
         PPartAllocation {
             m: self.M,
-            diagonal: self.diagonal
+            diagonal: self.diagonal,
+            p_part: elt.p_part,
         }
     }
 

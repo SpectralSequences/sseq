@@ -1,17 +1,13 @@
-use algebra::milnor_algebra::{MilnorBasisElement, PPartMultiplier};
+use algebra::milnor_algebra::{PPartAllocation, PPartMultiplier};
 use bencher::{benchmark_group, benchmark_main, Bencher};
 use fp::prime::ValidPrime;
 
 fn ppart_inner<const MOD4: bool>(bench: &mut Bencher, p: u32, r: Vec<u32>, s: Vec<u32>) {
     let p = ValidPrime::new(p);
 
-    bench.iter(|| {
-        let mut result = MilnorBasisElement {
-            q_part: 0,
-            p_part: Vec::new(),
-            degree: 0,
-        };
-        let mut m = PPartMultiplier::<MOD4>::new(p, &r, &s);
+    bench.iter(move || {
+        let (mut result, mut m) =
+            PPartMultiplier::<MOD4>::new_from_allocation(p, &r, &s, PPartAllocation::default());
 
         while let Some(c) = m.next(&mut result) {
             if MOD4 {
