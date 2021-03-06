@@ -723,7 +723,12 @@ mod test {
 
         check(&[1], &[1], &[1], expect![["P(2)"]]);
         check(&[0, 2], &[0, 2], &[0, 2], expect![["P(0, 1, 2)"]]);
-        check(&[0, 0, 4], &[0, 0, 4], &[0, 0, 4], expect![["P(0, 0, 3, 0, 2)"]]);
+        check(
+            &[0, 0, 4],
+            &[0, 0, 4],
+            &[0, 0, 4],
+            expect![["P(0, 0, 3, 0, 2)"]],
+        );
         check(&[1], &[2, 1], &[0, 1], expect![["0"]]);
         check(&[1], &[1], &[8], expect![["P(6, 1)"]]);
         check(&[1], &[2, 1], &[4], expect![["0"]]);
@@ -806,13 +811,15 @@ mod test {
                 let d = delta.hom_k(t);
 
                 for (i, entry) in d.into_iter().enumerate() {
-                    writeln!(&mut result,
+                    writeln!(
+                        &mut result,
                         "d_2 x_({}, {}, {}) = {:?}",
                         t - s as i32,
                         s,
                         i,
                         entry
-                    ).unwrap();
+                    )
+                    .unwrap();
                 }
             }
         }
@@ -835,6 +842,7 @@ mod test {
             d_2 x_(17, 5, 0) = [0]
             d_2 x_(18, 5, 0) = [1]
             d_2 x_(24, 5, 0) = [0]
-        "#]].assert_eq(&result);
+        "#]]
+        .assert_eq(&result);
     }
 }
