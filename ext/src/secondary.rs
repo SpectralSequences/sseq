@@ -616,7 +616,9 @@ fn a_y_cached(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize, result: 
         match cache.get_tuple(a, &(k, l)) {
             Some(v) => result.add_shift_none_pure(v, 1),
             None => {
-                cache.insert((a.clone(), (k, l)), a_y_inner(algebra, a, k, l));
+                let v = a_y_inner(algebra, a, k, l);
+                result.add_shift_none_pure(&v, 1);
+                cache.insert((a.clone(), (k, l)), v);
             }
         }
     });
