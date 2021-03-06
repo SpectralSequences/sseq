@@ -663,7 +663,8 @@ fn a_y_inner(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize, result: &
 mod test {
     use super::*;
     use crate::utils::construct_s_2;
-    use std::io::Write;
+    use expect_test::{expect, Expect};
+    use std::fmt::Write;
 
     fn from_p_part(p_part: &[u32]) -> MilnorElt {
         let degree = p_part
@@ -685,28 +686,21 @@ mod test {
 
         let mut result = FpVector::new(TWO, 0);
 
-        let mut check = |p_part: &[u32], k, l, ans: &str| {
+        let mut check = |p_part: &[u32], k, l, ans: Expect| {
             let mut a = MilnorClass::from_elements(vec![from_p_part(p_part)]);
 
             let target_deg = a.degree + (1 << k) + (1 << l) - 2;
             algebra.compute_basis(target_deg + 1);
             result.set_scratch_vector_size(algebra.dimension(target_deg, 0));
             a_y(&algebra, &mut a, k, l, &mut result);
-            assert_eq!(
-                &algebra.element_to_string(target_deg, &result),
-                ans,
-                "{} U_({},{})",
-                a.elements[0],
-                k,
-                l
-            );
+            ans.assert_eq(&algebra.element_to_string(target_deg, &result));
         };
 
-        check(&[1], 0, 1, "P(2)");
-        check(&[1], 1, 2, "0");
-        check(&[0, 1], 0, 1, "P(1, 1)");
-        check(&[0, 2], 1, 3, "P(0, 0, 2)");
-        check(&[1, 2], 0, 1, "P(2, 2)");
+        check(&[1], 0, 1, expect![["P(2)"]]);
+        check(&[1], 1, 2, expect![["0"]]);
+        check(&[0, 1], 0, 1, expect![["P(1, 1)"]]);
+        check(&[0, 2], 1, 3, expect![["P(0, 0, 2)"]]);
+        check(&[1, 2], 0, 1, expect![["P(2, 2)"]]);
     }
 
     #[test]
@@ -715,7 +709,7 @@ mod test {
 
         let mut result = FpVector::new(TWO, 0);
 
-        let mut check = |a: &[u32], b: &[u32], c: &[u32], ans: &str| {
+        let mut check = |a: &[u32], b: &[u32], c: &[u32], ans: Expect| {
             let mut a = MilnorClass::from_elements(vec![from_p_part(a)]);
             let mut b = from_p_part(b);
             let mut c = from_p_part(c);
@@ -724,22 +718,15 @@ mod test {
             algebra.compute_basis(target_deg + 1);
             result.set_scratch_vector_size(algebra.dimension(target_deg, 0));
             a_tau_y(&algebra, &mut a, &mut b, &mut c, &mut result);
-            assert_eq!(
-                &algebra.element_to_string(target_deg, &result),
-                ans,
-                "A({}, τ({},{}))",
-                a.elements[0],
-                b,
-                c
-            );
+            ans.assert_eq(&algebra.element_to_string(target_deg, &result))
         };
 
-        check(&[1], &[1], &[1], "P(2)");
-        check(&[0, 2], &[0, 2], &[0, 2], "P(0, 1, 2)");
-        check(&[0, 0, 4], &[0, 0, 4], &[0, 0, 4], "P(0, 0, 3, 0, 2)");
-        check(&[1], &[2, 1], &[0, 1], "0");
-        check(&[1], &[1], &[8], "P(6, 1)");
-        check(&[1], &[2, 1], &[4], "0");
+        check(&[1], &[1], &[1], expect![["P(2)"]]);
+        check(&[0, 2], &[0, 2], &[0, 2], expect![["P(0, 1, 2)"]]);
+        check(&[0, 0, 4], &[0, 0, 4], &[0, 0, 4], expect![["P(0, 0, 3, 0, 2)"]]);
+        check(&[1], &[2, 1], &[0, 1], expect![["0"]]);
+        check(&[1], &[1], &[8], expect![["P(6, 1)"]]);
+        check(&[1], &[2, 1], &[4], expect![["0"]]);
     }
 
     #[test]
@@ -789,69 +776,65 @@ mod test {
 
     #[test]
     fn test_compute_differentials() {
-        let mut result = Vec::new();
+        let mut result = String::new();
         let bundle = construct_s_2("milnor");
         let resolution = &*bundle.resolution.read();
 
-        let s = 7;
-        let t = 30;
+        let max_s = 7;
+        let max_t = 30;
 
         #[cfg(feature = "concurrent")]
         let deltas = {
             let bucket = std::sync::Arc::new(TokenBucket::new(2));
-            resolution.resolve_through_bidegree_concurrent(s, t, &bucket);
-            compute_delta_concurrent(&resolution.inner, s, t, &bucket, "-")
+            resolution.resolve_through_bidegree_concurrent(max_s, max_t, &bucket);
+            compute_delta_concurrent(&resolution.inner, max_s, max_t, &bucket, "-")
         };
 
         #[cfg(not(feature = "concurrent"))]
         let deltas = {
-            resolution.resolve_through_bidegree(s, t);
-            compute_delta(&resolution.inner, s, t)
+            resolution.resolve_through_bidegree(max_s, max_t);
+            compute_delta(&resolution.inner, max_s, max_t)
         };
 
-        for s_ in 3..=s {
-            for t_ in s_ as i32..=t {
-                let module = resolution.module(s_);
-                let module2 = resolution.module(s_ - 2);
-                if module2.number_of_gens_in_degree(t_ - 1) == 0 {
+        for s in 1..(max_s - 1) {
+            let delta = &deltas[s as usize - 1];
+
+            for t in s as i32 + 1..max_t {
+                if delta.source().number_of_gens_in_degree(t + 1) == 0 {
                     continue;
                 }
+                let d = delta.hom_k(t);
 
-                let start = module2.generator_offset(t_ - 1, t_ - 1, 0);
-                for idx in 0..module.number_of_gens_in_degree(t_) {
+                for (i, entry) in d.into_iter().enumerate() {
                     writeln!(&mut result,
-                        "d_2* (x_({}, {})^({})]) = {:?}",
-                        t_ - s_ as i32,
-                        s_,
-                        idx,
-                        deltas[s_ as usize - 3]
-                            .output(t_, idx)
-                            .iter()
-                            .skip(start)
-                            .collect::<Vec<_>>()
+                        "d_2 x_({}, {}, {}) = {:?}",
+                        t - s as i32,
+                        s,
+                        i,
+                        entry
                     ).unwrap();
                 }
             }
         }
-        assert_eq!(
-            result,
-            br"d_2* (x_(0, 3)^(0)]) = [0]
-d_2* (x_(14, 3)^(0)]) = [1]
-d_2* (x_(7, 4)^(0)]) = [0]
-d_2* (x_(14, 4)^(0)]) = [0]
-d_2* (x_(15, 4)^(0)]) = [0]
-d_2* (x_(17, 4)^(0)]) = [0]
-d_2* (x_(14, 5)^(0)]) = [0]
-d_2* (x_(17, 5)^(0)]) = [0]
-d_2* (x_(18, 5)^(0)]) = [0]
-d_2* (x_(20, 5)^(0)]) = [0]
-d_2* (x_(14, 6)^(0)]) = [0]
-d_2* (x_(16, 6)^(0)]) = [1]
-d_2* (x_(17, 6)^(0)]) = [0, 1]
-d_2* (x_(16, 7)^(0)]) = [0]
-d_2* (x_(17, 7)^(0)]) = [1]
-d_2* (x_(23, 7)^(0)]) = [0]
-"
-        );
+
+        expect![[r#"
+            d_2 x_(1, 1, 0) = [0]
+            d_2 x_(15, 1, 0) = [1]
+            d_2 x_(8, 2, 0) = [0]
+            d_2 x_(15, 2, 0) = [0]
+            d_2 x_(16, 2, 0) = [0]
+            d_2 x_(18, 2, 0) = [0]
+            d_2 x_(15, 3, 0) = [0]
+            d_2 x_(18, 3, 0) = [0]
+            d_2 x_(19, 3, 0) = [0]
+            d_2 x_(21, 3, 0) = [0]
+            d_2 x_(15, 4, 0) = [0]
+            d_2 x_(17, 4, 0) = [1]
+            d_2 x_(18, 4, 0) = [0]
+            d_2 x_(18, 4, 1) = [1]
+            d_2 x_(17, 5, 0) = [0]
+            d_2 x_(18, 5, 0) = [1]
+            d_2 x_(24, 5, 0) = [0]
+        "#]].assert_eq(&result);
     }
 }
