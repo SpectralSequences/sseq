@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::sync::Arc;
 use parking_lot::RwLock;
-use serde_json::value::Value;
+use serde_json::{json, Value};
 
 use std::path::PathBuf;
 use algebra::{Algebra, SteenrodAlgebra};
@@ -138,8 +138,12 @@ pub fn load_module_from_file(config : &Config) -> error::Result<String> {
 }
 
 pub fn construct_s_2(algebra: &str) -> AlgebraicObjectsBundle {
-    let json = r#"{"type" : "finite dimensional module","p": 2, "generic": false, "gens": {"x0": 0}, "milnor_actions": []}"#;
-    let json = serde_json::from_str(json).unwrap();
+    let json = json!({
+        "type" : "finite dimensional module",
+        "p": 2,
+        "gens": {"x0": 0},
+        "actions": []
+    });
     construct_from_json(json, algebra).unwrap()
 }
 

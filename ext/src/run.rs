@@ -16,7 +16,7 @@ use ext::module::homomorphism::{
 use ext::module::{BoundedModule, FiniteModule, Module};
 use ext::resolution::Resolution;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::utils::{construct, construct_from_json, Config};
+use ext::utils::{construct, construct_s_2, Config};
 #[cfg(feature = "yoneda")]
 use ext::yoneda::yoneda_representative_element;
 use fp::matrix::Matrix;
@@ -181,9 +181,7 @@ pub fn steenrod() -> error::Result<String> {
 
 #[cfg(feature = "yoneda")]
 pub fn steenrod() -> error::Result<String> {
-    let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
-    let k = serde_json::from_str(k)?;
-    let bundle = construct_from_json(k, "adem")?;
+    let bundle = construct_s_2("adem");
     let mut resolution = &*bundle.resolution.read();
     let module = bundle.chain_complex.module(0);
 
@@ -519,7 +517,7 @@ pub fn steenrod() -> error::Result<String> {
 }
 
 pub fn secondary() -> error::Result<String> {
-    let bundle = ext::utils::construct_s_2("milnor");
+    let bundle = construct_s_2("milnor");
     let mut resolution = &*bundle.resolution.read();
 
     let saved_resolution;
