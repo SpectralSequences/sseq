@@ -176,13 +176,13 @@ pub fn ascii_num(n: usize) -> char {
     }
 }
 
-pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(res: &C, max_s: u32, max_t: i32, highlight: &std::collections::HashSet<(u32, i32), S>) {
+pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(res: &C, max_s: u32, max_t: i32, highlight: &std::collections::HashMap<(u32, i32), u32, S>) {
     use std::io::Write;
     let stdout = std::io::stdout();
     let mut stdout = stdout.lock();
     for s in (0 ..= max_s).rev() {
         for t in s as i32 ..= max_t {
-            if highlight.contains(&(s, t)) {
+            if matches!(highlight.get(&(s, t)), None | Some(0)) {
                 write!(stdout, "{}{}{} ", RED_ANSI_CODE, ascii_num(res.module(s).number_of_gens_in_degree(t)), WHITE_ANSI_CODE).unwrap();
             } else {
                 write!(stdout, "{} ", ascii_num(res.module(s).number_of_gens_in_degree(t))).unwrap();

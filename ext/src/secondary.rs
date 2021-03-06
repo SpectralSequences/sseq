@@ -149,12 +149,13 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
 }
 
 #[cfg(feature = "concurrent")]
-fn read_saved_data(buffer: &mut impl Read) -> std::io::Result<(u32, i32, Vec<FpVector>)> {
+fn read_saved_data(buffer: &mut impl Read) -> std::io::Result<(u32, i32, usize, FpVector)> {
     let s = u32::load(buffer, &())?;
     let t = i32::load(buffer, &())?;
-    let data = Vec::<FpVector>::load(buffer, &TWO)?;
+    let idx = usize::load(buffer, &())?;
+    let data = FpVector::load(buffer, &TWO)?;
 
-    Ok((s, t, data))
+    Ok((s, t, idx, data))
 }
 
 #[cfg(feature = "concurrent")]
@@ -176,13 +177,16 @@ pub fn compute_delta_concurrent(
     // Pretty print progress of first step
     let res_ = Arc::clone(res);
     let (p_sender, p_receiver) = unbounded();
-    handles.push(thread::spawn(move || {
-        let mut processed = rustc_hash::FxHashSet::default();
-        for s in 0..3 {
-            for t in min_degree..=max_t {
-                processed.insert((s, t));
-            }
+    let mut processed: HashMap<(u32, i32), u32> = HashMap::default();
+
+    for s in 3..=max_s {
+        let m = res.module(s);
+        for t in min_degree + 1..=max_t {
+            processed.insert((s, t), m.number_of_gens_in_degree(t) as u32);
         }
+    }
+
+    handles.push(thread::spawn(move || {
         let mut prev = Instant::now();
         loop {
             match p_receiver.recv_timeout(std::time::Duration::from_secs(1)) {
@@ -215,19 +219,24 @@ pub fn compute_delta_concurrent(
     // bidegrees, so we use a thread pool for this. The ddeltas store the results as a vector:
     // source_s -> source_t -> gen_idx -> value. Since they are not populated in order of source_s
     // and source_t, we pre-populate with None and replace with Some.
-    let mut ddeltas =
-        vec![
-            BiVec::from_vec(min_degree + 1, vec![None; (max_t - min_degree) as usize]);
-            max_s as usize - 2
-        ];
+    let mut ddeltas: Vec<BiVec<Vec<Option<FpVector>>>> = Vec::with_capacity(max_s as usize - 2);
+    for s in 3..=max_s {
+        let m = res.module(s);
+        let mut v = BiVec::with_capacity(min_degree + 1, max_t + 1);
+        for t in min_degree + 1..=max_t {
+            v.push(vec![None; m.number_of_gens_in_degree(t)]);
+        }
+        ddeltas.push(v);
+    }
+
     if save_file_path != "-" && Path::new(save_file_path).exists() {
         let f = std::fs::File::open(save_file_path).unwrap();
         let mut f = BufReader::new(f);
         loop {
             match read_saved_data(&mut f) {
-                Ok((s, t, data)) => {
+                Ok((s, t, idx, data)) => {
                     if s <= max_s && t <= max_t {
-                        ddeltas[s as usize - 3][t] = Some(data);
+                        ddeltas[s as usize - 3][t][idx] = Some(data);
                         p_sender.send((s, t)).unwrap();
                     }
                 }
@@ -262,30 +271,26 @@ pub fn compute_delta_concurrent(
         handles.push(thread::spawn(move || loop {
             let job = receiver.lock().unwrap().recv().ok();
 
-            if let Some((s, t)) = job {
-                if ddeltas.lock().unwrap()[s as usize - 3][t].is_some() {
+            if let Some((s, t, idx)) = job {
+                if ddeltas.lock().unwrap()[s as usize - 3][t][idx].is_some() {
                     continue;
                 }
-                let m = res.module(s);
-
-                let num_gens = m.number_of_gens_in_degree(t);
                 let target_dim = res.module(s - 3).dimension(t - 1);
-                let mut results = vec![FpVector::new(TWO, target_dim); num_gens];
+                let mut result = FpVector::new(TWO, target_dim);
 
-                for (idx, result) in results.iter_mut().enumerate() {
-                    d_delta_g(&*res, s, t, idx, result);
-                }
+                d_delta_g(&*res, s, t, idx, &mut result);
 
                 if let Some(save_file) = &*save_file {
                     let mut sf = save_file.lock().unwrap();
                     s.save(&mut *sf).unwrap();
                     t.save(&mut *sf).unwrap();
-                    results.save(&mut *sf).unwrap();
+                    idx.save(&mut *sf).unwrap();
+                    result.save(&mut *sf).unwrap();
                     sf.flush().unwrap();
                     drop(sf);
                 }
 
-                ddeltas.lock().unwrap()[s as usize - 3][t] = Some(results);
+                ddeltas.lock().unwrap()[s as usize - 3][t][idx] = Some(result);
 
                 p_sender.send((s, t)).unwrap();
             } else {
@@ -298,7 +303,9 @@ pub fn compute_delta_concurrent(
     // Iterate in reverse order to do the slower ones first
     for t in (min_degree + 1..=max_t).rev() {
         for s in 3..=max_s {
-            sender.send((s, t)).unwrap();
+            for idx in 0..res.module(s).number_of_gens_in_degree(t) {
+                sender.send((s, t, idx)).unwrap();
+            }
         }
     }
     drop(sender);
@@ -348,8 +355,7 @@ pub fn compute_delta_concurrent(
 
             delta.extend_by_zero_safe(min_degree);
             let mut token = bucket.take_token();
-            for (t, ddelta) in ddeltas_.into_iter_enum() {
-                let mut ddelta = ddelta.unwrap();
+            for (t, mut ddelta) in ddeltas_.into_iter_enum() {
                 token = bucket.recv_or_release(token, &last_receiver);
 
                 let num_gens = source_module.number_of_gens_in_degree(t);
@@ -357,7 +363,7 @@ pub fn compute_delta_concurrent(
                 let mut results = vec![FpVector::new(TWO, target_dim); num_gens];
 
                 for (idx, result) in results.iter_mut().enumerate() {
-                    let row: &mut FpVector = &mut ddelta[idx];
+                    let row: &mut FpVector = ddelta[idx].as_mut().unwrap();
                     if s > 3 {
                         deltas[s as usize - 4].apply(row, 1, t, source_d.output(t, idx));
                     }
