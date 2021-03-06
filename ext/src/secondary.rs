@@ -663,6 +663,7 @@ fn a_y_inner(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize, result: &
 mod test {
     use super::*;
     use crate::utils::construct_s_2;
+    use std::io::Write;
 
     fn from_p_part(p_part: &[u32]) -> MilnorElt {
         let degree = p_part
@@ -788,7 +789,7 @@ mod test {
 
     #[test]
     fn test_compute_differentials() {
-        let mut result = String::new();
+        let mut result = Vec::new();
         let bundle = construct_s_2("milnor");
         let resolution = &*bundle.resolution.read();
 
@@ -818,8 +819,8 @@ mod test {
 
                 let start = module2.generator_offset(t_ - 1, t_ - 1, 0);
                 for idx in 0..module.number_of_gens_in_degree(t_) {
-                    result.push_str(&format!(
-                        "d_2* (x_({}, {})^({})]) = {:?}\n",
+                    writeln!(&mut result,
+                        "d_2* (x_({}, {})^({})]) = {:?}",
                         t_ - s_ as i32,
                         s_,
                         idx,
@@ -828,13 +829,13 @@ mod test {
                             .iter()
                             .skip(start)
                             .collect::<Vec<_>>()
-                    ));
+                    ).unwrap();
                 }
             }
         }
         assert_eq!(
             result,
-            r"d_2* (x_(0, 3)^(0)]) = [0]
+            br"d_2* (x_(0, 3)^(0)]) = [0]
 d_2* (x_(14, 3)^(0)]) = [1]
 d_2* (x_(7, 4)^(0)]) = [0]
 d_2* (x_(14, 4)^(0)]) = [0]
