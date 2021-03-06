@@ -1,4 +1,4 @@
-.PHONY: all test
+.PHONY: all test test-concurrent lint dummy
 
 all:
 	cargo build
@@ -11,3 +11,8 @@ test-concurrent:
 
 lint:
 	cargo clippy --workspace --all-targets
+
+run_examples: $(patsubst examples/%.rs, target/release/examples/%, $(wildcard examples/*.rs))
+
+target/release/examples/%: dummy
+	cargo run --all-features --release --example "$(notdir $@)"
