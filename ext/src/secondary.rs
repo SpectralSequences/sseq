@@ -18,6 +18,7 @@ use rustc_hash::FxHashMap as HashMap;
 #[cfg(feature = "concurrent")]
 use saveload::{Load, Save};
 use std::cell::RefCell;
+use std::hash::{BuildHasher, Hash, Hasher};
 
 #[cfg(feature = "concurrent")]
 use std::{
@@ -489,9 +490,22 @@ pub fn a_dd(
                 );
                 temp.degree = b.degree + c.degree;
                 while let Some(c_) = multiplier.next(&mut temp) {
-                    let key = (elt2.generator_degree, elt2.generator_index, temp.clone());
-                    let val = (c_ + coefs.get(&key).copied().unwrap_or(0)) % 4;
-                    coefs.insert(key, val);
+                    let mut hasher = coefs.hasher().build_hasher();
+                    elt2.generator_degree.hash(&mut hasher);
+                    elt2.generator_index.hash(&mut hasher);
+                    temp.hash(&mut hasher);
+                    let entry = coefs.raw_entry_mut().from_hash(hasher.finish(), |v| {
+                        v.0 == elt2.generator_degree && v.1 == elt2.generator_index && v.2 == temp
+                    });
+
+                    entry
+                        .and_modify(|_k, v| *v = (*v + c_) % 4)
+                        .or_insert_with(|| {
+                            (
+                                (elt2.generator_degree, elt2.generator_index, temp.clone()),
+                                c_,
+                            )
+                        });
                 }
                 allocation = multiplier.into_allocation(temp);
             }
