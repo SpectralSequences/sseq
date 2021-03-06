@@ -6,6 +6,7 @@ edition = "2018"
 description = "Compute Ext over the Steenrod algebra"
 repository = "https://github.com/SpectralSequences/ext/"
 license = "(MIT OR Apache-2.0)"
+resolver = "2"
 
 [dependencies]
 algebra = { path = "crates/algebra", default-features = false }
