@@ -70,7 +70,11 @@ impl MilnorBasisElement {
 
 impl std::cmp::PartialEq for MilnorBasisElement {
     fn eq(&self, other : &Self) -> bool {
-        self.p_part == other.p_part && self.q_part == other.q_part
+        #[cfg(feature = "odd-primes")]
+        return self.p_part == other.p_part && self.q_part == other.q_part;
+
+        #[cfg(not(feature = "odd-primes"))]
+        return self.p_part == other.p_part;
     }
 }
 
@@ -79,6 +83,7 @@ impl std::cmp::Eq for MilnorBasisElement {}
 impl std::hash::Hash for MilnorBasisElement {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.p_part.hash(state);
+        #[cfg(feature = "odd-primes")]
         self.q_part.hash(state);
     }
 }
