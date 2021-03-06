@@ -1,5 +1,5 @@
-use ext::utils::Config;
 use ext::utils::construct;
+use ext::utils::Config;
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 
@@ -16,20 +16,20 @@ fn milnor_vs_adem() {
     compare("Calpha", 30);
 }
 
-fn compare(module_name : &str, max_degree : i32) {
-    println!("module : {}", module_name);
+fn compare(module_name: &str, max_degree: i32) {
+    println!("module: {}", module_name);
     let path = std::path::PathBuf::from("steenrod_modules");
     let a = Config {
-        module_paths : vec![path.clone()],
-        module_file_name : module_name.to_string(),
+        module_paths: vec![path.clone()],
+        module_file_name: module_name.to_string(),
         max_degree,
-        algebra_name : String::from("adem")
+        algebra_name: String::from("adem"),
     };
     let b = Config {
-        module_paths : vec![path],
-        module_file_name : module_name.to_string(),
+        module_paths: vec![path],
+        module_file_name: module_name.to_string(),
         max_degree,
-        algebra_name : String::from("milnor")
+        algebra_name: String::from("milnor"),
     };
 
     let a = construct(&a).unwrap();
