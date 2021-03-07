@@ -750,13 +750,14 @@ impl std::ops::Index<usize> for Matrix2D {
     type Output = [u32];
 
     fn index(&self, row: usize) -> &Self::Output {
-        &self.inner[row * self.cols .. (row + 1) * self.cols]
+        // Computing the end point is fairly expensive and only serves as a safety check...
+        &self.inner[row * self.cols ..]
     }
 }
 
 impl std::ops::IndexMut<usize> for Matrix2D {
     fn index_mut(&mut self, row: usize) -> &mut Self::Output {
-        &mut self.inner[row * self.cols .. (row + 1) * self.cols]
+        &mut self.inner[row * self.cols ..]
     }
 }
 
