@@ -22,19 +22,41 @@ jobs:
               ~/.rustup
               ~/.cargo
               **/target
-          key: ${{ runner.os }}-${{ hashFiles('ext/Cargo.*') }}
+          key: ${{ matrix.toolchain }}-${{ hashFiles('ext/Cargo.*') }}
 
     - name: Install rustup
       uses: actions-rs/toolchain@v1
       with:
           toolchain: ${{ matrix.toolchain }}
-          components: clippy, rustfmt
 
     - name: Run tests
       run: make -C ext test
 
     - name: Run concurrent tests
       run: make -C ext test-concurrent
+
+  examples:
+    runs-on: ubuntu-latest
+    env:
+        RUST_BACKTRACE: 1
+        RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+
+    strategy:
+      matrix:
+          toolchain: ['nightly-2021-02-27', 'nightly']
+          components: clippy, rustfmt
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Cache files
+      uses: actions/cache@v2
+      with:
+          path: |
+              ~/.rustup
+              ~/.cargo
+              **/target
+          key: lint-${{ matrix.toolchain }}-${{ hashFiles('ext/Cargo.*', 'rust_webserver/Cargo.*') }}
 
     - name: Run lint
       run: make -C ext lint
@@ -62,7 +84,7 @@ jobs:
               ~/.rustup
               ~/.cargo
               **/target
-          key: release-${{ runner.os }}-${{ hashFiles('ext/Cargo.*') }}
+          key: example-${{ matrix.toolchain }}-${{ hashFiles('ext/Cargo.*') }}
 
     - name: Install rustup
       uses: actions-rs/toolchain@v1
