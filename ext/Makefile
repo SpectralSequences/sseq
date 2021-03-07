@@ -1,5 +1,7 @@
 .PHONY: all test test-concurrent lint dummy
 
+SHELL = bash
+
 LINT = crates/fp/src/prime.rs src/secondary.rs
 
 all:
@@ -12,6 +14,7 @@ test-concurrent:
 	cargo test --features concurrent
 
 lint:
+	shopt -s globstar
 	cargo clippy --workspace --all-targets
 	rustfmt --check tests/*.rs examples/*.rs
 	rustfmt --check crates/{error,once,query,saveload,thread-token}/**/*.rs
