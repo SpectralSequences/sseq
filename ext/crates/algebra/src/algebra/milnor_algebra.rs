@@ -723,10 +723,19 @@ impl MilnorAlgebra {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct Matrix2D {
     cols: usize,
     inner: PPart,
+}
+
+impl std::fmt::Display for Matrix2D {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        for i in 0 .. self.inner.len() / self.cols {
+            writeln!(f, "{:?}", &self[i][0 .. self.cols])?;
+        }
+        Ok(())
+    }
 }
 
 impl Matrix2D {
@@ -1124,6 +1133,7 @@ mod tests {
     use super::*;
 
     use rstest::rstest;
+    use expect_test::expect;
 
     #[rstest(p, max_degree,
         case(2, 32),
@@ -1231,6 +1241,69 @@ mod tests {
         check(&MilnorBasisElement { q_part: 5, p_part: vec![1, 3, 5, 2], degree: 7 });
         check(&MilnorBasisElement { q_part: 0, p_part: vec![], degree: 2 });
     }
+
+    #[test]
+    fn test_ppart_multiplier_2() {
+        let r = vec![1, 4];
+        let s = vec![2, 4];
+        let mut m = PPartMultiplier::<false>::new_from_allocation(ValidPrime::new(2), &r, &s, PPartAllocation::default(), 0, 0);
+
+        expect![[r#"
+            [0, 2, 4]
+            [1, 0, 0]
+            [4, 0, 0]
+        "#]].assert_eq(&m.M.to_string());
+
+        assert_eq!(m.next(), Some(1));
+
+        expect![[r#"
+            [0, 0, 4]
+            [1, 0, 0]
+            [0, 2, 0]
+        "#]].assert_eq(&m.M.to_string());
+
+        assert_eq!(m.next(), Some(1));
+
+        expect![[r#"
+            [0, 2, 3]
+            [1, 0, 0]
+            [0, 0, 1]
+        "#]].assert_eq(&m.M.to_string());
+
+        assert_eq!(m.next(), None);
+    }
+
+    #[test]
+    fn test_ppart_multiplier_3() {
+        let r = vec![3, 4];
+        let s = vec![1, 4];
+        let mut m = PPartMultiplier::<false>::new_from_allocation(ValidPrime::new(3), &r, &s, PPartAllocation::default(), 0, 0);
+
+        expect![[r#"
+            [0, 1, 4]
+            [3, 0, 0]
+            [4, 0, 0]
+        "#]].assert_eq(&m.M.to_string());
+
+        assert_eq!(m.next(), Some(1));
+
+        expect![[r#"
+            [0, 1, 4]
+            [3, 0, 0]
+            [4, 0, 0]
+        "#]].assert_eq(&m.M.to_string());
+
+        assert_eq!(m.next(), Some(2));
+
+        expect![[r#"
+            [0, 0, 4]
+            [3, 0, 0]
+            [1, 1, 0]
+        "#]].assert_eq(&m.M.to_string());
+
+        assert_eq!(m.next(), None);
+    }
+
 }
 
 impl MilnorAlgebra {
