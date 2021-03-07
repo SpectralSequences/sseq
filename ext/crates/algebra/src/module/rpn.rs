@@ -4,7 +4,7 @@ use crate::algebra::{
 };
 use crate::module::{Module, ZeroModule};
 use fp::prime::ValidPrime;
-use fp::prime::{binomial, multinomial};
+use fp::prime::{binomial, multinomial2};
 use fp::vector::{FpVector, FpVectorT};
 
 use std::sync::Arc;
@@ -155,7 +155,7 @@ fn coef_milnor(algebra: &MilnorAlgebra, op_deg: i32, op_idx: usize, mut mod_degr
     list.push(mod_degree - sum);
     list.extend_from_slice(&elt.p_part);
 
-    multinomial(ValidPrime::new(2), &mut list) == 1
+    multinomial2(&list) == 1
 }
 
 impl<A : SteenrodAlgebraT> ZeroModule for RealProjectiveSpace<A> {

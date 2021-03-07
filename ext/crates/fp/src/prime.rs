@@ -1,10 +1,10 @@
-pub const NUM_PRIMES : usize = 8;
-pub const MAX_PRIME : usize = 19;
+pub const NUM_PRIMES: usize = 8;
+pub const MAX_PRIME: usize = 19;
 #[cfg(feature = "odd-primes")]
-const NOT_A_PRIME : usize = !1;
-pub const MAX_MULTINOMIAL_LEN : usize = 10;
+const NOT_A_PRIME: usize = !1;
+pub const MAX_MULTINOMIAL_LEN: usize = 10;
 #[cfg(feature = "json")]
-use serde::{Serialize, Deserialize, Serializer, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[macro_export]
 macro_rules! const_for {
@@ -20,7 +20,7 @@ macro_rules! const_for {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct ValidPrime {
     #[cfg(feature = "odd-primes")]
-    p: u32
+    p: u32,
 }
 
 impl ValidPrime {
@@ -28,10 +28,14 @@ impl ValidPrime {
         assert!(is_valid_prime(p));
 
         #[cfg(feature = "odd-primes")]
-        { Self { p } }
+        {
+            Self { p }
+        }
 
         #[cfg(not(feature = "odd-primes"))]
-        { Self {} }
+        {
+            Self {}
+        }
     }
 
     pub fn try_new(p: u32) -> Option<Self> {
@@ -72,7 +76,8 @@ impl std::fmt::Display for ValidPrime {
 #[cfg(feature = "json")]
 impl Serialize for ValidPrime {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S : Serializer,
+    where
+        S: Serializer,
     {
         (**self).serialize(serializer)
     }
@@ -81,32 +86,37 @@ impl Serialize for ValidPrime {
 #[cfg(feature = "json")]
 impl<'de> Deserialize<'de> for ValidPrime {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D : Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
-        let p : u32 = u32::deserialize(deserializer)?;
+        let p: u32 = u32::deserialize(deserializer)?;
         Ok(ValidPrime::new(p))
     }
 }
 
 #[cfg(feature = "odd-primes")]
-pub const fn is_valid_prime(p : u32) -> bool {
+pub const fn is_valid_prime(p: u32) -> bool {
     (p as usize) <= MAX_PRIME && PRIME_TO_INDEX_MAP[p as usize] != NOT_A_PRIME
 }
 
 #[cfg(not(feature = "odd-primes"))]
-pub const fn is_valid_prime(p : u32) -> bool {
+pub const fn is_valid_prime(p: u32) -> bool {
     p == 2
 }
 
 // Uses a the lookup table we initialized.
-pub fn inverse(p : ValidPrime, k : u32) -> u32 {
+pub fn inverse(p: ValidPrime, k: u32) -> u32 {
     assert!(k > 0 && k < *p);
     // LLVM doesn't understand the inequality is transitive
     unsafe { *INVERSE_TABLE[PRIME_TO_INDEX_MAP[*p as usize]].get_unchecked(k as usize) }
 }
 
-pub const fn minus_one_to_the_n(p : u32, i : i32) -> u32 {
-    if i % 2 == 0 { 1 } else { p - 1 }
+pub const fn minus_one_to_the_n(p: u32, i: i32) -> u32 {
+    if i % 2 == 0 {
+        1
+    } else {
+        p - 1
+    }
 }
 
 /// This uses a lookup table for n choose k when n and k are both less than p.
@@ -115,17 +125,20 @@ pub const fn minus_one_to_the_n(p : u32, i : i32) -> u32 {
 /// Calling this function safely requires that `k, n < p`.  These invariants are often known
 /// apriori because k and n are obtained by reducing mod p, so it is better to expose an unsafe
 /// interface that avoids these checks.
-unsafe fn direct_binomial(p : ValidPrime, n : u32, k : u32) -> u32 {
-    *BINOMIAL_TABLE.get_unchecked(PRIME_TO_INDEX_MAP[*p as usize]).get_unchecked(n as usize).get_unchecked(k as usize)
+unsafe fn direct_binomial(p: ValidPrime, n: u32, k: u32) -> u32 {
+    *BINOMIAL_TABLE
+        .get_unchecked(PRIME_TO_INDEX_MAP[*p as usize])
+        .get_unchecked(n as usize)
+        .get_unchecked(k as usize)
 }
 
 /// Computes b^e.
-pub const fn integer_power(mut b : u32, mut e : u32) -> u32 {
+pub const fn integer_power(mut b: u32, mut e: u32) -> u32 {
     let mut result: u32 = 1;
     while e > 0 {
-//      b is b^{2^i}
-//      if the current bit of e is odd, mutliply b^{2^i} into result.
-        if e&1 == 1 {
+        // b is b^{2^i}
+        // if the current bit of e is odd, mutliply b^{2^i} into result.
+        if e & 1 == 1 {
             result *= b;
         }
         b *= b;
@@ -135,21 +148,21 @@ pub const fn integer_power(mut b : u32, mut e : u32) -> u32 {
 }
 
 /// Compute b^e mod p.
-pub const fn power_mod(p : u32, mut b : u32, mut e : u32) -> u32 {
+pub const fn power_mod(p: u32, mut b: u32, mut e: u32) -> u32 {
     assert!(p > 0);
-    let mut result : u32 = 1;
+    let mut result: u32 = 1;
     while e > 0 {
-        if (e&1) == 1 {
-            result = (result*b)%p;
+        if (e & 1) == 1 {
+            result = (result * b) % p;
         }
-        b = (b*b)%p;
+        b = (b * b) % p;
         e >>= 1;
     }
     result
 }
 
 // Discrete log base p of n.
-pub const fn logp(p : u32, mut n : u32) -> u32 {
+pub const fn logp(p: u32, mut n: u32) -> u32 {
     let mut result = 0u32;
     while n > 0 {
         n /= p;
@@ -159,49 +172,53 @@ pub const fn logp(p : u32, mut n : u32) -> u32 {
 }
 
 // We next have separate implementations of binomial and multinomial coefficients for p = 2 and odd
-// primes. It appears that making these public prevents inlining of these in the general case,
-// which gives a somewhat significant overhead.
+// primes.
 
-//Multinomial coefficient of the list l
-pub fn multinomial2(l : &[u32]) -> u32 {
+/// Multinomial coefficient of the list l
+pub fn multinomial2(l: &[u32]) -> u32 {
     let mut bit_or = 0u32;
     let mut sum = 0u32;
     for &e in l {
         sum += e;
         bit_or |= e;
     }
-    if bit_or == sum { 1 } else { 0 }
-}
-
-//Mod 2 binomial coefficient n choose k
-pub fn binomial2(n : i32, k : i32) -> u32 {
-    if n < k {
-        0
-    } else if (n-k) & k == 0 {
+    if bit_or == sum {
         1
     } else {
         0
     }
 }
 
-//Mod p multinomial coefficient of l. If p is 2, more efficient to use Multinomial2.
-//This uses Lucas's theorem to reduce to n choose k for n, k < p.
-pub fn multinomial_odd(p_ : ValidPrime, l : &mut [u32]) -> u32 {
+/// Mod 2 binomial coefficient n choose k
+#[inline]
+pub fn binomial2(n: i32, k: i32) -> u32 {
+    if n < k {
+        0
+    } else if (n - k) & k == 0 {
+        1
+    } else {
+        0
+    }
+}
+
+/// Mod p multinomial coefficient of l. If p is 2, more efficient to use Multinomial2.
+/// This uses Lucas's theorem to reduce to n choose k for n, k < p.
+pub fn multinomial_odd(p_: ValidPrime, l: &mut [u32]) -> u32 {
     let p = *p_;
 
-    let mut n : u32 = l.iter().sum();
+    let mut n: u32 = l.iter().sum();
     if n == 0 {
         return 1;
     }
-    let mut answer : u32 = 1;
+    let mut answer: u32 = 1;
 
     while n > 0 {
-        let mut multi : u32 = 1;
+        let mut multi: u32 = 1;
 
         let total_entry = n % p;
         n /= p;
 
-        let mut partial_sum : u32 = l[0] % p;
+        let mut partial_sum: u32 = l[0] % p;
         l[0] /= p;
 
         for ll in l.iter_mut().skip(1) {
@@ -224,8 +241,9 @@ pub fn multinomial_odd(p_ : ValidPrime, l : &mut [u32]) -> u32 {
     answer
 }
 
-//Mod p binomial coefficient n choose k. If p is 2, more efficient to use Binomial2.
-pub fn binomial_odd(p_ : ValidPrime, n : i32, k : i32) -> u32 {
+/// Mod p binomial coefficient n choose k. If p is 2, more efficient to use Binomial2.
+#[inline]
+pub fn binomial_odd(p_: ValidPrime, n: i32, k: i32) -> u32 {
     let p = *p_;
 
     if n < k || k < 0 {
@@ -235,7 +253,7 @@ pub fn binomial_odd(p_ : ValidPrime, n : i32, k : i32) -> u32 {
     let mut k = k as u32;
     let mut n = n as u32;
 
-    let mut answer : u32 = 1;
+    let mut answer: u32 = 1;
 
     while n > 0 {
         // This is safe because p < 20 and anything mod p is < p.
@@ -263,7 +281,7 @@ pub fn binomial_odd_is_zero(p: ValidPrime, mut n: u32, mut k: u32) -> bool {
 
 /// This computes the multinomial coefficient $\binom{n}{l_1 \ldots l_k}\bmod p$, where $n$
 /// is the sum of the entries of l. This function modifies the entries of l.
-pub fn multinomial(p : ValidPrime, l : &mut [u32]) -> u32 {
+pub fn multinomial(p: ValidPrime, l: &mut [u32]) -> u32 {
     if *p == 2 {
         multinomial2(l)
     } else {
@@ -271,9 +289,9 @@ pub fn multinomial(p : ValidPrime, l : &mut [u32]) -> u32 {
     }
 }
 
-//Dispatch to Binomial2 or BinomialOdd
-pub fn binomial(p : ValidPrime, n : i32, k : i32) -> u32 {
-    if *p == 2{
+/// Dispatch to binomial2 or binomial_odd
+pub fn binomial(p: ValidPrime, n: i32, k: i32) -> u32 {
+    if *p == 2 {
         binomial2(n, k)
     } else {
         binomial_odd(p, n, k)
@@ -305,6 +323,7 @@ pub fn binomial4(n: u32, j: u32) -> u32 {
 }
 
 /// Separate out the recursive logic for binomial4 for testing
+#[inline]
 fn binomial4_rec(n: u32, j: u32) -> u32 {
     let k = 32 - n.leading_zeros() - 1;
     let l = n - (1 << k);
@@ -322,43 +341,29 @@ fn binomial4_rec(n: u32, j: u32) -> u32 {
     ans % 4
 }
 
-pub fn multinomial4(l: &[u32]) -> u32 {
-    if l.len() < 2 {
-        1
-    } else {
-        let sum = l.iter().sum();
-        match binomial4(sum, l[0]) {
-            0 => 0,
-            2 => 2 * multinomial2(&l[1..]),
-            x => (x * multinomial4(&l[1..])) % 4,
-        }
-    }
-}
-
 pub struct BitflagIterator {
-    remaining : u8,
-    flag : u64
+    remaining: u8,
+    flag: u64,
 }
 
 impl BitflagIterator {
-    pub fn new(flag : u64) -> Self {
+    pub fn new(flag: u64) -> Self {
         Self {
-            remaining : u8::max_value(),
-            flag
+            remaining: u8::max_value(),
+            flag,
         }
     }
 
-    pub fn new_fixed_length(flag : u64, remaining : usize) -> Self {
+    pub fn new_fixed_length(flag: u64, remaining: usize) -> Self {
         assert!(remaining <= 64);
         let remaining = remaining as u8;
-        Self {
-            remaining,
-            flag
-        }
+        Self { remaining, flag }
     }
 
-    pub fn set_bit_iterator(flag : u64) -> impl Iterator<Item=usize> {
-        Self::new(flag).enumerate().filter_map(|(idx, v)| if v { Some(idx) } else { None })
+    pub fn set_bit_iterator(flag: u64) -> impl Iterator<Item = usize> {
+        Self::new(flag)
+            .enumerate()
+            .filter_map(|(idx, v)| if v { Some(idx) } else { None })
     }
 }
 
@@ -384,7 +389,7 @@ mod tests {
     fn inverse_test() {
         for &p in PRIMES.iter() {
             let p = ValidPrime::new(p);
-            for k in 1 .. *p {
+            for k in 1..*p {
                 assert_eq!((inverse(p, k) * k) % *p, 1);
             }
         }
@@ -392,15 +397,13 @@ mod tests {
 
     #[test]
     fn binomial_test() {
-        let entries = [
-            [2, 2, 1, 0],
-            [2, 3, 1, 1],
-            [3, 1090, 730, 1],
-            [7, 3, 2, 3],
-        ];
+        let entries = [[2, 2, 1, 0], [2, 3, 1, 1], [3, 1090, 730, 1], [7, 3, 2, 3]];
 
         for entry in &entries {
-            assert_eq!(entry[3] as u32, binomial(ValidPrime::new(entry[0] as u32), entry[1], entry[2]));
+            assert_eq!(
+                entry[3] as u32,
+                binomial(ValidPrime::new(entry[0] as u32), entry[1], entry[2])
+            );
         }
     }
 
@@ -408,9 +411,12 @@ mod tests {
     fn binomial_vs_monomial() {
         for &p in &[2, 3, 5, 7, 11] {
             let p = ValidPrime::new(p);
-            for l in 0 .. 20 {
-                for m in 0 .. 20 {
-                    assert_eq!(binomial(p, (l + m) as i32, m as i32), multinomial(p, &mut [l, m]))
+            for l in 0..20 {
+                for m in 0..20 {
+                    assert_eq!(
+                        binomial(p, (l + m) as i32, m as i32),
+                        multinomial(p, &mut [l, m])
+                    )
                 }
             }
         }
@@ -418,10 +424,10 @@ mod tests {
 
     fn binomial_full(n: u32, j: u32) -> u32 {
         let mut res = 1;
-        for k in j + 1 ..= n {
+        for k in j + 1..=n {
             res *= k;
         }
-        for k in 1 ..= (n - j) {
+        for k in 1..=(n - j) {
             res /= k;
         }
         res
@@ -429,11 +435,18 @@ mod tests {
 
     #[test]
     fn binomial_cmp() {
-        for n in 0 .. 12 {
-            for j in 0 ..= n {
+        for n in 0..12 {
+            for j in 0..=n {
                 let ans = binomial_full(n, j);
                 for &p in &[2, 3, 5, 7, 11] {
-                    assert_eq!(binomial(ValidPrime::new(p), n as i32, j as i32), ans % p, "{} choose {} mod {}", n, j, p);
+                    assert_eq!(
+                        binomial(ValidPrime::new(p), n as i32, j as i32),
+                        ans % p,
+                        "{} choose {} mod {}",
+                        n,
+                        j,
+                        p
+                    );
                 }
                 assert_eq!(binomial4(n, j), ans % 4, "{} choose {} mod 4", n, j);
                 // binomial4_rec is only called on large n. It does not handle the n = 0, 1 cases
@@ -448,11 +461,11 @@ mod tests {
 
 pub const PRIMES: [u32; NUM_PRIMES] = [2, 3, 5, 7, 11, 13, 17, 19];
 
-pub const PRIME_TO_INDEX_MAP : [usize; MAX_PRIME+1] = [
-    !1, !1, 0, 1, !1, 2, !1, 3, !1, !1, !1, 4, !1, 5, !1, !1, !1, 6, !1, 7
+pub const PRIME_TO_INDEX_MAP: [usize; MAX_PRIME + 1] = [
+    !1, !1, 0, 1, !1, 2, !1, 3, !1, !1, !1, 4, !1, 5, !1, !1, !1, 6, !1, 7,
 ];
 
-const INVERSE_TABLE : [[u32; MAX_PRIME]; NUM_PRIMES] = {
+const INVERSE_TABLE: [[u32; MAX_PRIME]; NUM_PRIMES] = {
     let mut result = [[0; MAX_PRIME]; NUM_PRIMES];
     const_for! { i in 0 .. NUM_PRIMES {
         let p = PRIMES[i];
@@ -471,7 +484,7 @@ macro_rules! populate_binomial_table {
                 $res[n][k + 1] = ($res[n - 1][k] + $res[n - 1][k + 1]) % $mod;
             }}
         }}
-   }
+    };
 }
 const BINOMIAL4_TABLE_SIZE: usize = 50;
 
@@ -481,7 +494,7 @@ const BINOMIAL4_TABLE: [[u32; BINOMIAL4_TABLE_SIZE]; BINOMIAL4_TABLE_SIZE] = {
     res
 };
 
-static BINOMIAL_TABLE : [[[u32; MAX_PRIME]; MAX_PRIME]; NUM_PRIMES] = {
+static BINOMIAL_TABLE: [[[u32; MAX_PRIME]; MAX_PRIME]; NUM_PRIMES] = {
     let mut result = [[[0; MAX_PRIME]; MAX_PRIME]; NUM_PRIMES];
     const_for! { i in 0 .. NUM_PRIMES {
         let p = PRIMES[i];
