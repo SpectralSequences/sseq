@@ -280,8 +280,15 @@ pub fn binomial(p : ValidPrime, n : i32, k : i32) -> u32 {
     }
 }
 
-/// Binomial coefficients mod 4 up to a sign (we always return 0, 1 or 2)
-/// This uses the algorithm from https://www.fq.math.ca/Scanned/29-1/davis.pdf
+/// Binomial coefficients mod 4. We pre-compute the coefficients for small values of n. For large
+/// n, we recursively use the fact that if n = 2^k + l, l < 2^k, then
+///
+///    n choose r = l choose r + 2 (l choose (r - 2^{k - 1})) + (l choose (r - 2^k))
+///
+/// This is easy to verify using the fact that
+///
+///    (x + y)^{2^k} = x^{2^k} + 2 x^{2^{k - 1}} y^{2^{k - 1}} + y^{2^k}
+///
 pub fn binomial4(n: u32, j: u32) -> u32 {
     if (n as usize) < BINOMIAL4_TABLE_SIZE {
         return BINOMIAL4_TABLE[n as usize][j as usize];
@@ -289,30 +296,30 @@ pub fn binomial4(n: u32, j: u32) -> u32 {
     #[allow(clippy::collapsible_else_if)]
     if (n - j) & j == 0 {
         // Answer is odd
-        let k = 32 - n.leading_zeros() - 1;
-        let l = n - (1 << k);
-        if l < (1 << (k - 1)) {
-            if j <= l {
-                binomial4(l, j)
-            } else {
-                binomial4(l, j - (1 << k))
-            }
-        } else {
-            if j < (1 << (k - 1)) {
-                binomial4(l, j)
-            } else if j <= l {
-                (binomial4(l, j) + 2 * binomial2(l as i32, (j - (1 << (k - 1))) as i32)) % 4
-            } else if j <= l + (1 << k) {
-                (2 * binomial2(l as i32, (j - (1 << (k - 1))) as i32) + binomial4(l, j - (1 << k))) % 4
-            } else {
-                binomial4(l, j - (1 << k))
-            }
-        }
+        binomial4_rec(n, j)
     } else if (n - j).count_ones() + j.count_ones() - n.count_ones() == 1 {
         2
     } else {
         0
     }
+}
+
+/// Separate out the recursive logic for binomial4 for testing
+fn binomial4_rec(n: u32, j: u32) -> u32 {
+    let k = 32 - n.leading_zeros() - 1;
+    let l = n - (1 << k);
+    let mut ans = 0;
+    if j <= l {
+        ans += binomial4(l, j)
+    }
+    let diff = j as i32 - (1u32 << (k - 1)) as i32;
+    if 0 <= diff && diff as u32 <= l {
+        ans += 2 * binomial2(l as i32, diff);
+    }
+    if j >= (1 << k) {
+        ans += binomial4(l, j - (1 << k));
+    }
+    ans % 4
 }
 
 pub fn multinomial4(l: &[u32]) -> u32 {
@@ -426,9 +433,14 @@ mod tests {
             for j in 0 ..= n {
                 let ans = binomial_full(n, j);
                 for &p in &[2, 3, 5, 7, 11] {
-                    assert_eq!(binomial(ValidPrime::new(p), n as i32, j as i32), ans % p);
+                    assert_eq!(binomial(ValidPrime::new(p), n as i32, j as i32), ans % p, "{} choose {} mod {}", n, j, p);
                 }
-                assert_eq!(binomial4(n, j), ans % 4);
+                assert_eq!(binomial4(n, j), ans % 4, "{} choose {} mod 4", n, j);
+                // binomial4_rec is only called on large n. It does not handle the n = 0, 1 cases
+                // correctly.
+                if n > 1 {
+                    assert_eq!(binomial4_rec(n, j), ans % 4, "{} choose {} mod 4 rec", n, j);
+                }
             }
         }
     }
