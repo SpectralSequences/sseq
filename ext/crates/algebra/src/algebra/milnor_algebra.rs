@@ -44,7 +44,8 @@ pub struct QPart {
     q_part : u32
 }
 
-pub type PPart = Vec<u32>;
+pub type PPartEntry = u32;
+pub type PPart = Vec<PPartEntry>;
 
 #[derive(Debug, Clone, Default)]
 pub struct MilnorBasisElement {
@@ -622,7 +623,7 @@ impl MilnorAlgebra {
         self.try_basis_element_to_index(&MilnorBasisElement {
             degree,
             q_part : e,
-            p_part : vec![x]
+            p_part : vec![x as PPartEntry]
         }).map(|index| (degree, index))
     }
 
@@ -756,7 +757,7 @@ impl Matrix2D {
 }
 
 impl std::ops::Index<usize> for Matrix2D {
-    type Output = [u32];
+    type Output = [PPartEntry];
 
     fn index(&self, row: usize) -> &Self::Output {
         // Computing the end point is fairly expensive and only serves as a safety check...
@@ -1308,7 +1309,7 @@ mod tests {
 
 impl MilnorAlgebra {
     /// Returns `true` if the new element is not within the bounds
-    fn increment_p_part(element: &mut PPart, max : &[u32]) -> bool {
+    fn increment_p_part(element: &mut PPart, max : &[PPartEntry]) -> bool {
         element[0] += 1;
         for i in 0 .. element.len() - 1{
             if element[i] > max[i] {
@@ -1337,7 +1338,7 @@ impl Bialgebra for MilnorAlgebra {
         let len = len as usize;
         let mut result = Vec::with_capacity(len);
 
-        let mut cur_ppart : Vec<u32> = vec![0; p_part.len()];
+        let mut cur_ppart : PPart = vec![0; p_part.len()];
         loop {
             let mut left_degree : i32 = 0;
             for i in 0 .. cur_ppart.len() {

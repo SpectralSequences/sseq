@@ -1,5 +1,5 @@
 use crate::algebra::{
-    adem_algebra::AdemBasisElement, milnor_algebra::MilnorBasisElement, AdemAlgebra,
+    adem_algebra::AdemBasisElement, milnor_algebra::{PPartEntry, MilnorBasisElement}, AdemAlgebra,
     MilnorAlgebra, SteenrodAlgebraT, SteenrodAlgebraBorrow
 };
 use crate::module::{Module, ZeroModule};
@@ -142,7 +142,7 @@ fn coef_milnor(algebra: &MilnorAlgebra, op_deg: i32, op_idx: usize, mut mod_degr
 
     let elt: &MilnorBasisElement = algebra.basis_element_from_index(op_deg, op_idx);
 
-    let sum: u32 = elt.p_part.iter().sum();
+    let sum: PPartEntry = elt.p_part.iter().sum();
     if mod_degree < 0 {
         mod_degree = sum as i32 - mod_degree - 1;
     } else if mod_degree < sum as i32 {

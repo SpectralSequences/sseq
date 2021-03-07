@@ -1,7 +1,7 @@
 use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AdemAlgebra, MilnorAlgebra};
 use crate::algebra::adem_algebra::AdemBasisElement;
-use crate::algebra::milnor_algebra::MilnorBasisElement;
+use crate::algebra::milnor_algebra::{PPart, MilnorBasisElement};
 
 // use std::sync::Arc;
 
@@ -188,7 +188,7 @@ pub fn adem_q(
 
 pub fn adem_plist(
     adem_algebra : &AdemAlgebra, milnor_algebra : &MilnorAlgebra,
-    result : &mut FpVector, coeff : u32, degree : i32, p_part : Vec<u32>
+    result : &mut FpVector, coeff : u32, degree : i32, p_part : PPart
 ){
     let mbe = MilnorBasisElement {
         degree,
