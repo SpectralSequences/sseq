@@ -777,6 +777,7 @@ impl std::ops::IndexMut<usize> for Matrix2D {
 #[derive(Default)]
 pub struct PPartAllocation {
     m: Matrix2D,
+    #[cfg(feature = "odd-primes")]
     diagonal: PPart,
     p_part: PPart,
 }
@@ -787,8 +788,7 @@ impl PPartAllocation {
     pub fn with_capacity(n: usize) -> Self {
         Self {
             m: Matrix2D::with_capacity(n + 1, n),
-            // This is 1 + min(r.p_part.len(), s.p_part.len()). If r.p_part.len() = s.p_part.len()
-            // = n, then the product will have degree 2^{n + 1}. So the min termis at most n - 1.
+            #[cfg(feature = "odd-primes")]
             diagonal: Vec::with_capacity(n),
             // This size should be the number of diagonals. Even though the answer cannot be that
             // long, we still insert zeros then pop them out later.
@@ -806,8 +806,9 @@ pub struct PPartMultiplier<'a, const MOD4: bool> {
     cols : usize,
     diag_num : usize,
     init : bool,
-    diagonal: PPart,
     pub ans: MilnorBasisElement,
+    #[cfg(feature = "odd-primes")]
+    diagonal: PPart,
 }
 
 #[allow(non_snake_case)]
@@ -817,16 +818,18 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn new_from_allocation(p: ValidPrime, r: &'a PPart, s: &'a PPart, allocation: PPartAllocation, q_part: u32, degree: i32) -> Self {
+    pub fn new_from_allocation(p: ValidPrime, r: &'a PPart, s: &'a PPart, mut allocation: PPartAllocation, q_part: u32, degree: i32) -> Self {
         if MOD4 {
             assert_eq!(*p, 2);
         }
         let rows = r.len() + 1;
         let cols = s.len() + 1;
         let diag_num = r.len() + s.len();
-        let mut diagonal = allocation.diagonal;
-        diagonal.clear();
-        diagonal.reserve_exact(std::cmp::max(rows, cols));
+        #[cfg(feature = "odd-primes")]
+        {
+            allocation.diagonal.clear();
+            allocation.diagonal.reserve_exact(std::cmp::max(rows, cols));
+        }
 
         let mut M = allocation.m;
         M.reset(rows, cols);
@@ -841,12 +844,17 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
             p_part: allocation.p_part,
             degree,
         };
-        PPartMultiplier { p, M, r, rows, cols, diag_num, diagonal, ans, init : true }
+        PPartMultiplier {
+            #[cfg(feature = "odd-primes")]
+            diagonal: allocation.diagonal,
+            p, M, r, rows, cols, diag_num, ans, init : true
+        }
     }
 
     pub fn into_allocation(self) -> PPartAllocation {
         PPartAllocation {
             m: self.M,
+            #[cfg(feature = "odd-primes")]
             diagonal: self.diagonal,
             p_part: self.ans.p_part,
         }
@@ -956,6 +964,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
     /// This cannot be an actual iterator because we want to borrow self.ans when using it
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<u32> {
+        let p = self.prime();
         'outer: loop {
             self.ans.p_part.clear();
             let mut coef = 1;
@@ -967,7 +976,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                         coef *= fp::prime::binomial4(self.M[i][0] + self.M[0][i], self.M[0][i]);
                         coef %= 4;
                     } else {
-                        coef *= fp::prime::binomial(self.prime(), (self.M[i][0] + self.M[0][i]) as i32, self.M[0][i] as i32);
+                        coef *= fp::prime::binomial(p, (self.M[i][0] + self.M[0][i]) as i32, self.M[0][i] as i32);
                         coef %= *self.prime();
                     }
                     if coef == 0 {
@@ -988,31 +997,48 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                     let i_max = std::cmp::min(1 + diag_idx, self.rows);
                     let mut sum = 0;
 
-                    self.diagonal.clear();
+                    if *self.prime() == 2 {
+                        if MOD4 {
+                            for i in i_min..i_max {
+                                let entry = self.M[i][diag_idx - i];
+                                sum += entry ;
+                                if coef % 2 == 0 {
+                                    coef *= fp::prime::binomial2(sum as i32, entry as i32);
+                                } else {
+                                    coef *= fp::prime::binomial4(sum, entry);
+                                }
+                                coef %= 4;
+                                if coef == 0 {
+                                    continue 'outer;
+                                }
+                            }
+                        } else {
+                            let mut or = 0;
+                            for i in i_min..i_max {
+                                sum += self.M[i][diag_idx - i];
+                                or |= self.M[i][diag_idx - i];
+                            }
+                            if sum != or {
+                                continue 'outer;
+                            }
+                        }
+                    } else {
+                        #[cfg(feature = "odd-primes")]
+                        {
+                            self.diagonal.clear();
+                            for i in i_min..i_max {
+                                self.diagonal.push(self.M[i][diag_idx - i]);
+                                sum += self.M[i][diag_idx - i];
+                            }
 
-                    for i in i_min..i_max {
-                        self.diagonal.push(self.M[i][diag_idx - i]);
-                        sum += self.M[i][diag_idx - i];
+                            coef *= fp::prime::multinomial_odd(p, &mut self.diagonal);
+                            coef %= *p;
+                            if coef == 0 {
+                                continue 'outer;
+                            }
+                        }
                     }
                     self.ans.p_part.push(sum);
-
-                    if sum == 0  {
-                        continue;
-                    }
-                    if MOD4 {
-                        if coef == 2 {
-                            coef *= fp::prime::multinomial2(&self.diagonal);
-                        } else {
-                            coef *= fp::prime::multinomial4(&self.diagonal);
-                        }
-                        coef %= 4;
-                    } else {
-                        coef *= fp::prime::multinomial(self.prime(), &mut self.diagonal);
-                        coef %= *self.prime();
-                    }
-                    if coef == 0 {
-                        continue 'outer;
-                    }
                 }
                 // If new_p ends with 0, drop them
                 while let Some(0) = self.ans.p_part.last() {

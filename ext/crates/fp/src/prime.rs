@@ -174,7 +174,7 @@ pub fn multinomial2(l : &[u32]) -> u32 {
 }
 
 //Mod 2 binomial coefficient n choose k
-fn binomial2(n : i32, k : i32) -> u32 {
+pub fn binomial2(n : i32, k : i32) -> u32 {
     if n < k {
         0
     } else if (n-k) & k == 0 {
@@ -186,7 +186,7 @@ fn binomial2(n : i32, k : i32) -> u32 {
 
 //Mod p multinomial coefficient of l. If p is 2, more efficient to use Multinomial2.
 //This uses Lucas's theorem to reduce to n choose k for n, k < p.
-fn multinomial_odd(p_ : ValidPrime, l : &mut [u32]) -> u32 {
+pub fn multinomial_odd(p_ : ValidPrime, l : &mut [u32]) -> u32 {
     let p = *p_;
 
     let mut n : u32 = l.iter().sum();
