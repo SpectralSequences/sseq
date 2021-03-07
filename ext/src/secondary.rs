@@ -494,7 +494,12 @@ pub fn compute_a_dd(
             // coefficients. So we need to collect all coefficients and process them at the end.
             if process_two {
                 let mut multiplier = PPartMultiplier::<true>::new_from_allocation(
-                    TWO, &b.p_part, &c.p_part, allocation, 0, b.degree + c.degree,
+                    TWO,
+                    &b.p_part,
+                    &c.p_part,
+                    allocation,
+                    0,
+                    b.degree + c.degree,
                 );
                 while let Some(c_) = multiplier.next() {
                     let mut hasher = coefs.hasher().build_hasher();
@@ -502,14 +507,20 @@ pub fn compute_a_dd(
                     elt2.generator_index.hash(&mut hasher);
                     multiplier.ans.hash(&mut hasher);
                     let entry = coefs.raw_entry_mut().from_hash(hasher.finish(), |v| {
-                        v.0 == elt2.generator_degree && v.1 == elt2.generator_index && v.2 == multiplier.ans
+                        v.0 == elt2.generator_degree
+                            && v.1 == elt2.generator_index
+                            && v.2 == multiplier.ans
                     });
 
                     entry
                         .and_modify(|_k, v| *v = (*v + c_) % 4)
                         .or_insert_with(|| {
                             (
-                                (elt2.generator_degree, elt2.generator_index, multiplier.ans.clone()),
+                                (
+                                    elt2.generator_degree,
+                                    elt2.generator_index,
+                                    multiplier.ans.clone(),
+                                ),
                                 c_,
                             )
                         });
@@ -559,7 +570,6 @@ fn a_sigma_y(
     let mut scratch2 = FpVector::new(TWO, 0);
     let mut allocation = PPartAllocation::with_capacity(8);
 
-    // First compute τ(b, c)
     for k in 0..c.p_part.len() {
         sub!(c, k + 1, 0);
         for n in 1..b.p_part.len() + 1 {
@@ -568,6 +578,9 @@ fn a_sigma_y(
             for m in 0..n {
                 sub!(b, m, k);
                 u.degree = b.degree + c.degree;
+
+                // We find a Y_{k, l} b c term in the product, where b and c have been modified.
+                // Now compute A(a, Y_{k, l}) and multiply with b and c
 
                 let ay_degree = a.degree + (1 << (m + k)) + (1 << (n + k)) - 2;
                 scratch.set_scratch_vector_size(algebra.dimension(ay_degree, 0));
