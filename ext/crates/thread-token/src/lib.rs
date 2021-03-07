@@ -1,6 +1,6 @@
 #![allow(clippy::mutex_atomic)]
 use crossbeam_channel::{Receiver, TryRecvError};
-use parking_lot::{Mutex, Condvar};
+use parking_lot::{Condvar, Mutex};
 
 /// A `TokenBucket` is a bucket containing a fixed number of "tokens". Threads can take request to
 /// take out a token. If no tokens are available, the thread is blocked (while consuming no CPU
@@ -10,18 +10,18 @@ use parking_lot::{Mutex, Condvar};
 ///
 /// A `TokenBucket` is useful for limiting the number of active threads used by a function/program.
 pub struct TokenBucket {
-    pub max_threads : usize,
-    running_threads : Mutex<usize>,
-    condvar : Condvar
+    pub max_threads: usize,
+    running_threads: Mutex<usize>,
+    condvar: Condvar,
 }
 
 impl TokenBucket {
     /// Constructs a new `TokenBucket` with a fixed number of tokens.
-    pub fn new(max_threads : usize) -> Self {
+    pub fn new(max_threads: usize) -> Self {
         Self {
             max_threads,
-            running_threads : Mutex::new(0),
-            condvar : Condvar::new()
+            running_threads: Mutex::new(0),
+            condvar: Condvar::new(),
         }
     }
 
@@ -32,7 +32,7 @@ impl TokenBucket {
         loop {
             if *running_threads < self.max_threads {
                 *running_threads += 1;
-                return Token { bucket : &self };
+                return Token { bucket: &self };
             } else {
                 self.condvar.wait(&mut running_threads);
             }
@@ -42,7 +42,11 @@ impl TokenBucket {
     /// This function attempts to read a message from `receiver` (if available). If a message is
     /// received, it returns the same token. If not, it releases the existing token. It then waits
     /// for a message, and then queues for a new token. The new token is then returned.
-    pub fn recv_or_release<'a>(&'a self, mut token : Token<'a>, receiver : &Option<Receiver<()>>) -> Token<'a> {
+    pub fn recv_or_release<'a>(
+        &'a self,
+        mut token: Token<'a>,
+        receiver: &Option<Receiver<()>>,
+    ) -> Token<'a> {
         if let Some(recv) = &receiver {
             match recv.try_recv() {
                 Ok(_) => (),
@@ -50,9 +54,8 @@ impl TokenBucket {
                     token.release();
                     recv.recv().unwrap();
                     token = self.take_token();
-                },
-                Err(TryRecvError::Disconnected) => panic!("Sender
-                            disconnected")
+                }
+                Err(TryRecvError::Disconnected) => panic!("Sender disconnected"),
             }
         }
         token
@@ -61,7 +64,12 @@ impl TokenBucket {
     /// This function attempts to read a message from `receiver` (if available). If a message is
     /// received, it returns the same token. If not, it releases the existing token. It then waits
     /// for a message, and then queues for a new token. The new token is then returned.
-    pub fn recv2_or_release<'a>(&'a self, mut token : Token<'a>, receiver1 : &Option<Receiver<()>>, receiver2 : &Option<Receiver<()>>) -> Token<'a> {
+    pub fn recv2_or_release<'a>(
+        &'a self,
+        mut token: Token<'a>,
+        receiver1: &Option<Receiver<()>>,
+        receiver2: &Option<Receiver<()>>,
+    ) -> Token<'a> {
         if receiver1.is_none() {
             return self.recv_or_release(token, receiver2);
         } else if receiver2.is_none() {
@@ -73,7 +81,7 @@ impl TokenBucket {
         match recv1.try_recv() {
             Ok(_) => {
                 token = self.recv_or_release(token, receiver2);
-            },
+            }
             Err(TryRecvError::Empty) => {
                 token.release();
 
@@ -83,19 +91,17 @@ impl TokenBucket {
                     Ok(_) => {
                         recv1.recv().unwrap();
                         token = self.take_token();
-                    },
+                    }
                     // We are waiting for both recv1 and recv2
                     Err(TryRecvError::Empty) => {
                         recv1.recv().unwrap();
                         recv2.recv().unwrap();
                         token = self.take_token();
-                    },
-                    Err(TryRecvError::Disconnected) => panic!("Sender
-                            disconnected")
+                    }
+                    Err(TryRecvError::Disconnected) => panic!("Sender disconnected"),
                 }
-            },
-            Err(TryRecvError::Disconnected) => panic!("Sender
-                            disconnected")
+            }
+            Err(TryRecvError::Disconnected) => panic!("Sender disconnected"),
         }
         token
     }
@@ -111,7 +117,7 @@ impl TokenBucket {
 /// the `Token` is dropped. One can also explicitly release the token via `Token::release`, but
 /// this function does nothing but drop the token.
 pub struct Token<'a> {
-    bucket : &'a TokenBucket
+    bucket: &'a TokenBucket,
 }
 
 impl<'a> Drop for Token<'a> {
@@ -123,5 +129,5 @@ impl<'a> Drop for Token<'a> {
 impl<'a> Token<'a> {
     /// This function does not do anything. It simply takes ownership and ends, which triggers
     /// `drop`.
-    pub fn release(self) { }
+    pub fn release(self) {}
 }

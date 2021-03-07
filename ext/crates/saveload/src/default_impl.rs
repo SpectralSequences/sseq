@@ -2,10 +2,10 @@ use std::io::{self, Read, Write};
 use std::mem::size_of;
 use std::sync::Arc;
 
-use crate::{Save, Load};
+use crate::{Load, Save};
 
 impl Save for bool {
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
         if *self {
             buffer.write_all(&[1])?;
         } else {
@@ -18,15 +18,18 @@ impl Save for bool {
 impl Load for bool {
     type AuxData = ();
 
-    fn load(buffer : &mut impl Read, _ : &()) -> io::Result<Self> {
-        let mut bytes : [u8; 1] = [0; 1];
+    fn load(buffer: &mut impl Read, _: &()) -> io::Result<Self> {
+        let mut bytes: [u8; 1] = [0; 1];
         buffer.read_exact(&mut bytes)?;
         if bytes[0] == 1 {
             Ok(true)
         } else if bytes[0] == 0 {
             Ok(false)
         } else {
-            Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid encoding of boolean"))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Invalid encoding of boolean",
+            ))
         }
     }
 }
@@ -57,8 +60,8 @@ macro_rules! impl_num {
 
 impl_num!(i32, i64, isize, u32, u64, usize);
 
-impl<T : Save> Save for Vec<T> {
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+impl<T: Save> Save for Vec<T> {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
         self.len().save(buffer)?;
         for x in self.iter() {
             x.save(buffer)?;
@@ -67,68 +70,68 @@ impl<T : Save> Save for Vec<T> {
     }
 }
 
-impl<T : Load> Load for Vec<T> {
+impl<T: Load> Load for Vec<T> {
     type AuxData = T::AuxData;
 
-    fn load(buffer : &mut impl Read, data : &Self::AuxData) -> io::Result<Self> {
+    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self> {
         let len = usize::load(buffer, &())?;
 
-        let mut result : Vec<T> = Vec::with_capacity(len);
+        let mut result: Vec<T> = Vec::with_capacity(len);
 
-        for _ in 0 .. len {
+        for _ in 0..len {
             result.push(T::load(buffer, data)?);
         }
         Ok(result)
     }
 }
 
-impl<T : Save> Save for Arc<T> {
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
-        let x : &T = &*self;
+impl<T: Save> Save for Arc<T> {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
+        let x: &T = &*self;
         x.save(buffer)
     }
 }
 
-impl<T : Load> Load for Arc<T> {
+impl<T: Load> Load for Arc<T> {
     type AuxData = T::AuxData;
 
-    fn load(buffer : &mut impl Read, data : &Self::AuxData) -> io::Result<Self> {
+    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self> {
         Ok(Arc::new(T::load(buffer, data)?))
     }
 }
 
-impl<T : Save> Save for parking_lot::Mutex<T> {
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
-        let x : &T = &*self.lock();
+impl<T: Save> Save for parking_lot::Mutex<T> {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
+        let x: &T = &*self.lock();
         x.save(buffer)
     }
 }
 
-impl<T : Load> Load for parking_lot::Mutex<T> {
+impl<T: Load> Load for parking_lot::Mutex<T> {
     type AuxData = T::AuxData;
 
-    fn load(buffer : &mut impl Read, data : &Self::AuxData) -> io::Result<Self> {
+    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self> {
         Ok(parking_lot::Mutex::new(T::load(buffer, data)?))
     }
 }
 
-impl<T : Save> Save for std::sync::Mutex<T> {
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
-        let x : &T = &*self.lock().unwrap();
+impl<T: Save> Save for std::sync::Mutex<T> {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
+        let x: &T = &*self.lock().unwrap();
         x.save(buffer)
     }
 }
 
-impl<T : Load> Load for std::sync::Mutex<T> {
+impl<T: Load> Load for std::sync::Mutex<T> {
     type AuxData = T::AuxData;
 
-    fn load(buffer : &mut impl Read, data : &Self::AuxData) -> io::Result<Self> {
+    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self> {
         Ok(std::sync::Mutex::new(T::load(buffer, data)?))
     }
 }
 
-impl<T : Save> Save for Option<T> {
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+impl<T: Save> Save for Option<T> {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
         match self {
             None => false.save(buffer),
             Some(x) => {
@@ -139,10 +142,10 @@ impl<T : Save> Save for Option<T> {
     }
 }
 
-impl<T : Load> Load for Option<T> {
+impl<T: Load> Load for Option<T> {
     type AuxData = Option<T::AuxData>;
 
-    fn load(buffer : &mut impl Read, data : &Self::AuxData) -> io::Result<Self> {
+    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self> {
         let is_some = bool::load(buffer, &())?;
         if is_some {
             Ok(Some(T::load(buffer, data.as_ref().unwrap())?))

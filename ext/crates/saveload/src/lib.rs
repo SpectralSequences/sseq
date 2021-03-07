@@ -44,10 +44,10 @@ pub trait Save {
     /// assert_eq!(0, cursor.bytes().count());
     /// # Ok::<(), Error>(())
     /// ```
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()>;
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()>;
 }
 
-pub trait Load : Sized {
+pub trait Load: Sized {
     /// The type of the auxiliary data needed for loading.
     ///
     /// # Example
@@ -71,5 +71,5 @@ pub trait Load : Sized {
     ///
     /// If `AuxData = ()`, then the load function will look like `Load::load(&mut f, &())`, which
     /// is a pretty common occurrence.
-    fn load(buffer : &mut impl Read, data : &Self::AuxData) -> io::Result<Self>;
+    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self>;
 }
