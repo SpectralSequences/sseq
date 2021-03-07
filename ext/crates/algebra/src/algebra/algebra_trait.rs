@@ -39,8 +39,11 @@ pub trait Algebra : Send + Sync + 'static {
     fn dimension(&self, degree : i32, excess : i32) -> usize;
 
     /// Computes the product `r * s` of the two basis elements, and *adds* the result to `result`.
+    ///
+    /// result is not required to be aligned.
     fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32);
 
+    /// result and s are not required to be aligned.
     fn multiply_basis_element_by_element(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r_idx : usize, s_degree : i32, s : &FpVector, excess : i32){
         let p = self.prime();
         for (i, v) in s.iter_nonzero() {
@@ -48,6 +51,7 @@ pub trait Algebra : Send + Sync + 'static {
         }
     }
 
+    /// result and r are not required to be aligned.
     fn multiply_element_by_basis_element(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r : &FpVector, s_degree : i32, s_idx : usize, excess : i32){
         let p = self.prime();
         for (i, v) in r.iter_nonzero() {
@@ -55,6 +59,7 @@ pub trait Algebra : Send + Sync + 'static {
         }
     }
 
+    /// result, r and s are not required to be aligned.
     fn multiply_element_by_element(&self, result : &mut FpVector, coeff : u32, r_degree : i32, r : &FpVector, s_degree : i32, s : &FpVector, excess : i32){
         let p = self.prime();
         for (i, v) in s.iter_nonzero() {
