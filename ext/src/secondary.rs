@@ -457,7 +457,7 @@ pub fn a_dd(
     let mut c = MilnorElt::default();
 
     let process_mu0 = a_list.iter().any(|x| x.p_part[0] > 0);
-    let mut allocation = PPartAllocation::default();
+    let mut allocation = PPartAllocation::with_capacity(8);
 
     for (i, _) in dg.iter_nonzero() {
         let elt = module_h.index_to_op_gen(gen_t, i);
@@ -549,7 +549,7 @@ fn a_tau_y(
     let mut u = MilnorElt::default();
     let mut scratch = FpVector::new(TWO, 0);
     let mut scratch2 = FpVector::new(TWO, 0);
-    let mut allocation = algebra::milnor_algebra::PPartAllocation::default();
+    let mut allocation = PPartAllocation::with_capacity(8);
 
     // First compute τ(b, c)
     for k in 0..c.p_part.len() {

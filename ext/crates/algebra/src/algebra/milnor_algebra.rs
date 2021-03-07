@@ -726,6 +726,7 @@ impl MilnorAlgebra {
     }
 }
 
+#[derive(Default)]
 struct Matrix2D {
     cols: usize,
     inner: PPart,
@@ -739,13 +740,11 @@ impl Matrix2D {
     }
 }
 
-impl Default for Matrix2D {
-    fn default() -> Self {
+impl Matrix2D {
+    fn with_capacity(rows: usize, cols: usize) -> Self {
         Self {
             cols: 0,
-            // Preallocate more space to avoid future reallocation. For the dimension to be > 49,
-            // we need at least one side to have 8 entries, which happens in degree 256 at p = 2
-            inner: Vec::with_capacity(49),
+            inner: Vec::with_capacity(rows * cols)
         }
     }
 }
@@ -764,19 +763,25 @@ impl std::ops::IndexMut<usize> for Matrix2D {
     }
 }
 
+#[derive(Default)]
 pub struct PPartAllocation {
     m: Matrix2D,
     diagonal: PPart,
     p_part: PPart,
 }
 
-impl Default for PPartAllocation {
-    fn default() -> Self {
+impl PPartAllocation {
+    /// This creates a PPartAllocation with enough capacity to handle mulitiply elements with
+    /// of total degree < 2^n - ε at p = 2.
+    pub fn with_capacity(n: usize) -> Self {
         Self {
-            m: Matrix2D::default(),
-            // For these to have length > 8 we need to get to degree 256 at p = 2
-            diagonal: Vec::with_capacity(8),
-            p_part: Vec::with_capacity(8),
+            m: Matrix2D::with_capacity(n + 1, n),
+            // This is 1 + min(r.p_part.len(), s.p_part.len()). If r.p_part.len() = s.p_part.len()
+            // = n, then the product will have degree 2^{n + 1}. So the min termis at most n - 1.
+            diagonal: Vec::with_capacity(n),
+            // This size should be the number of diagonals. Even though the answer cannot be that
+            // long, we still insert zeros then pop them out later.
+            p_part: Vec::with_capacity(2 * n),
         }
     }
 }
