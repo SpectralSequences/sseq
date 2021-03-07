@@ -35,7 +35,7 @@ jobs:
     - name: Run concurrent tests
       run: make -C ext test-concurrent
 
-  examples:
+  lint:
     runs-on: ubuntu-latest
     env:
         RUST_BACKTRACE: 1
