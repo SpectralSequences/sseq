@@ -121,7 +121,7 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
 
             scratch.set_scratch_vector_size(res.module(s - 3).dimension(t - 1));
             for (idx, result) in results.iter_mut().enumerate() {
-                d_delta_g(res, s, t, idx, &mut scratch);
+                compute_c(res, s, t, idx, &mut scratch);
 
                 if s > 3 {
                     deltas[s as usize - 4].apply(
@@ -279,7 +279,7 @@ pub fn compute_delta_concurrent(
                 let target_dim = res.module(s - 3).dimension(t - 1);
                 let mut result = FpVector::new(TWO, target_dim);
 
-                d_delta_g(&*res, s, t, idx, &mut result);
+                compute_c(&*res, s, t, idx, &mut result);
 
                 if let Some(save_file) = &*save_file {
                     let mut sf = save_file.lock().unwrap();
@@ -391,8 +391,8 @@ pub fn compute_delta_concurrent(
     unwrap(Arc::try_unwrap(deltas))
 }
 
-/// Computes d(delta(g));
-pub fn d_delta_g(res: &Resolution, gen_s: u32, gen_t: i32, gen_idx: usize, result: &mut FpVector) {
+/// Computes C(g_i) = A(c_i^j, dd g_j).
+pub fn compute_c(res: &Resolution, gen_s: u32, gen_t: i32, gen_idx: usize, result: &mut FpVector) {
     let m = res.module(gen_s - 1);
 
     let d = res.differential(gen_s);
@@ -403,7 +403,7 @@ pub fn d_delta_g(res: &Resolution, gen_s: u32, gen_t: i32, gen_idx: usize, resul
             let mut a_list = MilnorClass::from_module_row(&dg, &m, gen_t, t, idx);
 
             if !a_list.elements.is_empty() {
-                a_dd(res, &mut a_list, gen_s - 1, t, idx, result);
+                compute_a_dd(res, &mut a_list, gen_s - 1, t, idx, result);
             }
         }
     }
@@ -430,7 +430,7 @@ macro_rules! unsub {
 }
 
 /// Computes A(a, ddg)
-pub fn a_dd(
+pub fn compute_a_dd(
     res: &Resolution,
     a_list: &mut MilnorClass,
     gen_s: u32,
@@ -456,7 +456,9 @@ pub fn a_dd(
     let mut b = MilnorElt::default();
     let mut c = MilnorElt::default();
 
-    let process_mu0 = a_list.iter().any(|x| x.p_part[0] > 0);
+    // If R_1 = 0, then A(Sq(R), 2Sq(S)) = 0, so we don't have to compute the Sq terms of the
+    // product.
+    let process_two = a_list.iter().any(|x| x.p_part[0] > 0);
     let mut allocation = PPartAllocation::with_capacity(8);
 
     for (i, _) in dg.iter_nonzero() {
@@ -476,7 +478,8 @@ pub fn a_dd(
                 module_l.generator_offset(target_deg, elt2.generator_degree, elt2.generator_index);
             let num_ops = algebra.dimension(a_list.degree + b.degree + c.degree - 1, 0);
 
-            a_tau_y(
+            // Compute the Y terms of the result
+            a_sigma_y(
                 algebra,
                 a_list,
                 &mut b,
@@ -484,7 +487,12 @@ pub fn a_dd(
                 &mut *result.borrow_slice(offset, offset + num_ops),
             );
 
-            if process_mu0 {
+            // While the Y terms can be processed separately, we have to be careful with the Sq
+            // terms. In the product Sq(S) Sq(T), there will be both terms that have odd
+            // coefficients and those with even coefficients. After summing everything, we will be
+            // left with only multiples of 2, but these can come from adding two terms with odd
+            // coefficients. So we need to collect all coefficients and process them at the end.
+            if process_two {
                 let mut multiplier = PPartMultiplier::<true>::new_from_allocation(
                     TWO, &b.p_part, &c.p_part, allocation, 0, b.degree + c.degree,
                 );
@@ -510,7 +518,8 @@ pub fn a_dd(
             }
         }
     }
-    if process_mu0 {
+
+    if process_two {
         for ((gen_t, gen_idx, elt), c) in coefs {
             if c == 0 {
                 continue;
@@ -537,8 +546,8 @@ pub fn a_dd(
     }
 }
 
-/// Compute the Y terms of A(a, τ(b, c))
-fn a_tau_y(
+/// Compute the Y terms of A(a, σ(b)σ(c))
+fn a_sigma_y(
     algebra: &Algebra,
     a: &mut MilnorClass,
     b: &mut MilnorElt,
@@ -719,7 +728,7 @@ mod test {
             let target_deg = a.degree + b.degree + c.degree - 1;
             algebra.compute_basis(target_deg + 1);
             result.set_scratch_vector_size(algebra.dimension(target_deg, 0));
-            a_tau_y(&algebra, &mut a, &mut b, &mut c, &mut result);
+            a_sigma_y(&algebra, &mut a, &mut b, &mut c, &mut result);
             ans.assert_eq(&algebra.element_to_string(target_deg, &result))
         };
 
@@ -751,7 +760,7 @@ mod test {
             let m = resolution.module(gen_s - 2);
 
             result.set_scratch_vector_size(m.dimension(target_deg));
-            a_dd(
+            compute_a_dd(
                 &*resolution.inner,
                 &mut a,
                 gen_s,
