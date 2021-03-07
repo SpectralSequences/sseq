@@ -696,7 +696,7 @@ impl MilnorAlgebra {
         if self.generic {
             let m1f = self.multiply_qpart(m1, m2.q_part);
             for (cc, basis) in m1f {
-                let mut multiplier = PPartMultiplier::<false>::new_from_allocation(self.prime(), &(basis.p_part), &(m2.p_part), allocation, basis.q_part, target_deg);
+                let mut multiplier = PPartMultiplier::<false>::new_from_allocation(self.prime(), &basis.p_part, &m2.p_part, allocation, basis.q_part, target_deg);
 
                 while let Some(c) = multiplier.next() {
                     let idx = self.basis_element_to_index(&multiplier.ans);
@@ -705,7 +705,7 @@ impl MilnorAlgebra {
                 allocation = multiplier.into_allocation()
             }
         } else {
-            let mut multiplier = PPartMultiplier::<false>::new_from_allocation(self.prime(), &(m1.p_part), &(m2.p_part), allocation, 0, target_deg);
+            let mut multiplier = PPartMultiplier::<false>::new_from_allocation(self.prime(), &m1.p_part, &m2.p_part, allocation, 0, target_deg);
 
             while let Some(c) = multiplier.next() {
                 let idx = self.basis_element_to_index(&multiplier.ans);
