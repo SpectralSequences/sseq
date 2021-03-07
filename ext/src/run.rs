@@ -592,10 +592,14 @@ pub fn secondary() -> error::Result<String> {
     }
     let mut output = File::create(&filename).unwrap();
 
-    for s in 1.. (max_s - 1) {
-        let delta = &deltas[s as usize - 1];
+    for f in 1 .. max_t {
+        for s in 1.. (max_s - 1) {
+            let t = s as i32 + f;
+            if t >= max_t {
+                break;
+            }
+            let delta = &deltas[s as usize - 1];
 
-        for t in s as i32 + 1 .. max_t {
             if delta.source().number_of_gens_in_degree(t + 1) == 0 {
                 continue;
             }
@@ -603,7 +607,7 @@ pub fn secondary() -> error::Result<String> {
 
             for (i, entry) in d.into_iter().enumerate() {
                 writeln!(output,
-                    "d_2 x_({}, {}, {}) = {:?}", t - s as i32, s, i, entry
+                    "d_2 x_({}, {}, {}) = {:?}", f, s, i, entry
                 ).unwrap();
             }
         }
