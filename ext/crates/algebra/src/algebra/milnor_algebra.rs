@@ -824,7 +824,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         for i in 1 .. rows {
             M[i][0] = r[i - 1];
         }
-        M[0][1..cols].clone_from_slice(&s[0..(cols - 1)]);
+        M[0][1..cols].copy_from_slice(&s);
 
         let ans = MilnorBasisElement {
             q_part,
