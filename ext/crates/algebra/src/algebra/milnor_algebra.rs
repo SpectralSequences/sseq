@@ -695,25 +695,22 @@ impl MilnorAlgebra {
         if self.generic {
             let m1f = self.multiply_qpart(m1, m2.q_part);
             for (cc, basis) in m1f {
-                let (mut new, mut multiplier) = PPartMultiplier::<false>::new_from_allocation(self.prime(), &(basis.p_part), &(m2.p_part), allocation);
+                let mut multiplier = PPartMultiplier::<false>::new_from_allocation(self.prime(), &(basis.p_part), &(m2.p_part), allocation, basis.q_part, target_deg);
 
-                new.degree = target_deg;
-                new.q_part = basis.q_part;
-                while let Some(c) = multiplier.next(&mut new) {
-                    let idx = self.basis_element_to_index(&new);
+                while let Some(c) = multiplier.next() {
+                    let idx = self.basis_element_to_index(&multiplier.ans);
                     res.add_basis_element(idx, c * cc * coef);
                 }
-                allocation = multiplier.into_allocation(new)
+                allocation = multiplier.into_allocation()
             }
         } else {
-            let (mut new, mut multiplier) = PPartMultiplier::<false>::new_from_allocation(self.prime(), &(m1.p_part), &(m2.p_part), allocation);
-            new.degree = target_deg;
+            let mut multiplier = PPartMultiplier::<false>::new_from_allocation(self.prime(), &(m1.p_part), &(m2.p_part), allocation, 0, target_deg);
 
-            while let Some(c) = multiplier.next(&mut new) {
-                let idx = self.basis_element_to_index(&new);
+            while let Some(c) = multiplier.next() {
+                let idx = self.basis_element_to_index(&multiplier.ans);
                 res.add_basis_element(idx, c * coef);
             }
-            allocation = multiplier.into_allocation(new)
+            allocation = multiplier.into_allocation()
         }
         allocation
     }
@@ -796,6 +793,7 @@ pub struct PPartMultiplier<'a, const MOD4: bool> {
     diag_num : usize,
     init : bool,
     diagonal: PPart,
+    pub ans: MilnorBasisElement,
 }
 
 #[allow(non_snake_case)]
@@ -805,7 +803,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn new_from_allocation(p: ValidPrime, r: &'a PPart, s: &'a PPart, allocation: PPartAllocation) -> (MilnorBasisElement, Self) {
+    pub fn new_from_allocation(p: ValidPrime, r: &'a PPart, s: &'a PPart, allocation: PPartAllocation, q_part: u32, degree: i32) -> Self {
         if MOD4 {
             assert_eq!(*p, 2);
         }
@@ -824,19 +822,19 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         }
         M[0][1..cols].clone_from_slice(&s[0..(cols - 1)]);
 
-        let elt = MilnorBasisElement {
-            q_part: 0,
+        let ans = MilnorBasisElement {
+            q_part,
             p_part: allocation.p_part,
-            degree: 0,
+            degree,
         };
-        (elt, PPartMultiplier { p, M, r, rows, cols, diag_num, diagonal, init : true })
+        PPartMultiplier { p, M, r, rows, cols, diag_num, diagonal, ans, init : true }
     }
 
-    pub fn into_allocation(self, elt: MilnorBasisElement) -> PPartAllocation {
+    pub fn into_allocation(self) -> PPartAllocation {
         PPartAllocation {
             m: self.M,
             diagonal: self.diagonal,
-            p_part: elt.p_part,
+            p_part: self.ans.p_part,
         }
     }
 
@@ -941,10 +939,11 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         false
     }
 
-    pub fn next(&mut self, basis: &mut MilnorBasisElement) -> Option<u32> {
-        let new_p = &mut basis.p_part;
+    /// This cannot be an actual iterator because we want to borrow self.ans when using it
+    #[allow(clippy::should_implement_trait)]
+    pub fn next(&mut self) -> Option<u32> {
         'outer: loop {
-            new_p.clear();
+            self.ans.p_part.clear();
             let mut coef = 1;
 
             if self.init {
@@ -961,12 +960,12 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                         continue 'outer;
                     }
                 }
-                new_p.extend_from_slice(&self.M[0][1..self.cols]);
+                self.ans.p_part.extend_from_slice(&self.M[0][1..self.cols]);
                 if self.rows > self.cols {
-                    new_p.resize(self.r.len(), 0);
+                    self.ans.p_part.resize(self.r.len(), 0);
                 }
                 for (i, &entry) in self.r.iter().enumerate() {
-                    new_p[i] += entry;
+                    self.ans.p_part[i] += entry;
                 }
                 return Some(coef);
             } else if self.update() {
@@ -981,7 +980,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                         self.diagonal.push(self.M[i][diag_idx - i]);
                         sum += self.M[i][diag_idx - i];
                     }
-                    new_p.push(sum);
+                    self.ans.p_part.push(sum);
 
                     if sum == 0  {
                         continue;
@@ -1002,8 +1001,8 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                     }
                 }
                 // If new_p ends with 0, drop them
-                while let Some(0) = new_p.last() {
-                    new_p.pop();
+                while let Some(0) = self.ans.p_part.last() {
+                    self.ans.p_part.pop();
                 }
 
                 return Some(coef);

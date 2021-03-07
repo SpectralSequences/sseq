@@ -485,29 +485,28 @@ pub fn a_dd(
             );
 
             if process_mu0 {
-                let (mut temp, mut multiplier) = PPartMultiplier::<true>::new_from_allocation(
-                    TWO, &b.p_part, &c.p_part, allocation,
+                let mut multiplier = PPartMultiplier::<true>::new_from_allocation(
+                    TWO, &b.p_part, &c.p_part, allocation, 0, b.degree + c.degree,
                 );
-                temp.degree = b.degree + c.degree;
-                while let Some(c_) = multiplier.next(&mut temp) {
+                while let Some(c_) = multiplier.next() {
                     let mut hasher = coefs.hasher().build_hasher();
                     elt2.generator_degree.hash(&mut hasher);
                     elt2.generator_index.hash(&mut hasher);
-                    temp.hash(&mut hasher);
+                    multiplier.ans.hash(&mut hasher);
                     let entry = coefs.raw_entry_mut().from_hash(hasher.finish(), |v| {
-                        v.0 == elt2.generator_degree && v.1 == elt2.generator_index && v.2 == temp
+                        v.0 == elt2.generator_degree && v.1 == elt2.generator_index && v.2 == multiplier.ans
                     });
 
                     entry
                         .and_modify(|_k, v| *v = (*v + c_) % 4)
                         .or_insert_with(|| {
                             (
-                                (elt2.generator_degree, elt2.generator_index, temp.clone()),
+                                (elt2.generator_degree, elt2.generator_index, multiplier.ans.clone()),
                                 c_,
                             )
                         });
                 }
-                allocation = multiplier.into_allocation(temp);
+                allocation = multiplier.into_allocation();
             }
         }
     }

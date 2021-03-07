@@ -6,10 +6,9 @@ fn ppart_inner<const MOD4: bool>(bench: &mut Bencher, p: u32, r: Vec<u32>, s: Ve
     let p = ValidPrime::new(p);
 
     bench.iter(move || {
-        let (mut result, mut m) =
-            PPartMultiplier::<MOD4>::new_from_allocation(p, &r, &s, PPartAllocation::default());
+        let mut m = PPartMultiplier::<MOD4>::new_from_allocation(p, &r, &s, PPartAllocation::default(), 0, 0);
 
-        while let Some(c) = m.next(&mut result) {
+        while let Some(c) = m.next() {
             if MOD4 {
                 assert!(c < 4);
             } else {
