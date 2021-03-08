@@ -3,8 +3,7 @@ use crate::algebra::{
     MilnorAlgebra, SteenrodAlgebraT, SteenrodAlgebraBorrow
 };
 use crate::module::{Module, ZeroModule};
-use fp::prime::ValidPrime;
-use fp::prime::{binomial, multinomial2};
+use fp::prime::{Binomial, ValidPrime};
 use fp::vector::{FpVector, FpVectorT};
 
 use std::sync::Arc;
@@ -122,9 +121,9 @@ fn coef_adem(algebra: &AdemAlgebra, op_deg: i32, op_idx: usize, mut j: i32) -> b
     // Apply Sq^i to x^j and see if it is zero
     for i in elt.ps.iter().rev() {
         let c = if j >= 0 {
-            binomial(ValidPrime::new(2), j, *i as i32)
+            i32::binomial(ValidPrime::new(2), j, *i as i32)
         } else {
-            binomial(ValidPrime::new(2), -j + (*i as i32) - 1, *i as i32)
+            i32::binomial(ValidPrime::new(2), -j + (*i as i32) - 1, *i as i32)
         };
         if c == 0 {
             return false;
@@ -155,7 +154,7 @@ fn coef_milnor(algebra: &MilnorAlgebra, op_deg: i32, op_idx: usize, mut mod_degr
     list.push(mod_degree - sum);
     list.extend_from_slice(&elt.p_part);
 
-    multinomial2(&list) == 1
+    u32::multinomial2(&list) == 1
 }
 
 impl<A : SteenrodAlgebraT> ZeroModule for RealProjectiveSpace<A> {

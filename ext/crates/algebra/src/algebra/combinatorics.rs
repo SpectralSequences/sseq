@@ -45,9 +45,9 @@ pub fn adem_relation_coefficient(p : ValidPrime, x : u32, y : u32, j : u32, e1 :
     let j = j as i32;
     let e1 = e1 as i32;
     let e2 = e2 as i32;
-    let mut c = binomial(p, (y-j) * (pi32-1) + e1 - 1, x - pi32*j - e2);
-    if c == 0 { 
-        return 0; 
+    let mut c = i32::binomial(p, (y-j) * (pi32-1) + e1 - 1, x - pi32*j - e2) as u32;
+    if c == 0 {
+        return 0;
     }
     c *= minus_one_to_the_n(*p, (x + j) + e2);
     c % *p

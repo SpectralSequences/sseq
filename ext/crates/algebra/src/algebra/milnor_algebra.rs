@@ -4,7 +4,7 @@ use serde_json::value::Value;
 use rustc_hash::FxHashMap as HashMap;
 
 use once::OnceVec;
-use fp::prime::{integer_power, ValidPrime, BitflagIterator};
+use fp::prime::{Binomial, integer_power, ValidPrime, BitflagIterator};
 use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::combinatorics;
 use crate::algebra::{Algebra, Bialgebra};
@@ -882,7 +882,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                 }
             }
             _ => {
-                (k + 1 .. max + 1).find(|&l| !fp::prime::binomial_odd_is_zero(self.prime(), sum + l, l)).unwrap_or(max + 1)
+                (k + 1 .. max + 1).find(|&l| !u32::binomial_odd_is_zero(self.prime(), sum + l, l)).unwrap_or(max + 1)
             }
         }
     }
@@ -973,10 +973,10 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                 self.init = false;
                 for i in 1 .. std::cmp::min(self.cols, self.rows) {
                     if MOD4 {
-                        coef *= fp::prime::binomial4(self.M[i][0] + self.M[0][i], self.M[0][i]);
+                        coef *= u32::binomial4(self.M[i][0] + self.M[0][i], self.M[0][i]);
                         coef %= 4;
                     } else {
-                        coef *= fp::prime::binomial(p, (self.M[i][0] + self.M[0][i]) as i32, self.M[0][i] as i32);
+                        coef *= u32::binomial(p, self.M[i][0] + self.M[0][i], self.M[0][i]);
                         coef %= *self.prime();
                     }
                     if coef == 0 {
@@ -1003,9 +1003,9 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                                 let entry = self.M[i][diag_idx - i];
                                 sum += entry ;
                                 if coef % 2 == 0 {
-                                    coef *= fp::prime::binomial2(sum as i32, entry as i32);
+                                    coef *= u32::binomial2(sum, entry);
                                 } else {
-                                    coef *= fp::prime::binomial4(sum, entry);
+                                    coef *= u32::binomial4(sum, entry);
                                 }
                                 coef %= 4;
                                 if coef == 0 {
@@ -1031,7 +1031,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                                 sum += self.M[i][diag_idx - i];
                             }
 
-                            coef *= fp::prime::multinomial_odd(p, &mut self.diagonal);
+                            coef *= u32::multinomial_odd(p, &mut self.diagonal);
                             coef %= *p;
                             if coef == 0 {
                                 continue 'outer;

@@ -1,12 +1,12 @@
 use bencher::{Bencher, benchmark_group};
 
-use fp::prime;
+use fp::prime::{ValidPrime, Binomial};
 
 fn binomial_3(bench: &mut Bencher) {
     bench.iter(|| {
         for y in 1 .. 100 {
             for x in 0 .. y {
-                prime::binomial_odd(prime::ValidPrime::new(3), y, x);
+                u32::binomial_odd(ValidPrime::new(3), y, x);
             }
         }
     });
@@ -18,7 +18,7 @@ fn multinomial_7(bench: &mut Bencher) {
             for x in 1 .. 20 {
                 for y in 1 .. 20 {
                     for z in 1 .. 20 {
-                        prime::multinomial_odd(prime::ValidPrime::new(7), &mut [w, x, y, z]);
+                        u32::multinomial_odd(ValidPrime::new(7), &mut [w, x, y, z]);
                     }
                 }
             }
