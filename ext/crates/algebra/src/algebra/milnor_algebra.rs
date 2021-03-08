@@ -44,7 +44,12 @@ pub struct QPart {
     q_part : u32
 }
 
+#[cfg(feature = "odd-primes")]
 pub type PPartEntry = u32;
+
+#[cfg(not(feature = "odd-primes"))]
+pub type PPartEntry = u8;
+
 pub type PPart = Vec<PPartEntry>;
 
 #[derive(Debug, Clone, Default)]
@@ -361,7 +366,7 @@ impl Algebra for MilnorAlgebra {
             delimited(char('P'), digit1, space1),
             delimited(tag("Sq"), digit1, space1),
         )), |elt| {
-            let i : u32 = std::str::FromStr::from_str(elt).unwrap();
+            let i = std::str::FromStr::from_str(elt).unwrap();
             self.beps_pn(0, i)
         });
 
@@ -416,7 +421,7 @@ impl Algebra for MilnorAlgebra {
         let idx = self.basis_element_to_index(&MilnorBasisElement {
             degree,
             q_part : 0,
-            p_part : vec![degree as u32/q]
+            p_part : vec![(degree as u32/ q) as PPartEntry]
         });
         return vec![idx];
     }
@@ -443,8 +448,8 @@ impl Algebra for MilnorAlgebra {
             let mut relation = Vec::new();
             // Adem relation. Sometimes these don't exist because of profiles. Then just ignore it.
             (|| {
-                let (first_degree, first_index) = self.try_beps_pn(0, x)?;
-                let (second_degree, second_index) = self.try_beps_pn(b, y)?;
+                let (first_degree, first_index) = self.try_beps_pn(0, x as PPartEntry)?;
+                let (second_degree, second_index) = self.try_beps_pn(b, y as PPartEntry)?;
                 relation.push((*p - 1, (first_degree, first_index), (second_degree, second_index)));
                 for e1 in 0 ..= b {
                     let e2 = b - e1;
@@ -456,11 +461,11 @@ impl Algebra for MilnorAlgebra {
                         let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
                         if c == 0 { continue; }
                         if j == 0 {
-                            relation.push((c, self.try_beps_pn(e1, x + y)?, (e2 as i32, 0)));
+                            relation.push((c, self.try_beps_pn(e1, (x + y) as PPartEntry)?, (e2 as i32, 0)));
                             continue;
                         }
-                        let first_sq = self.try_beps_pn(e1, x + y - j)?;
-                        let second_sq = self.try_beps_pn(e2, j)?;
+                        let first_sq = self.try_beps_pn(e1, (x + y - j) as PPartEntry)?;
+                        let second_sq = self.try_beps_pn(e2, j as PPartEntry)?;
                         relation.push((c, first_sq, second_sq));
                     }
                 }
@@ -491,11 +496,11 @@ impl MilnorAlgebra {
         let mut profile_list = Vec::with_capacity(xi_degrees.len());
         for i in 0..xi_degrees.len() {
             if i < self.profile.p_part.len() {
-                profile_list.push(fp::prime::integer_power(*self.prime(), self.profile.p_part[i]) - 1);
+                profile_list.push((integer_power(*self.prime(), self.profile.p_part[i] as u32) - 1) as PPartEntry);
             } else if self.profile.truncated {
                 profile_list.push(0);
             } else {
-                profile_list.push(std::u32::MAX);
+                profile_list.push(PPartEntry::MAX);
             }
         }
         for d in (old_deg + 1) ..= new_deg {
@@ -616,10 +621,10 @@ impl MilnorAlgebra {
 
 // Multiplication logic
 impl MilnorAlgebra {
-    fn try_beps_pn(&self, e: u32, x: u32) -> Option<(i32, usize)> {
+    fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)> {
         let p = *self.prime();
         let q = if self.generic { 2*(p - 1) } else { 1 };
-        let degree = (q * x + e) as i32;
+        let degree = (q * x as u32 + e) as i32;
         self.try_basis_element_to_index(&MilnorBasisElement {
             degree,
             q_part : e,
@@ -627,7 +632,7 @@ impl MilnorAlgebra {
         }).map(|index| (degree, index))
     }
 
-    fn beps_pn(&self, e : u32, x : u32) -> (i32, usize) {
+    fn beps_pn(&self, e : u32, x : PPartEntry) -> (i32, usize) {
         self.try_beps_pn(e, x).unwrap()
     }
 
@@ -637,7 +642,7 @@ impl MilnorAlgebra {
 
         for k in BitflagIterator::set_bit_iterator(f as u64) {
             let k = k as u32;
-            let pk = integer_power(*self.p, k);
+            let pk = integer_power(*self.p, k) as PPartEntry;
             std::mem::swap(&mut new_result, &mut old_result);
             new_result.clear();
 
@@ -837,7 +842,11 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         for i in 1 .. rows {
             M[i][0] = r[i - 1];
         }
-        M[0][1..cols].copy_from_slice(&s);
+        // This is somehow quite significantly faster than copy_from_slice
+        #[allow(clippy::manual_memcpy)]
+        for k in 1 .. cols {
+            M[0][k] = s[k - 1];
+        }
 
         let ans = MilnorBasisElement {
             q_part,
@@ -864,7 +873,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
     /// max + 1. This is useful for incrementing the matrix.
     ///
     /// TODO: Improve odd prime performance
-    fn next_val(&self, sum: u32, k: u32, max: u32) -> u32 {
+    fn next_val(&self, sum: PPartEntry, k: PPartEntry, max: PPartEntry) -> PPartEntry {
         match *self.prime() {
             2 => {
                 if MOD4 {
@@ -882,7 +891,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                 }
             }
             _ => {
-                (k + 1 .. max + 1).find(|&l| !u32::binomial_odd_is_zero(self.prime(), sum + l, l)).unwrap_or(max + 1)
+                (k + 1 .. max + 1).find(|&l| !PPartEntry::binomial_odd_is_zero(self.prime(), sum + l, l)).unwrap_or(max + 1)
             }
         }
     }
@@ -905,14 +914,14 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
             let mut total = self.M[i][0];
             let mut p_to_the_j = 1;
             for j in 1..self.cols {
-                p_to_the_j *= *self.prime();
+                p_to_the_j *= *self.prime() as PPartEntry;
                 if total < p_to_the_j {
                     // We don't have enough weight left in the entries above this one in the column to increment this cell.
                     // Add the weight from this cell to the total, we can use it to increment a cell lower down.
                     total += self.M[i][j] * p_to_the_j;
                     continue;
                 }
-                let col_sum: u32 = (0 .. i).map(|k| self.M[k][j]).sum();
+                let col_sum: PPartEntry = (0 .. i).map(|k| self.M[k][j]).sum();
                 if col_sum == 0 {
                     total += self.M[i][j] * p_to_the_j;
                     continue;
@@ -964,7 +973,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
     /// This cannot be an actual iterator because we want to borrow self.ans when using it
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<u32> {
-        let p = self.prime();
+        let p = *self.prime() as PPartEntry;
         'outer: loop {
             self.ans.p_part.clear();
             let mut coef = 1;
@@ -973,24 +982,26 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                 self.init = false;
                 for i in 1 .. std::cmp::min(self.cols, self.rows) {
                     if MOD4 {
-                        coef *= u32::binomial4(self.M[i][0] + self.M[0][i], self.M[0][i]);
+                        coef *= PPartEntry::binomial4(self.M[i][0] + self.M[0][i], self.M[0][i]);
                         coef %= 4;
                     } else {
-                        coef *= u32::binomial(p, self.M[i][0] + self.M[0][i], self.M[0][i]);
-                        coef %= *self.prime();
+                        coef *= PPartEntry::binomial(self.prime(), self.M[i][0] + self.M[0][i], self.M[0][i]);
+                        coef %= p;
                     }
                     if coef == 0 {
                         continue 'outer;
                     }
                 }
-                self.ans.p_part.extend_from_slice(&self.M[0][1..self.cols]);
+                for &k in &self.M[0][1..self.cols] {
+                    self.ans.p_part.push(k);
+                }
                 if self.rows > self.cols {
                     self.ans.p_part.resize(self.r.len(), 0);
                 }
                 for (i, &entry) in self.r.iter().enumerate() {
                     self.ans.p_part[i] += entry;
                 }
-                return Some(coef);
+                return Some(coef as u32);
             } else if self.update() {
                 for diag_idx in 1..=self.diag_num {
                     let i_min = if diag_idx + 1 > self.cols { diag_idx + 1 - self.cols } else {0} ;
@@ -1003,9 +1014,9 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                                 let entry = self.M[i][diag_idx - i];
                                 sum += entry ;
                                 if coef % 2 == 0 {
-                                    coef *= u32::binomial2(sum, entry);
+                                    coef *= PPartEntry::binomial2(sum, entry);
                                 } else {
-                                    coef *= u32::binomial4(sum, entry);
+                                    coef *= PPartEntry::binomial4(sum, entry);
                                 }
                                 coef %= 4;
                                 if coef == 0 {
@@ -1031,8 +1042,8 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                                 sum += self.M[i][diag_idx - i];
                             }
 
-                            coef *= u32::multinomial_odd(p, &mut self.diagonal);
-                            coef %= *p;
+                            coef *= PPartEntry::multinomial_odd(self.prime(), &mut self.diagonal);
+                            coef %= p;
                             if coef == 0 {
                                 continue 'outer;
                             }
@@ -1045,7 +1056,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                     self.ans.p_part.pop();
                 }
 
-                return Some(coef);
+                return Some(coef as u32);
             } else {
                 return None;
             }
@@ -1065,7 +1076,7 @@ impl MilnorAlgebra {
             let q_degree = (2 * ppow - 1) as i32;
             let p_degree = (ppow * (2 * (*self.prime()) - 2)) as i32;
 
-            let p_idx = self.basis_element_to_index(&MilnorBasisElement::from_p(vec![ppow], p_degree)).to_owned();
+            let p_idx = self.basis_element_to_index(&MilnorBasisElement::from_p(vec![ppow as PPartEntry], p_degree)).to_owned();
 
             let q_idx =  self.basis_element_to_index(
                 &MilnorBasisElement {
@@ -1102,6 +1113,7 @@ impl MilnorAlgebra {
     #[allow(clippy::useless_let_if_seq)]
     fn decompose_basis_element_ppart(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>{
         let p = self.prime();
+        let pp = *self.prime() as PPartEntry;
         let b = &self.basis_table[degree as usize][idx];
         let first;
         let second;
@@ -1110,7 +1122,7 @@ impl MilnorAlgebra {
             let mut pow = 1;
             for r in &b.p_part {
                 t1 += r * pow;
-                pow *= *p;
+                pow *= pp;
             }
             first = self.beps_pn(0, t1);
             let second_degree = degree - first.0;
@@ -1126,9 +1138,9 @@ impl MilnorAlgebra {
             let mut pow = 1;
             {
                 let mut temp_sq = sq;
-                while temp_sq % *p == 0 {
-                    temp_sq /= *p;
-                    pow *= *p;
+                while temp_sq % pp == 0 {
+                    temp_sq /= pp;
+                    pow *= pp;
                 }
             }
             if sq == pow {

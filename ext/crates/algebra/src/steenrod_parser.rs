@@ -12,12 +12,13 @@ use nom::{
 };
 
 use std::str::FromStr;
+use crate::algebra::milnor_algebra::PPart;
 
 #[derive(Debug)]
 #[derive(Clone)]
 pub enum AlgebraBasisElt {
     AList(Vec<BocksteinOrSq>), // Admissible list.
-    PList(Vec<u32>),
+    PList(PPart),
     P(u32),
     Q(u32)
 }
@@ -40,20 +41,20 @@ pub enum ModuleParseNode {
 }
 
 
-fn digits(i : &str) -> IResult<&str, u32> {
+fn digits<T: FromStr + Copy>(i : &str) -> IResult<&str, T> {
     map_res(delimited(space, digit, space), FromStr::from_str)(i)
 }
 
-fn comma_separated_integer_list(i : &str) -> IResult<&str, Vec<u32>> {
+fn comma_separated_integer_list<T: FromStr + Copy>(i : &str) -> IResult<&str, Vec<T>> {
     let (i, init) = digits(i)?;
     let mut result = vec![init];
     let (rest, list) = many0(pair(char(','), digits))(i)?;
-    result.extend(list.iter().map(|t| t.1));
+    result.extend(list.iter().map(|t: &(char, T)| t.1));
     Ok((rest, result))
 }
 
 
-fn comma_separated_sequence(i : &str) -> IResult<&str, Vec<u32>> {
+fn comma_separated_sequence<T: FromStr + Copy>(i : &str) -> IResult<&str, Vec<T>> {
     delimited(
       tag("("),
       comma_separated_integer_list,
@@ -61,11 +62,11 @@ fn comma_separated_sequence(i : &str) -> IResult<&str, Vec<u32>> {
     )(i)
 }
 
-fn space_separated_integer_list(i : &str) -> IResult<&str, Vec<u32>> {
+fn space_separated_integer_list<T: FromStr + Copy>(i : &str) -> IResult<&str, Vec<T>> {
     many0(digits)(i)
 }
 
-fn space_separated_sequence(i : &str) -> IResult<&str, Vec<u32>> {
+fn space_separated_sequence<T: FromStr + Copy>(i : &str) -> IResult<&str, Vec<T>> {
     delimited(
       tag("("),
       space_separated_integer_list,
@@ -139,9 +140,9 @@ fn algebra_generator(i : &str) -> IResult<&str, AlgebraParseNode> {
 
 fn scalar(i : &str) -> IResult<&str, AlgebraParseNode> {
     let (rest, c) =  pair(opt(alt((char('-'),char('+')))), digits)(i)?;
-    let result = match c {
-        (Some('+'), coeff) | (None, coeff) => coeff as i32,
-        (Some('-'), coeff) => -(coeff as i32),
+    let result: i32 = match c {
+        (Some('+'), coeff) | (None, coeff) => coeff,
+        (Some('-'), coeff) => -coeff,
         _ => unreachable!()
     };
     Ok((rest,AlgebraParseNode::Scalar(result)))

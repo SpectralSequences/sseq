@@ -128,8 +128,8 @@ fn evaluate_basis_element(
         AlgebraBasisElt::PList(p_list) => {
             let xi_degrees = crate::algebra::combinatorics::xi_degrees(p);
             let mut temp_deg = 0;
-            for (i, v) in p_list.iter().enumerate() {
-                temp_deg += *v * q * xi_degrees[i] as u32;
+            for (i, &v) in p_list.iter().enumerate() {
+                temp_deg += v as u32 * q * xi_degrees[i] as u32;
             }
             degree = temp_deg as i32;
             adem_algebra.compute_basis(degree);

@@ -687,10 +687,11 @@ fn a_y_inner(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize) -> FpVect
 mod test {
     use super::*;
     use crate::utils::construct_s_2;
+    use algebra::milnor_algebra::PPartEntry;
     use expect_test::{expect, Expect};
     use std::fmt::Write;
 
-    fn from_p_part(p_part: &[u32]) -> MilnorElt {
+    fn from_p_part(p_part: &[PPartEntry]) -> MilnorElt {
         let degree = p_part
             .iter()
             .enumerate()
@@ -710,7 +711,7 @@ mod test {
 
         let mut result = FpVector::new(TWO, 0);
 
-        let mut check = |p_part: &[u32], k, l, ans: Expect| {
+        let mut check = |p_part: &[PPartEntry], k, l, ans: Expect| {
             let mut a = MilnorClass::from_elements(vec![from_p_part(p_part)]);
 
             let target_deg = a.degree + (1 << k) + (1 << l) - 2;
@@ -733,7 +734,7 @@ mod test {
 
         let mut result = FpVector::new(TWO, 0);
 
-        let mut check = |a: &[u32], b: &[u32], c: &[u32], ans: Expect| {
+        let mut check = |a: &[PPartEntry], b: &[PPartEntry], c: &[PPartEntry], ans: Expect| {
             let mut a = MilnorClass::from_elements(vec![from_p_part(a)]);
             let mut b = from_p_part(b);
             let mut c = from_p_part(c);
@@ -765,7 +766,7 @@ mod test {
 
         let mut result = FpVector::new(TWO, 0);
 
-        let mut check = |a: &[u32], gen_s: u32, gen_t: i32, gen_idx, ans: &str| {
+        let mut check = |a: &[PPartEntry], gen_s: u32, gen_t: i32, gen_idx, ans: &str| {
             let mut a = MilnorClass::from_elements(vec![from_p_part(a)]);
 
             let target_deg = a.degree + gen_t - 1;

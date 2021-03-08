@@ -148,13 +148,13 @@ fn coef_milnor(algebra: &MilnorAlgebra, op_deg: i32, op_idx: usize, mut mod_degr
         return false;
     }
 
-    let mod_degree = mod_degree as u32;
+    let mod_degree = mod_degree as PPartEntry;
 
     let mut list = Vec::with_capacity(elt.p_part.len() + 1);
     list.push(mod_degree - sum);
     list.extend_from_slice(&elt.p_part);
 
-    u32::multinomial2(&list) == 1
+    PPartEntry::multinomial2(&list) == 1
 }
 
 impl<A : SteenrodAlgebraT> ZeroModule for RealProjectiveSpace<A> {

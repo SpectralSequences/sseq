@@ -1,8 +1,8 @@
-use algebra::milnor_algebra::{PPartAllocation, PPartMultiplier};
+use algebra::milnor_algebra::{PPartAllocation, PPartMultiplier, PPartEntry};
 use bencher::{benchmark_group, benchmark_main, Bencher};
 use fp::prime::ValidPrime;
 
-fn ppart_inner<const MOD4: bool>(bench: &mut Bencher, p: u32, r: Vec<u32>, s: Vec<u32>) {
+fn ppart_inner<const MOD4: bool>(bench: &mut Bencher, p: u32, r: Vec<PPartEntry>, s: Vec<u32>) {
     let p = ValidPrime::new(p);
 
     bench.iter(move || {

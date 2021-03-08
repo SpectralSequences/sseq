@@ -1,7 +1,7 @@
 use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AdemAlgebra, MilnorAlgebra};
 use crate::algebra::adem_algebra::AdemBasisElement;
-use crate::algebra::milnor_algebra::{PPart, MilnorBasisElement};
+use crate::algebra::milnor_algebra::{PPart, PPartEntry, MilnorBasisElement};
 
 // use std::sync::Arc;
 
@@ -21,7 +21,7 @@ pub fn adem_to_milnor_on_basis(
     let mbe = MilnorBasisElement {
         degree : (q * elt.ps[0] + (bocksteins & 1)) as i32,
         q_part : bocksteins & 1,
-        p_part : vec![elt.ps[0]]
+        p_part : vec![elt.ps[0] as PPartEntry]
     };
     bocksteins >>= 1;
     let idx = milnor_algebra.basis_element_to_index(&mbe);
@@ -36,7 +36,7 @@ pub fn adem_to_milnor_on_basis(
         let mbe = MilnorBasisElement {
             degree : (q * elt.ps[i] + (bocksteins & 1)) as i32,
             q_part : bocksteins & 1,
-            p_part : vec![elt.ps[i]]
+            p_part : vec![elt.ps[i] as PPartEntry]
         };
         let idx = milnor_algebra.basis_element_to_index(&mbe);
         bocksteins >>= 1;
@@ -91,10 +91,10 @@ fn milnor_to_adem_on_basis_2(
         result.set_entry(0, coeff);
         return;
     }
-    let mut t = vec![0;elt.p_part.len()];
-    t[elt.p_part.len() - 1] = elt.p_part[elt.p_part.len() - 1];
+    let mut t: Vec<u32> = vec![0;elt.p_part.len()];
+    t[elt.p_part.len() - 1] = elt.p_part[elt.p_part.len() - 1] as u32;
     for i in (0 .. elt.p_part.len() - 1).rev() {
-        t[i] = elt.p_part[i] + 2 * t[i + 1];
+        t[i] = elt.p_part[i] as u32 + 2 * t[i + 1];
     }
     let t_idx = adem_algebra.basis_element_to_index(&AdemBasisElement {
         degree,
@@ -125,10 +125,10 @@ fn milnor_to_adem_on_basis_generic(
     }
     let t_len = std::cmp::max(elt.p_part.len(), (31u32.saturating_sub(elt.q_part.leading_zeros())) as usize);
     let mut t = vec![0;t_len];
-    let last_p_part = if t_len <= elt.p_part.len() { elt.p_part[t_len - 1] } else { 0 }; 
+    let last_p_part = if t_len <= elt.p_part.len() { elt.p_part[t_len - 1] as u32 } else { 0 };
     t[t_len - 1] = last_p_part + ((elt.q_part >> (t_len)) & 1);
     for i in (0 .. t_len - 1).rev() {
-        let p_part = if i < elt.p_part.len() { elt.p_part[i] } else { 0 };
+        let p_part = if i < elt.p_part.len() { elt.p_part[i] as u32 } else { 0 };
         t[i] = p_part + ((elt.q_part >> (i + 1)) & 1) + *p * t[i + 1];
     }
     let t_idx = adem_algebra.basis_element_to_index(&AdemBasisElement {

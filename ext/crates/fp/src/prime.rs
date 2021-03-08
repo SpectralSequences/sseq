@@ -368,6 +368,7 @@ macro_rules! impl_binomial {
 }
 
 impl_binomial!(u32);
+impl_binomial!(u8);
 impl_binomial!(i32);
 
 pub struct BitflagIterator {

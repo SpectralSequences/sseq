@@ -3,7 +3,8 @@ use fp::vector::FpVector;
 use crate::algebra::{
     Algebra, Bialgebra,
     AdemAlgebra, AdemAlgebraT,
-    MilnorAlgebra, MilnorAlgebraT
+    MilnorAlgebra, MilnorAlgebraT,
+    milnor_algebra::PPart,
 };
 
 use enum_dispatch::enum_dispatch;
@@ -76,7 +77,7 @@ impl Bialgebra for SteenrodAlgebra {
 struct MilnorProfileOption {
     truncated : Option<bool>,
     q_part : Option<u32>,
-    p_part : Option<Vec<u32>>
+    p_part : Option<PPart>
 }
 
 #[derive(Deserialize, Debug)]
