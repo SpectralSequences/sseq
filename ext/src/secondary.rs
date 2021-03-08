@@ -189,6 +189,8 @@ pub fn compute_delta_concurrent(
 
     handles.push(thread::spawn(move || {
         let mut prev = Instant::now();
+        // Clear entire screen
+        print!("\x1b[2J");
         loop {
             match p_receiver.recv_timeout(std::time::Duration::from_secs(1)) {
                 Ok(data) => {
@@ -200,7 +202,8 @@ pub fn compute_delta_concurrent(
             if prev.elapsed().as_millis() < 100 {
                 continue;
             }
-            print!("\x1b[2J\x1b[H");
+            // Move cursor to beginning and clear line
+            print!("\x1b[H\x1b[K");
             println!(
                 "Time elapsed: {:.2?}; Processed bidegrees:",
                 start.elapsed()
