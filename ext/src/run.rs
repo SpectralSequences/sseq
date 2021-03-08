@@ -614,7 +614,3 @@ pub fn secondary() -> error::Result<String> {
     }
     Ok(String::new())
 }
-
-pub fn test(_config: &Config) -> error::Result<String> {
-    Ok(String::new())
-}

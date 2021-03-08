@@ -25,9 +25,6 @@ fn main() -> error::Result<()> {
         ("module", Some(_)) => {
             run::define_module()?
         }
-        ("test", Some(_)) => {
-            run::test(&get_config(matches))?
-        }
         ("yoneda", Some(_)) => {
             run::yoneda(&get_config(matches))?
         }
