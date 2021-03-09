@@ -11,12 +11,7 @@ Leibniz rule.
 This is managed by a rust backend and uses a websocket to communicate to the
 web frontend for display.
 
-To setup the build environment, run
-```console
- $ bin/setup.sh
-```
-
-Afterwards, to build and run, simply run
+To build and run, simply run
 ```console
 $ cargo run --release
 ```

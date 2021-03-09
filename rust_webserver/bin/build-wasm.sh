@@ -21,7 +21,7 @@ fi
 mkdir -p $OUT_DIR
 
 echo "Building crate"
-cargo build --lib --target $TARGET --release
+cargo build --lib --target $TARGET --release --no-default-features --features odd-primes
 
 echo "Running wasm-bindgen"
 wasm-bindgen --no-typescript --target no-modules --out-dir $OUT_DIR --out-name $WASM_OUT target/$TARGET/release/$NAME.wasm

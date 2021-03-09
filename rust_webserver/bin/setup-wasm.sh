@@ -5,8 +5,6 @@ WORKING_DIRECTORY="$(pwd)"
 cd "$( dirname $0 )"
 cd ..
 
-bin/setup.sh
-
 echo "Installing wasm-bindgen-cli"
 cargo install wasm-bindgen-cli
 

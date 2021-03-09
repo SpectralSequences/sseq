@@ -98,3 +98,44 @@ jobs:
 
     - name: Run examples
       run: make -C ext run_examples
+
+
+  wasm-build:
+    runs-on: ubuntu-20.04
+    env:
+        RUST_BACKTRACE: 1
+        RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+
+    strategy:
+      matrix:
+          toolchain: ['nightly-2021-02-27', 'nightly']
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Cache files
+      uses: actions/cache@v2
+      with:
+          path: |
+              ~/.rustup
+              ~/.cargo
+              **/target
+          key: example-${{ matrix.toolchain }}-${{ hashFiles('ext/Cargo.*') }}
+
+    - name: Install rustup
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: ${{ matrix.toolchain }}
+          target: wasm32-unknown-unknown
+
+    - name: Install wasm-opt
+      run: sudo apt-get install binaryen
+
+    - name: Setup build environment
+      run: bin/setup-wasm.sh
+
+    - name: Add .cargo/bin to path
+      run: echo ~/.cargo/bin >> $GITHUB_PATH
+
+    - name: Build wasm
+      run: bin/build-wasm.sh
