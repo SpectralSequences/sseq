@@ -147,6 +147,26 @@ pub fn construct_s_2(algebra: &str) -> AlgebraicObjectsBundle {
     construct_from_json(json, algebra).unwrap()
 }
 
+#[macro_export]
+macro_rules! load_s_2 {
+    ($resolution:ident, $algebra:literal, $path:literal) => {
+        use saveload::Load;
+
+        let bundle = ext::utils::construct_s_2($algebra);
+        let mut resolution = &*bundle.resolution.read();
+
+        // The code is slightly convoluted to deal with lifetime issues.
+        let saved_resolution;
+        if std::path::Path::new($path).exists() {
+            let f = std::fs::File::open($path).unwrap();
+            let mut f = std::io::BufReader::new(f);
+            saved_resolution = ext::resolution::Resolution::load(&mut f, &bundle.chain_complex).unwrap();
+            resolution = &saved_resolution;
+        }
+        let $resolution = resolution;
+    }
+}
+
 #[derive(Debug)]
 struct ModuleFileNotFoundError {
     name : String
