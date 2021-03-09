@@ -120,7 +120,7 @@ jobs:
               ~/.rustup
               ~/.cargo
               **/target
-          key: example-${{ matrix.toolchain }}-${{ hashFiles('ext/Cargo.*') }}
+          key: wasm-${{ matrix.toolchain }}-${{ hashFiles('ext/Cargo.*') }}
 
     - name: Install rustup
       uses: actions-rs/toolchain@v1
