@@ -86,12 +86,14 @@ for(let [k,v] of url.searchParams.entries()){
 
 if (params.module) {
     let maxDegree = parseInt(params.degree ? params.degree : 50);
+    let algebra = params.algebra ? params.algebra : "adem";
+
     window.constructCommand = {
         recipients: ["Resolver"],
         sseq : "Main",
         action : {
             "Construct": {
-                algebra_name : "adem",
+                algebra_name : algebra,
                 module_name : params.module,
             }
         }
@@ -107,7 +109,7 @@ if (params.module) {
                 sseq : "Main",
                 action : {
                     "ConstructJson": {
-                        algebra_name : "adem",
+                        algebra_name : algebra,
                         data : JSON.stringify(json),
                     }
                 }
@@ -124,7 +126,7 @@ if (params.module) {
         ]);
     })();
 } else if (params.data) {
-    let data = b64ToString(params.data);
+    const data = b64ToString(params.data);
     loadHistory(data);
 } else {
     document.querySelector("#home").style.removeProperty("display");
@@ -215,13 +217,14 @@ async function loadHistory(hist) {
 
     // Make this work well with Construct
     if (firstTwo[0].action["Construct"]) {
-        let name = firstTwo[0].action["Construct"].module_name;
+        const name = firstTwo[0].action["Construct"].module_name;
+        const algebra = firstTwo[0].action["Construct"].algebra_name;
 
         let response = await fetch(`steenrod_modules/${name}.json`);
         let json = await response.json();
         firstTwo[0].action = {
             "ConstructJson": {
-                algebra_name : "adem",
+                algebra_name : algebra,
                 data : JSON.stringify(json)
             }
         }
@@ -339,7 +342,7 @@ document.getElementById("history-upload").addEventListener("change", function() 
     let file = document.getElementById("history-upload").files[0];
 
     let fileReader = new FileReader();
-    fileReader.onload = (e) => {
+    fileReader.onload = e => {
         loadHistory(e.target.result);
     };
 

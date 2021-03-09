@@ -5,7 +5,7 @@ import { ExtSseq } from "./sseq.js";
 import { renderLaTeX, download, stringToB64, b64ToString } from "./utils.js";
 
 window.commandCounter = 0;
-let commandQueue = [];
+window.commandQueue = [];
 window.onComplete = [];
 
 function processCommandQueue() {
@@ -184,7 +184,7 @@ function generateHistory() {
 
 function save() {
     let filename = prompt("Input filename");
-    download(filename, generateHistory() , "text/plain");
+    download(filename, generateHistory(), "text/plain");
 }
 window.save = save;
 
