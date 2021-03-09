@@ -237,6 +237,16 @@ impl<A: Eq + Hash, B: Eq + Hash, C, S: BuildHasher> HashMapTuple<A, B, C> for Ha
     }
 }
 
+/// Iterate through all pairs (s, f, t) such that f = t - s, s <= max_s and t <= max_t
+pub fn iter_stems(max_s: u32, max_t: i32) -> impl Iterator<Item=(u32, i32, i32)> {
+    (0..=max_t)
+        .map(move |f| {
+            (0..=std::cmp::min(max_s, (max_t - f) as u32))
+                .map(move |s| (s, f, f + s as i32))
+        })
+        .flatten()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

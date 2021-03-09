@@ -92,6 +92,7 @@ use ext::{
     chain_complex::{ChainComplex, FiniteChainComplex as FCC},
     load_s_2,
     resolution_homomorphism::ResolutionHomomorphism,
+    utils::iter_stems,
 };
 use fp::{
     matrix::Matrix,
@@ -332,17 +333,11 @@ fn main() {
 
     // Now print the results
     println!("sseq_basis | bruner_basis");
-    for f in 0..=max_t {
-        for s in 0..=max_s {
-            let t = s as i32 + f;
-            if t > max_t {
-                break;
-            }
-            let matrix = hom.get_map(s).hom_k(t);
+    for (s, f, t) in iter_stems(max_s, max_t) {
+        let matrix = hom.get_map(s).hom_k(t);
 
-            for (i, row) in matrix.into_iter().enumerate() {
-                println!("x_{{{},{},{}}} = {:?}", f, s, i, row);
-            }
+        for (i, row) in matrix.into_iter().enumerate() {
+            println!("x_{{{},{},{}}} = {:?}", f, s, i, row);
         }
     }
 }
