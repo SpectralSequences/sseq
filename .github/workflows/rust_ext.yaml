@@ -101,7 +101,7 @@ jobs:
 
 
   wasm-build:
-    needs: [test, lint, examples, wasm-build]
+    needs: [test, lint, examples]
     runs-on: ubuntu-20.04
     env:
         RUST_BACKTRACE: 1
