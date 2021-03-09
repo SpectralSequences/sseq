@@ -348,7 +348,7 @@ macro_rules! impl_binomial {
 
             #[inline]
             fn binomial4_rec(n: Self, j: Self) -> Self {
-                let k = 32 - n.leading_zeros() - 1;
+                let k = (std::mem::size_of::<Self>() * 8) as u32 - n.leading_zeros() - 1;
                 let l = n - (1 << k);
                 let mut ans = 0;
                 if j <= l {
