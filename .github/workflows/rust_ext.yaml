@@ -133,9 +133,11 @@ jobs:
 
     - name: Setup build environment
       run: bin/setup-wasm.sh
+      working-directory: rust_webserver
 
     - name: Add .cargo/bin to path
       run: echo ~/.cargo/bin >> $GITHUB_PATH
 
     - name: Build wasm
       run: bin/build-wasm.sh
+      working-directory: rust_webserver
