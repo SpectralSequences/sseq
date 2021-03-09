@@ -101,7 +101,7 @@ jobs:
 
 
   wasm-build:
-    needs: [test-nightly, lint-nightly, examples-nightly, wasm-build-nightly]
+    needs: [test, lint, examples, wasm-build]
     runs-on: ubuntu-20.04
     env:
         RUST_BACKTRACE: 1
