@@ -145,7 +145,7 @@ jobs:
 
 
     - name: Deploy
-      if: ${{ matrix.toolchain == 'nightly' && github.event_name == 'push' && github.ref = 'refs/head/master' }}
+      if: ${{ matrix.toolchain == 'nightly' && github.event_name == 'push' && github.ref == 'refs/head/master' }}
       uses: JamesIves/github-pages-deploy-action@4.1.0
       with:
           branch: gh-pages
