@@ -27,13 +27,13 @@ distribution but is slower. A live version is available at
 
 To setup the build environment, run
 ```console
- $ bin/setup-wasm.sh
+ $ make setup-wasm
 ```
 
 Afterwards, build and serve with
 ```console
- $ bin/build-wasm.sh
- $ bin/serve-wasm.sh [port]
+ $ make wasm
+ $ make serve-wasm
 ```
 This serves the website at `localhost:[port]`. The `[port]` argument is optional and defaults to `8000`.
 
