@@ -1,0 +1,7 @@
+{"file_name":"tmf-mod-nu-eta","generic":false,"gens":{"x0":0,"x2":2,"x4":4,"x6":6},"milnor_actions":[{"input":"x0","op":[2],"output":[{"coeff":1,"gen":"x2"}]},{"input":"x0","op":[4],"output":[{"coeff":1,"gen":"x4"}]},{"input":"x0","op":[1,1],"output":[]},{"input":"x0","op":[6],"output":[{"coeff":1,"gen":"x6"}]},{"input":"x0","op":[3,1],"output":[]},{"input":"x0","op":[0,2],"output":[]},{"input":"x2","op":[2],"output":[]},{"input":"x2","op":[4],"output":[{"coeff":1,"gen":"x6"}]},{"input":"x2","op":[1,1],"output":[]},{"input":"x4","op":[2],"output":[{"coeff":1,"gen":"x6"}]}],"name":"$tmf_{(2)}/(\\nu, \\eta)$","p":2,"type":"finite dimensional module",
+ "algebra": ["milnor"],
+ "profile": {"truncated": true, "p_part": [3, 2, 1]},
+ "self_maps": [
+     { "hom_deg" : 1, "int_deg" : 6, "map_data" : [[1]], "name" : "\\gamma" }
+ ]
+}

@@ -1,0 +1,11 @@
+{"file_name":"C3v1","generic":true,"gens":{"x0":0,"x1":1,"x9":9,"x10":10},
+    "actions": [
+        "b x0 = x1",
+        "b x9 = x10",
+        "P1 x1 = x9"
+    ],
+    "self_maps": [
+        { "hom_deg" : 1, "int_deg" : 49, "map_data" : [[1]], "name" : "v_2" },
+        { "hom_deg" : 2, "int_deg" : 40, "map_data" : [[1]], "name" : "b" }
+    ],
+"name":"$C(5, v_1)$","p":5,"type":"finite dimensional module"}

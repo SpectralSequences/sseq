@@ -1,0 +1,7 @@
+{"type" : "finite dimensional module","name": "$y(2)_{(2)}$", "file_name": "y2_2", "algebra": ["milnor"], "profile": {"truncated": false, "p_part": [0, 0]}, "p": 2, "generic": false, "gens": {"x0": 0}, "actions": [],
+    "products" : [
+        { "hom_deg" : 1, "int_deg" : 7, "class" : [1], "name" : "v_2" },
+        { "hom_deg" : 1, "int_deg" : 15, "class" : [1], "name" : "v_3" },
+        { "hom_deg" : 1, "int_deg" : 31, "class" : [1], "name" : "v_4" }
+    ]
+}

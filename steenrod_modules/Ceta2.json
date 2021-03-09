@@ -1,0 +1,3 @@
+{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": [],
+    "cofiber": { "s" : 2, "t": 4, "idx": 0 }
+}
