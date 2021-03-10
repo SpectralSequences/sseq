@@ -29,7 +29,7 @@ default-features = false
 features = ["yaml", "wrap_help", "color"]
 
 [dev-dependencies]
-expect-test = "1.1.0"
+expect-test = "1.0.1"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
