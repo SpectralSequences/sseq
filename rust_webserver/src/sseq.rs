@@ -1034,8 +1034,7 @@ impl Sseq {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn add_product(&mut self, name : &String, x : i32, y : i32, mult_x : i32, mult_y : i32, left : bool, matrix : &[Vec<u32>]) {
+    pub fn add_product(&mut self, name : &str, x : i32, y : i32, mult_x : i32, mult_y : i32, left : bool, matrix : &[Vec<u32>]) {
         assert!(self.class_defined(x, y));
         assert!(self.class_defined(x + mult_x, y + mult_y));
         let mut products = self.products.write();
@@ -1044,7 +1043,7 @@ impl Sseq {
                 Some(i) => *i,
                 None => {
                     let product = Product {
-                        name : name.clone(),
+                        name : name.to_string(),
                         x : mult_x,
                         y : mult_y,
                         user : false,
@@ -1054,7 +1053,7 @@ impl Sseq {
                         matrices : BiVec::new(self.min_x)
                     };
                     products.push(product);
-                    self.product_name_to_index.insert(name.clone(), products.len() - 1);
+                    self.product_name_to_index.insert(name.to_string(), products.len() - 1);
                     products.len() - 1
                 }
             };
