@@ -39,7 +39,9 @@ fn main() {
     benchmark_pair("S_2", 60, 3);
     benchmark_pair("S_2", 70, 1);
 
+    #[cfg(feature = "odd-primes")]
     benchmark_pair("S_3", 120, 3);
 
+    #[cfg(feature = "odd-primes")]
     benchmark_pair("S_5", 200, 3);
 }
