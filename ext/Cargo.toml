@@ -29,7 +29,8 @@ default-features = false
 features = ["yaml", "wrap_help", "color"]
 
 [dev-dependencies]
-expect-test = "1.0.1"
+expect-test = "1.1.0"
+chart = { path = "crates/chart" }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -60,6 +61,7 @@ members = [
     "crates/saveload",
     "crates/thread-token",
     "crates/error",
+    "crates/chart",
 ]
 
 [[bench]]

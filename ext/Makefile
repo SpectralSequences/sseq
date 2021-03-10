@@ -17,7 +17,7 @@ lint:
 	shopt -s globstar
 	cargo clippy --workspace --all-targets
 	rustfmt --check tests/*.rs examples/*.rs
-	rustfmt --check crates/{error,once,query,saveload,thread-token}/**/*.rs
+	rustfmt --check crates/{error,once,query,saveload,thread-token,chart}/**/*.rs
 	rustfmt --check $(LINT)
 
 run_examples: $(patsubst examples/%.rs, target/release/examples/%, $(wildcard examples/*.rs))
