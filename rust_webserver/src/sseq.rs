@@ -9,6 +9,7 @@ use serde::{Serialize, Deserialize};
 use bivec::BiVec;
 use crate::actions::*;
 use crate::Sender;
+use chart::Graph;
 
 const MIN_PAGE : i32 = 2;
 pub const INFINITY : i32 = std::i32::MAX;
@@ -1120,6 +1121,113 @@ impl Sseq {
         }
         self.compute_edges(x, y);
         self.send_class_data(x + mult_x, y + mult_y);
+    }
+}
+
+use std::io::Write;
+
+impl Sseq {
+    /// This doesn't actually modify the object
+    pub fn to_svg(&mut self, out: impl Write, r: i32, differentials: bool, products: &[&str]) -> std::io::Result<()> {
+        assert_eq!(self.min_x, 0);
+        assert_eq!(self.min_y, 0);
+
+        let page_classes = &*self.page_classes.read();
+        let zeros = &self.zeros.read();
+
+        let max_x = page_classes.iter().count() - 1;
+        let max_y = page_classes.iter().map(|d| d.iter().count()).max().unwrap_or(1) - 1;
+
+        let mut g = Graph::new(out, max_x as i32, max_y as i32)?;
+
+        for (x, data) in page_classes.iter_enum() {
+            for (y, data) in data.iter_enum() {
+                let gens = Sseq::get_page(r, data);
+                g.node(x, y, gens.1.len())?;
+            }
+        }
+
+        // Now add the products
+
+        for (x, data) in page_classes.iter_enum() {
+            for (y, data) in data.iter_enum() {
+                let gens = Sseq::get_page(r, data);
+                if gens.1.is_empty() {
+                    continue;
+                }
+
+                g.node(x, y, gens.1.len())?;
+
+                let target_zeros = Sseq::get_page(r, &zeros[x][y]);
+
+                // Now add the products hitting this bidegree
+                for &prod_name in products {
+                    let prod_idx = *self.product_name_to_index.get(prod_name).unwrap();
+                    let prod = &self.products.read()[prod_idx];
+                    let source_x = x - prod.x;
+                    let source_y = y - prod.y;
+
+                    if !self.class_defined(source_x, source_y) {
+                        continue;
+                    }
+
+                    let source_classes = Sseq::get_page(r, &page_classes[source_x][source_y]);
+                    if source_classes.1.is_empty() {
+                        continue;
+                    }
+
+                    let matrix = prod.matrices[source_x][source_y].as_ref().unwrap();
+                    let mut target = FpVector::new(self.p, gens.0.len());
+
+                    for (k, vec) in source_classes.1.iter().enumerate() {
+                        matrix.apply(&mut target, 1, vec);
+                        let result = express_basis(&mut target, Some(target_zeros), gens);
+                        for (i, v) in result.iter().enumerate() {
+                            if *v == 0 {
+                                continue;
+                            }
+                            g.structline((source_x, source_y, k), (x, y, i), None)?;
+                        }
+                        target.set_to_zero();
+                    }
+
+                    // Finally add the differentials
+                    if differentials {
+                        let sx = x + 1;
+                        let sy = y - r;
+                        if sy < 0 {
+                            continue;
+                        }
+                        if self.differentials[sx][sy].len() <= r {
+                            continue;
+                        }
+                        let d = &mut self.differentials[sx][sy][r];
+
+                        let pairs = d.get_source_target_pairs()
+                            .into_iter()
+                            .map(|(mut s, mut t)|
+                                 (express_basis(&mut s, Some(Sseq::get_page(r, &zeros[sx][sy])), &Sseq::get_page(r, &page_classes[sx][sy])),
+                                  express_basis(&mut t, Some(Sseq::get_page(r, &zeros[x][y])), &Sseq::get_page(r, &page_classes[x][y]))));
+
+                        for (source, target) in pairs {
+                            for (i, v) in source.into_iter().enumerate() {
+                                if v == 0 {
+                                    continue;
+                                }
+                                for (j, &v) in target.iter().enumerate() {
+                                    if v == 0 {
+                                        continue;
+                                    }
+                                    g.structline((sx, sy, i), (x, y, j), Some(&format!("d{}", r)))?;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 

@@ -7,7 +7,7 @@
 #![warn(clippy::redundant_closure_for_method_calls)]
 #![warn(clippy::explicit_iter_loop)]
 #![warn(clippy::explicit_into_iter_loop)]
-mod sseq;
+pub mod sseq;
 
 pub mod actions;
 pub mod managers;
