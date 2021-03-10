@@ -16,6 +16,12 @@ pub const INFINITY : i32 = std::i32::MAX;
 fn sseq_profile(r : i32, x : i32, y: i32) -> (i32, i32) { (x - 1, y + r) }
 fn sseq_profile_i(r : i32, x : i32, y: i32) -> (i32, i32) { (x + 1, y - r) }
 
+/// A basis basis of a subspace. The dimension of the ambient space is basis.0.len() while the
+/// dimension of the subspace is basis.1.len().
+///
+/// The basis.0[n] is the index of the basis vector whose pivot
+/// column is n, and negative otherwise. basis.1 is the list of basis elements.
+pub type Basis = (Vec<isize>, Vec<FpVector>);
 
 /// Given a vector `elt`, a subspace `zeros` of the total space (with a specified choice of
 /// complement) and a basis `basis` of a subspace of the complement, project `elt` to the complement and express
@@ -23,7 +29,7 @@ fn sseq_profile_i(r : i32, x : i32, y: i32) -> (i32, i32) { (x + 1, y - r) }
 /// span of `basis`. The result is returned as a list of coefficients.
 ///
 /// If `zeros` is none, then the initial projection is not performed.
-pub fn express_basis(mut elt : &mut FpVector, zeros : Option<&Subspace>, basis : &(Vec<isize>, Vec<FpVector>)) -> Vec<u32>{
+pub fn express_basis(mut elt : &mut FpVector, zeros : Option<&Subspace>, basis : &Basis) -> Vec<u32>{
     if let Some(z) = zeros {
         z.reduce(&mut elt);
     }
@@ -224,7 +230,7 @@ pub struct Sseq {
     differentials : BiVec<BiVec<BiVec<Differential>>>, // x -> y -> r -> differential
     permanent_classes : BiVec<BiVec<Subspace>>, // x -> y -> r -> permanent classes
     zeros : Arc<RwLock<BiVec<BiVec<BiVec<Subspace>>>>>, // x -> y -> r -> subspace of elements that are zero on page r
-    page_classes : Arc<RwLock<BiVec<BiVec<BiVec<(Vec<isize>, Vec<FpVector>)>>>>>, // x -> y -> r -> list of generators on the page.
+    page_classes : Arc<RwLock<BiVec<BiVec<BiVec<Basis>>>>>, // x -> y -> r -> list of generators on the page.
 }
 
 impl Sseq {
@@ -451,7 +457,7 @@ impl Sseq {
         None
     }
 
-    fn compute_edges_inner(x : i32, y : i32, p : ValidPrime, name : SseqChoice, sender : Sender, page_classes: Arc<RwLock<BiVec<BiVec<BiVec<(Vec<isize>, Vec<FpVector>)>>>>>, products: Arc<RwLock<Vec<Product>>>, zeros: Arc<RwLock<BiVec<BiVec<BiVec<Subspace>>>>>) {
+    fn compute_edges_inner(x : i32, y : i32, p : ValidPrime, name : SseqChoice, sender : Sender, page_classes: Arc<RwLock<BiVec<BiVec<BiVec<Basis>>>>>, products: Arc<RwLock<Vec<Product>>>, zeros: Arc<RwLock<BiVec<BiVec<BiVec<Subspace>>>>>) {
         let page_classes = page_classes.read();
         let products = products.read();
         let zeros = zeros.read();
@@ -533,7 +539,7 @@ impl Sseq {
 
     /// Compute the classes in next page assuming there is no differential coming out of the class
     /// on that page. Returns a basis of the remaining classes together with column_to_pivot_row.
-    fn compute_next_page_no_d (p : ValidPrime , old_classes : &(Vec<isize>, Vec<FpVector>), zeros : &Subspace) -> (Vec<isize>, Vec<FpVector>) {
+    fn compute_next_page_no_d (p : ValidPrime , old_classes : &Basis, zeros : &Subspace) -> Basis {
         let source_dim = old_classes.0.len();
 
         let mut class_list = Vec::new();
@@ -563,7 +569,7 @@ impl Sseq {
     /// Compute the classes in next page assuming there might be a differential coming out of the
     /// class on that page. Returns a basis of the remaining classes together with
     /// column_to_pivot_row.
-    fn compute_next_page_with_d (&self, r : i32, x : i32, y : i32, old_classes : &(Vec<isize>, Vec<FpVector>)) -> ((Vec<isize>, Vec<FpVector>), Vec<Vec<u32>>) {
+    fn compute_next_page_with_d (&self, r : i32, x : i32, y : i32, old_classes : &Basis) -> (Basis, Vec<Vec<u32>>) {
         let zeros = self.zeros.read();
         let page_classes = self.page_classes.read();
 
@@ -651,7 +657,7 @@ impl Sseq {
         let zeros = self.zeros.read();
         let max_page = max(zeros[x][y].len(), self.differentials[x][y].len() + 1);
 
-        let mut classes : BiVec<(Vec<isize>, Vec<FpVector>)> = BiVec::with_capacity(MIN_PAGE, max_page);
+        let mut classes : BiVec<Basis> = BiVec::with_capacity(MIN_PAGE, max_page);
         let mut differentials : BiVec<Vec<Vec<u32>>> = BiVec::with_capacity(MIN_PAGE, self.differentials[x][y].len());
 
         // r = MIN_PAGE
