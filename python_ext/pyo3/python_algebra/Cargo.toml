@@ -27,7 +27,7 @@ python_utils = { path = "../python_utils" }
 
 [dev-dependencies]
 rand = "0.7.0"
-rstest = "0.5.0"
+rstest = "0.6.4"
 bencher = "0.1.5"
 
 [features]
