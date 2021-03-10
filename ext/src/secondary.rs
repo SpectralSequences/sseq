@@ -625,7 +625,7 @@ thread_local! {
 }
 
 /// Computes A(a, Y_{k, l}) using a thread_local cache. This dispatches to a_y_cached that acts on
-/// individual Sq(R) instead of a list of them
+/// individual Sq(R) instead of a list of them.
 fn a_y(algebra: &Algebra, a_list: &mut MilnorClass, k: usize, l: usize, result: &mut FpVector) {
     for a in a_list.iter_mut() {
         a_y_cached(algebra, a, k, l, result);
@@ -677,6 +677,8 @@ fn a_y_inner(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize) -> FpVect
 
             t.degree = (1 << (k + i)) + (1 << (l + j)) - 2;
 
+            // We can just read off the value of the product instead of passing through the
+            // algorithm, but this is cached so problem for another day...
             algebra.multiply(&mut result, 1, &t, &a);
 
             unsub!(a, j, l);
