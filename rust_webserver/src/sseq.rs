@@ -444,21 +444,18 @@ impl Sseq {
                     // Compute the ones where something changes.
                     for r in MIN_PAGE + 1 .. max_page {
                         let source_data = Sseq::get_page(r, &self.page_data[x][y]);
-                        let target_data = Sseq::get_page(r, &self.page_data[x + mult.x][y + mult.y]);
-
-                        let mut result = Vec::with_capacity(source_data.dimension());
-                        let mut target = FpVector::new(self.p, target_dim);
-                        for vec in source_data.gens() {
-                            matrix.apply(&mut target, 1, vec);
-                            result.push(target_data.reduce(&mut target));
-                            target.set_to_zero_pure();
-                        }
-                        matrices.push(result);
-
                         if source_data.is_empty() {
                             break;
                         }
+                        let target_data = Sseq::get_page(r, &self.page_data[x + mult.x][y + mult.y]);
+
+                        matrices.push(Subquotient::reduce_matrix(
+                            &matrix,
+                            source_data,
+                            target_data
+                        ));
                     }
+
                     structlines.push(ProductItem {
                         name : mult.name.clone(),
                         mult_x : mult.x,
@@ -1046,12 +1043,12 @@ impl Sseq {
 
         for (x, data) in self.page_data.iter_enum() {
             for (y, data) in data.iter_enum() {
-                let target_data = Sseq::get_page(r, data);
-                if target_data.is_empty() {
+                let data = Sseq::get_page(r, data);
+                if data.is_empty() {
                     continue;
                 }
 
-                g.node(x, y, target_data.dimension())?;
+                g.node(x, y, data.dimension())?;
 
                 // Now add the products hitting this bidegree
                 for &prod_name in products {
@@ -1070,19 +1067,8 @@ impl Sseq {
                     }
 
                     let matrix = prod.matrices[source_x][source_y].as_ref().unwrap();
-                    let mut value = FpVector::new(self.p, self.classes[x][y]);
-
-                    for (k, vec) in source_data.gens().enumerate() {
-                        matrix.apply(&mut value, 1, vec);
-                        let result = target_data.reduce(&mut value);
-                        for (i, v) in result.iter().enumerate() {
-                            if *v == 0 {
-                                continue;
-                            }
-                            g.structline((source_x, source_y, k), (x, y, i), None)?;
-                        }
-                        value.set_to_zero_pure();
-                    }
+                    let matrix = Subquotient::reduce_matrix(&matrix, source_data, data);
+                    g.structline_matrix((source_x, source_y), (x, y), matrix, None)?;
 
                     // Finally add the differentials
                     if differentials {

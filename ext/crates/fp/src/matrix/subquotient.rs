@@ -1,4 +1,5 @@
 use super::Subspace;
+use crate::matrix::Matrix;
 use crate::prime::ValidPrime;
 use crate::vector::{FpVector, FpVectorT};
 
@@ -84,6 +85,14 @@ impl Subquotient {
         self.dimension
     }
 
+    pub fn ambient_dimension(&self) -> usize {
+        self.gens.ambient_dimension()
+    }
+
+    pub fn prime(&self) -> ValidPrime {
+        self.gens.prime()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.dimension == 0
     }
@@ -99,6 +108,17 @@ impl Subquotient {
         self.quotient.reduce(new_row);
         self.gens.row_reduce();
         self.dimension = self.gens.dimension();
+    }
+
+    pub fn reduce_matrix(matrix: &Matrix, source: &Self, target: &Self) -> Vec<Vec<u32>> {
+        let mut result = Vec::with_capacity(source.dimension());
+        let mut temp = FpVector::new(source.prime(), target.ambient_dimension());
+        for v in source.gens() {
+            matrix.apply(&mut temp, 1, v);
+            result.push(target.reduce(&mut temp));
+            temp.set_to_zero_pure()
+        }
+        result
     }
 
     /// Given a chain of subspaces `subspace` < `space` < k^`ambient_dimension`, compute the

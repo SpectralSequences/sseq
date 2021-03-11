@@ -184,6 +184,23 @@ impl<T: Write> Graph<T> {
         Ok(())
     }
 
+    pub fn structline_matrix(
+        &mut self,
+        source: (i32, i32),
+        target: (i32, i32),
+        matrix: Vec<Vec<u32>>,
+        class: Option<&str>,
+    ) -> Result<()> {
+        for (k, row) in matrix.into_iter().enumerate() {
+            for (l, v) in row.into_iter().enumerate() {
+                if v != 0 {
+                    self.structline((source.0, source.1, k), (target.0, target.1, l), class)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Print the legend for node patterns
     pub fn legend(mut out: T) -> Result<()> {
         writeln!(

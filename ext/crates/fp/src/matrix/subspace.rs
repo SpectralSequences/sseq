@@ -170,6 +170,10 @@ impl Subspace {
             .unwrap_or(0)
     }
 
+    pub fn ambient_dimension(&self) -> usize {
+        self.matrix.columns()
+    }
+
     /// Returns a basis of the subspace.
     pub fn basis(&self) -> &[FpVector] {
         &self.matrix.vectors[..self.dimension()]
