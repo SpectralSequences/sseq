@@ -444,9 +444,6 @@ impl Sseq {
                     // Compute the ones where something changes.
                     for r in MIN_PAGE + 1 .. max_page {
                         let source_data = Sseq::get_page(r, &self.page_data[x][y]);
-                        if source_data.is_empty() {
-                            break;
-                        }
                         let target_data = Sseq::get_page(r, &self.page_data[x + mult.x][y + mult.y]);
 
                         matrices.push(Subquotient::reduce_matrix(
@@ -454,6 +451,12 @@ impl Sseq {
                             source_data,
                             target_data
                         ));
+
+                        // In the case where the source is empty, we still want one empty array to
+                        // indicate that no structlines should be drawn from this page on.
+                        if source_data.is_empty() {
+                            break;
+                        }
                     }
 
                     structlines.push(ProductItem {
