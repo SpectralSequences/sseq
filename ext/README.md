@@ -108,4 +108,4 @@ $ make docs
 ```
 The documentation is placed at `target/doc/`.
 
-This can also be viewed on [https://spectralsequences.github.io/sseq/docs/ext/](https://spectralsequences.github.io/sseq/ext/)
+This can also be viewed on [https://spectralsequences.github.io/sseq/docs/ext/](https://spectralsequences.github.io/sseq/docs/ext/)
