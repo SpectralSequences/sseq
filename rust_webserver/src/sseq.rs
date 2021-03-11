@@ -200,7 +200,7 @@ pub struct Sseq {
     class_names : BiVec<BiVec<Vec<String>>>,
     /// x -> y -> r -> differential
     differentials : BiVec<BiVec<BiVec<Differential>>>,
-    /// x -> y -> r -> permanent classes
+    /// x -> y -> permanent classes
     permanent_classes : BiVec<BiVec<Subspace>>,
     /// x -> y -> r -> E_r^{x, y} as a subquotient of the original bidegree.
     page_data : BiVec<BiVec<BiVec<Subquotient>>>,
@@ -412,58 +412,6 @@ impl Sseq {
         None
     }
 
-    fn compute_edges_inner(x : i32, y : i32, p : ValidPrime, name : SseqChoice, sender : Sender, page_data: &BiVec<BiVec<BiVec<Subquotient>>>, products: &[Product]) {
-        let mut structlines : Vec<ProductItem> = Vec::with_capacity(products.len());
-        for mult in products.iter() {
-            if !(mult.matrices.len() > x && mult.matrices[x].len() > y) {
-                continue;
-            }
-            let target_dim = page_data[x + mult.x][y + mult.y][MIN_PAGE].dimension();
-            if target_dim == 0 {
-                continue;
-            }
-
-            if let Some(matrix) = &mult.matrices[x][y] {
-                let max_page = max(page_data[x][y].len(), page_data[x + mult.x][y + mult.y].len());
-                let mut matrices : BiVec<Vec<Vec<u32>>> = BiVec::with_capacity(MIN_PAGE, max_page);
-
-                // E_2 page
-                matrices.push(matrix.to_vec());
-
-                // Compute the ones where something changes.
-                for r in MIN_PAGE + 1 .. max_page {
-                    let source_data = Sseq::get_page(r, &page_data[x][y]);
-                    let target_data = Sseq::get_page(r, &page_data[x + mult.x][y + mult.y]);
-
-                    let mut result = Vec::with_capacity(source_data.dimension());
-                    let mut target = FpVector::new(p, target_dim);
-                    for vec in source_data.gens() {
-                        matrix.apply(&mut target, 1, vec);
-                        result.push(target_data.reduce(&mut target));
-                        target.set_to_zero_pure();
-                    }
-                    matrices.push(result);
-
-                    if source_data.is_empty() {
-                        break;
-                    }
-                }
-                structlines.push(ProductItem {
-                    name : mult.name.clone(),
-                    mult_x : mult.x,
-                    mult_y : mult.y,
-                    matrices,
-                });
-            }
-        }
-
-        sender.send(Message {
-            recipients : vec![],
-            sseq : name,
-            action : Action::from(SetStructline { x, y, structlines })
-        }).unwrap();
-    }
-
     /// Computes products whose source is at (x, y).
     fn compute_edges(&self, x : i32, y : i32) {
         if self.block_refresh > 0 { return; }
@@ -476,11 +424,55 @@ impl Sseq {
         }
 
         if let Some(sender) = &self.sender {
-            let sender = sender.clone();
-            let p = self.p;
-            let name = self.name;
+            let mut structlines : Vec<ProductItem> = Vec::with_capacity(self.products.len());
+            for mult in &self.products {
+                if !(mult.matrices.len() > x && mult.matrices[x].len() > y) {
+                    continue;
+                }
+                let target_dim = self.classes[x + mult.x][y + mult.y];
+                if target_dim == 0 {
+                    continue;
+                }
 
-            Sseq::compute_edges_inner(x, y, p, name, sender, &self.page_data, &self.products);
+                if let Some(matrix) = &mult.matrices[x][y] {
+                    let max_page = max(self.page_data[x][y].len(), self.page_data[x + mult.x][y + mult.y].len());
+                    let mut matrices : BiVec<Vec<Vec<u32>>> = BiVec::with_capacity(MIN_PAGE, max_page);
+
+                    // E_2 page
+                    matrices.push(matrix.to_vec());
+
+                    // Compute the ones where something changes.
+                    for r in MIN_PAGE + 1 .. max_page {
+                        let source_data = Sseq::get_page(r, &self.page_data[x][y]);
+                        let target_data = Sseq::get_page(r, &self.page_data[x + mult.x][y + mult.y]);
+
+                        let mut result = Vec::with_capacity(source_data.dimension());
+                        let mut target = FpVector::new(self.p, target_dim);
+                        for vec in source_data.gens() {
+                            matrix.apply(&mut target, 1, vec);
+                            result.push(target_data.reduce(&mut target));
+                            target.set_to_zero_pure();
+                        }
+                        matrices.push(result);
+
+                        if source_data.is_empty() {
+                            break;
+                        }
+                    }
+                    structlines.push(ProductItem {
+                        name : mult.name.clone(),
+                        mult_x : mult.x,
+                        mult_y : mult.y,
+                        matrices,
+                    });
+                }
+            }
+
+            sender.send(Message {
+                recipients : vec![],
+                sseq : self.name,
+                action : Action::from(SetStructline { x, y, structlines })
+            }).unwrap();
         }
     }
 
