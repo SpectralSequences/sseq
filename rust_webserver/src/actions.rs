@@ -116,7 +116,7 @@ impl ActionT for AddDifferential {
         sseq.add_differential_propagate(
             self.r, self.x, self.y,
             &FpVector::from_vec(sseq.p, &self.source),
-            &mut Some(FpVector::from_vec(sseq.p, &self.target)),
+            &Some(FpVector::from_vec(sseq.p, &self.target)),
             0);
         None
     }
@@ -160,7 +160,7 @@ impl ActionT for AddPermanentClass {
         sseq.add_differential_propagate(
             INFINITY, self.x, self.y,
             &FpVector::from_vec(sseq.p, &self.class),
-            &mut None,
+            &None,
             0);
         None
     }
