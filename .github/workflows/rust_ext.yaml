@@ -144,3 +144,37 @@ jobs:
       with:
           branch: gh-pages
           folder: rust_webserver/dist/
+
+  docs:
+    needs: [test, lint, examples]
+    runs-on: ubuntu-20.04
+    env:
+        RUST_BACKTRACE: 1
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Cache files
+      uses: actions/cache@v2
+      with:
+          path: |
+              ~/.rustup
+              ~/.cargo
+              **/target
+          key: docs-${{ matrix.toolchain }}-${{ hashFiles('ext/Cargo.*') }}
+
+    - name: Install rustup
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: nightly-2021-02-27
+
+    - name: Generate docs
+      run: make -C ext docs
+
+    - name: Deploy
+      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+      uses: JamesIves/github-pages-deploy-action@4.1.0
+      with:
+          branch: gh-pages
+          folder: ext/target/doc
+          target-folder: docs/

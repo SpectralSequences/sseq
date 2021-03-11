@@ -104,10 +104,8 @@ $ cargo test
 ## Documentation
 To compile the code documentation, run
 ```
-$ cargo doc --no-deps
+$ make docs
 ```
-To view the docuemntation, run
-```
-$ cargo doc --no-deps --open
-```
-As usual, the latter command triggers the former if needed. This can also be viewed on [https://spectralsequences.github.io/ext/ext/](https://spectralsequences.github.io/ext/ext/)
+The documentation is placed at `target/doc/`.
+
+This can also be viewed on [https://spectralsequences.github.io/sseq/docs/ext/](https://spectralsequences.github.io/sseq/ext/)

@@ -24,3 +24,6 @@ run_examples: $(patsubst examples/%.rs, target/release/examples/%, $(wildcard ex
 
 target/release/examples/%: dummy
 	cargo run --all-features --release --example "$(notdir $@)"
+
+docs:
+	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo doc --all --no-deps --document-private-items
