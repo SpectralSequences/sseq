@@ -96,9 +96,11 @@ jobs:
       with:
           toolchain: ${{ matrix.toolchain }}
 
-    - name: Run examples
+    - name: Run ext examples
       run: make -C ext run_examples
 
+    - name: Run rust_webserver examples
+      run: make -C rust_webserver run_examples
 
   wasm-build:
     needs: [test, lint, examples]
