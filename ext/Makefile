@@ -2,7 +2,7 @@
 
 SHELL = bash
 
-LINT = crates/fp/src/prime.rs src/secondary.rs
+LINT = crates/fp/src/prime.rs crates/fp/src/matrix/subquotient.rs src/secondary.rs
 
 all:
 	cargo build
