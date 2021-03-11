@@ -211,27 +211,31 @@ pub struct ProductItem {
 ///  not been set, the class is assumed to be zero.
 ///  * The same is true for products, where the grading of a product is that of its source.
 ///  * Whenever a product v . x is set, the target is already set.
-///
-/// # Fields
-///  * `block_refresh` : If this is a positive number, then the spectral sequence will not
-///  re-compute classes and edges. See `Actions::BlockRefresh` for details.
 pub struct Sseq {
     pub p : ValidPrime,
     name : SseqChoice,
     min_x : i32,
     min_y : i32,
 
+    /// If this is a positive number, then the spectral sequence will not re-compute classes and
+    /// edges. See [`Actions::BlockRefresh`] for details.
     pub block_refresh : u32,
     sender : Option<Sender>,
     page_list : Vec<i32>,
     product_name_to_index : HashMap<String, usize>,
     products : Arc<RwLock<Vec<Product>>>,
-    classes : BiVec<BiVec<usize>>, // x -> y -> number of elements
-    class_names : BiVec<BiVec<Vec<String>>>, // x -> y -> idx -> name
-    differentials : BiVec<BiVec<BiVec<Differential>>>, // x -> y -> r -> differential
-    permanent_classes : BiVec<BiVec<Subspace>>, // x -> y -> r -> permanent classes
-    zeros : Arc<RwLock<BiVec<BiVec<BiVec<Subspace>>>>>, // x -> y -> r -> subspace of elements that are zero on page r
-    page_classes : Arc<RwLock<BiVec<BiVec<BiVec<Basis>>>>>, // x -> y -> r -> list of generators on the page.
+    /// x -> y -> number of elements
+    classes : BiVec<BiVec<usize>>,
+    /// x -> y -> idx -> name
+    class_names : BiVec<BiVec<Vec<String>>>,
+    /// x -> y -> r -> differential
+    differentials : BiVec<BiVec<BiVec<Differential>>>,
+    /// x -> y -> r -> permanent classes
+    permanent_classes : BiVec<BiVec<Subspace>>,
+    /// x -> y -> r -> subspace of elements that are zero on page r
+    zeros : Arc<RwLock<BiVec<BiVec<BiVec<Subspace>>>>>,
+    /// x -> y -> r -> list of generators on the page.
+    page_classes : Arc<RwLock<BiVec<BiVec<BiVec<Basis>>>>>,
 }
 
 impl Sseq {
