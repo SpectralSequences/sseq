@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["FreeModule","We have a linear enumeration of all generators among all degrees, and the index in this enumeration is the internal index."],["OperationGeneratorPair",""]]});

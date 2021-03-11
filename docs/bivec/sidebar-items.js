@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["BiVec","A BiVec is like a Vec, except we allow indices to be negative. It has a min_degree property which tells us where the starting index is."]]});

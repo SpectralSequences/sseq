@@ -1,0 +1,12 @@
+var N = null;var sourcesIndex = {};
+sourcesIndex["algebra"] = {"name":"","dirs":[{"name":"algebra","files":["adem_algebra.rs","algebra_trait.rs","bialgebra_trait.rs","combinatorics.rs","field.rs","milnor_algebra.rs","mod.rs","polynomial_algebra.rs","steenrod_algebra.rs"]},{"name":"module","dirs":[{"name":"homomorphism","files":["bounded_module_homomorphism.rs","finite_module_homomorphism.rs","fp_module_homomorphism.rs","free_module_homomorphism.rs","generic_zero_homomorphism.rs","hom_pullback.rs","mod.rs","quotient_homomorphism.rs","truncated_homomorphism.rs"]}],"files":["bcp.rs","block_structure.rs","bounded_module.rs","dickson2.rs","finite_dimensional_module.rs","finite_module.rs","finitely_presented_module.rs","free_module.rs","free_unstable_module.rs","hom_module.rs","kfpn.rs","mod.rs","module_trait.rs","polynomial_algebra_module.rs","quotient_module.rs","rpn.rs","sum_module.rs","tensor_module.rs","truncated_module.rs","zero_module.rs"]}],"files":["change_of_basis.rs","cli_module_loaders.rs","lib.rs","steenrod_evaluator.rs","steenrod_parser.rs"]};
+sourcesIndex["bivec"] = {"name":"","files":["lib.rs"]};
+sourcesIndex["chart"] = {"name":"","files":["lib.rs"]};
+sourcesIndex["error"] = {"name":"","files":["lib.rs"]};
+sourcesIndex["ext"] = {"name":"","dirs":[{"name":"chain_complex","files":["finite_chain_complex.rs","hom_complex.rs","mod.rs","tensor_product_chain_complex.rs"]}],"files":["lib.rs","resolution.rs","resolution_homomorphism.rs","secondary.rs","utils.rs","yoneda.rs"]};
+sourcesIndex["fp"] = {"name":"","dirs":[{"name":"matrix","files":["basis.rs","matrix_inner.rs","mod.rs","quasi_inverse.rs","subquotient.rs","subspace.rs"]}],"files":["lib.rs","prime.rs","vector.rs"]};
+sourcesIndex["once"] = {"name":"","files":["lib.rs"]};
+sourcesIndex["query"] = {"name":"","files":["lib.rs"]};
+sourcesIndex["saveload"] = {"name":"","files":["default_impl.rs","lib.rs"]};
+sourcesIndex["thread_token"] = {"name":"","files":["lib.rs"]};
+createSourceSidebar();

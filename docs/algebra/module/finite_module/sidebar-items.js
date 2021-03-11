@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["FiniteModule",""]],"struct":[["UnknownModuleTypeError",""]]});
