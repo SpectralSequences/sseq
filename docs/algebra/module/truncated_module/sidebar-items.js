@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["TruncatedModule","A module M where we quotient out everything above degree `truncation`"]]});

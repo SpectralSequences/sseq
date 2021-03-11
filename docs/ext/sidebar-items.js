@@ -1,1 +1,0 @@
-initSidebarItems({"macro":[["load_s_2",""]],"mod":[["block_structure",""],["chain_complex",""],["change_of_basis",""],["cli_module_loaders",""],["combinatorics",""],["module",""],["resolution",""],["resolution_homomorphism",""],["secondary",""],["steenrod_evaluator",""],["steenrod_parser",""],["utils",""],["yoneda",""]],"type":[["CCC",""]]});

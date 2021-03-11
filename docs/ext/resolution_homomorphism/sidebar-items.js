@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["ResolutionHomomorphism",""]],"type":[["ResolutionHomomorphismToUnit",""]]});

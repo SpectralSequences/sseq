@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["PolynomialAlgebraMonomial",""],["PolynomialAlgebraTableEntry",""]],"trait":[["PolynomialAlgebra",""]]});

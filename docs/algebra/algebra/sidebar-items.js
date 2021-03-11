@@ -1,1 +1,0 @@
-initSidebarItems({"mod":[["adem_algebra",""],["algebra_trait",""],["bialgebra_trait",""],["combinatorics",""],["field",""],["milnor_algebra",""],["polynomial_algebra",""],["steenrod_algebra",""]]});

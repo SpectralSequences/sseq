@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["QuasiInverse","Given a matrix M, a quasi-inverse Q is a map from the co-domain to the domain such that xQM = x for all x in the image (recall our matrices act on the right)."]]});

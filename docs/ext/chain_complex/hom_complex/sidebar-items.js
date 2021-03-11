@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["HomChainComplex",""],["HomChainMap",""]],"type":[["SHM",""]]});

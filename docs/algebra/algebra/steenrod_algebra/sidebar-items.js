@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["SteenrodAlgebra",""],["SteenrodAlgebraBorrow",""]],"struct":[["AlgebraSpec",""],["InvalidAlgebraError",""],["MilnorProfileOption",""]],"trait":[["SteenrodAlgebraT",""]]});

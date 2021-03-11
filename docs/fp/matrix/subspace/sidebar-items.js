@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["Subspace","A subspace of a vector space."]]});

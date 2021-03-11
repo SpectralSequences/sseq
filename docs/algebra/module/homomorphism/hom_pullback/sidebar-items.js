@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["HomPullback","Given a map `map`: A -> B and `source` = Hom(B, X), `target` = Hom(A, X), produce the induced map `map`^* Hom(B, X) -> Hom(A, X)."]]});

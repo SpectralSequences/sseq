@@ -1,1 +1,0 @@
-initSidebarItems({"trait":[["Algebra","A graded algebra over F_p, finite dimensional in each degree, equipped with a choice of ordered basis in each dimension. Basis elements of the algebra are referred to by their degree and index, and general elements are referred to by the degree and an `FpVector` listing the coefficients of the element in terms of the basis."]]});
