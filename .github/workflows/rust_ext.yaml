@@ -139,7 +139,7 @@ jobs:
       run: make -C rust_webserver wasm
 
     - name: Deploy
-      if: ${{ matrix.toolchain == 'nightly' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+      if: ${{ matrix.toolchain == 'nightly-2021-02-27' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
       uses: JamesIves/github-pages-deploy-action@4.1.0
       with:
           branch: gh-pages
