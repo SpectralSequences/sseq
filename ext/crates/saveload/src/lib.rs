@@ -5,20 +5,23 @@
 //! `load` function along with the binary data. In practice, this is also used for fields that are
 //! often duplicated along a lot of objects, e.g. the prime `p`.
 //!
-//! The interface is intended for a binary data structure. The `save` function is called with a
-//! `buffer` implementing `Write`. In practice, this is either `BufWriter` for actually writing to
-//! files, or a `Cursor` for testing. The `save` function is allowed to write anything to the
-//! `buffer`, and in particular, data of any length. The `load` function takes in a `buffer`
-//! implementing `Read` (again this is usually either `BufReader` or `Cursor`). It MUST read
-//! the exact same number of bytes when called (with the correct auxiliary data).
+//! The interface is intended for a binary data structure. The [`Save::save`] function is called
+//! with a `buffer` implementing [`Write`](std::io::Write). In practice, this is either
+//! [`BufWriter`](std::io::BufWriter) for actually writing to files, or a [`Cursor`](std::io::Cursor)
+//! for testing. The `save` function is allowed to write anything to the `buffer`, and in
+//! particular, data of any length. The [`Load::load`] function takes in a `buffer` implementing
+//! [`Read`](std::io::Read) (again this is usually either [`BufReader`](std::io::BufReader) or
+//! [`Cursor`](std::io::Cursor)). It MUST read the exact same number of bytes when called (with the
+//! correct auxiliary data).
 //!
-//! `Save` and `Load` are implemented for a number of primitive types such as `u32` and `i32`, as
-//! well as `Vec<T>` where `T` implements `Save` or `Load. These are all defined in
+//! [`Save`] and [`Load`] are implemented for a number of primitive types such as [`u32`] and
+//! [`i32`], as well as `Vec<T>` where `T` implements `Save` or `Load`. These are all defined in
 //! `default_impl.rs`. In most cases, saving and loading can be performed by calling the
 //! `save`/`load` functions of these types, and so one does not have to directly work with `Read`
 //! or `Write`. However, if one were to read bytes directly, they are reminded that they should use
-//! `read_exact` instead of `read`, as `read` does not make any guarantees about the number of
-//! bytes actually read.
+//! [`Read::read_exact`](std::io::Read::read_exact) instead of
+//! [`Read::read`](std::io::Read::read_exact), as `read` does not make any guarantees about the
+//! number of bytes actually read.
 
 use std::io;
 use std::io::{Read, Write};
@@ -61,7 +64,9 @@ pub trait Load: Sized {
     ///         if dimension == 0 {
     ///             return Ok(FpVector::new(*p, 0));
     ///         }
-    ///     ...
+    ///         ...
+    ///     }
+    /// }
     /// ```
 
     type AuxData;

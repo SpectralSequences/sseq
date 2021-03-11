@@ -394,7 +394,7 @@ pub fn compute_delta_concurrent(
     unwrap(Arc::try_unwrap(deltas))
 }
 
-/// Computes C(g_i) = A(c_i^j, dd g_j).
+/// Computes $C(g_i) = A(c_i^j, dd g_j)$.
 pub fn compute_c(res: &Resolution, gen_s: u32, gen_t: i32, gen_idx: usize, result: &mut FpVector) {
     let m = res.module(gen_s - 1);
 
@@ -432,7 +432,7 @@ macro_rules! unsub {
     };
 }
 
-/// Computes A(a, ddg)
+/// Computes $A(a, ddg)$
 pub fn compute_a_dd(
     res: &Resolution,
     a_list: &mut MilnorClass,
@@ -560,7 +560,7 @@ pub fn compute_a_dd(
     }
 }
 
-/// Compute the Y terms of A(a, σ(b)σ(c))
+/// Compute the Y terms of $A(a, σ(b)σ(c))$
 fn a_sigma_y(
     algebra: &Algebra,
     a: &mut MilnorClass,
@@ -624,7 +624,7 @@ thread_local! {
     static AY_CACHE: RefCell<HashMap<(MilnorElt, (usize, usize)), FpVector>> = RefCell::new(HashMap::default());
 }
 
-/// Computes A(a, Y_{k, l}) using a thread_local cache. This dispatches to a_y_cached that acts on
+/// Computes $A(a, Y_{k, l})$ using a thread_local cache. This dispatches to a_y_cached that acts on
 /// individual Sq(R) instead of a list of them.
 fn a_y(algebra: &Algebra, a_list: &mut MilnorClass, k: usize, l: usize, result: &mut FpVector) {
     for a in a_list.iter_mut() {
@@ -632,8 +632,8 @@ fn a_y(algebra: &Algebra, a_list: &mut MilnorClass, k: usize, l: usize, result: 
     }
 }
 
-/// Compute A(Sq(R), Y_{k, l}) where a = Sq(R). This queries the cache and computes it using
-/// a_y_inner if not available.
+/// Compute $A(Sq(R), Y_{k, l})$ where $a = Sq(R)$. This queries the cache and computes it using
+/// [`a_y_inner`] if not available.
 fn a_y_cached(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize, result: &mut FpVector) {
     AY_CACHE.with(|cache| {
         let cache = &mut *cache.try_borrow_mut().unwrap();
@@ -648,7 +648,7 @@ fn a_y_cached(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize, result: 
     });
 }
 
-/// Actually computes A(a, Y_{k, l}) and returns the result.
+/// Actually computes $A(a, Y_{k, l})$ and returns the result.
 fn a_y_inner(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize) -> FpVector {
     let mut result = FpVector::new(
         TWO,
