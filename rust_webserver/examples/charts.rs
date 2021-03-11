@@ -99,8 +99,8 @@ fn main() -> std::io::Result<()> {
 
     sseq.refresh_all();
 
-    sseq.to_svg(File::create("e2.svg")?, 2, false, &["h0", "h1", "h2"])?;
-    sseq.to_svg(File::create("e2_d2.svg")?, 2, true, &["h0", "h1", "h2"])?;
-    sseq.to_svg(File::create("e3.svg")?, 3, false, &["h0", "h1", "h2"])?;
+    sseq.write_to_svg(File::create("e2.svg")?, 2, false, &["h0", "h1", "h2"])?;
+    sseq.write_to_svg(File::create("e2_d2.svg")?, 2, true, &["h0", "h1", "h2"])?;
+    sseq.write_to_svg(File::create("e3.svg")?, 3, false, &["h0", "h1", "h2"])?;
     Ok(())
 }
