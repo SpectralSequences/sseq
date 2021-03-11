@@ -1072,20 +1072,20 @@ impl Sseq {
 
                     // Finally add the differentials
                     if differentials {
-                        let (sx, sy) = sseq_profile_i(r, x, y);
-                        if sy < 0 {
+                        let (tx, ty) = sseq_profile(r, x, y);
+                        if tx < 0 {
                             continue;
                         }
-                        if self.differentials[sx][sy].len() <= r {
+                        if self.differentials[x][y].len() <= r {
                             continue;
                         }
-                        let d = &mut self.differentials[sx][sy][r];
-                        let source_data = Sseq::get_page(r, &self.page_data[sx][sy]);
+                        let d = &mut self.differentials[x][y][r];
+                        let target_data = Sseq::get_page(r, &self.page_data[tx][ty]);
 
                         let pairs = d.get_source_target_pairs()
                             .into_iter()
                             .map(|(mut s, mut t)|
-                                 (source_data.reduce(&mut s),
+                                 (data.reduce(&mut s),
                                   target_data.reduce(&mut t)));
 
                         for (source, target) in pairs {
@@ -1097,7 +1097,7 @@ impl Sseq {
                                     if v == 0 {
                                         continue;
                                     }
-                                    g.structline((sx, sy, i), (x, y, j), Some(&format!("d{}", r)))?;
+                                    g.structline((x, y, i), (tx, ty, j), Some(&format!("d{}", r)))?;
                                 }
                             }
                         }
