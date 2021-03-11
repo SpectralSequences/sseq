@@ -140,6 +140,32 @@ impl<T> BiVec<T> {
     pub fn reserve(&mut self, num: usize) {
         self.data.reserve(num);
     }
+
+    /// Mutably borrows i and j. Panic if i != j.
+    ///
+    /// # Example
+    /// ```
+    /// # use bivec::BiVec;
+    /// let mut v = BiVec::from_vec(1, vec![3, 5, 2]);
+    /// let (x, y) = v.split_borrow_mut(1, 3);
+    /// assert_eq!(*x, 3);
+    /// assert_eq!(*y, 2);
+    ///
+    /// let (x, y) = v.split_borrow_mut(3, 2);
+    /// assert_eq!(*x, 2);
+    /// assert_eq!(*y, 5);
+    /// ```
+    pub fn split_borrow_mut(&mut self, i: i32, j: i32) -> (&mut T, &mut T) {
+        assert!(i != j);
+        let min = self.min_degree;
+        if i > j {
+            let (f, s) = self.data.split_at_mut((i - min) as usize);
+            (&mut s[0], &mut f[(j - min) as usize])
+        } else {
+            let (f, s) = self.data.split_at_mut((j - min) as usize);
+            (&mut f[(i - min) as usize], &mut s[0])
+        }
+    }
 }
 
 impl<T : Serialize> Serialize for BiVec<T> {
