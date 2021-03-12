@@ -23,7 +23,7 @@ The source files are located in `interface/` and `src/`.
 This is a variation of the previous version, where the rust backend is compiled
 to wasm so that everything runs on the browser. This is more convenient for
 distribution but is slower. A live version is available at
-[https://spectralsequences.github.io/rust_webserver/](https://spectralsequences.github.io/rust_webserver/).
+[https://spectralsequences.github.io/sseq/](https://spectralsequences.github.io/sseq/).
 
 To setup the build environment, run
 ```console
