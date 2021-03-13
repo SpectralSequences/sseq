@@ -158,6 +158,18 @@ impl<const P: u32> FpVectorP<P> {
             end,
         }
     }
+
+    fn as_slice(&self) -> SliceP<&'_ [u64], P> {
+        self.into()
+    }
+
+    fn as_slice_mut(&mut self) -> SliceP<&'_ mut [u64], P> {
+        self.into()
+    }
+
+    fn add_basis_element(&mut self, index: usize, value: u32) {
+        self.as_slice_mut().add_basis_element(index, value);
+    }
 }
 
 impl<'a, const P: u32> From<&'a FpVectorP<P>> for SliceP<&'a [u64], P> {
@@ -172,53 +184,27 @@ impl<'a, const P: u32> From<&'a mut FpVectorP<P>> for SliceP<&'a mut [u64], P> {
     }
 }
 
-/// Here we have to deal with the annoying issue that if we have a mutable slice that we want to
-/// further slice, we need the original slice to be available after use. To do so we move out the
-/// limbs of the original slice, and use a Guard to put them back when we are done.
-///
-/// This has confusing lifetimes: Let 'b be a lifetime shorter than 'a. Given a SliceP of lifetime
-/// 'a, we want to borrow it for the time 'b and return it when the time elapses. Using 'a for both
-/// will make this pretty useless because we would have mutably borrowed the slice for its whole
-/// lifetime.
-pub struct SliceMutGuardP<'a, 'b, const P: u32> {
-    slice: SliceP<&'a mut [u64], P>,
-    original: &'b mut &'a mut [u64],
-}
-
-impl<'a, 'b, const P: u32> Drop for SliceMutGuardP<'a, 'b, P> {
-    fn drop(&mut self) {
-        std::mem::swap(self.original, &mut self.slice.limbs);
-    }
-}
-
-impl<'a, const P: u32> SliceP<&'a mut [u64], P> {
-    fn slice_mut<'b>(&'b mut self, start: usize, end: usize) -> SliceMutGuardP<'a, 'b, P> {
+impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
+    fn slice_mut(&mut self, start: usize, end: usize) -> SliceP<&'_ mut [u64], P> {
         assert!(start <= end && end <= self.dimension());
 
-        let mut original: &'a mut [u64] = &mut [];
-        std::mem::swap(&mut original, &mut self.limbs);
-
-        SliceMutGuardP {
-            slice: SliceP {
-                limbs: original,
-                start: self.start + start,
-                end: self.start + end,
-            },
-            original: &mut self.limbs,
+        SliceP {
+            limbs: &mut *self.limbs,
+            start: self.start + start,
+            end: self.start + end,
         }
     }
 }
 
-impl<'a, 'b, const P: u32> Deref for SliceMutGuardP<'a, 'b, P> {
-    type Target = SliceP<&'a mut [u64], P>;
-    fn deref(&self) -> &Self::Target {
-        &self.slice
-    }
-}
+impl<T: Deref<Target = [u64]>, const P: u32> SliceP<T, P> {
+    fn slice(&self, start: usize, end: usize) -> SliceP<&'_ [u64], P> {
+        assert!(start <= end && end <= self.dimension());
 
-impl<'a, 'b, const P: u32> DerefMut for SliceMutGuardP<'a, 'b, P> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.slice
+        SliceP {
+            limbs: &*self.limbs,
+            start: self.start + start,
+            end: self.start + end,
+        }
     }
 }
 
@@ -444,12 +430,29 @@ mod test {
 
         let mut slice2 = slice.slice_mut(4, 6);
         slice2.add_basis_element(1, 1);
-        drop(slice2);
 
         slice.add_basis_element(1, 1);
 
         assert_eq!(v.entry(6), 1);
         assert_eq!(v.entry(9), 1);
         assert_eq!(v.entry(5), 1);
+    }
+
+    #[test]
+    fn test_slice() {
+        let mut v = FpVectorP::<2>::new(10);
+
+        v.add_basis_element(2, 1);
+        v.add_basis_element(5, 1);
+
+        let v = v;
+        let slice1 = v.slice(0, 3);
+        let slice2 = v.slice(2, 7);
+
+        assert_eq!(slice1.entry(2), 1);
+        assert_eq!(slice1.entry(1), 0);
+
+        assert_eq!(slice2.entry(0), 1);
+        assert_eq!(slice2.entry(3), 1);
     }
 }
