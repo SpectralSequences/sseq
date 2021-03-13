@@ -294,10 +294,10 @@ mod limb {
     pub fn unpack<const P: u32>(
         dim: usize,
         offset: usize,
-        limb_array: &mut [u32],
+        limb_array: &mut Vec<u32>,
         limbs: &[u64],
         limb_idx: usize,
-    ) -> usize {
+    ) {
         let p = ValidPrime::new(P);
 
         let bit_length = bit_length(p);
@@ -318,12 +318,9 @@ mod limb {
         }
 
         let limb_value = limbs[limb_idx];
-        let mut idx = 0;
         for j in (bit_min..bit_max).step_by(bit_length) {
-            limb_array[idx] = ((limb_value >> j) & bit_mask) as u32;
-            idx += 1;
+            limb_array.push(((limb_value >> j) & bit_mask) as u32);
         }
-        idx
     }
 
     pub fn number<const P: u32>(dim: usize) -> usize {
@@ -401,6 +398,7 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
                 let dimension = self.dimension();
                 let limbs = &mut self.limbs;
                 for i in start_limb..end_limb {
+                    unpacked_limb.clear();
                     limb::unpack::<P>(dimension, 0, &mut unpacked_limb, limbs, i);
                     for limb in &mut unpacked_limb {
                         *limb %= *p;
@@ -409,6 +407,71 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
                 }
             }
         }
+    }
+
+    fn min_limb(&self) -> usize {
+        limb_bit_index_pair(self.prime(),self.start).limb
+    }
+
+    /// TODO: benchmark to see if saturating_sub is faster
+    fn max_limb(&self) -> usize {
+        if self.end > 0 {
+            limb_bit_index_pair(self.prime(), self.end - 1).limb + 1
+        } else {
+            0
+        }
+    }
+
+    #[inline(always)]
+    fn limb_mask(&self, limb_idx : usize) -> u64 {
+        let offset = self.offset();
+        let min_limb = self.min_limb();
+        let max_limb = self.max_limb();
+        let number_of_limbs = max_limb - min_limb;
+        let mut mask = !0;
+        if limb_idx == 0 {
+            mask <<= offset;
+        }
+        if limb_idx + 1 == number_of_limbs {
+            let p = self.prime();
+            let dimension = self.dimension();
+            let bit_length = bit_length(p);
+            let entries_per_64_bits = entries_per_64_bits(p);
+            let bits_needed_for_entire_vector = offset + dimension * bit_length;
+            let usable_bits_per_limb = bit_length * entries_per_64_bits;
+            let bit_max = 1 + ((bits_needed_for_entire_vector - 1)%(usable_bits_per_limb));
+            mask &= (!0) >> (64 - bit_max);
+        }
+        mask
+    }
+
+    fn scale(&mut self, c : u32){
+        let c = c as u64;
+        let min_limb = self.min_limb();
+        let max_limb = self.max_limb();
+        let number_of_limbs = max_limb - min_limb;
+        if number_of_limbs == 0 {
+            return;
+        }
+        for i in 1..number_of_limbs-1 {
+            self.limbs[i + min_limb] *= c;
+        }
+        let mut i = 0; {
+            let mask = self.limb_mask(i);
+            let full_limb = self.limbs[min_limb + i];
+            let masked_limb = full_limb & mask;
+            let rest_limb = full_limb & !mask;
+            self.limbs[i + min_limb] = (masked_limb * c) | rest_limb;
+        }
+        i = number_of_limbs - 1;
+        if i > 0 {
+            let mask = self.limb_mask(i);
+            let full_limb = self.limbs[min_limb + i];
+            let masked_limb = full_limb & mask;
+            let rest_limb = full_limb & !mask;
+            self.limbs[i + min_limb] = (masked_limb * c) | rest_limb;
+        }
+        self.reduce_limbs(min_limb, max_limb);
     }
 }
 
