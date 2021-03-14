@@ -45,6 +45,7 @@ pub fn bit_length(p: ValidPrime) -> usize {
 //     2^bitlengths-1
 static BITMASKS: [u32; NUM_PRIMES] = [1, 7, 31, 63, 127, 255, 511, 511];
 
+/// TODO: Would it be simpler to just compute this at "runtime"? It's going to be inlined anyway.
 pub fn bitmask(p: ValidPrime) -> u64 {
     BITMASKS[PRIME_TO_INDEX_MAP[*p as usize]] as u64
 }
@@ -170,6 +171,10 @@ impl<const P: u32> FpVectorP<P> {
     fn add_basis_element(&mut self, index: usize, value: u32) {
         self.as_slice_mut().add_basis_element(index, value);
     }
+
+    pub fn entry(&self, index: usize) -> u32 {
+        SliceP::<&[u64], P>::from(self).entry(index)
+    }
 }
 
 impl<'a, const P: u32> From<&'a FpVectorP<P>> for SliceP<&'a [u64], P> {
@@ -243,7 +248,10 @@ mod limb {
                 let d = m & bottom_three_bits;
                 d + c - bottom_two_bits
             }
-            _ => unimplemented!(),
+            _ => {
+                let entries = entries_per_64_bits(ValidPrime::new(P));
+                limb::pack::<_, P>(limb::unpack::<P>(entries, limb).map(|x| x % P))
+            }
         }
     }
 
@@ -251,76 +259,36 @@ mod limb {
         limb == reduce::<P>(limb)
     }
 
-    pub fn pack<const P: u32>(
-        dim: usize,
-        offset: usize,
-        limb_array: &[u32],
-        limbs: &mut [u64],
-        limb_idx: usize,
-    ) -> usize {
+    /// Given an interator of u32's, pack all of them into a single limb in order.
+    /// It is assumed that
+    ///  - The values of the iterator are less than P
+    ///  - The values of the iterator fit into a single limb
+    ///
+    /// If these assumptions are violated, the result will be nonsense.
+    pub fn pack<T: Iterator<Item = u32>, const P: u32>(entries: T) -> u64 {
         let p = ValidPrime::new(P);
         let bit_length = bit_length(p);
-        debug_assert_eq!(offset % bit_length, 0);
-        let entries_per_64_bits = entries_per_64_bits(p);
-        let mut bit_min = 0usize;
-        let mut bit_max = bit_length * entries_per_64_bits;
-        if limb_idx == 0 {
-            bit_min = offset;
+        let mut result: u64 = 0;
+        let mut shift = 0;
+        for entry in entries {
+            result += (entry as u64) << shift;
+            shift += bit_length;
         }
-        if limb_idx == limbs.len() - 1 {
-            // Calculates how many bits of the last field we need to use. But if it divides
-            // perfectly, we want bit max equal to bit_length * entries_per_64_bits, so subtract and add 1.
-            // to make the output in the range 1 -- bit_length * entries_per_64_bits.
-            let bits_needed_for_entire_vector = offset + dim * bit_length;
-            let usable_bits_per_limb = bit_length * entries_per_64_bits;
-            bit_max = 1 + ((bits_needed_for_entire_vector - 1) % (usable_bits_per_limb));
-        }
-        let mut bit_mask = 0;
-        if bit_max - bit_min < 64 {
-            bit_mask = (1u64 << (bit_max - bit_min)) - 1;
-            bit_mask <<= bit_min;
-            bit_mask = !bit_mask;
-        }
-        // copy data in
-        let mut idx = 0;
-        let mut limb_value = limbs[limb_idx] & bit_mask;
-        for j in (bit_min..bit_max).step_by(bit_length) {
-            limb_value |= (limb_array[idx] as u64) << j;
-            idx += 1;
-        }
-        limbs[limb_idx] = limb_value;
-        idx
+        result
     }
-    pub fn unpack<const P: u32>(
-        dim: usize,
-        offset: usize,
-        limb_array: &mut Vec<u32>,
-        limbs: &[u64],
-        limb_idx: usize,
-    ) {
+
+    /// Given a limb, return the first `dim` entries. It is assumed that
+    /// `dim` is not greater than the number of entries in a limb.
+    pub fn unpack<const P: u32>(dim: usize, mut limb: u64) -> impl Iterator<Item = u32> {
         let p = ValidPrime::new(P);
-
         let bit_length = bit_length(p);
-        let entries_per_64_bits = entries_per_64_bits(p);
         let bit_mask = bitmask(p);
-        let mut bit_min = 0usize;
-        let mut bit_max = bit_length * entries_per_64_bits;
-        if limb_idx == 0 {
-            bit_min = offset;
-        }
-        if limb_idx == limbs.len() - 1 {
-            // Calculates how many bits of the last field we need to use. But if it divides
-            // perfectly, we want bit max equal to bit_length * entries_per_64_bits, so subtract and add 1.
-            // to make the output in the range 1 -- bit_length * entries_per_64_bits.
-            let bits_needed_for_entire_vector = offset + dim * bit_length;
-            let usable_bits_per_limb = bit_length * entries_per_64_bits;
-            bit_max = 1 + ((bits_needed_for_entire_vector - 1) % (usable_bits_per_limb));
-        }
 
-        let limb_value = limbs[limb_idx];
-        for j in (bit_min..bit_max).step_by(bit_length) {
-            limb_array.push(((limb_value >> j) & bit_mask) as u32);
-        }
+        (0..dim).map(move |_| {
+            let result = (limb & bit_mask) as u32;
+            limb >>= bit_length;
+            result
+        })
     }
 
     pub fn number<const P: u32>(dim: usize) -> usize {
@@ -363,6 +331,18 @@ impl<T: Deref<Target = [u64]>, const P: u32> SliceP<T, P> {
         let entries_per_64_bits = entries_per_64_bits(self.prime());
         (self.start * bit_length) % (bit_length * entries_per_64_bits)
     }
+
+    fn iter(&self) -> impl Iterator<Item = u32> {
+        todo!();
+        // This is needed so that iter can determine the return time
+        #[allow(unreachable_code)]
+        (&[0u32]).iter().copied()
+    }
+
+    /// TODO: improve efficiency?
+    fn iter_nonzero(&self) -> impl Iterator<Item = (usize, u32)> {
+        self.iter().enumerate().filter(|&(_, x)| x != 0)
+    }
 }
 
 impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
@@ -387,30 +367,16 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
     fn reduce_limbs(&mut self, start_limb: usize, end_limb: usize) {
         match P {
             2 => (),
-            3 | 5 => {
-                for limb in &mut *self.limbs {
-                    *limb = limb::reduce::<P>(*limb);
-                }
-            }
             _ => {
-                let p = self.prime();
-                let mut unpacked_limb = vec![0; entries_per_64_bits(p)];
-                let dimension = self.dimension();
-                let limbs = &mut self.limbs;
-                for i in start_limb..end_limb {
-                    unpacked_limb.clear();
-                    limb::unpack::<P>(dimension, 0, &mut unpacked_limb, limbs, i);
-                    for limb in &mut unpacked_limb {
-                        *limb %= *p;
-                    }
-                    limb::pack::<P>(dimension, 0, &unpacked_limb, limbs, i);
+                for limb in &mut self.limbs[start_limb..end_limb] {
+                    *limb = limb::reduce::<P>(*limb);
                 }
             }
         }
     }
 
     fn min_limb(&self) -> usize {
-        limb_bit_index_pair(self.prime(),self.start).limb
+        limb_bit_index_pair(self.prime(), self.start).limb
     }
 
     /// TODO: benchmark to see if saturating_sub is faster
@@ -423,7 +389,7 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
     }
 
     #[inline(always)]
-    fn limb_mask(&self, limb_idx : usize) -> u64 {
+    fn limb_mask(&self, limb_idx: usize) -> u64 {
         let offset = self.offset();
         let min_limb = self.min_limb();
         let max_limb = self.max_limb();
@@ -439,13 +405,13 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
             let entries_per_64_bits = entries_per_64_bits(p);
             let bits_needed_for_entire_vector = offset + dimension * bit_length;
             let usable_bits_per_limb = bit_length * entries_per_64_bits;
-            let bit_max = 1 + ((bits_needed_for_entire_vector - 1)%(usable_bits_per_limb));
+            let bit_max = 1 + ((bits_needed_for_entire_vector - 1) % (usable_bits_per_limb));
             mask &= (!0) >> (64 - bit_max);
         }
         mask
     }
 
-    fn scale(&mut self, c : u32){
+    fn scale(&mut self, c: u32) {
         let c = c as u64;
         let min_limb = self.min_limb();
         let max_limb = self.max_limb();
@@ -453,10 +419,11 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
         if number_of_limbs == 0 {
             return;
         }
-        for i in 1..number_of_limbs-1 {
+        for i in 1..number_of_limbs - 1 {
             self.limbs[i + min_limb] *= c;
         }
-        let mut i = 0; {
+        let mut i = 0;
+        {
             let mask = self.limb_mask(i);
             let full_limb = self.limbs[min_limb + i];
             let masked_limb = full_limb & mask;
@@ -475,9 +442,21 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
     }
 }
 
-impl<const P: u32> FpVectorP<P> {
-    pub fn entry(&self, index: usize) -> u32 {
-        SliceP::<&[u64], P>::from(self).entry(index)
+impl<const P: u32> From<&[u32]> for FpVectorP<P> {
+    fn from(slice: &[u32]) -> Self {
+        Self {
+            dimension: slice.len(),
+            limbs: slice
+                .chunks(entries_per_64_bits(ValidPrime::new(P)))
+                .map(|x| limb::pack::<_, P>(x.iter().copied()))
+                .collect(),
+        }
+    }
+}
+
+impl<const P: u32> From<FpVectorP<P>> for Vec<u32> {
+    fn from(vec: FpVectorP<P>) -> Vec<u32> {
+        vec.as_slice().iter().collect()
     }
 }
 
@@ -517,5 +496,10 @@ mod test {
 
         assert_eq!(slice2.entry(0), 1);
         assert_eq!(slice2.entry(3), 1);
+    }
+
+    #[test]
+    fn unpack_limb() {
+        assert_eq!(limb::unpack::<2>(3, 5).collect::<Vec<_>>(), vec![1, 0, 1]);
     }
 }
