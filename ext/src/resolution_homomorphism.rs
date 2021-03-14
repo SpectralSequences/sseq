@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use std::sync::{Weak, Arc};
 
 use once::OnceVec;

@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use std::error::Error;
 use std::sync::Arc;
 use parking_lot::RwLock;

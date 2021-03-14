@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 // use parking_lot::{Mutex, MutexGuard};
 use serde_json::json;
 use serde_json::Value;

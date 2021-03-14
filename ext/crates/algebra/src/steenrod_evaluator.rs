@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AdemAlgebra, MilnorAlgebra};

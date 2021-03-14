@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::module::{Module, QuotientModule};
 use fp::matrix::{QuasiInverse, Subspace};
 use fp::vector::FpVector;

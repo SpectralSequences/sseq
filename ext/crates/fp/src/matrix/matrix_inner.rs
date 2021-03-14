@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use itertools::Itertools;
 use crate::prime::{self, ValidPrime};
 use crate::vector::{FpVector, FpVectorT, FpVectorSlice};

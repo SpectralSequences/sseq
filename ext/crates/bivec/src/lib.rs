@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use core::ops::Index;
 use core::ops::IndexMut;
 use std::slice::{Iter, IterMut};

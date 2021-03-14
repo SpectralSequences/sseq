@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 mod basis;
 mod matrix_inner;
 mod quasi_inverse;

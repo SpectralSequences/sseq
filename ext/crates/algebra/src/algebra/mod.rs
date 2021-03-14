@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 pub mod combinatorics;
 
 mod algebra_trait;

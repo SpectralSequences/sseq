@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 // A block structure is a structure that makes it efficient to convert between an index 
 // into a sum of vector spaces and an index into an individual one. For instance, a FreeModule
 // has some collection of generators in various degrees and a general element is a homogenous sum

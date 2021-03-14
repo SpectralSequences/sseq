@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use std::io::{stdout, Write};
 use std::sync::Arc;
 use std::path::PathBuf;

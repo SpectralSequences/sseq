@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 mod finite_chain_complex;
 #[cfg(feature = "extras")]
 mod hom_complex;

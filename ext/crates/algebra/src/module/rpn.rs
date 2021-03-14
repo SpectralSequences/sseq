@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::algebra::{
     adem_algebra::AdemBasisElement, milnor_algebra::{PPartEntry, MilnorBasisElement}, AdemAlgebra,
     MilnorAlgebra, SteenrodAlgebraT, SteenrodAlgebraBorrow

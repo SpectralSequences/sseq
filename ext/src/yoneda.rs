@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::algebra::{Algebra, SteenrodAlgebra, AdemAlgebra};
 use crate::chain_complex::{ChainComplex, AugmentedChainComplex, FiniteAugmentedChainComplex, BoundedChainComplex, ChainMap};
 use fp::vector::{FpVector, FpVectorT};

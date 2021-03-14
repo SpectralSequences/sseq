@@ -1,10 +1,10 @@
 use rand::prelude::*;
 
+use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
 use fp::vector::FpVectorT;
-use fp::matrix::Matrix;
 
-fn row_reduce_2(bencher : &mut bencher::Bencher){
+fn row_reduce_2(bencher: &mut bencher::Bencher) {
     let p = ValidPrime::new(2);
     let num_matrices = 3;
     let rows = 1000;
@@ -24,13 +24,12 @@ fn row_reduce_2(bencher : &mut bencher::Bencher){
             m[row].pack(&vec);
         }
     }
-    
+
     bencher.iter(|| {
         for m in matrices.iter_mut() {
             m.row_reduce();
         }
     });
 }
-
 
 bencher::benchmark_group!(main, row_reduce_2);

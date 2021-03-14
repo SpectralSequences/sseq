@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use serde_json::Value;
 use serde_json::json;
 

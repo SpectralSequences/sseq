@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 //! This file contains code used by main.rs
 
 use serde_json::value::Value;

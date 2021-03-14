@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex};
 use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use crate::module::{Module, ZeroModule};

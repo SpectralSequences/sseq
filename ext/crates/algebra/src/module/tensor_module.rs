@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use bivec::BiVec;
 use once::OnceBiVec;
 

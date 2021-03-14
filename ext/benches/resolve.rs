@@ -22,7 +22,11 @@ fn benchmark(module_name: &str, max_degree: i32, algebra: &str, n_times: u128) {
         let bundle = construct(&cfg).unwrap();
         let res = bundle.resolution.read();
         res.resolve_through_degree(max_degree);
-        assert!(res.module(max_degree as u32).number_of_gens_in_degree(max_degree) < 1000);
+        assert!(
+            res.module(max_degree as u32)
+                .number_of_gens_in_degree(max_degree)
+                < 1000
+        );
     }
     let dur = start.elapsed();
 

@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use itertools::Itertools;
 use parking_lot::Mutex;
 use serde_json::value::Value;

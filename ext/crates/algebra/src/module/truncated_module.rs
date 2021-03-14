@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::module::{BoundedModule, Module};
 use fp::vector::FpVector;
 use std::sync::Arc;

@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use parking_lot::{RwLock, Mutex};
 use std::cmp::{min, max};
 use std::sync::{Arc, Weak};

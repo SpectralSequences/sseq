@@ -2,8 +2,6 @@
 
 SHELL = bash
 
-LINT = crates/fp/src/prime.rs crates/fp/src/matrix/subquotient.rs src/secondary.rs
-
 all:
 	cargo build
 
@@ -16,9 +14,7 @@ test-concurrent:
 lint:
 	shopt -s globstar
 	cargo clippy --workspace --all-targets
-	rustfmt --check tests/*.rs examples/*.rs
-	rustfmt --check crates/{error,once,query,saveload,thread-token,chart}/**/*.rs
-	rustfmt --check $(LINT)
+	cargo fmt --all -- --check
 
 run_examples: $(patsubst examples/%.rs, target/release/examples/%, $(wildcard examples/*.rs))
 

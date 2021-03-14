@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use std::sync::Arc;
 
 use crate::algebra::Algebra;

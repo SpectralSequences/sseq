@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use std::fmt;

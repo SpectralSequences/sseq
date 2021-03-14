@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 #![feature(hash_raw_entry)]
 #![allow(clippy::many_single_char_names)]
 #![allow(clippy::unreadable_literal)]

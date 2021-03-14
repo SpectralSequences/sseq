@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::algebra::{Algebra, SteenrodAlgebra};
 use crate::module::{FDModule, FPModule, Module, RealProjectiveSpace};
 use fp::prime::ValidPrime;

@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 mod finite_dimensional_module;
 mod finite_module;
 mod finitely_presented_module;

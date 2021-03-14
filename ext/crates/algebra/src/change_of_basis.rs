@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use fp::vector::{FpVector, FpVectorT};
 use crate::algebra::{Algebra, AdemAlgebra, MilnorAlgebra};
 use crate::algebra::adem_algebra::AdemBasisElement;

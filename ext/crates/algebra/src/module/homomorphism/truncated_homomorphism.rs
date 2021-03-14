@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::module::homomorphism::ModuleHomomorphism;
 use crate::module::TruncatedModule;
 use fp::matrix::{QuasiInverse, Subspace};

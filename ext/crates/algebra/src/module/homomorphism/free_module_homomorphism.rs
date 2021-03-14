@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use parking_lot::{Mutex, MutexGuard};
 use std::sync::Arc;
 

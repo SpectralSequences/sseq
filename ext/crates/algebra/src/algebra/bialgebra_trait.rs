@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::algebra::Algebra;
 
 pub trait Bialgebra : Algebra {

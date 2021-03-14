@@ -1,3 +1,4 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
 use core::cmp::Ordering;
 use itertools::Itertools;
 use lazy_static::lazy_static;

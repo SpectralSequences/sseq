@@ -1,12 +1,24 @@
-use algebra::milnor_algebra::{PPartAllocation, PPartMultiplier, PPartEntry};
+use algebra::milnor_algebra::{PPartAllocation, PPartEntry, PPartMultiplier};
 use bencher::{benchmark_group, benchmark_main, Bencher};
 use fp::prime::ValidPrime;
 
-fn ppart_inner<const MOD4: bool>(bench: &mut Bencher, p: u32, r: Vec<PPartEntry>, s: Vec<PPartEntry>) {
+fn ppart_inner<const MOD4: bool>(
+    bench: &mut Bencher,
+    p: u32,
+    r: Vec<PPartEntry>,
+    s: Vec<PPartEntry>,
+) {
     let p = ValidPrime::new(p);
 
     bench.iter(move || {
-        let mut m = PPartMultiplier::<MOD4>::new_from_allocation(p, &r, &s, PPartAllocation::default(), 0, 0);
+        let mut m = PPartMultiplier::<MOD4>::new_from_allocation(
+            p,
+            &r,
+            &s,
+            PPartAllocation::default(),
+            0,
+            0,
+        );
 
         while let Some(c) = m.next() {
             if MOD4 {
