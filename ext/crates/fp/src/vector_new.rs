@@ -34,29 +34,29 @@ pub const MAX_DIMENSION: usize = 147500;
 // Generated with Mathematica:
 //     bitlengths = Prepend[#,1]&@ Ceiling[Log2[# (# - 1) + 1 &[Prime[Range[2, 54]]]]]
 // But for 2 it should be 1.
-static BIT_LENGHTS: [usize; NUM_PRIMES] = [1, 3, 5, 6, 7, 8, 9, 9];
+const BIT_LENGHTS: [usize; NUM_PRIMES] = [1, 3, 5, 6, 7, 8, 9, 9];
 
-pub fn bit_length(p: ValidPrime) -> usize {
-    BIT_LENGHTS[PRIME_TO_INDEX_MAP[*p as usize]]
+pub const fn bit_length(p: ValidPrime) -> usize {
+    BIT_LENGHTS[PRIME_TO_INDEX_MAP[p.value() as usize]]
 }
 
 // This is 2^bitlength - 1.
 // Generated with Mathematica:
 //     2^bitlengths-1
-static BITMASKS: [u32; NUM_PRIMES] = [1, 7, 31, 63, 127, 255, 511, 511];
+const BITMASKS: [u32; NUM_PRIMES] = [1, 7, 31, 63, 127, 255, 511, 511];
 
 /// TODO: Would it be simpler to just compute this at "runtime"? It's going to be inlined anyway.
-pub fn bitmask(p: ValidPrime) -> u64 {
-    BITMASKS[PRIME_TO_INDEX_MAP[*p as usize]] as u64
+pub const fn bitmask(p: ValidPrime) -> u64 {
+    BITMASKS[PRIME_TO_INDEX_MAP[p.value() as usize]] as u64
 }
 
 // This is floor(64/bitlength).
 // Generated with Mathematica:
 //      Floor[64/bitlengths]
-static ENTRIES_PER_64_BITS: [usize; NUM_PRIMES] = [64, 21, 12, 10, 9, 8, 7, 7];
+const ENTRIES_PER_64_BITS: [usize; NUM_PRIMES] = [64, 21, 12, 10, 9, 8, 7, 7];
 
-pub fn entries_per_64_bits(p: ValidPrime) -> usize {
-    ENTRIES_PER_64_BITS[PRIME_TO_INDEX_MAP[*p as usize]]
+pub const fn entries_per_64_bits(p: ValidPrime) -> usize {
+    ENTRIES_PER_64_BITS[PRIME_TO_INDEX_MAP[p.value() as usize]]
 }
 
 #[derive(Copy, Clone)]
@@ -142,6 +142,10 @@ impl<const P: u32> FpVectorP<P> {
         }
     }
 
+    pub const fn dimension(&self) -> usize {
+        self.dimension
+    }
+
     pub fn slice(&self, start: usize, end: usize) -> SliceP<&[u64], P> {
         assert!(start <= end && end <= self.dimension);
         SliceP {
@@ -160,20 +164,64 @@ impl<const P: u32> FpVectorP<P> {
         }
     }
 
-    fn as_slice(&self) -> SliceP<&'_ [u64], P> {
+    pub fn as_slice(&self) -> SliceP<&'_ [u64], P> {
         self.into()
     }
 
-    fn as_slice_mut(&mut self) -> SliceP<&'_ mut [u64], P> {
+    pub fn as_slice_mut(&mut self) -> SliceP<&'_ mut [u64], P> {
         self.into()
     }
 
-    fn add_basis_element(&mut self, index: usize, value: u32) {
+    pub fn add_basis_element(&mut self, index: usize, value: u32) {
         self.as_slice_mut().add_basis_element(index, value);
     }
 
     pub fn entry(&self, index: usize) -> u32 {
-        SliceP::<&[u64], P>::from(self).entry(index)
+        self.as_slice().entry(index)
+    }
+
+    pub fn set_to_zero(&mut self) {
+        for limb in &mut self.limbs {
+            *limb = 0;
+        }
+    }
+
+    pub fn scale(&mut self, c: u32) {
+        match P {
+            2 => {
+                if c == 0 {
+                    self.set_to_zero()
+                }
+            }
+            3 | 5 => {
+                for limb in &mut self.limbs {
+                    *limb = limb::reduce::<P>(*limb * c as u64);
+                }
+            }
+            _ => {
+                let entries = entries_per_64_bits(ValidPrime::new(P));
+                for limb in &mut self.limbs {
+                    *limb =
+                        limb::pack::<_, P>(limb::unpack::<P>(entries, *limb).map(|x| (x * c) % P));
+                }
+            }
+        }
+    }
+
+    pub fn add(&mut self, other: &FpVectorP<P>, c: u32) {
+        debug_assert_eq!(self.dimension(), other.dimension());
+        for (left, right) in self.limbs.iter_mut().zip(other.limbs.iter()) {
+            *left += *right * c as u64;
+        }
+        self.reduce_limbs();
+    }
+
+    fn reduce_limbs(&mut self) {
+        if P != 2 {
+            for limb in &mut self.limbs {
+                *limb = limb::reduce::<P>(*limb);
+            }
+        }
     }
 }
 
@@ -216,7 +264,7 @@ impl<T: Deref<Target = [u64]>, const P: u32> SliceP<T, P> {
 mod limb {
     use super::*;
 
-    pub fn add<const P: u32>(limb_a: u64, limb_b: u64, coeff: u32) -> u64 {
+    pub const fn add<const P: u32>(limb_a: u64, limb_b: u64, coeff: u32) -> u64 {
         if P == 2 {
             limb_a & (coeff as u64 * limb_b)
         } else {
@@ -302,15 +350,15 @@ mod limb {
 }
 
 impl<T: Deref<Target = [u64]>, const P: u32> SliceP<T, P> {
-    fn prime(&self) -> ValidPrime {
+    pub fn prime(&self) -> ValidPrime {
         ValidPrime::new(P)
     }
 
-    fn dimension(&self) -> usize {
+    pub fn dimension(&self) -> usize {
         self.end - self.start
     }
 
-    fn entry(&self, index: usize) -> u32 {
+    pub fn entry(&self, index: usize) -> u32 {
         debug_assert!(
             index < self.dimension(),
             "Index {} too large, dimension of vector is only {}.",
@@ -332,7 +380,7 @@ impl<T: Deref<Target = [u64]>, const P: u32> SliceP<T, P> {
         (self.start * bit_length) % (bit_length * entries_per_64_bits)
     }
 
-    fn iter(&self) -> impl Iterator<Item = u32> {
+    pub fn iter(&self) -> impl Iterator<Item = u32> {
         todo!();
         // This is needed so that iter can determine the return time
         #[allow(unreachable_code)]
@@ -340,20 +388,20 @@ impl<T: Deref<Target = [u64]>, const P: u32> SliceP<T, P> {
     }
 
     /// TODO: improve efficiency?
-    fn iter_nonzero(&self) -> impl Iterator<Item = (usize, u32)> {
+    pub fn iter_nonzero(&self) -> impl Iterator<Item = (usize, u32)> {
         self.iter().enumerate().filter(|&(_, x)| x != 0)
     }
 }
 
 impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
-    fn add_basis_element(&mut self, index: usize, value: u32) {
+    pub fn add_basis_element(&mut self, index: usize, value: u32) {
         let mut x = self.entry(index);
         x += value;
         x %= P;
         self.set_entry(index, x);
     }
 
-    fn set_entry(&mut self, index: usize, value: u32) {
+    pub fn set_entry(&mut self, index: usize, value: u32) {
         debug_assert!(index < self.dimension());
         let p = self.prime();
         let bit_mask = bitmask(p);
@@ -364,13 +412,13 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
         self.limbs[limb_index.limb] = result;
     }
 
-    fn reduce_limbs(&mut self, start_limb: usize, end_limb: usize) {
-        match P {
-            2 => (),
-            _ => {
-                for limb in &mut self.limbs[start_limb..end_limb] {
-                    *limb = limb::reduce::<P>(*limb);
-                }
+    fn reduce_limbs(&mut self) {
+        if P != 2 {
+            let min_limb = self.min_limb();
+            let max_limb = self.max_limb();
+
+            for limb in &mut self.limbs[min_limb..max_limb] {
+                *limb = limb::reduce::<P>(*limb);
             }
         }
     }
@@ -411,7 +459,7 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
         mask
     }
 
-    fn scale(&mut self, c: u32) {
+    pub fn scale(&mut self, c: u32) {
         let c = c as u64;
         let min_limb = self.min_limb();
         let max_limb = self.max_limb();
@@ -438,7 +486,7 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
             let rest_limb = full_limb & !mask;
             self.limbs[i + min_limb] = (masked_limb * c) | rest_limb;
         }
-        self.reduce_limbs(min_limb, max_limb);
+        self.reduce_limbs();
     }
 }
 
