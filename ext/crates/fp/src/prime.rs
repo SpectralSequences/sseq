@@ -45,6 +45,23 @@ impl ValidPrime {
             None
         }
     }
+
+    /// Get the underlying prime. This is the same function as deref but
+    /// 1. This is a const fn
+    /// 2. This does not inform the compiler about properties of p via unreachable_unchecked.
+    ///
+    /// Use this function in a const context where you would expect it to be evaluated at
+    /// compile-time.
+    pub const fn value(&self) -> u32 {
+        #[cfg(feature = "odd-primes")]
+        {
+            self.p
+        }
+        #[cfg(not(feature = "odd-primes"))]
+        {
+            2
+        }
+    }
 }
 
 impl std::ops::Deref for ValidPrime {
