@@ -146,6 +146,10 @@ impl<const P: u32> FpVectorP<P> {
         self.dimension
     }
 
+    pub const fn prime(&self) -> u32 {
+        P
+    }
+
     pub fn slice(&self, start: usize, end: usize) -> SliceP<&[u64], P> {
         assert!(start <= end && end <= self.dimension);
         SliceP {
@@ -216,7 +220,7 @@ impl<const P: u32> FpVectorP<P> {
         self.reduce_limbs();
     }
 
-    pub fn assign(&mut self, other: Self) {
+    pub fn assign(&mut self, other: &Self) {
         debug_assert_eq!(self.dimension(), other.dimension());
         for (left, right) in self.limbs.iter_mut().zip(other.limbs.iter()) {
             *left = *right;
@@ -626,6 +630,72 @@ impl<'a> Iterator for FpVectorIterator<'a> {
 impl<'a> ExactSizeIterator for FpVectorIterator<'a> {
     fn len(&self) -> usize {
         self.counter
+    }
+}
+
+pub enum FpVector {
+    _2(FpVectorP<2>),
+    _3(FpVectorP<3>),
+    _5(FpVectorP<5>),
+    _7(FpVectorP<7>),
+}
+
+macro_rules! dispatch_vector_inner {
+    // other is a type, but marking it as a :ty instead of :tt means we cannot use it to access its
+    // enum variants.
+    ($vis:vis fn $method:ident(&mut self, other: &$other:tt $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
+        $vis fn $method(&mut self, other: &$other, $($arg: $ty),* ) $(-> $ret)* {
+            match (self, other) {
+                (Self::_2(ref mut x), $other::_2(ref y)) => x.$method(y, $($arg),*),
+                (Self::_3(ref mut x), $other::_3(ref y)) => x.$method(y, $($arg),*),
+                (Self::_5(ref mut x), $other::_5(ref y)) => x.$method(y, $($arg),*),
+                (Self::_7(ref mut x), $other::_7(ref y)) => x.$method(y, $($arg),*),
+                (l, r) => {
+                    panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
+                }
+            }
+        }
+    };
+
+    ($vis:vis fn $method:ident(&mut self $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
+        $vis fn $method(&mut self, $($arg: $ty),* ) $(-> $ret)* {
+            match self {
+                Self::_2(ref mut x) => x.$method($($arg),*),
+                Self::_3(ref mut x) => x.$method($($arg),*),
+                Self::_5(ref mut x) => x.$method($($arg),*),
+                Self::_7(ref mut x) => x.$method($($arg),*),
+            }
+        }
+    };
+    ($vis:vis fn $method:ident(&self $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
+        $vis fn $method(&self, $($arg: $ty),* ) $(-> $ret)* {
+            match self {
+                Self::_2(ref x) => x.$method($($arg),*),
+                Self::_3(ref x) => x.$method($($arg),*),
+                Self::_5(ref x) => x.$method($($arg),*),
+                Self::_7(ref x) => x.$method($($arg),*),
+            }
+        }
+    }
+}
+
+macro_rules! dispatch_vector {
+    () => {};
+    ($vis:vis fn $method:ident $tt:tt $(-> $ret:ty)?; $($tail:tt)*) => {
+        dispatch_vector_inner! {
+            $vis fn $method $tt $(-> $ret)*
+        }
+        dispatch_vector!{$($tail)*}
+    }
+}
+
+impl FpVector {
+    dispatch_vector! {
+        pub fn prime(&self) -> u32;
+        pub fn scale(&mut self, c: u32);
+        pub fn set_to_zero(&mut self);
+        pub fn entry(&self, index: usize) -> u32;
+        pub fn assign(&mut self, other: &Self);
     }
 }
 
