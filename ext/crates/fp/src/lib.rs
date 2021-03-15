@@ -7,3 +7,4 @@ pub mod prime;
 pub mod vector;
 pub mod matrix;
 pub mod vector_new;
+mod vector_inner;
