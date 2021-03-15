@@ -26,7 +26,8 @@
 use crate::prime::ValidPrime;
 use crate::prime::NUM_PRIMES;
 use crate::prime::PRIME_TO_INDEX_MAP;
-use std::ops::{Deref, DerefMut};
+use itertools::Itertools;
+use std::cmp::Ordering;
 use std::sync::Once;
 
 pub const MAX_DIMENSION: usize = 147500;
@@ -127,8 +128,15 @@ pub struct FpVectorP<const P: u32> {
     limbs: Vec<u64>,
 }
 
-pub struct SliceP<T: Deref<Target = [u64]>, const P: u32> {
-    limbs: T,
+#[derive(Copy, Clone)]
+pub struct SliceP<'a, const P: u32> {
+    limbs: &'a [u64],
+    start: usize,
+    end: usize,
+}
+
+pub struct SliceMutP<'a, const P: u32> {
+    limbs: &'a mut [u64],
     start: usize,
     end: usize,
 }
@@ -150,7 +158,7 @@ impl<const P: u32> FpVectorP<P> {
         P
     }
 
-    pub fn slice(&self, start: usize, end: usize) -> SliceP<&[u64], P> {
+    pub fn slice(&self, start: usize, end: usize) -> SliceP<'_, P> {
         assert!(start <= end && end <= self.dimension);
         SliceP {
             limbs: &self.limbs,
@@ -159,20 +167,22 @@ impl<const P: u32> FpVectorP<P> {
         }
     }
 
-    pub fn slice_mut(&mut self, start: usize, end: usize) -> SliceP<&mut [u64], P> {
+    pub fn slice_mut(&mut self, start: usize, end: usize) -> SliceMutP<'_, P> {
         assert!(start <= end && end <= self.dimension);
-        SliceP {
+        SliceMutP {
             limbs: &mut self.limbs,
             start,
             end,
         }
     }
 
-    pub fn as_slice(&self) -> SliceP<&'_ [u64], P> {
+    #[inline]
+    pub fn as_slice(&self) -> SliceP<'_, P> {
         self.into()
     }
 
-    pub fn as_slice_mut(&mut self) -> SliceP<&'_ mut [u64], P> {
+    #[inline]
+    pub fn as_slice_mut(&mut self) -> SliceMutP<'_, P> {
         self.into()
     }
 
@@ -215,7 +225,7 @@ impl<const P: u32> FpVectorP<P> {
     pub fn add(&mut self, other: &FpVectorP<P>, c: u32) {
         debug_assert_eq!(self.dimension(), other.dimension());
         for (left, right) in self.limbs.iter_mut().zip(other.limbs.iter()) {
-            *left += *right * c as u64;
+            *left = limb::add::<P>(*left, *right, c);
         }
         self.reduce_limbs();
     }
@@ -236,32 +246,41 @@ impl<const P: u32> FpVectorP<P> {
     }
 }
 
-impl<'a, const P: u32> From<&'a FpVectorP<P>> for SliceP<&'a [u64], P> {
+impl<'a, const P: u32> From<&'a FpVectorP<P>> for SliceP<'a, P> {
     fn from(v: &'a FpVectorP<P>) -> Self {
         v.slice(0, v.dimension)
     }
 }
 
-impl<'a, const P: u32> From<&'a mut FpVectorP<P>> for SliceP<&'a mut [u64], P> {
+impl<'a, const P: u32> From<&'a mut FpVectorP<P>> for SliceMutP<'a, P> {
     fn from(v: &'a mut FpVectorP<P>) -> Self {
         v.slice_mut(0, v.dimension)
     }
 }
 
-impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
-    fn slice_mut(&mut self, start: usize, end: usize) -> SliceP<&'_ mut [u64], P> {
-        assert!(start <= end && end <= self.dimension());
+impl<'a, const P: u32> SliceMutP<'a, P> {
+    fn slice_mut(&mut self, start: usize, end: usize) -> SliceMutP<'_, P> {
+        assert!(start <= end && end <= self.as_slice().dimension());
 
-        SliceP {
+        SliceMutP {
             limbs: &mut *self.limbs,
             start: self.start + start,
             end: self.start + end,
         }
     }
+
+    #[inline]
+    fn as_slice(&self) -> SliceP<'_, P> {
+        SliceP {
+            limbs: &*self.limbs,
+            start: self.start,
+            end: self.start,
+        }
+    }
 }
 
-impl<T: Deref<Target = [u64]>, const P: u32> SliceP<T, P> {
-    fn slice(&self, start: usize, end: usize) -> SliceP<&'_ [u64], P> {
+impl<'a, const P: u32> SliceP<'a, P> {
+    fn slice(&self, start: usize, end: usize) -> SliceP<'_, P> {
         assert!(start <= end && end <= self.dimension());
 
         SliceP {
@@ -371,7 +390,8 @@ mod limb {
     }
 }
 
-impl<T: Deref<Target = [u64]>, const P: u32> SliceP<T, P> {
+// Public methods
+impl<'a, const P: u32> SliceP<'a, P> {
     pub fn prime(&self) -> ValidPrime {
         ValidPrime::new(P)
     }
@@ -396,12 +416,6 @@ impl<T: Deref<Target = [u64]>, const P: u32> SliceP<T, P> {
         result as u32
     }
 
-    fn offset(&self) -> usize {
-        let bit_length = bit_length(self.prime());
-        let entries_per_64_bits = entries_per_64_bits(self.prime());
-        (self.start % entries_per_64_bits) * bit_length
-    }
-
     /// TODO: implement prime 2 version
     pub fn iter(&self) -> FpVectorIterator {
         FpVectorIterator::new(self)
@@ -413,35 +427,16 @@ impl<T: Deref<Target = [u64]>, const P: u32> SliceP<T, P> {
     }
 }
 
-impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
-    pub fn add_basis_element(&mut self, index: usize, value: u32) {
-        let mut x = self.entry(index);
-        x += value;
-        x %= P;
-        self.set_entry(index, x);
+// Limb methods
+impl<'a, const P: u32> SliceP<'a, P> {
+    #[inline]
+    fn offset(&self) -> usize {
+        let bit_length = bit_length(self.prime());
+        let entries_per_64_bits = entries_per_64_bits(self.prime());
+        (self.start % entries_per_64_bits) * bit_length
     }
 
-    pub fn set_entry(&mut self, index: usize, value: u32) {
-        debug_assert!(index < self.dimension());
-        let p = self.prime();
-        let bit_mask = bitmask(p);
-        let limb_index = limb_bit_index_pair(p, index + self.start);
-        let mut result = self.limbs[limb_index.limb];
-        result &= !(bit_mask << limb_index.bit_index);
-        result |= (value as u64) << limb_index.bit_index;
-        self.limbs[limb_index.limb] = result;
-    }
-
-    fn reduce_limbs(&mut self) {
-        if P != 2 {
-            let (min_limb, max_limb) = limb::range::<P>(self.start, self.end);
-
-            for limb in &mut self.limbs[min_limb..max_limb] {
-                *limb = limb::reduce::<P>(*limb);
-            }
-        }
-    }
-
+    #[inline]
     fn limb_range(&self) -> (usize, usize) {
         limb::range::<P>(self.start, self.end)
     }
@@ -463,10 +458,44 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
         }
         mask
     }
+}
+
+impl<'a, const P: u32> SliceMutP<'a, P> {
+    pub fn prime(&self) -> ValidPrime {
+        ValidPrime::new(P)
+    }
+
+    pub fn add_basis_element(&mut self, index: usize, value: u32) {
+        let mut x = self.as_slice().entry(index);
+        x += value;
+        x %= P;
+        self.set_entry(index, x);
+    }
+
+    pub fn set_entry(&mut self, index: usize, value: u32) {
+        debug_assert!(index < self.as_slice().dimension());
+        let p = self.prime();
+        let bit_mask = bitmask(p);
+        let limb_index = limb_bit_index_pair(p, index + self.start);
+        let mut result = self.limbs[limb_index.limb];
+        result &= !(bit_mask << limb_index.bit_index);
+        result |= (value as u64) << limb_index.bit_index;
+        self.limbs[limb_index.limb] = result;
+    }
+
+    fn reduce_limbs(&mut self) {
+        if P != 2 {
+            let (min_limb, max_limb) = self.as_slice().limb_range();
+
+            for limb in &mut self.limbs[min_limb..max_limb] {
+                *limb = limb::reduce::<P>(*limb);
+            }
+        }
+    }
 
     pub fn scale(&mut self, c: u32) {
         let c = c as u64;
-        let (min_limb, max_limb) = self.limb_range();
+        let (min_limb, max_limb) = self.as_slice().limb_range();
         if min_limb == max_limb {
             return;
         }
@@ -476,7 +505,7 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
         }
         // min_limb
         {
-            let mask = self.limb_mask(min_limb);
+            let mask = self.as_slice().limb_mask(min_limb);
             let limb = self.limbs[min_limb];
             let masked_limb = limb & mask;
             let rest_limb = limb & !mask;
@@ -484,7 +513,7 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
         }
         // max_limb
         if max_limb > min_limb + 1 {
-            let mask = self.limb_mask(max_limb - 1);
+            let mask = self.as_slice().limb_mask(max_limb - 1);
             let full_limb = self.limbs[max_limb - 1];
             let masked_limb = full_limb & mask;
             let rest_limb = full_limb & !mask;
@@ -494,17 +523,347 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
     }
 
     pub fn set_to_zero(&mut self) {
-        let (min_limb, max_limb) = self.limb_range();
+        let (min_limb, max_limb) = self.as_slice().limb_range();
         if min_limb == max_limb {
             return;
         }
         for limb in &mut self.limbs[min_limb + 1..max_limb - 1] {
             *limb = 0;
         }
-        self.limbs[min_limb] &= !self.limb_mask(min_limb);
+        self.limbs[min_limb] &= !self.as_slice().limb_mask(min_limb);
         if max_limb > min_limb + 1 {
-            self.limbs[max_limb - 1] &= !self.limb_mask(max_limb - 1);
+            self.limbs[max_limb - 1] &= !self.as_slice().limb_mask(max_limb - 1);
         }
+    }
+
+    pub fn add(&mut self, other: SliceP<'_, P>, c: u32) {
+        debug_assert!(c < P);
+        if self.as_slice().dimension() == 0 {
+            return;
+        }
+
+        match self.as_slice().offset().cmp(&other.offset()) {
+            Ordering::Equal => self.add_shift_none(other, c),
+            Ordering::Less => self.add_shift_left(other, c),
+            Ordering::Greater => self.add_shift_right(other, c),
+        };
+    }
+
+    /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
+    pub fn add_shift_none(&mut self, other: SliceP<'_, P>, c: u32) {
+        let dat = AddShiftNoneData::new(self.as_slice(), other);
+        let mut i = 0;
+        {
+            self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+                self.limbs[i + dat.min_target_limb],
+                dat.mask_first_limb(other, i + dat.min_source_limb),
+                c,
+            );
+            self.limbs[i + dat.min_target_limb] =
+                limb::reduce::<P>(self.limbs[i + dat.min_target_limb]);
+        }
+        for i in 1..dat.number_of_limbs - 1 {
+            self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+                self.limbs[i + dat.min_target_limb],
+                dat.mask_middle_limb(other, i + dat.min_source_limb),
+                c,
+            );
+            self.limbs[i + dat.min_target_limb] =
+                limb::reduce::<P>(self.limbs[i + dat.min_target_limb]);
+        }
+        i = dat.number_of_limbs - 1;
+        if i > 0 {
+            self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+                self.limbs[i + dat.min_target_limb],
+                dat.mask_last_limb(other, i + dat.min_source_limb),
+                c,
+            );
+            self.limbs[i + dat.min_target_limb] =
+                limb::reduce::<P>(self.limbs[i + dat.min_target_limb]);
+        }
+    }
+
+    fn add_shift_left(&mut self, other: SliceP<'_, P>, c: u32) {
+        let dat = AddShiftLeftData::new(self.as_slice(), other);
+        let mut i = 0;
+        {
+            self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+                self.limbs[i + dat.min_target_limb],
+                dat.mask_first_limb(other, i + dat.min_source_limb),
+                c,
+            );
+        }
+        for i in 1..dat.number_of_source_limbs - 1 {
+            self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+                self.limbs[i + dat.min_target_limb],
+                dat.mask_middle_limb_a(other, i + dat.min_source_limb),
+                c,
+            );
+            self.limbs[i + dat.min_target_limb - 1] = limb::add::<P>(
+                self.limbs[i + dat.min_target_limb - 1],
+                dat.mask_middle_limb_b(other, i + dat.min_source_limb),
+                c,
+            );
+            self.limbs[i + dat.min_target_limb - 1] =
+                limb::reduce::<P>(self.limbs[i + dat.min_target_limb - 1]);
+        }
+        i = dat.number_of_source_limbs - 1;
+        if i > 0 {
+            self.limbs[i + dat.min_target_limb - 1] = limb::add::<P>(
+                self.limbs[i + dat.min_target_limb - 1],
+                dat.mask_last_limb_a(other, i + dat.min_source_limb),
+                c,
+            );
+            self.limbs[i + dat.min_target_limb - 1] =
+                limb::reduce::<P>(self.limbs[i + dat.min_target_limb - 1]);
+            if dat.number_of_source_limbs == dat.number_of_target_limbs {
+                self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+                    self.limbs[i + dat.min_target_limb],
+                    dat.mask_last_limb_b(other, i + dat.min_source_limb),
+                    c,
+                );
+                self.limbs[i + dat.min_target_limb] =
+                    limb::reduce::<P>(self.limbs[i + dat.min_target_limb]);
+            }
+        } else {
+            self.limbs[i + dat.min_target_limb] =
+                limb::reduce::<P>(self.limbs[i + dat.min_target_limb]);
+        }
+    }
+
+    fn add_shift_right(&mut self, other: SliceP<'_, P>, c: u32) {
+        let dat = AddShiftRightData::new(self.as_slice(), other);
+        let mut i = 0;
+        {
+            self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+                self.limbs[i + dat.min_target_limb],
+                dat.mask_first_limb_a(other, i + dat.min_source_limb),
+                c,
+            );
+            self.limbs[i + dat.min_target_limb] =
+                limb::reduce::<P>(self.limbs[i + dat.min_target_limb]);
+            if dat.number_of_target_limbs > 1 {
+                self.limbs[i + dat.min_target_limb + 1] = limb::add::<P>(
+                    self.limbs[i + dat.min_target_limb + 1],
+                    dat.mask_first_limb_b(other, i + dat.min_source_limb),
+                    c,
+                );
+            }
+        }
+        for i in 1..dat.number_of_source_limbs - 1 {
+            self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+                self.limbs[i + dat.min_target_limb],
+                dat.mask_middle_limb_a(other, i + dat.min_source_limb),
+                c,
+            );
+            self.limbs[i + dat.min_target_limb] =
+                limb::reduce::<P>(self.limbs[i + dat.min_target_limb]);
+            self.limbs[i + dat.min_target_limb + 1] = limb::add::<P>(
+                self.limbs[i + dat.min_target_limb + 1],
+                dat.mask_middle_limb_b(other, i + dat.min_source_limb),
+                c,
+            );
+        }
+        i = dat.number_of_source_limbs - 1;
+        if i > 0 {
+            self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+                self.limbs[i + dat.min_target_limb],
+                dat.mask_last_limb_a(other, i + dat.min_source_limb),
+                c,
+            );
+            self.limbs[i + dat.min_target_limb] =
+                limb::reduce::<P>(self.limbs[i + dat.min_target_limb]);
+            if dat.number_of_target_limbs > dat.number_of_source_limbs {
+                self.limbs[i + dat.min_target_limb + 1] = limb::add::<P>(
+                    self.limbs[i + dat.min_target_limb + 1],
+                    dat.mask_last_limb_b(other, i + dat.min_source_limb),
+                    c,
+                );
+            }
+        }
+    }
+}
+
+struct AddShiftNoneData {
+    min_source_limb: usize,
+    min_target_limb: usize,
+    number_of_limbs: usize,
+}
+
+impl AddShiftNoneData {
+    fn new<const P: u32>(target: SliceP<'_, P>, source: SliceP<'_, P>) -> Self {
+        debug_assert_eq!(target.prime(), source.prime());
+        debug_assert_eq!(target.offset(), source.offset());
+        debug_assert_eq!(
+            target.dimension(),
+            source.dimension(),
+            "Adding vectors of different dimensions"
+        );
+        let (min_target_limb, max_target_limb) = target.limb_range();
+        let (min_source_limb, max_source_limb) = source.limb_range();
+        debug_assert!(max_source_limb - min_source_limb == max_target_limb - min_target_limb);
+        let number_of_limbs = max_source_limb - min_source_limb;
+        Self {
+            min_target_limb,
+            min_source_limb,
+            number_of_limbs,
+        }
+    }
+
+    fn mask_first_limb<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
+        other.limbs[i] & other.limb_mask(i)
+    }
+
+    fn mask_middle_limb<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
+        other.limbs[i]
+    }
+
+    fn mask_last_limb<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
+        other.limbs[i] & other.limb_mask(i)
+    }
+}
+
+struct AddShiftLeftData {
+    offset_shift: usize,
+    tail_shift: usize,
+    zero_bits: usize,
+    min_source_limb: usize,
+    min_target_limb: usize,
+    number_of_source_limbs: usize,
+    number_of_target_limbs: usize,
+}
+
+impl AddShiftLeftData {
+    fn new<const P: u32>(target: SliceP<'_, P>, source: SliceP<'_, P>) -> Self {
+        debug_assert!(target.prime() == source.prime());
+        debug_assert!(target.offset() <= source.offset());
+        debug_assert!(
+            target.dimension() == source.dimension(),
+            "self.dim {} not equal to other.dim {}",
+            target.dimension(),
+            source.dimension()
+        );
+        let p = target.prime();
+        let offset_shift = source.offset() - target.offset();
+        let bit_length = bit_length(p);
+        let entries_per_64_bits = entries_per_64_bits(p);
+        let usable_bits_per_limb = bit_length * entries_per_64_bits;
+        let tail_shift = usable_bits_per_limb - offset_shift;
+        let zero_bits = 64 - usable_bits_per_limb;
+        let (min_target_limb, max_target_limb) = target.limb_range();
+        let (min_source_limb, max_source_limb) = source.limb_range();
+        let number_of_source_limbs = max_source_limb - min_source_limb;
+        let number_of_target_limbs = max_target_limb - min_target_limb;
+
+        Self {
+            offset_shift,
+            tail_shift,
+            zero_bits,
+            min_source_limb,
+            min_target_limb,
+            number_of_source_limbs,
+            number_of_target_limbs,
+        }
+    }
+
+    fn mask_first_limb<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
+        (other.limbs[self.min_source_limb + i] & other.limb_mask(i)) >> self.offset_shift
+    }
+
+    fn mask_middle_limb_a<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
+        other.limbs[i + self.min_source_limb] >> self.offset_shift
+    }
+
+    fn mask_middle_limb_b<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
+        (other.limbs[i + self.min_source_limb] << (self.tail_shift + self.zero_bits))
+            >> self.zero_bits
+    }
+
+    fn mask_last_limb_a<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
+        let mask = other.limb_mask(i);
+        let source_limb_masked = other.limbs[self.min_source_limb + i] & mask;
+        source_limb_masked << self.tail_shift
+    }
+
+    fn mask_last_limb_b<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
+        let mask = other.limb_mask(i);
+        let source_limb_masked = other.limbs[self.min_source_limb + i] & mask;
+        source_limb_masked >> self.offset_shift
+    }
+}
+
+struct AddShiftRightData {
+    offset_shift: usize,
+    tail_shift: usize,
+    zero_bits: usize,
+    min_source_limb: usize,
+    min_target_limb: usize,
+    number_of_source_limbs: usize,
+    number_of_target_limbs: usize,
+}
+
+impl AddShiftRightData {
+    fn new<const P: u32>(target: SliceP<'_, P>, source: SliceP<'_, P>) -> Self {
+        debug_assert!(target.prime() == source.prime());
+        debug_assert!(target.offset() >= source.offset());
+        debug_assert!(
+            target.dimension() == source.dimension(),
+            "self.dim {} not equal to other.dim {}",
+            target.dimension(),
+            source.dimension()
+        );
+        let p = target.prime();
+        let offset_shift = target.offset() - source.offset();
+        let bit_length = bit_length(p);
+        let entries_per_64_bits = entries_per_64_bits(p);
+        let usable_bits_per_limb = bit_length * entries_per_64_bits;
+        let tail_shift = usable_bits_per_limb - offset_shift;
+        let zero_bits = 64 - usable_bits_per_limb;
+        let (min_target_limb, max_target_limb) = target.limb_range();
+        let (min_source_limb, max_source_limb) = source.limb_range();
+        let number_of_source_limbs = max_source_limb - min_source_limb;
+        let number_of_target_limbs = max_target_limb - min_target_limb;
+        Self {
+            offset_shift,
+            tail_shift,
+            zero_bits,
+            min_source_limb,
+            min_target_limb,
+            number_of_source_limbs,
+            number_of_target_limbs,
+        }
+    }
+
+    fn mask_first_limb_a<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
+        let mask = other.limb_mask(i);
+        let source_limb_masked = other.limbs[i] & mask;
+        (source_limb_masked << (self.offset_shift + self.zero_bits)) >> self.zero_bits
+    }
+
+    fn mask_first_limb_b<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
+        let mask = other.limb_mask(i);
+        let source_limb_masked = other.limbs[i] & mask;
+        source_limb_masked >> self.tail_shift
+    }
+
+    fn mask_middle_limb_a<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
+        (other.limbs[i] << (self.offset_shift + self.zero_bits)) >> self.zero_bits
+    }
+
+    fn mask_middle_limb_b<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
+        other.limbs[i] >> self.tail_shift
+    }
+
+    fn mask_last_limb_a<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
+        let mask = other.limb_mask(i);
+        let source_limb_masked = other.limbs[i] & mask;
+        source_limb_masked << self.offset_shift
+    }
+
+    fn mask_last_limb_b<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
+        let mask = other.limb_mask(i);
+        let source_limb_masked = other.limbs[i] & mask;
+        source_limb_masked >> self.tail_shift
     }
 }
 
@@ -539,7 +898,7 @@ pub struct FpVectorIterator<'a> {
 }
 
 impl<'a> FpVectorIterator<'a> {
-    fn new<T: Deref<Target = [u64]>, const P: u32>(vec: &'a SliceP<T, P>) -> Self {
+    fn new<const P: u32>(vec: &SliceP<'a, P>) -> Self {
         let counter = vec.dimension();
         let limbs = &vec.limbs;
 
@@ -649,6 +1008,39 @@ macro_rules! dispatch_vector_inner {
             }
         }
     };
+    ($vis:vis fn $method:ident(&mut self, other: $other:tt $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
+        $vis fn $method(&mut self, other: $other, $($arg: $ty),* ) $(-> $ret)* {
+            match (self, other) {
+                (Self::_2(ref mut x), $other::_2(y)) => x.$method(y, $($arg),*),
+                (Self::_3(ref mut x), $other::_3(y)) => x.$method(y, $($arg),*),
+                (Self::_5(ref mut x), $other::_5(y)) => x.$method(y, $($arg),*),
+                (Self::_7(ref mut x), $other::_7(y)) => x.$method(y, $($arg),*),
+                (l, r) => {
+                    panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
+                }
+            }
+        }
+    };
+    ($vis:vis fn $method:ident(&mut self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {
+        $vis fn $method(&mut self, $($arg: $ty),* ) -> $ret {
+            match self {
+                Self::_2(ref mut x) => $ret::_2(x.$method($($arg),*)),
+                Self::_3(ref mut x) => $ret::_3(x.$method($($arg),*)),
+                Self::_5(ref mut x) => $ret::_5(x.$method($($arg),*)),
+                Self::_7(ref mut x) => $ret::_7(x.$method($($arg),*)),
+            }
+        }
+    };
+    ($vis:vis fn $method:ident(&self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {
+        $vis fn $method(&self, $($arg: $ty),* ) -> $ret {
+            match self {
+                Self::_2(ref x) => $ret::_2(x.$method($($arg),*)),
+                Self::_3(ref x) => $ret::_3(x.$method($($arg),*)),
+                Self::_5(ref x) => $ret::_5(x.$method($($arg),*)),
+                Self::_7(ref x) => $ret::_7(x.$method($($arg),*)),
+            }
+        }
+    };
     ($vis:vis fn $method:ident(&mut self $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
         $vis fn $method(&mut self, $($arg: $ty),* ) $(-> $ret)* {
             match self {
@@ -673,11 +1065,23 @@ macro_rules! dispatch_vector_inner {
 
 macro_rules! dispatch_vector {
     () => {};
-    ($vis:vis fn $method:ident $tt:tt $(-> $ret:ty)?; $($tail:tt)*) => {
+    ($vis:vis fn $method:ident $tt:tt $(-> $ret:tt)?; $($tail:tt)*) => {
         dispatch_vector_inner! {
             $vis fn $method $tt $(-> $ret)*
         }
         dispatch_vector!{$($tail)*}
+    }
+}
+
+macro_rules! match_p {
+    ($p:ident, $($val:tt)*) => {
+        match *$p {
+            2 => Self::_2($($val)*),
+            3 => Self::_3($($val)*),
+            5 => Self::_5($($val)*),
+            7 => Self::_7($($val)*),
+            _ => panic!("Prime not supported: {}", *$p)
+        }
     }
 }
 
@@ -689,20 +1093,28 @@ pub enum FpVector {
 }
 
 pub enum Slice<'a> {
-    _2(SliceP<&'a [u64], 2>),
-    _3(SliceP<&'a [u64], 3>),
-    _5(SliceP<&'a [u64], 5>),
-    _7(SliceP<&'a [u64], 7>),
+    _2(SliceP<'a, 2>),
+    _3(SliceP<'a, 3>),
+    _5(SliceP<'a, 5>),
+    _7(SliceP<'a, 7>),
 }
 
 pub enum SliceMut<'a> {
-    _2(SliceP<&'a mut [u64], 2>),
-    _3(SliceP<&'a mut [u64], 3>),
-    _5(SliceP<&'a mut [u64], 5>),
-    _7(SliceP<&'a mut [u64], 7>),
+    _2(SliceMutP<'a, 2>),
+    _3(SliceMutP<'a, 3>),
+    _5(SliceMutP<'a, 5>),
+    _7(SliceMutP<'a, 7>),
 }
 
 impl FpVector {
+    pub fn new(p: ValidPrime, dim: usize) -> FpVector {
+        match_p!(p, FpVectorP::new(dim))
+    }
+
+    pub fn from_slice(p: ValidPrime, slice: &[u32]) -> Self {
+        match_p!(p, FpVectorP::from(&slice))
+    }
+
     dispatch_vector! {
         pub fn prime(&self) -> u32;
         pub fn dimension(&self) -> usize;
@@ -710,6 +1122,11 @@ impl FpVector {
         pub fn set_to_zero(&mut self);
         pub fn entry(&self, index: usize) -> u32;
         pub fn assign(&mut self, other: &Self);
+        pub fn add(&mut self, other: &Self, c: u32);
+        pub fn slice(&self, start: usize, end: usize) -> (dispatch Slice);
+        pub fn as_slice(&self) -> (dispatch Slice);
+        pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch SliceMut);
+        pub fn as_slice_mut(&mut self) -> (dispatch SliceMut);
     }
 }
 
@@ -725,18 +1142,114 @@ impl<'a> Slice<'a> {
 impl<'a> SliceMut<'a> {
     dispatch_vector! {
         pub fn prime(&self) -> ValidPrime;
-        pub fn dimension(&self) -> usize;
-        pub fn entry(&self, index: usize) -> u32;
-        pub fn iter(&self) -> FpVectorIterator;
-
         pub fn scale(&mut self, c: u32);
         pub fn set_to_zero(&mut self);
+        pub fn add(&mut self, other: Slice, c: u32);
+    }
+}
+
+impl std::fmt::Display for FpVector {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "[{}]", self.as_slice().iter().join(", "))?;
+        Ok(())
+    }
+}
+
+pub struct VectorDiffEntry {
+    pub index: usize,
+    pub left: u32,
+    pub right: u32,
+}
+
+impl FpVector {
+    pub fn diff_list(&self, other: &[u32]) -> Vec<VectorDiffEntry> {
+        assert!(self.dimension() == other.len());
+        let mut result = Vec::new();
+        #[allow(clippy::needless_range_loop)]
+        for index in 0..self.dimension() {
+            let left = self.entry(index);
+            let right = other[index];
+            if left != right {
+                result.push(VectorDiffEntry { index, left, right });
+            }
+        }
+        result
+    }
+
+    pub fn diff_vec(&self, other: &FpVector) -> Vec<VectorDiffEntry> {
+        assert!(self.dimension() == other.dimension());
+        let mut result = Vec::new();
+        for index in 0..self.dimension() {
+            let left = self.entry(index);
+            let right = other.entry(index);
+            if left != right {
+                result.push(VectorDiffEntry { index, left, right });
+            }
+        }
+        result
+    }
+
+    pub fn format_diff(diff: Vec<VectorDiffEntry>) -> String {
+        let data_formatter =
+            diff.iter()
+                .format_with("\n ", |VectorDiffEntry { index, left, right }, f| {
+                    f(&format_args!("  At index {}: {}!={}", index, left, right))
+                });
+        format!("{}", data_formatter)
+    }
+
+    pub fn assert_list_eq(&self, other: &[u32]) {
+        let diff = self.diff_list(other);
+        if diff.is_empty() {
+            return;
+        }
+        println!("assert {} == {:?}", self, other);
+        println!("{}", FpVector::format_diff(diff));
+    }
+
+    pub fn assert_vec_eq(&self, other: &FpVector) {
+        let diff = self.diff_vec(other);
+        if diff.is_empty() {
+            return;
+        }
+        println!("assert {} == {}", self, other);
+        println!("{}", FpVector::format_diff(diff));
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use rand::Rng;
+    use rstest::rstest;
+
+    fn random_vector(p: u32, dimension: usize) -> Vec<u32> {
+        let mut result = Vec::with_capacity(dimension);
+        let mut rng = rand::thread_rng();
+        for _ in 0..dimension {
+            result.push(rng.gen::<u32>() % p);
+        }
+        result
+    }
+
+    #[rstest(p, case(2), case(3), case(5))] //, case(7))]
+    fn test_add(p: u32) {
+        let p_ = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p_);
+        for &dim in &[10, 20, 70, 100, 1000] {
+            println!("p: {}, dim: {}", p, dim);
+            let mut v_arr = random_vector(p, dim);
+            let w_arr = random_vector(p, dim);
+            let mut v = FpVector::from_slice(p_, &v_arr);
+            let w = FpVector::from_slice(p_, &w_arr);
+
+            v.add(&w, 1);
+            for i in 0..dim {
+                v_arr[i] = (v_arr[i] + w_arr[i]) % p;
+            }
+            v.assert_list_eq(&v_arr);
+        }
+    }
 
     #[test]
     fn test_slice_add_basis() {
