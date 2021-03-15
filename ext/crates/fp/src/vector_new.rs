@@ -347,6 +347,17 @@ mod limb {
             limb_bit_index_pair(ValidPrime::new(P), dim - 1).limb + 1
         }
     }
+
+    pub fn range<const P: u32>(start: usize, end: usize) -> (usize, usize) {
+        let p = ValidPrime::new(P);
+        let min = limb_bit_index_pair(p, start).limb;
+        let max = if end > 0 {
+            limb_bit_index_pair(p, end - 1).limb + 1
+        } else {
+            0
+        };
+        (min, max)
+    }
 }
 
 impl<T: Deref<Target = [u64]>, const P: u32> SliceP<T, P> {
@@ -377,18 +388,16 @@ impl<T: Deref<Target = [u64]>, const P: u32> SliceP<T, P> {
     fn offset(&self) -> usize {
         let bit_length = bit_length(self.prime());
         let entries_per_64_bits = entries_per_64_bits(self.prime());
-        (self.start * bit_length) % (bit_length * entries_per_64_bits)
+        (self.start % entries_per_64_bits) * bit_length
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = u32> {
-        todo!();
-        // This is needed so that iter can determine the return time
-        #[allow(unreachable_code)]
-        (&[0u32]).iter().copied()
+    /// TODO: implement prime 2 version
+    pub fn iter(&'_ self) -> impl Iterator<Item = u32> + '_ {
+        FpVectorIterator::new(self)
     }
 
     /// TODO: improve efficiency?
-    pub fn iter_nonzero(&self) -> impl Iterator<Item = (usize, u32)> {
+    pub fn iter_nonzero(&'_ self) -> impl Iterator<Item = (usize, u32)> + '_ {
         self.iter().enumerate().filter(|&(_, x)| x != 0)
     }
 }
@@ -414,8 +423,7 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
 
     fn reduce_limbs(&mut self) {
         if P != 2 {
-            let min_limb = self.min_limb();
-            let max_limb = self.max_limb();
+            let (min_limb, max_limb) = limb::range::<P>(self.start, self.end);
 
             for limb in &mut self.limbs[min_limb..max_limb] {
                 *limb = limb::reduce::<P>(*limb);
@@ -423,37 +431,23 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
         }
     }
 
-    fn min_limb(&self) -> usize {
-        limb_bit_index_pair(self.prime(), self.start).limb
-    }
-
-    /// TODO: benchmark to see if saturating_sub is faster
-    fn max_limb(&self) -> usize {
-        if self.end > 0 {
-            limb_bit_index_pair(self.prime(), self.end - 1).limb + 1
-        } else {
-            0
-        }
+    fn limb_range(&self) -> (usize, usize) {
+        limb::range::<P>(self.start, self.end)
     }
 
     #[inline(always)]
     fn limb_mask(&self, limb_idx: usize) -> u64 {
         let offset = self.offset();
-        let min_limb = self.min_limb();
-        let max_limb = self.max_limb();
-        let number_of_limbs = max_limb - min_limb;
+        let (min_limb, max_limb) = self.limb_range();
         let mut mask = !0;
-        if limb_idx == 0 {
+        if limb_idx == min_limb {
             mask <<= offset;
         }
-        if limb_idx + 1 == number_of_limbs {
+        if limb_idx + 1 == max_limb {
             let p = self.prime();
-            let dimension = self.dimension();
-            let bit_length = bit_length(p);
-            let entries_per_64_bits = entries_per_64_bits(p);
-            let bits_needed_for_entire_vector = offset + dimension * bit_length;
-            let usable_bits_per_limb = bit_length * entries_per_64_bits;
-            let bit_max = 1 + ((bits_needed_for_entire_vector - 1) % (usable_bits_per_limb));
+            let num_entries = 1 + (self.end - 1) % entries_per_64_bits(p);
+            let bit_max = num_entries * bit_length(p);
+
             mask &= (!0) >> (64 - bit_max);
         }
         mask
@@ -461,40 +455,40 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
 
     pub fn scale(&mut self, c: u32) {
         let c = c as u64;
-        let min_limb = self.min_limb();
-        let max_limb = self.max_limb();
-        let number_of_limbs = max_limb - min_limb;
-        if number_of_limbs == 0 {
+        let (min_limb, max_limb) = self.limb_range();
+        if min_limb == max_limb {
             return;
         }
-        for i in 1..number_of_limbs - 1 {
-            self.limbs[i + min_limb] *= c;
+        // middle limbs
+        for limb in &mut self.limbs[min_limb + 1..max_limb - 1] {
+            *limb *= c;
         }
-        let mut i = 0;
+        // min_limb
         {
-            let mask = self.limb_mask(i);
-            let full_limb = self.limbs[min_limb + i];
-            let masked_limb = full_limb & mask;
-            let rest_limb = full_limb & !mask;
-            self.limbs[i + min_limb] = (masked_limb * c) | rest_limb;
+            let mask = self.limb_mask(min_limb);
+            let limb = self.limbs[min_limb];
+            let masked_limb = limb & mask;
+            let rest_limb = limb & !mask;
+            self.limbs[min_limb] = (masked_limb * c) | rest_limb;
         }
-        i = number_of_limbs - 1;
-        if i > 0 {
-            let mask = self.limb_mask(i);
-            let full_limb = self.limbs[min_limb + i];
+        // max_limb
+        if max_limb > min_limb + 1 {
+            let mask = self.limb_mask(max_limb - 1);
+            let full_limb = self.limbs[max_limb - 1];
             let masked_limb = full_limb & mask;
             let rest_limb = full_limb & !mask;
-            self.limbs[i + min_limb] = (masked_limb * c) | rest_limb;
+            self.limbs[max_limb - 1] = (masked_limb * c) | rest_limb;
         }
         self.reduce_limbs();
     }
 }
 
-impl<const P: u32> From<&[u32]> for FpVectorP<P> {
-    fn from(slice: &[u32]) -> Self {
+impl<T: AsRef<[u32]>, const P: u32> From<&T> for FpVectorP<P> {
+    fn from(slice: &T) -> Self {
         Self {
-            dimension: slice.len(),
+            dimension: slice.as_ref().len(),
             limbs: slice
+                .as_ref()
                 .chunks(entries_per_64_bits(ValidPrime::new(P)))
                 .map(|x| limb::pack::<_, P>(x.iter().copied()))
                 .collect(),
@@ -505,6 +499,112 @@ impl<const P: u32> From<&[u32]> for FpVectorP<P> {
 impl<const P: u32> From<FpVectorP<P>> for Vec<u32> {
     fn from(vec: FpVectorP<P>) -> Vec<u32> {
         vec.as_slice().iter().collect()
+    }
+}
+
+pub struct FpVectorIterator<'a> {
+    limbs: &'a [u64],
+    bit_length: usize,
+    bit_mask: u64,
+    entries_per_64_bits_m_1: usize,
+    limb_index: usize,
+    entries_left: usize,
+    cur_limb: u64,
+    counter: usize,
+}
+
+impl<'a> FpVectorIterator<'a> {
+    fn new<T: Deref<Target = [u64]>, const P: u32>(vec: &'a SliceP<T, P>) -> Self {
+        let counter = vec.dimension();
+        let limbs = &vec.limbs;
+
+        if counter == 0 {
+            return Self {
+                limbs,
+                bit_length: 0,
+                entries_per_64_bits_m_1: 0,
+                bit_mask: 0,
+                limb_index: 0,
+                entries_left: 0,
+                cur_limb: 0,
+                counter,
+            };
+        }
+        let p = vec.prime();
+
+        let pair = limb_bit_index_pair(p, vec.start);
+
+        let bit_length = bit_length(p);
+        let cur_limb = limbs[pair.limb] >> pair.bit_index;
+
+        let entries_per_64_bits = entries_per_64_bits(p);
+        Self {
+            limbs,
+            bit_length,
+            entries_per_64_bits_m_1: entries_per_64_bits - 1,
+            bit_mask: bitmask(p),
+            limb_index: pair.limb,
+            entries_left: entries_per_64_bits - (vec.start % entries_per_64_bits),
+            cur_limb,
+            counter,
+        }
+    }
+
+    pub fn skip_n(&mut self, mut n: usize) {
+        if n >= self.counter {
+            self.counter = 0;
+            return;
+        }
+        let entries_per_64_bits = self.entries_per_64_bits_m_1 + 1;
+        if n < self.entries_left {
+            self.entries_left -= n;
+            self.counter -= n;
+            self.cur_limb >>= self.bit_length * n;
+            return;
+        }
+
+        n -= self.entries_left;
+        self.counter -= self.entries_left;
+        self.entries_left = 0;
+
+        let skip_limbs = n / entries_per_64_bits;
+        self.limb_index += skip_limbs;
+        self.counter -= skip_limbs * entries_per_64_bits;
+        n -= skip_limbs * entries_per_64_bits;
+
+        if n > 0 {
+            self.entries_left = entries_per_64_bits - n;
+            self.limb_index += 1;
+            self.cur_limb = self.limbs[self.limb_index] >> (n * self.bit_length);
+            self.counter -= n;
+        }
+    }
+}
+
+impl<'a> Iterator for FpVectorIterator<'a> {
+    type Item = u32;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.counter == 0 {
+            return None;
+        } else if self.entries_left == 0 {
+            self.limb_index += 1;
+            self.cur_limb = self.limbs[self.limb_index];
+            self.entries_left = self.entries_per_64_bits_m_1;
+        } else {
+            self.entries_left -= 1;
+        }
+
+        let result = (self.cur_limb & self.bit_mask) as u32;
+        self.counter -= 1;
+        self.cur_limb >>= self.bit_length;
+
+        Some(result)
+    }
+}
+
+impl<'a> ExactSizeIterator for FpVectorIterator<'a> {
+    fn len(&self) -> usize {
+        self.counter
     }
 }
 
@@ -544,6 +644,32 @@ mod test {
 
         assert_eq!(slice2.entry(0), 1);
         assert_eq!(slice2.entry(3), 1);
+    }
+
+    #[test]
+    fn test_slice_scale() {
+        initialize_limb_bit_index_table(ValidPrime::new(7));
+
+        let mut v = vec![1, 2, 1, 1, 1, 1, 4, 2, 3, 5, 4, 2];
+        let mut w: FpVectorP<7> = (&v).into();
+        w.slice_mut(1, 11).scale(2);
+        for entry in &mut v[1..11] {
+            *entry *= 2;
+            *entry %= 7;
+        }
+        assert_eq!(Vec::<u32>::from(w), v);
+    }
+
+    #[test]
+    fn test_iterator() {
+        initialize_limb_bit_index_table(ValidPrime::new(7));
+
+        let v = vec![1, 2, 1, 1, 1, 1, 4, 2, 3, 5, 4, 2];
+        let w: FpVectorP<7> = (&v).into();
+
+        for (i, entry) in w.as_slice().iter().enumerate() {
+            assert_eq!(v[i], entry);
+        }
     }
 
     #[test]
