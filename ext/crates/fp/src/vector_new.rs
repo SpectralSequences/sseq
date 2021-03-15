@@ -403,12 +403,12 @@ impl<T: Deref<Target = [u64]>, const P: u32> SliceP<T, P> {
     }
 
     /// TODO: implement prime 2 version
-    pub fn iter(&'_ self) -> impl Iterator<Item = u32> + '_ {
+    pub fn iter(&self) -> FpVectorIterator {
         FpVectorIterator::new(self)
     }
 
-    /// TODO: improve efficiency?
-    pub fn iter_nonzero(&'_ self) -> impl Iterator<Item = (usize, u32)> + '_ {
+    /// TODO: We need a custom implementation for dispatch
+    pub fn iter_nonzero(&self) -> impl Iterator<Item = (usize, u32)> + '_ {
         self.iter().enumerate().filter(|&(_, x)| x != 0)
     }
 }
@@ -633,13 +633,6 @@ impl<'a> ExactSizeIterator for FpVectorIterator<'a> {
     }
 }
 
-pub enum FpVector {
-    _2(FpVectorP<2>),
-    _3(FpVectorP<3>),
-    _5(FpVectorP<5>),
-    _7(FpVectorP<7>),
-}
-
 macro_rules! dispatch_vector_inner {
     // other is a type, but marking it as a :ty instead of :tt means we cannot use it to access its
     // enum variants.
@@ -656,7 +649,6 @@ macro_rules! dispatch_vector_inner {
             }
         }
     };
-
     ($vis:vis fn $method:ident(&mut self $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
         $vis fn $method(&mut self, $($arg: $ty),* ) $(-> $ret)* {
             match self {
@@ -689,13 +681,56 @@ macro_rules! dispatch_vector {
     }
 }
 
+pub enum FpVector {
+    _2(FpVectorP<2>),
+    _3(FpVectorP<3>),
+    _5(FpVectorP<5>),
+    _7(FpVectorP<7>),
+}
+
+pub enum Slice<'a> {
+    _2(SliceP<&'a [u64], 2>),
+    _3(SliceP<&'a [u64], 3>),
+    _5(SliceP<&'a [u64], 5>),
+    _7(SliceP<&'a [u64], 7>),
+}
+
+pub enum SliceMut<'a> {
+    _2(SliceP<&'a mut [u64], 2>),
+    _3(SliceP<&'a mut [u64], 3>),
+    _5(SliceP<&'a mut [u64], 5>),
+    _7(SliceP<&'a mut [u64], 7>),
+}
+
 impl FpVector {
     dispatch_vector! {
         pub fn prime(&self) -> u32;
+        pub fn dimension(&self) -> usize;
         pub fn scale(&mut self, c: u32);
         pub fn set_to_zero(&mut self);
         pub fn entry(&self, index: usize) -> u32;
         pub fn assign(&mut self, other: &Self);
+    }
+}
+
+impl<'a> Slice<'a> {
+    dispatch_vector! {
+        pub fn prime(&self) -> ValidPrime;
+        pub fn dimension(&self) -> usize;
+        pub fn entry(&self, index: usize) -> u32;
+        pub fn iter(&self) -> FpVectorIterator;
+    }
+}
+
+impl<'a> SliceMut<'a> {
+    dispatch_vector! {
+        pub fn prime(&self) -> ValidPrime;
+        pub fn dimension(&self) -> usize;
+        pub fn entry(&self, index: usize) -> u32;
+        pub fn iter(&self) -> FpVectorIterator;
+
+        pub fn scale(&mut self, c: u32);
+        pub fn set_to_zero(&mut self);
     }
 }
 
