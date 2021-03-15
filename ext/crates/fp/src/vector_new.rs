@@ -274,7 +274,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
         SliceP {
             limbs: &*self.limbs,
             start: self.start,
-            end: self.start,
+            end: self.end,
         }
     }
 }
@@ -499,10 +499,6 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
         if min_limb == max_limb {
             return;
         }
-        // middle limbs
-        for limb in &mut self.limbs[min_limb + 1..max_limb - 1] {
-            *limb *= c;
-        }
         // min_limb
         {
             let mask = self.as_slice().limb_mask(min_limb);
@@ -511,8 +507,12 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
             let rest_limb = limb & !mask;
             self.limbs[min_limb] = (masked_limb * c) | rest_limb;
         }
-        // max_limb
+        // remaining limbs
         if max_limb > min_limb + 1 {
+            for limb in &mut self.limbs[min_limb + 1..max_limb - 1] {
+                *limb *= c;
+            }
+
             let mask = self.as_slice().limb_mask(max_limb - 1);
             let full_limb = self.limbs[max_limb - 1];
             let masked_limb = full_limb & mask;
@@ -527,11 +527,11 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
         if min_limb == max_limb {
             return;
         }
-        for limb in &mut self.limbs[min_limb + 1..max_limb - 1] {
-            *limb = 0;
-        }
         self.limbs[min_limb] &= !self.as_slice().limb_mask(min_limb);
         if max_limb > min_limb + 1 {
+            for limb in &mut self.limbs[min_limb + 1..max_limb - 1] {
+                *limb = 0;
+            }
             self.limbs[max_limb - 1] &= !self.as_slice().limb_mask(max_limb - 1);
         }
     }
@@ -880,8 +880,8 @@ impl<T: AsRef<[u32]>, const P: u32> From<&T> for FpVectorP<P> {
     }
 }
 
-impl<const P: u32> From<FpVectorP<P>> for Vec<u32> {
-    fn from(vec: FpVectorP<P>) -> Vec<u32> {
+impl<const P: u32> From<&FpVectorP<P>> for Vec<u32> {
+    fn from(vec: &FpVectorP<P>) -> Vec<u32> {
         vec.as_slice().iter().collect()
     }
 }
@@ -1296,7 +1296,8 @@ mod test {
             *entry *= 2;
             *entry %= 7;
         }
-        assert_eq!(Vec::<u32>::from(w), v);
+        assert_eq!(Vec::<u32>::from(&w), v);
+        w.slice_mut(1, 3).scale(2);
     }
 
     #[test]
