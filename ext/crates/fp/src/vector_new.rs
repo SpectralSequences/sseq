@@ -216,6 +216,13 @@ impl<const P: u32> FpVectorP<P> {
         self.reduce_limbs();
     }
 
+    pub fn assign(&mut self, other: Self) {
+        debug_assert_eq!(self.dimension(), other.dimension());
+        for (left, right) in self.limbs.iter_mut().zip(other.limbs.iter()) {
+            *left = *right;
+        }
+    }
+
     fn reduce_limbs(&mut self) {
         if P != 2 {
             for limb in &mut self.limbs {
@@ -480,6 +487,20 @@ impl<T: DerefMut<Target = [u64]>, const P: u32> SliceP<T, P> {
             self.limbs[max_limb - 1] = (masked_limb * c) | rest_limb;
         }
         self.reduce_limbs();
+    }
+
+    pub fn set_to_zero(&mut self) {
+        let (min_limb, max_limb) = self.limb_range();
+        if min_limb == max_limb {
+            return;
+        }
+        for limb in &mut self.limbs[min_limb + 1..max_limb - 1] {
+            *limb = 0;
+        }
+        self.limbs[min_limb] &= !self.limb_mask(min_limb);
+        if max_limb > min_limb + 1 {
+            self.limbs[max_limb - 1] &= !self.limb_mask(max_limb - 1);
+        }
     }
 }
 
