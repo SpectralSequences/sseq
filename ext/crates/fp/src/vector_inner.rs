@@ -126,6 +126,13 @@ impl<const P: u32> FpVectorP<P> {
         }
     }
 
+    pub(crate) fn from_limbs(dim: usize, limbs: Vec<u64>) -> Self {
+        Self {
+            dimension: dim,
+            limbs,
+        }
+    }
+
     pub const fn dimension(&self) -> usize {
         self.dimension
     }
@@ -235,6 +242,10 @@ impl<const P: u32> FpVectorP<P> {
                 *limb = limb::reduce::<P>(*limb);
             }
         }
+    }
+
+    pub(crate) fn limbs(&self) -> &[u64] {
+        &self.limbs
     }
 }
 

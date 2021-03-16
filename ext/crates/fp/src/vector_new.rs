@@ -1,6 +1,6 @@
 use crate::prime::ValidPrime;
 use crate::vector_inner::{
-    FpVectorIterator, FpVectorNonZeroIterator, FpVectorP, SliceMutP, SliceP,
+    entries_per_64_bits, FpVectorIterator, FpVectorNonZeroIterator, FpVectorP, SliceMutP, SliceP,
 };
 use itertools::Itertools;
 
@@ -64,6 +64,7 @@ macro_rules! dispatch_vector_inner {
         }
     };
     ($vis:vis fn $method:ident(&self $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
+        #[allow(unused_parens)]
         $vis fn $method(&self, $($arg: $ty),* ) $(-> $ret)* {
             match self {
                 Self::_2(ref x) => x.$method($($arg),*),
@@ -140,6 +141,10 @@ impl FpVector {
         match_p!(p, FpVectorP::from(&slice))
     }
 
+    fn from_limbs(p: ValidPrime, dim: usize, limbs: Vec<u64>) -> Self {
+        match_p!(p, FpVectorP::from_limbs(dim, limbs))
+    }
+
     dispatch_vector! {
         pub fn prime(&self) -> u32;
         pub fn dimension(&self) -> usize;
@@ -156,6 +161,8 @@ impl FpVector {
         pub fn is_zero(&self) -> bool;
         pub fn iter(&self) -> FpVectorIterator;
         pub fn iter_nonzero(&self) -> FpVectorNonZeroIterator;
+
+        fn limbs(&self) -> (&[u64]);
     }
 }
 
@@ -192,6 +199,44 @@ impl<'a> std::fmt::Display for Slice<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(f, "[{}]", self.iter().join(", "))?;
         Ok(())
+    }
+}
+
+use saveload::{Load, Save};
+use std::io;
+use std::io::{Read, Write};
+
+impl Save for FpVector {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
+        self.dimension().save(buffer)?;
+        for limb in self.limbs() {
+            limb.save(buffer)?;
+        }
+        Ok(())
+    }
+}
+
+impl Load for FpVector {
+    type AuxData = ValidPrime;
+
+    fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
+        let p = *p;
+
+        let dimension = usize::load(buffer, &())?;
+
+        if dimension == 0 {
+            return Ok(FpVector::new(p, 0));
+        }
+
+        let entries_per_64_bits = entries_per_64_bits(p);
+        let num_limbs = (dimension - 1) / entries_per_64_bits + 1;
+        let mut limbs: Vec<u64> = Vec::with_capacity(num_limbs);
+
+        for _ in 0..num_limbs {
+            limbs.push(u64::load(buffer, &())?);
+        }
+
+        Ok(FpVector::from_limbs(p, dimension, limbs))
     }
 }
 
