@@ -245,8 +245,8 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                 let mut dfx = FpVector::new(self.prime(), dfx_dim);
 
                 for (i, column) in new_generators.into_iter().enumerate() {
-                    complex_cur_differential.apply_to_basis_element(&mut dfx.as_slice_mut(), 1, t, column);
-                    quasi_inverse.apply(&mut matrix.row_segment(first_new_row + i, 1, 1), 1, dfx.as_slice());
+                    complex_cur_differential.apply_to_basis_element(dfx.as_slice_mut(), 1, t, column);
+                    quasi_inverse.apply(matrix.row_segment(first_new_row + i, 1, 1), 1, dfx.as_slice());
                     dfx.set_to_zero();
 
                     // Keep the rows we produced because we have to row reduce to re-compute

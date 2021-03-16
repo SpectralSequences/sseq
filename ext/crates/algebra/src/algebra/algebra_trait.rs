@@ -42,29 +42,29 @@ pub trait Algebra : Send + Sync + 'static {
     /// Computes the product `r * s` of the two basis elements, and *adds* the result to `result`.
     ///
     /// result is not required to be aligned.
-    fn multiply_basis_elements(&self, result : &mut SliceMut, coeff : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32);
+    fn multiply_basis_elements(&self, result : SliceMut, coeff : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32);
 
     /// result and s are not required to be aligned.
-    fn multiply_basis_element_by_element(&self, result : &mut SliceMut, coeff : u32, r_degree : i32, r_idx : usize, s_degree : i32, s : Slice, excess : i32){
+    fn multiply_basis_element_by_element(&self, mut result : SliceMut, coeff : u32, r_degree : i32, r_idx : usize, s_degree : i32, s : Slice, excess : i32){
         let p = self.prime();
         for (i, v) in s.iter_nonzero() {
-            self.multiply_basis_elements(result, (coeff * v) % *p, r_degree, r_idx, s_degree, i, excess);
+            self.multiply_basis_elements(result.copy(), (coeff * v) % *p, r_degree, r_idx, s_degree, i, excess);
         }
     }
 
     /// result and r are not required to be aligned.
-    fn multiply_element_by_basis_element(&self, result : &mut SliceMut, coeff : u32, r_degree : i32, r : Slice, s_degree : i32, s_idx : usize, excess : i32){
+    fn multiply_element_by_basis_element(&self, mut result : SliceMut, coeff : u32, r_degree : i32, r : Slice, s_degree : i32, s_idx : usize, excess : i32){
         let p = self.prime();
         for (i, v) in r.iter_nonzero() {
-            self.multiply_basis_elements(result, (coeff * v) % *p, r_degree, i, s_degree, s_idx, excess);
+            self.multiply_basis_elements(result.copy(), (coeff * v) % *p, r_degree, i, s_degree, s_idx, excess);
         }
     }
 
     /// result, r and s are not required to be aligned.
-    fn multiply_element_by_element(&self, result : &mut SliceMut, coeff : u32, r_degree : i32, r : Slice, s_degree : i32, s : Slice, excess : i32){
+    fn multiply_element_by_element(&self, mut result : SliceMut, coeff : u32, r_degree : i32, r : Slice, s_degree : i32, s : Slice, excess : i32){
         let p = self.prime();
         for (i, v) in s.iter_nonzero() {
-            self.multiply_element_by_basis_element(result, (coeff * v) % *p, r_degree, r, s_degree, i, excess);
+            self.multiply_element_by_basis_element(result.copy(), (coeff * v) % *p, r_degree, r, s_degree, i, excess);
         }
     }
 

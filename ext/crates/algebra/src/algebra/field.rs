@@ -43,7 +43,7 @@ impl Algebra for Field {
         if degree == 0 { 1 } else { 0 }
     }
 
-    fn multiply_basis_elements(&self, result : &mut SliceMut, coeff : u32, _r_degree : i32, _r_idx : usize, _s_degree: i32, _s_idx : usize, _excess : i32) {
+    fn multiply_basis_elements(&self, mut result : SliceMut, coeff : u32, _r_degree : i32, _r_idx : usize, _s_degree: i32, _s_idx : usize, _excess : i32) {
         result.add_basis_element(0, coeff)
     }
 

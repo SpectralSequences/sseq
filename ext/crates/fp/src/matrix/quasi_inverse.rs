@@ -33,7 +33,7 @@ impl QuasiInverse {
     ///  * `target` - The output vector
     ///  * `coeff` - The constant multiple above
     ///  * `input` - The input vector, expressed in the basis of the ambient space
-    pub fn apply(&self, target : &mut SliceMut, coeff : u32, input : Slice){
+    pub fn apply(&self, mut target : SliceMut, coeff : u32, input : Slice){
         let p = self.prime();
         let mut row = 0;
         let columns = input.dimension();

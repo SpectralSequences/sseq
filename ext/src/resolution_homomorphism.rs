@@ -112,7 +112,7 @@ where CC1: FreeChainComplex<Algebra = <CC2::Module as Module>::Algebra>,
                     "num_gens : {} greater than rows : {} hom_deg : {}, int_deg : {}",
                     num_gens, extra_images_matrix.rows(), input_homological_degree, input_internal_degree);
                 for k in 0 .. num_gens {
-                    target_chain_map.apply_quasi_inverse(&mut outputs_matrix[k].as_slice_mut(), output_internal_degree, extra_images_matrix[k].as_slice());
+                    target_chain_map.apply_quasi_inverse(outputs_matrix[k].as_slice_mut(), output_internal_degree, extra_images_matrix[k].as_slice());
                 }
             }
             return outputs_matrix;            
@@ -138,12 +138,12 @@ where CC1: FreeChainComplex<Algebra = <CC2::Module as Module>::Algebra>,
 
                 let extra_image_matrix = extra_images.as_mut().expect("Missing extra image rows");
                 target_chain_map.compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
-                target_chain_map.apply_quasi_inverse(&mut outputs_matrix[k].as_slice_mut(), output_internal_degree, extra_image_matrix[extra_image_row].as_slice());
+                target_chain_map.apply_quasi_inverse(outputs_matrix[k].as_slice_mut(), output_internal_degree, extra_image_matrix[extra_image_row].as_slice());
                 extra_image_row += 1;
             } else {
                 d_target.compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
-                f_prev.apply(&mut fdx_vector.as_slice_mut(), 1, input_internal_degree, dx_vector.as_slice());
-                d_target.apply_quasi_inverse(&mut outputs_matrix[k].as_slice_mut(), output_internal_degree, fdx_vector.as_slice());
+                f_prev.apply(fdx_vector.as_slice_mut(), 1, input_internal_degree, dx_vector.as_slice());
+                d_target.apply_quasi_inverse(outputs_matrix[k].as_slice_mut(), output_internal_degree, fdx_vector.as_slice());
                 fdx_vector.set_to_zero();
             }
         }
@@ -207,8 +207,8 @@ where M: Module<Algebra = SteenrodAlgebra>,
                 continue;
             }
             for j in 0 .. num_gens {
-                f.apply(&mut fx.as_slice_mut(), 1, t, source_chain_map.output(t, j).as_slice());
-                target_chain_map.apply_quasi_inverse(&mut outputs_matrix[j].as_slice_mut(), t + degree_shift, fx.as_slice());
+                f.apply(fx.as_slice_mut(), 1, t, source_chain_map.output(t, j).as_slice());
+                target_chain_map.apply_quasi_inverse(outputs_matrix[j].as_slice_mut(), t + degree_shift, fx.as_slice());
                 fx.set_to_zero();
             }
             g.add_generators_from_matrix_rows(&lock, t, outputs_matrix.as_slice_mut());
@@ -222,7 +222,7 @@ impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
 where CC1: FreeChainComplex,
       CC2: AugmentedChainComplex + FreeChainComplex<Algebra = CC1::Algebra>
 {
-    pub fn act(&self, result: &mut SliceMut, s: u32, t: i32, idx: usize) {
+    pub fn act(&self, mut result: SliceMut, s: u32, t: i32, idx: usize) {
         let source_s = s - self.homological_degree_shift;
         let source_t = t - self.internal_degree_shift;
 

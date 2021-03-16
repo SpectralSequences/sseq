@@ -98,19 +98,20 @@ fn limb_bit_index_pair(p: ValidPrime, idx: usize) -> LimbBitIndexPair {
     }
 }
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub struct FpVectorP<const P: u32> {
     dimension: usize,
     limbs: Vec<u64>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct SliceP<'a, const P: u32> {
     limbs: &'a [u64],
     start: usize,
     end: usize,
 }
 
+#[derive(Debug)]
 pub struct SliceMutP<'a, const P: u32> {
     limbs: &'a mut [u64],
     start: usize,
@@ -309,6 +310,16 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
             end: self.end,
         }
     }
+
+    /// Generates a version of itself with a shorter lifetime
+    #[inline]
+    pub fn copy(&mut self) -> SliceMutP<'_, P> {
+        SliceMutP {
+            limbs: &mut self.limbs,
+            start: self.start,
+            end: self.end,
+        }
+    }
 }
 
 impl<'a, const P: u32> SliceP<'a, P> {
@@ -316,9 +327,25 @@ impl<'a, const P: u32> SliceP<'a, P> {
         assert!(start <= end && end <= self.dimension());
 
         SliceP {
-            limbs: &*self.limbs,
+            limbs: &self.limbs,
             start: self.start + start,
             end: self.start + end,
+        }
+    }
+
+    /// Converts a slice to an owned FpVectorP. This assumes the start of the vector is aligned.
+    pub fn to_owned(&self) -> FpVectorP<P> {
+        debug_assert_eq!(self.start % entries_per_64_bits(self.prime()), 0);
+
+        let (min, max) = self.limb_range();
+        let mut limbs: Vec<u64> = self.limbs[min .. max].into();
+        if limbs.len() > 0 {
+            let len = limbs.len();
+            limbs[len - 1] &= self.limb_mask(max - 1);
+        }
+        FpVectorP {
+            dimension: self.dimension(),
+            limbs,
         }
     }
 }
@@ -602,6 +629,21 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
             Ordering::Less => self.add_shift_left(other, c),
             Ordering::Greater => self.add_shift_right(other, c),
         };
+    }
+
+    /// `coeff` need not be reduced mod p.
+    /// Adds v otimes w to self.
+    pub fn add_tensor(&mut self, offset : usize, coeff : u32, left : SliceP<P>, right : SliceP<P>) {
+        let right_dim = right.dimension();
+
+        // println!("v : {}, dim(v) : {}, slice: {:?}", left, left.dimension(), left.slice());
+        // println!(" debug v : {:?}", left);
+        for (i, v) in left.iter_nonzero() {
+            let entry = (v * coeff) % *self.prime();
+            // println!("   left_dim : {}, right_dim : {}, i : {}, v : {}", left.dimension(), right.dimension(), i, v);
+            // println!("   set slice: {} -- {} dimension: {}", offset + i * right_dim, offset + (i + 1) * right_dim, self.dimension());
+            self.slice_mut(offset + i * right_dim, offset + (i + 1) * right_dim).add(right, entry);
+        }
     }
 
     /// TODO: improve efficiency

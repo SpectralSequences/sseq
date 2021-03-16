@@ -39,7 +39,7 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
 
     fn apply_to_basis_element(
         &self,
-        result: &mut SliceMut,
+        result: SliceMut,
         coeff: u32,
         input_degree: i32,
         input_index: usize,
@@ -273,8 +273,8 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         //     );
         // }
 
-        for (i, mut row) in matrix.iter_mut().enumerate() {
-            self.apply_to_basis_element(&mut row, 1, degree, i);
+        for (i, row) in matrix.iter_mut().enumerate() {
+            self.apply_to_basis_element(row, 1, degree, i);
         }
     }
 

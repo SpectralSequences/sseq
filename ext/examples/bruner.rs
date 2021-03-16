@@ -97,7 +97,7 @@ use ext::{
 use fp::{
     matrix::Matrix,
     prime::ValidPrime,
-    vector::{FpVector, FpVectorT},
+    vector::FpVector,
 };
 use std::{
     fs::File,

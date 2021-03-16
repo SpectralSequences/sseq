@@ -58,7 +58,7 @@ impl<A : AdemAlgebraT> KFpn<A> {
         let right_idx = input_idx;
         let basis_filter = |_, _| true;
         self.adem_algebra().multiply_basis_elements_unstable(
-            &mut temp_vec, coeff,
+            temp_vec.as_slice_mut(), coeff,
             left_deg, left_idx, right_deg, right_idx,
             self.n, &basis_filter
         );
@@ -67,7 +67,7 @@ impl<A : AdemAlgebraT> KFpn<A> {
         if self.adem_algebra().generic && output_degree % 2 == 1 {
             for (idx, c) in temp_vec.iter_nonzero() {
                 let gen_index = self.exterior_monomials().gen_deg_idx_to_internal_idx(output_degree, idx);
-                mono.ext.set_to_zero_pure();
+                mono.ext.set_to_zero();
                 mono.ext.set_entry(gen_index, 1);
                 let poly_idx = self.monomial_to_index(&mono);
                 result.add_basis_element(poly_idx, c);
@@ -75,7 +75,7 @@ impl<A : AdemAlgebraT> KFpn<A> {
         } else {            
             for (idx, c) in temp_vec.iter_nonzero() {
                 let gen_index = self.polynomial_monomials().gen_deg_idx_to_internal_idx(output_degree, idx);
-                mono.poly.set_to_zero_pure();
+                mono.poly.set_to_zero();
                 mono.poly.set_entry(gen_index, 1);
                 let poly_idx = self.monomial_to_index(&mono);
                 result.add_basis_element(poly_idx, c);

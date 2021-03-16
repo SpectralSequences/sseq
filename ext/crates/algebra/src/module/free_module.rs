@@ -99,7 +99,7 @@ impl<A: Algebra> Module for FreeModule<A> {
 
     fn act_on_basis(
         &self,
-        result: &mut SliceMut,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -127,7 +127,7 @@ impl<A: Algebra> Module for FreeModule<A> {
 
         // Now we multiply s * r and write the result to the appropriate position.
         self.algebra().multiply_basis_elements(
-            &mut result.slice_mut(output_block_min, output_block_max),
+            result.slice_mut(output_block_min, output_block_max),
             coeff,
             op_degree,
             op_index,
@@ -139,7 +139,7 @@ impl<A: Algebra> Module for FreeModule<A> {
 
     // Will need specialization
     /*    #[cfg(not(feature = "cache-multiplication"))]
-    fn act(&self, result : &mut SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice){
+    fn act(&self, result : SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice){
         if *self.prime() == 2 {
             if let SteenrodAlgebra::MilnorAlgebra(m) = &*self.algebra() {
                 self.custom_milnor_act(m, result, coeff, op_degree, op_index, input_degree, input);
@@ -413,7 +413,7 @@ impl<A: Algebra> Load for FreeModule<A> {
 /*
 #[cfg(not(feature = "cache-multiplication"))]
 impl<A: Algebra> FreeModule<A> {
-    fn standard_act(&self, result : &mut SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice) {
+    fn standard_act(&self, result : SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice) {
         assert!(input.dimension() == self.dimension(input_degree));
         let p = *self.prime();
         for (i, v) in input.iter_nonzer() {
@@ -433,7 +433,7 @@ impl<A: Algebra> FreeModule<A> {
     /// contributes to $\mathrm{Sq}(R) \mathrm{Sq}(S^{(k)})$ iff the column sum is at most
     /// $s_{j}^{(k)}$. There are also some bitwise disjointness conditions we have to check to
     /// ensure the coefficient is non-zero.
-    fn custom_milnor_act(&self, algebra: &MilnorAlgebra, result : &mut SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice) {
+    fn custom_milnor_act(&self, algebra: &MilnorAlgebra, result : SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice) {
         if coeff % 2 == 0 {
             return;
         }

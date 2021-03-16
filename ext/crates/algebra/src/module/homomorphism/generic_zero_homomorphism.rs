@@ -39,7 +39,7 @@ impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
         self.degree_shift
     }
 
-    fn apply_to_basis_element(&self, _: &mut SliceMut, _: u32, _: i32, _: usize) {}
+    fn apply_to_basis_element(&self, _: SliceMut, _: u32, _: i32, _: usize) {}
 
     fn quasi_inverse(&self, _: i32) -> &QuasiInverse {
         unimplemented!()

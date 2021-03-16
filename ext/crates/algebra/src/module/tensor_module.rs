@@ -5,7 +5,7 @@ use once::OnceBiVec;
 use crate::algebra::{Algebra, Bialgebra};
 use crate::module::block_structure::BlockStructure;
 use crate::module::{BoundedModule, Module, ZeroModule};
-use fp::vector::{FpVector};
+use fp::vector::{SliceMut, Slice, FpVector};
 use fp::prime::minus_one_to_the_n;
 
 use std::sync::Arc;
@@ -47,12 +47,12 @@ where
 
     fn act_helper(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
-        input: &FpVector,
+        input: Slice,
     ) {
         let algebra = self.algebra();
         let p = self.prime();
@@ -87,7 +87,7 @@ where
                             .left
                             .act_on_basis_borrow(op_deg_l, op_idx_l, left_deg, i);
 
-                        if left_result.is_zero_pure() {
+                        if left_result.is_zero() {
                             idx += right_source_dim;
                             continue;
                         }
@@ -102,14 +102,14 @@ where
                                 .right
                                 .act_on_basis_borrow(op_deg_r, op_idx_r, right_deg, j);
 
-                            if right_result.is_zero_pure() {
+                            if right_result.is_zero() {
                                 continue;
                             }
                             result.add_tensor(
                                 self.offset(output_degree, left_deg + op_deg_l),
                                 coeff * entry * minus_one_to_the_n(*self.prime(), op_deg_r * left_deg),
-                                &left_result,
-                                &right_result,
+                                left_result.as_slice(),
+                                right_result.as_slice(),
                             );
                         }
                     }
@@ -119,7 +119,7 @@ where
 
                     for i in 0..left_source_dim {
                         self.left.act_on_basis(
-                            &mut left_result,
+                            left_result.as_slice_mut(),
                             coeff,
                             op_deg_l,
                             op_idx_l,
@@ -139,7 +139,7 @@ where
                                 continue;
                             }
                             self.right.act_on_basis(
-                                &mut right_result,
+                                right_result.as_slice_mut(),
                                 entry,
                                 op_deg_r,
                                 op_idx_r,
@@ -153,8 +153,8 @@ where
                             result.add_tensor(
                                 self.offset(output_degree, left_deg + op_deg_l),
                                 minus_one_to_the_n(*self.prime(), op_deg_r * left_deg),
-                                &left_result,
-                                &right_result,
+                                left_result.as_slice(),
+                                right_result.as_slice(),
                             );
 
                             right_result.set_to_zero();
@@ -227,7 +227,7 @@ where
 
     fn act_on_basis(
         &self,
-        result: &mut FpVector,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -243,18 +243,18 @@ where
             op_degree,
             op_index,
             mod_degree,
-            &working_element,
+            working_element.as_slice(),
         );
     }
 
     fn act(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
-        input: &FpVector,
+        input: Slice,
     ) {
         if op_degree == 0 {
             result.add(input, coeff);
@@ -266,7 +266,7 @@ where
         let decomposition = algebra.decompose(op_degree, op_index);
         match decomposition.len() {
             0 => panic!("Decomposition has length 0"),
-            1 => self.act_helper(result, coeff, op_degree, op_index, mod_degree, input),
+            1 => self.act_helper(result.copy(), coeff, op_degree, op_index, mod_degree, input),
             n => {
                 let (op_degree, op_index) = decomposition[0];
 
@@ -274,7 +274,7 @@ where
                 let mut working_element =
                     FpVector::new(p, self.dimension(working_degree + op_degree));
                 self.act_helper(
-                    &mut working_element,
+                    working_element.as_slice_mut(),
                     coeff,
                     op_degree,
                     op_index,
@@ -287,12 +287,12 @@ where
                     let mut new_element =
                         FpVector::new(p, self.dimension(working_degree + op_degree));
                     self.act_helper(
-                        &mut new_element,
+                        new_element.as_slice_mut(),
                         coeff,
                         op_degree,
                         op_index,
                         working_degree,
-                        &working_element,
+                        working_element.as_slice(),
                     );
                     working_element = new_element;
                     working_degree += op_degree;
@@ -300,12 +300,12 @@ where
 
                 let (op_degree, op_index) = decomposition[n - 1];
                 self.act_helper(
-                    result,
+                    result.copy(),
                     coeff,
                     op_degree,
                     op_index,
                     working_degree,
-                    &working_element,
+                    working_element.as_slice(),
                 );
             }
         }

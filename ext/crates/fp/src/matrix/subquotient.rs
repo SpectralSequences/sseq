@@ -1,7 +1,7 @@
 use super::Subspace;
 use crate::matrix::Matrix;
 use crate::prime::ValidPrime;
-use crate::vector::FpVector;
+use crate::vector::{SliceMut, Slice, FpVector};
 
 #[derive(Clone)]
 pub struct Subquotient {
@@ -40,18 +40,18 @@ impl Subquotient {
     /// Given a vector `elt`, project `elt` to the complement and express
     /// as a linear combination of the basis. The result is returned as a list of coefficients.
     /// If elt is nonzero afterwards, this means the vector was not in the subspace to begin with.
-    pub fn reduce(&self, elt: &mut FpVector) -> Vec<u32> {
-        self.quotient.reduce(elt);
+    pub fn reduce(&self, mut elt: SliceMut) -> Vec<u32> {
+        self.quotient.reduce(elt.copy());
         let mut result = Vec::with_capacity(self.gens.columns());
         for i in 0..self.gens.columns() {
             if self.gens.pivots()[i] < 0 {
                 continue;
             }
-            let c = elt.entry(i);
+            let c = elt.as_slice().entry(i);
             result.push(c);
             if c != 0 {
                 elt.add(
-                    &self.gens[self.gens.pivots()[i] as usize],
+                    self.gens[self.gens.pivots()[i] as usize].as_slice(),
                     ((*elt.prime() - 1) * c) % *elt.prime(),
                 );
             }
@@ -72,10 +72,10 @@ impl Subquotient {
         self.gens.iter().take(self.dimension)
     }
 
-    pub fn quotient(&mut self, elt: &FpVector) {
-        self.quotient.add_vector(elt);
+    pub fn quotient(&mut self, elt: SliceMut) {
+        self.quotient.add_vector(elt.as_slice());
         for elt in self.gens.iter_mut() {
-            self.quotient.reduce(elt);
+            self.quotient.reduce(elt.as_slice_mut());
         }
         self.gens.row_reduce();
         self.dimension = self.gens.dimension();
@@ -102,10 +102,10 @@ impl Subquotient {
         self.dimension = 0;
     }
 
-    pub fn add_gen(&mut self, gen: &FpVector) {
+    pub fn add_gen(&mut self, gen: Slice) {
         let new_row = &mut self.gens[self.dimension];
-        new_row.assign(gen);
-        self.quotient.reduce(new_row);
+        new_row.as_slice_mut().assign(gen);
+        self.quotient.reduce(new_row.as_slice_mut());
         self.gens.row_reduce();
         self.dimension = self.gens.dimension();
     }
@@ -114,8 +114,8 @@ impl Subquotient {
         let mut result = Vec::with_capacity(source.dimension());
         let mut temp = FpVector::new(source.prime(), target.ambient_dimension());
         for v in source.gens() {
-            matrix.apply(&mut temp, 1, v);
-            result.push(target.reduce(&mut temp));
+            matrix.apply(temp.as_slice_mut(), 1, v.as_slice());
+            result.push(target.reduce(temp.as_slice_mut()));
             temp.set_to_zero()
         }
         result
@@ -178,10 +178,10 @@ mod test {
         crate::vector::initialize_limb_bit_index_table(p);
 
         let mut sq = Subquotient::new(p, 5);
-        sq.quotient(&FpVector::from_slice(p, &[1, 1, 0, 0, 1]));
-        sq.quotient(&FpVector::from_slice(p, &[0, 2, 0, 0, 1]));
-        sq.add_gen(&FpVector::from_slice(p, &[1, 1, 0, 0, 0]));
-        sq.add_gen(&FpVector::from_slice(p, &[0, 1, 0, 0, 0]));
+        sq.quotient(FpVector::from_slice(p, &[1, 1, 0, 0, 1]).as_slice_mut());
+        sq.quotient(FpVector::from_slice(p, &[0, 2, 0, 0, 1]).as_slice_mut());
+        sq.add_gen(FpVector::from_slice(p, &[1, 1, 0, 0, 0]).as_slice());
+        sq.add_gen(FpVector::from_slice(p, &[0, 1, 0, 0, 0]).as_slice());
 
         expect![[r#"
             Generators:
@@ -199,7 +199,7 @@ mod test {
                 2,
             ]
         "#]]
-        .assert_debug_eq(&sq.reduce(&mut FpVector::from_slice(p, &[2, 0, 0, 0, 0])));
+        .assert_debug_eq(&sq.reduce(FpVector::from_slice(p, &[2, 0, 0, 0, 0]).as_slice_mut()));
 
         assert_eq!(sq.gens().count(), 1);
     }

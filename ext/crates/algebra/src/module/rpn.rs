@@ -91,7 +91,7 @@ impl<A : SteenrodAlgebraT> Module for RealProjectiveSpace<A> {
 
     fn act_on_basis(
         &self,
-        result: &mut SliceMut,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,

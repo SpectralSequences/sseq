@@ -91,7 +91,7 @@ fn evaluate_algebra_tree_helper(
             adem_algebra.compute_basis(degree);
             milnor_algebra.compute_basis(degree);            
             let mut result = FpVector::new(p, adem_algebra.dimension(degree, -1));
-            adem_algebra.multiply_element_by_element(&mut result.as_slice_mut(), 1, degree_left, output_left.as_slice(), degree_right, output_right.as_slice(), -1);
+            adem_algebra.multiply_element_by_element(result.as_slice_mut(), 1, degree_left, output_left.as_slice(), degree_right, output_right.as_slice(), -1);
             Ok((degree, result))
         },
         AlgebraParseNode::BasisElt(basis_elt) => {
@@ -210,7 +210,7 @@ fn evaluate_module_tree_helper<M : Module>(
             let (degree_right, output_right) = evaluate_module_tree_helper(adem_algebra, milnor_algebra, module, basis_elt_lookup, output_degree, *right)?;
             let degree = degree_left + degree_right;
             let mut result = FpVector::new(p, module.dimension(degree));
-            module.act_by_element(&mut result.as_slice_mut(), 1, degree_left, output_left.as_slice(), degree_right, output_right.as_slice());
+            module.act_by_element(result.as_slice_mut(), 1, degree_left, output_left.as_slice(), degree_right, output_right.as_slice());
             Ok((degree, result))
         },
         ModuleParseNode::ModuleBasisElt(basis_elt) => {
@@ -293,7 +293,7 @@ fn evaluate_p_or_b_list(adem_algebra : &AdemAlgebra, list : &[BocksteinOrSq]) ->
         let idx = adem_algebra.basis_element_to_index(&cur_elt);
         let cur_dim = adem_algebra.dimension(total_degree + cur_elt.degree, -1);
         tmp_vector_b.set_scratch_vector_size(cur_dim);
-        adem_algebra.multiply_element_by_basis_element(&mut tmp_vector_b.as_slice_mut(), 1, total_degree, tmp_vector_a.as_slice(), cur_elt.degree, idx, -1);
+        adem_algebra.multiply_element_by_basis_element(tmp_vector_b.as_slice_mut(), 1, total_degree, tmp_vector_a.as_slice(), cur_elt.degree, idx, -1);
         total_degree += cur_elt.degree;
         std::mem::swap(&mut tmp_vector_a, &mut tmp_vector_b);
         tmp_vector_b.set_to_zero();

@@ -4,7 +4,7 @@ use once::OnceBiVec;
 
 use crate::module::block_structure::{BlockStart, BlockStructure, GeneratorBasisEltPair};
 use crate::module::{BoundedModule, Module, ZeroModule};
-use fp::vector::FpVector;
+use fp::vector::SliceMut;
 
 use std::sync::Arc;
 
@@ -88,7 +88,7 @@ impl<M: Module> Module for SumModule<M> {
 
     fn act_on_basis(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -108,7 +108,7 @@ impl<M: Module> Module for SumModule<M> {
         let module = &self.modules[*module_num];
 
         module.act_on_basis(
-            &mut *result.borrow_slice(*target_offset, target_offset + target_module_dimension),
+            result.slice_mut(*target_offset, target_offset + target_module_dimension),
             coeff,
             op_degree,
             op_index,

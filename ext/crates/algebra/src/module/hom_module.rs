@@ -7,7 +7,7 @@ use crate::algebra::{Algebra, Field};
 use crate::module::block_structure::BlockStructure;
 use crate::module::homomorphism::FreeModuleHomomorphism;
 use crate::module::{BoundedModule, FreeModule, Module};
-use fp::vector::{FpVector};
+use fp::vector::{SliceMut, Slice};
 use once::OnceBiVec;
 
 pub struct HomModule<M: BoundedModule> {
@@ -43,7 +43,7 @@ impl<M: BoundedModule> HomModule<M> {
     pub fn element_to_homomorphism(
         &self,
         degree: i32,
-        x: &mut FpVector,
+        x: Slice,
     ) -> FreeModuleHomomorphism<M> {
         let result =
             FreeModuleHomomorphism::new(Arc::clone(&self.source), Arc::clone(&self.target), degree);
@@ -52,14 +52,11 @@ impl<M: BoundedModule> HomModule<M> {
         let max_nonzero_degree = degree + self.target.max_degree();
         result.extend_by_zero(&lock, min_nonzero_degree - 1);
         let mut used_entries = 0;
-        let old_slice = x.slice();
         for i in min_nonzero_degree..=max_nonzero_degree {
             let gens = self.source.number_of_gens_in_degree(i);
             let out_dim = self.target.dimension(i - degree);
-            x.set_slice(used_entries, used_entries + gens * out_dim);
+            result.add_generators_from_big_vector(&lock, i, x.slice(used_entries, used_entries + gens * out_dim));
             used_entries += gens * out_dim;
-            result.add_generators_from_big_vector(&lock, i, x);
-            x.restore_slice(old_slice);
         }
         drop(lock);
         result
@@ -67,12 +64,12 @@ impl<M: BoundedModule> HomModule<M> {
 
     pub fn evaluate_basis_map_on_element(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         f_degree: i32,
         f_idx: usize,
         x_degree: i32,
-        x: &FpVector,
+        x: Slice,
     ) {
         let out_degree = x_degree - f_degree;
         if out_degree < self.target.min_degree() || out_degree > self.target.max_degree() {
@@ -100,7 +97,7 @@ impl<M: BoundedModule> HomModule<M> {
             }
             let op_idx = i - input_block_start;
             self.target
-                .act_on_basis(result, (coeff * v) % p, op_deg, op_idx, mod_deg, mod_idx);
+                .act_on_basis(result.copy(), (coeff * v) % p, op_deg, op_idx, mod_deg, mod_idx);
         }
     }
 }
@@ -156,7 +153,7 @@ impl<M: BoundedModule> Module for HomModule<M> {
 
     fn act_on_basis(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -192,6 +189,7 @@ mod tests {
     use crate::module::homomorphism::ModuleHomomorphism;
     use crate::module::{FDModule, FreeModule, Module};
 
+    use fp::vector::FpVector;
     use fp::prime::ValidPrime;
 
     #[allow(non_snake_case)]
@@ -224,13 +222,13 @@ mod tests {
         let outputs = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 0], [0, 0, 1]];
         for i in 0..x.dimension() {
             x.set_entry(i, 1);
-            println!("\n\nx : {}", F.element_to_string(x_degree, &x));
+            println!("\n\nx : {}", F.element_to_string(x_degree, x.as_slice()));
             for f_idx in 0..3 {
-                hom.evaluate_basis_map_on_element(&mut result, 1, f_degree, f_idx, x_degree, &x);
+                hom.evaluate_basis_map_on_element(result.as_slice_mut(), 1, f_degree, f_idx, x_degree, x.as_slice());
                 println!(
                     "f : {} ==> f(x) : {}",
                     hom.basis_element_to_string(f_degree, f_idx),
-                    M.element_to_string(out_degree, &result)
+                    M.element_to_string(out_degree, result.as_slice())
                 );
                 expected_result.set_entry(0, outputs[i][f_idx]);
                 assert_eq!(result, expected_result);
@@ -259,16 +257,16 @@ mod tests {
 
         let f_degree = 0;
         let hom_dim = hom.dimension(f_degree);
-        let mut f_vec = FpVector::from_vec(p, &[1, 0, 1]);
-        let f = hom.element_to_homomorphism(f_degree, &mut f_vec);
+        let mut f_vec = FpVector::from_slice(p, &[1, 0, 1]);
+        let f = hom.element_to_homomorphism(f_degree, f_vec.as_slice());
         let mut result = FpVector::new(p, 1);
         for degree in 0..=4 {
             for i in 0..F.dimension(degree) {
-                f.apply_to_basis_element(&mut result, 1, degree, i);
+                f.apply_to_basis_element(result.as_slice_mut(), 1, degree, i);
                 println!(
                     "f({}) = {}",
                     F.basis_element_to_string(degree, i),
-                    M.element_to_string(degree - f_degree, &result)
+                    M.element_to_string(degree - f_degree, result.as_slice())
                 );
                 result.set_to_zero();
             }

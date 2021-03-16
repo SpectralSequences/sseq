@@ -10,6 +10,8 @@ use crate::algebra::Algebra;
 use crate::module::FDModule;
 #[cfg(feature = "extras")]
 use crate::module::TruncatedModule;
+#[cfg(feature = "extras")]
+use crate::module::BoundedModule;
 
 pub trait Module: Send + Sync + 'static {
     type Algebra: Algebra;
@@ -22,7 +24,7 @@ pub trait Module: Send + Sync + 'static {
     fn dimension(&self, degree: i32) -> usize;
     fn act_on_basis(
         &self,
-        result: &mut SliceMut,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -59,7 +61,7 @@ pub trait Module: Send + Sync + 'static {
 
     fn act(
         &self,
-        result: &mut SliceMut,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -70,7 +72,7 @@ pub trait Module: Send + Sync + 'static {
         let p = self.prime();
         for (i, v) in input.iter_nonzero() {
             self.act_on_basis(
-                result,
+                result.copy(),
                 (coeff * v) % *p,
                 op_degree,
                 op_index,
@@ -82,7 +84,7 @@ pub trait Module: Send + Sync + 'static {
 
     fn act_by_element(
         &self,
-        result: &mut SliceMut,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op: Slice,
@@ -93,13 +95,13 @@ pub trait Module: Send + Sync + 'static {
         assert_eq!(op.dimension(), self.algebra().dimension(op_degree, i32::max_value()));
         let p = self.prime();
         for (i, v) in op.iter_nonzero() {
-            self.act(result, (coeff * v) % *p, op_degree, i, input_degree, input);
+            self.act(result.copy(), (coeff * v) % *p, op_degree, i, input_degree, input);
         }
     }
 
     fn act_by_element_on_basis(
         &self,
-        result: &mut SliceMut,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op: Slice,
@@ -109,7 +111,7 @@ pub trait Module: Send + Sync + 'static {
         assert_eq!(op.dimension(), self.algebra().dimension(op_degree, i32::max_value()));
         let p = self.prime();
         for (i, v) in op.iter_nonzero() {
-            self.act_on_basis(result, (coeff * v) % *p, op_degree, i, input_degree, input_index);
+            self.act_on_basis(result.copy(), (coeff * v) % *p, op_degree, i, input_degree, input_index);
         }
     }    
 
@@ -159,13 +161,13 @@ pub trait Module: Send + Sync + 'static {
     ) {
         result.set_scratch_vector_size(self.dimension(outer_op_degree + inner_op_degree + module_degree));
         scratch.set_scratch_vector_size(self.dimension(inner_op_degree + module_degree));
-        self.act_on_basis(&mut scratch.as_slice_mut(), 1, inner_op_degree, inner_op_index, module_degree, module_index);
-        self.act(&mut result.as_slice_mut(), 1, outer_op_degree, outer_op_index, inner_op_degree + module_degree, scratch.as_slice());
+        self.act_on_basis(scratch.as_slice_mut(), 1, inner_op_degree, inner_op_index, module_degree, module_index);
+        self.act(result.as_slice_mut(), 1, outer_op_degree, outer_op_index, inner_op_degree + module_degree, scratch.as_slice());
         // println!("scratch 1 : {}", self.element_to_string(inner_op_degree + module_degree, &scratch));
         // println!("result 1 : {}", self.element_to_string(outer_op_degree + inner_op_degree + module_degree, &result));
         scratch.set_scratch_vector_size(self.algebra().dimension(outer_op_degree + inner_op_degree, i32::max_value()));
-        self.algebra().multiply_basis_elements(&mut scratch.as_slice_mut(), 1,  outer_op_degree, outer_op_index, inner_op_degree, inner_op_index, i32::max_value());
-        self.act_by_element_on_basis(&mut result.as_slice_mut(), *self.prime() - 1, outer_op_degree + inner_op_degree, scratch.as_slice(), module_degree, module_index);
+        self.algebra().multiply_basis_elements(scratch.as_slice_mut(), 1,  outer_op_degree, outer_op_index, inner_op_degree, inner_op_index, i32::max_value());
+        self.act_by_element_on_basis(result.as_slice_mut(), *self.prime() - 1, outer_op_degree + inner_op_degree, scratch.as_slice(), module_degree, module_index);
         // println!("result 2 : {}", self.element_to_string(outer_op_degree + inner_op_degree + module_degree, &result));
     }
 
@@ -266,7 +268,7 @@ impl<A: Algebra> Module for Arc<dyn Module<Algebra = A>> {
 
     fn act_on_basis(
         &self,
-        result: &mut SliceMut,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,

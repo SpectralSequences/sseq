@@ -1,7 +1,7 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::module::{BoundedModule, Module};
 use fp::matrix::Subspace;
-use fp::vector::{FpVector};
+use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceBiVec;
 use std::sync::Arc;
 
@@ -29,7 +29,7 @@ impl<M: Module> QuotientModule<M> {
         }
     }
 
-    pub fn quotient(&mut self, degree: i32, element: &FpVector) {
+    pub fn quotient(&mut self, degree: i32, element: Slice) {
         self.subspaces[degree].add_vector(element);
         self.flush(degree);
     }
@@ -65,7 +65,7 @@ impl<M: Module> QuotientModule<M> {
 
     pub fn act_on_original_basis(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -73,15 +73,15 @@ impl<M: Module> QuotientModule<M> {
         mod_index: usize,
     ) {
         self.module
-            .act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index);
+            .act_on_basis(result.copy(), coeff, op_degree, op_index, mod_degree, mod_index);
         self.reduce(op_degree + mod_degree, result)
     }
 
-    pub fn reduce(&self, degree: i32, vec: &mut FpVector) {
+    pub fn reduce(&self, degree: i32, vec: SliceMut) {
         self.subspaces[degree].reduce(vec);
     }
 
-    pub fn old_basis_to_new(&self, degree: i32, new: &mut FpVector, old: &FpVector) {
+    pub fn old_basis_to_new(&self, degree: i32, mut new: SliceMut, old: Slice) {
         for (i, idx) in self.basis_list[degree].iter().enumerate() {
             new.add_basis_element(i, old.entry(*idx));
         }
@@ -122,7 +122,7 @@ impl<M: Module> Module for QuotientModule<M> {
 
     fn act_on_basis(
         &self,
-        result: &mut FpVector,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -133,15 +133,15 @@ impl<M: Module> Module for QuotientModule<M> {
 
         let mut result_ = FpVector::new(self.prime(), self.module.dimension(target_deg));
         self.act_on_original_basis(
-            &mut result_,
+            result_.as_slice_mut(),
             coeff,
             op_degree,
             op_index,
             mod_degree,
             self.basis_list[mod_degree][mod_index],
         );
-        self.reduce(target_deg, &mut result_);
-        self.old_basis_to_new(target_deg, result, &result_);
+        self.reduce(target_deg, result_.as_slice_mut());
+        self.old_basis_to_new(target_deg, result, result_.as_slice());
     }
 
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {

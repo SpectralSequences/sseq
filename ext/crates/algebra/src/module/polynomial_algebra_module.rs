@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 use once::OnceVec;
-use fp::vector::{FpVector};
+use fp::vector::{FpVector, Slice, SliceMut};
 
 use crate::algebra::{Algebra, AdemAlgebraT};
 use crate::algebra::{PolynomialAlgebra, PolynomialAlgebraMonomial};
@@ -177,14 +177,11 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
             let rest_sq = sq - ext_sq;
             let rest_deg = rest_mono.degree + q * rest_sq;
             reducer_a.set_scratch_vector_size(Algebra::dimension(self, rest_deg, i32::max_value()));
-            reducer_a.set_to_zero_pure();
             self.sq_monomial_to_polynomial(reducer_a, 1, rest_sq, &rest_mono);
             let term_deg = q*ext_sq + gen_deg;
             term.set_scratch_vector_size(Algebra::dimension(self, term_deg, i32::max_value()));
-            term.set_to_zero_pure();
             self.sq_exterior_generator_to_polynomial(term, 1, ext_sq, gen_deg, gen_idx);
             reducer_b.set_scratch_vector_size(Algebra::dimension(self, rest_deg + term_deg, i32::max_value()));
-            reducer_b.set_to_zero_pure();
             self.multiply_polynomials(reducer_b, 1, term_deg, term,  rest_deg, reducer_a);
             std::mem::swap(reducer_a, reducer_b);
             reducer_a.set_scratch_vector_size(Algebra::dimension(self, result_degree, i32::max_value()));
@@ -211,14 +208,11 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
             let rest_sq = sq - poly_sq;
             let rest_deg = rest_mono.degree + q * rest_sq;
             reducer_a.set_scratch_vector_size(Algebra::dimension(self, rest_deg, i32::max_value()));
-            reducer_a.set_to_zero_pure();
             self.sq_monomial_to_polynomial(reducer_a, 1, rest_sq, &rest_mono);
             let term_deg = q*poly_sq + gen_deg;
             term.set_scratch_vector_size(Algebra::dimension(self, term_deg, i32::max_value()));
-            term.set_to_zero_pure();
             self.sq_polynomial_generator_to_polynomial(term, 1, poly_sq, gen_deg, gen_idx);
             reducer_b.set_scratch_vector_size(Algebra::dimension(self, rest_deg + term_deg, i32::max_value()));
-            reducer_b.set_to_zero_pure();
             self.multiply_polynomials(reducer_b, 1, rest_deg, reducer_a, term_deg, term);
             std::mem::swap(reducer_a, reducer_b);
             reducer_a.set_scratch_vector_size(Algebra::dimension(self, result_degree, i32::max_value()));
@@ -272,7 +266,6 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
             self.set_monomial_degree(&mut rest_mono, rest_mono_new_deg);
             // result += (b x) * rest
             term.set_scratch_vector_size(Algebra::dimension(self, gen_deg + 1, i32::max_value()));
-            term.set_to_zero_pure();
             if used_ext_generator {
                 self.bockstein_exterior_generator_to_polynomial(&mut term, 1, gen_deg, gen_idx);
                 // println!("   ext gen : b({}) = {}", self.repr_ext_generator(gen_deg, gen_idx), Module::element_to_string(self, gen_deg + 1, &term));
@@ -293,13 +286,12 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
             // First get "b rest" into "term"
             let brest_degree = rest_mono.degree + 1;
             term.set_scratch_vector_size(Algebra::dimension(self, brest_degree, i32::max_value()));
-            term.set_to_zero_pure();
             self.bockstein_monomial_to_polynomial(&mut term, 1, &rest_mono);
             // Now get "x" into "rest_mono"
             let mut x_mono = rest_mono;
             self.set_monomial_degree(&mut x_mono, gen_deg);
-            x_mono.ext.set_to_zero_pure();
-            x_mono.poly.set_to_zero_pure();
+            x_mono.ext.set_to_zero();
+            x_mono.poly.set_to_zero();
             if used_ext_generator {
                 x_mono.ext.set_entry(gen_int_idx, 1);
             } else {
@@ -358,16 +350,18 @@ impl<Adem : AdemAlgebraT, A : PolynomialAlgebraModule<Algebra=Adem> + Send + Syn
     }
 
     fn act_on_basis(&self,
-        result : &mut FpVector, coeff : u32,  op_deg : i32, op_index : usize, input_degree : i32, input_index : usize
+        result : SliceMut, coeff : u32,  op_deg : i32, op_index : usize, input_degree : i32, input_index : usize
     ) {
         let mut input_vec = FpVector::new(self.prime(), Algebra::dimension(self, input_degree, i32::max_value()));
         input_vec.set_entry(input_index, 1);
-        self.act(result, coeff, op_deg, op_index, input_degree, &input_vec);
+        self.act(result, coeff, op_deg, op_index, input_degree, input_vec.as_slice());
     }
 
 
-    fn act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector){
-        debug_assert!(result.dimension() == Module::dimension(self, op_degree + input_degree));
+    fn act(&self, mut result : SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice){
+        unimplemented!();
+/*
+        debug_assert!(result.as_slice().dimension() == Module::dimension(self, op_degree + input_degree));
         let algebra_outer = self.algebra();
         let algebra = algebra_outer.adem_algebra();
         let q = algebra.q();
@@ -379,7 +373,6 @@ impl<Adem : AdemAlgebraT, A : PolynomialAlgebraModule<Algebra=Adem> + Send + Syn
         if (op.bocksteins >> ps_len) & 1 == 1 {
             let op_deg = 1;
             target_vec.set_scratch_vector_size(Algebra::dimension(self, cur_deg + op_deg, i32::max_value()));
-            target_vec.set_to_zero_pure();
             self.bockstein_polynomial_to_polynomial(&mut target_vec, 1, cur_deg, &source_vec);
             cur_deg += op_deg;
             std::mem::swap(&mut source_vec, &mut target_vec);
@@ -387,19 +380,17 @@ impl<Adem : AdemAlgebraT, A : PolynomialAlgebraModule<Algebra=Adem> + Send + Syn
         for i in (0..ps_len).rev() {
             let op_deg = op.ps[i] as i32 * q;
             target_vec.set_scratch_vector_size(Algebra::dimension(self, cur_deg + op_deg, i32::max_value()));
-            target_vec.set_to_zero_pure();
             self.sq_polynomial_to_polynomial(&mut target_vec, 1, op.ps[i] as i32, cur_deg, &source_vec);
             cur_deg += op_deg;
             std::mem::swap(&mut source_vec, &mut target_vec);
             if (op.bocksteins >> i) & 1 == 1 {
                 let op_deg = 1;
                 target_vec.set_scratch_vector_size(Algebra::dimension(self, cur_deg + op_deg, i32::max_value()));
-                target_vec.set_to_zero_pure();
                 self.bockstein_polynomial_to_polynomial(&mut target_vec, 1, cur_deg, &source_vec);
                 cur_deg += op_deg;
                 std::mem::swap(&mut source_vec, &mut target_vec);
             }
         }
-        result.add(&source_vec, coeff);
+        result.add(source_vec, coeff);*/
     }
 }

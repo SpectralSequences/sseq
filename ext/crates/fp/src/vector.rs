@@ -110,7 +110,7 @@ macro_rules! match_p {
     }
 }
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum FpVector {
     _2(FpVectorP<2>),
     _3(FpVectorP<3>),
@@ -118,7 +118,7 @@ pub enum FpVector {
     _7(FpVectorP<7>),
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Slice<'a> {
     _2(SliceP<'a, 2>),
     _3(SliceP<'a, 3>),
@@ -126,6 +126,7 @@ pub enum Slice<'a> {
     _7(SliceP<'a, 7>),
 }
 
+#[derive(Debug)]
 pub enum SliceMut<'a> {
     _2(SliceMutP<'a, 2>),
     _3(SliceMutP<'a, 3>),
@@ -149,6 +150,18 @@ impl FpVector {
     pub fn padded_dimension(p: ValidPrime, dimension: usize) -> usize {
         let entries_per_limb = entries_per_64_bits(p);
         ((dimension + entries_per_limb - 1) / entries_per_limb) * entries_per_limb
+    }
+
+    pub fn sign_rule(&self, _other : &FpVector) -> bool {
+        unimplemented!();
+    }
+
+    pub fn add_truncate(&self, _other : &FpVector, _c: u32) -> Option<()> {
+        unimplemented!();
+    }
+
+    pub fn add_carry(&mut self, _other : &FpVector, _c : u32, _rest : &mut [FpVector]) -> bool {
+        unimplemented!();
     }
 
     dispatch_vector! {
@@ -185,6 +198,7 @@ impl<'a> Slice<'a> {
         pub fn iter_nonzero(self) -> (FpVectorNonZeroIterator<'a>);
         pub fn is_zero(&self) -> bool;
         pub fn slice(&self, start: usize, end: usize) -> (dispatch Slice);
+        pub fn to_owned(&self) -> (dispatch FpVector);
     }
 }
 
@@ -199,6 +213,19 @@ impl<'a> SliceMut<'a> {
         pub fn as_slice(&self) -> (dispatch Slice);
         pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch SliceMut);
         pub fn add_basis_element(&mut self, index: usize, value: u32);
+        pub fn copy(&mut self) -> (dispatch SliceMut);
+    }
+
+    pub fn add_tensor(&mut self, offset : usize, coeff : u32, left : Slice, right : Slice) {
+        match (self, left, right) {
+            (SliceMut::_2(ref mut x), Slice::_2(y), Slice::_2(z)) => x.add_tensor(offset, coeff, y, z),
+            (SliceMut::_3(ref mut x), Slice::_3(y), Slice::_3(z)) =>  x.add_tensor(offset, coeff, y, z),
+            (SliceMut::_5(ref mut x), Slice::_5(y), Slice::_5(z)) => x.add_tensor(offset, coeff, y, z),
+            (SliceMut::_7(ref mut x), Slice::_7(y), Slice::_7(z)) => x.add_tensor(offset, coeff, y, z),
+            _ => {
+                panic!("Applying add_tensor to vectors over different primes");
+            }
+        }
     }
 }
 

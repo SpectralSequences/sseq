@@ -286,7 +286,7 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
 
     fn act_on_basis(
         &self,
-        result: &mut SliceMut,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -299,7 +299,7 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
         let gen_dim = self.generators.dimension(out_deg);
         let mut temp_vec = FpVector::new(p, gen_dim);
         self.generators.act_on_basis(
-            &mut temp_vec.as_slice_mut(),
+            temp_vec.as_slice_mut(),
             coeff,
             op_degree,
             op_index,
@@ -307,7 +307,7 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
             gen_idx,
         );
         let qi = self.map.quasi_inverse(out_deg);
-        qi.image.as_ref().unwrap().reduce(&mut temp_vec);
+        qi.image.as_ref().unwrap().reduce(temp_vec.as_slice_mut());
         for i in 0..result.as_slice().dimension() {
             let value = temp_vec.entry(self.fp_idx_to_gen_idx(out_deg, i));
             result.add_basis_element(i, value);

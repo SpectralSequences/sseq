@@ -304,12 +304,12 @@ impl Algebra for MilnorAlgebra {
     }
 
     #[cfg(not(feature = "cache-multiplication"))]
-    fn multiply_basis_elements(&self, result : &mut SliceMut, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, _excess : i32) {
+    fn multiply_basis_elements(&self, result : SliceMut, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, _excess : i32) {
         self.multiply(result, coef, &self.basis_table[r_degree as usize][r_idx], &self.basis_table[s_degree as usize][s_idx]);
     }
 
     #[cfg(feature = "cache-multiplication")]
-    fn multiply_basis_elements(&self, result : &mut SliceMut, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, _excess : i32) {
+    fn multiply_basis_elements(&self, result : SliceMut, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, _excess : i32) {
         result.shift_add(&self.multiplication_table[r_degree as usize][s_degree as usize][r_idx][s_idx].as_slice(), coef);
     }
 
@@ -693,11 +693,11 @@ impl MilnorAlgebra {
         new_result
     }
 
-    pub fn multiply(&self, res : &mut SliceMut, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement) {
+    pub fn multiply(&self, res : SliceMut, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement) {
         self.multiply_with_allocation(res, coef, m1, m2, PPartAllocation::default());
     }
 
-    pub fn multiply_with_allocation(&self, res : &mut SliceMut, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement, mut allocation: PPartAllocation) -> PPartAllocation {
+    pub fn multiply_with_allocation(&self, mut res : SliceMut, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement, mut allocation: PPartAllocation) -> PPartAllocation {
         let target_deg = m1.degree + m2.degree;
         if self.generic {
             let m1f = self.multiply_qpart(m1, m2.q_part);
@@ -722,9 +722,9 @@ impl MilnorAlgebra {
         allocation
     }
 
-    pub fn multiply_element_by_basis_with_allocation(&self, res: &mut SliceMut, coef: u32, r_deg: i32, r: Slice, m2: &MilnorBasisElement, mut allocation: PPartAllocation) -> PPartAllocation {
+    pub fn multiply_element_by_basis_with_allocation(&self, mut res: SliceMut, coef: u32, r_deg: i32, r: Slice, m2: &MilnorBasisElement, mut allocation: PPartAllocation) -> PPartAllocation {
         for (i, c) in r.iter_nonzero() {
-            allocation = self.multiply_with_allocation(res, coef * c, self.basis_element_from_index(r_deg, i), &m2, allocation);
+            allocation = self.multiply_with_allocation(res.copy(), coef * c, self.basis_element_from_index(r_deg, i), &m2, allocation);
         }
         allocation
     }
@@ -1151,7 +1151,7 @@ impl MilnorAlgebra {
             second = self.beps_pn(0, sq - pow);
         }
         let mut out_vec = FpVector::new(p, self.dimension(degree, -1));
-        self.multiply_basis_elements(&mut out_vec.as_slice_mut(), 1, first.0, first.1, second.0, second.1, -1);
+        self.multiply_basis_elements(out_vec.as_slice_mut(), 1, first.0, first.1, second.0, second.1, -1);
         let mut result = Vec::new();
         let c = out_vec.entry(idx);
         assert!(c != 0);

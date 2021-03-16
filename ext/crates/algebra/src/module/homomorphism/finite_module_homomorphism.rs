@@ -124,7 +124,7 @@ impl<M: SteenrodModule> ModuleHomomorphism for FiniteModuleHomomorphism<M> {
 
     fn apply_to_basis_element(
         &self,
-        result: &mut SliceMut,
+        result: SliceMut,
         coeff: u32,
         input_degree: i32,
         input_index: usize,

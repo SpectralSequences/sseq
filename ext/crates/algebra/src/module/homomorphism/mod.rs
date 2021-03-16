@@ -44,7 +44,7 @@ pub trait ModuleHomomorphism: Send + Sync + 'static {
     /// usually the case because of out-of-bounds errors.
     fn apply_to_basis_element(
         &self,
-        result: &mut SliceMut,
+        result: SliceMut,
         coeff: u32,
         input_degree: i32,
         input_idx: usize,
@@ -56,10 +56,10 @@ pub trait ModuleHomomorphism: Send + Sync + 'static {
 
     fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32);
 
-    fn apply(&self, result: &mut SliceMut, coeff: u32, input_degree: i32, input: Slice) {
+    fn apply(&self, mut result: SliceMut, coeff: u32, input_degree: i32, input: Slice) {
         let p = self.prime();
         for (i, v) in input.iter_nonzero() {
-            self.apply_to_basis_element(result, (coeff * v) % *p, input_degree, i);
+            self.apply_to_basis_element(result.copy(), (coeff * v) % *p, input_degree, i);
         }
     }
 
@@ -125,12 +125,12 @@ pub trait ModuleHomomorphism: Send + Sync + 'static {
         assert_eq!(self.source().dimension(degree), matrix.rows());
         assert_eq!(self.target().dimension(degree), matrix.columns());
 
-        for (i, mut row) in matrix.iter_mut().enumerate() {
-            self.apply_to_basis_element(&mut row, 1, degree, i);
+        for (i, row) in matrix.iter_mut().enumerate() {
+            self.apply_to_basis_element(row, 1, degree, i);
         }
     }
 
-    fn apply_quasi_inverse(&self, result: &mut SliceMut, degree: i32, input: Slice) {
+    fn apply_quasi_inverse(&self, result: SliceMut, degree: i32, input: Slice) {
         let qi = self.quasi_inverse(degree);
         qi.apply(result, 1, input);
     }

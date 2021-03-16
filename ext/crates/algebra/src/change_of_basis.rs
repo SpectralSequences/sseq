@@ -43,7 +43,7 @@ pub fn adem_to_milnor_on_basis(
         bocksteins >>= 1;
         let cur_dim = milnor_algebra.dimension(total_degree + mbe.degree, -1);
         tmp_vector_b.set_scratch_vector_size(cur_dim);
-        milnor_algebra.multiply_element_by_basis_element(&mut tmp_vector_b.as_slice_mut(), 1, total_degree, tmp_vector_a.as_slice(), mbe.degree, idx, -1);
+        milnor_algebra.multiply_element_by_basis_element(tmp_vector_b.as_slice_mut(), 1, total_degree, tmp_vector_a.as_slice(), mbe.degree, idx, -1);
         total_degree += mbe.degree;
         std::mem::swap(&mut tmp_vector_a, &mut tmp_vector_b);
         tmp_vector_b.set_to_zero();
@@ -51,7 +51,7 @@ pub fn adem_to_milnor_on_basis(
     if bocksteins & 1 == 0 {
         result.add(&tmp_vector_a, coeff);
     } else {
-        milnor_algebra.multiply_element_by_basis_element(&mut result.as_slice_mut(), coeff, total_degree, tmp_vector_a.as_slice(), 1, 0, -1);
+        milnor_algebra.multiply_element_by_basis_element(result.as_slice_mut(), coeff, total_degree, tmp_vector_a.as_slice(), 1, 0, -1);
     }
 }
 

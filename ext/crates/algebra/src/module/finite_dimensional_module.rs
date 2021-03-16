@@ -170,7 +170,7 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
 
     fn act_on_basis(
         &self,
-        result: &mut SliceMut,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -601,7 +601,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         &self,
         entry: &str,
         degree: i32,
-        result: &mut SliceMut,
+        mut result: SliceMut,
     ) -> error::Result<()> {
         if let IResult::<_, _>::Ok(("", _)) = delimited(space0, char('0'), space0)(entry) {
             return Ok(());
@@ -647,9 +647,9 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                 for &(coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
                     let intermediate_dim = self.dimension(input_deg + deg_2);
                     tmp_output.set_scratch_vector_size(intermediate_dim);
-                    self.act_on_basis(&mut tmp_output.as_slice_mut(), 1, deg_2, idx_2, input_deg, idx);
+                    self.act_on_basis(tmp_output.as_slice_mut(), 1, deg_2, idx_2, input_deg, idx);
                     self.act(
-                        &mut output_vec.as_slice_mut(),
+                        output_vec.as_slice_mut(),
                         coef,
                         deg_1,
                         idx_1,
@@ -703,9 +703,9 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                         if intermediate_dim > tmp_output.dimension() {
                             tmp_output = FpVector::new(p, intermediate_dim);
                         }
-                        self.act_on_basis(&mut tmp_output.slice_mut(0, intermediate_dim), 1, deg_2, idx_2, input_deg, idx);
+                        self.act_on_basis(tmp_output.slice_mut(0, intermediate_dim), 1, deg_2, idx_2, input_deg, idx);
                         self.act(
-                            &mut output_vec.as_slice_mut(),
+                            output_vec.as_slice_mut(),
                             coef,
                             deg_1,
                             idx_1,

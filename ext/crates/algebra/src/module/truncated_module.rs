@@ -1,6 +1,6 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::module::{BoundedModule, Module};
-use fp::vector::FpVector;
+use fp::vector::SliceMut;
 use std::sync::Arc;
 
 /// A module M where we quotient out everything above degree `truncation`
@@ -59,7 +59,7 @@ impl<M: Module + ?Sized> Module for TruncatedModule<M> {
 
     fn act_on_basis(
         &self,
-        result: &mut FpVector,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,

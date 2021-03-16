@@ -5,7 +5,7 @@ use std::fmt;
 
 use once::OnceVec;
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector};
+use fp::vector::{SliceMut, FpVector};
 
 use crate::algebra::combinatorics::TruncatedPolynomialMonomialBasis;
 use crate::algebra::Algebra;
@@ -152,9 +152,9 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
         while carry_q {
             carry_q = target.poly.add_carry(&source_vec, 1, &mut carry_vec);
             if carry_q {
-                source_vec.set_to_zero_pure();
+                source_vec.set_to_zero();
                 self.frobenius_monomial(&mut source_vec, &carry_vec[0]);
-                carry_vec[0].set_to_zero_pure();
+                carry_vec[0].set_to_zero();
             }
         }
         Some(coeff)
@@ -269,7 +269,7 @@ impl<A : PolynomialAlgebra> Algebra for A {
         }
     }
 
-    fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, left_degree : i32, left_idx : usize, right_degree: i32, right_idx : usize, _excess : i32) {
+    fn multiply_basis_elements(&self, mut result : SliceMut, coeff : u32, left_degree : i32, left_idx : usize, right_degree: i32, right_idx : usize, _excess : i32) {
         if coeff == 0 {
             return;
         }

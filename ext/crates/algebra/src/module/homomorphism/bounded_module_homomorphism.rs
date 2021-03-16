@@ -54,7 +54,7 @@ impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
 
     fn apply_to_basis_element(
         &self,
-        result: &mut SliceMut,
+        mut result: SliceMut,
         coeff: u32,
         input_degree: i32,
         input_idx: usize,

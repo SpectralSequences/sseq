@@ -125,7 +125,7 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
 
                 if s > 3 {
                     deltas[s as usize - 4].apply(
-                        &mut scratch.as_slice_mut(),
+                        scratch.as_slice_mut(),
                         1,
                         t,
                         res.differential(s).output(t, idx).as_slice(),
@@ -135,11 +135,11 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
                 #[cfg(debug_assertions)]
                 if s > 3 {
                     let mut r = FpVector::new(TWO, res.module(s - 4).dimension(t - 1));
-                    res.differential(s - 3).apply(&mut r.as_slice_mut(), 1, t - 1, scratch.as_slice());
+                    res.differential(s - 3).apply(r.as_slice_mut(), 1, t - 1, scratch.as_slice());
                     assert!(r.is_zero(), "dd != 0 at s = {}, t = {}", s, t);
                 }
 
-                d.quasi_inverse(t - 1).apply(&mut result.as_slice_mut(), 1, scratch.as_slice());
+                d.quasi_inverse(t - 1).apply(result.as_slice_mut(), 1, scratch.as_slice());
                 scratch.set_to_zero();
             }
             delta.add_generators_from_rows(&delta.lock(), t, results);
@@ -369,17 +369,17 @@ pub fn compute_delta_concurrent(
                 for (idx, result) in results.iter_mut().enumerate() {
                     let row: &mut FpVector = ddelta[idx].as_mut().unwrap();
                     if s > 3 {
-                        deltas[s as usize - 4].apply(row, 1, t, source_d.output(t, idx));
+                        deltas[s as usize - 4].apply(row.as_slice_mut(), 1, t, source_d.output(t, idx).as_slice());
                     }
 
                     #[cfg(debug_assertions)]
                     if s > 3 {
                         let mut r = FpVector::new(TWO, res.module(s - 4).dimension(t - 1));
-                        res.differential(s - 3).apply(&mut r, 1, t - 1, &row);
+                        res.differential(s - 3).apply(r.as_slice_mut(), 1, t - 1, row.as_slice());
                         assert!(r.is_zero(), "dd != 0 at s = {}, t = {}", s, t);
                     }
 
-                    target_d.quasi_inverse(t - 1).apply(result, 1, row);
+                    target_d.quasi_inverse(t - 1).apply(result.as_slice_mut(), 1, row.as_slice());
                 }
                 delta.add_generators_from_rows(&delta.lock(), t, results);
                 sender.send(()).unwrap();
@@ -487,7 +487,7 @@ pub fn compute_a_dd(
                 a_list,
                 &mut b,
                 &mut c,
-                &mut result.slice_mut(offset, offset + num_ops),
+                result.slice_mut(offset, offset + num_ops),
             );
 
             // While the Y terms can be processed separately, we have to be careful with the Sq
@@ -548,7 +548,7 @@ pub fn compute_a_dd(
                 let num_ops = algebra.dimension(a.degree + elt.degree, 0);
 
                 allocation = algebra.multiply_with_allocation(
-                    &mut result.slice_mut(offset, offset + num_ops),
+                    result.slice_mut(offset, offset + num_ops),
                     1,
                     &a,
                     &elt,
@@ -566,7 +566,7 @@ fn a_sigma_y(
     a: &mut MilnorClass,
     b: &mut MilnorElt,
     c: &mut MilnorElt,
-    result: &mut SliceMut,
+    mut result: SliceMut,
 ) {
     let mut u = MilnorElt::default();
     let mut scratch = FpVector::new(TWO, 0);
@@ -592,7 +592,7 @@ fn a_sigma_y(
                 scratch2.set_scratch_vector_size(algebra.dimension(ay_degree + b.degree, 0));
 
                 allocation = algebra.multiply_element_by_basis_with_allocation(
-                    &mut scratch2.as_slice_mut(),
+                    scratch2.as_slice_mut(),
                     1,
                     ay_degree,
                     scratch.as_slice(),
@@ -600,7 +600,7 @@ fn a_sigma_y(
                     allocation,
                 );
                 allocation = algebra.multiply_element_by_basis_with_allocation(
-                    result,
+                    result.copy(),
                     1,
                     ay_degree + b.degree,
                     scratch2.as_slice(),
@@ -679,7 +679,7 @@ fn a_y_inner(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize) -> FpVect
 
             // We can just read off the value of the product instead of passing through the
             // algorithm, but this is cached so problem for another day...
-            algebra.multiply(&mut result.as_slice_mut(), 1, &t, &a);
+            algebra.multiply(result.as_slice_mut(), 1, &t, &a);
 
             unsub!(a, j, l);
         }
@@ -747,7 +747,7 @@ mod test {
             let target_deg = a.degree + b.degree + c.degree - 1;
             algebra.compute_basis(target_deg + 1);
             result.set_scratch_vector_size(algebra.dimension(target_deg, 0));
-            a_sigma_y(&algebra, &mut a, &mut b, &mut c, &mut result.as_slice_mut());
+            a_sigma_y(&algebra, &mut a, &mut b, &mut c, result.as_slice_mut());
             ans.assert_eq(&algebra.element_to_string(target_deg, result.as_slice()))
         };
 

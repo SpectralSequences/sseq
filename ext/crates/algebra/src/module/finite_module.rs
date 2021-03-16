@@ -66,7 +66,7 @@ impl Module for FiniteModule {
 
     fn act_on_basis(
         &self,
-        result: &mut SliceMut,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -91,7 +91,7 @@ impl Module for FiniteModule {
     // impact on the others)
     fn act(
         &self,
-        result: &mut SliceMut,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -113,7 +113,7 @@ impl Module for FiniteModule {
 
     fn act_by_element(
         &self,
-        result: &mut SliceMut,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op: Slice,

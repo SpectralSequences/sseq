@@ -48,7 +48,7 @@ pub trait BoundedModule: Module {
                         let output_vec: &mut FpVector =
                             result.action_mut(op_degree, op_idx, input_degree, input_idx);
                         self.act_on_basis(
-                            &mut output_vec.as_slice_mut(),
+                            output_vec.as_slice_mut(),
                             1,
                             op_degree,
                             op_idx,

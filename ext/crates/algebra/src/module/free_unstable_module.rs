@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::algebra::{AdemAlgebra, AdemAlgebraT};
 use crate::module::Module;
 use bivec::BiVec;
-use fp::vector::{FpVector};
+use fp::vector::{FpVector, SliceMut};
 use once::{OnceVec, OnceBiVec};
 use crate::module::OperationGeneratorPair;
 
@@ -90,7 +90,7 @@ impl<A: AdemAlgebraT> Module for FreeUnstableModule<A> {
 
     fn act_on_basis(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -119,7 +119,7 @@ impl<A: AdemAlgebraT> Module for FreeUnstableModule<A> {
         // Now we multiply s * r and write the result to the appropriate position.
         let basis_filter = |_,_| true;
         self.adem_algebra().multiply_basis_elements_unstable(
-            &mut *result.borrow_slice(output_block_min, output_block_max),
+            result.slice_mut(output_block_min, output_block_max),
             coeff,
             op_degree,
             op_index,

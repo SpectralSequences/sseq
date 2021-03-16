@@ -34,7 +34,7 @@ impl<N: FPModuleT, M: Module<Algebra = N::Algebra>> ModuleHomomorphism
 
     fn apply_to_basis_element(
         &self,
-        result: &mut SliceMut,
+        result: SliceMut,
         coeff: u32,
         input_degree: i32,
         input_index: usize,

@@ -712,10 +712,10 @@ impl Matrix {
     /// m.apply(&mut result, 1, &v);
     /// assert_eq!(result, desired_result);
     /// `#`#`
-    pub fn apply(&self, result : &mut FpVector, coeff : u32, input : &FpVector) {
+    pub fn apply(&self, mut result : SliceMut, coeff : u32, input : Slice) {
         debug_assert_eq!(input.dimension(), self.rows());
         for i in 0 .. input.dimension() {
-            result.add(&self.vectors[i], (coeff * input.entry(i)) % *self.p);
+            result.add(self.vectors[i].as_slice(), (coeff * input.entry(i)) % *self.p);
         }
     }
 }
