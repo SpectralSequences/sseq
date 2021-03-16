@@ -247,6 +247,24 @@ impl<const P: u32> FpVectorP<P> {
     pub(crate) fn limbs(&self) -> &[u64] {
         &self.limbs
     }
+
+    /// This function ensures the dimension of the vector is at least `dim`. See also
+    /// `set_scratch_vector_size`.
+    pub fn extend_dimension(&mut self, dim: usize) {
+        if self.dimension >= dim {
+            return;
+        }
+        let p = self.prime();
+        self.dimension = dim;
+        self.limbs.resize(limb::number::<P>(dim), 0);
+    }
+
+    /// This clears the vector and sets the dimension to dim. This is useful for reusing
+    /// allocations of temporary vectors.
+    pub fn set_scratch_vector_size(&self, dim: usize) {
+        self.limbs.clear();
+        self.limbs.resize(limb::number::<P>(dim), 0);
+    }
 }
 
 impl<'a, const P: u32> From<&'a FpVectorP<P>> for SliceP<'a, P> {
