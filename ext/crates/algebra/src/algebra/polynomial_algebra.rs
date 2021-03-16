@@ -5,7 +5,7 @@ use std::fmt;
 
 use once::OnceVec;
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector};
 
 use crate::algebra::combinatorics::TruncatedPolynomialMonomialBasis;
 use crate::algebra::Algebra;

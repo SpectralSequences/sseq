@@ -9,7 +9,6 @@ use algebra::{Algebra, SteenrodAlgebra};
 use algebra::module::{FiniteModule, Module, BoundedModule};
 use algebra::module::homomorphism::FreeModuleHomomorphism;
 use fp::matrix::Matrix;
-use fp::vector::FpVectorT;
 use crate::chain_complex::{FreeChainComplex, FiniteChainComplex, ChainMap};
 use crate::resolution::Resolution;
 #[cfg(feature = "yoneda")]

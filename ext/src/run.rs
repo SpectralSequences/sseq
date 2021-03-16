@@ -22,7 +22,7 @@ use ext::utils::{construct, construct_s_2, Config};
 use ext::yoneda::yoneda_representative_element;
 use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::FpVector;
 
 use bivec::BiVec;
 use query::*;
@@ -439,7 +439,7 @@ pub fn steenrod() -> error::Result<String> {
                             }
                             d_target.apply_quasi_inverse(&mut output_matrix[j], t, &result);
 
-                            result.set_to_zero_pure();
+                            result.set_to_zero();
                         }
                         map.add_generators_from_matrix_rows(&lock, t, &output_matrix);
 

@@ -1,6 +1,6 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::prime::ValidPrime;
-use crate::vector::FpVector;
+use crate::vector::{SliceMut, Slice};
 use super::{
     Matrix,
     Subspace
@@ -33,7 +33,7 @@ impl QuasiInverse {
     ///  * `target` - The output vector
     ///  * `coeff` - The constant multiple above
     ///  * `input` - The input vector, expressed in the basis of the ambient space
-    pub fn apply(&self, target : &mut FpVector, coeff : u32, input : &FpVector){
+    pub fn apply(&self, target : &mut SliceMut, coeff : u32, input : Slice){
         let p = self.prime();
         let mut row = 0;
         let columns = input.dimension();
@@ -43,7 +43,7 @@ impl QuasiInverse {
             }}
             let c = input.entry(i);
             if c != 0 {
-                target.add(&self.preimage[row], (coeff * c) % *p);
+                target.add(self.preimage[row].as_slice(), (coeff * c) % *p);
             }
             row += 1;
         }

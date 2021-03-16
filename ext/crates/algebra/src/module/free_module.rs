@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::algebra::Algebra;
 use crate::module::Module;
 use bivec::BiVec;
-use fp::vector::{FpVector};
+use fp::vector::{Slice, SliceMut};
 use once::{OnceVec, OnceBiVec};
 
 #[derive(Clone, Debug)]
@@ -99,7 +99,7 @@ impl<A: Algebra> Module for FreeModule<A> {
 
     fn act_on_basis(
         &self,
-        result: &mut FpVector,
+        result: &mut SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -127,7 +127,7 @@ impl<A: Algebra> Module for FreeModule<A> {
 
         // Now we multiply s * r and write the result to the appropriate position.
         self.algebra().multiply_basis_elements(
-            &mut *result.borrow_slice(output_block_min, output_block_max),
+            &mut result.slice_mut(output_block_min, output_block_max),
             coeff,
             op_degree,
             op_index,
@@ -139,7 +139,7 @@ impl<A: Algebra> Module for FreeModule<A> {
 
     // Will need specialization
     /*    #[cfg(not(feature = "cache-multiplication"))]
-    fn act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector){
+    fn act(&self, result : &mut SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice){
         if *self.prime() == 2 {
             if let SteenrodAlgebra::MilnorAlgebra(m) = &*self.algebra() {
                 self.custom_milnor_act(m, result, coeff, op_degree, op_index, input_degree, input);
@@ -289,7 +289,7 @@ impl<A: Algebra> FreeModule<A> {
         &self.basis_element_to_opgen[degree][index]
     }
 
-    pub fn element_to_json(&self, degree: i32, elt: &FpVector) -> Value {
+    pub fn element_to_json(&self, degree: i32, elt: Slice) -> Value {
         let mut result = Vec::new();
         let algebra = self.algebra();
         for (i, v) in elt.iter_nonzero() {
@@ -356,7 +356,7 @@ impl<A: Algebra> FreeModule<A> {
 
     /// A version of element_to_string that names the generator as x_{t - s, s, idx}. The input s
     /// only affects how the output is displayed.
-    pub fn element_to_string_pretty(&self, s: u32, t: i32, vec: &FpVector) -> String {
+    pub fn element_to_string_pretty(&self, s: u32, t: i32, vec: Slice) -> String {
         let mut first = true;
 
         let mut result = String::new();
@@ -413,7 +413,7 @@ impl<A: Algebra> Load for FreeModule<A> {
 /*
 #[cfg(not(feature = "cache-multiplication"))]
 impl<A: Algebra> FreeModule<A> {
-    fn standard_act(&self, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector) {
+    fn standard_act(&self, result : &mut SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice) {
         assert!(input.dimension() == self.dimension(input_degree));
         let p = *self.prime();
         for (i, v) in input.iter_nonzer() {
@@ -433,7 +433,7 @@ impl<A: Algebra> FreeModule<A> {
     /// contributes to $\mathrm{Sq}(R) \mathrm{Sq}(S^{(k)})$ iff the column sum is at most
     /// $s_{j}^{(k)}$. There are also some bitwise disjointness conditions we have to check to
     /// ensure the coefficient is non-zero.
-    fn custom_milnor_act(&self, algebra: &MilnorAlgebra, result : &mut FpVector, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : &FpVector) {
+    fn custom_milnor_act(&self, algebra: &MilnorAlgebra, result : &mut SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice) {
         if coeff % 2 == 0 {
             return;
         }
@@ -632,7 +632,7 @@ mod tests {
 
     use crate::algebra::{AdemAlgebra, SteenrodAlgebra};
     use fp::prime::ValidPrime;
-    use fp::vector::FpVectorT;
+    use fp::vector::FpVector;
 
     #[test]
     fn test_free_mod() {

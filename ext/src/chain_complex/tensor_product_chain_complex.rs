@@ -415,7 +415,7 @@ where
                         row.shift_assign(&result);
                         row.clear_slice();
                     }
-                    result.set_to_zero_pure();
+                    result.set_to_zero();
                 }
                 target_offset += target_right_dim * target_left_dim;
                 row_count += source_right_dim * source_left_dim;
@@ -449,7 +449,7 @@ where
                         }
                         row_count += 1;
                     }
-                    result.set_to_zero_pure();
+                    result.set_to_zero();
                 }
                 target_offset += target_right_dim * target_left_dim;
             }

@@ -1,6 +1,6 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 use fp::prime::ValidPrime;
-use fp::vector::FpVector;
+use fp::vector::{Slice, SliceMut};
 use crate::algebra::{
     Algebra, Bialgebra,
     AdemAlgebra, AdemAlgebraT,

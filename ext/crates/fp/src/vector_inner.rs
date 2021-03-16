@@ -264,6 +264,18 @@ impl<const P: u32> FpVectorP<P> {
         self.limbs.clear();
         self.limbs.resize(limb::number::<P>(dim), 0);
     }
+
+    /// This replaces the contents of the vector with the contents of the slice. The two must have
+    /// the same length.
+    pub fn copy_from_slice(&mut self, slice: &[u32]) {
+        assert_eq!(self.dimension, slice.len());
+
+        self.limbs.clear();
+        self.limbs.extend(slice
+                .chunks(entries_per_64_bits(ValidPrime::new(P)))
+                .map(|x| limb::pack::<_, P>(x.iter().copied()))
+                );
+    }
 }
 
 impl<'a, const P: u32> From<&'a FpVectorP<P>> for SliceP<'a, P> {
@@ -300,7 +312,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 }
 
 impl<'a, const P: u32> SliceP<'a, P> {
-    fn slice(&self, start: usize, end: usize) -> SliceP<'_, P> {
+    pub fn slice(&self, start: usize, end: usize) -> SliceP<'_, P> {
         assert!(start <= end && end <= self.dimension());
 
         SliceP {
@@ -316,7 +328,7 @@ mod limb {
 
     pub const fn add<const P: u32>(limb_a: u64, limb_b: u64, coeff: u32) -> u64 {
         if P == 2 {
-            limb_a & (coeff as u64 * limb_b)
+            limb_a ^ (coeff as u64 * limb_b)
         } else {
             limb_a + (coeff as u64) * limb_b
         }

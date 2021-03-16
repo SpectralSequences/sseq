@@ -6,7 +6,7 @@ use rustc_hash::FxHashSet as HashSet;
 // use std::time::Instant;
 
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::FpVector;
 use fp::matrix::{Matrix, Subspace, AugmentedMatrix3};
 use crate::algebra::Algebra;
 use crate::module::{Module, FreeModule};
@@ -207,19 +207,18 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let mut matrix = AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, source_dimension + rows]);
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
 
-        matrix.set_row_slice(0, source_dimension);
-        current_chain_map.get_matrix(&mut *matrix.segment(0,0), t);
-        current_differential.get_matrix(&mut *matrix.segment(1,1), t);
+        current_chain_map.get_matrix(&mut matrix.segment(0,0).row_slice(0, source_dimension), t);
+        current_differential.get_matrix(&mut matrix.segment(1,1).row_slice(0, source_dimension), t);
         matrix.segment(2,2).add_identity(source_dimension, 0, 0);
         matrix.initialize_pivots();
 
 
         // This slices the underling matrix. Be sure to revert this.
-        matrix.inner.set_slice(0, source_dimension, 0, matrix.start[2] + source_dimension);
-        matrix.row_reduce();
-        let temp = matrix.start[2];
-        let new_kernel = matrix.compute_kernel(temp);
-        matrix.clear_slice();
+        let matrix_start_2 = matrix.start[2];
+        let mut pivots = matrix.take_pivots();
+        matrix.slice_mut(0, source_dimension, 0, matrix_start_2 + source_dimension).row_reduce_into_pivots(&mut pivots);
+        let new_kernel = matrix.slice_mut(0, source_dimension, 0, matrix_start_2 + source_dimension).compute_kernel(&pivots, matrix_start_2);
+        matrix.set_pivots(pivots);
 
         let first_new_row = source_dimension;
 
@@ -246,9 +245,9 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
                 let mut dfx = FpVector::new(self.prime(), dfx_dim);
 
                 for (i, column) in new_generators.into_iter().enumerate() {
-                    complex_cur_differential.apply_to_basis_element(&mut dfx, 1, t, column);
-                    quasi_inverse.apply(&mut *matrix.row_segment(first_new_row + i, 1, 1), 1, &dfx);
-                    dfx.set_to_zero_pure();
+                    complex_cur_differential.apply_to_basis_element(&mut dfx.as_slice_mut(), 1, t, column);
+                    quasi_inverse.apply(&mut matrix.row_segment(first_new_row + i, 1, 1), 1, dfx.as_slice());
+                    dfx.set_to_zero();
 
                     // Keep the rows we produced because we have to row reduce to re-compute
                     // the kernel later, but these rows are the images of the generators, so we
@@ -271,25 +270,21 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let num_new_gens = cc_new_gens + res_new_gens;
         source.add_generators(t, num_new_gens, None);
 
-        matrix.set_row_slice(first_new_row, rows);
-        current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, &*matrix.segment(0, 0));
-        current_differential.add_generators_from_matrix_rows(&differential_lock, t, &*matrix.segment(1, 1));
-        matrix.clear_row_slice();
+        current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, matrix.segment(0, 0).row_slice(first_new_row, rows));
+        current_differential.add_generators_from_matrix_rows(&differential_lock, t, matrix.segment(1, 1).row_slice(first_new_row, rows));
 
         // Record the quasi-inverses for future use.
         // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
         let image_rows = first_new_row + num_new_gens;
         for i in first_new_row .. image_rows {
-            matrix.inner[i].set_entry(matrix.start[2] + i, 1);
+            matrix.inner[i].set_entry(matrix_start_2 + i, 1);
         }
 
-        // From now on we only use the underlying matrix. We manipulate slice directly but don't
-        // drop matrix so that we can use matrix.start
-        matrix.inner.set_slice(0, image_rows, 0, matrix.start[2] + source_dimension + num_new_gens);
-        matrix.initialize_pivots();
-        matrix.row_reduce();
+        // From now on we only use the underlying matrix.
+        let mut pivots = matrix.take_pivots();
+        matrix.slice_mut(0, image_rows, 0, matrix_start_2 + source_dimension + num_new_gens).row_reduce_into_pivots(&mut pivots);
+        matrix.set_pivots(pivots);
 
-        // Should this be a method on AugmentedMatrix3?
         let (cm_qi, res_qi) = matrix.compute_quasi_inverses();
 
         current_chain_map.set_quasi_inverse(&chain_map_lock, t, cm_qi);
@@ -408,7 +403,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
     //             for (i, column) in new_generators.into_iter().enumerate() {
     //                 complex_cur_differential.apply_to_basis_element(&mut dfx, 1, t, column);
     //                 quasi_inverse.apply(&mut *matrix.row_segment(first_new_row + i, 1, 1), 1, &dfx);
-    //                 dfx.set_to_zero_pure();
+    //                 dfx.set_to_zero();
 
     //                 // Keep the rows we produced because we have to row reduce to re-compute
     //                 // the kernel later, but these rows are the images of the generators, so we
@@ -510,7 +505,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         let target = d.target();
         let result_vector = d.output(int_deg, idx);
 
-        target.element_to_string_pretty(hom_deg, int_deg, &result_vector)
+        target.element_to_string_pretty(hom_deg, int_deg, result_vector.as_slice())
     }
 
     pub fn complex(&self) -> Arc<CC> {
@@ -1055,7 +1050,7 @@ impl<CC: UnitChainComplex> Resolution<CC> {
                             );
                         unit_vector[j].set_entry(0, 1);
                         f.extend_step(new_s as u32, new_t, Some(&unit_vector));
-                        unit_vector[j].set_to_zero_pure();
+                        unit_vector[j].set_to_zero();
                         self.chain_maps_to_unit_resolution[new_s][new_t].push(f);
                     }
                 }

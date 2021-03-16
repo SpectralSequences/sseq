@@ -1,7 +1,7 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::module::{BoundedModule, Module};
 use fp::matrix::Subspace;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector};
 use once::OnceBiVec;
 use std::sync::Arc;
 

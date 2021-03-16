@@ -170,6 +170,7 @@ impl FpVector {
         pub fn extend_dimension(&mut self, dim: usize);
         pub fn set_scratch_vector_size(&mut self, dim: usize);
         pub fn add_basis_element(&mut self, index: usize, value: u32);
+        pub fn copy_from_slice(&mut self, slice: &[u32]);
 
         fn limbs(&self) -> (&[u64]);
     }
@@ -183,6 +184,7 @@ impl<'a> Slice<'a> {
         pub fn iter(self) -> (FpVectorIterator<'a>);
         pub fn iter_nonzero(self) -> (FpVectorNonZeroIterator<'a>);
         pub fn is_zero(&self) -> bool;
+        pub fn slice(&self, start: usize, end: usize) -> (dispatch Slice);
     }
 }
 
@@ -195,6 +197,8 @@ impl<'a> SliceMut<'a> {
         pub fn assign(&mut self, other: Slice);
         pub fn set_entry(&mut self, index: usize, value: u32);
         pub fn as_slice(&self) -> (dispatch Slice);
+        pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch SliceMut);
+        pub fn add_basis_element(&mut self, index: usize, value: u32);
     }
 }
 
@@ -214,6 +218,12 @@ impl<'a> std::fmt::Display for Slice<'a> {
 impl From<&FpVector> for Vec<u32> {
     fn from(v: &FpVector) -> Vec<u32> {
         v.iter().collect()
+    }
+}
+
+impl std::ops::AddAssign<&FpVector> for FpVector {
+    fn add_assign(&mut self, other: &FpVector) {
+        self.add(other, 1);
     }
 }
 

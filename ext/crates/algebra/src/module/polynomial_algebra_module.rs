@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 use once::OnceVec;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector};
 
 use crate::algebra::{Algebra, AdemAlgebraT};
 use crate::algebra::{PolynomialAlgebra, PolynomialAlgebraMonomial};

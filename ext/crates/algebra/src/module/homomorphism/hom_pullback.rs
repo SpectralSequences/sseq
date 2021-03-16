@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::module::block_structure::BlockStart;
 use fp::matrix::{QuasiInverse, Subspace};
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector};
 use once::OnceBiVec;
 // use crate::algebra::SteenrodAlgebra;
 // use crate::field::Field;

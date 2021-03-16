@@ -13,7 +13,7 @@ use algebra::{Algebra as _, MilnorAlgebraT, SteenrodAlgebra};
 #[cfg(feature = "concurrent")]
 use bivec::BiVec;
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{SliceMut, FpVector};
 use rustc_hash::FxHashMap as HashMap;
 #[cfg(feature = "concurrent")]
 use saveload::{Load, Save};
@@ -125,22 +125,22 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
 
                 if s > 3 {
                     deltas[s as usize - 4].apply(
-                        &mut scratch,
+                        &mut scratch.as_slice_mut(),
                         1,
                         t,
-                        res.differential(s).output(t, idx),
+                        res.differential(s).output(t, idx).as_slice(),
                     );
                 }
 
                 #[cfg(debug_assertions)]
                 if s > 3 {
                     let mut r = FpVector::new(TWO, res.module(s - 4).dimension(t - 1));
-                    res.differential(s - 3).apply(&mut r, 1, t - 1, &scratch);
+                    res.differential(s - 3).apply(&mut r.as_slice_mut(), 1, t - 1, scratch.as_slice());
                     assert!(r.is_zero(), "dd != 0 at s = {}, t = {}", s, t);
                 }
 
-                d.quasi_inverse(t - 1).apply(result, 1, &scratch);
-                scratch.set_to_zero_pure();
+                d.quasi_inverse(t - 1).apply(&mut result.as_slice_mut(), 1, scratch.as_slice());
+                scratch.set_to_zero();
             }
             delta.add_generators_from_rows(&delta.lock(), t, results);
         }
@@ -487,7 +487,7 @@ pub fn compute_a_dd(
                 a_list,
                 &mut b,
                 &mut c,
-                &mut *result.borrow_slice(offset, offset + num_ops),
+                &mut result.slice_mut(offset, offset + num_ops),
             );
 
             // While the Y terms can be processed separately, we have to be careful with the Sq
@@ -548,7 +548,7 @@ pub fn compute_a_dd(
                 let num_ops = algebra.dimension(a.degree + elt.degree, 0);
 
                 allocation = algebra.multiply_with_allocation(
-                    &mut *result.borrow_slice(offset, offset + num_ops),
+                    &mut result.slice_mut(offset, offset + num_ops),
                     1,
                     &a,
                     &elt,
@@ -566,7 +566,7 @@ fn a_sigma_y(
     a: &mut MilnorClass,
     b: &mut MilnorElt,
     c: &mut MilnorElt,
-    result: &mut FpVector,
+    result: &mut SliceMut,
 ) {
     let mut u = MilnorElt::default();
     let mut scratch = FpVector::new(TWO, 0);
@@ -592,10 +592,10 @@ fn a_sigma_y(
                 scratch2.set_scratch_vector_size(algebra.dimension(ay_degree + b.degree, 0));
 
                 allocation = algebra.multiply_element_by_basis_with_allocation(
-                    &mut scratch2,
+                    &mut scratch2.as_slice_mut(),
                     1,
                     ay_degree,
-                    &scratch,
+                    scratch.as_slice(),
                     &b,
                     allocation,
                 );
@@ -603,7 +603,7 @@ fn a_sigma_y(
                     result,
                     1,
                     ay_degree + b.degree,
-                    &scratch2,
+                    scratch2.as_slice(),
                     &c,
                     allocation,
                 );
@@ -638,10 +638,10 @@ fn a_y_cached(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize, result: 
     AY_CACHE.with(|cache| {
         let cache = &mut *cache.try_borrow_mut().unwrap();
         match cache.get_tuple(a, &(k, l)) {
-            Some(v) => result.add_shift_none_pure(v, 1),
+            Some(v) => result.add(v, 1),
             None => {
                 let v = a_y_inner(algebra, a, k, l);
-                result.add_shift_none_pure(&v, 1);
+                result.add(&v, 1);
                 cache.insert((a.clone(), (k, l)), v);
             }
         }
@@ -679,7 +679,7 @@ fn a_y_inner(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize) -> FpVect
 
             // We can just read off the value of the product instead of passing through the
             // algorithm, but this is cached so problem for another day...
-            algebra.multiply(&mut result, 1, &t, &a);
+            algebra.multiply(&mut result.as_slice_mut(), 1, &t, &a);
 
             unsub!(a, j, l);
         }
@@ -723,7 +723,7 @@ mod test {
             algebra.compute_basis(target_deg + 1);
             result.set_scratch_vector_size(algebra.dimension(target_deg, 0));
             a_y(&algebra, &mut a, k, l, &mut result);
-            ans.assert_eq(&algebra.element_to_string(target_deg, &result));
+            ans.assert_eq(&algebra.element_to_string(target_deg, result.as_slice()));
         };
 
         check(&[1], 0, 1, expect![["P(2)"]]);
@@ -747,8 +747,8 @@ mod test {
             let target_deg = a.degree + b.degree + c.degree - 1;
             algebra.compute_basis(target_deg + 1);
             result.set_scratch_vector_size(algebra.dimension(target_deg, 0));
-            a_sigma_y(&algebra, &mut a, &mut b, &mut c, &mut result);
-            ans.assert_eq(&algebra.element_to_string(target_deg, &result))
+            a_sigma_y(&algebra, &mut a, &mut b, &mut c, &mut result.as_slice_mut());
+            ans.assert_eq(&algebra.element_to_string(target_deg, result.as_slice()))
         };
 
         check(&[1], &[1], &[1], expect![["P(2)"]]);
@@ -788,7 +788,7 @@ mod test {
                 &mut result,
             );
             assert_eq!(
-                &m.element_to_string(target_deg, &result),
+                &m.element_to_string(target_deg, result.as_slice()),
                 ans,
                 "A({}, dd x_({}, {}))",
                 a.elements[0],

@@ -2,7 +2,7 @@
 use crate::algebra::{Algebra, SteenrodAlgebra};
 use crate::module::{FDModule, FPModule, Module, RealProjectiveSpace};
 use fp::prime::ValidPrime;
-use fp::vector::FpVector;
+use fp::vector::{FpVector, Slice, SliceMut};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -66,7 +66,7 @@ impl Module for FiniteModule {
 
     fn act_on_basis(
         &self,
-        result: &mut FpVector,
+        result: &mut SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -91,12 +91,12 @@ impl Module for FiniteModule {
     // impact on the others)
     fn act(
         &self,
-        result: &mut FpVector,
+        result: &mut SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
-        input: &FpVector,
+        input: Slice,
     ) {
         match self {
             FiniteModule::FDModule(m) => {
@@ -113,12 +113,12 @@ impl Module for FiniteModule {
 
     fn act_by_element(
         &self,
-        result: &mut FpVector,
+        result: &mut SliceMut,
         coeff: u32,
         op_degree: i32,
-        op: &FpVector,
+        op: Slice,
         input_degree: i32,
-        input: &FpVector,
+        input: Slice,
     ) {
         match self {
             FiniteModule::FDModule(m) => {
