@@ -116,7 +116,7 @@ impl Subquotient {
         for v in source.gens() {
             matrix.apply(&mut temp, 1, v);
             result.push(target.reduce(&mut temp));
-            temp.set_to_zero_pure()
+            temp.set_to_zero()
         }
         result
     }
