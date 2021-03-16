@@ -285,7 +285,7 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
         matrix.slice_mut(0, image_rows, 0, matrix_start_2 + source_dimension + num_new_gens).row_reduce_into_pivots(&mut pivots);
         matrix.set_pivots(pivots);
 
-        let (cm_qi, res_qi) = matrix.compute_quasi_inverses();
+        let (cm_qi, res_qi) = matrix.compute_quasi_inverses(matrix_start_2 + source_dimension + num_new_gens);
 
         current_chain_map.set_quasi_inverse(&chain_map_lock, t, cm_qi);
         current_chain_map.set_kernel(&chain_map_lock, t, Subspace::new(p, 0, 0)); // Fill it up with something dummy so that compute_kernels_and... is happy

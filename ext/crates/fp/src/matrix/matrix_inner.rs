@@ -543,9 +543,8 @@ impl Matrix {
     ///  * `first_res_column` - the first column of B
     ///  * `last_res_col` - the last column of B
     ///  * `first_source_col` - the first column of I
-    pub fn compute_quasi_inverses(&mut self, first_res_col : usize, last_res_col : usize,  first_source_col : usize) -> (QuasiInverse, QuasiInverse) {
+    pub fn compute_quasi_inverses(&mut self, first_res_col : usize, last_res_col : usize,  first_source_col : usize, columns: usize) -> (QuasiInverse, QuasiInverse) {
         let p = self.prime();
-        let columns = self.columns();
         let source_columns = columns - first_source_col;
         let res_columns = last_res_col - first_res_col;
         let first_res_row = self.find_first_row_in_block(first_res_col);
@@ -852,8 +851,8 @@ impl AugmentedMatrix2 {
 }
 
 impl AugmentedMatrix3 {
-    pub fn compute_quasi_inverses(&mut self) -> (QuasiInverse, QuasiInverse) {
-        self.inner.compute_quasi_inverses(self.start[1], self.end[1], self.start[2])
+    pub fn compute_quasi_inverses(&mut self, columns: usize) -> (QuasiInverse, QuasiInverse) {
+        self.inner.compute_quasi_inverses(self.start[1], self.end[1], self.start[2], columns)
     }
 }
 
@@ -904,7 +903,8 @@ impl<'a> MatrixSliceMut<'a> {
             let ptarget: *mut FpVector = &mut self.vectors[target];
             let psource: *const FpVector = &mut self.vectors[source];
             // Use the optimized variant of add that ignores slicing (profiling shows this cuts out ~ 2% of runtime)
-            (*ptarget).slice_mut(self.col_start, self.col_end).add((*psource).slice(self.col_start, self.col_end), coeff);
+//            (*ptarget).slice_mut(self.col_start, self.col_end).add((*psource).slice(self.col_start, self.col_end), coeff);
+            (*ptarget).add(&*psource, coeff);
         }
     }
 

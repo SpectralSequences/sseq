@@ -342,7 +342,7 @@ mod test {
         result
     }
 
-    #[rstest(p, case(2), case(3), case(5))] //, case(7))]
+    #[rstest(p, case(2), case(3), case(5), case(7))]
     fn test_add(p: u32) {
         let p_ = ValidPrime::new(p);
         initialize_limb_bit_index_table(p_);

@@ -606,8 +606,41 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 
     /// TODO: improve efficiency
     pub fn assign(&mut self, other: SliceP<'_, P>) {
-        self.set_to_zero();
-        self.add(other, 1);
+        if self.as_slice().offset() != other.offset() {
+            self.set_to_zero();
+            self.add(other, 1);
+            return;
+        }
+        let (min_target_limb, max_target_limb) = self.as_slice().limb_range();
+        let (min_source_limb, max_source_limb) = other.limb_range();
+
+        let number_of_limbs = max_target_limb - min_target_limb;
+        if number_of_limbs == 0 {
+            return;
+        }
+        debug_assert_eq!(number_of_limbs, max_source_limb - min_source_limb);
+        {
+            let start = 1;
+            let end = number_of_limbs - 1;
+            if end > start {
+                self.limbs[start + min_target_limb .. end + min_target_limb]
+                    .clone_from_slice(&other.limbs[start + min_source_limb .. end + min_source_limb]);
+            }
+        }
+        let mut i=0; {
+            let mask = other.limb_mask(i + min_source_limb);
+            let result = other.limbs[min_source_limb + i] & mask;
+            self.limbs[min_target_limb + i] &= !mask;
+            self.limbs[min_target_limb + i] |= result;
+        }
+        i = number_of_limbs - 1;
+        if i > 0 {
+            let mask = other.limb_mask(i + min_source_limb);
+            let result = other.limbs[min_source_limb + i] & mask;
+            self.limbs[min_target_limb + i] &= !mask;
+            self.limbs[min_target_limb + i] |= result;
+        }
+
     }
 
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
