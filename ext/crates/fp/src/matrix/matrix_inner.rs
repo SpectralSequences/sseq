@@ -1,5 +1,4 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
-use itertools::Itertools;
 use crate::prime::{self, ValidPrime};
 use crate::vector::{FpVector, Slice, SliceMut};
 use super::{
@@ -97,7 +96,6 @@ impl Matrix {
 
     /// Produces a matrix from a list of rows.
     pub fn from_rows(p : ValidPrime, vectors : Vec<FpVector>, columns : usize) -> Self {
-        let rows = vectors.len();
         for row in &vectors {
             debug_assert_eq!(row.dimension(), columns);
         }
@@ -194,6 +192,15 @@ impl Matrix {
 
     pub fn into_vec(self) -> Vec<FpVector> {
         self.vectors
+    }
+
+    pub fn slice_mut(&mut self, row_start: usize, row_end: usize, col_start: usize, col_end: usize) -> MatrixSliceMut {
+        MatrixSliceMut {
+            p: self.p,
+            rows: &mut self.vectors[row_start .. row_end],
+            col_start,
+            col_end
+        }
     }
 }
 
@@ -614,10 +621,9 @@ impl Matrix {
                 .clone_from_slice(&self.pivots()[first_res_col..columns]);
             res_image_rows = first_kernel_row;
         } else {
-            self.set_slice(0, first_kernel_row, first_res_col, columns);
-            self.row_reduce_into_pivots(&mut new_pivots);
+            self.slice_mut(0, first_kernel_row, first_res_col, columns)
+                .row_reduce_into_pivots(&mut new_pivots);
             res_image_rows = self.find_first_row_in_block(first_source_col - first_res_col);
-            self.clear_slice();
         }
         let mut res_preimage = Matrix::new(p, res_image_rows, source_columns);
         let mut res_image = Subspace::new(p, res_image_rows, res_columns);
@@ -856,26 +862,17 @@ macro_rules! augmented_matrix {
                     }
                 }
 
-                pub fn segment(&mut self, start: usize, end: usize) -> MatrixSlice<'_> {
-                    let start_idx = self.start[start];
-                    let end_idx = self.end[end];
-                    let old_slice = if self.rows() == 0 {
-                        (0, self.columns())
-                    } else {
-                        self[0].slice()
-                    };
-                    for v in &mut *self.inner {
-                        v.restore_slice((start_idx, end_idx));
-                    }
-                    self.inner.slice_col_start = start_idx;
-                    self.inner.slice_col_end = end_idx;
-                    MatrixSlice(&mut self.inner, old_slice)
+                pub fn segment(&mut self, start: usize, end: usize) -> MatrixSliceMut {
+                    let rows = self.inner.rows();
+                    let start = self.start[start];
+                    let end = self.end[end];
+                    self.slice_mut(0, rows, start, end)
                 }
 
-                pub fn row_segment(&mut self, i: usize, start: usize, end: usize) -> FpVectorSlice<'_> {
+                pub fn row_segment(&mut self, i: usize, start: usize, end: usize) -> SliceMut {
                     let start_idx = self.start[start];
                     let end_idx = self.end[end];
-                    self[i].borrow_slice(start_idx, end_idx)
+                    self[i].slice_mut(start_idx, end_idx)
                 }
 
                 pub fn into_matrix(self) -> Matrix {
@@ -933,8 +930,30 @@ impl<'a> MatrixSliceMut<'a> {
         self.rows.len()
     }
 
+    pub fn row(&mut self, row: usize) -> Slice {
+        self.rows[row].slice(self.col_start, self.col_end)
+    }
+
     pub fn row_mut(&mut self, row: usize) -> SliceMut {
-        self.rows[row].slice_mut(col_start, col_end)
+        self.rows[row].slice_mut(self.col_start, self.col_end)
+    }
+
+    pub fn row_op(&mut self, target : usize, source : usize, coeff : u32) {
+        debug_assert!(target != source);
+        unsafe {
+            // Can't take two mutable borrows from one vector, so instead just cast
+            // them to their raw pointers to do the swap
+            let ptarget: *mut FpVector = &mut self.rows[target];
+            let psource: *const FpVector = &mut self.rows[source];
+            // Use the optimized variant of add that ignores slicing (profiling shows this cuts out ~ 2% of runtime)
+            (*ptarget).slice_mut(self.col_start, self.col_end).add((*psource).slice(self.col_start, self.col_end), coeff);
+        }
+    }
+
+    pub fn add_identity(&mut self, size : usize, row : usize, column : usize) {
+        for i in 0..size {
+            self.rows[row + i].add_basis_element(self.col_start + column + i, 1);
+        }
     }
 
     pub fn row_reduce_into_pivots(&mut self, column_to_pivot_row: &mut Vec<isize>) {
@@ -984,12 +1003,13 @@ impl<'a> MatrixSliceMut<'a> {
                     i = pivot_row + 1;
                     continue;
                 }
-                let pivot_column_entry = self[i].entry(pivot_column);
+                let pivot_column_entry = self.rows[i].entry(pivot_column);
                 if pivot_column_entry == 0 {
                     i += 1; // loop control structure.
                     continue;
                 }
                 let row_op_coeff = *p - pivot_column_entry;
+
                 self.row_op(i, pivot, row_op_coeff);
                 i += 1; // loop control structure.
             }
@@ -999,31 +1019,6 @@ impl<'a> MatrixSliceMut<'a> {
     }
 }
 
-pub struct MatrixSlice<'a>(&'a mut Matrix, (usize, usize));
-
-impl<'a> Drop for MatrixSlice<'a> {
-    fn drop(&mut self) {
-        self.0.slice_col_start = 0;
-        self.0.slice_col_end = self.0.columns;
-        for v in &mut **self.0 {
-            v.restore_slice(self.1);
-        }
-    }
-}
-
-impl std::ops::Deref for MatrixSlice<'_> {
-    type Target = Matrix;
-
-    fn deref(&self) -> &Matrix {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for MatrixSlice<'_> {
-    fn deref_mut(&mut self) -> &mut Matrix {
-        &mut self.0
-    }
-}
 
 use std::io;
 use std::io::{Read, Write};
@@ -1064,80 +1059,6 @@ impl Load for Subspace {
     fn load(buffer : &mut impl Read, p : &ValidPrime) -> io::Result<Self> {
         let matrix : Matrix = Matrix::load(buffer, p)?;
         Ok(Subspace { matrix })
-    }
-}
-
-use crate::vector::VectorDiffEntry;
-pub struct MatrixDiffEntry {
-    pos : (usize, usize),
-    left : u32,
-    right : u32
-}
-
-impl Matrix {
-    pub fn diff_list(&self, other : &[Vec<u32>]) -> Vec<MatrixDiffEntry> {
-        assert!(self.rows() == other.len());
-        if self.rows() > 0 {
-            assert!(self.columns() == other[0].len());
-        }
-        let mut result = Vec::new();
-        for row in 0 .. self.rows() {
-            result.extend(
-                self[row].diff_list(&other[row]).iter()
-                .map(|&VectorDiffEntry {index, left, right}| 
-                    MatrixDiffEntry {
-                        pos : (row, index),
-                        left,
-                        right
-                    }
-                )
-            )
-        }
-        result
-    }
-
-    pub fn diff_matrix(&self, other : &Matrix) -> Vec<MatrixDiffEntry> {
-        assert!(self.rows() == other.rows());
-        assert!(self.columns() == other.columns());
-        let mut result = Vec::new();
-        for row in 0 .. self.rows() {
-            result.extend(
-                self[row].diff_vec(&other[row]).iter()
-                .map(|&VectorDiffEntry {index, left, right}| 
-                    MatrixDiffEntry {
-                        pos : (row, index),
-                        left,
-                        right
-                    }
-                )
-            )
-        }
-        result
-    }
-    
-    pub fn format_diff(diff : Vec<MatrixDiffEntry>) -> String {
-        let data_formatter = diff.iter().format_with("\n ", |MatrixDiffEntry {pos, left, right}, f| 
-            f(&format_args!("  At index {:?}: {}!={}", pos, left, right))
-        );
-        format!("{}", data_formatter)
-    }
-
-    pub fn assert_list_eq(&self, other : &[Vec<u32>]){
-        let diff = self.diff_list(other);
-        if diff.is_empty() {
-            return;
-        }
-        println!("assert {} == {:?}", self,other);
-        println!("{}", Matrix::format_diff(diff));
-    }
-
-    pub fn assert_matrix_eq(&self, other : &Matrix){
-        let diff = self.diff_matrix(other);
-        if diff.is_empty() {
-            return;
-        }
-        println!("assert {} == {}", self, other);
-        println!("{}", Matrix::format_diff(diff));
     }
 }
 
@@ -1189,16 +1110,16 @@ mod tests {
             let goal_pivots = test.2;
             let rows = input.len();
             let cols = input[0].len();
-            let mut m = Matrix::new(p, rows, cols);
+            let mut rows = Vec::with_capacity(rows);
             for (i,x) in input.iter().enumerate(){
-                m[i].pack(x);
+                rows.push(FpVector::from_slice(p, &*x));
             }
+
+            let mut m = Matrix::from_rows(p, rows, cols);
             m.initialize_pivots();
             m.row_reduce();
-            let mut unpacked_row : Vec<u32> = vec![0; cols];
             for i in 0 .. input.len() {
-                m[i].unpack(&mut unpacked_row);
-                assert_eq!(unpacked_row, goal_output[i]);
+                assert_eq!(Vec::<u32>::from(&m[i]), goal_output[i]);
             }
             assert_eq!(m.pivots(), &goal_pivots)
         }

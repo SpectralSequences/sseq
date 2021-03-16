@@ -1,7 +1,7 @@
 use super::Subspace;
 use crate::matrix::Matrix;
 use crate::prime::ValidPrime;
-use crate::vector::{FpVector, FpVectorT};
+use crate::vector::FpVector;
 
 #[derive(Clone)]
 pub struct Subquotient {
@@ -178,10 +178,10 @@ mod test {
         crate::vector::initialize_limb_bit_index_table(p);
 
         let mut sq = Subquotient::new(p, 5);
-        sq.quotient(&FpVector::from_vec(p, &[1, 1, 0, 0, 1]));
-        sq.quotient(&FpVector::from_vec(p, &[0, 2, 0, 0, 1]));
-        sq.add_gen(&FpVector::from_vec(p, &[1, 1, 0, 0, 0]));
-        sq.add_gen(&FpVector::from_vec(p, &[0, 1, 0, 0, 0]));
+        sq.quotient(&FpVector::from_slice(p, &[1, 1, 0, 0, 1]));
+        sq.quotient(&FpVector::from_slice(p, &[0, 2, 0, 0, 1]));
+        sq.add_gen(&FpVector::from_slice(p, &[1, 1, 0, 0, 0]));
+        sq.add_gen(&FpVector::from_slice(p, &[0, 1, 0, 0, 0]));
 
         expect![[r#"
             Generators:
@@ -199,7 +199,7 @@ mod test {
                 2,
             ]
         "#]]
-        .assert_debug_eq(&sq.reduce(&mut FpVector::from_vec(p, &[2, 0, 0, 0, 0])));
+        .assert_debug_eq(&sq.reduce(&mut FpVector::from_slice(p, &[2, 0, 0, 0, 0])));
 
         assert_eq!(sq.gens().count(), 1);
     }

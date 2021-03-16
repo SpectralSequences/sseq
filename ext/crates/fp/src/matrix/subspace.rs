@@ -1,6 +1,6 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::prime::ValidPrime;
-use crate::vector::{FpVector, FpVectorT};
+use crate::vector::FpVector;
 use super::Matrix;
 
 /// A subspace of a vector space.

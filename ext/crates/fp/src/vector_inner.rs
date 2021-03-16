@@ -137,8 +137,8 @@ impl<const P: u32> FpVectorP<P> {
         self.dimension
     }
 
-    pub const fn prime(&self) -> u32 {
-        P
+    pub const fn prime(&self) -> ValidPrime {
+        ValidPrime::new(P)
     }
 
     pub fn slice(&self, start: usize, end: usize) -> SliceP<'_, P> {
@@ -254,14 +254,13 @@ impl<const P: u32> FpVectorP<P> {
         if self.dimension >= dim {
             return;
         }
-        let p = self.prime();
         self.dimension = dim;
         self.limbs.resize(limb::number::<P>(dim), 0);
     }
 
     /// This clears the vector and sets the dimension to dim. This is useful for reusing
     /// allocations of temporary vectors.
-    pub fn set_scratch_vector_size(&self, dim: usize) {
+    pub fn set_scratch_vector_size(&mut self, dim: usize) {
         self.limbs.clear();
         self.limbs.resize(limb::number::<P>(dim), 0);
     }

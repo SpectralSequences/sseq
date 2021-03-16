@@ -2,6 +2,7 @@ use crate::prime::ValidPrime;
 use crate::vector_inner::{
     entries_per_64_bits, FpVectorIterator, FpVectorNonZeroIterator, FpVectorP, SliceMutP, SliceP,
 };
+pub use crate::vector_inner::initialize_limb_bit_index_table;
 use itertools::Itertools;
 
 macro_rules! dispatch_vector_inner {
@@ -151,7 +152,7 @@ impl FpVector {
     }
 
     dispatch_vector! {
-        pub fn prime(&self) -> u32;
+        pub fn prime(&self) -> ValidPrime;
         pub fn dimension(&self) -> usize;
         pub fn scale(&mut self, c: u32);
         pub fn set_to_zero(&mut self);
@@ -167,7 +168,7 @@ impl FpVector {
         pub fn iter(&self) -> FpVectorIterator;
         pub fn iter_nonzero(&self) -> FpVectorNonZeroIterator;
         pub fn extend_dimension(&mut self, dim: usize);
-        pub fn set_scratch_vector_size(&self, dim: usize);
+        pub fn set_scratch_vector_size(&mut self, dim: usize);
         pub fn add_basis_element(&mut self, index: usize, value: u32);
 
         fn limbs(&self) -> (&[u64]);
@@ -257,7 +258,6 @@ impl Load for FpVector {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::vector_inner::*;
     use rand::Rng;
     use rstest::rstest;
 
