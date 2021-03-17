@@ -1379,43 +1379,65 @@
 <span id="1358">1358</span>
 <span id="1359">1359</span>
 <span id="1360">1360</span>
+<span id="1361">1361</span>
+<span id="1362">1362</span>
+<span id="1363">1363</span>
+<span id="1364">1364</span>
+<span id="1365">1365</span>
+<span id="1366">1366</span>
+<span id="1367">1367</span>
+<span id="1368">1368</span>
+<span id="1369">1369</span>
+<span id="1370">1370</span>
+<span id="1371">1371</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
 
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">const_for</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">prime</span>::<span class="ident">ValidPrime</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">prime</span>::<span class="ident">NUM_PRIMES</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">prime</span>::<span class="ident">PRIME_TO_INDEX_MAP</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">prime</span>::{<span class="ident">NUM_PRIMES</span>, <span class="ident">PRIMES</span>, <span class="ident">PRIME_TO_INDEX_MAP</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">TryInto</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">Ordering</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Once</span>;
 
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MAX_DIMENSION</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">147500</span>;
 
-<span class="comment">// Generated with Mathematica:</span>
-<span class="comment">//     bitlengths = Prepend[#,1]&amp;@ Ceiling[Log2[# (# - 1) + 1 &amp;[Prime[Range[2, 54]]]]]</span>
-<span class="comment">// But for 2 it should be 1.</span>
-<span class="kw">const</span> <span class="ident">BIT_LENGHTS</span>: [<span class="ident">usize</span>; <span class="ident">NUM_PRIMES</span>] <span class="op">=</span> [<span class="number">1</span>, <span class="number">3</span>, <span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">9</span>];
+<span class="kw">const</span> <span class="ident">BIT_LENGTHS</span>: [<span class="ident">usize</span>; <span class="ident">NUM_PRIMES</span>] <span class="op">=</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> [<span class="number">0</span>; <span class="ident">NUM_PRIMES</span>];
+    <span class="ident">result</span>[<span class="number">0</span>] <span class="op">=</span> <span class="number">1</span>;
+    <span class="macro">const_for</span><span class="macro">!</span> { <span class="ident">i</span> <span class="kw">in</span> <span class="number">1</span> .. <span class="ident">NUM_PRIMES</span> {
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">PRIMES</span>[<span class="ident">i</span>];
+        <span class="ident">result</span>[<span class="ident">i</span>] <span class="op">=</span> (<span class="number">32</span> <span class="op">-</span> (<span class="ident">p</span> <span class="op">*</span> (<span class="ident">p</span> <span class="op">-</span> <span class="number">1</span>)).<span class="ident">leading_zeros</span>()) <span class="kw">as</span> <span class="ident">usize</span>;
+    }};
+    <span class="ident">result</span>
+};
 
-<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">bit_length</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
-    <span class="ident">BIT_LENGHTS</span>[<span class="ident">PRIME_TO_INDEX_MAP</span>[<span class="ident">p</span>.<span class="ident">value</span>() <span class="kw">as</span> <span class="ident">usize</span>]]
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">bit_length</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="ident">BIT_LENGTHS</span>[<span class="ident">PRIME_TO_INDEX_MAP</span>[<span class="ident">p</span>.<span class="ident">value</span>() <span class="kw">as</span> <span class="ident">usize</span>]]
 }
 
-<span class="comment">// This is 2^bitlength - 1.</span>
-<span class="comment">// Generated with Mathematica:</span>
-<span class="comment">//     2^bitlengths-1</span>
-<span class="kw">const</span> <span class="ident">BITMASKS</span>: [<span class="ident">u32</span>; <span class="ident">NUM_PRIMES</span>] <span class="op">=</span> [<span class="number">1</span>, <span class="number">7</span>, <span class="number">31</span>, <span class="number">63</span>, <span class="number">127</span>, <span class="number">255</span>, <span class="number">511</span>, <span class="number">511</span>];
+<span class="kw">const</span> <span class="ident">BITMASKS</span>: [<span class="ident">u32</span>; <span class="ident">NUM_PRIMES</span>] <span class="op">=</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> [<span class="number">0</span>; <span class="ident">NUM_PRIMES</span>];
+    <span class="macro">const_for</span><span class="macro">!</span> { <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span> .. <span class="ident">NUM_PRIMES</span> {
+        <span class="ident">result</span>[<span class="ident">i</span>] <span class="op">=</span> (<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">BIT_LENGTHS</span>[<span class="ident">i</span>]) <span class="op">-</span> <span class="number">1</span>;
+    }};
+    <span class="ident">result</span>
+};
 
 <span class="doccomment">/// TODO: Would it be simpler to just compute this at &quot;runtime&quot;? It&#39;s going to be inlined anyway.</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">bitmask</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u64</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">bitmask</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u64</span> {
     <span class="ident">BITMASKS</span>[<span class="ident">PRIME_TO_INDEX_MAP</span>[<span class="ident">p</span>.<span class="ident">value</span>() <span class="kw">as</span> <span class="ident">usize</span>]] <span class="kw">as</span> <span class="ident">u64</span>
 }
 
-<span class="comment">// This is floor(64/bitlength).</span>
-<span class="comment">// Generated with Mathematica:</span>
-<span class="comment">//      Floor[64/bitlengths]</span>
-<span class="kw">const</span> <span class="ident">ENTRIES_PER_64_BITS</span>: [<span class="ident">usize</span>; <span class="ident">NUM_PRIMES</span>] <span class="op">=</span> [<span class="number">64</span>, <span class="number">21</span>, <span class="number">12</span>, <span class="number">10</span>, <span class="number">9</span>, <span class="number">8</span>, <span class="number">7</span>, <span class="number">7</span>];
+<span class="kw">const</span> <span class="ident">ENTRIES_PER_64_BITS</span>: [<span class="ident">usize</span>; <span class="ident">NUM_PRIMES</span>] <span class="op">=</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> [<span class="number">0</span>; <span class="ident">NUM_PRIMES</span>];
+    <span class="macro">const_for</span><span class="macro">!</span> { <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span> .. <span class="ident">NUM_PRIMES</span> {
+        <span class="ident">result</span>[<span class="ident">i</span>] <span class="op">=</span> <span class="number">64</span> <span class="op">/</span> <span class="ident">BIT_LENGTHS</span>[<span class="ident">i</span>];
+    }};
+    <span class="ident">result</span>
+};
 
-<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">entries_per_64_bits</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">entries_per_64_bits</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
     <span class="ident">ENTRIES_PER_64_BITS</span>[<span class="ident">PRIME_TO_INDEX_MAP</span>[<span class="ident">p</span>.<span class="ident">value</span>() <span class="kw">as</span> <span class="ident">usize</span>]]
 }
 
