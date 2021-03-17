@@ -9,7 +9,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[macro_export]
 macro_rules! const_for {
     ($i:ident in $a:literal .. $b:ident $contents:block) => {
-        let mut $i = 0;
+        let mut $i = $a;
         while $i < $b {
             $contents;
             $i += 1;

@@ -1,39 +1,50 @@
 #![allow(dead_code)]
 
+use crate::const_for;
 use crate::prime::ValidPrime;
-use crate::prime::NUM_PRIMES;
-use crate::prime::PRIME_TO_INDEX_MAP;
+use crate::prime::{NUM_PRIMES, PRIMES, PRIME_TO_INDEX_MAP};
 use crate::TryInto;
 use std::cmp::Ordering;
 use std::sync::Once;
 
 pub const MAX_DIMENSION: usize = 147500;
 
-// Generated with Mathematica:
-//     bitlengths = Prepend[#,1]&@ Ceiling[Log2[# (# - 1) + 1 &[Prime[Range[2, 54]]]]]
-// But for 2 it should be 1.
-const BIT_LENGHTS: [usize; NUM_PRIMES] = [1, 3, 5, 6, 7, 8, 9, 9];
+const BIT_LENGTHS: [usize; NUM_PRIMES] = {
+    let mut result = [0; NUM_PRIMES];
+    result[0] = 1;
+    const_for! { i in 1 .. NUM_PRIMES {
+        let p = PRIMES[i];
+        result[i] = (32 - (p * (p - 1)).leading_zeros()) as usize;
+    }};
+    result
+};
 
-pub const fn bit_length(p: ValidPrime) -> usize {
-    BIT_LENGHTS[PRIME_TO_INDEX_MAP[p.value() as usize]]
+pub(crate) const fn bit_length(p: ValidPrime) -> usize {
+    BIT_LENGTHS[PRIME_TO_INDEX_MAP[p.value() as usize]]
 }
 
-// This is 2^bitlength - 1.
-// Generated with Mathematica:
-//     2^bitlengths-1
-const BITMASKS: [u32; NUM_PRIMES] = [1, 7, 31, 63, 127, 255, 511, 511];
+const BITMASKS: [u32; NUM_PRIMES] = {
+    let mut result = [0; NUM_PRIMES];
+    const_for! { i in 0 .. NUM_PRIMES {
+        result[i] = (1 << BIT_LENGTHS[i]) - 1;
+    }};
+    result
+};
 
 /// TODO: Would it be simpler to just compute this at "runtime"? It's going to be inlined anyway.
-pub const fn bitmask(p: ValidPrime) -> u64 {
+pub(crate) const fn bitmask(p: ValidPrime) -> u64 {
     BITMASKS[PRIME_TO_INDEX_MAP[p.value() as usize]] as u64
 }
 
-// This is floor(64/bitlength).
-// Generated with Mathematica:
-//      Floor[64/bitlengths]
-const ENTRIES_PER_64_BITS: [usize; NUM_PRIMES] = [64, 21, 12, 10, 9, 8, 7, 7];
+const ENTRIES_PER_64_BITS: [usize; NUM_PRIMES] = {
+    let mut result = [0; NUM_PRIMES];
+    const_for! { i in 0 .. NUM_PRIMES {
+        result[i] = 64 / BIT_LENGTHS[i];
+    }};
+    result
+};
 
-pub const fn entries_per_64_bits(p: ValidPrime) -> usize {
+pub(crate) const fn entries_per_64_bits(p: ValidPrime) -> usize {
     ENTRIES_PER_64_BITS[PRIME_TO_INDEX_MAP[p.value() as usize]]
 }
 
