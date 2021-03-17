@@ -2,6 +2,7 @@
 use crate::prime::ValidPrime;
 use crate::prime::NUM_PRIMES;
 use crate::prime::PRIME_TO_INDEX_MAP;
+use crate::TryInto;
 use std::cmp::Ordering;
 use std::sync::Once;
 
@@ -101,7 +102,7 @@ fn limb_bit_index_pair(p: ValidPrime, idx: usize) -> LimbBitIndexPair {
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub struct FpVectorP<const P: u32> {
     dimension: usize,
-    limbs: Vec<u64>,
+    pub(crate) limbs: Vec<u64>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -298,6 +299,75 @@ impl<const P: u32> FpVectorP<P> {
         self.limbs.drain(0..num_limbs);
         self.dimension -= n;
     }
+
+    pub fn sign_rule(&self, other: &Self) -> bool {
+        assert_eq!(P, 2);
+        let mut result = 0;
+        for target_limb_idx in 0..self.limbs.len() {
+            let target_limb = other.limbs[target_limb_idx];
+            let source_limb = self.limbs[target_limb_idx];
+            result ^= limb::sign_rule(target_limb, source_limb);
+            if target_limb.count_ones() % 2 == 0 {
+                continue;
+            }
+            for _ in 0..target_limb_idx {
+                result ^= source_limb.count_ones() % 2;
+            }
+        }
+        result == 1
+    }
+
+    pub fn add_truncate(&mut self, other: &Self, c: u32) -> Option<()> {
+        for (left, right) in self.limbs.iter_mut().zip(&other.limbs) {
+            *left = limb::add::<P>(*left, *right, c);
+            *left = limb::truncate::<P>(*left)?;
+        }
+        Some(())
+    }
+
+    fn add_carry_limb<T: TryInto<Self>>(
+        &mut self,
+        idx: usize,
+        source: u64,
+        c: u32,
+        rest: &mut [T],
+    ) -> bool {
+        if P == 2 {
+            if c == 0 {
+                return false;
+            }
+            let mut cur_vec = self;
+            let mut carry = source;
+            for carry_vec in rest.iter_mut() {
+                let carry_vec = carry_vec.try_into().unwrap();
+                let rem = cur_vec.limbs[idx] ^ carry;
+                let quot = cur_vec.limbs[idx] & carry;
+                cur_vec.limbs[idx] = rem;
+                carry = quot;
+                cur_vec = carry_vec;
+                if quot == 0 {
+                    return false;
+                }
+            }
+            cur_vec.limbs[idx] ^= carry;
+            true
+        } else {
+            unimplemented!()
+        }
+    }
+
+    pub(crate) fn add_carry<T: TryInto<Self>>(
+        &mut self,
+        other: &Self,
+        c: u32,
+        rest: &mut [T],
+    ) -> bool {
+        let mut result = false;
+        for i in 0..self.limbs.len() {
+            result |= self.add_carry_limb(i, other.limbs[i], c, rest);
+        }
+        result
+    }
 }
 
 impl<'a, const P: u32> From<&'a FpVectorP<P>> for SliceP<'a, P> {
@@ -356,22 +426,25 @@ impl<'a, const P: u32> SliceP<'a, P> {
 
     /// Converts a slice to an owned FpVectorP. This assumes the start of the vector is aligned.
     pub fn to_owned(&self) -> FpVectorP<P> {
-        debug_assert_eq!(self.start % entries_per_64_bits(self.prime()), 0);
-
-        let (min, max) = self.limb_range();
-        let mut limbs: Vec<u64> = self.limbs[min..max].into();
-        if !limbs.is_empty() {
-            let len = limbs.len();
-            limbs[len - 1] &= self.limb_mask(max - 1);
-        }
-        FpVectorP {
-            dimension: self.dimension(),
-            limbs,
+        if self.start % entries_per_64_bits(self.prime()) == 0 {
+            let (min, max) = self.limb_range();
+            let mut limbs: Vec<u64> = self.limbs[min..max].into();
+            if !limbs.is_empty() {
+                let len = limbs.len();
+                limbs[len - 1] &= self.limb_mask(max - 1);
+            }
+            FpVectorP {
+                dimension: self.dimension(),
+                limbs,
+            }
+        } else {
+            let data: Vec<u32> = self.iter().collect();
+            (&data).into()
         }
     }
 }
 
-mod limb {
+pub(crate) mod limb {
     use super::*;
 
     pub const fn add<const P: u32>(limb_a: u64, limb_b: u64, coeff: u32) -> u64 {
@@ -467,6 +540,47 @@ mod limb {
             0
         };
         (min, max)
+    }
+
+    pub fn sign_rule(mut target: u64, mut source: u64) -> u32 {
+        let every_other_bit = 0x5555555555555555;
+        let every_fourth_bit = 0x1111111111111111;
+        let every_eight_bit = 0x0101010101010101;
+        let every_16th_bit = 0x0001000100010001;
+        let every_32nd_bit = 0x0000000100000001;
+        let mut result = 0;
+        result ^= (every_other_bit & (source >> 1) & target).count_ones() % 2;
+        source = (source & every_other_bit) ^ ((source >> 1) & every_other_bit);
+        target = (target & every_other_bit) ^ ((target >> 1) & every_other_bit);
+
+        result ^= (every_fourth_bit & (source >> 2) & target).count_ones() % 2;
+        source = (source & every_fourth_bit) ^ ((source >> 2) & every_fourth_bit);
+        target = (target & every_fourth_bit) ^ ((target >> 2) & every_fourth_bit);
+
+        result ^= (every_eight_bit & (source >> 4) & target).count_ones() % 2;
+        source = (source & every_eight_bit) ^ ((source >> 4) & every_eight_bit);
+        target = (target & every_eight_bit) ^ ((target >> 4) & every_eight_bit);
+
+        result ^= (every_16th_bit & (source >> 8) & target).count_ones() % 2;
+        source = (source & every_16th_bit) ^ ((source >> 8) & every_16th_bit);
+        target = (target & every_16th_bit) ^ ((target >> 8) & every_16th_bit);
+
+        result ^= (every_32nd_bit & (source >> 16) & target).count_ones() % 2;
+        source = (source & every_32nd_bit) ^ ((source >> 16) & every_32nd_bit);
+        target = (target & every_32nd_bit) ^ ((target >> 16) & every_32nd_bit);
+
+        result ^= ((source >> 32) & target).count_ones() % 2;
+        result
+    }
+
+    /// Returns: either Some(sum) if no carries happen in the limb or None if some carry does
+    /// happen.
+    pub fn truncate<const P: u32>(sum: u64) -> Option<u64> {
+        if is_reduced::<P>(sum) {
+            Some(sum)
+        } else {
+            None
+        }
     }
 }
 
@@ -934,27 +1048,26 @@ impl AddShiftLeftData {
     }
 
     fn mask_first_limb<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
-        (other.limbs[self.min_source_limb + i] & other.limb_mask(i)) >> self.offset_shift
+        (other.limbs[i] & other.limb_mask(i)) >> self.offset_shift
     }
 
     fn mask_middle_limb_a<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
-        other.limbs[i + self.min_source_limb] >> self.offset_shift
+        other.limbs[i] >> self.offset_shift
     }
 
     fn mask_middle_limb_b<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
-        (other.limbs[i + self.min_source_limb] << (self.tail_shift + self.zero_bits))
-            >> self.zero_bits
+        (other.limbs[i] << (self.tail_shift + self.zero_bits)) >> self.zero_bits
     }
 
     fn mask_last_limb_a<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
         let mask = other.limb_mask(i);
-        let source_limb_masked = other.limbs[self.min_source_limb + i] & mask;
+        let source_limb_masked = other.limbs[i] & mask;
         source_limb_masked << self.tail_shift
     }
 
     fn mask_last_limb_b<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> u64 {
         let mask = other.limb_mask(i);
-        let source_limb_masked = other.limbs[self.min_source_limb + i] & mask;
+        let source_limb_masked = other.limbs[i] & mask;
         source_limb_masked >> self.offset_shift
     }
 }
@@ -1214,15 +1327,14 @@ impl<'a, const P: u32> Iterator for FpVectorNonZeroIteratorP<'a, P> {
             let tz_div = ((tz_real as u8) / (bit_length as u8)) as u32;
             let tz = tz_real - tz_rem;
             self.idx += tz_div as usize;
+            if self.idx >= self.dim {
+                return None;
+            }
             self.cur_limb_entries_left -= tz_div as usize;
             if self.cur_limb_entries_left == 0 {
                 self.limb_index += 1;
                 self.cur_limb_entries_left = entries_per_64_bits;
-                if self.limb_index < self.limbs.len() {
-                    self.cur_limb = self.limbs[self.limb_index];
-                } else {
-                    return None;
-                }
+                self.cur_limb = self.limbs[self.limb_index];
                 continue;
             }
             self.cur_limb >>= tz;

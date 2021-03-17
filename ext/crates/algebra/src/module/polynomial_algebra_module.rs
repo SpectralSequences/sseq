@@ -29,7 +29,7 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
     }
 
 
-    fn sq_polynomial_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, sq : i32, input_degree : i32, input_index : usize) {
+    fn sq_polynomial_generator_to_polynomial(&self, mut result : SliceMut, coeff : u32, sq : i32, input_degree : i32, input_index : usize) {
         let mut temp_monomial = PolynomialAlgebraMonomial::new(self.prime());
         let q = self.algebra().adem_algebra().q();
         temp_monomial.degree =  q*sq + input_degree;
@@ -41,7 +41,7 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
         }
     }
 
-    fn sq_exterior_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, sq : i32, input_degree : i32, input_index : usize) {
+    fn sq_exterior_generator_to_polynomial(&self, mut result : SliceMut, coeff : u32, sq : i32, input_degree : i32, input_index : usize) {
         let q = self.algebra().adem_algebra().q();
         let mut temp_monomial = PolynomialAlgebraMonomial::new(self.prime());
         temp_monomial.degree = q*sq + input_degree;
@@ -53,7 +53,7 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
         }
     }
 
-    fn bockstein_polynomial_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_index : usize) {
+    fn bockstein_polynomial_generator_to_polynomial(&self, mut result : SliceMut, coeff : u32, input_degree : i32, input_index : usize) {
         let mut temp_monomial = PolynomialAlgebraMonomial::new(self.prime());
         temp_monomial.degree = 1 + input_degree;
         temp_monomial.poly.extend_dimension(self.polynomial_monomials().generators_up_to_degree(temp_monomial.degree));
@@ -64,7 +64,7 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
         }
     }
 
-    fn bockstein_exterior_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_index : usize) {
+    fn bockstein_exterior_generator_to_polynomial(&self, mut result : SliceMut, coeff : u32, input_degree : i32, input_index : usize) {
         let mut temp_monomial = PolynomialAlgebraMonomial::new(self.prime());
         self.set_monomial_degree(&mut temp_monomial, input_degree + 1);
         self.bockstein_exterior_generator_to_monomial(&mut temp_monomial, input_degree, input_index);
@@ -73,34 +73,34 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
         }
     }
 
-    fn sq_on_basis(&self, result : &mut FpVector, coeff : u32, sq : i32, degree : i32, index : usize) {
+    fn sq_on_basis(&self, mut result : SliceMut, coeff : u32, sq : i32, degree : i32, index : usize) {
         let q = self.algebra().adem_algebra().q();
-        result.add(&self.action_table()[(degree + q*sq) as usize][sq as usize][index], coeff);
+        result.add(self.action_table()[(degree + q*sq) as usize][sq as usize][index].as_slice(), coeff);
     }
 
-    fn sq_monomial_to_polynomial(&self, result : &mut FpVector, coeff : u32, sq : i32, mono : &PolynomialAlgebraMonomial) {
+    fn sq_monomial_to_polynomial(&self, result : SliceMut, coeff : u32, sq : i32, mono : &PolynomialAlgebraMonomial) {
         let index = self.monomial_to_index(mono);
         self.sq_on_basis(result, coeff, sq, mono.degree, index);
     }
 
-    fn sq_polynomial_to_polynomial(&self, result : &mut FpVector, coeff : u32, sq : i32, input_degree : i32, input : &FpVector) {
+    fn sq_polynomial_to_polynomial(&self, mut result : SliceMut, coeff : u32, sq : i32, input_degree : i32, input : Slice) {
         for (index, c) in input.iter_nonzero() {
-            self.sq_on_basis(result, (c*coeff) % *self.prime(), sq, input_degree, index);
+            self.sq_on_basis(result.copy(), (c*coeff) % *self.prime(), sq, input_degree, index);
         }
     }
 
-    fn bockstein_on_basis(&self, result : &mut FpVector, coeff : u32, degree : i32, index : usize) {
-        result.add(&self.bockstein_table()[degree  as usize + 1][index], coeff);
+    fn bockstein_on_basis(&self, mut result : SliceMut, coeff : u32, degree : i32, index : usize) {
+        result.add(self.bockstein_table()[degree  as usize + 1][index].as_slice(), coeff);
     }
 
-    fn bockstein_monomial_to_polynomial(&self, result : &mut FpVector, coeff : u32, mono : &PolynomialAlgebraMonomial) {
+    fn bockstein_monomial_to_polynomial(&self, result : SliceMut, coeff : u32, mono : &PolynomialAlgebraMonomial) {
         let index = self.monomial_to_index(mono);
         self.bockstein_on_basis(result, coeff, mono.degree, index);
     }
 
-    fn bockstein_polynomial_to_polynomial(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input : &FpVector) {
+    fn bockstein_polynomial_to_polynomial(&self, mut result : SliceMut, coeff : u32, input_degree : i32, input : Slice) {
         for (idx, c) in input.iter_nonzero() {
-            self.bockstein_on_basis(result, (c*coeff) % *self.prime(), input_degree, idx);
+            self.bockstein_on_basis(result.copy(), (c*coeff) % *self.prime(), input_degree, idx);
         }
     }    
 
@@ -177,10 +177,10 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
             let rest_sq = sq - ext_sq;
             let rest_deg = rest_mono.degree + q * rest_sq;
             reducer_a.set_scratch_vector_size(Algebra::dimension(self, rest_deg, i32::max_value()));
-            self.sq_monomial_to_polynomial(reducer_a, 1, rest_sq, &rest_mono);
+            self.sq_monomial_to_polynomial(reducer_a.as_slice_mut(), 1, rest_sq, &rest_mono);
             let term_deg = q*ext_sq + gen_deg;
             term.set_scratch_vector_size(Algebra::dimension(self, term_deg, i32::max_value()));
-            self.sq_exterior_generator_to_polynomial(term, 1, ext_sq, gen_deg, gen_idx);
+            self.sq_exterior_generator_to_polynomial(term.as_slice_mut(), 1, ext_sq, gen_deg, gen_idx);
             reducer_b.set_scratch_vector_size(Algebra::dimension(self, rest_deg + term_deg, i32::max_value()));
             self.multiply_polynomials(reducer_b, 1, term_deg, term,  rest_deg, reducer_a);
             std::mem::swap(reducer_a, reducer_b);
@@ -208,10 +208,10 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
             let rest_sq = sq - poly_sq;
             let rest_deg = rest_mono.degree + q * rest_sq;
             reducer_a.set_scratch_vector_size(Algebra::dimension(self, rest_deg, i32::max_value()));
-            self.sq_monomial_to_polynomial(reducer_a, 1, rest_sq, &rest_mono);
+            self.sq_monomial_to_polynomial(reducer_a.as_slice_mut(), 1, rest_sq, &rest_mono);
             let term_deg = q*poly_sq + gen_deg;
             term.set_scratch_vector_size(Algebra::dimension(self, term_deg, i32::max_value()));
-            self.sq_polynomial_generator_to_polynomial(term, 1, poly_sq, gen_deg, gen_idx);
+            self.sq_polynomial_generator_to_polynomial(term.as_slice_mut(), 1, poly_sq, gen_deg, gen_idx);
             reducer_b.set_scratch_vector_size(Algebra::dimension(self, rest_deg + term_deg, i32::max_value()));
             self.multiply_polynomials(reducer_b, 1, rest_deg, reducer_a, term_deg, term);
             std::mem::swap(reducer_a, reducer_b);
@@ -267,10 +267,10 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
             // result += (b x) * rest
             term.set_scratch_vector_size(Algebra::dimension(self, gen_deg + 1, i32::max_value()));
             if used_ext_generator {
-                self.bockstein_exterior_generator_to_polynomial(&mut term, 1, gen_deg, gen_idx);
+                self.bockstein_exterior_generator_to_polynomial(term.as_slice_mut(), 1, gen_deg, gen_idx);
                 // println!("   ext gen : b({}) = {}", self.repr_ext_generator(gen_deg, gen_idx), Module::element_to_string(self, gen_deg + 1, &term));
             } else {
-                self.bockstein_polynomial_generator_to_polynomial(&mut term, 1, gen_deg, gen_idx);
+                self.bockstein_polynomial_generator_to_polynomial(term.as_slice_mut(), 1, gen_deg, gen_idx);
                 // println!("   poly gen : b({:?}) = {}", self.repr_poly_generator(gen_deg, gen_idx), Module::element_to_string(self, gen_deg + 1, &term));
                 // println!("   rest_mono : {}", rest_mono);
             }
@@ -286,7 +286,7 @@ pub trait PolynomialAlgebraModule : PolynomialAlgebra {
             // First get "b rest" into "term"
             let brest_degree = rest_mono.degree + 1;
             term.set_scratch_vector_size(Algebra::dimension(self, brest_degree, i32::max_value()));
-            self.bockstein_monomial_to_polynomial(&mut term, 1, &rest_mono);
+            self.bockstein_monomial_to_polynomial(term.as_slice_mut(), 1, &rest_mono);
             // Now get "x" into "rest_mono"
             let mut x_mono = rest_mono;
             self.set_monomial_degree(&mut x_mono, gen_deg);
@@ -359,8 +359,6 @@ impl<Adem : AdemAlgebraT, A : PolynomialAlgebraModule<Algebra=Adem> + Send + Syn
 
 
     fn act(&self, mut result : SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice){
-        unimplemented!();
-/*
         debug_assert!(result.as_slice().dimension() == Module::dimension(self, op_degree + input_degree));
         let algebra_outer = self.algebra();
         let algebra = algebra_outer.adem_algebra();
@@ -368,29 +366,29 @@ impl<Adem : AdemAlgebraT, A : PolynomialAlgebraModule<Algebra=Adem> + Send + Syn
         let op = algebra.basis_element_from_index(op_degree, op_index);
         let ps_len = op.ps.len();
         let mut cur_deg = input_degree;
-        let mut source_vec = input.clone();
+        let mut source_vec = input.to_owned();
         let mut target_vec = FpVector::new(self.prime(), 0);
         if (op.bocksteins >> ps_len) & 1 == 1 {
             let op_deg = 1;
             target_vec.set_scratch_vector_size(Algebra::dimension(self, cur_deg + op_deg, i32::max_value()));
-            self.bockstein_polynomial_to_polynomial(&mut target_vec, 1, cur_deg, &source_vec);
+            self.bockstein_polynomial_to_polynomial(target_vec.as_slice_mut(), 1, cur_deg, source_vec.as_slice());
             cur_deg += op_deg;
             std::mem::swap(&mut source_vec, &mut target_vec);
         }
         for i in (0..ps_len).rev() {
             let op_deg = op.ps[i] as i32 * q;
             target_vec.set_scratch_vector_size(Algebra::dimension(self, cur_deg + op_deg, i32::max_value()));
-            self.sq_polynomial_to_polynomial(&mut target_vec, 1, op.ps[i] as i32, cur_deg, &source_vec);
+            self.sq_polynomial_to_polynomial(target_vec.as_slice_mut(), 1, op.ps[i] as i32, cur_deg, source_vec.as_slice());
             cur_deg += op_deg;
             std::mem::swap(&mut source_vec, &mut target_vec);
             if (op.bocksteins >> i) & 1 == 1 {
                 let op_deg = 1;
                 target_vec.set_scratch_vector_size(Algebra::dimension(self, cur_deg + op_deg, i32::max_value()));
-                self.bockstein_polynomial_to_polynomial(&mut target_vec, 1, cur_deg, &source_vec);
+                self.bockstein_polynomial_to_polynomial(target_vec.as_slice_mut(), 1, cur_deg, source_vec.as_slice());
                 cur_deg += op_deg;
                 std::mem::swap(&mut source_vec, &mut target_vec);
             }
         }
-        result.add(source_vec, coeff);*/
+        result.add(source_vec.as_slice(), coeff);
     }
 }

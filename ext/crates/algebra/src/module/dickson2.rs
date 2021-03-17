@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use once::OnceVec;
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector};
+use fp::vector::FpVector;
 
 use crate::algebra::{
     combinatorics::TruncatedPolynomialMonomialBasis,

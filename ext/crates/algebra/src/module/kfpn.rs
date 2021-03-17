@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use once::OnceVec;
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector};
+use fp::vector::{FpVector, SliceMut};
 
 use crate::algebra::{
     combinatorics::TruncatedPolynomialMonomialBasis,
@@ -45,7 +45,7 @@ impl<A : AdemAlgebraT> KFpn<A> {
         self.algebra.adem_algebra()
     }
 
-    fn action_on_generator_helper(&self, result : &mut FpVector, coeff : u32, 
+    fn action_on_generator_helper(&self, mut result : SliceMut, coeff : u32,
         bockstein : u32, sq : u32, input_degree : i32, input_idx : usize
     ) {
         let p = self.adem_algebra().prime();
@@ -243,19 +243,19 @@ impl<A : AdemAlgebraT> PolynomialAlgebraModule for KFpn<A> {
         unreachable!();
     }
 
-    fn sq_polynomial_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, sq : i32, input_degree : i32, input_index : usize) {
+    fn sq_polynomial_generator_to_polynomial(&self, result : SliceMut, coeff : u32, sq : i32, input_degree : i32, input_index : usize) {
         self.action_on_generator_helper(result, coeff, 0, sq as u32, input_degree, input_index);
     }
 
-    fn sq_exterior_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, sq : i32, input_degree : i32, input_index : usize) {
+    fn sq_exterior_generator_to_polynomial(&self, result : SliceMut, coeff : u32, sq : i32, input_degree : i32, input_index : usize) {
         self.action_on_generator_helper(result, coeff, 0, sq as u32, input_degree, input_index);
     }
 
-    fn bockstein_polynomial_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_index : usize) {
+    fn bockstein_polynomial_generator_to_polynomial(&self, result : SliceMut, coeff : u32, input_degree : i32, input_index : usize) {
         self.action_on_generator_helper(result, coeff, 1, 0, input_degree, input_index);
     }
 
-    fn bockstein_exterior_generator_to_polynomial(&self, result : &mut FpVector, coeff : u32, input_degree : i32, input_index : usize) {
+    fn bockstein_exterior_generator_to_polynomial(&self, result : SliceMut, coeff : u32, input_degree : i32, input_index : usize) {
         self.action_on_generator_helper(result, coeff, 1, 0, input_degree, input_index);
     }
 }
