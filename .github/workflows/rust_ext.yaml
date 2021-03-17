@@ -36,7 +36,7 @@ jobs:
       run: make -C ext test-concurrent
 
     - name: Run rust_webserver tests
-      run: make -C rust_webserver test-concurrent
+      run: make -C rust_webserver test
 
   lint:
     runs-on: ubuntu-latest
