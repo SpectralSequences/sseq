@@ -171,7 +171,7 @@ pub enum FpVectorNonZeroIterator<'a> {
 
 impl FpVector {
     pub fn new(p: ValidPrime, dim: usize) -> FpVector {
-        match_p!(p, FpVectorP::new(dim))
+        match_p!(p, FpVectorP::new_(dim))
     }
 
     pub fn from_slice(p: ValidPrime, slice: &[u32]) -> Self {
@@ -179,7 +179,7 @@ impl FpVector {
     }
 
     fn from_limbs(p: ValidPrime, dim: usize, limbs: Vec<u64>) -> Self {
-        match_p!(p, FpVectorP::from_limbs(dim, limbs))
+        match_p!(p, FpVectorP::from_limbs_(dim, limbs))
     }
 
     pub fn padded_dimension(p: ValidPrime, dimension: usize) -> usize {
@@ -959,8 +959,8 @@ mod test {
     #[test]
     #[ignore]
     fn test_sign_rule() {
-        let mut in1 = FpVectorP::<2>::new(128);
-        let mut in2 = FpVectorP::<2>::new(128);
+        let mut in1 = FpVectorP::<2>::new_(128);
+        let mut in2 = FpVectorP::<2>::new_(128);
         let tests = [
             (
                 0x181e20846a820820,

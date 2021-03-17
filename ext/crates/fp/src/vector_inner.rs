@@ -120,7 +120,7 @@ pub struct SliceMutP<'a, const P: u32> {
 }
 
 impl<const P: u32> FpVectorP<P> {
-    pub fn new(dim: usize) -> Self {
+    pub fn new_(dim: usize) -> Self {
         let number_of_limbs = limb::number::<P>(dim);
         Self {
             dimension: dim,
@@ -128,7 +128,7 @@ impl<const P: u32> FpVectorP<P> {
         }
     }
 
-    pub(crate) fn from_limbs(dim: usize, limbs: Vec<u64>) -> Self {
+    pub fn from_limbs_(dim: usize, limbs: Vec<u64>) -> Self {
         Self {
             dimension: dim,
             limbs,
@@ -356,12 +356,7 @@ impl<const P: u32> FpVectorP<P> {
         }
     }
 
-    pub(crate) fn add_carry<T: TryInto<Self>>(
-        &mut self,
-        other: &Self,
-        c: u32,
-        rest: &mut [T],
-    ) -> bool {
+    pub fn add_carry<T: TryInto<Self>>(&mut self, other: &Self, c: u32, rest: &mut [T]) -> bool {
         let mut result = false;
         for i in 0..self.limbs.len() {
             result |= self.add_carry_limb(i, other.limbs[i], c, rest);
