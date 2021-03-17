@@ -25,7 +25,7 @@ $(WASM_FILE): $(WASM_LIB)
 	wasm-bindgen --no-typescript --target no-modules --out-dir $(WASM_OUT) --out-name $(NAME)_wasm $(WASM_LIB)
 	wasm-opt -O3 $(WASM_FILE) -o $(WASM_FILE) || true
 
-.PHONY: wasm serve-wasm clean-wasm clean dummy run_examples
+.PHONY: wasm serve-wasm clean-wasm clean dummy run_examples test
 
 wasm: $(WASM_FILE) $(wildcard interface/*) $(wildcard wasm/*) $(wildcard ext/steenrod_modules/*)
 	# Must be done in this order since both contain index.js and we want the wasm version
@@ -41,6 +41,9 @@ clean-wasm:
 
 clean: clean-wasm
 	rm -r target
+
+test:
+	cargo test
 
 run_examples: $(patsubst examples/%.rs, target/debug/examples/%, $(wildcard examples/*.rs))
 

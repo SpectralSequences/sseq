@@ -72,8 +72,8 @@ impl Subquotient {
         self.gens.iter().take(self.dimension)
     }
 
-    pub fn quotient(&mut self, elt: SliceMut) {
-        self.quotient.add_vector(elt.as_slice());
+    pub fn quotient(&mut self, elt: Slice) {
+        self.quotient.add_vector(elt);
         for elt in self.gens.iter_mut() {
             self.quotient.reduce(elt.as_slice_mut());
         }
@@ -178,8 +178,8 @@ mod test {
         crate::vector::initialize_limb_bit_index_table(p);
 
         let mut sq = Subquotient::new(p, 5);
-        sq.quotient(FpVector::from_slice(p, &[1, 1, 0, 0, 1]).as_slice_mut());
-        sq.quotient(FpVector::from_slice(p, &[0, 2, 0, 0, 1]).as_slice_mut());
+        sq.quotient(FpVector::from_slice(p, &[1, 1, 0, 0, 1]).as_slice());
+        sq.quotient(FpVector::from_slice(p, &[0, 2, 0, 0, 1]).as_slice());
         sq.add_gen(FpVector::from_slice(p, &[1, 1, 0, 0, 0]).as_slice());
         sq.add_gen(FpVector::from_slice(p, &[0, 1, 0, 0, 0]).as_slice());
 

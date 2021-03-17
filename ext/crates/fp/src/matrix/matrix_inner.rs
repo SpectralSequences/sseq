@@ -442,12 +442,10 @@ impl Matrix {
             self.swap_rows(pivot, pivot_row);
             // println!("({}) <==> ({}): \n{}", pivot, pivot_row, self);
 
-            println!("Swapped: {}", self);
             // // Divide pivot row by pivot entry
             let c = self[pivot].entry(pivot_column);
             let c_inv = prime::inverse(p, c);
             self[pivot].scale(c_inv);
-            println!("Scaled: {}", self);
             // println!("({}) <== {} * ({}): \n{}", pivot, c_inv, pivot, self);
             // We would say:
             // for i in 0..rows { // but we want to skip a few rows so we can't use for.
@@ -465,13 +463,10 @@ impl Matrix {
                     continue;
                 }
                 let row_op_coeff = *p - pivot_column_entry;
-                println!("Before row op at {} {}", i, self);
                 self.row_op(i, pivot, row_op_coeff);
                 i += 1; // loop control structure.
-                println!("After row op at {} {}", i, self);
             }
             pivot += 1;
-            println!("Cleared {}", self);
         }
     }
 }
@@ -955,6 +950,12 @@ impl<'a> MatrixSliceMut<'a> {
             col_start: self.col_start,
             col_end: self.col_end,
         }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = Slice> + '_ {
+        let start = self.col_start;
+        let end = self.col_end;
+        self.vectors.iter().map(move |x| x.slice(start, end))
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = SliceMut> + '_ {

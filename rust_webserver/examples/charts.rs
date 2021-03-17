@@ -4,7 +4,7 @@ use ext_webserver::actions::SseqChoice;
 use ext_webserver::sseq::Sseq;
 use fp::{
     prime::ValidPrime,
-    vector::{FpVector, FpVectorT},
+    vector::FpVector,
 };
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -85,7 +85,7 @@ fn main() -> std::io::Result<()> {
         if !target.iter().any(|&x| x != 0) {
             continue;
         }
-        let mut target = FpVector::from_vec(TWO, target);
+        let mut target = FpVector::from_slice(TWO, target);
 
         v.set_scratch_vector_size(
             resolution

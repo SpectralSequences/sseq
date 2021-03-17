@@ -4,6 +4,8 @@ use crate::vector_inner::{
     entries_per_64_bits, FpVectorIterator, FpVectorNonZeroIteratorP, FpVectorP, SliceMutP, SliceP,
 };
 use itertools::Itertools;
+#[cfg(feature = "json")]
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 macro_rules! dispatch_vector_inner {
     // other is a type, but marking it as a :ty instead of :tt means we cannot use it to access its
@@ -292,6 +294,27 @@ impl<'a> Iterator for FpVectorNonZeroIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.next()
+    }
+}
+
+#[cfg(feature = "json")]
+impl Serialize for FpVector {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        Vec::<u32>::from(self).serialize(serializer)
+    }
+}
+
+#[cfg(feature = "json")]
+impl<'de> Deserialize<'de> for FpVector {
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        panic!("Deserializing FpVector not supported");
+        // This is needed for ext-websocket/actions to be happy
     }
 }
 
