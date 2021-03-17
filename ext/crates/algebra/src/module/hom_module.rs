@@ -257,7 +257,7 @@ mod tests {
 
         let f_degree = 0;
         let hom_dim = hom.dimension(f_degree);
-        let mut f_vec = FpVector::from_slice(p, &[1, 0, 1]);
+        let f_vec = FpVector::from_slice(p, &[1, 0, 1]);
         let f = hom.element_to_homomorphism(f_degree, f_vec.as_slice());
         let mut result = FpVector::new(p, 1);
         for degree in 0..=4 {

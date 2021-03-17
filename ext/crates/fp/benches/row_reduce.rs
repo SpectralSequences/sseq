@@ -12,7 +12,7 @@ fn row_reduce_2(bencher: &mut bencher::Bencher) {
     let mut matrices = Vec::with_capacity(num_matrices);
     let mut vec = vec![0; cols];
     let mut rng = rand::thread_rng();
-    for _ in 0 .. num_matrices {
+    for _ in 0..num_matrices {
         let mut vectors = Vec::with_capacity(rows);
         for _ in 0..rows {
             for v in vec.iter_mut() {
@@ -28,7 +28,8 @@ fn row_reduce_2(bencher: &mut bencher::Bencher) {
     bencher.iter(|| {
         for m in matrices.iter_mut() {
             let mut pivots = m.take_pivots();
-            m.slice_mut(0, rows, 0, cols).row_reduce_into_pivots(&mut pivots);
+            m.slice_mut(0, rows, 0, cols)
+                .row_reduce_into_pivots(&mut pivots);
             m.set_pivots(pivots);
         }
     });

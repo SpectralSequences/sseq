@@ -264,6 +264,7 @@ impl<const P: u32> FpVectorP<P> {
     pub fn set_scratch_vector_size(&mut self, dim: usize) {
         self.limbs.clear();
         self.limbs.resize(limb::number::<P>(dim), 0);
+        self.dimension = dim;
     }
 
     /// This replaces the contents of the vector with the contents of the slice. The two must have
@@ -272,10 +273,22 @@ impl<const P: u32> FpVectorP<P> {
         assert_eq!(self.dimension, slice.len());
 
         self.limbs.clear();
-        self.limbs.extend(slice
+        self.limbs.extend(
+            slice
                 .chunks(entries_per_64_bits(ValidPrime::new(P)))
-                .map(|x| limb::pack::<_, P>(x.iter().copied()))
-                );
+                .map(|x| limb::pack::<_, P>(x.iter().copied())),
+        );
+    }
+
+    /// Permanently remove the first `n` elements in the vector. `n` must be a multiple of
+    /// the number of entries per limb
+    pub fn trim_start(&mut self, n: usize) {
+        assert!(n <= self.dimension);
+        let entries_per = entries_per_64_bits(ValidPrime::new(P));
+        assert_eq!(n % entries_per, 0);
+        let num_limbs = n / entries_per;
+        self.limbs.drain(0..num_limbs);
+        self.dimension -= n;
     }
 }
 
@@ -338,8 +351,8 @@ impl<'a, const P: u32> SliceP<'a, P> {
         debug_assert_eq!(self.start % entries_per_64_bits(self.prime()), 0);
 
         let (min, max) = self.limb_range();
-        let mut limbs: Vec<u64> = self.limbs[min .. max].into();
-        if limbs.len() > 0 {
+        let mut limbs: Vec<u64> = self.limbs[min..max].into();
+        if !limbs.is_empty() > 0 {
             let len = limbs.len();
             limbs[len - 1] &= self.limb_mask(max - 1);
         }
@@ -633,7 +646,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 
     /// `coeff` need not be reduced mod p.
     /// Adds v otimes w to self.
-    pub fn add_tensor(&mut self, offset : usize, coeff : u32, left : SliceP<P>, right : SliceP<P>) {
+    pub fn add_tensor(&mut self, offset: usize, coeff: u32, left: SliceP<P>, right: SliceP<P>) {
         let right_dim = right.dimension();
 
         // println!("v : {}, dim(v) : {}, slice: {:?}", left, left.dimension(), left.slice());
@@ -642,7 +655,8 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
             let entry = (v * coeff) % *self.prime();
             // println!("   left_dim : {}, right_dim : {}, i : {}, v : {}", left.dimension(), right.dimension(), i, v);
             // println!("   set slice: {} -- {} dimension: {}", offset + i * right_dim, offset + (i + 1) * right_dim, self.dimension());
-            self.slice_mut(offset + i * right_dim, offset + (i + 1) * right_dim).add(right, entry);
+            self.slice_mut(offset + i * right_dim, offset + (i + 1) * right_dim)
+                .add(right, entry);
         }
     }
 
@@ -665,11 +679,12 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
             let start = 1;
             let end = number_of_limbs - 1;
             if end > start {
-                self.limbs[start + min_target_limb .. end + min_target_limb]
-                    .clone_from_slice(&other.limbs[start + min_source_limb .. end + min_source_limb]);
+                self.limbs[start + min_target_limb..end + min_target_limb]
+                    .clone_from_slice(&other.limbs[start + min_source_limb..end + min_source_limb]);
             }
         }
-        let mut i=0; {
+        let mut i = 0;
+        {
             let mask = other.limb_mask(i + min_source_limb);
             let result = other.limbs[min_source_limb + i] & mask;
             self.limbs[min_target_limb + i] &= !mask;
@@ -682,7 +697,6 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
             self.limbs[min_target_limb + i] &= !mask;
             self.limbs[min_target_limb + i] |= result;
         }
-
     }
 
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.

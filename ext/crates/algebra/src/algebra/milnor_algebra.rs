@@ -1214,7 +1214,7 @@ mod tests {
                 }
                 for (coeff, (first_degree, first_idx), (second_degree, second_idx)) in algebra.decompose_basis_element(i, j) {
                     // print!("{} * {} * {}  +  ", coeff, algebra.basis_element_to_string(first_degree,first_idx), algebra.basis_element_to_string(second_degree, second_idx));
-                    algebra.multiply_basis_elements(&mut out_vec.as_slice_mut(), coeff, first_degree, first_idx, second_degree, second_idx, -1);
+                    algebra.multiply_basis_elements(out_vec.as_slice_mut(), coeff, first_degree, first_idx, second_degree, second_idx, -1);
                 }
                 assert!(out_vec.entry(j) == 1, 
                     "{} != {}", algebra.basis_element_to_string(i, j), algebra.element_to_string(i, out_vec.as_slice()));
@@ -1243,7 +1243,7 @@ mod tests {
             println!("{:?}", relations);
             for relation in relations {
                 for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                    algebra.multiply_basis_elements(&mut output_vec.as_slice_mut(), *coeff, *deg_1, *idx_1, *deg_2, *idx_2, -1);
+                    algebra.multiply_basis_elements(output_vec.as_slice_mut(), *coeff, *deg_1, *idx_1, *deg_2, *idx_2, -1);
                 }
                 if !output_vec.is_zero() {
                     let mut relation_string = String::new();

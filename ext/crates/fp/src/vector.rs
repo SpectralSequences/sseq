@@ -1,8 +1,8 @@
 use crate::prime::ValidPrime;
+pub use crate::vector_inner::initialize_limb_bit_index_table;
 use crate::vector_inner::{
     entries_per_64_bits, FpVectorIterator, FpVectorNonZeroIterator, FpVectorP, SliceMutP, SliceP,
 };
-pub use crate::vector_inner::initialize_limb_bit_index_table;
 use itertools::Itertools;
 
 macro_rules! dispatch_vector_inner {
@@ -152,15 +152,15 @@ impl FpVector {
         ((dimension + entries_per_limb - 1) / entries_per_limb) * entries_per_limb
     }
 
-    pub fn sign_rule(&self, _other : &FpVector) -> bool {
+    pub fn sign_rule(&self, _other: &FpVector) -> bool {
         unimplemented!();
     }
 
-    pub fn add_truncate(&self, _other : &FpVector, _c: u32) -> Option<()> {
+    pub fn add_truncate(&self, _other: &FpVector, _c: u32) -> Option<()> {
         unimplemented!();
     }
 
-    pub fn add_carry(&mut self, _other : &FpVector, _c : u32, _rest : &mut [FpVector]) -> bool {
+    pub fn add_carry(&mut self, _other: &FpVector, _c: u32, _rest: &mut [FpVector]) -> bool {
         unimplemented!();
     }
 
@@ -184,6 +184,7 @@ impl FpVector {
         pub fn set_scratch_vector_size(&mut self, dim: usize);
         pub fn add_basis_element(&mut self, index: usize, value: u32);
         pub fn copy_from_slice(&mut self, slice: &[u32]);
+        pub fn trim_start(&mut self, n: usize);
 
         fn limbs(&self) -> (&[u64]);
     }
@@ -216,12 +217,20 @@ impl<'a> SliceMut<'a> {
         pub fn copy(&mut self) -> (dispatch SliceMut);
     }
 
-    pub fn add_tensor(&mut self, offset : usize, coeff : u32, left : Slice, right : Slice) {
+    pub fn add_tensor(&mut self, offset: usize, coeff: u32, left: Slice, right: Slice) {
         match (self, left, right) {
-            (SliceMut::_2(ref mut x), Slice::_2(y), Slice::_2(z)) => x.add_tensor(offset, coeff, y, z),
-            (SliceMut::_3(ref mut x), Slice::_3(y), Slice::_3(z)) =>  x.add_tensor(offset, coeff, y, z),
-            (SliceMut::_5(ref mut x), Slice::_5(y), Slice::_5(z)) => x.add_tensor(offset, coeff, y, z),
-            (SliceMut::_7(ref mut x), Slice::_7(y), Slice::_7(z)) => x.add_tensor(offset, coeff, y, z),
+            (SliceMut::_2(ref mut x), Slice::_2(y), Slice::_2(z)) => {
+                x.add_tensor(offset, coeff, y, z)
+            }
+            (SliceMut::_3(ref mut x), Slice::_3(y), Slice::_3(z)) => {
+                x.add_tensor(offset, coeff, y, z)
+            }
+            (SliceMut::_5(ref mut x), Slice::_5(y), Slice::_5(z)) => {
+                x.add_tensor(offset, coeff, y, z)
+            }
+            (SliceMut::_7(ref mut x), Slice::_7(y), Slice::_7(z)) => {
+                x.add_tensor(offset, coeff, y, z)
+            }
             _ => {
                 panic!("Applying add_tensor to vectors over different primes");
             }

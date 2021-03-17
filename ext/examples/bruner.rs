@@ -94,11 +94,7 @@ use ext::{
     resolution_homomorphism::ResolutionHomomorphism,
     utils::iter_stems,
 };
-use fp::{
-    matrix::Matrix,
-    prime::ValidPrime,
-    vector::FpVector,
-};
+use fp::{matrix::Matrix, prime::ValidPrime, vector::FpVector};
 use std::{
     fs::File,
     io::{BufRead, BufReader},

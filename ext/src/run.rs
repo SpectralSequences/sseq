@@ -350,7 +350,7 @@ pub fn steenrod() -> error::Result<String> {
                 if i == 0 && s == 0 {
                     let map = &delta[0][0];
                     let lock = map.lock();
-                    map.add_generators_from_matrix_rows(&lock, 0, &Matrix::from_vec(p, &[vec![1]]));
+                    map.add_generators_from_matrix_rows(&lock, 0, Matrix::from_vec(p, &[vec![1]]).as_slice_mut());
                     map.extend_by_zero(&lock, 2 * t);
                     continue;
                 }
@@ -435,13 +435,13 @@ pub fn steenrod() -> error::Result<String> {
 
                             if let Some(m) = &prev_map {
                                 let dx = d_res.output(t, j);
-                                m.apply(&mut result, 1, t, dx);
+                                m.apply(result.as_slice_mut(), 1, t, dx.as_slice());
                             }
-                            d_target.apply_quasi_inverse(&mut output_matrix[j], t, &result);
+                            d_target.apply_quasi_inverse(output_matrix[j].as_slice_mut(), t, result.as_slice());
 
                             result.set_to_zero();
                         }
-                        map.add_generators_from_matrix_rows(&lock, t, &output_matrix);
+                        map.add_generators_from_matrix_rows(&lock, t, output_matrix.as_slice_mut());
 
                         #[cfg(feature = "concurrent")]
                         {

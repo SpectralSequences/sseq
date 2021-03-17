@@ -13,7 +13,7 @@ use algebra::{Algebra as _, MilnorAlgebraT, SteenrodAlgebra};
 #[cfg(feature = "concurrent")]
 use bivec::BiVec;
 use fp::prime::ValidPrime;
-use fp::vector::{SliceMut, FpVector};
+use fp::vector::{FpVector, SliceMut};
 use rustc_hash::FxHashMap as HashMap;
 #[cfg(feature = "concurrent")]
 use saveload::{Load, Save};
@@ -135,11 +135,13 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
                 #[cfg(debug_assertions)]
                 if s > 3 {
                     let mut r = FpVector::new(TWO, res.module(s - 4).dimension(t - 1));
-                    res.differential(s - 3).apply(r.as_slice_mut(), 1, t - 1, scratch.as_slice());
+                    res.differential(s - 3)
+                        .apply(r.as_slice_mut(), 1, t - 1, scratch.as_slice());
                     assert!(r.is_zero(), "dd != 0 at s = {}, t = {}", s, t);
                 }
 
-                d.quasi_inverse(t - 1).apply(result.as_slice_mut(), 1, scratch.as_slice());
+                d.quasi_inverse(t - 1)
+                    .apply(result.as_slice_mut(), 1, scratch.as_slice());
                 scratch.set_to_zero();
             }
             delta.add_generators_from_rows(&delta.lock(), t, results);
@@ -369,17 +371,25 @@ pub fn compute_delta_concurrent(
                 for (idx, result) in results.iter_mut().enumerate() {
                     let row: &mut FpVector = ddelta[idx].as_mut().unwrap();
                     if s > 3 {
-                        deltas[s as usize - 4].apply(row.as_slice_mut(), 1, t, source_d.output(t, idx).as_slice());
+                        deltas[s as usize - 4].apply(
+                            row.as_slice_mut(),
+                            1,
+                            t,
+                            source_d.output(t, idx).as_slice(),
+                        );
                     }
 
                     #[cfg(debug_assertions)]
                     if s > 3 {
                         let mut r = FpVector::new(TWO, res.module(s - 4).dimension(t - 1));
-                        res.differential(s - 3).apply(r.as_slice_mut(), 1, t - 1, row.as_slice());
+                        res.differential(s - 3)
+                            .apply(r.as_slice_mut(), 1, t - 1, row.as_slice());
                         assert!(r.is_zero(), "dd != 0 at s = {}, t = {}", s, t);
                     }
 
-                    target_d.quasi_inverse(t - 1).apply(result.as_slice_mut(), 1, row.as_slice());
+                    target_d
+                        .quasi_inverse(t - 1)
+                        .apply(result.as_slice_mut(), 1, row.as_slice());
                 }
                 delta.add_generators_from_rows(&delta.lock(), t, results);
                 sender.send(()).unwrap();

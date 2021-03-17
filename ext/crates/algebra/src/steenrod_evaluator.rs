@@ -349,8 +349,8 @@ mod tests {
             ("(Q2 + Sq7) * Q1", "Sq6 Sq3 Sq1"),
         ]{
             let (degree, result) = evaluate_algebra_adem(&adem, &milnor, input).unwrap();
-            println!("{} ==> {}", input, adem.element_to_string(degree, &result));
-            assert_eq!(adem.element_to_string(degree, &result), *output);
+            println!("{} ==> {}", input, adem.element_to_string(degree, result.as_slice()));
+            assert_eq!(adem.element_to_string(degree, result.as_slice()), *output);
         }
         let p = ValidPrime::new(3);
         let max_degree = 30;
@@ -365,8 +365,8 @@ mod tests {
             ("A(4 2)", "2 * P5 P1"),
         ]{
             let (degree, result) = evaluate_algebra_adem(&adem, &milnor, input).unwrap();
-            println!("{} ==> {}", input, adem.element_to_string(degree, &result));
-            assert_eq!(adem.element_to_string(degree, &result), *output);
+            println!("{} ==> {}", input, adem.element_to_string(degree, result.as_slice()));
+            assert_eq!(adem.element_to_string(degree, result.as_slice()), *output);
         }
     }
 }

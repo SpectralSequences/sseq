@@ -924,7 +924,6 @@ impl AdemAlgebra {
         // Zeroing the rest of the result is a little unexpected, but I don't think it causes trouble?
         // Can't avoid this unexpected behavior without sacrificing some speed.
         result.slice_mut(self.dimension_unstable(r_degree + s_degree, excess), self.dimension_unstable(r_degree + s_degree, i32::max_value())).set_to_zero();
-        result.set_to_zero();
     }
 
     pub fn multiply<BasisFilter>(&self, mut result : SliceMut, coeff : u32,
@@ -1383,8 +1382,8 @@ mod tests {
         let mut result1 = result1.as_slice_mut();
         let mut result2 = result2.slice_mut(3, 3 + result1.as_slice().dimension());
 
-        A.multiply_basis_elements(&mut result1, 1, r_deg, r_idx, s_deg, s_idx, 0);
-        A.multiply_basis_elements(&mut result2, 1, r_deg, r_idx, s_deg, s_idx, 0);
+        A.multiply_basis_elements(result1.copy(), 1, r_deg, r_idx, s_deg, s_idx, 0);
+        A.multiply_basis_elements(result2.copy(), 1, r_deg, r_idx, s_deg, s_idx, 0);
         println!("result : {}", A.element_to_string(out_deg, result1.as_slice()));
         println!("result : {}", A.element_to_string(out_deg, result2.as_slice()));
     }
@@ -1431,7 +1430,7 @@ mod tests {
                 }
                 for (coeff, (first_degree, first_idx), (second_degree, second_idx)) in algebra.decompose_basis_element(i, j) {
                     print!("{} * {} * {}  +  ", coeff, algebra.basis_element_to_string(first_degree,first_idx), algebra.basis_element_to_string(second_degree, second_idx));
-                    algebra.multiply_basis_elements(&mut out_vec.as_slice_mut(), coeff, first_degree, first_idx, second_degree, second_idx, i32::max_value());
+                    algebra.multiply_basis_elements(out_vec.as_slice_mut(), coeff, first_degree, first_idx, second_degree, second_idx, i32::max_value());
                 }
                 assert!(out_vec.entry(j) == 1, 
                     "{} != {}", algebra.basis_element_to_string(i, j), algebra.element_to_string(i, out_vec.as_slice()));
@@ -1459,7 +1458,7 @@ mod tests {
             let relations = algebra.relations_to_check(i);
             for relation in relations {
                 for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                    algebra.multiply_basis_elements(&mut output_vec.as_slice_mut(), *coeff, *deg_1, *idx_1, *deg_2, *idx_2, i32::max_value());
+                    algebra.multiply_basis_elements(output_vec.as_slice_mut(), *coeff, *deg_1, *idx_1, *deg_2, *idx_2, i32::max_value());
                 }
                 if !output_vec.is_zero() {
                     let mut relation_string = String::new();

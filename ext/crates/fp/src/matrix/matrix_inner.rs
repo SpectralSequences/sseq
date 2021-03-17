@@ -718,6 +718,14 @@ impl Matrix {
             result.add(self.vectors[i].as_slice(), (coeff * input.entry(i)) % *self.p);
         }
     }
+
+    pub fn trim(&mut self, row_start: usize, row_end: usize, col_start: usize) {
+        self.vectors.truncate(row_end);
+        self.vectors.drain(0 .. row_start);
+        for v in &mut self.vectors {
+            v.trim_start(col_start);
+        }
+    }
 }
 
 impl std::ops::Mul for &Matrix {

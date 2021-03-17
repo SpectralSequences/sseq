@@ -222,8 +222,8 @@ mod tests {
             let degree = (1 << (*qi + 1)) - 1;
             let mut result = FpVector::new(p, adem.dimension(degree, -1));
             adem_q(&adem, &milnor, &mut result, 1, *qi);
-            println!("Q{} ==> {}", qi, adem.element_to_string(degree, &result));
-            assert_eq!(adem.element_to_string(degree, &result), *output)
+            println!("Q{} ==> {}", qi, adem.element_to_string(degree, result.as_slice()));
+            assert_eq!(adem.element_to_string(degree, result.as_slice()), *output)
         }
     }
 
@@ -251,17 +251,17 @@ mod tests {
                 assert!(milnor_result.entry(i) == 1, 
                     "{} ==> {} ==> {}",
                         milnor.basis_element_to_string(degree, i),
-                        adem.element_to_string(degree, &adem_result),
-                        milnor.element_to_string(degree, &milnor_result)
+                        adem.element_to_string(degree, adem_result.as_slice()),
+                        milnor.element_to_string(degree, milnor_result.as_slice())
                 );
                 milnor_result.set_entry(i, 0);
                 assert!(milnor_result.is_zero(),
                     "{} ==> {} ==> {}",
                         milnor.basis_element_to_string(degree, i),
-                        adem.element_to_string(degree, &adem_result),
-                        milnor.element_to_string(degree, &milnor_result)
+                        adem.element_to_string(degree, adem_result.as_slice()),
+                        milnor.element_to_string(degree, milnor_result.as_slice())
                 );
-                println!("    {} ==> {}", milnor.basis_element_to_string(degree,i), adem.element_to_string(degree, &adem_result));
+                println!("    {} ==> {}", milnor.basis_element_to_string(degree,i), adem.element_to_string(degree, adem_result.as_slice()));
                 adem_result.set_to_zero();
                 milnor_result.set_to_zero();
             }

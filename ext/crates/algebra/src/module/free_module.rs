@@ -663,13 +663,13 @@ mod tests {
         }
         let mut result = FpVector::new(p, output_dim);
         // M.act_on_basis(&mut result, 1, op_deg, op_idx, input_deg, input_idx);
-        M.act_on_basis(&mut result, 1, 5, 0, 1, 0);
+        M.act_on_basis(result.as_slice_mut(), 1, 5, 0, 1, 0);
         println!("{}", result);
-        println!("result : {}", M.element_to_string(output_deg, &result));
+        println!("result : {}", M.element_to_string(output_deg, result.as_slice()));
         result.set_to_zero();
-        M.act_on_basis(&mut result, 1, 5, 0, 1, 1);
+        M.act_on_basis(result.as_slice_mut(), 1, 5, 0, 1, 1);
         println!("{}", result);
-        println!("result : {}", M.element_to_string(output_deg, &result));
+        println!("result : {}", M.element_to_string(output_deg, result.as_slice()));
         println!("1, 0 : {}", M.basis_element_to_string(1, 0));
         println!("1, 1 : {}", M.basis_element_to_string(1, 1));
     }
