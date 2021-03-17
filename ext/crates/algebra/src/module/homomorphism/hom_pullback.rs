@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::module::block_structure::BlockStart;
 use fp::matrix::{QuasiInverse, Subspace};
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::SliceMut;
 use once::OnceBiVec;
 // use crate::algebra::SteenrodAlgebra;
 // use crate::field::Field;
@@ -60,7 +60,7 @@ impl<M: BoundedModule> ModuleHomomorphism for HomPullback<M> {
 
     fn apply_to_basis_element(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         fn_degree: i32,
         fn_idx: usize,
@@ -70,18 +70,16 @@ impl<M: BoundedModule> ModuleHomomorphism for HomPullback<M> {
         for out_deg in target_module.min_degree()..=target_module.max_degree() {
             let x_degree = fn_degree + out_deg;
             let num_gens = self.map.source().number_of_gens_in_degree(x_degree);
-            let old_slice = result.slice();
             for i in 0..num_gens {
                 let x_elt = self.map.output(x_degree, i);
                 let BlockStart {
                     block_start_index,
                     block_size,
                 } = self.source.block_structures[fn_degree].generator_to_block(x_degree, i);
-                result.set_slice(*block_start_index, *block_start_index + block_size);
                 self.target.evaluate_basis_map_on_element(
-                    result, coeff, fn_degree, fn_idx, x_degree, &x_elt,
+                    result.slice_mut(*block_start_index, *block_start_index + block_size),
+                    coeff, fn_degree, fn_idx, x_degree, x_elt.as_slice(),
                 );
-                result.restore_slice(old_slice);
             }
         }
     }
@@ -112,6 +110,7 @@ mod tests {
     use crate::algebra::{AdemAlgebra, Algebra, SteenrodAlgebra};
     use crate::module::FDModule;
     use fp::matrix::Matrix;
+    use fp::vector::FpVector;
     use fp::prime::ValidPrime;
 
     #[allow(non_snake_case)]
@@ -138,13 +137,13 @@ mod tests {
         let lock = d.lock();
 
         for i in 0..=1 {
-            let matrix = Matrix::new(p, 1, F0.dimension(i));
-            d.add_generators_from_matrix_rows(&lock, i, &matrix);
+            let mut matrix = Matrix::new(p, 1, F0.dimension(i));
+            d.add_generators_from_matrix_rows(&lock, i, matrix.as_slice_mut());
         }
 
         let i = 2;
-        let matrix = Matrix::from_rows(p, vec![FpVector::from_vec(p, &[1, 1, 1])], 3);
-        d.add_generators_from_matrix_rows(&lock, i, &matrix);
+        let mut matrix = Matrix::from_rows(p, vec![FpVector::from_slice(p, &[1, 1, 1])], 3);
+        d.add_generators_from_matrix_rows(&lock, i, matrix.as_slice_mut());
 
         let joker_json_string = r#"{"type" : "finite dimensional module","name": "Joker", "file_name": "Joker", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1, "x2": 2, "x3": 3, "x4": 4}, "sq_actions": [{"op": 2, "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": 2, "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": 2, "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": 1, "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": 3, "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": [1], "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": [2], "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [2], "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [3], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2, 1], "input": "x0", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [3, 1], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": [1], "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": [2], "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [2], "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [0, 1], "input": "x0", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [0, 1], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [3], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [1, 1], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}]}"#;
         let mut joker_json = serde_json::from_str(&joker_json_string).unwrap();
@@ -158,11 +157,11 @@ mod tests {
 
         for i in 0..3 {
             let mut result = FpVector::new(p, 3);
-            d.apply_to_basis_element(&mut result, 1, 2, i);
+            d.apply_to_basis_element(result.as_slice_mut(), 1, 2, i);
             println!(
                 "d({}) = {}",
                 F1.basis_element_to_string(2, i),
-                F0.element_to_string(2, &result)
+                F0.element_to_string(2, result.as_slice())
             );
             result.set_to_zero();
         }
@@ -187,10 +186,10 @@ mod tests {
             // println!("deg : {}, dim : {}", deg, hom0.dimension(deg));
             for idx in 0..hom0.dimension(deg) {
                 // println!("deg = {}, idx = {}, f = {}", deg, idx, hom1.basis_element_to_string(deg, idx));
-                pb.apply_to_basis_element(&mut result, 1, deg, idx);
+                pb.apply_to_basis_element(result.as_slice_mut(), 1, deg, idx);
                 // println!("d^* {} = {}\n", hom1.basis_element_to_string(deg, idx), hom0.element_to_string(deg, &result));
                 let desired_output = outputs[(deg + 4) as usize][idx];
-                desired_result.pack(&desired_output[0..desired_result.dimension()]);
+                desired_result.copy_from_slice(&desired_output[0..desired_result.dimension()]);
                 assert_eq!(result, desired_result);
                 println!("{}", result);
                 result.set_to_zero();

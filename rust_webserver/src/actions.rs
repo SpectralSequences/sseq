@@ -115,8 +115,8 @@ impl ActionT for AddDifferential {
     fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
         sseq.add_differential_propagate(
             self.r, self.x, self.y,
-            &FpVector::from_vec(sseq.p, &self.source),
-            &Some(FpVector::from_vec(sseq.p, &self.target)),
+            &FpVector::from_slice(sseq.p, &self.source),
+            &Some(FpVector::from_slice(sseq.p, &self.target)),
             0);
         None
     }
@@ -159,7 +159,7 @@ impl ActionT for AddPermanentClass {
     fn act_sseq(&self, sseq : &mut Sseq) -> Option<Message> {
         sseq.add_differential_propagate(
             INFINITY, self.x, self.y,
-            &FpVector::from_vec(sseq.p, &self.class),
+            &FpVector::from_slice(sseq.p, &self.class),
             &None,
             0);
         None

@@ -1,7 +1,7 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::algebra::{Algebra, SteenrodAlgebra, AdemAlgebra};
 use crate::chain_complex::{ChainComplex, AugmentedChainComplex, FiniteAugmentedChainComplex, BoundedChainComplex, ChainMap};
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::FpVector;
 use fp::matrix::{Matrix, Subspace};
 use crate::module::homomorphism::{ModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphism, FiniteModuleHomomorphism, FreeModuleHomomorphism};
 use crate::module::homomorphism::{TruncatedHomomorphism, TruncatedHomomorphismSource, QuotientHomomorphism, QuotientHomomorphismSource};
@@ -85,7 +85,7 @@ where TCM : BoundedModule<Algebra = SteenrodAlgebra>,
     new_output[idx].set_entry(0, 1);
 
     let lock = map.lock();
-    map.add_generators_from_matrix_rows(&lock, t, &new_output);
+    map.add_generators_from_matrix_rows(&lock, t, new_output.as_slice_mut());
     drop(lock);
 
     let cm = ChainMap {
@@ -160,8 +160,8 @@ where TCM : BoundedModule<Algebra = SteenrodAlgebra>,
 
                 for i in 0 .. prev_dim {
                     let j = prev.basis_list[t][i];
-                    d.apply_to_basis_element(&mut differentials[i], 1, t, j);
-                    curr.subspaces[t].reduce(&mut differentials[i]);
+                    d.apply_to_basis_element(differentials[i].as_slice_mut(), 1, t, j);
+                    curr.subspaces[t].reduce(differentials[i].as_slice_mut());
                 }
 
                 differentials.initialize_pivots();
@@ -241,11 +241,11 @@ where TCM : BoundedModule<Algebra = SteenrodAlgebra>,
                     dim_drop[t] = Some(source_orig_dim - source.dimension(t));
 
                     for row in differential_images[t].matrix.iter_mut() {
-                        if row.is_zero_pure() {
+                        if row.is_zero() {
                             break;
                         }
-                        source.reduce(t, row);
-                        if row.is_zero_pure() {
+                        source.reduce(t, row.as_slice_mut());
+                        if row.is_zero() {
                             for t in gen_dim ..= t {
                                 if prev_differentials[t].is_none() {
                                     continue;
@@ -302,7 +302,7 @@ where TCM : BoundedModule<Algebra = SteenrodAlgebra>,
                     let target_orig_dim = target.dimension(t);
                     for i in start .. end {
                         let mut result = FpVector::new(p, target_dim);
-                        d.apply_to_basis_element(&mut result, 1, t, i);
+                        d.apply_to_basis_element(result.as_slice_mut(), 1, t, i);
                         target_kills.push(result);
                     }
                     target.quotient_vectors(t, target_kills);
@@ -377,7 +377,7 @@ where TCM : BoundedModule<Algebra = SteenrodAlgebra>,
                 }
 
                 let mut target_row = FpVector::new(p, target.module.dimension(t));
-                d.apply(&mut target_row, 1, t, &source_row);
+                d.apply(target_row.as_slice_mut(), 1, t, source_row.as_slice());
 
                 source_kills.push(source_row);
                 target_kills.push(target_row);
@@ -504,35 +504,27 @@ fn compute_kernel_image<M : BoundedModule, F : ModuleHomomorphism, G : ModuleHom
 
         let mut target_idx = 0;
         for (op_deg, op_idx) in &generators {
-            result.set_slice(offset, offset + target_degrees[target_idx]);
-            source.act_on_original_basis(&mut result, 1, *op_deg, *op_idx, t, i);
-            result.clear_slice();
+            source.act_on_original_basis(result.slice_mut(offset, offset + target_degrees[target_idx]), 1, *op_deg, *op_idx, t, i);
             offset += padded_target_degrees[target_idx];
             target_idx += 1;
         }
 
         if let Some(m) = &augmentation_map {
-            result.set_slice(offset, offset + target_degrees[target_idx]);
-            m.apply_to_basis_element(&mut result, 1, t, i);
-            result.clear_slice();
+            m.apply_to_basis_element(result.slice_mut(offset, offset + target_degrees[target_idx]), 1, t, i);
             offset += padded_target_degrees[target_idx];
             target_idx += 1;
         }
 
         if let Some(m) = &preserve_map {
-            result.set_slice(offset, offset + target_degrees[target_idx]);
-            m.apply_to_basis_element(&mut result, 1, t, i);
-            result.clear_slice();
+            m.apply_to_basis_element(result.slice_mut(offset, offset + target_degrees[target_idx]), 1, t, i);
             offset += padded_target_degrees[target_idx];
         }
 
         if let Some(keep) = &keep {
             projection_off_keep.set_to_zero();
             projection_off_keep.set_entry(i, 1);
-            keep.reduce(&mut projection_off_keep);
-            result.set_slice(offset, offset + source_orig_dimension);
-            result.assign(&projection_off_keep);
-            result.clear_slice();
+            keep.reduce(projection_off_keep.as_slice_mut());
+            result.slice_mut(offset, offset + source_orig_dimension).assign(projection_off_keep.as_slice());
         } else {
             result.set_entry(offset + i, 1);
         }
@@ -553,8 +545,7 @@ fn compute_kernel_image<M : BoundedModule, F : ModuleHomomorphism, G : ModuleHom
         None => first_kernel_row
     };
 
-    matrix.set_slice(first_kernel_row, source_dimension, total_padded_degree + padded_source_degree, total_cols);
-    matrix = matrix.into_slice();
+    matrix.trim(first_kernel_row, source_dimension, total_padded_degree + padded_source_degree);
 
     let first_image_row = first_image_row - first_kernel_row;
 

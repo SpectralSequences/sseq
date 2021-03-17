@@ -5,8 +5,8 @@ use std::sync::Arc;
 use crate::module::homomorphism::ModuleHomomorphism;
 use crate::module::{FreeModule, Module};
 use crate::algebra::Algebra;
-use fp::matrix::{Matrix, QuasiInverse, Subspace};
-use fp::vector::{FpVector, FpVectorT};
+use fp::matrix::{MatrixSliceMut, QuasiInverse, Subspace};
+use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceBiVec;
 
 pub struct FreeModuleHomomorphism<M: Module> {
@@ -39,7 +39,7 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
 
     fn apply_to_basis_element(
         &self,
-        result: &mut FpVector,
+        result: SliceMut,
         coeff: u32,
         input_degree: i32,
         input_index: usize,
@@ -47,7 +47,7 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
         assert!(input_degree >= self.source.min_degree);
         assert!(input_index < self.source.basis_element_to_opgen[input_degree].len());
         let output_degree = input_degree - self.degree_shift;
-        assert_eq!(self.target.dimension(output_degree), result.dimension());
+        assert_eq!(self.target.dimension(output_degree), result.as_slice().dimension());
         let operation_generator = &self.source.basis_element_to_opgen[input_degree][input_index];
         let operation_degree = operation_generator.operation_degree;
         let operation_index = operation_generator.operation_index;
@@ -61,7 +61,7 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
                 operation_degree,
                 operation_index,
                 generator_degree - self.degree_shift,
-                output_on_generator,
+                output_on_generator.as_slice(),
             );
         }
     }
@@ -80,7 +80,7 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
         &self.kernel[degree]
     }
 
-    fn get_matrix(&self, matrix: &mut Matrix, degree: i32) {
+    fn get_matrix(&self, matrix: &mut MatrixSliceMut, degree: i32) {
         self.get_matrix(matrix, degree)
     }
 
@@ -178,12 +178,11 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         }
     }
 
-    // We don't actually mutate vector, we just slice it.
     pub fn add_generators_from_big_vector(
         &self,
         lock: &MutexGuard<()>,
         degree: i32,
-        outputs_vectors: &mut FpVector,
+        outputs_vectors: Slice,
     ) {
         self.check_mutex(lock);
         assert_eq!(degree, self.outputs.len());
@@ -200,19 +199,18 @@ impl<M: Module> FreeModuleHomomorphism<M> {
             return;
         }
         for (i, new_output) in new_outputs.iter_mut().enumerate() {
-            let old_slice = outputs_vectors.slice();
-            outputs_vectors.set_slice(target_dimension * i, target_dimension * (i + 1));
-            new_output.shift_assign(&outputs_vectors);
-            outputs_vectors.restore_slice(old_slice);
+            new_output.as_slice_mut().assign(outputs_vectors.slice(target_dimension * i, target_dimension * (i + 1)));
         }
         self.outputs.push(new_outputs);
     }
 
+    /// A MatrixSlice will do but there is no applicaiton of this struct, so it doesn't exist
+    /// yet...
     pub fn add_generators_from_matrix_rows(
         &self,
         lock: &MutexGuard<()>,
         degree: i32,
-        matrix: &Matrix
+        mut matrix: MatrixSliceMut,
     ) {
         self.check_mutex(lock);
         assert_eq!(degree, self.outputs.len());
@@ -230,7 +228,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
             return;
         }
         for (i, new_output) in new_outputs.iter_mut().enumerate() {
-            new_output.assign(&matrix[i]);
+            new_output.as_slice_mut().assign(matrix.row(i));
         }
         self.outputs.push(new_outputs);
     }
@@ -251,7 +249,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         result.add(output_on_gen, coeff);
     }
 
-    pub fn get_matrix(&self, matrix: &mut Matrix, degree: i32) {
+    pub fn get_matrix(&self, matrix: &mut MatrixSliceMut, degree: i32) {
         // let source_dimension = FreeModule::<M::Algebra>::dimension_with_table(table);
         // let target_dimension = self.target().dimension(degree);
         // if source_dimension != matrix.rows() {

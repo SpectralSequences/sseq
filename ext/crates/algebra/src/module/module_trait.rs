@@ -4,13 +4,14 @@ use std::sync::Arc;
 
 
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, Slice, SliceMut};
 
 use crate::algebra::Algebra;
 use crate::module::FDModule;
 #[cfg(feature = "extras")]
 use crate::module::TruncatedModule;
-use crate::module::bounded_module::BoundedModule;
+#[cfg(feature = "extras")]
+use crate::module::BoundedModule;
 
 pub trait Module: Send + Sync + 'static {
     type Algebra: Algebra;
@@ -23,7 +24,7 @@ pub trait Module: Send + Sync + 'static {
     fn dimension(&self, degree: i32) -> usize;
     fn act_on_basis(
         &self,
-        result: &mut FpVector,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -47,9 +48,7 @@ pub trait Module: Send + Sync + 'static {
         false
     }
 
-    /// Returns a borrow of the value of the corresponding action on the basis element. This
-    /// FpVector must be "pure", i.e. it is not sliced and the limbs are zero in indices greater
-    /// than the dimension of the vector.
+    /// Returns a borrow of the value of the corresponding action on the basis element.
     fn act_on_basis_borrow(
         &self,
         _op_degree: i32,
@@ -62,18 +61,18 @@ pub trait Module: Send + Sync + 'static {
 
     fn act(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
-        input: &FpVector,
+        input: Slice,
     ) {
         assert!(input.dimension() <= self.dimension(input_degree));
         let p = self.prime();
         for (i, v) in input.iter_nonzero() {
             self.act_on_basis(
-                result,
+                result.copy(),
                 (coeff * v) % *p,
                 op_degree,
                 op_index,
@@ -85,34 +84,34 @@ pub trait Module: Send + Sync + 'static {
 
     fn act_by_element(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
-        op: &FpVector,
+        op: Slice,
         input_degree: i32,
-        input: &FpVector,
+        input: Slice,
     ) {
         assert_eq!(input.dimension(), self.dimension(input_degree));
         assert_eq!(op.dimension(), self.algebra().dimension(op_degree, i32::max_value()));
         let p = self.prime();
         for (i, v) in op.iter_nonzero() {
-            self.act(result, (coeff * v) % *p, op_degree, i, input_degree, input);
+            self.act(result.copy(), (coeff * v) % *p, op_degree, i, input_degree, input);
         }
     }
 
     fn act_by_element_on_basis(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
-        op: &FpVector,
+        op: Slice,
         input_degree: i32,
         input_index: usize,
     ) {
         assert_eq!(op.dimension(), self.algebra().dimension(op_degree, i32::max_value()));
         let p = self.prime();
         for (i, v) in op.iter_nonzero() {
-            self.act_on_basis(result, (coeff * v) % *p, op_degree, i, input_degree, input_index);
+            self.act_on_basis(result.copy(), (coeff * v) % *p, op_degree, i, input_degree, input_index);
         }
     }    
 
@@ -126,7 +125,7 @@ pub trait Module: Send + Sync + 'static {
         // format!("[{}]", formatter)
     }
 
-    fn element_to_string(&self, degree: i32, element: &FpVector) -> String {
+    fn element_to_string(&self, degree: i32, element: Slice) -> String {
         let result = element.iter_nonzero().map(|(idx, value)|{
             let coeff = if value == 1 { 
                 "".to_string()
@@ -161,17 +160,14 @@ pub trait Module: Send + Sync + 'static {
         module_degree : i32, module_index : usize
     ) {
         result.set_scratch_vector_size(self.dimension(outer_op_degree + inner_op_degree + module_degree));
-        result.set_to_zero_pure();
         scratch.set_scratch_vector_size(self.dimension(inner_op_degree + module_degree));
-        scratch.set_to_zero_pure();
-        self.act_on_basis(scratch, 1, inner_op_degree, inner_op_index, module_degree, module_index);
-        self.act(result, 1, outer_op_degree, outer_op_index, inner_op_degree + module_degree, scratch);
+        self.act_on_basis(scratch.as_slice_mut(), 1, inner_op_degree, inner_op_index, module_degree, module_index);
+        self.act(result.as_slice_mut(), 1, outer_op_degree, outer_op_index, inner_op_degree + module_degree, scratch.as_slice());
         // println!("scratch 1 : {}", self.element_to_string(inner_op_degree + module_degree, &scratch));
         // println!("result 1 : {}", self.element_to_string(outer_op_degree + inner_op_degree + module_degree, &result));
         scratch.set_scratch_vector_size(self.algebra().dimension(outer_op_degree + inner_op_degree, i32::max_value()));
-        scratch.set_to_zero_pure();
-        self.algebra().multiply_basis_elements(scratch, 1,  outer_op_degree, outer_op_index, inner_op_degree, inner_op_index, i32::max_value());
-        self.act_by_element_on_basis(result, *self.prime() - 1, outer_op_degree + inner_op_degree, scratch, module_degree, module_index);
+        self.algebra().multiply_basis_elements(scratch.as_slice_mut(), 1,  outer_op_degree, outer_op_index, inner_op_degree, inner_op_index, i32::max_value());
+        self.act_by_element_on_basis(result.as_slice_mut(), *self.prime() - 1, outer_op_degree + inner_op_degree, scratch.as_slice(), module_degree, module_index);
         // println!("result 2 : {}", self.element_to_string(outer_op_degree + inner_op_degree + module_degree, &result));
     }
 
@@ -235,7 +231,7 @@ pub trait Module: Send + Sync + 'static {
                         op1 = algebra.basis_element_to_string(outer_op_degree, outer_op_index),
                         op2 = algebra.basis_element_to_string(inner_op_degree, inner_op_index),
                         m = self.basis_element_to_string(module_degree, module_index),
-                        disc = self.element_to_string(outer_op_degree + inner_op_degree + module_degree, &discrepancy_vec)
+                        disc = self.element_to_string(outer_op_degree + inner_op_degree + module_degree, discrepancy_vec.as_slice())
                     ))
                 }
             );
@@ -272,7 +268,7 @@ impl<A: Algebra> Module for Arc<dyn Module<Algebra = A>> {
 
     fn act_on_basis(
         &self,
-        result: &mut FpVector,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,

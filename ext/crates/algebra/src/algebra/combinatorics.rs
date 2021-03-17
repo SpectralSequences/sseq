@@ -1,7 +1,7 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 use once::OnceVec;
 use fp::prime::*;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector};
 
 use fp::const_for;
 

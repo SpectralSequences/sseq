@@ -4,7 +4,7 @@ use ext::module::Module;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::{construct, construct_from_json, Config};
 use fp::matrix::Matrix;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::FpVector;
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -54,7 +54,7 @@ fn check_algebra(module_name: &str, max_degree: i32, algebra_name: &str) {
                 // Mathematically, there is no reason these should be lietrally
                 // equal.
                 assert_eq!(map.output(t, idx), &correct_result);
-                correct_result.set_to_zero_pure();
+                correct_result.set_to_zero();
             }
         }
     }
@@ -146,7 +146,7 @@ fn check2(json: Value, max_degree: i32, algebra_name: &str) {
                     t,
                     idx
                 );
-                correct_result.set_to_zero_pure();
+                correct_result.set_to_zero();
             }
         }
     }

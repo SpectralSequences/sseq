@@ -1,10 +1,6 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
+use super::{Matrix, Subspace};
 use crate::prime::ValidPrime;
-use crate::vector::{FpVector, FpVectorT};
-use super::{
-    Matrix,
-    Subspace
-};
+use crate::vector::{Slice, SliceMut};
 
 /// Given a matrix M, a quasi-inverse Q is a map from the co-domain to the domain such that xQM = x
 /// for all x in the image (recall our matrices act on the right).
@@ -16,10 +12,9 @@ use super::{
 ///  `image`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuasiInverse {
-    pub image : Option<Subspace>,
-    pub preimage : Matrix
+    pub image: Option<Subspace>,
+    pub preimage: Matrix,
 }
-
 
 impl QuasiInverse {
     pub fn prime(&self) -> ValidPrime {
@@ -33,29 +28,31 @@ impl QuasiInverse {
     ///  * `target` - The output vector
     ///  * `coeff` - The constant multiple above
     ///  * `input` - The input vector, expressed in the basis of the ambient space
-    pub fn apply(&self, target : &mut FpVector, coeff : u32, input : &FpVector){
+    pub fn apply(&self, mut target: SliceMut, coeff: u32, input: Slice) {
         let p = self.prime();
         let mut row = 0;
         let columns = input.dimension();
-        for i in 0 .. columns {
-            if let Some(image) = &self.image { if image.pivots()[i] < 0 {
-                continue;
-            }}
+        for i in 0..columns {
+            if let Some(image) = &self.image {
+                if image.pivots()[i] < 0 {
+                    continue;
+                }
+            }
             let c = input.entry(i);
             if c != 0 {
-                target.add(&self.preimage[row], (coeff * c) % *p);
+                target.add(self.preimage[row].as_slice(), (coeff * c) % *p);
             }
             row += 1;
         }
     }
 }
 
+use saveload::{Load, Save};
 use std::io;
 use std::io::{Read, Write};
-use saveload::{Save, Load};
 
 impl Save for QuasiInverse {
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
         self.image.save(buffer)?;
         self.preimage.save(buffer)?;
         Ok(())
@@ -65,7 +62,7 @@ impl Save for QuasiInverse {
 impl Load for QuasiInverse {
     type AuxData = ValidPrime;
 
-    fn load(buffer : &mut impl Read, p : &ValidPrime) -> io::Result<Self> {
+    fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
         Ok(Self {
             image: Option::<Subspace>::load(buffer, &Some(*p))?,
             preimage: Matrix::load(buffer, p)?,

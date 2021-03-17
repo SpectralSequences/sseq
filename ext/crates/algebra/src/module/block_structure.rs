@@ -7,7 +7,7 @@
 // we have to pull out each block and multiply each block separately by the steenrod operation.
 
 use bivec::BiVec;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{SliceMut, Slice};
 
 #[derive(Debug)]
 pub struct GeneratorBasisEltPair {
@@ -76,13 +76,10 @@ impl BlockStructure {
     }
 
     // Add source vector "source" to the block indicated by (gen_deg, gen_idx).
-    pub fn add_block(&self, target : &mut FpVector, coeff : u32, gen_deg : i32, gen_idx : usize, source : &FpVector){
+    pub fn add_block(&self, mut target : SliceMut, coeff : u32, gen_deg : i32, gen_idx : usize, source : Slice){
         let BlockStart { block_start_index : block_min,  block_size } = self.block_starts[gen_deg][gen_idx];
         let block_max = block_min + block_size;
         assert!(source.dimension() == block_size);
-        let old_slice = target.slice();
-        target.set_slice(block_min, block_max);
-        target.add(source, coeff);
-        target.restore_slice(old_slice);
+        target.slice_mut(block_min, block_max).add(source, coeff);
     }
 }

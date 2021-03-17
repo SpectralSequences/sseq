@@ -7,7 +7,7 @@ use crate::module::homomorphism::{
 };
 use crate::module::{FPModule, FreeModule, Module};
 use fp::matrix::{Matrix, QuasiInverse, Subspace};
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::SliceMut;
 
 pub struct FPModuleHomomorphism<N: FPModuleT, M: Module<Algebra = N::Algebra>> {
     source: Arc<N>,
@@ -34,7 +34,7 @@ impl<N: FPModuleT, M: Module<Algebra = N::Algebra>> ModuleHomomorphism
 
     fn apply_to_basis_element(
         &self,
-        result: &mut FpVector,
+        result: SliceMut,
         coeff: u32,
         input_degree: i32,
         input_index: usize,
@@ -110,7 +110,7 @@ impl<N: FPModuleT> IdentityHomomorphism<N> for FPModuleHomomorphism<N, N> {
                     matrix[j].set_entry(idx as usize, 1);
                 }
             }
-            underlying_map.add_generators_from_matrix_rows(&lock, t, &matrix);
+            underlying_map.add_generators_from_matrix_rows(&lock, t, matrix.as_slice_mut());
         }
         drop(lock);
 

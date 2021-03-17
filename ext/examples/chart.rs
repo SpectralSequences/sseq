@@ -2,7 +2,6 @@ use algebra::module::OperationGeneratorPair;
 use chart::Graph;
 use ext::chain_complex::ChainComplex;
 use ext::load_s_2;
-use fp::vector::FpVectorT;
 use std::io::Result;
 
 fn main() -> Result<()> {

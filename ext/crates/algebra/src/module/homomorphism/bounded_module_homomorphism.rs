@@ -7,7 +7,7 @@ use crate::module::homomorphism::{IdentityHomomorphism, ModuleHomomorphism, Zero
 use crate::module::{BoundedModule, Module};
 use bivec::BiVec;
 use fp::matrix::{Matrix, QuasiInverse, Subspace};
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::SliceMut;
 use once::OnceBiVec;
 
 pub struct BoundedModuleHomomorphism<S: BoundedModule, T: Module<Algebra = S::Algebra>> {
@@ -54,14 +54,14 @@ impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
 
     fn apply_to_basis_element(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         input_degree: i32,
         input_idx: usize,
     ) {
         let output_degree = input_degree - self.degree_shift;
         if let Some(matrix) = self.matrices.get(output_degree) {
-            result.add(&matrix[input_idx], coeff);
+            result.add(matrix[input_idx].as_slice(), coeff);
         }
     }
 
@@ -152,7 +152,7 @@ where
             let target_dim = target.dimension(target_deg);
 
             let mut matrix = Matrix::new(p, source_dim, target_dim);
-            f.get_matrix(&mut matrix, source_deg);
+            f.get_matrix(&mut matrix.as_slice_mut(), source_deg);
             matrices.push(matrix);
         }
 

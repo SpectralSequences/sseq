@@ -11,7 +11,7 @@ use query::*;
 
 use bivec::BiVec;
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector,FpVectorT};
+use fp::vector::FpVector;
 use crate::algebra::{Algebra, SteenrodAlgebra, MilnorAlgebra, AdemAlgebra};
 use crate::module::{Module, FreeModule, FDModule, FPModule};
 use crate::steenrod_evaluator::evaluate_module;
@@ -275,7 +275,7 @@ pub fn interactive_module_define_fpmodule(output_json : &mut Value, p : ValidPri
                 println!("This is the list of relations:");
                 for (i, deg_i_relns) in relations.iter_enum() {
                     for r in deg_i_relns {
-                        print!("{}, ", adem_module.generators.element_to_string(i, r));
+                        print!("{}, ", adem_module.generators.element_to_string(i, r.as_slice()));
                     }
                 }
                 println!();

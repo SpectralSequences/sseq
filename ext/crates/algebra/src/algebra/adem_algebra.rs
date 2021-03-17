@@ -17,7 +17,7 @@ use serde_json::value::Value;
 
 use once::OnceVec;
 use fp::prime::{ValidPrime, BitflagIterator};
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, SliceMut};
 use crate::algebra::combinatorics::{self, MAX_XI_TAU};
 use crate::algebra::{Algebra, Bialgebra};
 
@@ -254,7 +254,7 @@ impl Algebra for AdemAlgebra {
         }
     }
 
-    fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, 
+    fn multiply_basis_elements(&self, result : SliceMut, coeff : u32,
         r_degree : i32, r_index : usize, 
         s_degree : i32, s_index : usize, excess : i32
     ){
@@ -736,7 +736,7 @@ impl AdemAlgebra {
                 // Since we're doing the first squares in decreasing order and x + y - j > x, 
                 // we already calculated this.
                 let source = &table[(x + y - j) as usize][i];
-                result += source;
+                result.add(source, 1);
             }
         }
         result
@@ -916,20 +916,17 @@ impl AdemAlgebra {
         }
     }
 
-    pub fn multiply_basis_elements_unstable<BasisFilter>(&self, result : &mut FpVector, coeff : u32, 
+    pub fn multiply_basis_elements_unstable<BasisFilter>(&self, mut result : SliceMut, coeff : u32,
         r_degree : i32, r_index : usize, 
         s_degree : i32, s_index : usize, excess : i32, basis_filter : &BasisFilter
     ) where BasisFilter : Fn(i32, usize) -> bool {
-        self.multiply(result, coeff, r_degree, r_index, s_degree, s_index, excess, true, basis_filter);
+        self.multiply(result.copy(), coeff, r_degree, r_index, s_degree, s_index, excess, true, basis_filter);
         // Zeroing the rest of the result is a little unexpected, but I don't think it causes trouble?
         // Can't avoid this unexpected behavior without sacrificing some speed.
-        let slice = result.slice();
-        result.set_slice(self.dimension_unstable(r_degree + s_degree, excess), self.dimension_unstable(r_degree + s_degree, i32::max_value()));
-        result.set_to_zero();
-        result.restore_slice(slice);        
+        result.slice_mut(self.dimension_unstable(r_degree + s_degree, excess), self.dimension_unstable(r_degree + s_degree, i32::max_value())).set_to_zero();
     }
 
-    pub fn multiply<BasisFilter>(&self, result : &mut FpVector, coeff : u32, 
+    pub fn multiply<BasisFilter>(&self, mut result : SliceMut, coeff : u32,
         r_degree : i32, r_index : usize, 
         s_degree : i32, s_index : usize, 
         excess : i32, unstable : bool, basis_filter : &BasisFilter
@@ -988,7 +985,7 @@ impl AdemAlgebra {
     }
 
     pub fn make_mono_admissible<BasisFilter>(
-        &self, result : &mut FpVector, coeff : u32, monomial : &mut AdemBasisElement, 
+        &self, result : SliceMut, coeff : u32, monomial : &mut AdemBasisElement, 
         excess : i32, unstable : bool, basis_filter : &BasisFilter
     ) where BasisFilter : Fn(i32, usize) -> bool {
         let q = if self.generic { 2 * (*self.prime()) - 2 } else { 1 };
@@ -1015,7 +1012,7 @@ impl AdemAlgebra {
     *  * `leading_degree` - the degree of the squares between 0 and idx (so of length idx + 1)
     */
     fn make_mono_admissible_2<BasisFilter>(
-        &self, result : &mut FpVector, monomial : &mut AdemBasisElement,
+        &self, mut result : SliceMut, monomial : &mut AdemBasisElement,
         mut idx : i32, mut leading_degree : i32, excess : i32, 
         stop_early : bool, unstable : bool, basis_filter : &BasisFilter
     ) where BasisFilter : Fn(i32, usize) -> bool {
@@ -1055,12 +1052,12 @@ impl AdemAlgebra {
             let cur_tail_basis_elt = self.basis_element_from_index(tail_degree, it_idx);
             new_monomial.ps.truncate(idx);
             new_monomial.ps.extend_from_slice(&cur_tail_basis_elt.ps);
-            self.make_mono_admissible_2(result, &mut new_monomial, idx as i32 - 1, leading_degree - x, excess, stop_early, unstable, basis_filter);
+            self.make_mono_admissible_2(result.copy(), &mut new_monomial, idx as i32 - 1, leading_degree - x, excess, stop_early, unstable, basis_filter);
         }
     }
 
     fn make_mono_admissible_generic<BasisFilter>(
-        &self, result : &mut FpVector, coeff : u32, monomial : &mut AdemBasisElement,
+        &self, mut result : SliceMut, coeff : u32, monomial : &mut AdemBasisElement,
         mut idx : i32, mut leading_degree : i32, excess : i32, stop_early : bool, unstable : bool, basis_filter : &BasisFilter
     ) where BasisFilter : Fn(i32, usize) -> bool {
         let p = *self.prime();
@@ -1104,7 +1101,7 @@ impl AdemAlgebra {
             new_monomial.bocksteins = monomial.bocksteins & ((1<<idx)-1);
             new_monomial.bocksteins |= cur_tail_basis_elt.bocksteins << idx;
             let new_leading_degree = leading_degree - (q*x + b1) as i32;
-            self.make_mono_admissible_generic(result, (coeff * it_value) % p, &mut new_monomial, idx as i32 - 1, new_leading_degree, excess, stop_early, unstable, basis_filter);
+            self.make_mono_admissible_generic(result.copy(), (coeff * it_value) % p, &mut new_monomial, idx as i32 - 1, new_leading_degree, excess, stop_early, unstable, basis_filter);
         }
     }
 
@@ -1151,7 +1148,7 @@ impl AdemAlgebra {
             p_or_sq : *self.prime() != 2
         });
         let mut out_vec = FpVector::new(ValidPrime::new(2), self.dimension(degree, i32::max_value()));
-        self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, i32::max_value());
+        self.multiply_basis_elements(out_vec.as_slice_mut(), 1, first_degree, first_idx, second_degree, second_idx, i32::max_value());
         out_vec.set_entry(idx, 0);
         let mut result = vec![(1, (first_degree, first_idx), (second_degree, second_idx))];
         for (i, _v) in out_vec.iter_nonzero() {
@@ -1227,7 +1224,7 @@ impl AdemAlgebra {
             p_or_sq : *self.prime() != 2
         });
         let mut out_vec = FpVector::new(p, self.dimension(degree, i32::max_value()));
-        self.multiply_basis_elements(&mut out_vec, 1, first_degree, first_idx, second_degree, second_idx, i32::max_value());
+        self.multiply_basis_elements(out_vec.as_slice_mut(), 1, first_degree, first_idx, second_degree, second_idx, i32::max_value());
         let mut result = Vec::new();
         let c = out_vec.entry(idx);
         assert!(c != 0);
@@ -1381,12 +1378,14 @@ mod tests {
         let out_deg = r_deg + s_deg;
         let mut result1 = FpVector::new(p, A.dimension(out_deg, 0));
         let mut result2 = FpVector::new(p, A.dimension(out_deg, 0) + 3);
-        result2.set_slice(3, 3 + result1.dimension());
 
-        A.multiply_basis_elements(&mut result1, 1, r_deg, r_idx, s_deg, s_idx, 0);
-        A.multiply_basis_elements(&mut result2, 1, r_deg, r_idx, s_deg, s_idx, 0);
-        println!("result : {}", A.element_to_string(out_deg, &result1));
-        println!("result : {}", A.element_to_string(out_deg, &result2));
+        let mut result1 = result1.as_slice_mut();
+        let mut result2 = result2.slice_mut(3, 3 + result1.as_slice().dimension());
+
+        A.multiply_basis_elements(result1.copy(), 1, r_deg, r_idx, s_deg, s_idx, 0);
+        A.multiply_basis_elements(result2.copy(), 1, r_deg, r_idx, s_deg, s_idx, 0);
+        println!("result : {}", A.element_to_string(out_deg, result1.as_slice()));
+        println!("result : {}", A.element_to_string(out_deg, result2.as_slice()));
     }
 
 
@@ -1431,14 +1430,14 @@ mod tests {
                 }
                 for (coeff, (first_degree, first_idx), (second_degree, second_idx)) in algebra.decompose_basis_element(i, j) {
                     print!("{} * {} * {}  +  ", coeff, algebra.basis_element_to_string(first_degree,first_idx), algebra.basis_element_to_string(second_degree, second_idx));
-                    algebra.multiply_basis_elements(&mut out_vec, coeff, first_degree, first_idx, second_degree, second_idx, i32::max_value());
+                    algebra.multiply_basis_elements(out_vec.as_slice_mut(), coeff, first_degree, first_idx, second_degree, second_idx, i32::max_value());
                 }
                 assert!(out_vec.entry(j) == 1, 
-                    "{} != {}", algebra.basis_element_to_string(i, j), algebra.element_to_string(i, &out_vec));
+                    "{} != {}", algebra.basis_element_to_string(i, j), algebra.element_to_string(i, out_vec.as_slice()));
                 out_vec.set_entry(j, 0);
                 assert!(out_vec.is_zero(),
                     "\n{} != {}",
-                        algebra.basis_element_to_string(i, j), algebra.element_to_string(i, &out_vec));
+                        algebra.basis_element_to_string(i, j), algebra.element_to_string(i, out_vec.as_slice()));
             }
         }
     }
@@ -1454,16 +1453,12 @@ mod tests {
         algebra.compute_basis(max_degree);
         let mut output_vec = FpVector::new(p, 0);
         for i in 1 ..= max_degree {
-            output_vec.clear_slice();
             let output_dim = algebra.dimension(i, i32::max_value());
-            if output_dim > output_vec.dimension() {
-                output_vec = FpVector::new(p, output_dim);
-            }
-            output_vec.set_slice(0, output_dim);
+            output_vec.set_scratch_vector_size(output_dim);
             let relations = algebra.relations_to_check(i);
             for relation in relations {
                 for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                    algebra.multiply_basis_elements(&mut output_vec, *coeff, *deg_1, *idx_1, *deg_2, *idx_2, i32::max_value());
+                    algebra.multiply_basis_elements(output_vec.as_slice_mut(), *coeff, *deg_1, *idx_1, *deg_2, *idx_2, i32::max_value());
                 }
                 if !output_vec.is_zero() {
                     let mut relation_string = String::new();
@@ -1476,7 +1471,7 @@ mod tests {
                     }
                     relation_string.pop(); relation_string.pop(); relation_string.pop();
                     relation_string.pop(); relation_string.pop();
-                    let value_string = algebra.element_to_string(i as i32, &output_vec);
+                    let value_string = algebra.element_to_string(i as i32, output_vec.as_slice());
                     panic!("{}", ModuleFailedRelationError {relation : relation_string, value : value_string});
                 }
             }

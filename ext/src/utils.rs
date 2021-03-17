@@ -9,7 +9,6 @@ use algebra::{Algebra, SteenrodAlgebra};
 use algebra::module::{FiniteModule, Module, BoundedModule};
 use algebra::module::homomorphism::FreeModuleHomomorphism;
 use fp::matrix::Matrix;
-use fp::vector::FpVectorT;
 use crate::chain_complex::{FreeChainComplex, FiniteChainComplex, ChainMap};
 use crate::resolution::Resolution;
 #[cfg(feature = "yoneda")]
@@ -57,7 +56,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : &str) -> error::Resu
         new_output[idx].set_entry(0, 1);
 
         let lock = map.lock();
-        map.add_generators_from_matrix_rows(&lock, t, &new_output);
+        map.add_generators_from_matrix_rows(&lock, t, new_output.as_slice_mut());
         drop(lock);
         map.extend_by_zero_safe(module.max_degree() + t);
 

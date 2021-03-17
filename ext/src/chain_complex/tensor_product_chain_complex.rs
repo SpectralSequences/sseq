@@ -7,7 +7,7 @@ use crate::module::homomorphism::{
 use algebra::module::{FiniteModule, Module, SumModule, TensorModule, ZeroModule};
 use crate::CCC;
 use fp::matrix::{Matrix, QuasiInverse, Subspace};
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{SliceMut, Slice, FpVector};
 use parking_lot::Mutex;
 use std::sync::Arc;
 
@@ -248,7 +248,7 @@ where
     /// At the moment, this is off by a sign. However, we only use this for p = 2
     fn apply_to_basis_element(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         degree: i32,
         input_idx: usize,
@@ -274,7 +274,6 @@ where
         let right_index = inner_index % source_right_dim;
         let left_index = inner_index / source_right_dim;
 
-        let old_slice = result.slice();
         // Now calculate 1 (x) d
         if right_s > 0 {
             let target_module = &self.target.modules[left_s];
@@ -282,14 +281,13 @@ where
                 + self.target.modules[left_s].offset(degree, left_t);
             let target_right_dim = target_module.right.dimension(right_t);
 
-            result.set_slice(
+            let result = result.slice_mut(
                 target_offset + left_index * target_right_dim,
                 target_offset + (left_index + 1) * target_right_dim,
             );
             self.right_cc
                 .differential(right_s as u32)
                 .apply_to_basis_element(result, coeff, right_t, right_index);
-            result.restore_slice(old_slice);
         }
 
         // Now calculate d (x) 1
@@ -302,7 +300,7 @@ where
             let mut dl = FpVector::new(self.prime(), target_module.left.dimension(left_t));
             self.left_cc
                 .differential(left_s as u32)
-                .apply_to_basis_element(&mut dl, coeff, left_t, left_index);
+                .apply_to_basis_element(dl.as_slice_mut(), coeff, left_t, left_index);
             for i in 0..dl.dimension() {
                 result.add_basis_element(
                     target_offset + i * target_right_dim + right_index,
@@ -333,18 +331,14 @@ where
         }
     }
 
-    fn apply_quasi_inverse(&self, result: &mut FpVector, degree: i32, input: &FpVector) {
+    fn apply_quasi_inverse(&self, mut result: SliceMut, degree: i32, input: Slice) {
         let qis = &self.quasi_inverses[degree];
         assert_eq!(input.dimension(), qis.len());
-
-        let old_slice = result.slice();
 
         for (i, x) in input.iter_nonzero() {
             if let Some(qi) = &qis[i] {
                 for (offset_start, offset_end, data) in qi.iter() {
-                    result.set_slice(*offset_start, *offset_end);
-                    result.add(data, x);
-                    result.restore_slice(old_slice);
+                    result.slice_mut(*offset_start, *offset_end).add(data.as_slice(), x);
                 }
             }
         }
@@ -405,17 +399,15 @@ where
                 for ri in 0..source_right_dim {
                     self.right_cc
                         .differential(self.source_s - s)
-                        .apply_to_basis_element(&mut result, 1, right_t, ri);
+                        .apply_to_basis_element(result.as_slice_mut(), 1, right_t, ri);
                     for li in 0..source_left_dim {
                         let row = &mut matrix[row_count + li * source_right_dim + ri];
-                        row.set_slice(
+                        row.slice_mut(
                             target_offset + li * target_right_dim,
                             target_offset + (li + 1) * target_right_dim,
-                        );
-                        row.shift_assign(&result);
-                        row.clear_slice();
+                        ).assign(result.as_slice());
                     }
-                    result.set_to_zero_pure();
+                    result.set_to_zero();
                 }
                 target_offset += target_right_dim * target_left_dim;
                 row_count += source_right_dim * source_left_dim;
@@ -441,7 +433,7 @@ where
                 for li in 0..source_left_dim {
                     self.left_cc
                         .differential(s)
-                        .apply_to_basis_element(&mut result, 1, left_t, li);
+                        .apply_to_basis_element(result.as_slice_mut(), 1, left_t, li);
                     for ri in 0..source_right_dim {
                         let row = &mut matrix[row_count];
                         for (i, x) in result.iter_nonzero() {
@@ -449,7 +441,7 @@ where
                         }
                         row_count += 1;
                     }
-                    result.set_to_zero_pure();
+                    result.set_to_zero();
                 }
                 target_offset += target_right_dim * target_left_dim;
             }
@@ -487,13 +479,11 @@ where
                                     continue;
                                 }
 
-                                matrix[row].set_slice(
+                                let mut entry = FpVector::new(p, dim);
+                                entry.as_slice_mut().assign(matrix[row].slice(
                                     padded_target_dim + offset,
-                                    padded_target_dim + offset + dim,
-                                );
-                                let mut entry = FpVector::new(p, matrix[row].dimension());
-                                entry.shift_assign(&matrix[row]);
-                                matrix.clear_slice();
+                                    padded_target_dim + offset + dim
+                                ));
 
                                 if !entry.is_zero() {
                                     let true_slice_start = self.source.offset(degree, s_)

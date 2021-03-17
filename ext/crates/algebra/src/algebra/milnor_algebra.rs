@@ -6,7 +6,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use once::OnceVec;
 use fp::prime::{Binomial, integer_power, ValidPrime, BitflagIterator};
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, Slice, SliceMut};
 use crate::algebra::combinatorics;
 use crate::algebra::{Algebra, Bialgebra};
 
@@ -304,13 +304,13 @@ impl Algebra for MilnorAlgebra {
     }
 
     #[cfg(not(feature = "cache-multiplication"))]
-    fn multiply_basis_elements(&self, result : &mut FpVector, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, _excess : i32) {
+    fn multiply_basis_elements(&self, result : SliceMut, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, _excess : i32) {
         self.multiply(result, coef, &self.basis_table[r_degree as usize][r_idx], &self.basis_table[s_degree as usize][s_idx]);
     }
 
     #[cfg(feature = "cache-multiplication")]
-    fn multiply_basis_elements(&self, result : &mut FpVector, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, _excess : i32) {
-        result.shift_add(&self.multiplication_table[r_degree as usize][s_degree as usize][r_idx][s_idx], coef);
+    fn multiply_basis_elements(&self, result : SliceMut, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, _excess : i32) {
+        result.shift_add(&self.multiplication_table[r_degree as usize][s_degree as usize][r_idx][s_idx].as_slice(), coef);
     }
 
     fn json_to_basis(&self, json : Value) -> error::Result<(i32, usize)> {
@@ -693,11 +693,11 @@ impl MilnorAlgebra {
         new_result
     }
 
-    pub fn multiply(&self, res : &mut FpVector, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement) {
+    pub fn multiply(&self, res : SliceMut, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement) {
         self.multiply_with_allocation(res, coef, m1, m2, PPartAllocation::default());
     }
 
-    pub fn multiply_with_allocation(&self, res : &mut FpVector, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement, mut allocation: PPartAllocation) -> PPartAllocation {
+    pub fn multiply_with_allocation(&self, mut res : SliceMut, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement, mut allocation: PPartAllocation) -> PPartAllocation {
         let target_deg = m1.degree + m2.degree;
         if self.generic {
             let m1f = self.multiply_qpart(m1, m2.q_part);
@@ -722,9 +722,9 @@ impl MilnorAlgebra {
         allocation
     }
 
-    pub fn multiply_element_by_basis_with_allocation(&self, res: &mut FpVector, coef: u32, r_deg: i32, r: &FpVector, m2: &MilnorBasisElement, mut allocation: PPartAllocation) -> PPartAllocation {
+    pub fn multiply_element_by_basis_with_allocation(&self, mut res: SliceMut, coef: u32, r_deg: i32, r: Slice, m2: &MilnorBasisElement, mut allocation: PPartAllocation) -> PPartAllocation {
         for (i, c) in r.iter_nonzero() {
-            allocation = self.multiply_with_allocation(res, coef * c, self.basis_element_from_index(r_deg, i), &m2, allocation);
+            allocation = self.multiply_with_allocation(res.copy(), coef * c, self.basis_element_from_index(r_deg, i), &m2, allocation);
         }
         allocation
     }
@@ -1151,7 +1151,7 @@ impl MilnorAlgebra {
             second = self.beps_pn(0, sq - pow);
         }
         let mut out_vec = FpVector::new(p, self.dimension(degree, -1));
-        self.multiply_basis_elements(&mut out_vec, 1, first.0, first.1, second.0, second.1, -1);
+        self.multiply_basis_elements(out_vec.as_slice_mut(), 1, first.0, first.1, second.0, second.1, -1);
         let mut result = Vec::new();
         let c = out_vec.entry(idx);
         assert!(c != 0);
@@ -1214,14 +1214,14 @@ mod tests {
                 }
                 for (coeff, (first_degree, first_idx), (second_degree, second_idx)) in algebra.decompose_basis_element(i, j) {
                     // print!("{} * {} * {}  +  ", coeff, algebra.basis_element_to_string(first_degree,first_idx), algebra.basis_element_to_string(second_degree, second_idx));
-                    algebra.multiply_basis_elements(&mut out_vec, coeff, first_degree, first_idx, second_degree, second_idx, -1);
+                    algebra.multiply_basis_elements(out_vec.as_slice_mut(), coeff, first_degree, first_idx, second_degree, second_idx, -1);
                 }
                 assert!(out_vec.entry(j) == 1, 
-                    "{} != {}", algebra.basis_element_to_string(i, j), algebra.element_to_string(i, &out_vec));
+                    "{} != {}", algebra.basis_element_to_string(i, j), algebra.element_to_string(i, out_vec.as_slice()));
                 out_vec.set_entry(j, 0);
                 assert!(out_vec.is_zero(), 
                     "\n{} != {}",
-                        algebra.basis_element_to_string(i, j), algebra.element_to_string(i, &out_vec));
+                        algebra.basis_element_to_string(i, j), algebra.element_to_string(i, out_vec.as_slice()));
             }
         }
     }
@@ -1237,17 +1237,13 @@ mod tests {
         algebra.compute_basis(max_degree + 2);
         let mut output_vec = FpVector::new(p, 0);
         for i in 1 .. max_degree {
-            output_vec.clear_slice();
             let output_dim = algebra.dimension(i, -1);
-            if output_dim > output_vec.dimension() {
-                output_vec = FpVector::new(p, output_dim);
-            }
-            output_vec.set_slice(0, output_dim);
+            output_vec.set_scratch_vector_size(output_dim);
             let relations = algebra.relations_to_check(i);
             println!("{:?}", relations);
             for relation in relations {
                 for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                    algebra.multiply_basis_elements(&mut output_vec, *coeff, *deg_1, *idx_1, *deg_2, *idx_2, -1);
+                    algebra.multiply_basis_elements(output_vec.as_slice_mut(), *coeff, *deg_1, *idx_1, *deg_2, *idx_2, -1);
                 }
                 if !output_vec.is_zero() {
                     let mut relation_string = String::new();
@@ -1260,7 +1256,7 @@ mod tests {
                     }
                     relation_string.pop(); relation_string.pop(); relation_string.pop();
                     relation_string.pop(); relation_string.pop();
-                    let value_string = algebra.element_to_string(i as i32, &output_vec);
+                    let value_string = algebra.element_to_string(i as i32, output_vec.as_slice());
                     panic!("{}", ModuleFailedRelationError {relation : relation_string, value : value_string});
                 }
             }

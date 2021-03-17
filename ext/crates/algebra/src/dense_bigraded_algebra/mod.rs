@@ -7,7 +7,7 @@ use bivec::BiVec;
 use once::OnceBiVec;
 use fp::prime::ValidPrime;
 use fp::matrix::{Matrix, Basis, Subspace};
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector};
 
 
 use std::sync::{RwLock, RwLockWriteGuard, Mutex};

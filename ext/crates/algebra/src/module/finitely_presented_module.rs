@@ -8,7 +8,7 @@ use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::module::{FreeModule, Module, ZeroModule};
 use bivec::BiVec;
 use fp::matrix::Matrix;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, SliceMut};
 use once::OnceVec;
 
 struct FPMIndexTable {
@@ -77,7 +77,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
             .add_generators_immediate(degree, num_relns, None);
         let map_lock = self.map.lock();
         self.map
-            .add_generators_from_matrix_rows(&map_lock, degree, relations_matrix);
+            .add_generators_from_matrix_rows(&map_lock, degree, relations_matrix.as_slice_mut());
     }
 
     // Exact duplicate of function in fdmodule.rs...
@@ -212,7 +212,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
         for i in self.min_degree..=self.relations.max_computed_degree() {
             let num_relns = self.relations.number_of_gens_in_degree(i);
             for j in 0..num_relns {
-                relations.push(self.generators.element_to_json(i, self.map.output(i, j)));
+                relations.push(self.generators.element_to_json(i, self.map.output(i, j).as_slice()));
             }
         }
         Value::from(relations)
@@ -286,7 +286,7 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
 
     fn act_on_basis(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -299,7 +299,7 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
         let gen_dim = self.generators.dimension(out_deg);
         let mut temp_vec = FpVector::new(p, gen_dim);
         self.generators.act_on_basis(
-            &mut temp_vec,
+            temp_vec.as_slice_mut(),
             coeff,
             op_degree,
             op_index,
@@ -307,8 +307,8 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
             gen_idx,
         );
         let qi = self.map.quasi_inverse(out_deg);
-        qi.image.as_ref().unwrap().reduce(&mut temp_vec);
-        for i in 0..result.dimension() {
+        qi.image.as_ref().unwrap().reduce(temp_vec.as_slice_mut());
+        for i in 0..result.as_slice().dimension() {
             let value = temp_vec.entry(self.fp_idx_to_gen_idx(out_deg, i));
             result.add_basis_element(i, value);
         }

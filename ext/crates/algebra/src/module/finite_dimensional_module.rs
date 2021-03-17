@@ -4,7 +4,7 @@ use bivec::BiVec;
 use crate::algebra::Algebra;
 use crate::module::{BoundedModule, Module, ModuleFailedRelationError, ZeroModule};
 use error::GenericError;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{FpVector, SliceMut};
 
 use serde::Deserialize;
 use serde_json::json;
@@ -119,8 +119,8 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                     "  {} * {} disagreement.\n    Left: {}\n    Right: {}\n",
                     self.algebra.basis_element_to_string(x.1 - x.0, x.2),
                     self.basis_element_to_string(x.0, x.3),
-                    self.element_to_string(x.1, &x.4),
-                    self.element_to_string(x.1, &x.5)
+                    self.element_to_string(x.1, x.4.as_slice()),
+                    self.element_to_string(x.1, x.5.as_slice())
                 ))
             }
             return Err(err_string);
@@ -170,7 +170,7 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
 
     fn act_on_basis(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -189,7 +189,7 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
             return;
         }
         let output = self.action(op_degree, op_index, mod_degree, mod_index);
-        result.add(output, coeff);
+        result.add(output.as_slice(), coeff);
     }
 
     fn borrow_output(&self) -> bool {
@@ -450,7 +450,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         // (in_deg) -> (out_deg) -> (op_index) -> (in_index) -> Vector
         let output_vector =
             &mut self.actions[input_degree][output_degree][operation_idx][input_idx];
-        output_vector.pack(&output);
+        output_vector.copy_from_slice(&output);
     }
 
     /// This function will panic if you call it with input such that `module.dimension(input_degree +
@@ -571,7 +571,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         let row = self.action_mut(op_deg, op_idx, input_deg, input_idx);
 
         if overwrite {
-            row.set_to_zero_pure();
+            row.set_to_zero();
         }
 
         if let IResult::<_, _>::Ok(("", _)) = delimited(space0, char('0'), space0)(entry) {
@@ -601,7 +601,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         &self,
         entry: &str,
         degree: i32,
-        result: &mut FpVector,
+        mut result: SliceMut,
     ) -> error::Result<()> {
         if let IResult::<_, _>::Ok(("", _)) = delimited(space0, char('0'), space0)(entry) {
             return Ok(());
@@ -646,21 +646,16 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
             for relation in relations {
                 for &(coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
                     let intermediate_dim = self.dimension(input_deg + deg_2);
-                    if intermediate_dim > tmp_output.dimension() {
-                        tmp_output = FpVector::new(p, intermediate_dim);
-                    }
-                    tmp_output.set_slice(0, intermediate_dim);
-                    self.act_on_basis(&mut tmp_output, 1, deg_2, idx_2, input_deg, idx);
+                    tmp_output.set_scratch_vector_size(intermediate_dim);
+                    self.act_on_basis(tmp_output.as_slice_mut(), 1, deg_2, idx_2, input_deg, idx);
                     self.act(
-                        &mut output_vec,
+                        output_vec.as_slice_mut(),
                         coef,
                         deg_1,
                         idx_1,
                         deg_2 + input_deg,
-                        &tmp_output,
+                        tmp_output.as_slice(),
                     );
-                    tmp_output.clear_slice();
-                    tmp_output.set_to_zero_pure();
                 }
 
                 if !output_vec.is_zero() {
@@ -677,7 +672,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                         relation_string.pop();
                     }
 
-                    let value_string = self.element_to_string(output_deg as i32, &output_vec);
+                    let value_string = self.element_to_string(output_deg as i32, output_vec.as_slice());
                     return Err(ModuleFailedRelationError {
                         relation: relation_string,
                         value: value_string,
@@ -708,18 +703,16 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                         if intermediate_dim > tmp_output.dimension() {
                             tmp_output = FpVector::new(p, intermediate_dim);
                         }
-                        tmp_output.set_slice(0, intermediate_dim);
-                        self.act_on_basis(&mut tmp_output, 1, deg_2, idx_2, input_deg, idx);
+                        self.act_on_basis(tmp_output.slice_mut(0, intermediate_dim), 1, deg_2, idx_2, input_deg, idx);
                         self.act(
-                            &mut output_vec,
+                            output_vec.as_slice_mut(),
                             coef,
                             deg_1,
                             idx_1,
                             deg_2 + input_deg,
-                            &tmp_output,
+                            tmp_output.slice(0, intermediate_dim),
                         );
-                        tmp_output.clear_slice();
-                        tmp_output.set_to_zero_pure();
+                        tmp_output.set_to_zero();
                     }
                     self.set_action_vector(op_deg, op_idx, input_deg, idx, &output_vec);
                 }
@@ -789,7 +782,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                             "{} {} = {}",
                             algebra.generator_to_string(op_degree, op_idx),
                             self.gen_names[input_degree][input_idx],
-                            self.element_to_string(output_degree, vec)
+                            self.element_to_string(output_degree, vec.as_slice())
                         ))
                     }
                 }
@@ -829,10 +822,10 @@ mod tests {
         adem_module.set_basis_element_name(1, 0, "x10".to_string());
         adem_module.set_basis_element_name(1, 1, "x11".to_string());
         adem_module.set_basis_element_name(2, 0, "x2".to_string());
-        adem_module.set_action_vector(1, 0, 0, 0, &FpVector::from_vec(p, &[1, 1]));
-        adem_module.set_action_vector(1, 0, 1, 0, &FpVector::from_vec(p, &[1]));
-        adem_module.set_action_vector(1, 0, 1, 1, &FpVector::from_vec(p, &[1]));
-        adem_module.set_action_vector(2, 0, 0, 0, &FpVector::from_vec(p, &[1]));
+        adem_module.set_action_vector(1, 0, 0, 0, &FpVector::from_slice(p, &[1, 1]));
+        adem_module.set_action_vector(1, 0, 1, 0, &FpVector::from_slice(p, &[1]));
+        adem_module.set_action_vector(1, 0, 1, 1, &FpVector::from_slice(p, &[1]));
+        adem_module.set_action_vector(2, 0, 0, 0, &FpVector::from_slice(p, &[1]));
         adem_module.check_validity(0, 2).unwrap();
     }
 }

@@ -1,6 +1,6 @@
 use fp::prime::ValidPrime;
 use fp::matrix::{Subspace, Matrix, Subquotient};
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::FpVector;
 use std::collections::HashMap;
 use std::cmp::{max, Ordering};
 use serde::{Serialize, Deserialize};
@@ -53,21 +53,18 @@ impl Differential {
         let source_dim = self.source_dim;
         let target_dim = self.target_dim;
         let last_row = &mut self.matrix[source_dim];
-        last_row.set_slice(0, source_dim);
-        last_row.add(source, 1);
-        last_row.clear_slice();
+        last_row.slice_mut(0, source_dim).add(source.as_slice(), 1);
 
-        last_row.set_slice(source_dim, source_dim + target_dim);
+        let mut last_row = last_row.slice_mut(source_dim, source_dim + target_dim);
         match target {
             Some(t) => {
-                last_row.add(t, 1);
+                last_row.add(t.as_slice(), 1);
                 if let Some(s) = reduce_by {
                     s.reduce(last_row);
                 }
             }
             None => last_row.set_to_zero()
         };
-        last_row.clear_slice();
 
         self.matrix.row_reduce();
 
@@ -89,13 +86,9 @@ impl Differential {
                 let mut source = FpVector::new(p, source_dim);
                 let mut target = FpVector::new(p, target_dim);
 
-                d.set_slice(0, source_dim);
-                source.add(&d, 1);
-                d.clear_slice();
+                source.as_slice_mut().assign(d.slice(0, source_dim));
+                target.as_slice_mut().assign(d.slice(source_dim, source_dim + target_dim));
 
-                d.set_slice(source_dim, source_dim + target_dim);
-                target.add(&d, 1);
-                d.clear_slice();
                 (source, target)
             }).collect::<Vec<_>>()
     }
@@ -104,11 +97,9 @@ impl Differential {
     pub fn reduce_target(&mut self, zeros : &Subspace) {
         assert_eq!(zeros.matrix.columns(), self.target_dim);
 
-        self.matrix.set_slice(0, self.matrix.rows(), self.source_dim, self.source_dim + self.target_dim);
         for i in 0 .. self.matrix.rows() {
-            zeros.shift_reduce(&mut self.matrix[i]);
+            zeros.shift_reduce(self.matrix[i].slice_mut(self.source_dim, self.source_dim + self.target_dim));
         }
-        self.matrix.clear_slice();
 
         // Knowing that things are zero might fix our previous erroneous differentials.
         self.matrix.row_reduce();
@@ -322,7 +313,7 @@ impl Sseq {
         }
 
         if let Some(matrix) = &product.matrices.get(x)?.get(y)? {
-            matrix.apply(&mut prod, 1, class);
+            matrix.apply(prod.as_slice_mut(), 1, class.as_slice());
         }
         Some((x + prod_x, y + prod_y, prod))
     }
@@ -489,7 +480,7 @@ impl Sseq {
         let (prev, cur) = self.page_data[x][y].split_borrow_mut(r - 1, r);
         cur.clear_gens();
         for gen in prev.gens() {
-            cur.add_gen(gen);
+            cur.add_gen(gen.as_slice());
         }
     }
 
@@ -530,19 +521,15 @@ impl Sseq {
         let mut dvec = FpVector::new(self.p, target_dim);
         for vec in source_classes[r - 1].gens() {
             let mut result = FpVector::new(self.p, source_dim + target_dim);
-            result.set_slice(0, source_dim);
-            result.assign(&vec);
-            result.clear_slice();
+            result.slice_mut(0, source_dim).assign(vec.as_slice());
 
             d.evaluate(vec.clone(), &mut dvec);
-            target_classes.zeros().reduce(&mut dvec);
+            target_classes.zeros().reduce(dvec.as_slice_mut());
 
-            result.set_slice(source_dim, source_dim + target_dim);
-            result.add(&dvec, 1);
-            result.clear_slice();
+            result.slice_mut(source_dim, source_dim + target_dim).add(dvec.as_slice(), 1);
 
             vectors.push(result);
-            differentials.push(target_classes.reduce(&mut dvec));
+            differentials.push(target_classes.reduce(dvec.as_slice_mut()));
             dvec.set_to_zero();
         }
 
@@ -558,7 +545,7 @@ impl Sseq {
             }
         }
 
-        matrix.set_slice(first_kernel_row as usize, matrix.rows(), 0, source_dim);
+        let mut matrix = matrix.slice_mut(first_kernel_row as usize, matrix.rows(), 0, source_dim);
         pivots.truncate(source_dim);
         matrix.row_reduce_into_pivots(&mut pivots);
 
@@ -625,8 +612,8 @@ impl Sseq {
                 true_differentials.push(
                     pairs.into_iter()
                     .map(|(mut s, mut t)|
-                         (Sseq::get_page(r, &self.page_data[x][y]).reduce(&mut s),
-                          Sseq::get_page(r, &self.page_data[tx][ty]).reduce(&mut t)))
+                         (Sseq::get_page(r, &self.page_data[x][y]).reduce(s.as_slice_mut()),
+                          Sseq::get_page(r, &self.page_data[tx][ty]).reduce(t.as_slice_mut())))
                     .collect::<Vec<_>>())
             }
 
@@ -660,7 +647,7 @@ impl Sseq {
         let state;
         if error {
             state = ClassState::Error;
-        } else if self.page_data[x][y].last().unwrap().gens().all(|c| self.permanent_classes[x][y].contains(c)) {
+        } else if self.page_data[x][y].last().unwrap().gens().all(|c| self.permanent_classes[x][y].contains(c.as_slice())) {
             state = ClassState::Done;
         } else {
             state = ClassState::InProgress;
@@ -810,7 +797,7 @@ impl Sseq {
         }
 
         for r_ in r + 1 .. self.page_data[tx][ty].len() {
-            self.page_data[tx][ty][r_].quotient(target);
+            self.page_data[tx][ty][r_].quotient(target.as_slice());
 
             let (px, py) = sseq_profile_i(r_, tx, ty);
             if self.class_defined(px, py) &&
@@ -869,7 +856,7 @@ impl Sseq {
     }
 
     pub fn add_permanent_class(&mut self, x : i32, y : i32, class : &FpVector) {
-        self.permanent_classes[x][y].add_vector(class);
+        self.permanent_classes[x][y].add_vector(class.as_slice());
         for r in MIN_PAGE .. self.differentials[x][y].len() {
             self.differentials[x][y][r].add(class, None, None);
         }
@@ -1088,8 +1075,8 @@ impl Sseq {
                         let pairs = d.get_source_target_pairs()
                             .into_iter()
                             .map(|(mut s, mut t)|
-                                 (data.reduce(&mut s),
-                                  target_data.reduce(&mut t)));
+                                 (data.reduce(s.as_slice_mut()),
+                                  target_data.reduce(t.as_slice_mut())));
 
                         for (source, target) in pairs {
                             for (i, v) in source.into_iter().enumerate() {
@@ -1132,12 +1119,12 @@ mod tests {
         sseq.set_class(0, 3, 1);
 
         sseq.add_differential(2, 1, 0,
-                              &FpVector::from_vec(p, &[1, 1]),
-                              &mut FpVector::from_vec(p, &[0, 1, 2]));
+                              &FpVector::from_slice(p, &[1, 1]),
+                              &mut FpVector::from_slice(p, &[0, 1, 2]));
 
         sseq.add_differential(3, 1, 0,
-                              &FpVector::from_vec(p, &[1, 0]),
-                              &mut FpVector::from_vec(p, &[1]));
+                              &FpVector::from_slice(p, &[1, 0]),
+                              &mut FpVector::from_slice(p, &[1]));
 
         let check = |x, y, r, e: Expect| {
             e.assert_eq(&sseq.page_data[x][y][r].to_string());
@@ -1218,8 +1205,8 @@ mod tests {
 
         drop(check);
         sseq.add_differential(2, 1, 1,
-                              &FpVector::from_vec(p, &[1, 0]),
-                              &mut FpVector::from_vec(p, &[1]));
+                              &FpVector::from_slice(p, &[1, 0]),
+                              &mut FpVector::from_slice(p, &[1]));
         let check = |x, y, r, e: Expect| {
             e.assert_eq(&sseq.page_data[x][y][r].to_string());
         };
@@ -1318,11 +1305,11 @@ mod tests {
         sseq.set_class(0, 2, 2);
 
         sseq.add_differential(2, 1, 0,
-                              &FpVector::from_vec(p, &[1, 0]),
-                              &mut FpVector::from_vec(p, &[1, 0]));
+                              &FpVector::from_slice(p, &[1, 0]),
+                              &mut FpVector::from_slice(p, &[1, 0]));
         sseq.add_differential(2, 1, 0,
-                              &FpVector::from_vec(p, &[0, 1]),
-                              &mut FpVector::from_vec(p, &[1, 1]));
+                              &FpVector::from_slice(p, &[0, 1]),
+                              &mut FpVector::from_slice(p, &[1, 1]));
 
         let check = |x, y, r, e: Expect| {
             e.assert_eq(&sseq.page_data[x][y][r].to_string());

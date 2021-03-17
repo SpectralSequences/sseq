@@ -2,7 +2,7 @@
 use crate::module::homomorphism::ModuleHomomorphism;
 use crate::module::TruncatedModule;
 use fp::matrix::{QuasiInverse, Subspace};
-use fp::vector::FpVector;
+use fp::vector::SliceMut;
 use std::sync::Arc;
 
 pub struct TruncatedHomomorphism<F: ModuleHomomorphism> {
@@ -47,7 +47,7 @@ impl<F: ModuleHomomorphism> ModuleHomomorphism for TruncatedHomomorphism<F> {
 
     fn apply_to_basis_element(
         &self,
-        result: &mut FpVector,
+        result: SliceMut,
         coeff: u32,
         input_degree: i32,
         input_idx: usize,
@@ -110,7 +110,7 @@ impl<F: ModuleHomomorphism> ModuleHomomorphism for TruncatedHomomorphismSource<F
 
     fn apply_to_basis_element(
         &self,
-        result: &mut FpVector,
+        result: SliceMut,
         coeff: u32,
         input_degree: i32,
         input_idx: usize,

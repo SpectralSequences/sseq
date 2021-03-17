@@ -17,7 +17,7 @@ use algebra::module::{
 };
 use crate::CCC;
 use fp::matrix::{Matrix, QuasiInverse, Subspace};
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{Slice, SliceMut, FpVector};
 use parking_lot::Mutex;
 use std::sync::Arc;
 
@@ -210,7 +210,7 @@ impl<
     /// At the moment, this is off by a sign. However, we only use this for p = 2
     fn apply_to_basis_element(
         &self,
-        result: &mut FpVector,
+        result: SliceMut,
         coeff: u32,
         degree: i32,
         input_idx: usize,
@@ -240,11 +240,9 @@ impl<
         }
     }
 
-    fn apply_quasi_inverse(&self, result: &mut FpVector, degree: i32, input: &FpVector) {
+    fn apply_quasi_inverse(&self, mut result: SliceMut, degree: i32, input: Slice) {
         let qis = &self.quasi_inverses[degree];
         assert_eq!(input.dimension(), qis.len());
-
-        let old_slice = result.slice();
 
         for (i, x) in input.iter().enumerate() {
             if x == 0 {
@@ -252,9 +250,8 @@ impl<
             }
             if let Some(qi) = &qis[i] {
                 for (offset_start, offset_end, data) in qi.iter() {
-                    result.set_slice(*offset_start, *offset_end);
-                    result.add(data, x);
-                    result.restore_slice(old_slice);
+                    result.slice_mut(*offset_start, *offset_end)
+                        .add(data.as_slice(), x);
                 }
             }
         }

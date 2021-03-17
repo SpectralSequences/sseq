@@ -5,7 +5,7 @@ use crate::algebra::{
 };
 use crate::module::{Module, ZeroModule};
 use fp::prime::{Binomial, ValidPrime};
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::SliceMut;
 
 use std::sync::Arc;
 
@@ -91,7 +91,7 @@ impl<A : SteenrodAlgebraT> Module for RealProjectiveSpace<A> {
 
     fn act_on_basis(
         &self,
-        result: &mut FpVector,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,

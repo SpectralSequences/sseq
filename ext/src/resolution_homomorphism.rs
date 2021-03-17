@@ -2,7 +2,7 @@
 use std::sync::{Weak, Arc};
 
 use once::OnceVec;
-use fp::vector::{ FpVector, FpVectorT };
+use fp::vector::{FpVector, SliceMut};
 use fp::matrix::Matrix;
 use crate::algebra::SteenrodAlgebra;
 use crate::module::Module;
@@ -82,9 +82,9 @@ where CC1: FreeChainComplex<Algebra = <CC2::Module as Module>::Algebra>,
             assert!(extra_images.is_none());
             return;
         }
-        let outputs = self.extend_step_helper(input_homological_degree, input_internal_degree, extra_images);
+        let mut outputs = self.extend_step_helper(input_homological_degree, input_internal_degree, extra_images);
         let lock = f_cur.lock();
-        f_cur.add_generators_from_matrix_rows(&lock, input_internal_degree, &outputs);
+        f_cur.add_generators_from_matrix_rows(&lock, input_internal_degree, outputs.as_slice_mut());
     }
 
     fn extend_step_helper(&self, input_homological_degree : u32, input_internal_degree : i32, mut extra_images : Option<&Matrix>) -> Matrix {
@@ -112,7 +112,7 @@ where CC1: FreeChainComplex<Algebra = <CC2::Module as Module>::Algebra>,
                     "num_gens : {} greater than rows : {} hom_deg : {}, int_deg : {}",
                     num_gens, extra_images_matrix.rows(), input_homological_degree, input_internal_degree);
                 for k in 0 .. num_gens {
-                    target_chain_map.apply_quasi_inverse(&mut outputs_matrix[k], output_internal_degree, &extra_images_matrix[k]);
+                    target_chain_map.apply_quasi_inverse(outputs_matrix[k].as_slice_mut(), output_internal_degree, extra_images_matrix[k].as_slice());
                 }
             }
             return outputs_matrix;            
@@ -138,13 +138,13 @@ where CC1: FreeChainComplex<Algebra = <CC2::Module as Module>::Algebra>,
 
                 let extra_image_matrix = extra_images.as_mut().expect("Missing extra image rows");
                 target_chain_map.compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
-                target_chain_map.apply_quasi_inverse(&mut outputs_matrix[k], output_internal_degree, &extra_image_matrix[extra_image_row]);
+                target_chain_map.apply_quasi_inverse(outputs_matrix[k].as_slice_mut(), output_internal_degree, extra_image_matrix[extra_image_row].as_slice());
                 extra_image_row += 1;
             } else {
                 d_target.compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
-                f_prev.apply(&mut fdx_vector, 1, input_internal_degree, dx_vector);
-                d_target.apply_quasi_inverse(&mut outputs_matrix[k], output_internal_degree, &fdx_vector);
-                fdx_vector.set_to_zero_pure();
+                f_prev.apply(fdx_vector.as_slice_mut(), 1, input_internal_degree, dx_vector.as_slice());
+                d_target.apply_quasi_inverse(outputs_matrix[k].as_slice_mut(), output_internal_degree, fdx_vector.as_slice());
+                fdx_vector.set_to_zero();
             }
         }
         // let num_extra_image_rows = extra_images.map_or(0, |matrix| matrix.rows());
@@ -203,15 +203,15 @@ where M: Module<Algebra = SteenrodAlgebra>,
 
             let mut outputs_matrix = Matrix::new(p, num_gens, target.module(0).dimension(t + degree_shift));
             if num_gens == 0 || fx.dimension() == 0 {
-                g.add_generators_from_matrix_rows(&lock, t, &outputs_matrix);
+                g.add_generators_from_matrix_rows(&lock, t, outputs_matrix.as_slice_mut());
                 continue;
             }
             for j in 0 .. num_gens {
-                f.apply(&mut fx, 1, t, source_chain_map.output(t, j));
-                target_chain_map.apply_quasi_inverse(&mut outputs_matrix[j], t + degree_shift, &fx);
-                fx.set_to_zero_pure();
+                f.apply(fx.as_slice_mut(), 1, t, source_chain_map.output(t, j).as_slice());
+                target_chain_map.apply_quasi_inverse(outputs_matrix[j].as_slice_mut(), t + degree_shift, fx.as_slice());
+                fx.set_to_zero();
             }
-            g.add_generators_from_matrix_rows(&lock, t, &outputs_matrix);
+            g.add_generators_from_matrix_rows(&lock, t, outputs_matrix.as_slice_mut());
         }
         drop(lock);
         hom
@@ -222,18 +222,18 @@ impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
 where CC1: FreeChainComplex,
       CC2: AugmentedChainComplex + FreeChainComplex<Algebra = CC1::Algebra>
 {
-    pub fn act(&self, result: &mut FpVector, s: u32, t: i32, idx: usize) {
+    pub fn act(&self, mut result: SliceMut, s: u32, t: i32, idx: usize) {
         let source_s = s - self.homological_degree_shift;
         let source_t = t - self.internal_degree_shift;
 
         let source = self.source.upgrade().unwrap();
         let target = self.target.upgrade().unwrap();
-        assert_eq!(result.dimension(), source.module(source_s).number_of_gens_in_degree(source_t));
+        assert_eq!(result.as_slice().dimension(), source.module(source_s).number_of_gens_in_degree(source_t));
 
         let target_module = target.module(s);
 
         let map = self.get_map(s);
-        for i in 0 .. result.dimension() {
+        for i in 0 .. result.as_slice().dimension() {
             let j = target_module.operation_generator_to_index(0, 0, t, idx);
             result.add_basis_element(i, map.output(t, i).entry(j));
         }

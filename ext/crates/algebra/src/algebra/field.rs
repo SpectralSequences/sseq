@@ -3,7 +3,7 @@ use serde_json::Value;
 use serde_json::json;
 
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::{Slice, SliceMut};
 use crate::algebra::{Algebra, Bialgebra};
 
 pub struct Field {
@@ -43,7 +43,7 @@ impl Algebra for Field {
         if degree == 0 { 1 } else { 0 }
     }
 
-    fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, _r_degree : i32, _r_idx : usize, _s_degree: i32, _s_idx : usize, _excess : i32) {
+    fn multiply_basis_elements(&self, mut result : SliceMut, coeff : u32, _r_degree : i32, _r_idx : usize, _s_degree: i32, _s_idx : usize, _excess : i32) {
         result.add_basis_element(0, coeff)
     }
 
@@ -68,7 +68,7 @@ impl Algebra for Field {
         "1".to_string()
     }
 
-    fn element_to_string(&self, degree : i32, element : &FpVector) -> String {
+    fn element_to_string(&self, degree : i32, element : Slice) -> String {
         assert!(degree == 0);
         format!("{}", element.entry(0))
     }

@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::prime::ValidPrime;
 use crate::vector::{FpVector, FpVectorT};
 use super::{Matrix, AugmentedMatrix2};

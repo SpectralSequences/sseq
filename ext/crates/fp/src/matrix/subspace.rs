@@ -1,7 +1,6 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
-use crate::prime::ValidPrime;
-use crate::vector::{FpVector, FpVectorT};
 use super::Matrix;
+use crate::prime::ValidPrime;
+use crate::vector::{FpVector, Slice, SliceMut};
 
 /// A subspace of a vector space.
 /// # Fields
@@ -13,7 +12,7 @@ use super::Matrix;
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Subspace {
-    pub matrix : Matrix
+    pub matrix: Matrix,
 }
 
 impl std::ops::Deref for Subspace {
@@ -31,19 +30,17 @@ impl std::ops::DerefMut for Subspace {
 }
 
 impl Subspace {
-    pub fn new(p : ValidPrime, rows : usize, columns : usize) -> Self {
+    pub fn new(p: ValidPrime, rows: usize, columns: usize) -> Self {
         let mut matrix = Matrix::new(p, rows, columns);
         matrix.initialize_pivots();
-        Self {
-            matrix
-        }
+        Self { matrix }
     }
 
-    pub fn empty_space(p : ValidPrime, dim : usize) -> Self {
+    pub fn empty_space(p: ValidPrime, dim: usize) -> Self {
         Self::new(p, 0, dim)
     }
 
-    pub fn entire_space(p : ValidPrime, dim : usize) -> Self {
+    pub fn entire_space(p: ValidPrime, dim: usize) -> Self {
         let mut result = Self::new(p, dim, dim);
         for i in 0..dim {
             result[i].set_entry(i, 1);
@@ -56,17 +53,17 @@ impl Subspace {
     /// matrix is zero, i.e. the dimension of the current subspace is strictly less than the number
     /// of rows. This can be achieved by setting the number of rows to be the dimension plus one
     /// when creating the subspace.
-    pub fn add_vector(&mut self, row : &FpVector) {
+    pub fn add_vector(&mut self, row: Slice) {
         let last_row = self.matrix.rows() - 1;
-        self[last_row].assign(row);
+        self[last_row].as_slice_mut().assign(row);
         self.row_reduce();
     }
 
-    pub fn add_vectors(&mut self, mut rows : impl std::iter::Iterator<Item=FpVector>) {
+    pub fn add_vectors(&mut self, mut rows: impl std::iter::Iterator<Item = FpVector>) {
         let num_rows = self.matrix.rows();
         'outer: loop {
             let mut first_row = num_rows;
-            for i in 0 .. num_rows {
+            for i in 0..num_rows {
                 if self[i].is_zero() {
                     first_row = i;
                     break;
@@ -76,7 +73,7 @@ impl Subspace {
                 return;
             }
 
-            for i in first_row .. num_rows {
+            for i in first_row..num_rows {
                 if let Some(v) = rows.next() {
                     assert_eq!(v.dimension(), self.matrix.columns());
                     self[i] = v;
@@ -89,11 +86,11 @@ impl Subspace {
         self.row_reduce();
     }
 
-    pub fn add_basis_elements(&mut self, mut rows : impl std::iter::Iterator<Item=usize>) {
+    pub fn add_basis_elements(&mut self, mut rows: impl std::iter::Iterator<Item = usize>) {
         let num_rows = self.matrix.rows();
         'outer: loop {
             let mut first_row = num_rows;
-            for i in 0 .. num_rows {
+            for i in 0..num_rows {
                 if self[i].is_zero() {
                     first_row = i;
                     break;
@@ -103,7 +100,7 @@ impl Subspace {
                 return;
             }
 
-            for i in first_row .. num_rows {
+            for i in first_row..num_rows {
                 if let Some(v) = rows.next() {
                     self[i].set_entry(v, 1);
                 } else {
@@ -117,38 +114,38 @@ impl Subspace {
 
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
     /// that have a 0 in every column where there is a pivot in `matrix`
-    pub fn reduce(&self, vector : &mut FpVector){
-        assert_eq!(vector.dimension(), self.columns());
+    pub fn reduce(&self, mut vector: SliceMut) {
+        assert_eq!(vector.as_slice().dimension(), self.columns());
         if self.rows() == 0 {
             return;
         }
         let p = self.prime();
         let mut row = 0;
-        let columns = vector.dimension();
-        for i in 0 .. columns {
+        let columns = vector.as_slice().dimension();
+        for i in 0..columns {
             if self.pivots()[i] < 0 {
                 continue;
             }
-            let c = vector.entry(i);
+            let c = vector.as_slice().entry(i);
             if c != 0 {
-                vector.add(&self[row], *p - c);
+                vector.add(self[row].as_slice(), *p - c);
             }
             row += 1;
         }
     }
 
     /// A version of `reduce` that doesn't require the vectors to be aligned.
-    pub fn shift_reduce(&self, vector : &mut FpVector){
+    pub fn shift_reduce(&self, mut vector: SliceMut) {
         let p = self.matrix.prime();
         let mut row = 0;
-        let columns = vector.dimension();
-        for i in 0 .. columns {
+        let columns = vector.as_slice().dimension();
+        for i in 0..columns {
             if self.matrix.pivots()[i] < 0 {
                 continue;
             }
-            let c = vector.entry(i);
+            let c = vector.as_slice().entry(i);
             if c != 0 {
-                vector.add(&self[row], *p - c);
+                vector.add(self[row].as_slice(), *p - c);
             }
             row += 1;
         }
@@ -158,14 +155,17 @@ impl Subspace {
         self.matrix.row_reduce();
     }
 
-    pub fn contains(&self, vector : &FpVector) -> bool {
-        let mut vector = vector.clone();
-        self.reduce(&mut vector);
+    pub fn contains(&self, vector: Slice) -> bool {
+        let mut vector: FpVector = vector.to_owned();
+        self.reduce(vector.as_slice_mut());
         vector.is_zero()
     }
 
     pub fn dimension(&self) -> usize {
-        self.matrix.pivots().iter().rev()
+        self.matrix
+            .pivots()
+            .iter()
+            .rev()
             .find(|&&i| i >= 0)
             .map(|&i| i as usize + 1)
             .unwrap_or(0)

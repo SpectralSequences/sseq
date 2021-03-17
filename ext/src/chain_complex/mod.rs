@@ -13,7 +13,7 @@ use crate::CCC;
 use bivec::BiVec;
 use fp::matrix::Subquotient;
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector, FpVectorT};
+use fp::vector::FpVector;
 use std::sync::Arc;
 
 // pub use hom_complex::HomComplex;
