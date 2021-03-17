@@ -677,7 +677,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">AdemAlgebraT</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">Module</span>;
 <span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
-<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">FpVector</span>};
+<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">FpVector</span>, <span class="ident">SliceMut</span>};
 <span class="kw">use</span> <span class="ident">once</span>::{<span class="ident">OnceVec</span>, <span class="ident">OnceBiVec</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">OperationGeneratorPair</span>;
 
@@ -760,7 +760,7 @@
 
     <span class="kw">fn</span> <span class="ident">act_on_basis</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FpVector</span>,
+        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
         <span class="ident">coeff</span>: <span class="ident">u32</span>,
         <span class="ident">op_degree</span>: <span class="ident">i32</span>,
         <span class="ident">op_index</span>: <span class="ident">usize</span>,
@@ -789,7 +789,7 @@
         <span class="comment">// Now we multiply s * r and write the result to the appropriate position.</span>
         <span class="kw">let</span> <span class="ident">basis_filter</span> <span class="op">=</span> <span class="op">|</span><span class="kw">_</span>,<span class="kw">_</span><span class="op">|</span> <span class="bool-val">true</span>;
         <span class="self">self</span>.<span class="ident">adem_algebra</span>().<span class="ident">multiply_basis_elements_unstable</span>(
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="ident">result</span>.<span class="ident">borrow_slice</span>(<span class="ident">output_block_min</span>, <span class="ident">output_block_max</span>),
+            <span class="ident">result</span>.<span class="ident">slice_mut</span>(<span class="ident">output_block_min</span>, <span class="ident">output_block_max</span>),
             <span class="ident">coeff</span>,
             <span class="ident">op_degree</span>,
             <span class="ident">op_index</span>,

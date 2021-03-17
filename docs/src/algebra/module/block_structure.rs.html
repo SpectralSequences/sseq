@@ -104,9 +104,6 @@
 <span id="83">83</span>
 <span id="84">84</span>
 <span id="85">85</span>
-<span id="86">86</span>
-<span id="87">87</span>
-<span id="88">88</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="comment">// A block structure is a structure that makes it efficient to convert between an index </span>
@@ -117,7 +114,7 @@
 <span class="comment">// we have to pull out each block and multiply each block separately by the steenrod operation.</span>
 
 <span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
-<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">FpVector</span>, <span class="ident">FpVectorT</span>};
+<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">SliceMut</span>, <span class="ident">Slice</span>};
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">GeneratorBasisEltPair</span> {
@@ -186,15 +183,13 @@
     }
 
     <span class="comment">// Add source vector &quot;source&quot; to the block indicated by (gen_deg, gen_idx).</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_block</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">target</span> : <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FpVector</span>, <span class="ident">coeff</span> : <span class="ident">u32</span>, <span class="ident">gen_deg</span> : <span class="ident">i32</span>, <span class="ident">gen_idx</span> : <span class="ident">usize</span>, <span class="ident">source</span> : <span class="kw-2">&amp;</span><span class="ident">FpVector</span>){
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_block</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">target</span> : <span class="ident">SliceMut</span>, <span class="ident">coeff</span> : <span class="ident">u32</span>, <span class="ident">gen_deg</span> : <span class="ident">i32</span>, <span class="ident">gen_idx</span> : <span class="ident">usize</span>, <span class="ident">source</span> : <span class="ident">Slice</span>){
         <span class="kw">let</span> <span class="ident">BlockStart</span> { <span class="ident">block_start_index</span> : <span class="ident">block_min</span>,  <span class="ident">block_size</span> } <span class="op">=</span> <span class="self">self</span>.<span class="ident">block_starts</span>[<span class="ident">gen_deg</span>][<span class="ident">gen_idx</span>];
         <span class="kw">let</span> <span class="ident">block_max</span> <span class="op">=</span> <span class="ident">block_min</span> <span class="op">+</span> <span class="ident">block_size</span>;
         <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">source</span>.<span class="ident">dimension</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">block_size</span>);
-        <span class="kw">let</span> <span class="ident">old_slice</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">slice</span>();
-        <span class="ident">target</span>.<span class="ident">set_slice</span>(<span class="ident">block_min</span>, <span class="ident">block_max</span>);
-        <span class="ident">target</span>.<span class="ident">add</span>(<span class="ident">source</span>, <span class="ident">coeff</span>);
-        <span class="ident">target</span>.<span class="ident">restore_slice</span>(<span class="ident">old_slice</span>);
+        <span class="ident">target</span>.<span class="ident">slice_mut</span>(<span class="ident">block_min</span>, <span class="ident">block_max</span>).<span class="ident">add</span>(<span class="ident">source</span>, <span class="ident">coeff</span>);
     }
-}</pre></div>
+}
+</pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra"></div>
     <script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script><script defer src="../../../search-index.js"></script></body></html>

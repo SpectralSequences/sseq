@@ -104,7 +104,7 @@
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>};
-<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">FpVector</span>;
+<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">SliceMut</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="doccomment">/// A module M where we quotient out everything above degree `truncation`</span>
@@ -163,7 +163,7 @@
 
     <span class="kw">fn</span> <span class="ident">act_on_basis</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FpVector</span>,
+        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
         <span class="ident">coeff</span>: <span class="ident">u32</span>,
         <span class="ident">op_degree</span>: <span class="ident">i32</span>,
         <span class="ident">op_index</span>: <span class="ident">usize</span>,

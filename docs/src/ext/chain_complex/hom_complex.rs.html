@@ -285,9 +285,6 @@
 <span id="264">264</span>
 <span id="265">265</span>
 <span id="266">266</span>
-<span id="267">267</span>
-<span id="268">268</span>
-<span id="269">269</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">unused_imports</span>)]</span>
@@ -308,7 +305,7 @@
 };
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">CCC</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">matrix</span>::{<span class="ident">Matrix</span>, <span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
-<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">FpVector</span>, <span class="ident">FpVectorT</span>};
+<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>, <span class="ident">FpVector</span>};
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -501,7 +498,7 @@
     <span class="doccomment">/// At the moment, this is off by a sign. However, we only use this for p = 2</span>
     <span class="kw">fn</span> <span class="ident">apply_to_basis_element</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FpVector</span>,
+        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
         <span class="ident">coeff</span>: <span class="ident">u32</span>,
         <span class="ident">degree</span>: <span class="ident">i32</span>,
         <span class="ident">input_idx</span>: <span class="ident">usize</span>,
@@ -531,11 +528,9 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">apply_quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FpVector</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="ident">FpVector</span>) {
+    <span class="kw">fn</span> <span class="ident">apply_quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">input</span>: <span class="ident">Slice</span>) {
         <span class="kw">let</span> <span class="ident">qis</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">quasi_inverses</span>[<span class="ident">degree</span>];
         <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">input</span>.<span class="ident">dimension</span>(), <span class="ident">qis</span>.<span class="ident">len</span>());
-
-        <span class="kw">let</span> <span class="ident">old_slice</span> <span class="op">=</span> <span class="ident">result</span>.<span class="ident">slice</span>();
 
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">x</span>) <span class="kw">in</span> <span class="ident">input</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
             <span class="kw">if</span> <span class="ident">x</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
@@ -543,9 +538,8 @@
             }
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">qi</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">qis</span>[<span class="ident">i</span>] {
                 <span class="kw">for</span> (<span class="ident">offset_start</span>, <span class="ident">offset_end</span>, <span class="ident">data</span>) <span class="kw">in</span> <span class="ident">qi</span>.<span class="ident">iter</span>() {
-                    <span class="ident">result</span>.<span class="ident">set_slice</span>(<span class="kw-2">*</span><span class="ident">offset_start</span>, <span class="kw-2">*</span><span class="ident">offset_end</span>);
-                    <span class="ident">result</span>.<span class="ident">add</span>(<span class="ident">data</span>, <span class="ident">x</span>);
-                    <span class="ident">result</span>.<span class="ident">restore_slice</span>(<span class="ident">old_slice</span>);
+                    <span class="ident">result</span>.<span class="ident">slice_mut</span>(<span class="kw-2">*</span><span class="ident">offset_start</span>, <span class="kw-2">*</span><span class="ident">offset_end</span>)
+                        .<span class="ident">add</span>(<span class="ident">data</span>.<span class="ident">as_slice</span>(), <span class="ident">x</span>);
                 }
             }
         }

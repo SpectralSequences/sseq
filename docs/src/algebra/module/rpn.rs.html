@@ -257,7 +257,7 @@
 };
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::{<span class="ident">Binomial</span>, <span class="ident">ValidPrime</span>};
-<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">FpVector</span>, <span class="ident">FpVectorT</span>};
+<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">SliceMut</span>;
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -343,7 +343,7 @@
 
     <span class="kw">fn</span> <span class="ident">act_on_basis</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FpVector</span>,
+        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
         <span class="ident">coeff</span>: <span class="ident">u32</span>,
         <span class="ident">op_degree</span>: <span class="ident">i32</span>,
         <span class="ident">op_index</span>: <span class="ident">usize</span>,
