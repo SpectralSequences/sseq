@@ -1,3 +1,11 @@
+//! This module is provides wrappers around the contents of [`crate::vector_inner`]. The main
+//! purpose is to put [`FpVectorP`] for different `p` into a single enum. It does the same for the
+//! various slice structs.
+//!
+//! The main magic occurs in the macro `dispatch_vector_inner`, which we use to provide wrapper
+//! functions around the `FpVectorP` functions.
+//!
+//! This module is only used when the `odd-primes` feature is enabled.
 use crate::prime::ValidPrime;
 pub use crate::vector_inner::initialize_limb_bit_index_table;
 use crate::vector_inner::{

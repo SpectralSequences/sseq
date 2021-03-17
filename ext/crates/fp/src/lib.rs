@@ -10,7 +10,7 @@ pub mod vector_2;
 #[cfg(not(feature = "odd-primes"))]
 pub use vector_2 as vector;
 
-mod vector_inner;
+pub mod vector_inner;
 
 /// This is a version of [`std::convert::TryInto`] that deals with mutable references instead. We
 /// cannot condition on `TryInto` for mutable references due to lifetime issues. This is used for

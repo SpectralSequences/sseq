@@ -1,3 +1,6 @@
+//! This module replaces `vector` when `odd-primes` is disabled. Instead of producing enum
+//! wrappers, it simply rexports `FooP<2>` as `Foo`.
+
 use crate::prime::ValidPrime;
 pub use crate::vector_inner::initialize_limb_bit_index_table;
 use crate::vector_inner::{
