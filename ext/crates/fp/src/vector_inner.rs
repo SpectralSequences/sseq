@@ -220,10 +220,18 @@ impl<const P: u32> FpVectorP<P> {
 
     pub fn add(&mut self, other: &FpVectorP<P>, c: u32) {
         debug_assert_eq!(self.dimension(), other.dimension());
-        for (left, right) in self.limbs.iter_mut().zip(other.limbs.iter()) {
-            *left = limb::add::<P>(*left, *right, c);
+        if P == 2 {
+            if c != 0 {
+                for (left, right) in self.limbs.iter_mut().zip(other.limbs.iter()) {
+                    *left = limb::add::<P>(*left, *right, 1);
+                }
+            }
+        } else {
+            for (left, right) in self.limbs.iter_mut().zip(other.limbs.iter()) {
+                *left = limb::add::<P>(*left, *right, c);
+            }
+            self.reduce_limbs();
         }
-        self.reduce_limbs();
     }
 
     pub fn assign(&mut self, other: &Self) {
@@ -636,11 +644,21 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
             return;
         }
 
-        match self.as_slice().offset().cmp(&other.offset()) {
-            Ordering::Equal => self.add_shift_none(other, c),
-            Ordering::Less => self.add_shift_left(other, c),
-            Ordering::Greater => self.add_shift_right(other, c),
-        };
+        if P == 2 {
+            if c != 0 {
+                match self.as_slice().offset().cmp(&other.offset()) {
+                    Ordering::Equal => self.add_shift_none(other, 1),
+                    Ordering::Less => self.add_shift_left(other, 1),
+                    Ordering::Greater => self.add_shift_right(other, 1),
+                };
+            }
+        } else {
+            match self.as_slice().offset().cmp(&other.offset()) {
+                Ordering::Equal => self.add_shift_none(other, c),
+                Ordering::Less => self.add_shift_left(other, c),
+                Ordering::Greater => self.add_shift_right(other, c),
+            };
+        }
     }
 
     /// `coeff` need not be reduced mod p.
