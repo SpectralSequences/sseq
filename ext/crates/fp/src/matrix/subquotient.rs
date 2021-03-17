@@ -1,7 +1,7 @@
 use super::Subspace;
 use crate::matrix::Matrix;
 use crate::prime::ValidPrime;
-use crate::vector::{SliceMut, Slice, FpVector};
+use crate::vector::{FpVector, Slice, SliceMut};
 
 #[derive(Clone)]
 pub struct Subquotient {

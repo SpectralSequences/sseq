@@ -1,7 +1,7 @@
 use crate::prime::ValidPrime;
 pub use crate::vector_inner::initialize_limb_bit_index_table;
 use crate::vector_inner::{
-    entries_per_64_bits, FpVectorIterator, FpVectorNonZeroIterator, FpVectorP, SliceMutP, SliceP,
+    entries_per_64_bits, FpVectorIterator, FpVectorNonZeroIteratorP, FpVectorP, SliceMutP, SliceP,
 };
 use itertools::Itertools;
 
@@ -54,7 +54,18 @@ macro_rules! dispatch_vector_inner {
             }
         }
     };
+    ($vis:vis fn $method:ident(self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {
+        $vis fn $method(self, $($arg: $ty),* ) -> $ret {
+            match self {
+                Self::_2(x) => $ret::_2(x.$method($($arg),*)),
+                Self::_3(x) => $ret::_3(x.$method($($arg),*)),
+                Self::_5(x) => $ret::_5(x.$method($($arg),*)),
+                Self::_7(x) => $ret::_7(x.$method($($arg),*)),
+            }
+        }
+    };
     ($vis:vis fn $method:ident(&mut self $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
+        #[allow(unused_parens)]
         $vis fn $method(&mut self, $($arg: $ty),* ) $(-> $ret)* {
             match self {
                 Self::_2(ref mut x) => x.$method($($arg),*),
@@ -134,6 +145,13 @@ pub enum SliceMut<'a> {
     _7(SliceMutP<'a, 7>),
 }
 
+pub enum FpVectorNonZeroIterator<'a> {
+    _2(FpVectorNonZeroIteratorP<'a, 2>),
+    _3(FpVectorNonZeroIteratorP<'a, 3>),
+    _5(FpVectorNonZeroIteratorP<'a, 5>),
+    _7(FpVectorNonZeroIteratorP<'a, 7>),
+}
+
 impl FpVector {
     pub fn new(p: ValidPrime, dim: usize) -> FpVector {
         match_p!(p, FpVectorP::new(dim))
@@ -179,7 +197,7 @@ impl FpVector {
         pub fn as_slice_mut(&mut self) -> (dispatch SliceMut);
         pub fn is_zero(&self) -> bool;
         pub fn iter(&self) -> FpVectorIterator;
-        pub fn iter_nonzero(&self) -> FpVectorNonZeroIterator;
+        pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator);
         pub fn extend_dimension(&mut self, dim: usize);
         pub fn set_scratch_vector_size(&mut self, dim: usize);
         pub fn add_basis_element(&mut self, index: usize, value: u32);
@@ -196,7 +214,7 @@ impl<'a> Slice<'a> {
         pub fn dimension(&self) -> usize;
         pub fn entry(&self, index: usize) -> u32;
         pub fn iter(self) -> (FpVectorIterator<'a>);
-        pub fn iter_nonzero(self) -> (FpVectorNonZeroIterator<'a>);
+        pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator);
         pub fn is_zero(&self) -> bool;
         pub fn slice(&self, start: usize, end: usize) -> (dispatch Slice);
         pub fn to_owned(&self) -> (dispatch FpVector);
@@ -238,6 +256,12 @@ impl<'a> SliceMut<'a> {
     }
 }
 
+impl<'a> FpVectorNonZeroIterator<'a> {
+    dispatch_vector! {
+        fn next(&mut self) -> (Option<(usize, u32)>);
+    }
+}
+
 impl std::fmt::Display for FpVector {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         self.as_slice().fmt(f)
@@ -260,6 +284,14 @@ impl From<&FpVector> for Vec<u32> {
 impl std::ops::AddAssign<&FpVector> for FpVector {
     fn add_assign(&mut self, other: &FpVector) {
         self.add(other, 1);
+    }
+}
+
+impl<'a> Iterator for FpVectorNonZeroIterator<'a> {
+    type Item = (usize, u32);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next()
     }
 }
 

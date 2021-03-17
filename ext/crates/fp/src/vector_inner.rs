@@ -186,7 +186,7 @@ impl<const P: u32> FpVectorP<P> {
         self.as_slice().iter()
     }
 
-    pub fn iter_nonzero(&self) -> FpVectorNonZeroIterator {
+    pub fn iter_nonzero(&self) -> FpVectorNonZeroIteratorP<'_, P> {
         self.as_slice().iter_nonzero()
     }
 
@@ -352,7 +352,7 @@ impl<'a, const P: u32> SliceP<'a, P> {
 
         let (min, max) = self.limb_range();
         let mut limbs: Vec<u64> = self.limbs[min..max].into();
-        if !limbs.is_empty() > 0 {
+        if !limbs.is_empty() {
             let len = limbs.len();
             limbs[len - 1] &= self.limb_mask(max - 1);
         }
@@ -493,9 +493,8 @@ impl<'a, const P: u32> SliceP<'a, P> {
         FpVectorIterator::new(self)
     }
 
-    /// TODO: We need a custom implementation for dispatch
-    pub fn iter_nonzero(self) -> FpVectorNonZeroIterator<'a> {
-        FpVectorNonZeroIterator::new(self)
+    pub fn iter_nonzero(self) -> FpVectorNonZeroIteratorP<'a, P> {
+        FpVectorNonZeroIteratorP::new(self)
     }
 
     pub fn is_zero(&self) -> bool {
@@ -1142,112 +1141,81 @@ impl<'a> ExactSizeIterator for FpVectorIterator<'a> {
     }
 }
 
-pub struct FpVectorNonZeroIterator<'a> {
+pub struct FpVectorNonZeroIteratorP<'a, const P: u32> {
     limbs: &'a [u64],
-    bit_length: usize,
-    bit_mask: u64,
-    entries_per_64_bits_m_1: usize,
     limb_index: usize,
-    entries_left: usize,
+    cur_limb_entries_left: usize,
     cur_limb: u64,
-    counter: usize,
-    enumeration: usize,
+    idx: usize,
+    dim: usize,
 }
 
-impl<'a> FpVectorNonZeroIterator<'a> {
-    fn new<const P: u32>(vec: SliceP<'a, P>) -> Self {
-        let counter = vec.dimension();
-        let limbs = &vec.limbs;
+impl<'a, const P: u32> FpVectorNonZeroIteratorP<'a, P> {
+    fn new(vec: SliceP<'a, P>) -> Self {
+        let entries_per_64_bits = entries_per_64_bits(ValidPrime::new(P));
 
-        if counter == 0 {
+        let dim = vec.dimension();
+        let limbs = vec.limbs;
+
+        if dim == 0 {
             return Self {
                 limbs,
-                bit_length: 0,
-                entries_per_64_bits_m_1: 0,
-                bit_mask: 0,
                 limb_index: 0,
-                entries_left: 0,
+                cur_limb_entries_left: 0,
                 cur_limb: 0,
-                enumeration: 0,
-                counter,
+                idx: 0,
+                dim: 0,
             };
         }
-        let p = vec.prime();
-
-        let pair = limb_bit_index_pair(p, vec.start);
-
-        let bit_length = bit_length(p);
+        let min_index = vec.start;
+        let pair = limb_bit_index_pair(vec.prime(), min_index);
         let cur_limb = limbs[pair.limb] >> pair.bit_index;
-
-        let entries_per_64_bits = entries_per_64_bits(p);
+        let cur_limb_entries_left = entries_per_64_bits - (min_index % entries_per_64_bits);
         Self {
             limbs,
-            bit_length,
-            entries_per_64_bits_m_1: entries_per_64_bits - 1,
-            bit_mask: bitmask(p),
             limb_index: pair.limb,
-            entries_left: entries_per_64_bits - (vec.start % entries_per_64_bits),
+            cur_limb_entries_left,
             cur_limb,
-            enumeration: 0,
-            counter,
-        }
-    }
-
-    pub fn skip_n(&mut self, mut n: usize) {
-        if n >= self.counter {
-            self.counter = 0;
-            return;
-        }
-        let entries_per_64_bits = self.entries_per_64_bits_m_1 + 1;
-        if n < self.entries_left {
-            self.entries_left -= n;
-            self.counter -= n;
-            self.cur_limb >>= self.bit_length * n;
-            return;
-        }
-        self.enumeration += n;
-
-        n -= self.entries_left;
-        self.counter -= self.entries_left;
-        self.entries_left = 0;
-
-        let skip_limbs = n / entries_per_64_bits;
-        self.limb_index += skip_limbs;
-        self.counter -= skip_limbs * entries_per_64_bits;
-        n -= skip_limbs * entries_per_64_bits;
-
-        if n > 0 {
-            self.entries_left = entries_per_64_bits - n;
-            self.limb_index += 1;
-            self.cur_limb = self.limbs[self.limb_index] >> (n * self.bit_length);
-            self.counter -= n;
+            idx: 0,
+            dim,
         }
     }
 }
 
-impl<'a> Iterator for FpVectorNonZeroIterator<'a> {
+impl<'a, const P: u32> Iterator for FpVectorNonZeroIteratorP<'a, P> {
     type Item = (usize, u32);
     fn next(&mut self) -> Option<Self::Item> {
+        let bit_length: usize = bit_length(ValidPrime::new(P));
+        let bitmask: u64 = bitmask(ValidPrime::new(P));
+        let entries_per_64_bits: usize = entries_per_64_bits(ValidPrime::new(P));
         loop {
-            if self.counter == 0 {
-                return None;
-            } else if self.entries_left == 0 {
+            let bits_left = (self.cur_limb_entries_left * bit_length) as u32;
+            let tz_real =
+                (self.cur_limb | 1u64.checked_shl(bits_left as u32).unwrap_or(0)).trailing_zeros();
+            let tz_rem = ((tz_real as u8) % (bit_length as u8)) as u32;
+            let tz_div = ((tz_real as u8) / (bit_length as u8)) as u32;
+            let tz = tz_real - tz_rem;
+            self.idx += tz_div as usize;
+            self.cur_limb_entries_left -= tz_div as usize;
+            if self.cur_limb_entries_left == 0 {
                 self.limb_index += 1;
-                self.cur_limb = self.limbs[self.limb_index];
-                self.entries_left = self.entries_per_64_bits_m_1;
-            } else {
-                self.entries_left -= 1;
+                self.cur_limb_entries_left = entries_per_64_bits;
+                if self.limb_index < self.limbs.len() {
+                    self.cur_limb = self.limbs[self.limb_index];
+                } else {
+                    return None;
+                }
+                continue;
             }
-
-            let result = (self.cur_limb & self.bit_mask) as u32;
-            let enumeration = self.enumeration;
-            self.counter -= 1;
-            self.enumeration += 1;
-            self.cur_limb >>= self.bit_length;
-
-            if result != 0 {
-                return Some((enumeration, result));
+            self.cur_limb >>= tz;
+            if tz == 0 {
+                break;
             }
         }
+        let result = (self.idx, (self.cur_limb & bitmask) as u32);
+        self.idx += 1;
+        self.cur_limb_entries_left -= 1;
+        self.cur_limb >>= bit_length;
+        Some(result)
     }
 }
