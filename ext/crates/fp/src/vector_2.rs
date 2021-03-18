@@ -24,10 +24,6 @@ impl FpVector {
         Self::from(&slice)
     }
 
-    fn from_limbs(_p: ValidPrime, dim: usize, limbs: Vec<u64>) -> Self {
-        Self::from_limbs_(dim, limbs)
-    }
-
     pub fn padded_dimension(p: ValidPrime, dimension: usize) -> usize {
         let entries_per_limb = entries_per_64_bits(p);
         ((dimension + entries_per_limb - 1) / entries_per_limb) * entries_per_limb
@@ -102,12 +98,12 @@ impl Load for FpVector {
 
         let entries_per_64_bits = entries_per_64_bits(p);
         let num_limbs = (dimension - 1) / entries_per_64_bits + 1;
-        let mut limbs: Vec<u64> = Vec::with_capacity(num_limbs);
+        let mut v = FpVector::new(p, dimension);
 
-        for _ in 0..num_limbs {
-            limbs.push(u64::load(buffer, &())?);
+        for limb in &mut v.limbs_mut()[0..num_limbs] {
+            *limb = u64::load(buffer, &())?;
         }
 
-        Ok(FpVector::from_limbs(p, dimension, limbs))
+        Ok(v)
     }
 }

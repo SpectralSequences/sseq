@@ -120,7 +120,7 @@ fn limb_bit_index_pair(p: ValidPrime, idx: usize) -> LimbBitIndexPair {
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub struct FpVectorP<const P: u32> {
     dimension: usize,
-    pub(crate) limbs: Vec<u64>,
+    limbs: Vec<u64>,
 }
 
 /// A SliceP is a slice of an FpVectorP. This immutably borrows the vector and implements Copy
@@ -148,13 +148,6 @@ impl<const P: u32> FpVectorP<P> {
         Self {
             dimension: dim,
             limbs: vec![0; number_of_limbs],
-        }
-    }
-
-    pub fn from_limbs_(dim: usize, limbs: Vec<u64>) -> Self {
-        Self {
-            dimension: dim,
-            limbs,
         }
     }
 
@@ -279,6 +272,10 @@ impl<const P: u32> FpVectorP<P> {
 
     pub(crate) fn limbs(&self) -> &[u64] {
         &self.limbs
+    }
+
+    pub(crate) fn limbs_mut(&mut self) -> &mut [u64] {
+        &mut self.limbs
     }
 
     /// This function ensures the dimension of the vector is at least `dim`. See also
@@ -445,16 +442,14 @@ impl<'a, const P: u32> SliceP<'a, P> {
     /// Converts a slice to an owned FpVectorP. This assumes the start of the vector is aligned.
     pub fn to_owned(&self) -> FpVectorP<P> {
         if self.start % entries_per_64_bits(self.prime()) == 0 {
+            let mut new = FpVectorP::<P>::new_(self.dimension());
             let (min, max) = self.limb_range();
-            let mut limbs: Vec<u64> = self.limbs[min..max].into();
-            if !limbs.is_empty() {
-                let len = limbs.len();
-                limbs[len - 1] &= self.limb_mask(max - 1);
+            new.limbs[0..(max - min)].copy_from_slice(&self.limbs[min..max]);
+            if !new.limbs.is_empty() {
+                let len = new.limbs.len();
+                new.limbs[len - 1] &= self.limb_mask(max - 1);
             }
-            FpVectorP {
-                dimension: self.dimension(),
-                limbs,
-            }
+            new
         } else {
             let data: Vec<u32> = self.iter().collect();
             (&data).into()
@@ -1167,14 +1162,15 @@ impl AddShiftRightData {
 
 impl<T: AsRef<[u32]>, const P: u32> From<&T> for FpVectorP<P> {
     fn from(slice: &T) -> Self {
-        Self {
-            dimension: slice.as_ref().len(),
-            limbs: slice
+        let mut v = Self::new_(slice.as_ref().len());
+        v.limbs.clear();
+        v.limbs.extend(
+            slice
                 .as_ref()
                 .chunks(entries_per_64_bits(ValidPrime::new(P)))
-                .map(|x| limb::pack::<_, P>(x.iter().copied()))
-                .collect(),
-        }
+                .map(|x| limb::pack::<_, P>(x.iter().copied())),
+        );
+        v
     }
 }
 

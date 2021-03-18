@@ -186,10 +186,6 @@ impl FpVector {
         match_p!(p, FpVectorP::from(&slice))
     }
 
-    fn from_limbs(p: ValidPrime, dim: usize, limbs: Vec<u64>) -> Self {
-        match_p!(p, FpVectorP::from_limbs_(dim, limbs))
-    }
-
     pub fn padded_dimension(p: ValidPrime, dimension: usize) -> usize {
         let entries_per_limb = entries_per_64_bits(p);
         ((dimension + entries_per_limb - 1) / entries_per_limb) * entries_per_limb
@@ -221,6 +217,7 @@ impl FpVector {
         pub fn add_carry(&mut self, other: &Self, c: u32, rest: &mut [FpVector]) -> bool;
 
         fn limbs(&self) -> (&[u64]);
+        fn limbs_mut(&mut self) -> (&mut [u64]);
     }
 }
 
@@ -357,7 +354,14 @@ use std::io::{Read, Write};
 impl Save for FpVector {
     fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
         self.dimension().save(buffer)?;
-        for limb in self.limbs() {
+        if self.dimension() == 0 {
+            return Ok(());
+        }
+        let entries_per_64_bits = entries_per_64_bits(self.prime());
+        let num_limbs = (self.dimension() - 1) / entries_per_64_bits + 1;
+        // self.limbs is allowed to have more limbs than necessary, but we only save the necessary
+        // ones.
+        for limb in &self.limbs()[0..num_limbs] {
             limb.save(buffer)?;
         }
         Ok(())
@@ -378,13 +382,14 @@ impl Load for FpVector {
 
         let entries_per_64_bits = entries_per_64_bits(p);
         let num_limbs = (dimension - 1) / entries_per_64_bits + 1;
-        let mut limbs: Vec<u64> = Vec::with_capacity(num_limbs);
+        let mut v = FpVector::new(p, dimension);
 
-        for _ in 0..num_limbs {
-            limbs.push(u64::load(buffer, &())?);
+        // v.limbs may have more limbs than num_limbs, and the rest should be zeroed.
+        for limb in &mut v.limbs_mut()[0..num_limbs] {
+            *limb = u64::load(buffer, &())?;
         }
 
-        Ok(FpVector::from_limbs(p, dimension, limbs))
+        Ok(v)
     }
 }
 
@@ -1373,10 +1378,10 @@ mod test {
         ];
         let mut diffs = Vec::new();
         for &(in1_limb1, in1_limb2, in2_limb1, in2_limb2, res1, res2) in tests.iter() {
-            in1.limbs[1] = in1_limb1;
-            in1.limbs[0] = in1_limb2;
-            in2.limbs[1] = in2_limb1;
-            in2.limbs[0] = in2_limb2;
+            in1.limbs_mut()[1] = in1_limb1;
+            in1.limbs_mut()[0] = in1_limb2;
+            in2.limbs_mut()[1] = in2_limb1;
+            in2.limbs_mut()[0] = in2_limb2;
             let test_res1 = in1.sign_rule(&in2);
             let test_res2 = in2.sign_rule(&in1);
             let res = (res1, res2);
