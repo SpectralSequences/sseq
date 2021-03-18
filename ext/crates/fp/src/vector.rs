@@ -448,8 +448,12 @@ mod test {
             if diff.is_empty() {
                 return;
             }
-            println!("assert {} == {:?}", self, other);
-            println!("{}", FpVector::format_diff(diff));
+            panic!(
+                "assert {} == {:?}\n{}",
+                self,
+                other,
+                FpVector::format_diff(diff)
+            );
         }
 
         pub fn assert_vec_eq(&self, other: &FpVector) {
@@ -457,8 +461,12 @@ mod test {
             if diff.is_empty() {
                 return;
             }
-            println!("assert {} == {}", self, other);
-            println!("{}", FpVector::format_diff(diff));
+            panic!(
+                "assert {} == {:?}\n{}",
+                self,
+                other,
+                FpVector::format_diff(diff)
+            );
         }
     }
 
