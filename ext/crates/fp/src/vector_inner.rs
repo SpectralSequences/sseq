@@ -239,12 +239,12 @@ impl<const P: u32> FpVectorP<P> {
         debug_assert_eq!(self.dimension(), other.dimension());
         if P == 2 {
             if c != 0 {
-                for (left, right) in self.limbs.iter_mut().zip(other.limbs.iter()) {
+                for (left, right) in self.limbs.iter_mut().zip(&other.limbs) {
                     *left = limb::add::<P>(*left, *right, 1);
                 }
             }
         } else {
-            for (left, right) in self.limbs.iter_mut().zip(other.limbs.iter()) {
+            for (left, right) in self.limbs.iter_mut().zip(&other.limbs) {
                 *left = limb::add::<P>(*left, *right, c);
             }
             self.reduce_limbs();
