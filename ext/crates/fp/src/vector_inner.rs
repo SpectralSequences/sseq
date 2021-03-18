@@ -695,10 +695,16 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
     }
 
     pub fn add_basis_element(&mut self, index: usize, value: u32) {
-        let mut x = self.as_slice().entry(index);
-        x += value;
-        x %= P;
-        self.set_entry(index, x);
+        if P == 2 {
+            // Checking for value % 2 == 0 appears to be less performant
+            let pair = limb_bit_index_pair(ValidPrime::new(2), index + self.start);
+            self.limbs[pair.limb] ^= (value as u64 % 2) << pair.bit_index;
+        } else {
+            let mut x = self.as_slice().entry(index);
+            x += value;
+            x %= P;
+            self.set_entry(index, x);
+        }
     }
 
     pub fn set_entry(&mut self, index: usize, value: u32) {
