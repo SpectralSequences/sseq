@@ -128,10 +128,6 @@
 <span id="107">107</span>
 <span id="108">108</span>
 <span id="109">109</span>
-<span id="110">110</span>
-<span id="111">111</span>
-<span id="112">112</span>
-<span id="113">113</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! This module replaces `vector` when `odd-primes` is disabled. Instead of producing enum</span>
 <span class="doccomment">//! wrappers, it simply rexports `FooP&lt;2&gt;` as `Foo`.</span>
@@ -157,10 +153,6 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_slice</span>(<span class="ident">_p</span>: <span class="ident">ValidPrime</span>, <span class="ident">slice</span>: <span class="kw-2">&amp;</span>[<span class="ident">u32</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">slice</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">from_limbs</span>(<span class="ident">_p</span>: <span class="ident">ValidPrime</span>, <span class="ident">dim</span>: <span class="ident">usize</span>, <span class="ident">limbs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span>::<span class="ident">from_limbs_</span>(<span class="ident">dim</span>, <span class="ident">limbs</span>)
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">padded_dimension</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">dimension</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
@@ -237,13 +229,13 @@
 
         <span class="kw">let</span> <span class="ident">entries_per_64_bits</span> <span class="op">=</span> <span class="ident">entries_per_64_bits</span>(<span class="ident">p</span>);
         <span class="kw">let</span> <span class="ident">num_limbs</span> <span class="op">=</span> (<span class="ident">dimension</span> <span class="op">-</span> <span class="number">1</span>) <span class="op">/</span> <span class="ident">entries_per_64_bits</span> <span class="op">+</span> <span class="number">1</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">limbs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">num_limbs</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">dimension</span>);
 
-        <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_limbs</span> {
-            <span class="ident">limbs</span>.<span class="ident">push</span>(<span class="ident">u64</span>::<span class="ident">load</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>())<span class="question-mark">?</span>);
+        <span class="kw">for</span> <span class="ident">limb</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">v</span>.<span class="ident">limbs_mut</span>()[<span class="number">0</span>..<span class="ident">num_limbs</span>] {
+            <span class="kw-2">*</span><span class="ident">limb</span> <span class="op">=</span> <span class="ident">u64</span>::<span class="ident">load</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>())<span class="question-mark">?</span>;
         }
 
-        <span class="prelude-val">Ok</span>(<span class="ident">FpVector</span>::<span class="ident">from_limbs</span>(<span class="ident">p</span>, <span class="ident">dimension</span>, <span class="ident">limbs</span>))
+        <span class="prelude-val">Ok</span>(<span class="ident">v</span>)
     }
 }
 </pre></div>

@@ -1426,6 +1426,11 @@
 <span id="1405">1405</span>
 <span id="1406">1406</span>
 <span id="1407">1407</span>
+<span id="1408">1408</span>
+<span id="1409">1409</span>
+<span id="1410">1410</span>
+<span id="1411">1411</span>
+<span id="1412">1412</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! This module is provides wrappers around the contents of [`crate::vector_inner`]. The main</span>
 <span class="doccomment">//! purpose is to put [`FpVectorP`] for different `p` into a single enum. It does the same for the</span>
@@ -1615,10 +1620,6 @@
         <span class="macro">match_p</span><span class="macro">!</span>(<span class="ident">p</span>, <span class="ident">FpVectorP</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">slice</span>))
     }
 
-    <span class="kw">fn</span> <span class="ident">from_limbs</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">dim</span>: <span class="ident">usize</span>, <span class="ident">limbs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="macro">match_p</span><span class="macro">!</span>(<span class="ident">p</span>, <span class="ident">FpVectorP</span>::<span class="ident">from_limbs_</span>(<span class="ident">dim</span>, <span class="ident">limbs</span>))
-    }
-
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">padded_dimension</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">dimension</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="kw">let</span> <span class="ident">entries_per_limb</span> <span class="op">=</span> <span class="ident">entries_per_64_bits</span>(<span class="ident">p</span>);
         ((<span class="ident">dimension</span> <span class="op">+</span> <span class="ident">entries_per_limb</span> <span class="op">-</span> <span class="number">1</span>) <span class="op">/</span> <span class="ident">entries_per_limb</span>) <span class="op">*</span> <span class="ident">entries_per_limb</span>
@@ -1650,6 +1651,7 @@
         <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_carry</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>, <span class="ident">c</span>: <span class="ident">u32</span>, <span class="ident">rest</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">FpVector</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>;
 
         <span class="kw">fn</span> <span class="ident">limbs</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span>[<span class="ident">u64</span>]);
+        <span class="kw">fn</span> <span class="ident">limbs_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u64</span>]);
     }
 }
 
@@ -1786,7 +1788,14 @@
 <span class="kw">impl</span> <span class="ident">Save</span> <span class="kw">for</span> <span class="ident">FpVector</span> {
     <span class="kw">fn</span> <span class="ident">save</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">dimension</span>().<span class="ident">save</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
-        <span class="kw">for</span> <span class="ident">limb</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">limbs</span>() {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">dimension</span>() <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+            <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
+        }
+        <span class="kw">let</span> <span class="ident">entries_per_64_bits</span> <span class="op">=</span> <span class="ident">entries_per_64_bits</span>(<span class="self">self</span>.<span class="ident">prime</span>());
+        <span class="kw">let</span> <span class="ident">num_limbs</span> <span class="op">=</span> (<span class="self">self</span>.<span class="ident">dimension</span>() <span class="op">-</span> <span class="number">1</span>) <span class="op">/</span> <span class="ident">entries_per_64_bits</span> <span class="op">+</span> <span class="number">1</span>;
+        <span class="comment">// self.limbs is allowed to have more limbs than necessary, but we only save the necessary</span>
+        <span class="comment">// ones.</span>
+        <span class="kw">for</span> <span class="ident">limb</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">limbs</span>()[<span class="number">0</span>..<span class="ident">num_limbs</span>] {
             <span class="ident">limb</span>.<span class="ident">save</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
@@ -1807,13 +1816,14 @@
 
         <span class="kw">let</span> <span class="ident">entries_per_64_bits</span> <span class="op">=</span> <span class="ident">entries_per_64_bits</span>(<span class="ident">p</span>);
         <span class="kw">let</span> <span class="ident">num_limbs</span> <span class="op">=</span> (<span class="ident">dimension</span> <span class="op">-</span> <span class="number">1</span>) <span class="op">/</span> <span class="ident">entries_per_64_bits</span> <span class="op">+</span> <span class="number">1</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">limbs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">num_limbs</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">dimension</span>);
 
-        <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_limbs</span> {
-            <span class="ident">limbs</span>.<span class="ident">push</span>(<span class="ident">u64</span>::<span class="ident">load</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>())<span class="question-mark">?</span>);
+        <span class="comment">// v.limbs may have more limbs than num_limbs, and the rest should be zeroed.</span>
+        <span class="kw">for</span> <span class="ident">limb</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">v</span>.<span class="ident">limbs_mut</span>()[<span class="number">0</span>..<span class="ident">num_limbs</span>] {
+            <span class="kw-2">*</span><span class="ident">limb</span> <span class="op">=</span> <span class="ident">u64</span>::<span class="ident">load</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>())<span class="question-mark">?</span>;
         }
 
-        <span class="prelude-val">Ok</span>(<span class="ident">FpVector</span>::<span class="ident">from_limbs</span>(<span class="ident">p</span>, <span class="ident">dimension</span>, <span class="ident">limbs</span>))
+        <span class="prelude-val">Ok</span>(<span class="ident">v</span>)
     }
 }
 
@@ -2802,10 +2812,10 @@
         ];
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">diffs</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
         <span class="kw">for</span> <span class="kw-2">&amp;</span>(<span class="ident">in1_limb1</span>, <span class="ident">in1_limb2</span>, <span class="ident">in2_limb1</span>, <span class="ident">in2_limb2</span>, <span class="ident">res1</span>, <span class="ident">res2</span>) <span class="kw">in</span> <span class="ident">tests</span>.<span class="ident">iter</span>() {
-            <span class="ident">in1</span>.<span class="ident">limbs</span>[<span class="number">1</span>] <span class="op">=</span> <span class="ident">in1_limb1</span>;
-            <span class="ident">in1</span>.<span class="ident">limbs</span>[<span class="number">0</span>] <span class="op">=</span> <span class="ident">in1_limb2</span>;
-            <span class="ident">in2</span>.<span class="ident">limbs</span>[<span class="number">1</span>] <span class="op">=</span> <span class="ident">in2_limb1</span>;
-            <span class="ident">in2</span>.<span class="ident">limbs</span>[<span class="number">0</span>] <span class="op">=</span> <span class="ident">in2_limb2</span>;
+            <span class="ident">in1</span>.<span class="ident">limbs_mut</span>()[<span class="number">1</span>] <span class="op">=</span> <span class="ident">in1_limb1</span>;
+            <span class="ident">in1</span>.<span class="ident">limbs_mut</span>()[<span class="number">0</span>] <span class="op">=</span> <span class="ident">in1_limb2</span>;
+            <span class="ident">in2</span>.<span class="ident">limbs_mut</span>()[<span class="number">1</span>] <span class="op">=</span> <span class="ident">in2_limb1</span>;
+            <span class="ident">in2</span>.<span class="ident">limbs_mut</span>()[<span class="number">0</span>] <span class="op">=</span> <span class="ident">in2_limb2</span>;
             <span class="kw">let</span> <span class="ident">test_res1</span> <span class="op">=</span> <span class="ident">in1</span>.<span class="ident">sign_rule</span>(<span class="kw-2">&amp;</span><span class="ident">in2</span>);
             <span class="kw">let</span> <span class="ident">test_res2</span> <span class="op">=</span> <span class="ident">in2</span>.<span class="ident">sign_rule</span>(<span class="kw-2">&amp;</span><span class="ident">in1</span>);
             <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> (<span class="ident">res1</span>, <span class="ident">res2</span>);
