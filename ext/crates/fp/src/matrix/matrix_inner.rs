@@ -4,7 +4,8 @@ use crate::vector::{FpVector, Slice, SliceMut};
 
 use std::fmt;
 
-/// Mutably borrows x[i] and x[j]. Caller needs to ensure i != j for safety
+/// Mutably borrows x[i] and x[j]. Caller needs to ensure i != j for safety, and i and j must not
+/// be out of bounds.
 unsafe fn split_borrow<T>(x: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
     let ptr = x.as_mut_ptr();
     (&mut *ptr.add(i), &mut *ptr.add(j))
@@ -293,6 +294,7 @@ impl Matrix {
         self.vectors.swap(i, j);
     }
 
+    /// target and source must be distinct and less that self.vectors.len()
     unsafe fn row_op(&mut self, target: usize, source: usize, coeff: u32) {
         debug_assert!(target != source);
         let (target, source) = split_borrow(&mut self.vectors, target, source);
@@ -397,7 +399,7 @@ impl Matrix {
                 }
                 let row_op_coeff = *p - pivot_column_entry;
                 // Do row operation. Safety requires i != pivot, which follows from
-                // i > pivot_row >= pivot.
+                // i > pivot_row >= pivot. They are both less than rows by construction
                 unsafe { self.row_op(i, pivot, row_op_coeff) };
             }
             pivot += 1;
@@ -465,7 +467,7 @@ impl Matrix {
                 }
                 let row_op_coeff = *p - pivot_column_entry;
                 // Do row operation. Safety requires i != pivot, which follows from the if i as
-                // usize == pivot line.
+                // usize == pivot line. They are both less than rows by construction.
                 unsafe { self.row_op(i, pivot, row_op_coeff) };
                 i += 1; // loop control structure.
             }
@@ -977,6 +979,7 @@ impl<'a> MatrixSliceMut<'a> {
         self.vectors[row].slice_mut(self.col_start, self.col_end)
     }
 
+    /// target and source must be distinct and less that self.vectors.len()
     unsafe fn row_op(&mut self, target: usize, source: usize, coeff: u32) {
         debug_assert!(target != source);
         let (target, source) = split_borrow(&mut self.vectors, target, source);
@@ -1046,7 +1049,7 @@ impl<'a> MatrixSliceMut<'a> {
                 }
                 let row_op_coeff = *p - pivot_column_entry;
                 // Do row operation. Safety requires i != pivot, which follows from the if i as
-                // usize == pivot line.
+                // usize == pivot line. They are both less than rows by construction.
                 unsafe { self.row_op(i, pivot, row_op_coeff) };
                 i += 1; // loop control structure.
             }
