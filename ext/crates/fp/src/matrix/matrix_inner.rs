@@ -4,6 +4,12 @@ use crate::vector::{FpVector, Slice, SliceMut};
 
 use std::fmt;
 
+/// Mutably borrows x[i] and x[j]. Caller needs to ensure i != j for safety
+unsafe fn split_borrow<T>(x: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
+    let ptr = x.as_mut_ptr();
+    (&mut *ptr.add(i), &mut *ptr.add(j))
+}
+
 /// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is
 /// easier to perform row operations than column operations, and the way we use matrices means we
 /// want our matrices to act on the right. Hence we think of vectors as row vectors.
@@ -287,16 +293,10 @@ impl Matrix {
         self.vectors.swap(i, j);
     }
 
-    pub fn row_op(&mut self, target: usize, source: usize, coeff: u32) {
+    unsafe fn row_op(&mut self, target: usize, source: usize, coeff: u32) {
         debug_assert!(target != source);
-        unsafe {
-            // Can't take two mutable borrows from one vector, so instead just cast
-            // them to their raw pointers to do the swap
-            let ptarget: *mut FpVector = &mut self[target];
-            let psource: *const FpVector = &mut self[source];
-            // Use the optimized variant of add that ignores slicing (profiling shows this cuts out ~ 2% of runtime)
-            (*ptarget).add(&*psource, coeff);
-        }
+        let (target, source) = split_borrow(&mut self.vectors, target, source);
+        target.add(source, coeff);
     }
 
     /// Perform row reduction to reduce it to reduced row echelon form. This modifies the matrix in
@@ -396,8 +396,9 @@ impl Matrix {
                     continue;
                 }
                 let row_op_coeff = *p - pivot_column_entry;
-                // Do row operation
-                self.row_op(i, pivot, row_op_coeff);
+                // Do row operation. Safety requires i != pivot, which follows from
+                // i > pivot_row >= pivot.
+                unsafe { self.row_op(i, pivot, row_op_coeff) };
             }
             pivot += 1;
         }
@@ -463,7 +464,9 @@ impl Matrix {
                     continue;
                 }
                 let row_op_coeff = *p - pivot_column_entry;
-                self.row_op(i, pivot, row_op_coeff);
+                // Do row operation. Safety requires i != pivot, which follows from the if i as
+                // usize == pivot line.
+                unsafe { self.row_op(i, pivot, row_op_coeff) };
                 i += 1; // loop control structure.
             }
             pivot += 1;
@@ -974,17 +977,10 @@ impl<'a> MatrixSliceMut<'a> {
         self.vectors[row].slice_mut(self.col_start, self.col_end)
     }
 
-    pub fn row_op(&mut self, target: usize, source: usize, coeff: u32) {
+    unsafe fn row_op(&mut self, target: usize, source: usize, coeff: u32) {
         debug_assert!(target != source);
-        unsafe {
-            // Can't take two mutable borrows from one vector, so instead just cast
-            // them to their raw pointers to do the swap
-            let ptarget: *mut FpVector = &mut self.vectors[target];
-            let psource: *const FpVector = &mut self.vectors[source];
-            // Use the optimized variant of add that ignores slicing (profiling shows this cuts out ~ 2% of runtime)
-            //            (*ptarget).slice_mut(self.col_start, self.col_end).add((*psource).slice(self.col_start, self.col_end), coeff);
-            (*ptarget).add(&*psource, coeff);
-        }
+        let (target, source) = split_borrow(&mut self.vectors, target, source);
+        target.add(source, coeff);
     }
 
     pub fn add_identity(&mut self, size: usize, row: usize, column: usize) {
@@ -1049,8 +1045,9 @@ impl<'a> MatrixSliceMut<'a> {
                     continue;
                 }
                 let row_op_coeff = *p - pivot_column_entry;
-
-                self.row_op(i, pivot, row_op_coeff);
+                // Do row operation. Safety requires i != pivot, which follows from the if i as
+                // usize == pivot line.
+                unsafe { self.row_op(i, pivot, row_op_coeff) };
                 i += 1; // loop control structure.
             }
             pivot += 1;
