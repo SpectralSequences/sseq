@@ -253,9 +253,7 @@ impl<const P: u32> FpVectorP<P> {
 
     pub fn assign(&mut self, other: &Self) {
         debug_assert_eq!(self.dimension(), other.dimension());
-        for (left, right) in self.limbs.iter_mut().zip(other.limbs.iter()) {
-            *left = *right;
-        }
+        self.limbs.copy_from_slice(&other.limbs)
     }
 
     pub fn is_zero(&self) -> bool {
