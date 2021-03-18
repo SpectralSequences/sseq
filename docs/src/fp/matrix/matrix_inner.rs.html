@@ -1257,6 +1257,9 @@
 <span id="1236">1236</span>
 <span id="1237">1237</span>
 <span id="1238">1238</span>
+<span id="1239">1239</span>
+<span id="1240">1240</span>
+<span id="1241">1241</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">prime</span>::{<span class="self">self</span>, <span class="ident">ValidPrime</span>};
@@ -1264,7 +1267,8 @@
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>;
 
-<span class="doccomment">/// Mutably borrows x[i] and x[j]. Caller needs to ensure i != j for safety</span>
+<span class="doccomment">/// Mutably borrows x[i] and x[j]. Caller needs to ensure i != j for safety, and i and j must not</span>
+<span class="doccomment">/// be out of bounds.</span>
 <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">split_borrow</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">x</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">T</span>], <span class="ident">i</span>: <span class="ident">usize</span>, <span class="ident">j</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">T</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">T</span>) {
     <span class="kw">let</span> <span class="ident">ptr</span> <span class="op">=</span> <span class="ident">x</span>.<span class="ident">as_mut_ptr</span>();
     (<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="ident">ptr</span>.<span class="ident">add</span>(<span class="ident">i</span>), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="ident">ptr</span>.<span class="ident">add</span>(<span class="ident">j</span>))
@@ -1553,6 +1557,7 @@
         <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">swap</span>(<span class="ident">i</span>, <span class="ident">j</span>);
     }
 
+    <span class="doccomment">/// target and source must be distinct and less that self.vectors.len()</span>
     <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">row_op</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">target</span>: <span class="ident">usize</span>, <span class="ident">source</span>: <span class="ident">usize</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>) {
         <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">target</span> <span class="op">!</span><span class="op">=</span> <span class="ident">source</span>);
         <span class="kw">let</span> (<span class="ident">target</span>, <span class="ident">source</span>) <span class="op">=</span> <span class="ident">split_borrow</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">vectors</span>, <span class="ident">target</span>, <span class="ident">source</span>);
@@ -1657,7 +1662,7 @@
                 }
                 <span class="kw">let</span> <span class="ident">row_op_coeff</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="op">-</span> <span class="ident">pivot_column_entry</span>;
                 <span class="comment">// Do row operation. Safety requires i != pivot, which follows from</span>
-                <span class="comment">// i &gt; pivot_row &gt;= pivot.</span>
+                <span class="comment">// i &gt; pivot_row &gt;= pivot. They are both less than rows by construction</span>
                 <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">row_op</span>(<span class="ident">i</span>, <span class="ident">pivot</span>, <span class="ident">row_op_coeff</span>) };
             }
             <span class="ident">pivot</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
@@ -1725,7 +1730,7 @@
                 }
                 <span class="kw">let</span> <span class="ident">row_op_coeff</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="op">-</span> <span class="ident">pivot_column_entry</span>;
                 <span class="comment">// Do row operation. Safety requires i != pivot, which follows from the if i as</span>
-                <span class="comment">// usize == pivot line.</span>
+                <span class="comment">// usize == pivot line. They are both less than rows by construction.</span>
                 <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">row_op</span>(<span class="ident">i</span>, <span class="ident">pivot</span>, <span class="ident">row_op_coeff</span>) };
                 <span class="ident">i</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>; <span class="comment">// loop control structure.</span>
             }
@@ -2237,6 +2242,7 @@
         <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">row</span>].<span class="ident">slice_mut</span>(<span class="self">self</span>.<span class="ident">col_start</span>, <span class="self">self</span>.<span class="ident">col_end</span>)
     }
 
+    <span class="doccomment">/// target and source must be distinct and less that self.vectors.len()</span>
     <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">row_op</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">target</span>: <span class="ident">usize</span>, <span class="ident">source</span>: <span class="ident">usize</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>) {
         <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">target</span> <span class="op">!</span><span class="op">=</span> <span class="ident">source</span>);
         <span class="kw">let</span> (<span class="ident">target</span>, <span class="ident">source</span>) <span class="op">=</span> <span class="ident">split_borrow</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">vectors</span>, <span class="ident">target</span>, <span class="ident">source</span>);
@@ -2306,7 +2312,7 @@
                 }
                 <span class="kw">let</span> <span class="ident">row_op_coeff</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="op">-</span> <span class="ident">pivot_column_entry</span>;
                 <span class="comment">// Do row operation. Safety requires i != pivot, which follows from the if i as</span>
-                <span class="comment">// usize == pivot line.</span>
+                <span class="comment">// usize == pivot line. They are both less than rows by construction.</span>
                 <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">row_op</span>(<span class="ident">i</span>, <span class="ident">pivot</span>, <span class="ident">row_op_coeff</span>) };
                 <span class="ident">i</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>; <span class="comment">// loop control structure.</span>
             }
