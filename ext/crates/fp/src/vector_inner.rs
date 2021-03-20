@@ -29,7 +29,7 @@ pub(crate) const fn bit_length(p: ValidPrime) -> usize {
     BIT_LENGTHS[PRIME_TO_INDEX_MAP[p.value() as usize]]
 }
 
-const BITMASKS: [u32; NUM_PRIMES] = {
+const BITMASKS: [Limb; NUM_PRIMES] = {
     let mut result = [0; NUM_PRIMES];
     const_for! { i in 0 .. NUM_PRIMES {
         result[i] = (1 << BIT_LENGTHS[i]) - 1;
@@ -39,7 +39,7 @@ const BITMASKS: [u32; NUM_PRIMES] = {
 
 /// TODO: Would it be simpler to just compute this at "runtime"? It's going to be inlined anyway.
 pub(crate) const fn bitmask(p: ValidPrime) -> Limb {
-    BITMASKS[PRIME_TO_INDEX_MAP[p.value() as usize]] as Limb
+    BITMASKS[PRIME_TO_INDEX_MAP[p.value() as usize]]
 }
 
 const ENTRIES_PER_LIMB: [usize; NUM_PRIMES] = {
@@ -477,24 +477,26 @@ pub(crate) mod limb {
         match P {
             2 => limb,
             3 => {
-                let top_bit = (!0 / 7) << (2 - BITS_PER_LIMB % 3);
-                let mut limb_2 = ((limb & top_bit) >> 2) + (limb & (!top_bit));
+                // Set top bit to 1 in every limb
+                const TOP_BIT: Limb = (!0 / 7) << (2 - BITS_PER_LIMB % 3);
+                let mut limb_2 = ((limb & TOP_BIT) >> 2) + (limb & (!TOP_BIT));
                 let mut limb_3s = limb_2 & (limb_2 >> 1);
                 limb_3s |= limb_3s << 1;
                 limb_2 ^= limb_3s;
                 limb_2
             }
             5 => {
-                let bottom_bit = (!0 / 31) >> (BITS_PER_LIMB % 5);
-                let bottom_two_bits = bottom_bit | (bottom_bit << 1);
-                let bottom_three_bits = bottom_bit | (bottom_two_bits << 1);
-                let a = (limb >> 2) & bottom_three_bits;
-                let b = limb & bottom_two_bits;
-                let m = (bottom_bit << 3) - a + b;
-                let mut c = (m >> 3) & bottom_bit;
+                // Set bottom bit to 1 in every limb
+                const BOTTOM_BIT: Limb = (!0 / 31) >> (BITS_PER_LIMB % 5);
+                const BOTTOM_TWO_BITS: Limb = BOTTOM_BIT | (BOTTOM_BIT << 1);
+                const BOTTOM_THREE_BITS: Limb = BOTTOM_BIT | (BOTTOM_TWO_BITS << 1);
+                let a = (limb >> 2) & BOTTOM_THREE_BITS;
+                let b = limb & BOTTOM_TWO_BITS;
+                let m = (BOTTOM_BIT << 3) - a + b;
+                let mut c = (m >> 3) & BOTTOM_BIT;
                 c |= c << 1;
-                let d = m & bottom_three_bits;
-                d + c - bottom_two_bits
+                let d = m & BOTTOM_THREE_BITS;
+                d + c - BOTTOM_TWO_BITS
             }
             _ => {
                 let entries = entries_per_limb(ValidPrime::new(P));
