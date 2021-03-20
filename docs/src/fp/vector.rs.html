@@ -1439,6 +1439,7 @@
 <span id="1418">1418</span>
 <span id="1419">1419</span>
 <span id="1420">1420</span>
+<span id="1421">1421</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! This module is provides wrappers around the contents of [`crate::vector_inner`]. The main</span>
 <span class="doccomment">//! purpose is to put [`FpVectorP`] for different `p` into a single enum. It does the same for the</span>
@@ -1451,7 +1452,8 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">prime</span>::<span class="ident">ValidPrime</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">vector_inner</span>::<span class="ident">initialize_limb_bit_index_table</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">vector_inner</span>::{
-    <span class="ident">entries_per_64_bits</span>, <span class="ident">FpVectorIterator</span>, <span class="ident">FpVectorNonZeroIteratorP</span>, <span class="ident">FpVectorP</span>, <span class="ident">SliceMutP</span>, <span class="ident">SliceP</span>,
+    <span class="ident">entries_per_limb</span>, <span class="ident">FpVectorIterator</span>, <span class="ident">FpVectorNonZeroIteratorP</span>, <span class="ident">FpVectorP</span>, <span class="ident">Limb</span>, <span class="ident">SliceMutP</span>,
+    <span class="ident">SliceP</span>,
 };
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">TryInto</span>;
 <span class="kw">use</span> <span class="ident">itertools</span>::<span class="ident">Itertools</span>;
@@ -1629,7 +1631,7 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">padded_dimension</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">dimension</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
-        <span class="kw">let</span> <span class="ident">entries_per_limb</span> <span class="op">=</span> <span class="ident">entries_per_64_bits</span>(<span class="ident">p</span>);
+        <span class="kw">let</span> <span class="ident">entries_per_limb</span> <span class="op">=</span> <span class="ident">entries_per_limb</span>(<span class="ident">p</span>);
         ((<span class="ident">dimension</span> <span class="op">+</span> <span class="ident">entries_per_limb</span> <span class="op">-</span> <span class="number">1</span>) <span class="op">/</span> <span class="ident">entries_per_limb</span>) <span class="op">*</span> <span class="ident">entries_per_limb</span>
     }
 
@@ -1658,8 +1660,8 @@
         <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sign_rule</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>;
         <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_carry</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>, <span class="ident">c</span>: <span class="ident">u32</span>, <span class="ident">rest</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">FpVector</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>;
 
-        <span class="kw">fn</span> <span class="ident">limbs</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span>[<span class="ident">u64</span>]);
-        <span class="kw">fn</span> <span class="ident">limbs_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u64</span>]);
+        <span class="kw">fn</span> <span class="ident">limbs</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span>[<span class="ident">Limb</span>]);
+        <span class="kw">fn</span> <span class="ident">limbs_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Limb</span>]);
     }
 }
 
@@ -1799,8 +1801,8 @@
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">dimension</span>() <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
         }
-        <span class="kw">let</span> <span class="ident">entries_per_64_bits</span> <span class="op">=</span> <span class="ident">entries_per_64_bits</span>(<span class="self">self</span>.<span class="ident">prime</span>());
-        <span class="kw">let</span> <span class="ident">num_limbs</span> <span class="op">=</span> (<span class="self">self</span>.<span class="ident">dimension</span>() <span class="op">-</span> <span class="number">1</span>) <span class="op">/</span> <span class="ident">entries_per_64_bits</span> <span class="op">+</span> <span class="number">1</span>;
+        <span class="kw">let</span> <span class="ident">entries_per_limb</span> <span class="op">=</span> <span class="ident">entries_per_limb</span>(<span class="self">self</span>.<span class="ident">prime</span>());
+        <span class="kw">let</span> <span class="ident">num_limbs</span> <span class="op">=</span> (<span class="self">self</span>.<span class="ident">dimension</span>() <span class="op">-</span> <span class="number">1</span>) <span class="op">/</span> <span class="ident">entries_per_limb</span> <span class="op">+</span> <span class="number">1</span>;
         <span class="comment">// self.limbs is allowed to have more limbs than necessary, but we only save the necessary</span>
         <span class="comment">// ones.</span>
         <span class="kw">for</span> <span class="ident">limb</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">limbs</span>()[<span class="number">0</span>..<span class="ident">num_limbs</span>] {
@@ -1822,13 +1824,13 @@
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>));
         }
 
-        <span class="kw">let</span> <span class="ident">entries_per_64_bits</span> <span class="op">=</span> <span class="ident">entries_per_64_bits</span>(<span class="ident">p</span>);
-        <span class="kw">let</span> <span class="ident">num_limbs</span> <span class="op">=</span> (<span class="ident">dimension</span> <span class="op">-</span> <span class="number">1</span>) <span class="op">/</span> <span class="ident">entries_per_64_bits</span> <span class="op">+</span> <span class="number">1</span>;
+        <span class="kw">let</span> <span class="ident">entries_per_limb</span> <span class="op">=</span> <span class="ident">entries_per_limb</span>(<span class="ident">p</span>);
+        <span class="kw">let</span> <span class="ident">num_limbs</span> <span class="op">=</span> (<span class="ident">dimension</span> <span class="op">-</span> <span class="number">1</span>) <span class="op">/</span> <span class="ident">entries_per_limb</span> <span class="op">+</span> <span class="number">1</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">dimension</span>);
 
         <span class="comment">// v.limbs may have more limbs than num_limbs, and the rest should be zeroed.</span>
         <span class="kw">for</span> <span class="ident">limb</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">v</span>.<span class="ident">limbs_mut</span>()[<span class="number">0</span>..<span class="ident">num_limbs</span>] {
-            <span class="kw-2">*</span><span class="ident">limb</span> <span class="op">=</span> <span class="ident">u64</span>::<span class="ident">load</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>())<span class="question-mark">?</span>;
+            <span class="kw-2">*</span><span class="ident">limb</span> <span class="op">=</span> <span class="ident">Limb</span>::<span class="ident">load</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>())<span class="question-mark">?</span>;
         }
 
         <span class="prelude-val">Ok</span>(<span class="ident">v</span>)
@@ -2196,7 +2198,7 @@
     <span class="kw">fn</span> <span class="ident">test_iterator_slice</span>(<span class="ident">p</span>: <span class="ident">u32</span>) {
         <span class="kw">let</span> <span class="ident">p_</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="ident">p</span>);
         <span class="ident">initialize_limb_bit_index_table</span>(<span class="ident">p_</span>);
-        <span class="kw">let</span> <span class="ident">ep</span> <span class="op">=</span> <span class="ident">entries_per_64_bits</span>(<span class="ident">p_</span>);
+        <span class="kw">let</span> <span class="ident">ep</span> <span class="op">=</span> <span class="ident">entries_per_limb</span>(<span class="ident">p_</span>);
         <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">dim</span> <span class="kw">in</span> <span class="kw-2">&amp;</span>[<span class="number">5</span>, <span class="number">10</span>, <span class="ident">ep</span>, <span class="ident">ep</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">ep</span> <span class="op">+</span> <span class="number">1</span>, <span class="number">3</span> <span class="op">*</span> <span class="ident">ep</span>, <span class="number">3</span> <span class="op">*</span> <span class="ident">ep</span> <span class="op">-</span> <span class="number">1</span>, <span class="number">3</span> <span class="op">*</span> <span class="ident">ep</span> <span class="op">+</span> <span class="number">1</span>] {
             <span class="kw">let</span> <span class="ident">v_arr</span> <span class="op">=</span> <span class="ident">random_vector</span>(<span class="ident">p</span>, <span class="ident">dim</span>);
             <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p_</span>, <span class="kw-2">&amp;</span><span class="ident">v_arr</span>);
@@ -2219,7 +2221,7 @@
     <span class="kw">fn</span> <span class="ident">test_iterator_skip</span>(<span class="ident">p</span>: <span class="ident">u32</span>) {
         <span class="kw">let</span> <span class="ident">p_</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="ident">p</span>);
         <span class="ident">initialize_limb_bit_index_table</span>(<span class="ident">p_</span>);
-        <span class="kw">let</span> <span class="ident">ep</span> <span class="op">=</span> <span class="ident">entries_per_64_bits</span>(<span class="ident">p_</span>);
+        <span class="kw">let</span> <span class="ident">ep</span> <span class="op">=</span> <span class="ident">entries_per_limb</span>(<span class="ident">p_</span>);
         <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="number">5</span> <span class="op">*</span> <span class="ident">ep</span>;
         <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">num_skip</span> <span class="kw">in</span> <span class="kw-2">&amp;</span>[<span class="ident">ep</span>, <span class="ident">ep</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">ep</span> <span class="op">+</span> <span class="number">1</span>, <span class="number">3</span> <span class="op">*</span> <span class="ident">ep</span>, <span class="number">3</span> <span class="op">*</span> <span class="ident">ep</span> <span class="op">-</span> <span class="number">1</span>, <span class="number">3</span> <span class="op">*</span> <span class="ident">ep</span> <span class="op">+</span> <span class="number">1</span>, <span class="number">6</span> <span class="op">*</span> <span class="ident">ep</span>] {
             <span class="kw">let</span> <span class="ident">v_arr</span> <span class="op">=</span> <span class="ident">random_vector</span>(<span class="ident">p</span>, <span class="ident">dim</span>);
@@ -2244,7 +2246,7 @@
     <span class="kw">fn</span> <span class="ident">test_iterator</span>(<span class="ident">p</span>: <span class="ident">u32</span>) {
         <span class="kw">let</span> <span class="ident">p_</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="ident">p</span>);
         <span class="ident">initialize_limb_bit_index_table</span>(<span class="ident">p_</span>);
-        <span class="kw">let</span> <span class="ident">ep</span> <span class="op">=</span> <span class="ident">entries_per_64_bits</span>(<span class="ident">p_</span>);
+        <span class="kw">let</span> <span class="ident">ep</span> <span class="op">=</span> <span class="ident">entries_per_limb</span>(<span class="ident">p_</span>);
         <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">dim</span> <span class="kw">in</span> <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">5</span>, <span class="number">10</span>, <span class="ident">ep</span>, <span class="ident">ep</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">ep</span> <span class="op">+</span> <span class="number">1</span>, <span class="number">3</span> <span class="op">*</span> <span class="ident">ep</span>, <span class="number">3</span> <span class="op">*</span> <span class="ident">ep</span> <span class="op">-</span> <span class="number">1</span>, <span class="number">3</span> <span class="op">*</span> <span class="ident">ep</span> <span class="op">+</span> <span class="number">1</span>] {
             <span class="kw">let</span> <span class="ident">v_arr</span> <span class="op">=</span> <span class="ident">random_vector</span>(<span class="ident">p</span>, <span class="ident">dim</span>);
             <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p_</span>, <span class="kw-2">&amp;</span><span class="ident">v_arr</span>);
