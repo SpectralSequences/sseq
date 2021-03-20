@@ -4,7 +4,7 @@
 use crate::prime::ValidPrime;
 pub use crate::vector_inner::initialize_limb_bit_index_table;
 use crate::vector_inner::{
-    entries_per_64_bits, FpVectorNonZeroIteratorP, FpVectorP, SliceMutP, SliceP,
+    entries_per_limb, FpVectorNonZeroIteratorP, FpVectorP, Limb, SliceMutP, SliceP,
 };
 use itertools::Itertools;
 #[cfg(feature = "json")]
@@ -25,7 +25,7 @@ impl FpVector {
     }
 
     pub fn padded_dimension(p: ValidPrime, dimension: usize) -> usize {
-        let entries_per_limb = entries_per_64_bits(p);
+        let entries_per_limb = entries_per_limb(p);
         ((dimension + entries_per_limb - 1) / entries_per_limb) * entries_per_limb
     }
 }
@@ -96,12 +96,12 @@ impl Load for FpVector {
             return Ok(FpVector::new(p, 0));
         }
 
-        let entries_per_64_bits = entries_per_64_bits(p);
-        let num_limbs = (dimension - 1) / entries_per_64_bits + 1;
+        let entries_per_limb = entries_per_limb(p);
+        let num_limbs = (dimension - 1) / entries_per_limb + 1;
         let mut v = FpVector::new(p, dimension);
 
         for limb in &mut v.limbs_mut()[0..num_limbs] {
-            *limb = u64::load(buffer, &())?;
+            *limb = Limb::load(buffer, &())?;
         }
 
         Ok(v)

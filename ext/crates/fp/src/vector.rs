@@ -9,7 +9,8 @@
 use crate::prime::ValidPrime;
 pub use crate::vector_inner::initialize_limb_bit_index_table;
 use crate::vector_inner::{
-    entries_per_64_bits, FpVectorIterator, FpVectorNonZeroIteratorP, FpVectorP, SliceMutP, SliceP,
+    entries_per_limb, FpVectorIterator, FpVectorNonZeroIteratorP, FpVectorP, Limb, SliceMutP,
+    SliceP,
 };
 use crate::TryInto;
 use itertools::Itertools;
@@ -187,7 +188,7 @@ impl FpVector {
     }
 
     pub fn padded_dimension(p: ValidPrime, dimension: usize) -> usize {
-        let entries_per_limb = entries_per_64_bits(p);
+        let entries_per_limb = entries_per_limb(p);
         ((dimension + entries_per_limb - 1) / entries_per_limb) * entries_per_limb
     }
 
@@ -216,8 +217,8 @@ impl FpVector {
         pub fn sign_rule(&self, other: &Self) -> bool;
         pub fn add_carry(&mut self, other: &Self, c: u32, rest: &mut [FpVector]) -> bool;
 
-        fn limbs(&self) -> (&[u64]);
-        fn limbs_mut(&mut self) -> (&mut [u64]);
+        fn limbs(&self) -> (&[Limb]);
+        fn limbs_mut(&mut self) -> (&mut [Limb]);
     }
 }
 
@@ -357,8 +358,8 @@ impl Save for FpVector {
         if self.dimension() == 0 {
             return Ok(());
         }
-        let entries_per_64_bits = entries_per_64_bits(self.prime());
-        let num_limbs = (self.dimension() - 1) / entries_per_64_bits + 1;
+        let entries_per_limb = entries_per_limb(self.prime());
+        let num_limbs = (self.dimension() - 1) / entries_per_limb + 1;
         // self.limbs is allowed to have more limbs than necessary, but we only save the necessary
         // ones.
         for limb in &self.limbs()[0..num_limbs] {
@@ -380,13 +381,13 @@ impl Load for FpVector {
             return Ok(FpVector::new(p, 0));
         }
 
-        let entries_per_64_bits = entries_per_64_bits(p);
-        let num_limbs = (dimension - 1) / entries_per_64_bits + 1;
+        let entries_per_limb = entries_per_limb(p);
+        let num_limbs = (dimension - 1) / entries_per_limb + 1;
         let mut v = FpVector::new(p, dimension);
 
         // v.limbs may have more limbs than num_limbs, and the rest should be zeroed.
         for limb in &mut v.limbs_mut()[0..num_limbs] {
-            *limb = u64::load(buffer, &())?;
+            *limb = Limb::load(buffer, &())?;
         }
 
         Ok(v)
@@ -754,7 +755,7 @@ mod test {
     fn test_iterator_slice(p: u32) {
         let p_ = ValidPrime::new(p);
         initialize_limb_bit_index_table(p_);
-        let ep = entries_per_64_bits(p_);
+        let ep = entries_per_limb(p_);
         for &dim in &[5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
             let v_arr = random_vector(p, dim);
             let v = FpVector::from_slice(p_, &v_arr);
@@ -777,7 +778,7 @@ mod test {
     fn test_iterator_skip(p: u32) {
         let p_ = ValidPrime::new(p);
         initialize_limb_bit_index_table(p_);
-        let ep = entries_per_64_bits(p_);
+        let ep = entries_per_limb(p_);
         let dim = 5 * ep;
         for &num_skip in &[ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1, 6 * ep] {
             let v_arr = random_vector(p, dim);
@@ -802,7 +803,7 @@ mod test {
     fn test_iterator(p: u32) {
         let p_ = ValidPrime::new(p);
         initialize_limb_bit_index_table(p_);
-        let ep = entries_per_64_bits(p_);
+        let ep = entries_per_limb(p_);
         for &dim in &[0, 5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
             let v_arr = random_vector(p, dim);
             let v = FpVector::from_slice(p_, &v_arr);
