@@ -1168,6 +1168,9 @@ use saveload::{Save, Load};
 
 impl<CC : ChainComplex> Save for ResolutionInner<CC> {
     fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+        let max_algebra_dim = self.module(0).max_computed_degree() - self.min_degree();
+
+        max_algebra_dim.save(buffer)?;
         self.modules.save(buffer)?;
         self.kernels.save(buffer)?;
         self.differentials.save(buffer)?;
@@ -1180,6 +1183,9 @@ impl<CC : ChainComplex> Load for ResolutionInner<CC> {
     type AuxData = Arc<CC>;
 
     fn load(buffer : &mut impl Read, cc : &Self::AuxData) -> io::Result<Self> {
+        let max_algebra_dim = i32::load(buffer, &())?;
+        cc.algebra().compute_basis(max_algebra_dim);
+
         let mut result = ResolutionInner::new(Arc::clone(cc));
 
         let algebra = result.algebra();
@@ -1215,8 +1221,6 @@ impl<CC : ChainComplex> Load for ResolutionInner<CC> {
 
 impl<CC : UnitChainComplex> Save for Resolution<CC> {
     fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
-        let algebra_dim = *self.next_t.lock() - self.min_degree() - 1;
-        algebra_dim.save(buffer)?;
         self.inner.save(buffer)
     }
 }
@@ -1225,9 +1229,6 @@ impl<CC : UnitChainComplex> Load for Resolution<CC> {
     type AuxData = Arc<CC>;
 
     fn load(buffer : &mut impl Read, cc : &Self::AuxData) -> io::Result<Self> {
-        let dim = i32::load(buffer, &())?;
-        cc.algebra().compute_basis(dim);
-
         let inner = ResolutionInner::load(buffer, cc)?;
 
         let result = Resolution::new_with_inner(inner, None, None);
