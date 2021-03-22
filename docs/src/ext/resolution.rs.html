@@ -1265,6 +1265,7 @@
 <span id="1244">1244</span>
 <span id="1245">1245</span>
 <span id="1246">1246</span>
+<span id="1247">1247</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="ident">parking_lot</span>::{<span class="ident">RwLock</span>, <span class="ident">Mutex</span>};
@@ -2436,6 +2437,9 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">CC</span> : <span class="ident">ChainComplex</span><span class="op">&gt;</span> <span class="ident">Save</span> <span class="kw">for</span> <span class="ident">ResolutionInner</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">save</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span> : <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">max_algebra_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">module</span>(<span class="number">0</span>).<span class="ident">max_computed_degree</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">min_degree</span>();
+
+        <span class="ident">max_algebra_dim</span>.<span class="ident">save</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
         <span class="self">self</span>.<span class="ident">modules</span>.<span class="ident">save</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
         <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">save</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
         <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">save</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
@@ -2448,6 +2452,9 @@
     <span class="kw">type</span> <span class="ident">AuxData</span> <span class="op">=</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>;
 
     <span class="kw">fn</span> <span class="ident">load</span>(<span class="ident">buffer</span> : <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Read</span>, <span class="ident">cc</span> : <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">AuxData</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">max_algebra_dim</span> <span class="op">=</span> <span class="ident">i32</span>::<span class="ident">load</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>())<span class="question-mark">?</span>;
+        <span class="ident">cc</span>.<span class="ident">algebra</span>().<span class="ident">compute_basis</span>(<span class="ident">max_algebra_dim</span>);
+
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">ResolutionInner</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="ident">cc</span>));
 
         <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">result</span>.<span class="ident">algebra</span>();
@@ -2483,8 +2490,6 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">CC</span> : <span class="ident">UnitChainComplex</span><span class="op">&gt;</span> <span class="ident">Save</span> <span class="kw">for</span> <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">save</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span> : <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">algebra_dim</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">next_t</span>.<span class="ident">lock</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">min_degree</span>() <span class="op">-</span> <span class="number">1</span>;
-        <span class="ident">algebra_dim</span>.<span class="ident">save</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
         <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">save</span>(<span class="ident">buffer</span>)
     }
 }
@@ -2493,9 +2498,6 @@
     <span class="kw">type</span> <span class="ident">AuxData</span> <span class="op">=</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>;
 
     <span class="kw">fn</span> <span class="ident">load</span>(<span class="ident">buffer</span> : <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Read</span>, <span class="ident">cc</span> : <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">AuxData</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">i32</span>::<span class="ident">load</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>())<span class="question-mark">?</span>;
-        <span class="ident">cc</span>.<span class="ident">algebra</span>().<span class="ident">compute_basis</span>(<span class="ident">dim</span>);
-
         <span class="kw">let</span> <span class="ident">inner</span> <span class="op">=</span> <span class="ident">ResolutionInner</span>::<span class="ident">load</span>(<span class="ident">buffer</span>, <span class="ident">cc</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Resolution</span>::<span class="ident">new_with_inner</span>(<span class="ident">inner</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>);
