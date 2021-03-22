@@ -11,16 +11,3 @@ pub mod vector_2;
 pub use vector_2 as vector;
 
 pub mod vector_inner;
-
-/// This is a version of [`std::convert::TryInto`] that deals with mutable references instead. We
-/// cannot condition on `TryInto` for mutable references due to lifetime issues. This is used for
-/// the add_carry implementation
-pub trait TryInto<T> {
-    fn try_into(&mut self) -> Option<&mut T>;
-}
-
-impl<T> TryInto<T> for T {
-    fn try_into(&mut self) -> Option<&mut T> {
-        Some(self)
-    }
-}

@@ -12,10 +12,10 @@ use crate::vector_inner::{
     entries_per_limb, FpVectorIterator, FpVectorNonZeroIteratorP, FpVectorP, Limb, SliceMutP,
     SliceP,
 };
-use crate::TryInto;
 use itertools::Itertools;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::convert::TryInto;
 
 macro_rules! dispatch_vector_inner {
     // other is a type, but marking it as a :ty instead of :tt means we cannot use it to access its
@@ -311,11 +311,13 @@ impl<'a> Iterator for FpVectorNonZeroIterator<'a> {
 
 macro_rules! impl_try_into {
     ($var:tt, $p:literal) => {
-        impl<'a> TryInto<FpVectorP<$p>> for FpVector {
-            fn try_into(&mut self) -> Option<&mut FpVectorP<$p>> {
+        impl<'a> TryInto<&'a mut FpVectorP<$p>> for &'a mut FpVector {
+            type Error = ();
+
+            fn try_into(self) -> Result<&'a mut FpVectorP<$p>, ()> {
                 match self {
-                    FpVector::$var(ref mut x) => Some(x),
-                    _ => None,
+                    FpVector::$var(ref mut x) => Ok(x),
+                    _ => Err(()),
                 }
             }
         }

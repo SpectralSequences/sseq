@@ -5,8 +5,8 @@
 use crate::const_for;
 use crate::prime::ValidPrime;
 use crate::prime::{NUM_PRIMES, PRIMES, PRIME_TO_INDEX_MAP};
-use crate::TryInto;
 use std::cmp::Ordering;
+use std::convert::TryInto;
 use std::sync::Once;
 
 pub(crate) type Limb = u64;
@@ -349,13 +349,10 @@ impl<const P: u32> FpVectorP<P> {
         Some(())
     }
 
-    fn add_carry_limb<T: TryInto<Self>>(
-        &mut self,
-        idx: usize,
-        source: Limb,
-        c: u32,
-        rest: &mut [T],
-    ) -> bool {
+    fn add_carry_limb<T>(&mut self, idx: usize, source: Limb, c: u32, rest: &mut [T]) -> bool
+    where
+        for<'a> &'a mut T: TryInto<&'a mut Self, Error = ()>,
+    {
         if P == 2 {
             if c == 0 {
                 return false;
@@ -380,7 +377,10 @@ impl<const P: u32> FpVectorP<P> {
         }
     }
 
-    pub fn add_carry<T: TryInto<Self>>(&mut self, other: &Self, c: u32, rest: &mut [T]) -> bool {
+    pub fn add_carry<T>(&mut self, other: &Self, c: u32, rest: &mut [T]) -> bool
+    where
+        for<'a> &'a mut T: TryInto<&'a mut Self, Error = ()>,
+    {
         let mut result = false;
         for i in 0..self.limbs.len() {
             result |= self.add_carry_limb(i, other.limbs[i], c, rest);
