@@ -2,18 +2,49 @@ use core::cell::UnsafeCell;
 use core::ops::{Index, IndexMut};
 use std::cmp::{Eq, PartialEq};
 use std::fmt;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
 
 const USIZE_LEN: u32 = 0usize.count_zeros();
 
+/// The maximum length of a OnceVec is 2^{MAX_OUTER_LENGTH} - 1. The performance cost of increasing
+/// MAX_OUTER_LENGTH is relatively small, but [T; N] does not implement Default for N > 32, which
+/// we need for initialization. So let us stick with 32.
+const MAX_OUTER_LENGTH: usize = 32;
+
+/// A OnceVec is a push-only vector which is (hopefully) thread-safe. To ensure thread-safety, we
+/// need to ensure three things
+///
+///  1. Never reallocate, since this would invalidate pointers held by other threads
+///  2. Prevent simultaneous pushes
+///  3. Avoid reading partially written data
+///
+/// To ensure (1), we use an array of Vec's of exponentially increasing capacity. Each Vec is
+/// allocated when we first push an item to it to avoid preallocating a huge amount of memory.
+///
+/// To ensure (2), we use a mutex to lock when *writing* only. Note that data races are instant UB,
+/// even with UnsafeCell. An earlier attempt sought to panic if such a data race is detected with
+/// compare_exchange, but panicking after the fact is too late.
+///
+/// To ensure (3), we store the length of the vector in an AtomicUsize. We update this value
+/// *after* writing to the vec, and check the value *before* reading the vec. The invariant to be
+/// maintained is that at any point in time, the values up to `self.len` are always fully written.
 pub struct OnceVec<T> {
-    data: UnsafeCell<Vec<Vec<T>>>,
+    len: AtomicUsize,
+    lock: Mutex<()>,
+    data: UnsafeCell<Box<[Vec<T>; MAX_OUTER_LENGTH]>>,
 }
 
-// TODO: This is not safe until we have some sort of write lock.
 impl<T: Clone> Clone for OnceVec<T> {
     fn clone(&self) -> Self {
+        // Must read the len before the data
+        let len = self.len();
+        let data = unsafe { self.get_inner().clone() };
+
         Self {
-            data: UnsafeCell::new(unsafe { (&*self.data.get()).clone() }),
+            len: AtomicUsize::new(len),
+            lock: Mutex::new(()),
+            data: UnsafeCell::new(Box::new(data)),
         }
     }
 }
@@ -76,35 +107,36 @@ impl<T> OnceVec<T> {
 
     pub fn new() -> Self {
         Self {
-            data: UnsafeCell::new(Vec::with_capacity(64)),
+            len: AtomicUsize::new(0),
+            lock: Mutex::new(()),
+            data: UnsafeCell::new(Default::default()),
         }
     }
 
+    /// Since OnceVec never reallocates, with_capacity is the same as normal initialization.
+    /// However, it is included for consistency.
     pub fn with_capacity(_capacity: usize) -> Self {
         Self::new()
     }
 
+    /// Since OnceVec never reallocates, reserve is a noop. However, it is included for
+    /// consistency.
+    pub fn reserve(&self, _capacity: usize) {}
+
+    /// All data up to length self.len() are guaranteed to be fully written *after* reading
+    /// self.len().
     pub fn len(&self) -> usize {
-        unsafe {
-            let outer = &mut *self.data.get();
-            let outer_len = outer.len();
-            if outer_len == 0 {
-                0
-            } else if outer_len == 1 {
-                1
-            } else {
-                (1 << (outer_len - 1)) - 1 + outer[outer_len - 1].len()
-            }
-        }
+        self.len.load(Ordering::Acquire)
     }
 
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    pub fn get(&self, idx: usize) -> Option<&T> {
-        if idx < self.len() {
-            Some(&self[idx])
+    pub fn get(&self, index: usize) -> Option<&T> {
+        if index < self.len() {
+            let (page, index) = Self::inner_index(index);
+            unsafe { Some(self.get_inner().get_unchecked(page).get_unchecked(index)) }
         } else {
             None
         }
@@ -118,66 +150,89 @@ impl<T> OnceVec<T> {
         }
     }
 
-    pub fn reserve(&self, _additional: usize) {}
+    const fn inner_index(index: usize) -> (usize, usize) {
+        let page = (USIZE_LEN - 1 - (index + 1).leading_zeros()) as usize;
+        let index = (index + 1) - (1 << page);
+        (page, index)
+    }
 
-    pub fn reserve_exact(&self, _additional: usize) {}
+    #[allow(clippy::mut_from_ref)]
+    unsafe fn get_inner(&self) -> &mut [Vec<T>; MAX_OUTER_LENGTH] {
+        &mut *self.data.get()
+    }
 
     pub fn push(&self, x: T) {
         unsafe {
-            let outer_vec = &mut *self.data.get();
-            if (self.len() + 1).is_power_of_two() {
-                // need a new entry
-                outer_vec.push(Vec::with_capacity(1 << outer_vec.len()));
+            let _lock = self.lock.lock();
+            let old_len = self.len.load(Ordering::Acquire);
+            let (page, index) = Self::inner_index(old_len);
+            let inner = self.get_inner();
+            if index == 0 {
+                inner[page].reserve_exact(old_len + 1);
             }
-            let inner_vec = outer_vec.last_mut().unwrap();
-            inner_vec.push(x);
+            inner[page].push(x);
+            self.len.store(old_len + 1, Ordering::Release);
         }
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         let len = self.len();
-        unsafe { (&*self.data.get()).iter().flatten().take(len) }
+        unsafe { self.get_inner().iter().flatten().take(len) }
     }
 }
 
 impl<T> IntoIterator for OnceVec<T> {
     type Item = T;
-    type IntoIter = std::iter::Flatten<std::vec::IntoIter<Vec<T>>>;
+    type IntoIter = std::iter::Flatten<std::array::IntoIter<Vec<T>, MAX_OUTER_LENGTH>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.data.into_inner().into_iter().flatten()
+        std::array::IntoIter::new(*self.data.into_inner()).flatten()
     }
 }
 
 impl<T> Index<usize> for OnceVec<T> {
     type Output = T;
-    fn index(&self, mut key: usize) -> &T {
-        key += 1;
-        let page = ((USIZE_LEN - 1) - key.leading_zeros()) as usize;
-        key -= 1 << page;
-        unsafe { &(&*self.data.get())[page][key] }
+    fn index(&self, index: usize) -> &T {
+        let len = self.len();
+        if index >= len {
+            panic!(
+                "Index out of bounds: the len is {} but the index is {}",
+                len, index
+            );
+        }
+        let (page, index) = Self::inner_index(index);
+        unsafe { self.get_inner().get_unchecked(page).get_unchecked(index) }
     }
 }
 
 impl<T> IndexMut<usize> for OnceVec<T> {
-    fn index_mut(&mut self, mut key: usize) -> &mut T {
-        key += 1;
-        let page = ((USIZE_LEN - 1) - key.leading_zeros()) as usize;
-        key -= 1 << page;
-        unsafe { &mut (&mut *self.data.get())[page][key] }
+    fn index_mut(&mut self, index: usize) -> &mut T {
+        let len = self.len();
+        if index >= len {
+            panic!(
+                "Index out of bounds: the len is {} but the index is {}",
+                len, index
+            );
+        }
+        let (page, index) = Self::inner_index(index);
+        unsafe {
+            self.get_inner()
+                .get_unchecked_mut(page)
+                .get_unchecked_mut(index)
+        }
     }
 }
 
 impl<T> Index<u32> for OnceVec<T> {
     type Output = T;
-    fn index(&self, key: u32) -> &T {
-        self.index(key as usize)
+    fn index(&self, index: u32) -> &T {
+        self.index(index as usize)
     }
 }
 
 impl<T> IndexMut<u32> for OnceVec<T> {
-    fn index_mut(&mut self, key: u32) -> &mut T {
-        self.index_mut(key as usize)
+    fn index_mut(&mut self, index: u32) -> &mut T {
+        self.index_mut(index as usize)
     }
 }
 
@@ -289,8 +344,8 @@ impl<T> OnceBiVec<T> {
         self.data.push(x);
     }
 
-    pub fn get(&self, idx: i32) -> Option<&T> {
-        self.data.get((idx - self.min_degree) as usize)
+    pub fn get(&self, index: i32) -> Option<&T> {
+        self.data.get((index - self.min_degree) as usize)
     }
 
     pub fn last(&self) -> Option<&T> {
@@ -306,25 +361,8 @@ impl<T> OnceBiVec<T> {
             .iter()
             .enumerate()
             .map(move |(i, t)| (i as i32 + min_degree, t))
-        // .collect()
     }
 }
-
-// impl<T : Serialize> Serialize for OnceBiVec<T> {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//         where S : Serializer
-//     {
-//         self.data.serialize(serializer) // Do better than this
-//     }
-// }
-
-// impl<'de, T : Deserialize<'de>> Deserialize<'de> for OnceBiVec<T> {
-//     fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
-//         where D : Deserializer<'de>
-//     {
-//         unimplemented!()
-//     }
-// }
 
 impl<T> Index<i32> for OnceBiVec<T> {
     type Output = T;
@@ -361,6 +399,14 @@ mod tests {
     // use rstest::rstest_parametrize;
 
     #[test]
+    fn test_inner_index() {
+        assert_eq!(OnceVec::<()>::inner_index(0), (0, 0));
+        assert_eq!(OnceVec::<()>::inner_index(1), (1, 0));
+        assert_eq!(OnceVec::<()>::inner_index(2), (1, 1));
+        assert_eq!(OnceVec::<()>::inner_index(3), (2, 0));
+    }
+
+    #[test]
     fn test_push() {
         let v = OnceVec::new();
         for i in 0u32..100_000u32 {
@@ -368,30 +414,6 @@ mod tests {
             println!("i : {}", i);
             assert_eq!(v[i], i);
         }
-    }
-
-    #[test]
-    fn test_segv() {
-        let v = OnceVec::new();
-        v.push(vec![0]);
-        let firstvec: &Vec<i32> = &v[0usize];
-        println!(
-            "firstvec[0] : {} firstvec_addr: {:p}",
-            firstvec[0], firstvec as *const Vec<i32>
-        );
-        let mut address: *const Vec<i32> = &v[0usize];
-        for i in 0..=1028 * 1028 {
-            if address != &v[0usize] {
-                address = &v[0usize];
-                println!("moved. i: {}. New address: {:p}", i, address);
-            }
-            v.push(vec![i]);
-        }
-        println!("old_addr   : {:p}", firstvec as *const Vec<i32>);
-        println!("actual_addr: {:p}", &v[0usize] as *const Vec<i32>);
-
-        println!("Next line segfaults:");
-        println!("{}", firstvec[0]);
     }
 
     #[test]
