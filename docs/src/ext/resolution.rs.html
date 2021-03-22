@@ -1266,6 +1266,10 @@
 <span id="1245">1245</span>
 <span id="1246">1246</span>
 <span id="1247">1247</span>
+<span id="1248">1248</span>
+<span id="1249">1249</span>
+<span id="1250">1250</span>
+<span id="1251">1251</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="ident">parking_lot</span>::{<span class="ident">RwLock</span>, <span class="ident">Mutex</span>};
@@ -1974,7 +1978,7 @@
             <span class="ident">max_s</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">next_s</span> <span class="op">-</span> <span class="number">1</span>;
         }
 
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">complex</span>().<span class="ident">compute_through_bidegree</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>);
+        <span class="self">self</span>.<span class="ident">complex</span>().<span class="ident">compute_through_bidegree</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>);
         <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">extend_through_degree</span>(<span class="kw-2">*</span><span class="ident">next_s</span>, <span class="ident">max_s</span>, <span class="kw-2">*</span><span class="ident">next_t</span>, <span class="ident">max_t</span>);
         <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">compute_basis</span>(<span class="ident">max_t</span> <span class="op">-</span> <span class="ident">min_degree</span>);
 
@@ -2041,7 +2045,7 @@
             <span class="ident">max_s</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">next_s</span> <span class="op">-</span> <span class="number">1</span>;
         }
 
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">complex</span>().<span class="ident">compute_through_bidegree</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>);
+        <span class="self">self</span>.<span class="ident">complex</span>().<span class="ident">compute_through_bidegree</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>);
         <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">extend_through_degree</span>(<span class="kw-2">*</span><span class="ident">next_s</span>, <span class="ident">max_s</span>, <span class="kw-2">*</span><span class="ident">next_t</span>, <span class="ident">max_t</span>);
         <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">compute_basis</span>(<span class="ident">max_t</span> <span class="op">-</span> <span class="ident">min_degree</span>);
 
@@ -2173,6 +2177,10 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">graded_dimension_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
         <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">graded_dimension_string</span>(<span class="self">self</span>.<span class="ident">max_computed_degree</span>(), <span class="self">self</span>.<span class="ident">max_computed_homological_degree</span>())
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">complex</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">complex</span>()
     }
 }
 
@@ -2411,7 +2419,7 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">CC</span> : <span class="ident">UnitChainComplex</span><span class="op">&gt;</span> <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>
 {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">CC</span>::<span class="ident">Module</span> <span class="kw">as</span> <span class="ident">Module</span><span class="op">&gt;</span>::<span class="ident">Algebra</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">complex</span>().<span class="ident">algebra</span>()
+        <span class="self">self</span>.<span class="ident">complex</span>().<span class="ident">algebra</span>()
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidPrime</span> {
@@ -2423,7 +2431,7 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">complex</span>().<span class="ident">min_degree</span>()
+        <span class="self">self</span>.<span class="ident">complex</span>().<span class="ident">min_degree</span>()
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">differential</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span> : <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">CC</span>::<span class="ident">Module</span> <span class="kw">as</span> <span class="ident">Module</span><span class="op">&gt;</span>::<span class="ident">Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {

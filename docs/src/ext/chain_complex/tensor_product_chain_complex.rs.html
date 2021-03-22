@@ -631,7 +631,6 @@
 <span id="610">610</span>
 <span id="611">611</span>
 <span id="612">612</span>
-<span id="613">613</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">Bialgebra</span>, <span class="ident">SteenrodAlgebra</span>};
@@ -1205,8 +1204,7 @@
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">2</span>);
 
         <span class="kw">let</span> <span class="ident">k</span> <span class="op">=</span> <span class="ident">serde_json</span>::<span class="ident">from_str</span>(<span class="ident">k</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">bundle</span> <span class="op">=</span> <span class="ident">construct_from_json</span>(<span class="ident">k</span>, <span class="string">&quot;adem&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">bundle</span>.<span class="ident">resolution</span>.<span class="ident">read</span>();
+        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">construct_from_json</span>(<span class="ident">k</span>, <span class="string">&quot;adem&quot;</span>).<span class="ident">unwrap</span>();
         <span class="ident">resolution</span>.<span class="ident">resolve_through_bidegree</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">s</span>, <span class="number">2</span> <span class="op">*</span> <span class="ident">t</span>);
 
         <span class="kw">let</span> <span class="ident">yoneda</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">yoneda_representative_element</span>(
