@@ -1,1 +1,1 @@
-initSidebarItems({"constant":[["USIZE_LEN",""]],"struct":[["OnceBiVec",""],["OnceVec",""]]});
+initSidebarItems({"constant":[["MAX_OUTER_LENGTH","The maximum length of a OnceVec is 2^{MAX_OUTER_LENGTH} - 1. The performance cost of increasing MAX_OUTER_LENGTH is relatively small, but [T; N] does not implement Default for N > 32, which we need for initialization. So let us stick with 32."],["USIZE_LEN",""]],"struct":[["OnceBiVec",""],["OnceVec","A OnceVec is a push-only vector which is (hopefully) thread-safe. To ensure thread-safety, we need to ensure three things"]]});
