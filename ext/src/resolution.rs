@@ -705,7 +705,7 @@ impl<CC : UnitChainComplex> Resolution<CC> {
             max_s = *next_s - 1;
         }
 
-        self.inner.complex().compute_through_bidegree(max_s, max_t);
+        self.complex().compute_through_bidegree(max_s, max_t);
         self.inner.extend_through_degree(*next_s, max_s, *next_t, max_t);
         self.algebra().compute_basis(max_t - min_degree);
 
@@ -772,7 +772,7 @@ impl<CC : UnitChainComplex> Resolution<CC> {
             max_s = *next_s - 1;
         }
 
-        self.inner.complex().compute_through_bidegree(max_s, max_t);
+        self.complex().compute_through_bidegree(max_s, max_t);
         self.inner.extend_through_degree(*next_s, max_s, *next_t, max_t);
         self.algebra().compute_basis(max_t - min_degree);
 
@@ -904,6 +904,10 @@ impl<CC : UnitChainComplex> Resolution<CC> {
 
     pub fn graded_dimension_string(&self) -> String {
         self.inner.graded_dimension_string(self.max_computed_degree(), self.max_computed_homological_degree())
+    }
+
+    pub fn complex(&self) -> Arc<CC> {
+        self.inner.complex()
     }
 }
 
@@ -1142,7 +1146,7 @@ impl<CC : UnitChainComplex> Resolution<CC> {
 impl<CC : UnitChainComplex> Resolution<CC>
 {
     pub fn algebra(&self) -> Arc<<CC::Module as Module>::Algebra> {
-        self.inner.complex().algebra()
+        self.complex().algebra()
     }
 
     pub fn prime(&self) -> ValidPrime {
@@ -1154,7 +1158,7 @@ impl<CC : UnitChainComplex> Resolution<CC>
     }
 
     pub fn min_degree(&self) -> i32 {
-        self.inner.complex().min_degree()
+        self.complex().min_degree()
     }
 
     pub fn differential(&self, s : u32) -> Arc<FreeModuleHomomorphism<FreeModule<<CC::Module as Module>::Algebra>>> {

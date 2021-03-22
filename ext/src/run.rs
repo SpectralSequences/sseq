@@ -42,8 +42,7 @@ pub fn define_module() -> error::Result<String> {
 }
 
 pub fn resolve(config: &Config) -> error::Result<String> {
-    let bundle = construct(config)?;
-    let res = bundle.resolution.read();
+    let res = construct(config)?;
 
     #[cfg(not(feature = "concurrent"))]
     res.resolve_through_degree(config.max_degree);
@@ -67,9 +66,8 @@ pub fn yoneda(_: &Config) -> error::Result<String> {
 
 #[cfg(feature = "yoneda")]
 pub fn yoneda(config: &Config) -> error::Result<String> {
-    let bundle = construct(config)?;
-    let module = bundle.chain_complex.module(0);
-    let resolution = bundle.resolution.read();
+    let resolution = construct(config)?;
+    let module = resolution.complex().module(0);
     let min_degree = resolution.min_degree();
 
     #[cfg(feature = "concurrent")]
@@ -182,19 +180,16 @@ pub fn steenrod() -> error::Result<String> {
 
 #[cfg(feature = "yoneda")]
 pub fn steenrod() -> error::Result<String> {
-    let bundle = construct_s_2("adem");
-    let mut resolution = &*bundle.resolution.read();
-    let module = bundle.chain_complex.module(0);
-
-    let saved_resolution;
+    let mut resolution = construct_s_2("adem");
+    let complex = resolution.complex();
+    let module = complex.module(0);
 
     if Path::new("resolution.save").exists() {
         print!("Loading saved resolution: ");
         let start = Instant::now();
         let f = File::open("resolution.save")?;
         let mut f = BufReader::new(f);
-        saved_resolution = Resolution::load(&mut f, &bundle.chain_complex)?;
-        resolution = &saved_resolution;
+        resolution = Resolution::load(&mut f, &complex)?;
         println!("{:?}", start.elapsed());
     }
 
@@ -518,10 +513,7 @@ pub fn steenrod() -> error::Result<String> {
 }
 
 pub fn secondary() -> error::Result<String> {
-    let bundle = construct_s_2("milnor");
-    let mut resolution = &*bundle.resolution.read();
-
-    let saved_resolution;
+    let mut resolution = construct_s_2("milnor");
 
     let max_s = query_with_default("Max s", 7, Ok);
     let max_t = query_with_default("Max t", 30, Ok);
@@ -538,8 +530,7 @@ pub fn secondary() -> error::Result<String> {
         let start = Instant::now();
         let f = File::open(&*res_save_file)?;
         let mut f = BufReader::new(f);
-        saved_resolution = Resolution::load(&mut f, &bundle.chain_complex)?;
-        resolution = &saved_resolution;
+        resolution = Resolution::load(&mut f, &resolution.complex())?;
         println!("{:.2?}", start.elapsed());
     }
 

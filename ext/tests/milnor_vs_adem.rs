@@ -35,9 +35,6 @@ fn compare(module_name: &str, max_degree: i32) {
     let a = construct(&a).unwrap();
     let b = construct(&b).unwrap();
 
-    let a = a.resolution.read();
-    let b = b.resolution.read();
-
     #[cfg(not(feature = "concurrent"))]
     {
         a.resolve_through_degree(max_degree);

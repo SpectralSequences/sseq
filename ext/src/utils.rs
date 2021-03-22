@@ -1,7 +1,6 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 use std::error::Error;
 use std::sync::Arc;
-use parking_lot::RwLock;
 use serde_json::{json, Value};
 
 use std::path::PathBuf;
@@ -23,20 +22,14 @@ pub struct Config {
     pub max_degree : i32
 }
 
-pub struct AlgebraicObjectsBundle {
-    pub chain_complex : Arc<CCC>,
-    pub module: Arc<FiniteModule>,
-    pub resolution : Arc<RwLock<Resolution<CCC>>>
-}
-
-pub fn construct(config : &Config) -> error::Result<AlgebraicObjectsBundle> {
+pub fn construct(config : &Config) -> error::Result<Resolution<CCC>> {
     let contents = load_module_from_file(config)?;
     let json = serde_json::from_str(&contents)?;
 
     construct_from_json(json, &config.algebra_name)
 }
 
-pub fn construct_from_json(mut json : Value, algebra_name : &str) -> error::Result<AlgebraicObjectsBundle> {
+pub fn construct_from_json(mut json : Value, algebra_name : &str) -> error::Result<Resolution<CCC>> {
     let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra_name)?);
     let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut json)?);
     let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
@@ -114,11 +107,7 @@ pub fn construct_from_json(mut json : Value, algebra_name : &str) -> error::Resu
             resolution.add_self_map(s, t, &name.to_string(), map_data);
         }
     }
-    Ok(AlgebraicObjectsBundle {
-        chain_complex,
-        module,
-        resolution : Arc::new(RwLock::new(resolution))
-    })
+    Ok(resolution)
 }
 
 pub fn load_module_from_file(config : &Config) -> error::Result<String> {
@@ -137,7 +126,7 @@ pub fn load_module_from_file(config : &Config) -> error::Result<String> {
     }.into())
 }
 
-pub fn construct_s_2(algebra: &str) -> AlgebraicObjectsBundle {
+pub fn construct_s_2(algebra: &str) -> Resolution<CCC> {
     let json = json!({
         "type" : "finite dimensional module",
         "p": 2,
@@ -152,16 +141,12 @@ macro_rules! load_s_2 {
     ($resolution:ident, $algebra:literal, $path:literal) => {
         use saveload::Load;
 
-        let bundle = ext::utils::construct_s_2($algebra);
-        let mut resolution = &*bundle.resolution.read();
+        let mut resolution = ext::utils::construct_s_2($algebra);
 
-        // The code is slightly convoluted to deal with lifetime issues.
-        let saved_resolution;
         if std::path::Path::new($path).exists() {
             let f = std::fs::File::open($path).unwrap();
             let mut f = std::io::BufReader::new(f);
-            saved_resolution = ext::resolution::Resolution::load(&mut f, &bundle.chain_complex).unwrap();
-            resolution = &saved_resolution;
+            resolution = ext::resolution::Resolution::load(&mut f, &resolution.complex()).unwrap();
         }
         let $resolution = resolution;
     }
