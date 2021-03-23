@@ -351,7 +351,7 @@ impl<const P: u32> FpVectorP<P> {
 
     fn add_carry_limb<T>(&mut self, idx: usize, source: Limb, c: u32, rest: &mut [T]) -> bool
     where
-        for<'a> &'a mut T: TryInto<&'a mut Self, Error = ()>,
+        for<'a> &'a mut T: TryInto<&'a mut Self>,
     {
         if P == 2 {
             if c == 0 {
@@ -360,7 +360,10 @@ impl<const P: u32> FpVectorP<P> {
             let mut cur_vec = self;
             let mut carry = source;
             for carry_vec in rest.iter_mut() {
-                let carry_vec = carry_vec.try_into().unwrap();
+                let carry_vec = carry_vec
+                    .try_into()
+                    .ok()
+                    .expect("rest vectors in add_carry must be of the same prime");
                 let rem = cur_vec.limbs[idx] ^ carry;
                 let quot = cur_vec.limbs[idx] & carry;
                 cur_vec.limbs[idx] = rem;
@@ -379,7 +382,7 @@ impl<const P: u32> FpVectorP<P> {
 
     pub fn add_carry<T>(&mut self, other: &Self, c: u32, rest: &mut [T]) -> bool
     where
-        for<'a> &'a mut T: TryInto<&'a mut Self, Error = ()>,
+        for<'a> &'a mut T: TryInto<&'a mut Self>,
     {
         let mut result = false;
         for i in 0..self.limbs.len() {
