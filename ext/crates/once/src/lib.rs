@@ -96,12 +96,32 @@ impl<T> OnceVec<T> {
         self.into_iter().collect()
     }
 
-    // TODO: Make this more efficient
-    pub fn from_vec(vec: Vec<T>) -> Self {
-        let result = Self::new();
-        for item in vec {
-            result.push(item);
+    /// Creates a OnceVec from a Vec.
+    ///
+    /// # Example
+    /// ```
+    /// # use once::OnceVec;
+    /// let v = vec![1, 3, 5, 2];
+    /// let w = OnceVec::from_vec(v.clone());
+    /// assert_eq!(w.len(), 4);
+    /// for i in 0 .. 4 {
+    ///     assert_eq!(v[i], w[i]);
+    /// }
+    /// ```
+    pub fn from_vec(mut vec: Vec<T>) -> Self {
+        let mut result = Self::new();
+        *result.len.get_mut() = vec.len();
+
+        let max_n = (USIZE_LEN - vec.len().leading_zeros()) as usize;
+
+        let inner = result.data.get_mut();
+        for k in (0..max_n).rev() {
+            inner[k] = vec.split_off((1 << k) - 1);
+            if k == max_n - 1 {
+                inner[k].reserve(vec.len() - ((1 << k) - 1));
+            }
         }
+
         result
     }
 
