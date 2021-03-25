@@ -995,8 +995,8 @@ impl AddShiftNoneData {
         debug_assert!(max_source_limb - min_source_limb == max_target_limb - min_target_limb);
         let number_of_limbs = max_source_limb - min_source_limb;
         Self {
-            min_target_limb,
             min_source_limb,
+            min_target_limb,
             number_of_limbs,
         }
     }
