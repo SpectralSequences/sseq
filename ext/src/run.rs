@@ -1,28 +1,19 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 //! This file contains code used by main.rs
 
-use serde_json::value::Value;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::path::Path;
 use std::time::Instant;
 
-use ext::chain_complex::ChainComplex;
-#[cfg(feature = "yoneda")]
-use algebra::module::homomorphism::{
-    FiniteModuleHomomorphism, IdentityHomomorphism,
-};
-
-use algebra::module::{BoundedModule, FiniteModule, Module, homomorphism::ModuleHomomorphism};
+use algebra::module::homomorphism::ModuleHomomorphism;
 use ext::resolution::Resolution;
-use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::{construct, construct_s_2, Config};
-#[cfg(feature = "yoneda")]
-use ext::yoneda::yoneda_representative_element;
 
 use query::*;
 use saveload::{Load, Save};
+
+#[cfg(any(feature = "concurrent", feature = "yoneda"))]
+use std::sync::Arc;
 
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
@@ -56,6 +47,15 @@ pub fn yoneda(_: &Config) -> error::Result<String> {
 
 #[cfg(feature = "yoneda")]
 pub fn yoneda(config: &Config) -> error::Result<String> {
+    use std::path::PathBuf;
+
+    use algebra::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphism};
+    use algebra::module::{BoundedModule, FiniteModule, Module};
+    use ext::chain_complex::ChainComplex;
+    use ext::resolution_homomorphism::ResolutionHomomorphism;
+    use ext::yoneda::yoneda_representative_element;
+    use serde_json::value::Value;
+
     let resolution = construct(config)?;
     let module = resolution.complex().module(0);
     let min_degree = resolution.min_degree();
@@ -110,7 +110,8 @@ pub fn yoneda(config: &Config) -> error::Result<String> {
             }
         }
 
-        let mut check = bivec::BiVec::from_vec(min_degree, vec![0; t as usize + 1 - min_degree as usize]);
+        let mut check =
+            bivec::BiVec::from_vec(min_degree, vec![0; t as usize + 1 - min_degree as usize]);
         for s in 0..=s {
             let module = yoneda.module(s);
 
@@ -169,9 +170,11 @@ pub fn secondary() -> error::Result<String> {
     let max_s = query_with_default("Max s", 7, Ok);
     let max_t = query_with_default("Max t", 30, Ok);
 
-    let res_save_file: String = query_with_default("Resolution save file", String::from("resolution.save"), Ok);
+    let res_save_file: String =
+        query_with_default("Resolution save file", String::from("resolution.save"), Ok);
     #[cfg(feature = "concurrent")]
-    let del_save_file: String = query_with_default("Delta save file", String::from("ddelta.save"), Ok);
+    let del_save_file: String =
+        query_with_default("Delta save file", String::from("ddelta.save"), Ok);
 
     #[cfg(feature = "concurrent")]
     let num_threads = query_with_default("Number of threads", 2, Ok);
@@ -226,7 +229,13 @@ pub fn secondary() -> error::Result<String> {
             save();
         }
 
-        ext::secondary::compute_delta_concurrent(&resolution.inner, max_s, max_t, &bucket, &*del_save_file)
+        ext::secondary::compute_delta_concurrent(
+            &resolution.inner,
+            max_s,
+            max_t,
+            &bucket,
+            &*del_save_file,
+        )
     };
 
     let mut filename = String::from("d2");
@@ -235,8 +244,8 @@ pub fn secondary() -> error::Result<String> {
     }
     let mut output = File::create(&filename).unwrap();
 
-    for f in 1 .. max_t {
-        for s in 1.. (max_s - 1) {
+    for f in 1..max_t {
+        for s in 1..(max_s - 1) {
             let t = s as i32 + f;
             if t >= max_t {
                 break;
@@ -249,9 +258,7 @@ pub fn secondary() -> error::Result<String> {
             let d = delta.hom_k(t);
 
             for (i, entry) in d.into_iter().enumerate() {
-                writeln!(output,
-                    "d_2 x_({}, {}, {}) = {:?}", f, s, i, entry
-                ).unwrap();
+                writeln!(output, "d_2 x_({}, {}, {}) = {:?}", f, s, i, entry).unwrap();
             }
         }
     }

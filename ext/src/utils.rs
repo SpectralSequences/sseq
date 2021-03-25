@@ -5,13 +5,10 @@ use serde_json::{json, Value};
 
 use std::path::PathBuf;
 use algebra::{Algebra, SteenrodAlgebra};
-use algebra::module::{FiniteModule, Module, BoundedModule};
-use algebra::module::homomorphism::FreeModuleHomomorphism;
+use algebra::module::FiniteModule;
 use fp::matrix::Matrix;
-use crate::chain_complex::{FreeChainComplex, FiniteChainComplex, ChainMap};
+use crate::chain_complex::{FreeChainComplex, FiniteChainComplex};
 use crate::resolution::Resolution;
-#[cfg(feature = "yoneda")]
-use crate::yoneda::yoneda_representative;
 
 use crate::CCC;
 
@@ -32,12 +29,18 @@ pub fn construct(config : &Config) -> error::Result<Resolution<CCC>> {
 pub fn construct_from_json(mut json : Value, algebra_name : &str) -> error::Result<Resolution<CCC>> {
     let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra_name)?);
     let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut json)?);
+    #[allow(unused_mut)] // This is only mut with Yoneda enabled
     let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
     let mut resolution = Resolution::new(Arc::clone(&chain_complex), None, None);
 
     let cofiber = &json["cofiber"];
     #[cfg(feature = "yoneda")]
     if !cofiber.is_null() {
+        use crate::yoneda::yoneda_representative;
+        use crate::chain_complex::ChainMap;
+        use algebra::module::homomorphism::FreeModuleHomomorphism;
+        use algebra::module::{Module, BoundedModule};
+
         let s = cofiber["s"].as_u64().unwrap() as u32;
         let t = cofiber["t"].as_i64().unwrap() as i32;
         let idx = cofiber["idx"].as_u64().unwrap() as usize;

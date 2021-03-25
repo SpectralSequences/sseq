@@ -818,6 +818,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
     }
 
     #[allow(clippy::ptr_arg)]
+    #[allow(unused_mut)] // Mut is only used with odd primes
     pub fn new_from_allocation(p: ValidPrime, r: &'a PPart, s: &'a PPart, mut allocation: PPartAllocation, q_part: u32, degree: i32) -> Self {
         if MOD4 {
             assert_eq!(*p, 2);

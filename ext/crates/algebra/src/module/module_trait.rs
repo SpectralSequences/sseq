@@ -7,6 +7,7 @@ use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
 
 use crate::algebra::Algebra;
+#[cfg(feature = "extras")]
 use crate::module::FDModule;
 #[cfg(feature = "extras")]
 use crate::module::TruncatedModule;
