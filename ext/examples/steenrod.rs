@@ -16,6 +16,15 @@ use query::query_with_default;
 use std::sync::Arc;
 use std::time::Instant;
 
+#[cfg(feature = "concurrent")]
+use std::{thread, thread::JoinHandle};
+
+#[cfg(feature = "concurrent")]
+use crossbeam_channel::{unbounded, Receiver};
+
+#[cfg(feature = "concurrent")]
+use thread_token::TokenBucket;
+
 fn main() -> error::Result<()> {
     load_s_2!(resolution, "adem", "resolution_adem.save");
 
@@ -24,7 +33,7 @@ fn main() -> error::Result<()> {
 
     let p = ValidPrime::new(2);
     #[cfg(feature = "concurrent")]
-    let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
+    let num_threads = query_with_default("Number of threads", 2, Ok);
 
     #[cfg(feature = "concurrent")]
     let bucket = Arc::new(TokenBucket::new(num_threads));

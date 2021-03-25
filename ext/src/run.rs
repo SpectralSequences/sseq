@@ -25,12 +25,6 @@ use query::*;
 use saveload::{Load, Save};
 
 #[cfg(feature = "concurrent")]
-use std::{thread, thread::JoinHandle};
-
-#[cfg(feature = "concurrent")]
-use crossbeam_channel::{unbounded, Receiver};
-
-#[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 
 pub fn define_module() -> error::Result<String> {
