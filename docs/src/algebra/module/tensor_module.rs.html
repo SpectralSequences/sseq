@@ -435,6 +435,8 @@
 <span id="414">414</span>
 <span id="415">415</span>
 <span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
@@ -455,6 +457,12 @@
     <span class="kw">pub</span> <span class="ident">left</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">right</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>,
     <span class="ident">block_structures</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">BlockStructure</span><span class="op">&gt;</span>,
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span>, <span class="ident">N</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">M</span>::<span class="ident">Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">TensorModule</span><span class="op">&lt;</span><span class="ident">M</span>, <span class="ident">N</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{} (x) {}&quot;</span>, <span class="self">self</span>.<span class="ident">left</span>, <span class="self">self</span>.<span class="ident">right</span>)
+    }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">M</span>, <span class="ident">N</span><span class="op">&gt;</span> <span class="ident">TensorModule</span><span class="op">&lt;</span><span class="ident">M</span>, <span class="ident">N</span><span class="op">&gt;</span>
@@ -614,10 +622,6 @@
 
     <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">algebra</span>()
-    }
-
-    <span class="kw">fn</span> <span class="ident">name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
-        <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{} (x) {}&quot;</span>, <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">name</span>(), <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">name</span>())
     }
 
     <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {

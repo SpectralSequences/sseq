@@ -249,6 +249,9 @@
 <span id="228">228</span>
 <span id="229">229</span>
 <span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{
@@ -278,6 +281,22 @@
     <span class="kw">pub</span> <span class="ident">max</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>, <span class="comment">// If None,  then RP^oo</span>
 }
 
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">SteenrodAlgebraT</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">RealProjectiveSpace</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">clear</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">clear_bottom</span> {
+            <span class="string">&quot; (clear_bottom)&quot;</span>
+        } <span class="kw">else</span> {
+            <span class="string">&quot;&quot;</span>
+        };
+
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">max</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">max</span> {
+            <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;RP^{}_{}{}&quot;</span>, <span class="ident">max</span>, <span class="self">self</span>.<span class="ident">min</span>, <span class="ident">clear</span>)
+        } <span class="kw">else</span> {
+            <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;RP_{}{}&quot;</span>, <span class="self">self</span>.<span class="ident">min</span>, <span class="ident">clear</span>)
+        }
+    }
+}
+
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span> : <span class="ident">SteenrodAlgebraT</span><span class="op">&gt;</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">RealProjectiveSpace</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">min</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">min</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">max</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">max</span>
@@ -288,19 +307,6 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span> : <span class="ident">SteenrodAlgebraT</span><span class="op">&gt;</span> <span class="ident">Module</span> <span class="kw">for</span> <span class="ident">RealProjectiveSpace</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span>;
-
-    <span class="kw">fn</span> <span class="ident">name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
-        <span class="kw">let</span> <span class="ident">clear</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">clear_bottom</span> {
-            <span class="string">&quot; (clear_bottom)&quot;</span>
-        } <span class="kw">else</span> {
-            <span class="string">&quot;&quot;</span>
-        };
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">max</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">max</span> {
-            <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;RP^{}_{}{}&quot;</span>, <span class="ident">max</span>, <span class="self">self</span>.<span class="ident">min</span>, <span class="ident">clear</span>)
-        } <span class="kw">else</span> {
-            <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;RP_{}{}&quot;</span>, <span class="self">self</span>.<span class="ident">min</span>, <span class="ident">clear</span>)
-        }
-    }
 
     <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
         <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">algebra</span>)
@@ -469,7 +475,7 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_json</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Value</span>) {
-        <span class="ident">json</span>[<span class="string">&quot;name&quot;</span>] <span class="op">=</span> <span class="ident">Value</span>::<span class="ident">String</span>(<span class="self">self</span>.<span class="ident">name</span>());
+        <span class="ident">json</span>[<span class="string">&quot;name&quot;</span>] <span class="op">=</span> <span class="ident">Value</span>::<span class="ident">String</span>(<span class="self">self</span>.<span class="ident">to_string</span>());
         <span class="ident">json</span>[<span class="string">&quot;type&quot;</span>] <span class="op">=</span> <span class="ident">Value</span>::<span class="ident">from</span>(<span class="string">&quot;real projective space&quot;</span>);
         <span class="ident">json</span>[<span class="string">&quot;min&quot;</span>] <span class="op">=</span> <span class="ident">Value</span>::<span class="ident">from</span>(<span class="self">self</span>.<span class="ident">min</span>);
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">max</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">max</span> {
