@@ -13,6 +13,16 @@ pub enum FiniteModule {
     RealProjectiveSpace(RealProjectiveSpace<SteenrodAlgebra>),
 }
 
+impl std::fmt::Display for FiniteModule {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        match self {
+            FiniteModule::FDModule(m) => m.fmt(f),
+            FiniteModule::FPModule(m) => m.fmt(f),
+            FiniteModule::RealProjectiveSpace(m) => m.fmt(f),
+        }
+    }
+}
+
 impl Module for FiniteModule {
     type Algebra = SteenrodAlgebra;
 
@@ -21,14 +31,6 @@ impl Module for FiniteModule {
             FiniteModule::FDModule(m) => m.algebra(),
             FiniteModule::FPModule(m) => m.algebra(),
             FiniteModule::RealProjectiveSpace(m) => m.algebra(),
-        }
-    }
-
-    fn name(&self) -> String {
-        match self {
-            FiniteModule::FDModule(m) => m.name(),
-            FiniteModule::FPModule(m) => m.name(),
-            FiniteModule::RealProjectiveSpace(m) => m.name(),
         }
     }
 

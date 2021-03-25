@@ -25,6 +25,12 @@ pub struct FinitelyPresentedModule<A: Algebra> {
     index_table: OnceVec<FPMIndexTable>,
 }
 
+impl<A: Algebra> std::fmt::Display for FinitelyPresentedModule<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", self.name)
+    }
+}
+
 impl<A: Algebra> PartialEq for FinitelyPresentedModule<A> {
     fn eq(&self, _other: &Self) -> bool {
         todo!()
@@ -209,7 +215,7 @@ impl FinitelyPresentedModule<SteenrodAlgebra> {
     }
 
     pub fn to_json(&self, json: &mut Value) {
-        json["name"] = Value::String(self.name());
+        json["name"] = Value::String(self.to_string());
         json["type"] = Value::from("finitely presented module");
         // Because we only have one algebra, we must specify this.
         json["algebra"] = Value::from(vec![self.algebra().prefix()]);
@@ -242,10 +248,6 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
 
     fn min_degree(&self) -> i32 {
         self.generators.min_degree()
-    }
-
-    fn name(&self) -> String {
-        self.name.clone()
     }
 
     fn max_computed_degree(&self) -> i32 {

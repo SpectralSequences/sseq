@@ -34,6 +34,12 @@ pub struct FiniteDimensionalModule<A: Algebra> {
     actions: BiVec<BiVec<Vec<Vec<FpVector>>>>,
 }
 
+impl<A: Algebra> std::fmt::Display for FiniteDimensionalModule<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", self.name)
+    }
+}
+
 impl<A: Algebra> Clone for FiniteDimensionalModule<A> {
     fn clone(&self) -> Self {
         Self {
@@ -131,10 +137,6 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
 
 impl<A: Algebra> Module for FiniteDimensionalModule<A> {
     type Algebra = A;
-
-    fn name(&self) -> String {
-        self.name.clone()
-    }
 
     fn algebra(&self) -> Arc<Self::Algebra> {
         Arc::clone(&self.algebra)
@@ -538,7 +540,7 @@ impl FiniteDimensionalModule<SteenrodAlgebra> {
     }
 
     pub fn to_json(&self, json: &mut Value) {
-        json["name"] = Value::String(self.name());
+        json["name"] = Value::String(self.to_string());
         json["type"] = Value::from("finite dimensional module");
         json["gens"] = json!({});
         for (i, deg_i_gens) in self.gen_names.iter_enum() {

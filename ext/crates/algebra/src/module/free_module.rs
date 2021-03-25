@@ -33,6 +33,12 @@ pub struct FreeModule<A: Algebra> {
     pub generator_to_index : OnceBiVec<OnceVec<usize>>
 }
 
+impl<A: Algebra> std::fmt::Display for FreeModule<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", self.name)
+    }
+}
+
 impl<A:Algebra> FreeModule<A> {
     pub fn new(algebra: Arc<A>, name: String, min_degree: i32) -> Self {
         let gen_deg_idx_to_internal_idx = OnceBiVec::new(min_degree);
@@ -53,10 +59,6 @@ impl<A:Algebra> FreeModule<A> {
 impl<A: Algebra> Module for FreeModule<A> {
     type Algebra = A;
 
-    fn name(&self) -> String {
-        self.name.clone()
-    }
-
     fn algebra(&self) -> Arc<A> {
         Arc::clone(&self.algebra)
     }
@@ -76,7 +78,7 @@ impl<A: Algebra> Module for FreeModule<A> {
         assert!(
             degree < self.basis_element_to_opgen.len(),
             "Free Module {} not computed through degree {}",
-            self.name(),
+            self,
             degree
         );
         self.basis_element_to_opgen[degree].len()

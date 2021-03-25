@@ -315,10 +315,6 @@ impl<Adem : AdemAlgebraT, A : PolynomialAlgebraModule<Algebra=Adem> + Send + Syn
         PolynomialAlgebraModule::algebra(self)
     }
 
-    fn name(&self) -> String {
-        self.to_string()
-    }
-
     fn min_degree(&self) -> i32 { 0 }
 
     fn max_computed_degree(&self) -> i32 {

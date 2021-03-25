@@ -9,6 +9,12 @@ pub struct TruncatedModule<M: Module + ?Sized> {
     pub truncation: i32,
 }
 
+impl<M: Module + ?Sized> std::fmt::Display for TruncatedModule<M> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "τ_{{<={}}} {}", self.truncation, self.module)
+    }
+}
+
 impl<M: Module + ?Sized> TruncatedModule<M> {
     pub fn new(module: Arc<M>, truncation: i32) -> Self {
         TruncatedModule { module, truncation }
@@ -26,9 +32,6 @@ impl<M: Module + ?Sized> Module for TruncatedModule<M> {
 
     fn algebra(&self) -> Arc<Self::Algebra> {
         self.module.algebra()
-    }
-    fn name(&self) -> String {
-        format!("Truncation of {}", self.module.name())
     }
 
     fn min_degree(&self) -> i32 {

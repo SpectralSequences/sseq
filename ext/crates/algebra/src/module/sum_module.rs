@@ -17,6 +17,20 @@ pub struct SumModule<M: Module> {
     pub block_structures: OnceBiVec<BlockStructure>,
 }
 
+impl<M: Module> std::fmt::Display for SumModule<M> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        if self.modules.is_empty() {
+            write!(f, "0")
+        } else {
+            write!(f, "{}", self.modules[0])?;
+            for m in &self.modules[1..] {
+                write!(f, " (+) {}", m)?;
+            }
+            Ok(())
+        }
+    }
+}
+
 impl<M: Module> SumModule<M> {
     pub fn new(algebra: Arc<M::Algebra>, modules: Vec<Arc<M>>, min_degree: i32) -> Self {
         SumModule {
@@ -45,18 +59,6 @@ impl<M: Module> Module for SumModule<M> {
 
     fn algebra(&self) -> Arc<Self::Algebra> {
         Arc::clone(&self.algebra)
-    }
-
-    fn name(&self) -> String {
-        if self.modules.is_empty() {
-            String::from("0")
-        } else {
-            let mut name = self.modules[0].name();
-            for n in self.modules[1..].iter().map(|m| m.name()) {
-                name.push_str(&n)
-            }
-            name
-        }
     }
 
     fn min_degree(&self) -> i32 {

@@ -23,6 +23,12 @@ pub struct FreeUnstableModule<A: AdemAlgebraT> {
     pub generator_to_index : OnceBiVec<OnceVec<usize>>
 }
 
+impl<A: AdemAlgebraT> std::fmt::Display for FreeUnstableModule<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", self.name)
+    }
+}
+
 impl<A : AdemAlgebraT> FreeUnstableModule<A> {
     pub fn new(algebra: Arc<A>, name: String, min_degree: i32) -> Self {
         assert!(algebra.adem_algebra().unstable_enabled);
@@ -44,10 +50,6 @@ impl<A : AdemAlgebraT> FreeUnstableModule<A> {
 impl<A: AdemAlgebraT> Module for FreeUnstableModule<A> {
     type Algebra = A;
 
-    fn name(&self) -> String {
-        self.name.clone()
-    }
-
     fn algebra(&self) -> Arc<Self::Algebra> {
         Arc::clone(&self.algebra)
     }
@@ -67,7 +69,7 @@ impl<A: AdemAlgebraT> Module for FreeUnstableModule<A> {
         assert!(
             degree < self.basis_element_to_opgen.len(),
             "Free Module {} not computed through degree {}",
-            self.name(),
+            self,
             degree
         );
         self.basis_element_to_opgen[degree].len()
