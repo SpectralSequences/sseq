@@ -24,7 +24,7 @@ pub fn get_gens(min_degree : i32) -> error::Result<BiVec<Vec<String>>>{
     let mut gens : BiVec<Vec<_>> = BiVec::new(min_degree);
     let finished_degree = i32::max_value();
     loop {
-        let gen_deg : i32 = query_with_default_no_default_indicated("Generator degree", finished_degree, Ok);
+        let gen_deg : i32 = query_with_default("Generator degree", finished_degree, Ok);
         if gen_deg == finished_degree {
             println!("This is the list of generators and degrees:");
             for (i, deg_i_gens) in gens.iter_enum() {
@@ -124,7 +124,7 @@ pub fn interactive_module_define() -> error::Result<String>{
         }
     );
 
-    let module_type = query_with_default_no_default_indicated(
+    let module_type = query_with_default(
         "Input module type (default 'finite dimensional module'):\n (0) - finite dimensional module \n (1) - finitely presented module\n", 
         0,
         |x : u32| match x {

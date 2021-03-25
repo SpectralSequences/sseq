@@ -39,7 +39,7 @@ pub fn resolve(config: &Config) -> error::Result<String> {
 
     #[cfg(feature = "concurrent")]
     {
-        let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
+        let num_threads = query_with_default("Number of threads", 2, Ok);
         let bucket = Arc::new(TokenBucket::new(num_threads));
         res.resolve_through_degree_concurrent(config.max_degree, &bucket);
     }
@@ -61,14 +61,14 @@ pub fn yoneda(config: &Config) -> error::Result<String> {
     let min_degree = resolution.min_degree();
 
     #[cfg(feature = "concurrent")]
-    let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
+    let num_threads = query_with_default("Number of threads", 2, Ok);
     #[cfg(feature = "concurrent")]
     let bucket = Arc::new(TokenBucket::new(num_threads));
 
     loop {
-        let x: i32 = query_with_default_no_default_indicated("t - s", 200, Ok);
-        let s: u32 = query_with_default_no_default_indicated("s", 200, Ok);
-        let i: usize = query_with_default_no_default_indicated("idx", 200, Ok);
+        let x: i32 = query_with_default("t - s", 200, Ok);
+        let s: u32 = query_with_default("s", 200, Ok);
+        let i: usize = query_with_default("idx", 200, Ok);
 
         let start = Instant::now();
         let t = x + s as i32;
