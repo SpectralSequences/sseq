@@ -9,7 +9,6 @@ use std::cmp::Ordering;
 use std::convert::TryInto;
 use std::sync::Once;
 
-#[cfg(target_feature = "avx")]
 use core::arch::x86_64;
 
 pub(crate) type Limb = u64;
