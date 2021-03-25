@@ -25,7 +25,5 @@ subcommands:
         about: Define module interactively
     - yoneda:
         about: Construct Yoneda representatives for Ext classes
-    - steenrod:
-        about: Compute some Steenrod squares
     - secondary:
         about: Compute d2's of the sphere using the secondary Steenrod algebra

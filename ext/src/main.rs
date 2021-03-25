@@ -29,9 +29,6 @@ fn main() -> error::Result<()> {
         ("yoneda", Some(_)) => {
             run::yoneda(&get_config(matches))?
         }
-        ("steenrod", Some(_)) => {
-            run::steenrod()?
-        }
         ("secondary", Some(_)) => {
             run::secondary()?
         }
