@@ -1,7 +1,7 @@
 //! This file contains code used by main.rs
 
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
+use std::io::{BufReader, Write};
 use std::path::Path;
 use std::time::Instant;
 
@@ -10,7 +10,7 @@ use ext::resolution::Resolution;
 use ext::utils::{construct, construct_s_2, Config};
 
 use query::*;
-use saveload::{Load, Save};
+use saveload::Load;
 
 #[cfg(any(feature = "concurrent", feature = "yoneda"))]
 use std::sync::Arc;
@@ -190,18 +190,6 @@ pub fn secondary() -> error::Result<String> {
 
     let should_resolve = max_s >= *resolution.next_s.lock() || max_t >= *resolution.next_t.lock();
 
-    let save = || {
-        if res_save_file != "-" {
-            print!("Saving resolution: ");
-            let start = Instant::now();
-            let file = File::create(&*res_save_file).unwrap();
-            let mut file = BufWriter::new(file);
-            resolution.save(&mut file).unwrap();
-            drop(file);
-            println!("{:.2?}", start.elapsed());
-        }
-    };
-
     #[cfg(not(feature = "concurrent"))]
     let deltas = {
         if should_resolve {
@@ -209,8 +197,6 @@ pub fn secondary() -> error::Result<String> {
             let start = Instant::now();
             resolution.resolve_through_bidegree(max_s, max_t);
             println!("{:.2?}", start.elapsed());
-
-            save();
         }
 
         ext::secondary::compute_delta(&resolution.inner, max_s, max_t)
@@ -225,8 +211,6 @@ pub fn secondary() -> error::Result<String> {
             let start = Instant::now();
             resolution.resolve_through_bidegree_concurrent(max_s, max_t, &bucket);
             println!("{:.2?}", start.elapsed());
-
-            save();
         }
 
         ext::secondary::compute_delta_concurrent(
