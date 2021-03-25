@@ -357,7 +357,7 @@
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gens</span> : <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">BiVec</span>::<span class="ident">new</span>(<span class="ident">min_degree</span>);
     <span class="kw">let</span> <span class="ident">finished_degree</span> <span class="op">=</span> <span class="ident">i32</span>::<span class="ident">max_value</span>();
     <span class="kw">loop</span> {
-        <span class="kw">let</span> <span class="ident">gen_deg</span> : <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query_with_default_no_default_indicated</span>(<span class="string">&quot;Generator degree&quot;</span>, <span class="ident">finished_degree</span>, <span class="prelude-val">Ok</span>);
+        <span class="kw">let</span> <span class="ident">gen_deg</span> : <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query_with_default</span>(<span class="string">&quot;Generator degree&quot;</span>, <span class="ident">finished_degree</span>, <span class="prelude-val">Ok</span>);
         <span class="kw">if</span> <span class="ident">gen_deg</span> <span class="op">=</span><span class="op">=</span> <span class="ident">finished_degree</span> {
             <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;This is the list of generators and degrees:&quot;</span>);
             <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">deg_i_gens</span>) <span class="kw">in</span> <span class="ident">gens</span>.<span class="ident">iter_enum</span>() {
@@ -457,7 +457,7 @@
         }
     );
 
-    <span class="kw">let</span> <span class="ident">module_type</span> <span class="op">=</span> <span class="ident">query_with_default_no_default_indicated</span>(
+    <span class="kw">let</span> <span class="ident">module_type</span> <span class="op">=</span> <span class="ident">query_with_default</span>(
         <span class="string">&quot;Input module type (default &#39;finite dimensional module&#39;):\n (0) - finite dimensional module \n (1) - finitely presented module\n&quot;</span>, 
         <span class="number">0</span>,
         <span class="op">|</span><span class="ident">x</span> : <span class="ident">u32</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">x</span> {

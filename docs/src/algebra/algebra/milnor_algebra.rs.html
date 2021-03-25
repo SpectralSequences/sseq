@@ -1428,6 +1428,7 @@
 <span id="1407">1407</span>
 <span id="1408">1408</span>
 <span id="1409">1409</span>
+<span id="1410">1410</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="ident">itertools</span>::<span class="ident">Itertools</span>;
@@ -2249,6 +2250,7 @@
     }
 
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">ptr_arg</span>)]</span>
+    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_mut</span>)]</span> <span class="comment">// Mut is only used with odd primes</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_from_allocation</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">r</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">PPart</span>, <span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">PPart</span>, <span class="kw-2">mut</span> <span class="ident">allocation</span>: <span class="ident">PPartAllocation</span>, <span class="ident">q_part</span>: <span class="ident">u32</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="kw">if</span> <span class="ident">MOD4</span> {
             <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="kw-2">*</span><span class="ident">p</span>, <span class="number">2</span>);
