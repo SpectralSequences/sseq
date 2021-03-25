@@ -1,7 +1,5 @@
 .PHONY: all test test-concurrent lint dummy
 
-SHELL = bash
-
 all:
 	cargo build
 
@@ -12,9 +10,10 @@ test-concurrent:
 	cargo test --features concurrent
 
 lint:
-	shopt -s globstar
-	cargo clippy --workspace --all-targets
 	cargo fmt --all -- --check
+	cargo clippy --workspace --all-targets
+	cargo check --workspace --no-default-features
+	cargo check --workspace --all-targets --all-features
 
 run_examples: $(patsubst examples/%.rs, target/release/examples/%, $(wildcard examples/*.rs))
 

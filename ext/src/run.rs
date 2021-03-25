@@ -10,17 +10,17 @@ use std::time::Instant;
 
 use ext::chain_complex::ChainComplex;
 #[cfg(feature = "yoneda")]
-use ext::module::homomorphism::{
-    FiniteModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
+use algebra::module::homomorphism::{
+    FiniteModuleHomomorphism, IdentityHomomorphism,
 };
-use ext::module::{BoundedModule, FiniteModule, Module};
+
+use algebra::module::{BoundedModule, FiniteModule, Module, homomorphism::ModuleHomomorphism};
 use ext::resolution::Resolution;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::{construct, construct_s_2, Config};
 #[cfg(feature = "yoneda")]
 use ext::yoneda::yoneda_representative_element;
 
-use bivec::BiVec;
 use query::*;
 use saveload::{Load, Save};
 
@@ -110,7 +110,7 @@ pub fn yoneda(config: &Config) -> error::Result<String> {
             }
         }
 
-        let mut check = BiVec::from_vec(min_degree, vec![0; t as usize + 1 - min_degree as usize]);
+        let mut check = bivec::BiVec::from_vec(min_degree, vec![0; t as usize + 1 - min_degree as usize]);
         for s in 0..=s {
             let module = yoneda.module(s);
 
