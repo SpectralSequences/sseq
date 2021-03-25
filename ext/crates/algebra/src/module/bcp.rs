@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use once::OnceVec;
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector};
+use fp::vector::FpVector;
 
 use crate::algebra::combinatorics::TruncatedPolynomialMonomialBasis;
 use crate::algebra::AdemAlgebraT;
@@ -33,6 +33,12 @@ impl<A : AdemAlgebraT> BCp<A> {
     }
 }
 
+impl<A: AdemAlgebraT> std::fmt::Display for BCp<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "BC{}", *self.prime())
+    }
+}
+
 fn is_two_times_power_of_p(p : i32, generic : bool, mut degree : i32) -> bool {
     let q = if generic { 2 } else { 1 };
     if degree % q != 0 {
@@ -50,10 +56,6 @@ fn is_two_times_power_of_p(p : i32, generic : bool, mut degree : i32) -> bool {
 impl<A : AdemAlgebraT> PolynomialAlgebra for BCp<A> {
     fn prime(&self) -> ValidPrime {
         self.algebra().prime()
-    }
-    
-    fn name(&self) -> String {
-        format!("BC{}", *self.prime())
     }
 
     fn polynomial_monomials(&self) -> &TruncatedPolynomialMonomialBasis {

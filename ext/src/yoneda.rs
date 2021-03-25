@@ -1,5 +1,5 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
-use crate::algebra::{Algebra, SteenrodAlgebra, AdemAlgebra};
+use crate::algebra::{Algebra, GeneratedAlgebra, SteenrodAlgebra, AdemAlgebra};
 use crate::chain_complex::{ChainComplex, AugmentedChainComplex, FiniteAugmentedChainComplex, BoundedChainComplex, ChainMap};
 use fp::vector::FpVector;
 use fp::matrix::{Matrix, Subspace};
@@ -456,7 +456,9 @@ fn compute_kernel_image<M : BoundedModule, F : ModuleHomomorphism, G : ModuleHom
     augmentation_map : Option<Arc<F>>,
     preserve_map : Option<&G>,
     keep : Option<&Subspace>,
-    t : i32) -> (Matrix, Matrix) {
+    t : i32) -> (Matrix, Matrix)
+    where M::Algebra: GeneratedAlgebra
+{
 
     let algebra = source.algebra();
     let p = algebra.prime();

@@ -19,22 +19,15 @@ use enum_dispatch::enum_dispatch;
 /// necessarily basis elements. It gives us a simpler way of describing finite modules by only
 /// specifying the action of the generators.
 #[enum_dispatch]
-pub trait Algebra : Send + Sync + 'static {
-    /// The "type" of the algebra, which is "adem" or "milnor". When reading module definitions,
-    /// this informs whether we should look at adem_actions or milnor_actions.
-    fn algebra_type(&self) -> &str;
-
+pub trait Algebra : std::fmt::Display + Send + Sync + 'static {
     /// Returns the prime the algebra is over.
     fn prime(&self) -> ValidPrime;
-    fn name(&self) -> &str { "" }
 
     /// Computes the list of basis elements up to and including degree `degree`. This should include any
     /// other preparation needed to evaluate all the other functions that involve a degree
     /// parameter. One should be able to call compute_basis multiple times, and there should be
     /// little overhead when calling `compute_basis(degree)` multiple times with the same `degree`.
     fn compute_basis(&self, degree : i32);
-
-    fn max_computed_degree(&self) -> i32;
 
     /// Gets the dimension of the algebra in degree `degree`.
     fn dimension(&self, degree : i32, excess : i32) -> usize;
@@ -104,14 +97,19 @@ pub trait Algebra : Send + Sync + 'static {
         }
         result
     }    
+}
 
+/// An algebra with a specified list of generators and generating relations. This data can be used
+/// to specify modules by specifying the actions of the generators.
+#[enum_dispatch]
+pub trait GeneratedAlgebra: Algebra {
     /// Given a degree `degree`, the function returns a list of algebra generators in that degree.
     /// This return value is the list of indices of the basis elements that are generators. The
     /// list need not be in any particular order.
     ///
     /// This method need not be fast, because they will only be performed when constructing the module,
     /// and will often only involve low dimensional elements.
-    fn generators(&self, _degree : i32) -> Vec<usize> { unimplemented!() }
+    fn generators(&self, degree : i32) -> Vec<usize>;
 
     /// This returns the name of a generator. Note that the index is the index of the generator
     /// in the list of all basis elements. It is undefined behaviour to call this function with a
@@ -129,7 +127,7 @@ pub trait Algebra : Send + Sync + 'static {
     /// this function is the same `nom` combinators.
     ///
     /// This function MUST be inverse to `string_to_generator` (and not `basis_element_to_string`).
-    fn string_to_generator<'a, 'b>(&'a self, _input: &'b str) -> nom::IResult<&'b str, (i32, usize)> { unimplemented!() }
+    fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> nom::IResult<&'b str, (i32, usize)>;
 
     /// Given a non-generator basis element of the algebra, decompose it in terms of algebra
     /// generators. Recall each basis element is given by a pair $(d, i))$, where $d$ is the degree of
@@ -141,30 +139,21 @@ pub trait Algebra : Send + Sync + 'static {
     ///
     /// This method need not be fast, because they will only be performed when constructing the module,
     /// and will often only involve low dimensional elements.
-    fn decompose_basis_element(&self, _degree : i32, _idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> { unimplemented!() }
+    fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>;
 
     /// Get any relations that the algebra wants checked to ensure the consistency of module.
-    fn relations_to_check(&self, _degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> { unimplemented!() }
+    fn generating_relations(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>;
 }
-
 
 #[macro_export]
 macro_rules! dispatch_algebra {
     ($dispatch_macro : ident) => {
-        fn algebra_type(&self) -> &str {
-            $dispatch_macro!(algebra_type, self,)
-        }
-
         fn prime(&self) -> fp::prime::ValidPrime {
             $dispatch_macro!(prime, self, )
         }
 
         fn compute_basis(&self, degree : i32) {
             $dispatch_macro!(compute_basis, self, degree)
-        }
-
-        fn max_computed_degree(&self) -> i32 {
-            $dispatch_macro!(max_computed_degree, self, )
         }
 
         fn dimension(&self, degree : i32, excess : i32) -> usize {
@@ -203,8 +192,8 @@ macro_rules! dispatch_algebra {
             $dispatch_macro!(decompose_basis_element, self, degree, idx)
         }
         
-        fn relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> { 
-            $dispatch_macro!(relations_to_check, self, degree)
+        fn generating_relations(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> { 
+            $dispatch_macro!(generating_relations, self, degree)
         }
     }
 }

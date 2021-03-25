@@ -64,8 +64,7 @@ impl std::hash::Hash for PolynomialAlgebraMonomial {
     }
 }
 
-pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
-    fn name(&self) -> String;
+pub trait PolynomialAlgebra : std::fmt::Display + Sized + Send + Sync + 'static {
     fn prime(&self) -> ValidPrime;
 
     fn polynomial_monomials(&self) -> &TruncatedPolynomialMonomialBasis;
@@ -204,19 +203,18 @@ pub trait PolynomialAlgebra : Sized + Send + Sync + 'static {
         }
     }
 
-
     fn set_monomial_degree(&self, mono : &mut PolynomialAlgebraMonomial, degree : i32) {
         mono.degree = degree;
         mono.ext.set_scratch_vector_size(self.exterior_monomials().generators_up_to_degree(mono.degree));
         mono.poly.set_scratch_vector_size(self.polynomial_monomials().generators_up_to_degree(mono.degree));        
     }
+
+    fn max_computed_degree(&self) -> i32 {
+        self.basis_table().len() as i32 - 1
+    }
 }
 
 impl<A : PolynomialAlgebra> Algebra for A {
-    fn algebra_type(&self) -> &str {
-        &"polynomial"
-    }
-
     fn prime(&self) -> ValidPrime {
         self.prime()
     }
@@ -226,10 +224,6 @@ impl<A : PolynomialAlgebra> Algebra for A {
         for i in self.max_computed_degree() + 1 ..= degree {
             self.compute_basis_step(i);
         }
-    }
-
-    fn max_computed_degree(&self) -> i32 {
-        self.basis_table().len() as i32 - 1
     }
 
     fn dimension(&self, degree : i32, _excess : i32) -> usize {

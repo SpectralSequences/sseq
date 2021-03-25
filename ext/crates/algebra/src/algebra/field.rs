@@ -18,22 +18,16 @@ impl Field {
     }
 }
 
-impl Algebra for Field {
-    fn algebra_type(&self) -> &str {
-        &"field"
+impl std::fmt::Display for Field {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "F_{}", self.prime)
     }
+}
 
+impl Algebra for Field {
     /// Returns the prime the algebra is over.
     fn prime(&self) -> ValidPrime {
         self.prime
-    }
-
-    fn name(&self) -> &str {
-        &"field"
-    }
-
-    fn max_computed_degree(&self) -> i32 {
-        i32::max_value()
     }
 
     fn compute_basis(&self, _degree : i32){}
@@ -71,18 +65,6 @@ impl Algebra for Field {
     fn element_to_string(&self, degree : i32, element : Slice) -> String {
         assert!(degree == 0);
         format!("{}", element.entry(0))
-    }
-
-    fn generators(&self, _degree : i32) -> Vec<usize> {
-        vec![]
-    }
-
-    fn decompose_basis_element(&self, _degree : i32, _idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
-        vec![]
-    }
-
-    fn relations_to_check(&self, _degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
-        vec![]
     }
 }
 

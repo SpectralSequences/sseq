@@ -316,7 +316,7 @@ impl<Adem : AdemAlgebraT, A : PolynomialAlgebraModule<Algebra=Adem> + Send + Syn
     }
 
     fn name(&self) -> String {
-        Algebra::name(self).to_string()
+        self.to_string()
     }
 
     fn min_degree(&self) -> i32 { 0 }

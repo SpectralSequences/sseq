@@ -3,7 +3,7 @@ use serde_json::Value;
 use rustc_hash::FxHashMap as HashMap;
 use std::sync::Arc;
 
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, SteenrodAlgebra};
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::module::{FreeModule, Module, ZeroModule};
 use bivec::BiVec;
@@ -119,12 +119,26 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
         (graded_dimension, gen_names, gen_to_idx)
     }
 
-    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> error::Result<Self> {
+    pub fn gen_idx_to_fp_idx(&self, degree: i32, idx: usize) -> isize {
+        assert!(degree >= self.min_degree);
+        let degree_idx = (degree - self.min_degree) as usize;
+        self.index_table[degree_idx].gen_idx_to_fp_idx[idx]
+    }
+
+    pub fn fp_idx_to_gen_idx(&self, degree: i32, idx: usize) -> usize {
+        assert!(degree >= self.min_degree);
+        let degree_idx = (degree - self.min_degree) as usize;
+        self.index_table[degree_idx].fp_idx_to_gen_idx[idx]
+    }
+}
+
+impl FinitelyPresentedModule<SteenrodAlgebra> {
+    pub fn from_json(algebra: Arc<SteenrodAlgebra>, json: &mut Value) -> error::Result<Self> {
         let p = algebra.prime();
         let name = json["name"].as_str().unwrap_or("").to_string();
         let gens = json["gens"].take();
         let (num_gens_in_degree, gen_names, gen_to_deg_idx) = Self::module_gens_from_json(&gens);
-        let mut relations_value = json[algebra.algebra_type().to_owned() + "_relations"].take();
+        let mut relations_value = json[algebra.prefix().to_string() + "_relations"].take();
         let relations_values = relations_value.as_array_mut().unwrap();
         let min_degree = num_gens_in_degree.min_degree();
         let max_gen_degree = num_gens_in_degree.len();
@@ -198,13 +212,13 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
         json["name"] = Value::String(self.name());
         json["type"] = Value::from("finitely presented module");
         // Because we only have one algebra, we must specify this.
-        json["algebra"] = Value::from(vec![self.algebra().algebra_type()]);
+        json["algebra"] = Value::from(vec![self.algebra().prefix()]);
         for (i, deg_i_gens) in self.generators.gen_names.iter_enum() {
             for gen in deg_i_gens {
                 json["gens"][gen] = Value::from(i);
             }
         }
-        json[format!("{}_relations", self.algebra().algebra_type())] = self.relations_to_json();
+        json[format!("{}_relations", self.algebra().prefix())] = self.relations_to_json();
     }
 
     pub fn relations_to_json(&self) -> Value {
@@ -216,18 +230,6 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
             }
         }
         Value::from(relations)
-    }
-
-    pub fn gen_idx_to_fp_idx(&self, degree: i32, idx: usize) -> isize {
-        assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
-        self.index_table[degree_idx].gen_idx_to_fp_idx[idx]
-    }
-
-    pub fn fp_idx_to_gen_idx(&self, degree: i32, idx: usize) -> usize {
-        assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
-        self.index_table[degree_idx].fp_idx_to_gen_idx[idx]
     }
 }
 

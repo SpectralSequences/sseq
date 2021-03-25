@@ -22,6 +22,12 @@ pub struct Dickson2<A : AdemAlgebraT> {
     quadratic_terms_field : Vec<Option<(i32,i32)>> // degree ==> (d1, d2)
 }
 
+impl<A: AdemAlgebraT> std::fmt::Display for Dickson2<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "Dickson(F{},{})", *self.adem_algebra().prime(), self.n)
+    }
+}
+
 impl<A : AdemAlgebraT> Dickson2<A> {
     pub fn new(algebra : Arc<A>, n : i32) -> Self {
         let p = algebra.prime();
@@ -87,10 +93,6 @@ impl<A : AdemAlgebraT> Dickson2<A> {
 impl<A : AdemAlgebraT> PolynomialAlgebra for Dickson2<A> {
     fn prime(&self) -> ValidPrime {
         self.adem_algebra().prime()
-    }
-    
-    fn name(&self) -> String {
-        format!("Dickson(F{},{})", *self.adem_algebra().prime(), self.n)
     }
 
     fn polynomial_monomials(&self) -> &TruncatedPolynomialMonomialBasis {
@@ -235,7 +237,4 @@ mod tests {
         let dickson = Dickson2::new(algebra, n);
         dickson.test_relations(5, 5);
     }
-
-
-
 }

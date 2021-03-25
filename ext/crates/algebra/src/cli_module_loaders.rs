@@ -12,7 +12,7 @@ use query::*;
 use bivec::BiVec;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
-use crate::algebra::{Algebra, SteenrodAlgebra, MilnorAlgebra, AdemAlgebra};
+use crate::algebra::{Algebra, GeneratedAlgebra, SteenrodAlgebra, MilnorAlgebra, AdemAlgebra};
 use crate::module::{Module, FreeModule, FDModule, FPModule};
 use crate::steenrod_evaluator::evaluate_module;
 

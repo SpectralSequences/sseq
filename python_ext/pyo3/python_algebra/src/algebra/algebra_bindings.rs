@@ -289,12 +289,12 @@ macro_rules! algebra_bindings { ( $algebra:ident, $algebra_rust:ident, $element 
             Ok(self.inner_unchkd().decompose_basis_element(degree, idx).into_py(py))
         }
 
-        pub fn relations_to_check(&self, degree : i32) -> PyResult<PyObject> {
+        pub fn generating_relations(&self, degree : i32) -> PyResult<PyObject> {
             self.check_not_null()?;
             self.check_degree(degree)?;            
             let gil = Python::acquire_gil();
             let py = gil.python();
-            Ok(self.inner_unchkd().relations_to_check(degree).into_py(py))
+            Ok(self.inner_unchkd().generating_relations(degree).into_py(py))
         }
     }
 
