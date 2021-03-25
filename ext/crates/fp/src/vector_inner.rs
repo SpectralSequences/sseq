@@ -9,6 +9,9 @@ use crate::TryInto;
 use std::cmp::Ordering;
 use std::sync::Once;
 
+#[cfg(target_feature = "avx")]
+use core::arch::x86_64;
+
 pub const MAX_DIMENSION: usize = 147500;
 
 const BIT_LENGTHS: [usize; NUM_PRIMES] = {
@@ -241,8 +244,71 @@ impl<const P: u32> FpVectorP<P> {
         debug_assert_eq!(self.dimension(), other.dimension());
         if P == 2 {
             if c != 0 {
-                for (left, right) in self.limbs.iter_mut().zip(&other.limbs) {
-                    *left = limb::add::<P>(*left, *right, 1);
+                cfg_if::cfg_if!{
+                    if #[cfg(target_feature = "avx512f")] {
+                        let max_limb = self.limbs.len();
+                        let mut target_limbs_ptr = self.limbs.as_mut_ptr();
+                        let other_limbs_ptr = other.limbs.as_ptr();
+                        let chunks = max_limb / 8;
+                        for i in 0..chunks {
+                            unsafe {
+                                // SIMD magic
+                                let mut target_chunk = x86_64::_mm512_loadu_si512(target_limbs_ptr.add(8 * i) as *const i32);
+                                let other_chunk = x86_64::_mm512_loadu_si512(other_limbs_ptr.add(8 * i) as *const i32);
+                                target_chunk = x86_64::_mm512_xor_si512(target_chunk, other_chunk);
+                                x86_64::_mm512_storeu_si512(target_limbs_ptr.add(8 * i) as *mut i32, target_chunk);
+                            }
+                        }
+                        for i in (8 * chunks)..max_limb {
+                            unsafe { // pointer arithmetic
+                                *target_limbs_ptr.add(i) = *target_limbs_ptr.add(i) ^ *other_limbs_ptr.add(i);
+                            }
+                        }
+                    } else if #[cfg(target_feature = "avx2")] {
+                        let max_limb = self.limbs.len();
+                        let mut target_limbs_ptr = self.limbs.as_mut_ptr();
+                        let other_limbs_ptr = other.limbs.as_ptr();
+                        let chunks = max_limb / 4;
+                        for i in 0..chunks {
+                            unsafe {
+                                // SIMD magic
+                                let mut target_chunk = x86_64::_mm256_loadu_si256(target_limbs_ptr.add(4 * i) as *const x86_64::__m256i);
+                                let other_chunk = x86_64::_mm256_loadu_si256(other_limbs_ptr.add(4 * i) as *const x86_64::__m256i);
+                                target_chunk = x86_64::_mm256_xor_si256(target_chunk, other_chunk);
+                                x86_64::_mm256_storeu_si256(target_limbs_ptr.add(4 * i) as *mut x86_64::__m256i, target_chunk);
+                            }
+                        }
+                        for i in (4 * chunks)..max_limb {
+                            unsafe { // pointer arithmetic
+                                *target_limbs_ptr.add(i) = *target_limbs_ptr.add(i) ^ *other_limbs_ptr.add(i);
+                            }
+                        }
+                    } else if #[cfg(target_feature = "avx")] {
+                        let max_limb = self.limbs.len();
+                        let mut target_limbs_ptr = self.limbs.as_mut_ptr();
+                        let other_limbs_ptr = other.limbs.as_ptr();
+                        let chunks = self.limbs.len() / 4;
+                        for i in 0..chunks {
+                            unsafe {
+                                // SIMD magic
+                                // We need to treat the limbs as floats because packed ints are only supported on AVX2.
+                                // Since we're only XOR'ing and not doing any arithmetic, this is fine.
+                                let mut target_chunk = x86_64::_mm256_loadu_ps(target_limbs_ptr.add(4 * i) as *const float);
+                                let other_chunk = x86_64::_mm256_loadu_ps(other_limbs_ptr.add(4 * i) as *const float);
+                                target_chunk = x86_64::_mm256_xor_ps(target_chunk, other_chunk);
+                                x86_64::_mm256_storeu_ps(target_limbs_ptr.add(4 * i) as *mut x86_64::__m256i, target_chunk);
+                            }
+                        }
+                        for i in (4 * chunks)..max_limb {
+                            unsafe { // pointer arithmetic
+                                *target_limbs_ptr.add(i) = *target_limbs_ptr.add(i) ^ *other_limbs_ptr.add(i);
+                            }
+                        }
+                    } else {
+                        for (left, right) in self.limbs.iter_mut().zip(&other.limbs) {
+                            *left = limb::add::<P>(*left, *right, 1);
+                        }
+                    }
                 }
             }
         } else {
