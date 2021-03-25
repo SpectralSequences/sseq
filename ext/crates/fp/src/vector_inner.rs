@@ -248,7 +248,7 @@ impl<const P: u32> FpVectorP<P> {
         debug_assert_eq!(self.dimension(), other.dimension());
         if P == 2 {
             if c != 0 {
-                cfg_if::cfg_if!{
+                cfg_if::cfg_if! {
                     if #[cfg(target_feature = "avx512f")] {
                         let max_limb = self.limbs.len();
                         let mut target_limbs_ptr = self.limbs.as_mut_ptr();
