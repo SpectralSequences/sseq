@@ -26,6 +26,22 @@ pub struct RealProjectiveSpace<A : SteenrodAlgebraT> {
     pub max: Option<i32>, // If None,  then RP^oo
 }
 
+impl<A: SteenrodAlgebraT> std::fmt::Display for RealProjectiveSpace<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        let clear = if self.clear_bottom {
+            " (clear_bottom)"
+        } else {
+            ""
+        };
+
+        if let Some(max) = self.max {
+            write!(f, "RP^{}_{}{}", max, self.min, clear)
+        } else {
+            write!(f, "RP_{}{}", self.min, clear)
+        }
+    }
+}
+
 impl<A : SteenrodAlgebraT> PartialEq for RealProjectiveSpace<A> {
     fn eq(&self, other: &Self) -> bool {
         self.min == other.min && self.max == other.max
@@ -36,19 +52,6 @@ impl<A : SteenrodAlgebraT> Eq for RealProjectiveSpace<A> {}
 
 impl<A : SteenrodAlgebraT> Module for RealProjectiveSpace<A> {
     type Algebra = A;
-
-    fn name(&self) -> String {
-        let clear = if self.clear_bottom {
-            " (clear_bottom)"
-        } else {
-            ""
-        };
-        if let Some(max) = self.max {
-            format!("RP^{}_{}{}", max, self.min, clear)
-        } else {
-            format!("RP_{}{}", self.min, clear)
-        }
-    }
 
     fn algebra(&self) -> Arc<A> {
         Arc::clone(&self.algebra)
@@ -217,7 +220,7 @@ impl<A : SteenrodAlgebraT> RealProjectiveSpace<A> {
     }
 
     pub fn to_json(&self, json: &mut Value) {
-        json["name"] = Value::String(self.name());
+        json["name"] = Value::String(self.to_string());
         json["type"] = Value::from("real projective space");
         json["min"] = Value::from(self.min);
         if let Some(max) = self.max {

@@ -10,7 +10,7 @@ jobs:
 
     strategy:
       matrix:
-          toolchain: ['nightly-2021-02-27', 'nightly']
+          toolchain: ['nightly-2021-03-24', 'nightly']
 
     steps:
     - uses: actions/checkout@v2
@@ -46,7 +46,7 @@ jobs:
 
     strategy:
       matrix:
-          toolchain: ['nightly-2021-02-27', 'nightly']
+          toolchain: ['nightly-2021-03-24', 'nightly']
 
     steps:
     - uses: actions/checkout@v2
@@ -80,7 +80,7 @@ jobs:
 
     strategy:
       matrix:
-          toolchain: ['nightly-2021-02-27', 'nightly']
+          toolchain: ['nightly-2021-03-24', 'nightly']
 
     steps:
     - uses: actions/checkout@v2
@@ -114,7 +114,7 @@ jobs:
 
     strategy:
       matrix:
-          toolchain: ['nightly-2021-02-27', 'nightly']
+          toolchain: ['nightly-2021-03-24', 'nightly']
 
     steps:
     - uses: actions/checkout@v2
@@ -144,7 +144,7 @@ jobs:
       run: make -C rust_webserver wasm
 
     - name: Deploy
-      if: ${{ matrix.toolchain == 'nightly-2021-02-27' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+      if: ${{ matrix.toolchain == 'nightly-2021-03-24' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
       uses: JamesIves/github-pages-deploy-action@4.1.0
       with:
           branch: gh-pages
@@ -172,7 +172,7 @@ jobs:
     - name: Install rustup
       uses: actions-rs/toolchain@v1
       with:
-          toolchain: nightly-2021-02-27
+          toolchain: nightly-2021-03-24
 
     - name: Generate docs
       run: make -C ext docs

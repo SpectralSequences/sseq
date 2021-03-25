@@ -13,11 +13,10 @@ use crate::module::TruncatedModule;
 #[cfg(feature = "extras")]
 use crate::module::BoundedModule;
 
-pub trait Module: Send + Sync + 'static {
+pub trait Module: std::fmt::Display + Send + Sync + 'static {
     type Algebra: Algebra;
 
     fn algebra(&self) -> Arc<Self::Algebra>;
-    fn name(&self) -> String;
     fn min_degree(&self) -> i32;
     fn compute_basis(&self, _degree: i32) {}
     fn max_computed_degree(&self) -> i32;
@@ -146,7 +145,7 @@ pub trait Module: Send + Sync + 'static {
     /// original name of the module
     #[cfg(feature = "extras")]
     fn truncate_to_fd_module(self: Arc<Self>, max_deg: i32) -> FDModule<Self::Algebra> {
-        let name = self.name();
+        let name = self.to_string();
         let mut m = TruncatedModule::new(self, max_deg).to_fd_module();
         m.name = name;
         m
@@ -245,10 +244,6 @@ impl<A: Algebra> Module for Arc<dyn Module<Algebra = A>> {
 
     fn algebra(&self) -> Arc<Self::Algebra> {
         (&**self).algebra()
-    }
-
-    fn name(&self) -> String {
-        (&**self).name()
     }
 
     fn min_degree(&self) -> i32 {

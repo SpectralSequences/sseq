@@ -8,7 +8,7 @@ use once::OnceVec;
 use fp::prime::{Binomial, integer_power, ValidPrime, BitflagIterator};
 use fp::vector::{FpVector, Slice, SliceMut};
 use crate::algebra::combinatorics;
-use crate::algebra::{Algebra, Bialgebra};
+use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
 
 use nom::{
     IResult,
@@ -125,7 +125,6 @@ impl std::fmt::Display for MilnorBasisElement {
 // entry in ppart_table of the right degree.
 pub struct MilnorAlgebra {
     pub profile : MilnorProfile,
-    name : String,
     next_degree : Mutex<i32>,
     p : ValidPrime,
     pub generic : bool,
@@ -135,6 +134,12 @@ pub struct MilnorAlgebra {
     basis_element_to_index_map : OnceVec<HashMap<MilnorBasisElement, usize>>, // degree -> MilnorBasisElement -> index
     #[cfg(feature = "cache-multiplication")]
     multiplication_table : OnceVec<OnceVec<Vec<Vec<FpVector>>>> // source_deg -> target_deg -> source_op -> target_op
+}
+
+impl std::fmt::Display for MilnorAlgebra {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "MilnorAlgebra(p={})", self.prime())
+    }
 }
 
 impl MilnorAlgebra {
@@ -154,7 +159,6 @@ impl MilnorAlgebra {
             p,
             generic : *p != 2,
             profile,
-            name : format!("MilnorAlgebra(p={})", p),
             next_degree : Mutex::new(0),
             ppart_table : OnceVec::new(),
             qpart_table,
@@ -183,16 +187,8 @@ impl MilnorAlgebra {
 }
 
 impl Algebra for MilnorAlgebra {
-    fn algebra_type(&self) -> &str {
-        "milnor"
-    }
-
     fn prime(&self) -> ValidPrime {
         self.p
-    }
-
-    fn name(&self) -> &str {
-        &self.name
     }
 
     #[allow(clippy::useless_let_if_seq)]
@@ -238,10 +234,6 @@ impl Algebra for MilnorAlgebra {
         products.into_iter()
             .map(|(name, b)| (name, b.degree, self.basis_element_to_index(&b)))
             .collect()
-    }
-
-    fn max_computed_degree(&self) -> i32 {
-        *self.next_degree.lock() - 1
     }
 
     fn compute_basis(&self, max_degree : i32) {
@@ -361,6 +353,12 @@ impl Algebra for MilnorAlgebra {
         }
     }
 
+    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
+        format!("{}", self.basis_table[degree as usize][idx])
+    }
+}
+
+impl GeneratedAlgebra for MilnorAlgebra {
     // Same implementation as AdemAlgebra
     fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> {
         let first = map(alt((
@@ -386,10 +384,6 @@ impl Algebra for MilnorAlgebra {
         } else {
             format!("Sq{}", degree)
         }
-    }
-
-    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
-        format!("{}", self.basis_table[degree as usize][idx])
     }
 
     fn generators(&self, degree : i32) -> Vec<usize> {
@@ -437,7 +431,7 @@ impl Algebra for MilnorAlgebra {
         }
     }
 
-    fn relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
+    fn generating_relations(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
         if self.generic && degree == 2 {
             // beta^2 = 0 is an edge case
             return vec![vec![(1, (1, 0), (1, 0))]];
@@ -1239,7 +1233,7 @@ mod tests {
         for i in 1 .. max_degree {
             let output_dim = algebra.dimension(i, -1);
             output_vec.set_scratch_vector_size(output_dim);
-            let relations = algebra.relations_to_check(i);
+            let relations = algebra.generating_relations(i);
             println!("{:?}", relations);
             for relation in relations {
                 for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {

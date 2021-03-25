@@ -13,132 +13,51 @@ pub enum FiniteModule {
     RealProjectiveSpace(RealProjectiveSpace<SteenrodAlgebra>),
 }
 
+macro_rules! dispatch_inner {
+    // other is a type, but marking it as a :ty instead of :tt means we cannot use it to access its
+    // enum variants.
+    ($vis:vis fn $method:ident(&self$(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
+        #[allow(unused_parens)]
+        $vis fn $method(&self, $($arg: $ty),* ) $(-> $ret)* {
+            match self {
+                FiniteModule::FDModule(m) => m.$method($($arg),*),
+                FiniteModule::FPModule(m) => m.$method($($arg),*),
+                FiniteModule::RealProjectiveSpace(m) => m.$method($($arg),*),
+            }
+        }
+    };
+}
+
+macro_rules! dispatch {
+    () => {};
+    ($vis:vis fn $method:ident $tt:tt $(-> $ret:tt)?; $($tail:tt)*) => {
+        dispatch_inner! {
+            $vis fn $method $tt $(-> $ret)*
+        }
+        dispatch!{$($tail)*}
+    }
+}
+
+impl std::fmt::Display for FiniteModule {
+    dispatch! {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> (Result<(), std::fmt::Error>);
+    }
+}
+
+// We dispatch the act/act_by_element functions to avoid matching in every loop.
 impl Module for FiniteModule {
     type Algebra = SteenrodAlgebra;
 
-    fn algebra(&self) -> Arc<Self::Algebra> {
-        match self {
-            FiniteModule::FDModule(m) => m.algebra(),
-            FiniteModule::FPModule(m) => m.algebra(),
-            FiniteModule::RealProjectiveSpace(m) => m.algebra(),
-        }
-    }
-
-    fn name(&self) -> String {
-        match self {
-            FiniteModule::FDModule(m) => m.name(),
-            FiniteModule::FPModule(m) => m.name(),
-            FiniteModule::RealProjectiveSpace(m) => m.name(),
-        }
-    }
-
-    fn min_degree(&self) -> i32 {
-        match self {
-            FiniteModule::FDModule(m) => m.min_degree(),
-            FiniteModule::FPModule(m) => m.min_degree(),
-            FiniteModule::RealProjectiveSpace(m) => m.min_degree(),
-        }
-    }
-
-    fn compute_basis(&self, degree: i32) {
-        match self {
-            FiniteModule::FDModule(m) => m.compute_basis(degree),
-            FiniteModule::FPModule(m) => m.compute_basis(degree),
-            FiniteModule::RealProjectiveSpace(m) => m.compute_basis(degree),
-        }
-    }
-
-    fn max_computed_degree(&self) -> i32 {
-        match self {
-            FiniteModule::FDModule(m) => m.max_computed_degree(),
-            FiniteModule::FPModule(m) => m.max_computed_degree(),
-            FiniteModule::RealProjectiveSpace(m) => m.max_computed_degree(),
-        }
-    }
-
-    fn dimension(&self, degree: i32) -> usize {
-        match self {
-            FiniteModule::FDModule(m) => m.dimension(degree),
-            FiniteModule::FPModule(m) => m.dimension(degree),
-            FiniteModule::RealProjectiveSpace(m) => m.dimension(degree),
-        }
-    }
-
-    fn act_on_basis(
-        &self,
-        result: SliceMut,
-        coeff: u32,
-        op_degree: i32,
-        op_index: usize,
-        mod_degree: i32,
-        mod_index: usize,
-    ) {
-        match self {
-            FiniteModule::FDModule(m) => {
-                m.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index)
-            }
-            FiniteModule::FPModule(m) => {
-                m.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index)
-            }
-            FiniteModule::RealProjectiveSpace(m) => {
-                m.act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index)
-            }
-        }
-    }
-
-    // Dispatch these as well so that we don't have to match on the type every loop.
-    // Experimentally, not doing so causes a significant performance on some runs (while having no
-    // impact on the others)
-    fn act(
-        &self,
-        result: SliceMut,
-        coeff: u32,
-        op_degree: i32,
-        op_index: usize,
-        input_degree: i32,
-        input: Slice,
-    ) {
-        match self {
-            FiniteModule::FDModule(m) => {
-                m.act(result, coeff, op_degree, op_index, input_degree, input)
-            }
-            FiniteModule::FPModule(m) => {
-                m.act(result, coeff, op_degree, op_index, input_degree, input)
-            }
-            FiniteModule::RealProjectiveSpace(m) => {
-                m.act(result, coeff, op_degree, op_index, input_degree, input)
-            }
-        }
-    }
-
-    fn act_by_element(
-        &self,
-        result: SliceMut,
-        coeff: u32,
-        op_degree: i32,
-        op: Slice,
-        input_degree: i32,
-        input: Slice,
-    ) {
-        match self {
-            FiniteModule::FDModule(m) => {
-                m.act_by_element(result, coeff, op_degree, op, input_degree, input)
-            }
-            FiniteModule::FPModule(m) => {
-                m.act_by_element(result, coeff, op_degree, op, input_degree, input)
-            }
-            FiniteModule::RealProjectiveSpace(m) => {
-                m.act_by_element(result, coeff, op_degree, op, input_degree, input)
-            }
-        }
-    }
-
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
-        match self {
-            FiniteModule::FDModule(m) => m.basis_element_to_string(degree, idx),
-            FiniteModule::FPModule(m) => m.basis_element_to_string(degree, idx),
-            FiniteModule::RealProjectiveSpace(m) => m.basis_element_to_string(degree, idx),
-        }
+    dispatch! {
+        fn algebra(&self) -> (Arc<Self::Algebra>);
+        fn min_degree(&self) -> i32;
+        fn compute_basis(&self, degree: i32);
+        fn max_computed_degree(&self) -> i32;
+        fn dimension(&self, degree: i32) -> usize;
+        fn act_on_basis(&self, result: SliceMut, coeff: u32, op_degree: i32, op_index: usize, mod_degree: i32, mod_index: usize);
+        fn act(&self, result: SliceMut, coeff: u32, op_degree: i32, op_index: usize, input_degree: i32, input: Slice);
+        fn act_by_element(&self, result: SliceMut, coeff: u32, op_degree: i32, op: Slice, input_degree: i32, input: Slice);
+        fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
     }
 
     fn is_unit(&self) -> bool {
@@ -210,13 +129,7 @@ impl FiniteModule {
         }
     }
 
-    pub fn to_json(&self, json: &mut Value) {
-        match self {
-            Self::FDModule(m) => m.to_json(json),
-            Self::FPModule(m) => m.to_json(json),
-            Self::RealProjectiveSpace(m) => m.to_json(json),
-        }
-    }
+    dispatch! { pub fn to_json(&self, json: &mut Value); }
 
     pub fn type_(&self) -> &str {
         match self {

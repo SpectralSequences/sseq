@@ -11,9 +11,9 @@ fn negative_min_degree() {
         "actions": [],
         "products": [{"hom_deg":3,"int_deg":11,"class":[1],"name":"c_0"}],
     });
-    let bundle = construct_from_json(json, "adem").unwrap();
+    let resolution = construct_from_json(json, "adem").unwrap();
 
-    bundle.resolution.read().resolve_through_degree(20);
+    resolution.resolve_through_degree(20);
 }
 
 #[test]
@@ -26,7 +26,7 @@ fn positive_min_degree() {
         "actions": [],
         "products":[{"hom_deg":3,"int_deg":11,"class":[1],"name":"c_0"}],
     });
-    let bundle = construct_from_json(json, "adem").unwrap();
+    let resolution = construct_from_json(json, "adem").unwrap();
 
-    bundle.resolution.read().resolve_through_degree(20);
+    resolution.resolve_through_degree(20);
 }

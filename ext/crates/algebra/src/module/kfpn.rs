@@ -24,6 +24,12 @@ pub struct KFpn<A : AdemAlgebraT> {
     inverse_frobenius_table : OnceVec<Vec<(i32, usize, u32)>>, // degree => idx => (root degree, idx, frob_p_power)
 }
 
+impl<A: AdemAlgebraT> std::fmt::Display for KFpn<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "K(F{},{})", *self.adem_algebra().prime(), self.n)
+    }
+}
+
 impl<A : AdemAlgebraT> KFpn<A> {
     pub fn new(algebra : Arc<A>, n : i32) -> Self {
         let p = algebra.prime();
@@ -87,10 +93,6 @@ impl<A : AdemAlgebraT> KFpn<A> {
 impl<A : AdemAlgebraT> PolynomialAlgebra for KFpn<A> {
     fn prime(&self) -> ValidPrime {
         self.adem_algebra().prime()
-    }
-    
-    fn name(&self) -> String {
-        format!("K(F{},{})", *self.adem_algebra().prime(), self.n)
     }
 
     fn polynomial_monomials(&self) -> &TruncatedPolynomialMonomialBasis {

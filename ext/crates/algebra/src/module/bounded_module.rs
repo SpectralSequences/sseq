@@ -27,7 +27,7 @@ pub trait BoundedModule: Module {
         for t in min_degree..=max_degree {
             graded_dimension.push(self.dimension(t));
         }
-        let mut result = FDModule::new(self.algebra(), self.name(), graded_dimension);
+        let mut result = FDModule::new(self.algebra(), self.to_string(), graded_dimension);
         for t in min_degree..=max_degree {
             for idx in 0..result.dimension(t) {
                 result.set_basis_element_name(t, idx, self.basis_element_to_string(t, idx));

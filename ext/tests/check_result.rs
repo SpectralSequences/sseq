@@ -24,7 +24,6 @@ fn compare(module_name: &str, result: ExpectFile, max_degree: i32) {
     };
 
     let a = construct(&a).unwrap();
-    let a = a.resolution.read();
 
     #[cfg(not(feature = "concurrent"))]
     {

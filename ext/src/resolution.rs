@@ -705,7 +705,7 @@ impl<CC : UnitChainComplex> Resolution<CC> {
             max_s = *next_s - 1;
         }
 
-        self.inner.complex().compute_through_bidegree(max_s, max_t);
+        self.complex().compute_through_bidegree(max_s, max_t);
         self.inner.extend_through_degree(*next_s, max_s, *next_t, max_t);
         self.algebra().compute_basis(max_t - min_degree);
 
@@ -772,7 +772,7 @@ impl<CC : UnitChainComplex> Resolution<CC> {
             max_s = *next_s - 1;
         }
 
-        self.inner.complex().compute_through_bidegree(max_s, max_t);
+        self.complex().compute_through_bidegree(max_s, max_t);
         self.inner.extend_through_degree(*next_s, max_s, *next_t, max_t);
         self.algebra().compute_basis(max_t - min_degree);
 
@@ -904,6 +904,10 @@ impl<CC : UnitChainComplex> Resolution<CC> {
 
     pub fn graded_dimension_string(&self) -> String {
         self.inner.graded_dimension_string(self.max_computed_degree(), self.max_computed_homological_degree())
+    }
+
+    pub fn complex(&self) -> Arc<CC> {
+        self.inner.complex()
     }
 }
 
@@ -1142,7 +1146,7 @@ impl<CC : UnitChainComplex> Resolution<CC> {
 impl<CC : UnitChainComplex> Resolution<CC>
 {
     pub fn algebra(&self) -> Arc<<CC::Module as Module>::Algebra> {
-        self.inner.complex().algebra()
+        self.complex().algebra()
     }
 
     pub fn prime(&self) -> ValidPrime {
@@ -1154,7 +1158,7 @@ impl<CC : UnitChainComplex> Resolution<CC>
     }
 
     pub fn min_degree(&self) -> i32 {
-        self.inner.complex().min_degree()
+        self.complex().min_degree()
     }
 
     pub fn differential(&self, s : u32) -> Arc<FreeModuleHomomorphism<FreeModule<<CC::Module as Module>::Algebra>>> {
@@ -1168,6 +1172,9 @@ use saveload::{Save, Load};
 
 impl<CC : ChainComplex> Save for ResolutionInner<CC> {
     fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+        let max_algebra_dim = self.module(0).max_computed_degree() - self.min_degree();
+
+        max_algebra_dim.save(buffer)?;
         self.modules.save(buffer)?;
         self.kernels.save(buffer)?;
         self.differentials.save(buffer)?;
@@ -1180,6 +1187,9 @@ impl<CC : ChainComplex> Load for ResolutionInner<CC> {
     type AuxData = Arc<CC>;
 
     fn load(buffer : &mut impl Read, cc : &Self::AuxData) -> io::Result<Self> {
+        let max_algebra_dim = i32::load(buffer, &())?;
+        cc.algebra().compute_basis(max_algebra_dim);
+
         let mut result = ResolutionInner::new(Arc::clone(cc));
 
         let algebra = result.algebra();
@@ -1215,8 +1225,6 @@ impl<CC : ChainComplex> Load for ResolutionInner<CC> {
 
 impl<CC : UnitChainComplex> Save for Resolution<CC> {
     fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
-        let algebra_dim = *self.next_t.lock() - self.min_degree() - 1;
-        algebra_dim.save(buffer)?;
         self.inner.save(buffer)
     }
 }
@@ -1225,9 +1233,6 @@ impl<CC : UnitChainComplex> Load for Resolution<CC> {
     type AuxData = Arc<CC>;
 
     fn load(buffer : &mut impl Read, cc : &Self::AuxData) -> io::Result<Self> {
-        let dim = i32::load(buffer, &())?;
-        cc.algebra().compute_basis(dim);
-
         let inner = ResolutionInner::load(buffer, cc)?;
 
         let result = Resolution::new_with_inner(inner, None, None);

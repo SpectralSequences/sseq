@@ -17,6 +17,12 @@ pub struct HomModule<M: BoundedModule> {
     pub block_structures: OnceBiVec<BlockStructure>,
 }
 
+impl<M: BoundedModule> std::fmt::Display for HomModule<M> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "Hom({}, {})", self.source, self.target)
+    }
+}
+
 impl<M: BoundedModule> HomModule<M> {
     pub fn new(source: Arc<FreeModule<M::Algebra>>, target: Arc<M>) -> Self {
         let p = source.prime();
@@ -107,10 +113,6 @@ impl<M: BoundedModule> Module for HomModule<M> {
 
     fn algebra(&self) -> Arc<Self::Algebra> {
         Arc::clone(&self.algebra)
-    }
-
-    fn name(&self) -> String {
-        format!("Hom({}, {})", self.source.name(), self.target.name())
     }
 
     fn min_degree(&self) -> i32 {

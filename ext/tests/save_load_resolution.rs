@@ -13,9 +13,7 @@ fn test_save_load() {
         "actions": []
     });
 
-    let bundle = construct_from_json(json, "adem").unwrap();
-
-    let resolution1 = bundle.resolution.read();
+    let resolution1 = construct_from_json(json, "adem").unwrap();
     resolution1.resolve_through_degree(10);
 
     let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
@@ -23,7 +21,7 @@ fn test_save_load() {
 
     cursor.seek(SeekFrom::Start(0)).unwrap();
 
-    let resolution2 = Resolution::load(&mut cursor, &bundle.chain_complex).unwrap();
+    let resolution2 = Resolution::load(&mut cursor, &resolution1.complex()).unwrap();
     assert_eq!(0, cursor.bytes().count());
 
     assert_eq!(

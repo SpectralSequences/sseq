@@ -2,7 +2,6 @@ use crate::actions::*;
 use crate::sseq::Sseq;
 
 use ext::utils::Config;
-use ext::utils::AlgebraicObjectsBundle;
 use ext::CCC;
 use ext::module::{Module, FiniteModule, FDModule};
 use ext::resolution::Resolution;
@@ -18,9 +17,9 @@ const NUM_THREADS : usize = 2;
 
 use crate::Sender;
 
-/// ResolutionManager is a struct that manipulates an AlgebraicObjectsBundle. It is constructed
-/// with a "sender" which is used to relay the results of the computation. This sender should send
-/// all messages to SseqManager.
+/// ResolutionManager is a struct that manipulates a Resolution. It is constructed with a "sender"
+/// which is used to relay the results of the computation. This sender should send all messages to
+/// SseqManager.
 ///
 /// # Fields
 ///  * `sender` : A Sender object.
@@ -109,35 +108,37 @@ impl ResolutionManager {
         dir.pop(); dir.pop(); dir.pop();
         dir.push("modules");
 
-        let bundle = ext::utils::construct(&Config {
+        let resolution = ext::utils::construct(&Config {
              module_paths : vec![dir],
              module_file_name : format!("{}.json", action.module_name),
              algebra_name : action.algebra_name,
              max_degree : 0 // This is not used.
         }).unwrap();
 
-        self.process_bundle(bundle);
+        self.process_bundle(resolution);
 
         Ok(())
     }
 
-    fn process_bundle(&mut self, bundle : AlgebraicObjectsBundle) {
-        self.is_unit = bundle.chain_complex.modules.len() == 1 && bundle.chain_complex.module(0).is_unit();
+    fn process_bundle(&mut self, mut resolution : Resolution<CCC>) {
+        self.is_unit = resolution.complex().modules.len() == 1 && resolution.complex().module(0).is_unit();
 
         if self.is_unit {
-            bundle.resolution.write().set_unit_resolution(Arc::downgrade(&bundle.resolution));
-            self.unit_resolution = Some(Arc::clone(&bundle.resolution));
+            let resolution = Arc::new(RwLock::new(resolution));
+            resolution.write().set_unit_resolution(Arc::downgrade(&resolution));
+            self.unit_resolution = Some(Arc::clone(&resolution));
+            self.resolution = Some(resolution);
         } else {
-            let algebra = bundle.resolution.read().algebra();
+            let algebra = resolution.algebra();
 
             let unit_module = Arc::new(FiniteModule::from(FDModule::new(algebra, String::from("unit"), BiVec::from_vec(0, vec![1]))));
             let ccdz = Arc::new(FiniteChainComplex::ccdz(unit_module));
             let unit_resolution = Arc::new(RwLock::new(Resolution::new(ccdz, None, None)));
 
-            bundle.resolution.write().set_unit_resolution(Arc::downgrade(&unit_resolution));
+            resolution.set_unit_resolution(Arc::downgrade(&unit_resolution));
             self.unit_resolution = Some(Arc::clone(&unit_resolution));
+            self.resolution = Some(Arc::new(RwLock::new(resolution)));
         }
-        self.resolution = Some(bundle.resolution);
 
         let resolution = self.resolution.as_ref().unwrap();
         let mut resolution = resolution.write();

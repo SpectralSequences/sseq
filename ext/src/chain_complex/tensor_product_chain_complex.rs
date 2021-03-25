@@ -570,8 +570,7 @@ mod tests {
         let p = ValidPrime::new(2);
 
         let k = serde_json::from_str(k).unwrap();
-        let bundle = construct_from_json(k, "adem").unwrap();
-        let resolution = bundle.resolution.read();
+        let resolution = construct_from_json(k, "adem").unwrap();
         resolution.resolve_through_bidegree(2 * s, 2 * t);
 
         let yoneda = Arc::new(yoneda_representative_element(

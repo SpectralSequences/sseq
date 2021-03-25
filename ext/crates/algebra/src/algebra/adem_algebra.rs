@@ -12,14 +12,13 @@ use nom::{
 };
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap as HashMap;
-use std::format;
 use serde_json::value::Value;
 
 use once::OnceVec;
 use fp::prime::{ValidPrime, BitflagIterator};
 use fp::vector::{FpVector, SliceMut};
 use crate::algebra::combinatorics::{self, MAX_XI_TAU};
-use crate::algebra::{Algebra, Bialgebra};
+use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
 
 // This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
 // In order for things to work AdemAlgebraT cannot implement Algebra.
@@ -145,7 +144,6 @@ unsafe fn shift_vec<T>(v : &mut Vec<T> , offset : isize) {
 
 pub struct AdemAlgebra {
     p : ValidPrime,
-    name : String,
     pub generic : bool,
     pub unstable : bool,
     pub unstable_enabled : bool,
@@ -159,17 +157,15 @@ pub struct AdemAlgebra {
     sort_order : Option<fn(&AdemBasisElement, &AdemBasisElement) -> Ordering>
 }
 
-impl Algebra for AdemAlgebra {
-    fn algebra_type(&self) -> &str {
-        "adem"
+impl std::fmt::Display for AdemAlgebra {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "AdemAlgebra(p={})", self.prime())
     }
+}
 
+impl Algebra for AdemAlgebra {
     fn prime(&self) -> ValidPrime {
         self.p
-    }
-
-    fn name(&self) -> &str {
-        &self.name
     }
 
     #[allow(clippy::useless_let_if_seq)]
@@ -211,10 +207,6 @@ impl Algebra for AdemAlgebra {
         products.into_iter()
             .map(|(name, b)| (name, b.degree, self.basis_element_to_index(&b)))
             .collect()
-    }
-
-    fn max_computed_degree(&self) -> i32 {
-        *self.next_degree.lock() - 1
     }
 
     fn compute_basis(&self, max_degree : i32) {
@@ -298,6 +290,26 @@ impl Algebra for AdemAlgebra {
         Ok((b.degree, self.basis_element_to_index(&b)))
     }
 
+    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
+        format!("{}", self.basis_element_from_index(degree, idx))
+    }
+
+    fn json_from_basis(&self, degree : i32, index : usize) -> Value {
+        let b = self.basis_element_from_index(degree, index);
+        let out_sqs;
+        if self.generic {
+            out_sqs = b.iter_full().map(|e| match e {
+                PorBockstein::P(v) => v,
+                PorBockstein::Bockstein(x) => x as u32
+            }).collect::<Vec<_>>();
+        } else {
+            out_sqs = b.ps.clone();
+        }
+        serde_json::to_value(out_sqs).unwrap()
+    }
+}
+
+impl GeneratedAlgebra for AdemAlgebra {
     fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> {
         let first = map(alt((
             delimited(char('P'), digit1, space1),
@@ -322,25 +334,6 @@ impl Algebra for AdemAlgebra {
         } else {
             format!("Sq{}", degree)
         }
-    }
-
-    fn json_from_basis(&self, degree : i32, index : usize) -> Value {
-        let b = self.basis_element_from_index(degree, index);
-        let out_sqs;
-        if self.generic {
-            out_sqs = b.iter_full().map(|e| match e {
-                PorBockstein::P(v) => v,
-                PorBockstein::Bockstein(x) => x as u32
-            }).collect::<Vec<_>>();
-        } else {
-            out_sqs = b.ps.clone();
-        }
-        serde_json::to_value(out_sqs).unwrap()
-    }
-
-
-    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
-        format!("{}", self.basis_element_from_index(degree, idx))
     }
 
     fn generators(&self, degree : i32) -> Vec<usize> {
@@ -398,7 +391,7 @@ impl Algebra for AdemAlgebra {
 
     /// We return Adem relations $b^2 = 0$, $P^i P^j = \cdots$ for $i < pj$, and $P^i b P^j = \cdots$ for $i < pj + 1$. It suffices to check these because
     /// they generate all relations.
-    fn relations_to_check(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
+    fn generating_relations(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
         if self.generic && degree == 2 {
             // beta^2 = 0 is an edge case
             return vec![vec![(1, (1, 0), (1, 0))]];
@@ -455,7 +448,6 @@ impl AdemAlgebra {
         } else { None };
         Self {
             p,
-            name : format!("AdemAlgebra(p={})", p),
             generic,
             next_degree : Mutex::new(0),
             unstable,
@@ -1455,7 +1447,7 @@ mod tests {
         for i in 1 ..= max_degree {
             let output_dim = algebra.dimension(i, i32::max_value());
             output_vec.set_scratch_vector_size(output_dim);
-            let relations = algebra.relations_to_check(i);
+            let relations = algebra.generating_relations(i);
             for relation in relations {
                 for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
                     algebra.multiply_basis_elements(output_vec.as_slice_mut(), *coeff, *deg_1, *idx_1, *deg_2, *idx_2, i32::max_value());

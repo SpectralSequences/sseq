@@ -30,17 +30,10 @@ fn check_algebra(module_name: &str, max_degree: i32, algebra_name: &str) {
         algebra_name: String::from(algebra_name),
     };
 
-    let bundle = construct(&a).unwrap();
-    let p = bundle.chain_complex.prime();
+    let mut resolution = construct(&a).unwrap();
+    let p = resolution.prime();
 
-    bundle.resolution.write().add_self_map(
-        0,
-        0,
-        &"id".to_string(),
-        Matrix::from_vec(p, &[vec![1]]),
-    );
-
-    let resolution = bundle.resolution.read();
+    resolution.add_self_map(0, 0, &"id".to_string(), Matrix::from_vec(p, &[vec![1]]));
 
     resolution.resolve_through_degree(max_degree);
 
@@ -110,9 +103,7 @@ fn extend_identity2() {
 
 fn check2(json: Value, max_degree: i32, algebra_name: &str) {
     println!("Module: {}", json);
-    let bundle = construct_from_json(json, algebra_name).unwrap();
-
-    let resolution = bundle.resolution.read();
+    let resolution = construct_from_json(json, algebra_name).unwrap();
 
     resolution.resolve_through_bidegree(max_degree as u32, max_degree);
     let inner = Arc::clone(&resolution.inner);

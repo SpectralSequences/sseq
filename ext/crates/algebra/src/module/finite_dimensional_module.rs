@@ -1,7 +1,7 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 use bivec::BiVec;
 
-use crate::algebra::Algebra;
+use crate::algebra::{Algebra, GeneratedAlgebra, SteenrodAlgebra};
 use crate::module::{BoundedModule, Module, ModuleFailedRelationError, ZeroModule};
 use error::GenericError;
 use fp::vector::{FpVector, SliceMut};
@@ -32,6 +32,12 @@ pub struct FiniteDimensionalModule<A: Algebra> {
     gen_names: BiVec<Vec<String>>,
     // This goes input_degree --> output_degree --> operation --> input_index --> Vector
     actions: BiVec<BiVec<Vec<Vec<FpVector>>>>,
+}
+
+impl<A: Algebra> std::fmt::Display for FiniteDimensionalModule<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", self.name)
+    }
 }
 
 impl<A: Algebra> Clone for FiniteDimensionalModule<A> {
@@ -131,10 +137,6 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
 
 impl<A: Algebra> Module for FiniteDimensionalModule<A> {
     type Algebra = A;
-
-    fn name(&self) -> String {
-        self.name.clone()
-    }
 
     fn algebra(&self) -> Arc<Self::Algebra> {
         Arc::clone(&self.algebra)
@@ -478,8 +480,10 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         let output_degree = input_degree + operation_degree;
         &mut self.actions[input_degree][output_degree][operation_idx][input_idx]
     }
+}
 
-    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> error::Result<Self> {
+impl FiniteDimensionalModule<SteenrodAlgebra> {
+    pub fn from_json(algebra: Arc<SteenrodAlgebra>, json: &mut Value) -> error::Result<Self> {
         let gens = json["gens"].take();
         let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(gens);
         let name = json["name"].as_str().unwrap_or("").to_string();
@@ -514,7 +518,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                 output: Vec<OutputStruct>,
             }
 
-            let actions_value = json[format!("{}_actions", algebra.algebra_type())].take();
+            let actions_value = json[format!("{}_actions", algebra.prefix())].take();
             let actions: Vec<ActionStruct> = serde_json::from_value(actions_value)?;
             for action in actions {
                 let (degree, idx) = algebra.json_to_basis(action.op)?;
@@ -536,7 +540,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
     }
 
     pub fn to_json(&self, json: &mut Value) {
-        json["name"] = Value::String(self.name());
+        json["name"] = Value::String(self.to_string());
         json["type"] = Value::from("finite dimensional module");
         json["gens"] = json!({});
         for (i, deg_i_gens) in self.gen_names.iter_enum() {
@@ -642,7 +646,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         let mut output_vec = FpVector::new(p, self.dimension(output_deg));
         let mut tmp_output = FpVector::new(p, self.dimension(output_deg));
         for idx in 0..self.dimension(input_deg) {
-            let relations = algebra.relations_to_check(op_deg);
+            let relations = algebra.generating_relations(op_deg);
             for relation in relations {
                 for &(coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
                     let intermediate_dim = self.dimension(input_deg + deg_2);
@@ -754,7 +758,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
     pub fn to_minimal_json(&self) -> Value {
         json!({
             "p": *self.prime(),
-            "algebra": self.algebra().algebra_type(),
+            "algebra": self.algebra().prefix(),
             "min_degree": self.min_degree(),
             "graded_dimension": self.graded_dimension,
             "actions": self.minimal_actions_to_json(),

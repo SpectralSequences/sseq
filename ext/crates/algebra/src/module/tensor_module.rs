@@ -19,6 +19,12 @@ pub struct TensorModule<M: Module, N: Module<Algebra = M::Algebra>> {
     block_structures: OnceBiVec<BlockStructure>,
 }
 
+impl<M: Module, N: Module<Algebra = M::Algebra>> std::fmt::Display for TensorModule<M, N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "{} (x) {}", self.left, self.right)
+    }
+}
+
 impl<A, M, N> TensorModule<M, N>
 where
     A: Algebra + Bialgebra,
@@ -176,10 +182,6 @@ where
 
     fn algebra(&self) -> Arc<A> {
         self.left.algebra()
-    }
-
-    fn name(&self) -> String {
-        format!("{} (x) {}", self.left.name(), self.right.name())
     }
 
     fn min_degree(&self) -> i32 {

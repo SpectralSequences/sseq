@@ -18,8 +18,7 @@ fn main() -> error::Result<()> {
     // Construct the bundle object from the json. The bundle consists of data used to build the
     // resolution. Most of the we only need the resolution property, which is wrapped in an
     // Arc<RwLock>.
-    let bundle = ext::utils::construct_from_json(json, "milnor")?;
-    let resolution = &*bundle.resolution.read();
+    let resolution = ext::utils::construct_from_json(json, "milnor")?;
 
     // Now resolve through the desired bidegree
     resolution.resolve_through_bidegree(6, 70);

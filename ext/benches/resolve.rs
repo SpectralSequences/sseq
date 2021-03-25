@@ -19,8 +19,7 @@ fn benchmark(module_name: &str, max_degree: i32, algebra: &str, n_times: u128) {
 
     let start = Instant::now();
     for _ in 0..n_times {
-        let bundle = construct(&cfg).unwrap();
-        let res = bundle.resolution.read();
+        let res = construct(&cfg).unwrap();
         res.resolve_through_degree(max_degree);
         assert!(
             res.module(max_degree as u32)
