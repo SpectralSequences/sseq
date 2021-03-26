@@ -147,7 +147,7 @@ pub struct AdemAlgebra {
     pub generic : bool,
     pub unstable : bool,
     pub unstable_enabled : bool,
-    next_degree : Mutex<i32>,
+    lock : Mutex<()>,
     even_basis_table : OnceVec<Vec<AdemBasisElement>>,
     basis_table : OnceVec<Vec<AdemBasisElement>>, // degree -> index -> AdemBasisElement
     basis_element_to_index_map : OnceVec<HashMap<AdemBasisElement, usize>>, // degree -> AdemBasisElement -> index
@@ -210,26 +210,26 @@ impl Algebra for AdemAlgebra {
     }
 
     fn compute_basis(&self, max_degree : i32) {
-        let mut next_degree = self.next_degree.lock();
-        if max_degree < *next_degree {
+        let _lock = self.lock.lock();
+
+        let next_degree = self.basis_table.len() as i32;
+        if max_degree < next_degree {
             return;
         }
 
         if self.generic {
-            self.generate_basis_generic(*next_degree, max_degree);
-            self.generate_basis_element_to_index_map(*next_degree, max_degree);
-            self.generate_multiplication_table_generic(*next_degree, max_degree);
+            self.generate_basis_generic(next_degree, max_degree);
+            self.generate_basis_element_to_index_map(next_degree, max_degree);
+            self.generate_multiplication_table_generic(next_degree, max_degree);
         } else {
-            self.generate_basis2(*next_degree, max_degree);
-            self.generate_basis_element_to_index_map(*next_degree, max_degree);
-            self.generate_multiplication_table_2(*next_degree, max_degree);
+            self.generate_basis2(next_degree, max_degree);
+            self.generate_basis_element_to_index_map(next_degree, max_degree);
+            self.generate_multiplication_table_2(next_degree, max_degree);
         }
 
         if self.unstable_enabled {
             self.generate_excess_table(max_degree);
         }
-
-        *next_degree = max_degree + 1;
     }
 
     fn dimension(&self, degree : i32, excess : i32) -> usize {
@@ -449,7 +449,7 @@ impl AdemAlgebra {
         Self {
             p,
             generic,
-            next_degree : Mutex::new(0),
+            lock : Mutex::new(()),
             unstable,
             unstable_enabled,
             even_basis_table,

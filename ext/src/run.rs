@@ -1,34 +1,19 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 //! This file contains code used by main.rs
 
-use serde_json::value::Value;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::io::{BufReader, Write};
+use std::path::Path;
 use std::time::Instant;
 
-use ext::chain_complex::ChainComplex;
-#[cfg(feature = "yoneda")]
-use ext::module::homomorphism::{
-    FiniteModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
-};
-use ext::module::{BoundedModule, FiniteModule, Module};
+use algebra::module::homomorphism::ModuleHomomorphism;
 use ext::resolution::Resolution;
-use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::{construct, construct_s_2, Config};
-#[cfg(feature = "yoneda")]
-use ext::yoneda::yoneda_representative_element;
 
-use bivec::BiVec;
 use query::*;
-use saveload::{Load, Save};
+use saveload::Load;
 
-#[cfg(feature = "concurrent")]
-use std::{thread, thread::JoinHandle};
-
-#[cfg(feature = "concurrent")]
-use crossbeam_channel::{unbounded, Receiver};
+#[cfg(any(feature = "concurrent", feature = "yoneda"))]
+use std::sync::Arc;
 
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
@@ -45,7 +30,7 @@ pub fn resolve(config: &Config) -> error::Result<String> {
 
     #[cfg(feature = "concurrent")]
     {
-        let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
+        let num_threads = query_with_default("Number of threads", 2, Ok);
         let bucket = Arc::new(TokenBucket::new(num_threads));
         res.resolve_through_degree_concurrent(config.max_degree, &bucket);
     }
@@ -62,19 +47,28 @@ pub fn yoneda(_: &Config) -> error::Result<String> {
 
 #[cfg(feature = "yoneda")]
 pub fn yoneda(config: &Config) -> error::Result<String> {
+    use std::path::PathBuf;
+
+    use algebra::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphism};
+    use algebra::module::{BoundedModule, FiniteModule, Module};
+    use ext::chain_complex::ChainComplex;
+    use ext::resolution_homomorphism::ResolutionHomomorphism;
+    use ext::yoneda::yoneda_representative_element;
+    use serde_json::value::Value;
+
     let resolution = construct(config)?;
     let module = resolution.complex().module(0);
     let min_degree = resolution.min_degree();
 
     #[cfg(feature = "concurrent")]
-    let num_threads = query_with_default_no_default_indicated("Number of threads", 2, Ok);
+    let num_threads = query_with_default("Number of threads", 2, Ok);
     #[cfg(feature = "concurrent")]
     let bucket = Arc::new(TokenBucket::new(num_threads));
 
     loop {
-        let x: i32 = query_with_default_no_default_indicated("t - s", 200, Ok);
-        let s: u32 = query_with_default_no_default_indicated("s", 200, Ok);
-        let i: usize = query_with_default_no_default_indicated("idx", 200, Ok);
+        let x: i32 = query_with_default("t - s", 200, Ok);
+        let s: u32 = query_with_default("s", 200, Ok);
+        let i: usize = query_with_default("idx", 200, Ok);
 
         let start = Instant::now();
         let t = x + s as i32;
@@ -116,7 +110,8 @@ pub fn yoneda(config: &Config) -> error::Result<String> {
             }
         }
 
-        let mut check = BiVec::from_vec(min_degree, vec![0; t as usize + 1 - min_degree as usize]);
+        let mut check =
+            bivec::BiVec::from_vec(min_degree, vec![0; t as usize + 1 - min_degree as usize]);
         for s in 0..=s {
             let module = yoneda.module(s);
 
@@ -175,9 +170,11 @@ pub fn secondary() -> error::Result<String> {
     let max_s = query_with_default("Max s", 7, Ok);
     let max_t = query_with_default("Max t", 30, Ok);
 
-    let res_save_file: String = query_with_default("Resolution save file", String::from("resolution.save"), Ok);
+    let res_save_file: String =
+        query_with_default("Resolution save file", String::from("resolution.save"), Ok);
     #[cfg(feature = "concurrent")]
-    let del_save_file: String = query_with_default("Delta save file", String::from("ddelta.save"), Ok);
+    let del_save_file: String =
+        query_with_default("Delta save file", String::from("ddelta.save"), Ok);
 
     #[cfg(feature = "concurrent")]
     let num_threads = query_with_default("Number of threads", 2, Ok);
@@ -193,18 +190,6 @@ pub fn secondary() -> error::Result<String> {
 
     let should_resolve = max_s >= *resolution.next_s.lock() || max_t >= *resolution.next_t.lock();
 
-    let save = || {
-        if res_save_file != "-" {
-            print!("Saving resolution: ");
-            let start = Instant::now();
-            let file = File::create(&*res_save_file).unwrap();
-            let mut file = BufWriter::new(file);
-            resolution.save(&mut file).unwrap();
-            drop(file);
-            println!("{:.2?}", start.elapsed());
-        }
-    };
-
     #[cfg(not(feature = "concurrent"))]
     let deltas = {
         if should_resolve {
@@ -212,8 +197,6 @@ pub fn secondary() -> error::Result<String> {
             let start = Instant::now();
             resolution.resolve_through_bidegree(max_s, max_t);
             println!("{:.2?}", start.elapsed());
-
-            save();
         }
 
         ext::secondary::compute_delta(&resolution.inner, max_s, max_t)
@@ -228,11 +211,15 @@ pub fn secondary() -> error::Result<String> {
             let start = Instant::now();
             resolution.resolve_through_bidegree_concurrent(max_s, max_t, &bucket);
             println!("{:.2?}", start.elapsed());
-
-            save();
         }
 
-        ext::secondary::compute_delta_concurrent(&resolution.inner, max_s, max_t, &bucket, &*del_save_file)
+        ext::secondary::compute_delta_concurrent(
+            &resolution.inner,
+            max_s,
+            max_t,
+            &bucket,
+            &*del_save_file,
+        )
     };
 
     let mut filename = String::from("d2");
@@ -241,8 +228,8 @@ pub fn secondary() -> error::Result<String> {
     }
     let mut output = File::create(&filename).unwrap();
 
-    for f in 1 .. max_t {
-        for s in 1.. (max_s - 1) {
+    for f in 1..max_t {
+        for s in 1..(max_s - 1) {
             let t = s as i32 + f;
             if t >= max_t {
                 break;
@@ -255,9 +242,7 @@ pub fn secondary() -> error::Result<String> {
             let d = delta.hom_k(t);
 
             for (i, entry) in d.into_iter().enumerate() {
-                writeln!(output,
-                    "d_2 x_({}, {}, {}) = {:?}", f, s, i, entry
-                ).unwrap();
+                writeln!(output, "d_2 x_({}, {}, {}) = {:?}", f, s, i, entry).unwrap();
             }
         }
     }

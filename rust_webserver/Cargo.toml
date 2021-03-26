@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 bivec = { path = "ext/crates/bivec" }
-enum_dispatch = "0.2.0"
+enum_dispatch = "=0.3.2"
 error = { path = "ext/crates/error" }
 fp = { path = "ext/crates/fp", features = ["json"], default-features = false }
 parking_lot = { version = "0.11", features = ["wasm-bindgen"] }

@@ -13,11 +13,9 @@ pub enum FiniteModule {
     RealProjectiveSpace(RealProjectiveSpace<SteenrodAlgebra>),
 }
 
-macro_rules! dispatch_inner {
-    // other is a type, but marking it as a :ty instead of :tt means we cannot use it to access its
-    // enum variants.
-    ($vis:vis fn $method:ident(&self$(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
-        #[allow(unused_parens)]
+macro_rules! dispatch {
+    () => {};
+    ($vis:vis fn $method:ident(&self$(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?; $($tail:tt)*) => {
         $vis fn $method(&self, $($arg: $ty),* ) $(-> $ret)* {
             match self {
                 FiniteModule::FDModule(m) => m.$method($($arg),*),
@@ -25,22 +23,13 @@ macro_rules! dispatch_inner {
                 FiniteModule::RealProjectiveSpace(m) => m.$method($($arg),*),
             }
         }
-    };
-}
-
-macro_rules! dispatch {
-    () => {};
-    ($vis:vis fn $method:ident $tt:tt $(-> $ret:tt)?; $($tail:tt)*) => {
-        dispatch_inner! {
-            $vis fn $method $tt $(-> $ret)*
-        }
         dispatch!{$($tail)*}
-    }
+    };
 }
 
 impl std::fmt::Display for FiniteModule {
     dispatch! {
-        fn fmt(&self, f: &mut std::fmt::Formatter) -> (Result<(), std::fmt::Error>);
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error>;
     }
 }
 
@@ -49,7 +38,7 @@ impl Module for FiniteModule {
     type Algebra = SteenrodAlgebra;
 
     dispatch! {
-        fn algebra(&self) -> (Arc<Self::Algebra>);
+        fn algebra(&self) -> Arc<Self::Algebra>;
         fn min_degree(&self) -> i32;
         fn compute_basis(&self, degree: i32);
         fn max_computed_degree(&self) -> i32;

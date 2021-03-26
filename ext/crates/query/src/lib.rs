@@ -30,33 +30,13 @@ where
     }
 }
 
-pub fn query_with_default<S: Display, T: FromStr + Display, F>(
-    prompt: &str,
-    default: S,
-    validator: F,
-) -> S
-where
-    F: Fn(T) -> Result<S, String>,
-    <T as std::str::FromStr>::Err: std::fmt::Display,
-{
-    query_with_default_no_default_indicated(
-        &format!("{} (default : {})", prompt, default),
-        default,
-        validator,
-    )
-}
-
-pub fn query_with_default_no_default_indicated<S: Display, T: FromStr, F>(
-    prompt: &str,
-    default: S,
-    validator: F,
-) -> S
+pub fn query_with_default<S: Display, T: FromStr, F>(prompt: &str, default: S, validator: F) -> S
 where
     F: Fn(T) -> Result<S, String>,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
     loop {
-        print!("{} : ", prompt);
+        print!("{} (default: {}): ", prompt, default);
         stdout().flush().unwrap();
         let mut input = String::new();
         stdin()

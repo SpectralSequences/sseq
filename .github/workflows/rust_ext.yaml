@@ -42,6 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
         RUST_BACKTRACE: 1
+        RUTSFLAGS: "-D warnings"
         RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:

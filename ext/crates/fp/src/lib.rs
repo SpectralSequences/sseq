@@ -12,3 +12,5 @@ pub mod vector_2;
 pub use vector_2 as vector;
 
 pub mod vector_inner;
+
+pub(crate) mod simd;
