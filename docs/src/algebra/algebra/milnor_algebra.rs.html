@@ -1428,7 +1428,6 @@
 <span id="1407">1407</span>
 <span id="1408">1408</span>
 <span id="1409">1409</span>
-<span id="1410">1410</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="ident">itertools</span>::<span class="ident">Itertools</span>;
@@ -1557,7 +1556,7 @@
 <span class="comment">// entry in ppart_table of the right degree.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MilnorAlgebra</span> {
     <span class="kw">pub</span> <span class="ident">profile</span> : <span class="ident">MilnorProfile</span>,
-    <span class="ident">next_degree</span> : <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>,
+    <span class="ident">lock</span> : <span class="ident">Mutex</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
     <span class="ident">p</span> : <span class="ident">ValidPrime</span>,
     <span class="kw">pub</span> <span class="ident">generic</span> : <span class="ident">bool</span>,
     <span class="ident">ppart_table</span> : <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PPart</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -1591,7 +1590,7 @@
             <span class="ident">p</span>,
             <span class="ident">generic</span> : <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>,
             <span class="ident">profile</span>,
-            <span class="ident">next_degree</span> : <span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="number">0</span>),
+            <span class="ident">lock</span> : <span class="ident">Mutex</span>::<span class="ident">new</span>(()),
             <span class="ident">ppart_table</span> : <span class="ident">OnceVec</span>::<span class="ident">new</span>(),
             <span class="ident">qpart_table</span>,
             <span class="ident">basis_table</span> : <span class="ident">OnceVec</span>::<span class="ident">new</span>(),
@@ -1669,26 +1668,27 @@
     }
 
     <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_degree</span> : <span class="ident">i32</span>) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">next_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_degree</span>.<span class="ident">lock</span>();
+        <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
+        <span class="kw">let</span> <span class="ident">next_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">basis_table</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">i32</span>;
 
-        <span class="kw">if</span> <span class="ident">max_degree</span> <span class="op">&lt;</span> <span class="kw-2">*</span><span class="ident">next_degree</span> {
+        <span class="kw">if</span> <span class="ident">max_degree</span> <span class="op">&lt;</span> <span class="ident">next_degree</span> {
             <span class="kw">return</span>;
         }
 
-        <span class="self">self</span>.<span class="ident">compute_ppart</span>(<span class="kw-2">*</span><span class="ident">next_degree</span>, <span class="ident">max_degree</span>);
-        <span class="self">self</span>.<span class="ident">compute_qpart</span>(<span class="kw-2">*</span><span class="ident">next_degree</span>, <span class="ident">max_degree</span>);
+        <span class="self">self</span>.<span class="ident">compute_ppart</span>(<span class="ident">next_degree</span>, <span class="ident">max_degree</span>);
+        <span class="self">self</span>.<span class="ident">compute_qpart</span>(<span class="ident">next_degree</span>, <span class="ident">max_degree</span>);
 
-        <span class="self">self</span>.<span class="ident">basis_table</span>.<span class="ident">reserve</span>((<span class="ident">max_degree</span> <span class="op">-</span> <span class="kw-2">*</span><span class="ident">next_degree</span> <span class="op">+</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">usize</span>);
-        <span class="self">self</span>.<span class="ident">basis_element_to_index_map</span>.<span class="ident">reserve</span>((<span class="ident">max_degree</span> <span class="op">-</span> <span class="kw-2">*</span><span class="ident">next_degree</span> <span class="op">+</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">usize</span>);
+        <span class="self">self</span>.<span class="ident">basis_table</span>.<span class="ident">reserve</span>((<span class="ident">max_degree</span> <span class="op">-</span> <span class="ident">next_degree</span> <span class="op">+</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">usize</span>);
+        <span class="self">self</span>.<span class="ident">basis_element_to_index_map</span>.<span class="ident">reserve</span>((<span class="ident">max_degree</span> <span class="op">-</span> <span class="ident">next_degree</span> <span class="op">+</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">usize</span>);
 
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> {
-            <span class="self">self</span>.<span class="ident">generate_basis_generic</span>(<span class="kw-2">*</span><span class="ident">next_degree</span>, <span class="ident">max_degree</span>);
+            <span class="self">self</span>.<span class="ident">generate_basis_generic</span>(<span class="ident">next_degree</span>, <span class="ident">max_degree</span>);
         } <span class="kw">else</span> {
-            <span class="self">self</span>.<span class="ident">generate_basis_2</span>(<span class="kw-2">*</span><span class="ident">next_degree</span>, <span class="ident">max_degree</span>);
+            <span class="self">self</span>.<span class="ident">generate_basis_2</span>(<span class="ident">next_degree</span>, <span class="ident">max_degree</span>);
         }
 
         <span class="comment">// Populate hash map</span>
-        <span class="kw">for</span> <span class="ident">d</span> <span class="kw">in</span> <span class="kw-2">*</span><span class="ident">next_degree</span> <span class="kw">as</span> <span class="ident">usize</span> ..<span class="op">=</span> <span class="ident">max_degree</span> <span class="kw">as</span> <span class="ident">usize</span> {
+        <span class="kw">for</span> <span class="ident">d</span> <span class="kw">in</span> <span class="ident">next_degree</span> <span class="kw">as</span> <span class="ident">usize</span> ..<span class="op">=</span> <span class="ident">max_degree</span> <span class="kw">as</span> <span class="ident">usize</span> {
             <span class="kw">let</span> <span class="ident">basis</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">basis_table</span>[<span class="ident">d</span>];
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">map</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="ident">default</span>();
             <span class="ident">map</span>.<span class="ident">reserve</span>(<span class="ident">basis</span>.<span class="ident">len</span>());
@@ -1716,8 +1716,6 @@
                 }
             }
         }
-
-        <span class="kw-2">*</span><span class="ident">next_degree</span> <span class="op">=</span> <span class="ident">max_degree</span> <span class="op">+</span> <span class="number">1</span>;
     }
 
     <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span> : <span class="ident">i32</span>, <span class="ident">_excess</span> : <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
