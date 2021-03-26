@@ -125,7 +125,7 @@ impl std::fmt::Display for MilnorBasisElement {
 // entry in ppart_table of the right degree.
 pub struct MilnorAlgebra {
     pub profile : MilnorProfile,
-    next_degree : Mutex<i32>,
+    lock : Mutex<()>,
     p : ValidPrime,
     pub generic : bool,
     ppart_table : OnceVec<Vec<PPart>>,
@@ -159,7 +159,7 @@ impl MilnorAlgebra {
             p,
             generic : *p != 2,
             profile,
-            next_degree : Mutex::new(0),
+            lock : Mutex::new(()),
             ppart_table : OnceVec::new(),
             qpart_table,
             basis_table : OnceVec::new(),
@@ -237,26 +237,27 @@ impl Algebra for MilnorAlgebra {
     }
 
     fn compute_basis(&self, max_degree : i32) {
-        let mut next_degree = self.next_degree.lock();
+        let _lock = self.lock.lock();
+        let next_degree = self.basis_table.len() as i32;
 
-        if max_degree < *next_degree {
+        if max_degree < next_degree {
             return;
         }
 
-        self.compute_ppart(*next_degree, max_degree);
-        self.compute_qpart(*next_degree, max_degree);
+        self.compute_ppart(next_degree, max_degree);
+        self.compute_qpart(next_degree, max_degree);
 
-        self.basis_table.reserve((max_degree - *next_degree + 1) as usize);
-        self.basis_element_to_index_map.reserve((max_degree - *next_degree + 1) as usize);
+        self.basis_table.reserve((max_degree - next_degree + 1) as usize);
+        self.basis_element_to_index_map.reserve((max_degree - next_degree + 1) as usize);
 
         if self.generic {
-            self.generate_basis_generic(*next_degree, max_degree);
+            self.generate_basis_generic(next_degree, max_degree);
         } else {
-            self.generate_basis_2(*next_degree, max_degree);
+            self.generate_basis_2(next_degree, max_degree);
         }
 
         // Populate hash map
-        for d in *next_degree as usize ..= max_degree as usize {
+        for d in next_degree as usize ..= max_degree as usize {
             let basis = &self.basis_table[d];
             let mut map = HashMap::default();
             map.reserve(basis.len());
@@ -284,8 +285,6 @@ impl Algebra for MilnorAlgebra {
                 }
             }
         }
-
-        *next_degree = max_degree + 1;
     }
 
     fn dimension(&self, degree : i32, _excess : i32) -> usize {
