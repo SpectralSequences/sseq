@@ -191,7 +191,7 @@ pub fn compute_delta_concurrent(
 
     handles.push(thread::spawn(move || {
         let mut prev = Instant::now();
-        // Clear entire screen
+        // Clear first row
         print!("\x1b[2J");
         loop {
             match p_receiver.recv_timeout(std::time::Duration::from_secs(1)) {
@@ -216,7 +216,9 @@ pub fn compute_delta_concurrent(
                 max_t,
                 &processed,
             );
-            println!();
+            // Clear the rest of the screen
+            print!("\x1b[J");
+            std::io::stdout().flush().unwrap();
             prev = Instant::now();
         }
     }));
