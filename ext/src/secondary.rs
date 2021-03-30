@@ -167,7 +167,7 @@ pub fn compute_delta_concurrent(
     max_s: u32,
     max_t: i32,
     bucket: &Arc<TokenBucket>,
-    save_file_path: &str,
+    save_file_path: Option<String>,
 ) -> Vec<FMH> {
     if max_s < 2 {
         return vec![];
@@ -237,33 +237,36 @@ pub fn compute_delta_concurrent(
         ddeltas.push(v);
     }
 
-    if save_file_path != "-" && Path::new(save_file_path).exists() {
-        let f = std::fs::File::open(save_file_path).unwrap();
-        let mut f = BufReader::new(f);
-        loop {
-            match read_saved_data(&mut f) {
-                Ok((s, t, idx, data)) => {
-                    if s <= max_s && t <= max_t {
-                        ddeltas[s as usize - 3][t][idx] = Some(data);
-                        p_sender.send((s, t)).unwrap();
+    if let Some(p) = save_file_path.as_ref() {
+        if Path::new(&*p).exists() {
+            let f = std::fs::File::open(&*p).unwrap();
+            let mut f = BufReader::new(f);
+            loop {
+                match read_saved_data(&mut f) {
+                    Ok((s, t, idx, data)) => {
+                        if s <= max_s && t <= max_t {
+                            ddeltas[s as usize - 3][t][idx] = Some(data);
+                            p_sender.send((s, t)).unwrap();
+                        }
                     }
+                    Err(_) => break,
                 }
-                Err(_) => break,
             }
         }
     }
 
     let ddeltas = Arc::new(Mutex::new(ddeltas));
 
-    let save_file = if save_file_path == "-" {
-        Arc::new(None)
-    } else {
-        let f = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(save_file_path)
-            .unwrap();
-        Arc::new(Some(Mutex::new(BufWriter::new(f))))
+    let save_file = match save_file_path {
+        None => Arc::new(None),
+        Some(p) => {
+            let f = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&*p)
+                .unwrap();
+            Arc::new(Some(Mutex::new(BufWriter::new(f))))
+        }
     };
 
     let (sender, receiver) = unbounded::<(u32, i32, usize)>();
@@ -832,7 +835,7 @@ mod test {
         let deltas = {
             let bucket = std::sync::Arc::new(TokenBucket::new(2));
             resolution.resolve_through_bidegree_concurrent(max_s, max_t, &bucket);
-            compute_delta_concurrent(&resolution.inner, max_s, max_t, &bucket, "-")
+            compute_delta_concurrent(&resolution.inner, max_s, max_t, &bucket, None)
         };
 
         #[cfg(not(feature = "concurrent"))]

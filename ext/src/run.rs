@@ -166,20 +166,22 @@ pub fn secondary() -> error::Result<String> {
     let max_s = query_with_default("Max s", "7", Ok);
     let max_t = query_with_default("Max t", "30", Ok);
 
-    let res_save_file: String = query_with_default("Resolution save file", "resolution.save", Ok);
+    let res_save_file: Option<String> = query_optional("Resolution save file", Ok);
     #[cfg(feature = "concurrent")]
-    let del_save_file: String = query_with_default("Delta save file", "ddelta.save", Ok);
+    let del_save_file: Option<String> = query_optional("Delta save file", Ok);
 
     #[cfg(feature = "concurrent")]
     let num_threads = query_with_default("Number of threads", "2", Ok);
 
-    if res_save_file != "-" && Path::new(&*res_save_file).exists() {
-        print!("Loading saved resolution: ");
-        let start = Instant::now();
-        let f = File::open(&*res_save_file)?;
-        let mut f = BufReader::new(f);
-        resolution = Resolution::load(&mut f, &resolution.complex())?;
-        println!("{:.2?}", start.elapsed());
+    if let Some(p) = res_save_file {
+        if Path::new(&*p).exists() {
+            print!("Loading saved resolution: ");
+            let start = Instant::now();
+            let f = File::open(&*p)?;
+            let mut f = BufReader::new(f);
+            resolution = Resolution::load(&mut f, &resolution.complex())?;
+            println!("{:.2?}", start.elapsed());
+        }
     }
 
     let should_resolve = max_s >= *resolution.next_s.lock() || max_t >= *resolution.next_t.lock();
@@ -212,7 +214,7 @@ pub fn secondary() -> error::Result<String> {
             max_s,
             max_t,
             &bucket,
-            &*del_save_file,
+            del_save_file,
         )
     };
 
