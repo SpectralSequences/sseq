@@ -19,6 +19,25 @@ pub struct Config {
     pub max_degree : i32
 }
 
+pub fn get_config() -> Config {
+    let mut args = pico_args::Arguments::from_env();
+
+    let mut static_modules_path = std::env::current_exe().unwrap();
+    static_modules_path.pop();
+    static_modules_path.pop();
+    static_modules_path.pop();
+    static_modules_path.pop();
+    static_modules_path.push("steenrod_modules");
+    let current_dir = std::env::current_dir().unwrap();
+
+    Config {
+        module_paths: vec![current_dir, static_modules_path],
+        algebra_name: args.opt_value_from_str("--algebra").unwrap().unwrap_or_else(|| "adem".into()),
+        module_file_name: args.opt_free_from_str().unwrap().unwrap_or_else(|| "S_2".into()),
+        max_degree: args.opt_free_from_str().unwrap().unwrap_or(30),
+    }
+}
+
 pub fn construct(config : &Config) -> error::Result<Resolution<CCC>> {
     let contents = load_module_from_file(config)?;
     let json = serde_json::from_str(&contents)?;

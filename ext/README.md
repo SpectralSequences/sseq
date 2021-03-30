@@ -37,18 +37,7 @@ This provides an interface for saving and loading resolutions and other data.
 
 # Binaries
 ## Top-level crate
-By default, the binary computes Ext and displays the result in an ASCII graph.
-This is mainly used for testing purposes.
-
-At the moment, it also has an interface for calculating Steenrod operations in
-Ext using the algorithm described in
-[https://arxiv.org/abs/1909.03117](https://arxiv.org/abs/1909.03117) via the
-`steenrod` subcommand (`cargo run --release steenrod`), but the intention is to
-expose this via `ext-websocket` once it is sufficiently presentable (the
-current algorithm can be very slow, and the speed cannot be easily determined
-a priori).
-
-Various other binaries are in the `examples/` directory.
+Various binaries are in the `examples/` directory.
 
 ## compressor
 This is a utility for further compressing the history file constructed by the
