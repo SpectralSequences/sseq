@@ -19,6 +19,17 @@ pub struct Config {
 
 pub fn get_config() -> Config {
     let mut args = pico_args::Arguments::from_env();
+    if args.contains("--help") {
+        println!(
+            "{} [--algebra algebra_name] [module_name] [max_degree]",
+            std::env::current_exe()
+                .unwrap()
+                .file_stem()
+                .unwrap()
+                .to_string_lossy()
+        );
+        std::process::exit(1);
+    }
 
     let mut static_modules_path = std::env::current_exe().unwrap();
     static_modules_path.pop();
