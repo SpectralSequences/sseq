@@ -318,6 +318,17 @@
 <span id="297">297</span>
 <span id="298">298</span>
 <span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::{<span class="ident">FiniteChainComplex</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">resolution</span>::<span class="ident">Resolution</span>;
@@ -340,6 +351,17 @@
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_config</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Config</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">args</span> <span class="op">=</span> <span class="ident">pico_args</span>::<span class="ident">Arguments</span>::<span class="ident">from_env</span>();
+    <span class="kw">if</span> <span class="ident">args</span>.<span class="ident">contains</span>(<span class="string">&quot;--help&quot;</span>) {
+        <span class="macro">println</span><span class="macro">!</span>(
+            <span class="string">&quot;{} [--algebra algebra_name] [module_name] [max_degree]&quot;</span>,
+            <span class="ident">std</span>::<span class="ident">env</span>::<span class="ident">current_exe</span>()
+                .<span class="ident">unwrap</span>()
+                .<span class="ident">file_stem</span>()
+                .<span class="ident">unwrap</span>()
+                .<span class="ident">to_string_lossy</span>()
+        );
+        <span class="ident">std</span>::<span class="ident">process</span>::<span class="ident">exit</span>(<span class="number">1</span>);
+    }
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">static_modules_path</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">env</span>::<span class="ident">current_exe</span>().<span class="ident">unwrap</span>();
     <span class="ident">static_modules_path</span>.<span class="ident">pop</span>();
