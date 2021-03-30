@@ -1,7 +1,7 @@
 use crate::sseq::{Sseq, ProductItem, ClassState, INFINITY};
 use ext::resolution::Resolution;
 use fp::vector::FpVector;
-use ext::module::Module;
+use algebra::module::Module;
 use ext::CCC;
 use bivec::BiVec;
 use parking_lot::RwLock;

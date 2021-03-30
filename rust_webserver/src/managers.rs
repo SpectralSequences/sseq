@@ -3,7 +3,7 @@ use crate::sseq::Sseq;
 
 use ext::utils::Config;
 use ext::CCC;
-use ext::module::{Module, FiniteModule, FDModule};
+use algebra::module::{Module, FiniteModule, FDModule};
 use ext::resolution::Resolution;
 use ext::chain_complex::{FiniteChainComplex, ChainComplex};
 use bivec::BiVec;

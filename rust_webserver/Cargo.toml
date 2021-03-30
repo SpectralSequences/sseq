@@ -11,6 +11,7 @@ bivec = { path = "ext/crates/bivec" }
 enum_dispatch = "=0.3.2"
 error = { path = "ext/crates/error" }
 fp = { path = "ext/crates/fp", features = ["json"], default-features = false }
+algebra = { path = "ext/crates/algebra", default-features = false }
 parking_lot = { version = "0.11", features = ["wasm-bindgen"] }
 ext = { path = "ext", default-features = false, features = ["extras", "yoneda"] }
 serde_json = "1.0.0"
@@ -36,7 +37,7 @@ expect-test = "1.1.0"
 [features]
 default = ["odd-primes", "concurrent"]
 cache-multiplication = ["ext/cache-multiplication"]
-odd-primes = ["fp/odd-primes", "ext/odd-primes"]
+odd-primes = ["fp/odd-primes", "ext/odd-primes", "algebra/odd-primes"]
 concurrent = ["thread-token", "ext/concurrent", "crossbeam-channel"]
 
 [lib]
