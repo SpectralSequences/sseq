@@ -1,6 +1,6 @@
+use algebra::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphism};
+use algebra::module::Module;
 use ext::chain_complex::{AugmentedChainComplex, ChainComplex};
-use ext::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphism};
-use ext::module::Module;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::{construct, construct_from_json, Config};
 use fp::matrix::Matrix;

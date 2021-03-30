@@ -10,7 +10,6 @@ fn main() -> Result<()> {
 
     load_s_2!(resolution, "milnor", "resolution.save");
     resolution.resolve_through_bidegree(8, 28);
-    let resolution = &*resolution.inner;
 
     for f in 0..=20 {
         for s in 0..=8 {

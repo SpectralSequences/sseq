@@ -310,7 +310,7 @@ fn main() {
     load_s_2!(resolution, "milnor", "resolution.save");
 
     resolution.resolve_through_bidegree(max_s, max_t);
-    let resolution = Arc::clone(&resolution.inner);
+    let resolution = Arc::new(resolution);
 
     // Create a ResolutionHomomorphism object
     let hom = ResolutionHomomorphism::new(

@@ -1,12 +1,12 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
-use crate::algebra::{Algebra, GeneratedAlgebra, SteenrodAlgebra, AdemAlgebra};
+use algebra::{Algebra, GeneratedAlgebra, SteenrodAlgebra, AdemAlgebra};
 use crate::chain_complex::{ChainComplex, AugmentedChainComplex, FiniteAugmentedChainComplex, BoundedChainComplex, ChainMap};
 use fp::vector::FpVector;
 use fp::matrix::{Matrix, Subspace};
-use crate::module::homomorphism::{ModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphism, FiniteModuleHomomorphism, FreeModuleHomomorphism};
-use crate::module::homomorphism::{TruncatedHomomorphism, TruncatedHomomorphismSource, QuotientHomomorphism, QuotientHomomorphismSource};
-use crate::module::{Module, FDModule, FreeModule, BoundedModule, FiniteModule};
-use crate::module::{QuotientModule as QM, TruncatedModule as TM};
+use algebra::module::homomorphism::{ModuleHomomorphism, BoundedModuleHomomorphism, ZeroHomomorphism, FiniteModuleHomomorphism, FreeModuleHomomorphism};
+use algebra::module::homomorphism::{TruncatedHomomorphism, TruncatedHomomorphismSource, QuotientHomomorphism, QuotientHomomorphismSource};
+use algebra::module::{Module, FDModule, FreeModule, BoundedModule, FiniteModule};
+use algebra::module::{QuotientModule as QM, TruncatedModule as TM};
 
 use bivec::BiVec;
 
@@ -566,7 +566,7 @@ mod tests {
     use crate::chain_complex::FiniteChainComplex;
     use crate::resolution::Resolution;
     use crate::resolution_homomorphism::ResolutionHomomorphism;
-    use crate::module::homomorphism::IdentityHomomorphism;
+    use algebra::module::homomorphism::IdentityHomomorphism;
 
     use fp::prime::ValidPrime;
 

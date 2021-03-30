@@ -4,7 +4,7 @@
 #![allow(dead_code)]
 
 use algebra::Field;
-use crate::block_structure::{BlockStart, BlockStructure};
+use algebra::module::block_structure::{BlockStart, BlockStructure};
 use crate::chain_complex::{
     AugmentedChainComplex, ChainComplex, FiniteAugmentedChainComplex, FiniteChainComplex,
     FreeChainComplex,

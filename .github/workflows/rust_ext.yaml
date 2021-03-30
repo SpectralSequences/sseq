@@ -134,12 +134,16 @@ jobs:
       with:
           toolchain: ${{ matrix.toolchain }}
           target: wasm32-unknown-unknown
+          components: clippy, rustfmt
 
     - name: Install wasm-opt
       run: sudo apt-get install binaryen
 
     - name: Setup build environment
       run: make -C rust_webserver setup-wasm
+
+    - name: Lint rust_webserver wasm
+      run: make -C rust_webserver lint-wasm
 
     - name: Build wasm
       run: make -C rust_webserver wasm

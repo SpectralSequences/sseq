@@ -1,11 +1,8 @@
 use algebra::module::OperationGeneratorPair;
-use ext::{load_s_2, utils::iter_stems};
+use ext::{chain_complex::ChainComplex, load_s_2, utils::iter_stems};
 use ext_webserver::actions::SseqChoice;
 use ext_webserver::sseq::Sseq;
-use fp::{
-    prime::ValidPrime,
-    vector::FpVector,
-};
+use fp::{prime::ValidPrime, vector::FpVector};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -45,6 +42,7 @@ fn main() -> std::io::Result<()> {
             for k in 0..num_gens {
                 let dg = d.output(t, k);
 
+                #[allow(clippy::needless_range_loop)]
                 for l in 0..source_num_gens {
                     let elt = source.operation_generator_pair_to_idx(&OperationGeneratorPair {
                         operation_index: 0,
@@ -74,7 +72,7 @@ fn main() -> std::io::Result<()> {
     for line in f.lines() {
         let data: Vec<u32> = line?
             .trim()
-            .split(",")
+            .split(',')
             .map(|x| x.parse().unwrap())
             .collect();
         let source_x = data[0];
@@ -85,7 +83,7 @@ fn main() -> std::io::Result<()> {
         if !target.iter().any(|&x| x != 0) {
             continue;
         }
-        let mut target = FpVector::from_slice(TWO, target);
+        let target = FpVector::from_slice(TWO, target);
 
         v.set_scratch_vector_size(
             resolution
@@ -94,7 +92,7 @@ fn main() -> std::io::Result<()> {
         );
         v.add_basis_element(source_idx as usize, 1);
 
-        sseq.add_differential(2, source_x as i32, source_y as i32, &v, &mut target);
+        sseq.add_differential(2, source_x as i32, source_y as i32, &v, &target);
     }
 
     sseq.refresh_all();

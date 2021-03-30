@@ -27,20 +27,21 @@ use thread_token::TokenBucket;
 
 fn main() -> error::Result<()> {
     load_s_2!(resolution, "adem", "resolution_adem.save");
+    let resolution = Arc::new(resolution);
 
     let complex = resolution.complex();
     let module = complex.module(0);
 
     let p = ValidPrime::new(2);
     #[cfg(feature = "concurrent")]
-    let num_threads = query_with_default("Number of threads", 2, Ok);
+    let num_threads = query_with_default("Number of threads", "2", Ok);
 
     #[cfg(feature = "concurrent")]
     let bucket = Arc::new(TokenBucket::new(num_threads));
 
-    let x: i32 = query_with_default("t - s", 8, Ok);
-    let s: u32 = query_with_default("s", 3, Ok);
-    let idx: usize = query_with_default("idx", 0, Ok);
+    let x: i32 = query_with_default("t - s", "8", Ok);
+    let s: u32 = query_with_default("s", "3", Ok);
+    let idx: usize = query_with_default("idx", "0", Ok);
 
     let t = s as i32 + x;
     print!("Resolving ext: ");
@@ -57,7 +58,7 @@ fn main() -> error::Result<()> {
     print!("Computing Yoneda representative: ");
     let start = Instant::now();
     let yoneda = Arc::new(yoneda_representative_element(
-        Arc::clone(&resolution.inner),
+        Arc::clone(&resolution),
         s,
         t,
         idx,
@@ -89,14 +90,14 @@ fn main() -> error::Result<()> {
         }
         let f = ResolutionHomomorphism::from_module_homomorphism(
             "".to_string(),
-            Arc::clone(&resolution.inner),
+            Arc::clone(&resolution),
             Arc::clone(&yoneda),
             &FiniteModuleHomomorphism::identity_homomorphism(Arc::clone(&module)),
         );
 
         f.extend(s, t);
         let final_map = f.get_map(s);
-        let num_gens = resolution.inner.number_of_gens_in_bidegree(s, t);
+        let num_gens = resolution.number_of_gens_in_bidegree(s, t);
         for i_ in 0..num_gens {
             assert_eq!(final_map.output(t, i_).dimension(), 1);
             if i_ == idx {
@@ -131,7 +132,7 @@ fn main() -> error::Result<()> {
         let mut maps: Vec<Arc<FreeModuleHomomorphism<_>>> = Vec::with_capacity(2 * s as usize - 1);
 
         for s in 0..=2 * s - i {
-            let source = resolution.inner.module(s);
+            let source = resolution.module(s);
             let target = square.module(s + i);
 
             let map = FreeModuleHomomorphism::new(Arc::clone(&source), Arc::clone(&target), 0);
@@ -183,12 +184,12 @@ fn main() -> error::Result<()> {
 
             let square = Arc::clone(&square);
 
-            let source = resolution.inner.module(s);
+            let source = resolution.module(s);
             let target = square.module(s + i);
 
             let dtarget_module = square.module(s + i - 1);
 
-            let d_res = resolution.inner.differential(s);
+            let d_res = resolution.differential(s);
             let d_target = square.differential(s + i as u32);
 
             let map = Arc::clone(&delta[i as usize][s as usize]);
@@ -299,9 +300,7 @@ fn main() -> error::Result<()> {
         #[cfg(not(feature = "concurrent"))]
         {
             let final_map = &delta[i as usize][(2 * s - i) as usize];
-            let num_gens = resolution
-                .inner
-                .number_of_gens_in_bidegree(2 * s - i, 2 * t);
+            let num_gens = resolution.number_of_gens_in_bidegree(2 * s - i, 2 * t);
             println!(
                 "Sq^{} x_{{{}, {}}}^({}) = [{}] ({:?})",
                 s - i,
@@ -325,9 +324,7 @@ fn main() -> error::Result<()> {
             handle.join().unwrap();
         }
         let final_map = &delta[i as usize][(2 * s - i) as usize];
-        let num_gens = resolution
-            .inner
-            .number_of_gens_in_bidegree(2 * s - i, 2 * t);
+        let num_gens = resolution.number_of_gens_in_bidegree(2 * s - i, 2 * t);
         println!(
             "Sq^{} x_{{{}, {}}}^({}) = [{}] ({:?} total)",
             s - i,

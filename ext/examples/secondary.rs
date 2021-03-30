@@ -1,28 +1,94 @@
-/// This example uses secondary.rs to compute d_2 on x_{65, 4}. The code is similar to that in the
-/// secondary command, but with hardcoded values. I also use this for performance benchmarking.
-use ext::load_s_2;
-use ext::secondary::compute_delta;
+use std::fs::File;
+use std::io::{BufReader, Write};
+use std::path::Path;
 use std::time::Instant;
 
-fn main() -> std::io::Result<()> {
-    // This macro attempts to load a resolution of S_2 from resolution.save, and generates one from
-    // scratch if it isn't available. The result is written to the variable `resolution`.
-    load_s_2!(resolution, "milnor", "resolution.save");
+use algebra::module::homomorphism::ModuleHomomorphism;
+use ext::resolution::ResolutionInner;
+use ext::utils::construct_s_2;
 
-    // Compute the minimal resolution R_{s, t}
-    resolution.resolve_through_bidegree(6, 70);
+use query::*;
+use saveload::Load;
 
-    let start = Instant::now();
-    // deltas is a vector of FreeModuleHomomorphisms R_{s, t} -> R_{s - 2, t - 1} that is dual to
-    // the d_2 map. The vector is indexed by s with the first entry being s = 3.
-    let deltas = compute_delta(&resolution.inner, 6, 70);
-    println!("Time elapsed: {:.2?}", start.elapsed());
+#[cfg(feature = "concurrent")]
+use thread_token::TokenBucket;
 
-    // We can now get the matrix of the d_2 starting at (65, 4).
-    let output = deltas[6 - 3].hom_k(69);
+fn main() -> error::Result<()> {
+    let mut resolution = construct_s_2("milnor");
 
-    // dim R_{65, 4} = 1 and the generator is the last basis element.
-    println!("d_2 x_{{65, 4}} = {}", output[0][0]);
+    let max_s = query_with_default("Max s", "7", Ok);
+    let max_t = query_with_default("Max t", "30", Ok);
 
+    let res_save_file: Option<String> = query_optional("Resolution save file", Ok);
+    #[cfg(feature = "concurrent")]
+    let del_save_file: Option<String> = query_optional("Delta save file", Ok);
+
+    #[cfg(feature = "concurrent")]
+    let num_threads = query_with_default("Number of threads", "2", Ok);
+
+    if let Some(p) = res_save_file {
+        if Path::new(&*p).exists() {
+            print!("Loading saved resolution: ");
+            let start = Instant::now();
+            let f = File::open(&*p)?;
+            let mut f = BufReader::new(f);
+            resolution = ResolutionInner::load(&mut f, &resolution.complex())?;
+            println!("{:.2?}", start.elapsed());
+        }
+    }
+
+    let should_resolve = max_s > resolution.max_computed_homological_degree()
+        || max_t > resolution.max_computed_degree();
+
+    #[cfg(not(feature = "concurrent"))]
+    let deltas = {
+        if should_resolve {
+            print!("Resolving module: ");
+            let start = Instant::now();
+            resolution.resolve_through_bidegree(max_s, max_t);
+            println!("{:.2?}", start.elapsed());
+        }
+
+        ext::secondary::compute_delta(&resolution, max_s, max_t)
+    };
+
+    #[cfg(feature = "concurrent")]
+    let deltas = {
+        let bucket = TokenBucket::new(num_threads);
+
+        if should_resolve {
+            print!("Resolving module: ");
+            let start = Instant::now();
+            resolution.resolve_through_bidegree_concurrent(max_s, max_t, &bucket);
+            println!("{:.2?}", start.elapsed());
+        }
+
+        ext::secondary::compute_delta_concurrent(&resolution, max_s, max_t, &bucket, del_save_file)
+    };
+
+    let mut filename = String::from("d2");
+    while Path::new(&filename).exists() {
+        filename.push('_');
+    }
+    let mut output = File::create(&filename).unwrap();
+
+    for f in 1..max_t {
+        for s in 1..(max_s - 1) {
+            let t = s as i32 + f;
+            if t >= max_t {
+                break;
+            }
+            let delta = &deltas[s as usize - 1];
+
+            if delta.source().number_of_gens_in_degree(t + 1) == 0 {
+                continue;
+            }
+            let d = delta.hom_k(t);
+
+            for (i, entry) in d.into_iter().enumerate() {
+                writeln!(output, "d_2 x_({}, {}, {}) = {:?}", f, s, i, entry).unwrap();
+            }
+        }
+    }
     Ok(())
 }

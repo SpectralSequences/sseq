@@ -9,10 +9,14 @@ EXT_SRC = ext/Cargo.toml $(shell find ext/src/) $(wildcard ext/crates/*/Cargo.tm
 export PATH := $(HOME)/.cargo/bin:$(PATH)
 
 lint:
-	cargo clippy
+	cargo clippy --all-targets
+	cargo fmt -- --check
+
+lint-wasm:
+	cargo clippy --target wasm32-unknown-unknown --lib
 
 setup-wasm:
-	cargo install wasm-bindgen-cli
+	cargo install wasm-bindgen-cli --version 0.2.72
 	rustup target add wasm32-unknown-unknown
 
 wasm-opt:
