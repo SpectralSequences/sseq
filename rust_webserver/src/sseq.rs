@@ -1120,11 +1120,11 @@ mod tests {
 
         sseq.add_differential(2, 1, 0,
                               &FpVector::from_slice(p, &[1, 1]),
-                              &mut FpVector::from_slice(p, &[0, 1, 2]));
+                              &FpVector::from_slice(p, &[0, 1, 2]));
 
         sseq.add_differential(3, 1, 0,
                               &FpVector::from_slice(p, &[1, 0]),
-                              &mut FpVector::from_slice(p, &[1]));
+                              &FpVector::from_slice(p, &[1]));
 
         let check = |x, y, r, e: Expect| {
             e.assert_eq(&sseq.page_data[x][y][r].to_string());
@@ -1203,10 +1203,9 @@ mod tests {
 
         "#]]);
 
-        drop(check);
         sseq.add_differential(2, 1, 1,
                               &FpVector::from_slice(p, &[1, 0]),
-                              &mut FpVector::from_slice(p, &[1]));
+                              &FpVector::from_slice(p, &[1]));
         let check = |x, y, r, e: Expect| {
             e.assert_eq(&sseq.page_data[x][y][r].to_string());
         };
@@ -1306,10 +1305,10 @@ mod tests {
 
         sseq.add_differential(2, 1, 0,
                               &FpVector::from_slice(p, &[1, 0]),
-                              &mut FpVector::from_slice(p, &[1, 0]));
+                              &FpVector::from_slice(p, &[1, 0]));
         sseq.add_differential(2, 1, 0,
                               &FpVector::from_slice(p, &[0, 1]),
-                              &mut FpVector::from_slice(p, &[1, 1]));
+                              &FpVector::from_slice(p, &[1, 1]));
 
         let check = |x, y, r, e: Expect| {
             e.assert_eq(&sseq.page_data[x][y][r].to_string());

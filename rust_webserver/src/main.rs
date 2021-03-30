@@ -44,13 +44,11 @@ fn ms_to_string(time : i128) -> String {
 ///
 /// We also spawn a separate thread waiting for messages from ResolutionManager, and then relay it
 /// to the WebSocket, again, we do this because we don't want anything to be blocking.
-#[cfg(not(target_arch = "wasm32"))]
 pub struct Manager {
     sseq_sender : Sender,
     res_sender : Sender
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl Manager {
     fn new<T>(f : T) -> Self where T : Fn(String) + Send + 'static
     {
@@ -151,13 +149,11 @@ impl Manager {
 /// request, it is either looking for some static files, as specified in `FILE_LIST`, or it is
 /// WebSocket message. If it is the former, we return the file. If it is the latter, we parse it
 /// into a string and pass it on to Manager.
-#[cfg(not(target_arch = "wasm32"))]
 pub struct Server {
     manager : Option<Manager>,
     out : Option<WsSender>
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl Handler for Server {
     fn on_request(&mut self, req: &Request) -> WsResult<Response> {
          match req.resource() {
@@ -180,7 +176,6 @@ impl Handler for Server {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl Server {
     pub fn new(out : WsSender) -> Self {
         Server {
@@ -209,6 +204,7 @@ impl Server {
         Ok(Response::new(404, "Not Found", b"404 - Not Found".to_vec()))
     }
 }
+
 fn main() {
     let args : Vec<String> = std::env::args().collect();
     let mut port = "8080";

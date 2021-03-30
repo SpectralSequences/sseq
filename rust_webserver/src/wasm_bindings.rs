@@ -3,7 +3,7 @@ use fp::prime::ValidPrime;
 use crate::actions::*;
 use crate::managers::*;
 use wasm_bindgen::prelude::*;
-use ext::steenrod_evaluator::SteenrodCalculator as SteenrodCalculator_;
+use algebra::steenrod_evaluator::SteenrodCalculator as SteenrodCalculator_;
 
 #[derive(Clone)]
 pub struct Sender {
