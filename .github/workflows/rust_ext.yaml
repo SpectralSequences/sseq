@@ -141,6 +141,9 @@ jobs:
     - name: Setup build environment
       run: make -C rust_webserver setup-wasm
 
+    - name: Lint rust_webserver wasm
+      run: make -C rust_webserver lint-wasm
+
     - name: Build wasm
       run: make -C rust_webserver wasm
 
