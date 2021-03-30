@@ -4,14 +4,11 @@ use std::path::Path;
 use std::time::Instant;
 
 use algebra::module::homomorphism::ModuleHomomorphism;
-use ext::resolution::Resolution;
+use ext::resolution::ResolutionInner;
 use ext::utils::construct_s_2;
 
 use query::*;
 use saveload::Load;
-
-#[cfg(feature = "concurrent")]
-use std::sync::Arc;
 
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
@@ -35,12 +32,13 @@ fn main() -> error::Result<()> {
             let start = Instant::now();
             let f = File::open(&*p)?;
             let mut f = BufReader::new(f);
-            resolution = Resolution::load(&mut f, &resolution.complex())?;
+            resolution = ResolutionInner::load(&mut f, &resolution.complex())?;
             println!("{:.2?}", start.elapsed());
         }
     }
 
-    let should_resolve = max_s >= *resolution.next_s.lock() || max_t >= *resolution.next_t.lock();
+    let should_resolve = max_s > resolution.max_computed_homological_degree()
+        || max_t > resolution.max_computed_degree();
 
     #[cfg(not(feature = "concurrent"))]
     let deltas = {
@@ -51,12 +49,12 @@ fn main() -> error::Result<()> {
             println!("{:.2?}", start.elapsed());
         }
 
-        ext::secondary::compute_delta(&resolution.inner, max_s, max_t)
+        ext::secondary::compute_delta(&resolution, max_s, max_t)
     };
 
     #[cfg(feature = "concurrent")]
     let deltas = {
-        let bucket = Arc::new(TokenBucket::new(num_threads));
+        let bucket = TokenBucket::new(num_threads);
 
         if should_resolve {
             print!("Resolving module: ");
@@ -65,13 +63,7 @@ fn main() -> error::Result<()> {
             println!("{:.2?}", start.elapsed());
         }
 
-        ext::secondary::compute_delta_concurrent(
-            &resolution.inner,
-            max_s,
-            max_t,
-            &bucket,
-            del_save_file,
-        )
+        ext::secondary::compute_delta_concurrent(&resolution, max_s, max_t, &bucket, del_save_file)
     };
 
     let mut filename = String::from("d2");

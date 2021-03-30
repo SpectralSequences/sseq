@@ -16,9 +16,6 @@ use crate::chain_complex::{ChainComplex, AugmentedChainComplex, UnitChainComplex
 use crate::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorphismToUnit};
 
 #[cfg(feature = "concurrent")]
-use std::thread;
-
-#[cfg(feature = "concurrent")]
 use crossbeam_channel::{Receiver, unbounded};
 
 #[cfg(feature = "concurrent")]
@@ -32,6 +29,9 @@ use thread_token::TokenBucket;
 /// This separation should make multithreading easier because we only need ResolutionInner to be
 /// Send + Sync. In particular, we don't need the callback functions to be Send + Sync.
 pub struct ResolutionInner<CC : ChainComplex> {
+    next_s : Mutex<u32>,
+    next_t : Mutex<i32>,
+
     complex : Arc<CC>,
     modules : OnceVec<Arc<FreeModule<<CC::Module as Module>::Algebra>>>,
     zero_module : Arc<FreeModule<<CC::Module as Module>::Algebra>>,
@@ -50,6 +50,8 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
             complex,
             zero_module,
 
+            next_s : Mutex::new(0),
+            next_t : Mutex::new(min_degree),
             chain_maps : OnceVec::new(),
             modules : OnceVec::new(),
             differentials : OnceVec::new(),
@@ -519,6 +521,108 @@ impl<CC : ChainComplex> ResolutionInner<CC> {
     pub fn prime(&self) -> ValidPrime {
         self.complex.prime()
     }
+
+    #[cfg(feature = "concurrent")]
+    pub fn resolve_through_bidegree_concurrent(&self, max_s : u32, max_t : i32, bucket : &TokenBucket) {
+        self.resolve_through_bidegree_concurrent_with_callback(max_s, max_t, bucket, |_, _| ())
+    }
+
+    pub fn resolve_through_bidegree(&self, max_s : u32, max_t : i32) {
+        self.resolve_through_bidegree_with_callback(max_s, max_t, |_, _| ())
+    }
+
+    #[cfg(feature = "concurrent")]
+    pub fn resolve_through_bidegree_concurrent_with_callback(&self, mut max_s : u32, mut max_t : i32, bucket : &TokenBucket, mut cb: impl FnMut(u32, i32)) {
+        let min_degree = self.min_degree();
+        let mut next_s = self.next_s.lock();
+        let mut next_t = self.next_t.lock();
+
+        // We want the computed area to always be a rectangle.
+        max_t = max(max_t, *next_t - 1);
+        if max_s < *next_s {
+            max_s = *next_s - 1;
+        }
+
+        self.complex().compute_through_bidegree(max_s, max_t);
+        self.extend_through_degree(*next_s, max_s, *next_t, max_t);
+        self.algebra().compute_basis(max_t - min_degree);
+
+        crossbeam_utils::thread::scope(|s| {
+            let (pp_sender, pp_receiver) = unbounded();
+            let mut last_receiver : Option<Receiver<()>> = None;
+            for t in min_degree ..= max_t {
+                let next_t = *next_t;
+                let next_s = *next_s;
+
+                let start = if t < next_t { next_s } else { 0 };
+
+                let (sender, receiver) = unbounded();
+
+                let pp_sender = pp_sender.clone();
+                s.spawn(move |_| {
+                    if t == next_t - 1 {
+                        for _ in 0 .. next_s {
+                            sender.send(()).unwrap();
+                        }
+                    }
+
+                    let mut token = bucket.take_token();
+                    for s in start ..= max_s {
+                        token = bucket.recv_or_release(token, &last_receiver);
+                        self.step_resolution(s, t);
+
+                        pp_sender.send((s, t)).unwrap();
+                        sender.send(()).unwrap();
+                    }
+                });
+                last_receiver = Some(receiver);
+            }
+            // We drop this pp_sender, so that when all previous threads end, no pp_sender's are
+            // present, so pp_receiver terminates.
+            drop(pp_sender);
+
+            for (s, t) in pp_receiver {
+                cb(s, t);
+            }
+        }).unwrap();
+
+        *next_s = max_s + 1;
+        *next_t = max_t + 1;
+    }
+
+    pub fn resolve_through_bidegree_with_callback(&self, mut max_s : u32, mut max_t : i32, mut cb: impl FnMut(u32, i32)) {
+        let min_degree = self.min_degree();
+        let mut next_s = self.next_s.lock();
+        let mut next_t = self.next_t.lock();
+
+        // We want the computed area to always be a rectangle.
+        max_t = max(max_t, *next_t - 1);
+        if max_s < *next_s {
+            max_s = *next_s - 1;
+        }
+
+        self.complex().compute_through_bidegree(max_s, max_t);
+        self.extend_through_degree(*next_s, max_s, *next_t, max_t);
+        self.algebra().compute_basis(max_t - min_degree);
+
+        for t in min_degree ..= max_t {
+            let start = if t < *next_t { *next_s } else { 0 };
+            for s in start ..= max_s {
+                self.step_resolution(s, t);
+                cb(s, t);
+            }
+        }
+        *next_s = max_s + 1;
+        *next_t = max_t + 1;
+    }
+
+    pub fn max_computed_degree(&self) -> i32 {
+        *self.next_t.lock() - 1
+    }
+
+    pub fn max_computed_homological_degree(&self) -> u32 {
+        *self.next_s.lock() - 1
+    }
 }
 
 impl<CC : ChainComplex> ChainComplex for ResolutionInner<CC> {
@@ -630,8 +734,6 @@ pub type AddStructlineFn = Box<dyn Fn(
 pub struct Resolution<CC : UnitChainComplex> {
     pub inner : Arc<ResolutionInner<CC>>,
 
-    pub next_s : Mutex<u32>,
-    pub next_t : Mutex<i32>,
     pub add_class : Option<AddClassFn>,
     pub add_structline : Option<AddStructlineFn>,
 
@@ -667,14 +769,11 @@ impl<CC : UnitChainComplex> Resolution<CC> {
         add_structline : Option<AddStructlineFn>
     ) -> Self {
         let inner = Arc::new(inner);
-        let min_degree = inner.min_degree();
         let algebra = inner.complex().algebra();
 
         Self {
             inner,
 
-            next_s : Mutex::new(0),
-            next_t : Mutex::new(min_degree),
             add_class,
             add_structline,
 
@@ -691,121 +790,35 @@ impl<CC : UnitChainComplex> Resolution<CC> {
         }
     }
 
-
-
     #[cfg(feature = "concurrent")]
-    pub fn resolve_through_bidegree_concurrent(&self, mut max_s : u32, mut max_t : i32, bucket : &Arc<TokenBucket>) {
-        let min_degree = self.min_degree();
-        let mut next_s = self.next_s.lock();
-        let mut next_t = self.next_t.lock();
-
-        // We want the computed area to always be a rectangle.
-        max_t = max(max_t, *next_t - 1);
-        if max_s < *next_s {
-            max_s = *next_s - 1;
-        }
-
-        self.complex().compute_through_bidegree(max_s, max_t);
-        self.inner.extend_through_degree(*next_s, max_s, *next_t, max_t);
-        self.algebra().compute_basis(max_t - min_degree);
-
+    pub fn resolve_through_bidegree_concurrent(&self, s: u32, t : i32, bucket : &TokenBucket) {
         if let Some(unit_res) = &self.unit_resolution {
             let unit_res = unit_res.upgrade().unwrap();
             let unit_res = unit_res.read();
             // Avoid a deadlock
             if !ptr_eq(&unit_res.inner, &self.inner) {
-                unit_res.resolve_through_bidegree_concurrent(self.max_product_homological_degree, max_t - min_degree, bucket);
+                unit_res.resolve_through_bidegree_concurrent(self.max_product_homological_degree, t - self.min_degree(), bucket);
             }
         }
 
-        let (pp_sender, pp_receiver) = unbounded();
-        let mut last_receiver : Option<Receiver<()>> = None;
-        for t in min_degree ..= max_t {
-            let next_t = *next_t;
-            let next_s = *next_s;
-
-            let start = if t < next_t { next_s } else { 0 };
-
-            let (sender, receiver) = unbounded();
-
-            let bucket = Arc::clone(bucket);
-            let inner = Arc::clone(&self.inner);
-
-            let pp_sender = pp_sender.clone();
-            thread::spawn(move || {
-                if t == next_t - 1 {
-                    for _ in 0 .. next_s {
-                        sender.send(()).unwrap();
-                    }
-                }
-
-                let mut token = bucket.take_token();
-                for s in start ..= max_s {
-                    token = bucket.recv_or_release(token, &last_receiver);
-                    inner.step_resolution(s, t);
-
-                    pp_sender.send((s, t)).unwrap();
-                    sender.send(()).unwrap();
-                }
-            });
-            last_receiver = Some(receiver);
-        }
-        // We drop this pp_sender, so that when all previous threads end, no pp_sender's are
-        // present, so pp_receiver terminates.
-        drop(pp_sender);
-
-        for (s, t) in pp_receiver {
-            self.step_after(s, t);
-        }
-        *next_s = max_s + 1;
-        *next_t = max_t + 1;
+        self.inner.resolve_through_bidegree_concurrent_with_callback(s, t, bucket, |s, t| self.step_after(s, t));
     }
 
-    pub fn resolve_through_bidegree(&self, mut max_s : u32, mut max_t : i32) {
-        let min_degree = self.min_degree();
-        let mut next_s = self.next_s.lock();
-        let mut next_t = self.next_t.lock();
-
-        // We want the computed area to always be a rectangle.
-        max_t = max(max_t, *next_t - 1);
-        if max_s < *next_s {
-            max_s = *next_s - 1;
-        }
-
-        self.complex().compute_through_bidegree(max_s, max_t);
-        self.inner.extend_through_degree(*next_s, max_s, *next_t, max_t);
-        self.algebra().compute_basis(max_t - min_degree);
-
+    pub fn resolve_through_bidegree(&self, s: u32, t: i32) {
         if let Some(unit_res) = &self.unit_resolution {
             let unit_res = unit_res.upgrade().unwrap();
             let unit_res = unit_res.read();
             // Avoid a deadlock
             if !ptr_eq(&unit_res.inner, &self.inner) {
-                unit_res.resolve_through_bidegree(self.max_product_homological_degree, max_t - min_degree);
+                unit_res.resolve_through_bidegree(self.max_product_homological_degree, t - self.min_degree());
             }
         }
 
-//        let t0 = Instant::now();
-        for t in min_degree ..= max_t {
-            let start = if t < *next_t { *next_s } else { 0 };
-            for s in start ..= max_s {
-                self.inner.step_resolution(s, t);
-                self.step_after(s, t);
-            }
-/*            let dt = t0.elapsed();
-            println!("t:{t} {h}h:{m}m:{s}s.{micros}", t=t,  
-                h=dt.whole_hours(), 
-                m=dt.whole_minutes() % 60, 
-                s = dt.whole_seconds() % 60, 
-                micros = dt.subsec_microseconds()
-            );*/
-        }
-        *next_s = max_s + 1;
-        *next_t = max_t + 1;
+        self.inner.resolve_through_bidegree_with_callback(s, t, |s, t| self.step_after(s, t));
     }
 
     #[cfg(feature = "concurrent")]
-    pub fn resolve_through_degree_concurrent(&self, degree : i32, bucket : &Arc<TokenBucket>) {
+    pub fn resolve_through_degree_concurrent(&self, degree : i32, bucket : &TokenBucket) {
         self.resolve_through_bidegree_concurrent(degree as u32, degree, bucket);
     }
 
@@ -879,11 +892,11 @@ impl<CC : UnitChainComplex> Resolution<CC> {
     }
 
     pub fn max_computed_degree(&self) -> i32 {
-        *self.next_t.lock() - 1
+        self.inner.max_computed_degree()
     }
 
     pub fn max_computed_homological_degree(&self) -> u32 {
-        *self.next_s.lock() - 1
+        self.inner.max_computed_homological_degree()
     }
 
     pub fn graded_dimension_vec(&self) -> Vec<Vec<usize>> {
@@ -922,11 +935,11 @@ impl<CC: UnitChainComplex> Resolution<CC> {
     /// `self`, but `add_product` takes in a mutable borrow.
     pub fn catch_up_products(&self) {
         let new_product = [self.product_list.last().unwrap().clone()];
-        let next_s = *self.next_s.lock();
+        let next_s = *self.inner.next_s.lock();
         if next_s > 0 {
             let min_degree = self.min_degree();
             let max_s = next_s - 1;
-            let max_t = *self.next_t.lock() - 1;
+            let max_t = self.max_computed_degree();
 
             self.construct_maps_to_unit(max_s, max_t);
 
@@ -1219,6 +1232,15 @@ impl<CC : ChainComplex> Load for ResolutionInner<CC> {
             result.chain_maps.push(c);
         }
 
+        let next_s = result.modules.len();
+        assert!(next_s > 0, "Cannot load uninitialized resolution");
+        let next_t = result.module(0).max_computed_degree() + 1;
+
+        *result.next_s.lock() = next_s as u32;
+        *result.next_t.lock() = next_t;
+
+        result.zero_module.extend_by_zero(result.max_computed_degree());
+
         Ok(result)
     }
 }
@@ -1236,15 +1258,6 @@ impl<CC : UnitChainComplex> Load for Resolution<CC> {
         let inner = ResolutionInner::load(buffer, cc)?;
 
         let result = Resolution::new_with_inner(inner, None, None);
-
-        let next_s = result.inner.modules.len();
-        assert!(next_s > 0, "Cannot load uninitialized resolution");
-        let next_t = result.inner.module(0).max_computed_degree() + 1;
-
-        result.inner.zero_module.extend_by_zero(next_t - 1);
-
-        *result.next_s.lock() = next_s as u32;
-        *result.next_t.lock() = next_t;
 
         Ok(result)
     }

@@ -25,7 +25,6 @@ use std::{
     io::{BufReader, BufWriter, Read, Write},
     path::Path,
     sync::{Arc, Mutex},
-    thread,
     time::Instant,
 };
 
@@ -39,15 +38,6 @@ type Resolution = ResolutionInner<CCC>;
 type FMH = FreeModuleHomomorphism<FreeModule<SteenrodAlgebra>>;
 
 const TWO: ValidPrime = ValidPrime::new(2);
-
-// The normal unwrap requires implementing debug
-#[cfg(feature = "concurrent")]
-fn unwrap<T, S>(x: Result<T, S>) -> T {
-    match x {
-        Ok(x) => x,
-        _ => panic!(),
-    }
-}
 
 /// An element in the Milnor algebra
 pub struct MilnorClass {
@@ -163,10 +153,10 @@ fn read_saved_data(buffer: &mut impl Read) -> std::io::Result<(u32, i32, usize, 
 
 #[cfg(feature = "concurrent")]
 pub fn compute_delta_concurrent(
-    res: &Arc<Resolution>,
+    res: &Resolution,
     max_s: u32,
     max_t: i32,
-    bucket: &Arc<TokenBucket>,
+    bucket: &TokenBucket,
     save_file_path: Option<String>,
 ) -> Vec<FMH> {
     if max_s < 2 {
@@ -174,161 +164,153 @@ pub fn compute_delta_concurrent(
     }
     let min_degree = res.min_degree();
 
+    let ddeltas: Vec<BiVec<Vec<Option<FpVector>>>> = Vec::with_capacity(max_s as usize - 2);
+    let ddeltas = Mutex::new(ddeltas);
+
     let start = Instant::now();
-    let mut handles = Vec::with_capacity(bucket.max_threads + 1);
-
-    // Pretty print progress of first step
-    let res_ = Arc::clone(res);
     let (p_sender, p_receiver) = unbounded();
-    let mut processed: HashMap<(u32, i32), u32> = HashMap::default();
+    crossbeam_utils::thread::scope(|scope| {
+        // Pretty print progress of first step
+        let mut processed: HashMap<(u32, i32), u32> = HashMap::default();
 
-    for s in 3..=max_s {
-        let m = res.module(s);
-        for t in min_degree + 1..=max_t {
-            processed.insert((s, t), m.number_of_gens_in_degree(t) as u32);
-        }
-    }
-
-    handles.push(thread::spawn(move || {
-        let mut prev = Instant::now();
-        // Clear first row
-        print!("\x1b[2J");
-        loop {
-            match p_receiver.recv_timeout(std::time::Duration::from_secs(1)) {
-                Ok(data) => {
-                    *processed.get_mut(&data).unwrap() -= 1;
-                }
-                Err(RecvTimeoutError::Timeout) => (),
-                Err(RecvTimeoutError::Disconnected) => break,
+        for s in 3..=max_s {
+            let m = res.module(s);
+            for t in min_degree + 1..=max_t {
+                processed.insert((s, t), m.number_of_gens_in_degree(t) as u32);
             }
-            if prev.elapsed().as_millis() < 100 {
-                continue;
-            }
-            // Move cursor to beginning and clear line
-            print!("\x1b[H\x1b[K");
-            println!(
-                "Time elapsed: {:.2?}; Processed bidegrees:",
-                start.elapsed()
-            );
-            crate::utils::print_resolution_color(
-                &*res_,
-                std::cmp::min(max_s, ((max_t - min_degree) as u32 + 2) / 3),
-                max_t,
-                &processed,
-            );
-            // Clear the rest of the screen
-            print!("\x1b[J");
-            std::io::stdout().flush().unwrap();
-            prev = Instant::now();
         }
-    }));
 
-    // We now compute the A terms of dδg. There are no dependencies between the different
-    // bidegrees, so we use a thread pool for this. The ddeltas store the results as a vector:
-    // source_s -> source_t -> gen_idx -> value. Since they are not populated in order of source_s
-    // and source_t, we pre-populate with None and replace with Some.
-    let mut ddeltas: Vec<BiVec<Vec<Option<FpVector>>>> = Vec::with_capacity(max_s as usize - 2);
-    for s in 3..=max_s {
-        let m = res.module(s);
-        let mut v = BiVec::with_capacity(min_degree + 1, max_t + 1);
-        for t in min_degree + 1..=max_t {
-            v.push(vec![None; m.number_of_gens_in_degree(t)]);
-        }
-        ddeltas.push(v);
-    }
-
-    if let Some(p) = save_file_path.as_ref() {
-        if Path::new(&*p).exists() {
-            let f = std::fs::File::open(&*p).unwrap();
-            let mut f = BufReader::new(f);
+        scope.spawn(move |_| {
+            let mut prev = Instant::now();
+            // Clear first row
+            print!("\x1b[2J");
             loop {
-                match read_saved_data(&mut f) {
-                    Ok((s, t, idx, data)) => {
-                        if s <= max_s && t <= max_t {
-                            ddeltas[s as usize - 3][t][idx] = Some(data);
-                            p_sender.send((s, t)).unwrap();
-                        }
+                match p_receiver.recv_timeout(std::time::Duration::from_secs(1)) {
+                    Ok(data) => {
+                        *processed.get_mut(&data).unwrap() -= 1;
                     }
-                    Err(_) => break,
+                    Err(RecvTimeoutError::Timeout) => (),
+                    Err(RecvTimeoutError::Disconnected) => break,
                 }
-            }
-        }
-    }
-
-    let ddeltas = Arc::new(Mutex::new(ddeltas));
-
-    let save_file = match save_file_path {
-        None => Arc::new(None),
-        Some(p) => {
-            let f = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&*p)
-                .unwrap();
-            Arc::new(Some(Mutex::new(BufWriter::new(f))))
-        }
-    };
-
-    let (sender, receiver) = unbounded::<(u32, i32, usize)>();
-    let receiver = Arc::new(Mutex::new(receiver));
-
-    for _ in 0..bucket.max_threads {
-        let ddeltas = Arc::clone(&ddeltas);
-        let receiver = Arc::clone(&receiver);
-        let res = Arc::clone(res);
-        let save_file = Arc::clone(&save_file);
-
-        let p_sender = p_sender.clone();
-        handles.push(thread::spawn(move || loop {
-            let job = receiver.lock().unwrap().recv().ok();
-
-            if let Some((s, t, idx)) = job {
-                if ddeltas.lock().unwrap()[s as usize - 3][t][idx].is_some() {
+                if prev.elapsed().as_millis() < 100 {
                     continue;
                 }
-                let target_dim = res.module(s - 3).dimension(t - 1);
-                let mut result = FpVector::new(TWO, target_dim);
-
-                compute_c(&*res, s, t, idx, &mut result);
-
-                if let Some(save_file) = &*save_file {
-                    let mut sf = save_file.lock().unwrap();
-                    s.save(&mut *sf).unwrap();
-                    t.save(&mut *sf).unwrap();
-                    idx.save(&mut *sf).unwrap();
-                    result.save(&mut *sf).unwrap();
-                    sf.flush().unwrap();
-                    drop(sf);
-                }
-
-                ddeltas.lock().unwrap()[s as usize - 3][t][idx] = Some(result);
-
-                p_sender.send((s, t)).unwrap();
-            } else {
-                break;
+                // Move cursor to beginning and clear line
+                print!("\x1b[H\x1b[K");
+                println!(
+                    "Time elapsed: {:.2?}; Processed bidegrees:",
+                    start.elapsed()
+                );
+                crate::utils::print_resolution_color(
+                    res,
+                    std::cmp::min(max_s, ((max_t - min_degree) as u32 + 2) / 3),
+                    max_t,
+                    &processed,
+                );
+                // Clear the rest of the screen
+                print!("\x1b[J");
+                std::io::stdout().flush().unwrap();
+                prev = Instant::now();
             }
-        }));
-    }
-    drop(p_sender);
+        });
 
-    // Iterate in reverse order to do the slower ones first
-    for t in (min_degree + 1..=max_t).rev() {
+        // We now compute the A terms of dδg. There are no dependencies between the different
+        // bidegrees, so we use a thread pool for this. The ddeltas store the results as a vector:
+        // source_s -> source_t -> gen_idx -> value. Since they are not populated in order of source_s
+        // and source_t, we pre-populate with None and replace with Some.
         for s in 3..=max_s {
-            for idx in 0..res.module(s).number_of_gens_in_degree(t) {
-                sender.send((s, t, idx)).unwrap();
+            let m = res.module(s);
+            let mut v = BiVec::with_capacity(min_degree + 1, max_t + 1);
+            for t in min_degree + 1..=max_t {
+                v.push(vec![None; m.number_of_gens_in_degree(t)]);
+            }
+            ddeltas.lock().unwrap().push(v);
+        }
+
+        if let Some(p) = save_file_path.as_ref() {
+            if Path::new(&*p).exists() {
+                let f = std::fs::File::open(&*p).unwrap();
+                let mut f = BufReader::new(f);
+                loop {
+                    match read_saved_data(&mut f) {
+                        Ok((s, t, idx, data)) => {
+                            if s <= max_s && t <= max_t {
+                                ddeltas.lock().unwrap()[s as usize - 3][t][idx] = Some(data);
+                                p_sender.send((s, t)).unwrap();
+                            }
+                        }
+                        Err(_) => break,
+                    }
+                }
             }
         }
-    }
-    drop(sender);
 
-    for handle in handles {
-        handle.join().unwrap();
-    }
+        let save_file = match save_file_path {
+            None => Arc::new(None),
+            Some(p) => {
+                let f = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&*p)
+                    .unwrap();
+                Arc::new(Some(Mutex::new(BufWriter::new(f))))
+            }
+        };
 
-    let ddeltas = unwrap(Arc::try_unwrap(ddeltas)).into_inner().unwrap();
+        let (sender, receiver) = unbounded::<(u32, i32, usize)>();
+        let receiver = Arc::new(Mutex::new(receiver));
+
+        // Redefine these to the borrows so that the underlying doesn't get moved into closures
+        let ddeltas = &ddeltas;
+        let p_sender = &p_sender;
+        for _ in 0..bucket.max_threads {
+            let save_file = Arc::clone(&save_file);
+            let receiver = Arc::clone(&receiver);
+            scope.spawn(move |_| loop {
+                let job = receiver.lock().unwrap().recv().ok();
+
+                if let Some((s, t, idx)) = job {
+                    if ddeltas.lock().unwrap()[s as usize - 3][t][idx].is_some() {
+                        continue;
+                    }
+                    let target_dim = res.module(s - 3).dimension(t - 1);
+                    let mut result = FpVector::new(TWO, target_dim);
+
+                    compute_c(&*res, s, t, idx, &mut result);
+
+                    if let Some(save_file) = &*save_file {
+                        let mut sf = save_file.lock().unwrap();
+                        s.save(&mut *sf).unwrap();
+                        t.save(&mut *sf).unwrap();
+                        idx.save(&mut *sf).unwrap();
+                        result.save(&mut *sf).unwrap();
+                        sf.flush().unwrap();
+                        drop(sf);
+                    }
+
+                    ddeltas.lock().unwrap()[s as usize - 3][t][idx] = Some(result);
+
+                    p_sender.send((s, t)).unwrap();
+                } else {
+                    break;
+                }
+            });
+        }
+
+        // Iterate in reverse order to do the slower ones first
+        for t in (min_degree + 1..=max_t).rev() {
+            for s in 3..=max_s {
+                for idx in 0..res.module(s).number_of_gens_in_degree(t) {
+                    sender.send((s, t, idx)).unwrap();
+                }
+            }
+        }
+    })
+    .unwrap();
 
     println!("Computed A terms in {:.2?}", start.elapsed());
 
+    let ddeltas = ddeltas.into_inner().unwrap();
     // We now compute the rest of the terms. This step is substantially faster than the previous
     // step, so we don't have to be so careful about optimization (the cost is the cost of
     // computing one product, which is not too much). To compute delta[s][t], we need to know
@@ -341,72 +323,70 @@ pub fn compute_delta_concurrent(
         .map(|s| FreeModuleHomomorphism::new(res.module(s), res.module(s - 2), 1))
         .collect::<Vec<_>>();
 
-    let deltas = Arc::new(deltas);
+    crossbeam_utils::thread::scope(|scope| {
+        let mut last_receiver: Option<Receiver<()>> = None;
+        for (s, ddeltas_) in ddeltas.into_iter().enumerate() {
+            let s = s as u32 + 3;
 
-    let mut last_receiver: Option<Receiver<()>> = None;
-    let mut handles = Vec::with_capacity(ddeltas.len());
-    for (s, ddeltas_) in ddeltas.into_iter().enumerate() {
-        let s = s as u32 + 3;
+            let (sender, receiver) = unbounded();
 
-        let (sender, receiver) = unbounded();
+            let source_d = res.differential(s);
+            let target_d = res.differential(s - 2);
+            let source_module = res.module(s);
+            let target_module = res.module(s - 2);
 
-        let deltas = Arc::clone(&deltas);
-        let bucket = Arc::clone(bucket);
+            let deltas = &deltas;
+            scope.spawn(move |_| {
+                let delta = &deltas[s as usize - 3];
 
-        let source_d = res.differential(s);
-        let target_d = res.differential(s - 2);
-        let source_module = res.module(s);
-        let target_module = res.module(s - 2);
+                delta.extend_by_zero_safe(min_degree);
+                let mut token = bucket.take_token();
+                for (t, mut ddelta) in ddeltas_.into_iter_enum() {
+                    token = bucket.recv_or_release(token, &last_receiver);
 
-        #[cfg(debug_assertions)]
-        let res = Arc::clone(res);
+                    let num_gens = source_module.number_of_gens_in_degree(t);
+                    let target_dim = target_module.dimension(t - 1);
+                    let mut results = vec![FpVector::new(TWO, target_dim); num_gens];
 
-        handles.push(thread::spawn(move || {
-            let delta = &deltas[s as usize - 3];
+                    for (idx, result) in results.iter_mut().enumerate() {
+                        let row: &mut FpVector = ddelta[idx].as_mut().unwrap();
+                        if s > 3 {
+                            deltas[s as usize - 4].apply(
+                                row.as_slice_mut(),
+                                1,
+                                t,
+                                source_d.output(t, idx).as_slice(),
+                            );
+                        }
 
-            delta.extend_by_zero_safe(min_degree);
-            let mut token = bucket.take_token();
-            for (t, mut ddelta) in ddeltas_.into_iter_enum() {
-                token = bucket.recv_or_release(token, &last_receiver);
+                        #[cfg(debug_assertions)]
+                        if s > 3 {
+                            let mut r = FpVector::new(TWO, res.module(s - 4).dimension(t - 1));
+                            res.differential(s - 3).apply(
+                                r.as_slice_mut(),
+                                1,
+                                t - 1,
+                                row.as_slice(),
+                            );
+                            assert!(r.is_zero(), "dd != 0 at s = {}, t = {}", s, t);
+                        }
 
-                let num_gens = source_module.number_of_gens_in_degree(t);
-                let target_dim = target_module.dimension(t - 1);
-                let mut results = vec![FpVector::new(TWO, target_dim); num_gens];
-
-                for (idx, result) in results.iter_mut().enumerate() {
-                    let row: &mut FpVector = ddelta[idx].as_mut().unwrap();
-                    if s > 3 {
-                        deltas[s as usize - 4].apply(
-                            row.as_slice_mut(),
+                        target_d.quasi_inverse(t - 1).apply(
+                            result.as_slice_mut(),
                             1,
-                            t,
-                            source_d.output(t, idx).as_slice(),
+                            row.as_slice(),
                         );
                     }
-
-                    #[cfg(debug_assertions)]
-                    if s > 3 {
-                        let mut r = FpVector::new(TWO, res.module(s - 4).dimension(t - 1));
-                        res.differential(s - 3)
-                            .apply(r.as_slice_mut(), 1, t - 1, row.as_slice());
-                        assert!(r.is_zero(), "dd != 0 at s = {}, t = {}", s, t);
-                    }
-
-                    target_d
-                        .quasi_inverse(t - 1)
-                        .apply(result.as_slice_mut(), 1, row.as_slice());
+                    delta.add_generators_from_rows(&delta.lock(), t, results);
+                    sender.send(()).unwrap();
                 }
-                delta.add_generators_from_rows(&delta.lock(), t, results);
-                sender.send(()).unwrap();
-            }
-        }));
-        last_receiver = Some(receiver);
-    }
-    for handle in handles {
-        handle.join().unwrap();
-    }
+            });
+            last_receiver = Some(receiver);
+        }
+    })
+    .unwrap();
     println!("Computed δd terms in {:.2?}", start.elapsed());
-    unwrap(Arc::try_unwrap(deltas))
+    deltas
 }
 
 /// Computes $C(g_i) = A(c_i^j, dd g_j)$.
@@ -793,14 +773,7 @@ mod test {
             let m = resolution.module(gen_s - 2);
 
             result.set_scratch_vector_size(m.dimension(target_deg));
-            compute_a_dd(
-                &*resolution.inner,
-                &mut a,
-                gen_s,
-                gen_t,
-                gen_idx,
-                &mut result,
-            );
+            compute_a_dd(&resolution, &mut a, gen_s, gen_t, gen_idx, &mut result);
             assert_eq!(
                 &m.element_to_string(target_deg, result.as_slice()),
                 ans,
@@ -835,13 +808,13 @@ mod test {
         let deltas = {
             let bucket = std::sync::Arc::new(TokenBucket::new(2));
             resolution.resolve_through_bidegree_concurrent(max_s, max_t, &bucket);
-            compute_delta_concurrent(&resolution.inner, max_s, max_t, &bucket, None)
+            compute_delta_concurrent(&resolution, max_s, max_t, &bucket, None)
         };
 
         #[cfg(not(feature = "concurrent"))]
         let deltas = {
             resolution.resolve_through_bidegree(max_s, max_t);
-            compute_delta(&resolution.inner, max_s, max_t)
+            compute_delta(&resolution, max_s, max_t)
         };
 
         for s in 1..(max_s - 1) {

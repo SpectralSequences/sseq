@@ -1,5 +1,5 @@
 use crate::chain_complex::{FiniteChainComplex, FreeChainComplex};
-use crate::resolution::Resolution;
+use crate::resolution::{Resolution, ResolutionInner};
 use crate::CCC;
 use algebra::module::FiniteModule;
 use algebra::{Algebra, SteenrodAlgebra};
@@ -171,14 +171,16 @@ pub fn load_module_from_file(config: &Config) -> error::Result<String> {
     })
 }
 
-pub fn construct_s_2(algebra: &str) -> Resolution<CCC> {
+pub fn construct_s_2(algebra: &str) -> ResolutionInner<CCC> {
     let json = json!({
         "type" : "finite dimensional module",
         "p": 2,
         "gens": {"x0": 0},
         "actions": []
     });
-    construct_from_json(json, algebra).unwrap()
+    Arc::try_unwrap(construct_from_json(json, algebra).unwrap().inner)
+        .ok()
+        .unwrap()
 }
 
 #[macro_export]
@@ -191,7 +193,8 @@ macro_rules! load_s_2 {
         if std::path::Path::new($path).exists() {
             let f = std::fs::File::open($path).unwrap();
             let mut f = std::io::BufReader::new(f);
-            resolution = ext::resolution::Resolution::load(&mut f, &resolution.complex()).unwrap();
+            resolution =
+                ext::resolution::ResolutionInner::load(&mut f, &resolution.complex()).unwrap();
         }
         let $resolution = resolution;
     };
