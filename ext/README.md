@@ -38,8 +38,7 @@ This provides an interface for saving and loading resolutions and other data.
 # Binaries
 ## Top-level crate
 By default, the binary computes Ext and displays the result in an ASCII graph.
-This is mainly used for testing purposes. It also comes with a CLI interface
-for defining Steenrod modules, which may be used "in production".
+This is mainly used for testing purposes.
 
 At the moment, it also has an interface for calculating Steenrod operations in
 Ext using the algorithm described in
@@ -49,10 +48,7 @@ expose this via `ext-websocket` once it is sufficiently presentable (the
 current algorithm can be very slow, and the speed cannot be easily determined
 a priori).
 
-There is also an alternative entry point, `cargo run test`, which runs
-custom-written code in `binaries/src/test.rs`. This is used for ad hoc
-calculations, and the content of the this file is probably what the author
-happened to be working on when they had to commit something else.
+Various other binaries are in the `examples/` directory.
 
 ## compressor
 This is a utility for further compressing the history file constructed by the

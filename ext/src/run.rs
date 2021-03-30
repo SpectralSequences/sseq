@@ -18,10 +18,6 @@ use std::sync::Arc;
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 
-pub fn define_module() -> error::Result<String> {
-    algebra::cli_module_loaders::interactive_module_define()
-}
-
 pub fn resolve(config: &Config) -> error::Result<String> {
     let res = construct(config)?;
 
@@ -30,7 +26,7 @@ pub fn resolve(config: &Config) -> error::Result<String> {
 
     #[cfg(feature = "concurrent")]
     {
-        let num_threads = query_with_default("Number of threads", 2, Ok);
+        let num_threads = query_with_default("Number of threads", "2", Ok);
         let bucket = Arc::new(TokenBucket::new(num_threads));
         res.resolve_through_degree_concurrent(config.max_degree, &bucket);
     }
@@ -61,14 +57,14 @@ pub fn yoneda(config: &Config) -> error::Result<String> {
     let min_degree = resolution.min_degree();
 
     #[cfg(feature = "concurrent")]
-    let num_threads = query_with_default("Number of threads", 2, Ok);
+    let num_threads = query_with_default("Number of threads", "2", Ok);
     #[cfg(feature = "concurrent")]
     let bucket = Arc::new(TokenBucket::new(num_threads));
 
     loop {
-        let x: i32 = query_with_default("t - s", 200, Ok);
-        let s: u32 = query_with_default("s", 200, Ok);
-        let i: usize = query_with_default("idx", 200, Ok);
+        let x: i32 = query_with_default("t - s", "200", Ok);
+        let s: u32 = query_with_default("s", "200", Ok);
+        let i: usize = query_with_default("idx", "200", Ok);
 
         let start = Instant::now();
         let t = x + s as i32;
@@ -167,17 +163,15 @@ pub fn yoneda(config: &Config) -> error::Result<String> {
 pub fn secondary() -> error::Result<String> {
     let mut resolution = construct_s_2("milnor");
 
-    let max_s = query_with_default("Max s", 7, Ok);
-    let max_t = query_with_default("Max t", 30, Ok);
+    let max_s = query_with_default("Max s", "7", Ok);
+    let max_t = query_with_default("Max t", "30", Ok);
 
-    let res_save_file: String =
-        query_with_default("Resolution save file", String::from("resolution.save"), Ok);
+    let res_save_file: String = query_with_default("Resolution save file", "resolution.save", Ok);
     #[cfg(feature = "concurrent")]
-    let del_save_file: String =
-        query_with_default("Delta save file", String::from("ddelta.save"), Ok);
+    let del_save_file: String = query_with_default("Delta save file", "ddelta.save", Ok);
 
     #[cfg(feature = "concurrent")]
-    let num_threads = query_with_default("Number of threads", 2, Ok);
+    let num_threads = query_with_default("Number of threads", "2", Ok);
 
     if res_save_file != "-" && Path::new(&*res_save_file).exists() {
         print!("Loading saved resolution: ");

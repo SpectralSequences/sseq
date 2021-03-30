@@ -33,14 +33,14 @@ fn main() -> error::Result<()> {
 
     let p = ValidPrime::new(2);
     #[cfg(feature = "concurrent")]
-    let num_threads = query_with_default("Number of threads", 2, Ok);
+    let num_threads = query_with_default("Number of threads", "2", Ok);
 
     #[cfg(feature = "concurrent")]
     let bucket = Arc::new(TokenBucket::new(num_threads));
 
-    let x: i32 = query_with_default("t - s", 8, Ok);
-    let s: u32 = query_with_default("s", 3, Ok);
-    let idx: usize = query_with_default("idx", 0, Ok);
+    let x: i32 = query_with_default("t - s", "8", Ok);
+    let s: u32 = query_with_default("s", "3", Ok);
+    let idx: usize = query_with_default("idx", "0", Ok);
 
     let t = s as i32 + x;
     print!("Resolving ext: ");

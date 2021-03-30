@@ -21,8 +21,6 @@ args:
             - adem
             - milnor
 subcommands:
-    - module:
-        about: Define module interactively
     - yoneda:
         about: Construct Yoneda representatives for Ext classes
     - secondary:

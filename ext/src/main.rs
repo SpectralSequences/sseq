@@ -23,9 +23,6 @@ fn main() -> error::Result<()> {
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml).get_matches();
     let result = match matches.subcommand() {
-        ("module", Some(_)) => {
-            run::define_module()?
-        }
         ("yoneda", Some(_)) => {
             run::yoneda(&get_config(matches))?
         }
