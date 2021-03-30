@@ -11,6 +11,7 @@ export PATH := $(HOME)/.cargo/bin:$(PATH)
 lint:
 	cargo clippy --all-targets
 	cargo clippy --target wasm32-unknown-unknown --lib
+	cargo fmt -- --check
 
 setup-wasm:
 	cargo install wasm-bindgen-cli

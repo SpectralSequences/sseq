@@ -2,10 +2,7 @@ use algebra::module::OperationGeneratorPair;
 use ext::{load_s_2, utils::iter_stems};
 use ext_webserver::actions::SseqChoice;
 use ext_webserver::sseq::Sseq;
-use fp::{
-    prime::ValidPrime,
-    vector::FpVector,
-};
+use fp::{prime::ValidPrime, vector::FpVector};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
