@@ -16,9 +16,7 @@ lint-wasm:
 	cargo clippy --target wasm32-unknown-unknown --lib
 
 setup-wasm:
-	cargo install wasm-bindgen-cli
-	# Update cargo to ensure we are using the latest version of wasm-bindgen-cli
-	cargo update
+	cargo install wasm-bindgen-cli --version 0.2.72
 	rustup target add wasm32-unknown-unknown
 
 wasm-opt:
