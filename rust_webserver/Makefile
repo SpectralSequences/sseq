@@ -17,6 +17,8 @@ lint-wasm:
 
 setup-wasm:
 	cargo install wasm-bindgen-cli
+	# Update cargo to ensure we are using the latest version of wasm-bindgen-cli
+	cargo update
 	rustup target add wasm32-unknown-unknown
 
 wasm-opt:
