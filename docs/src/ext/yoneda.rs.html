@@ -723,14 +723,14 @@
 <span id="702">702</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">GeneratedAlgebra</span>, <span class="ident">SteenrodAlgebra</span>, <span class="ident">AdemAlgebra</span>};
+<span class="kw">use</span> <span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">GeneratedAlgebra</span>, <span class="ident">SteenrodAlgebra</span>, <span class="ident">AdemAlgebra</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">AugmentedChainComplex</span>, <span class="ident">FiniteAugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainMap</span>};
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">FpVector</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">matrix</span>::{<span class="ident">Matrix</span>, <span class="ident">Subspace</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::{<span class="ident">ModuleHomomorphism</span>, <span class="ident">BoundedModuleHomomorphism</span>, <span class="ident">ZeroHomomorphism</span>, <span class="ident">FiniteModuleHomomorphism</span>, <span class="ident">FreeModuleHomomorphism</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::{<span class="ident">TruncatedHomomorphism</span>, <span class="ident">TruncatedHomomorphismSource</span>, <span class="ident">QuotientHomomorphism</span>, <span class="ident">QuotientHomomorphismSource</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">Module</span>, <span class="ident">FDModule</span>, <span class="ident">FreeModule</span>, <span class="ident">BoundedModule</span>, <span class="ident">FiniteModule</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">QuotientModule</span> <span class="kw">as</span> <span class="ident">QM</span>, <span class="ident">TruncatedModule</span> <span class="kw">as</span> <span class="ident">TM</span>};
+<span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::{<span class="ident">ModuleHomomorphism</span>, <span class="ident">BoundedModuleHomomorphism</span>, <span class="ident">ZeroHomomorphism</span>, <span class="ident">FiniteModuleHomomorphism</span>, <span class="ident">FreeModuleHomomorphism</span>};
+<span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::{<span class="ident">TruncatedHomomorphism</span>, <span class="ident">TruncatedHomomorphismSource</span>, <span class="ident">QuotientHomomorphism</span>, <span class="ident">QuotientHomomorphismSource</span>};
+<span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::{<span class="ident">Module</span>, <span class="ident">FDModule</span>, <span class="ident">FreeModule</span>, <span class="ident">BoundedModule</span>, <span class="ident">FiniteModule</span>};
+<span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::{<span class="ident">QuotientModule</span> <span class="kw">as</span> <span class="ident">QM</span>, <span class="ident">TruncatedModule</span> <span class="kw">as</span> <span class="ident">TM</span>};
 
 <span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
 
@@ -1290,7 +1290,7 @@
     <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::<span class="ident">FiniteChainComplex</span>;
     <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">resolution</span>::<span class="ident">Resolution</span>;
     <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">resolution_homomorphism</span>::<span class="ident">ResolutionHomomorphism</span>;
-    <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::<span class="ident">IdentityHomomorphism</span>;
+    <span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::<span class="ident">IdentityHomomorphism</span>;
 
     <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::<span class="ident">ValidPrime</span>;
 
