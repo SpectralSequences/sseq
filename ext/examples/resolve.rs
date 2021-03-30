@@ -1,6 +1,9 @@
+//! Resolves a module and prints an ASCII depiction of the Ext groups.
+
 use ext::utils::{construct, get_config};
 
 fn main() -> error::Result<()> {
+    // Read command line arguments
     let config = get_config();
     let res = construct(&config)?;
 
