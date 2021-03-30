@@ -1,3 +1,4 @@
+use ext::chain_complex::ChainComplex;
 use std::fs::File;
 use std::io::{BufReader, Write};
 use std::path::Path;
@@ -37,8 +38,7 @@ fn main() -> error::Result<()> {
         }
     }
 
-    let should_resolve = max_s > resolution.max_computed_homological_degree()
-        || max_t > resolution.max_computed_degree();
+    let should_resolve = !resolution.has_computed_bidegree(max_s, max_t);
 
     #[cfg(not(feature = "concurrent"))]
     let deltas = {

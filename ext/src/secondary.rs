@@ -168,7 +168,6 @@ pub fn compute_delta_concurrent(
     let ddeltas = Mutex::new(ddeltas);
 
     let start = Instant::now();
-    let (p_sender, p_receiver) = unbounded();
     crossbeam_utils::thread::scope(|scope| {
         // Pretty print progress of first step
         let mut processed: HashMap<(u32, i32), u32> = HashMap::default();
@@ -180,6 +179,7 @@ pub fn compute_delta_concurrent(
             }
         }
 
+        let (p_sender, p_receiver) = unbounded();
         scope.spawn(move |_| {
             let mut prev = Instant::now();
             // Clear first row
@@ -262,10 +262,10 @@ pub fn compute_delta_concurrent(
 
         // Redefine these to the borrows so that the underlying doesn't get moved into closures
         let ddeltas = &ddeltas;
-        let p_sender = &p_sender;
         for _ in 0..bucket.max_threads {
             let save_file = Arc::clone(&save_file);
             let receiver = Arc::clone(&receiver);
+            let p_sender = p_sender.clone();
             scope.spawn(move |_| loop {
                 let job = receiver.lock().unwrap().recv().ok();
 
@@ -378,7 +378,8 @@ pub fn compute_delta_concurrent(
                         );
                     }
                     delta.add_generators_from_rows(&delta.lock(), t, results);
-                    sender.send(()).unwrap();
+                    // The last receiver will be dropped so the send will fail
+                    sender.send(()).ok();
                 }
             });
             last_receiver = Some(receiver);
