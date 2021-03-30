@@ -8,10 +8,10 @@ use rustc_hash::FxHashSet as HashSet;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use fp::matrix::{Matrix, Subspace, AugmentedMatrix3};
-use crate::algebra::Algebra;
-use crate::module::{Module, FreeModule};
+use algebra::Algebra;
+use algebra::module::{Module, FreeModule};
 use once::{OnceVec, OnceBiVec};
-use crate::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
+use algebra::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
 use crate::chain_complex::{ChainComplex, AugmentedChainComplex, UnitChainComplex, FreeChainComplex};
 use crate::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorphismToUnit};
 

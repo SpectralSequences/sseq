@@ -19,7 +19,7 @@ use std::sync::Arc;
 use thread_token::TokenBucket;
 
 pub fn define_module() -> error::Result<String> {
-    ext::cli_module_loaders::interactive_module_define()
+    algebra::cli_module_loaders::interactive_module_define()
 }
 
 pub fn resolve(config: &Config) -> error::Result<String> {

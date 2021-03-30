@@ -5,9 +5,9 @@ mod hom_complex;
 #[cfg(feature = "extras")]
 mod tensor_product_chain_complex;
 
-use crate::algebra::Algebra;
-use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use crate::module::{FDModule, FiniteModule, FreeModule, Module};
+use algebra::Algebra;
+use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
+use algebra::module::{FDModule, FiniteModule, FreeModule, Module};
 use crate::utils::ascii_num;
 use crate::CCC;
 use bivec::BiVec;

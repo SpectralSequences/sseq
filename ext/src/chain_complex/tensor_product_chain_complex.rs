@@ -1,7 +1,7 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 use algebra::{Algebra, Bialgebra, SteenrodAlgebra};
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteAugmentedChainComplex};
-use crate::module::homomorphism::{
+use algebra::module::homomorphism::{
     BoundedModuleHomomorphism, FiniteModuleHomomorphism, ModuleHomomorphism,
 };
 use algebra::module::{FiniteModule, Module, SumModule, TensorModule, ZeroModule};

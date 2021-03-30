@@ -4,9 +4,9 @@ use std::sync::{Weak, Arc};
 use once::OnceVec;
 use fp::vector::{FpVector, SliceMut};
 use fp::matrix::Matrix;
-use crate::algebra::SteenrodAlgebra;
-use crate::module::Module;
-use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
+use algebra::SteenrodAlgebra;
+use algebra::module::Module;
+use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::chain_complex::{AugmentedChainComplex, FreeChainComplex};
 use crate::resolution::ResolutionInner;
 use crate::CCC; 
@@ -154,8 +154,8 @@ where CC1: FreeChainComplex<Algebra = <CC2::Module as Module>::Algebra>,
 }
 
 use crate::chain_complex::{ChainComplex, BoundedChainComplex};
-use crate::module::homomorphism::FiniteModuleHomomorphism;
-use crate::module::{BoundedModule, FiniteModule};
+use algebra::module::homomorphism::FiniteModuleHomomorphism;
+use algebra::module::{BoundedModule, FiniteModule};
 
 impl<M, ACC, TCC> ResolutionHomomorphism<ResolutionInner<CCC>, ACC>
 where M: Module<Algebra = SteenrodAlgebra>,

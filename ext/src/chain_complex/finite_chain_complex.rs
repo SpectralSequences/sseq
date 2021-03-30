@@ -1,7 +1,7 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex};
-use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
-use crate::module::{Module, ZeroModule};
+use algebra::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
+use algebra::module::{Module, ZeroModule};
 use std::sync::Arc;
 
 pub struct FiniteChainComplex<M, F>
