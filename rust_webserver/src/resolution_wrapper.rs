@@ -260,30 +260,6 @@ impl<CC: UnitChainComplex> Resolution<CC> {
         }
     }
 
-    pub fn max_computed_degree(&self) -> i32 {
-        self.inner.max_computed_degree()
-    }
-
-    pub fn max_computed_homological_degree(&self) -> u32 {
-        self.inner.max_computed_homological_degree()
-    }
-
-    pub fn graded_dimension_vec(&self) -> Vec<Vec<usize>> {
-        let min_degree = self.min_degree();
-        let max_degree = self.max_computed_degree();
-        let max_hom_deg = self.max_computed_homological_degree();
-        let mut result = Vec::with_capacity(max_hom_deg as usize + 1);
-        for i in (0..=max_hom_deg).rev() {
-            let module = self.module(i);
-            result.push(
-                (min_degree + i as i32..=max_degree)
-                    .map(|j| module.number_of_gens_in_degree(j))
-                    .collect::<Vec<_>>(),
-            );
-        }
-        result
-    }
-
     pub fn complex(&self) -> Arc<CC> {
         self.inner.complex()
     }
@@ -300,10 +276,11 @@ impl<CC: UnitChainComplex> Resolution<CC> {
     /// `self`, but `add_product` takes in a mutable borrow.
     pub fn catch_up_products(&self) {
         let new_product = [self.product_list.last().unwrap().clone()];
+        // This is only run on the main sseq, and we always resolve a square
         if self.inner.has_computed_bidegree(0, 0) {
             let min_degree = self.min_degree();
-            let max_s = self.max_computed_homological_degree();
-            let max_t = self.max_computed_degree();
+            let max_t = self.module(0).max_computed_degree();
+            let max_s = max_t as u32;
 
             self.construct_maps_to_unit(max_s, max_t);
 

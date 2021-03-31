@@ -25,9 +25,7 @@ use thread_token::TokenBucket;
 /// This separation should make multithreading easier because we only need Resolution to be
 /// Send + Sync. In particular, we don't need the callback functions to be Send + Sync.
 pub struct Resolution<CC : ChainComplex> {
-    next_s : Mutex<u32>,
-    next_t : Mutex<i32>,
-
+    lock: Mutex<()>,
     complex : Arc<CC>,
     modules : OnceVec<Arc<FreeModule<<CC::Module as Module>::Algebra>>>,
     zero_module : Arc<FreeModule<<CC::Module as Module>::Algebra>>,
@@ -49,9 +47,8 @@ impl<CC : ChainComplex> Resolution<CC> {
         Self {
             complex,
             zero_module,
+            lock: Mutex::new(()),
 
-            next_s : Mutex::new(0),
-            next_t : Mutex::new(min_degree),
             chain_maps : OnceVec::new(),
             modules : OnceVec::new(),
             differentials : OnceVec::new(),
@@ -66,23 +63,23 @@ impl<CC : ChainComplex> Resolution<CC> {
     /// This function prepares the Resolution object to perform computations up to the
     /// specified s degree. It does *not* perform any computations by itself. It simply lengthens
     /// the `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
-    pub fn extend_through_degree(&self, mut next_s : u32, max_s : u32, next_t : i32, max_t : i32) {
+    fn extend_through_degree(&self, max_s : u32, max_t : i32) {
         let min_degree = self.min_degree();
 
-        for i in next_s ..= max_s {
+        for i in self.modules.len() as u32 ..= max_s {
             self.modules.push(Arc::new(FreeModule::new(Arc::clone(&self.algebra()), format!("F{}", i), min_degree)));
             self.chain_maps.push(Arc::new(FreeModuleHomomorphism::new(Arc::clone(&self.modules[i]), Arc::clone(&self.complex.module(i)), 0)));
         }
 
-        for _ in next_t ..= max_t {
+        for _ in self.kernels.len() as i32 ..= max_t {
             self.kernels.push(Mutex::new(None));
         }
 
-        if next_s == 0 {
+        if self.differentials.is_empty() {
             self.differentials.push(Arc::new(FreeModuleHomomorphism::new(Arc::clone(&self.modules[0u32]), Arc::clone(&self.zero_module), 0)));
-            next_s += 1;
         }
-        for i in next_s ..= max_s {
+
+        for i in self.differentials.len() as u32 ..= max_s {
             self.differentials.push(Arc::new(FreeModuleHomomorphism::new(Arc::clone(&self.modules[i]), Arc::clone(&self.modules[i - 1]), 0)));
         }
     }
@@ -532,46 +529,31 @@ impl<CC : ChainComplex> Resolution<CC> {
     }
 
     #[cfg(feature = "concurrent")]
-    pub fn resolve_through_bidegree_concurrent_with_callback(&self, mut max_s : u32, mut max_t : i32, bucket : &TokenBucket, mut cb: impl FnMut(u32, i32)) {
+    pub fn resolve_through_bidegree_concurrent_with_callback(&self, max_s : u32, max_t : i32, bucket : &TokenBucket, mut cb: impl FnMut(u32, i32)) {
         let min_degree = self.min_degree();
-        let mut next_s = self.next_s.lock();
-        let mut next_t = self.next_t.lock();
-
-        // We want the computed area to always be a rectangle.
-        max_t = std::cmp::max(max_t, *next_t - 1);
-        if max_s < *next_s {
-            max_s = *next_s - 1;
-        }
+        let _lock = self.lock.lock();
 
         self.complex().compute_through_bidegree(max_s, max_t);
-        self.extend_through_degree(*next_s, max_s, *next_t, max_t);
+        self.extend_through_degree(max_s, max_t);
         self.algebra().compute_basis(max_t - min_degree);
 
         crossbeam_utils::thread::scope(|s| {
             let (pp_sender, pp_receiver) = unbounded();
             let mut last_receiver : Option<Receiver<()>> = None;
             for t in min_degree ..= max_t {
-                let next_t = *next_t;
-                let next_s = *next_s;
-
-                let start = if t < next_t { next_s } else { 0 };
 
                 let (sender, receiver) = unbounded();
 
                 let pp_sender = pp_sender.clone();
                 s.spawn(move |_| {
-                    if t == next_t - 1 {
-                        for _ in 0 .. next_s {
-                            sender.send(()).unwrap();
-                        }
-                    }
-
                     let mut token = bucket.take_token();
-                    for s in start ..= max_s {
+                    for s in 0 ..= max_s {
                         token = bucket.recv_or_release(token, &last_receiver);
-                        self.step_resolution(s, t);
+                        if !self.has_computed_bidegree(s, t) {
+                            self.step_resolution(s, t);
 
-                        pp_sender.send((s, t)).unwrap();
+                            pp_sender.send((s, t)).unwrap();
+                        }
                         sender.send(()).unwrap();
                     }
                 });
@@ -585,43 +567,25 @@ impl<CC : ChainComplex> Resolution<CC> {
                 cb(s, t);
             }
         }).unwrap();
-
-        *next_s = max_s + 1;
-        *next_t = max_t + 1;
     }
 
-    pub fn resolve_through_bidegree_with_callback(&self, mut max_s : u32, mut max_t : i32, mut cb: impl FnMut(u32, i32)) {
+    pub fn resolve_through_bidegree_with_callback(&self, max_s : u32, max_t : i32, mut cb: impl FnMut(u32, i32)) {
         let min_degree = self.min_degree();
-        let mut next_s = self.next_s.lock();
-        let mut next_t = self.next_t.lock();
-
-        // We want the computed area to always be a rectangle.
-        max_t = std::cmp::max(max_t, *next_t - 1);
-        if max_s < *next_s {
-            max_s = *next_s - 1;
-        }
+        let _lock = self.lock.lock();
 
         self.complex().compute_through_bidegree(max_s, max_t);
-        self.extend_through_degree(*next_s, max_s, *next_t, max_t);
+        self.extend_through_degree(max_s, max_t);
         self.algebra().compute_basis(max_t - min_degree);
 
         for t in min_degree ..= max_t {
-            let start = if t < *next_t { *next_s } else { 0 };
-            for s in start ..= max_s {
+            for s in 0 ..= max_s {
+                if self.has_computed_bidegree(s, t) {
+                    continue;
+                }
                 self.step_resolution(s, t);
                 cb(s, t);
             }
         }
-        *next_s = max_s + 1;
-        *next_t = max_t + 1;
-    }
-
-    pub fn max_computed_degree(&self) -> i32 {
-        *self.next_t.lock() - 1
-    }
-
-    pub fn max_computed_homological_degree(&self) -> u32 {
-        *self.next_s.lock() - 1
     }
 }
 
@@ -671,8 +635,7 @@ impl<CC : ChainComplex> ChainComplex for Resolution<CC> {
     }
 
     fn compute_through_bidegree(&self, s : u32, t : i32) {
-        assert!(self.modules.len() > s as usize);
-        assert!(self.modules[0usize].max_computed_degree() >= t);
+        assert!(self.has_computed_bidegree(s, t));
     }
 }
 
@@ -743,14 +706,7 @@ impl<CC : ChainComplex> Load for Resolution<CC> {
             result.chain_maps.push(c);
         }
 
-        let next_s = result.modules.len();
-        assert!(next_s > 0, "Cannot load uninitialized resolution");
-        let next_t = result.module(0).max_computed_degree() + 1;
-
-        *result.next_s.lock() = next_s as u32;
-        *result.next_t.lock() = next_t;
-
-        result.zero_module.extend_by_zero(result.max_computed_degree());
+        result.zero_module.extend_by_zero(result.module(0).max_computed_degree());
 
         Ok(result)
     }

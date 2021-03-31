@@ -15,7 +15,8 @@ fn test_save_load() {
     });
 
     let resolution1 = construct_from_json(&mut json, "adem").unwrap();
-    resolution1.resolve_through_bidegree(10, 10);
+    resolution1.resolve_through_bidegree(10, 6);
+    resolution1.resolve_through_bidegree(6, 10);
 
     let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
     resolution1.save(&mut cursor).unwrap();
@@ -26,8 +27,8 @@ fn test_save_load() {
     assert_eq!(0, cursor.bytes().count());
 
     assert_eq!(
-        resolution1.graded_dimension_string(10, 10),
-        resolution2.graded_dimension_string(10, 10)
+        resolution1.graded_dimension_string(6, 6),
+        resolution2.graded_dimension_string(6, 6)
     );
 
     resolution1.resolve_through_bidegree(20, 20);

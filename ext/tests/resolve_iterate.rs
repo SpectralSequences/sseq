@@ -36,16 +36,35 @@ fn test_iterate(config: &Config) {
     let first = construct_from_json(&mut json.clone(), &config.algebra_name).unwrap();
     let second = construct_from_json(&mut json, &config.algebra_name).unwrap();
 
-    first.resolve_through_bidegree(20, 20);
+    #[cfg(feature = "concurrent")]
+    {
+        let bucket = thread_token::TokenBucket::new(2);
 
-    second.resolve_through_bidegree(0, 0);
-    second.resolve_through_bidegree(5, 5);
-    second.resolve_through_bidegree(10, 10);
-    second.resolve_through_bidegree(10, 10);
-    second.resolve_through_bidegree(18, 18);
-    second.resolve_through_bidegree(14, 14);
-    second.resolve_through_bidegree(15, 15);
-    second.resolve_through_bidegree(20, 20);
+        first.resolve_through_bidegree_concurrent(20, 20, &bucket);
+
+        second.resolve_through_bidegree_concurrent(0, 0, &bucket);
+        second.resolve_through_bidegree_concurrent(5, 5, &bucket);
+        second.resolve_through_bidegree_concurrent(10, 7, &bucket);
+        second.resolve_through_bidegree_concurrent(7, 10, &bucket);
+        second.resolve_through_bidegree_concurrent(18, 18, &bucket);
+        second.resolve_through_bidegree_concurrent(14, 14, &bucket);
+        second.resolve_through_bidegree_concurrent(15, 15, &bucket);
+        second.resolve_through_bidegree_concurrent(20, 20, &bucket);
+    }
+
+    #[cfg(not(feature = "concurrent"))]
+    {
+        first.resolve_through_bidegree(20, 20);
+
+        second.resolve_through_bidegree(0, 0);
+        second.resolve_through_bidegree(5, 5);
+        second.resolve_through_bidegree(10, 7);
+        second.resolve_through_bidegree(7, 10);
+        second.resolve_through_bidegree(18, 18);
+        second.resolve_through_bidegree(14, 14);
+        second.resolve_through_bidegree(15, 15);
+        second.resolve_through_bidegree(20, 20);
+    }
 
     assert_eq!(
         first.graded_dimension_string(20, 20),
