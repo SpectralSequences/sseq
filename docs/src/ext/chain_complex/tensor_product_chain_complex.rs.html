@@ -1203,12 +1203,12 @@
         <span class="kw">let</span> <span class="ident">k</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;,&quot;name&quot;: &quot;$S_2$&quot;, &quot;file_name&quot;: &quot;S_2&quot;, &quot;p&quot;: 2, &quot;generic&quot;: false, &quot;gens&quot;: {&quot;x0&quot;: 0}, &quot;adem_actions&quot;: []}&quot;#</span>;
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">2</span>);
 
-        <span class="kw">let</span> <span class="ident">k</span> <span class="op">=</span> <span class="ident">serde_json</span>::<span class="ident">from_str</span>(<span class="ident">k</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">construct_from_json</span>(<span class="ident">k</span>, <span class="string">&quot;adem&quot;</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">k</span> <span class="op">=</span> <span class="ident">serde_json</span>::<span class="ident">from_str</span>(<span class="ident">k</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">construct_from_json</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">k</span>, <span class="string">&quot;adem&quot;</span>).<span class="ident">unwrap</span>());
         <span class="ident">resolution</span>.<span class="ident">resolve_through_bidegree</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">s</span>, <span class="number">2</span> <span class="op">*</span> <span class="ident">t</span>);
 
         <span class="kw">let</span> <span class="ident">yoneda</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">yoneda_representative_element</span>(
-            <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>.<span class="ident">inner</span>),
+            <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>),
             <span class="ident">s</span>,
             <span class="ident">t</span>,
             <span class="ident">i</span>,
@@ -1221,7 +1221,7 @@
 
         <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">ResolutionHomomorphism</span>::<span class="ident">new</span>(
             <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(),
-            <span class="ident">Arc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>.<span class="ident">inner</span>),
+            <span class="ident">Arc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>),
             <span class="ident">Arc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="ident">square</span>),
             <span class="number">0</span>,
             <span class="number">0</span>,
@@ -1233,7 +1233,7 @@
         <span class="ident">f</span>.<span class="ident">extend</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">s</span>, <span class="number">2</span> <span class="op">*</span> <span class="ident">t</span>);
         <span class="kw">let</span> <span class="ident">final_map</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">get_map</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">s</span>);
 
-        <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">inner</span>.<span class="ident">number_of_gens_in_bidegree</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">s</span>, <span class="number">2</span> <span class="op">*</span> <span class="ident">t</span>);
+        <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">number_of_gens_in_bidegree</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">s</span>, <span class="number">2</span> <span class="op">*</span> <span class="ident">t</span>);
         <span class="kw">for</span> <span class="ident">i_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
             <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">final_map</span>.<span class="ident">output</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">t</span>, <span class="ident">i_</span>).<span class="ident">dimension</span>(), <span class="number">1</span>);
             <span class="kw">if</span> <span class="ident">i_</span> <span class="op">=</span><span class="op">=</span> <span class="ident">fi</span> {

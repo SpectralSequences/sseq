@@ -886,7 +886,7 @@
 <span id="865">865</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::<span class="ident">ChainComplex</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">resolution</span>::<span class="ident">ResolutionInner</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">resolution</span>::<span class="ident">Resolution</span> <span class="kw">as</span> <span class="ident">Resolution_</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">utils</span>::<span class="ident">HashMapTuple</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">CCC</span>;
 <span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">combinatorics</span>;
@@ -921,7 +921,7 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">thread_token</span>::<span class="ident">TokenBucket</span>;
 
-<span class="kw">type</span> <span class="ident">Resolution</span> <span class="op">=</span> <span class="ident">ResolutionInner</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span>;
+<span class="kw">type</span> <span class="ident">Resolution</span> <span class="op">=</span> <span class="ident">Resolution_</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span>;
 <span class="kw">type</span> <span class="ident">FMH</span> <span class="op">=</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 <span class="kw">const</span> <span class="ident">TWO</span>: <span class="ident">ValidPrime</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">2</span>);
