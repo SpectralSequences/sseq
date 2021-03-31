@@ -8,7 +8,7 @@ use std::sync::{Arc, Weak};
 use algebra::module::homomorphism::FreeModuleHomomorphism;
 use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
-use ext::chain_complex::{ChainComplex, UnitChainComplex};
+use ext::chain_complex::ChainComplex;
 use ext::resolution::Resolution as ResolutionInner;
 use ext::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorphismToUnit};
 use fp::matrix::Matrix;
@@ -50,7 +50,7 @@ pub struct SelfMap<CC: ChainComplex> {
 pub type AddClassFn = Box<dyn Fn(u32, i32, usize)>;
 pub type AddStructlineFn = Box<dyn Fn(&str, u32, i32, u32, i32, bool, Vec<Vec<u32>>)>;
 
-pub struct Resolution<CC: UnitChainComplex> {
+pub struct Resolution<CC: ChainComplex> {
     pub inner: Arc<ResolutionInner<CC>>,
 
     pub add_class: Option<AddClassFn>,
@@ -119,7 +119,7 @@ impl Resolution<ext::CCC> {
     }
 }
 
-impl<CC: UnitChainComplex> Resolution<CC> {
+impl<CC: ChainComplex> Resolution<CC> {
     pub fn new_with_inner(inner: ResolutionInner<CC>) -> Self {
         let inner = Arc::new(inner);
         let algebra = inner.complex().algebra();
@@ -266,7 +266,7 @@ impl<CC: UnitChainComplex> Resolution<CC> {
 }
 
 // Product algorithms
-impl<CC: UnitChainComplex> Resolution<CC> {
+impl<CC: ChainComplex> Resolution<CC> {
     /// This function computes the products between the element most recently added to product_list
     /// and the parts of Ext that have already been computed. This function should be called right
     /// after `add_product`, unless `resolve_through_degree`/`resolve_through_bidegree` has never been
@@ -444,7 +444,7 @@ impl<CC: UnitChainComplex> Resolution<CC> {
 }
 
 // Self map algorithms
-impl<CC: UnitChainComplex> Resolution<CC> {
+impl<CC: ChainComplex> Resolution<CC> {
     /// The return value is whether the self map was actually added. If the self map is already
     /// present, we do nothing.
     pub fn add_self_map(&mut self, s: u32, t: i32, name: &str, map_data: Matrix) -> bool {
@@ -511,7 +511,7 @@ impl<CC: UnitChainComplex> Resolution<CC> {
     }
 }
 
-impl<CC: UnitChainComplex> Resolution<CC> {
+impl<CC: ChainComplex> Resolution<CC> {
     pub fn algebra(&self) -> Arc<<CC::Module as Module>::Algebra> {
         self.complex().algebra()
     }

@@ -7,10 +7,8 @@ mod tensor_product_chain_complex;
 
 use algebra::Algebra;
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use algebra::module::{FDModule, FiniteModule, FreeModule, Module};
+use algebra::module::{FreeModule, Module};
 use crate::utils::ascii_num;
-use crate::CCC;
-use bivec::BiVec;
 use fp::matrix::Subquotient;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
@@ -233,19 +231,4 @@ pub trait BoundedChainComplex: ChainComplex {
 pub struct ChainMap<F: ModuleHomomorphism> {
     pub s_shift: u32,
     pub chain_maps: Vec<F>,
-}
-
-pub trait UnitChainComplex: ChainComplex {
-    fn unit_chain_complex(algebra: Arc<Self::Algebra>) -> Self;
-}
-
-impl UnitChainComplex for CCC {
-    fn unit_chain_complex(algebra: Arc<Self::Algebra>) -> Self {
-        let unit_module = Arc::new(FiniteModule::FDModule(FDModule::new(
-            algebra,
-            String::from("unit"),
-            BiVec::from_vec(0, vec![1]),
-        )));
-        FiniteChainComplex::ccdz(unit_module)
-    }
 }
