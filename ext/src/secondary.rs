@@ -1,5 +1,5 @@
 use crate::chain_complex::ChainComplex;
-use crate::resolution::ResolutionInner;
+use crate::resolution::Resolution as Resolution_;
 use crate::utils::HashMapTuple;
 use crate::CCC;
 use algebra::combinatorics;
@@ -34,7 +34,7 @@ use crossbeam_channel::{unbounded, Receiver, RecvTimeoutError};
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 
-type Resolution = ResolutionInner<CCC>;
+type Resolution = Resolution_<CCC>;
 type FMH = FreeModuleHomomorphism<FreeModule<SteenrodAlgebra>>;
 
 const TWO: ValidPrime = ValidPrime::new(2);

@@ -1,5 +1,7 @@
+use ext::chain_complex::FreeChainComplex;
 use ext::utils::construct;
 use ext::utils::Config;
+
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 
@@ -37,16 +39,19 @@ fn compare(module_name: &str, max_degree: i32) {
 
     #[cfg(not(feature = "concurrent"))]
     {
-        a.resolve_through_degree(max_degree);
-        b.resolve_through_degree(max_degree);
+        a.resolve_through_bidegree(max_degree as u32, max_degree);
+        b.resolve_through_bidegree(max_degree as u32, max_degree);
     }
 
     #[cfg(feature = "concurrent")]
     {
         let bucket = std::sync::Arc::new(TokenBucket::new(2));
-        a.resolve_through_degree_concurrent(max_degree, &bucket);
-        b.resolve_through_degree_concurrent(max_degree, &bucket);
+        a.resolve_through_bidegree_concurrent(max_degree as u32, max_degree, &bucket);
+        b.resolve_through_bidegree_concurrent(max_degree as u32, max_degree, &bucket);
     }
 
-    assert_eq!(a.graded_dimension_string(), b.graded_dimension_string());
+    assert_eq!(
+        a.graded_dimension_string(max_degree as u32, max_degree),
+        b.graded_dimension_string(max_degree as u32, max_degree)
+    );
 }

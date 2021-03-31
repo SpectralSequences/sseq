@@ -5,7 +5,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use algebra::module::homomorphism::ModuleHomomorphism;
-use ext::resolution::ResolutionInner;
+use ext::resolution::Resolution;
 use ext::utils::construct_s_2;
 
 use query::*;
@@ -33,7 +33,7 @@ fn main() -> error::Result<()> {
             let start = Instant::now();
             let f = File::open(&*p)?;
             let mut f = BufReader::new(f);
-            resolution = ResolutionInner::load(&mut f, &resolution.complex())?;
+            resolution = Resolution::load(&mut f, &resolution.complex())?;
             println!("{:.2?}", start.elapsed());
         }
     }

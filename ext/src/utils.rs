@@ -1,10 +1,12 @@
 use crate::chain_complex::{FiniteChainComplex, FreeChainComplex};
-use crate::resolution::{Resolution, ResolutionInner};
+use crate::resolution::Resolution;
 use crate::CCC;
 use algebra::module::FiniteModule;
-use algebra::{Algebra, SteenrodAlgebra};
-use fp::matrix::Matrix;
+use algebra::SteenrodAlgebra;
 use serde_json::{json, Value};
+
+#[cfg(feature = "yoneda")]
+use crate::chain_complex::ChainComplex;
 
 use std::error::Error;
 use std::path::PathBuf;
@@ -54,18 +56,17 @@ pub fn get_config() -> Config {
 }
 
 pub fn construct(config: &Config) -> error::Result<Resolution<CCC>> {
-    let contents = load_module_from_file(config)?;
-    let json = serde_json::from_str(&contents)?;
-
-    construct_from_json(json, &config.algebra_name)
+    let mut json = load_module_from_file(config)?;
+    construct_from_json(&mut json, &config.algebra_name)
 }
 
-pub fn construct_from_json(mut json: Value, algebra_name: &str) -> error::Result<Resolution<CCC>> {
-    let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra_name)?);
-    let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut json)?);
+pub fn construct_from_json(json: &mut Value, algebra_name: &str) -> error::Result<Resolution<CCC>> {
+    let algebra = Arc::new(SteenrodAlgebra::from_json(json, algebra_name)?);
+    let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), json)?);
     #[allow(unused_mut)] // This is only mut with Yoneda enabled
     let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
-    let mut resolution = Resolution::new(Arc::clone(&chain_complex), None, None);
+    #[allow(unused_mut)] // This is only mut with Yoneda enabled
+    let mut resolution = Resolution::new(Arc::clone(&chain_complex));
 
     let cofiber = &json["cofiber"];
     #[cfg(feature = "yoneda")]
@@ -82,7 +83,7 @@ pub fn construct_from_json(mut json: Value, algebra_name: &str) -> error::Result
         resolution.resolve_through_bidegree(s, t + module.max_degree());
 
         let map = FreeModuleHomomorphism::new(resolution.module(s), Arc::clone(&module), t);
-        let mut new_output = Matrix::new(
+        let mut new_output = fp::matrix::Matrix::new(
             module.prime(),
             resolution.module(s).number_of_gens_in_degree(t),
             1,
@@ -98,89 +99,45 @@ pub fn construct_from_json(mut json: Value, algebra_name: &str) -> error::Result
             s_shift: s,
             chain_maps: vec![map],
         };
-        let yoneda = yoneda_representative(Arc::clone(&resolution.inner), cm);
+        let yoneda = yoneda_representative(Arc::new(resolution), cm);
         let mut yoneda = FiniteChainComplex::from(yoneda);
         yoneda.pop();
 
         chain_complex = Arc::new(yoneda);
-        resolution = Resolution::new(Arc::clone(&chain_complex), None, None);
+        resolution = Resolution::new(Arc::clone(&chain_complex));
     }
 
     #[cfg(not(feature = "yoneda"))]
     if !cofiber.is_null() {
         panic!("cofiber not supported. Compile with yoneda feature enabled");
     }
-
-    let products_value = &mut json["products"];
-    if !products_value.is_null() {
-        let products = products_value.as_array_mut().unwrap();
-        for prod in products {
-            let hom_deg = prod["hom_deg"].as_u64().unwrap() as u32;
-            let int_deg = prod["int_deg"].as_i64().unwrap() as i32;
-            let class: Vec<u32> = serde_json::from_value(prod["class"].take()).unwrap();
-            let name = prod["name"].as_str().unwrap();
-
-            resolution.add_product(hom_deg, int_deg, class, &name.to_string());
-        }
-    }
-
-    let self_maps = &json["self_maps"];
-    if !self_maps.is_null() {
-        for self_map in self_maps.as_array().unwrap() {
-            let s = self_map["hom_deg"].as_u64().unwrap() as u32;
-            let t = self_map["int_deg"].as_i64().unwrap() as i32;
-            let name = self_map["name"].as_str().unwrap();
-
-            let json_map_data = self_map["map_data"].as_array().unwrap();
-            let json_map_data: Vec<&Vec<Value>> = json_map_data
-                .iter()
-                .map(|x| x.as_array().unwrap())
-                .collect();
-
-            let rows = json_map_data.len();
-            let cols = json_map_data[0].len();
-            let mut map_data = Matrix::new(algebra.prime(), rows, cols);
-            for r in 0..rows {
-                for c in 0..cols {
-                    map_data[r].set_entry(c, json_map_data[r][c].as_u64().unwrap() as u32);
-                }
-            }
-            resolution.add_self_map(s, t, &name.to_string(), map_data);
-        }
-    }
     Ok(resolution)
 }
 
-pub fn load_module_from_file(config: &Config) -> error::Result<String> {
-    let mut result = None;
+pub fn load_module_from_file(config: &Config) -> error::Result<Value> {
     for path in &config.module_paths {
         let mut path = path.clone();
         path.push(&config.module_file_name);
         path.set_extension("json");
-        result = std::fs::read_to_string(path).ok();
-        if result.is_some() {
-            break;
+        if let Ok(s) = std::fs::read_to_string(path) {
+            return Ok(serde_json::from_str(&s)?);
         }
     }
-    result.ok_or_else(|| {
-        error::GenericError::new(format!(
-            "Module file '{}' not found on path",
-            config.module_file_name
-        ))
-        .into()
-    })
+
+    error::from_string(format!(
+        "Module file '{}' not found on path",
+        config.module_file_name
+    ))
 }
 
-pub fn construct_s_2(algebra: &str) -> ResolutionInner<CCC> {
-    let json = json!({
+pub fn construct_s_2(algebra: &str) -> Resolution<CCC> {
+    let mut json = json!({
         "type" : "finite dimensional module",
         "p": 2,
         "gens": {"x0": 0},
         "actions": []
     });
-    Arc::try_unwrap(construct_from_json(json, algebra).unwrap().inner)
-        .ok()
-        .unwrap()
+    construct_from_json(&mut json, algebra).unwrap()
 }
 
 #[macro_export]
@@ -193,8 +150,7 @@ macro_rules! load_s_2 {
         if std::path::Path::new($path).exists() {
             let f = std::fs::File::open($path).unwrap();
             let mut f = std::io::BufReader::new(f);
-            resolution =
-                ext::resolution::ResolutionInner::load(&mut f, &resolution.complex()).unwrap();
+            resolution = ext::resolution::Resolution::load(&mut f, &resolution.complex()).unwrap();
         }
         let $resolution = resolution;
     };

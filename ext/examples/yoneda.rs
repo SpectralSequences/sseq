@@ -18,7 +18,7 @@ use query::*;
 use thread_token::TokenBucket;
 
 fn main() -> error::Result<()> {
-    let resolution = construct(&get_config())?;
+    let resolution = Arc::new(construct(&get_config())?);
     let module = resolution.complex().module(0);
     let min_degree = resolution.min_degree();
 
@@ -44,7 +44,7 @@ fn main() -> error::Result<()> {
 
     let start = Instant::now();
     let yoneda = Arc::new(yoneda_representative_element(
-        Arc::clone(&resolution.inner),
+        Arc::clone(&resolution),
         s,
         t,
         i,
@@ -54,14 +54,14 @@ fn main() -> error::Result<()> {
 
     let f = ResolutionHomomorphism::from_module_homomorphism(
         "".to_string(),
-        Arc::clone(&resolution.inner),
+        Arc::clone(&resolution),
         Arc::clone(&yoneda),
         &FiniteModuleHomomorphism::identity_homomorphism(Arc::clone(&module)),
     );
 
     f.extend(s, t);
     let final_map = f.get_map(s);
-    let num_gens = resolution.inner.number_of_gens_in_bidegree(s, t);
+    let num_gens = resolution.number_of_gens_in_bidegree(s, t);
     for i_ in 0..num_gens {
         assert_eq!(final_map.output(t, i_).dimension(), 1);
         if i_ == i {

@@ -1,4 +1,5 @@
 use expect_test::{expect_file, ExpectFile};
+use ext::chain_complex::FreeChainComplex;
 use ext::utils::construct;
 use ext::utils::Config;
 #[cfg(feature = "concurrent")]
@@ -27,14 +28,14 @@ fn compare(module_name: &str, result: ExpectFile, max_degree: i32) {
 
     #[cfg(not(feature = "concurrent"))]
     {
-        a.resolve_through_degree(max_degree);
+        a.resolve_through_bidegree(max_degree as u32, max_degree);
     }
 
     #[cfg(feature = "concurrent")]
     {
         let bucket = std::sync::Arc::new(TokenBucket::new(2));
-        a.resolve_through_degree_concurrent(max_degree, &bucket);
+        a.resolve_through_bidegree_concurrent(max_degree as u32, max_degree, &bucket);
     }
 
-    result.assert_eq(&a.graded_dimension_string());
+    result.assert_eq(&a.graded_dimension_string(max_degree as u32, max_degree));
 }

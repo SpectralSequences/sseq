@@ -1,7 +1,7 @@
+use ext::chain_complex::FreeChainComplex;
 use ext::utils::construct_from_json;
 use ext::utils::load_module_from_file;
 use ext::utils::Config;
-use serde_json::Value;
 
 #[test]
 fn resolve_iterate() {
@@ -31,25 +31,24 @@ fn test_iterate(config: &Config) {
         &config.module_file_name, &config.algebra_name
     );
 
-    let module_def = load_module_from_file(&config).unwrap();
-    let json: Value = serde_json::from_str(&module_def).unwrap();
+    let mut json = load_module_from_file(&config).unwrap();
 
-    let first = construct_from_json(json.clone(), &config.algebra_name).unwrap();
-    let second = construct_from_json(json, &config.algebra_name).unwrap();
+    let first = construct_from_json(&mut json.clone(), &config.algebra_name).unwrap();
+    let second = construct_from_json(&mut json, &config.algebra_name).unwrap();
 
-    first.resolve_through_degree(20);
+    first.resolve_through_bidegree(20, 20);
 
-    second.resolve_through_degree(0);
-    second.resolve_through_degree(5);
-    second.resolve_through_degree(10);
-    second.resolve_through_degree(10);
-    second.resolve_through_degree(18);
-    second.resolve_through_degree(14);
-    second.resolve_through_degree(15);
-    second.resolve_through_degree(20);
+    second.resolve_through_bidegree(0, 0);
+    second.resolve_through_bidegree(5, 5);
+    second.resolve_through_bidegree(10, 10);
+    second.resolve_through_bidegree(10, 10);
+    second.resolve_through_bidegree(18, 18);
+    second.resolve_through_bidegree(14, 14);
+    second.resolve_through_bidegree(15, 15);
+    second.resolve_through_bidegree(20, 20);
 
     assert_eq!(
-        first.graded_dimension_string(),
-        second.graded_dimension_string()
+        first.graded_dimension_string(20, 20),
+        second.graded_dimension_string(20, 20)
     );
 }

@@ -1,3 +1,4 @@
+use ext::chain_complex::ChainComplex;
 use ext::utils::{construct, Config};
 use std::io::Write;
 use std::time::Instant;
@@ -20,7 +21,7 @@ fn benchmark(module_name: &str, max_degree: i32, algebra: &str, n_times: u128) {
     let start = Instant::now();
     for _ in 0..n_times {
         let res = construct(&cfg).unwrap();
-        res.resolve_through_degree(max_degree);
+        res.resolve_through_bidegree(max_degree as u32, max_degree);
         assert!(
             res.module(max_degree as u32)
                 .number_of_gens_in_degree(max_degree)

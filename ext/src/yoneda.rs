@@ -575,7 +575,7 @@ mod tests {
         let algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(ValidPrime::new(2), false, false, false)));
         let module = Arc::new(FiniteModule::from(FDModule::new(algebra, "".to_string(), BiVec::from_vec(0, vec![1]))));
         let chain_complex : Arc<CCC> = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
-        let resolution = Resolution::new(chain_complex, None, None);
+        let resolution = Arc::new(Resolution::new(chain_complex));
 
         let x : i32 = 30;
         let s : u32 = 6;
@@ -584,18 +584,18 @@ mod tests {
         let t = s as i32 + x;
         resolution.resolve_through_bidegree(s, t);
 
-        let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution.inner), s, t, idx));
+        let yoneda = Arc::new(yoneda_representative_element(Arc::clone(&resolution), s, t, idx));
 
         let f = ResolutionHomomorphism::from_module_homomorphism(
             "".to_string(),
-            Arc::clone(&resolution.inner),
+            Arc::clone(&resolution),
             Arc::clone(&yoneda),
             &FiniteModuleHomomorphism::identity_homomorphism(Arc::clone(&module))
         );
 
         f.extend(s, t);
         let final_map = f.get_map(s);
-        let num_gens = resolution.inner.number_of_gens_in_bidegree(s, t);
+        let num_gens = resolution.number_of_gens_in_bidegree(s, t);
         for i_ in 0 .. num_gens {
             assert_eq!(final_map.output(t, i_).dimension(), 1);
             if i_ == idx {

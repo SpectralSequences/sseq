@@ -18,7 +18,7 @@ fn module_construct_error() {
     }));
 }
 
-fn test(json: Value) {
-    matches!(construct_from_json(json.clone(), "adem"), Err(_));
-    matches!(construct_from_json(json, "milnor"), Err(_));
+fn test(mut json: Value) {
+    matches!(construct_from_json(&mut json.clone(), "adem"), Err(_));
+    matches!(construct_from_json(&mut json, "milnor"), Err(_));
 }

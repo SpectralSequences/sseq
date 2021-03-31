@@ -569,12 +569,12 @@ mod tests {
         let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
         let p = ValidPrime::new(2);
 
-        let k = serde_json::from_str(k).unwrap();
-        let resolution = construct_from_json(k, "adem").unwrap();
+        let mut k = serde_json::from_str(k).unwrap();
+        let resolution = Arc::new(construct_from_json(&mut k, "adem").unwrap());
         resolution.resolve_through_bidegree(2 * s, 2 * t);
 
         let yoneda = Arc::new(yoneda_representative_element(
-            Arc::clone(&resolution.inner),
+            Arc::clone(&resolution),
             s,
             t,
             i,
@@ -587,7 +587,7 @@ mod tests {
 
         let f = ResolutionHomomorphism::new(
             "".to_string(),
-            Arc::downgrade(&resolution.inner),
+            Arc::downgrade(&resolution),
             Arc::downgrade(&square),
             0,
             0,
@@ -599,7 +599,7 @@ mod tests {
         f.extend(2 * s, 2 * t);
         let final_map = f.get_map(2 * s);
 
-        let num_gens = resolution.inner.number_of_gens_in_bidegree(2 * s, 2 * t);
+        let num_gens = resolution.number_of_gens_in_bidegree(2 * s, 2 * t);
         for i_ in 0..num_gens {
             assert_eq!(final_map.output(2 * t, i_).dimension(), 1);
             if i_ == fi {

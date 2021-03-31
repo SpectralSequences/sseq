@@ -1,14 +1,14 @@
 use crate::actions::*;
 use crate::sseq::Sseq;
 
-use algebra::module::{FDModule, FiniteModule, Module};
-use bivec::BiVec;
-use ext::chain_complex::{ChainComplex, FiniteChainComplex};
-use ext::resolution::Resolution;
+use crate::resolution_wrapper::Resolution;
+use algebra::module::Module;
+use ext::chain_complex::ChainComplex;
 use ext::utils::Config;
 use ext::CCC;
 
 use parking_lot::RwLock;
+use serde_json::json;
 use std::sync::Arc;
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
@@ -95,9 +95,9 @@ impl ResolutionManager {
     fn construct_json(&mut self, action: ConstructJson) -> error::Result<()> {
         let json_data = serde_json::from_str(&action.data)?;
 
-        let bundle = ext::utils::construct_from_json(json_data, &action.algebra_name).unwrap();
+        let resolution = Resolution::new_from_json(json_data, &action.algebra_name);
 
-        self.process_bundle(bundle);
+        self.process_bundle(resolution);
 
         Ok(())
     }
@@ -110,13 +110,14 @@ impl ResolutionManager {
         dir.pop();
         dir.push("modules");
 
-        let resolution = ext::utils::construct(&Config {
+        let json = ext::utils::load_module_from_file(&Config {
             module_paths: vec![dir],
-            module_file_name: format!("{}.json", action.module_name),
-            algebra_name: action.algebra_name,
-            max_degree: 0, // This is not used.
-        })
-        .unwrap();
+            module_file_name: action.module_name,
+            algebra_name: String::new(), // This is not used
+            max_degree: 0,               // This is not used.
+        })?;
+
+        let resolution = Resolution::new_from_json(json, &action.algebra_name);
 
         self.process_bundle(resolution);
 
@@ -135,15 +136,17 @@ impl ResolutionManager {
             self.unit_resolution = Some(Arc::clone(&resolution));
             self.resolution = Some(resolution);
         } else {
-            let algebra = resolution.algebra();
+            let unit_resolution = Resolution::new_from_json(
+                json!({
+                    "type": "finite dimensional module",
+                    "p": *resolution.prime(),
+                    "gens": {"x0": 0},
+                    "actions": []
+                }),
+                &resolution.algebra().prefix(),
+            );
 
-            let unit_module = Arc::new(FiniteModule::from(FDModule::new(
-                algebra,
-                String::from("unit"),
-                BiVec::from_vec(0, vec![1]),
-            )));
-            let ccdz = Arc::new(FiniteChainComplex::ccdz(unit_module));
-            let unit_resolution = Arc::new(RwLock::new(Resolution::new(ccdz, None, None)));
+            let unit_resolution = Arc::new(RwLock::new(unit_resolution));
 
             resolution.set_unit_resolution(Arc::downgrade(&unit_resolution));
             self.unit_resolution = Some(Arc::clone(&unit_resolution));

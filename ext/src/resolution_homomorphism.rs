@@ -8,7 +8,7 @@ use algebra::SteenrodAlgebra;
 use algebra::module::Module;
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::chain_complex::{AugmentedChainComplex, FreeChainComplex};
-use crate::resolution::ResolutionInner;
+use crate::resolution::Resolution;
 use crate::CCC; 
 
 pub struct ResolutionHomomorphism<CC1, CC2>
@@ -157,12 +157,12 @@ use crate::chain_complex::{ChainComplex, BoundedChainComplex};
 use algebra::module::homomorphism::FiniteModuleHomomorphism;
 use algebra::module::{BoundedModule, FiniteModule};
 
-impl<M, ACC, TCC> ResolutionHomomorphism<ResolutionInner<CCC>, ACC>
+impl<M, ACC, TCC> ResolutionHomomorphism<Resolution<CCC>, ACC>
 where M: Module<Algebra = SteenrodAlgebra>,
       ACC: AugmentedChainComplex<Algebra = SteenrodAlgebra, TargetComplex=TCC>,
       TCC: BoundedChainComplex<Algebra = SteenrodAlgebra, Module=M>,
 {
-    pub fn from_module_homomorphism(name: String, source: Arc<ResolutionInner<CCC>>, target: Arc<ACC>, f: &FiniteModuleHomomorphism<M>) -> Self {
+    pub fn from_module_homomorphism(name: String, source: Arc<Resolution<CCC>>, target: Arc<ACC>, f: &FiniteModuleHomomorphism<M>) -> Self {
         assert_eq!(source.target().max_s(), 1);
         assert_eq!(target.target().max_s(), 1);
 
@@ -239,4 +239,4 @@ where CC1: FreeChainComplex,
         }
     }
 }
-pub type ResolutionHomomorphismToUnit<CC> = ResolutionHomomorphism<ResolutionInner<CC>, ResolutionInner<CC>>;
+pub type ResolutionHomomorphismToUnit<CC> = ResolutionHomomorphism<Resolution<CC>, Resolution<CC>>;

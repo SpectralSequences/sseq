@@ -1,8 +1,8 @@
+use crate::resolution_wrapper::Resolution;
 use crate::sseq::{ClassState, ProductItem, Sseq, INFINITY};
 use algebra::module::Module;
 use bivec::BiVec;
 use enum_dispatch::enum_dispatch;
-use ext::resolution::Resolution;
 use ext::CCC;
 use fp::vector::FpVector;
 use parking_lot::RwLock;

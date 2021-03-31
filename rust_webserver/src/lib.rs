@@ -11,6 +11,7 @@ pub mod sseq;
 
 pub mod actions;
 pub mod managers;
+pub mod resolution_wrapper;
 #[cfg(target_arch = "wasm32")]
 pub mod wasm_bindings;
 
