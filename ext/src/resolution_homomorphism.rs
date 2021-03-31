@@ -239,4 +239,3 @@ where CC1: FreeChainComplex,
         }
     }
 }
-pub type ResolutionHomomorphismToUnit<CC> = ResolutionHomomorphism<Resolution<CC>, Resolution<CC>>;

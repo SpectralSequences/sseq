@@ -10,13 +10,16 @@ use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
 use ext::chain_complex::ChainComplex;
 use ext::resolution::Resolution as ResolutionInner;
-use ext::resolution_homomorphism::{ResolutionHomomorphism, ResolutionHomomorphismToUnit};
 use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
 use once::{OnceBiVec, OnceVec};
 
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
+
+use ext::resolution_homomorphism::ResolutionHomomorphism as ResolutionHomomorphism_;
+pub type ResolutionHomomorphism<CC> =
+    ResolutionHomomorphism_<ResolutionInner<CC>, ResolutionInner<CC>>;
 
 /// Hack to compare two pointers of different types (in this case because they might have different
 /// type parameters.
@@ -44,7 +47,7 @@ pub struct SelfMap<CC: ChainComplex> {
     pub t: i32,
     pub name: String,
     pub map_data: Matrix,
-    pub map: ResolutionHomomorphism<ResolutionInner<CC>, ResolutionInner<CC>>,
+    pub map: ResolutionHomomorphism<CC>,
 }
 
 pub type AddClassFn = Box<dyn Fn(u32, i32, usize)>;
@@ -65,7 +68,7 @@ pub struct Resolution<CC: ChainComplex> {
     product_list: Vec<Cocycle>,
     // s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
     // until we actually have a unit resolution, of course.
-    chain_maps_to_unit_resolution: OnceVec<OnceBiVec<OnceVec<ResolutionHomomorphismToUnit<CC>>>>,
+    chain_maps_to_unit_resolution: OnceVec<OnceBiVec<OnceVec<ResolutionHomomorphism<CC>>>>,
     max_product_homological_degree: u32,
 
     // Self maps
