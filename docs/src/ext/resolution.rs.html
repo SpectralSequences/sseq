@@ -811,12 +811,6 @@
 <span id="790">790</span>
 <span id="791">791</span>
 <span id="792">792</span>
-<span id="793">793</span>
-<span id="794">794</span>
-<span id="795">795</span>
-<span id="796">796</span>
-<span id="797">797</span>
-<span id="798">798</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
@@ -836,13 +830,7 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">thread_token</span>::<span class="ident">TokenBucket</span>;
 
-<span class="doccomment">/// Resolution contains the data of the actual resolution, while Resolution contains the bells</span>
-<span class="doccomment">/// and whistles such as self maps and callbacks. Resolution is what ResolutionHomomorphism</span>
-<span class="doccomment">/// needs to take in, and is always an immutable object, so is wrapped in Arc&lt;&gt; instead of</span>
-<span class="doccomment">/// Arc&lt;RwLock&gt;.</span>
-
-<span class="doccomment">/// This separation should make multithreading easier because we only need Resolution to be</span>
-<span class="doccomment">/// Send + Sync. In particular, we don&#39;t need the callback functions to be Send + Sync.</span>
+<span class="doccomment">/// A resolution of a chain complex.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CC</span>: <span class="ident">ChainComplex</span><span class="op">&gt;</span> {
     <span class="ident">lock</span>: <span class="ident">Mutex</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
     <span class="ident">complex</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>,

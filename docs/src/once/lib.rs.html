@@ -488,6 +488,26 @@
 <span id="467">467</span>
 <span id="468">468</span>
 <span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">cell</span>::<span class="ident">UnsafeCell</span>;
 <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">ops</span>::{<span class="ident">Index</span>, <span class="ident">IndexMut</span>};
@@ -671,7 +691,22 @@
         <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">data</span>.<span class="ident">get</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">push</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">T</span>) {
+    <span class="doccomment">/// Push an element into the vector and check that it was inserted into the `index` position.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This is useful for situations where pushing into the wrong position can cause unexpected</span>
+    <span class="doccomment">/// future behaviour.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Panics</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Panics if the position of the new element is not `index`.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">push_checked</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">value</span>: <span class="ident">T</span>, <span class="ident">index</span>: <span class="ident">usize</span>) {
+        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">push</span>(<span class="ident">value</span>), <span class="ident">index</span>);
+    }
+
+    <span class="doccomment">/// Append an element to the end of the vector.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Returns the index of the new element.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">push</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">value</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="kw">unsafe</span> {
             <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
             <span class="kw">let</span> <span class="ident">old_len</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">len</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">Acquire</span>);
@@ -680,8 +715,9 @@
             <span class="kw">if</span> <span class="ident">index</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
                 <span class="ident">inner</span>[<span class="ident">page</span>].<span class="ident">reserve_exact</span>(<span class="ident">old_len</span> <span class="op">+</span> <span class="number">1</span>);
             }
-            <span class="ident">inner</span>[<span class="ident">page</span>].<span class="ident">push</span>(<span class="ident">x</span>);
+            <span class="ident">inner</span>[<span class="ident">page</span>].<span class="ident">push</span>(<span class="ident">value</span>);
             <span class="self">self</span>.<span class="ident">len</span>.<span class="ident">store</span>(<span class="ident">old_len</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">Ordering</span>::<span class="ident">Release</span>);
+            <span class="ident">old_len</span>
         }
     }
 
@@ -850,8 +886,12 @@
         <span class="self">self</span>.<span class="ident">data</span>.<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="number">0</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">push</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">T</span>) {
-        <span class="self">self</span>.<span class="ident">data</span>.<span class="ident">push</span>(<span class="ident">x</span>);
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">push_checked</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">value</span>: <span class="ident">T</span>, <span class="ident">index</span>: <span class="ident">i32</span>) {
+        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">push</span>(<span class="ident">value</span>), <span class="ident">index</span>);
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">push</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">value</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+        <span class="self">self</span>.<span class="ident">data</span>.<span class="ident">push</span>(<span class="ident">value</span>) <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">min_degree</span>
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">index</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">T</span><span class="op">&gt;</span> {

@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["Resolution","Resolution contains the data of the actual resolution, while Resolution contains the bells and whistles such as self maps and callbacks. Resolution is what ResolutionHomomorphism needs to take in, and is always an immutable object, so is wrapped in Arc<> instead of Arc. This separation should make multithreading easier because we only need Resolution to be Send + Sync. In particular, we don’t need the callback functions to be Send + Sync."]]});
+initSidebarItems({"struct":[["Resolution","A resolution of a chain complex."]]});
