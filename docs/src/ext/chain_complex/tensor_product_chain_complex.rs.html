@@ -636,6 +636,10 @@
 <span id="615">615</span>
 <span id="616">616</span>
 <span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FiniteAugmentedChainComplex</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">CCC</span>;
@@ -846,6 +850,10 @@
     }
     <span class="kw">fn</span> <span class="ident">max_homology_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_homological_degree</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
         <span class="macro">unimplemented</span><span class="macro">!</span>()
+    }
+
+    <span class="kw">fn</span> <span class="ident">max_homological_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+        <span class="self">self</span>.<span class="ident">modules</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="number">1</span>
     }
 }
 

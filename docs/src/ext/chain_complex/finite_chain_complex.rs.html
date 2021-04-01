@@ -286,6 +286,14 @@
 <span id="265">265</span>
 <span id="266">266</span>
 <span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>};
 <span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::{<span class="ident">ModuleHomomorphism</span>, <span class="ident">ZeroHomomorphism</span>};
@@ -422,6 +430,10 @@
     <span class="kw">fn</span> <span class="ident">max_homology_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_homological_degree</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
         <span class="ident">std</span>::<span class="ident">i32</span>::<span class="ident">MAX</span>
     }
+
+    <span class="kw">fn</span> <span class="ident">max_homological_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+        <span class="ident">u32</span>::<span class="ident">MAX</span>
+    }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>, <span class="ident">F</span><span class="op">&gt;</span> <span class="ident">BoundedChainComplex</span> <span class="kw">for</span> <span class="ident">FiniteChainComplex</span><span class="op">&lt;</span><span class="ident">M</span>, <span class="ident">F</span><span class="op">&gt;</span>
@@ -505,6 +517,10 @@
     }
     <span class="kw">fn</span> <span class="ident">max_homology_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_homological_degree</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
         <span class="ident">std</span>::<span class="ident">i32</span>::<span class="ident">MAX</span>
+    }
+
+    <span class="kw">fn</span> <span class="ident">max_homological_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+        <span class="ident">u32</span>::<span class="ident">MAX</span>
     }
 }
 
