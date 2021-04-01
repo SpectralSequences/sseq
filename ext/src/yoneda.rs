@@ -834,7 +834,7 @@ mod tests {
 //
 //            for i in 0 .. dim {
 //                let start_module = FreeModule::new(Arc::clone(algebra), "".to_string(), 0);
-//                start_module.add_generators_immediate(0, 1, None);
+//                start_module.add_generators(0, 1, None);
 //                start_module.extend_by_zero(t_max);
 //
 //                let mut test_module = QM::new(Arc::new(TM::new(Arc::new(start_module), t_max)));

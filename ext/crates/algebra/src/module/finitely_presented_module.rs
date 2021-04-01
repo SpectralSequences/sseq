@@ -73,13 +73,12 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
     pub fn add_generators(&self, degree: i32, gen_names: Vec<String>) {
         let num_gens = gen_names.len();
         self.generators
-            .add_generators_immediate(degree, num_gens, Some(gen_names));
+            .add_generators(degree, num_gens, Some(gen_names));
     }
 
     pub fn add_relations(&self, degree: i32, relations_matrix: &mut Matrix) {
         let num_relns = relations_matrix.rows();
-        self.relations
-            .add_generators_immediate(degree, num_relns, None);
+        self.relations.add_generators(degree, num_relns, None);
         let map_lock = self.map.lock();
         self.map.add_generators_from_matrix_rows(
             &map_lock,

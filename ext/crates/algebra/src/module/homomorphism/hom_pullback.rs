@@ -128,14 +128,14 @@ mod tests {
         )));
         A.compute_basis(20);
         let F0 = Arc::new(FreeModule::new(Arc::clone(&A), "F0".to_string(), 0));
-        F0.add_generators_immediate(0, 1, None);
-        F0.add_generators_immediate(1, 1, None);
-        F0.add_generators_immediate(2, 1, None);
+        F0.add_generators(0, 1, None);
+        F0.add_generators(1, 1, None);
+        F0.add_generators(2, 1, None);
         F0.extend_by_zero(20);
         let F1 = Arc::new(FreeModule::new(Arc::clone(&A), "F1".to_string(), 0));
-        F1.add_generators_immediate(0, 1, None);
-        F1.add_generators_immediate(1, 1, None);
-        F1.add_generators_immediate(2, 1, None);
+        F1.add_generators(0, 1, None);
+        F1.add_generators(1, 1, None);
+        F1.add_generators(2, 1, None);
         F1.extend_by_zero(20);
         let d = Arc::new(FreeModuleHomomorphism::new(
             Arc::clone(&F1),

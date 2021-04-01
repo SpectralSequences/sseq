@@ -9,6 +9,7 @@ use crate::module::OperationGeneratorPair;
 use bivec::BiVec;
 use fp::vector::{FpVector, SliceMut};
 use once::{OnceBiVec, OnceVec};
+use parking_lot::Mutex;
 
 pub struct FreeUnstableModule<A: AdemAlgebraT> {
     pub algebra: Arc<A>,
@@ -19,6 +20,8 @@ pub struct FreeUnstableModule<A: AdemAlgebraT> {
     num_gens: OnceBiVec<usize>,
     pub basis_element_to_opgen: OnceBiVec<OnceVec<OperationGeneratorPair>>,
     pub generator_to_index: OnceBiVec<OnceVec<usize>>,
+
+    lock: Mutex<()>,
 }
 
 impl<A: AdemAlgebraT> std::fmt::Display for FreeUnstableModule<A> {
@@ -41,6 +44,7 @@ impl<A: AdemAlgebraT> FreeUnstableModule<A> {
             num_gens: OnceBiVec::new(min_degree),
             basis_element_to_opgen: OnceBiVec::new(min_degree),
             generator_to_index: OnceBiVec::new(min_degree),
+            lock: Mutex::new(()),
         }
     }
 }
@@ -48,7 +52,7 @@ impl<A: AdemAlgebraT> FreeUnstableModule<A> {
 impl<A: AdemAlgebraT> Module for FreeUnstableModule<A> {
     type Algebra = A;
 
-    fn algebra(&self) -> Arc<Self::Algebra> {
+    fn algebra(&self) -> Arc<A> {
         Arc::clone(&self.algebra)
     }
 
@@ -170,56 +174,52 @@ impl<A: AdemAlgebraT> FreeUnstableModule<A> {
         self.num_gens[degree]
     }
 
-    pub fn extend_table_entries(&self, degree: i32) {
-        for i in self.basis_element_to_opgen.len()..=degree {
-            self.extend_table_entry_step(i);
-        }
-    }
-
-    fn extend_table_entry_step(&self, degree: i32) {
-        assert!(self.basis_element_to_opgen.len() == degree);
-        self.basis_element_to_opgen.push(OnceVec::new());
-        self.generator_to_index.push(OnceVec::new());
-        // gen_to_idx goes internal_gen_idx => start of block.
-        // so gen_to_idx_size should be (number of possible degrees + 1) * sizeof(uint*) + number of gens * sizeof(uint).
-        // The other part of the table goes idx => opgen
-        // The size should be (number of basis elements in current degree) * sizeof(FreeUnstableModuleOperationGeneratorPair)
-        // A basis element in degree n comes from a generator in degree i paired with an operation in degree n - i.
-        let mut offset = 0;
-        for (gen_deg, num_gens) in self.num_gens.iter_enum() {
-            let op_deg = degree - gen_deg;
-            let num_ops = self.adem_algebra().dimension_unstable(op_deg, gen_deg);
-            for gen_idx in 0..*num_gens {
-                self.generator_to_index[degree].push(offset);
-                offset += num_ops;
-                for op_idx in 0..num_ops {
-                    self.basis_element_to_opgen[degree].push(OperationGeneratorPair {
-                        generator_degree: gen_deg,
-                        generator_index: gen_idx,
-                        operation_degree: op_deg,
-                        operation_index: op_idx,
-                    })
+    pub fn extend_table_entries(&self, max_degree: i32) {
+        let _lock = self.lock.lock();
+        for degree in self.basis_element_to_opgen.len()..=max_degree {
+            assert!(self.basis_element_to_opgen.len() == degree);
+            self.basis_element_to_opgen.push(OnceVec::new());
+            self.generator_to_index.push(OnceVec::new());
+            // gen_to_idx goes internal_gen_idx => start of block.
+            // so gen_to_idx_size should be (number of possible degrees + 1) * sizeof(uint*) + number of gens * sizeof(uint).
+            // The other part of the table goes idx => opgen
+            // The size should be (number of basis elements in current degree) * sizeof(FreeUnstableModuleOperationGeneratorPair)
+            // A basis element in degree n comes from a generator in degree i paired with an operation in degree n - i.
+            let mut offset = 0;
+            for (gen_deg, num_gens) in self.num_gens.iter_enum() {
+                let op_deg = degree - gen_deg;
+                let num_ops = self.adem_algebra().dimension_unstable(op_deg, gen_deg);
+                for gen_idx in 0..*num_gens {
+                    self.generator_to_index[degree].push(offset);
+                    offset += num_ops;
+                    for op_idx in 0..num_ops {
+                        self.basis_element_to_opgen[degree].push(OperationGeneratorPair {
+                            generator_degree: gen_deg,
+                            generator_index: gen_idx,
+                            operation_degree: op_deg,
+                            operation_index: op_idx,
+                        });
+                    }
                 }
             }
         }
     }
 
     pub fn add_generators(&self, degree: i32, num_gens: usize, names: Option<Vec<String>>) {
+        let _lock = self.lock.lock();
+
         assert!(degree >= self.min_degree);
-        assert_eq!(self.num_gens.len(), degree);
+
         // println!("add_gens == degree : {}, num_gens : {}", degree, num_gens);
         // self.ensure_next_table_entry(degree);
-        let mut gen_names;
-        if let Some(names_vec) = names {
-            gen_names = names_vec;
-        } else {
-            gen_names = Vec::with_capacity(num_gens);
-            for i in 0..num_gens {
-                gen_names.push(format!("x_{{{},{}}}", degree, i));
-            }
-        }
-        self.gen_names.push(gen_names);
-        self.num_gens.push(num_gens);
+        let gen_names = names.unwrap_or_else(|| {
+            (0..num_gens)
+                .map(|i| format!("x_{{{},{}}}", degree, i))
+                .collect()
+        });
+
+        self.gen_names.push_checked(gen_names, degree);
+        self.num_gens.push_checked(num_gens, degree);
 
         let internal_gen_idx = self.gen_deg_idx_to_internal_idx[degree];
         self.gen_deg_idx_to_internal_idx
@@ -239,7 +239,7 @@ impl<A: AdemAlgebraT> FreeUnstableModule<A> {
                         generator_index: gen_idx,
                         operation_degree: op_deg,
                         operation_index: op_idx,
-                    })
+                    });
                 }
             }
         }
@@ -294,23 +294,10 @@ impl<A: AdemAlgebraT> FreeUnstableModule<A> {
         Value::from(result)
     }
 
-    pub fn add_generators_immediate(
-        &self,
-        degree: i32,
-        num_gens: usize,
-        gen_names: Option<Vec<String>>,
-    ) {
-        self.add_num_generators(degree, num_gens, gen_names);
-    }
-
-    pub fn add_num_generators(&self, degree: i32, num_gens: usize, gen_names: Option<Vec<String>>) {
-        self.add_generators(degree, num_gens, gen_names);
-    }
-
     pub fn extend_by_zero(&self, degree: i32) {
         self.extend_table_entries(degree);
         for i in self.num_gens.len()..=degree {
-            self.add_num_generators(i, 0, None)
+            self.add_generators(i, 0, None)
         }
     }
 
@@ -362,7 +349,7 @@ impl<A: AdemAlgebraT> Load for FreeUnstableModule<A> {
 
         let num_gens: BiVec<usize> = Load::load(buffer, &(min_degree, ()))?;
         for (degree, num) in num_gens.iter_enum() {
-            result.add_num_generators(degree, *num, None);
+            result.add_generators(degree, *num, None);
         }
         result.extend_table_entries(num_gens.max_degree());
         Ok(result)
