@@ -1,14 +1,13 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 mod finite_chain_complex;
 #[cfg(feature = "extras")]
 mod hom_complex;
 #[cfg(feature = "extras")]
 mod tensor_product_chain_complex;
 
-use algebra::Algebra;
+use crate::utils::ascii_num;
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{FreeModule, Module};
-use crate::utils::ascii_num;
+use algebra::Algebra;
 use fp::matrix::Subquotient;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
@@ -33,8 +32,8 @@ pub trait FreeChainComplex:
     fn graded_dimension_string(&self, max_s: u32, max_t: i32) -> String {
         let mut result = String::new();
         let min_degree = self.min_degree();
-        for s in (0 ..= max_s).rev() {
-            for t in min_degree + s as i32 ..= max_t {
+        for s in (0..=max_s).rev() {
+            for t in min_degree + s as i32..=max_t {
                 result.push(ascii_num(self.module(s).number_of_gens_in_degree(t)));
                 result.push(' ');
             }
@@ -75,9 +74,9 @@ pub trait ChainComplex: Send + Sync + 'static {
     // This returns the differential starting from the sth module.
     fn differential(&self, homological_degree: u32) -> Arc<Self::Homomorphism>;
     fn compute_through_bidegree(&self, homological_degree: u32, internal_degree: i32);
-    fn has_computed_bidegree(&self, homological_degree : u32, internal_degree : i32) -> bool; //{
-        // true
-    // }
+    fn has_computed_bidegree(&self, homological_degree: u32, internal_degree: i32) -> bool; //{
+                                                                                            // true
+                                                                                            // }
 
     fn set_homology_basis(
         &self,

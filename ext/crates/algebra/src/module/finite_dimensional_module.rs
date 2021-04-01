@@ -239,8 +239,8 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         FiniteDimensionalModule {
             algebra,
             name,
-            gen_names,
             graded_dimension,
+            gen_names,
             actions,
         }
     }

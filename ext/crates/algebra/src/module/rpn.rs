@@ -22,8 +22,8 @@ use serde_json::Value;
 pub struct RealProjectiveSpace<A : SteenrodAlgebraT> {
     algebra: Arc<A>,
     pub min: i32,
-    pub clear_bottom: bool,
     pub max: Option<i32>, // If None,  then RP^oo
+    pub clear_bottom: bool,
 }
 
 impl<A: SteenrodAlgebraT> std::fmt::Display for RealProjectiveSpace<A> {

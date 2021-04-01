@@ -123,7 +123,6 @@ impl std::fmt::Display for AdemBasisElement {
     }
 }
 
-#[allow(dead_code)]
 fn adem_basis_element_excess_sort_order(a : &AdemBasisElement, b : &AdemBasisElement) -> Ordering{
     a.excess.cmp(&b.excess)
 }
@@ -153,7 +152,6 @@ pub struct AdemAlgebra {
     basis_element_to_index_map : OnceVec<HashMap<AdemBasisElement, usize>>, // degree -> AdemBasisElement -> index
     multiplication_table : OnceVec<Vec<Vec<FpVector>>>,// degree -> first square -> admissible sequence idx -> result vector
     excess_table : OnceVec<Vec<usize>>,
-    // #[allow(dead_code)]
     sort_order : Option<fn(&AdemBasisElement, &AdemBasisElement) -> Ordering>
 }
 
@@ -168,7 +166,6 @@ impl Algebra for AdemAlgebra {
         self.p
     }
 
-    #[allow(clippy::useless_let_if_seq)]
     fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
         let mut products = Vec::with_capacity(4);
         let max_degree;

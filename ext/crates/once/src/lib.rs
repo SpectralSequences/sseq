@@ -176,9 +176,8 @@ impl<T> OnceVec<T> {
         (page, index)
     }
 
-    #[allow(clippy::mut_from_ref)]
-    unsafe fn get_inner(&self) -> &mut [Vec<T>; MAX_OUTER_LENGTH] {
-        &mut *self.data.get()
+    unsafe fn get_inner(&self) -> &[Vec<T>; MAX_OUTER_LENGTH] {
+        &*self.data.get()
     }
 
     pub fn push(&self, x: T) {
@@ -186,7 +185,7 @@ impl<T> OnceVec<T> {
             let _lock = self.lock.lock();
             let old_len = self.len.load(Ordering::Acquire);
             let (page, index) = Self::inner_index(old_len);
-            let inner = self.get_inner();
+            let inner = &mut *self.data.get();
             if index == 0 {
                 inner[page].reserve_exact(old_len + 1);
             }
@@ -236,7 +235,7 @@ impl<T> IndexMut<usize> for OnceVec<T> {
         }
         let (page, index) = Self::inner_index(index);
         unsafe {
-            self.get_inner()
+            (*self.data.get())
                 .get_unchecked_mut(page)
                 .get_unchecked_mut(index)
         }

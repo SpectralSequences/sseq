@@ -1,10 +1,7 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 #![feature(hash_raw_entry)]
 #![allow(clippy::many_single_char_names)]
-#![allow(clippy::unreadable_literal)]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
-#![allow(clippy::implicit_hasher)]
 #![allow(clippy::upper_case_acronyms)]
 #![warn(clippy::default_trait_access)]
 #![warn(clippy::if_not_else)]
@@ -21,9 +18,9 @@ pub mod resolution_homomorphism;
 pub mod yoneda;
 
 use crate::chain_complex::FiniteChainComplex;
-use algebra::module::FiniteModule;
 use algebra::module::homomorphism::FiniteModuleHomomorphism;
+use algebra::module::FiniteModule;
 pub type CCC = FiniteChainComplex<FiniteModule, FiniteModuleHomomorphism<FiniteModule>>;
 
-pub mod utils;
 pub mod secondary;
+pub mod utils;

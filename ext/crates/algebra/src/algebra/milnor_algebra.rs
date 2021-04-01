@@ -191,7 +191,6 @@ impl Algebra for MilnorAlgebra {
         self.p
     }
 
-    #[allow(clippy::useless_let_if_seq)]
     fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
         let mut products = Vec::with_capacity(4);
         let max_degree;
@@ -332,7 +331,7 @@ impl Algebra for MilnorAlgebra {
                 degree += (val as i32) * xi_degrees[i];
             }
         }
-        let m = MilnorBasisElement { p_part, q_part, degree };
+        let m = MilnorBasisElement { q_part, p_part, degree };
         Ok((degree, self.basis_element_to_index(&m)))
     }
 
@@ -964,10 +963,12 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         }
         false
     }
+}
 
-    /// This cannot be an actual iterator because we want to borrow self.ans when using it
-    #[allow(clippy::should_implement_trait)]
-    pub fn next(&mut self) -> Option<u32> {
+impl<'a, const MOD4: bool> Iterator for PPartMultiplier<'a, MOD4> {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<u32> {
         let p = *self.prime() as PPartEntry;
         'outer: loop {
             self.ans.p_part.clear();
@@ -1057,8 +1058,8 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
             }
         }
     }
-}
 
+}
 impl MilnorAlgebra {
     fn decompose_basis_element_qpart(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>{
         let basis = &self.basis_table[degree as usize][idx];

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 // This generates better llvm optimization
 #![allow(clippy::int_plus_one)]
 
@@ -991,45 +990,6 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
                 );
             }
         }
-    }
-}
-
-struct AddShiftNoneData {
-    min_source_limb: usize,
-    min_target_limb: usize,
-    number_of_limbs: usize,
-}
-
-impl AddShiftNoneData {
-    fn new<const P: u32>(target: SliceP<'_, P>, source: SliceP<'_, P>) -> Self {
-        debug_assert_eq!(target.prime(), source.prime());
-        debug_assert_eq!(target.offset(), source.offset());
-        debug_assert_eq!(
-            target.dimension(),
-            source.dimension(),
-            "Adding vectors of different dimensions"
-        );
-        let (min_target_limb, max_target_limb) = target.limb_range();
-        let (min_source_limb, max_source_limb) = source.limb_range();
-        debug_assert!(max_source_limb - min_source_limb == max_target_limb - min_target_limb);
-        let number_of_limbs = max_source_limb - min_source_limb;
-        Self {
-            min_source_limb,
-            min_target_limb,
-            number_of_limbs,
-        }
-    }
-
-    fn mask_first_limb<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
-        other.limbs[i] & other.limb_masks().0
-    }
-
-    fn mask_middle_limb<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
-        other.limbs[i]
-    }
-
-    fn mask_last_limb<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
-        other.limbs[i] & other.limb_masks().1
     }
 }
 
