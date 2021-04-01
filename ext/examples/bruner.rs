@@ -305,9 +305,9 @@ fn main() {
     let (max_s, max_t, cc) = read_bruner_resolution(data_dir).unwrap();
     let cc = Arc::new(cc);
 
-    // This macro attempts to load a resolution from resolution.save, and generates one from
+    // This macro attempts to load a resolution from resolution_milnor.save, and generates one from
     // scratch if it isn't available. The result is written to the variable `resolution`.
-    let resolution = construct_s_2("milnor", Some("resolution.save"));
+    let resolution = construct_s_2("milnor", Some("resolution_milnor.save"));
 
     resolution.resolve_through_bidegree(max_s, max_t);
     let resolution = Arc::new(resolution);

@@ -8,7 +8,7 @@ fn main() -> Result<()> {
     let f = std::io::stdout();
     let mut g = Graph::new(f, 20, 8)?;
 
-    let resolution = construct_s_2("milnor", Some("resolution.save"));
+    let resolution = construct_s_2("milnor", Some("resolution_milnor.save"));
     resolution.resolve_through_bidegree(8, 28);
 
     for f in 0..=20 {

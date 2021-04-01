@@ -6,7 +6,7 @@ const MAX_S: u32 = 6;
 const MAX_T: i32 = 70;
 
 fn main() {
-    let resolution = construct_s_2("milnor", Some("resolution.save"));
+    let resolution = construct_s_2("milnor", Some("resolution_milnor.save"));
 
     resolution.resolve_through_bidegree(MAX_S, MAX_T);
 

@@ -28,9 +28,9 @@ fn main() -> error::Result<()> {
     // Pretty print the resolution to stdout
     println!("{}", resolution.graded_dimension_string(6, 70));
 
-    // Finally, save the resolution to resolution.save if it doesn't already exist.
-    if !Path::new("resolution.save").exists() {
-        let file = File::create("resolution.save")?;
+    // Finally, save the resolution to resolution_milnor.save if it doesn't already exist.
+    if !Path::new("resolution_milnor.save").exists() {
+        let file = File::create("resolution_milnor.save")?;
         let mut file = BufWriter::new(file);
         resolution.save(&mut file)?;
     }
