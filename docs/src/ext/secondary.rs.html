@@ -1649,7 +1649,7 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_a_dd</span>() {
-        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">construct_s_2</span>(<span class="string">&quot;milnor&quot;</span>);
+        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">construct_s_2</span>::<span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>(<span class="string">&quot;milnor&quot;</span>, <span class="prelude-val">None</span>);
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">TWO</span>, <span class="number">0</span>);
 
@@ -1687,7 +1687,7 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_compute_differentials</span>() {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">new</span>();
-        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">construct_s_2</span>(<span class="string">&quot;milnor&quot;</span>);
+        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">construct_s_2</span>::<span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>(<span class="string">&quot;milnor&quot;</span>, <span class="prelude-val">None</span>);
 
         <span class="kw">let</span> <span class="ident">max_s</span> <span class="op">=</span> <span class="number">7</span>;
         <span class="kw">let</span> <span class="ident">max_t</span> <span class="op">=</span> <span class="number">30</span>;

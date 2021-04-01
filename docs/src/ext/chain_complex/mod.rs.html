@@ -253,23 +253,6 @@
 <span id="232">232</span>
 <span id="233">233</span>
 <span id="234">234</span>
-<span id="235">235</span>
-<span id="236">236</span>
-<span id="237">237</span>
-<span id="238">238</span>
-<span id="239">239</span>
-<span id="240">240</span>
-<span id="241">241</span>
-<span id="242">242</span>
-<span id="243">243</span>
-<span id="244">244</span>
-<span id="245">245</span>
-<span id="246">246</span>
-<span id="247">247</span>
-<span id="248">248</span>
-<span id="249">249</span>
-<span id="250">250</span>
-<span id="251">251</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">mod</span> <span class="ident">finite_chain_complex</span>;
@@ -280,10 +263,8 @@
 
 <span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">Algebra</span>;
 <span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::{<span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
-<span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::{<span class="ident">FDModule</span>, <span class="ident">FiniteModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
+<span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::{<span class="ident">FreeModule</span>, <span class="ident">Module</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">utils</span>::<span class="ident">ascii_num</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">CCC</span>;
-<span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">matrix</span>::<span class="ident">Subquotient</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::<span class="ident">ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">FpVector</span>;
@@ -506,21 +487,6 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ChainMap</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">ModuleHomomorphism</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="ident">s_shift</span>: <span class="ident">u32</span>,
     <span class="kw">pub</span> <span class="ident">chain_maps</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>,
-}
-
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">UnitChainComplex</span>: <span class="ident">ChainComplex</span> {
-    <span class="kw">fn</span> <span class="ident">unit_chain_complex</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Algebra</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>;
-}
-
-<span class="kw">impl</span> <span class="ident">UnitChainComplex</span> <span class="kw">for</span> <span class="ident">CCC</span> {
-    <span class="kw">fn</span> <span class="ident">unit_chain_complex</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Algebra</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">unit_module</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">FiniteModule</span>::<span class="ident">FDModule</span>(<span class="ident">FDModule</span>::<span class="ident">new</span>(
-            <span class="ident">algebra</span>,
-            <span class="ident">String</span>::<span class="ident">from</span>(<span class="string">&quot;unit&quot;</span>),
-            <span class="ident">BiVec</span>::<span class="ident">from_vec</span>(<span class="number">0</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="number">1</span>]),
-        )));
-        <span class="ident">FiniteChainComplex</span>::<span class="ident">ccdz</span>(<span class="ident">unit_module</span>)
-    }
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="ext" data-search-js="../../../search-index.js"></div>

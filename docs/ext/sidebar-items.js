@@ -1,1 +1,1 @@
-initSidebarItems({"macro":[["load_s_2",""]],"mod":[["chain_complex",""],["resolution",""],["resolution_homomorphism",""],["secondary",""],["utils",""],["yoneda",""]],"type":[["CCC",""]]});
+initSidebarItems({"mod":[["chain_complex",""],["resolution",""],["resolution_homomorphism",""],["secondary",""],["utils",""],["yoneda",""]],"type":[["CCC",""]]});
