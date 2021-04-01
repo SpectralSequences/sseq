@@ -180,7 +180,22 @@ impl<T> OnceVec<T> {
         &*self.data.get()
     }
 
-    pub fn push(&self, x: T) {
+    /// Push an element into the vector and check that it was inserted into the `index` position.
+    ///
+    /// This is useful for situations where pushing into the wrong position can cause unexpected
+    /// future behaviour.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the position of the new element is not `index`.
+    pub fn push_checked(&self, value: T, index: usize) {
+        assert_eq!(self.push(value), index);
+    }
+
+    /// Append an element to the end of the vector.
+    ///
+    /// Returns the index of the new element.
+    pub fn push(&self, value: T) -> usize {
         unsafe {
             let _lock = self.lock.lock();
             let old_len = self.len.load(Ordering::Acquire);
@@ -189,8 +204,9 @@ impl<T> OnceVec<T> {
             if index == 0 {
                 inner[page].reserve_exact(old_len + 1);
             }
-            inner[page].push(x);
+            inner[page].push(value);
             self.len.store(old_len + 1, Ordering::Release);
+            old_len
         }
     }
 
@@ -359,8 +375,12 @@ impl<T> OnceBiVec<T> {
         self.data.len() == 0
     }
 
-    pub fn push(&self, x: T) {
-        self.data.push(x);
+    pub fn push_checked(&self, value: T, index: i32) {
+        assert_eq!(self.push(value), index);
+    }
+
+    pub fn push(&self, value: T) -> i32 {
+        self.data.push(value) as i32 + self.min_degree
     }
 
     pub fn get(&self, index: i32) -> Option<&T> {
