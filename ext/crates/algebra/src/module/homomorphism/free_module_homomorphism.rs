@@ -93,8 +93,8 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
         assert_eq!(kernel_len, qi_len);
         for i in kernel_len..=degree {
             let (kernel, qi) = self.kernel_and_quasi_inverse(i);
-            self.kernel.push(kernel);
-            self.quasi_inverse.push(qi);
+            self.kernel.push_checked(kernel, i);
+            self.quasi_inverse.push_checked(qi, i);
         }
     }
 }
@@ -176,7 +176,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
             for _ in 0..num_gens {
                 new_outputs.push(FpVector::new(p, dimension));
             }
-            self.outputs.push(new_outputs);
+            self.outputs.push_checked(new_outputs, i);
         }
     }
 
@@ -187,7 +187,6 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         outputs_vectors: Slice,
     ) {
         self.check_mutex(lock);
-        assert_eq!(degree, self.outputs.len());
 
         let p = self.prime();
         let new_generators = self.source.number_of_gens_in_degree(degree);
@@ -197,7 +196,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
             new_outputs.push(FpVector::new(p, target_dimension));
         }
         if target_dimension == 0 {
-            self.outputs.push(new_outputs);
+            self.outputs.push_checked(new_outputs, degree);
             return;
         }
         for (i, new_output) in new_outputs.iter_mut().enumerate() {
@@ -205,7 +204,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
                 .as_slice_mut()
                 .assign(outputs_vectors.slice(target_dimension * i, target_dimension * (i + 1)));
         }
-        self.outputs.push(new_outputs);
+        self.outputs.push_checked(new_outputs, degree);
     }
 
     /// A MatrixSlice will do but there is no applicaiton of this struct, so it doesn't exist
@@ -217,7 +216,6 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         mut matrix: MatrixSliceMut,
     ) {
         self.check_mutex(lock);
-        assert_eq!(degree, self.outputs.len());
 
         let p = self.prime();
         let new_generators = self.source.number_of_gens_in_degree(degree);
@@ -228,13 +226,13 @@ impl<M: Module> FreeModuleHomomorphism<M> {
             new_outputs.push(FpVector::new(p, target_dimension));
         }
         if target_dimension == 0 {
-            self.outputs.push(new_outputs);
+            self.outputs.push_checked(new_outputs, degree);
             return;
         }
         for (i, new_output) in new_outputs.iter_mut().enumerate() {
             new_output.as_slice_mut().assign(matrix.row(i));
         }
-        self.outputs.push(new_outputs);
+        self.outputs.push_checked(new_outputs, degree);
     }
 
     pub fn add_generators_from_rows(
@@ -244,8 +242,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         rows: Vec<FpVector>,
     ) {
         self.check_mutex(lock);
-        assert_eq!(degree, self.outputs.len());
-        self.outputs.push(rows);
+        self.outputs.push_checked(rows, degree);
     }
 
     pub fn apply_to_generator(&self, result: &mut FpVector, coeff: u32, degree: i32, idx: usize) {
@@ -288,8 +285,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
 
     pub fn set_kernel(&self, lock: &MutexGuard<()>, degree: i32, kernel: Subspace) {
         self.check_mutex(lock);
-        assert!(degree == self.kernel.len());
-        self.kernel.push(kernel);
+        self.kernel.push_checked(kernel, degree);
     }
 
     pub fn set_quasi_inverse(
@@ -299,8 +295,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         quasi_inverse: QuasiInverse,
     ) {
         self.check_mutex(lock);
-        assert!(degree == self.quasi_inverse.len());
-        self.quasi_inverse.push(quasi_inverse);
+        self.quasi_inverse.push_checked(quasi_inverse, degree);
     }
 
     fn check_mutex(&self, lock: &MutexGuard<()>) {
