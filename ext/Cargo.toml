@@ -66,5 +66,9 @@ name = "resolve"
 harness = false
 
 [[bench]]
+name = "resolve_concurrent"
+harness = false
+
+[[bench]]
 name = "secondary"
 harness = false
