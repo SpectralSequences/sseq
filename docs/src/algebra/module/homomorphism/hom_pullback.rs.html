@@ -219,8 +219,15 @@
 <span id="198">198</span>
 <span id="199">199</span>
 <span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">block_structure</span>::<span class="ident">BlockStart</span>;
@@ -300,7 +307,11 @@
                 } <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">block_structures</span>[<span class="ident">fn_degree</span>].<span class="ident">generator_to_block</span>(<span class="ident">x_degree</span>, <span class="ident">i</span>);
                 <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">evaluate_basis_map_on_element</span>(
                     <span class="ident">result</span>.<span class="ident">slice_mut</span>(<span class="kw-2">*</span><span class="ident">block_start_index</span>, <span class="kw-2">*</span><span class="ident">block_start_index</span> <span class="op">+</span> <span class="ident">block_size</span>),
-                    <span class="ident">coeff</span>, <span class="ident">fn_degree</span>, <span class="ident">fn_idx</span>, <span class="ident">x_degree</span>, <span class="ident">x_elt</span>.<span class="ident">as_slice</span>(),
+                    <span class="ident">coeff</span>,
+                    <span class="ident">fn_degree</span>,
+                    <span class="ident">fn_idx</span>,
+                    <span class="ident">x_degree</span>,
+                    <span class="ident">x_elt</span>.<span class="ident">as_slice</span>(),
                 );
             }
         }
@@ -332,14 +343,19 @@
     <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">Algebra</span>, <span class="ident">SteenrodAlgebra</span>};
     <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">FDModule</span>;
     <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">matrix</span>::<span class="ident">Matrix</span>;
-    <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">FpVector</span>;
     <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::<span class="ident">ValidPrime</span>;
+    <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">FpVector</span>;
 
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">non_snake_case</span>)]</span>
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_pullback</span>() {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">2</span>);
-        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">SteenrodAlgebra</span>::<span class="ident">from</span>(<span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>)));
+        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">SteenrodAlgebra</span>::<span class="ident">from</span>(<span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(
+            <span class="ident">p</span>,
+            <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>,
+            <span class="bool-val">false</span>,
+            <span class="bool-val">false</span>,
+        )));
         <span class="ident">A</span>.<span class="ident">compute_basis</span>(<span class="number">20</span>);
         <span class="kw">let</span> <span class="ident">F0</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">FreeModule</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="string">&quot;F0&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>));
         <span class="ident">F0</span>.<span class="ident">add_generators_immediate</span>(<span class="number">0</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);

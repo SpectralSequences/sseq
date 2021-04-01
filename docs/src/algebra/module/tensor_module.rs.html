@@ -437,16 +437,16 @@
 <span id="416">416</span>
 <span id="417">417</span>
 <span id="418">418</span>
+<span id="419">419</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
 <span class="kw">use</span> <span class="ident">once</span>::<span class="ident">OnceBiVec</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">Bialgebra</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">block_structure</span>::<span class="ident">BlockStructure</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
-<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">SliceMut</span>, <span class="ident">Slice</span>, <span class="ident">FpVector</span>};
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::<span class="ident">minus_one_to_the_n</span>;
+<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -553,7 +553,9 @@
                             }
                             <span class="ident">result</span>.<span class="ident">add_tensor</span>(
                                 <span class="self">self</span>.<span class="ident">offset</span>(<span class="ident">output_degree</span>, <span class="ident">left_deg</span> <span class="op">+</span> <span class="ident">op_deg_l</span>),
-                                <span class="ident">coeff</span> <span class="op">*</span> <span class="ident">entry</span> <span class="op">*</span> <span class="ident">minus_one_to_the_n</span>(<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">op_deg_r</span> <span class="op">*</span> <span class="ident">left_deg</span>),
+                                <span class="ident">coeff</span>
+                                    <span class="op">*</span> <span class="ident">entry</span>
+                                    <span class="op">*</span> <span class="ident">minus_one_to_the_n</span>(<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">op_deg_r</span> <span class="op">*</span> <span class="ident">left_deg</span>),
                                 <span class="ident">left_result</span>.<span class="ident">as_slice</span>(),
                                 <span class="ident">right_result</span>.<span class="ident">as_slice</span>(),
                             );

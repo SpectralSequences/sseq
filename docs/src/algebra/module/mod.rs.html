@@ -88,66 +88,62 @@
 <span id="67">67</span>
 <span id="68">68</span>
 <span id="69">69</span>
-<span id="70">70</span>
-<span id="71">71</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
+<span class="kw">mod</span> <span class="ident">bounded_module</span>;
 <span class="kw">mod</span> <span class="ident">finite_dimensional_module</span>;
 <span class="kw">mod</span> <span class="ident">finite_module</span>;
 <span class="kw">mod</span> <span class="ident">finitely_presented_module</span>;
 <span class="kw">mod</span> <span class="ident">free_module</span>;
+<span class="kw">mod</span> <span class="ident">module_trait</span>;
 <span class="kw">mod</span> <span class="ident">rpn</span>;
 <span class="kw">mod</span> <span class="ident">zero_module</span>;
-<span class="kw">mod</span> <span class="ident">bounded_module</span>;
-<span class="kw">mod</span> <span class="ident">module_trait</span>;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">mod</span> <span class="ident">truncated_module</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">mod</span> <span class="ident">free_unstable_module</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">mod</span> <span class="ident">polynomial_algebra_module</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">mod</span> <span class="ident">kfpn</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">bcp</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">dickson2</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
+<span class="kw">mod</span> <span class="ident">free_unstable_module</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">hom_module</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
+<span class="kw">mod</span> <span class="ident">kfpn</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
+<span class="kw">mod</span> <span class="ident">polynomial_algebra_module</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">quotient_module</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">sum_module</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tensor_module</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
+<span class="kw">mod</span> <span class="ident">truncated_module</span>;
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">block_structure</span>;
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">homomorphism</span>;
 
-
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">bounded_module</span>::<span class="ident">BoundedModule</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finite_dimensional_module</span>::<span class="ident">FiniteDimensionalModule</span> <span class="kw">as</span> <span class="ident">FDModule</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finite_module</span>::<span class="ident">FiniteModule</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finitely_presented_module</span>::<span class="ident">FinitelyPresentedModule</span> <span class="kw">as</span> <span class="ident">FPModule</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_module</span>::{<span class="ident">FreeModule</span>, <span class="ident">OperationGeneratorPair</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">module_trait</span>::{<span class="ident">Module</span>, <span class="ident">ModuleFailedRelationError</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">rpn</span>::<span class="ident">RealProjectiveSpace</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">zero_module</span>::<span class="ident">ZeroModule</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">bounded_module</span>::<span class="ident">BoundedModule</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">module_trait</span>::{<span class="ident">Module</span>, <span class="ident">ModuleFailedRelationError</span>};
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_unstable_module</span>::<span class="ident">FreeUnstableModule</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">polynomial_algebra_module</span>::<span class="ident">PolynomialAlgebraModule</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">kfpn</span>::<span class="ident">KFpn</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">bcp</span>::<span class="ident">BCp</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">dickson2</span>::<span class="ident">Dickson2</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_unstable_module</span>::<span class="ident">FreeUnstableModule</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">hom_module</span>::<span class="ident">HomModule</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">kfpn</span>::<span class="ident">KFpn</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">polynomial_algebra_module</span>::<span class="ident">PolynomialAlgebraModule</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">quotient_module</span>::<span class="ident">QuotientModule</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>

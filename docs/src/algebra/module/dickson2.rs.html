@@ -259,29 +259,47 @@
 <span id="238">238</span>
 <span id="239">239</span>
 <span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
-<span class="kw">use</span> <span class="ident">once</span>::<span class="ident">OnceVec</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::<span class="ident">ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">FpVector</span>;
+<span class="kw">use</span> <span class="ident">once</span>::<span class="ident">OnceVec</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{
-    <span class="ident">combinatorics</span>::<span class="ident">TruncatedPolynomialMonomialBasis</span>,
-    <span class="ident">Algebra</span>, <span class="ident">AdemAlgebraT</span>, <span class="ident">AdemAlgebra</span>,
-    <span class="ident">PolynomialAlgebra</span>, <span class="ident">PolynomialAlgebraMonomial</span>, <span class="ident">PolynomialAlgebraTableEntry</span>
+    <span class="ident">combinatorics</span>::<span class="ident">TruncatedPolynomialMonomialBasis</span>, <span class="ident">AdemAlgebra</span>, <span class="ident">AdemAlgebraT</span>, <span class="ident">Algebra</span>,
+    <span class="ident">PolynomialAlgebra</span>, <span class="ident">PolynomialAlgebraMonomial</span>, <span class="ident">PolynomialAlgebraTableEntry</span>,
 };
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">PolynomialAlgebraModule</span>;
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Dickson2</span><span class="op">&lt;</span><span class="ident">A</span> : <span class="ident">AdemAlgebraT</span><span class="op">&gt;</span> {
-    <span class="ident">algebra</span> : <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">n</span> : <span class="ident">i32</span>,
-    <span class="ident">polynomial_monomials_field</span> : <span class="ident">TruncatedPolynomialMonomialBasis</span>,
-    <span class="ident">exterior_monomials_field</span> : <span class="ident">TruncatedPolynomialMonomialBasis</span>,
-    <span class="ident">basis_table_field</span> : <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">PolynomialAlgebraTableEntry</span><span class="op">&gt;</span>,
-    <span class="ident">action_table_field</span> : <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="comment">// total_degree ==&gt; sq ==&gt; input_idx ==&gt; result</span>
-    <span class="ident">quadratic_terms_field</span> : <span class="ident">Vec</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">i32</span>,<span class="ident">i32</span>)<span class="op">&gt;</span><span class="op">&gt;</span> <span class="comment">// degree ==&gt; (d1, d2)</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Dickson2</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AdemAlgebraT</span><span class="op">&gt;</span> {
+    <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">n</span>: <span class="ident">i32</span>,
+    <span class="ident">polynomial_monomials_field</span>: <span class="ident">TruncatedPolynomialMonomialBasis</span>,
+    <span class="ident">exterior_monomials_field</span>: <span class="ident">TruncatedPolynomialMonomialBasis</span>,
+    <span class="ident">basis_table_field</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">PolynomialAlgebraTableEntry</span><span class="op">&gt;</span>,
+    <span class="ident">action_table_field</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="comment">// total_degree ==&gt; sq ==&gt; input_idx ==&gt; result</span>
+    <span class="ident">quadratic_terms_field</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">i32</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,  <span class="comment">// degree ==&gt; (d1, d2)</span>
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AdemAlgebraT</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">Dickson2</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
@@ -290,33 +308,29 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span> : <span class="ident">AdemAlgebraT</span><span class="op">&gt;</span> <span class="ident">Dickson2</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">algebra</span> : <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">n</span> : <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AdemAlgebraT</span><span class="op">&gt;</span> <span class="ident">Dickson2</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">n</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">quadratic_terms_field</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="prelude-val">None</span>; (<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> (<span class="ident">n</span> <span class="op">+</span> <span class="number">2</span>)) <span class="op">-</span> <span class="number">1</span>];
-        <span class="kw">for</span> <span class="ident">k1</span> <span class="kw">in</span> <span class="number">0</span> ..<span class="op">=</span> <span class="ident">n</span> {
+        <span class="kw">for</span> <span class="ident">k1</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">n</span> {
             <span class="kw">let</span> <span class="ident">l1</span> <span class="op">=</span> <span class="ident">n</span> <span class="op">-</span> <span class="ident">k1</span>;
             <span class="kw">let</span> <span class="ident">d1</span> <span class="op">=</span> ((<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">l1</span>) <span class="op">-</span> <span class="number">1</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">k1</span>;
-            <span class="kw">for</span> <span class="ident">k2</span> <span class="kw">in</span> <span class="number">0</span> ..<span class="op">=</span> <span class="ident">n</span> {
+            <span class="kw">for</span> <span class="ident">k2</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">n</span> {
                 <span class="kw">let</span> <span class="ident">l2</span> <span class="op">=</span> <span class="ident">n</span> <span class="op">-</span> <span class="ident">k2</span>;
                 <span class="kw">let</span> <span class="ident">d2</span> <span class="op">=</span> ((<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">l2</span>) <span class="op">-</span> <span class="number">1</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">k2</span>;
                 <span class="kw">let</span> <span class="ident">total</span> <span class="op">=</span> <span class="ident">d1</span> <span class="op">+</span> <span class="ident">d2</span>;
-                <span class="kw">let</span> (<span class="ident">d1</span>, <span class="ident">d2</span>) <span class="op">=</span> <span class="kw">if</span> <span class="ident">d2</span> <span class="op">&lt;</span> <span class="ident">d1</span> {
-                    (<span class="ident">d2</span>, <span class="ident">d1</span>)
-                } <span class="kw">else</span> {
-                    (<span class="ident">d1</span>, <span class="ident">d2</span>)
-                };
+                <span class="kw">let</span> (<span class="ident">d1</span>, <span class="ident">d2</span>) <span class="op">=</span> <span class="kw">if</span> <span class="ident">d2</span> <span class="op">&lt;</span> <span class="ident">d1</span> { (<span class="ident">d2</span>, <span class="ident">d1</span>) } <span class="kw">else</span> { (<span class="ident">d1</span>, <span class="ident">d2</span>) };
                 <span class="ident">quadratic_terms_field</span>[<span class="ident">total</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="op">=</span> <span class="prelude-val">Some</span>((<span class="ident">d1</span>, <span class="ident">d2</span>));
             }
         }
         <span class="self">Self</span> {
             <span class="ident">algebra</span>,
             <span class="ident">n</span>,
-            <span class="ident">polynomial_monomials_field</span> : <span class="ident">TruncatedPolynomialMonomialBasis</span>::<span class="ident">new</span>(<span class="ident">p</span>), 
-            <span class="ident">exterior_monomials_field</span> : <span class="ident">TruncatedPolynomialMonomialBasis</span>::<span class="ident">new</span>(<span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">2</span>)),
-            <span class="ident">basis_table_field</span> : <span class="ident">OnceVec</span>::<span class="ident">new</span>(),
-            <span class="ident">action_table_field</span> : <span class="ident">OnceVec</span>::<span class="ident">new</span>(),
-            <span class="ident">quadratic_terms_field</span>
+            <span class="ident">polynomial_monomials_field</span>: <span class="ident">TruncatedPolynomialMonomialBasis</span>::<span class="ident">new</span>(<span class="ident">p</span>),
+            <span class="ident">exterior_monomials_field</span>: <span class="ident">TruncatedPolynomialMonomialBasis</span>::<span class="ident">new</span>(<span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">2</span>)),
+            <span class="ident">basis_table_field</span>: <span class="ident">OnceVec</span>::<span class="ident">new</span>(),
+            <span class="ident">action_table_field</span>: <span class="ident">OnceVec</span>::<span class="ident">new</span>(),
+            <span class="ident">quadratic_terms_field</span>,
         }
     }
 
@@ -324,7 +338,7 @@
         <span class="self">self</span>.<span class="ident">algebra</span>.<span class="ident">adem_algebra</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">quadratic_terms</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span> : <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">i32</span>)<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">quadratic_terms</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">i32</span>)<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">degree</span> <span class="op">=</span> <span class="ident">degree</span> <span class="kw">as</span> <span class="ident">usize</span>;
         <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">quadratic_terms_field</span>.<span class="ident">len</span>() {
             <span class="prelude-val">None</span>
@@ -333,11 +347,11 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">klfrob</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span> : <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">i32</span>, <span class="ident">i32</span>)<span class="op">&gt;</span>{
-        <span class="kw">let</span> <span class="ident">frob_plus_k</span> <span class="op">=</span> <span class="ident">degree</span>.<span class="ident">trailing_zeros</span>()  <span class="kw">as</span> <span class="ident">i32</span>;
+    <span class="kw">fn</span> <span class="ident">klfrob</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">i32</span>, <span class="ident">i32</span>)<span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">frob_plus_k</span> <span class="op">=</span> <span class="ident">degree</span>.<span class="ident">trailing_zeros</span>() <span class="kw">as</span> <span class="ident">i32</span>;
         <span class="kw">let</span> <span class="ident">two_to_the_frob_plus_n</span> <span class="op">=</span> <span class="ident">degree</span> <span class="op">+</span> (<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">frob_plus_k</span>);
         <span class="kw">if</span> <span class="ident">two_to_the_frob_plus_n</span>.<span class="ident">count_ones</span>() <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
-            <span class="kw">let</span> <span class="ident">frob_plus_n</span> <span class="op">=</span> <span class="ident">two_to_the_frob_plus_n</span>.<span class="ident">trailing_zeros</span>()  <span class="kw">as</span> <span class="ident">i32</span>;
+            <span class="kw">let</span> <span class="ident">frob_plus_n</span> <span class="op">=</span> <span class="ident">two_to_the_frob_plus_n</span>.<span class="ident">trailing_zeros</span>() <span class="kw">as</span> <span class="ident">i32</span>;
             <span class="kw">let</span> <span class="ident">frob</span> <span class="op">=</span> <span class="ident">frob_plus_n</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">n</span>;
             <span class="kw">let</span> <span class="ident">k</span> <span class="op">=</span> <span class="ident">frob_plus_k</span> <span class="op">-</span> <span class="ident">frob</span>;
             <span class="kw">let</span> <span class="ident">l</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">n</span> <span class="op">-</span> <span class="ident">k</span>;
@@ -352,7 +366,7 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span> : <span class="ident">AdemAlgebraT</span><span class="op">&gt;</span> <span class="ident">PolynomialAlgebra</span> <span class="kw">for</span> <span class="ident">Dickson2</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AdemAlgebraT</span><span class="op">&gt;</span> <span class="ident">PolynomialAlgebra</span> <span class="kw">for</span> <span class="ident">Dickson2</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidPrime</span> {
         <span class="self">self</span>.<span class="ident">adem_algebra</span>().<span class="ident">prime</span>()
     }
@@ -369,7 +383,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">basis_table_field</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">polynomial_generators_in_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span> : <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">fn</span> <span class="ident">polynomial_generators_in_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="kw">if</span> <span class="ident">degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
             <span class="kw">return</span> <span class="number">0</span>;
         }
@@ -380,48 +394,52 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">exterior_generators_in_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span> : <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">fn</span> <span class="ident">exterior_generators_in_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="number">0</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">repr_poly_generator</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span> : <span class="ident">i32</span>, <span class="ident">index</span> : <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">String</span>, <span class="ident">u32</span>) {
+    <span class="kw">fn</span> <span class="ident">repr_poly_generator</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">index</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">String</span>, <span class="ident">u32</span>) {
         <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">index</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span>);
         <span class="kw">let</span> (<span class="ident">k</span>, <span class="ident">l</span>, <span class="ident">frob</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">klfrob</span>(<span class="ident">degree</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">var_str</span> <span class="op">=</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;d_{{{k}, {l}}}&quot;</span>, <span class="ident">k</span><span class="op">=</span><span class="ident">k</span>, <span class="ident">l</span><span class="op">=</span><span class="ident">l</span>);
-        (<span class="ident">var_str</span>, <span class="number">1</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">frob</span>)
+        <span class="kw">let</span> <span class="ident">var_str</span> <span class="op">=</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;d_{{{k}, {l}}}&quot;</span>, <span class="ident">k</span> <span class="op">=</span> <span class="ident">k</span>, <span class="ident">l</span> <span class="op">=</span> <span class="ident">l</span>);
+        (<span class="ident">var_str</span>, <span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">frob</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">repr_ext_generator</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span> : <span class="ident">i32</span>, <span class="ident">_index</span> : <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
+    <span class="kw">fn</span> <span class="ident">repr_ext_generator</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span>: <span class="ident">i32</span>, <span class="ident">_index</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
         <span class="macro">unreachable</span><span class="macro">!</span>()
     }
 
-
-    <span class="kw">fn</span> <span class="ident">frobenius_on_generator</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span> : <span class="ident">i32</span>, <span class="ident">index</span> : <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">frobenius_on_generator</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span>: <span class="ident">i32</span>, <span class="ident">index</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
         <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">index</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span>);
         <span class="prelude-val">Some</span>(<span class="number">0</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">compute_generating_set</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span> : <span class="ident">i32</span>) {
-        
-    }
+    <span class="kw">fn</span> <span class="ident">compute_generating_set</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span>: <span class="ident">i32</span>) {}
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span> : <span class="ident">AdemAlgebraT</span><span class="op">&gt;</span> <span class="ident">PolynomialAlgebraModule</span> <span class="kw">for</span> <span class="ident">Dickson2</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AdemAlgebraT</span><span class="op">&gt;</span> <span class="ident">PolynomialAlgebraModule</span> <span class="kw">for</span> <span class="ident">Dickson2</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span>;
 
     <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Algebra</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">algebra</span>.<span class="ident">clone</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">action_table</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {<span class="comment">// degree -&gt; square -&gt; monomial idx -&gt; result vector</span>
+    <span class="kw">fn</span> <span class="ident">action_table</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="comment">// degree -&gt; square -&gt; monomial idx -&gt; result vector</span>
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">action_table_field</span>
-    } 
+    }
 
     <span class="kw">fn</span> <span class="ident">bockstein_table</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="macro">unreachable</span><span class="macro">!</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">sq_polynomial_generator_to_monomial</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span> : <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PolynomialAlgebraMonomial</span>, <span class="ident">sq</span> : <span class="ident">i32</span>, <span class="ident">input_degree</span> : <span class="ident">i32</span>, <span class="ident">input_index</span> : <span class="ident">usize</span>) {
+    <span class="kw">fn</span> <span class="ident">sq_polynomial_generator_to_monomial</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">result</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PolynomialAlgebraMonomial</span>,
+        <span class="ident">sq</span>: <span class="ident">i32</span>,
+        <span class="ident">input_degree</span>: <span class="ident">i32</span>,
+        <span class="ident">input_index</span>: <span class="ident">usize</span>,
+    ) {
         <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">input_index</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span>);
         <span class="kw">let</span> (<span class="ident">_k</span>, <span class="ident">_l</span>, <span class="ident">frob</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">klfrob</span>(<span class="ident">input_degree</span>).<span class="ident">unwrap</span>();
         <span class="kw">if</span> (<span class="ident">sq</span>.<span class="ident">trailing_zeros</span>() <span class="kw">as</span> <span class="ident">i32</span>) <span class="op">&lt;</span> <span class="ident">frob</span> {
@@ -436,16 +454,22 @@
                 <span class="kw">return</span>;
             }
             <span class="kw">if</span> <span class="ident">a</span> <span class="op">=</span><span class="op">=</span> <span class="ident">b</span> <span class="op">&amp;&amp;</span> <span class="ident">a</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
-                <span class="kw">let</span> <span class="ident">int_idx</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">polynomial_monomials</span>().<span class="ident">gen_deg_idx_to_internal_idx</span>((<span class="ident">a</span> <span class="op">+</span> <span class="ident">b</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">frob</span>, <span class="number">0</span>);
+                <span class="kw">let</span> <span class="ident">int_idx</span> <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">polynomial_monomials</span>()
+                    .<span class="ident">gen_deg_idx_to_internal_idx</span>((<span class="ident">a</span> <span class="op">+</span> <span class="ident">b</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">frob</span>, <span class="number">0</span>);
                 <span class="ident">result</span>.<span class="ident">poly</span>.<span class="ident">set_entry</span>(<span class="ident">int_idx</span>, <span class="number">1</span>);
                 <span class="kw">return</span>;
             }
             <span class="kw">if</span> <span class="ident">a</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
-                <span class="kw">let</span> <span class="ident">int_idx</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">polynomial_monomials</span>().<span class="ident">gen_deg_idx_to_internal_idx</span>(<span class="ident">a</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">frob</span>, <span class="number">0</span>);
+                <span class="kw">let</span> <span class="ident">int_idx</span> <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">polynomial_monomials</span>()
+                    .<span class="ident">gen_deg_idx_to_internal_idx</span>(<span class="ident">a</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">frob</span>, <span class="number">0</span>);
                 <span class="ident">result</span>.<span class="ident">poly</span>.<span class="ident">set_entry</span>(<span class="ident">int_idx</span>, <span class="number">1</span>);
             }
             <span class="kw">if</span> <span class="ident">b</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
-                <span class="kw">let</span> <span class="ident">int_idx</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">polynomial_monomials</span>().<span class="ident">gen_deg_idx_to_internal_idx</span>(<span class="ident">b</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">frob</span>, <span class="number">0</span>);
+                <span class="kw">let</span> <span class="ident">int_idx</span> <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">polynomial_monomials</span>()
+                    .<span class="ident">gen_deg_idx_to_internal_idx</span>(<span class="ident">b</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">frob</span>, <span class="number">0</span>);
                 <span class="ident">result</span>.<span class="ident">poly</span>.<span class="ident">set_entry</span>(<span class="ident">int_idx</span>, <span class="number">1</span>);
             }
             <span class="kw">return</span>;
@@ -453,15 +477,31 @@
         <span class="ident">result</span>.<span class="ident">valid</span> <span class="op">=</span> <span class="bool-val">false</span>;
     }
 
-    <span class="kw">fn</span> <span class="ident">sq_exterior_generator_to_monomial</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_result</span> : <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PolynomialAlgebraMonomial</span>, <span class="ident">_sq</span> : <span class="ident">i32</span>, <span class="ident">_input_degree</span> : <span class="ident">i32</span>, <span class="ident">_input_idx</span> : <span class="ident">usize</span>) {
+    <span class="kw">fn</span> <span class="ident">sq_exterior_generator_to_monomial</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">_result</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PolynomialAlgebraMonomial</span>,
+        <span class="ident">_sq</span>: <span class="ident">i32</span>,
+        <span class="ident">_input_degree</span>: <span class="ident">i32</span>,
+        <span class="ident">_input_idx</span>: <span class="ident">usize</span>,
+    ) {
         <span class="macro">unreachable</span><span class="macro">!</span>();
     }
-    
-    <span class="kw">fn</span> <span class="ident">bockstein_polynomial_generator_to_monomial</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_result</span> : <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PolynomialAlgebraMonomial</span>, <span class="ident">_input_degree</span> : <span class="ident">i32</span>, <span class="ident">_input_idx</span> : <span class="ident">usize</span>) {
+
+    <span class="kw">fn</span> <span class="ident">bockstein_polynomial_generator_to_monomial</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">_result</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PolynomialAlgebraMonomial</span>,
+        <span class="ident">_input_degree</span>: <span class="ident">i32</span>,
+        <span class="ident">_input_idx</span>: <span class="ident">usize</span>,
+    ) {
         <span class="macro">unreachable</span><span class="macro">!</span>();
     }
-    
-    <span class="kw">fn</span> <span class="ident">bockstein_exterior_generator_to_monomial</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_result</span> : <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PolynomialAlgebraMonomial</span>, <span class="ident">_input_degree</span> : <span class="ident">i32</span>, <span class="ident">_input_idx</span> : <span class="ident">usize</span>) {
+
+    <span class="kw">fn</span> <span class="ident">bockstein_exterior_generator_to_monomial</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">_result</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PolynomialAlgebraMonomial</span>,
+        <span class="ident">_input_degree</span>: <span class="ident">i32</span>,
+        <span class="ident">_input_idx</span>: <span class="ident">usize</span>,
+    ) {
         <span class="macro">unreachable</span><span class="macro">!</span>();
     }
 }
@@ -469,19 +509,19 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="ident">rstest</span>::<span class="ident">rstest</span>;
     <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">AdemAlgebra</span>;
     <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">Module</span>;
+    <span class="kw">use</span> <span class="ident">rstest</span>::<span class="ident">rstest</span>;
 
     <span class="attribute">#[<span class="ident">rstest</span>(<span class="ident">n</span> <span class="op">=</span><span class="op">&gt;</span> [<span class="number">2</span>]</span>)]
-    <span class="kw">fn</span> <span class="ident">test_dickson_basis</span>(<span class="ident">n</span> : <span class="ident">i32</span>){
+    <span class="kw">fn</span> <span class="ident">test_dickson_basis</span>(<span class="ident">n</span>: <span class="ident">i32</span>) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="number">2</span>;
         <span class="kw">let</span> <span class="ident">p_</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="ident">p</span>);
         <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="number">7</span>;
         <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(<span class="ident">p_</span>, <span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>));
         <span class="kw">let</span> <span class="ident">dickson</span> <span class="op">=</span> <span class="ident">Dickson2</span>::<span class="ident">new</span>(<span class="ident">algebra</span>, <span class="ident">n</span>);
         <span class="ident">Module</span>::<span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="ident">dickson</span>, <span class="ident">max_degree</span>);
-        <span class="kw">for</span> <span class="ident">d</span> <span class="kw">in</span> <span class="number">0</span> ..<span class="op">=</span> <span class="ident">max_degree</span> {
+        <span class="kw">for</span> <span class="ident">d</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">max_degree</span> {
             <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;degree {}:&quot;</span>, <span class="ident">d</span>);
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">Module</span>::<span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="ident">dickson</span>, <span class="ident">d</span>) {
                 <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;  {}&quot;</span>, <span class="ident">Module</span>::<span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="ident">dickson</span>, <span class="ident">d</span>, <span class="ident">i</span>));
@@ -491,8 +531,8 @@
 
     <span class="attribute">#[<span class="ident">rstest</span>(
         <span class="ident">n</span> <span class="op">=</span><span class="op">&gt;</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>]</span>
-    )]<span class="comment">//, case(3), case(5))]</span>
-    <span class="kw">fn</span> <span class="ident">test_dickson_action</span>(<span class="ident">n</span> : <span class="ident">i32</span>) {
+    )] <span class="comment">//, case(3), case(5))]</span>
+    <span class="kw">fn</span> <span class="ident">test_dickson_action</span>(<span class="ident">n</span>: <span class="ident">i32</span>) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="number">2</span>;
         <span class="kw">let</span> <span class="ident">p_</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="ident">p</span>);
         <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(<span class="ident">p_</span>, <span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>));

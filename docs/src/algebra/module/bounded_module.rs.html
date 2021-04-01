@@ -82,15 +82,13 @@
 <span id="61">61</span>
 <span id="62">62</span>
 <span id="63">63</span>
-<span id="64">64</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
-<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">FpVector</span>};
+<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">FpVector</span>;
 
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">Algebra</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">Module</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">FDModule</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">Module</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">Algebra</span>;
 
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">BoundedModule</span>: <span class="ident">Module</span> {
     <span class="doccomment">/// `max_degree` is the a degree such that if t &gt; `max_degree`, then `self.dimension(t) = 0`.</span>

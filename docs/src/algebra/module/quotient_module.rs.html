@@ -179,8 +179,12 @@
 <span id="158">158</span>
 <span id="159">159</span>
 <span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>};
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">matrix</span>::<span class="ident">Subspace</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
@@ -260,8 +264,14 @@
         <span class="ident">mod_degree</span>: <span class="ident">i32</span>,
         <span class="ident">mod_index</span>: <span class="ident">usize</span>,
     ) {
-        <span class="self">self</span>.<span class="ident">module</span>
-            .<span class="ident">act_on_basis</span>(<span class="ident">result</span>.<span class="ident">copy</span>(), <span class="ident">coeff</span>, <span class="ident">op_degree</span>, <span class="ident">op_index</span>, <span class="ident">mod_degree</span>, <span class="ident">mod_index</span>);
+        <span class="self">self</span>.<span class="ident">module</span>.<span class="ident">act_on_basis</span>(
+            <span class="ident">result</span>.<span class="ident">copy</span>(),
+            <span class="ident">coeff</span>,
+            <span class="ident">op_degree</span>,
+            <span class="ident">op_index</span>,
+            <span class="ident">mod_degree</span>,
+            <span class="ident">mod_index</span>,
+        );
         <span class="self">self</span>.<span class="ident">reduce</span>(<span class="ident">op_degree</span> <span class="op">+</span> <span class="ident">mod_degree</span>, <span class="ident">result</span>)
     }
 

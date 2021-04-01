@@ -219,9 +219,7 @@
 <span id="198">198</span>
 <span id="199">199</span>
 <span id="200">200</span>
-<span id="201">201</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">SteenrodAlgebra</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">FDModule</span>, <span class="ident">FPModule</span>, <span class="ident">Module</span>, <span class="ident">RealProjectiveSpace</span>};
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::<span class="ident">ValidPrime</span>;
@@ -326,9 +324,9 @@
         <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">serde_json</span>::<span class="ident">Value</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="ident">json</span>[<span class="string">&quot;type&quot;</span>].<span class="ident">as_str</span>() {
-            <span class="prelude-val">Some</span>(<span class="string">&quot;real projective space&quot;</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">FiniteModule</span>::<span class="ident">from</span>(<span class="ident">RealProjectiveSpace</span>::<span class="ident">from_json</span>(
-                <span class="ident">algebra</span>, <span class="ident">json</span>,
-            )<span class="question-mark">?</span>)),
+            <span class="prelude-val">Some</span>(<span class="string">&quot;real projective space&quot;</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">FiniteModule</span>::<span class="ident">from</span>(
+                <span class="ident">RealProjectiveSpace</span>::<span class="ident">from_json</span>(<span class="ident">algebra</span>, <span class="ident">json</span>)<span class="question-mark">?</span>,
+            )),
             <span class="prelude-val">Some</span>(<span class="string">&quot;finite dimensional module&quot;</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="prelude-val">Ok</span>(<span class="ident">FiniteModule</span>::<span class="ident">from</span>(<span class="ident">FDModule</span>::<span class="ident">from_json</span>(<span class="ident">algebra</span>, <span class="ident">json</span>)<span class="question-mark">?</span>))
             }
@@ -337,7 +335,8 @@
             }
             <span class="ident">x</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">UnknownModuleTypeError</span> {
                 <span class="ident">module_type</span>: <span class="ident">x</span>.<span class="ident">map</span>(<span class="ident">str</span>::<span class="ident">to_string</span>),
-            }.<span class="ident">into</span>()),
+            }
+            .<span class="ident">into</span>()),
         }
     }
 
@@ -404,7 +403,6 @@
             <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
         }
     }
-
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>

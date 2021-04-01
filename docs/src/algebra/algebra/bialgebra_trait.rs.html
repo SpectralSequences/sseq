@@ -36,12 +36,10 @@
 <span id="15">15</span>
 <span id="16">16</span>
 <span id="17">17</span>
-<span id="18">18</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">Algebra</span>;
 
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Bialgebra</span> : <span class="ident">Algebra</span> {
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Bialgebra</span>: <span class="ident">Algebra</span> {
     <span class="doccomment">/// This function decomposes an element of the algebra as a product of elements, each of whose</span>
     <span class="doccomment">/// coproduct is easy to calculate. The product is laid out such that the first element of the</span>
     <span class="doccomment">/// vector is applied to the module element first. This is to be used in conjunction with</span>
@@ -50,11 +48,11 @@
     <span class="doccomment">/// This structure is motivated by the fact that in the admissible basis for the Adem algebra,</span>
     <span class="doccomment">/// an element naturally decomposes into a product of Steenrod squares, each of which has an</span>
     <span class="doccomment">/// easy coproduct formula.</span>
-    <span class="kw">fn</span> <span class="ident">decompose</span> (<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">op_deg</span> : <span class="ident">i32</span>, <span class="ident">op_idx</span> : <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">decompose</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">op_deg</span>: <span class="ident">i32</span>, <span class="ident">op_idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
 
     <span class="doccomment">/// Expresses Delta(x) as sum_j (A_{ij} (x) B_{ij}). Here x must be one of the elements</span>
     <span class="doccomment">/// returned by `decompose`.</span>
-    <span class="kw">fn</span> <span class="ident">coproduct</span> (<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">op_deg</span> : <span class="ident">i32</span>, <span class="ident">op_idx</span> : <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">coproduct</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">op_deg</span>: <span class="ident">i32</span>, <span class="ident">op_idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-search-js="../../../search-index.js"></div>

@@ -300,8 +300,29 @@
 <span id="279">279</span>
 <span id="280">280</span>
 <span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
@@ -310,7 +331,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">block_structure</span>::<span class="ident">BlockStructure</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::<span class="ident">FreeModuleHomomorphism</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
-<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">SliceMut</span>, <span class="ident">Slice</span>};
+<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 <span class="kw">use</span> <span class="ident">once</span>::<span class="ident">OnceBiVec</span>;
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">BoundedModule</span><span class="op">&gt;</span> {
@@ -349,11 +370,7 @@
 
     <span class="comment">// Each element of HomModule represents a homomorphism from source to target of a given degree.</span>
     <span class="comment">// Turn an FpVector representing an element of the HomModule  into a FreeModuleHomomorphism</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">element_to_homomorphism</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">degree</span>: <span class="ident">i32</span>,
-        <span class="ident">x</span>: <span class="ident">Slice</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">element_to_homomorphism</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">Slice</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span>
             <span class="ident">FreeModuleHomomorphism</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">source</span>), <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>), <span class="ident">degree</span>);
         <span class="kw">let</span> <span class="ident">lock</span> <span class="op">=</span> <span class="ident">result</span>.<span class="ident">lock</span>();
@@ -364,7 +381,11 @@
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">min_nonzero_degree</span>..<span class="op">=</span><span class="ident">max_nonzero_degree</span> {
             <span class="kw">let</span> <span class="ident">gens</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">i</span>);
             <span class="kw">let</span> <span class="ident">out_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">dimension</span>(<span class="ident">i</span> <span class="op">-</span> <span class="ident">degree</span>);
-            <span class="ident">result</span>.<span class="ident">add_generators_from_big_vector</span>(<span class="kw-2">&amp;</span><span class="ident">lock</span>, <span class="ident">i</span>, <span class="ident">x</span>.<span class="ident">slice</span>(<span class="ident">used_entries</span>, <span class="ident">used_entries</span> <span class="op">+</span> <span class="ident">gens</span> <span class="op">*</span> <span class="ident">out_dim</span>));
+            <span class="ident">result</span>.<span class="ident">add_generators_from_big_vector</span>(
+                <span class="kw-2">&amp;</span><span class="ident">lock</span>,
+                <span class="ident">i</span>,
+                <span class="ident">x</span>.<span class="ident">slice</span>(<span class="ident">used_entries</span>, <span class="ident">used_entries</span> <span class="op">+</span> <span class="ident">gens</span> <span class="op">*</span> <span class="ident">out_dim</span>),
+            );
             <span class="ident">used_entries</span> <span class="op">+</span><span class="op">=</span> <span class="ident">gens</span> <span class="op">*</span> <span class="ident">out_dim</span>;
         }
         <span class="ident">drop</span>(<span class="ident">lock</span>);
@@ -405,8 +426,14 @@
                 <span class="kw">continue</span>;
             }
             <span class="kw">let</span> <span class="ident">op_idx</span> <span class="op">=</span> <span class="ident">i</span> <span class="op">-</span> <span class="ident">input_block_start</span>;
-            <span class="self">self</span>.<span class="ident">target</span>
-                .<span class="ident">act_on_basis</span>(<span class="ident">result</span>.<span class="ident">copy</span>(), (<span class="ident">coeff</span> <span class="op">*</span> <span class="ident">v</span>) <span class="op">%</span> <span class="ident">p</span>, <span class="ident">op_deg</span>, <span class="ident">op_idx</span>, <span class="ident">mod_deg</span>, <span class="ident">mod_idx</span>);
+            <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">act_on_basis</span>(
+                <span class="ident">result</span>.<span class="ident">copy</span>(),
+                (<span class="ident">coeff</span> <span class="op">*</span> <span class="ident">v</span>) <span class="op">%</span> <span class="ident">p</span>,
+                <span class="ident">op_deg</span>,
+                <span class="ident">op_idx</span>,
+                <span class="ident">mod_deg</span>,
+                <span class="ident">mod_idx</span>,
+            );
         }
     }
 }
@@ -494,15 +521,20 @@
     <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::<span class="ident">ModuleHomomorphism</span>;
     <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">FDModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
 
-    <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">FpVector</span>;
     <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::<span class="ident">ValidPrime</span>;
+    <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">FpVector</span>;
 
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">non_snake_case</span>)]</span>
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">needless_range_loop</span>)]</span>
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_hom_space</span>() {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">2</span>);
-        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">SteenrodAlgebra</span>::<span class="ident">from</span>(<span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>)));
+        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">SteenrodAlgebra</span>::<span class="ident">from</span>(<span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(
+            <span class="ident">p</span>,
+            <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>,
+            <span class="bool-val">false</span>,
+            <span class="bool-val">false</span>,
+        )));
         <span class="ident">A</span>.<span class="ident">compute_basis</span>(<span class="number">20</span>);
         <span class="kw">let</span> <span class="ident">F</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">FreeModule</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>));
         <span class="ident">F</span>.<span class="ident">add_generators_immediate</span>(<span class="number">0</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
@@ -529,7 +561,14 @@
             <span class="ident">x</span>.<span class="ident">set_entry</span>(<span class="ident">i</span>, <span class="number">1</span>);
             <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;\n\nx : {}&quot;</span>, <span class="ident">F</span>.<span class="ident">element_to_string</span>(<span class="ident">x_degree</span>, <span class="ident">x</span>.<span class="ident">as_slice</span>()));
             <span class="kw">for</span> <span class="ident">f_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="number">3</span> {
-                <span class="ident">hom</span>.<span class="ident">evaluate_basis_map_on_element</span>(<span class="ident">result</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">f_degree</span>, <span class="ident">f_idx</span>, <span class="ident">x_degree</span>, <span class="ident">x</span>.<span class="ident">as_slice</span>());
+                <span class="ident">hom</span>.<span class="ident">evaluate_basis_map_on_element</span>(
+                    <span class="ident">result</span>.<span class="ident">as_slice_mut</span>(),
+                    <span class="number">1</span>,
+                    <span class="ident">f_degree</span>,
+                    <span class="ident">f_idx</span>,
+                    <span class="ident">x_degree</span>,
+                    <span class="ident">x</span>.<span class="ident">as_slice</span>(),
+                );
                 <span class="macro">println</span><span class="macro">!</span>(
                     <span class="string">&quot;f : {} ==&gt; f(x) : {}&quot;</span>,
                     <span class="ident">hom</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">f_degree</span>, <span class="ident">f_idx</span>),
@@ -547,7 +586,12 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_hom_space_elt_to_map</span>() {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">2</span>);
-        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">SteenrodAlgebra</span>::<span class="ident">from</span>(<span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>)));
+        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">SteenrodAlgebra</span>::<span class="ident">from</span>(<span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(
+            <span class="ident">p</span>,
+            <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>,
+            <span class="bool-val">false</span>,
+            <span class="bool-val">false</span>,
+        )));
         <span class="ident">A</span>.<span class="ident">compute_basis</span>(<span class="number">20</span>);
         <span class="kw">let</span> <span class="ident">F</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">FreeModule</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>));
         <span class="ident">F</span>.<span class="ident">add_generators_immediate</span>(<span class="number">0</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
