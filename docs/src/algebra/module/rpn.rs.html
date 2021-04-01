@@ -277,8 +277,8 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">RealProjectiveSpace</span><span class="op">&lt;</span><span class="ident">A</span> : <span class="ident">SteenrodAlgebraT</span><span class="op">&gt;</span> {
     <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">min</span>: <span class="ident">i32</span>,
-    <span class="kw">pub</span> <span class="ident">clear_bottom</span>: <span class="ident">bool</span>,
     <span class="kw">pub</span> <span class="ident">max</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>, <span class="comment">// If None,  then RP^oo</span>
+    <span class="kw">pub</span> <span class="ident">clear_bottom</span>: <span class="ident">bool</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">SteenrodAlgebraT</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">RealProjectiveSpace</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {

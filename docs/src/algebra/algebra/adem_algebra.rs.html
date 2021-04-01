@@ -1488,9 +1488,6 @@
 <span id="1467">1467</span>
 <span id="1468">1468</span>
 <span id="1469">1469</span>
-<span id="1470">1470</span>
-<span id="1471">1471</span>
-<span id="1472">1472</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">cmp</span>::<span class="ident">Ordering</span>;
@@ -1617,7 +1614,6 @@
     }
 }
 
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
 <span class="kw">fn</span> <span class="ident">adem_basis_element_excess_sort_order</span>(<span class="ident">a</span> : <span class="kw-2">&amp;</span><span class="ident">AdemBasisElement</span>, <span class="ident">b</span> : <span class="kw-2">&amp;</span><span class="ident">AdemBasisElement</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Ordering</span>{
     <span class="ident">a</span>.<span class="ident">excess</span>.<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">b</span>.<span class="ident">excess</span>)
 }
@@ -1647,7 +1643,6 @@
     <span class="ident">basis_element_to_index_map</span> : <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">AdemBasisElement</span>, <span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="comment">// degree -&gt; AdemBasisElement -&gt; index</span>
     <span class="ident">multiplication_table</span> : <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,<span class="comment">// degree -&gt; first square -&gt; admissible sequence idx -&gt; result vector</span>
     <span class="ident">excess_table</span> : <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="comment">// #[allow(dead_code)]</span>
     <span class="ident">sort_order</span> : <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw">fn</span>(<span class="kw-2">&amp;</span><span class="ident">AdemBasisElement</span>, <span class="kw-2">&amp;</span><span class="ident">AdemBasisElement</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Ordering</span><span class="op">&gt;</span>
 }
 
@@ -1662,7 +1657,6 @@
         <span class="self">self</span>.<span class="ident">p</span>
     }
 
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">useless_let_if_seq</span>)]</span>
     <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">products</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="number">4</span>);
         <span class="kw">let</span> <span class="ident">max_degree</span>;

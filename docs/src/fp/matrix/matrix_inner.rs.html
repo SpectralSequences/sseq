@@ -2074,9 +2074,9 @@
     }
 }
 
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">suspicious_op_assign_impl</span>)]</span>
 <span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">MulAssign</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
     <span class="kw">fn</span> <span class="ident">mul_assign</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">rhs</span>: <span class="ident">u32</span>) {
+        <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">suspicious_op_assign_impl</span>)]</span>
         <span class="kw">let</span> <span class="ident">rhs</span> <span class="op">=</span> <span class="ident">rhs</span> <span class="op">%</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">p</span>;
         <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">iter_mut</span>() {
             <span class="ident">row</span>.<span class="ident">scale</span>(<span class="ident">rhs</span>);

@@ -45,17 +45,11 @@
 <span id="24">24</span>
 <span id="25">25</span>
 <span id="26">26</span>
-<span id="27">27</span>
-<span id="28">28</span>
-<span id="29">29</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="attribute">#![<span class="ident">feature</span>(<span class="ident">hash_raw_entry</span>)]</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">many_single_char_names</span>)]</span>
-<span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">unreadable_literal</span>)]</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">too_many_arguments</span>)]</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">type_complexity</span>)]</span>
-<span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">implicit_hasher</span>)]</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">upper_case_acronyms</span>)]</span>
 <span class="attribute">#![<span class="ident">warn</span>(<span class="ident">clippy</span>::<span class="ident">default_trait_access</span>)]</span>
 <span class="attribute">#![<span class="ident">warn</span>(<span class="ident">clippy</span>::<span class="ident">if_not_else</span>)]</span>
@@ -72,12 +66,12 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">yoneda</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::<span class="ident">FiniteChainComplex</span>;
-<span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::<span class="ident">FiniteModule</span>;
 <span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::<span class="ident">FiniteModuleHomomorphism</span>;
+<span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::<span class="ident">FiniteModule</span>;
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">CCC</span> <span class="op">=</span> <span class="ident">FiniteChainComplex</span><span class="op">&lt;</span><span class="ident">FiniteModule</span>, <span class="ident">FiniteModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FiniteModule</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">utils</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">secondary</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">utils</span>;
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ext" data-search-js="../../search-index.js"></div>
     <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script></body></html>

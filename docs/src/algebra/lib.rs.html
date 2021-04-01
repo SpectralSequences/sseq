@@ -38,17 +38,11 @@
 <span id="17">17</span>
 <span id="18">18</span>
 <span id="19">19</span>
-<span id="20">20</span>
-<span id="21">21</span>
-<span id="22">22</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">many_single_char_names</span>)]</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">unreadable_literal</span>)]</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">too_many_arguments</span>)]</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">type_complexity</span>)]</span>
-<span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">implicit_hasher</span>)]</span>
-<span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">inconsistent_struct_constructor</span>)]</span>
 <span class="attribute">#![<span class="ident">warn</span>(<span class="ident">clippy</span>::<span class="ident">default_trait_access</span>)]</span>
 <span class="attribute">#![<span class="ident">warn</span>(<span class="ident">clippy</span>::<span class="ident">if_not_else</span>)]</span>
 <span class="attribute">#![<span class="ident">warn</span>(<span class="ident">clippy</span>::<span class="ident">needless_continue</span>)]</span>
@@ -58,9 +52,9 @@
 
 <span class="kw">mod</span> <span class="ident">algebra</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">change_of_basis</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">steenrod_parser</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">steenrod_evaluator</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">module</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">steenrod_evaluator</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">steenrod_parser</span>;
 <span class="comment">//pub mod dense_bigraded_algebra;</span>
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="kw-2">*</span>;

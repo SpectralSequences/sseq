@@ -252,19 +252,17 @@
 <span id="231">231</span>
 <span id="232">232</span>
 <span id="233">233</span>
-<span id="234">234</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">rustfmt</span>, <span class="ident">rustfmt_skip</span>)]</span>
 <span class="kw">mod</span> <span class="ident">finite_chain_complex</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">hom_complex</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tensor_product_chain_complex</span>;
 
-<span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">Algebra</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">utils</span>::<span class="ident">ascii_num</span>;
 <span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::{<span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
 <span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::{<span class="ident">FreeModule</span>, <span class="ident">Module</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">utils</span>::<span class="ident">ascii_num</span>;
+<span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">Algebra</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">matrix</span>::<span class="ident">Subquotient</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::<span class="ident">ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">FpVector</span>;
@@ -289,8 +287,8 @@
     <span class="kw">fn</span> <span class="ident">graded_dimension_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>, <span class="ident">max_t</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">new</span>();
         <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>();
-        <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> (<span class="number">0</span> ..<span class="op">=</span> <span class="ident">max_s</span>).<span class="ident">rev</span>() {
-            <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">min_degree</span> <span class="op">+</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> ..<span class="op">=</span> <span class="ident">max_t</span> {
+        <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> (<span class="number">0</span>..<span class="op">=</span><span class="ident">max_s</span>).<span class="ident">rev</span>() {
+            <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">min_degree</span> <span class="op">+</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>..<span class="op">=</span><span class="ident">max_t</span> {
                 <span class="ident">result</span>.<span class="ident">push</span>(<span class="ident">ascii_num</span>(<span class="self">self</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>)));
                 <span class="ident">result</span>.<span class="ident">push</span>(<span class="string">&#39; &#39;</span>);
             }
@@ -331,9 +329,9 @@
     <span class="comment">// This returns the differential starting from the sth module.</span>
     <span class="kw">fn</span> <span class="ident">differential</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Homomorphism</span><span class="op">&gt;</span>;
     <span class="kw">fn</span> <span class="ident">compute_through_bidegree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>, <span class="ident">internal_degree</span>: <span class="ident">i32</span>);
-    <span class="kw">fn</span> <span class="ident">has_computed_bidegree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span> : <span class="ident">u32</span>, <span class="ident">internal_degree</span> : <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>; <span class="comment">//{</span>
-        <span class="comment">// true</span>
-    <span class="comment">// }</span>
+    <span class="kw">fn</span> <span class="ident">has_computed_bidegree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>, <span class="ident">internal_degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>; <span class="comment">//{</span>
+                                                                                            <span class="comment">// true</span>
+                                                                                            <span class="comment">// }</span>
 
     <span class="kw">fn</span> <span class="ident">set_homology_basis</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
