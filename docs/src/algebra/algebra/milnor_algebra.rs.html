@@ -1682,6 +1682,20 @@
 <span id="1661">1661</span>
 <span id="1662">1662</span>
 <span id="1663">1663</span>
+<span id="1664">1664</span>
+<span id="1665">1665</span>
+<span id="1666">1666</span>
+<span id="1667">1667</span>
+<span id="1668">1668</span>
+<span id="1669">1669</span>
+<span id="1670">1670</span>
+<span id="1671">1671</span>
+<span id="1672">1672</span>
+<span id="1673">1673</span>
+<span id="1674">1674</span>
+<span id="1675">1675</span>
+<span id="1676">1676</span>
+<span id="1677">1677</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">itertools</span>::<span class="ident">Itertools</span>;
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
@@ -1817,7 +1831,8 @@
     <span class="kw">pub</span> <span class="ident">profile</span>: <span class="ident">MilnorProfile</span>,
     <span class="ident">lock</span>: <span class="ident">Mutex</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
     <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
-    <span class="kw">pub</span> <span class="ident">generic</span>: <span class="ident">bool</span>,
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;odd-primes&quot;</span>)]</span>
+    <span class="ident">generic</span>: <span class="ident">bool</span>,
     <span class="ident">ppart_table</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PPart</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">qpart_table</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">QPart</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">basis_table</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">MilnorBasisElement</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -1847,6 +1862,7 @@
 
         <span class="self">Self</span> {
             <span class="ident">p</span>,
+            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;odd-primes&quot;</span>)]</span>
             <span class="ident">generic</span>: <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>,
             <span class="ident">profile</span>,
             <span class="ident">lock</span>: <span class="ident">Mutex</span>::<span class="ident">new</span>(()),
@@ -1859,8 +1875,21 @@
         }
     }
 
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;odd-primes&quot;</span>)]</span>
+        {
+            <span class="self">self</span>.<span class="ident">generic</span>
+        }
+
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;odd-primes&quot;</span>))]</span>
+        {
+            <span class="bool-val">false</span>
+        }
+    }
+
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">q</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span>() {
             <span class="number">2</span> <span class="op">*</span> (<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>() <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>)
         } <span class="kw">else</span> {
             <span class="number">1</span>
@@ -1891,7 +1920,7 @@
     <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">products</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="number">4</span>);
         <span class="kw">let</span> <span class="ident">max_degree</span>;
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span>() {
             <span class="kw">if</span> <span class="self">self</span>.<span class="ident">profile</span>.<span class="ident">q_part</span> <span class="op">&amp;</span> <span class="number">1</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
                 <span class="ident">products</span>.<span class="ident">push</span>((
                     <span class="string">&quot;a_0&quot;</span>.<span class="ident">to_string</span>(),
@@ -1959,7 +1988,7 @@
         <span class="self">self</span>.<span class="ident">basis_element_to_index_map</span>
             .<span class="ident">reserve</span>((<span class="ident">max_degree</span> <span class="op">-</span> <span class="ident">next_degree</span> <span class="op">+</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">usize</span>);
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span>() {
             <span class="self">self</span>.<span class="ident">generate_basis_generic</span>(<span class="ident">next_degree</span>, <span class="ident">max_degree</span>);
         } <span class="kw">else</span> {
             <span class="self">self</span>.<span class="ident">generate_basis_2</span>(<span class="ident">next_degree</span>, <span class="ident">max_degree</span>);
@@ -2061,9 +2090,9 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">q_part</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">degree</span> <span class="op">=</span> <span class="number">0</span>;
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span>() {
             <span class="kw">let</span> (<span class="ident">q_list</span>, <span class="ident">p_list</span>): (<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">PPart</span>) <span class="op">=</span> <span class="ident">serde_json</span>::<span class="ident">from_value</span>(<span class="ident">json</span>)<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> (<span class="number">2</span> <span class="op">*</span> (<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>()) <span class="op">-</span> <span class="number">2</span>) <span class="kw">as</span> <span class="ident">i32</span>;
+            <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">q</span>();
 
             <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">val</span>) <span class="kw">in</span> <span class="ident">p_list</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>() {
                 <span class="ident">p_part</span>.<span class="ident">push</span>(<span class="ident">val</span>);
@@ -2091,7 +2120,7 @@
 
     <span class="kw">fn</span> <span class="ident">json_from_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">index</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Value</span> {
         <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">degree</span>, <span class="ident">index</span>);
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span>() {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">q_part</span> <span class="op">=</span> <span class="ident">b</span>.<span class="ident">q_part</span>;
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">q_list</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">q_part</span>.<span class="ident">count_ones</span>() <span class="kw">as</span> <span class="ident">usize</span>);
             <span class="kw">while</span> <span class="ident">q_part</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
@@ -2130,7 +2159,7 @@
     }
 
     <span class="kw">fn</span> <span class="ident">generator_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">_idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span>() {
             <span class="kw">if</span> <span class="ident">degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
                 <span class="string">&quot;b&quot;</span>.<span class="ident">to_string</span>()
             } <span class="kw">else</span> {
@@ -2145,11 +2174,11 @@
         <span class="kw">if</span> <span class="ident">degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
             <span class="kw">return</span> <span class="macro">vec</span><span class="macro">!</span>[];
         }
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> <span class="op">&amp;&amp;</span> <span class="ident">degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span>() <span class="op">&amp;&amp;</span> <span class="ident">degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
             <span class="kw">return</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0</span>]; <span class="comment">// Q_0</span>
         }
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> { <span class="number">2</span> <span class="op">*</span> <span class="ident">p</span> <span class="op">-</span> <span class="number">2</span> } <span class="kw">else</span> { <span class="number">1</span> };
+        <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">q</span>() <span class="kw">as</span> <span class="ident">u32</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp_degree</span> <span class="op">=</span> <span class="ident">degree</span> <span class="kw">as</span> <span class="ident">u32</span>;
         <span class="kw">if</span> <span class="ident">temp_degree</span> <span class="op">%</span> <span class="ident">q</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
             <span class="kw">return</span> <span class="macro">vec</span><span class="macro">!</span>[];
@@ -2192,12 +2221,12 @@
     }
 
     <span class="kw">fn</span> <span class="ident">generating_relations</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> <span class="op">&amp;&amp;</span> <span class="ident">degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">2</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span>() <span class="op">&amp;&amp;</span> <span class="ident">degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">2</span> {
             <span class="comment">// beta^2 = 0 is an edge case</span>
             <span class="kw">return</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[(<span class="number">1</span>, (<span class="number">1</span>, <span class="number">0</span>), (<span class="number">1</span>, <span class="number">0</span>))]];
         }
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">let</span> <span class="ident">inadmissible_pairs</span> <span class="op">=</span> <span class="ident">combinatorics</span>::<span class="ident">inadmissible_pairs</span>(<span class="ident">p</span>, <span class="self">self</span>.<span class="ident">generic</span>, <span class="ident">degree</span>);
+        <span class="kw">let</span> <span class="ident">inadmissible_pairs</span> <span class="op">=</span> <span class="ident">combinatorics</span>::<span class="ident">inadmissible_pairs</span>(<span class="ident">p</span>, <span class="self">self</span>.<span class="ident">generic</span>(), <span class="ident">degree</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
         <span class="kw">for</span> (<span class="ident">x</span>, <span class="ident">b</span>, <span class="ident">y</span>) <span class="kw">in</span> <span class="ident">inadmissible_pairs</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">relation</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
@@ -2307,7 +2336,7 @@
         <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> (<span class="number">2</span> <span class="op">*</span> (<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>()) <span class="op">-</span> <span class="number">2</span>) <span class="kw">as</span> <span class="ident">i32</span>;
         <span class="kw">let</span> <span class="ident">profile</span> <span class="op">=</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">profile</span>.<span class="ident">q_part</span>;
 
-        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">generic</span> {
+        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">generic</span>() {
             <span class="kw">return</span>;
         }
 
@@ -2397,8 +2426,7 @@
 <span class="comment">// Multiplication logic</span>
 <span class="kw">impl</span> <span class="ident">MilnorAlgebra</span> {
     <span class="kw">fn</span> <span class="ident">try_beps_pn</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">e</span>: <span class="ident">u32</span>, <span class="ident">x</span>: <span class="ident">PPartEntry</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> { <span class="number">2</span> <span class="op">*</span> (<span class="ident">p</span> <span class="op">-</span> <span class="number">1</span>) } <span class="kw">else</span> { <span class="number">1</span> };
+        <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">q</span>() <span class="kw">as</span> <span class="ident">u32</span>;
         <span class="kw">let</span> <span class="ident">degree</span> <span class="op">=</span> (<span class="ident">q</span> <span class="op">*</span> <span class="ident">x</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">+</span> <span class="ident">e</span>) <span class="kw">as</span> <span class="ident">i32</span>;
         <span class="self">self</span>.<span class="ident">try_basis_element_to_index</span>(<span class="kw-2">&amp;</span><span class="ident">MilnorBasisElement</span> {
             <span class="ident">degree</span>,
@@ -2491,7 +2519,7 @@
         <span class="kw-2">mut</span> <span class="ident">allocation</span>: <span class="ident">PPartAllocation</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PPartAllocation</span> {
         <span class="kw">let</span> <span class="ident">target_deg</span> <span class="op">=</span> <span class="ident">m1</span>.<span class="ident">degree</span> <span class="op">+</span> <span class="ident">m2</span>.<span class="ident">degree</span>;
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span>() {
             <span class="kw">let</span> <span class="ident">m1f</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">multiply_qpart</span>(<span class="ident">m1</span>, <span class="ident">m2</span>.<span class="ident">q_part</span>);
             <span class="kw">for</span> (<span class="ident">cc</span>, <span class="ident">basis</span>) <span class="kw">in</span> <span class="ident">m1f</span> {
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">multiplier</span> <span class="op">=</span> <span class="ident">PPartMultiplier</span>::<span class="op">&lt;</span><span class="bool-val">false</span><span class="op">&gt;</span>::<span class="ident">new_from_allocation</span>(

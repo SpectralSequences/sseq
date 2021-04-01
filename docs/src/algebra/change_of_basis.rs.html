@@ -396,10 +396,6 @@
 <span id="375">375</span>
 <span id="376">376</span>
 <span id="377">377</span>
-<span id="378">378</span>
-<span id="379">379</span>
-<span id="380">380</span>
-<span id="381">381</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">adem_algebra</span>::<span class="ident">AdemBasisElement</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">milnor_algebra</span>::{<span class="ident">MilnorBasisElement</span>, <span class="ident">PPart</span>, <span class="ident">PPartEntry</span>};
@@ -418,11 +414,7 @@
 ) {
     <span class="kw">let</span> <span class="ident">elt</span> <span class="op">=</span> <span class="ident">adem_algebra</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">degree</span>, <span class="ident">idx</span>);
     <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">milnor_algebra</span>.<span class="ident">prime</span>();
-    <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">milnor_algebra</span>.<span class="ident">generic</span> {
-        <span class="number">2</span> <span class="op">*</span> (<span class="kw-2">*</span><span class="ident">p</span>) <span class="op">-</span> <span class="number">2</span>
-    } <span class="kw">else</span> {
-        <span class="number">1</span>
-    };
+    <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="ident">milnor_algebra</span>.<span class="ident">q</span>() <span class="kw">as</span> <span class="ident">u32</span>;
     <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">milnor_algebra</span>.<span class="ident">dimension</span>(<span class="ident">elt</span>.<span class="ident">degree</span>, <span class="op">-</span><span class="number">1</span>);
     <span class="kw">if</span> <span class="ident">dim</span> <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
         <span class="ident">result</span>.<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="ident">coeff</span>);
@@ -515,7 +507,7 @@
     <span class="ident">degree</span>: <span class="ident">i32</span>,
     <span class="ident">idx</span>: <span class="ident">usize</span>,
 ) {
-    <span class="kw">if</span> <span class="ident">milnor_algebra</span>.<span class="ident">generic</span> {
+    <span class="kw">if</span> <span class="ident">milnor_algebra</span>.<span class="ident">generic</span>() {
         <span class="ident">milnor_to_adem_on_basis_generic</span>(<span class="ident">adem_algebra</span>, <span class="ident">milnor_algebra</span>, <span class="ident">result</span>, <span class="ident">coeff</span>, <span class="ident">degree</span>, <span class="ident">idx</span>);
     } <span class="kw">else</span> {
         <span class="ident">milnor_to_adem_on_basis_2</span>(<span class="ident">adem_algebra</span>, <span class="ident">milnor_algebra</span>, <span class="ident">result</span>, <span class="ident">coeff</span>, <span class="ident">degree</span>, <span class="ident">idx</span>);
