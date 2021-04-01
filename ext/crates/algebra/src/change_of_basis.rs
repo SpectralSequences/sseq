@@ -15,11 +15,7 @@ pub fn adem_to_milnor_on_basis(
 ) {
     let elt = adem_algebra.basis_element_from_index(degree, idx);
     let p = milnor_algebra.prime();
-    let q = if milnor_algebra.generic {
-        2 * (*p) - 2
-    } else {
-        1
-    };
+    let q = milnor_algebra.q() as u32;
     let dim = milnor_algebra.dimension(elt.degree, -1);
     if dim == 1 {
         result.set_entry(0, coeff);
@@ -112,7 +108,7 @@ pub fn milnor_to_adem_on_basis(
     degree: i32,
     idx: usize,
 ) {
-    if milnor_algebra.generic {
+    if milnor_algebra.generic() {
         milnor_to_adem_on_basis_generic(adem_algebra, milnor_algebra, result, coeff, degree, idx);
     } else {
         milnor_to_adem_on_basis_2(adem_algebra, milnor_algebra, result, coeff, degree, idx);

@@ -132,7 +132,8 @@ pub struct MilnorAlgebra {
     pub profile: MilnorProfile,
     lock: Mutex<()>,
     p: ValidPrime,
-    pub generic: bool,
+    #[cfg(feature = "odd-primes")]
+    generic: bool,
     ppart_table: OnceVec<Vec<PPart>>,
     qpart_table: Vec<OnceVec<QPart>>,
     pub basis_table: OnceVec<Vec<MilnorBasisElement>>,
@@ -162,6 +163,7 @@ impl MilnorAlgebra {
 
         Self {
             p,
+            #[cfg(feature = "odd-primes")]
             generic: *p != 2,
             profile,
             lock: Mutex::new(()),
@@ -174,8 +176,21 @@ impl MilnorAlgebra {
         }
     }
 
+    #[inline]
+    pub fn generic(&self) -> bool {
+        #[cfg(feature = "odd-primes")]
+        {
+            self.generic
+        }
+
+        #[cfg(not(feature = "odd-primes"))]
+        {
+            false
+        }
+    }
+
     pub fn q(&self) -> i32 {
-        if self.generic {
+        if self.generic() {
             2 * (*self.prime() as i32 - 1)
         } else {
             1
@@ -206,7 +221,7 @@ impl Algebra for MilnorAlgebra {
     fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
         let mut products = Vec::with_capacity(4);
         let max_degree;
-        if self.generic {
+        if self.generic() {
             if self.profile.q_part & 1 != 0 {
                 products.push((
                     "a_0".to_string(),
@@ -274,7 +289,7 @@ impl Algebra for MilnorAlgebra {
         self.basis_element_to_index_map
             .reserve((max_degree - next_degree + 1) as usize);
 
-        if self.generic {
+        if self.generic() {
             self.generate_basis_generic(next_degree, max_degree);
         } else {
             self.generate_basis_2(next_degree, max_degree);
@@ -376,9 +391,9 @@ impl Algebra for MilnorAlgebra {
         let mut q_part = 0;
         let mut degree = 0;
 
-        if self.generic {
+        if self.generic() {
             let (q_list, p_list): (Vec<u8>, PPart) = serde_json::from_value(json)?;
-            let q = (2 * (*self.prime()) - 2) as i32;
+            let q = self.q();
 
             for (i, val) in p_list.into_iter().enumerate() {
                 p_part.push(val);
@@ -406,7 +421,7 @@ impl Algebra for MilnorAlgebra {
 
     fn json_from_basis(&self, degree: i32, index: usize) -> Value {
         let b = self.basis_element_from_index(degree, index);
-        if self.generic {
+        if self.generic() {
             let mut q_part = b.q_part;
             let mut q_list = Vec::with_capacity(q_part.count_ones() as usize);
             while q_part != 0 {
@@ -445,7 +460,7 @@ impl GeneratedAlgebra for MilnorAlgebra {
     }
 
     fn generator_to_string(&self, degree: i32, _idx: usize) -> String {
-        if self.generic {
+        if self.generic() {
             if degree == 1 {
                 "b".to_string()
             } else {
@@ -460,11 +475,11 @@ impl GeneratedAlgebra for MilnorAlgebra {
         if degree == 0 {
             return vec![];
         }
-        if self.generic && degree == 1 {
+        if self.generic() && degree == 1 {
             return vec![0]; // Q_0
         }
         let p = *self.prime();
-        let q = if self.generic { 2 * p - 2 } else { 1 };
+        let q = self.q() as u32;
         let mut temp_degree = degree as u32;
         if temp_degree % q != 0 {
             return vec![];
@@ -507,12 +522,12 @@ impl GeneratedAlgebra for MilnorAlgebra {
     }
 
     fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> {
-        if self.generic && degree == 2 {
+        if self.generic() && degree == 2 {
             // beta^2 = 0 is an edge case
             return vec![vec![(1, (1, 0), (1, 0))]];
         }
         let p = self.prime();
-        let inadmissible_pairs = combinatorics::inadmissible_pairs(p, self.generic, degree);
+        let inadmissible_pairs = combinatorics::inadmissible_pairs(p, self.generic(), degree);
         let mut result = Vec::new();
         for (x, b, y) in inadmissible_pairs {
             let mut relation = Vec::new();
@@ -622,7 +637,7 @@ impl MilnorAlgebra {
         let q = (2 * (*self.prime()) - 2) as i32;
         let profile = !self.profile.q_part;
 
-        if !self.generic {
+        if !self.generic() {
             return;
         }
 
@@ -712,8 +727,7 @@ impl MilnorAlgebra {
 // Multiplication logic
 impl MilnorAlgebra {
     fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)> {
-        let p = *self.prime();
-        let q = if self.generic { 2 * (p - 1) } else { 1 };
+        let q = self.q() as u32;
         let degree = (q * x as u32 + e) as i32;
         self.try_basis_element_to_index(&MilnorBasisElement {
             degree,
@@ -806,7 +820,7 @@ impl MilnorAlgebra {
         mut allocation: PPartAllocation,
     ) -> PPartAllocation {
         let target_deg = m1.degree + m2.degree;
-        if self.generic {
+        if self.generic() {
             let m1f = self.multiply_qpart(m1, m2.q_part);
             for (cc, basis) in m1f {
                 let mut multiplier = PPartMultiplier::<false>::new_from_allocation(

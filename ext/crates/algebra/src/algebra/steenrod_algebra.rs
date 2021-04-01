@@ -152,7 +152,7 @@ impl SteenrodAlgebra {
         match self {
             SteenrodAlgebra::MilnorAlgebra(a) => {
                 json["p"] = Value::from(*a.prime());
-                json["generic"] = Value::from(a.generic);
+                json["generic"] = Value::from(a.generic());
 
                 if !a.profile.is_trivial() {
                     json["algebra"] = Value::from(vec!["milnor"]);
