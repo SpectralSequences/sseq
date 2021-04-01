@@ -27,16 +27,16 @@ fn test_save_load() {
     assert_eq!(0, cursor.bytes().count());
 
     assert_eq!(
-        resolution1.graded_dimension_string(6, 6),
-        resolution2.graded_dimension_string(6, 6)
+        resolution1.graded_dimension_string(),
+        resolution2.graded_dimension_string()
     );
 
     resolution1.resolve_through_bidegree(20, 20);
     resolution2.resolve_through_bidegree(20, 20);
 
     assert_eq!(
-        resolution1.graded_dimension_string(20, 20),
-        resolution2.graded_dimension_string(20, 20)
+        resolution1.graded_dimension_string(),
+        resolution2.graded_dimension_string()
     );
 
     assert_eq!(

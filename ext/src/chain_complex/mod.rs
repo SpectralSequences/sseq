@@ -29,12 +29,14 @@ pub trait FreeChainComplex:
     Homomorphism = FreeModuleHomomorphism<FreeModule<<Self as ChainComplex>::Algebra>>,
 >
 {
-    fn graded_dimension_string(&self, max_s: u32, max_t: i32) -> String {
+    fn graded_dimension_string(&self) -> String {
         let mut result = String::new();
         let min_degree = self.min_degree();
-        for s in (0..=max_s).rev() {
-            for t in min_degree + s as i32..=max_t {
-                result.push(ascii_num(self.module(s).number_of_gens_in_degree(t)));
+        for s in (0..=self.max_homological_degree()).rev() {
+            let module = self.module(s);
+
+            for t in min_degree + s as i32..=module.max_computed_degree() {
+                result.push(ascii_num(module.number_of_gens_in_degree(t)));
                 result.push(' ');
             }
             result.push('\n');
@@ -71,12 +73,13 @@ pub trait ChainComplex: Send + Sync + 'static {
     fn zero_module(&self) -> Arc<Self::Module>;
     fn module(&self, homological_degree: u32) -> Arc<Self::Module>;
 
-    // This returns the differential starting from the sth module.
+    /// This returns the differential starting from the sth module.
     fn differential(&self, homological_degree: u32) -> Arc<Self::Homomorphism>;
     fn compute_through_bidegree(&self, homological_degree: u32, internal_degree: i32);
-    fn has_computed_bidegree(&self, homological_degree: u32, internal_degree: i32) -> bool; //{
-                                                                                            // true
-                                                                                            // }
+    fn has_computed_bidegree(&self, homological_degree: u32, internal_degree: i32) -> bool;
+
+    /// The largest s such that `self.module(s)` is defined.
+    fn max_homological_degree(&self) -> u32;
 
     fn set_homology_basis(
         &self,

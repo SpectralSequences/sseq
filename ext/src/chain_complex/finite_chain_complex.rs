@@ -133,6 +133,10 @@ where
     fn max_homology_degree(&self, _homological_degree: u32) -> i32 {
         std::i32::MAX
     }
+
+    fn max_homological_degree(&self) -> u32 {
+        u32::MAX
+    }
 }
 
 impl<M, F> BoundedChainComplex for FiniteChainComplex<M, F>
@@ -216,6 +220,10 @@ where
     }
     fn max_homology_degree(&self, _homological_degree: u32) -> i32 {
         std::i32::MAX
+    }
+
+    fn max_homological_degree(&self) -> u32 {
+        u32::MAX
     }
 }
 

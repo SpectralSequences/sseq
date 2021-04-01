@@ -50,8 +50,5 @@ fn compare(module_name: &str, max_degree: i32) {
         b.resolve_through_bidegree_concurrent(max_degree as u32, max_degree, &bucket);
     }
 
-    assert_eq!(
-        a.graded_dimension_string(max_degree as u32, max_degree),
-        b.graded_dimension_string(max_degree as u32, max_degree)
-    );
+    assert_eq!(a.graded_dimension_string(), b.graded_dimension_string());
 }

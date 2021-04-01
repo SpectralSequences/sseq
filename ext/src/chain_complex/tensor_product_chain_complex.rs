@@ -208,6 +208,10 @@ where
     fn max_homology_degree(&self, _homological_degree: u32) -> i32 {
         unimplemented!()
     }
+
+    fn max_homological_degree(&self) -> u32 {
+        self.modules.len() as u32 - 1
+    }
 }
 
 pub struct TensorChainMap<A, CC1, CC2>

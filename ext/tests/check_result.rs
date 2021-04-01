@@ -1,7 +1,7 @@
 use expect_test::{expect_file, ExpectFile};
 use ext::chain_complex::FreeChainComplex;
-use ext::utils::construct;
 use ext::utils::Config;
+use ext::utils::{construct, construct_s_2};
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 
@@ -37,5 +37,25 @@ fn compare(module_name: &str, result: ExpectFile, max_degree: i32) {
         a.resolve_through_bidegree_concurrent(max_degree as u32, max_degree, &bucket);
     }
 
-    result.assert_eq(&a.graded_dimension_string(max_degree as u32, max_degree));
+    result.assert_eq(&a.graded_dimension_string());
+}
+
+#[test]
+fn check_non_rectangular() {
+    let resolution = construct_s_2::<&str>("adem", None);
+
+    #[cfg(not(feature = "concurrent"))]
+    {
+        resolution.resolve_through_bidegree(6, 6);
+        resolution.resolve_through_bidegree(2, 20);
+    }
+
+    #[cfg(feature = "concurrent")]
+    {
+        let bucket = std::sync::Arc::new(TokenBucket::new(2));
+        resolution.resolve_through_bidegree_concurrent(6, 6, &bucket);
+        resolution.resolve_through_bidegree_concurrent(2, 20, &bucket);
+    }
+
+    expect_file!["benchmarks/S_2_L"].assert_eq(&resolution.graded_dimension_string());
 }

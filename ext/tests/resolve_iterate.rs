@@ -67,7 +67,7 @@ fn test_iterate(config: &Config) {
     }
 
     assert_eq!(
-        first.graded_dimension_string(20, 20),
-        second.graded_dimension_string(20, 20)
+        first.graded_dimension_string(),
+        second.graded_dimension_string()
     );
 }

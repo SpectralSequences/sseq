@@ -26,7 +26,7 @@ fn main() -> error::Result<()> {
     resolution.resolve_through_bidegree(6, 70);
 
     // Pretty print the resolution to stdout
-    println!("{}", resolution.graded_dimension_string(6, 70));
+    println!("{}", resolution.graded_dimension_string());
 
     // Finally, save the resolution to resolution_milnor.save if it doesn't already exist.
     if !Path::new("resolution_milnor.save").exists() {

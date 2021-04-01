@@ -710,6 +710,10 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
     fn compute_through_bidegree(&self, s: u32, t: i32) {
         assert!(self.has_computed_bidegree(s, t));
     }
+
+    fn max_homological_degree(&self) -> u32 {
+        self.modules.len() as u32 - 1
+    }
 }
 
 impl<CC: ChainComplex> AugmentedChainComplex for Resolution<CC> {

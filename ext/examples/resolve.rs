@@ -19,9 +19,6 @@ fn main() -> error::Result<()> {
         res.resolve_through_bidegree_concurrent(max_degree as u32, max_degree, &bucket);
     }
 
-    println!(
-        "\x1b[1m{}",
-        res.graded_dimension_string(max_degree as u32, max_degree)
-    );
+    println!("\x1b[1m{}", res.graded_dimension_string());
     Ok(())
 }
