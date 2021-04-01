@@ -1,13 +1,13 @@
+use ext::secondary::compute_delta;
 /// This example uses secondary.rs to compute d_2 on x_{65, 4}. The code is similar to that in the
 /// secondary command, but with hardcoded values. I also use this for performance benchmarking.
-use ext::load_s_2;
-use ext::secondary::compute_delta;
+use ext::utils::construct_s_2;
 use std::time::Instant;
 
 fn main() {
     // This macro attempts to load a resolution of S_2 from resolution.save, and generates one from
     // scratch if it isn't available. The result is written to the variable `resolution`.
-    load_s_2!(resolution, "milnor", "resolution.save");
+    let resolution = construct_s_2("milnor", Some("resolution.save"));
 
     // Compute the minimal resolution R_{s, t}
     resolution.resolve_through_bidegree(6, 70);

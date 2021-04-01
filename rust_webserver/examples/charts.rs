@@ -1,5 +1,8 @@
 use algebra::module::OperationGeneratorPair;
-use ext::{chain_complex::ChainComplex, load_s_2, utils::iter_stems};
+use ext::{
+    chain_complex::ChainComplex,
+    utils::{construct_s_2, iter_stems},
+};
 use ext_webserver::actions::SseqChoice;
 use ext_webserver::sseq::Sseq;
 use fp::{prime::ValidPrime, vector::FpVector};
@@ -12,7 +15,7 @@ const MAX_T: i32 = 30;
 const MAX_S: u32 = 12;
 
 fn main() -> std::io::Result<()> {
-    load_s_2!(resolution, "milnor", "resolution.save");
+    let resolution = construct_s_2("milnor", Some("resolution.save"));
     resolution.resolve_through_bidegree(MAX_S, MAX_T);
 
     let mut sseq = Sseq::new(TWO, SseqChoice::Main, 0, 0, None);

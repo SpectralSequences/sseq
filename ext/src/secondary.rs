@@ -762,7 +762,7 @@ mod test {
 
     #[test]
     fn test_a_dd() {
-        let resolution = construct_s_2("milnor");
+        let resolution = construct_s_2::<&str>("milnor", None);
 
         let mut result = FpVector::new(TWO, 0);
 
@@ -800,7 +800,7 @@ mod test {
     #[test]
     fn test_compute_differentials() {
         let mut result = String::new();
-        let resolution = construct_s_2("milnor");
+        let resolution = construct_s_2::<&str>("milnor", None);
 
         let max_s = 7;
         let max_t = 30;

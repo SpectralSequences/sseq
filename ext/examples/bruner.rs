@@ -90,8 +90,8 @@ use algebra::{
 use error::{Error, Result};
 use ext::{
     chain_complex::{ChainComplex, FiniteChainComplex as FCC},
-    load_s_2,
     resolution_homomorphism::ResolutionHomomorphism,
+    utils::construct_s_2,
     utils::iter_stems,
 };
 use fp::{matrix::Matrix, prime::ValidPrime, vector::FpVector};
@@ -307,7 +307,7 @@ fn main() {
 
     // This macro attempts to load a resolution from resolution.save, and generates one from
     // scratch if it isn't available. The result is written to the variable `resolution`.
-    load_s_2!(resolution, "milnor", "resolution.save");
+    let resolution = construct_s_2("milnor", Some("resolution.save"));
 
     resolution.resolve_through_bidegree(max_s, max_t);
     let resolution = Arc::new(resolution);

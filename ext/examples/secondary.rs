@@ -1,22 +1,17 @@
 use ext::chain_complex::ChainComplex;
 use std::fs::File;
-use std::io::{BufReader, Write};
+use std::io::Write;
 use std::path::Path;
 use std::time::Instant;
 
 use algebra::module::homomorphism::ModuleHomomorphism;
-use ext::resolution::Resolution;
 use ext::utils::construct_s_2;
-
 use query::*;
-use saveload::Load;
 
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 
 fn main() -> error::Result<()> {
-    let mut resolution = construct_s_2("milnor");
-
     let max_s = query_with_default("Max s", "7", Ok);
     let max_t = query_with_default("Max t", "30", Ok);
 
@@ -27,16 +22,7 @@ fn main() -> error::Result<()> {
     #[cfg(feature = "concurrent")]
     let num_threads = query_with_default("Number of threads", "2", Ok);
 
-    if let Some(p) = res_save_file {
-        if Path::new(&*p).exists() {
-            print!("Loading saved resolution: ");
-            let start = Instant::now();
-            let f = File::open(&*p)?;
-            let mut f = BufReader::new(f);
-            resolution = Resolution::load(&mut f, &resolution.complex())?;
-            println!("{:.2?}", start.elapsed());
-        }
-    }
+    let resolution = construct_s_2("milnor", res_save_file);
 
     let should_resolve = !resolution.has_computed_bidegree(max_s, max_t);
 

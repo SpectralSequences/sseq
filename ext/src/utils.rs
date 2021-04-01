@@ -3,13 +3,14 @@ use crate::resolution::Resolution;
 use crate::CCC;
 use algebra::module::FiniteModule;
 use algebra::SteenrodAlgebra;
+use saveload::Load;
 use serde_json::{json, Value};
 
 #[cfg(feature = "yoneda")]
 use crate::chain_complex::ChainComplex;
 
 use std::error::Error;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 pub struct Config {
@@ -130,30 +131,28 @@ pub fn load_module_from_file(config: &Config) -> error::Result<Value> {
     ))
 }
 
-pub fn construct_s_2(algebra: &str) -> Resolution<CCC> {
+/// A function that constructs the resolution of S_2 over the `algebra`. If `save_file` points to
+/// an existent file, then it loads the resolution from the save file. It is not an error to supply
+/// a non-existent file, but it is an error to supply an invalid save file.
+///
+/// This is used for various examples and tests as a shorthand.
+pub fn construct_s_2<T: AsRef<Path>>(algebra: &str, save_file: Option<T>) -> Resolution<CCC> {
     let mut json = json!({
         "type" : "finite dimensional module",
         "p": 2,
         "gens": {"x0": 0},
         "actions": []
     });
-    construct_from_json(&mut json, algebra).unwrap()
-}
-
-#[macro_export]
-macro_rules! load_s_2 {
-    ($resolution:ident, $algebra:literal, $path:literal) => {
-        use saveload::Load;
-
-        let mut resolution = ext::utils::construct_s_2($algebra);
-
-        if std::path::Path::new($path).exists() {
-            let f = std::fs::File::open($path).unwrap();
+    let mut resolution = construct_from_json(&mut json, algebra).unwrap();
+    if let Some(path) = save_file {
+        let path: &Path = path.as_ref();
+        if path.exists() {
+            let f = std::fs::File::open(path).unwrap();
             let mut f = std::io::BufReader::new(f);
-            resolution = ext::resolution::Resolution::load(&mut f, &resolution.complex()).unwrap();
+            resolution = Resolution::load(&mut f, &resolution.complex()).unwrap();
         }
-        let $resolution = resolution;
-    };
+    }
+    resolution
 }
 
 #[derive(Debug)]

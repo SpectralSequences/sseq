@@ -1,14 +1,14 @@
 use algebra::module::OperationGeneratorPair;
 use chart::Graph;
 use ext::chain_complex::ChainComplex;
-use ext::load_s_2;
+use ext::utils::construct_s_2;
 use std::io::Result;
 
 fn main() -> Result<()> {
     let f = std::io::stdout();
     let mut g = Graph::new(f, 20, 8)?;
 
-    load_s_2!(resolution, "milnor", "resolution.save");
+    let resolution = construct_s_2("milnor", Some("resolution.save"));
     resolution.resolve_through_bidegree(8, 28);
 
     for f in 0..=20 {
