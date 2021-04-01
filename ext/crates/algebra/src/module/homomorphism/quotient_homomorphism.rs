@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::module::{Module, QuotientModule};
 use fp::matrix::{QuasiInverse, Subspace};
 use fp::vector::{FpVector, SliceMut};
@@ -53,7 +52,8 @@ impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphism<F> {
         );
 
         self.t.reduce(output_degree, result_.as_slice_mut());
-        self.t.old_basis_to_new(output_degree, result, result_.as_slice());
+        self.t
+            .old_basis_to_new(output_degree, result, result_.as_slice());
     }
 
     fn kernel(&self, _degree: i32) -> &Subspace {

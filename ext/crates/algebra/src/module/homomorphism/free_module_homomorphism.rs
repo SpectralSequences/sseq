@@ -1,10 +1,9 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use parking_lot::{Mutex, MutexGuard};
 use std::sync::Arc;
 
+use crate::algebra::Algebra;
 use crate::module::homomorphism::ModuleHomomorphism;
 use crate::module::{FreeModule, Module};
-use crate::algebra::Algebra;
 use fp::matrix::{MatrixSliceMut, QuasiInverse, Subspace};
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceBiVec;
@@ -47,7 +46,10 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
         assert!(input_degree >= self.source.min_degree);
         assert!(input_index < self.source.basis_element_to_opgen[input_degree].len());
         let output_degree = input_degree - self.degree_shift;
-        assert_eq!(self.target.dimension(output_degree), result.as_slice().dimension());
+        assert_eq!(
+            self.target.dimension(output_degree),
+            result.as_slice().dimension()
+        );
         let operation_generator = &self.source.basis_element_to_opgen[input_degree][input_index];
         let operation_degree = operation_generator.operation_degree;
         let operation_index = operation_generator.operation_index;
@@ -155,7 +157,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         let lock = self.lock();
         self.extend_by_zero(&lock, degree);
     }
-    
+
     pub fn extend_by_zero(&self, lock: &MutexGuard<()>, degree: i32) {
         self.check_mutex(lock);
 
@@ -199,7 +201,9 @@ impl<M: Module> FreeModuleHomomorphism<M> {
             return;
         }
         for (i, new_output) in new_outputs.iter_mut().enumerate() {
-            new_output.as_slice_mut().assign(outputs_vectors.slice(target_dimension * i, target_dimension * (i + 1)));
+            new_output
+                .as_slice_mut()
+                .assign(outputs_vectors.slice(target_dimension * i, target_dimension * (i + 1)));
         }
         self.outputs.push(new_outputs);
     }
@@ -214,11 +218,11 @@ impl<M: Module> FreeModuleHomomorphism<M> {
     ) {
         self.check_mutex(lock);
         assert_eq!(degree, self.outputs.len());
-        
+
         let p = self.prime();
         let new_generators = self.source.number_of_gens_in_degree(degree);
         let target_dimension = self.target.dimension(degree - self.degree_shift);
-        
+
         let mut new_outputs: Vec<FpVector> = Vec::with_capacity(new_generators);
         for _ in 0..new_generators {
             new_outputs.push(FpVector::new(p, target_dimension));
@@ -254,21 +258,21 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         // let target_dimension = self.target().dimension(degree);
         // if source_dimension != matrix.rows() {
         //     panic!(
-        //         "get_matrix_with_table for homomorphism {} -> {} in degree {}: table source dimension {} not equal to number of matrix rows {}.", 
+        //         "get_matrix_with_table for homomorphism {} -> {} in degree {}: table source dimension {} not equal to number of matrix rows {}.",
         //         self.source().name(),
         //         self.target().name(),
         //         degree,
-        //         source_dimension, 
+        //         source_dimension,
         //         matrix.rows()
         //     );
         // }
         // if target_dimension != matrix.columns() {
         //     panic!(
-        //         "get_matrix_with_table for homomorphism {} -> {} in degree {}: table target dimension {} not equal to number of matrix columns {}.", 
+        //         "get_matrix_with_table for homomorphism {} -> {} in degree {}: table target dimension {} not equal to number of matrix columns {}.",
         //         self.source().name(),
         //         self.target().name(),
         //         degree,
-        //         target_dimension, 
+        //         target_dimension,
         //         matrix.columns()
         //     );
         // }
@@ -300,7 +304,10 @@ impl<M: Module> FreeModuleHomomorphism<M> {
     }
 
     fn check_mutex(&self, lock: &MutexGuard<()>) {
-        assert!(std::ptr::eq(parking_lot::lock_api::MutexGuard::mutex(&lock), &self.lock));
+        assert!(std::ptr::eq(
+            parking_lot::lock_api::MutexGuard::mutex(&lock),
+            &self.lock
+        ));
     }
 }
 
@@ -315,10 +322,10 @@ impl<A: Algebra> FreeModuleHomomorphism<FreeModule<A>> {
         let mut result = vec![vec![0; source_dim]; target_dim];
 
         let offset = self.target.generator_offset(t, t, 0);
-        for i in 0 .. source_dim {
+        for i in 0..source_dim {
             let output = self.output(t + self.degree_shift, i);
             #[allow(clippy::needless_range_loop)]
-            for j in 0 .. target_dim {
+            for j in 0..target_dim {
                 result[j][i] = output.entry(offset + j);
             }
         }

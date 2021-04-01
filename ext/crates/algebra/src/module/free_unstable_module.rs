@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 // use parking_lot::{Mutex, MutexGuard};
 use serde_json::json;
 use serde_json::Value;
@@ -6,11 +5,10 @@ use std::sync::Arc;
 
 use crate::algebra::{AdemAlgebra, AdemAlgebraT};
 use crate::module::Module;
+use crate::module::OperationGeneratorPair;
 use bivec::BiVec;
 use fp::vector::{FpVector, SliceMut};
-use once::{OnceVec, OnceBiVec};
-use crate::module::OperationGeneratorPair;
-
+use once::{OnceBiVec, OnceVec};
 
 pub struct FreeUnstableModule<A: AdemAlgebraT> {
     pub algebra: Arc<A>,
@@ -18,9 +16,9 @@ pub struct FreeUnstableModule<A: AdemAlgebraT> {
     pub min_degree: i32,
     pub gen_names: OnceBiVec<Vec<String>>,
     gen_deg_idx_to_internal_idx: OnceBiVec<usize>,
-    num_gens : OnceBiVec<usize>,
-    pub basis_element_to_opgen : OnceBiVec<OnceVec<OperationGeneratorPair>>,
-    pub generator_to_index : OnceBiVec<OnceVec<usize>>
+    num_gens: OnceBiVec<usize>,
+    pub basis_element_to_opgen: OnceBiVec<OnceVec<OperationGeneratorPair>>,
+    pub generator_to_index: OnceBiVec<OnceVec<usize>>,
 }
 
 impl<A: AdemAlgebraT> std::fmt::Display for FreeUnstableModule<A> {
@@ -29,7 +27,7 @@ impl<A: AdemAlgebraT> std::fmt::Display for FreeUnstableModule<A> {
     }
 }
 
-impl<A : AdemAlgebraT> FreeUnstableModule<A> {
+impl<A: AdemAlgebraT> FreeUnstableModule<A> {
     pub fn new(algebra: Arc<A>, name: String, min_degree: i32) -> Self {
         assert!(algebra.adem_algebra().unstable_enabled);
         let gen_deg_idx_to_internal_idx = OnceBiVec::new(min_degree);
@@ -40,9 +38,9 @@ impl<A : AdemAlgebraT> FreeUnstableModule<A> {
             min_degree,
             gen_names: OnceBiVec::new(min_degree),
             gen_deg_idx_to_internal_idx,
-            num_gens : OnceBiVec::new(min_degree),
+            num_gens: OnceBiVec::new(min_degree),
             basis_element_to_opgen: OnceBiVec::new(min_degree),
-            generator_to_index : OnceBiVec::new(min_degree)
+            generator_to_index: OnceBiVec::new(min_degree),
         }
     }
 }
@@ -77,8 +75,9 @@ impl<A: AdemAlgebraT> Module for FreeUnstableModule<A> {
 
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
         let opgen = self.index_to_op_gen(degree, idx);
-        let mut op_str = 
-            self.algebra().basis_element_to_string(opgen.operation_degree, opgen.operation_index);
+        let mut op_str = self
+            .algebra()
+            .basis_element_to_string(opgen.operation_degree, opgen.operation_index);
         if &*op_str == "1" {
             op_str = "".to_string();
         } else {
@@ -97,7 +96,7 @@ impl<A: AdemAlgebraT> Module for FreeUnstableModule<A> {
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
-        mod_index: usize
+        mod_index: usize,
     ) {
         // assert!(op_index < self.algebra().dimension_unstable(op_degree, mod_degree));
         // assert!(self.dimension(op_degree + mod_degree) <= result.dimension());
@@ -108,18 +107,19 @@ impl<A: AdemAlgebraT> Module for FreeUnstableModule<A> {
         let generator_index = operation_generator.generator_index;
 
         // Now all of the output elements are going to be of the form s * x. Find where such things go in the output vector.
-        let num_ops = self.adem_algebra()
-                    .dimension_unstable(module_operation_degree + op_degree, generator_degree);
+        let num_ops = self
+            .adem_algebra()
+            .dimension_unstable(module_operation_degree + op_degree, generator_degree);
         let output_block_min = self.operation_generator_to_index(
             module_operation_degree + op_degree,
             0,
             generator_degree,
-            generator_index
+            generator_index,
         );
         let output_block_max = output_block_min + num_ops;
 
         // Now we multiply s * r and write the result to the appropriate position.
-        let basis_filter = |_,_| true;
+        let basis_filter = |_, _| true;
         self.adem_algebra().multiply_basis_elements_unstable(
             result.slice_mut(output_block_min, output_block_max),
             coeff,
@@ -128,8 +128,8 @@ impl<A: AdemAlgebraT> Module for FreeUnstableModule<A> {
             module_operation_degree,
             module_operation_index,
             generator_degree,
-            &basis_filter
-        );        
+            &basis_filter,
+        );
     }
 
     // Will need specialization
@@ -171,7 +171,7 @@ impl<A: AdemAlgebraT> FreeUnstableModule<A> {
     }
 
     pub fn extend_table_entries(&self, degree: i32) {
-        for i in self.basis_element_to_opgen.len() ..= degree {
+        for i in self.basis_element_to_opgen.len()..=degree {
             self.extend_table_entry_step(i);
         }
     }
@@ -204,12 +204,7 @@ impl<A: AdemAlgebraT> FreeUnstableModule<A> {
         }
     }
 
-    pub fn add_generators(
-        &self,
-        degree: i32,
-        num_gens: usize,
-        names: Option<Vec<String>>,
-    ) {
+    pub fn add_generators(&self, degree: i32, num_gens: usize, names: Option<Vec<String>>) {
         assert!(degree >= self.min_degree);
         assert_eq!(self.num_gens.len(), degree);
         // println!("add_gens == degree : {}, num_gens : {}", degree, num_gens);
@@ -231,7 +226,7 @@ impl<A: AdemAlgebraT> FreeUnstableModule<A> {
             .push(internal_gen_idx + num_gens);
 
         let gen_deg = degree;
-        for total_degree in degree .. self.basis_element_to_opgen.len() {
+        for total_degree in degree..self.basis_element_to_opgen.len() {
             let op_deg = total_degree - gen_deg;
             let mut offset = self.basis_element_to_opgen[total_degree].len();
             let num_ops = self.adem_algebra().dimension_unstable(op_deg, gen_deg);
@@ -249,8 +244,6 @@ impl<A: AdemAlgebraT> FreeUnstableModule<A> {
             }
         }
     }
-
-
 
     pub fn generator_offset(&self, degree: i32, gen_deg: i32, gen_idx: usize) -> usize {
         assert!(gen_deg >= self.min_degree);
@@ -310,12 +303,7 @@ impl<A: AdemAlgebraT> FreeUnstableModule<A> {
         self.add_num_generators(degree, num_gens, gen_names);
     }
 
-    pub fn add_num_generators(
-        &self,
-        degree: i32,
-        num_gens: usize,
-        gen_names: Option<Vec<String>>,
-    ) {
+    pub fn add_num_generators(&self, degree: i32, num_gens: usize, gen_names: Option<Vec<String>>) {
         self.add_generators(degree, num_gens, gen_names);
     }
 
@@ -351,7 +339,6 @@ impl<A: AdemAlgebraT> FreeUnstableModule<A> {
         }
         max
     }
-
 }
 
 use saveload::{Load, Save};
@@ -594,7 +581,6 @@ impl std::ops::IndexMut<usize> for AdmissibleMatrix {
     }
 }
 */
-
 
 #[cfg(test)]
 mod tests {

@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use crate::module::Module;
 use fp::matrix::{QuasiInverse, Subspace};

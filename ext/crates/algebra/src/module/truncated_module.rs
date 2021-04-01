@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::module::{BoundedModule, Module};
 use fp::vector::SliceMut;
 use std::sync::Arc;

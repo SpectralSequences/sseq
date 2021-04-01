@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 
 #![allow(dead_code)]
 #![allow(unused_variables)]

@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use bivec::BiVec;
 use once::OnceBiVec;
 
@@ -174,7 +173,12 @@ mod tests {
 
     fn test_sum_module(M: Vec<&str>, S: &str) {
         let p = fp::prime::ValidPrime::new(2);
-        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false, false)));
+        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(
+            p,
+            *p != 2,
+            false,
+            false,
+        )));
 
         let M: Vec<Arc<FiniteModule>> = M
             .into_iter()

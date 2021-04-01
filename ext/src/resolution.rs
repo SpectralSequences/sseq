@@ -1,18 +1,17 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
+use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
+use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
+use algebra::module::{FreeModule, Module};
+use algebra::Algebra;
+use fp::matrix::{AugmentedMatrix3, Subspace};
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
-use fp::matrix::{Subspace, AugmentedMatrix3};
-use algebra::Algebra;
-use algebra::module::{Module, FreeModule};
-use once::{OnceVec, OnceBiVec};
-use algebra::module::homomorphism::{ModuleHomomorphism, FreeModuleHomomorphism};
-use crate::chain_complex::{ChainComplex, AugmentedChainComplex};
+use once::{OnceBiVec, OnceVec};
 
 #[cfg(feature = "concurrent")]
-use crossbeam_channel::{Receiver, unbounded};
+use crossbeam_channel::{unbounded, Receiver};
 
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
@@ -24,35 +23,40 @@ use thread_token::TokenBucket;
 
 /// This separation should make multithreading easier because we only need Resolution to be
 /// Send + Sync. In particular, we don't need the callback functions to be Send + Sync.
-pub struct Resolution<CC : ChainComplex> {
+pub struct Resolution<CC: ChainComplex> {
     lock: Mutex<()>,
-    complex : Arc<CC>,
-    modules : OnceVec<Arc<FreeModule<<CC::Module as Module>::Algebra>>>,
-    zero_module : Arc<FreeModule<<CC::Module as Module>::Algebra>>,
-    chain_maps : OnceVec<Arc<FreeModuleHomomorphism<CC::Module>>>,
-    differentials : OnceVec<Arc<FreeModuleHomomorphism<FreeModule<<CC::Module as Module>::Algebra>>>>,
+    complex: Arc<CC>,
+    modules: OnceVec<Arc<FreeModule<<CC::Module as Module>::Algebra>>>,
+    zero_module: Arc<FreeModule<<CC::Module as Module>::Algebra>>,
+    chain_maps: OnceVec<Arc<FreeModuleHomomorphism<CC::Module>>>,
+    differentials:
+        OnceVec<Arc<FreeModuleHomomorphism<FreeModule<<CC::Module as Module>::Algebra>>>>,
 
     ///  For each *internal* degree, store the kernel of the most recently calculated chain map as
     ///  returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
     ///  resolve_through_degree again.
-    kernels : OnceBiVec<Mutex<Option<Subspace>>>
+    kernels: OnceBiVec<Mutex<Option<Subspace>>>,
 }
 
-impl<CC : ChainComplex> Resolution<CC> {
-    pub fn new(complex : Arc<CC>) -> Self {
+impl<CC: ChainComplex> Resolution<CC> {
+    pub fn new(complex: Arc<CC>) -> Self {
         let algebra = complex.algebra();
         let min_degree = complex.min_degree();
-        let zero_module = Arc::new(FreeModule::new(Arc::clone(&algebra), "F_{-1}".to_string(), min_degree));
+        let zero_module = Arc::new(FreeModule::new(
+            Arc::clone(&algebra),
+            "F_{-1}".to_string(),
+            min_degree,
+        ));
 
         Self {
             complex,
             zero_module,
             lock: Mutex::new(()),
 
-            chain_maps : OnceVec::new(),
-            modules : OnceVec::new(),
-            differentials : OnceVec::new(),
-            kernels : OnceBiVec::new(min_degree)
+            chain_maps: OnceVec::new(),
+            modules: OnceVec::new(),
+            differentials: OnceVec::new(),
+            kernels: OnceBiVec::new(min_degree),
         }
     }
 
@@ -63,24 +67,42 @@ impl<CC : ChainComplex> Resolution<CC> {
     /// This function prepares the Resolution object to perform computations up to the
     /// specified s degree. It does *not* perform any computations by itself. It simply lengthens
     /// the `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
-    fn extend_through_degree(&self, max_s : u32, max_t : i32) {
+    fn extend_through_degree(&self, max_s: u32, max_t: i32) {
         let min_degree = self.min_degree();
 
-        for i in self.modules.len() as u32 ..= max_s {
-            self.modules.push(Arc::new(FreeModule::new(Arc::clone(&self.algebra()), format!("F{}", i), min_degree)));
-            self.chain_maps.push(Arc::new(FreeModuleHomomorphism::new(Arc::clone(&self.modules[i]), Arc::clone(&self.complex.module(i)), 0)));
+        for i in self.modules.len() as u32..=max_s {
+            self.modules.push(Arc::new(FreeModule::new(
+                Arc::clone(&self.algebra()),
+                format!("F{}", i),
+                min_degree,
+            )));
+            self.chain_maps.push(Arc::new(FreeModuleHomomorphism::new(
+                Arc::clone(&self.modules[i]),
+                Arc::clone(&self.complex.module(i)),
+                0,
+            )));
         }
 
-        for _ in self.kernels.len() as i32 ..= max_t {
+        for _ in self.kernels.len() as i32..=max_t {
             self.kernels.push(Mutex::new(None));
         }
 
         if self.differentials.is_empty() {
-            self.differentials.push(Arc::new(FreeModuleHomomorphism::new(Arc::clone(&self.modules[0u32]), Arc::clone(&self.zero_module), 0)));
+            self.differentials
+                .push(Arc::new(FreeModuleHomomorphism::new(
+                    Arc::clone(&self.modules[0u32]),
+                    Arc::clone(&self.zero_module),
+                    0,
+                )));
         }
 
-        for i in self.differentials.len() as u32 ..= max_s {
-            self.differentials.push(Arc::new(FreeModuleHomomorphism::new(Arc::clone(&self.modules[i]), Arc::clone(&self.modules[i - 1]), 0)));
+        for i in self.differentials.len() as u32..=max_s {
+            self.differentials
+                .push(Arc::new(FreeModuleHomomorphism::new(
+                    Arc::clone(&self.modules[i]),
+                    Arc::clone(&self.modules[i - 1]),
+                    0,
+                )));
         }
     }
 
@@ -149,7 +171,7 @@ impl<CC : ChainComplex> Resolution<CC> {
     /// # Arguments
     ///  * `s` - The s degree to calculate
     ///  * `t` - The t degree to calculate
-    pub fn step_resolution(&self, s : u32, t : i32) {
+    pub fn step_resolution(&self, s: u32, t: i32) {
         if s == 0 {
             self.zero_module.extend_by_zero(t);
         }
@@ -180,7 +202,7 @@ impl<CC : ChainComplex> Resolution<CC> {
                 // Haven't computed far enough yet
                 panic!("We're not ready to compute bidegree ({}, {}) yet.", s, t);
             }
-            std::cmp::Ordering::Equal => ()
+            std::cmp::Ordering::Equal => (),
         };
 
         let source = self.module(s);
@@ -203,20 +225,32 @@ impl<CC : ChainComplex> Resolution<CC> {
 
         let rows = source_dimension + target_cc_dimension + target_res_dimension;
 
-        let mut matrix = AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, source_dimension + rows]);
+        let mut matrix = AugmentedMatrix3::new(
+            p,
+            rows,
+            &[
+                target_cc_dimension,
+                target_res_dimension,
+                source_dimension + rows,
+            ],
+        );
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
 
-        current_chain_map.get_matrix(&mut matrix.segment(0,0).row_slice(0, source_dimension), t);
-        current_differential.get_matrix(&mut matrix.segment(1,1).row_slice(0, source_dimension), t);
-        matrix.segment(2,2).add_identity(source_dimension, 0, 0);
+        current_chain_map.get_matrix(&mut matrix.segment(0, 0).row_slice(0, source_dimension), t);
+        current_differential
+            .get_matrix(&mut matrix.segment(1, 1).row_slice(0, source_dimension), t);
+        matrix.segment(2, 2).add_identity(source_dimension, 0, 0);
         matrix.initialize_pivots();
-
 
         // This slices the underling matrix. Be sure to revert this.
         let matrix_start_2 = matrix.start[2];
         let mut pivots = matrix.take_pivots();
-        matrix.slice_mut(0, source_dimension, 0, matrix_start_2 + source_dimension).row_reduce_into_pivots(&mut pivots);
-        let new_kernel = matrix.slice_mut(0, source_dimension, 0, matrix_start_2 + source_dimension).compute_kernel(&pivots, matrix_start_2);
+        matrix
+            .slice_mut(0, source_dimension, 0, matrix_start_2 + source_dimension)
+            .row_reduce_into_pivots(&mut pivots);
+        let new_kernel = matrix
+            .slice_mut(0, source_dimension, 0, matrix_start_2 + source_dimension)
+            .compute_kernel(&pivots, matrix_start_2);
         matrix.set_pivots(pivots);
 
         let first_new_row = source_dimension;
@@ -226,7 +260,9 @@ impl<CC : ChainComplex> Resolution<CC> {
         // X_{s,t} and f later).
         // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
         // work out what dX should to to each of them.
-        let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, matrix.end[0]);
+        let new_generators = matrix
+            .inner
+            .extend_to_surjection(first_new_row, 0, matrix.end[0]);
         let cc_new_gens = new_generators.len();
 
         let mut res_new_gens = 0;
@@ -234,7 +270,7 @@ impl<CC : ChainComplex> Resolution<CC> {
         let mut middle_rows = Vec::with_capacity(cc_new_gens);
         if s > 0 {
             if cc_new_gens > 0 {
-                // Now we need to make sure that we have a chain homomorphism. Each generator x we just added to 
+                // Now we need to make sure that we have a chain homomorphism. Each generator x we just added to
                 // X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).
                 // So we set dX(x) = f^{-1}(dC(f(x)))
                 let prev_chain_map = self.chain_map(s - 1);
@@ -244,8 +280,17 @@ impl<CC : ChainComplex> Resolution<CC> {
                 let mut dfx = FpVector::new(self.prime(), dfx_dim);
 
                 for (i, column) in new_generators.into_iter().enumerate() {
-                    complex_cur_differential.apply_to_basis_element(dfx.as_slice_mut(), 1, t, column);
-                    quasi_inverse.apply(matrix.row_segment(first_new_row + i, 1, 1), 1, dfx.as_slice());
+                    complex_cur_differential.apply_to_basis_element(
+                        dfx.as_slice_mut(),
+                        1,
+                        t,
+                        column,
+                    );
+                    quasi_inverse.apply(
+                        matrix.row_segment(first_new_row + i, 1, 1),
+                        1,
+                        dfx.as_slice(),
+                    );
                     dfx.set_to_zero();
 
                     // Keep the rows we produced because we have to row reduce to re-compute
@@ -257,7 +302,15 @@ impl<CC : ChainComplex> Resolution<CC> {
                 matrix.row_reduce();
             }
             // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
-            res_new_gens = matrix.inner.extend_image(first_new_row + cc_new_gens, matrix.start[1], matrix.end[1], old_kernel.as_ref()).len();
+            res_new_gens = matrix
+                .inner
+                .extend_image(
+                    first_new_row + cc_new_gens,
+                    matrix.start[1],
+                    matrix.end[1],
+                    old_kernel.as_ref(),
+                )
+                .len();
 
             if cc_new_gens > 0 {
                 // Now restore the middle rows.
@@ -269,22 +322,38 @@ impl<CC : ChainComplex> Resolution<CC> {
         let num_new_gens = cc_new_gens + res_new_gens;
         source.add_generators(t, num_new_gens, None);
 
-        current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, matrix.segment(0, 0).row_slice(first_new_row, rows));
-        current_differential.add_generators_from_matrix_rows(&differential_lock, t, matrix.segment(1, 1).row_slice(first_new_row, rows));
+        current_chain_map.add_generators_from_matrix_rows(
+            &chain_map_lock,
+            t,
+            matrix.segment(0, 0).row_slice(first_new_row, rows),
+        );
+        current_differential.add_generators_from_matrix_rows(
+            &differential_lock,
+            t,
+            matrix.segment(1, 1).row_slice(first_new_row, rows),
+        );
 
         // Record the quasi-inverses for future use.
         // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
         let image_rows = first_new_row + num_new_gens;
-        for i in first_new_row .. image_rows {
+        for i in first_new_row..image_rows {
             matrix.inner[i].set_entry(matrix_start_2 + i, 1);
         }
 
         // From now on we only use the underlying matrix.
         let mut pivots = matrix.take_pivots();
-        matrix.slice_mut(0, image_rows, 0, matrix_start_2 + source_dimension + num_new_gens).row_reduce_into_pivots(&mut pivots);
+        matrix
+            .slice_mut(
+                0,
+                image_rows,
+                0,
+                matrix_start_2 + source_dimension + num_new_gens,
+            )
+            .row_reduce_into_pivots(&mut pivots);
         matrix.set_pivots(pivots);
 
-        let (cm_qi, res_qi) = matrix.compute_quasi_inverses(matrix_start_2 + source_dimension + num_new_gens);
+        let (cm_qi, res_qi) =
+            matrix.compute_quasi_inverses(matrix_start_2 + source_dimension + num_new_gens);
 
         current_chain_map.set_quasi_inverse(&chain_map_lock, t, cm_qi);
         current_chain_map.set_kernel(&chain_map_lock, t, Subspace::new(p, 0, 0)); // Fill it up with something dummy so that compute_kernels_and... is happy
@@ -293,7 +362,6 @@ impl<CC : ChainComplex> Resolution<CC> {
 
         *old_kernel = Some(new_kernel);
     }
-
 
     // pub fn step_resolution_by_stem(&self, s : u32, t : i32) {
     //     // println!("\n\n\n\n");
@@ -304,14 +372,14 @@ impl<CC : ChainComplex> Resolution<CC> {
     //     }
 
     //     let p = self.prime();
-        
+
     //     //                           current_chain_map
     //     //                X_{s, t} --------------------> C_{s, t}
     //     //                   |                               |
     //     //                   | current_differential          |
     //     //                   v                               v
     //     // old_kernel <= X_{s-1, t} -------------------> C_{s-1, t}
-        
+
     //     let complex = self.complex();
     //     complex.compute_through_bidegree(s, t + 1);
 
@@ -341,10 +409,9 @@ impl<CC : ChainComplex> Resolution<CC> {
     //     source.extend_table_entries(t+1);
     //     target_res.extend_table_entries(t+1);
 
-
     //     let chain_map_lock = current_chain_map.lock();
     //     let differential_lock = current_differential.lock();
-        
+
     //     // The Homomorphism matrix has size source_dimension x target_dimension, but we are going to augment it with an
     //     // identity matrix so that gives a matrix with dimensions source_dimension x (target_dimension + source_dimension).
     //     // Later we're going to write into this same matrix an isomorphism source/image + new vectors --> kernel
@@ -354,7 +421,6 @@ impl<CC : ChainComplex> Resolution<CC> {
     //     let target_res_dimension = target_res.dimension(t);
     //     let source_dimension = source.dimension(t);
     //     let rows = target_cc_dimension + target_res_dimension + source_dimension;
-
 
     //     // Calculate how many pivots are missing / gens to add
     //     let kernel = self.kernels[s][t].lock().take();
@@ -390,7 +456,7 @@ impl<CC : ChainComplex> Resolution<CC> {
     //     let mut middle_rows = Vec::with_capacity(cc_new_gens);
     //     if s > 0 {
     //         if cc_new_gens > 0 {
-    //             // Now we need to make sure that we have a chain homomorphism. Each generator x we just added to 
+    //             // Now we need to make sure that we have a chain homomorphism. Each generator x we just added to
     //             // X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).
     //             // So we set dX(x) = f^{-1}(dC(f(x)))
     //             let prev_chain_map = self.chain_map(s - 1);
@@ -415,7 +481,7 @@ impl<CC : ChainComplex> Resolution<CC> {
     //         // println!("matrix.seg(1) : {}", *matrix.segment(1,1));
     //         // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
     //         res_new_gens = matrix.inner.extend_image(
-    //             first_new_row + cc_new_gens, 
+    //             first_new_row + cc_new_gens,
     //             matrix.start[1], matrix.end[1],
     //             pivots, kernel.as_ref()
     //         ).len();
@@ -465,7 +531,6 @@ impl<CC : ChainComplex> Resolution<CC> {
     //     target_res.extend_table_entries(t+1);
     //     source.extend_table_entries(t+1);
 
-
     //     // Now we are going to investigate the homomorphism in degree t + 1.
 
     //     // Now need to calculate new_kernel and new_image.
@@ -494,12 +559,10 @@ impl<CC : ChainComplex> Resolution<CC> {
     //         drop(image_lock);
     //     }
     //     drop(kernel_lock);
-        
+
     // }
 
-
-
-    pub fn cocycle_string(&self, hom_deg : u32, int_deg : i32, idx : usize) -> String {
+    pub fn cocycle_string(&self, hom_deg: u32, int_deg: i32, idx: usize) -> String {
         let d = self.differential(hom_deg);
         let target = d.target();
         let result_vector = d.output(int_deg, idx);
@@ -511,8 +574,8 @@ impl<CC : ChainComplex> Resolution<CC> {
         Arc::clone(&self.complex)
     }
 
-    pub fn number_of_gens_in_bidegree(&self, homological_degree : u32, internal_degree : i32) -> usize {
-        self.module(homological_degree).number_of_gens_in_degree(internal_degree)
+    pub fn number_of_gens_in_bidegree(&self, s: u32, t: i32) -> usize {
+        self.module(s).number_of_gens_in_degree(t)
     }
 
     pub fn prime(&self) -> ValidPrime {
@@ -520,16 +583,27 @@ impl<CC : ChainComplex> Resolution<CC> {
     }
 
     #[cfg(feature = "concurrent")]
-    pub fn resolve_through_bidegree_concurrent(&self, max_s : u32, max_t : i32, bucket : &TokenBucket) {
+    pub fn resolve_through_bidegree_concurrent(
+        &self,
+        max_s: u32,
+        max_t: i32,
+        bucket: &TokenBucket,
+    ) {
         self.resolve_through_bidegree_concurrent_with_callback(max_s, max_t, bucket, |_, _| ())
     }
 
-    pub fn resolve_through_bidegree(&self, max_s : u32, max_t : i32) {
+    pub fn resolve_through_bidegree(&self, max_s: u32, max_t: i32) {
         self.resolve_through_bidegree_with_callback(max_s, max_t, |_, _| ())
     }
 
     #[cfg(feature = "concurrent")]
-    pub fn resolve_through_bidegree_concurrent_with_callback(&self, max_s : u32, max_t : i32, bucket : &TokenBucket, mut cb: impl FnMut(u32, i32)) {
+    pub fn resolve_through_bidegree_concurrent_with_callback(
+        &self,
+        max_s: u32,
+        max_t: i32,
+        bucket: &TokenBucket,
+        mut cb: impl FnMut(u32, i32),
+    ) {
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
 
@@ -539,15 +613,14 @@ impl<CC : ChainComplex> Resolution<CC> {
 
         crossbeam_utils::thread::scope(|s| {
             let (pp_sender, pp_receiver) = unbounded();
-            let mut last_receiver : Option<Receiver<()>> = None;
-            for t in min_degree ..= max_t {
-
+            let mut last_receiver: Option<Receiver<()>> = None;
+            for t in min_degree..=max_t {
                 let (sender, receiver) = unbounded();
 
                 let pp_sender = pp_sender.clone();
                 s.spawn(move |_| {
                     let mut token = bucket.take_token();
-                    for s in 0 ..= max_s {
+                    for s in 0..=max_s {
                         token = bucket.recv_or_release(token, &last_receiver);
                         if !self.has_computed_bidegree(s, t) {
                             self.step_resolution(s, t);
@@ -566,10 +639,16 @@ impl<CC : ChainComplex> Resolution<CC> {
             for (s, t) in pp_receiver {
                 cb(s, t);
             }
-        }).unwrap();
+        })
+        .unwrap();
     }
 
-    pub fn resolve_through_bidegree_with_callback(&self, max_s : u32, max_t : i32, mut cb: impl FnMut(u32, i32)) {
+    pub fn resolve_through_bidegree_with_callback(
+        &self,
+        max_s: u32,
+        max_t: i32,
+        mut cb: impl FnMut(u32, i32),
+    ) {
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
 
@@ -577,8 +656,8 @@ impl<CC : ChainComplex> Resolution<CC> {
         self.extend_through_degree(max_s, max_t);
         self.algebra().compute_basis(max_t - min_degree);
 
-        for t in min_degree ..= max_t {
-            for s in 0 ..= max_s {
+        for t in min_degree..=max_t {
+            for s in 0..=max_s {
                 if self.has_computed_bidegree(s, t) {
                     continue;
                 }
@@ -589,7 +668,7 @@ impl<CC : ChainComplex> Resolution<CC> {
     }
 }
 
-impl<CC : ChainComplex> ChainComplex for Resolution<CC> {
+impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
     type Algebra = CC::Algebra;
     type Module = FreeModule<Self::Algebra>;
     type Homomorphism = FreeModuleHomomorphism<FreeModule<Self::Algebra>>;
@@ -598,8 +677,8 @@ impl<CC : ChainComplex> ChainComplex for Resolution<CC> {
         self.complex().algebra()
     }
 
-    fn module(&self, homological_degree : u32) -> Arc<Self::Module> {
-        Arc::clone(&self.modules[homological_degree as usize])
+    fn module(&self, s: u32) -> Arc<Self::Module> {
+        Arc::clone(&self.modules[s as usize])
     }
 
     fn zero_module(&self) -> Arc<Self::Module> {
@@ -610,36 +689,36 @@ impl<CC : ChainComplex> ChainComplex for Resolution<CC> {
         self.complex().min_degree()
     }
 
-    fn has_computed_bidegree(&self, s : u32, t : i32) -> bool {
+    fn has_computed_bidegree(&self, s: u32, t: i32) -> bool {
         self.differentials.len() > s as usize && self.differential(s).next_degree() > t
     }
 
-    fn set_homology_basis(&self, _homological_degree : u32, _internal_degree : i32, _homology_basis : Vec<usize>){
+    fn set_homology_basis(&self, _s: u32, _t: i32, _homology_basis: Vec<usize>) {
         unimplemented!()
     }
 
-    fn homology_basis(&self, _homological_degree : u32, _internal_degree : i32) -> &Vec<usize>{
+    fn homology_basis(&self, _s: u32, _t: i32) -> &Vec<usize> {
         unimplemented!()
     }
 
-    fn homology_dimension(&self, homological_degree : u32, internal_degree : i32) -> usize {
-        self.number_of_gens_in_bidegree(homological_degree, internal_degree)
+    fn homology_dimension(&self, s: u32, t: i32) -> usize {
+        self.number_of_gens_in_bidegree(s, t)
     }
 
-    fn max_homology_degree(&self, _homological_degree : u32) -> i32 {
+    fn max_homology_degree(&self, _s: u32) -> i32 {
         unimplemented!()
     }
 
-    fn differential(&self, s : u32) -> Arc<Self::Homomorphism> {
+    fn differential(&self, s: u32) -> Arc<Self::Homomorphism> {
         Arc::clone(&self.differentials[s as usize])
     }
 
-    fn compute_through_bidegree(&self, s : u32, t : i32) {
+    fn compute_through_bidegree(&self, s: u32, t: i32) {
         assert!(self.has_computed_bidegree(s, t));
     }
 }
 
-impl<CC : ChainComplex> AugmentedChainComplex for Resolution<CC> {
+impl<CC: ChainComplex> AugmentedChainComplex for Resolution<CC> {
     type TargetComplex = CC;
     type ChainMap = FreeModuleHomomorphism<CC::Module>;
 
@@ -647,18 +726,17 @@ impl<CC : ChainComplex> AugmentedChainComplex for Resolution<CC> {
         self.complex()
     }
 
-    fn chain_map(&self, s : u32) -> Arc<Self::ChainMap> {
+    fn chain_map(&self, s: u32) -> Arc<Self::ChainMap> {
         Arc::clone(&self.chain_maps[s])
     }
 }
 
-
+use saveload::{Load, Save};
 use std::io;
 use std::io::{Read, Write};
-use saveload::{Save, Load};
 
-impl<CC : ChainComplex> Save for Resolution<CC> {
-    fn save(&self, buffer : &mut impl Write) -> io::Result<()> {
+impl<CC: ChainComplex> Save for Resolution<CC> {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
         let max_algebra_dim = self.module(0).max_computed_degree() - self.min_degree();
 
         max_algebra_dim.save(buffer)?;
@@ -670,10 +748,10 @@ impl<CC : ChainComplex> Save for Resolution<CC> {
     }
 }
 
-impl<CC : ChainComplex> Load for Resolution<CC> {
+impl<CC: ChainComplex> Load for Resolution<CC> {
     type AuxData = Arc<CC>;
 
-    fn load(buffer : &mut impl Read, cc : &Self::AuxData) -> io::Result<Self> {
+    fn load(buffer: &mut impl Read, cc: &Self::AuxData) -> io::Result<Self> {
         let max_algebra_dim = i32::load(buffer, &())?;
         cc.algebra().compute_basis(max_algebra_dim);
 
@@ -692,21 +770,28 @@ impl<CC : ChainComplex> Load for Resolution<CC> {
         let len = usize::load(buffer, &())?;
         assert_eq!(len, max_s);
 
-        result.differentials.push(Load::load(buffer, &(result.module(0), result.zero_module(), 0))?);
-        for s in 1 .. max_s as u32 {
-            let d : Arc<FreeModuleHomomorphism<FreeModule<CC::Algebra>>> = Load::load(buffer, &(result.module(s), result.module(s - 1), 0))?;
+        result.differentials.push(Load::load(
+            buffer,
+            &(result.module(0), result.zero_module(), 0),
+        )?);
+        for s in 1..max_s as u32 {
+            let d: Arc<FreeModuleHomomorphism<FreeModule<CC::Algebra>>> =
+                Load::load(buffer, &(result.module(s), result.module(s - 1), 0))?;
             result.differentials.push(d);
         }
 
         let len = usize::load(buffer, &())?;
         assert_eq!(len, max_s);
 
-        for s in 0 .. max_s as u32 {
-            let c : Arc<FreeModuleHomomorphism<CC::Module>> = Load::load(buffer, &(result.module(s), result.complex().module(s), 0))?;
+        for s in 0..max_s as u32 {
+            let c: Arc<FreeModuleHomomorphism<CC::Module>> =
+                Load::load(buffer, &(result.module(s), result.complex().module(s), 0))?;
             result.chain_maps.push(c);
         }
 
-        result.zero_module.extend_by_zero(result.module(0).max_computed_degree());
+        result
+            .zero_module
+            .extend_by_zero(result.module(0).max_computed_degree());
 
         Ok(result)
     }

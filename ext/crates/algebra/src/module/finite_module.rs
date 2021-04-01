@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::algebra::{Algebra, SteenrodAlgebra};
 use crate::module::{FDModule, FPModule, Module, RealProjectiveSpace};
 use fp::prime::ValidPrime;
@@ -103,9 +102,9 @@ impl FiniteModule {
         json: &mut serde_json::Value,
     ) -> error::Result<Self> {
         match json["type"].as_str() {
-            Some("real projective space") => Ok(FiniteModule::from(RealProjectiveSpace::from_json(
-                algebra, json,
-            )?)),
+            Some("real projective space") => Ok(FiniteModule::from(
+                RealProjectiveSpace::from_json(algebra, json)?,
+            )),
             Some("finite dimensional module") => {
                 Ok(FiniteModule::from(FDModule::from_json(algebra, json)?))
             }
@@ -114,7 +113,8 @@ impl FiniteModule {
             }
             x => Err(UnknownModuleTypeError {
                 module_type: x.map(str::to_string),
-            }.into()),
+            }
+            .into()),
         }
     }
 
@@ -181,7 +181,6 @@ impl FiniteModule {
             _ => None,
         }
     }
-
 }
 
 #[derive(Debug)]

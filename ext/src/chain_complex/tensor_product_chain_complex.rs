@@ -1,13 +1,12 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
-use algebra::{Algebra, Bialgebra, SteenrodAlgebra};
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteAugmentedChainComplex};
+use crate::CCC;
 use algebra::module::homomorphism::{
     BoundedModuleHomomorphism, FiniteModuleHomomorphism, ModuleHomomorphism,
 };
 use algebra::module::{FiniteModule, Module, SumModule, TensorModule, ZeroModule};
-use crate::CCC;
+use algebra::{Algebra, Bialgebra, SteenrodAlgebra};
 use fp::matrix::{Matrix, QuasiInverse, Subspace};
-use fp::vector::{SliceMut, Slice, FpVector};
+use fp::vector::{FpVector, Slice, SliceMut};
 use parking_lot::Mutex;
 use std::sync::Arc;
 
@@ -130,7 +129,7 @@ where
         Arc::clone(&self.zero_module)
     }
 
-    fn has_computed_bidegree(&self, _s : u32, _t : i32) -> bool {
+    fn has_computed_bidegree(&self, _s: u32, _t: i32) -> bool {
         unimplemented!()
     }
 
@@ -338,7 +337,9 @@ where
         for (i, x) in input.iter_nonzero() {
             if let Some(qi) = &qis[i] {
                 for (offset_start, offset_end, data) in qi.iter() {
-                    result.slice_mut(*offset_start, *offset_end).add(data.as_slice(), x);
+                    result
+                        .slice_mut(*offset_start, *offset_end)
+                        .add(data.as_slice(), x);
                 }
             }
         }
@@ -405,7 +406,8 @@ where
                         row.slice_mut(
                             target_offset + li * target_right_dim,
                             target_offset + (li + 1) * target_right_dim,
-                        ).assign(result.as_slice());
+                        )
+                        .assign(result.as_slice());
                     }
                     result.set_to_zero();
                 }
@@ -431,9 +433,12 @@ where
 
                 let mut result = FpVector::new(p, target_left_dim);
                 for li in 0..source_left_dim {
-                    self.left_cc
-                        .differential(s)
-                        .apply_to_basis_element(result.as_slice_mut(), 1, left_t, li);
+                    self.left_cc.differential(s).apply_to_basis_element(
+                        result.as_slice_mut(),
+                        1,
+                        left_t,
+                        li,
+                    );
                     for ri in 0..source_right_dim {
                         let row = &mut matrix[row_count];
                         for (i, x) in result.iter_nonzero() {
@@ -482,7 +487,7 @@ where
                                 let mut entry = FpVector::new(p, dim);
                                 entry.as_slice_mut().assign(matrix[row].slice(
                                     padded_target_dim + offset,
-                                    padded_target_dim + offset + dim
+                                    padded_target_dim + offset + dim,
                                 ));
 
                                 if !entry.is_zero() {

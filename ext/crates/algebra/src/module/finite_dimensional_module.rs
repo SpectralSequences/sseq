@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use bivec::BiVec;
 
 use crate::algebra::{Algebra, GeneratedAlgebra, SteenrodAlgebra};
@@ -149,7 +148,7 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
     fn max_computed_degree(&self) -> i32 {
         i32::max_value()
     }
-    
+
     fn compute_basis(&self, _degree: i32) {}
 
     fn dimension(&self, degree: i32) -> usize {
@@ -676,7 +675,8 @@ impl FiniteDimensionalModule<SteenrodAlgebra> {
                         relation_string.pop();
                     }
 
-                    let value_string = self.element_to_string(output_deg as i32, output_vec.as_slice());
+                    let value_string =
+                        self.element_to_string(output_deg as i32, output_vec.as_slice());
                     return Err(ModuleFailedRelationError {
                         relation: relation_string,
                         value: value_string,
@@ -707,7 +707,14 @@ impl FiniteDimensionalModule<SteenrodAlgebra> {
                         if intermediate_dim > tmp_output.dimension() {
                             tmp_output = FpVector::new(p, intermediate_dim);
                         }
-                        self.act_on_basis(tmp_output.slice_mut(0, intermediate_dim), 1, deg_2, idx_2, input_deg, idx);
+                        self.act_on_basis(
+                            tmp_output.slice_mut(0, intermediate_dim),
+                            1,
+                            deg_2,
+                            idx_2,
+                            input_deg,
+                            idx,
+                        );
                         self.act(
                             output_vec.as_slice_mut(),
                             coef,
@@ -815,7 +822,12 @@ mod tests {
     #[test]
     fn test_module_check_validity() {
         let p = fp::prime::ValidPrime::new(2);
-        let adem_algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false, false)));
+        let adem_algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(
+            p,
+            *p != 2,
+            false,
+            false,
+        )));
         adem_algebra.compute_basis(10);
         let mut adem_module = FiniteDimensionalModule::new(
             Arc::clone(&adem_algebra),

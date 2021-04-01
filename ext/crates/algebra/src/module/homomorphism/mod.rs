@@ -1,10 +1,9 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use std::sync::Arc;
 
 use crate::module::Module;
 use fp::matrix::{AugmentedMatrix2, MatrixSliceMut, QuasiInverse, Subspace};
 use fp::prime::ValidPrime;
-use fp::vector::{SliceMut, Slice};
+use fp::vector::{Slice, SliceMut};
 
 mod bounded_module_homomorphism;
 mod finite_module_homomorphism;

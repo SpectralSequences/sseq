@@ -1,6 +1,5 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
-use serde_json::Value;
 use rustc_hash::FxHashMap as HashMap;
+use serde_json::Value;
 use std::sync::Arc;
 
 use crate::algebra::{Algebra, SteenrodAlgebra};
@@ -82,8 +81,11 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
         self.relations
             .add_generators_immediate(degree, num_relns, None);
         let map_lock = self.map.lock();
-        self.map
-            .add_generators_from_matrix_rows(&map_lock, degree, relations_matrix.as_slice_mut());
+        self.map.add_generators_from_matrix_rows(
+            &map_lock,
+            degree,
+            relations_matrix.as_slice_mut(),
+        );
     }
 
     // Exact duplicate of function in fdmodule.rs...
@@ -232,7 +234,10 @@ impl FinitelyPresentedModule<SteenrodAlgebra> {
         for i in self.min_degree..=self.relations.max_computed_degree() {
             let num_relns = self.relations.number_of_gens_in_degree(i);
             for j in 0..num_relns {
-                relations.push(self.generators.element_to_json(i, self.map.output(i, j).as_slice()));
+                relations.push(
+                    self.generators
+                        .element_to_json(i, self.map.output(i, j).as_slice()),
+                );
             }
         }
         Value::from(relations)

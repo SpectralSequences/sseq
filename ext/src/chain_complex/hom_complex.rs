@@ -1,23 +1,22 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-use algebra::Field;
-use algebra::module::block_structure::{BlockStart, BlockStructure};
 use crate::chain_complex::{
     AugmentedChainComplex, ChainComplex, FiniteAugmentedChainComplex, FiniteChainComplex,
     FreeChainComplex,
 };
+use crate::CCC;
+use algebra::module::block_structure::{BlockStart, BlockStructure};
 use algebra::module::homomorphism::{
     BoundedModuleHomomorphism, FiniteModuleHomomorphism, ModuleHomomorphism,
 };
 use algebra::module::{
     BoundedModule, FiniteModule, HomModule, Module, SumModule, TensorModule, ZeroModule,
 };
-use crate::CCC;
+use algebra::Field;
 use fp::matrix::{Matrix, QuasiInverse, Subspace};
-use fp::vector::{Slice, SliceMut, FpVector};
+use fp::vector::{FpVector, Slice, SliceMut};
 use parking_lot::Mutex;
 use std::sync::Arc;
 
@@ -208,13 +207,7 @@ impl<
     }
 
     /// At the moment, this is off by a sign. However, we only use this for p = 2
-    fn apply_to_basis_element(
-        &self,
-        result: SliceMut,
-        coeff: u32,
-        degree: i32,
-        input_idx: usize,
-    ) {
+    fn apply_to_basis_element(&self, result: SliceMut, coeff: u32, degree: i32, input_idx: usize) {
         // Source is of the form ⊕_i L_i ⊗ R_(s - i). This i indexes the s degree. First figure out
         // which i this belongs to.
     }
@@ -250,7 +243,8 @@ impl<
             }
             if let Some(qi) = &qis[i] {
                 for (offset_start, offset_end, data) in qi.iter() {
-                    result.slice_mut(*offset_start, *offset_end)
+                    result
+                        .slice_mut(*offset_start, *offset_end)
                         .add(data.as_slice(), x);
                 }
             }

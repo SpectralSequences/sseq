@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 pub fn row_reduce_pure(&mut self) {
     // println!("rows : {}, cols : {}", self.rows(), self.columns());
     // println!("{}\n\n\n", self);

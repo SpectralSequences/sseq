@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use std::sync::Arc;
 
 use bivec::BiVec;
@@ -7,7 +6,7 @@ use crate::algebra::{Algebra, Field};
 use crate::module::block_structure::BlockStructure;
 use crate::module::homomorphism::FreeModuleHomomorphism;
 use crate::module::{BoundedModule, FreeModule, Module};
-use fp::vector::{SliceMut, Slice};
+use fp::vector::{Slice, SliceMut};
 use once::OnceBiVec;
 
 pub struct HomModule<M: BoundedModule> {
@@ -46,11 +45,7 @@ impl<M: BoundedModule> HomModule<M> {
 
     // Each element of HomModule represents a homomorphism from source to target of a given degree.
     // Turn an FpVector representing an element of the HomModule  into a FreeModuleHomomorphism
-    pub fn element_to_homomorphism(
-        &self,
-        degree: i32,
-        x: Slice,
-    ) -> FreeModuleHomomorphism<M> {
+    pub fn element_to_homomorphism(&self, degree: i32, x: Slice) -> FreeModuleHomomorphism<M> {
         let result =
             FreeModuleHomomorphism::new(Arc::clone(&self.source), Arc::clone(&self.target), degree);
         let lock = result.lock();
@@ -61,7 +56,11 @@ impl<M: BoundedModule> HomModule<M> {
         for i in min_nonzero_degree..=max_nonzero_degree {
             let gens = self.source.number_of_gens_in_degree(i);
             let out_dim = self.target.dimension(i - degree);
-            result.add_generators_from_big_vector(&lock, i, x.slice(used_entries, used_entries + gens * out_dim));
+            result.add_generators_from_big_vector(
+                &lock,
+                i,
+                x.slice(used_entries, used_entries + gens * out_dim),
+            );
             used_entries += gens * out_dim;
         }
         drop(lock);
@@ -102,8 +101,14 @@ impl<M: BoundedModule> HomModule<M> {
                 continue;
             }
             let op_idx = i - input_block_start;
-            self.target
-                .act_on_basis(result.copy(), (coeff * v) % p, op_deg, op_idx, mod_deg, mod_idx);
+            self.target.act_on_basis(
+                result.copy(),
+                (coeff * v) % p,
+                op_deg,
+                op_idx,
+                mod_deg,
+                mod_idx,
+            );
         }
     }
 }
@@ -191,15 +196,20 @@ mod tests {
     use crate::module::homomorphism::ModuleHomomorphism;
     use crate::module::{FDModule, FreeModule, Module};
 
-    use fp::vector::FpVector;
     use fp::prime::ValidPrime;
+    use fp::vector::FpVector;
 
     #[allow(non_snake_case)]
     #[allow(clippy::needless_range_loop)]
     #[test]
     fn test_hom_space() {
         let p = ValidPrime::new(2);
-        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false, false)));
+        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(
+            p,
+            *p != 2,
+            false,
+            false,
+        )));
         A.compute_basis(20);
         let F = Arc::new(FreeModule::new(Arc::clone(&A), "".to_string(), 0));
         F.add_generators_immediate(0, 1, None);
@@ -226,7 +236,14 @@ mod tests {
             x.set_entry(i, 1);
             println!("\n\nx : {}", F.element_to_string(x_degree, x.as_slice()));
             for f_idx in 0..3 {
-                hom.evaluate_basis_map_on_element(result.as_slice_mut(), 1, f_degree, f_idx, x_degree, x.as_slice());
+                hom.evaluate_basis_map_on_element(
+                    result.as_slice_mut(),
+                    1,
+                    f_degree,
+                    f_idx,
+                    x_degree,
+                    x.as_slice(),
+                );
                 println!(
                     "f : {} ==> f(x) : {}",
                     hom.basis_element_to_string(f_degree, f_idx),
@@ -244,7 +261,12 @@ mod tests {
     #[test]
     fn test_hom_space_elt_to_map() {
         let p = ValidPrime::new(2);
-        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false, false)));
+        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(
+            p,
+            *p != 2,
+            false,
+            false,
+        )));
         A.compute_basis(20);
         let F = Arc::new(FreeModule::new(Arc::clone(&A), "".to_string(), 0));
         F.add_generators_immediate(0, 1, None);

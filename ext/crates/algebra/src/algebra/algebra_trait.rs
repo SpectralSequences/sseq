@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
@@ -19,7 +18,7 @@ use enum_dispatch::enum_dispatch;
 /// necessarily basis elements. It gives us a simpler way of describing finite modules by only
 /// specifying the action of the generators.
 #[enum_dispatch]
-pub trait Algebra : std::fmt::Display + Send + Sync + 'static {
+pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// Returns the prime the algebra is over.
     fn prime(&self) -> ValidPrime;
 
@@ -27,56 +26,122 @@ pub trait Algebra : std::fmt::Display + Send + Sync + 'static {
     /// other preparation needed to evaluate all the other functions that involve a degree
     /// parameter. One should be able to call compute_basis multiple times, and there should be
     /// little overhead when calling `compute_basis(degree)` multiple times with the same `degree`.
-    fn compute_basis(&self, degree : i32);
+    fn compute_basis(&self, degree: i32);
 
     /// Gets the dimension of the algebra in degree `degree`.
-    fn dimension(&self, degree : i32, excess : i32) -> usize;
+    fn dimension(&self, degree: i32, excess: i32) -> usize;
 
     /// Computes the product `r * s` of the two basis elements, and *adds* the result to `result`.
     ///
     /// result is not required to be aligned.
-    fn multiply_basis_elements(&self, result : SliceMut, coeff : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32);
+    fn multiply_basis_elements(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s_idx: usize,
+        excess: i32,
+    );
 
     /// result and s are not required to be aligned.
-    fn multiply_basis_element_by_element(&self, mut result : SliceMut, coeff : u32, r_degree : i32, r_idx : usize, s_degree : i32, s : Slice, excess : i32){
+    fn multiply_basis_element_by_element(
+        &self,
+        mut result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s: Slice,
+        excess: i32,
+    ) {
         let p = self.prime();
         for (i, v) in s.iter_nonzero() {
-            self.multiply_basis_elements(result.copy(), (coeff * v) % *p, r_degree, r_idx, s_degree, i, excess);
+            self.multiply_basis_elements(
+                result.copy(),
+                (coeff * v) % *p,
+                r_degree,
+                r_idx,
+                s_degree,
+                i,
+                excess,
+            );
         }
     }
 
     /// result and r are not required to be aligned.
-    fn multiply_element_by_basis_element(&self, mut result : SliceMut, coeff : u32, r_degree : i32, r : Slice, s_degree : i32, s_idx : usize, excess : i32){
+    fn multiply_element_by_basis_element(
+        &self,
+        mut result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s_idx: usize,
+        excess: i32,
+    ) {
         let p = self.prime();
         for (i, v) in r.iter_nonzero() {
-            self.multiply_basis_elements(result.copy(), (coeff * v) % *p, r_degree, i, s_degree, s_idx, excess);
+            self.multiply_basis_elements(
+                result.copy(),
+                (coeff * v) % *p,
+                r_degree,
+                i,
+                s_degree,
+                s_idx,
+                excess,
+            );
         }
     }
 
     /// result, r and s are not required to be aligned.
-    fn multiply_element_by_element(&self, mut result : SliceMut, coeff : u32, r_degree : i32, r : Slice, s_degree : i32, s : Slice, excess : i32){
+    fn multiply_element_by_element(
+        &self,
+        mut result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s: Slice,
+        excess: i32,
+    ) {
         let p = self.prime();
         for (i, v) in s.iter_nonzero() {
-            self.multiply_element_by_basis_element(result.copy(), (coeff * v) % *p, r_degree, r, s_degree, i, excess);
+            self.multiply_element_by_basis_element(
+                result.copy(),
+                (coeff * v) % *p,
+                r_degree,
+                r,
+                s_degree,
+                i,
+                excess,
+            );
         }
     }
 
     /// A filtration one element in Ext(k, k) is the same as an indecomposable element of the
     /// algebra.  This function returns a default list of such elements in the format `(name,
     /// degree, index)` for whom we want to compute products with in the resolutions.
-    fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> { Vec::new() }
+    fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
+        Vec::new()
+    }
 
     /// Converts a JSON object into a basis element. The way basis elements are represented by JSON
     /// objects is to be specified by the algebra itself, and will be used by module
     /// specifications.
-    fn json_to_basis(&self, _json : serde_json::Value) -> error::Result<(i32, usize)> { unimplemented!() }
-    fn json_from_basis(&self, _degree : i32, _idx : usize) -> serde_json::Value { unimplemented!() }
+    fn json_to_basis(&self, _json: serde_json::Value) -> error::Result<(i32, usize)> {
+        unimplemented!()
+    }
+    fn json_from_basis(&self, _degree: i32, _idx: usize) -> serde_json::Value {
+        unimplemented!()
+    }
 
     /// Converts a basis element into a string for display.
-    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String;
+    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
 
     /// Converts an element into a string for display.
-    fn element_to_string(&self, degree : i32, element : Slice) -> String {
+    fn element_to_string(&self, degree: i32, element: Slice) -> String {
         let mut result = String::new();
         let mut zero = true;
         for (idx, value) in element.iter_nonzero() {
@@ -96,7 +161,7 @@ pub trait Algebra : std::fmt::Display + Send + Sync + 'static {
             result.pop();
         }
         result
-    }    
+    }
 }
 
 /// An algebra with a specified list of generators and generating relations. This data can be used
@@ -109,7 +174,7 @@ pub trait GeneratedAlgebra: Algebra {
     ///
     /// This method need not be fast, because they will only be performed when constructing the module,
     /// and will often only involve low dimensional elements.
-    fn generators(&self, degree : i32) -> Vec<usize>;
+    fn generators(&self, degree: i32) -> Vec<usize>;
 
     /// This returns the name of a generator. Note that the index is the index of the generator
     /// in the list of all basis elements. It is undefined behaviour to call this function with a
@@ -127,7 +192,8 @@ pub trait GeneratedAlgebra: Algebra {
     /// this function is the same `nom` combinators.
     ///
     /// This function MUST be inverse to `string_to_generator` (and not `basis_element_to_string`).
-    fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> nom::IResult<&'b str, (i32, usize)>;
+    fn string_to_generator<'a, 'b>(&'a self, input: &'b str)
+        -> nom::IResult<&'b str, (i32, usize)>;
 
     /// Given a non-generator basis element of the algebra, decompose it in terms of algebra
     /// generators. Recall each basis element is given by a pair $(d, i))$, where $d$ is the degree of
@@ -139,61 +205,87 @@ pub trait GeneratedAlgebra: Algebra {
     ///
     /// This method need not be fast, because they will only be performed when constructing the module,
     /// and will often only involve low dimensional elements.
-    fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>;
+    fn decompose_basis_element(
+        &self,
+        degree: i32,
+        idx: usize,
+    ) -> Vec<(u32, (i32, usize), (i32, usize))>;
 
     /// Get any relations that the algebra wants checked to ensure the consistency of module.
-    fn generating_relations(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>;
+    fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>;
 }
 
 #[macro_export]
 macro_rules! dispatch_algebra {
     ($dispatch_macro : ident) => {
         fn prime(&self) -> fp::prime::ValidPrime {
-            $dispatch_macro!(prime, self, )
+            $dispatch_macro!(prime, self,)
         }
 
-        fn compute_basis(&self, degree : i32) {
+        fn compute_basis(&self, degree: i32) {
             $dispatch_macro!(compute_basis, self, degree)
         }
 
-        fn dimension(&self, degree : i32, excess : i32) -> usize {
+        fn dimension(&self, degree: i32, excess: i32) -> usize {
             $dispatch_macro!(dimension, self, degree, excess)
         }
 
-        fn multiply_basis_elements(&self, result : &mut FpVector, coeff : u32, 
-            r_deg : i32, r_idx : usize,
-            s_deg : i32, s_idx : usize,
-            excess : i32
-        ){
-            $dispatch_macro!(multiply_basis_elements, self, result, coeff, r_deg, r_idx, s_deg, s_idx, excess)
+        fn multiply_basis_elements(
+            &self,
+            result: &mut FpVector,
+            coeff: u32,
+            r_deg: i32,
+            r_idx: usize,
+            s_deg: i32,
+            s_idx: usize,
+            excess: i32,
+        ) {
+            $dispatch_macro!(
+                multiply_basis_elements,
+                self,
+                result,
+                coeff,
+                r_deg,
+                r_idx,
+                s_deg,
+                s_idx,
+                excess
+            )
         }
 
-        fn json_to_basis(&self, json : serde_json::Value) -> error::Result<(i32, usize)> {
+        fn json_to_basis(&self, json: serde_json::Value) -> error::Result<(i32, usize)> {
             $dispatch_macro!(json_to_basis, self, json)
         }
 
-        fn json_from_basis(&self, degree : i32, idx : usize) -> serde_json::Value {
+        fn json_from_basis(&self, degree: i32, idx: usize) -> serde_json::Value {
             $dispatch_macro!(json_from_basis, self, degree, idx)
         }
 
-        fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
+        fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
             $dispatch_macro!(basis_element_to_string, self, degree, idx)
         }
 
-        fn generators(&self, degree : i32) -> Vec<usize> { 
+        fn generators(&self, degree: i32) -> Vec<usize> {
             $dispatch_macro!(generators, self, degree)
         }
 
-        fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> nom::IResult<&'b str, (i32, usize)> { 
+        fn string_to_generator<'a, 'b>(
+            &'a self,
+            input: &'b str,
+        ) -> nom::IResult<&'b str, (i32, usize)> {
             $dispatch_macro!(string_to_generator, self, input)
         }
 
-        fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
+        fn decompose_basis_element(
+            &self,
+            degree: i32,
+            idx: usize,
+        ) -> Vec<(u32, (i32, usize), (i32, usize))> {
             $dispatch_macro!(decompose_basis_element, self, degree, idx)
         }
-        
-        fn generating_relations(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> { 
+
+        fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> {
             $dispatch_macro!(generating_relations, self, degree)
         }
-    }
+    };
 }

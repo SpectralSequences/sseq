@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 // use parking_lot::{Mutex, MutexGuard};
 use serde_json::json;
 use serde_json::Value;
@@ -8,7 +7,7 @@ use crate::algebra::Algebra;
 use crate::module::Module;
 use bivec::BiVec;
 use fp::vector::{Slice, SliceMut};
-use once::{OnceVec, OnceBiVec};
+use once::{OnceBiVec, OnceVec};
 
 #[derive(Clone, Debug)]
 pub struct OperationGeneratorPair {
@@ -27,10 +26,10 @@ pub struct FreeModule<A: Algebra> {
     pub gen_names: OnceBiVec<Vec<String>>,
     /// degree -> internal index of first generator in degree
     gen_deg_idx_to_internal_idx: OnceBiVec<usize>,
-    num_gens : OnceBiVec<usize>,
-    pub basis_element_to_opgen : OnceBiVec<OnceVec<OperationGeneratorPair>>,
+    num_gens: OnceBiVec<usize>,
+    pub basis_element_to_opgen: OnceBiVec<OnceVec<OperationGeneratorPair>>,
     /// degree -> internal_gen_idx -> the offset of the generator in degree
-    pub generator_to_index : OnceBiVec<OnceVec<usize>>
+    pub generator_to_index: OnceBiVec<OnceVec<usize>>,
 }
 
 impl<A: Algebra> std::fmt::Display for FreeModule<A> {
@@ -39,7 +38,7 @@ impl<A: Algebra> std::fmt::Display for FreeModule<A> {
     }
 }
 
-impl<A:Algebra> FreeModule<A> {
+impl<A: Algebra> FreeModule<A> {
     pub fn new(algebra: Arc<A>, name: String, min_degree: i32) -> Self {
         let gen_deg_idx_to_internal_idx = OnceBiVec::new(min_degree);
         gen_deg_idx_to_internal_idx.push(0);
@@ -49,9 +48,9 @@ impl<A:Algebra> FreeModule<A> {
             min_degree,
             gen_names: OnceBiVec::new(min_degree),
             gen_deg_idx_to_internal_idx,
-            num_gens : OnceBiVec::new(min_degree),
+            num_gens: OnceBiVec::new(min_degree),
             basis_element_to_opgen: OnceBiVec::new(min_degree),
-            generator_to_index : OnceBiVec::new(min_degree)
+            generator_to_index: OnceBiVec::new(min_degree),
         }
     }
 }
@@ -86,8 +85,9 @@ impl<A: Algebra> Module for FreeModule<A> {
 
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
         let opgen = self.index_to_op_gen(degree, idx);
-        let mut op_str = 
-            self.algebra().basis_element_to_string(opgen.operation_degree, opgen.operation_index);
+        let mut op_str = self
+            .algebra()
+            .basis_element_to_string(opgen.operation_degree, opgen.operation_index);
         if &*op_str == "1" {
             op_str = "".to_string();
         } else {
@@ -106,7 +106,7 @@ impl<A: Algebra> Module for FreeModule<A> {
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
-        mod_index: usize
+        mod_index: usize,
     ) {
         // assert!(op_index < self.algebra().dimension(op_degree, mod_degree));
         // assert!(self.dimension(op_degree + mod_degree) <= result.dimension());
@@ -117,13 +117,14 @@ impl<A: Algebra> Module for FreeModule<A> {
         let generator_index = operation_generator.generator_index;
 
         // Now all of the output elements are going to be of the form s * x. Find where such things go in the output vector.
-        let num_ops = self.algebra()
-                     .dimension(module_operation_degree + op_degree, generator_degree);
+        let num_ops = self
+            .algebra()
+            .dimension(module_operation_degree + op_degree, generator_degree);
         let output_block_min = self.operation_generator_to_index(
             module_operation_degree + op_degree,
             0,
             generator_degree,
-            generator_index
+            generator_index,
         );
         let output_block_max = output_block_min + num_ops;
 
@@ -135,8 +136,8 @@ impl<A: Algebra> Module for FreeModule<A> {
             op_index,
             module_operation_degree,
             module_operation_index,
-            generator_degree
-        );        
+            generator_degree,
+        );
     }
 
     // Will need specialization
@@ -175,7 +176,7 @@ impl<A: Algebra> FreeModule<A> {
     }
 
     pub fn extend_table_entries(&self, degree: i32) {
-        for i in self.basis_element_to_opgen.len() ..= degree {
+        for i in self.basis_element_to_opgen.len()..=degree {
             self.extend_table_entry_step(i);
         }
     }
@@ -208,12 +209,7 @@ impl<A: Algebra> FreeModule<A> {
         }
     }
 
-    pub fn add_generators(
-        &self,
-        degree: i32,
-        num_gens: usize,
-        names: Option<Vec<String>>,
-    ) {
+    pub fn add_generators(&self, degree: i32, num_gens: usize, names: Option<Vec<String>>) {
         assert!(degree >= self.min_degree);
         assert_eq!(self.num_gens.len(), degree);
         // println!("add_gens == degree : {}, num_gens : {}", degree, num_gens);
@@ -235,7 +231,7 @@ impl<A: Algebra> FreeModule<A> {
             .push(internal_gen_idx + num_gens);
 
         let gen_deg = degree;
-        for total_degree in degree .. self.basis_element_to_opgen.len() {
+        for total_degree in degree..self.basis_element_to_opgen.len() {
             let op_deg = total_degree - gen_deg;
             let mut offset = self.basis_element_to_opgen[total_degree].len();
             let num_ops = self.algebra().dimension(op_deg, gen_deg);
@@ -314,12 +310,7 @@ impl<A: Algebra> FreeModule<A> {
         self.add_num_generators(degree, num_gens, gen_names);
     }
 
-    pub fn add_num_generators(
-        &self,
-        degree: i32,
-        num_gens: usize,
-        gen_names: Option<Vec<String>>,
-    ) {
+    pub fn add_num_generators(&self, degree: i32, num_gens: usize, gen_names: Option<Vec<String>>) {
         self.add_generators(degree, num_gens, gen_names);
     }
 
@@ -372,13 +363,19 @@ impl<A: Algebra> FreeModule<A> {
                 result.push_str(&*format!("{} ", c));
             }
             let opgen = self.index_to_op_gen(t, i);
-            let op_str = self.algebra().basis_element_to_string(opgen.operation_degree, opgen.operation_index);
+            let op_str = self
+                .algebra()
+                .basis_element_to_string(opgen.operation_degree, opgen.operation_index);
             if op_str != "1" {
                 result.push_str(&*op_str);
                 result.push(' ');
             }
-            result.push_str(&*format!("x_{{{},{},{}}}", opgen.generator_degree - s as i32 + 1, s - 1, opgen.generator_index));
-
+            result.push_str(&*format!(
+                "x_{{{},{},{}}}",
+                opgen.generator_degree - s as i32 + 1,
+                s - 1,
+                opgen.generator_index
+            ));
         }
         result
     }
@@ -625,7 +622,6 @@ impl std::ops::IndexMut<usize> for AdmissibleMatrix {
 }
 */
 
-
 #[cfg(test)]
 mod tests {
     #![allow(non_snake_case)]
@@ -639,7 +635,12 @@ mod tests {
     #[test]
     fn test_free_mod() {
         let p = ValidPrime::new(2);
-        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false, false)));
+        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(
+            p,
+            *p != 2,
+            false,
+            false,
+        )));
         A.compute_basis(10);
         let M = FreeModule::new(Arc::clone(&A), "".to_string(), 0);
         M.extend_table_entries(10);
@@ -667,11 +668,17 @@ mod tests {
         // M.act_on_basis(&mut result, 1, op_deg, op_idx, input_deg, input_idx);
         M.act_on_basis(result.as_slice_mut(), 1, 5, 0, 1, 0);
         println!("{}", result);
-        println!("result : {}", M.element_to_string(output_deg, result.as_slice()));
+        println!(
+            "result : {}",
+            M.element_to_string(output_deg, result.as_slice())
+        );
         result.set_to_zero();
         M.act_on_basis(result.as_slice_mut(), 1, 5, 0, 1, 1);
         println!("{}", result);
-        println!("result : {}", M.element_to_string(output_deg, result.as_slice()));
+        println!(
+            "result : {}",
+            M.element_to_string(output_deg, result.as_slice())
+        );
         println!("1, 0 : {}", M.basis_element_to_string(1, 0));
         println!("1, 1 : {}", M.basis_element_to_string(1, 1));
     }

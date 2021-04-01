@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use std::sync::Arc;
 
 use crate::module::block_structure::BlockStart;
@@ -78,7 +77,11 @@ impl<M: BoundedModule> ModuleHomomorphism for HomPullback<M> {
                 } = self.source.block_structures[fn_degree].generator_to_block(x_degree, i);
                 self.target.evaluate_basis_map_on_element(
                     result.slice_mut(*block_start_index, *block_start_index + block_size),
-                    coeff, fn_degree, fn_idx, x_degree, x_elt.as_slice(),
+                    coeff,
+                    fn_degree,
+                    fn_idx,
+                    x_degree,
+                    x_elt.as_slice(),
                 );
             }
         }
@@ -110,14 +113,19 @@ mod tests {
     use crate::algebra::{AdemAlgebra, Algebra, SteenrodAlgebra};
     use crate::module::FDModule;
     use fp::matrix::Matrix;
-    use fp::vector::FpVector;
     use fp::prime::ValidPrime;
+    use fp::vector::FpVector;
 
     #[allow(non_snake_case)]
     #[test]
     fn test_pullback() {
         let p = ValidPrime::new(2);
-        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false, false)));
+        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(
+            p,
+            *p != 2,
+            false,
+            false,
+        )));
         A.compute_basis(20);
         let F0 = Arc::new(FreeModule::new(Arc::clone(&A), "F0".to_string(), 0));
         F0.add_generators_immediate(0, 1, None);

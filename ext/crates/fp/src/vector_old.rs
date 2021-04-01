@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 //
 // Created by Hood on 5/22/2019.
 //

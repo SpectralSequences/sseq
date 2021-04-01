@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use parking_lot::Mutex;
 use std::sync::Arc;
 
@@ -20,7 +19,7 @@ pub struct BoundedModuleHomomorphism<S: BoundedModule, T: Module<Algebra = S::Al
     pub kernels: OnceBiVec<Subspace>,
 }
 
-impl<S: BoundedModule, T: Module<Algebra=S::Algebra>> Clone for BoundedModuleHomomorphism<S, T> {
+impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> Clone for BoundedModuleHomomorphism<S, T> {
     fn clone(&self) -> Self {
         Self {
             lock: Mutex::new(()),
@@ -29,7 +28,7 @@ impl<S: BoundedModule, T: Module<Algebra=S::Algebra>> Clone for BoundedModuleHom
             degree_shift: self.degree_shift,
             matrices: self.matrices.clone(),
             quasi_inverses: self.quasi_inverses.clone(),
-            kernels: self.kernels.clone()
+            kernels: self.kernels.clone(),
         }
     }
 }
@@ -94,11 +93,7 @@ where
     S: BoundedModule<Algebra = A>,
     T: Module<Algebra = A>,
 {
-    pub fn new(
-        source: Arc<S>,
-        target: Arc<T>,
-        degree_shift: i32,
-    ) -> Self {
+    pub fn new(source: Arc<S>, target: Arc<T>, degree_shift: i32) -> Self {
         let p = source.prime();
         let min_degree = source.min_degree();
         let max_degree = source.max_degree();
