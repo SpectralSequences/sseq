@@ -302,7 +302,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                     first_new_row + cc_new_gens,
                     matrix.start[1],
                     matrix.end[1],
-                    old_kernel.as_ref(),
+                    old_kernel.as_ref().unwrap(),
                 )
                 .len();
 

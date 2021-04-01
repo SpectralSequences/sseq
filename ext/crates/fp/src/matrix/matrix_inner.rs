@@ -700,7 +700,7 @@ impl Matrix {
     /// # Panics
     /// The function panics if there are not enough empty rows. It *may* panic if the current image
     /// is not contained in `desired_image`, but is not guaranteed to do so.
-    pub fn extend_image_to_desired_image(
+    pub fn extend_image(
         &mut self,
         mut first_empty_row: usize,
         start_column: usize,
@@ -732,24 +732,6 @@ impl Matrix {
             first_empty_row += 1;
         }
         added_pivots
-    }
-
-    /// Extends the image of a matrix to either the whole codomain, or the desired image specified
-    /// by `desired_image`. It simply calls `extends_image_to_surjection` or
-    /// `extend_image_to_surjection` depending on the value of `desired_image`. Refer to these
-    /// functions for documentation.
-    pub fn extend_image(
-        &mut self,
-        first_empty_row: usize,
-        start_column: usize,
-        end_column: usize,
-        desired_image: Option<&Subspace>,
-    ) -> Vec<usize> {
-        if let Some(image) = desired_image.as_ref() {
-            self.extend_image_to_desired_image(first_empty_row, start_column, end_column, image)
-        } else {
-            self.extend_to_surjection(first_empty_row, start_column, end_column)
-        }
     }
 
     /// Applies a matrix to a vector.
