@@ -943,6 +943,8 @@
 <span id="922">922</span>
 <span id="923">923</span>
 <span id="924">924</span>
+<span id="925">925</span>
+<span id="926">926</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
@@ -1211,7 +1213,7 @@
                 <span class="comment">// X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).</span>
                 <span class="comment">// So we set dX(x) = f^{-1}(dC(f(x)))</span>
                 <span class="kw">let</span> <span class="ident">prev_chain_map</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_map</span>(<span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>);
-                <span class="kw">let</span> <span class="ident">quasi_inverse</span> <span class="op">=</span> <span class="ident">prev_chain_map</span>.<span class="ident">quasi_inverse</span>(<span class="ident">t</span>);
+                <span class="kw">let</span> <span class="ident">quasi_inverse</span> <span class="op">=</span> <span class="ident">prev_chain_map</span>.<span class="ident">quasi_inverse</span>(<span class="ident">t</span>).<span class="ident">unwrap</span>();
 
                 <span class="kw">let</span> <span class="ident">dfx_dim</span> <span class="op">=</span> <span class="ident">complex_cur_differential</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">t</span>);
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dfx</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">dfx_dim</span>);
@@ -1290,10 +1292,12 @@
         <span class="kw">let</span> (<span class="ident">cm_qi</span>, <span class="ident">res_qi</span>) <span class="op">=</span>
             <span class="ident">matrix</span>.<span class="ident">compute_quasi_inverses</span>(<span class="ident">matrix_start_2</span> <span class="op">+</span> <span class="ident">source_dimension</span> <span class="op">+</span> <span class="ident">num_new_gens</span>);
 
-        <span class="ident">current_chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="ident">cm_qi</span>);
-        <span class="ident">current_chain_map</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="ident">Subspace</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>)); <span class="comment">// Fill it up with something dummy so that compute_kernels_and... is happy</span>
-        <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="ident">res_qi</span>);
-        <span class="ident">current_differential</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="ident">Subspace</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>));
+        <span class="ident">current_chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">Some</span>(<span class="ident">cm_qi</span>));
+        <span class="ident">current_chain_map</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+        <span class="ident">current_chain_map</span>.<span class="ident">set_image</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+        <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">Some</span>(<span class="ident">res_qi</span>));
+        <span class="ident">current_differential</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+        <span class="ident">current_differential</span>.<span class="ident">set_image</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
 
         <span class="kw-2">*</span><span class="ident">old_kernel</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">new_kernel</span>);
     }

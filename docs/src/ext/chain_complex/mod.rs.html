@@ -247,18 +247,8 @@
 <span id="226">226</span>
 <span id="227">227</span>
 <span id="228">228</span>
-<span id="229">229</span>
-<span id="230">230</span>
-<span id="231">231</span>
-<span id="232">232</span>
-<span id="233">233</span>
-<span id="234">234</span>
-<span id="235">235</span>
-<span id="236">236</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">mod</span> <span class="ident">finite_chain_complex</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">mod</span> <span class="ident">hom_complex</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tensor_product_chain_complex</span>;
 
@@ -374,7 +364,8 @@
         <span class="ident">result</span>.<span class="ident">add</span>(
             <span class="kw-2">&amp;</span><span class="self">self</span>
                 .<span class="ident">differential</span>(<span class="ident">homological_degree</span>)
-                .<span class="ident">kernel</span>(<span class="ident">internal_degree</span>)[<span class="ident">row_index</span>],
+                .<span class="ident">kernel</span>(<span class="ident">internal_degree</span>)
+                .<span class="ident">unwrap</span>()[<span class="ident">row_index</span>],
             <span class="ident">coeff</span>,
         );
     }
@@ -383,15 +374,11 @@
         <span class="self">self</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">homological_degree</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">internal_degree</span>);
         <span class="kw">let</span> <span class="ident">d_prev</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">homological_degree</span>);
         <span class="kw">let</span> <span class="ident">d_cur</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">homological_degree</span> <span class="op">+</span> <span class="number">1</span>);
-        <span class="ident">d_prev</span>.<span class="ident">compute_kernels_and_quasi_inverses_through_degree</span>(<span class="ident">internal_degree</span>);
-        <span class="ident">d_cur</span>.<span class="ident">compute_kernels_and_quasi_inverses_through_degree</span>(<span class="ident">internal_degree</span>);
-        <span class="kw">let</span> <span class="ident">kernel</span> <span class="op">=</span> <span class="ident">d_prev</span>.<span class="ident">kernel</span>(<span class="ident">internal_degree</span>);
-        <span class="kw">let</span> <span class="ident">image</span> <span class="op">=</span> <span class="ident">d_cur</span>.<span class="ident">image</span>(<span class="ident">internal_degree</span>);
-        <span class="kw">let</span> <span class="ident">homology_basis</span> <span class="op">=</span> <span class="ident">Subquotient</span>::<span class="ident">subquotient</span>(
-            <span class="prelude-val">Some</span>(<span class="ident">kernel</span>),
-            <span class="ident">image</span>,
-            <span class="ident">d_prev</span>.<span class="ident">source</span>().<span class="ident">dimension</span>(<span class="ident">internal_degree</span>),
-        );
+        <span class="ident">d_prev</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">internal_degree</span>);
+        <span class="ident">d_cur</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">internal_degree</span>);
+        <span class="kw">let</span> <span class="ident">kernel</span> <span class="op">=</span> <span class="ident">d_prev</span>.<span class="ident">kernel</span>(<span class="ident">internal_degree</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">image</span> <span class="op">=</span> <span class="ident">d_cur</span>.<span class="ident">image</span>(<span class="ident">internal_degree</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">homology_basis</span> <span class="op">=</span> <span class="ident">Subquotient</span>::<span class="ident">subquotient</span>(<span class="ident">kernel</span>, <span class="ident">image</span>);
         <span class="self">self</span>.<span class="ident">set_homology_basis</span>(<span class="ident">homological_degree</span>, <span class="ident">internal_degree</span>, <span class="ident">homology_basis</span>);
     }
 }
@@ -446,7 +433,8 @@
         <span class="ident">result</span>.<span class="ident">add</span>(
             <span class="kw-2">&amp;</span><span class="self">self</span>
                 .<span class="ident">differential</span>(<span class="ident">homological_degree</span>)
-                .<span class="ident">kernel</span>(<span class="ident">internal_degree</span>)[<span class="ident">row_index</span>],
+                .<span class="ident">kernel</span>(<span class="ident">internal_degree</span>)
+                .<span class="ident">unwrap</span>()[<span class="ident">row_index</span>],
             <span class="ident">coeff</span>,
         );
     }
@@ -456,15 +444,11 @@
         <span class="self">self</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">homological_degree</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">internal_degree</span>);
         <span class="kw">let</span> <span class="ident">d_cur</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">homological_degree</span>);
         <span class="kw">let</span> <span class="ident">d_prev</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">homological_degree</span> <span class="op">+</span> <span class="number">1</span>);
-        <span class="ident">d_prev</span>.<span class="ident">compute_kernels_and_quasi_inverses_through_degree</span>(<span class="ident">internal_degree</span>);
-        <span class="ident">d_cur</span>.<span class="ident">compute_kernels_and_quasi_inverses_through_degree</span>(<span class="ident">internal_degree</span>);
-        <span class="kw">let</span> <span class="ident">kernel</span> <span class="op">=</span> <span class="ident">d_prev</span>.<span class="ident">kernel</span>(<span class="ident">internal_degree</span>);
-        <span class="kw">let</span> <span class="ident">image</span> <span class="op">=</span> <span class="ident">d_cur</span>.<span class="ident">image</span>(<span class="ident">internal_degree</span>);
-        <span class="kw">let</span> <span class="ident">cohomology_basis</span> <span class="op">=</span> <span class="ident">Subquotient</span>::<span class="ident">subquotient</span>(
-            <span class="prelude-val">Some</span>(<span class="ident">kernel</span>),
-            <span class="ident">image</span>,
-            <span class="ident">d_prev</span>.<span class="ident">source</span>().<span class="ident">dimension</span>(<span class="ident">internal_degree</span>),
-        );
+        <span class="ident">d_prev</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">internal_degree</span>);
+        <span class="ident">d_cur</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">internal_degree</span>);
+        <span class="kw">let</span> <span class="ident">kernel</span> <span class="op">=</span> <span class="ident">d_prev</span>.<span class="ident">kernel</span>(<span class="ident">internal_degree</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">image</span> <span class="op">=</span> <span class="ident">d_cur</span>.<span class="ident">image</span>(<span class="ident">internal_degree</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">cohomology_basis</span> <span class="op">=</span> <span class="ident">Subquotient</span>::<span class="ident">subquotient</span>(<span class="ident">kernel</span>, <span class="ident">image</span>);
         <span class="self">self</span>.<span class="ident">set_cohomology_basis</span>(<span class="ident">homological_degree</span>, <span class="ident">internal_degree</span>, <span class="ident">cohomology_basis</span>);
     }
 }

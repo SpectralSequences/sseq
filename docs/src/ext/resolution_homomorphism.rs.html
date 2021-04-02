@@ -349,9 +349,6 @@
 <span id="328">328</span>
 <span id="329">329</span>
 <span id="330">330</span>
-<span id="331">331</span>
-<span id="332">332</span>
-<span id="333">333</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">Arc</span>, <span class="ident">Weak</span>};
 
@@ -504,8 +501,7 @@
                     <span class="ident">target_chain_map</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">output_internal_degree</span>);
                 <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">target_cc_dimension</span> <span class="op">=</span><span class="op">=</span> <span class="ident">extra_images_matrix</span>.<span class="ident">columns</span>());
 
-                <span class="ident">target_chain_map</span>
-                    .<span class="ident">compute_kernels_and_quasi_inverses_through_degree</span>(<span class="ident">output_internal_degree</span>);
+                <span class="ident">target_chain_map</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">output_internal_degree</span>);
                 <span class="macro">assert</span><span class="macro">!</span>(
                     <span class="ident">num_gens</span> <span class="op">=</span><span class="op">=</span> <span class="ident">extra_images_matrix</span>.<span class="ident">rows</span>(),
                     <span class="string">&quot;num_gens : {} greater than rows : {} hom_deg : {}, int_deg : {}&quot;</span>,
@@ -545,8 +541,7 @@
                 }
 
                 <span class="kw">let</span> <span class="ident">extra_image_matrix</span> <span class="op">=</span> <span class="ident">extra_images</span>.<span class="ident">as_mut</span>().<span class="ident">expect</span>(<span class="string">&quot;Missing extra image rows&quot;</span>);
-                <span class="ident">target_chain_map</span>
-                    .<span class="ident">compute_kernels_and_quasi_inverses_through_degree</span>(<span class="ident">output_internal_degree</span>);
+                <span class="ident">target_chain_map</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">output_internal_degree</span>);
                 <span class="ident">target_chain_map</span>.<span class="ident">apply_quasi_inverse</span>(
                     <span class="ident">outputs_matrix</span>[<span class="ident">k</span>].<span class="ident">as_slice_mut</span>(),
                     <span class="ident">output_internal_degree</span>,
@@ -554,7 +549,7 @@
                 );
                 <span class="ident">extra_image_row</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
             } <span class="kw">else</span> {
-                <span class="ident">d_target</span>.<span class="ident">compute_kernels_and_quasi_inverses_through_degree</span>(<span class="ident">output_internal_degree</span>);
+                <span class="ident">d_target</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">output_internal_degree</span>);
                 <span class="ident">f_prev</span>.<span class="ident">apply</span>(
                     <span class="ident">fdx_vector</span>.<span class="ident">as_slice_mut</span>(),
                     <span class="number">1</span>,
@@ -625,8 +620,7 @@
 
         <span class="kw">let</span> <span class="ident">source_chain_map</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">chain_map</span>(<span class="number">0</span>);
         <span class="kw">let</span> <span class="ident">target_chain_map</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">chain_map</span>(<span class="number">0</span>);
-        <span class="ident">target_chain_map</span>
-            .<span class="ident">compute_kernels_and_quasi_inverses_through_degree</span>(<span class="ident">degree_shift</span> <span class="op">+</span> <span class="ident">max_degree</span>);
+        <span class="ident">target_chain_map</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">degree_shift</span> <span class="op">+</span> <span class="ident">max_degree</span>);
 
         <span class="kw">let</span> <span class="ident">g</span> <span class="op">=</span> <span class="ident">hom</span>.<span class="ident">get_map_ensure_length</span>(<span class="number">0</span>);
 

@@ -884,6 +884,7 @@
 <span id="863">863</span>
 <span id="864">864</span>
 <span id="865">865</span>
+<span id="866">866</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::<span class="ident">ChainComplex</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">resolution</span>::<span class="ident">Resolution</span> <span class="kw">as</span> <span class="ident">Resolution_</span>;
@@ -1018,6 +1019,7 @@
                 }
 
                 <span class="ident">d</span>.<span class="ident">quasi_inverse</span>(<span class="ident">t</span> <span class="op">-</span> <span class="number">1</span>)
+                    .<span class="ident">unwrap</span>()
                     .<span class="ident">apply</span>(<span class="ident">result</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">scratch</span>.<span class="ident">as_slice</span>());
                 <span class="ident">scratch</span>.<span class="ident">set_to_zero</span>();
             }
@@ -1258,7 +1260,7 @@
                             <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">r</span>.<span class="ident">is_zero</span>(), <span class="string">&quot;dd != 0 at s = {}, t = {}&quot;</span>, <span class="ident">s</span>, <span class="ident">t</span>);
                         }
 
-                        <span class="ident">target_d</span>.<span class="ident">quasi_inverse</span>(<span class="ident">t</span> <span class="op">-</span> <span class="number">1</span>).<span class="ident">apply</span>(
+                        <span class="ident">target_d</span>.<span class="ident">quasi_inverse</span>(<span class="ident">t</span> <span class="op">-</span> <span class="number">1</span>).<span class="ident">unwrap</span>().<span class="ident">apply</span>(
                             <span class="ident">result</span>.<span class="ident">as_slice_mut</span>(),
                             <span class="number">1</span>,
                             <span class="ident">row</span>.<span class="ident">as_slice</span>(),

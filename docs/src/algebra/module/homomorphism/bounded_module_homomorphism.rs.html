@@ -254,6 +254,17 @@
 <span id="233">233</span>
 <span id="234">234</span>
 <span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
@@ -274,6 +285,7 @@
     <span class="kw">pub</span> <span class="ident">matrices</span>: <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Matrix</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">quasi_inverses</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">QuasiInverse</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">kernels</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">Subspace</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">images</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">Subspace</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">BoundedModule</span>, <span class="ident">T</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S</span>::<span class="ident">Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">Clone</span> <span class="kw">for</span> <span class="ident">BoundedModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span> {
@@ -286,6 +298,7 @@
             <span class="ident">matrices</span>: <span class="self">self</span>.<span class="ident">matrices</span>.<span class="ident">clone</span>(),
             <span class="ident">quasi_inverses</span>: <span class="self">self</span>.<span class="ident">quasi_inverses</span>.<span class="ident">clone</span>(),
             <span class="ident">kernels</span>: <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">clone</span>(),
+            <span class="ident">images</span>: <span class="self">self</span>.<span class="ident">images</span>.<span class="ident">clone</span>(),
         }
     }
 }
@@ -321,25 +334,29 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">QuasiInverse</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">quasi_inverses</span>[<span class="ident">degree</span>]
+    <span class="kw">fn</span> <span class="ident">image</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Subspace</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">images</span>.<span class="ident">get</span>(<span class="ident">degree</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">kernel</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Subspace</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">kernels</span>[<span class="ident">degree</span>]
+    <span class="kw">fn</span> <span class="ident">quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">QuasiInverse</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">quasi_inverses</span>.<span class="ident">get</span>(<span class="ident">degree</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">compute_kernels_and_quasi_inverses_through_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
+    <span class="kw">fn</span> <span class="ident">kernel</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Subspace</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">get</span>(<span class="ident">degree</span>)
+    }
+
+    <span class="kw">fn</span> <span class="ident">compute_auxiliary_data_through_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
         <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
 
         <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">min</span>(<span class="ident">degree</span> <span class="op">+</span> <span class="number">1</span>, <span class="self">self</span>.<span class="ident">matrices</span>.<span class="ident">len</span>());
         <span class="kw">let</span> <span class="ident">next_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">len</span>();
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">next_degree</span>, <span class="self">self</span>.<span class="ident">quasi_inverses</span>.<span class="ident">len</span>());
 
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">next_degree</span>..<span class="ident">max_degree</span> {
-            <span class="kw">let</span> (<span class="ident">kernel</span>, <span class="ident">qi</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">kernel_and_quasi_inverse</span>(<span class="ident">i</span>);
-            <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">push</span>(<span class="ident">kernel</span>);
-            <span class="self">self</span>.<span class="ident">quasi_inverses</span>.<span class="ident">push</span>(<span class="ident">qi</span>);
+            <span class="kw">let</span> (<span class="ident">image</span>, <span class="ident">kernel</span>, <span class="ident">qi</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">auxiliary_data</span>(<span class="ident">i</span>);
+            <span class="self">self</span>.<span class="ident">images</span>.<span class="ident">push_checked</span>(<span class="ident">image</span>, <span class="ident">i</span>);
+            <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">push_checked</span>(<span class="ident">kernel</span>, <span class="ident">i</span>);
+            <span class="self">self</span>.<span class="ident">quasi_inverses</span>.<span class="ident">push_checked</span>(<span class="ident">qi</span>, <span class="ident">i</span>);
         }
     }
 }
@@ -381,6 +398,7 @@
             <span class="ident">lock</span>: <span class="ident">Mutex</span>::<span class="ident">new</span>(()),
             <span class="ident">quasi_inverses</span>: <span class="ident">OnceBiVec</span>::<span class="ident">new</span>(<span class="ident">min_degree</span>),
             <span class="ident">kernels</span>: <span class="ident">OnceBiVec</span>::<span class="ident">new</span>(<span class="ident">min_degree</span>),
+            <span class="ident">images</span>: <span class="ident">OnceBiVec</span>::<span class="ident">new</span>(<span class="ident">min_degree</span>),
         }
     }
 
@@ -416,6 +434,7 @@
             <span class="ident">matrices</span>,
             <span class="ident">quasi_inverses</span>: <span class="ident">OnceBiVec</span>::<span class="ident">new</span>(<span class="ident">min_degree</span>),
             <span class="ident">kernels</span>: <span class="ident">OnceBiVec</span>::<span class="ident">new</span>(<span class="ident">min_degree</span>),
+            <span class="ident">images</span>: <span class="ident">OnceBiVec</span>::<span class="ident">new</span>(<span class="ident">min_degree</span>),
         }
     }
 
@@ -434,6 +453,7 @@
             <span class="ident">matrices</span>: <span class="self">self</span>.<span class="ident">matrices</span>,
             <span class="ident">quasi_inverses</span>: <span class="self">self</span>.<span class="ident">quasi_inverses</span>,
             <span class="ident">kernels</span>: <span class="self">self</span>.<span class="ident">kernels</span>,
+            <span class="ident">images</span>: <span class="self">self</span>.<span class="ident">images</span>,
         }
     }
 
@@ -450,6 +470,7 @@
             <span class="ident">matrices</span>: <span class="self">self</span>.<span class="ident">matrices</span>,
             <span class="ident">quasi_inverses</span>: <span class="self">self</span>.<span class="ident">quasi_inverses</span>,
             <span class="ident">kernels</span>: <span class="self">self</span>.<span class="ident">kernels</span>,
+            <span class="ident">images</span>: <span class="self">self</span>.<span class="ident">images</span>,
         }
     }
 }
@@ -466,6 +487,7 @@
             <span class="ident">matrices</span>: <span class="ident">BiVec</span>::<span class="ident">new</span>(<span class="number">0</span>),
             <span class="ident">quasi_inverses</span>: <span class="ident">OnceBiVec</span>::<span class="ident">new</span>(<span class="number">0</span>),
             <span class="ident">kernels</span>: <span class="ident">OnceBiVec</span>::<span class="ident">new</span>(<span class="number">0</span>),
+            <span class="ident">images</span>: <span class="ident">OnceBiVec</span>::<span class="ident">new</span>(<span class="number">0</span>),
         }
     }
 }
