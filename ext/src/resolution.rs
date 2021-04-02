@@ -165,7 +165,7 @@ impl<CC: ChainComplex> Resolution<CC> {
     /// # Arguments
     ///  * `s` - The s degree to calculate
     ///  * `t` - The t degree to calculate
-    pub fn step_resolution(&self, s: u32, t: i32) {
+    fn step_resolution(&self, s: u32, t: i32) {
         if s == 0 {
             self.zero_module.extend_by_zero(t);
         }
@@ -355,6 +355,69 @@ impl<CC: ChainComplex> Resolution<CC> {
         current_differential.set_kernel(&differential_lock, t, Subspace::new(p, 0, 0));
 
         *old_kernel = Some(new_kernel);
+    }
+
+    fn step_resolution_phony(&self, s: u32, t: i32) {
+        if s == 0 {
+            self.zero_module.extend_by_zero(t);
+        }
+
+        let mut old_kernel = self.kernels[t].lock();
+        let p = self.prime();
+
+        let complex = self.complex();
+        complex.compute_through_bidegree(s, t);
+
+        let current_differential = self.differential(s);
+        let current_chain_map = self.chain_map(s);
+
+        match current_differential.next_degree().cmp(&t) {
+            std::cmp::Ordering::Greater => {
+                // Already computed this degree.
+                return;
+            }
+            std::cmp::Ordering::Less => {
+                // Haven't computed far enough yet
+                panic!("We're not ready to compute bidegree ({}, {}) yet.", s, t);
+            }
+            std::cmp::Ordering::Equal => (),
+        };
+
+        let source = self.module(s);
+        let target_cc = complex.module(s);
+        let target_res = current_differential.target(); // This is self.module(s - 1) unless s = 0.
+
+        source.extend_table_entries(t);
+        target_res.extend_table_entries(t);
+
+        let source_dimension = source.dimension(t);
+        let target_cc_dimension = target_cc.dimension(t);
+        let target_res_dimension = target_res.dimension(t);
+
+        let mut matrix = AugmentedMatrix3::new(
+            p,
+            source_dimension,
+            &[target_cc_dimension, target_res_dimension, source_dimension],
+        );
+        // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
+
+        current_chain_map.get_matrix(&mut matrix.segment(0, 0), t);
+        current_differential.get_matrix(&mut matrix.segment(1, 1), t);
+        matrix.segment(2, 2).add_identity(source_dimension, 0, 0);
+        matrix.initialize_pivots();
+
+        matrix.row_reduce();
+
+        // This slices the underling matrix. Be sure to revert this.
+        let matrix_start_2 = matrix.start[2];
+        let mut pivots = matrix.take_pivots();
+        matrix.row_reduce_into_pivots(&mut pivots);
+
+        *old_kernel = Some(
+            matrix
+                .as_slice_mut()
+                .compute_kernel(&pivots, matrix_start_2),
+        );
     }
 
     // pub fn step_resolution_by_stem(&self, s : u32, t : i32) {
@@ -659,6 +722,71 @@ impl<CC: ChainComplex> Resolution<CC> {
                 cb(s, t);
             }
         }
+    }
+
+    /// This function resolves up till a fixed stem instead of a fixed t. It is an error to
+    /// attempt to resolve further after this is called, and will result in a deadlock.
+    pub fn resolve_through_stem(&self, max_s: u32, max_f: i32) {
+        let min_degree = self.min_degree();
+        let _lock = self.lock.lock();
+        let max_t = max_s as i32 + max_f + 1;
+        self.complex().compute_through_bidegree(max_s, max_t);
+        self.extend_through_degree(max_s, max_t);
+        self.algebra().compute_basis(max_t - min_degree);
+
+        for t in min_degree..=max_t {
+            let start_s = std::cmp::max(0, t - max_f - 1) as u32;
+            for s in start_s..=max_s {
+                if self.has_computed_bidegree(s, t) {
+                    continue;
+                }
+                if s as i32 + max_f + 1 == t {
+                    self.step_resolution_phony(s, t);
+                } else {
+                    self.step_resolution(s, t);
+                }
+            }
+        }
+    }
+
+    /// A concurrent version of [`resolve_through_stem`]
+    #[cfg(feature = "concurrent")]
+    pub fn resolve_through_stem_concurrent(&self, max_s: u32, max_f: i32, bucket: &TokenBucket) {
+        let min_degree = self.min_degree();
+        let _lock = self.lock.lock();
+        let max_t = max_s as i32 + max_f + 1;
+
+        self.complex().compute_through_bidegree(max_s, max_t);
+        self.extend_through_degree(max_s, max_t);
+        self.algebra().compute_basis(max_t - min_degree);
+
+        crossbeam_utils::thread::scope(|s| {
+            let mut last_receiver: Option<Receiver<()>> = None;
+            for t in min_degree..=max_t {
+                let (sender, receiver) = unbounded();
+
+                s.spawn(move |_| {
+                    let mut token = bucket.take_token();
+                    let start_s = std::cmp::max(0, t - max_f - 1) as u32;
+                    for s in start_s..=max_s {
+                        token = bucket.recv_or_release(token, &last_receiver);
+                        if !self.has_computed_bidegree(s, t) {
+                            if s as i32 + max_f + 1 == t {
+                                self.step_resolution_phony(s, t);
+                                // The next t cannot be computed yet
+                                continue;
+                            } else {
+                                self.step_resolution(s, t);
+                            }
+                        }
+                        // In the last round the receiver would have been dropped
+                        sender.send(()).ok();
+                    }
+                });
+                last_receiver = Some(receiver);
+            }
+        })
+        .unwrap();
     }
 }
 
