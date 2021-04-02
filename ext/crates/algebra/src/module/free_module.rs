@@ -162,10 +162,6 @@ impl<A: Algebra> Module for FreeModule<A> {
 }
 
 impl<A: Algebra> FreeModule<A> {
-    // pub fn lock(&self) -> MutexGuard<i32> {
-    //     self.lock()
-    // }
-
     pub fn max_computed_degree(&self) -> i32 {
         self.num_gens.max_degree()
     }
@@ -183,6 +179,10 @@ impl<A: Algebra> FreeModule<A> {
 
     pub fn extend_table_entries(&self, max_degree: i32) {
         let _lock = self.lock.lock();
+        if self.basis_element_to_opgen.len() > max_degree {
+            return;
+        }
+
         for degree in self.basis_element_to_opgen.len()..=max_degree {
             self.basis_element_to_opgen
                 .push_checked(OnceVec::new(), degree);
@@ -209,8 +209,9 @@ impl<A: Algebra> FreeModule<A> {
     }
 
     pub fn add_generators(&self, degree: i32, num_gens: usize, names: Option<Vec<String>>) {
+        // We need to acquire the lock because changing num_gens modifies the behaviour of
+        // extend_table_entries, and the two cannot happen concurrently.
         let _lock = self.lock.lock();
-
         assert!(degree >= self.min_degree);
 
         // println!("add_gens == degree : {}, num_gens : {}", degree, num_gens);

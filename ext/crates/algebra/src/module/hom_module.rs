@@ -48,22 +48,19 @@ impl<M: BoundedModule> HomModule<M> {
     pub fn element_to_homomorphism(&self, degree: i32, x: Slice) -> FreeModuleHomomorphism<M> {
         let result =
             FreeModuleHomomorphism::new(Arc::clone(&self.source), Arc::clone(&self.target), degree);
-        let lock = result.lock();
         let min_nonzero_degree = degree + self.target.min_degree();
         let max_nonzero_degree = degree + self.target.max_degree();
-        result.extend_by_zero(&lock, min_nonzero_degree - 1);
+        result.extend_by_zero(min_nonzero_degree - 1);
         let mut used_entries = 0;
         for i in min_nonzero_degree..=max_nonzero_degree {
             let gens = self.source.number_of_gens_in_degree(i);
             let out_dim = self.target.dimension(i - degree);
             result.add_generators_from_big_vector(
-                &lock,
                 i,
                 x.slice(used_entries, used_entries + gens * out_dim),
             );
             used_entries += gens * out_dim;
         }
-        drop(lock);
         result
     }
 

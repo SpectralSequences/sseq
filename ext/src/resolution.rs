@@ -205,9 +205,6 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         source.extend_table_entries(t);
 
-        let chain_map_lock = current_chain_map.lock();
-        let differential_lock = current_differential.lock();
-
         // The Homomorphism matrix has size source_dimension x target_dimension, but we are going to augment it with an
         // identity matrix so that gives a matrix with dimensions source_dimension x (target_dimension + source_dimension).
         // Later we're going to write into this same matrix an isomorphism source/image + new vectors --> kernel
@@ -317,12 +314,10 @@ impl<CC: ChainComplex> Resolution<CC> {
         source.add_generators(t, num_new_gens, None);
 
         current_chain_map.add_generators_from_matrix_rows(
-            &chain_map_lock,
             t,
             matrix.segment(0, 0).row_slice(first_new_row, rows),
         );
         current_differential.add_generators_from_matrix_rows(
-            &differential_lock,
             t,
             matrix.segment(1, 1).row_slice(first_new_row, rows),
         );
@@ -349,10 +344,10 @@ impl<CC: ChainComplex> Resolution<CC> {
         let (cm_qi, res_qi) =
             matrix.compute_quasi_inverses(matrix_start_2 + source_dimension + num_new_gens);
 
-        current_chain_map.set_quasi_inverse(&chain_map_lock, t, cm_qi);
-        current_chain_map.set_kernel(&chain_map_lock, t, Subspace::new(p, 0, 0)); // Fill it up with something dummy so that compute_kernels_and... is happy
-        current_differential.set_quasi_inverse(&differential_lock, t, res_qi);
-        current_differential.set_kernel(&differential_lock, t, Subspace::new(p, 0, 0));
+        current_chain_map.set_quasi_inverse(t, cm_qi);
+        current_chain_map.set_kernel(t, Subspace::new(p, 0, 0)); // Fill it up with something dummy so that compute_kernels_and... is happy
+        current_differential.set_quasi_inverse(t, res_qi);
+        current_differential.set_kernel(t, Subspace::new(p, 0, 0));
 
         *old_kernel = Some(new_kernel);
     }

@@ -105,9 +105,7 @@ where
     let mut new_output = Matrix::new(p, cc.module(s).number_of_gens_in_degree(t), 1);
     new_output[idx].set_entry(0, 1);
 
-    let lock = map.lock();
-    map.add_generators_from_matrix_rows(&lock, t, new_output.as_slice_mut());
-    drop(lock);
+    map.add_generators_from_matrix_rows(t, new_output.as_slice_mut());
 
     let cm = ChainMap {
         s_shift: s,

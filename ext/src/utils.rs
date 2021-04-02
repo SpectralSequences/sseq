@@ -91,10 +91,8 @@ pub fn construct_from_json(json: &mut Value, algebra_name: &str) -> error::Resul
         );
         new_output[idx].set_entry(0, 1);
 
-        let lock = map.lock();
-        map.add_generators_from_matrix_rows(&lock, t, new_output.as_slice_mut());
-        drop(lock);
-        map.extend_by_zero_safe(module.max_degree() + t);
+        map.add_generators_from_matrix_rows(t, new_output.as_slice_mut());
+        map.extend_by_zero(module.max_degree() + t);
 
         let cm = ChainMap {
             s_shift: s,

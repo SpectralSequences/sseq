@@ -79,12 +79,8 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
     pub fn add_relations(&self, degree: i32, relations_matrix: &mut Matrix) {
         let num_relns = relations_matrix.rows();
         self.relations.add_generators(degree, num_relns, None);
-        let map_lock = self.map.lock();
-        self.map.add_generators_from_matrix_rows(
-            &map_lock,
-            degree,
-            relations_matrix.as_slice_mut(),
-        );
+        self.map
+            .add_generators_from_matrix_rows(degree, relations_matrix.as_slice_mut());
     }
 
     // Exact duplicate of function in fdmodule.rs...

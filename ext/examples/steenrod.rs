@@ -171,13 +171,11 @@ fn main() -> error::Result<()> {
         for s in 0..=2 * s - i {
             if i == 0 && s == 0 {
                 let map = &delta[0][0];
-                let lock = map.lock();
                 map.add_generators_from_matrix_rows(
-                    &lock,
                     0,
                     Matrix::from_vec(p, &[vec![1]]).as_slice_mut(),
                 );
-                map.extend_by_zero(&lock, 2 * t);
+                map.extend_by_zero(2 * t);
                 continue;
             }
 
@@ -219,7 +217,6 @@ fn main() -> error::Result<()> {
             let fun = move || {
                 #[cfg(feature = "concurrent")]
                 let mut token = bucket.take_token();
-                let lock = map.lock();
 
                 for t in 0..=2 * t {
                     #[cfg(feature = "concurrent")]
@@ -233,7 +230,7 @@ fn main() -> error::Result<()> {
                     let fdx_dim = dtarget_module.dimension(t);
 
                     if fx_dim == 0 || fdx_dim == 0 || num_gens == 0 {
-                        map.extend_by_zero(&lock, t);
+                        map.extend_by_zero(t);
 
                         #[cfg(feature = "concurrent")]
                         {
@@ -270,7 +267,7 @@ fn main() -> error::Result<()> {
 
                         result.set_to_zero();
                     }
-                    map.add_generators_from_matrix_rows(&lock, t, output_matrix.as_slice_mut());
+                    map.add_generators_from_matrix_rows(t, output_matrix.as_slice_mut());
 
                     #[cfg(feature = "concurrent")]
                     {

@@ -118,8 +118,7 @@ where
             input_internal_degree,
             extra_images,
         );
-        let lock = f_cur.lock();
-        f_cur.add_generators_from_matrix_rows(&lock, input_internal_degree, outputs.as_slice_mut());
+        f_cur.add_generators_from_matrix_rows(input_internal_degree, outputs.as_slice_mut());
     }
 
     fn extend_step_helper(
@@ -275,7 +274,6 @@ where
             .compute_kernels_and_quasi_inverses_through_degree(degree_shift + max_degree);
 
         let g = hom.get_map_ensure_length(0);
-        let lock = g.lock();
 
         for t in source_module.min_degree()..=max_degree {
             let num_gens = source.module(0).number_of_gens_in_degree(t);
@@ -285,7 +283,7 @@ where
             let mut outputs_matrix =
                 Matrix::new(p, num_gens, target.module(0).dimension(t + degree_shift));
             if num_gens == 0 || fx.dimension() == 0 {
-                g.add_generators_from_matrix_rows(&lock, t, outputs_matrix.as_slice_mut());
+                g.add_generators_from_matrix_rows(t, outputs_matrix.as_slice_mut());
                 continue;
             }
             for j in 0..num_gens {
@@ -302,9 +300,8 @@ where
                 );
                 fx.set_to_zero();
             }
-            g.add_generators_from_matrix_rows(&lock, t, outputs_matrix.as_slice_mut());
+            g.add_generators_from_matrix_rows(t, outputs_matrix.as_slice_mut());
         }
-        drop(lock);
         hom
     }
 }

@@ -103,7 +103,7 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
         let d = res.differential(s - 2);
         let m = res.module(s);
 
-        delta.extend_by_zero_safe(res.min_degree());
+        delta.extend_by_zero(res.min_degree());
         for t in res.min_degree() + 1..=max_t {
             let num_gens = m.number_of_gens_in_degree(t);
             let target_dim = res.module(s - 2).dimension(t - 1);
@@ -134,7 +134,7 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
                     .apply(result.as_slice_mut(), 1, scratch.as_slice());
                 scratch.set_to_zero();
             }
-            delta.add_generators_from_rows(&delta.lock(), t, results);
+            delta.add_generators_from_rows(t, results);
         }
     }
 
@@ -339,7 +339,7 @@ pub fn compute_delta_concurrent(
             scope.spawn(move |_| {
                 let delta = &deltas[s as usize - 3];
 
-                delta.extend_by_zero_safe(min_degree);
+                delta.extend_by_zero(min_degree);
                 let mut token = bucket.take_token();
                 for (t, mut ddelta) in ddeltas_.into_iter_enum() {
                     token = bucket.recv_or_release(token, &last_receiver);
@@ -377,7 +377,7 @@ pub fn compute_delta_concurrent(
                             row.as_slice(),
                         );
                     }
-                    delta.add_generators_from_rows(&delta.lock(), t, results);
+                    delta.add_generators_from_rows(t, results);
                     // The last receiver will be dropped so the send will fail
                     sender.send(()).ok();
                 }

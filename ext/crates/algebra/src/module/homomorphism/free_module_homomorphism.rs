@@ -1,4 +1,4 @@
-use parking_lot::{Mutex, MutexGuard};
+use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::algebra::Algebra;
@@ -87,7 +87,7 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
     }
 
     fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32) {
-        let _lock = self.lock();
+        let _lock = self.lock.lock();
         let kernel_len = self.kernel.len();
         let qi_len = self.quasi_inverse.len();
         assert_eq!(kernel_len, qi_len);
@@ -150,16 +150,8 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         &self.outputs[generator_degree][generator_index]
     }
 
-    pub fn extend_by_zero_safe(&self, degree: i32) {
-        if self.outputs.len() > degree {
-            return;
-        }
-        let lock = self.lock();
-        self.extend_by_zero(&lock, degree);
-    }
-
-    pub fn extend_by_zero(&self, lock: &MutexGuard<()>, degree: i32) {
-        self.check_mutex(lock);
+    pub fn extend_by_zero(&self, degree: i32) {
+        let _lock = self.lock.lock();
 
         // println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
         // println!("    dimension : {} target name : {}", dimension, self.target.name());
@@ -167,7 +159,10 @@ impl<M: Module> FreeModuleHomomorphism<M> {
             return;
         }
         let next_degree = self.next_degree();
-        assert!(degree >= next_degree);
+        if next_degree > degree {
+            return;
+        }
+
         let p = self.prime();
         for i in next_degree..=degree {
             let num_gens = self.source.number_of_gens_in_degree(i);
@@ -180,14 +175,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         }
     }
 
-    pub fn add_generators_from_big_vector(
-        &self,
-        lock: &MutexGuard<()>,
-        degree: i32,
-        outputs_vectors: Slice,
-    ) {
-        self.check_mutex(lock);
-
+    pub fn add_generators_from_big_vector(&self, degree: i32, outputs_vectors: Slice) {
         let p = self.prime();
         let new_generators = self.source.number_of_gens_in_degree(degree);
         let target_dimension = self.target.dimension(degree - self.degree_shift);
@@ -209,14 +197,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
 
     /// A MatrixSlice will do but there is no applicaiton of this struct, so it doesn't exist
     /// yet...
-    pub fn add_generators_from_matrix_rows(
-        &self,
-        lock: &MutexGuard<()>,
-        degree: i32,
-        mut matrix: MatrixSliceMut,
-    ) {
-        self.check_mutex(lock);
-
+    pub fn add_generators_from_matrix_rows(&self, degree: i32, mut matrix: MatrixSliceMut) {
         let p = self.prime();
         let new_generators = self.source.number_of_gens_in_degree(degree);
         let target_dimension = self.target.dimension(degree - self.degree_shift);
@@ -235,13 +216,7 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         self.outputs.push_checked(new_outputs, degree);
     }
 
-    pub fn add_generators_from_rows(
-        &self,
-        lock: &MutexGuard<()>,
-        degree: i32,
-        rows: Vec<FpVector>,
-    ) {
-        self.check_mutex(lock);
+    pub fn add_generators_from_rows(&self, degree: i32, rows: Vec<FpVector>) {
         self.outputs.push_checked(rows, degree);
     }
 
@@ -279,30 +254,12 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         }
     }
 
-    pub fn lock(&self) -> MutexGuard<()> {
-        self.lock.lock()
-    }
-
-    pub fn set_kernel(&self, lock: &MutexGuard<()>, degree: i32, kernel: Subspace) {
-        self.check_mutex(lock);
+    pub fn set_kernel(&self, degree: i32, kernel: Subspace) {
         self.kernel.push_checked(kernel, degree);
     }
 
-    pub fn set_quasi_inverse(
-        &self,
-        lock: &MutexGuard<()>,
-        degree: i32,
-        quasi_inverse: QuasiInverse,
-    ) {
-        self.check_mutex(lock);
+    pub fn set_quasi_inverse(&self, degree: i32, quasi_inverse: QuasiInverse) {
         self.quasi_inverse.push_checked(quasi_inverse, degree);
-    }
-
-    fn check_mutex(&self, lock: &MutexGuard<()>) {
-        assert!(std::ptr::eq(
-            parking_lot::lock_api::MutexGuard::mutex(&lock),
-            &self.lock
-        ));
     }
 }
 

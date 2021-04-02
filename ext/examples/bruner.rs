@@ -279,20 +279,20 @@ fn read_bruner_resolution(data_dir: PathBuf) -> Result<(u32, i32, FiniteChainCom
                 entries.push(gen);
             } else {
                 m.add_generators(cur_degree, entries.len(), None);
-                d.add_generators_from_rows(&d.lock(), cur_degree, entries);
+                d.add_generators_from_rows(cur_degree, entries);
 
                 m.extend_by_zero(t - 1);
-                d.extend_by_zero_safe(t - 1);
+                d.extend_by_zero(t - 1);
 
                 entries = vec![gen];
                 cur_degree = t;
             }
         }
         m.add_generators(cur_degree, entries.len(), None);
-        d.add_generators_from_rows(&d.lock(), cur_degree, entries);
+        d.add_generators_from_rows(cur_degree, entries);
 
         m.extend_by_zero(max_t);
-        d.extend_by_zero_safe(max_t);
+        d.extend_by_zero(max_t);
     }
 
     Ok((s, t, cc))
