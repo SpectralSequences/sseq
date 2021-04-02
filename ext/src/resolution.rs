@@ -729,7 +729,7 @@ impl<CC: ChainComplex> Resolution<CC> {
     pub fn resolve_through_stem(&self, max_s: u32, max_f: i32) {
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
-        let max_t = max_s as i32 + max_f + 1;
+        let max_t = max_s as i32 + max_f;
         self.complex().compute_through_bidegree(max_s, max_t);
         self.extend_through_degree(max_s, max_t);
         self.algebra().compute_basis(max_t - min_degree);
@@ -754,7 +754,7 @@ impl<CC: ChainComplex> Resolution<CC> {
     pub fn resolve_through_stem_concurrent(&self, max_s: u32, max_f: i32, bucket: &TokenBucket) {
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
-        let max_t = max_s as i32 + max_f + 1;
+        let max_t = max_s as i32 + max_f;
 
         self.complex().compute_through_bidegree(max_s, max_t);
         self.extend_through_degree(max_s, max_t);
