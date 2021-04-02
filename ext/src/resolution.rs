@@ -675,18 +675,21 @@ impl<CC: ChainComplex> Resolution<CC> {
                 let (sender, receiver) = unbounded();
 
                 let pp_sender = pp_sender.clone();
-                s.spawn(move |_| {
-                    let mut token = bucket.take_token();
-                    for s in 0..=max_s {
-                        token = bucket.recv_or_release(token, &last_receiver);
-                        if !self.has_computed_bidegree(s, t) {
-                            self.step_resolution(s, t);
+                s.builder()
+                    .name(format!("t = {}", t))
+                    .spawn(move |_| {
+                        let mut token = bucket.take_token();
+                        for s in 0..=max_s {
+                            token = bucket.recv_or_release(token, &last_receiver);
+                            if !self.has_computed_bidegree(s, t) {
+                                self.step_resolution(s, t);
 
-                            pp_sender.send((s, t)).unwrap();
+                                pp_sender.send((s, t)).unwrap();
+                            }
+                            sender.send(()).unwrap();
                         }
-                        sender.send(()).unwrap();
-                    }
-                });
+                    })
+                    .unwrap();
                 last_receiver = Some(receiver);
             }
             // We drop this pp_sender, so that when all previous threads end, no pp_sender's are
@@ -764,25 +767,27 @@ impl<CC: ChainComplex> Resolution<CC> {
             let mut last_receiver: Option<Receiver<()>> = None;
             for t in min_degree..=max_t {
                 let (sender, receiver) = unbounded();
-
-                s.spawn(move |_| {
-                    let mut token = bucket.take_token();
-                    let start_s = std::cmp::max(0, t - max_f - 1) as u32;
-                    for s in start_s..=max_s {
-                        token = bucket.recv_or_release(token, &last_receiver);
-                        if !self.has_computed_bidegree(s, t) {
-                            if s as i32 + max_f + 1 == t {
-                                self.step_resolution_phony(s, t);
-                                // The next t cannot be computed yet
-                                continue;
-                            } else {
-                                self.step_resolution(s, t);
+                s.builder()
+                    .name(format!("t = {}", t))
+                    .spawn(move |_| {
+                        let mut token = bucket.take_token();
+                        let start_s = std::cmp::max(0, t - max_f - 1) as u32;
+                        for s in start_s..=max_s {
+                            token = bucket.recv_or_release(token, &last_receiver);
+                            if !self.has_computed_bidegree(s, t) {
+                                if s as i32 + max_f + 1 == t {
+                                    self.step_resolution_phony(s, t);
+                                    // The next t cannot be computed yet
+                                    continue;
+                                } else {
+                                    self.step_resolution(s, t);
+                                }
                             }
+                            // In the last round the receiver would have been dropped
+                            sender.send(()).ok();
                         }
-                        // In the last round the receiver would have been dropped
-                        sender.send(()).ok();
-                    }
-                });
+                    })
+                    .unwrap();
                 last_receiver = Some(receiver);
             }
         })
