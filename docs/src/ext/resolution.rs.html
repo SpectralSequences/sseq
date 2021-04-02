@@ -815,6 +815,134 @@
 <span id="794">794</span>
 <span id="795">795</span>
 <span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+<span id="813">813</span>
+<span id="814">814</span>
+<span id="815">815</span>
+<span id="816">816</span>
+<span id="817">817</span>
+<span id="818">818</span>
+<span id="819">819</span>
+<span id="820">820</span>
+<span id="821">821</span>
+<span id="822">822</span>
+<span id="823">823</span>
+<span id="824">824</span>
+<span id="825">825</span>
+<span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
+<span id="832">832</span>
+<span id="833">833</span>
+<span id="834">834</span>
+<span id="835">835</span>
+<span id="836">836</span>
+<span id="837">837</span>
+<span id="838">838</span>
+<span id="839">839</span>
+<span id="840">840</span>
+<span id="841">841</span>
+<span id="842">842</span>
+<span id="843">843</span>
+<span id="844">844</span>
+<span id="845">845</span>
+<span id="846">846</span>
+<span id="847">847</span>
+<span id="848">848</span>
+<span id="849">849</span>
+<span id="850">850</span>
+<span id="851">851</span>
+<span id="852">852</span>
+<span id="853">853</span>
+<span id="854">854</span>
+<span id="855">855</span>
+<span id="856">856</span>
+<span id="857">857</span>
+<span id="858">858</span>
+<span id="859">859</span>
+<span id="860">860</span>
+<span id="861">861</span>
+<span id="862">862</span>
+<span id="863">863</span>
+<span id="864">864</span>
+<span id="865">865</span>
+<span id="866">866</span>
+<span id="867">867</span>
+<span id="868">868</span>
+<span id="869">869</span>
+<span id="870">870</span>
+<span id="871">871</span>
+<span id="872">872</span>
+<span id="873">873</span>
+<span id="874">874</span>
+<span id="875">875</span>
+<span id="876">876</span>
+<span id="877">877</span>
+<span id="878">878</span>
+<span id="879">879</span>
+<span id="880">880</span>
+<span id="881">881</span>
+<span id="882">882</span>
+<span id="883">883</span>
+<span id="884">884</span>
+<span id="885">885</span>
+<span id="886">886</span>
+<span id="887">887</span>
+<span id="888">888</span>
+<span id="889">889</span>
+<span id="890">890</span>
+<span id="891">891</span>
+<span id="892">892</span>
+<span id="893">893</span>
+<span id="894">894</span>
+<span id="895">895</span>
+<span id="896">896</span>
+<span id="897">897</span>
+<span id="898">898</span>
+<span id="899">899</span>
+<span id="900">900</span>
+<span id="901">901</span>
+<span id="902">902</span>
+<span id="903">903</span>
+<span id="904">904</span>
+<span id="905">905</span>
+<span id="906">906</span>
+<span id="907">907</span>
+<span id="908">908</span>
+<span id="909">909</span>
+<span id="910">910</span>
+<span id="911">911</span>
+<span id="912">912</span>
+<span id="913">913</span>
+<span id="914">914</span>
+<span id="915">915</span>
+<span id="916">916</span>
+<span id="917">917</span>
+<span id="918">918</span>
+<span id="919">919</span>
+<span id="920">920</span>
+<span id="921">921</span>
+<span id="922">922</span>
+<span id="923">923</span>
+<span id="924">924</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
@@ -983,7 +1111,7 @@
     <span class="doccomment">/// # Arguments</span>
     <span class="doccomment">///  * `s` - The s degree to calculate</span>
     <span class="doccomment">///  * `t` - The t degree to calculate</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">step_resolution</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) {
+    <span class="kw">fn</span> <span class="ident">step_resolution</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) {
         <span class="kw">if</span> <span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
             <span class="self">self</span>.<span class="ident">zero_module</span>.<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
         }
@@ -1173,6 +1301,69 @@
         <span class="ident">current_differential</span>.<span class="ident">set_kernel</span>(<span class="kw-2">&amp;</span><span class="ident">differential_lock</span>, <span class="ident">t</span>, <span class="ident">Subspace</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>));
 
         <span class="kw-2">*</span><span class="ident">old_kernel</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">new_kernel</span>);
+    }
+
+    <span class="kw">fn</span> <span class="ident">step_resolution_phony</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) {
+        <span class="kw">if</span> <span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+            <span class="self">self</span>.<span class="ident">zero_module</span>.<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
+        }
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">old_kernel</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">kernels</span>[<span class="ident">t</span>].<span class="ident">lock</span>();
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
+
+        <span class="kw">let</span> <span class="ident">complex</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">complex</span>();
+        <span class="ident">complex</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+
+        <span class="kw">let</span> <span class="ident">current_differential</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
+        <span class="kw">let</span> <span class="ident">current_chain_map</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_map</span>(<span class="ident">s</span>);
+
+        <span class="kw">match</span> <span class="ident">current_differential</span>.<span class="ident">next_degree</span>().<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">t</span>) {
+            <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">Ordering</span>::<span class="ident">Greater</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="comment">// Already computed this degree.</span>
+                <span class="kw">return</span>;
+            }
+            <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">Ordering</span>::<span class="ident">Less</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="comment">// Haven&#39;t computed far enough yet</span>
+                <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;We&#39;re not ready to compute bidegree ({}, {}) yet.&quot;</span>, <span class="ident">s</span>, <span class="ident">t</span>);
+            }
+            <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">Ordering</span>::<span class="ident">Equal</span> <span class="op">=</span><span class="op">&gt;</span> (),
+        };
+
+        <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">module</span>(<span class="ident">s</span>);
+        <span class="kw">let</span> <span class="ident">target_cc</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">module</span>(<span class="ident">s</span>);
+        <span class="kw">let</span> <span class="ident">target_res</span> <span class="op">=</span> <span class="ident">current_differential</span>.<span class="ident">target</span>(); <span class="comment">// This is self.module(s - 1) unless s = 0.</span>
+
+        <span class="ident">source</span>.<span class="ident">extend_table_entries</span>(<span class="ident">t</span>);
+        <span class="ident">target_res</span>.<span class="ident">extend_table_entries</span>(<span class="ident">t</span>);
+
+        <span class="kw">let</span> <span class="ident">source_dimension</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
+        <span class="kw">let</span> <span class="ident">target_cc_dimension</span> <span class="op">=</span> <span class="ident">target_cc</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
+        <span class="kw">let</span> <span class="ident">target_res_dimension</span> <span class="op">=</span> <span class="ident">target_res</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">AugmentedMatrix3</span>::<span class="ident">new</span>(
+            <span class="ident">p</span>,
+            <span class="ident">source_dimension</span>,
+            <span class="kw-2">&amp;</span>[<span class="ident">target_cc_dimension</span>, <span class="ident">target_res_dimension</span>, <span class="ident">source_dimension</span>],
+        );
+        <span class="comment">// Get the map (d, f) : X_{s, t} -&gt; X_{s-1, t} (+) C_{s, t} into matrix</span>
+
+        <span class="ident">current_chain_map</span>.<span class="ident">get_matrix</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>), <span class="ident">t</span>);
+        <span class="ident">current_differential</span>.<span class="ident">get_matrix</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">1</span>, <span class="number">1</span>), <span class="ident">t</span>);
+        <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">2</span>, <span class="number">2</span>).<span class="ident">add_identity</span>(<span class="ident">source_dimension</span>, <span class="number">0</span>, <span class="number">0</span>);
+        <span class="ident">matrix</span>.<span class="ident">initialize_pivots</span>();
+
+        <span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
+
+        <span class="comment">// This slices the underling matrix. Be sure to revert this.</span>
+        <span class="kw">let</span> <span class="ident">matrix_start_2</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">start</span>[<span class="number">2</span>];
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pivots</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">take_pivots</span>();
+        <span class="ident">matrix</span>.<span class="ident">row_reduce_into_pivots</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">pivots</span>);
+
+        <span class="kw-2">*</span><span class="ident">old_kernel</span> <span class="op">=</span> <span class="prelude-val">Some</span>(
+            <span class="ident">matrix</span>
+                .<span class="ident">as_slice_mut</span>()
+                .<span class="ident">compute_kernel</span>(<span class="kw-2">&amp;</span><span class="ident">pivots</span>, <span class="ident">matrix_start_2</span>),
+        );
     }
 
     <span class="comment">// pub fn step_resolution_by_stem(&amp;self, s : u32, t : i32) {</span>
@@ -1477,6 +1668,71 @@
                 <span class="ident">cb</span>(<span class="ident">s</span>, <span class="ident">t</span>);
             }
         }
+    }
+
+    <span class="doccomment">/// This function resolves up till a fixed stem instead of a fixed t. It is an error to</span>
+    <span class="doccomment">/// attempt to resolve further after this is called, and will result in a deadlock.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">resolve_through_stem</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>, <span class="ident">max_f</span>: <span class="ident">i32</span>) {
+        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>();
+        <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
+        <span class="kw">let</span> <span class="ident">max_t</span> <span class="op">=</span> <span class="ident">max_s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">max_f</span> <span class="op">+</span> <span class="number">1</span>;
+        <span class="self">self</span>.<span class="ident">complex</span>().<span class="ident">compute_through_bidegree</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>);
+        <span class="self">self</span>.<span class="ident">extend_through_degree</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>);
+        <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">compute_basis</span>(<span class="ident">max_t</span> <span class="op">-</span> <span class="ident">min_degree</span>);
+
+        <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_t</span> {
+            <span class="kw">let</span> <span class="ident">start_s</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">max</span>(<span class="number">0</span>, <span class="ident">t</span> <span class="op">-</span> <span class="ident">max_f</span> <span class="op">-</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">u32</span>;
+            <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="ident">start_s</span>..<span class="op">=</span><span class="ident">max_s</span> {
+                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>) {
+                    <span class="kw">continue</span>;
+                }
+                <span class="kw">if</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">max_f</span> <span class="op">+</span> <span class="number">1</span> <span class="op">=</span><span class="op">=</span> <span class="ident">t</span> {
+                    <span class="self">self</span>.<span class="ident">step_resolution_phony</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+                } <span class="kw">else</span> {
+                    <span class="self">self</span>.<span class="ident">step_resolution</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+                }
+            }
+        }
+    }
+
+    <span class="doccomment">/// A concurrent version of [`resolve_through_stem`]</span>
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">resolve_through_stem_concurrent</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>, <span class="ident">max_f</span>: <span class="ident">i32</span>, <span class="ident">bucket</span>: <span class="kw-2">&amp;</span><span class="ident">TokenBucket</span>) {
+        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>();
+        <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
+        <span class="kw">let</span> <span class="ident">max_t</span> <span class="op">=</span> <span class="ident">max_s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">max_f</span> <span class="op">+</span> <span class="number">1</span>;
+
+        <span class="self">self</span>.<span class="ident">complex</span>().<span class="ident">compute_through_bidegree</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>);
+        <span class="self">self</span>.<span class="ident">extend_through_degree</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>);
+        <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">compute_basis</span>(<span class="ident">max_t</span> <span class="op">-</span> <span class="ident">min_degree</span>);
+
+        <span class="ident">crossbeam_utils</span>::<span class="ident">thread</span>::<span class="ident">scope</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">last_receiver</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Receiver</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-val">None</span>;
+            <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_t</span> {
+                <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) <span class="op">=</span> <span class="ident">unbounded</span>();
+
+                <span class="ident">s</span>.<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
+                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">token</span> <span class="op">=</span> <span class="ident">bucket</span>.<span class="ident">take_token</span>();
+                    <span class="kw">let</span> <span class="ident">start_s</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">max</span>(<span class="number">0</span>, <span class="ident">t</span> <span class="op">-</span> <span class="ident">max_f</span> <span class="op">-</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">u32</span>;
+                    <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="ident">start_s</span>..<span class="op">=</span><span class="ident">max_s</span> {
+                        <span class="ident">token</span> <span class="op">=</span> <span class="ident">bucket</span>.<span class="ident">recv_or_release</span>(<span class="ident">token</span>, <span class="kw-2">&amp;</span><span class="ident">last_receiver</span>);
+                        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>) {
+                            <span class="kw">if</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">max_f</span> <span class="op">+</span> <span class="number">1</span> <span class="op">=</span><span class="op">=</span> <span class="ident">t</span> {
+                                <span class="self">self</span>.<span class="ident">step_resolution_phony</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+                                <span class="comment">// The next t cannot be computed yet</span>
+                                <span class="kw">continue</span>;
+                            } <span class="kw">else</span> {
+                                <span class="self">self</span>.<span class="ident">step_resolution</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+                            }
+                        }
+                        <span class="comment">// In the last round the receiver would have been dropped</span>
+                        <span class="ident">sender</span>.<span class="ident">send</span>(()).<span class="ident">ok</span>();
+                    }
+                });
+                <span class="ident">last_receiver</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">receiver</span>);
+            }
+        })
+        .<span class="ident">unwrap</span>();
     }
 }
 

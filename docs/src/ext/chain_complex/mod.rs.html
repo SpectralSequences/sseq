@@ -389,7 +389,7 @@
         <span class="kw">let</span> <span class="ident">image</span> <span class="op">=</span> <span class="ident">d_cur</span>.<span class="ident">image</span>(<span class="ident">internal_degree</span>);
         <span class="kw">let</span> <span class="ident">homology_basis</span> <span class="op">=</span> <span class="ident">Subquotient</span>::<span class="ident">subquotient</span>(
             <span class="prelude-val">Some</span>(<span class="ident">kernel</span>),
-            <span class="ident">image</span>.<span class="ident">as_ref</span>(),
+            <span class="ident">image</span>,
             <span class="ident">d_prev</span>.<span class="ident">source</span>().<span class="ident">dimension</span>(<span class="ident">internal_degree</span>),
         );
         <span class="self">self</span>.<span class="ident">set_homology_basis</span>(<span class="ident">homological_degree</span>, <span class="ident">internal_degree</span>, <span class="ident">homology_basis</span>);
@@ -462,7 +462,7 @@
         <span class="kw">let</span> <span class="ident">image</span> <span class="op">=</span> <span class="ident">d_cur</span>.<span class="ident">image</span>(<span class="ident">internal_degree</span>);
         <span class="kw">let</span> <span class="ident">cohomology_basis</span> <span class="op">=</span> <span class="ident">Subquotient</span>::<span class="ident">subquotient</span>(
             <span class="prelude-val">Some</span>(<span class="ident">kernel</span>),
-            <span class="ident">image</span>.<span class="ident">as_ref</span>(),
+            <span class="ident">image</span>,
             <span class="ident">d_prev</span>.<span class="ident">source</span>().<span class="ident">dimension</span>(<span class="ident">internal_degree</span>),
         );
         <span class="self">self</span>.<span class="ident">set_cohomology_basis</span>(<span class="ident">homological_degree</span>, <span class="ident">internal_degree</span>, <span class="ident">cohomology_basis</span>);

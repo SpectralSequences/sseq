@@ -240,8 +240,8 @@
 
     <span class="doccomment">/// Returns the image of the module homomorphism in degree `degree`. If `None`, the image</span>
     <span class="doccomment">/// is the whole space.</span>
-    <span class="kw">fn</span> <span class="ident">image</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Subspace</span><span class="op">&gt;</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">quasi_inverse</span>(<span class="ident">degree</span>).<span class="ident">image</span>
+    <span class="kw">fn</span> <span class="ident">image</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Subspace</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">quasi_inverse</span>(<span class="ident">degree</span>).<span class="ident">image</span>()
     }
 
     <span class="doccomment">/// A version of kernel_and_quasi_inverse that, in fact, doesn&#39;t compute the kernel.</span>
