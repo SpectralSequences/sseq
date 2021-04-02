@@ -119,7 +119,7 @@ fn main() -> error::Result<()> {
     for s in 0..=2 * s {
         square
             .differential(s as u32)
-            .compute_kernels_and_quasi_inverses_through_degree(2 * t);
+            .compute_auxiliary_data_through_degree(2 * t);
     }
     println!("{:?}", start.elapsed());
 

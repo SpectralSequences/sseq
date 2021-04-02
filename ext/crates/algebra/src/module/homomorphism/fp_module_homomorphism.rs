@@ -5,7 +5,7 @@ use crate::module::homomorphism::{
     FreeModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism, ZeroHomomorphism,
 };
 use crate::module::{FPModule, FreeModule, Module};
-use fp::matrix::{Matrix, QuasiInverse, Subspace};
+use fp::matrix::Matrix;
 use fp::vector::SliceMut;
 
 pub struct FPModuleHomomorphism<N: FPModuleT, M: Module<Algebra = N::Algebra>> {
@@ -42,25 +42,6 @@ impl<N: FPModuleT, M: Module<Algebra = N::Algebra>> ModuleHomomorphism
         self.underlying_map.extend_by_zero(input_degree);
         self.underlying_map
             .apply_to_basis_element(result, coeff, input_degree, idx);
-    }
-
-    fn quasi_inverse(&self, degree: i32) -> &QuasiInverse {
-        &self.underlying_map.quasi_inverse[degree]
-    }
-
-    fn kernel(&self, degree: i32) -> &Subspace {
-        &self.underlying_map.kernel[degree]
-    }
-
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32) {
-        let kernel_len = self.underlying_map.kernel.len();
-        let qi_len = self.underlying_map.quasi_inverse.len();
-        assert_eq!(kernel_len, qi_len);
-        for i in kernel_len..=degree {
-            let (kernel, qi) = self.kernel_and_quasi_inverse(i);
-            self.underlying_map.kernel.push(kernel);
-            self.underlying_map.quasi_inverse.push(qi);
-        }
     }
 }
 

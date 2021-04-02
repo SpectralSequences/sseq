@@ -1,4 +1,4 @@
-use super::{Matrix, Subspace};
+use super::Matrix;
 use crate::prime::ValidPrime;
 use crate::vector::{Slice, SliceMut};
 
@@ -12,17 +12,13 @@ use crate::vector::{Slice, SliceMut};
 ///  `image`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuasiInverse {
-    image: Option<Subspace>,
+    image: Option<Vec<isize>>,
     preimage: Matrix,
 }
 
 impl QuasiInverse {
-    pub fn new(image: Option<Subspace>, preimage: Matrix) -> Self {
+    pub fn new(image: Option<Vec<isize>>, preimage: Matrix) -> Self {
         Self { image, preimage }
-    }
-
-    pub fn image(&self) -> Option<&Subspace> {
-        self.image.as_ref()
     }
 
     pub fn preimage(&self) -> &Matrix {
@@ -30,7 +26,7 @@ impl QuasiInverse {
     }
 
     pub fn pivots(&self) -> Option<&[isize]> {
-        self.image.as_ref().map(|x| x.pivots())
+        self.image.as_deref()
     }
 
     pub fn prime(&self) -> ValidPrime {
@@ -78,7 +74,7 @@ impl Load for QuasiInverse {
 
     fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
         Ok(Self {
-            image: Option::<Subspace>::load(buffer, &Some(*p))?,
+            image: Option::<Vec<isize>>::load(buffer, &Some(()))?,
             preimage: Matrix::load(buffer, p)?,
         })
     }

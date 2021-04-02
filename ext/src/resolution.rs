@@ -265,7 +265,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                 // X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).
                 // So we set dX(x) = f^{-1}(dC(f(x)))
                 let prev_chain_map = self.chain_map(s - 1);
-                let quasi_inverse = prev_chain_map.quasi_inverse(t);
+                let quasi_inverse = prev_chain_map.quasi_inverse(t).unwrap();
 
                 let dfx_dim = complex_cur_differential.target().dimension(t);
                 let mut dfx = FpVector::new(self.prime(), dfx_dim);
@@ -344,10 +344,12 @@ impl<CC: ChainComplex> Resolution<CC> {
         let (cm_qi, res_qi) =
             matrix.compute_quasi_inverses(matrix_start_2 + source_dimension + num_new_gens);
 
-        current_chain_map.set_quasi_inverse(t, cm_qi);
-        current_chain_map.set_kernel(t, Subspace::new(p, 0, 0)); // Fill it up with something dummy so that compute_kernels_and... is happy
-        current_differential.set_quasi_inverse(t, res_qi);
-        current_differential.set_kernel(t, Subspace::new(p, 0, 0));
+        current_chain_map.set_quasi_inverse(t, Some(cm_qi));
+        current_chain_map.set_kernel(t, None);
+        current_chain_map.set_image(t, None);
+        current_differential.set_quasi_inverse(t, Some(res_qi));
+        current_differential.set_kernel(t, None);
+        current_differential.set_image(t, None);
 
         *old_kernel = Some(new_kernel);
     }

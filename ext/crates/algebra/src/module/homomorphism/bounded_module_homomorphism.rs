@@ -17,6 +17,7 @@ pub struct BoundedModuleHomomorphism<S: BoundedModule, T: Module<Algebra = S::Al
     pub matrices: BiVec<Matrix>,
     pub quasi_inverses: OnceBiVec<QuasiInverse>,
     pub kernels: OnceBiVec<Subspace>,
+    pub images: OnceBiVec<Subspace>,
 }
 
 impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> Clone for BoundedModuleHomomorphism<S, T> {
@@ -29,6 +30,7 @@ impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> Clone for BoundedModuleH
             matrices: self.matrices.clone(),
             quasi_inverses: self.quasi_inverses.clone(),
             kernels: self.kernels.clone(),
+            images: self.images.clone(),
         }
     }
 }
@@ -64,25 +66,29 @@ impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
         }
     }
 
-    fn quasi_inverse(&self, degree: i32) -> &QuasiInverse {
-        &self.quasi_inverses[degree]
+    fn image(&self, degree: i32) -> Option<&Subspace> {
+        self.images.get(degree)
     }
 
-    fn kernel(&self, degree: i32) -> &Subspace {
-        &self.kernels[degree]
+    fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {
+        self.quasi_inverses.get(degree)
     }
 
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32) {
+    fn kernel(&self, degree: i32) -> Option<&Subspace> {
+        self.kernels.get(degree)
+    }
+
+    fn compute_auxiliary_data_through_degree(&self, degree: i32) {
         let _lock = self.lock.lock();
 
         let max_degree = std::cmp::min(degree + 1, self.matrices.len());
         let next_degree = self.kernels.len();
-        assert_eq!(next_degree, self.quasi_inverses.len());
 
         for i in next_degree..max_degree {
-            let (kernel, qi) = self.kernel_and_quasi_inverse(i);
-            self.kernels.push(kernel);
-            self.quasi_inverses.push(qi);
+            let (image, kernel, qi) = self.auxiliary_data(i);
+            self.images.push_checked(image, i);
+            self.kernels.push_checked(kernel, i);
+            self.quasi_inverses.push_checked(qi, i);
         }
     }
 }
@@ -124,6 +130,7 @@ where
             lock: Mutex::new(()),
             quasi_inverses: OnceBiVec::new(min_degree),
             kernels: OnceBiVec::new(min_degree),
+            images: OnceBiVec::new(min_degree),
         }
     }
 
@@ -159,6 +166,7 @@ where
             matrices,
             quasi_inverses: OnceBiVec::new(min_degree),
             kernels: OnceBiVec::new(min_degree),
+            images: OnceBiVec::new(min_degree),
         }
     }
 
@@ -177,6 +185,7 @@ where
             matrices: self.matrices,
             quasi_inverses: self.quasi_inverses,
             kernels: self.kernels,
+            images: self.images,
         }
     }
 
@@ -193,6 +202,7 @@ where
             matrices: self.matrices,
             quasi_inverses: self.quasi_inverses,
             kernels: self.kernels,
+            images: self.images,
         }
     }
 }
@@ -209,6 +219,7 @@ impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> ZeroHomomorphism<S, T>
             matrices: BiVec::new(0),
             quasi_inverses: OnceBiVec::new(0),
             kernels: OnceBiVec::new(0),
+            images: OnceBiVec::new(0),
         }
     }
 }

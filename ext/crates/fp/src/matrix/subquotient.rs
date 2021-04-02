@@ -129,41 +129,17 @@ impl Subquotient {
     /// # Arguments
     ///  * `space` - If this is None, it is the whole space k^`ambient_dimension`
     ///  * `subspace` - If this is None, it is empty
-    pub fn subquotient(
-        space: Option<&Subspace>,
-        subspace: Option<&Subspace>,
-        ambient_dimension: usize,
-    ) -> Vec<usize> {
-        match subspace {
-            None => {
-                if let Some(sp) = space {
-                    sp.pivots()
-                        .iter()
-                        .filter(|i| **i >= 0)
-                        .map(|i| *i as usize)
-                        .collect()
-                } else {
-                    (0..ambient_dimension).collect()
-                }
-            }
-            Some(subsp) => {
-                if let Some(sp) = space {
-                    sp.pivots()
-                        .iter()
-                        .zip(subsp.pivots().iter())
-                        .filter(|(x, y)| {
-                            debug_assert!(**x >= 0 || **y < 0);
-                            **x >= 0 && **y < 0
-                        })
-                        .map(|(x, _)| *x as usize)
-                        .collect()
-                } else {
-                    (0..ambient_dimension)
-                        .filter(|i| subsp.pivots()[*i] < 0)
-                        .collect()
-                }
-            }
-        }
+    pub fn subquotient(space: &Subspace, subspace: &Subspace) -> Vec<usize> {
+        space
+            .pivots()
+            .iter()
+            .zip(subspace.pivots().iter())
+            .filter(|(x, y)| {
+                debug_assert!(**x >= 0 || **y < 0);
+                **x >= 0 && **y < 0
+            })
+            .map(|(x, _)| *x as usize)
+            .collect()
     }
 }
 

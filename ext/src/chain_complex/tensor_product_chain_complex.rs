@@ -5,7 +5,7 @@ use algebra::module::homomorphism::{
 };
 use algebra::module::{FiniteModule, Module, SumModule, TensorModule, ZeroModule};
 use algebra::{Algebra, Bialgebra, SteenrodAlgebra};
-use fp::matrix::{Matrix, QuasiInverse, Subspace};
+use fp::matrix::Matrix;
 use fp::vector::{FpVector, Slice, SliceMut};
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -313,15 +313,7 @@ where
         }
     }
 
-    fn kernel(&self, _degree: i32) -> &Subspace {
-        panic!("Kernels not calculated for TensorChainMap");
-    }
-
-    fn quasi_inverse(&self, _degree: i32) -> &QuasiInverse {
-        panic!("Use apply_quasi_inverse instead");
-    }
-
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32) {
+    fn compute_auxiliary_data_through_degree(&self, degree: i32) {
         let next_degree = self.quasi_inverses.len();
         if next_degree > degree {
             return;
@@ -549,6 +541,7 @@ impl AugmentedChainComplex
             matrices: BiVec::from_vec(0, vec![Matrix::from_vec(self.prime(), &[vec![1]])]),
             quasi_inverses: OnceBiVec::new(0),
             kernels: OnceBiVec::new(0),
+            images: OnceBiVec::new(0),
         })
     }
 }

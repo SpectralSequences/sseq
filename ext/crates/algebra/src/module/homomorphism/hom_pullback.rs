@@ -16,8 +16,9 @@ pub struct HomPullback<M: BoundedModule> {
     source: Arc<HomModule<M>>,
     target: Arc<HomModule<M>>,
     map: Arc<FreeModuleHomomorphism<FreeModule<M::Algebra>>>,
-    kernel: OnceBiVec<Subspace>,
-    quasi_inverse: OnceBiVec<QuasiInverse>,
+    images: OnceBiVec<Subspace>,
+    kernels: OnceBiVec<Subspace>,
+    quasi_inverses: OnceBiVec<QuasiInverse>,
 }
 
 impl<M: BoundedModule> HomPullback<M> {
@@ -31,8 +32,9 @@ impl<M: BoundedModule> HomPullback<M> {
             source,
             target,
             map,
-            kernel: OnceBiVec::new(min_degree),
-            quasi_inverse: OnceBiVec::new(min_degree),
+            images: OnceBiVec::new(min_degree),
+            kernels: OnceBiVec::new(min_degree),
+            quasi_inverses: OnceBiVec::new(min_degree),
         }
     }
 }
@@ -87,23 +89,26 @@ impl<M: BoundedModule> ModuleHomomorphism for HomPullback<M> {
         }
     }
 
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32) {
-        let kernel_len = self.kernel.len();
-        let qi_len = self.quasi_inverse.len();
-        assert_eq!(kernel_len, qi_len);
+    fn compute_auxiliary_data_through_degree(&self, degree: i32) {
+        let kernel_len = self.kernels.len();
         for i in kernel_len..=degree {
-            let (kernel, qi) = self.kernel_and_quasi_inverse(i);
-            self.kernel.push(kernel);
-            self.quasi_inverse.push(qi);
+            let (image, kernel, qi) = self.auxiliary_data(i);
+            self.images.push_checked(image, i);
+            self.kernels.push_checked(kernel, i);
+            self.quasi_inverses.push_checked(qi, i);
         }
     }
 
-    fn quasi_inverse(&self, degree: i32) -> &QuasiInverse {
-        &self.quasi_inverse[degree]
+    fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {
+        self.quasi_inverses.get(degree)
     }
 
-    fn kernel(&self, degree: i32) -> &Subspace {
-        &self.kernel[degree]
+    fn kernel(&self, degree: i32) -> Option<&Subspace> {
+        self.kernels.get(degree)
+    }
+
+    fn image(&self, degree: i32) -> Option<&Subspace> {
+        self.images.get(degree)
     }
 }
 

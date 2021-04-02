@@ -131,6 +131,7 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
                 }
 
                 d.quasi_inverse(t - 1)
+                    .unwrap()
                     .apply(result.as_slice_mut(), 1, scratch.as_slice());
                 scratch.set_to_zero();
             }
@@ -371,7 +372,7 @@ pub fn compute_delta_concurrent(
                             assert!(r.is_zero(), "dd != 0 at s = {}, t = {}", s, t);
                         }
 
-                        target_d.quasi_inverse(t - 1).apply(
+                        target_d.quasi_inverse(t - 1).unwrap().apply(
                             result.as_slice_mut(),
                             1,
                             row.as_slice(),

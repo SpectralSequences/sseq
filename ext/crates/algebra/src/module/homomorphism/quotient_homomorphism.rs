@@ -1,5 +1,4 @@
 use crate::module::{Module, QuotientModule};
-use fp::matrix::{QuasiInverse, Subspace};
 use fp::vector::{FpVector, SliceMut};
 use std::sync::Arc;
 
@@ -55,18 +54,6 @@ impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphism<F> {
         self.t
             .old_basis_to_new(output_degree, result, result_.as_slice());
     }
-
-    fn kernel(&self, _degree: i32) -> &Subspace {
-        unimplemented!();
-    }
-
-    fn quasi_inverse(&self, _degree: i32) -> &QuasiInverse {
-        unimplemented!();
-    }
-
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, _degree: i32) {
-        unimplemented!();
-    }
 }
 
 pub struct QuotientHomomorphismSource<F: ModuleHomomorphism> {
@@ -107,17 +94,5 @@ impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphismSource<F>
             input_degree,
             self.s.basis_list[input_degree][input_idx],
         );
-    }
-
-    fn kernel(&self, _degree: i32) -> &Subspace {
-        unimplemented!();
-    }
-
-    fn quasi_inverse(&self, _degree: i32) -> &QuasiInverse {
-        unimplemented!();
-    }
-
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, _degree: i32) {
-        unimplemented!();
     }
 }

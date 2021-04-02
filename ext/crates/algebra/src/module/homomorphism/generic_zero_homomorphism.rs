@@ -1,6 +1,5 @@
 use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use crate::module::Module;
-use fp::matrix::{QuasiInverse, Subspace};
 use fp::vector::SliceMut;
 use std::sync::Arc;
 
@@ -39,14 +38,6 @@ impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
     }
 
     fn apply_to_basis_element(&self, _: SliceMut, _: u32, _: i32, _: usize) {}
-
-    fn quasi_inverse(&self, _: i32) -> &QuasiInverse {
-        unimplemented!()
-    }
-    fn kernel(&self, _: i32) -> &Subspace {
-        unimplemented!()
-    }
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, _: i32) {}
 }
 
 impl<S: Module, T: Module<Algebra = S::Algebra>> ZeroHomomorphism<S, T>

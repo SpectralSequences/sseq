@@ -1,7 +1,5 @@
 mod finite_chain_complex;
 #[cfg(feature = "extras")]
-mod hom_complex;
-#[cfg(feature = "extras")]
 mod tensor_product_chain_complex;
 
 use crate::utils::ascii_num;
@@ -116,7 +114,8 @@ pub trait ChainComplex: Send + Sync + 'static {
         result.add(
             &self
                 .differential(homological_degree)
-                .kernel(internal_degree)[row_index],
+                .kernel(internal_degree)
+                .unwrap()[row_index],
             coeff,
         );
     }
@@ -125,15 +124,11 @@ pub trait ChainComplex: Send + Sync + 'static {
         self.compute_through_bidegree(homological_degree + 1, internal_degree);
         let d_prev = self.differential(homological_degree);
         let d_cur = self.differential(homological_degree + 1);
-        d_prev.compute_kernels_and_quasi_inverses_through_degree(internal_degree);
-        d_cur.compute_kernels_and_quasi_inverses_through_degree(internal_degree);
-        let kernel = d_prev.kernel(internal_degree);
-        let image = d_cur.image(internal_degree);
-        let homology_basis = Subquotient::subquotient(
-            Some(kernel),
-            image,
-            d_prev.source().dimension(internal_degree),
-        );
+        d_prev.compute_auxiliary_data_through_degree(internal_degree);
+        d_cur.compute_auxiliary_data_through_degree(internal_degree);
+        let kernel = d_prev.kernel(internal_degree).unwrap();
+        let image = d_cur.image(internal_degree).unwrap();
+        let homology_basis = Subquotient::subquotient(kernel, image);
         self.set_homology_basis(homological_degree, internal_degree, homology_basis);
     }
 }
@@ -188,7 +183,8 @@ pub trait CochainComplex: Send + Sync + 'static {
         result.add(
             &self
                 .differential(homological_degree)
-                .kernel(internal_degree)[row_index],
+                .kernel(internal_degree)
+                .unwrap()[row_index],
             coeff,
         );
     }
@@ -198,15 +194,11 @@ pub trait CochainComplex: Send + Sync + 'static {
         self.compute_through_bidegree(homological_degree + 1, internal_degree);
         let d_cur = self.differential(homological_degree);
         let d_prev = self.differential(homological_degree + 1);
-        d_prev.compute_kernels_and_quasi_inverses_through_degree(internal_degree);
-        d_cur.compute_kernels_and_quasi_inverses_through_degree(internal_degree);
-        let kernel = d_prev.kernel(internal_degree);
-        let image = d_cur.image(internal_degree);
-        let cohomology_basis = Subquotient::subquotient(
-            Some(kernel),
-            image,
-            d_prev.source().dimension(internal_degree),
-        );
+        d_prev.compute_auxiliary_data_through_degree(internal_degree);
+        d_cur.compute_auxiliary_data_through_degree(internal_degree);
+        let kernel = d_prev.kernel(internal_degree).unwrap();
+        let image = d_cur.image(internal_degree).unwrap();
+        let cohomology_basis = Subquotient::subquotient(kernel, image);
         self.set_cohomology_basis(homological_degree, internal_degree, cohomology_basis);
     }
 }

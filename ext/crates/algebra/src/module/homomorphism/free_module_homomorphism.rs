@@ -13,8 +13,9 @@ pub struct FreeModuleHomomorphism<M: Module> {
     source: Arc<FreeModule<M::Algebra>>,
     target: Arc<M>,
     outputs: OnceBiVec<Vec<FpVector>>, // degree --> input_idx --> output
-    pub kernel: OnceBiVec<Subspace>,
-    pub quasi_inverse: OnceBiVec<QuasiInverse>,
+    pub images: OnceBiVec<Option<Subspace>>,
+    pub kernels: OnceBiVec<Option<Subspace>>,
+    pub quasi_inverses: OnceBiVec<Option<QuasiInverse>>,
     min_degree: i32,
     lock: Mutex<()>,
     /// degree shift, such that ouptut_degree = input_degree - degree_shift
@@ -71,33 +72,29 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
         }
     }
 
-    fn quasi_inverse(&self, degree: i32) -> &QuasiInverse {
-        debug_assert!(
-            degree >= self.min_degree,
-            "Degree {} less than min degree {}",
-            degree,
-            self.min_degree
-        );
-        &self.quasi_inverse[degree]
+    fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {
+        self.quasi_inverses
+            .get(degree)
+            .map(Option::as_ref)
+            .flatten()
     }
 
-    fn kernel(&self, degree: i32) -> &Subspace {
-        &self.kernel[degree]
+    fn kernel(&self, degree: i32) -> Option<&Subspace> {
+        self.kernels.get(degree).map(Option::as_ref).flatten()
     }
 
-    fn get_matrix(&self, matrix: &mut MatrixSliceMut, degree: i32) {
-        self.get_matrix(matrix, degree)
+    fn image(&self, degree: i32) -> Option<&Subspace> {
+        self.images.get(degree).map(Option::as_ref).flatten()
     }
 
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32) {
+    fn compute_auxiliary_data_through_degree(&self, degree: i32) {
         let _lock = self.lock.lock();
-        let kernel_len = self.kernel.len();
-        let qi_len = self.quasi_inverse.len();
-        assert_eq!(kernel_len, qi_len);
+        let kernel_len = self.kernels.len();
         for i in kernel_len..=degree {
-            let (kernel, qi) = self.kernel_and_quasi_inverse(i);
-            self.kernel.push_checked(kernel, i);
-            self.quasi_inverse.push_checked(qi, i);
+            let (image, kernel, qi) = self.auxiliary_data(i);
+            self.images.push_checked(Some(image), i);
+            self.kernels.push_checked(Some(kernel), i);
+            self.quasi_inverses.push_checked(Some(qi), i);
         }
     }
 }
@@ -111,14 +108,16 @@ impl<M: Module> FreeModuleHomomorphism<M> {
     pub fn new(source: Arc<FreeModule<M::Algebra>>, target: Arc<M>, degree_shift: i32) -> Self {
         let min_degree = std::cmp::max(source.min_degree(), target.min_degree() + degree_shift);
         let outputs = OnceBiVec::new(min_degree);
-        let kernel = OnceBiVec::new(min_degree);
-        let quasi_inverse = OnceBiVec::new(min_degree);
+        let kernels = OnceBiVec::new(min_degree);
+        let images = OnceBiVec::new(min_degree);
+        let quasi_inverses = OnceBiVec::new(min_degree);
         Self {
             source,
             target,
             outputs,
-            kernel,
-            quasi_inverse,
+            images,
+            kernels,
+            quasi_inverses,
             min_degree,
             lock: Mutex::new(()),
             degree_shift,
@@ -228,41 +227,16 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         result.add(output_on_gen, coeff);
     }
 
-    pub fn get_matrix(&self, matrix: &mut MatrixSliceMut, degree: i32) {
-        // let source_dimension = FreeModule::<M::Algebra>::dimension_with_table(table);
-        // let target_dimension = self.target().dimension(degree);
-        // if source_dimension != matrix.rows() {
-        //     panic!(
-        //         "get_matrix_with_table for homomorphism {} -> {} in degree {}: table source dimension {} not equal to number of matrix rows {}.",
-        //         self.source().name(),
-        //         self.target().name(),
-        //         degree,
-        //         source_dimension,
-        //         matrix.rows()
-        //     );
-        // }
-        // if target_dimension != matrix.columns() {
-        //     panic!(
-        //         "get_matrix_with_table for homomorphism {} -> {} in degree {}: table target dimension {} not equal to number of matrix columns {}.",
-        //         self.source().name(),
-        //         self.target().name(),
-        //         degree,
-        //         target_dimension,
-        //         matrix.columns()
-        //     );
-        // }
-
-        for (i, row) in matrix.iter_mut().enumerate() {
-            self.apply_to_basis_element(row, 1, degree, i);
-        }
+    pub fn set_image(&self, degree: i32, image: Option<Subspace>) {
+        self.images.push_checked(image, degree);
     }
 
-    pub fn set_kernel(&self, degree: i32, kernel: Subspace) {
-        self.kernel.push_checked(kernel, degree);
+    pub fn set_kernel(&self, degree: i32, kernel: Option<Subspace>) {
+        self.kernels.push_checked(kernel, degree);
     }
 
-    pub fn set_quasi_inverse(&self, degree: i32, quasi_inverse: QuasiInverse) {
-        self.quasi_inverse.push_checked(quasi_inverse, degree);
+    pub fn set_quasi_inverse(&self, degree: i32, quasi_inverse: Option<QuasiInverse>) {
+        self.quasi_inverses.push_checked(quasi_inverse, degree);
     }
 }
 
@@ -295,8 +269,9 @@ use std::io::{Read, Write};
 impl<M: Module> Save for FreeModuleHomomorphism<M> {
     fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
         self.outputs.save(buffer)?;
-        self.kernel.save(buffer)?;
-        self.quasi_inverse.save(buffer)?;
+        self.images.save(buffer)?;
+        self.kernels.save(buffer)?;
+        self.quasi_inverses.save(buffer)?;
 
         Ok(())
     }
@@ -314,15 +289,18 @@ impl<M: Module> Load for FreeModuleHomomorphism<M> {
 
         let outputs: OnceBiVec<Vec<FpVector>> = Load::load(buffer, &(min_degree, p))?;
 
-        let kernel = OnceBiVec::<Subspace>::load(buffer, &(min_degree, p))?;
-        let quasi_inverse = OnceBiVec::<QuasiInverse>::load(buffer, &(min_degree, p))?;
+        let images = OnceBiVec::<Option<Subspace>>::load(buffer, &(min_degree, Some(p)))?;
+        let kernels = OnceBiVec::<Option<Subspace>>::load(buffer, &(min_degree, Some(p)))?;
+        let quasi_inverses =
+            OnceBiVec::<Option<QuasiInverse>>::load(buffer, &(min_degree, Some(p)))?;
 
         Ok(Self {
             source,
             target,
             outputs,
-            kernel,
-            quasi_inverse,
+            images,
+            kernels,
+            quasi_inverses,
             min_degree,
             lock: Mutex::new(()),
             degree_shift,

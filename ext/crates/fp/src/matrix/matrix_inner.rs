@@ -518,18 +518,12 @@ impl Matrix {
     /// m.row_reduce();
     /// let qi = m.compute_quasi_inverse(input[0].len(), padded_cols);
     ///
-    /// let image = [vec![1, 0, 2, 1, 1],
-    ///              vec![0, 1, 1, 0, 1]];
-    /// let computed_image = qi.image().unwrap();
-    /// assert_eq!(computed_image.matrix, Matrix::from_vec(p, &image));
-    /// assert_eq!(computed_image.pivots(), &vec![0, 1, -1, -1, -1]);
-    ///
     /// let preimage = [vec![0, 1, 0],
     ///                 vec![0, 2, 2]];
     /// assert_eq!(qi.preimage(), &Matrix::from_vec(p, &preimage));
     /// ```
     pub fn compute_quasi_inverse(
-        &mut self,
+        &self,
         last_target_col: usize,
         first_source_col: usize,
     ) -> QuasiInverse {
@@ -537,21 +531,58 @@ impl Matrix {
         let columns = self.columns();
         let source_columns = columns - first_source_col;
         let first_kernel_row = self.find_first_row_in_block(first_source_col);
-        let mut image_matrix = Matrix::new(p, first_kernel_row, last_target_col);
         let mut preimage = Matrix::new(p, first_kernel_row, source_columns);
         for i in 0..first_kernel_row {
-            image_matrix[i]
-                .as_slice_mut()
-                .assign(self[i].slice(0, last_target_col));
             preimage[i]
                 .as_slice_mut()
                 .assign(self[i].slice(first_source_col, columns));
         }
+        QuasiInverse::new(Some(self.pivots()[..last_target_col].to_vec()), preimage)
+    }
+
+    /// Computes the quasi-inverse of a matrix given a rref of [A|0|I], where 0 is the zero padding
+    /// as usual.
+    ///
+    /// # Arguments
+    ///  * `pivots` - Pivots returned by `row_reduce`
+    ///  * `last_target_col` - the last column of A
+    ///  * `first_source_col` - the first column of I
+    ///
+    /// # Example
+    /// ```
+    /// # use fp::prime::ValidPrime;
+    /// let p = ValidPrime::new(3);
+    /// # use fp::matrix::Matrix;
+    /// # use fp::vector::FpVector;
+    /// # fp::vector::initialize_limb_bit_index_table(p);
+    /// let input  = [vec![1, 2, 1, 1, 0],
+    ///               vec![1, 0, 2, 1, 1],
+    ///               vec![2, 2, 0, 2, 1]];
+    ///
+    /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &input);
+    /// m.initialize_pivots();
+    /// m.row_reduce();
+    ///
+    /// let computed_image = m.compute_image(input[0].len(), padded_cols);
+    ///
+    /// let image = [vec![1, 0, 2, 1, 1],
+    ///              vec![0, 1, 1, 0, 1]];
+    /// assert_eq!(computed_image.matrix, Matrix::from_vec(p, &image));
+    /// assert_eq!(computed_image.pivots(), &vec![0, 1, -1, -1, -1]);
+    /// ```
+    pub fn compute_image(&self, last_target_col: usize, first_source_col: usize) -> Subspace {
+        let p = self.prime();
+        let first_kernel_row = self.find_first_row_in_block(first_source_col);
+        let mut image_matrix = Matrix::new(p, first_kernel_row, last_target_col);
+        for i in 0..first_kernel_row {
+            image_matrix[i]
+                .as_slice_mut()
+                .assign(self[i].slice(0, last_target_col));
+        }
         image_matrix.set_pivots(self.pivots()[..last_target_col].to_vec());
-        let image = Subspace {
+        Subspace {
             matrix: image_matrix,
-        };
-        QuasiInverse::new(Some(image), preimage)
+        }
     }
 
     /// This function computes quasi-inverses for matrices A, B given a reduced row echelon form of
@@ -598,20 +629,14 @@ impl Matrix {
             );
         }
         let mut res_preimage = Matrix::new(p, res_image_rows, source_columns);
-        let mut res_image = Subspace::new(p, res_image_rows, res_columns);
         for i in 0..res_image_rows {
-            res_image[i]
-                .as_slice_mut()
-                .assign(self[i].slice(first_res_col, last_res_col));
-            res_image
-                .pivots_mut()
-                .copy_from_slice(&new_pivots[..res_columns]);
             res_preimage[i]
                 .as_slice_mut()
                 .assign(self[i].slice(first_source_col, columns));
         }
+        let res_pivots = new_pivots[..res_columns].into();
         let cm_qi = QuasiInverse::new(None, cc_preimage);
-        let res_qi = QuasiInverse::new(Some(res_image), res_preimage);
+        let res_qi = QuasiInverse::new(Some(res_pivots), res_preimage);
         (cm_qi, res_qi)
     }
 
@@ -884,7 +909,11 @@ macro_rules! augmented_matrix {
 augmented_matrix!(3, AugmentedMatrix3, 2, AugmentedMatrix2);
 
 impl AugmentedMatrix2 {
-    pub fn compute_quasi_inverse(&mut self) -> QuasiInverse {
+    pub fn compute_image(&self) -> Subspace {
+        self.inner.compute_image(self.end[0], self.start[1])
+    }
+
+    pub fn compute_quasi_inverse(&self) -> QuasiInverse {
         self.inner.compute_quasi_inverse(self.end[0], self.start[1])
     }
     pub fn compute_kernel(&mut self) -> Subspace {

@@ -29,6 +29,13 @@ pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource
 #[cfg(feature = "extras")]
 pub use truncated_homomorphism::{TruncatedHomomorphism, TruncatedHomomorphismSource};
 
+/// Each `ModuleHomomorphism` may come with auxiliary data, namely the kernel, image and
+/// quasi_inverse at each degree (the quasi-inverse is a map that is a right inverse when
+/// restricted to the image). These are computed via [`compute_auxiliary_data_through_degree`] and
+/// retrieved through [`kernel`], [`quasi_inverse`] and [`image`].
+///
+/// Note that an instance of a `ModuleHomomorphism` need not have the data available, even after
+/// `compute_auxiliary_data_through_degree` is invoked.
 pub trait ModuleHomomorphism: Send + Sync + 'static {
     type Source: Module;
     type Target: Module<Algebra = <Self::Source as Module>::Algebra>;
@@ -49,11 +56,23 @@ pub trait ModuleHomomorphism: Send + Sync + 'static {
         input_idx: usize,
     );
 
-    fn kernel(&self, degree: i32) -> &Subspace;
+    #[allow(unused_variables)]
+    fn kernel(&self, degree: i32) -> Option<&Subspace> {
+        None
+    }
 
-    fn quasi_inverse(&self, degree: i32) -> &QuasiInverse;
+    #[allow(unused_variables)]
+    fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {
+        None
+    }
 
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32);
+    #[allow(unused_variables)]
+    fn image(&self, degree: i32) -> Option<&Subspace> {
+        None
+    }
+
+    #[allow(unused_variables)]
+    fn compute_auxiliary_data_through_degree(&self, degree: i32) {}
 
     fn apply(&self, mut result: SliceMut, coeff: u32, input_degree: i32, input: Slice) {
         let p = self.prime();
@@ -70,36 +89,15 @@ pub trait ModuleHomomorphism: Send + Sync + 'static {
         self.source().min_degree()
     }
 
-    /// Returns the image of the module homomorphism in degree `degree`. If `None`, the image
-    /// is the whole space.
-    fn image(&self, degree: i32) -> Option<&Subspace> {
-        self.quasi_inverse(degree).image()
-    }
-
-    /// A version of kernel_and_quasi_inverse that, in fact, doesn't compute the kernel.
-    fn calculate_quasi_inverse(&self, degree: i32) -> QuasiInverse {
+    /// Compute the auxiliary data associated to the homomorphism at input degree `degree`. Returns
+    /// it in the order image, kernel, quasi_inverse
+    fn auxiliary_data(&self, degree: i32) -> (Subspace, Subspace, QuasiInverse) {
         let p = self.prime();
+        let output_degree = degree - self.degree_shift();
         self.source().compute_basis(degree);
-        self.target().compute_basis(degree);
+        self.target().compute_basis(output_degree);
         let source_dimension = self.source().dimension(degree);
-        let target_dimension = self.target().dimension(degree);
-        let mut matrix =
-            AugmentedMatrix2::new(p, source_dimension, &[target_dimension, source_dimension]);
-
-        self.get_matrix(&mut matrix.segment(0, 0), degree);
-        matrix.segment(1, 1).add_identity(source_dimension, 0, 0);
-
-        matrix.initialize_pivots();
-        matrix.row_reduce();
-        matrix.compute_quasi_inverse()
-    }
-
-    fn kernel_and_quasi_inverse(&self, degree: i32) -> (Subspace, QuasiInverse) {
-        let p = self.prime();
-        self.source().compute_basis(degree);
-        self.target().compute_basis(degree);
-        let source_dimension = self.source().dimension(degree);
-        let target_dimension = self.target().dimension(degree);
+        let target_dimension = self.target().dimension(output_degree);
         let mut matrix =
             AugmentedMatrix2::new(p, source_dimension, &[target_dimension, source_dimension]);
 
@@ -109,11 +107,15 @@ pub trait ModuleHomomorphism: Send + Sync + 'static {
         matrix.initialize_pivots();
         matrix.row_reduce();
 
-        let quasi_inverse = matrix.compute_quasi_inverse();
-        let kernel = matrix.compute_kernel();
-        (kernel, quasi_inverse)
+        (
+            matrix.compute_image(),
+            matrix.compute_kernel(),
+            matrix.compute_quasi_inverse(),
+        )
     }
 
+    /// Write the matrix of the homomorphism at input degree `degree` to `matrix`.
+    ///
     /// The (sliced) dimensions of `matrix` must be equal to source_dimension x
     /// target_dimension
     fn get_matrix(&self, matrix: &mut MatrixSliceMut, degree: i32) {
@@ -130,7 +132,7 @@ pub trait ModuleHomomorphism: Send + Sync + 'static {
     }
 
     fn apply_quasi_inverse(&self, result: SliceMut, degree: i32, input: Slice) {
-        let qi = self.quasi_inverse(degree);
+        let qi = self.quasi_inverse(degree).unwrap();
         qi.apply(result, 1, input);
     }
 }

@@ -149,8 +149,7 @@ where
                     target_chain_map.target().dimension(output_internal_degree);
                 assert!(target_cc_dimension == extra_images_matrix.columns());
 
-                target_chain_map
-                    .compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
+                target_chain_map.compute_auxiliary_data_through_degree(output_internal_degree);
                 assert!(
                     num_gens == extra_images_matrix.rows(),
                     "num_gens : {} greater than rows : {} hom_deg : {}, int_deg : {}",
@@ -190,8 +189,7 @@ where
                 }
 
                 let extra_image_matrix = extra_images.as_mut().expect("Missing extra image rows");
-                target_chain_map
-                    .compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
+                target_chain_map.compute_auxiliary_data_through_degree(output_internal_degree);
                 target_chain_map.apply_quasi_inverse(
                     outputs_matrix[k].as_slice_mut(),
                     output_internal_degree,
@@ -199,7 +197,7 @@ where
                 );
                 extra_image_row += 1;
             } else {
-                d_target.compute_kernels_and_quasi_inverses_through_degree(output_internal_degree);
+                d_target.compute_auxiliary_data_through_degree(output_internal_degree);
                 f_prev.apply(
                     fdx_vector.as_slice_mut(),
                     1,
@@ -270,8 +268,7 @@ where
 
         let source_chain_map = source.chain_map(0);
         let target_chain_map = target.chain_map(0);
-        target_chain_map
-            .compute_kernels_and_quasi_inverses_through_degree(degree_shift + max_degree);
+        target_chain_map.compute_auxiliary_data_through_degree(degree_shift + max_degree);
 
         let g = hom.get_map_ensure_length(0);
 

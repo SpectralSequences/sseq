@@ -135,7 +135,7 @@ impl<M: SteenrodModule> ModuleHomomorphism for FiniteModuleHomomorphism<M> {
         }
     }
 
-    fn quasi_inverse(&self, degree: i32) -> &QuasiInverse {
+    fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {
         match &self.map {
             FMHI::FD(f) => f.quasi_inverse(degree),
             FMHI::RP(f) => f.quasi_inverse(degree),
@@ -143,7 +143,7 @@ impl<M: SteenrodModule> ModuleHomomorphism for FiniteModuleHomomorphism<M> {
         }
     }
 
-    fn kernel(&self, degree: i32) -> &Subspace {
+    fn kernel(&self, degree: i32) -> Option<&Subspace> {
         match &self.map {
             FMHI::FD(f) => f.kernel(degree),
             FMHI::RP(f) => f.kernel(degree),
@@ -151,11 +151,19 @@ impl<M: SteenrodModule> ModuleHomomorphism for FiniteModuleHomomorphism<M> {
         }
     }
 
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32) {
+    fn image(&self, degree: i32) -> Option<&Subspace> {
         match &self.map {
-            FMHI::FD(f) => f.compute_kernels_and_quasi_inverses_through_degree(degree),
-            FMHI::RP(f) => f.compute_kernels_and_quasi_inverses_through_degree(degree),
-            FMHI::FP(f) => f.compute_kernels_and_quasi_inverses_through_degree(degree),
+            FMHI::FD(f) => f.image(degree),
+            FMHI::RP(f) => f.image(degree),
+            FMHI::FP(f) => f.image(degree),
+        }
+    }
+
+    fn compute_auxiliary_data_through_degree(&self, degree: i32) {
+        match &self.map {
+            FMHI::FD(f) => f.compute_auxiliary_data_through_degree(degree),
+            FMHI::RP(f) => f.compute_auxiliary_data_through_degree(degree),
+            FMHI::FP(f) => f.compute_auxiliary_data_through_degree(degree),
         }
     }
 }

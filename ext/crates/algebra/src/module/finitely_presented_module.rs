@@ -260,9 +260,8 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
         self.relations.extend_by_zero(degree);
         let min_degree = self.min_degree();
         for i in self.index_table.len() as i32 + min_degree..=degree {
-            self.map
-                .compute_kernels_and_quasi_inverses_through_degree(i);
-            let qi = self.map.quasi_inverse(i);
+            self.map.compute_auxiliary_data_through_degree(i);
+            let qi = self.map.quasi_inverse(i).unwrap();
             let mut gen_idx_to_fp_idx = Vec::new();
             let mut fp_idx_to_gen_idx = Vec::new();
             for (i, &pivot) in qi.pivots().unwrap().iter().enumerate() {
@@ -308,8 +307,8 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
             mod_degree,
             gen_idx,
         );
-        let qi = self.map.quasi_inverse(out_deg);
-        qi.image().unwrap().reduce(temp_vec.as_slice_mut());
+        let image = self.map.image(out_deg).unwrap();
+        image.reduce(temp_vec.as_slice_mut());
         for i in 0..result.as_slice().dimension() {
             let value = temp_vec.entry(self.fp_idx_to_gen_idx(out_deg, i));
             result.add_basis_element(i, value);
