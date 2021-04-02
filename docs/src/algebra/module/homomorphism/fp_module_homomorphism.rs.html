@@ -155,10 +155,6 @@
 <span id="134">134</span>
 <span id="135">135</span>
 <span id="136">136</span>
-<span id="137">137</span>
-<span id="138">138</span>
-<span id="139">139</span>
-<span id="140">140</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -201,7 +197,7 @@
         <span class="ident">input_index</span>: <span class="ident">usize</span>,
     ) {
         <span class="kw">let</span> <span class="ident">idx</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">fp_idx_to_gen_idx</span>(<span class="ident">input_degree</span>, <span class="ident">input_index</span>);
-        <span class="self">self</span>.<span class="ident">underlying_map</span>.<span class="ident">extend_by_zero_safe</span>(<span class="ident">input_degree</span>);
+        <span class="self">self</span>.<span class="ident">underlying_map</span>.<span class="ident">extend_by_zero</span>(<span class="ident">input_degree</span>);
         <span class="self">self</span>.<span class="ident">underlying_map</span>
             .<span class="ident">apply_to_basis_element</span>(<span class="ident">result</span>, <span class="ident">coeff</span>, <span class="ident">input_degree</span>, <span class="ident">idx</span>);
     }
@@ -215,8 +211,6 @@
     }
 
     <span class="kw">fn</span> <span class="ident">compute_kernels_and_quasi_inverses_through_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">underlying_map</span>.<span class="ident">lock</span>();
-
         <span class="kw">let</span> <span class="ident">kernel_len</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">underlying_map</span>.<span class="ident">kernel</span>.<span class="ident">len</span>();
         <span class="kw">let</span> <span class="ident">qi_len</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">underlying_map</span>.<span class="ident">quasi_inverse</span>.<span class="ident">len</span>();
         <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">kernel_len</span>, <span class="ident">qi_len</span>);
@@ -254,11 +248,10 @@
             <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">source</span>),
             <span class="number">0</span>,
         ));
-        <span class="kw">let</span> <span class="ident">lock</span> <span class="op">=</span> <span class="ident">underlying_map</span>.<span class="ident">lock</span>();
         <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">source_gen</span>.<span class="ident">min_degree</span>()..<span class="op">=</span><span class="ident">source_gen</span>.<span class="ident">max_computed_degree</span>() {
             <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="ident">source_gen</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>);
             <span class="kw">if</span> <span class="ident">num_gens</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-                <span class="ident">underlying_map</span>.<span class="ident">extend_by_zero</span>(<span class="kw-2">&amp;</span><span class="ident">lock</span>, <span class="ident">t</span>);
+                <span class="ident">underlying_map</span>.<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
                 <span class="kw">continue</span>;
             }
 
@@ -271,9 +264,8 @@
                     <span class="ident">matrix</span>[<span class="ident">j</span>].<span class="ident">set_entry</span>(<span class="ident">idx</span> <span class="kw">as</span> <span class="ident">usize</span>, <span class="number">1</span>);
                 }
             }
-            <span class="ident">underlying_map</span>.<span class="ident">add_generators_from_matrix_rows</span>(<span class="kw-2">&amp;</span><span class="ident">lock</span>, <span class="ident">t</span>, <span class="ident">matrix</span>.<span class="ident">as_slice_mut</span>());
+            <span class="ident">underlying_map</span>.<span class="ident">add_generators_from_matrix_rows</span>(<span class="ident">t</span>, <span class="ident">matrix</span>.<span class="ident">as_slice_mut</span>());
         }
-        <span class="ident">drop</span>(<span class="ident">lock</span>);
 
         <span class="ident">FPModuleHomomorphism</span> {
             <span class="ident">source</span>,

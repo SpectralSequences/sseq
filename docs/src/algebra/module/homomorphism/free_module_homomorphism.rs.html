@@ -350,51 +350,12 @@
 <span id="329">329</span>
 <span id="330">330</span>
 <span id="331">331</span>
-<span id="332">332</span>
-<span id="333">333</span>
-<span id="334">334</span>
-<span id="335">335</span>
-<span id="336">336</span>
-<span id="337">337</span>
-<span id="338">338</span>
-<span id="339">339</span>
-<span id="340">340</span>
-<span id="341">341</span>
-<span id="342">342</span>
-<span id="343">343</span>
-<span id="344">344</span>
-<span id="345">345</span>
-<span id="346">346</span>
-<span id="347">347</span>
-<span id="348">348</span>
-<span id="349">349</span>
-<span id="350">350</span>
-<span id="351">351</span>
-<span id="352">352</span>
-<span id="353">353</span>
-<span id="354">354</span>
-<span id="355">355</span>
-<span id="356">356</span>
-<span id="357">357</span>
-<span id="358">358</span>
-<span id="359">359</span>
-<span id="360">360</span>
-<span id="361">361</span>
-<span id="362">362</span>
-<span id="363">363</span>
-<span id="364">364</span>
-<span id="365">365</span>
-<span id="366">366</span>
-<span id="367">367</span>
-<span id="368">368</span>
-<span id="369">369</span>
-<span id="370">370</span>
-<span id="371">371</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">parking_lot</span>::{<span class="ident">Mutex</span>, <span class="ident">MutexGuard</span>};
+<span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">Algebra</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">free_module</span>::<span class="ident">OperationGeneratorPair</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::<span class="ident">ModuleHomomorphism</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">FreeModule</span>, <span class="ident">Module</span>};
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">matrix</span>::{<span class="ident">MatrixSliceMut</span>, <span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
@@ -436,18 +397,20 @@
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input_index</span>: <span class="ident">usize</span>,
     ) {
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">input_degree</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">min_degree</span>);
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">input_index</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">basis_element_to_opgen</span>[<span class="ident">input_degree</span>].<span class="ident">len</span>());
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">input_degree</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">min_degree</span>());
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">input_index</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">dimension</span>(<span class="ident">input_degree</span>));
         <span class="kw">let</span> <span class="ident">output_degree</span> <span class="op">=</span> <span class="ident">input_degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">degree_shift</span>;
         <span class="macro">assert_eq</span><span class="macro">!</span>(
             <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">dimension</span>(<span class="ident">output_degree</span>),
             <span class="ident">result</span>.<span class="ident">as_slice</span>().<span class="ident">dimension</span>()
         );
-        <span class="kw">let</span> <span class="ident">operation_generator</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">source</span>.<span class="ident">basis_element_to_opgen</span>[<span class="ident">input_degree</span>][<span class="ident">input_index</span>];
-        <span class="kw">let</span> <span class="ident">operation_degree</span> <span class="op">=</span> <span class="ident">operation_generator</span>.<span class="ident">operation_degree</span>;
-        <span class="kw">let</span> <span class="ident">operation_index</span> <span class="op">=</span> <span class="ident">operation_generator</span>.<span class="ident">operation_index</span>;
-        <span class="kw">let</span> <span class="ident">generator_degree</span> <span class="op">=</span> <span class="ident">operation_generator</span>.<span class="ident">generator_degree</span>;
-        <span class="kw">let</span> <span class="ident">generator_index</span> <span class="op">=</span> <span class="ident">operation_generator</span>.<span class="ident">generator_index</span>;
+        <span class="kw">let</span> <span class="ident">OperationGeneratorPair</span> {
+            <span class="ident">operation_degree</span>,
+            <span class="ident">generator_degree</span>,
+            <span class="ident">operation_index</span>,
+            <span class="ident">generator_index</span>,
+        } <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">source</span>.<span class="ident">index_to_op_gen</span>(<span class="ident">input_degree</span>, <span class="ident">input_index</span>);
+
         <span class="kw">if</span> <span class="ident">generator_degree</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>() {
             <span class="kw">let</span> <span class="ident">output_on_generator</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">output</span>(<span class="ident">generator_degree</span>, <span class="ident">generator_index</span>);
             <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">act</span>(
@@ -480,7 +443,7 @@
     }
 
     <span class="kw">fn</span> <span class="ident">compute_kernels_and_quasi_inverses_through_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>();
+        <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
         <span class="kw">let</span> <span class="ident">kernel_len</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">kernel</span>.<span class="ident">len</span>();
         <span class="kw">let</span> <span class="ident">qi_len</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">quasi_inverse</span>.<span class="ident">len</span>();
         <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">kernel_len</span>, <span class="ident">qi_len</span>);
@@ -543,16 +506,8 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">outputs</span>[<span class="ident">generator_degree</span>][<span class="ident">generator_index</span>]
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_by_zero_safe</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">outputs</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="ident">degree</span> {
-            <span class="kw">return</span>;
-        }
-        <span class="kw">let</span> <span class="ident">lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>();
-        <span class="self">self</span>.<span class="ident">extend_by_zero</span>(<span class="kw-2">&amp;</span><span class="ident">lock</span>, <span class="ident">degree</span>);
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_by_zero</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">lock</span>: <span class="kw-2">&amp;</span><span class="ident">MutexGuard</span><span class="op">&lt;</span>()<span class="op">&gt;</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="self">self</span>.<span class="ident">check_mutex</span>(<span class="ident">lock</span>);
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_by_zero</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
+        <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
 
         <span class="comment">// println!(&quot;    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}&quot;, degree, first_new_row, new_generators);</span>
         <span class="comment">// println!(&quot;    dimension : {} target name : {}&quot;, dimension, self.target.name());</span>
@@ -560,7 +515,10 @@
             <span class="kw">return</span>;
         }
         <span class="kw">let</span> <span class="ident">next_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_degree</span>();
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">degree</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">next_degree</span>);
+        <span class="kw">if</span> <span class="ident">next_degree</span> <span class="op">&gt;</span> <span class="ident">degree</span> {
+            <span class="kw">return</span>;
+        }
+
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">next_degree</span>..<span class="op">=</span><span class="ident">degree</span> {
             <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">i</span>);
@@ -573,14 +531,7 @@
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_generators_from_big_vector</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">lock</span>: <span class="kw-2">&amp;</span><span class="ident">MutexGuard</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
-        <span class="ident">degree</span>: <span class="ident">i32</span>,
-        <span class="ident">outputs_vectors</span>: <span class="ident">Slice</span>,
-    ) {
-        <span class="self">self</span>.<span class="ident">check_mutex</span>(<span class="ident">lock</span>);
-
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_generators_from_big_vector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">outputs_vectors</span>: <span class="ident">Slice</span>) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">new_generators</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">degree</span>);
         <span class="kw">let</span> <span class="ident">target_dimension</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">dimension</span>(<span class="ident">degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">degree_shift</span>);
@@ -602,14 +553,7 @@
 
     <span class="doccomment">/// A MatrixSlice will do but there is no applicaiton of this struct, so it doesn&#39;t exist</span>
     <span class="doccomment">/// yet...</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_generators_from_matrix_rows</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">lock</span>: <span class="kw-2">&amp;</span><span class="ident">MutexGuard</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
-        <span class="ident">degree</span>: <span class="ident">i32</span>,
-        <span class="kw-2">mut</span> <span class="ident">matrix</span>: <span class="ident">MatrixSliceMut</span>,
-    ) {
-        <span class="self">self</span>.<span class="ident">check_mutex</span>(<span class="ident">lock</span>);
-
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_generators_from_matrix_rows</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="kw-2">mut</span> <span class="ident">matrix</span>: <span class="ident">MatrixSliceMut</span>) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">new_generators</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">degree</span>);
         <span class="kw">let</span> <span class="ident">target_dimension</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">dimension</span>(<span class="ident">degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">degree_shift</span>);
@@ -628,13 +572,7 @@
         <span class="self">self</span>.<span class="ident">outputs</span>.<span class="ident">push_checked</span>(<span class="ident">new_outputs</span>, <span class="ident">degree</span>);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_generators_from_rows</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">lock</span>: <span class="kw-2">&amp;</span><span class="ident">MutexGuard</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
-        <span class="ident">degree</span>: <span class="ident">i32</span>,
-        <span class="ident">rows</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span>,
-    ) {
-        <span class="self">self</span>.<span class="ident">check_mutex</span>(<span class="ident">lock</span>);
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_generators_from_rows</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">rows</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span>) {
         <span class="self">self</span>.<span class="ident">outputs</span>.<span class="ident">push_checked</span>(<span class="ident">rows</span>, <span class="ident">degree</span>);
     }
 
@@ -672,30 +610,12 @@
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MutexGuard</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>()
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_kernel</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">lock</span>: <span class="kw-2">&amp;</span><span class="ident">MutexGuard</span><span class="op">&lt;</span>()<span class="op">&gt;</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">kernel</span>: <span class="ident">Subspace</span>) {
-        <span class="self">self</span>.<span class="ident">check_mutex</span>(<span class="ident">lock</span>);
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_kernel</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">kernel</span>: <span class="ident">Subspace</span>) {
         <span class="self">self</span>.<span class="ident">kernel</span>.<span class="ident">push_checked</span>(<span class="ident">kernel</span>, <span class="ident">degree</span>);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_quasi_inverse</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">lock</span>: <span class="kw-2">&amp;</span><span class="ident">MutexGuard</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
-        <span class="ident">degree</span>: <span class="ident">i32</span>,
-        <span class="ident">quasi_inverse</span>: <span class="ident">QuasiInverse</span>,
-    ) {
-        <span class="self">self</span>.<span class="ident">check_mutex</span>(<span class="ident">lock</span>);
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">quasi_inverse</span>: <span class="ident">QuasiInverse</span>) {
         <span class="self">self</span>.<span class="ident">quasi_inverse</span>.<span class="ident">push_checked</span>(<span class="ident">quasi_inverse</span>, <span class="ident">degree</span>);
-    }
-
-    <span class="kw">fn</span> <span class="ident">check_mutex</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">lock</span>: <span class="kw-2">&amp;</span><span class="ident">MutexGuard</span><span class="op">&lt;</span>()<span class="op">&gt;</span>) {
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">std</span>::<span class="ident">ptr</span>::<span class="ident">eq</span>(
-            <span class="ident">parking_lot</span>::<span class="ident">lock_api</span>::<span class="ident">MutexGuard</span>::<span class="ident">mutex</span>(<span class="kw-2">&amp;</span><span class="ident">lock</span>),
-            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">lock</span>
-        ));
     }
 }
 

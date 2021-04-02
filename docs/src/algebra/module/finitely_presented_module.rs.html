@@ -342,10 +342,6 @@
 <span id="321">321</span>
 <span id="322">322</span>
 <span id="323">323</span>
-<span id="324">324</span>
-<span id="325">325</span>
-<span id="326">326</span>
-<span id="327">327</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">rustc_hash</span>::<span class="ident">FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">serde_json</span>::<span class="ident">Value</span>;
@@ -428,12 +424,8 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_relations</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">relations_matrix</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Matrix</span>) {
         <span class="kw">let</span> <span class="ident">num_relns</span> <span class="op">=</span> <span class="ident">relations_matrix</span>.<span class="ident">rows</span>();
         <span class="self">self</span>.<span class="ident">relations</span>.<span class="ident">add_generators</span>(<span class="ident">degree</span>, <span class="ident">num_relns</span>, <span class="prelude-val">None</span>);
-        <span class="kw">let</span> <span class="ident">map_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">lock</span>();
-        <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">add_generators_from_matrix_rows</span>(
-            <span class="kw-2">&amp;</span><span class="ident">map_lock</span>,
-            <span class="ident">degree</span>,
-            <span class="ident">relations_matrix</span>.<span class="ident">as_slice_mut</span>(),
-        );
+        <span class="self">self</span>.<span class="ident">map</span>
+            .<span class="ident">add_generators_from_matrix_rows</span>(<span class="ident">degree</span>, <span class="ident">relations_matrix</span>.<span class="ident">as_slice_mut</span>());
     }
 
     <span class="comment">// Exact duplicate of function in fdmodule.rs...</span>
@@ -569,7 +561,7 @@
         <span class="ident">json</span>[<span class="string">&quot;type&quot;</span>] <span class="op">=</span> <span class="ident">Value</span>::<span class="ident">from</span>(<span class="string">&quot;finitely presented module&quot;</span>);
         <span class="comment">// Because we only have one algebra, we must specify this.</span>
         <span class="ident">json</span>[<span class="string">&quot;algebra&quot;</span>] <span class="op">=</span> <span class="ident">Value</span>::<span class="ident">from</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">prefix</span>()]);
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">deg_i_gens</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">generators</span>.<span class="ident">gen_names</span>.<span class="ident">iter_enum</span>() {
+        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">deg_i_gens</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">generators</span>.<span class="ident">gen_names</span>().<span class="ident">iter_enum</span>() {
             <span class="kw">for</span> <span class="ident">gen</span> <span class="kw">in</span> <span class="ident">deg_i_gens</span> {
                 <span class="ident">json</span>[<span class="string">&quot;gens&quot;</span>][<span class="ident">gen</span>] <span class="op">=</span> <span class="ident">Value</span>::<span class="ident">from</span>(<span class="ident">i</span>);
             }

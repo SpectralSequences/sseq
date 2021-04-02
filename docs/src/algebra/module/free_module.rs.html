@@ -693,6 +693,16 @@
 <span id="672">672</span>
 <span id="673">673</span>
 <span id="674">674</span>
+<span id="675">675</span>
+<span id="676">676</span>
+<span id="677">677</span>
+<span id="678">678</span>
+<span id="679">679</span>
+<span id="680">680</span>
+<span id="681">681</span>
+<span id="682">682</span>
+<span id="683">683</span>
+<span id="684">684</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// use parking_lot::{Mutex, MutexGuard};</span>
 <span class="kw">use</span> <span class="ident">serde_json</span>::<span class="ident">json</span>;
@@ -719,16 +729,16 @@
 <span class="doccomment">/// A free module is uniquely determined by its list of generators. The generators are listed in</span>
 <span class="doccomment">/// increasing degrees, and the index in this list is the internal index.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">name</span>: <span class="ident">String</span>,
-    <span class="kw">pub</span> <span class="ident">min_degree</span>: <span class="ident">i32</span>,
-    <span class="kw">pub</span> <span class="ident">gen_names</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>,
+    <span class="ident">name</span>: <span class="ident">String</span>,
+    <span class="ident">min_degree</span>: <span class="ident">i32</span>,
+    <span class="ident">gen_names</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// degree -&gt; internal index of first generator in degree</span>
     <span class="ident">gen_deg_idx_to_internal_idx</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
     <span class="ident">num_gens</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">basis_element_to_opgen</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">OperationGeneratorPair</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">basis_element_to_opgen</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">OperationGeneratorPair</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// degree -&gt; internal_gen_idx -&gt; the offset of the generator in degree</span>
-    <span class="kw">pub</span> <span class="ident">generator_to_index</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">generator_to_index</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
     <span class="ident">lock</span>: <span class="ident">Mutex</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
 }
@@ -858,9 +868,9 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="comment">// pub fn lock(&amp;self) -&gt; MutexGuard&lt;i32&gt; {</span>
-    <span class="comment">//     self.lock()</span>
-    <span class="comment">// }</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">gen_names</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">gen_names</span>
+    }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_computed_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
         <span class="self">self</span>.<span class="ident">num_gens</span>.<span class="ident">max_degree</span>()
@@ -879,6 +889,10 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_table_entries</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_degree</span>: <span class="ident">i32</span>) {
         <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">basis_element_to_opgen</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="ident">max_degree</span> {
+            <span class="kw">return</span>;
+        }
+
         <span class="kw">for</span> <span class="ident">degree</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">basis_element_to_opgen</span>.<span class="ident">len</span>()..<span class="op">=</span><span class="ident">max_degree</span> {
             <span class="self">self</span>.<span class="ident">basis_element_to_opgen</span>
                 .<span class="ident">push_checked</span>(<span class="ident">OnceVec</span>::<span class="ident">new</span>(), <span class="ident">degree</span>);
@@ -905,8 +919,9 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_generators</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">num_gens</span>: <span class="ident">usize</span>, <span class="ident">names</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
+        <span class="comment">// We need to acquire the lock because changing num_gens modifies the behaviour of</span>
+        <span class="comment">// extend_table_entries, and the two cannot happen concurrently.</span>
         <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
-
         <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">degree</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>);
 
         <span class="comment">// println!(&quot;add_gens == degree : {}, num_gens : {}&quot;, degree, num_gens);</span>
@@ -948,11 +963,16 @@
 
     <span class="doccomment">/// Given a generator `(gen_deg, gen_idx)`, find the first index in degree `degree` with</span>
     <span class="doccomment">/// elements from the generator.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">internal_generator_offset</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">internal_gen_idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+        <span class="self">self</span>.<span class="ident">generator_to_index</span>[<span class="ident">degree</span>][<span class="ident">internal_gen_idx</span>]
+    }
+
+    <span class="doccomment">/// Given a generator `(gen_deg, gen_idx)`, find the first index in degree `degree` with</span>
+    <span class="doccomment">/// elements from the generator.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generator_offset</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">gen_deg</span>: <span class="ident">i32</span>, <span class="ident">gen_idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">gen_deg</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>);
-        <span class="kw">let</span> <span class="ident">internal_gen_idx</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">gen_deg_idx_to_internal_idx</span>[<span class="ident">gen_deg</span>] <span class="op">+</span> <span class="ident">gen_idx</span>;
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">internal_gen_idx</span> <span class="op">&lt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">gen_deg_idx_to_internal_idx</span>[<span class="ident">gen_deg</span> <span class="op">+</span> <span class="number">1</span>]);
-        <span class="self">self</span>.<span class="ident">generator_to_index</span>[<span class="ident">degree</span>][<span class="ident">internal_gen_idx</span>]
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">gen_idx</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">num_gens</span>[<span class="ident">gen_deg</span>]);
+        <span class="self">self</span>.<span class="ident">internal_generator_offset</span>(<span class="ident">degree</span>, <span class="self">self</span>.<span class="ident">gen_deg_idx_to_internal_idx</span>[<span class="ident">gen_deg</span>] <span class="op">+</span> <span class="ident">gen_idx</span>)
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">operation_generator_to_index</span>(

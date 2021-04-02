@@ -319,9 +319,6 @@
 <span id="298">298</span>
 <span id="299">299</span>
 <span id="300">300</span>
-<span id="301">301</span>
-<span id="302">302</span>
-<span id="303">303</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -373,22 +370,19 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">element_to_homomorphism</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">Slice</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span>
             <span class="ident">FreeModuleHomomorphism</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">source</span>), <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>), <span class="ident">degree</span>);
-        <span class="kw">let</span> <span class="ident">lock</span> <span class="op">=</span> <span class="ident">result</span>.<span class="ident">lock</span>();
         <span class="kw">let</span> <span class="ident">min_nonzero_degree</span> <span class="op">=</span> <span class="ident">degree</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">min_degree</span>();
         <span class="kw">let</span> <span class="ident">max_nonzero_degree</span> <span class="op">=</span> <span class="ident">degree</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">max_degree</span>();
-        <span class="ident">result</span>.<span class="ident">extend_by_zero</span>(<span class="kw-2">&amp;</span><span class="ident">lock</span>, <span class="ident">min_nonzero_degree</span> <span class="op">-</span> <span class="number">1</span>);
+        <span class="ident">result</span>.<span class="ident">extend_by_zero</span>(<span class="ident">min_nonzero_degree</span> <span class="op">-</span> <span class="number">1</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">used_entries</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">min_nonzero_degree</span>..<span class="op">=</span><span class="ident">max_nonzero_degree</span> {
             <span class="kw">let</span> <span class="ident">gens</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">i</span>);
             <span class="kw">let</span> <span class="ident">out_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">dimension</span>(<span class="ident">i</span> <span class="op">-</span> <span class="ident">degree</span>);
             <span class="ident">result</span>.<span class="ident">add_generators_from_big_vector</span>(
-                <span class="kw-2">&amp;</span><span class="ident">lock</span>,
                 <span class="ident">i</span>,
                 <span class="ident">x</span>.<span class="ident">slice</span>(<span class="ident">used_entries</span>, <span class="ident">used_entries</span> <span class="op">+</span> <span class="ident">gens</span> <span class="op">*</span> <span class="ident">out_dim</span>),
             );
             <span class="ident">used_entries</span> <span class="op">+</span><span class="op">=</span> <span class="ident">gens</span> <span class="op">*</span> <span class="ident">out_dim</span>;
         }
-        <span class="ident">drop</span>(<span class="ident">lock</span>);
         <span class="ident">result</span>
     }
 

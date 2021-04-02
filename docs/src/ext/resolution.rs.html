@@ -1151,9 +1151,6 @@
 
         <span class="ident">source</span>.<span class="ident">extend_table_entries</span>(<span class="ident">t</span>);
 
-        <span class="kw">let</span> <span class="ident">chain_map_lock</span> <span class="op">=</span> <span class="ident">current_chain_map</span>.<span class="ident">lock</span>();
-        <span class="kw">let</span> <span class="ident">differential_lock</span> <span class="op">=</span> <span class="ident">current_differential</span>.<span class="ident">lock</span>();
-
         <span class="comment">// The Homomorphism matrix has size source_dimension x target_dimension, but we are going to augment it with an</span>
         <span class="comment">// identity matrix so that gives a matrix with dimensions source_dimension x (target_dimension + source_dimension).</span>
         <span class="comment">// Later we&#39;re going to write into this same matrix an isomorphism source/image + new vectors --&gt; kernel</span>
@@ -1263,12 +1260,10 @@
         <span class="ident">source</span>.<span class="ident">add_generators</span>(<span class="ident">t</span>, <span class="ident">num_new_gens</span>, <span class="prelude-val">None</span>);
 
         <span class="ident">current_chain_map</span>.<span class="ident">add_generators_from_matrix_rows</span>(
-            <span class="kw-2">&amp;</span><span class="ident">chain_map_lock</span>,
             <span class="ident">t</span>,
             <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>).<span class="ident">row_slice</span>(<span class="ident">first_new_row</span>, <span class="ident">rows</span>),
         );
         <span class="ident">current_differential</span>.<span class="ident">add_generators_from_matrix_rows</span>(
-            <span class="kw-2">&amp;</span><span class="ident">differential_lock</span>,
             <span class="ident">t</span>,
             <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">1</span>, <span class="number">1</span>).<span class="ident">row_slice</span>(<span class="ident">first_new_row</span>, <span class="ident">rows</span>),
         );
@@ -1295,10 +1290,10 @@
         <span class="kw">let</span> (<span class="ident">cm_qi</span>, <span class="ident">res_qi</span>) <span class="op">=</span>
             <span class="ident">matrix</span>.<span class="ident">compute_quasi_inverses</span>(<span class="ident">matrix_start_2</span> <span class="op">+</span> <span class="ident">source_dimension</span> <span class="op">+</span> <span class="ident">num_new_gens</span>);
 
-        <span class="ident">current_chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="ident">chain_map_lock</span>, <span class="ident">t</span>, <span class="ident">cm_qi</span>);
-        <span class="ident">current_chain_map</span>.<span class="ident">set_kernel</span>(<span class="kw-2">&amp;</span><span class="ident">chain_map_lock</span>, <span class="ident">t</span>, <span class="ident">Subspace</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>)); <span class="comment">// Fill it up with something dummy so that compute_kernels_and... is happy</span>
-        <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="ident">differential_lock</span>, <span class="ident">t</span>, <span class="ident">res_qi</span>);
-        <span class="ident">current_differential</span>.<span class="ident">set_kernel</span>(<span class="kw-2">&amp;</span><span class="ident">differential_lock</span>, <span class="ident">t</span>, <span class="ident">Subspace</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>));
+        <span class="ident">current_chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="ident">cm_qi</span>);
+        <span class="ident">current_chain_map</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="ident">Subspace</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>)); <span class="comment">// Fill it up with something dummy so that compute_kernels_and... is happy</span>
+        <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="ident">res_qi</span>);
+        <span class="ident">current_differential</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="ident">Subspace</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>));
 
         <span class="kw-2">*</span><span class="ident">old_kernel</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">new_kernel</span>);
     }
@@ -1621,18 +1616,21 @@
                 <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) <span class="op">=</span> <span class="ident">unbounded</span>();
 
                 <span class="kw">let</span> <span class="ident">pp_sender</span> <span class="op">=</span> <span class="ident">pp_sender</span>.<span class="ident">clone</span>();
-                <span class="ident">s</span>.<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">token</span> <span class="op">=</span> <span class="ident">bucket</span>.<span class="ident">take_token</span>();
-                    <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">max_s</span> {
-                        <span class="ident">token</span> <span class="op">=</span> <span class="ident">bucket</span>.<span class="ident">recv_or_release</span>(<span class="ident">token</span>, <span class="kw-2">&amp;</span><span class="ident">last_receiver</span>);
-                        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>) {
-                            <span class="self">self</span>.<span class="ident">step_resolution</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+                <span class="ident">s</span>.<span class="ident">builder</span>()
+                    .<span class="ident">name</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;t = {}&quot;</span>, <span class="ident">t</span>))
+                    .<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
+                        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">token</span> <span class="op">=</span> <span class="ident">bucket</span>.<span class="ident">take_token</span>();
+                        <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">max_s</span> {
+                            <span class="ident">token</span> <span class="op">=</span> <span class="ident">bucket</span>.<span class="ident">recv_or_release</span>(<span class="ident">token</span>, <span class="kw-2">&amp;</span><span class="ident">last_receiver</span>);
+                            <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>) {
+                                <span class="self">self</span>.<span class="ident">step_resolution</span>(<span class="ident">s</span>, <span class="ident">t</span>);
 
-                            <span class="ident">pp_sender</span>.<span class="ident">send</span>((<span class="ident">s</span>, <span class="ident">t</span>)).<span class="ident">unwrap</span>();
+                                <span class="ident">pp_sender</span>.<span class="ident">send</span>((<span class="ident">s</span>, <span class="ident">t</span>)).<span class="ident">unwrap</span>();
+                            }
+                            <span class="ident">sender</span>.<span class="ident">send</span>(()).<span class="ident">unwrap</span>();
                         }
-                        <span class="ident">sender</span>.<span class="ident">send</span>(()).<span class="ident">unwrap</span>();
-                    }
-                });
+                    })
+                    .<span class="ident">unwrap</span>();
                 <span class="ident">last_receiver</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">receiver</span>);
             }
             <span class="comment">// We drop this pp_sender, so that when all previous threads end, no pp_sender&#39;s are</span>
@@ -1710,25 +1708,27 @@
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">last_receiver</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Receiver</span><span class="op">&lt;</span>()<span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-val">None</span>;
             <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_t</span> {
                 <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) <span class="op">=</span> <span class="ident">unbounded</span>();
-
-                <span class="ident">s</span>.<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">token</span> <span class="op">=</span> <span class="ident">bucket</span>.<span class="ident">take_token</span>();
-                    <span class="kw">let</span> <span class="ident">start_s</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">max</span>(<span class="number">0</span>, <span class="ident">t</span> <span class="op">-</span> <span class="ident">max_f</span> <span class="op">-</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">u32</span>;
-                    <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="ident">start_s</span>..<span class="op">=</span><span class="ident">max_s</span> {
-                        <span class="ident">token</span> <span class="op">=</span> <span class="ident">bucket</span>.<span class="ident">recv_or_release</span>(<span class="ident">token</span>, <span class="kw-2">&amp;</span><span class="ident">last_receiver</span>);
-                        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>) {
-                            <span class="kw">if</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">max_f</span> <span class="op">+</span> <span class="number">1</span> <span class="op">=</span><span class="op">=</span> <span class="ident">t</span> {
-                                <span class="self">self</span>.<span class="ident">step_resolution_phony</span>(<span class="ident">s</span>, <span class="ident">t</span>);
-                                <span class="comment">// The next t cannot be computed yet</span>
-                                <span class="kw">continue</span>;
-                            } <span class="kw">else</span> {
-                                <span class="self">self</span>.<span class="ident">step_resolution</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+                <span class="ident">s</span>.<span class="ident">builder</span>()
+                    .<span class="ident">name</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;t = {}&quot;</span>, <span class="ident">t</span>))
+                    .<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
+                        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">token</span> <span class="op">=</span> <span class="ident">bucket</span>.<span class="ident">take_token</span>();
+                        <span class="kw">let</span> <span class="ident">start_s</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">max</span>(<span class="number">0</span>, <span class="ident">t</span> <span class="op">-</span> <span class="ident">max_f</span> <span class="op">-</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">u32</span>;
+                        <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="ident">start_s</span>..<span class="op">=</span><span class="ident">max_s</span> {
+                            <span class="ident">token</span> <span class="op">=</span> <span class="ident">bucket</span>.<span class="ident">recv_or_release</span>(<span class="ident">token</span>, <span class="kw-2">&amp;</span><span class="ident">last_receiver</span>);
+                            <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>) {
+                                <span class="kw">if</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">max_f</span> <span class="op">+</span> <span class="number">1</span> <span class="op">=</span><span class="op">=</span> <span class="ident">t</span> {
+                                    <span class="self">self</span>.<span class="ident">step_resolution_phony</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+                                    <span class="comment">// The next t cannot be computed yet</span>
+                                    <span class="kw">continue</span>;
+                                } <span class="kw">else</span> {
+                                    <span class="self">self</span>.<span class="ident">step_resolution</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+                                }
                             }
+                            <span class="comment">// In the last round the receiver would have been dropped</span>
+                            <span class="ident">sender</span>.<span class="ident">send</span>(()).<span class="ident">ok</span>();
                         }
-                        <span class="comment">// In the last round the receiver would have been dropped</span>
-                        <span class="ident">sender</span>.<span class="ident">send</span>(()).<span class="ident">ok</span>();
-                    }
-                });
+                    })
+                    .<span class="ident">unwrap</span>();
                 <span class="ident">last_receiver</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">receiver</span>);
             }
         })
