@@ -520,13 +520,13 @@ impl Matrix {
     ///
     /// let image = [vec![1, 0, 2, 1, 1],
     ///              vec![0, 1, 1, 0, 1]];
-    /// let computed_image = qi.image.unwrap();
+    /// let computed_image = qi.image().unwrap();
     /// assert_eq!(computed_image.matrix, Matrix::from_vec(p, &image));
     /// assert_eq!(computed_image.pivots(), &vec![0, 1, -1, -1, -1]);
     ///
     /// let preimage = [vec![0, 1, 0],
     ///                 vec![0, 2, 2]];
-    /// assert_eq!(qi.preimage, Matrix::from_vec(p, &preimage));
+    /// assert_eq!(qi.preimage(), &Matrix::from_vec(p, &preimage));
     /// ```
     pub fn compute_quasi_inverse(
         &mut self,
@@ -551,10 +551,7 @@ impl Matrix {
         let image = Subspace {
             matrix: image_matrix,
         };
-        QuasiInverse {
-            image: Some(image),
-            preimage,
-        }
+        QuasiInverse::new(Some(image), preimage)
     }
 
     /// This function computes quasi-inverses for matrices A, B given a reduced row echelon form of
@@ -613,14 +610,8 @@ impl Matrix {
                 .as_slice_mut()
                 .assign(self[i].slice(first_source_col, columns));
         }
-        let cm_qi = QuasiInverse {
-            image: None,
-            preimage: cc_preimage,
-        };
-        let res_qi = QuasiInverse {
-            image: Some(res_image),
-            preimage: res_preimage,
-        };
+        let cm_qi = QuasiInverse::new(None, cc_preimage);
+        let res_qi = QuasiInverse::new(Some(res_image), res_preimage);
         (cm_qi, res_qi)
     }
 

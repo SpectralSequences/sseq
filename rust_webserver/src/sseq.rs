@@ -111,7 +111,7 @@ impl Differential {
         assert_eq!(zeros.matrix.columns(), self.target_dim);
 
         for i in 0..self.matrix.rows() {
-            zeros.shift_reduce(
+            zeros.reduce(
                 self.matrix[i].slice_mut(self.source_dim, self.source_dim + self.target_dim),
             );
         }

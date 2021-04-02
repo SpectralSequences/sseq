@@ -120,34 +120,18 @@ impl Subspace {
             return;
         }
         let p = self.prime();
-        let mut row = 0;
-        let columns = vector.as_slice().dimension();
-        for i in 0..columns {
-            if self.pivots()[i] < 0 {
-                continue;
-            }
+        let iter = self
+            .pivots()
+            .iter()
+            .enumerate()
+            .filter(|(_, x)| **x >= 0)
+            .map(|(i, _)| i)
+            .enumerate();
+        for (row, i) in iter {
             let c = vector.as_slice().entry(i);
             if c != 0 {
                 vector.add(self[row].as_slice(), *p - c);
             }
-            row += 1;
-        }
-    }
-
-    /// A version of `reduce` that doesn't require the vectors to be aligned.
-    pub fn shift_reduce(&self, mut vector: SliceMut) {
-        let p = self.matrix.prime();
-        let mut row = 0;
-        let columns = vector.as_slice().dimension();
-        for i in 0..columns {
-            if self.matrix.pivots()[i] < 0 {
-                continue;
-            }
-            let c = vector.as_slice().entry(i);
-            if c != 0 {
-                vector.add(self[row].as_slice(), *p - c);
-            }
-            row += 1;
         }
     }
 

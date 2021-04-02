@@ -72,8 +72,8 @@ pub trait ModuleHomomorphism: Send + Sync + 'static {
 
     /// Returns the image of the module homomorphism in degree `degree`. If `None`, the image
     /// is the whole space.
-    fn image(&self, degree: i32) -> &Option<Subspace> {
-        &self.quasi_inverse(degree).image
+    fn image(&self, degree: i32) -> Option<&Subspace> {
+        self.quasi_inverse(degree).image()
     }
 
     /// A version of kernel_and_quasi_inverse that, in fact, doesn't compute the kernel.

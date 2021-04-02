@@ -131,7 +131,7 @@ pub trait ChainComplex: Send + Sync + 'static {
         let image = d_cur.image(internal_degree);
         let homology_basis = Subquotient::subquotient(
             Some(kernel),
-            image.as_ref(),
+            image,
             d_prev.source().dimension(internal_degree),
         );
         self.set_homology_basis(homological_degree, internal_degree, homology_basis);
@@ -204,7 +204,7 @@ pub trait CochainComplex: Send + Sync + 'static {
         let image = d_cur.image(internal_degree);
         let cohomology_basis = Subquotient::subquotient(
             Some(kernel),
-            image.as_ref(),
+            image,
             d_prev.source().dimension(internal_degree),
         );
         self.set_cohomology_basis(homological_degree, internal_degree, cohomology_basis);
