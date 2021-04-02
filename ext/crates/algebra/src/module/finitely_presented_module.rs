@@ -216,7 +216,7 @@ impl FinitelyPresentedModule<SteenrodAlgebra> {
         json["type"] = Value::from("finitely presented module");
         // Because we only have one algebra, we must specify this.
         json["algebra"] = Value::from(vec![self.algebra().prefix()]);
-        for (i, deg_i_gens) in self.generators.gen_names.iter_enum() {
+        for (i, deg_i_gens) in self.generators.gen_names().iter_enum() {
             for gen in deg_i_gens {
                 json["gens"][gen] = Value::from(i);
             }

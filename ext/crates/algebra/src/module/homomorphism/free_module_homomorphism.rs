@@ -2,6 +2,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::algebra::Algebra;
+use crate::module::free_module::OperationGeneratorPair;
 use crate::module::homomorphism::ModuleHomomorphism;
 use crate::module::{FreeModule, Module};
 use fp::matrix::{MatrixSliceMut, QuasiInverse, Subspace};
@@ -43,18 +44,20 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
         input_degree: i32,
         input_index: usize,
     ) {
-        assert!(input_degree >= self.source.min_degree);
-        assert!(input_index < self.source.basis_element_to_opgen[input_degree].len());
+        assert!(input_degree >= self.source.min_degree());
+        assert!(input_index < self.source.dimension(input_degree));
         let output_degree = input_degree - self.degree_shift;
         assert_eq!(
             self.target.dimension(output_degree),
             result.as_slice().dimension()
         );
-        let operation_generator = &self.source.basis_element_to_opgen[input_degree][input_index];
-        let operation_degree = operation_generator.operation_degree;
-        let operation_index = operation_generator.operation_index;
-        let generator_degree = operation_generator.generator_degree;
-        let generator_index = operation_generator.generator_index;
+        let OperationGeneratorPair {
+            operation_degree,
+            generator_degree,
+            operation_index,
+            generator_index,
+        } = *self.source.index_to_op_gen(input_degree, input_index);
+
         if generator_degree >= self.min_degree() {
             let output_on_generator = self.output(generator_degree, generator_index);
             self.target.act(

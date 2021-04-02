@@ -23,16 +23,16 @@ pub struct OperationGeneratorPair {
 /// A free module is uniquely determined by its list of generators. The generators are listed in
 /// increasing degrees, and the index in this list is the internal index.
 pub struct FreeModule<A: Algebra> {
-    pub algebra: Arc<A>,
-    pub name: String,
-    pub min_degree: i32,
-    pub gen_names: OnceBiVec<Vec<String>>,
+    algebra: Arc<A>,
+    name: String,
+    min_degree: i32,
+    gen_names: OnceBiVec<Vec<String>>,
     /// degree -> internal index of first generator in degree
     gen_deg_idx_to_internal_idx: OnceBiVec<usize>,
     num_gens: OnceBiVec<usize>,
-    pub basis_element_to_opgen: OnceBiVec<OnceVec<OperationGeneratorPair>>,
+    basis_element_to_opgen: OnceBiVec<OnceVec<OperationGeneratorPair>>,
     /// degree -> internal_gen_idx -> the offset of the generator in degree
-    pub generator_to_index: OnceBiVec<OnceVec<usize>>,
+    generator_to_index: OnceBiVec<OnceVec<usize>>,
 
     lock: Mutex<()>,
 }
@@ -162,6 +162,10 @@ impl<A: Algebra> Module for FreeModule<A> {
 }
 
 impl<A: Algebra> FreeModule<A> {
+    pub fn gen_names(&self) -> &OnceBiVec<Vec<String>> {
+        &self.gen_names
+    }
+
     pub fn max_computed_degree(&self) -> i32 {
         self.num_gens.max_degree()
     }
@@ -253,11 +257,16 @@ impl<A: Algebra> FreeModule<A> {
 
     /// Given a generator `(gen_deg, gen_idx)`, find the first index in degree `degree` with
     /// elements from the generator.
+    pub fn internal_generator_offset(&self, degree: i32, internal_gen_idx: usize) -> usize {
+        self.generator_to_index[degree][internal_gen_idx]
+    }
+
+    /// Given a generator `(gen_deg, gen_idx)`, find the first index in degree `degree` with
+    /// elements from the generator.
     pub fn generator_offset(&self, degree: i32, gen_deg: i32, gen_idx: usize) -> usize {
         assert!(gen_deg >= self.min_degree);
-        let internal_gen_idx = self.gen_deg_idx_to_internal_idx[gen_deg] + gen_idx;
-        assert!(internal_gen_idx <= self.gen_deg_idx_to_internal_idx[gen_deg + 1]);
-        self.generator_to_index[degree][internal_gen_idx]
+        assert!(gen_idx < self.num_gens[gen_deg]);
+        self.internal_generator_offset(degree, self.gen_deg_idx_to_internal_idx[gen_deg] + gen_idx)
     }
 
     pub fn operation_generator_to_index(

@@ -182,7 +182,7 @@ fn get_element(
     for _ in 0..num_lines {
         read_line(input, &mut buf)?;
         let (rem, gen_idx) = entry::<usize>(&buf)?;
-        let offset = m.generator_to_index[degree][gen_idx];
+        let offset = m.internal_generator_offset(degree, gen_idx);
         for op in get_algebra_element(a, &rem[1..])? {
             result.add_basis_element(offset + op, 1);
         }
