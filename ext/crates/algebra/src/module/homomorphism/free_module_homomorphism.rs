@@ -289,10 +289,17 @@ impl<M: Module> Load for FreeModuleHomomorphism<M> {
 
         let outputs: OnceBiVec<Vec<FpVector>> = Load::load(buffer, &(min_degree, p))?;
 
-        let images = OnceBiVec::<Option<Subspace>>::load(buffer, &(min_degree, Some(p)))?;
-        let kernels = OnceBiVec::<Option<Subspace>>::load(buffer, &(min_degree, Some(p)))?;
-        let quasi_inverses =
-            OnceBiVec::<Option<QuasiInverse>>::load(buffer, &(min_degree, Some(p)))?;
+        let _kernels = OnceBiVec::<Subspace>::load(buffer, &(min_degree, p))?;
+        let images = OnceBiVec::new(min_degree);
+        let kernels = OnceBiVec::new(min_degree);
+        let quasi_inverses = OnceBiVec::new(min_degree);
+
+        let len = usize::load(buffer, &())?;
+        for _ in 0..len {
+            images.push(None);
+            kernels.push(None);
+            quasi_inverses.push(Some(QuasiInverse::load(buffer, &p)?));
+        }
 
         Ok(Self {
             source,

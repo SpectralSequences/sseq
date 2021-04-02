@@ -73,8 +73,10 @@ impl Load for QuasiInverse {
     type AuxData = ValidPrime;
 
     fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
+        let image = Option::<super::Subspace>::load(buffer, &Some(*p))?;
+
         Ok(Self {
-            image: Option::<Vec<isize>>::load(buffer, &Some(()))?,
+            image: image.map(|mut x| x.take_pivots()),
             preimage: Matrix::load(buffer, p)?,
         })
     }
