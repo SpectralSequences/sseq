@@ -267,7 +267,6 @@ impl Algebra for AdemAlgebra {
         s_index: usize,
         excess: i32,
     ) {
-        let basis_filter = |_, _| true;
         self.multiply(
             result,
             coeff,
@@ -277,7 +276,6 @@ impl Algebra for AdemAlgebra {
             s_index,
             excess,
             self.unstable,
-            &basis_filter,
         );
     }
 
@@ -995,7 +993,7 @@ impl AdemAlgebra {
         }
     }
 
-    pub fn multiply_basis_elements_unstable<BasisFilter>(
+    pub fn multiply_basis_elements_unstable(
         &self,
         mut result: SliceMut,
         coeff: u32,
@@ -1004,10 +1002,7 @@ impl AdemAlgebra {
         s_degree: i32,
         s_index: usize,
         excess: i32,
-        basis_filter: &BasisFilter,
-    ) where
-        BasisFilter: Fn(i32, usize) -> bool,
-    {
+    ) {
         self.multiply(
             result.copy(),
             coeff,
@@ -1017,7 +1012,6 @@ impl AdemAlgebra {
             s_index,
             excess,
             true,
-            basis_filter,
         );
         // Zeroing the rest of the result is a little unexpected, but I don't think it causes trouble?
         // Can't avoid this unexpected behavior without sacrificing some speed.
@@ -1029,7 +1023,7 @@ impl AdemAlgebra {
             .set_to_zero();
     }
 
-    pub fn multiply<BasisFilter>(
+    pub fn multiply(
         &self,
         mut result: SliceMut,
         coeff: u32,
@@ -1039,10 +1033,7 @@ impl AdemAlgebra {
         s_index: usize,
         excess: i32,
         unstable: bool,
-        basis_filter: &BasisFilter,
-    ) where
-        BasisFilter: Fn(i32, usize) -> bool,
-    {
+    ) {
         if coeff == 0 {
             return;
         }
@@ -1092,7 +1083,6 @@ impl AdemAlgebra {
                 excess,
                 stop_early,
                 unstable,
-                basis_filter,
             );
         } else {
             let leading_degree = r.degree;
@@ -1104,22 +1094,18 @@ impl AdemAlgebra {
                 excess,
                 stop_early,
                 unstable,
-                basis_filter,
             );
         }
     }
 
-    pub fn make_mono_admissible<BasisFilter>(
+    pub fn make_mono_admissible(
         &self,
         result: SliceMut,
         coeff: u32,
         monomial: &mut AdemBasisElement,
         excess: i32,
         unstable: bool,
-        basis_filter: &BasisFilter,
-    ) where
-        BasisFilter: Fn(i32, usize) -> bool,
-    {
+    ) {
         let q = if self.generic {
             2 * (*self.prime()) - 2
         } else {
@@ -1139,7 +1125,6 @@ impl AdemAlgebra {
                 excess,
                 stop_early,
                 unstable,
-                basis_filter,
             );
         } else {
             self.make_mono_admissible_2(
@@ -1150,7 +1135,6 @@ impl AdemAlgebra {
                 excess,
                 stop_early,
                 unstable,
-                basis_filter,
             );
         }
     }
@@ -1166,7 +1150,7 @@ impl AdemAlgebra {
      *           our input as a product of two admissible sequences.)
      *  * `leading_degree` - the degree of the squares between 0 and idx (so of length idx + 1)
      */
-    fn make_mono_admissible_2<BasisFilter>(
+    fn make_mono_admissible_2(
         &self,
         mut result: SliceMut,
         monomial: &mut AdemBasisElement,
@@ -1175,10 +1159,7 @@ impl AdemAlgebra {
         excess: i32,
         stop_early: bool,
         unstable: bool,
-        basis_filter: &BasisFilter,
-    ) where
-        BasisFilter: Fn(i32, usize) -> bool,
-    {
+    ) {
         while idx < 0
             || idx as usize == monomial.ps.len() - 1
             || monomial.ps[idx as usize] >= 2 * monomial.ps[idx as usize + 1]
@@ -1212,9 +1193,6 @@ impl AdemAlgebra {
         };
 
         for (it_idx, _value) in reduced_tail.iter_nonzero() {
-            if !basis_filter(tail_degree, it_idx) {
-                continue;
-            }
             let cur_tail_basis_elt = self.basis_element_from_index(tail_degree, it_idx);
             new_monomial.ps.truncate(idx);
             new_monomial.ps.extend_from_slice(&cur_tail_basis_elt.ps);
@@ -1226,12 +1204,11 @@ impl AdemAlgebra {
                 excess,
                 stop_early,
                 unstable,
-                basis_filter,
             );
         }
     }
 
-    fn make_mono_admissible_generic<BasisFilter>(
+    fn make_mono_admissible_generic(
         &self,
         mut result: SliceMut,
         coeff: u32,
@@ -1241,10 +1218,7 @@ impl AdemAlgebra {
         excess: i32,
         stop_early: bool,
         unstable: bool,
-        basis_filter: &BasisFilter,
-    ) where
-        BasisFilter: Fn(i32, usize) -> bool,
-    {
+    ) {
         let p = *self.prime();
         let q = 2 * p - 2;
         // Check for admissibility
@@ -1302,7 +1276,6 @@ impl AdemAlgebra {
                 excess,
                 stop_early,
                 unstable,
-                basis_filter,
             );
         }
     }

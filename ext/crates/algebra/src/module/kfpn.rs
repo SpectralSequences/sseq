@@ -69,7 +69,6 @@ impl<A: AdemAlgebraT> KFpn<A> {
         let (left_deg, left_idx) = self.adem_algebra().beps_pn(bockstein, sq);
         let right_deg = input_degree - self.n;
         let right_idx = input_idx;
-        let basis_filter = |_, _| true;
         self.adem_algebra().multiply_basis_elements_unstable(
             temp_vec.as_slice_mut(),
             coeff,
@@ -78,7 +77,6 @@ impl<A: AdemAlgebraT> KFpn<A> {
             right_deg,
             right_idx,
             self.n,
-            &basis_filter,
         );
         let mut mono = PolynomialAlgebraMonomial::new(p);
         self.set_monomial_degree(&mut mono, output_degree);
