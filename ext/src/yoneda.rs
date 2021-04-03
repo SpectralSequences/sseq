@@ -425,13 +425,13 @@ where
 
             matrix.initialize_pivots();
             matrix.row_reduce();
-            let pivots = matrix.take_pivots();
 
             let subspace = &source.subspaces[t];
-            let mut pivot_columns: Vec<(i32, usize)> = pivots
-                .into_iter()
+            let mut pivot_columns: Vec<(i32, usize)> = matrix
+                .pivots()
+                .iter()
                 .enumerate()
-                .filter(|&(_i, v)| v >= 0)
+                .filter(|&(_i, &v)| v >= 0)
                 .map(|(i, _v)| (strategy(&*source.module.module, subspace, t, i), i))
                 .collect::<Vec<_>>();
             pivot_columns.sort_unstable();
@@ -448,7 +448,7 @@ where
             let mut pivot_columns = pivot_columns.iter().map(|(_p, i)| i).collect::<Vec<_>>();
             pivot_columns.sort();
 
-            let mut matrix = matrix.into_vec();
+            let mut matrix: Vec<FpVector> = matrix.into();
             let mut source_kills: Vec<FpVector> = Vec::with_capacity(source.module.dimension(t));
             let mut target_kills: Vec<FpVector> = Vec::with_capacity(target.module.dimension(t));
 
