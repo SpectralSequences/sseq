@@ -229,7 +229,6 @@
 <span id="208">208</span>
 <span id="209">209</span>
 <span id="210">210</span>
-<span id="211">211</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -323,13 +322,12 @@
     }
 
     <span class="kw">fn</span> <span class="ident">compute_auxiliary_data_through_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="kw">let</span> <span class="ident">kernel_len</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">len</span>();
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">kernel_len</span>..<span class="op">=</span><span class="ident">degree</span> {
+        <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">extend</span>(<span class="ident">degree</span>, <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
             <span class="kw">let</span> (<span class="ident">image</span>, <span class="ident">kernel</span>, <span class="ident">qi</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">auxiliary_data</span>(<span class="ident">i</span>);
             <span class="self">self</span>.<span class="ident">images</span>.<span class="ident">push_checked</span>(<span class="ident">image</span>, <span class="ident">i</span>);
-            <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">push_checked</span>(<span class="ident">kernel</span>, <span class="ident">i</span>);
             <span class="self">self</span>.<span class="ident">quasi_inverses</span>.<span class="ident">push_checked</span>(<span class="ident">qi</span>, <span class="ident">i</span>);
-        }
+            <span class="ident">kernel</span>
+        });
     }
 
     <span class="kw">fn</span> <span class="ident">quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">QuasiInverse</span><span class="op">&gt;</span> {

@@ -338,9 +338,6 @@
 <span id="317">317</span>
 <span id="318">318</span>
 <span id="319">319</span>
-<span id="320">320</span>
-<span id="321">321</span>
-<span id="322">322</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">rustc_hash</span>::<span class="ident">FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">serde_json</span>::<span class="ident">Value</span>;
@@ -352,7 +349,7 @@
 <span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">matrix</span>::<span class="ident">Matrix</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">FpVector</span>, <span class="ident">SliceMut</span>};
-<span class="kw">use</span> <span class="ident">once</span>::<span class="ident">OnceVec</span>;
+<span class="kw">use</span> <span class="ident">once</span>::<span class="ident">OnceBiVec</span>;
 
 <span class="kw">struct</span> <span class="ident">FPMIndexTable</span> {
     <span class="ident">gen_idx_to_fp_idx</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">isize</span><span class="op">&gt;</span>,
@@ -365,7 +362,7 @@
     <span class="kw">pub</span> <span class="ident">generators</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">relations</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">map</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">index_table</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">FPMIndexTable</span><span class="op">&gt;</span>,
+    <span class="ident">index_table</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">FPMIndexTable</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">FinitelyPresentedModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
@@ -410,7 +407,7 @@
                 <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">generators</span>),
                 <span class="number">0</span>,
             )),
-            <span class="ident">index_table</span>: <span class="ident">OnceVec</span>::<span class="ident">new</span>(),
+            <span class="ident">index_table</span>: <span class="ident">OnceBiVec</span>::<span class="ident">new</span>(<span class="ident">min_degree</span>),
         }
     }
 
@@ -468,14 +465,12 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">gen_idx_to_fp_idx</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">isize</span> {
         <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">degree</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>);
-        <span class="kw">let</span> <span class="ident">degree_idx</span> <span class="op">=</span> (<span class="ident">degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">min_degree</span>) <span class="kw">as</span> <span class="ident">usize</span>;
-        <span class="self">self</span>.<span class="ident">index_table</span>[<span class="ident">degree_idx</span>].<span class="ident">gen_idx_to_fp_idx</span>[<span class="ident">idx</span>]
+        <span class="self">self</span>.<span class="ident">index_table</span>[<span class="ident">degree</span>].<span class="ident">gen_idx_to_fp_idx</span>[<span class="ident">idx</span>]
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">fp_idx_to_gen_idx</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">degree</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>);
-        <span class="kw">let</span> <span class="ident">degree_idx</span> <span class="op">=</span> (<span class="ident">degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">min_degree</span>) <span class="kw">as</span> <span class="ident">usize</span>;
-        <span class="self">self</span>.<span class="ident">index_table</span>[<span class="ident">degree_idx</span>].<span class="ident">fp_idx_to_gen_idx</span>[<span class="ident">idx</span>]
+        <span class="self">self</span>.<span class="ident">index_table</span>[<span class="ident">degree</span>].<span class="ident">fp_idx_to_gen_idx</span>[<span class="ident">idx</span>]
     }
 }
 
@@ -602,9 +597,9 @@
         <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">compute_basis</span>(<span class="ident">degree</span>);
         <span class="self">self</span>.<span class="ident">generators</span>.<span class="ident">extend_by_zero</span>(<span class="ident">degree</span>);
         <span class="self">self</span>.<span class="ident">relations</span>.<span class="ident">extend_by_zero</span>(<span class="ident">degree</span>);
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>();
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">index_table</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">degree</span> {
-            <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">i</span>);
+        <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">degree</span>);
+
+        <span class="self">self</span>.<span class="ident">index_table</span>.<span class="ident">extend</span>(<span class="ident">degree</span>, <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
             <span class="kw">let</span> <span class="ident">qi</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">quasi_inverse</span>(<span class="ident">i</span>).<span class="ident">unwrap</span>();
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gen_idx_to_fp_idx</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">fp_idx_to_gen_idx</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
@@ -616,17 +611,16 @@
                     <span class="ident">gen_idx_to_fp_idx</span>.<span class="ident">push</span>(<span class="op">-</span><span class="number">1</span>);
                 }
             }
-            <span class="self">self</span>.<span class="ident">index_table</span>.<span class="ident">push</span>(<span class="ident">FPMIndexTable</span> {
+            <span class="ident">FPMIndexTable</span> {
                 <span class="ident">gen_idx_to_fp_idx</span>,
                 <span class="ident">fp_idx_to_gen_idx</span>,
-            });
-        }
+            }
+        });
     }
 
     <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">degree</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>);
-        <span class="kw">let</span> <span class="ident">degree_idx</span> <span class="op">=</span> (<span class="ident">degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">min_degree</span>) <span class="kw">as</span> <span class="ident">usize</span>;
-        <span class="self">self</span>.<span class="ident">index_table</span>[<span class="ident">degree_idx</span>].<span class="ident">fp_idx_to_gen_idx</span>.<span class="ident">len</span>()
+        <span class="self">self</span>.<span class="ident">index_table</span>[<span class="ident">degree</span>].<span class="ident">fp_idx_to_gen_idx</span>.<span class="ident">len</span>()
     }
 
     <span class="kw">fn</span> <span class="ident">act_on_basis</span>(

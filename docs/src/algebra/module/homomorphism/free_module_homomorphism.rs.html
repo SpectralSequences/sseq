@@ -309,27 +309,7 @@
 <span id="288">288</span>
 <span id="289">289</span>
 <span id="290">290</span>
-<span id="291">291</span>
-<span id="292">292</span>
-<span id="293">293</span>
-<span id="294">294</span>
-<span id="295">295</span>
-<span id="296">296</span>
-<span id="297">297</span>
-<span id="298">298</span>
-<span id="299">299</span>
-<span id="300">300</span>
-<span id="301">301</span>
-<span id="302">302</span>
-<span id="303">303</span>
-<span id="304">304</span>
-<span id="305">305</span>
-<span id="306">306</span>
-<span id="307">307</span>
-<span id="308">308</span>
-<span id="309">309</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">Algebra</span>;
@@ -348,7 +328,6 @@
     <span class="kw">pub</span> <span class="ident">kernels</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Subspace</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">quasi_inverses</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">QuasiInverse</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">min_degree</span>: <span class="ident">i32</span>,
-    <span class="ident">lock</span>: <span class="ident">Mutex</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
     <span class="doccomment">/// degree shift, such that ouptut_degree = input_degree - degree_shift</span>
     <span class="ident">degree_shift</span>: <span class="ident">i32</span>,
 }
@@ -419,21 +398,14 @@
     }
 
     <span class="kw">fn</span> <span class="ident">compute_auxiliary_data_through_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
-        <span class="kw">let</span> <span class="ident">kernel_len</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">len</span>();
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">kernel_len</span>..<span class="op">=</span><span class="ident">degree</span> {
+        <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">extend</span>(<span class="ident">degree</span>, <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
             <span class="kw">let</span> (<span class="ident">image</span>, <span class="ident">kernel</span>, <span class="ident">qi</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">auxiliary_data</span>(<span class="ident">i</span>);
             <span class="self">self</span>.<span class="ident">images</span>.<span class="ident">push_checked</span>(<span class="prelude-val">Some</span>(<span class="ident">image</span>), <span class="ident">i</span>);
-            <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">push_checked</span>(<span class="prelude-val">Some</span>(<span class="ident">kernel</span>), <span class="ident">i</span>);
             <span class="self">self</span>.<span class="ident">quasi_inverses</span>.<span class="ident">push_checked</span>(<span class="prelude-val">Some</span>(<span class="ident">qi</span>), <span class="ident">i</span>);
-        }
+            <span class="prelude-val">Some</span>(<span class="ident">kernel</span>)
+        });
     }
 }
-
-<span class="comment">// // Run FreeModule_ConstructBlockOffsetTable(source, degree) before using this on an input in that degree</span>
-<span class="comment">// void FreeModuleHomomorphism_applyToBasisElement(FreeModuleHomomorphism *f, Vector *result, uint coeff, int input_degree, uint input_index){</span>
-
-<span class="comment">// }</span>
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M</span>::<span class="ident">Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>, <span class="ident">degree_shift</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
@@ -450,7 +422,6 @@
             <span class="ident">kernels</span>,
             <span class="ident">quasi_inverses</span>,
             <span class="ident">min_degree</span>,
-            <span class="ident">lock</span>: <span class="ident">Mutex</span>::<span class="ident">new</span>(()),
             <span class="ident">degree_shift</span>,
         }
     }
@@ -484,28 +455,20 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_by_zero</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
-
-        <span class="comment">// println!(&quot;    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}&quot;, degree, first_new_row, new_generators);</span>
-        <span class="comment">// println!(&quot;    dimension : {} target name : {}&quot;, dimension, self.target.name());</span>
         <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">min_degree</span> {
-            <span class="kw">return</span>;
-        }
-        <span class="kw">let</span> <span class="ident">next_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_degree</span>();
-        <span class="kw">if</span> <span class="ident">next_degree</span> <span class="op">&gt;</span> <span class="ident">degree</span> {
             <span class="kw">return</span>;
         }
 
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">next_degree</span>..<span class="op">=</span><span class="ident">degree</span> {
+        <span class="self">self</span>.<span class="ident">outputs</span>.<span class="ident">extend</span>(<span class="ident">degree</span>, <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
             <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">i</span>);
             <span class="kw">let</span> <span class="ident">dimension</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">dimension</span>(<span class="ident">i</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">degree_shift</span>);
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_outputs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">num_gens</span>);
             <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
                 <span class="ident">new_outputs</span>.<span class="ident">push</span>(<span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">dimension</span>));
             }
-            <span class="self">self</span>.<span class="ident">outputs</span>.<span class="ident">push_checked</span>(<span class="ident">new_outputs</span>, <span class="ident">i</span>);
-        }
+            <span class="ident">new_outputs</span>
+        });
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_generators_from_big_vector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">outputs_vectors</span>: <span class="ident">Slice</span>) {
@@ -633,7 +596,6 @@
             <span class="ident">kernels</span>,
             <span class="ident">quasi_inverses</span>,
             <span class="ident">min_degree</span>,
-            <span class="ident">lock</span>: <span class="ident">Mutex</span>::<span class="ident">new</span>(()),
             <span class="ident">degree_shift</span>,
         })
     }
