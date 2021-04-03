@@ -179,8 +179,12 @@ pub enum FpVectorNonZeroIterator<'a> {
 }
 
 impl FpVector {
-    pub fn new(p: ValidPrime, dim: usize) -> FpVector {
-        match_p!(p, FpVectorP::new_(dim))
+    pub fn new(p: ValidPrime, dimension: usize) -> FpVector {
+        match_p!(p, FpVectorP::new_(dimension))
+    }
+
+    pub fn new_with_capacity(p: ValidPrime, dimension: usize, capacity: usize) -> FpVector {
+        match_p!(p, FpVectorP::new_with_capacity_(dimension, capacity))
     }
 
     pub fn from_slice(p: ValidPrime, slice: &[u32]) -> Self {
@@ -217,8 +221,8 @@ impl FpVector {
         pub fn sign_rule(&self, other: &Self) -> bool;
         pub fn add_carry(&mut self, other: &Self, c: u32, rest: &mut [FpVector]) -> bool;
 
-        fn limbs(&self) -> (&[Limb]);
-        fn limbs_mut(&mut self) -> (&mut [Limb]);
+        pub(crate) fn limbs(&self) -> (&[Limb]);
+        pub(crate) fn limbs_mut(&mut self) -> (&mut [Limb]);
     }
 }
 

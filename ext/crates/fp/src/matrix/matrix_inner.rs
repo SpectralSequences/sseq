@@ -30,7 +30,7 @@ pub struct Matrix {
     p: ValidPrime,
     columns: usize,
     pub vectors: Vec<FpVector>,
-    pivot_vec: Vec<isize>,
+    pivots: Vec<isize>,
 }
 
 impl PartialEq for Matrix {
@@ -53,7 +53,26 @@ impl Matrix {
             p,
             columns,
             vectors,
-            pivot_vec: Vec::new(),
+            pivots: Vec::new(),
+        }
+    }
+
+    pub fn new_with_capacity(
+        p: ValidPrime,
+        rows: usize,
+        columns: usize,
+        rows_capacity: usize,
+        columns_capacity: usize,
+    ) -> Matrix {
+        let mut vectors: Vec<FpVector> = Vec::with_capacity(rows_capacity);
+        for _ in 0..rows {
+            vectors.push(FpVector::new_with_capacity(p, columns, columns_capacity));
+        }
+        Matrix {
+            p,
+            columns,
+            vectors,
+            pivots: Vec::new(),
         }
     }
 }
@@ -74,28 +93,20 @@ impl Matrix {
     }
 
     pub fn initialize_pivots(&mut self) {
-        self.pivot_vec.clear();
-        self.pivot_vec.resize(self.columns, -1);
+        self.pivots.clear();
+        self.pivots.resize(self.columns, -1);
     }
 
     pub fn pivots(&self) -> &[isize] {
-        &self.pivot_vec
+        &self.pivots
     }
 
     pub fn pivots_mut(&mut self) -> &mut [isize] {
-        &mut self.pivot_vec
-    }
-
-    pub fn replace_pivots(&mut self, new_pivots: Vec<isize>) -> Vec<isize> {
-        std::mem::replace(&mut self.pivot_vec, new_pivots)
+        &mut self.pivots
     }
 
     pub fn take_pivots(&mut self) -> Vec<isize> {
-        self.replace_pivots(Vec::new())
-    }
-
-    pub fn set_pivots(&mut self, new_pivots: Vec<isize>) {
-        self.pivot_vec = new_pivots;
+        std::mem::replace(&mut self.pivots, Vec::new())
     }
 
     /// Produces a matrix from a list of rows.
@@ -108,7 +119,7 @@ impl Matrix {
             p,
             columns,
             vectors,
-            pivot_vec: Vec::new(),
+            pivots: Vec::new(),
         }
     }
 
@@ -214,6 +225,11 @@ impl Matrix {
             vectors: &mut self.vectors[row_start..row_end],
             col_start,
             col_end,
+            pivots: if self.pivots.is_empty() {
+                &mut self.pivots
+            } else {
+                &mut self.pivots[col_start..col_end]
+            },
         }
     }
 }
@@ -289,16 +305,69 @@ impl std::ops::IndexMut<usize> for Matrix {
     }
 }
 
-impl Matrix {
-    pub fn swap_rows(&mut self, i: usize, j: usize) {
-        self.vectors.swap(i, j);
-    }
+/// target and source must be distinct and less that self.vectors.len()
+unsafe fn row_op(vectors: &mut [FpVector], target: usize, source: usize, coeff: u32) {
+    debug_assert!(target != source);
+    let (target, source) = split_borrow(vectors, target, source);
+    target.add(source, coeff);
+}
 
-    /// target and source must be distinct and less that self.vectors.len()
-    unsafe fn row_op(&mut self, target: usize, source: usize, coeff: u32) {
-        debug_assert!(target != source);
-        let (target, source) = split_borrow(&mut self.vectors, target, source);
-        target.add(source, coeff);
+impl Matrix {
+    /// This is very similar to row_reduce, except we only need to get to row echelon form, not
+    /// *reduced* row echelon form. It also returns the list of pivots instead.
+    pub fn find_pivots_permutation<T: Iterator<Item = usize>>(
+        &mut self,
+        permutation: T,
+    ) -> Vec<usize> {
+        let p = self.p;
+        let rows = self.rows();
+        let mut pivots = Vec::with_capacity(rows);
+
+        if rows == 0 {
+            return pivots;
+        }
+
+        let mut pivot: usize = 0;
+        for pivot_column in permutation {
+            // Search down column for a nonzero entry.
+            let mut pivot_row = rows;
+            for i in pivot..rows {
+                if self[i].entry(pivot_column) != 0 {
+                    pivot_row = i;
+                    break;
+                }
+            }
+            if pivot_row == rows {
+                continue;
+            }
+
+            // Record position of pivot.
+            pivots.push(pivot_column);
+
+            // Pivot_row contains a row with a pivot in current column.
+            // Swap pivot row up.
+            self.vectors.swap(pivot, pivot_row);
+            // println!("({}) <==> ({}): \n{}", pivot, pivot_row, self);
+
+            // // Divide pivot row by pivot entry
+            let c = self[pivot].entry(pivot_column);
+            let c_inv = prime::inverse(p, c);
+            self[pivot].scale(c_inv);
+            // println!("({}) <== {} * ({}): \n{}", pivot, c_inv, pivot, self);
+
+            for i in pivot_row + 1..rows {
+                let pivot_column_entry = self[i].entry(pivot_column);
+                if pivot_column_entry == 0 {
+                    continue;
+                }
+                let row_op_coeff = *p - pivot_column_entry;
+                // Do row operation. Safety requires i != pivot, which follows from
+                // i > pivot_row >= pivot. They are both less than rows by construction
+                unsafe { row_op(&mut self.vectors, i, pivot, row_op_coeff) };
+            }
+            pivot += 1;
+        }
+        pivots
     }
 
     /// Perform row reduction to reduce it to reduced row echelon form. This modifies the matrix in
@@ -333,146 +402,7 @@ impl Matrix {
     /// assert_eq!(m, Matrix::from_vec(p, &result));
     /// `#`#`
     pub fn row_reduce(&mut self) {
-        let mut column_to_pivot_row = self.take_pivots();
-        self.row_reduce_into_pivots(&mut column_to_pivot_row);
-        self.set_pivots(column_to_pivot_row);
-    }
-
-    pub fn row_reduce_into_pivots(&mut self, column_to_pivot_row: &mut Vec<isize>) {
-        self.row_reduce_offset_into_pivots(column_to_pivot_row, 0);
-    }
-
-    pub fn row_reduce_offset_into_pivots(
-        &mut self,
-        column_to_pivot_row: &mut Vec<isize>,
-        offset: usize,
-    ) {
-        self.row_reduce_permutation_into_pivots(column_to_pivot_row, offset..self.columns());
-    }
-
-    /// This is very similar to row_reduce, except we only need to get to row echelon form, not
-    /// *reduced* row echelon form. It also returns the list of pivots instead.
-    pub fn find_pivots_permutation<T: Iterator<Item = usize>>(
-        &mut self,
-        permutation: T,
-    ) -> Vec<usize> {
-        let p = self.p;
-        let rows = self.rows();
-        let mut pivots = Vec::with_capacity(rows);
-
-        if rows == 0 {
-            return pivots;
-        }
-
-        let mut pivot: usize = 0;
-        for pivot_column in permutation {
-            // Search down column for a nonzero entry.
-            let mut pivot_row = rows;
-            for i in pivot..rows {
-                if self[i].entry(pivot_column) != 0 {
-                    pivot_row = i;
-                    break;
-                }
-            }
-            if pivot_row == rows {
-                continue;
-            }
-
-            // Record position of pivot.
-            pivots.push(pivot_column);
-
-            // Pivot_row contains a row with a pivot in current column.
-            // Swap pivot row up.
-            self.swap_rows(pivot, pivot_row);
-            // println!("({}) <==> ({}): \n{}", pivot, pivot_row, self);
-
-            // // Divide pivot row by pivot entry
-            let c = self[pivot].entry(pivot_column);
-            let c_inv = prime::inverse(p, c);
-            self[pivot].scale(c_inv);
-            // println!("({}) <== {} * ({}): \n{}", pivot, c_inv, pivot, self);
-
-            for i in pivot_row + 1..rows {
-                let pivot_column_entry = self[i].entry(pivot_column);
-                if pivot_column_entry == 0 {
-                    continue;
-                }
-                let row_op_coeff = *p - pivot_column_entry;
-                // Do row operation. Safety requires i != pivot, which follows from
-                // i > pivot_row >= pivot. They are both less than rows by construction
-                unsafe { self.row_op(i, pivot, row_op_coeff) };
-            }
-            pivot += 1;
-        }
-        pivots
-    }
-
-    pub fn row_reduce_permutation_into_pivots<T>(
-        &mut self,
-        column_to_pivot_row: &mut Vec<isize>,
-        permutation: T,
-    ) where
-        T: Iterator<Item = usize>,
-    {
-        debug_assert!(self.columns() <= column_to_pivot_row.len());
-        let p = self.p;
-        let rows = self.rows();
-        for x in column_to_pivot_row.iter_mut() {
-            *x = -1;
-        }
-        if rows == 0 {
-            return;
-        }
-        let mut pivot: usize = 0;
-        for pivot_column in permutation {
-            // Search down column for a nonzero entry.
-            let mut pivot_row = rows;
-            for i in pivot..rows {
-                if self[i].entry(pivot_column) != 0 {
-                    pivot_row = i;
-                    break;
-                }
-            }
-            if pivot_row == rows {
-                continue;
-            }
-
-            // Record position of pivot.
-            column_to_pivot_row[pivot_column] = pivot as isize;
-
-            // Pivot_row contains a row with a pivot in current column.
-            // Swap pivot row up.
-            self.swap_rows(pivot, pivot_row);
-            // println!("({}) <==> ({}): \n{}", pivot, pivot_row, self);
-
-            // // Divide pivot row by pivot entry
-            let c = self[pivot].entry(pivot_column);
-            let c_inv = prime::inverse(p, c);
-            self[pivot].scale(c_inv);
-            // println!("({}) <== {} * ({}): \n{}", pivot, c_inv, pivot, self);
-            // We would say:
-            // for i in 0..rows { // but we want to skip a few rows so we can't use for.
-            let mut i = 0;
-            while i < rows {
-                if i as usize == pivot {
-                    // Between pivot and pivot_row, we already checked that the pivot column is 0,
-                    // so we skip ahead a bit.
-                    i = pivot_row + 1;
-                    continue;
-                }
-                let pivot_column_entry = self[i].entry(pivot_column);
-                if pivot_column_entry == 0 {
-                    i += 1; // loop control structure.
-                    continue;
-                }
-                let row_op_coeff = *p - pivot_column_entry;
-                // Do row operation. Safety requires i != pivot, which follows from the if i as
-                // usize == pivot line. They are both less than rows by construction.
-                unsafe { self.row_op(i, pivot, row_op_coeff) };
-                i += 1; // loop control structure.
-            }
-            pivot += 1;
-        }
+        self.as_slice_mut().row_reduce();
     }
 }
 
@@ -579,7 +509,7 @@ impl Matrix {
                 .as_slice_mut()
                 .assign(self[i].slice(0, last_target_col));
         }
-        image_matrix.set_pivots(self.pivots()[..last_target_col].to_vec());
+        image_matrix.pivots = self.pivots()[..last_target_col].to_vec();
         Subspace {
             matrix: image_matrix,
         }
@@ -600,11 +530,11 @@ impl Matrix {
         first_res_col: usize,
         last_res_col: usize,
         first_source_col: usize,
-        columns: usize,
     ) -> (QuasiInverse, QuasiInverse) {
         let p = self.prime();
+        let columns = self.columns();
+
         let source_columns = columns - first_source_col;
-        let res_columns = last_res_col - first_res_col;
         let first_res_row = self.find_first_row_in_block(first_res_col);
         let first_kernel_row = self.find_first_row_in_block(first_source_col);
         let mut cc_preimage = Matrix::new(p, first_res_row, source_columns);
@@ -613,17 +543,14 @@ impl Matrix {
                 .as_slice_mut()
                 .assign(self[i].slice(first_source_col, columns));
         }
-        let mut new_pivots = vec![-1; columns - first_res_col];
         let res_image_rows;
         if first_res_row == 0 {
-            new_pivots[0..(columns - first_res_col)]
-                .clone_from_slice(&self.pivots()[first_res_col..columns]);
             res_image_rows = first_kernel_row;
         } else {
             self.slice_mut(0, first_kernel_row, first_res_col, columns)
-                .row_reduce_into_pivots(&mut new_pivots);
+                .row_reduce();
             res_image_rows = Self::find_first_row_in_block_with_pivots(
-                &self.pivot_vec,
+                &self.pivots,
                 first_source_col - first_res_col,
                 first_kernel_row,
             );
@@ -634,27 +561,90 @@ impl Matrix {
                 .as_slice_mut()
                 .assign(self[i].slice(first_source_col, columns));
         }
-        let res_pivots = new_pivots[..res_columns].into();
+        let res_pivots = self.pivots[first_res_col..last_res_col].into();
         let cm_qi = QuasiInverse::new(None, cc_preimage);
         let res_qi = QuasiInverse::new(Some(res_pivots), res_preimage);
         (cm_qi, res_qi)
     }
 
-    pub fn get_image(
-        &mut self,
-        image_rows: usize,
-        target_dimension: usize,
-        pivots: &[isize],
-    ) -> Subspace {
-        let mut image = Subspace::new(self.p, image_rows, target_dimension);
-        for i in 0..image_rows {
-            image.pivots_mut()[i] = pivots[i];
-            let vector_to_copy = &mut self[i];
-            image[i]
-                .as_slice_mut()
-                .assign(vector_to_copy.slice(0, target_dimension));
+    /// Computes the kernel from an augmented matrix in rref. To compute the kernel of a matrix
+    /// A, produce an augmented matrix of the form
+    /// ```text
+    /// [A | I]
+    /// ```
+    /// An important thing to note is that the number of columns of `A` should be a multiple of the
+    /// number of entries per limb in an FpVector, and this is often achieved by padding columns
+    /// with 0. The padded length can be obtained from `FpVector::padded_dimension`.
+    ///
+    /// After this matrix is set up, perform row reduction with `Matrix::row_reduce`, and then
+    /// apply `compute_kernel`.
+    ///
+    /// # Arguments
+    ///  * `column_to_pivot_row` - This is the list of pivots `row_reduce` gave you.
+    ///  * `first_source_column` - The column where the `I` part of the augmented matrix starts.
+    ///
+    /// # Example
+    /// ```
+    /// # use fp::prime::ValidPrime;
+    /// let p = ValidPrime::new(3);
+    /// # use fp::matrix::Matrix;
+    /// # use fp::vector::FpVector;
+    /// # fp::vector::initialize_limb_bit_index_table(p);
+    /// let input  = [vec![1, 2, 1, 1, 0],
+    ///               vec![1, 0, 2, 1, 1],
+    ///               vec![2, 2, 0, 2, 1]];
+    ///
+    /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &input);
+    /// m.initialize_pivots();
+    /// m.row_reduce();
+    /// let ker = m.compute_kernel(padded_cols);
+    ///
+    /// let mut target = vec![0; 3];
+    /// assert_eq!(Vec::<u32>::from(&ker.matrix[0]), vec![1, 1, 2]);
+    /// ```
+    pub fn compute_kernel(&self, first_source_column: usize) -> Subspace {
+        let p = self.p;
+        let rows = self.rows();
+        let columns = self.columns();
+        let source_dimension = columns - first_source_column;
+        let column_to_pivot_row = self.pivots();
+
+        // Find the first kernel row
+        let first_kernel_row = Matrix::find_first_row_in_block_with_pivots(
+            column_to_pivot_row,
+            first_source_column,
+            rows,
+        );
+        // Every row after the first kernel row is also a kernel row, so now we know how big it is and can allocate space.
+        let kernel_dimension = rows - first_kernel_row;
+        let mut kernel = Subspace::new(p, kernel_dimension, source_dimension);
+        if kernel_dimension == 0 {
+            return kernel;
         }
-        image
+        // Write pivots into kernel
+        for i in 0..source_dimension {
+            // Turns -1 into some negative number... make sure to check <0 for no pivot in column...
+            kernel.pivots_mut()[i] =
+                column_to_pivot_row[i + first_source_column] - first_kernel_row as isize;
+        }
+        // Copy kernel matrix into kernel
+        for (i, row) in kernel.matrix.iter_mut().enumerate() {
+            row.as_slice_mut().assign(
+                self.vectors[first_kernel_row + i]
+                    .slice(first_source_column, first_source_column + source_dimension),
+            );
+        }
+        kernel
+    }
+
+    pub fn extend_column_dimension(&mut self, columns: usize) {
+        for row in &mut self.vectors {
+            row.extend_dimension(columns);
+        }
+        if columns > self.columns {
+            self.columns = columns;
+            self.pivots.resize(columns, -1);
+        }
     }
 
     /// Given a matrix M in rref, add rows to make the matrix surjective when restricted to the
@@ -676,25 +666,23 @@ impl Matrix {
     /// The function panics if there are not enough empty rows.
     pub fn extend_to_surjection(
         &mut self,
-        mut first_empty_row: usize,
         start_column: usize,
         end_column: usize,
+        extra_column_capacity: usize,
     ) -> Vec<usize> {
         let mut added_pivots = Vec::new();
-        let pivots = self.take_pivots();
-        for (i, &pivot) in pivots[start_column..end_column].iter().enumerate() {
+        let columns = self.columns();
+
+        for (i, &pivot) in self.pivots[start_column..end_column].iter().enumerate() {
             if pivot >= 0 {
                 continue;
             }
-            // Look up the cycle that we're missing and add a generator hitting it.
-            let matrix_row = &mut self[first_empty_row];
-            // We're trying to make a surjection so we just set the output equal to 1
+            let mut new_row =
+                FpVector::new_with_capacity(self.prime(), columns, columns + extra_column_capacity);
+            new_row.set_entry(i, 1);
+            self.vectors.push(new_row);
             added_pivots.push(i);
-            //            matrix_row.set_to_zero();
-            matrix_row.set_entry(i, 1);
-            first_empty_row += 1;
         }
-        self.set_pivots(pivots);
         added_pivots
     }
 
@@ -718,14 +706,17 @@ impl Matrix {
     /// is not contained in `desired_image`, but is not guaranteed to do so.
     pub fn extend_image(
         &mut self,
-        mut first_empty_row: usize,
         start_column: usize,
         end_column: usize,
         desired_image: &Subspace,
+        extra_column_capacity: usize,
     ) -> Vec<usize> {
         let mut added_pivots = Vec::new();
         let desired_pivots = desired_image.matrix.pivots();
         let early_end_column = std::cmp::min(end_column, desired_pivots.len() + start_column);
+
+        let columns = self.columns();
+
         for i in start_column..early_end_column {
             debug_assert!(
                 self.pivots()[i] < 0 || desired_pivots[i - start_column] >= 0,
@@ -739,13 +730,15 @@ impl Matrix {
             // Look up the cycle that we're missing and add a generator hitting it.
             let kernel_vector_row = desired_pivots[i - start_column] as usize;
             let new_image = &desired_image[kernel_vector_row];
-            let matrix_row = &mut self[first_empty_row];
-            added_pivots.push(i);
-            matrix_row.set_to_zero();
-            matrix_row
+
+            let mut new_row =
+                FpVector::new_with_capacity(self.prime(), columns, columns + extra_column_capacity);
+            new_row
                 .slice_mut(start_column, start_column + desired_image.matrix.columns)
                 .assign(new_image.as_slice());
-            first_empty_row += 1;
+            self.vectors.push(new_row);
+
+            added_pivots.push(i);
         }
         added_pivots
     }
@@ -871,6 +864,23 @@ macro_rules! augmented_matrix {
                     }
                 }
 
+                pub fn new_with_capacity(p: ValidPrime, rows: usize, columns: &[usize], row_capacity: usize, extra_column_capacity: usize) -> Self {
+                    let mut start = [0; $N];
+                    let mut end = [0; $N];
+                    for i in 1 .. $N {
+                        start[i] = start[i - 1] + FpVector::padded_dimension(p, columns[i - 1]);
+                    }
+                    for i in 0 .. $N {
+                        end[i] = start[i] + columns[i];
+                    }
+
+                    Self {
+                        inner: Matrix::new_with_capacity(p, rows, end[$N - 1], row_capacity, end[$N - 1] + extra_column_capacity),
+                        start,
+                        end,
+                    }
+                }
+
                 pub fn segment(&mut self, start: usize, end: usize) -> MatrixSliceMut {
                     let rows = self.inner.rows();
                     let start = self.start[start];
@@ -916,21 +926,19 @@ impl AugmentedMatrix2 {
     pub fn compute_quasi_inverse(&self) -> QuasiInverse {
         self.inner.compute_quasi_inverse(self.end[0], self.start[1])
     }
-    pub fn compute_kernel(&mut self) -> Subspace {
-        let pivots = self.inner.take_pivots();
-        let result = self
-            .inner
-            .as_slice_mut()
-            .compute_kernel(&pivots, self.start[1]);
-        self.inner.set_pivots(pivots);
-        result
+
+    pub fn compute_kernel(&self) -> Subspace {
+        self.inner.compute_kernel(self.start[1])
     }
 }
 
 impl AugmentedMatrix3 {
-    pub fn compute_quasi_inverses(&mut self, columns: usize) -> (QuasiInverse, QuasiInverse) {
+    pub fn compute_quasi_inverses(&mut self) -> (QuasiInverse, QuasiInverse) {
         self.inner
-            .compute_quasi_inverses(self.start[1], self.end[1], self.start[2], columns)
+            .compute_quasi_inverses(self.start[1], self.end[1], self.start[2])
+    }
+    pub fn compute_kernel(&self) -> Subspace {
+        self.inner.compute_kernel(self.start[2])
     }
 }
 
@@ -939,6 +947,7 @@ pub struct MatrixSliceMut<'a> {
     vectors: &'a mut [FpVector],
     col_start: usize,
     col_end: usize,
+    pivots: &'a mut [isize],
 }
 
 impl<'a> MatrixSliceMut<'a> {
@@ -956,6 +965,7 @@ impl<'a> MatrixSliceMut<'a> {
             vectors: &mut self.vectors[row_start..row_end],
             col_start: self.col_start,
             col_end: self.col_end,
+            pivots: self.pivots,
         }
     }
 
@@ -981,32 +991,28 @@ impl<'a> MatrixSliceMut<'a> {
         self.vectors[row].slice_mut(self.col_start, self.col_end)
     }
 
-    /// target and source must be distinct and less that self.vectors.len()
-    unsafe fn row_op(&mut self, target: usize, source: usize, coeff: u32) {
-        debug_assert!(target != source);
-        let (target, source) = split_borrow(&mut self.vectors, target, source);
-        target.add(source, coeff);
-    }
-
     pub fn add_identity(&mut self, size: usize, row: usize, column: usize) {
         for i in 0..size {
             self.vectors[row + i].add_basis_element(self.col_start + column + i, 1);
         }
     }
 
-    pub fn row_reduce_into_pivots(&mut self, column_to_pivot_row: &mut Vec<isize>) {
-        debug_assert!(self.columns() <= column_to_pivot_row.len());
+    /// Row reduce a slice. Note that this performs row ops on entire rows instead of the sliced
+    /// rows. The slicing only tells us where to search for pivots.
+    pub fn row_reduce(&mut self) {
         let p = self.p;
         let rows = self.rows();
-        for x in column_to_pivot_row.iter_mut() {
+        for x in self.pivots.iter_mut() {
             *x = -1;
         }
         if rows == 0 {
             return;
         }
         let mut pivot: usize = 0;
-        #[allow(clippy::needless_range_loop)]
-        for pivot_column in self.col_start..self.col_end {
+
+        for (pivot_column, entry) in self.pivots.iter_mut().enumerate() {
+            let pivot_column = self.col_start + pivot_column;
+
             // Search down column for a nonzero entry.
             let mut pivot_row = rows;
             for i in pivot..rows {
@@ -1020,7 +1026,7 @@ impl<'a> MatrixSliceMut<'a> {
             }
 
             // Record position of pivot.
-            column_to_pivot_row[pivot_column - self.col_start] = pivot as isize;
+            *entry = pivot as isize;
 
             // Pivot_row contains a row with a pivot in current column.
             // Swap pivot row up.
@@ -1030,9 +1036,8 @@ impl<'a> MatrixSliceMut<'a> {
             // // Divide pivot row by pivot entry
             let c = self.vectors[pivot].entry(pivot_column);
             let c_inv = prime::inverse(p, c);
-            self.vectors[pivot]
-                .slice_mut(self.col_start, self.col_end)
-                .scale(c_inv);
+            self.vectors[pivot].scale(c_inv);
+
             // println!("({}) <== {} * ({}): \n{}", pivot, c_inv, pivot, self);
             // We would say:
             // for i in 0..rows { // but we want to skip a few rows so we can't use for.
@@ -1052,85 +1057,11 @@ impl<'a> MatrixSliceMut<'a> {
                 let row_op_coeff = *p - pivot_column_entry;
                 // Do row operation. Safety requires i != pivot, which follows from the if i as
                 // usize == pivot line. They are both less than rows by construction.
-                unsafe { self.row_op(i, pivot, row_op_coeff) };
+                unsafe { row_op(self.vectors, i, pivot, row_op_coeff) };
                 i += 1; // loop control structure.
             }
             pivot += 1;
         }
-    }
-
-    /// Computes the kernel from an augmented matrix in rref. To compute the kernel of a matrix
-    /// A, produce an augmented matrix of the form
-    /// ```text
-    /// [A | I]
-    /// ```
-    /// An important thing to note is that the number of columns of `A` should be a multiple of the
-    /// number of entries per limb in an FpVector, and this is often achieved by padding columns
-    /// with 0. The padded length can be obtained from `FpVector::padded_dimension`.
-    ///
-    /// After this matrix is set up, perform row reduction with `Matrix::row_reduce`, and then
-    /// apply `compute_kernel`.
-    ///
-    /// # Arguments
-    ///  * `column_to_pivot_row` - This is the list of pivots `row_reduce` gave you.
-    ///  * `first_source_column` - The column where the `I` part of the augmented matrix starts.
-    ///
-    /// # Example
-    /// ```
-    /// # use fp::prime::ValidPrime;
-    /// let p = ValidPrime::new(3);
-    /// # use fp::matrix::Matrix;
-    /// # use fp::vector::FpVector;
-    /// # fp::vector::initialize_limb_bit_index_table(p);
-    /// let input  = [vec![1, 2, 1, 1, 0],
-    ///               vec![1, 0, 2, 1, 1],
-    ///               vec![2, 2, 0, 2, 1]];
-    ///
-    /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &input);
-    /// m.initialize_pivots();
-    /// m.row_reduce();
-    /// let pivots = m.take_pivots();
-    /// let ker = m.as_slice_mut().compute_kernel(&pivots, padded_cols);
-    ///
-    /// let mut target = vec![0; 3];
-    /// assert_eq!(Vec::<u32>::from(&ker.matrix[0]), vec![1, 1, 2]);
-    /// ```
-    pub fn compute_kernel(
-        &mut self,
-        column_to_pivot_row: &[isize],
-        first_source_column: usize,
-    ) -> Subspace {
-        let p = self.p;
-        let rows = self.rows();
-        let columns = self.columns();
-        let source_dimension = columns - first_source_column;
-
-        // Find the first kernel row
-        let first_kernel_row = Matrix::find_first_row_in_block_with_pivots(
-            column_to_pivot_row,
-            first_source_column,
-            rows,
-        );
-        // Every row after the first kernel row is also a kernel row, so now we know how big it is and can allocate space.
-        let kernel_dimension = rows - first_kernel_row;
-        let mut kernel = Subspace::new(p, kernel_dimension, source_dimension);
-        if kernel_dimension == 0 {
-            return kernel;
-        }
-        // Write pivots into kernel
-        for i in 0..source_dimension {
-            // Turns -1 into some negative number... make sure to check <0 for no pivot in column...
-            kernel.pivots_mut()[i] =
-                column_to_pivot_row[i + first_source_column] - first_kernel_row as isize;
-        }
-        // Copy kernel matrix into kernel
-        for (i, row) in kernel.matrix.iter_mut().enumerate() {
-            row.as_slice_mut().assign(
-                self.vectors[first_kernel_row + i]
-                    .slice(first_source_column, first_source_column + source_dimension),
-            );
-        }
-        kernel
     }
 }
 
@@ -1142,7 +1073,7 @@ impl Save for Matrix {
     fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
         self.columns.save(buffer)?;
         self.vectors.save(buffer)?;
-        self.pivot_vec.save(buffer)?;
+        self.pivots.save(buffer)?;
         Ok(())
     }
 }
@@ -1153,9 +1084,8 @@ impl Load for Matrix {
     fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
         let columns = usize::load(buffer, &())?;
         let vectors: Vec<FpVector> = Load::load(buffer, p)?;
-        let pivots: Vec<isize> = Load::load(buffer, &())?;
         let mut result = Matrix::from_rows(*p, vectors, columns);
-        result.set_pivots(pivots);
+        result.pivots = Load::load(buffer, &())?;
         Ok(result)
     }
 }

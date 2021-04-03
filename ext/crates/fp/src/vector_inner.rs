@@ -151,12 +151,18 @@ pub struct SliceMutP<'a, const P: u32> {
 }
 
 impl<const P: u32> FpVectorP<P> {
-    pub fn new_(dim: usize) -> Self {
-        let number_of_limbs = limb::number::<P>(dim);
+    pub fn new_(dimension: usize) -> Self {
+        let number_of_limbs = limb::number::<P>(dimension);
         Self {
-            dimension: dim,
+            dimension,
             limbs: vec![0; number_of_limbs],
         }
+    }
+
+    pub fn new_with_capacity_(dimension: usize, capacity: usize) -> Self {
+        let mut limbs = Vec::with_capacity(limb::number::<P>(capacity));
+        limbs.resize(limb::number::<P>(dimension), 0);
+        Self { dimension, limbs }
     }
 
     pub const fn dimension(&self) -> usize {

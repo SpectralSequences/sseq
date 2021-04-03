@@ -581,10 +581,14 @@ impl Sseq {
         }
 
         let mut matrix = Matrix::from_rows(self.p, vectors, source_dim + target_dim);
-        let mut pivots = vec![-1; matrix.columns()];
-        matrix.row_reduce_offset_into_pivots(&mut pivots, source_dim);
+        matrix.initialize_pivots();
+
+        matrix
+            .slice_mut(0, matrix.rows(), source_dim, matrix.columns())
+            .row_reduce();
 
         let mut first_kernel_row = 0;
+        let pivots = matrix.pivots();
         for i in (source_dim..source_dim + target_dim).rev() {
             if pivots[i] >= 0 {
                 first_kernel_row = pivots[i] + 1;
@@ -593,8 +597,7 @@ impl Sseq {
         }
 
         let mut matrix = matrix.slice_mut(first_kernel_row as usize, matrix.rows(), 0, source_dim);
-        pivots.truncate(source_dim);
-        matrix.row_reduce_into_pivots(&mut pivots);
+        matrix.row_reduce();
 
         for row in matrix.iter() {
             if row.is_zero() {

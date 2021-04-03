@@ -216,33 +216,24 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         let rows = source_dimension + target_cc_dimension + target_res_dimension;
 
-        let mut matrix = AugmentedMatrix3::new(
+        let mut matrix = AugmentedMatrix3::new_with_capacity(
             p,
+            source_dimension,
+            &[target_cc_dimension, target_res_dimension, source_dimension],
             rows,
-            &[
-                target_cc_dimension,
-                target_res_dimension,
-                source_dimension + rows,
-            ],
+            rows,
         );
+        matrix.initialize_pivots();
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
 
-        current_chain_map.get_matrix(&mut matrix.segment(0, 0).row_slice(0, source_dimension), t);
-        current_differential
-            .get_matrix(&mut matrix.segment(1, 1).row_slice(0, source_dimension), t);
+        current_chain_map.get_matrix(&mut matrix.segment(0, 0), t);
+        current_differential.get_matrix(&mut matrix.segment(1, 1), t);
         matrix.segment(2, 2).add_identity(source_dimension, 0, 0);
-        matrix.initialize_pivots();
 
         // This slices the underling matrix. Be sure to revert this.
         let matrix_start_2 = matrix.start[2];
-        let mut pivots = matrix.take_pivots();
-        matrix
-            .slice_mut(0, source_dimension, 0, matrix_start_2 + source_dimension)
-            .row_reduce_into_pivots(&mut pivots);
-        let new_kernel = matrix
-            .slice_mut(0, source_dimension, 0, matrix_start_2 + source_dimension)
-            .compute_kernel(&pivots, matrix_start_2);
-        matrix.set_pivots(pivots);
+        matrix.row_reduce();
+        let new_kernel = matrix.compute_kernel();
 
         let first_new_row = source_dimension;
 
@@ -251,9 +242,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         // X_{s,t} and f later).
         // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
         // work out what dX should to to each of them.
-        let new_generators = matrix
-            .inner
-            .extend_to_surjection(first_new_row, 0, matrix.end[0]);
+        let new_generators = matrix.extend_to_surjection(0, target_cc_dimension, rows);
         let cc_new_gens = new_generators.len();
 
         let mut res_new_gens = 0;
@@ -296,10 +285,10 @@ impl<CC: ChainComplex> Resolution<CC> {
             res_new_gens = matrix
                 .inner
                 .extend_image(
-                    first_new_row + cc_new_gens,
                     matrix.start[1],
                     matrix.end[1],
                     old_kernel.as_ref().unwrap(),
+                    rows,
                 )
                 .len();
 
@@ -313,36 +302,30 @@ impl<CC: ChainComplex> Resolution<CC> {
         let num_new_gens = cc_new_gens + res_new_gens;
         source.add_generators(t, num_new_gens, None);
 
+        let new_rows = source_dimension + num_new_gens;
+
         current_chain_map.add_generators_from_matrix_rows(
             t,
-            matrix.segment(0, 0).row_slice(first_new_row, rows),
+            matrix.segment(0, 0).row_slice(source_dimension, new_rows),
         );
         current_differential.add_generators_from_matrix_rows(
             t,
-            matrix.segment(1, 1).row_slice(first_new_row, rows),
+            matrix.segment(1, 1).row_slice(source_dimension, new_rows),
         );
+
+        let columns = matrix.columns();
+        matrix.extend_column_dimension(columns + num_new_gens);
 
         // Record the quasi-inverses for future use.
         // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
-        let image_rows = first_new_row + num_new_gens;
-        for i in first_new_row..image_rows {
+        for i in source_dimension..new_rows {
             matrix.inner[i].set_entry(matrix_start_2 + i, 1);
         }
 
         // From now on we only use the underlying matrix.
-        let mut pivots = matrix.take_pivots();
-        matrix
-            .slice_mut(
-                0,
-                image_rows,
-                0,
-                matrix_start_2 + source_dimension + num_new_gens,
-            )
-            .row_reduce_into_pivots(&mut pivots);
-        matrix.set_pivots(pivots);
+        matrix.row_reduce();
 
-        let (cm_qi, res_qi) =
-            matrix.compute_quasi_inverses(matrix_start_2 + source_dimension + num_new_gens);
+        let (cm_qi, res_qi) = matrix.compute_quasi_inverses();
 
         current_chain_map.set_quasi_inverse(t, Some(cm_qi));
         current_chain_map.set_kernel(t, None);
@@ -402,19 +385,9 @@ impl<CC: ChainComplex> Resolution<CC> {
         current_differential.get_matrix(&mut matrix.segment(1, 1), t);
         matrix.segment(2, 2).add_identity(source_dimension, 0, 0);
         matrix.initialize_pivots();
-
         matrix.row_reduce();
 
-        // This slices the underling matrix. Be sure to revert this.
-        let matrix_start_2 = matrix.start[2];
-        let mut pivots = matrix.take_pivots();
-        matrix.row_reduce_into_pivots(&mut pivots);
-
-        *old_kernel = Some(
-            matrix
-                .as_slice_mut()
-                .compute_kernel(&pivots, matrix_start_2),
-        );
+        *old_kernel = Some(matrix.compute_kernel());
     }
 
     // pub fn step_resolution_by_stem(&self, s : u32, t : i32) {
