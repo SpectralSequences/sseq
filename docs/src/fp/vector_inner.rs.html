@@ -1367,6 +1367,12 @@
 <span id="1346">1346</span>
 <span id="1347">1347</span>
 <span id="1348">1348</span>
+<span id="1349">1349</span>
+<span id="1350">1350</span>
+<span id="1351">1351</span>
+<span id="1352">1352</span>
+<span id="1353">1353</span>
+<span id="1354">1354</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// This generates better llvm optimization</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">int_plus_one</span>)]</span>
@@ -1521,12 +1527,18 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span> <span class="ident">FpVectorP</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_</span>(<span class="ident">dim</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">number_of_limbs</span> <span class="op">=</span> <span class="ident">limb</span>::<span class="ident">number</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">dim</span>);
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_</span>(<span class="ident">dimension</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="ident">number_of_limbs</span> <span class="op">=</span> <span class="ident">limb</span>::<span class="ident">number</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">dimension</span>);
         <span class="self">Self</span> {
-            <span class="ident">dimension</span>: <span class="ident">dim</span>,
+            <span class="ident">dimension</span>,
             <span class="ident">limbs</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0</span>; <span class="ident">number_of_limbs</span>],
         }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_with_capacity_</span>(<span class="ident">dimension</span>: <span class="ident">usize</span>, <span class="ident">capacity</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">limbs</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">limb</span>::<span class="ident">number</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">capacity</span>));
+        <span class="ident">limbs</span>.<span class="ident">resize</span>(<span class="ident">limb</span>::<span class="ident">number</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">dimension</span>), <span class="number">0</span>);
+        <span class="self">Self</span> { <span class="ident">dimension</span>, <span class="ident">limbs</span> }
     }
 
     <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
