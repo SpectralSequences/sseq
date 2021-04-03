@@ -90,13 +90,12 @@ impl<M: BoundedModule> ModuleHomomorphism for HomPullback<M> {
     }
 
     fn compute_auxiliary_data_through_degree(&self, degree: i32) {
-        let kernel_len = self.kernels.len();
-        for i in kernel_len..=degree {
+        self.kernels.extend(degree, |i| {
             let (image, kernel, qi) = self.auxiliary_data(i);
             self.images.push_checked(image, i);
-            self.kernels.push_checked(kernel, i);
             self.quasi_inverses.push_checked(qi, i);
-        }
+            kernel
+        });
     }
 
     fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {

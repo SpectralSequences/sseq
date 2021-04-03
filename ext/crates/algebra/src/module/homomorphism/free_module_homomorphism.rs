@@ -1,4 +1,3 @@
-use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::algebra::Algebra;
@@ -17,7 +16,6 @@ pub struct FreeModuleHomomorphism<M: Module> {
     pub kernels: OnceBiVec<Option<Subspace>>,
     pub quasi_inverses: OnceBiVec<Option<QuasiInverse>>,
     min_degree: i32,
-    lock: Mutex<()>,
     /// degree shift, such that ouptut_degree = input_degree - degree_shift
     degree_shift: i32,
 }
@@ -88,21 +86,14 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
     }
 
     fn compute_auxiliary_data_through_degree(&self, degree: i32) {
-        let _lock = self.lock.lock();
-        let kernel_len = self.kernels.len();
-        for i in kernel_len..=degree {
+        self.kernels.extend(degree, |i| {
             let (image, kernel, qi) = self.auxiliary_data(i);
             self.images.push_checked(Some(image), i);
-            self.kernels.push_checked(Some(kernel), i);
             self.quasi_inverses.push_checked(Some(qi), i);
-        }
+            Some(kernel)
+        });
     }
 }
-
-// // Run FreeModule_ConstructBlockOffsetTable(source, degree) before using this on an input in that degree
-// void FreeModuleHomomorphism_applyToBasisElement(FreeModuleHomomorphism *f, Vector *result, uint coeff, int input_degree, uint input_index){
-
-// }
 
 impl<M: Module> FreeModuleHomomorphism<M> {
     pub fn new(source: Arc<FreeModule<M::Algebra>>, target: Arc<M>, degree_shift: i32) -> Self {
@@ -119,7 +110,6 @@ impl<M: Module> FreeModuleHomomorphism<M> {
             kernels,
             quasi_inverses,
             min_degree,
-            lock: Mutex::new(()),
             degree_shift,
         }
     }
@@ -153,28 +143,20 @@ impl<M: Module> FreeModuleHomomorphism<M> {
     }
 
     pub fn extend_by_zero(&self, degree: i32) {
-        let _lock = self.lock.lock();
-
-        // println!("    add_gens_from_matrix degree : {}, first_new_row : {}, new_generators : {}", degree, first_new_row, new_generators);
-        // println!("    dimension : {} target name : {}", dimension, self.target.name());
         if degree < self.min_degree {
-            return;
-        }
-        let next_degree = self.next_degree();
-        if next_degree > degree {
             return;
         }
 
         let p = self.prime();
-        for i in next_degree..=degree {
+        self.outputs.extend(degree, |i| {
             let num_gens = self.source.number_of_gens_in_degree(i);
             let dimension = self.target.dimension(i - self.degree_shift);
             let mut new_outputs: Vec<FpVector> = Vec::with_capacity(num_gens);
             for _ in 0..num_gens {
                 new_outputs.push(FpVector::new(p, dimension));
             }
-            self.outputs.push_checked(new_outputs, i);
-        }
+            new_outputs
+        });
     }
 
     pub fn add_generators_from_big_vector(&self, degree: i32, outputs_vectors: Slice) {
@@ -302,7 +284,6 @@ impl<M: Module> Load for FreeModuleHomomorphism<M> {
             kernels,
             quasi_inverses,
             min_degree,
-            lock: Mutex::new(()),
             degree_shift,
         })
     }

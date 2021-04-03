@@ -1,4 +1,3 @@
-use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::algebra::Algebra;
@@ -10,7 +9,6 @@ use fp::vector::SliceMut;
 use once::OnceBiVec;
 
 pub struct BoundedModuleHomomorphism<S: BoundedModule, T: Module<Algebra = S::Algebra>> {
-    pub lock: Mutex<()>,
     pub source: Arc<S>,
     pub target: Arc<T>,
     pub degree_shift: i32,
@@ -23,7 +21,6 @@ pub struct BoundedModuleHomomorphism<S: BoundedModule, T: Module<Algebra = S::Al
 impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> Clone for BoundedModuleHomomorphism<S, T> {
     fn clone(&self) -> Self {
         Self {
-            lock: Mutex::new(()),
             source: Arc::clone(&self.source),
             target: Arc::clone(&self.target),
             degree_shift: self.degree_shift,
@@ -79,17 +76,13 @@ impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
     }
 
     fn compute_auxiliary_data_through_degree(&self, degree: i32) {
-        let _lock = self.lock.lock();
-
-        let max_degree = std::cmp::min(degree + 1, self.matrices.len());
-        let next_degree = self.kernels.len();
-
-        for i in next_degree..max_degree {
+        let degree = std::cmp::min(degree, self.matrices.len() as i32 - 1);
+        self.kernels.extend(degree, |i| {
             let (image, kernel, qi) = self.auxiliary_data(i);
             self.images.push_checked(image, i);
-            self.kernels.push_checked(kernel, i);
             self.quasi_inverses.push_checked(qi, i);
-        }
+            kernel
+        });
     }
 }
 
@@ -127,7 +120,6 @@ where
             target,
             degree_shift,
             matrices,
-            lock: Mutex::new(()),
             quasi_inverses: OnceBiVec::new(min_degree),
             kernels: OnceBiVec::new(min_degree),
             images: OnceBiVec::new(min_degree),
@@ -162,7 +154,6 @@ where
             source,
             target,
             degree_shift,
-            lock: Mutex::new(()),
             matrices,
             quasi_inverses: OnceBiVec::new(min_degree),
             kernels: OnceBiVec::new(min_degree),
@@ -181,7 +172,6 @@ where
             source,
             target: self.target,
             degree_shift: self.degree_shift,
-            lock: self.lock,
             matrices: self.matrices,
             quasi_inverses: self.quasi_inverses,
             kernels: self.kernels,
@@ -198,7 +188,6 @@ where
             source: self.source,
             target,
             degree_shift: self.degree_shift,
-            lock: self.lock,
             matrices: self.matrices,
             quasi_inverses: self.quasi_inverses,
             kernels: self.kernels,
@@ -215,7 +204,6 @@ impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> ZeroHomomorphism<S, T>
             source,
             target,
             degree_shift,
-            lock: Mutex::new(()),
             matrices: BiVec::new(0),
             quasi_inverses: OnceBiVec::new(0),
             kernels: OnceBiVec::new(0),

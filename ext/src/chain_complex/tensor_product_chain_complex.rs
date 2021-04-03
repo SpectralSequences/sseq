@@ -7,7 +7,6 @@ use algebra::module::{FiniteModule, Module, SumModule, TensorModule, ZeroModule}
 use algebra::{Algebra, Bialgebra, SteenrodAlgebra};
 use fp::matrix::Matrix;
 use fp::vector::{FpVector, Slice, SliceMut};
-use parking_lot::Mutex;
 use std::sync::Arc;
 
 use bivec::BiVec;
@@ -23,7 +22,6 @@ where
     CC1: ChainComplex<Algebra = A>,
     CC2: ChainComplex<Algebra = A>,
 {
-    lock: Mutex<()>,
     left_cc: Arc<CC1>,
     right_cc: Arc<CC2>,
     modules: OnceVec<Arc<STM<CC1::Module, CC2::Module>>>,
@@ -39,7 +37,6 @@ where
 {
     pub fn new(left_cc: Arc<CC1>, right_cc: Arc<CC2>) -> Self {
         Self {
-            lock: Mutex::new(()),
             modules: OnceVec::new(),
             differentials: OnceVec::new(),
             zero_module: Arc::new(SumModule::zero_module(
@@ -147,9 +144,8 @@ where
         self.right_cc
             .compute_through_bidegree(s, t - self.left_cc.min_degree());
 
-        let _lock = self.lock.lock();
-
-        for i in self.modules.len() as u32..=s {
+        self.modules.extend(s as usize, |i| {
+            let i = i as u32;
             let new_module_list: Vec<Arc<TensorModule<CC1::Module, CC2::Module>>> = (0..=i)
                 .map(|j| {
                     Arc::new(TensorModule::new(
@@ -158,40 +154,39 @@ where
                     ))
                 })
                 .collect::<Vec<_>>();
-            let new_module = Arc::new(SumModule::new(
+            Arc::new(SumModule::new(
                 self.algebra(),
                 new_module_list,
                 self.min_degree(),
-            ));
-            self.modules.push(new_module);
-        }
+            ))
+        });
 
         for module in self.modules.iter() {
             module.compute_basis(t);
         }
 
-        if self.differentials.is_empty() {
-            self.differentials.push(Arc::new(TensorChainMap {
-                left_cc: self.left_cc(),
-                right_cc: self.right_cc(),
-                source_s: 0,
-                lock: Mutex::new(()),
-                source: self.module(0),
-                target: self.zero_module(),
-                quasi_inverses: OnceBiVec::new(self.min_degree()),
-            }));
-        }
-        for s in self.differentials.len() as u32..=s {
-            self.differentials.push(Arc::new(TensorChainMap {
-                left_cc: self.left_cc(),
-                right_cc: self.right_cc(),
-                source_s: s,
-                lock: Mutex::new(()),
-                source: self.module(s),
-                target: self.module(s - 1),
-                quasi_inverses: OnceBiVec::new(self.min_degree()),
-            }));
-        }
+        self.differentials.extend(s as usize, |s| {
+            let s = s as u32;
+            if s == 0 {
+                Arc::new(TensorChainMap {
+                    left_cc: self.left_cc(),
+                    right_cc: self.right_cc(),
+                    source_s: 0,
+                    source: self.module(0),
+                    target: self.zero_module(),
+                    quasi_inverses: OnceBiVec::new(self.min_degree()),
+                })
+            } else {
+                Arc::new(TensorChainMap {
+                    left_cc: self.left_cc(),
+                    right_cc: self.right_cc(),
+                    source_s: s,
+                    source: self.module(s),
+                    target: self.module(s - 1),
+                    quasi_inverses: OnceBiVec::new(self.min_degree()),
+                })
+            }
+        });
     }
 
     fn set_homology_basis(
@@ -223,7 +218,6 @@ where
     left_cc: Arc<CC1>,
     right_cc: Arc<CC2>,
     source_s: u32,
-    lock: Mutex<()>,
     source: Arc<STM<CC1::Module, CC2::Module>>,
     target: Arc<STM<CC1::Module, CC2::Module>>,
     quasi_inverses: OnceBiVec<Vec<Option<Vec<(usize, usize, FpVector)>>>>,
@@ -314,16 +308,8 @@ where
     }
 
     fn compute_auxiliary_data_through_degree(&self, degree: i32) {
-        let next_degree = self.quasi_inverses.len();
-        if next_degree > degree {
-            return;
-        }
-
-        let _lock = self.lock.lock();
-
-        for i in next_degree..=degree {
-            self.calculate_quasi_inverse(i);
-        }
+        self.quasi_inverses
+            .extend(degree, |i| self.calculate_quasi_inverse(i));
     }
 
     fn apply_quasi_inverse(&self, mut result: SliceMut, degree: i32, input: Slice) {
@@ -349,7 +335,7 @@ where
     CC2: ChainComplex<Algebra = A>,
 {
     #[allow(clippy::range_minus_one)]
-    fn calculate_quasi_inverse(&self, degree: i32) {
+    fn calculate_quasi_inverse(&self, degree: i32) -> Vec<Option<Vec<(usize, usize, FpVector)>>> {
         let p = self.prime();
         // start, end, preimage
         let mut quasi_inverse_list: Vec<Option<Vec<(usize, usize, FpVector)>>> =
@@ -505,7 +491,7 @@ where
                 }
             }
         }
-        self.quasi_inverses.push(quasi_inverse_list);
+        quasi_inverse_list
     }
 }
 
@@ -537,7 +523,6 @@ impl AugmentedChainComplex
             source: self.module(0),
             target: self.left_cc.target().module(0),
             degree_shift: 0,
-            lock: Mutex::new(()),
             matrices: BiVec::from_vec(0, vec![Matrix::from_vec(self.prime(), &[vec![1]])]),
             quasi_inverses: OnceBiVec::new(0),
             kernels: OnceBiVec::new(0),

@@ -8,7 +8,7 @@ use crate::module::{FreeModule, Module, ZeroModule};
 use bivec::BiVec;
 use fp::matrix::Matrix;
 use fp::vector::{FpVector, SliceMut};
-use once::OnceVec;
+use once::OnceBiVec;
 
 struct FPMIndexTable {
     gen_idx_to_fp_idx: Vec<isize>,
@@ -21,7 +21,7 @@ pub struct FinitelyPresentedModule<A: Algebra> {
     pub generators: Arc<FreeModule<A>>,
     pub relations: Arc<FreeModule<A>>,
     pub map: Arc<FreeModuleHomomorphism<FreeModule<A>>>,
-    index_table: OnceVec<FPMIndexTable>,
+    index_table: OnceBiVec<FPMIndexTable>,
 }
 
 impl<A: Algebra> std::fmt::Display for FinitelyPresentedModule<A> {
@@ -66,7 +66,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
                 Arc::clone(&generators),
                 0,
             )),
-            index_table: OnceVec::new(),
+            index_table: OnceBiVec::new(min_degree),
         }
     }
 
@@ -124,14 +124,12 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
 
     pub fn gen_idx_to_fp_idx(&self, degree: i32, idx: usize) -> isize {
         assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
-        self.index_table[degree_idx].gen_idx_to_fp_idx[idx]
+        self.index_table[degree].gen_idx_to_fp_idx[idx]
     }
 
     pub fn fp_idx_to_gen_idx(&self, degree: i32, idx: usize) -> usize {
         assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
-        self.index_table[degree_idx].fp_idx_to_gen_idx[idx]
+        self.index_table[degree].fp_idx_to_gen_idx[idx]
     }
 }
 
@@ -258,9 +256,9 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
         self.algebra().compute_basis(degree);
         self.generators.extend_by_zero(degree);
         self.relations.extend_by_zero(degree);
-        let min_degree = self.min_degree();
-        for i in self.index_table.len() as i32 + min_degree..=degree {
-            self.map.compute_auxiliary_data_through_degree(i);
+        self.map.compute_auxiliary_data_through_degree(degree);
+
+        self.index_table.extend(degree, |i| {
             let qi = self.map.quasi_inverse(i).unwrap();
             let mut gen_idx_to_fp_idx = Vec::new();
             let mut fp_idx_to_gen_idx = Vec::new();
@@ -272,17 +270,16 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
                     gen_idx_to_fp_idx.push(-1);
                 }
             }
-            self.index_table.push(FPMIndexTable {
+            FPMIndexTable {
                 gen_idx_to_fp_idx,
                 fp_idx_to_gen_idx,
-            });
-        }
+            }
+        });
     }
 
     fn dimension(&self, degree: i32) -> usize {
         assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
-        self.index_table[degree_idx].fp_idx_to_gen_idx.len()
+        self.index_table[degree].fp_idx_to_gen_idx.len()
     }
 
     fn act_on_basis(

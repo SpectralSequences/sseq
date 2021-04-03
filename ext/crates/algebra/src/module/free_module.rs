@@ -1,4 +1,3 @@
-// use parking_lot::{Mutex, MutexGuard};
 use serde_json::json;
 use serde_json::Value;
 use std::sync::Arc;
@@ -8,7 +7,6 @@ use crate::module::Module;
 use bivec::BiVec;
 use fp::vector::{Slice, SliceMut};
 use once::{OnceBiVec, OnceVec};
-use parking_lot::Mutex;
 
 #[derive(Clone, Debug)]
 pub struct OperationGeneratorPair {
@@ -33,8 +31,6 @@ pub struct FreeModule<A: Algebra> {
     basis_element_to_opgen: OnceBiVec<OnceVec<OperationGeneratorPair>>,
     /// degree -> internal_gen_idx -> the offset of the generator in degree
     generator_to_index: OnceBiVec<OnceVec<usize>>,
-
-    lock: Mutex<()>,
 }
 
 impl<A: Algebra> std::fmt::Display for FreeModule<A> {
@@ -56,7 +52,6 @@ impl<A: Algebra> FreeModule<A> {
             num_gens: OnceBiVec::new(min_degree),
             basis_element_to_opgen: OnceBiVec::new(min_degree),
             generator_to_index: OnceBiVec::new(min_degree),
-            lock: Mutex::new(()),
         }
     }
 }
@@ -182,14 +177,8 @@ impl<A: Algebra> FreeModule<A> {
     }
 
     pub fn extend_table_entries(&self, max_degree: i32) {
-        let _lock = self.lock.lock();
-        if self.basis_element_to_opgen.len() > max_degree {
-            return;
-        }
-
-        for degree in self.basis_element_to_opgen.len()..=max_degree {
-            self.basis_element_to_opgen
-                .push_checked(OnceVec::new(), degree);
+        self.basis_element_to_opgen.extend(max_degree, |degree| {
+            let new_row = OnceVec::new();
             self.generator_to_index.push_checked(OnceVec::new(), degree);
 
             let mut offset = 0;
@@ -200,7 +189,7 @@ impl<A: Algebra> FreeModule<A> {
                     self.generator_to_index[degree].push(offset);
                     offset += num_ops;
                     for op_idx in 0..num_ops {
-                        self.basis_element_to_opgen[degree].push(OperationGeneratorPair {
+                        new_row.push(OperationGeneratorPair {
                             generator_degree: gen_deg,
                             generator_index: gen_idx,
                             operation_degree: op_deg,
@@ -209,13 +198,14 @@ impl<A: Algebra> FreeModule<A> {
                     }
                 }
             }
-        }
+            new_row
+        });
     }
 
     pub fn add_generators(&self, degree: i32, num_gens: usize, names: Option<Vec<String>>) {
         // We need to acquire the lock because changing num_gens modifies the behaviour of
         // extend_table_entries, and the two cannot happen concurrently.
-        let _lock = self.lock.lock();
+        let _lock = self.basis_element_to_opgen.lock();
         assert!(degree >= self.min_degree);
 
         // println!("add_gens == degree : {}, num_gens : {}", degree, num_gens);

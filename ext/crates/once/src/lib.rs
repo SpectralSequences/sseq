@@ -1,9 +1,9 @@
 use core::cell::UnsafeCell;
 use core::ops::{Index, IndexMut};
+use parking_lot::{Mutex, MutexGuard};
 use std::cmp::{Eq, PartialEq};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
 
 const USIZE_LEN: u32 = 0usize.count_zeros();
 
@@ -170,6 +170,12 @@ impl<T> OnceVec<T> {
         }
     }
 
+    /// Takes a lock on the `OnceVec`. The `OnceVec` cannot be updated while the lock is held.
+    /// This is useful when used in conjuction with [`extend`];
+    pub fn lock(&self) -> MutexGuard<()> {
+        self.lock.lock()
+    }
+
     const fn inner_index(index: usize) -> (usize, usize) {
         let page = (USIZE_LEN - 1 - (index + 1).leading_zeros()) as usize;
         let index = (index + 1) - (1 << page);
@@ -207,6 +213,50 @@ impl<T> OnceVec<T> {
             inner[page].push(value);
             self.len.store(old_len + 1, Ordering::Release);
             old_len
+        }
+    }
+
+    /// Extend the `OnceVec` to up to index `new_max`, filling in the entries with the values of
+    /// `f`. This takes the lock before calling `f`, which is useful behaviour if used in
+    /// conjunction with [`lock`].
+    ///
+    /// This is thread-safe and guaranteed to be idempotent. `f` will only be called once per
+    /// index.
+    ///
+    /// In case multiple `OnceVec`'s have to be simultaneously updated, one can use `extend` on one
+    /// of them and `push_checked` into the others within the function.
+    ///
+    /// # Example
+    /// ```
+    /// # use once::OnceVec;
+    /// let v: OnceVec<usize> = OnceVec::new();
+    /// v.extend(5, |i| i + 5);
+    /// assert_eq!(v.len(), 6);
+    /// for (i, &n) in v.iter().enumerate() {
+    ///     assert_eq!(n, i + 5);
+    /// }
+    /// ```
+    ///
+    /// # Arguments
+    ///  - `new_max`: After calling this function, `self[new_max]` will be defined.
+    ///  - `f`: We will fill in the vector with `f(i)` at the `i`th index.
+    pub fn extend(&self, new_max: usize, mut f: impl FnMut(usize) -> T) {
+        unsafe {
+            let _lock = self.lock.lock();
+            let old_len = self.len.load(Ordering::Acquire);
+            if new_max < old_len {
+                return;
+            }
+            let inner = &mut *self.data.get();
+
+            for i in old_len..=new_max {
+                let (page, index) = Self::inner_index(i);
+                if index == 0 {
+                    inner[page].reserve_exact(i + 1);
+                }
+                inner[page].push(f(i));
+            }
+            self.len.store(new_max + 1, Ordering::Release)
         }
     }
 
@@ -387,9 +437,46 @@ impl<T> OnceBiVec<T> {
         self.data.get((index - self.min_degree) as usize)
     }
 
+    /// Extend the `OnceBiVec` to up to index `new_max`, filling in the entries with the values of
+    /// `f`. This takes the lock before calling `f`, which is useful behaviour if used in
+    /// conjunction with [`lock`].
+    ///
+    /// This is thread-safe and guaranteed to be idempotent. `f` will only be called once per
+    /// index.
+    ///
+    /// In case multiple `OnceVec`'s have to be simultaneously updated, one can use `extend` on one
+    /// of them and `push_checked` into the others within the function.
+    ///
+    /// # Example
+    /// ```
+    /// # use once::OnceBiVec;
+    /// let v: OnceBiVec<i32> = OnceBiVec::new(-4);
+    /// v.extend(5, |i| i + 5);
+    /// assert_eq!(v.len(), 6);
+    /// for (i, &n) in v.iter_enum() {
+    ///     assert_eq!(n, i + 5);
+    /// }
+    /// ```
+    ///
+    /// # Arguments
+    ///  - `new_max`: After calling this function, `self[new_max]` will be defined.
+    ///  - `f`: We will fill in the vector with `f(i)` at the `i`th index.
+    pub fn extend(&self, new_max: i32, mut f: impl FnMut(i32) -> T) {
+        self.data.extend((new_max - self.min_degree) as usize, |i| {
+            f(i as i32 + self.min_degree)
+        });
+    }
+
     pub fn last(&self) -> Option<&T> {
         self.data.last()
     }
+
+    /// Takes a lock on the `OnceBiVec`. The `OnceBiVec` cannot be updated while the lock is held.
+    /// This is useful when used in conjuction with [`extend`];
+    pub fn lock(&self) -> MutexGuard<()> {
+        self.data.lock()
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.data.iter()
     }
