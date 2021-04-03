@@ -3,6 +3,7 @@ use crate::prime::{self, ValidPrime};
 use crate::vector::{FpVector, Slice, SliceMut};
 
 use std::fmt;
+use std::ops::{Index, IndexMut};
 
 /// Mutably borrows x[i] and x[j]. Caller needs to ensure i != j for safety, and i and j must not
 /// be out of bounds.
@@ -15,13 +16,6 @@ unsafe fn split_borrow<T>(x: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
 /// easier to perform row operations than column operations, and the way we use matrices means we
 /// want our matrices to act on the right. Hence we think of vectors as row vectors.
 ///
-/// Matrices can be *sliced*, i.e. restricted to a sub-matrix, and a sliced matrix behaves as if
-/// the other rows and columns are not present for many purposes. For example, this affects the
-/// values of `M[i]`, the `rows` and `columns` functions, as well as more "useful"
-/// functions like `row_reduce` and `compute_kernel`. However, the row slicing is not taken into
-/// account when dereferencing into `&[FpVector]` (even though the FpVectors still remember the
-/// column slicing). This may or may not be a bug.
-///
 /// In general, before one uses a matrix, they must run
 /// `fp_vector::initialize_limb_bit_index_table(p)`. This only has to be done once and will be
 /// omitted from all examples.
@@ -29,7 +23,10 @@ unsafe fn split_borrow<T>(x: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
 pub struct Matrix {
     p: ValidPrime,
     columns: usize,
-    pub vectors: Vec<FpVector>,
+    vectors: Vec<FpVector>,
+    /// The pivot columns of the matrix. `pivots[n]` is `k` if column `n` is the `k`th pivot
+    /// column, and a negative number otherwise. Said negative number is often -1 but this is not
+    /// guaranteed.
     pivots: Vec<isize>,
 }
 
@@ -292,15 +289,23 @@ impl fmt::Debug for Matrix {
     }
 }
 
-impl std::ops::Index<usize> for Matrix {
-    type Output = FpVector;
-    fn index(&self, i: usize) -> &Self::Output {
+impl<I> Index<I> for Matrix
+where
+    Vec<FpVector>: Index<I>,
+{
+    type Output = <Vec<FpVector> as Index<I>>::Output;
+    /// Returns the ith row of the matrix
+    fn index(&self, i: I) -> &Self::Output {
         &self.vectors[i]
     }
 }
 
-impl std::ops::IndexMut<usize> for Matrix {
-    fn index_mut(&mut self, i: usize) -> &mut Self::Output {
+impl<I> IndexMut<I> for Matrix
+where
+    Vec<FpVector>: IndexMut<I>,
+{
+    /// Returns the ith row of the matrix
+    fn index_mut(&mut self, i: I) -> &mut Self::Output {
         &mut self.vectors[i]
     }
 }
@@ -823,102 +828,111 @@ impl std::ops::AddAssign<&Matrix> for Matrix {
         }
     }
 }
-macro_rules! augmented_matrix {
-    ( $($N:expr, $name:ident), * ) => {
-        $(
-            /// This models an augmented matrix.
-            ///
-            /// In an ideal world, this will have no public fields. The inner matrix
-            /// can be accessed via deref, and there are functions that expose `end`
-            /// and `start`. However, in the real world, the borrow checker exists, and there are
-            /// cases where directly accessing these fields is what it takes to let you pass the
-            /// borrow checker.
-            ///
-            /// In particular, if `m` is an augmented matrix and `f` is a function
-            /// that takes in `&mut Matrix`, trying to run `m.f(m.start[0])` produces an error
-            /// because it is not clear if we first do the `deref_mut` then retrieve `start[0]`.
-            /// (since `deref_mut` takes in a mutable borrow, it could in theory modify `m`
-            /// non-trivially)
-            #[derive(Clone)]
-            pub struct $name {
-                pub end: [usize; $N],
-                pub start: [usize; $N],
-                pub inner: Matrix,
-            }
 
-            impl $name {
-                pub fn new(p: ValidPrime, rows: usize, columns: &[usize]) -> Self {
-                    let mut start = [0; $N];
-                    let mut end = [0; $N];
-                    for i in 1 .. $N {
-                        start[i] = start[i - 1] + FpVector::padded_dimension(p, columns[i - 1]);
-                    }
-                    for i in 0 .. $N {
-                        end[i] = start[i] + columns[i];
-                    }
+/// This models an augmented matrix.
+///
+/// In an ideal world, this will have no public fields. The inner matrix
+/// can be accessed via deref, and there are functions that expose `end`
+/// and `start`. However, in the real world, the borrow checker exists, and there are
+/// cases where directly accessing these fields is what it takes to let you pass the
+/// borrow checker.
+///
+/// In particular, if `m` is an augmented matrix and `f` is a function
+/// that takes in `&mut Matrix`, trying to run `m.f(m.start[0])` produces an error
+/// because it is not clear if we first do the `deref_mut` then retrieve `start[0]`.
+/// (since `deref_mut` takes in a mutable borrow, it could in theory modify `m`
+/// non-trivially)
+#[derive(Clone)]
+pub struct AugmentedMatrix<const N: usize> {
+    pub end: [usize; N],
+    pub start: [usize; N],
+    pub inner: Matrix,
+}
 
-                    Self {
-                        inner: Matrix::new(p, rows, end[$N - 1]),
-                        start,
-                        end,
-                    }
-                }
+impl<const N: usize> AugmentedMatrix<N> {
+    pub fn new(p: ValidPrime, rows: usize, columns: [usize; N]) -> Self {
+        let mut start = [0; N];
+        let mut end = [0; N];
+        for i in 1..N {
+            start[i] = start[i - 1] + FpVector::padded_dimension(p, columns[i - 1]);
+        }
+        for i in 0..N {
+            end[i] = start[i] + columns[i];
+        }
 
-                pub fn new_with_capacity(p: ValidPrime, rows: usize, columns: &[usize], row_capacity: usize, extra_column_capacity: usize) -> Self {
-                    let mut start = [0; $N];
-                    let mut end = [0; $N];
-                    for i in 1 .. $N {
-                        start[i] = start[i - 1] + FpVector::padded_dimension(p, columns[i - 1]);
-                    }
-                    for i in 0 .. $N {
-                        end[i] = start[i] + columns[i];
-                    }
+        Self {
+            inner: Matrix::new(p, rows, end[N - 1]),
+            start,
+            end,
+        }
+    }
 
-                    Self {
-                        inner: Matrix::new_with_capacity(p, rows, end[$N - 1], row_capacity, end[$N - 1] + extra_column_capacity),
-                        start,
-                        end,
-                    }
-                }
+    pub fn new_with_capacity(
+        p: ValidPrime,
+        rows: usize,
+        columns: &[usize],
+        row_capacity: usize,
+        extra_column_capacity: usize,
+    ) -> Self {
+        let mut start = [0; N];
+        let mut end = [0; N];
+        for i in 1..N {
+            start[i] = start[i - 1] + FpVector::padded_dimension(p, columns[i - 1]);
+        }
+        for i in 0..N {
+            end[i] = start[i] + columns[i];
+        }
 
-                pub fn segment(&mut self, start: usize, end: usize) -> MatrixSliceMut {
-                    let rows = self.inner.rows();
-                    let start = self.start[start];
-                    let end = self.end[end];
-                    self.slice_mut(0, rows, start, end)
-                }
+        Self {
+            inner: Matrix::new_with_capacity(
+                p,
+                rows,
+                end[N - 1],
+                row_capacity,
+                end[N - 1] + extra_column_capacity,
+            ),
+            start,
+            end,
+        }
+    }
 
-                pub fn row_segment(&mut self, i: usize, start: usize, end: usize) -> SliceMut {
-                    let start_idx = self.start[start];
-                    let end_idx = self.end[end];
-                    self[i].slice_mut(start_idx, end_idx)
-                }
+    pub fn segment(&mut self, start: usize, end: usize) -> MatrixSliceMut {
+        let rows = self.inner.rows();
+        let start = self.start[start];
+        let end = self.end[end];
+        self.slice_mut(0, rows, start, end)
+    }
 
-                pub fn into_matrix(self) -> Matrix {
-                    self.inner
-                }
-            }
+    pub fn row_segment(&mut self, i: usize, start: usize, end: usize) -> SliceMut {
+        let start_idx = self.start[start];
+        let end_idx = self.end[end];
+        self[i].slice_mut(start_idx, end_idx)
+    }
 
-            impl std::ops::Deref for $name {
-                type Target = Matrix;
+    pub fn into_matrix(self) -> Matrix {
+        self.inner
+    }
 
-                fn deref(&self) -> &Matrix {
-                    &self.inner
-                }
-            }
-
-            impl std::ops::DerefMut for $name {
-                fn deref_mut(&mut self) -> &mut Matrix {
-                    &mut self.inner
-                }
-            }
-        )*
+    pub fn compute_kernel(&self) -> Subspace {
+        self.inner.compute_kernel(self.start[N - 1])
     }
 }
 
-augmented_matrix!(3, AugmentedMatrix3, 2, AugmentedMatrix2);
+impl<const N: usize> std::ops::Deref for AugmentedMatrix<N> {
+    type Target = Matrix;
 
-impl AugmentedMatrix2 {
+    fn deref(&self) -> &Matrix {
+        &self.inner
+    }
+}
+
+impl<const N: usize> std::ops::DerefMut for AugmentedMatrix<N> {
+    fn deref_mut(&mut self) -> &mut Matrix {
+        &mut self.inner
+    }
+}
+
+impl AugmentedMatrix<2> {
     pub fn compute_image(&self) -> Subspace {
         self.inner.compute_image(self.end[0], self.start[1])
     }
@@ -926,19 +940,12 @@ impl AugmentedMatrix2 {
     pub fn compute_quasi_inverse(&self) -> QuasiInverse {
         self.inner.compute_quasi_inverse(self.end[0], self.start[1])
     }
-
-    pub fn compute_kernel(&self) -> Subspace {
-        self.inner.compute_kernel(self.start[1])
-    }
 }
 
-impl AugmentedMatrix3 {
+impl AugmentedMatrix<3> {
     pub fn compute_quasi_inverses(&mut self) -> (QuasiInverse, QuasiInverse) {
         self.inner
             .compute_quasi_inverses(self.start[1], self.end[1], self.start[2])
-    }
-    pub fn compute_kernel(&self) -> Subspace {
-        self.inner.compute_kernel(self.start[2])
     }
 }
 
@@ -1112,14 +1119,14 @@ mod tests {
 
     #[test]
     fn test_augmented_matrix() {
-        test_augmented_matrix_inner(&[1, 0, 5]);
-        test_augmented_matrix_inner(&[4, 6, 2]);
-        test_augmented_matrix_inner(&[129, 4, 64]);
-        test_augmented_matrix_inner(&[64, 64, 102]);
+        test_augmented_matrix_inner([1, 0, 5]);
+        test_augmented_matrix_inner([4, 6, 2]);
+        test_augmented_matrix_inner([129, 4, 64]);
+        test_augmented_matrix_inner([64, 64, 102]);
     }
 
-    fn test_augmented_matrix_inner(cols: &[usize]) {
-        let mut aug = AugmentedMatrix3::new(ValidPrime::new(2), 3, cols);
+    fn test_augmented_matrix_inner(cols: [usize; 3]) {
+        let mut aug = AugmentedMatrix::<3>::new(ValidPrime::new(2), 3, cols);
         assert_eq!(aug.segment(0, 0).columns(), cols[0]);
         assert_eq!(aug.segment(1, 1).columns(), cols[1]);
         assert_eq!(aug.segment(2, 2).columns(), cols[2]);

@@ -1,18 +1,18 @@
 use crate::prime::ValidPrime;
 use crate::vector::{FpVector, FpVectorT};
-use super::{Matrix, AugmentedMatrix2};
+use super::{Matrix, AugmentedMatrix};
 
 #[derive(Clone)]
 pub struct Basis {
     pub matrix : Matrix,
-    pub inverse : AugmentedMatrix2
+    pub inverse : AugmentedMatrix<2>
 }
 
 impl Basis {
     pub fn new(p : ValidPrime, dimension : usize) -> Self {
         let mut result = Basis {
             matrix :  Matrix::new(p, dimension, dimension),
-            inverse : AugmentedMatrix2::new(p, dimension, &[dimension, dimension])
+            inverse : AugmentedMatrix::<2>::new(p, dimension, [dimension, dimension])
         };
         result.matrix.add_identity(dimension, 0, 0);
         result.inverse.segment(0,0).add_identity(dimension, 0, 0);        

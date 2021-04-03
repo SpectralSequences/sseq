@@ -161,7 +161,7 @@ impl Subspace {
 
     /// Returns a basis of the subspace.
     pub fn basis(&self) -> &[FpVector] {
-        &self.matrix.vectors[..self.dimension()]
+        &self.matrix[..self.dimension()]
     }
 
     /// Sets the subspace to be the zero subspace.

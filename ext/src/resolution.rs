@@ -5,7 +5,7 @@ use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
-use fp::matrix::{AugmentedMatrix3, Subspace};
+use fp::matrix::{AugmentedMatrix, Subspace};
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use once::{OnceBiVec, OnceVec};
@@ -216,7 +216,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         let rows = source_dimension + target_cc_dimension + target_res_dimension;
 
-        let mut matrix = AugmentedMatrix3::new_with_capacity(
+        let mut matrix = AugmentedMatrix::<3>::new_with_capacity(
             p,
             source_dimension,
             &[target_cc_dimension, target_res_dimension, source_dimension],
@@ -374,12 +374,11 @@ impl<CC: ChainComplex> Resolution<CC> {
         let target_cc_dimension = target_cc.dimension(t);
         let target_res_dimension = target_res.dimension(t);
 
-        let mut matrix = AugmentedMatrix3::new(
+        let mut matrix = AugmentedMatrix::<3>::new(
             p,
             source_dimension,
-            &[target_cc_dimension, target_res_dimension, source_dimension],
+            [target_cc_dimension, target_res_dimension, source_dimension],
         );
-        // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
 
         current_chain_map.get_matrix(&mut matrix.segment(0, 0), t);
         current_differential.get_matrix(&mut matrix.segment(1, 1), t);

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::module::Module;
-use fp::matrix::{AugmentedMatrix2, MatrixSliceMut, QuasiInverse, Subspace};
+use fp::matrix::{AugmentedMatrix, MatrixSliceMut, QuasiInverse, Subspace};
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
@@ -99,7 +99,7 @@ pub trait ModuleHomomorphism: Send + Sync + 'static {
         let source_dimension = self.source().dimension(degree);
         let target_dimension = self.target().dimension(output_degree);
         let mut matrix =
-            AugmentedMatrix2::new(p, source_dimension, &[target_dimension, source_dimension]);
+            AugmentedMatrix::<2>::new(p, source_dimension, [target_dimension, source_dimension]);
 
         self.get_matrix(&mut matrix.segment(0, 0), degree);
         matrix.segment(1, 1).add_identity(source_dimension, 0, 0);
