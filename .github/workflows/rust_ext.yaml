@@ -106,6 +106,9 @@ jobs:
     - name: Run rust_webserver examples
       run: make -C rust_webserver run_examples
 
+    - name: Benchmark executable size
+      run: ls -l ext/target/release/examples | grep -v ' .*-\|\.d$'
+
   wasm-build:
     needs: [test, lint, examples]
     runs-on: ubuntu-20.04
@@ -147,6 +150,9 @@ jobs:
 
     - name: Build wasm
       run: make -C rust_webserver wasm
+
+    - name: Benchmark wasm size
+      run: ls -l rust_webserver/dist/ext_webserver_wasm_bg.wasm
 
     - name: Deploy
       if: ${{ matrix.toolchain == 'nightly-2021-03-24' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
