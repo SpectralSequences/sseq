@@ -462,6 +462,9 @@ impl<T> OnceBiVec<T> {
     ///  - `new_max`: After calling this function, `self[new_max]` will be defined.
     ///  - `f`: We will fill in the vector with `f(i)` at the `i`th index.
     pub fn extend(&self, new_max: i32, mut f: impl FnMut(i32) -> T) {
+        if new_max < self.min_degree {
+            return;
+        }
         self.data.extend((new_max - self.min_degree) as usize, |i| {
             f(i as i32 + self.min_degree)
         });

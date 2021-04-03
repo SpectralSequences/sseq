@@ -143,10 +143,6 @@ impl<M: Module> FreeModuleHomomorphism<M> {
     }
 
     pub fn extend_by_zero(&self, degree: i32) {
-        if degree < self.min_degree {
-            return;
-        }
-
         let p = self.prime();
         self.outputs.extend(degree, |i| {
             let num_gens = self.source.number_of_gens_in_degree(i);
