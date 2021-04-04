@@ -626,22 +626,14 @@ impl Matrix {
 
     /// Given a matrix in rref, say [A|B|C], where B lies between columns `start_column` and
     /// `end_columns`, and a subspace of the image of B, add rows to the matrix such that the image
-    /// of B becomes this subspace. This doesn't change the size of the matrix. Rather, it adds the
-    /// new row to the next empty row in the matrix. This will panic if there are not enough empty
-    /// rows.
+    /// of B becomes this subspace.
     ///
     /// The rows added are basis vectors of the desired image as specified in the Subspace object.
     /// The function returns the list of new pivot columns.
     ///
-    /// # Arguments
-    ///  * `first_empty_row` - The first row in the matrix that is empty. This is where we will add
-    ///  our new rows. This is a mutable borrow and by the end of the function, `first_empty_row`
-    ///  will be updated to the new first empty row.
-    ///  * `current_pivots` - The current pivots of the matrix.
-    ///
     /// # Panics
-    /// The function panics if there are not enough empty rows. It *may* panic if the current image
-    /// is not contained in `desired_image`, but is not guaranteed to do so.
+    /// It *may* panic if the current image is not contained in `desired_image`, but is not
+    /// guaranteed to do so.
     pub fn extend_image(
         &mut self,
         start_column: usize,
