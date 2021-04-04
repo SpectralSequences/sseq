@@ -470,21 +470,20 @@ impl<'a, const P: u32> SliceP<'a, P> {
         }
     }
 
-    /// Converts a slice to an owned FpVectorP. This assumes the start of the vector is aligned.
+    /// Converts a slice to an owned FpVectorP. This is vastly more efficient if the start of the vector is aligned.
     pub fn to_owned(&self) -> FpVectorP<P> {
+        let mut new = FpVectorP::<P>::new_(self.dimension());
         if self.start % entries_per_limb(self.prime()) == 0 {
-            let mut new = FpVectorP::<P>::new_(self.dimension());
             let (min, max) = self.limb_range();
             new.limbs[0..(max - min)].copy_from_slice(&self.limbs[min..max]);
             if !new.limbs.is_empty() {
                 let len = new.limbs.len();
                 new.limbs[len - 1] &= self.limb_masks().1;
             }
-            new
         } else {
-            let data: Vec<u32> = self.iter().collect();
-            (&data).into()
+            new.as_slice_mut().assign(*self);
         }
+        new
     }
 }
 
