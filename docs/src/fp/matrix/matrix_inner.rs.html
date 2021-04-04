@@ -1172,14 +1172,6 @@
 <span id="1151">1151</span>
 <span id="1152">1152</span>
 <span id="1153">1153</span>
-<span id="1154">1154</span>
-<span id="1155">1155</span>
-<span id="1156">1156</span>
-<span id="1157">1157</span>
-<span id="1158">1158</span>
-<span id="1159">1159</span>
-<span id="1160">1160</span>
-<span id="1161">1161</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">prime</span>::{<span class="self">self</span>, <span class="ident">ValidPrime</span>};
@@ -1809,22 +1801,14 @@
 
     <span class="doccomment">/// Given a matrix in rref, say [A|B|C], where B lies between columns `start_column` and</span>
     <span class="doccomment">/// `end_columns`, and a subspace of the image of B, add rows to the matrix such that the image</span>
-    <span class="doccomment">/// of B becomes this subspace. This doesn&#39;t change the size of the matrix. Rather, it adds the</span>
-    <span class="doccomment">/// new row to the next empty row in the matrix. This will panic if there are not enough empty</span>
-    <span class="doccomment">/// rows.</span>
+    <span class="doccomment">/// of B becomes this subspace.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// The rows added are basis vectors of the desired image as specified in the Subspace object.</span>
     <span class="doccomment">/// The function returns the list of new pivot columns.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///  * `first_empty_row` - The first row in the matrix that is empty. This is where we will add</span>
-    <span class="doccomment">///  our new rows. This is a mutable borrow and by the end of the function, `first_empty_row`</span>
-    <span class="doccomment">///  will be updated to the new first empty row.</span>
-    <span class="doccomment">///  * `current_pivots` - The current pivots of the matrix.</span>
-    <span class="doccomment">///</span>
     <span class="doccomment">/// # Panics</span>
-    <span class="doccomment">/// The function panics if there are not enough empty rows. It *may* panic if the current image</span>
-    <span class="doccomment">/// is not contained in `desired_image`, but is not guaranteed to do so.</span>
+    <span class="doccomment">/// It *may* panic if the current image is not contained in `desired_image`, but is not</span>
+    <span class="doccomment">/// guaranteed to do so.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_image</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">start_column</span>: <span class="ident">usize</span>,

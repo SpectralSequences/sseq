@@ -907,16 +907,6 @@
 <span id="886">886</span>
 <span id="887">887</span>
 <span id="888">888</span>
-<span id="889">889</span>
-<span id="890">890</span>
-<span id="891">891</span>
-<span id="892">892</span>
-<span id="893">893</span>
-<span id="894">894</span>
-<span id="895">895</span>
-<span id="896">896</span>
-<span id="897">897</span>
-<span id="898">898</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
@@ -1167,7 +1157,6 @@
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res_new_gens</span> <span class="op">=</span> <span class="number">0</span>;
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">middle_rows</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">cc_new_gens</span>);
         <span class="kw">if</span> <span class="ident">s</span> <span class="op">&gt;</span> <span class="number">0</span> {
             <span class="kw">if</span> <span class="ident">cc_new_gens</span> <span class="op">&gt;</span> <span class="number">0</span> {
                 <span class="comment">// Now we need to make sure that we have a chain homomorphism. Each generator x we just added to</span>
@@ -1192,16 +1181,15 @@
                         <span class="ident">dfx</span>.<span class="ident">as_slice</span>(),
                     );
                     <span class="ident">dfx</span>.<span class="ident">set_to_zero</span>();
-
-                    <span class="comment">// Keep the rows we produced because we have to row reduce to re-compute</span>
-                    <span class="comment">// the kernel later, but these rows are the images of the generators, so we</span>
-                    <span class="comment">// still need them.</span>
-                    <span class="ident">middle_rows</span>.<span class="ident">push</span>(<span class="ident">matrix</span>[<span class="ident">first_new_row</span> <span class="op">+</span> <span class="ident">i</span>].<span class="ident">clone</span>());
                 }
-                <span class="comment">// Row reduce again since our activity may have changed the image of dX.</span>
-                <span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
             }
+
             <span class="comment">// Now we add new generators to hit any cycles in old_kernel that we don&#39;t want in our homology.</span>
+            <span class="comment">//</span>
+            <span class="comment">// At this point the matrix is not quite row reduced and the pivots are not correct.</span>
+            <span class="comment">// However, extend_image only needs the sign of the pivots within the column range,</span>
+            <span class="comment">// which are still correct. The point is that the rows we added all have pivot columns</span>
+            <span class="comment">// in the first segment.</span>
             <span class="ident">res_new_gens</span> <span class="op">=</span> <span class="ident">matrix</span>
                 .<span class="ident">inner</span>
                 .<span class="ident">extend_image</span>(
@@ -1211,13 +1199,6 @@
                     <span class="ident">rows</span>,
                 )
                 .<span class="ident">len</span>();
-
-            <span class="kw">if</span> <span class="ident">cc_new_gens</span> <span class="op">&gt;</span> <span class="number">0</span> {
-                <span class="comment">// Now restore the middle rows.</span>
-                <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">row</span>) <span class="kw">in</span> <span class="ident">middle_rows</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>() {
-                    <span class="ident">matrix</span>[<span class="ident">first_new_row</span> <span class="op">+</span> <span class="ident">i</span>] <span class="op">=</span> <span class="ident">row</span>;
-                }
-            }
         }
         <span class="kw">let</span> <span class="ident">num_new_gens</span> <span class="op">=</span> <span class="ident">cc_new_gens</span> <span class="op">+</span> <span class="ident">res_new_gens</span>;
         <span class="ident">source</span>.<span class="ident">add_generators</span>(<span class="ident">t</span>, <span class="ident">num_new_gens</span>, <span class="prelude-val">None</span>);
@@ -1233,16 +1214,15 @@
             <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">1</span>, <span class="number">1</span>).<span class="ident">row_slice</span>(<span class="ident">source_dimension</span>, <span class="ident">new_rows</span>),
         );
 
+        <span class="comment">// Fix up the augmentation</span>
         <span class="kw">let</span> <span class="ident">columns</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">columns</span>();
         <span class="ident">matrix</span>.<span class="ident">extend_column_dimension</span>(<span class="ident">columns</span> <span class="op">+</span> <span class="ident">num_new_gens</span>);
 
-        <span class="comment">// Record the quasi-inverses for future use.</span>
-        <span class="comment">// The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).</span>
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">source_dimension</span>..<span class="ident">new_rows</span> {
             <span class="ident">matrix</span>.<span class="ident">inner</span>[<span class="ident">i</span>].<span class="ident">set_entry</span>(<span class="ident">matrix_start_2</span> <span class="op">+</span> <span class="ident">i</span>, <span class="number">1</span>);
         }
 
-        <span class="comment">// From now on we only use the underlying matrix.</span>
+        <span class="comment">// Now compute the quasi inverses</span>
         <span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
 
         <span class="kw">let</span> (<span class="ident">cm_qi</span>, <span class="ident">res_qi</span>) <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">compute_quasi_inverses</span>();
