@@ -247,7 +247,6 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         let mut res_new_gens = 0;
 
-        let mut middle_rows = Vec::with_capacity(cc_new_gens);
         if s > 0 {
             if cc_new_gens > 0 {
                 // Now we need to make sure that we have a chain homomorphism. Each generator x we just added to
@@ -272,16 +271,15 @@ impl<CC: ChainComplex> Resolution<CC> {
                         dfx.as_slice(),
                     );
                     dfx.set_to_zero();
-
-                    // Keep the rows we produced because we have to row reduce to re-compute
-                    // the kernel later, but these rows are the images of the generators, so we
-                    // still need them.
-                    middle_rows.push(matrix[first_new_row + i].clone());
                 }
-                // Row reduce again since our activity may have changed the image of dX.
-                matrix.row_reduce();
             }
+
             // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
+            //
+            // At this point the matrix is not quite row reduced and the pivots are not correct.
+            // However, extend_image only needs the sign of the pivots within the column range,
+            // which are still correct. The point is that the rows we added all have pivot columns
+            // in the first segment.
             res_new_gens = matrix
                 .inner
                 .extend_image(
@@ -291,13 +289,6 @@ impl<CC: ChainComplex> Resolution<CC> {
                     rows,
                 )
                 .len();
-
-            if cc_new_gens > 0 {
-                // Now restore the middle rows.
-                for (i, row) in middle_rows.into_iter().enumerate() {
-                    matrix[first_new_row + i] = row;
-                }
-            }
         }
         let num_new_gens = cc_new_gens + res_new_gens;
         source.add_generators(t, num_new_gens, None);
@@ -313,16 +304,15 @@ impl<CC: ChainComplex> Resolution<CC> {
             matrix.segment(1, 1).row_slice(source_dimension, new_rows),
         );
 
+        // Fix up the augmentation
         let columns = matrix.columns();
         matrix.extend_column_dimension(columns + num_new_gens);
 
-        // Record the quasi-inverses for future use.
-        // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
         for i in source_dimension..new_rows {
             matrix.inner[i].set_entry(matrix_start_2 + i, 1);
         }
 
-        // From now on we only use the underlying matrix.
+        // Now compute the quasi inverses
         matrix.row_reduce();
 
         let (cm_qi, res_qi) = matrix.compute_quasi_inverses();
