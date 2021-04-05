@@ -36,11 +36,7 @@ impl<CC: ChainComplex> Resolution<CC> {
     pub fn new(complex: Arc<CC>) -> Self {
         let algebra = complex.algebra();
         let min_degree = complex.min_degree();
-        let zero_module = Arc::new(FreeModule::new(
-            Arc::clone(&algebra),
-            "F_{-1}".to_string(),
-            min_degree,
-        ));
+        let zero_module = Arc::new(FreeModule::new(algebra, "F_{-1}".to_string(), min_degree));
 
         Self {
             complex,
@@ -235,8 +231,6 @@ impl<CC: ChainComplex> Resolution<CC> {
         matrix.row_reduce();
         let new_kernel = matrix.compute_kernel();
 
-        let first_new_row = source_dimension;
-
         // Now add generators to surject onto C_{s, t}.
         // (For now we are just adding the eventual images of the new generators into matrix, we will update
         // X_{s,t} and f later).
@@ -266,7 +260,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                         column,
                     );
                     quasi_inverse.apply(
-                        matrix.row_segment(first_new_row + i, 1, 1),
+                        matrix.row_segment(source_dimension + i, 1, 1),
                         1,
                         dfx.as_slice(),
                     );
