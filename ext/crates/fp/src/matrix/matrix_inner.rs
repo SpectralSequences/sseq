@@ -308,14 +308,26 @@ where
     }
 }
 
-/// target and source must be distinct and less that self.vectors.len()
-unsafe fn row_op(vectors: &mut [FpVector], target: usize, source: usize, coeff: u32) {
-    debug_assert!(target != source);
-    let (target, source) = split_borrow(vectors, target, source);
-    target.add(source, coeff);
-}
-
 impl Matrix {
+    /// Subtracts coef * self[source] from self[target].
+    ///
+    /// # Safety
+    /// `target` and `source` must be distinct and less that `vectors.len()`
+    pub unsafe fn row_op(
+        vectors: &mut [FpVector],
+        target: usize,
+        source: usize,
+        coef: u32,
+        prime: u32,
+    ) {
+        debug_assert!(target != source);
+        if coef == 0 {
+            return;
+        }
+        let (target, source) = split_borrow(vectors, target, source);
+        target.add(source, prime - coef);
+    }
+
     /// This is very similar to row_reduce, except we only need to get to row echelon form, not
     /// *reduced* row echelon form. It also returns the list of pivots instead.
     pub fn find_pivots_permutation<T: Iterator<Item = usize>>(
@@ -359,14 +371,11 @@ impl Matrix {
             // println!("({}) <== {} * ({}): \n{}", pivot, c_inv, pivot, self);
 
             for i in pivot_row + 1..rows {
-                let pivot_column_entry = self[i].entry(pivot_column);
-                if pivot_column_entry == 0 {
-                    continue;
-                }
-                let row_op_coeff = *p - pivot_column_entry;
-                // Do row operation. Safety requires i != pivot, which follows from
-                // i > pivot_row >= pivot. They are both less than rows by construction
-                unsafe { row_op(&mut self.vectors, i, pivot, row_op_coeff) };
+                let coef = self[i].entry(pivot_column);
+
+                // Safety requires i != pivot, which follows from i > pivot_row >= pivot. They are
+                // both less than rows by construction
+                unsafe { Matrix::row_op(&mut self.vectors, i, pivot, coef, *p) };
             }
             pivot += 1;
         }
@@ -1029,15 +1038,10 @@ impl<'a> MatrixSliceMut<'a> {
                     i = pivot_row + 1;
                     continue;
                 }
-                let pivot_column_entry = self.vectors[i].entry(pivot_column);
-                if pivot_column_entry == 0 {
-                    i += 1; // loop control structure.
-                    continue;
-                }
-                let row_op_coeff = *p - pivot_column_entry;
-                // Do row operation. Safety requires i != pivot, which follows from the if i as
+                let coef = self.vectors[i].entry(pivot_column);
+                // Safety requires i != pivot, which follows from the if i as
                 // usize == pivot line. They are both less than rows by construction.
-                unsafe { row_op(self.vectors, i, pivot, row_op_coeff) };
+                unsafe { Matrix::row_op(self.vectors, i, pivot, coef, *p) };
                 i += 1; // loop control structure.
             }
             pivot += 1;

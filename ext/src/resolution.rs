@@ -5,7 +5,7 @@ use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
-use fp::matrix::{AugmentedMatrix, Subspace};
+use fp::matrix::{AugmentedMatrix, Matrix, Subspace};
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use once::{OnceBiVec, OnceVec};
@@ -236,13 +236,12 @@ impl<CC: ChainComplex> Resolution<CC> {
         // X_{s,t} and f later).
         // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
         // work out what dX should to to each of them.
-        let new_generators = matrix.extend_to_surjection(0, target_cc_dimension, rows);
-        let cc_new_gens = new_generators.len();
+        let cc_new_gens = matrix.extend_to_surjection(0, target_cc_dimension, rows);
 
-        let mut res_new_gens = 0;
+        let mut res_new_gens = Vec::new();
 
         if s > 0 {
-            if cc_new_gens > 0 {
+            if !cc_new_gens.is_empty() {
                 // Now we need to make sure that we have a chain homomorphism. Each generator x we just added to
                 // X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).
                 // So we set dX(x) = f^{-1}(dC(f(x)))
@@ -252,7 +251,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                 let dfx_dim = complex_cur_differential.target().dimension(t);
                 let mut dfx = FpVector::new(self.prime(), dfx_dim);
 
-                for (i, column) in new_generators.into_iter().enumerate() {
+                for (i, &column) in cc_new_gens.iter().enumerate() {
                     complex_cur_differential.apply_to_basis_element(
                         dfx.as_slice_mut(),
                         1,
@@ -274,17 +273,14 @@ impl<CC: ChainComplex> Resolution<CC> {
             // However, extend_image only needs the sign of the pivots within the column range,
             // which are still correct. The point is that the rows we added all have pivot columns
             // in the first segment.
-            res_new_gens = matrix
-                .inner
-                .extend_image(
-                    matrix.start[1],
-                    matrix.end[1],
-                    old_kernel.as_ref().unwrap(),
-                    rows,
-                )
-                .len();
+            res_new_gens = matrix.inner.extend_image(
+                matrix.start[1],
+                matrix.end[1],
+                old_kernel.as_ref().unwrap(),
+                rows,
+            );
         }
-        let num_new_gens = cc_new_gens + res_new_gens;
+        let num_new_gens = cc_new_gens.len() + res_new_gens.len();
         source.add_generators(t, num_new_gens, None);
 
         let new_rows = source_dimension + num_new_gens;
@@ -298,16 +294,84 @@ impl<CC: ChainComplex> Resolution<CC> {
             matrix.segment(1, 1).row_slice(source_dimension, new_rows),
         );
 
-        // Fix up the augmentation
-        let columns = matrix.columns();
-        matrix.extend_column_dimension(columns + num_new_gens);
+        if num_new_gens > 0 {
+            // Fix up the augmentation
+            let columns = matrix.columns();
+            matrix.extend_column_dimension(columns + num_new_gens);
 
-        for i in source_dimension..new_rows {
-            matrix.inner[i].set_entry(matrix_start_2 + i, 1);
+            for i in source_dimension..new_rows {
+                matrix.inner[i].set_entry(matrix_start_2 + i, 1);
+            }
+
+            // We are now supposed to row reduce the matrix. However, running the full row
+            // reduction algorithm is wasteful, since we have only added a few rows and the rest is
+            // intact.
+            //
+            // First use the old rows to reduce the new ones. We only need to do this for the columns
+            // in the middle segment.
+            for column in matrix.start[1]..matrix.end[1] {
+                let row = matrix.pivots()[column];
+                if row < 0 {
+                    continue;
+                }
+                let row = row as usize;
+
+                for k in source_dimension..source_dimension + num_new_gens {
+                    let coef = matrix[k].entry(column);
+                    unsafe {
+                        Matrix::row_op(&mut *matrix, k, row, coef, *p);
+                    }
+                }
+            }
+
+            // Now use the new resolution rows to reduce the old rows and the cc rows.
+            let first_res_row = source_dimension + cc_new_gens.len();
+            for (source_row, &pivot_col) in res_new_gens.iter().enumerate() {
+                for target_row in 0..first_res_row {
+                    let coef = matrix[target_row].entry(pivot_col);
+                    unsafe {
+                        Matrix::row_op(
+                            &mut *matrix,
+                            target_row,
+                            source_row + first_res_row,
+                            coef,
+                            *p,
+                        );
+                    }
+                }
+            }
+
+            // We are now almost in RREF, except we need to permute the rows.
+            let mut new_gens = cc_new_gens.into_iter().chain(res_new_gens).enumerate();
+            let (mut next_new_row, mut next_new_col) = new_gens.next().unwrap();
+            let mut next_old_row = 0;
+
+            for old_col in 0..matrix.columns() {
+                if old_col == next_new_col {
+                    matrix[next_old_row..=source_dimension + next_new_row].rotate_right(1);
+                    matrix.pivots_mut()[old_col] = next_old_row as isize;
+                    match new_gens.next() {
+                        Some((x, y)) => {
+                            next_new_row = x;
+                            next_new_col = y;
+                        }
+                        None => {
+                            if old_col < matrix.columns() {
+                                for entry in &mut matrix.pivots_mut()[old_col + 1..] {
+                                    if *entry >= 0 {
+                                        *entry += next_new_row as isize + 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    next_old_row += 1;
+                } else if matrix.pivots()[old_col] >= 0 {
+                    matrix.pivots_mut()[old_col] += next_new_row as isize;
+                    next_old_row += 1;
+                }
+            }
         }
-
-        // Now compute the quasi inverses
-        matrix.row_reduce();
 
         let (cm_qi, res_qi) = matrix.compute_quasi_inverses();
 
