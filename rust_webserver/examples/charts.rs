@@ -103,5 +103,10 @@ fn main() -> std::io::Result<()> {
     sseq.write_to_svg(File::create("e2.svg")?, 2, false, &["h0", "h1", "h2"])?;
     sseq.write_to_svg(File::create("e2_d2.svg")?, 2, true, &["h0", "h1", "h2"])?;
     sseq.write_to_svg(File::create("e3.svg")?, 3, false, &["h0", "h1", "h2"])?;
+
+    sseq.write_to_svg(File::create("e2_clean.svg")?, 2, false, &["h0", "h1"])?;
+    sseq.write_to_svg(File::create("e2_d2_clean.svg")?, 2, true, &["h0", "h1"])?;
+    sseq.write_to_svg(File::create("e3_clean.svg")?, 3, false, &["h0", "h1"])?;
+
     Ok(())
 }
