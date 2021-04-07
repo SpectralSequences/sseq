@@ -808,6 +808,7 @@ impl Sseq {
                 let (sx, sy) = sseq_profile_i(r, x, y);
                 sx >= self.min_x
                     && sy >= self.min_y
+                    && self.differentials.max_degree() >= sx
                     && self.differentials[sx].max_degree() >= sy
                     && self.differentials[sx][sy].max_degree() >= r
             })
