@@ -7,14 +7,14 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-algebra = { path = "ext/crates/algebra", default-features = false }
-bivec = { path = "ext/crates/bivec" }
-chart = { path = "ext/crates/chart" }
-error = { path = "ext/crates/error" }
-ext = { path = "ext", default-features = false, features = ["extras", "yoneda"] }
-fp = { path = "ext/crates/fp", features = ["json"], default-features = false }
-once = { path = "ext/crates/once" }
-thread-token = { path = "ext/crates/thread-token", optional = true }
+algebra = { path = "../ext/crates/algebra", default-features = false }
+bivec = { path = "../ext/crates/bivec" }
+chart = { path = "../ext/crates/chart" }
+error = { path = "../ext/crates/error" }
+ext = { path = "../ext", default-features = false, features = ["extras", "yoneda"] }
+fp = { path = "../ext/crates/fp", features = ["json"], default-features = false }
+once = { path = "../ext/crates/once" }
+thread-token = { path = "../ext/crates/thread-token", optional = true }
 
 enum_dispatch = "=0.3.2"
 parking_lot = { version = "0.11", features = ["wasm-bindgen"] }
@@ -34,8 +34,8 @@ wasm-bindgen = "=0.2.72"
 js-sys = "0.3.0"
 
 [dev-dependencies]
-saveload = { path = "ext/crates/saveload" }
-algebra = { path = "ext/crates/algebra" }
+saveload = { path = "../ext/crates/saveload" }
+algebra = { path = "../ext/crates/algebra" }
 expect-test = "1.1.0"
 
 [features]

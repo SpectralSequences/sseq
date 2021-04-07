@@ -4,7 +4,7 @@ WASM_LIB = target/$(WASM_TARGET)/release/$(NAME).wasm
 WASM_OUT = dist/
 WASM_FILE = $(WASM_OUT)/$(NAME)_wasm_bg.wasm
 
-EXT_SRC = ext/Cargo.toml $(shell find ext/src/) $(wildcard ext/crates/*/Cargo.tml) $(shell find ext/crates/*/src/)
+EXT_SRC = ext/Cargo.toml $(shell find ../ext/src/) $(wildcard ../ext/crates/*/Cargo.tml) $(shell find ../ext/crates/*/src/)
 
 export PATH := $(HOME)/.cargo/bin:$(PATH)
 
