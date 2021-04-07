@@ -1209,40 +1209,40 @@ impl Sseq {
                     let matrix = prod.matrices[source_x][source_y].as_ref().unwrap();
                     let matrix = Subquotient::reduce_matrix(&matrix, source_data, data);
                     g.structline_matrix((source_x, source_y), (x, y), matrix, None)?;
+                }
 
-                    // Finally add the differentials
-                    if differentials {
-                        let (tx, ty) = sseq_profile(r, x, y);
-                        if tx < 0 {
-                            continue;
-                        }
-                        if self.differentials[x][y].len() <= r {
-                            continue;
-                        }
-                        let d = &mut self.differentials[x][y][r];
-                        let target_data = Sseq::get_page(r, &self.page_data[tx][ty]);
+                // Finally add the differentials
+                if differentials {
+                    let (tx, ty) = sseq_profile(r, x, y);
+                    if tx < 0 {
+                        continue;
+                    }
+                    if self.differentials[x][y].len() <= r {
+                        continue;
+                    }
+                    let d = &mut self.differentials[x][y][r];
+                    let target_data = Sseq::get_page(r, &self.page_data[tx][ty]);
 
-                        let pairs =
-                            d.get_source_target_pairs()
-                                .into_iter()
-                                .map(|(mut s, mut t)| {
-                                    (
-                                        data.reduce(s.as_slice_mut()),
-                                        target_data.reduce(t.as_slice_mut()),
-                                    )
-                                });
+                    let pairs = d
+                        .get_source_target_pairs()
+                        .into_iter()
+                        .map(|(mut s, mut t)| {
+                            (
+                                data.reduce(s.as_slice_mut()),
+                                target_data.reduce(t.as_slice_mut()),
+                            )
+                        });
 
-                        for (source, target) in pairs {
-                            for (i, v) in source.into_iter().enumerate() {
+                    for (source, target) in pairs {
+                        for (i, v) in source.into_iter().enumerate() {
+                            if v == 0 {
+                                continue;
+                            }
+                            for (j, &v) in target.iter().enumerate() {
                                 if v == 0 {
                                     continue;
                                 }
-                                for (j, &v) in target.iter().enumerate() {
-                                    if v == 0 {
-                                        continue;
-                                    }
-                                    g.structline((x, y, i), (tx, ty, j), Some(&format!("d{}", r)))?;
-                                }
+                                g.structline((x, y, i), (tx, ty, j), Some(&format!("d{}", r)))?;
                             }
                         }
                     }
