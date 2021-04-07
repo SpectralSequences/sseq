@@ -10,6 +10,7 @@ export PATH := $(HOME)/.cargo/bin:$(PATH)
 
 lint:
 	cargo clippy --all-targets
+	cargo clippy --no-default-features --all-targets
 	cargo fmt -- --check
 
 lint-wasm:

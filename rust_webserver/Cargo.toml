@@ -26,7 +26,7 @@ serde = { version = "1.0.0", features = ["derive"] }
 time = "0.2.7"
 ws = "=0.9.1"
 textwrap = { version = "0.11.0", features = ["term_size"] }
-crossbeam-channel = { version = "0.5.0", optional = true }
+crossbeam-channel = "0.5.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # Match wasm-bindgen version with wasm-bindgen-cli
@@ -42,7 +42,7 @@ expect-test = "1.1.0"
 default = ["odd-primes", "concurrent"]
 cache-multiplication = ["ext/cache-multiplication"]
 odd-primes = ["fp/odd-primes", "ext/odd-primes", "algebra/odd-primes"]
-concurrent = ["thread-token", "ext/concurrent", "crossbeam-channel"]
+concurrent = ["thread-token", "ext/concurrent"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
