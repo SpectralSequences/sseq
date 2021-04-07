@@ -307,16 +307,20 @@ impl<CC: ChainComplex> Resolution<CC> {
             // reduction algorithm is wasteful, since we have only added a few rows and the rest is
             // intact.
             //
-            // First use the old rows to reduce the new ones. We only need to do this for the columns
-            // in the middle segment.
-            for column in matrix.start[1]..matrix.end[1] {
-                let row = matrix.pivots()[column];
-                if row < 0 {
-                    continue;
-                }
-                let row = row as usize;
+            // The new resolution rows are all zero in the existing pivot columns. Indeed,
+            // the resolution generators are mapped to generators of the kernel, which are zero in
+            // pivot columns of the kernel matrix. But the old image is a subspace of the kernel,
+            // so its pivot columns are a subset of the pivot columns of the kernel matrix.
+            //
+            // So we clear the new cc rows using the old rows.
+            for k in source_dimension..source_dimension + cc_new_gens.len() {
+                for column in matrix.start[1]..matrix.end[1] {
+                    let row = matrix.pivots()[column];
+                    if row < 0 {
+                        continue;
+                    }
+                    let row = row as usize;
 
-                for k in source_dimension..source_dimension + num_new_gens {
                     let coef = matrix[k].entry(column);
                     unsafe {
                         Matrix::row_op(&mut *matrix, k, row, coef, *p);
