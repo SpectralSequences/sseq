@@ -4,7 +4,7 @@ WASM_LIB = target/$(WASM_TARGET)/release/$(NAME).wasm
 WASM_OUT = dist/
 WASM_FILE = $(WASM_OUT)/$(NAME)_wasm_bg.wasm
 
-EXT_SRC = ext/Cargo.toml $(shell find ../ext/src/) $(wildcard ../ext/crates/*/Cargo.tml) $(shell find ../ext/crates/*/src/)
+EXT_SRC = ../ext/Cargo.toml $(shell find ../ext/src/) $(wildcard ../ext/crates/*/Cargo.tml) $(shell find ../ext/crates/*/src/)
 
 export PATH := $(HOME)/.cargo/bin:$(PATH)
 
@@ -32,7 +32,7 @@ $(WASM_FILE): $(WASM_LIB)
 
 .PHONY: wasm serve-wasm clean-wasm clean dummy run_examples test
 
-wasm: $(WASM_FILE) $(wildcard interface/*) $(wildcard wasm/*) $(wildcard ext/steenrod_modules/*)
+wasm: $(WASM_FILE) $(wildcard interface/*) $(wildcard wasm/*) $(wildcard ../ext/steenrod_modules/*)
 	# Must be done in this order since both contain index.js and we want the wasm version
 	cp interface/* $(WASM_OUT)
 	cp wasm/* $(WASM_OUT)
