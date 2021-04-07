@@ -249,23 +249,31 @@ impl<const P: u32> FpVectorP<P> {
         }
     }
 
-    pub fn add(&mut self, other: &FpVectorP<P>, c: u32) {
+    /// Add `other` to `self` on the assumption that the first `offset` entries of `other` are
+    /// empty.
+    pub fn add_offset(&mut self, other: &FpVectorP<P>, c: u32, offset: usize) {
         assert_eq!(self.dimension(), other.dimension());
+        let min_limb = offset / entries_per_limb(self.prime());
         if P == 2 {
             if c != 0 {
                 let max_limb = self.limbs.len();
                 let target_limbs_ptr = self.limbs.as_mut_ptr();
                 let other_limbs_ptr = other.limbs.as_ptr();
-                let chunks = max_limb / LIMBS_PER_SIMD;
+                let chunks = (max_limb - min_limb) / LIMBS_PER_SIMD;
                 for i in 0..chunks {
                     unsafe {
-                        let mut target_chunk = simd::load(target_limbs_ptr.add(LIMBS_PER_SIMD * i));
-                        let other_chunk = simd::load(other_limbs_ptr.add(LIMBS_PER_SIMD * i));
+                        let mut target_chunk =
+                            simd::load(target_limbs_ptr.add(LIMBS_PER_SIMD * i + min_limb));
+                        let other_chunk =
+                            simd::load(other_limbs_ptr.add(LIMBS_PER_SIMD * i + min_limb));
                         target_chunk = simd::xor(target_chunk, other_chunk);
-                        simd::store(target_limbs_ptr.add(LIMBS_PER_SIMD * i), target_chunk);
+                        simd::store(
+                            target_limbs_ptr.add(LIMBS_PER_SIMD * i + min_limb),
+                            target_chunk,
+                        );
                     }
                 }
-                for i in (LIMBS_PER_SIMD * chunks)..max_limb {
+                for i in (min_limb + LIMBS_PER_SIMD * chunks)..max_limb {
                     unsafe {
                         // pointer arithmetic
                         *target_limbs_ptr.add(i) =
@@ -274,11 +282,17 @@ impl<const P: u32> FpVectorP<P> {
                 }
             }
         } else {
-            for (left, right) in self.limbs.iter_mut().zip(&other.limbs) {
+            for (left, right) in self.limbs.iter_mut().zip(&other.limbs).skip(min_limb) {
                 *left = limb::add::<P>(*left, *right, c);
             }
-            self.reduce_limbs();
+            for limb in &mut self.limbs[min_limb..] {
+                *limb = limb::reduce::<P>(*limb);
+            }
         }
+    }
+
+    pub fn add(&mut self, other: &FpVectorP<P>, c: u32) {
+        self.add_offset(other, c, 0);
     }
 
     pub fn assign(&mut self, other: &Self) {
@@ -288,14 +302,6 @@ impl<const P: u32> FpVectorP<P> {
 
     pub fn is_zero(&self) -> bool {
         self.limbs.iter().all(|&x| x == 0)
-    }
-
-    fn reduce_limbs(&mut self) {
-        if P != 2 {
-            for limb in &mut self.limbs {
-                *limb = limb::reduce::<P>(*limb);
-            }
-        }
     }
 
     pub(crate) fn limbs(&self) -> &[Limb] {

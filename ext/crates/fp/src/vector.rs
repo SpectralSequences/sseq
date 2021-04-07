@@ -205,6 +205,7 @@ impl FpVector {
         pub fn set_entry(&mut self, index: usize, value: u32);
         pub fn assign(&mut self, other: &Self);
         pub fn add(&mut self, other: &Self, c: u32);
+        pub fn add_offset(&mut self, other: &Self, c: u32, offset: usize);
         pub fn slice(&self, start: usize, end: usize) -> (dispatch Slice);
         pub fn as_slice(&self) -> (dispatch Slice);
         pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch SliceMut);

@@ -323,7 +323,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 
                     let coef = matrix[k].entry(column);
                     unsafe {
-                        Matrix::row_op(&mut *matrix, k, row, coef, *p);
+                        Matrix::row_op(&mut *matrix, k, row, coef, column, *p);
                     }
                 }
             }
@@ -339,6 +339,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                             target_row,
                             source_row + first_res_row,
                             coef,
+                            pivot_col,
                             *p,
                         );
                     }
