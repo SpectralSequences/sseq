@@ -104,7 +104,6 @@ pub trait ModuleHomomorphism: Send + Sync + 'static {
         self.get_matrix(&mut matrix.segment(0, 0), degree);
         matrix.segment(1, 1).add_identity(source_dimension, 0, 0);
 
-        matrix.initialize_pivots();
         matrix.row_reduce();
 
         (

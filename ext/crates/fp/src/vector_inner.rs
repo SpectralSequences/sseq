@@ -345,7 +345,7 @@ impl<const P: u32> FpVectorP<P> {
 
     /// Permanently remove the first `n` elements in the vector. `n` must be a multiple of
     /// the number of entries per limb
-    pub fn trim_start(&mut self, n: usize) {
+    pub(crate) fn trim_start(&mut self, n: usize) {
         assert!(n <= self.dimension);
         let entries_per = entries_per_limb(ValidPrime::new(P));
         assert_eq!(n % entries_per, 0);

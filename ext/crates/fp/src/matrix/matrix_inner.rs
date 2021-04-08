@@ -89,6 +89,7 @@ impl Matrix {
         self.columns
     }
 
+    /// Set the pivots to -1 in every entry. This is called by [`row_reduce`].
     pub fn initialize_pivots(&mut self) {
         self.pivots.clear();
         self.pivots.resize(self.columns, -1);
@@ -214,11 +215,6 @@ impl Matrix {
             vectors: &mut self.vectors[row_start..row_end],
             col_start,
             col_end,
-            pivots: if self.pivots.is_empty() {
-                &mut self.pivots
-            } else {
-                &mut self.pivots[col_start..col_end]
-            },
         }
     }
 }
@@ -409,13 +405,62 @@ impl Matrix {
     ///               vec![0, 1, 6]];
     ///
     /// let mut m = Matrix::from_vec(p, &input);
-    /// m.initialize_pivots();
     /// m.row_reduce();
     ///
     /// assert_eq!(m, Matrix::from_vec(p, &result));
     /// `#`#`
     pub fn row_reduce(&mut self) {
-        self.as_slice_mut().row_reduce();
+        let p = self.p;
+        let rows = self.rows();
+        self.initialize_pivots();
+
+        let mut pivot: usize = 0;
+
+        for (pivot_column, entry) in self.pivots.iter_mut().enumerate() {
+            // Search down column for a nonzero entry.
+            let mut pivot_row = rows;
+            for i in pivot..rows {
+                if self.vectors[i].entry(pivot_column) != 0 {
+                    pivot_row = i;
+                    break;
+                }
+            }
+            if pivot_row == rows {
+                continue;
+            }
+
+            // Record position of pivot.
+            *entry = pivot as isize;
+
+            // Pivot_row contains a row with a pivot in current column.
+            // Swap pivot row up.
+            self.vectors.swap(pivot, pivot_row);
+            // println!("({}) <==> ({}): \n{}", pivot, pivot_row, self);
+
+            // // Divide pivot row by pivot entry
+            let c = self.vectors[pivot].entry(pivot_column);
+            let c_inv = prime::inverse(p, c);
+            self.vectors[pivot].scale(c_inv);
+
+            // println!("({}) <== {} * ({}): \n{}", pivot, c_inv, pivot, self);
+            // We would say:
+            // for i in 0..rows { // but we want to skip a few rows so we can't use for.
+            let mut i = 0;
+            while i < rows {
+                if i as usize == pivot {
+                    // Between pivot and pivot_row, we already checked that the pivot column is 0,
+                    // so we skip ahead a bit.
+                    i = pivot_row + 1;
+                    continue;
+                }
+                let coef = self.vectors[i].entry(pivot_column);
+                // Safety requires i != pivot, which follows from the if i as
+                // usize == pivot line. They are both less than rows by construction.
+                unsafe { Matrix::row_op(&mut self.vectors, i, pivot, coef, pivot_column, *p) };
+                i += 1; // loop control structure.
+            }
+            pivot += 1;
+        }
     }
 }
 
@@ -449,7 +494,6 @@ impl Matrix {
     ///               vec![2, 2, 0, 2, 1]];
     ///
     /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &input);
-    /// m.initialize_pivots();
     /// m.row_reduce();
     /// let qi = m.compute_quasi_inverse(input[0].len(), padded_cols);
     ///
@@ -494,7 +538,6 @@ impl Matrix {
     ///               vec![2, 2, 0, 2, 1]];
     ///
     /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &input);
-    /// m.initialize_pivots();
     /// m.row_reduce();
     ///
     /// let computed_image = m.compute_image(input[0].len(), padded_cols);
@@ -547,7 +590,6 @@ impl Matrix {
     ///               vec![2, 2, 0, 2, 1]];
     ///
     /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &input);
-    /// m.initialize_pivots();
     /// m.row_reduce();
     /// let ker = m.compute_kernel(padded_cols);
     ///
@@ -885,6 +927,18 @@ impl AugmentedMatrix<2> {
 }
 
 impl AugmentedMatrix<3> {
+    pub fn drop_first(mut self) -> AugmentedMatrix<2> {
+        let offset = self.start[1];
+        for row in self.inner.iter_mut() {
+            row.trim_start(offset);
+        }
+        self.inner.columns -= offset;
+        AugmentedMatrix::<2> {
+            inner: self.inner,
+            start: [self.start[1] - offset, self.start[2] - offset],
+            end: [self.end[1] - offset, self.end[2] - offset],
+        }
+    }
     /// This function computes quasi-inverses for matrices A, B given a reduced row echelon form of
     /// [A|0|B|0|I] such that A is surjective. Moreover, if Q is the quasi-inverse of A, it is
     /// guaranteed that the image of QB and B|_{ker A} are disjoint.
@@ -907,26 +961,15 @@ impl AugmentedMatrix<3> {
                     .as_slice_mut()
                     .assign(self[i].slice(self.start[2], self.end[2]));
             }
+            let cm_qi = QuasiInverse::new(None, cc_preimage);
 
             let first_kernel_row = self.find_first_row_in_block(self.start[2]);
             self.vectors.truncate(first_kernel_row);
 
-            let (start, end) = (self.start[1], self.end[2]);
-            self.slice_mut(0, first_kernel_row, start, end).row_reduce();
-            let last_image_row = self.find_first_row_in_block(self.start[1]);
+            let mut res_matrix = self.drop_first();
+            res_matrix.row_reduce();
+            let res_qi = res_matrix.compute_quasi_inverse();
 
-            let mut res_preimage = Matrix::new(p, last_image_row, source_columns);
-            for i in 0..last_image_row {
-                res_preimage[i]
-                    .as_slice_mut()
-                    .assign(self[i].slice(self.start[2], self.end[2]));
-            }
-
-            let mut res_pivots = self.inner.pivots;
-            res_pivots.truncate(self.end[1]);
-            res_pivots.drain(0..self.start[1]);
-            let cm_qi = QuasiInverse::new(None, cc_preimage);
-            let res_qi = QuasiInverse::new(Some(res_pivots), res_preimage);
             (cm_qi, res_qi)
         }
     }
@@ -937,7 +980,6 @@ pub struct MatrixSliceMut<'a> {
     vectors: &'a mut [FpVector],
     col_start: usize,
     col_end: usize,
-    pivots: &'a mut [isize],
 }
 
 impl<'a> MatrixSliceMut<'a> {
@@ -955,7 +997,6 @@ impl<'a> MatrixSliceMut<'a> {
             vectors: &mut self.vectors[row_start..row_end],
             col_start: self.col_start,
             col_end: self.col_end,
-            pivots: self.pivots,
         }
     }
 
@@ -984,77 +1025,6 @@ impl<'a> MatrixSliceMut<'a> {
     pub fn add_identity(&mut self, size: usize, row: usize, column: usize) {
         for i in 0..size {
             self.vectors[row + i].add_basis_element(self.col_start + column + i, 1);
-        }
-    }
-
-    /// Row reduce a slice. Note that this performs row ops on entire rows instead of the sliced
-    /// rows. The slicing only tells us where to search for pivots.
-    pub fn row_reduce(&mut self) {
-        let p = self.p;
-        let rows = self.rows();
-        for x in self.pivots.iter_mut() {
-            *x = -1;
-        }
-        if rows == 0 {
-            return;
-        }
-        let mut pivot: usize = 0;
-
-        for (pivot_column, entry) in self.pivots.iter_mut().enumerate() {
-            let pivot_column = self.col_start + pivot_column;
-
-            // Search down column for a nonzero entry.
-            let mut pivot_row = rows;
-            for i in pivot..rows {
-                if self.vectors[i].entry(pivot_column) != 0 {
-                    pivot_row = i;
-                    break;
-                }
-            }
-            if pivot_row == rows {
-                continue;
-            }
-
-            // Record position of pivot.
-            *entry = pivot as isize;
-
-            // Pivot_row contains a row with a pivot in current column.
-            // Swap pivot row up.
-            self.vectors.swap(pivot, pivot_row);
-            // println!("({}) <==> ({}): \n{}", pivot, pivot_row, self);
-
-            // // Divide pivot row by pivot entry
-            let c = self.vectors[pivot].entry(pivot_column);
-            let c_inv = prime::inverse(p, c);
-            self.vectors[pivot].scale(c_inv);
-
-            // println!("({}) <== {} * ({}): \n{}", pivot, c_inv, pivot, self);
-            // We would say:
-            // for i in 0..rows { // but we want to skip a few rows so we can't use for.
-            let mut i = 0;
-            while i < rows {
-                if i as usize == pivot {
-                    // Between pivot and pivot_row, we already checked that the pivot column is 0,
-                    // so we skip ahead a bit.
-                    i = pivot_row + 1;
-                    continue;
-                }
-                let coef = self.vectors[i].entry(pivot_column);
-                // Safety requires i != pivot, which follows from the if i as
-                // usize == pivot line. They are both less than rows by construction.
-                unsafe {
-                    Matrix::row_op(
-                        self.vectors,
-                        i,
-                        pivot,
-                        coef,
-                        if self.col_start == 0 { pivot_column } else { 0 },
-                        *p,
-                    )
-                };
-                i += 1; // loop control structure.
-            }
-            pivot += 1;
         }
     }
 }
@@ -1156,7 +1126,6 @@ mod tests {
 
             let mut m = Matrix::from_rows(p, rows, cols);
             println!("{}", m);
-            m.initialize_pivots();
             m.row_reduce();
             for i in 0..input.len() {
                 assert_eq!(Vec::<u32>::from(&m[i]), goal_output[i]);

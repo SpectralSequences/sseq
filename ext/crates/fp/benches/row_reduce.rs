@@ -20,9 +20,7 @@ fn row_reduce_2(bencher: &mut bencher::Bencher) {
             }
             vectors.push(FpVector::from_slice(p, &vec));
         }
-        let mut m = Matrix::from_rows(p, vectors, cols);
-        m.initialize_pivots();
-        matrices.push(m);
+        matrices.push(Matrix::from_rows(p, vectors, cols));
     }
 
     bencher.iter(|| {

@@ -219,7 +219,6 @@ impl<CC: ChainComplex> Resolution<CC> {
             rows,
             rows,
         );
-        matrix.initialize_pivots();
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
 
         current_chain_map.get_matrix(&mut matrix.segment(0, 0), t);
@@ -227,7 +226,6 @@ impl<CC: ChainComplex> Resolution<CC> {
         matrix.segment(2, 2).add_identity(source_dimension, 0, 0);
 
         // This slices the underling matrix. Be sure to revert this.
-        let matrix_start_2 = matrix.start[2];
         matrix.row_reduce();
         let new_kernel = matrix.compute_kernel();
 
@@ -300,7 +298,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             matrix.extend_column_dimension(columns + num_new_gens);
 
             for i in source_dimension..new_rows {
-                matrix.inner[i].set_entry(matrix_start_2 + i, 1);
+                matrix.inner[i].set_entry(matrix.start[2] + i, 1);
             }
 
             // We are now supposed to row reduce the matrix. However, running the full row
@@ -436,7 +434,6 @@ impl<CC: ChainComplex> Resolution<CC> {
         current_chain_map.get_matrix(&mut matrix.segment(0, 0), t);
         current_differential.get_matrix(&mut matrix.segment(1, 1), t);
         matrix.segment(2, 2).add_identity(source_dimension, 0, 0);
-        matrix.initialize_pivots();
         matrix.row_reduce();
 
         *old_kernel = Some(matrix.compute_kernel());

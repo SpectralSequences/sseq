@@ -565,15 +565,15 @@ impl Sseq {
 
         let mut dvec = FpVector::new(self.p, target_dim);
         for vec in source_classes[r - 1].gens() {
-            let mut result = FpVector::new(self.p, source_dim + target_dim);
-            result.slice_mut(0, source_dim).assign(vec.as_slice());
+            let mut result = FpVector::new(self.p, target_dim + source_dim);
+            result
+                .slice_mut(target_dim, target_dim + source_dim)
+                .assign(vec.as_slice());
 
             d.evaluate(vec.clone(), &mut dvec);
             target_classes.zeros().reduce(dvec.as_slice_mut());
 
-            result
-                .slice_mut(source_dim, source_dim + target_dim)
-                .add(dvec.as_slice(), 1);
+            result.slice_mut(0, source_dim).add(dvec.as_slice(), 1);
 
             vectors.push(result);
             differentials.push(target_classes.reduce(dvec.as_slice_mut()));
@@ -581,29 +581,15 @@ impl Sseq {
         }
 
         let mut matrix = Matrix::from_rows(self.p, vectors, source_dim + target_dim);
-        matrix.initialize_pivots();
-
-        matrix
-            .slice_mut(0, matrix.rows(), source_dim, matrix.columns())
-            .row_reduce();
-
-        let mut first_kernel_row = 0;
-        let pivots = matrix.pivots();
-        for i in (source_dim..source_dim + target_dim).rev() {
-            if pivots[i] >= 0 {
-                first_kernel_row = pivots[i] + 1;
-                break;
-            }
-        }
-
-        let mut matrix = matrix.slice_mut(first_kernel_row as usize, matrix.rows(), 0, source_dim);
         matrix.row_reduce();
 
-        for row in matrix.iter() {
+        let first_kernel_row = matrix.find_first_row_in_block(target_dim);
+
+        for row in &matrix[first_kernel_row..] {
             if row.is_zero() {
                 break;
             }
-            source_classes[r].add_gen(row);
+            source_classes[r].add_gen(row.slice(target_dim, target_dim + source_dim));
         }
         differentials
     }

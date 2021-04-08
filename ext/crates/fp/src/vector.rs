@@ -217,7 +217,7 @@ impl FpVector {
         pub fn set_scratch_vector_size(&mut self, dim: usize);
         pub fn add_basis_element(&mut self, index: usize, value: u32);
         pub fn copy_from_slice(&mut self, slice: &[u32]);
-        pub fn trim_start(&mut self, n: usize);
+        pub(crate) fn trim_start(&mut self, n: usize);
         pub fn add_truncate(&mut self, other: &Self, c: u32) -> (Option<()>);
         pub fn sign_rule(&self, other: &Self) -> bool;
         pub fn add_carry(&mut self, other: &Self, c: u32, rest: &mut [FpVector]) -> bool;

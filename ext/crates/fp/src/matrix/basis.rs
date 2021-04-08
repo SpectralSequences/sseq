@@ -62,7 +62,6 @@ impl Basis {
         self.set_matrix(matrix);
         self.inverse.segment(1,1).set_to_zero();
         self.inverse.segment(1,1).add_identity(self.matrix.rows(), 0, 0);
-        self.inverse.initialize_pivots();
         self.inverse.row_reduce();
         std::mem::forget(self.inverse.segment(1,1));
     }

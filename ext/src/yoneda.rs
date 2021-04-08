@@ -221,7 +221,6 @@ where
                     curr.subspaces[t].reduce(differentials[i].as_slice_mut());
                 }
 
-                differentials.initialize_pivots();
                 differentials.row_reduce();
 
                 differential_images.push(Subspace {
@@ -423,7 +422,6 @@ where
             let (mut matrix, mut images) =
                 compute_kernel_image(source, augmentation_map, preserve_map, keep, t);
 
-            matrix.initialize_pivots();
             matrix.row_reduce();
 
             let subspace = &source.subspaces[t];
@@ -704,7 +702,6 @@ where
         matrix_rows.push(result);
     }
     let mut matrix = Matrix::from_rows(p, matrix_rows, total_cols);
-    matrix.initialize_pivots();
     matrix.row_reduce();
 
     let first_kernel_row = match &matrix.pivots()[0..total_padded_degree]

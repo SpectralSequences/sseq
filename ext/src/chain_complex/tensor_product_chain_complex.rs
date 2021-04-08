@@ -437,7 +437,6 @@ where
                 matrix[i].set_entry(padded_target_dim + i, 1);
             }
 
-            matrix.initialize_pivots();
             matrix.row_reduce();
 
             let mut index = 0;
