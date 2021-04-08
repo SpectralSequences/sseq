@@ -420,6 +420,24 @@ impl<const P: u32> FpVectorP<P> {
         }
         result
     }
+
+    /// Find the index and value of the first non-zero entry of the vector. `None` if the vector is zero.
+    pub fn first_nonzero(&self) -> Option<(usize, u32)> {
+        let entries_per_limb = entries_per_limb(self.prime());
+        let bit_length = bit_length(self.prime());
+        let bitmask = bitmask(self.prime());
+        for (i, &limb) in self.limbs.iter().enumerate() {
+            if limb == 0 {
+                continue;
+            }
+            let index = limb.trailing_zeros() as usize / bit_length;
+            return Some((
+                i * entries_per_limb + index,
+                ((limb >> (index * bit_length)) & bitmask) as u32,
+            ));
+        }
+        None
+    }
 }
 
 impl<'a, const P: u32> From<&'a FpVectorP<P>> for SliceP<'a, P> {

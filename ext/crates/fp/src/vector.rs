@@ -221,6 +221,7 @@ impl FpVector {
         pub fn add_truncate(&mut self, other: &Self, c: u32) -> (Option<()>);
         pub fn sign_rule(&self, other: &Self) -> bool;
         pub fn add_carry(&mut self, other: &Self, c: u32, rest: &mut [FpVector]) -> bool;
+        pub fn first_nonzero(&mut self) -> (Option<(usize, u32)>);
 
         pub(crate) fn limbs(&self) -> (&[Limb]);
         pub(crate) fn limbs_mut(&mut self) -> (&mut [Limb]);

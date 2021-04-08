@@ -409,54 +409,43 @@ impl Matrix {
     /// `#`#`
     pub fn row_reduce(&mut self) {
         let p = self.p;
-        let rows = self.rows();
         self.initialize_pivots();
 
-        let mut pivot: usize = 0;
-
-        for (pivot_column, entry) in self.pivots.iter_mut().enumerate() {
-            // Search down column for a nonzero entry.
-            let mut pivot_row = rows;
-            for i in pivot..rows {
-                if self.vectors[i].entry(pivot_column) != 0 {
-                    pivot_row = i;
-                    break;
+        let mut empty_rows = Vec::with_capacity(self.rows());
+        for i in 0..self.rows() {
+            if let Some((c, v)) = self[i].first_nonzero() {
+                self.pivots[c] = i as isize;
+                self[i].scale(prime::inverse(p, v));
+                for j in 0..self.rows() {
+                    if i == j {
+                        continue;
+                    }
+                    unsafe {
+                        Matrix::row_op(&mut self.vectors, j, i, c, *p);
+                    }
                 }
+            } else {
+                empty_rows.push(i);
             }
-            if pivot_row == rows {
-                continue;
+        }
+
+        // Now reorder the vectors. There are O(n) in-place permutation algorithms but the way we
+        // get the permutation makes the naive strategy easier.
+        let old_capacity = self.vectors.capacity();
+        let mut old_rows = std::mem::replace(&mut self.vectors, Vec::with_capacity(old_capacity));
+
+        for row in &mut self.pivots {
+            if *row >= 0 {
+                self.vectors.push(std::mem::replace(
+                    &mut old_rows[*row as usize],
+                    FpVector::new(p, 0),
+                ));
+                *row = self.vectors.len() as isize - 1;
             }
-
-            // Record position of pivot.
-            *entry = pivot as isize;
-
-            // Pivot_row contains a row with a pivot in current column.
-            // Swap pivot row up.
-            self.vectors.swap(pivot, pivot_row);
-            // println!("({}) <==> ({}): \n{}", pivot, pivot_row, self);
-
-            // // Divide pivot row by pivot entry
-            let c = self.vectors[pivot].entry(pivot_column);
-            let c_inv = prime::inverse(p, c);
-            self.vectors[pivot].scale(c_inv);
-
-            // println!("({}) <== {} * ({}): \n{}", pivot, c_inv, pivot, self);
-            // We would say:
-            // for i in 0..rows { // but we want to skip a few rows so we can't use for.
-            let mut i = 0;
-            while i < rows {
-                if i as usize == pivot {
-                    // Between pivot and pivot_row, we already checked that the pivot column is 0,
-                    // so we skip ahead a bit.
-                    i = pivot_row + 1;
-                    continue;
-                }
-                // Safety requires i != pivot, which follows from the if i as
-                // usize == pivot line. They are both less than rows by construction.
-                unsafe { Matrix::row_op(&mut self.vectors, i, pivot, pivot_column, *p) };
-                i += 1; // loop control structure.
-            }
-            pivot += 1;
+        }
+        for row in empty_rows {
+            self.vectors
+                .push(std::mem::replace(&mut old_rows[row], FpVector::new(p, 0)))
         }
     }
 }
