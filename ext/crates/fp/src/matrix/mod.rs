@@ -4,6 +4,8 @@ mod quasi_inverse;
 mod subquotient;
 mod subspace;
 
+mod m4ri;
+
 // pub use basis::Basis;
 pub use matrix_inner::{AugmentedMatrix, Matrix, MatrixSliceMut};
 pub use quasi_inverse::QuasiInverse;

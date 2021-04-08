@@ -178,6 +178,20 @@ pub const fn power_mod(p: u32, mut b: u32, mut e: u32) -> u32 {
     result
 }
 
+/// Compute the base 2 log of a number, rounded down to the nearest integer.
+///
+/// # Example
+/// ```
+/// # use fp::prime::log2;
+/// assert_eq!(0, log2(0b1));
+/// assert_eq!(1, log2(0b10));
+/// assert_eq!(1, log2(0b11));
+/// assert_eq!(3, log2(0b1011));
+/// ```
+pub const fn log2(n: usize) -> usize {
+    std::mem::size_of::<usize>() * 8 - 1 - n.leading_zeros() as usize
+}
+
 // Discrete log base p of n.
 pub const fn logp(p: u32, mut n: u32) -> u32 {
     let mut result = 0u32;

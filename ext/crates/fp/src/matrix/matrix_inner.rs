@@ -7,7 +7,7 @@ use std::ops::{Index, IndexMut};
 
 /// Mutably borrows `x[i]` and `x[j]`. Caller needs to ensure `i != j` for safety, and i and j must
 /// not be out of bounds.
-unsafe fn split_borrow<T>(x: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
+pub(crate) unsafe fn split_borrow<T>(x: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
     let ptr = x.as_mut_ptr();
     (&mut *ptr.add(i), &mut *ptr.add(j))
 }
@@ -407,6 +407,7 @@ impl Matrix {
     ///
     /// assert_eq!(m, Matrix::from_vec(p, &result));
     /// `#`#`
+    #[cfg(feature = "odd-primes")]
     pub fn row_reduce(&mut self) {
         let p = self.p;
         self.initialize_pivots();
@@ -427,6 +428,73 @@ impl Matrix {
             } else {
                 empty_rows.push(i);
             }
+        }
+
+        // Now reorder the vectors. There are O(n) in-place permutation algorithms but the way we
+        // get the permutation makes the naive strategy easier.
+        let old_capacity = self.vectors.capacity();
+        let mut old_rows = std::mem::replace(&mut self.vectors, Vec::with_capacity(old_capacity));
+
+        for row in &mut self.pivots {
+            if *row >= 0 {
+                self.vectors.push(std::mem::replace(
+                    &mut old_rows[*row as usize],
+                    FpVector::new(p, 0),
+                ));
+                *row = self.vectors.len() as isize - 1;
+            }
+        }
+        for row in empty_rows {
+            self.vectors
+                .push(std::mem::replace(&mut old_rows[row], FpVector::new(p, 0)))
+        }
+    }
+
+    #[cfg(not(feature = "odd-primes"))]
+    pub fn row_reduce(&mut self) {
+        // See M4riTable documentation for more on the algorithm
+        use crate::matrix::m4ri::M4riTable;
+
+        let p = self.p;
+        self.initialize_pivots();
+
+        // the m4ri C library uses a similar formula but with a hard cap of 16 instead of 8
+        let k = std::cmp::min(8, crate::prime::log2(1 + self.rows()) * 3 / 4);
+        let mut empty_rows = Vec::with_capacity(self.rows());
+        let mut table = M4riTable::new(k, self.columns());
+
+        for i in 0..self.rows() {
+            table.reduce_naive(&mut *self, i);
+
+            if let Some((c, _)) = self[i].first_nonzero() {
+                self.pivots[c] = i as isize;
+                for &row in table.rows() {
+                    unsafe {
+                        Matrix::row_op(&mut self.vectors, row, i, c, *p);
+                    }
+                }
+                table.add(c, i);
+
+                if table.len() == k {
+                    table.generate(&self);
+                    for j in 0..table.rows()[0] {
+                        table.reduce(self[j].limbs_mut());
+                    }
+                    for j in i + 1..self.rows() {
+                        table.reduce(self[j].limbs_mut());
+                    }
+                    table.clear();
+                }
+            } else {
+                empty_rows.push(i);
+            }
+        }
+        if !table.is_empty() {
+            table.generate(&self);
+            for j in 0..table.rows()[0] {
+                table.reduce(self[j].limbs_mut());
+            }
+            table.clear();
         }
 
         // Now reorder the vectors. There are O(n) in-place permutation algorithms but the way we

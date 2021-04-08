@@ -13,7 +13,6 @@ use crate::simd;
 pub(crate) type Limb = u64;
 pub(crate) const BYTES_PER_LIMB: usize = std::mem::size_of::<Limb>();
 pub(crate) const BITS_PER_LIMB: usize = 8 * BYTES_PER_LIMB;
-pub(crate) const LIMBS_PER_SIMD: usize = std::mem::size_of::<simd::SimdLimb>() / BYTES_PER_LIMB;
 
 pub const MAX_DIMENSION: usize = 147500;
 
@@ -256,30 +255,7 @@ impl<const P: u32> FpVectorP<P> {
         let min_limb = offset / entries_per_limb(self.prime());
         if P == 2 {
             if c != 0 {
-                let max_limb = self.limbs.len();
-                let target_limbs_ptr = self.limbs.as_mut_ptr();
-                let other_limbs_ptr = other.limbs.as_ptr();
-                let chunks = (max_limb - min_limb) / LIMBS_PER_SIMD;
-                for i in 0..chunks {
-                    unsafe {
-                        let mut target_chunk =
-                            simd::load(target_limbs_ptr.add(LIMBS_PER_SIMD * i + min_limb));
-                        let other_chunk =
-                            simd::load(other_limbs_ptr.add(LIMBS_PER_SIMD * i + min_limb));
-                        target_chunk = simd::xor(target_chunk, other_chunk);
-                        simd::store(
-                            target_limbs_ptr.add(LIMBS_PER_SIMD * i + min_limb),
-                            target_chunk,
-                        );
-                    }
-                }
-                for i in (min_limb + LIMBS_PER_SIMD * chunks)..max_limb {
-                    unsafe {
-                        // pointer arithmetic
-                        *target_limbs_ptr.add(i) =
-                            *target_limbs_ptr.add(i) ^ *other_limbs_ptr.add(i);
-                    }
-                }
+                simd::add_simd(&mut self.limbs, &other.limbs, min_limb);
             }
         } else {
             for (left, right) in self.limbs.iter_mut().zip(&other.limbs).skip(min_limb) {
