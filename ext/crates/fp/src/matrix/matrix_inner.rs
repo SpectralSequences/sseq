@@ -313,16 +313,16 @@ impl Matrix {
         vectors: &mut [FpVector],
         target: usize,
         source: usize,
-        coef: u32,
-        offset: usize,
+        pivot_column: usize,
         prime: u32,
     ) {
         debug_assert!(target != source);
+        let coef = vectors[target].entry(pivot_column);
         if coef == 0 {
             return;
         }
         let (target, source) = split_borrow(vectors, target, source);
-        target.add_offset(source, prime - coef, offset);
+        target.add_offset(source, prime - coef, pivot_column);
     }
 
     /// This is very similar to row_reduce, except we only need to get to row echelon form, not
@@ -368,11 +368,9 @@ impl Matrix {
             // println!("({}) <== {} * ({}): \n{}", pivot, c_inv, pivot, self);
 
             for i in pivot_row + 1..rows {
-                let coef = self[i].entry(pivot_column);
-
                 // Safety requires i != pivot, which follows from i > pivot_row >= pivot. They are
                 // both less than rows by construction
-                unsafe { Matrix::row_op(&mut self.vectors, i, pivot, coef, pivot_column, *p) };
+                unsafe { Matrix::row_op(&mut self.vectors, i, pivot, pivot_column, *p) };
             }
             pivot += 1;
         }
@@ -453,10 +451,9 @@ impl Matrix {
                     i = pivot_row + 1;
                     continue;
                 }
-                let coef = self.vectors[i].entry(pivot_column);
                 // Safety requires i != pivot, which follows from the if i as
                 // usize == pivot line. They are both less than rows by construction.
-                unsafe { Matrix::row_op(&mut self.vectors, i, pivot, coef, pivot_column, *p) };
+                unsafe { Matrix::row_op(&mut self.vectors, i, pivot, pivot_column, *p) };
                 i += 1; // loop control structure.
             }
             pivot += 1;

@@ -318,10 +318,8 @@ impl<CC: ChainComplex> Resolution<CC> {
                         continue;
                     }
                     let row = row as usize;
-
-                    let coef = matrix[k].entry(column);
                     unsafe {
-                        Matrix::row_op(&mut *matrix, k, row, coef, column, *p);
+                        Matrix::row_op(&mut *matrix, k, row, column, *p);
                     }
                 }
             }
@@ -330,13 +328,11 @@ impl<CC: ChainComplex> Resolution<CC> {
             let first_res_row = source_dimension + cc_new_gens.len();
             for (source_row, &pivot_col) in res_new_gens.iter().enumerate() {
                 for target_row in 0..first_res_row {
-                    let coef = matrix[target_row].entry(pivot_col);
                     unsafe {
                         Matrix::row_op(
                             &mut *matrix,
                             target_row,
                             source_row + first_res_row,
-                            coef,
                             pivot_col,
                             *p,
                         );
