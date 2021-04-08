@@ -617,7 +617,6 @@
 <span id="596">596</span>
 <span id="597">597</span>
 <span id="598">598</span>
-<span id="599">599</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FiniteAugmentedChainComplex</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">CCC</span>;
@@ -1058,7 +1057,6 @@
                 <span class="ident">matrix</span>[<span class="ident">i</span>].<span class="ident">set_entry</span>(<span class="ident">padded_target_dim</span> <span class="op">+</span> <span class="ident">i</span>, <span class="number">1</span>);
             }
 
-            <span class="ident">matrix</span>.<span class="ident">initialize_pivots</span>();
             <span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
 
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">index</span> <span class="op">=</span> <span class="number">0</span>;

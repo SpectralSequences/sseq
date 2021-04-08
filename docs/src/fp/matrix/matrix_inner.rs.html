@@ -1141,51 +1141,6 @@
 <span id="1120">1120</span>
 <span id="1121">1121</span>
 <span id="1122">1122</span>
-<span id="1123">1123</span>
-<span id="1124">1124</span>
-<span id="1125">1125</span>
-<span id="1126">1126</span>
-<span id="1127">1127</span>
-<span id="1128">1128</span>
-<span id="1129">1129</span>
-<span id="1130">1130</span>
-<span id="1131">1131</span>
-<span id="1132">1132</span>
-<span id="1133">1133</span>
-<span id="1134">1134</span>
-<span id="1135">1135</span>
-<span id="1136">1136</span>
-<span id="1137">1137</span>
-<span id="1138">1138</span>
-<span id="1139">1139</span>
-<span id="1140">1140</span>
-<span id="1141">1141</span>
-<span id="1142">1142</span>
-<span id="1143">1143</span>
-<span id="1144">1144</span>
-<span id="1145">1145</span>
-<span id="1146">1146</span>
-<span id="1147">1147</span>
-<span id="1148">1148</span>
-<span id="1149">1149</span>
-<span id="1150">1150</span>
-<span id="1151">1151</span>
-<span id="1152">1152</span>
-<span id="1153">1153</span>
-<span id="1154">1154</span>
-<span id="1155">1155</span>
-<span id="1156">1156</span>
-<span id="1157">1157</span>
-<span id="1158">1158</span>
-<span id="1159">1159</span>
-<span id="1160">1160</span>
-<span id="1161">1161</span>
-<span id="1162">1162</span>
-<span id="1163">1163</span>
-<span id="1164">1164</span>
-<span id="1165">1165</span>
-<span id="1166">1166</span>
-<span id="1167">1167</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">prime</span>::{<span class="self">self</span>, <span class="ident">ValidPrime</span>};
@@ -1278,6 +1233,7 @@
         <span class="self">self</span>.<span class="ident">columns</span>
     }
 
+    <span class="doccomment">/// Set the pivots to -1 in every entry. This is called by [`row_reduce`].</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">initialize_pivots</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="self">self</span>.<span class="ident">pivots</span>.<span class="ident">clear</span>();
         <span class="self">self</span>.<span class="ident">pivots</span>.<span class="ident">resize</span>(<span class="self">self</span>.<span class="ident">columns</span>, <span class="op">-</span><span class="number">1</span>);
@@ -1403,11 +1359,6 @@
             <span class="ident">vectors</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">row_start</span>..<span class="ident">row_end</span>],
             <span class="ident">col_start</span>,
             <span class="ident">col_end</span>,
-            <span class="ident">pivots</span>: <span class="kw">if</span> <span class="self">self</span>.<span class="ident">pivots</span>.<span class="ident">is_empty</span>() {
-                <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">pivots</span>
-            } <span class="kw">else</span> {
-                <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">pivots</span>[<span class="ident">col_start</span>..<span class="ident">col_end</span>]
-            },
         }
     }
 }
@@ -1506,16 +1457,16 @@
         <span class="ident">vectors</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">FpVector</span>],
         <span class="ident">target</span>: <span class="ident">usize</span>,
         <span class="ident">source</span>: <span class="ident">usize</span>,
-        <span class="ident">coef</span>: <span class="ident">u32</span>,
-        <span class="ident">offset</span>: <span class="ident">usize</span>,
+        <span class="ident">pivot_column</span>: <span class="ident">usize</span>,
         <span class="ident">prime</span>: <span class="ident">u32</span>,
     ) {
         <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">target</span> <span class="op">!</span><span class="op">=</span> <span class="ident">source</span>);
+        <span class="kw">let</span> <span class="ident">coef</span> <span class="op">=</span> <span class="ident">vectors</span>[<span class="ident">target</span>].<span class="ident">entry</span>(<span class="ident">pivot_column</span>);
         <span class="kw">if</span> <span class="ident">coef</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
             <span class="kw">return</span>;
         }
         <span class="kw">let</span> (<span class="ident">target</span>, <span class="ident">source</span>) <span class="op">=</span> <span class="ident">split_borrow</span>(<span class="ident">vectors</span>, <span class="ident">target</span>, <span class="ident">source</span>);
-        <span class="ident">target</span>.<span class="ident">add_offset</span>(<span class="ident">source</span>, <span class="ident">prime</span> <span class="op">-</span> <span class="ident">coef</span>, <span class="ident">offset</span>);
+        <span class="ident">target</span>.<span class="ident">add_offset</span>(<span class="ident">source</span>, <span class="ident">prime</span> <span class="op">-</span> <span class="ident">coef</span>, <span class="ident">pivot_column</span>);
     }
 
     <span class="doccomment">/// This is very similar to row_reduce, except we only need to get to row echelon form, not</span>
@@ -1561,11 +1512,9 @@
             <span class="comment">// println!(&quot;({}) &lt;== {} * ({}): \n{}&quot;, pivot, c_inv, pivot, self);</span>
 
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">pivot_row</span> <span class="op">+</span> <span class="number">1</span>..<span class="ident">rows</span> {
-                <span class="kw">let</span> <span class="ident">coef</span> <span class="op">=</span> <span class="self">self</span>[<span class="ident">i</span>].<span class="ident">entry</span>(<span class="ident">pivot_column</span>);
-
                 <span class="comment">// Safety requires i != pivot, which follows from i &gt; pivot_row &gt;= pivot. They are</span>
                 <span class="comment">// both less than rows by construction</span>
-                <span class="kw">unsafe</span> { <span class="ident">Matrix</span>::<span class="ident">row_op</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">vectors</span>, <span class="ident">i</span>, <span class="ident">pivot</span>, <span class="ident">coef</span>, <span class="ident">pivot_column</span>, <span class="kw-2">*</span><span class="ident">p</span>) };
+                <span class="kw">unsafe</span> { <span class="ident">Matrix</span>::<span class="ident">row_op</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">vectors</span>, <span class="ident">i</span>, <span class="ident">pivot</span>, <span class="ident">pivot_column</span>, <span class="kw-2">*</span><span class="ident">p</span>) };
             }
             <span class="ident">pivot</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
         }
@@ -1598,13 +1547,50 @@
     <span class="doccomment">///               vec![0, 1, 6]];</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// let mut m = Matrix::from_vec(p, &amp;input);</span>
-    <span class="doccomment">/// m.initialize_pivots();</span>
     <span class="doccomment">/// m.row_reduce();</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// assert_eq!(m, Matrix::from_vec(p, &amp;result));</span>
     <span class="doccomment">/// `#`#`</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">row_reduce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">as_slice_mut</span>().<span class="ident">row_reduce</span>();
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">p</span>;
+        <span class="self">self</span>.<span class="ident">initialize_pivots</span>();
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">empty_rows</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="self">self</span>.<span class="ident">rows</span>());
+        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">rows</span>() {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">v</span>)) <span class="op">=</span> <span class="self">self</span>[<span class="ident">i</span>].<span class="ident">first_nonzero</span>() {
+                <span class="self">self</span>.<span class="ident">pivots</span>[<span class="ident">c</span>] <span class="op">=</span> <span class="ident">i</span> <span class="kw">as</span> <span class="ident">isize</span>;
+                <span class="self">self</span>[<span class="ident">i</span>].<span class="ident">scale</span>(<span class="ident">prime</span>::<span class="ident">inverse</span>(<span class="ident">p</span>, <span class="ident">v</span>));
+                <span class="kw">for</span> <span class="ident">j</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">rows</span>() {
+                    <span class="kw">if</span> <span class="ident">i</span> <span class="op">=</span><span class="op">=</span> <span class="ident">j</span> {
+                        <span class="kw">continue</span>;
+                    }
+                    <span class="kw">unsafe</span> {
+                        <span class="ident">Matrix</span>::<span class="ident">row_op</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">vectors</span>, <span class="ident">j</span>, <span class="ident">i</span>, <span class="ident">c</span>, <span class="kw-2">*</span><span class="ident">p</span>);
+                    }
+                }
+            } <span class="kw">else</span> {
+                <span class="ident">empty_rows</span>.<span class="ident">push</span>(<span class="ident">i</span>);
+            }
+        }
+
+        <span class="comment">// Now reorder the vectors. There are O(n) in-place permutation algorithms but the way we</span>
+        <span class="comment">// get the permutation makes the naive strategy easier.</span>
+        <span class="kw">let</span> <span class="ident">old_capacity</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">capacity</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">old_rows</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">vectors</span>, <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">old_capacity</span>));
+
+        <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">pivots</span> {
+            <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">row</span> <span class="op">&gt;</span><span class="op">=</span> <span class="number">0</span> {
+                <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">push</span>(<span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">replace</span>(
+                    <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">old_rows</span>[<span class="kw-2">*</span><span class="ident">row</span> <span class="kw">as</span> <span class="ident">usize</span>],
+                    <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>),
+                ));
+                <span class="kw-2">*</span><span class="ident">row</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">isize</span> <span class="op">-</span> <span class="number">1</span>;
+            }
+        }
+        <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="ident">empty_rows</span> {
+            <span class="self">self</span>.<span class="ident">vectors</span>
+                .<span class="ident">push</span>(<span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">old_rows</span>[<span class="ident">row</span>], <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>)))
+        }
     }
 }
 
@@ -1638,7 +1624,6 @@
     <span class="doccomment">///               vec![2, 2, 0, 2, 1]];</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &amp;input);</span>
-    <span class="doccomment">/// m.initialize_pivots();</span>
     <span class="doccomment">/// m.row_reduce();</span>
     <span class="doccomment">/// let qi = m.compute_quasi_inverse(input[0].len(), padded_cols);</span>
     <span class="doccomment">///</span>
@@ -1683,7 +1668,6 @@
     <span class="doccomment">///               vec![2, 2, 0, 2, 1]];</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &amp;input);</span>
-    <span class="doccomment">/// m.initialize_pivots();</span>
     <span class="doccomment">/// m.row_reduce();</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// let computed_image = m.compute_image(input[0].len(), padded_cols);</span>
@@ -1736,7 +1720,6 @@
     <span class="doccomment">///               vec![2, 2, 0, 2, 1]];</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &amp;input);</span>
-    <span class="doccomment">/// m.initialize_pivots();</span>
     <span class="doccomment">/// m.row_reduce();</span>
     <span class="doccomment">/// let ker = m.compute_kernel(padded_cols);</span>
     <span class="doccomment">///</span>
@@ -2074,6 +2057,18 @@
 }
 
 <span class="kw">impl</span> <span class="ident">AugmentedMatrix</span><span class="op">&lt;</span><span class="number">3</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">drop_first</span>(<span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">AugmentedMatrix</span><span class="op">&lt;</span><span class="number">2</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">start</span>[<span class="number">1</span>];
+        <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">iter_mut</span>() {
+            <span class="ident">row</span>.<span class="ident">trim_start</span>(<span class="ident">offset</span>);
+        }
+        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">columns</span> <span class="op">-</span><span class="op">=</span> <span class="ident">offset</span>;
+        <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">2</span><span class="op">&gt;</span> {
+            <span class="ident">inner</span>: <span class="self">self</span>.<span class="ident">inner</span>,
+            <span class="ident">start</span>: [<span class="self">self</span>.<span class="ident">start</span>[<span class="number">1</span>] <span class="op">-</span> <span class="ident">offset</span>, <span class="self">self</span>.<span class="ident">start</span>[<span class="number">2</span>] <span class="op">-</span> <span class="ident">offset</span>],
+            <span class="ident">end</span>: [<span class="self">self</span>.<span class="ident">end</span>[<span class="number">1</span>] <span class="op">-</span> <span class="ident">offset</span>, <span class="self">self</span>.<span class="ident">end</span>[<span class="number">2</span>] <span class="op">-</span> <span class="ident">offset</span>],
+        }
+    }
     <span class="doccomment">/// This function computes quasi-inverses for matrices A, B given a reduced row echelon form of</span>
     <span class="doccomment">/// [A|0|B|0|I] such that A is surjective. Moreover, if Q is the quasi-inverse of A, it is</span>
     <span class="doccomment">/// guaranteed that the image of QB and B|_{ker A} are disjoint.</span>
@@ -2096,26 +2091,15 @@
                     .<span class="ident">as_slice_mut</span>()
                     .<span class="ident">assign</span>(<span class="self">self</span>[<span class="ident">i</span>].<span class="ident">slice</span>(<span class="self">self</span>.<span class="ident">start</span>[<span class="number">2</span>], <span class="self">self</span>.<span class="ident">end</span>[<span class="number">2</span>]));
             }
+            <span class="kw">let</span> <span class="ident">cm_qi</span> <span class="op">=</span> <span class="ident">QuasiInverse</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>, <span class="ident">cc_preimage</span>);
 
             <span class="kw">let</span> <span class="ident">first_kernel_row</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_first_row_in_block</span>(<span class="self">self</span>.<span class="ident">start</span>[<span class="number">2</span>]);
             <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">truncate</span>(<span class="ident">first_kernel_row</span>);
 
-            <span class="kw">let</span> (<span class="ident">start</span>, <span class="ident">end</span>) <span class="op">=</span> (<span class="self">self</span>.<span class="ident">start</span>[<span class="number">1</span>], <span class="self">self</span>.<span class="ident">end</span>[<span class="number">2</span>]);
-            <span class="self">self</span>.<span class="ident">slice_mut</span>(<span class="number">0</span>, <span class="ident">first_kernel_row</span>, <span class="ident">start</span>, <span class="ident">end</span>).<span class="ident">row_reduce</span>();
-            <span class="kw">let</span> <span class="ident">last_image_row</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_first_row_in_block</span>(<span class="self">self</span>.<span class="ident">start</span>[<span class="number">1</span>]);
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res_matrix</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">drop_first</span>();
+            <span class="ident">res_matrix</span>.<span class="ident">row_reduce</span>();
+            <span class="kw">let</span> <span class="ident">res_qi</span> <span class="op">=</span> <span class="ident">res_matrix</span>.<span class="ident">compute_quasi_inverse</span>();
 
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res_preimage</span> <span class="op">=</span> <span class="ident">Matrix</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">last_image_row</span>, <span class="ident">source_columns</span>);
-            <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">last_image_row</span> {
-                <span class="ident">res_preimage</span>[<span class="ident">i</span>]
-                    .<span class="ident">as_slice_mut</span>()
-                    .<span class="ident">assign</span>(<span class="self">self</span>[<span class="ident">i</span>].<span class="ident">slice</span>(<span class="self">self</span>.<span class="ident">start</span>[<span class="number">2</span>], <span class="self">self</span>.<span class="ident">end</span>[<span class="number">2</span>]));
-            }
-
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res_pivots</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">pivots</span>;
-            <span class="ident">res_pivots</span>.<span class="ident">truncate</span>(<span class="self">self</span>.<span class="ident">end</span>[<span class="number">1</span>]);
-            <span class="ident">res_pivots</span>.<span class="ident">drain</span>(<span class="number">0</span>..<span class="self">self</span>.<span class="ident">start</span>[<span class="number">1</span>]);
-            <span class="kw">let</span> <span class="ident">cm_qi</span> <span class="op">=</span> <span class="ident">QuasiInverse</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>, <span class="ident">cc_preimage</span>);
-            <span class="kw">let</span> <span class="ident">res_qi</span> <span class="op">=</span> <span class="ident">QuasiInverse</span>::<span class="ident">new</span>(<span class="prelude-val">Some</span>(<span class="ident">res_pivots</span>), <span class="ident">res_preimage</span>);
             (<span class="ident">cm_qi</span>, <span class="ident">res_qi</span>)
         }
     }
@@ -2126,7 +2110,6 @@
     <span class="ident">vectors</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> [<span class="ident">FpVector</span>],
     <span class="ident">col_start</span>: <span class="ident">usize</span>,
     <span class="ident">col_end</span>: <span class="ident">usize</span>,
-    <span class="ident">pivots</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> [<span class="ident">isize</span>],
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">MatrixSliceMut</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
@@ -2144,7 +2127,6 @@
             <span class="ident">vectors</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">row_start</span>..<span class="ident">row_end</span>],
             <span class="ident">col_start</span>: <span class="self">self</span>.<span class="ident">col_start</span>,
             <span class="ident">col_end</span>: <span class="self">self</span>.<span class="ident">col_end</span>,
-            <span class="ident">pivots</span>: <span class="self">self</span>.<span class="ident">pivots</span>,
         }
     }
 
@@ -2173,77 +2155,6 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_identity</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">row</span>: <span class="ident">usize</span>, <span class="ident">column</span>: <span class="ident">usize</span>) {
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">size</span> {
             <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">row</span> <span class="op">+</span> <span class="ident">i</span>].<span class="ident">add_basis_element</span>(<span class="self">self</span>.<span class="ident">col_start</span> <span class="op">+</span> <span class="ident">column</span> <span class="op">+</span> <span class="ident">i</span>, <span class="number">1</span>);
-        }
-    }
-
-    <span class="doccomment">/// Row reduce a slice. Note that this performs row ops on entire rows instead of the sliced</span>
-    <span class="doccomment">/// rows. The slicing only tells us where to search for pivots.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">row_reduce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">p</span>;
-        <span class="kw">let</span> <span class="ident">rows</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rows</span>();
-        <span class="kw">for</span> <span class="ident">x</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">pivots</span>.<span class="ident">iter_mut</span>() {
-            <span class="kw-2">*</span><span class="ident">x</span> <span class="op">=</span> <span class="op">-</span><span class="number">1</span>;
-        }
-        <span class="kw">if</span> <span class="ident">rows</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-            <span class="kw">return</span>;
-        }
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pivot</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">0</span>;
-
-        <span class="kw">for</span> (<span class="ident">pivot_column</span>, <span class="ident">entry</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">pivots</span>.<span class="ident">iter_mut</span>().<span class="ident">enumerate</span>() {
-            <span class="kw">let</span> <span class="ident">pivot_column</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">col_start</span> <span class="op">+</span> <span class="ident">pivot_column</span>;
-
-            <span class="comment">// Search down column for a nonzero entry.</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pivot_row</span> <span class="op">=</span> <span class="ident">rows</span>;
-            <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">pivot</span>..<span class="ident">rows</span> {
-                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">i</span>].<span class="ident">entry</span>(<span class="ident">pivot_column</span>) <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
-                    <span class="ident">pivot_row</span> <span class="op">=</span> <span class="ident">i</span>;
-                    <span class="kw">break</span>;
-                }
-            }
-            <span class="kw">if</span> <span class="ident">pivot_row</span> <span class="op">=</span><span class="op">=</span> <span class="ident">rows</span> {
-                <span class="kw">continue</span>;
-            }
-
-            <span class="comment">// Record position of pivot.</span>
-            <span class="kw-2">*</span><span class="ident">entry</span> <span class="op">=</span> <span class="ident">pivot</span> <span class="kw">as</span> <span class="ident">isize</span>;
-
-            <span class="comment">// Pivot_row contains a row with a pivot in current column.</span>
-            <span class="comment">// Swap pivot row up.</span>
-            <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">swap</span>(<span class="ident">pivot</span>, <span class="ident">pivot_row</span>);
-            <span class="comment">// println!(&quot;({}) &lt;==&gt; ({}): \n{}&quot;, pivot, pivot_row, self);</span>
-
-            <span class="comment">// // Divide pivot row by pivot entry</span>
-            <span class="kw">let</span> <span class="ident">c</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">pivot</span>].<span class="ident">entry</span>(<span class="ident">pivot_column</span>);
-            <span class="kw">let</span> <span class="ident">c_inv</span> <span class="op">=</span> <span class="ident">prime</span>::<span class="ident">inverse</span>(<span class="ident">p</span>, <span class="ident">c</span>);
-            <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">pivot</span>].<span class="ident">scale</span>(<span class="ident">c_inv</span>);
-
-            <span class="comment">// println!(&quot;({}) &lt;== {} * ({}): \n{}&quot;, pivot, c_inv, pivot, self);</span>
-            <span class="comment">// We would say:</span>
-            <span class="comment">// for i in 0..rows { // but we want to skip a few rows so we can&#39;t use for.</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">i</span> <span class="op">=</span> <span class="number">0</span>;
-            <span class="kw">while</span> <span class="ident">i</span> <span class="op">&lt;</span> <span class="ident">rows</span> {
-                <span class="kw">if</span> <span class="ident">i</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">=</span><span class="op">=</span> <span class="ident">pivot</span> {
-                    <span class="comment">// Between pivot and pivot_row, we already checked that the pivot column is 0,</span>
-                    <span class="comment">// so we skip ahead a bit.</span>
-                    <span class="ident">i</span> <span class="op">=</span> <span class="ident">pivot_row</span> <span class="op">+</span> <span class="number">1</span>;
-                    <span class="kw">continue</span>;
-                }
-                <span class="kw">let</span> <span class="ident">coef</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">i</span>].<span class="ident">entry</span>(<span class="ident">pivot_column</span>);
-                <span class="comment">// Safety requires i != pivot, which follows from the if i as</span>
-                <span class="comment">// usize == pivot line. They are both less than rows by construction.</span>
-                <span class="kw">unsafe</span> {
-                    <span class="ident">Matrix</span>::<span class="ident">row_op</span>(
-                        <span class="self">self</span>.<span class="ident">vectors</span>,
-                        <span class="ident">i</span>,
-                        <span class="ident">pivot</span>,
-                        <span class="ident">coef</span>,
-                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">col_start</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> { <span class="ident">pivot_column</span> } <span class="kw">else</span> { <span class="number">0</span> },
-                        <span class="kw-2">*</span><span class="ident">p</span>,
-                    )
-                };
-                <span class="ident">i</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>; <span class="comment">// loop control structure.</span>
-            }
-            <span class="ident">pivot</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
         }
     }
 }
@@ -2345,7 +2256,6 @@
 
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">Matrix</span>::<span class="ident">from_rows</span>(<span class="ident">p</span>, <span class="ident">rows</span>, <span class="ident">cols</span>);
             <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">m</span>);
-            <span class="ident">m</span>.<span class="ident">initialize_pivots</span>();
             <span class="ident">m</span>.<span class="ident">row_reduce</span>();
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">input</span>.<span class="ident">len</span>() {
                 <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vec</span>::<span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">m</span>[<span class="ident">i</span>]), <span class="ident">goal_output</span>[<span class="ident">i</span>]);
