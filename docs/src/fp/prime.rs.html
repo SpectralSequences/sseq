@@ -574,6 +574,20 @@
 <span id="553">553</span>
 <span id="554">554</span>
 <span id="555">555</span>
+<span id="556">556</span>
+<span id="557">557</span>
+<span id="558">558</span>
+<span id="559">559</span>
+<span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">NUM_PRIMES</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">8</span>;
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MAX_PRIME</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">19</span>;
@@ -753,6 +767,20 @@
         <span class="ident">e</span> <span class="op">&gt;</span><span class="op">&gt;</span><span class="op">=</span> <span class="number">1</span>;
     }
     <span class="ident">result</span>
+}
+
+<span class="doccomment">/// Compute the base 2 log of a number, rounded down to the nearest integer.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// # Example</span>
+<span class="doccomment">/// ```</span>
+<span class="doccomment">/// # use fp::prime::log2;</span>
+<span class="doccomment">/// assert_eq!(0, log2(0b1));</span>
+<span class="doccomment">/// assert_eq!(1, log2(0b10));</span>
+<span class="doccomment">/// assert_eq!(1, log2(0b11));</span>
+<span class="doccomment">/// assert_eq!(3, log2(0b1011));</span>
+<span class="doccomment">/// ```</span>
+<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">log2</span>(<span class="ident">n</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">size_of</span>::<span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>() <span class="op">*</span> <span class="number">8</span> <span class="op">-</span> <span class="number">1</span> <span class="op">-</span> <span class="ident">n</span>.<span class="ident">leading_zeros</span>() <span class="kw">as</span> <span class="ident">usize</span>
 }
 
 <span class="comment">// Discrete log base p of n.</span>
