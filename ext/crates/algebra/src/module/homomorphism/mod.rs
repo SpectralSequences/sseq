@@ -31,8 +31,10 @@ pub use truncated_homomorphism::{TruncatedHomomorphism, TruncatedHomomorphismSou
 
 /// Each `ModuleHomomorphism` may come with auxiliary data, namely the kernel, image and
 /// quasi_inverse at each degree (the quasi-inverse is a map that is a right inverse when
-/// restricted to the image). These are computed via [`compute_auxiliary_data_through_degree`] and
-/// retrieved through [`kernel`], [`quasi_inverse`] and [`image`].
+/// restricted to the image). These are computed via
+/// [`ModuleHomomorphism::compute_auxiliary_data_through_degree`] and retrieved through
+/// [`ModuleHomomorphism::kernel`], [`ModuleHomomorphism::quasi_inverse`] and
+/// [`ModuleHomomorphism::image`].
 ///
 /// Note that an instance of a `ModuleHomomorphism` need not have the data available, even after
 /// `compute_auxiliary_data_through_degree` is invoked.

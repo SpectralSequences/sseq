@@ -5,8 +5,8 @@ use crate::vector::{FpVector, Slice, SliceMut};
 use std::fmt;
 use std::ops::{Index, IndexMut};
 
-/// Mutably borrows x[i] and x[j]. Caller needs to ensure i != j for safety, and i and j must not
-/// be out of bounds.
+/// Mutably borrows `x[i]` and `x[j]`. Caller needs to ensure `i != j` for safety, and i and j must
+/// not be out of bounds.
 unsafe fn split_borrow<T>(x: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
     let ptr = x.as_mut_ptr();
     (&mut *ptr.add(i), &mut *ptr.add(j))
@@ -89,7 +89,7 @@ impl Matrix {
         self.columns
     }
 
-    /// Set the pivots to -1 in every entry. This is called by [`row_reduce`].
+    /// Set the pivots to -1 in every entry. This is called by [`Matrix::row_reduce`].
     pub fn initialize_pivots(&mut self) {
         self.pivots.clear();
         self.pivots.resize(self.columns, -1);
@@ -305,7 +305,7 @@ where
 }
 
 impl Matrix {
-    /// Subtracts coef * self[source] from self[target].
+    /// Subtracts `coef * self[source]` from `self[target]`.
     ///
     /// # Safety
     /// `target` and `source` must be distinct and less that `vectors.len()`

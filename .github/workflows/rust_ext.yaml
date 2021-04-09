@@ -6,6 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
         RUST_BACKTRACE: 1
+        RUTSFLAGS: "-D warnings"
         RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:
@@ -77,6 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
         RUST_BACKTRACE: 1
+        RUTSFLAGS: "-D warnings"
         RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:
@@ -114,6 +116,7 @@ jobs:
     runs-on: ubuntu-20.04
     env:
         RUST_BACKTRACE: 1
+        RUTSFLAGS: "-D warnings"
         RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:
@@ -167,6 +170,7 @@ jobs:
     runs-on: ubuntu-20.04
     env:
         RUST_BACKTRACE: 1
+        RUTSFLAGS: "-D warnings"
 
     steps:
     - uses: actions/checkout@v2

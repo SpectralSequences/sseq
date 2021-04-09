@@ -171,7 +171,7 @@ impl<T> OnceVec<T> {
     }
 
     /// Takes a lock on the `OnceVec`. The `OnceVec` cannot be updated while the lock is held.
-    /// This is useful when used in conjuction with [`extend`];
+    /// This is useful when used in conjuction with [`OnceVec::extend`];
     pub fn lock(&self) -> MutexGuard<()> {
         self.lock.lock()
     }
@@ -218,7 +218,7 @@ impl<T> OnceVec<T> {
 
     /// Extend the `OnceVec` to up to index `new_max`, filling in the entries with the values of
     /// `f`. This takes the lock before calling `f`, which is useful behaviour if used in
-    /// conjunction with [`lock`].
+    /// conjunction with [`OnceVec::lock`].
     ///
     /// This is thread-safe and guaranteed to be idempotent. `f` will only be called once per
     /// index.
@@ -439,7 +439,7 @@ impl<T> OnceBiVec<T> {
 
     /// Extend the `OnceBiVec` to up to index `new_max`, filling in the entries with the values of
     /// `f`. This takes the lock before calling `f`, which is useful behaviour if used in
-    /// conjunction with [`lock`].
+    /// conjunction with [`OnceBiVec::lock`].
     ///
     /// This is thread-safe and guaranteed to be idempotent. `f` will only be called once per
     /// index.
@@ -475,7 +475,7 @@ impl<T> OnceBiVec<T> {
     }
 
     /// Takes a lock on the `OnceBiVec`. The `OnceBiVec` cannot be updated while the lock is held.
-    /// This is useful when used in conjuction with [`extend`];
+    /// This is useful when used in conjuction with [`OnceBiVec::extend`];
     pub fn lock(&self) -> MutexGuard<()> {
         self.data.lock()
     }
