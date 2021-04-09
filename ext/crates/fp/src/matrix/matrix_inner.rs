@@ -310,19 +310,19 @@ impl Matrix {
     /// # Safety
     /// `target` and `source` must be distinct and less that `vectors.len()`
     pub unsafe fn row_op(
-        vectors: &mut [FpVector],
+        &mut self,
         target: usize,
         source: usize,
         pivot_column: usize,
-        prime: u32,
+        prime: ValidPrime,
     ) {
         debug_assert!(target != source);
-        let coef = vectors[target].entry(pivot_column);
+        let coef = self.vectors[target].entry(pivot_column);
         if coef == 0 {
             return;
         }
-        let (target, source) = split_borrow(vectors, target, source);
-        target.add_offset(source, prime - coef, pivot_column);
+        let (target, source) = split_borrow(&mut self.vectors, target, source);
+        target.add_offset(source, *prime - coef, pivot_column);
     }
 
     /// This is very similar to row_reduce, except we only need to get to row echelon form, not
@@ -370,7 +370,7 @@ impl Matrix {
             for i in pivot_row + 1..rows {
                 // Safety requires i != pivot, which follows from i > pivot_row >= pivot. They are
                 // both less than rows by construction
-                unsafe { Matrix::row_op(&mut self.vectors, i, pivot, pivot_column, *p) };
+                unsafe { self.row_op(i, pivot, pivot_column, p) };
             }
             pivot += 1;
         }
@@ -422,7 +422,7 @@ impl Matrix {
                         continue;
                     }
                     unsafe {
-                        Matrix::row_op(&mut self.vectors, j, i, c, *p);
+                        self.row_op(j, i, c, p);
                     }
                 }
             } else {
@@ -470,7 +470,7 @@ impl Matrix {
                 self.pivots[c] = i as isize;
                 for &row in table.rows() {
                     unsafe {
-                        Matrix::row_op(&mut self.vectors, row, i, c, *p);
+                        self.row_op(row, i, c, p);
                     }
                 }
                 table.add(c, i);

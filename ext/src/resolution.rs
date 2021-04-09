@@ -5,7 +5,7 @@ use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
-use fp::matrix::{AugmentedMatrix, Matrix, Subspace};
+use fp::matrix::{AugmentedMatrix, Subspace};
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use once::{OnceBiVec, OnceVec};
@@ -319,7 +319,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                     }
                     let row = row as usize;
                     unsafe {
-                        Matrix::row_op(&mut *matrix, k, row, column, *p);
+                        matrix.row_op(k, row, column, p);
                     }
                 }
             }
@@ -329,13 +329,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             for (source_row, &pivot_col) in res_new_gens.iter().enumerate() {
                 for target_row in 0..first_res_row {
                     unsafe {
-                        Matrix::row_op(
-                            &mut *matrix,
-                            target_row,
-                            source_row + first_res_row,
-                            pivot_col,
-                            *p,
-                        );
+                        matrix.row_op(target_row, source_row + first_res_row, pivot_col, p);
                     }
                 }
             }
