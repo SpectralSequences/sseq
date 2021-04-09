@@ -112,11 +112,10 @@ impl M4riTable {
 
     pub fn reduce(&self, v: &mut [Limb]) {
         let num_limbs = v.len();
-        let mut index = 0;
-        for (i, &col) in self.columns.iter().enumerate() {
-            if (v[col.0] >> col.1) & 1 != 0 {
-                index += 1 << i;
-            }
+        let mut index: usize = 0;
+        for &col in self.columns.iter().rev() {
+            index <<= 1;
+            index += ((v[col.0] >> col.1) & 1) as usize;
         }
         if index != 0 {
             simd::add_simd(v, &self.data[(index - 1) * num_limbs..], self.min_limb);
