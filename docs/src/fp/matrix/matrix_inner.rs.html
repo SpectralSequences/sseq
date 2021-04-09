@@ -1149,8 +1149,8 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::{<span class="ident">Index</span>, <span class="ident">IndexMut</span>};
 
-<span class="doccomment">/// Mutably borrows x[i] and x[j]. Caller needs to ensure i != j for safety, and i and j must not</span>
-<span class="doccomment">/// be out of bounds.</span>
+<span class="doccomment">/// Mutably borrows `x[i]` and `x[j]`. Caller needs to ensure `i != j` for safety, and i and j must</span>
+<span class="doccomment">/// not be out of bounds.</span>
 <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">split_borrow</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">x</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">T</span>], <span class="ident">i</span>: <span class="ident">usize</span>, <span class="ident">j</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">T</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">T</span>) {
     <span class="kw">let</span> <span class="ident">ptr</span> <span class="op">=</span> <span class="ident">x</span>.<span class="ident">as_mut_ptr</span>();
     (<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="ident">ptr</span>.<span class="ident">add</span>(<span class="ident">i</span>), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="ident">ptr</span>.<span class="ident">add</span>(<span class="ident">j</span>))
@@ -1233,7 +1233,7 @@
         <span class="self">self</span>.<span class="ident">columns</span>
     }
 
-    <span class="doccomment">/// Set the pivots to -1 in every entry. This is called by [`row_reduce`].</span>
+    <span class="doccomment">/// Set the pivots to -1 in every entry. This is called by [`Matrix::row_reduce`].</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">initialize_pivots</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="self">self</span>.<span class="ident">pivots</span>.<span class="ident">clear</span>();
         <span class="self">self</span>.<span class="ident">pivots</span>.<span class="ident">resize</span>(<span class="self">self</span>.<span class="ident">columns</span>, <span class="op">-</span><span class="number">1</span>);
@@ -1449,7 +1449,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Matrix</span> {
-    <span class="doccomment">/// Subtracts coef * self[source] from self[target].</span>
+    <span class="doccomment">/// Subtracts `coef * self[source]` from `self[target]`.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Safety</span>
     <span class="doccomment">/// `target` and `source` must be distinct and less that `vectors.len()`</span>

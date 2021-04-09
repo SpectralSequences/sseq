@@ -772,7 +772,7 @@
     }
 
     <span class="doccomment">/// Takes a lock on the `OnceVec`. The `OnceVec` cannot be updated while the lock is held.</span>
-    <span class="doccomment">/// This is useful when used in conjuction with [`extend`];</span>
+    <span class="doccomment">/// This is useful when used in conjuction with [`OnceVec::extend`];</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MutexGuard</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>()
     }
@@ -819,7 +819,7 @@
 
     <span class="doccomment">/// Extend the `OnceVec` to up to index `new_max`, filling in the entries with the values of</span>
     <span class="doccomment">/// `f`. This takes the lock before calling `f`, which is useful behaviour if used in</span>
-    <span class="doccomment">/// conjunction with [`lock`].</span>
+    <span class="doccomment">/// conjunction with [`OnceVec::lock`].</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This is thread-safe and guaranteed to be idempotent. `f` will only be called once per</span>
     <span class="doccomment">/// index.</span>
@@ -1040,7 +1040,7 @@
 
     <span class="doccomment">/// Extend the `OnceBiVec` to up to index `new_max`, filling in the entries with the values of</span>
     <span class="doccomment">/// `f`. This takes the lock before calling `f`, which is useful behaviour if used in</span>
-    <span class="doccomment">/// conjunction with [`lock`].</span>
+    <span class="doccomment">/// conjunction with [`OnceBiVec::lock`].</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This is thread-safe and guaranteed to be idempotent. `f` will only be called once per</span>
     <span class="doccomment">/// index.</span>
@@ -1076,7 +1076,7 @@
     }
 
     <span class="doccomment">/// Takes a lock on the `OnceBiVec`. The `OnceBiVec` cannot be updated while the lock is held.</span>
-    <span class="doccomment">/// This is useful when used in conjuction with [`extend`];</span>
+    <span class="doccomment">/// This is useful when used in conjuction with [`OnceBiVec::extend`];</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MutexGuard</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">data</span>.<span class="ident">lock</span>()
     }

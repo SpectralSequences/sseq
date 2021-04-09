@@ -166,6 +166,8 @@
 <span id="145">145</span>
 <span id="146">146</span>
 <span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -200,8 +202,10 @@
 
 <span class="doccomment">/// Each `ModuleHomomorphism` may come with auxiliary data, namely the kernel, image and</span>
 <span class="doccomment">/// quasi_inverse at each degree (the quasi-inverse is a map that is a right inverse when</span>
-<span class="doccomment">/// restricted to the image). These are computed via [`compute_auxiliary_data_through_degree`] and</span>
-<span class="doccomment">/// retrieved through [`kernel`], [`quasi_inverse`] and [`image`].</span>
+<span class="doccomment">/// restricted to the image). These are computed via</span>
+<span class="doccomment">/// [`ModuleHomomorphism::compute_auxiliary_data_through_degree`] and retrieved through</span>
+<span class="doccomment">/// [`ModuleHomomorphism::kernel`], [`ModuleHomomorphism::quasi_inverse`] and</span>
+<span class="doccomment">/// [`ModuleHomomorphism::image`].</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Note that an instance of a `ModuleHomomorphism` need not have the data available, even after</span>
 <span class="doccomment">/// `compute_auxiliary_data_through_degree` is invoked.</span>
