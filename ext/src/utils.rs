@@ -41,9 +41,11 @@ pub fn get_config() -> Config {
     static_modules_path.pop();
     static_modules_path.push("steenrod_modules");
     let current_dir = std::env::current_dir().unwrap();
+    let mut relative_dir = std::env::current_dir().unwrap();
+    relative_dir.push("steenrod_modules");
 
     Config {
-        module_paths: vec![current_dir, static_modules_path],
+        module_paths: vec![current_dir, relative_dir, static_modules_path],
         algebra_name: args
             .opt_value_from_str("--algebra")
             .unwrap()
