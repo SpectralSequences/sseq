@@ -458,7 +458,7 @@ impl Matrix {
         let p = self.p;
         self.initialize_pivots();
 
-        // the m4ri C library uses a similar formula but with a hard cap of 16 instead of 8
+        // the m4ri C library uses a similar formula but with a hard cap of 7 instead of 8
         let k = std::cmp::min(8, crate::prime::log2(1 + self.rows()) * 3 / 4);
         let mut empty_rows = Vec::with_capacity(self.rows());
         let mut table = M4riTable::new(k, self.columns());
