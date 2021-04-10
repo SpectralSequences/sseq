@@ -1670,7 +1670,7 @@
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">p</span>;
         <span class="self">self</span>.<span class="ident">initialize_pivots</span>();
 
-        <span class="comment">// the m4ri C library uses a similar formula but with a hard cap of 16 instead of 8</span>
+        <span class="comment">// the m4ri C library uses a similar formula but with a hard cap of 7 instead of 8</span>
         <span class="kw">let</span> <span class="ident">k</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">min</span>(<span class="number">8</span>, <span class="kw">crate</span>::<span class="ident">prime</span>::<span class="ident">log2</span>(<span class="number">1</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">rows</span>()) <span class="op">*</span> <span class="number">3</span> <span class="op">/</span> <span class="number">4</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">empty_rows</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="self">self</span>.<span class="ident">rows</span>());
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">table</span> <span class="op">=</span> <span class="ident">M4riTable</span>::<span class="ident">new</span>(<span class="ident">k</span>, <span class="self">self</span>.<span class="ident">columns</span>());
