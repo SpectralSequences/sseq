@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 use crate::matrix::Matrix;
 use crate::simd;
-use crate::vector_inner::{limb::number, FpVectorP, Limb, BITS_PER_LIMB};
+use crate::vector::FpVector;
+use crate::vector_inner::{limb::number, Limb, BITS_PER_LIMB};
 
 #[derive(Debug, Default)]
 /// M4RI works as follows --- first row reduce k rows using the naive algorithm. We then construct
@@ -96,7 +97,7 @@ impl M4riTable {
         }
     }
 
-    pub fn reduce_naive(&self, vectors: &mut [FpVectorP<2>], target: usize) {
+    pub fn reduce_naive(&self, vectors: &mut [FpVector], target: usize) {
         for (&row, col) in self.rows.iter().zip(&self.columns) {
             assert!(target != row);
             unsafe {

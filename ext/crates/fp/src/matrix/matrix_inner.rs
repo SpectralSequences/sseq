@@ -1,4 +1,5 @@
 use super::{QuasiInverse, Subspace};
+use crate::matrix::m4ri::M4riTable;
 use crate::prime::{self, ValidPrime};
 use crate::vector::{FpVector, Slice, SliceMut};
 
@@ -407,94 +408,67 @@ impl Matrix {
     ///
     /// assert_eq!(m, Matrix::from_vec(p, &result));
     /// `#`#`
-    #[cfg(feature = "odd-primes")]
     pub fn row_reduce(&mut self) {
         let p = self.p;
         self.initialize_pivots();
 
         let mut empty_rows = Vec::with_capacity(self.rows());
-        for i in 0..self.rows() {
-            if let Some((c, v)) = self[i].first_nonzero() {
-                self.pivots[c] = i as isize;
-                self[i].scale(prime::inverse(p, v));
-                for j in 0..self.rows() {
-                    if i == j {
-                        continue;
+
+        if *self.p == 2 {
+            // the m4ri C library uses a similar formula but with a hard cap of 7 instead of 8
+            let k = std::cmp::min(8, crate::prime::log2(1 + self.rows()) * 3 / 4);
+            let mut table = M4riTable::new(k, self.columns());
+
+            for i in 0..self.rows() {
+                table.reduce_naive(&mut *self, i);
+
+                if let Some((c, _)) = self[i].first_nonzero() {
+                    self.pivots[c] = i as isize;
+                    for &row in table.rows() {
+                        unsafe {
+                            self.row_op(row, i, c, p);
+                        }
                     }
-                    unsafe {
-                        self.row_op(j, i, c, p);
+                    table.add(c, i);
+
+                    if table.len() == k {
+                        table.generate(&self);
+                        for j in 0..table.rows()[0] {
+                            table.reduce(self[j].limbs_mut());
+                        }
+                        for j in i + 1..self.rows() {
+                            table.reduce(self[j].limbs_mut());
+                        }
+                        table.clear();
                     }
+                } else {
+                    empty_rows.push(i);
                 }
-            } else {
-                empty_rows.push(i);
             }
-        }
-
-        // Now reorder the vectors. There are O(n) in-place permutation algorithms but the way we
-        // get the permutation makes the naive strategy easier.
-        let old_capacity = self.vectors.capacity();
-        let mut old_rows = std::mem::replace(&mut self.vectors, Vec::with_capacity(old_capacity));
-
-        for row in &mut self.pivots {
-            if *row >= 0 {
-                self.vectors.push(std::mem::replace(
-                    &mut old_rows[*row as usize],
-                    FpVector::new(p, 0),
-                ));
-                *row = self.vectors.len() as isize - 1;
-            }
-        }
-        for row in empty_rows {
-            self.vectors
-                .push(std::mem::replace(&mut old_rows[row], FpVector::new(p, 0)))
-        }
-    }
-
-    #[cfg(not(feature = "odd-primes"))]
-    pub fn row_reduce(&mut self) {
-        // See M4riTable documentation for more on the algorithm
-        use crate::matrix::m4ri::M4riTable;
-
-        let p = self.p;
-        self.initialize_pivots();
-
-        // the m4ri C library uses a similar formula but with a hard cap of 7 instead of 8
-        let k = std::cmp::min(8, crate::prime::log2(1 + self.rows()) * 3 / 4);
-        let mut empty_rows = Vec::with_capacity(self.rows());
-        let mut table = M4riTable::new(k, self.columns());
-
-        for i in 0..self.rows() {
-            table.reduce_naive(&mut *self, i);
-
-            if let Some((c, _)) = self[i].first_nonzero() {
-                self.pivots[c] = i as isize;
-                for &row in table.rows() {
-                    unsafe {
-                        self.row_op(row, i, c, p);
-                    }
+            if !table.is_empty() {
+                table.generate(&self);
+                for j in 0..table.rows()[0] {
+                    table.reduce(self[j].limbs_mut());
                 }
-                table.add(c, i);
-
-                if table.len() == k {
-                    table.generate(&self);
-                    for j in 0..table.rows()[0] {
-                        table.reduce(self[j].limbs_mut());
+                table.clear();
+            }
+        } else {
+            for i in 0..self.rows() {
+                if let Some((c, v)) = self[i].first_nonzero() {
+                    self.pivots[c] = i as isize;
+                    self[i].scale(prime::inverse(p, v));
+                    for j in 0..self.rows() {
+                        if i == j {
+                            continue;
+                        }
+                        unsafe {
+                            self.row_op(j, i, c, p);
+                        }
                     }
-                    for j in i + 1..self.rows() {
-                        table.reduce(self[j].limbs_mut());
-                    }
-                    table.clear();
+                } else {
+                    empty_rows.push(i);
                 }
-            } else {
-                empty_rows.push(i);
             }
-        }
-        if !table.is_empty() {
-            table.generate(&self);
-            for j in 0..table.rows()[0] {
-                table.reduce(self[j].limbs_mut());
-            }
-            table.clear();
         }
 
         // Now reorder the vectors. There are O(n) in-place permutation algorithms but the way we
