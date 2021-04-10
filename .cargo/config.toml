@@ -1,0 +1,3 @@
+# I really want this to mean "if not cross compiling".
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target_cpu=native"]
