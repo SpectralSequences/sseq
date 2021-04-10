@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 use crate::matrix::Matrix;
 use crate::simd;
-use crate::vector::FpVector;
 use crate::vector_inner::{limb::number, Limb, BITS_PER_LIMB};
 
 #[derive(Debug, Default)]
@@ -97,14 +96,13 @@ impl M4riTable {
         }
     }
 
-    pub fn reduce_naive(&self, vectors: &mut [FpVector], target: usize) {
+    pub fn reduce_naive(&self, matrix: &mut Matrix, target: usize) {
         for (&row, col) in self.rows.iter().zip(&self.columns) {
             assert!(target != row);
             unsafe {
-                let coef = (vectors[target].limbs()[col.0] >> col.1) & 1;
+                let coef = (matrix[target].limbs()[col.0] >> col.1) & 1;
                 if coef != 0 {
-                    let (target, source) =
-                        crate::matrix::matrix_inner::split_borrow(vectors, target, row);
+                    let (target, source) = matrix.split_borrow(target, row);
                     simd::add_simd(target.limbs_mut(), source.limbs(), col.0)
                 }
             }

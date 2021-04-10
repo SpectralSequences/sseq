@@ -6,13 +6,6 @@ use crate::vector::{FpVector, Slice, SliceMut};
 use std::fmt;
 use std::ops::{Index, IndexMut};
 
-/// Mutably borrows `x[i]` and `x[j]`. Caller needs to ensure `i != j` for safety, and i and j must
-/// not be out of bounds.
-pub(crate) unsafe fn split_borrow<T>(x: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
-    let ptr = x.as_mut_ptr();
-    (&mut *ptr.add(i), &mut *ptr.add(j))
-}
-
 /// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is
 /// easier to perform row operations than column operations, and the way we use matrices means we
 /// want our matrices to act on the right. Hence we think of vectors as row vectors.
@@ -322,8 +315,21 @@ impl Matrix {
         if coef == 0 {
             return;
         }
-        let (target, source) = split_borrow(&mut self.vectors, target, source);
+        let (target, source) = self.split_borrow(target, source);
         target.add_offset(source, *prime - coef, pivot_column);
+    }
+
+    /// Mutably borrows `x[i]` and `x[j]`.
+    ///
+    /// # Safety
+    /// `i` and `j` must be distinct and not out of bounds.
+    pub(crate) unsafe fn split_borrow(
+        &mut self,
+        i: usize,
+        j: usize,
+    ) -> (&mut FpVector, &mut FpVector) {
+        let ptr = self.vectors.as_mut_ptr();
+        (&mut *ptr.add(i), &mut *ptr.add(j))
     }
 
     /// This is very similar to row_reduce, except we only need to get to row echelon form, not
