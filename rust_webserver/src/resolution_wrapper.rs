@@ -1,8 +1,7 @@
 use rustc_hash::FxHashSet as HashSet;
 use serde_json::Value;
-use std::cmp::min;
-use std::sync::RwLock;
-use std::sync::{Arc, Weak};
+use std::cmp::{max, min};
+use std::sync::Arc;
 // use std::time::Instant;
 
 use algebra::module::homomorphism::FreeModuleHomomorphism;
@@ -21,19 +20,6 @@ use ext::resolution_homomorphism::ResolutionHomomorphism as ResolutionHomomorphi
 pub type ResolutionHomomorphism<CC> =
     ResolutionHomomorphism_<ResolutionInner<CC>, ResolutionInner<CC>>;
 
-/// Hack to compare two pointers of different types (in this case because they might have different
-/// type parameters.
-fn ptr_eq<T, S>(a: &Arc<T>, b: &Arc<S>) -> bool {
-    let a = Arc::into_raw(Arc::clone(a));
-    let b = Arc::into_raw(Arc::clone(b)) as *const T;
-    let eq = std::ptr::eq(a, b);
-    unsafe {
-        let _ = Arc::from_raw(a);
-        let _ = Arc::from_raw(b as *const S);
-    }
-    eq
-}
-
 #[derive(Clone)]
 struct Cocycle {
     s: u32,
@@ -50,6 +36,12 @@ pub struct SelfMap<CC: ChainComplex> {
     pub map: ResolutionHomomorphism<CC>,
 }
 
+enum UnitResolution<CC: ChainComplex> {
+    None,
+    Own,
+    Some(Box<Resolution<CC>>),
+}
+
 pub type AddClassFn = Box<dyn Fn(u32, i32, usize)>;
 pub type AddStructlineFn = Box<dyn Fn(&str, u32, i32, u32, i32, bool, Vec<Vec<u32>>)>;
 
@@ -62,14 +54,14 @@ pub struct Resolution<CC: ChainComplex> {
     filtration_one_products: Vec<(String, i32, usize)>,
 
     // Products
-    pub unit_resolution: Option<Weak<RwLock<Resolution<CC>>>>,
-    pub unit_resolution_owner: Option<Arc<RwLock<Resolution<CC>>>>,
+    unit_resolution: UnitResolution<CC>,
     product_names: HashSet<String>,
     product_list: Vec<Cocycle>,
     // s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
     // until we actually have a unit resolution, of course.
     chain_maps_to_unit_resolution: OnceVec<OnceBiVec<OnceVec<ResolutionHomomorphism<CC>>>>,
-    max_product_homological_degree: u32,
+    max_product_s: u32,
+    max_product_t: i32,
 
     // Self maps
     pub self_maps: Vec<SelfMap<CC>>,
@@ -136,11 +128,11 @@ impl<CC: ChainComplex> Resolution<CC> {
             filtration_one_products: algebra.default_filtration_one_products(),
 
             chain_maps_to_unit_resolution: OnceVec::new(),
-            max_product_homological_degree: 0,
+            max_product_s: 0,
+            max_product_t: 0,
             product_names: HashSet::default(),
             product_list: Vec::new(),
-            unit_resolution: None,
-            unit_resolution_owner: None,
+            unit_resolution: UnitResolution::None,
 
             self_maps: Vec::new(),
         }
@@ -148,19 +140,6 @@ impl<CC: ChainComplex> Resolution<CC> {
 
     #[cfg(feature = "concurrent")]
     pub fn resolve_through_bidegree_concurrent(&self, s: u32, t: i32, bucket: &TokenBucket) {
-        if let Some(unit_res) = &self.unit_resolution {
-            let unit_res = unit_res.upgrade().unwrap();
-            let unit_res = unit_res.read().unwrap();
-            // Avoid a deadlock
-            if !ptr_eq(&unit_res.inner, &self.inner) {
-                unit_res.resolve_through_bidegree_concurrent(
-                    self.max_product_homological_degree,
-                    t - self.min_degree(),
-                    bucket,
-                );
-            }
-        }
-
         self.inner
             .resolve_through_bidegree_concurrent_with_callback(s, t, bucket, |s, t| {
                 self.step_after(s, t)
@@ -168,18 +147,6 @@ impl<CC: ChainComplex> Resolution<CC> {
     }
 
     pub fn resolve_through_bidegree(&self, s: u32, t: i32) {
-        if let Some(unit_res) = &self.unit_resolution {
-            let unit_res = unit_res.upgrade().unwrap();
-            let unit_res = unit_res.read().unwrap();
-            // Avoid a deadlock
-            if !ptr_eq(&unit_res.inner, &self.inner) {
-                unit_res.resolve_through_bidegree(
-                    self.max_product_homological_degree,
-                    t - self.min_degree(),
-                );
-            }
-        }
-
         self.inner
             .resolve_through_bidegree_with_callback(s, t, |s, t| self.step_after(s, t));
     }
@@ -305,9 +272,8 @@ impl<CC: ChainComplex> Resolution<CC> {
             false
         } else {
             self.product_names.insert(name.clone());
-            if s > self.max_product_homological_degree {
-                self.max_product_homological_degree = s;
-            }
+            self.max_product_s = max(self.max_product_s, s);
+            self.max_product_t = max(self.max_product_t, t);
 
             // We must add a product into product_list before calling compute_products, since
             // compute_products aborts when product_list is empty.
@@ -316,11 +282,36 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
     }
 
-    pub fn set_unit_resolution(&mut self, unit_res: Weak<RwLock<Resolution<CC>>>) {
+    pub fn unit_resolution(&self) -> &Resolution<CC> {
+        match &self.unit_resolution {
+            UnitResolution::None => panic!("No unit resolution set"),
+            UnitResolution::Own => self,
+            UnitResolution::Some(r) => &r,
+        }
+    }
+
+    pub fn unit_resolution_mut(&mut self) -> &mut Resolution<CC> {
+        // This diversion is needed to get around weird borrowing issues.
+        if matches!(self.unit_resolution, UnitResolution::Own) {
+            self
+        } else {
+            match &mut self.unit_resolution {
+                UnitResolution::None => panic!("No unit resolution set"),
+                UnitResolution::Own => unreachable!(),
+                UnitResolution::Some(ref mut r) => r,
+            }
+        }
+    }
+
+    pub fn set_unit_resolution(&mut self, unit_res: Resolution<CC>) {
         if !self.chain_maps_to_unit_resolution.is_empty() {
             panic!("Cannot change unit resolution after you start computing products");
         }
-        self.unit_resolution = Some(unit_res);
+        self.unit_resolution = UnitResolution::Some(Box::new(unit_res));
+    }
+
+    pub fn set_unit_resolution_self(&mut self) {
+        self.unit_resolution = UnitResolution::Own;
     }
 
     /// Compute products whose result lie in degrees up to (s, t)
@@ -352,8 +343,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 
             let f = &self.chain_maps_to_unit_resolution[source_s][source_t][k];
 
-            let unit_res_ = self.unit_resolution.as_ref().unwrap().upgrade().unwrap();
-            let unit_res = unit_res_.read().unwrap();
+            let unit_res = self.unit_resolution();
             let output_module = unit_res.module(elt.s);
 
             for l in 0..target_dim {
@@ -400,17 +390,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                         let f = ResolutionHomomorphism::new(
                             format!("(hom_deg : {}, int_deg : {}, idx : {})", new_s, new_t, j),
                             Arc::downgrade(&self.inner),
-                            Arc::downgrade(
-                                &self
-                                    .unit_resolution
-                                    .as_ref()
-                                    .unwrap()
-                                    .upgrade()
-                                    .unwrap()
-                                    .read()
-                                    .unwrap()
-                                    .inner,
-                            ),
+                            Arc::downgrade(&self.unit_resolution().inner),
                             new_s as u32,
                             new_t,
                         );
@@ -426,7 +406,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 
     /// This ensures the chain_maps_to_unit_resolution are defined such that we can compute products up
     /// to bidegree (s, t)
-    fn extend_maps_to_unit(&self, s: u32, t: i32) {
+    fn extend_maps_to_unit(&self, max_s: u32, max_t: i32) {
         // If there are no products, we return
         if self.product_list.is_empty() {
             return;
@@ -434,13 +414,14 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         // Now we actually extend the maps.
         let min_degree = self.min_degree();
-        for i in 0..=s {
-            for j in min_degree..=t {
-                let max_s = min(s, i + self.max_product_homological_degree);
-                let num_gens = self.module(i).number_of_gens_in_degree(j);
+        for s in 0..=max_s {
+            for t in min_degree..=max_t {
+                let target_s = min(max_s, s + self.max_product_s);
+                let target_t = min(max_t, t + self.max_product_t);
+                let num_gens = self.module(s).number_of_gens_in_degree(t);
                 for k in 0..num_gens {
-                    let f = &self.chain_maps_to_unit_resolution[i as usize][j][k];
-                    f.extend(max_s, t);
+                    let f = &self.chain_maps_to_unit_resolution[s as usize][t][k];
+                    f.extend(target_s, target_t);
                 }
             }
         }

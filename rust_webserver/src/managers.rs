@@ -8,8 +8,9 @@ use ext::utils::Config;
 use ext::CCC;
 
 use serde_json::json;
+#[cfg(feature = "concurrent")]
 use std::sync::Arc;
-use std::sync::RwLock;
+
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 #[cfg(feature = "concurrent")]
@@ -31,8 +32,7 @@ pub struct ResolutionManager {
     bucket: Arc<TokenBucket>,
     sender: Sender,
     is_unit: bool,
-    resolution: Option<Arc<RwLock<Resolution<CCC>>>>,
-    unit_resolution: Option<Arc<RwLock<Resolution<CCC>>>>,
+    resolution: Option<Resolution<CCC>>,
 }
 
 impl ResolutionManager {
@@ -47,7 +47,6 @@ impl ResolutionManager {
 
             sender,
             resolution: None,
-            unit_resolution: None,
             is_unit: false,
         }
     }
@@ -66,11 +65,11 @@ impl ResolutionManager {
             Action::Resolve(a) => self.resolve(a, msg.sseq)?,
             Action::BlockRefresh(_) => self.sender.send(msg)?,
             _ => {
+                let resolution = self.resolution.as_mut().unwrap();
                 let resolution = match msg.sseq {
-                    SseqChoice::Main => &self.resolution,
-                    SseqChoice::Unit => &self.unit_resolution,
+                    SseqChoice::Main => resolution,
+                    SseqChoice::Unit => resolution.unit_resolution_mut(),
                 };
-                let resolution = resolution.as_ref().unwrap();
 
                 ret = msg.action.act_resolution(resolution);
             }
@@ -108,7 +107,8 @@ impl ResolutionManager {
         dir.pop();
         dir.pop();
         dir.pop();
-        dir.push("modules");
+        dir.pop();
+        dir.push("ext/steenrod_modules");
 
         let json = ext::utils::load_module_from_file(&Config {
             module_paths: vec![dir],
@@ -129,15 +129,9 @@ impl ResolutionManager {
             resolution.complex().modules.len() == 1 && resolution.complex().module(0).is_unit();
 
         if self.is_unit {
-            let resolution = Arc::new(RwLock::new(resolution));
-            resolution
-                .write()
-                .unwrap()
-                .set_unit_resolution(Arc::downgrade(&resolution));
-            self.unit_resolution = Some(Arc::clone(&resolution));
-            self.resolution = Some(resolution);
+            resolution.set_unit_resolution_self();
         } else {
-            let unit_resolution = Resolution::new_from_json(
+            let mut unit_resolution = Resolution::new_from_json(
                 json!({
                     "type": "finite dimensional module",
                     "p": *resolution.prime(),
@@ -146,33 +140,21 @@ impl ResolutionManager {
                 }),
                 &resolution.algebra().prefix(),
             );
+            self.setup_callback(&mut unit_resolution, SseqChoice::Unit);
 
-            let unit_resolution = Arc::new(RwLock::new(unit_resolution));
-
-            resolution.set_unit_resolution(Arc::downgrade(&unit_resolution));
-            self.unit_resolution = Some(Arc::clone(&unit_resolution));
-            self.resolution = Some(Arc::new(RwLock::new(resolution)));
+            resolution.set_unit_resolution(unit_resolution);
         }
-
-        let resolution = self.resolution.as_ref().unwrap();
-        let mut resolution = resolution.write().unwrap();
         self.setup_callback(&mut resolution, SseqChoice::Main);
 
-        if !self.is_unit {
-            let unit_resolution = self.unit_resolution.as_ref().unwrap();
-            let mut unit_resolution = unit_resolution.write().unwrap();
-            self.setup_callback(&mut unit_resolution, SseqChoice::Unit);
-        }
+        self.resolution = Some(resolution);
     }
 
     fn resolve(&self, action: Resolve, sseq: SseqChoice) -> error::Result<()> {
+        let resolution = self.resolution.as_ref().unwrap();
         let resolution = match sseq {
-            SseqChoice::Main => &self.resolution,
-            SseqChoice::Unit => &self.unit_resolution,
+            SseqChoice::Main => resolution,
+            SseqChoice::Unit => resolution.unit_resolution(),
         };
-
-        let resolution = resolution.as_ref().unwrap();
-        let resolution = resolution.read().unwrap();
 
         let min_degree = resolution.min_degree();
 

@@ -6,8 +6,6 @@ use enum_dispatch::enum_dispatch;
 use ext::CCC;
 use fp::vector::FpVector;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use std::sync::RwLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
@@ -92,7 +90,7 @@ pub trait ActionT: std::fmt::Debug {
     fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
         unimplemented!();
     }
-    fn act_resolution(&self, resolution: &Arc<RwLock<Resolution<CCC>>>) -> Option<Message> {
+    fn act_resolution(&self, resolution: &mut Resolution<CCC>) -> Option<Message> {
         unimplemented!();
     }
     // We take this because sometimes we want to only take an immutable borrow.
@@ -140,16 +138,12 @@ impl ActionT for AddProductType {
         None
     }
 
-    fn act_resolution(&self, resolution: &Arc<RwLock<Resolution<CCC>>>) -> Option<Message> {
+    fn act_resolution(&self, resolution: &mut Resolution<CCC>) -> Option<Message> {
         let s = self.y as u32;
         let t = self.x + self.y;
 
-        if resolution
-            .write()
-            .unwrap()
-            .add_product(s, t, self.class.clone(), &self.name)
-        {
-            resolution.read().unwrap().catch_up_products();
+        if resolution.add_product(s, t, self.class.clone(), &self.name) {
+            resolution.catch_up_products();
         }
         None
     }
@@ -282,7 +276,7 @@ impl ActionT for AddProductDifferential {
         None
     }
 
-    fn act_resolution(&self, resolution: &Arc<RwLock<Resolution<CCC>>>) -> Option<Message> {
+    fn act_resolution(&self, resolution: &mut Resolution<CCC>) -> Option<Message> {
         self.source.act_resolution(resolution);
         self.target.act_resolution(resolution);
         None
@@ -369,8 +363,7 @@ pub struct QueryTable {
     pub t: i32,
 }
 impl ActionT for QueryTable {
-    fn act_resolution(&self, resolution: &Arc<RwLock<Resolution<CCC>>>) -> Option<Message> {
-        let resolution = resolution.read().unwrap();
+    fn act_resolution(&self, resolution: &mut Resolution<CCC>) -> Option<Message> {
         let s = self.s;
         let t = self.t;
 
@@ -405,8 +398,7 @@ pub struct QueryCocycleString {
     idx: usize,
 }
 impl ActionT for QueryCocycleString {
-    fn act_resolution(&self, resolution: &Arc<RwLock<Resolution<CCC>>>) -> Option<Message> {
-        let resolution = resolution.read().unwrap();
+    fn act_resolution(&self, resolution: &mut Resolution<CCC>) -> Option<Message> {
         let s = self.s;
         let t = self.t;
         let idx = self.idx;
