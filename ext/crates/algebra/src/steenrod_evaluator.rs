@@ -4,46 +4,8 @@ use crate::change_of_basis;
 use crate::module::Module;
 use crate::steenrod_parser::BocksteinOrSq;
 use crate::steenrod_parser::*;
-use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use rustc_hash::FxHashMap as HashMap;
-
-pub struct SteenrodCalculator {
-    adem_algebra: AdemAlgebra,
-    milnor_algebra: MilnorAlgebra,
-}
-
-impl SteenrodCalculator {
-    pub fn new(p: ValidPrime) -> Self {
-        Self {
-            adem_algebra: AdemAlgebra::new(p, *p != 2, false, false),
-            milnor_algebra: MilnorAlgebra::new(p),
-        }
-    }
-
-    pub fn compute_basis(&self, degree: i32) {
-        self.adem_algebra.compute_basis(degree);
-        self.milnor_algebra.compute_basis(degree);
-    }
-
-    pub fn evaluate_adem_to_string(&self, input: &str) -> error::Result<String> {
-        self.evaluate_adem(input)
-            .map(|(d, vect)| self.adem_algebra.element_to_string(d, vect.as_slice()))
-    }
-
-    pub fn evaluate_milnor_to_string(&self, input: &str) -> error::Result<String> {
-        self.evaluate_milnor(input)
-            .map(|(d, vect)| self.milnor_algebra.element_to_string(d, vect.as_slice()))
-    }
-
-    pub fn evaluate_adem(&self, input: &str) -> error::Result<(i32, FpVector)> {
-        evaluate_algebra_adem(&self.adem_algebra, &self.milnor_algebra, input)
-    }
-
-    pub fn evaluate_milnor(&self, input: &str) -> error::Result<(i32, FpVector)> {
-        evaluate_algebra_milnor(&self.adem_algebra, &self.milnor_algebra, input)
-    }
-}
 
 // Outputs in the Adem basis.
 pub fn evaluate_algebra_adem(
@@ -448,6 +410,7 @@ impl std::error::Error for UnknownBasisElementError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use fp::prime::ValidPrime;
     // use rstest::rstest_parametrize;
 
     #[test]

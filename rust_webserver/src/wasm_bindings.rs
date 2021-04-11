@@ -1,6 +1,5 @@
 use crate::actions::*;
 use crate::managers::*;
-use algebra::steenrod_evaluator::SteenrodCalculator as SteenrodCalculator_;
 use fp::prime::ValidPrime;
 use js_sys::Function;
 use wasm_bindgen::prelude::*;
@@ -71,31 +70,5 @@ impl Sseq {
         let msg = msg.unwrap();
 
         self.s.process_message(msg).unwrap();
-    }
-}
-
-#[wasm_bindgen]
-pub struct SteenrodCalculator(SteenrodCalculator_);
-
-#[wasm_bindgen]
-impl SteenrodCalculator {
-    pub fn new(p: u32) -> Self {
-        Self(SteenrodCalculator_::new(ValidPrime::new(p)))
-    }
-
-    pub fn compute_basis(&self, degree: i32) {
-        self.0.compute_basis(degree);
-    }
-
-    pub fn evaluate_adem(&self, input: &str) -> Result<String, JsValue> {
-        self.0
-            .evaluate_adem_to_string(input)
-            .map_err(|err| JsValue::from(err.to_string()))
-    }
-
-    pub fn evaluate_milnor(&self, input: &str) -> Result<String, JsValue> {
-        self.0
-            .evaluate_milnor_to_string(input)
-            .map_err(|err| JsValue::from(err.to_string()))
     }
 }

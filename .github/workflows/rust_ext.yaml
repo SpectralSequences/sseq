@@ -163,7 +163,63 @@ jobs:
       with:
           branch: gh-pages
           folder: rust_webserver/dist/
-          clean-exclude: docs/
+          clean-exclude: |
+              docs/
+              calculator/
+
+  steenrod-calculator:
+    needs: [test, lint, examples]
+    runs-on: ubuntu-20.04
+    env:
+        RUST_BACKTRACE: 1
+        RUSTFLAGS: "-D warnings"
+        RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+
+    strategy:
+      matrix:
+          toolchain: ['nightly-2021-03-24', 'nightly']
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Cache files
+      uses: actions/cache@v2
+      with:
+          path: |
+              ~/.rustup
+              ~/.cargo
+              **/target
+          key: calculator-${{ matrix.toolchain }}-${{ hashFiles('ext/Cargo.*') }}
+
+    - name: Install rustup
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: ${{ matrix.toolchain }}
+          target: wasm32-unknown-unknown
+          components: clippy, rustfmt
+
+    - name: Install wasm-opt
+      run: sudo apt-get install binaryen
+
+    - name: Setup build environment
+      run: make -C steenrod_calculator setup-wasm
+
+    - name: Lint rust_webserver wasm
+      run: make -C steenrod_calculator lint
+
+    - name: Build wasm
+      run: make -C steenrod_calculator
+
+    - name: Benchmark wasm size
+      run: ls -l rust_webserver/dist/steenrod_calculator_wasm_bg.wasm
+
+    - name: Deploy
+      if: ${{ matrix.toolchain == 'nightly-2021-03-24' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+      uses: JamesIves/github-pages-deploy-action@4.1.0
+      with:
+          branch: gh-pages
+          folder: steenrod_calculator/dist/
+          target-folder: calculator/
 
   docs:
     needs: [test, lint, examples]

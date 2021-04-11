@@ -20,9 +20,6 @@ setup-wasm:
 	cargo install wasm-bindgen-cli --version 0.2.72
 	rustup target add wasm32-unknown-unknown
 
-wasm-opt:
-	bin/install-wasm-opt.sh
-
 $(WASM_LIB): Cargo.toml $(wildcard src/*) $(EXT_SRC)
 	cargo build --lib --target $(WASM_TARGET) --release
 
