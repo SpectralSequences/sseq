@@ -38,7 +38,7 @@ algebra = { path = "../ext/crates/algebra" }
 expect-test = "1.1.0"
 
 [features]
-default = ["odd-primes", "concurrent"]
+default = ["odd-primes"]
 cache-multiplication = ["ext/cache-multiplication"]
 odd-primes = ["fp/odd-primes", "ext/odd-primes", "algebra/odd-primes"]
 concurrent = ["thread-token", "ext/concurrent"]

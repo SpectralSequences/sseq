@@ -9,12 +9,12 @@ EXT_SRC = ../ext/Cargo.toml $(shell find ../ext/src/) $(wildcard ../ext/crates/*
 export PATH := $(HOME)/.cargo/bin:$(PATH)
 
 lint:
-	cargo clippy --all-targets
+	cargo clippy --all-features --all-targets
 	cargo clippy --no-default-features --all-targets
 	cargo fmt -- --check
 
 lint-wasm:
-	cargo clippy --target wasm32-unknown-unknown --lib
+	cargo clippy --lib --target $(WASM_TARGET)
 
 setup-wasm:
 	cargo install wasm-bindgen-cli --version 0.2.72
@@ -24,7 +24,7 @@ wasm-opt:
 	bin/install-wasm-opt.sh
 
 $(WASM_LIB): Cargo.toml $(wildcard src/*) $(EXT_SRC)
-	cargo build --lib --target $(WASM_TARGET) --release --no-default-features --features odd-primes
+	cargo build --lib --target $(WASM_TARGET) --release
 
 $(WASM_FILE): $(WASM_LIB)
 	wasm-bindgen --no-typescript --target no-modules --out-dir $(WASM_OUT) --out-name $(NAME)_wasm $(WASM_LIB)
