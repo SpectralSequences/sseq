@@ -8,7 +8,7 @@ where
     <T as FromStr>::Err: Display,
 {
     loop {
-        print!("{}: ", prompt);
+        eprint!("{}: ", prompt);
         stdout().flush().unwrap();
         let mut input = String::new();
         stdin()
@@ -27,7 +27,7 @@ where
                 return Some(res);
             }
             Err(e) => {
-                println!("Invalid input: {}. Try again", e);
+                eprintln!("Invalid input: {}. Try again", e);
             }
         }
     }
@@ -39,7 +39,7 @@ where
     <T as FromStr>::Err: Display,
 {
     loop {
-        print!("{} : ", prompt);
+        eprint!("{} : ", prompt);
         stdout().flush().unwrap();
         let mut input = String::new();
         stdin()
@@ -55,7 +55,7 @@ where
                 return res;
             }
             Err(e) => {
-                println!("Invalid input: {}. Try again", e);
+                eprintln!("Invalid input: {}. Try again", e);
             }
         }
     }
@@ -67,7 +67,7 @@ where
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
     loop {
-        print!("{} (default: {}): ", prompt, default);
+        eprint!("{} (default: {}): ", prompt, default);
         stdout().flush().unwrap();
         let mut input = String::new();
         stdin()
@@ -86,7 +86,7 @@ where
                 return res;
             }
             Err(e) => {
-                println!("Invalid input: {}. Try again", e);
+                eprintln!("Invalid input: {}. Try again", e);
             }
         }
     }
