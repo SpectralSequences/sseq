@@ -697,12 +697,14 @@
 <span id="676">676</span>
 <span id="677">677</span>
 <span id="678">678</span>
+<span id="679">679</span>
+<span id="680">680</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">serde_json</span>::<span class="ident">json</span>;
 <span class="kw">use</span> <span class="ident">serde_json</span>::<span class="ident">Value</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">Algebra</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">JsonAlgebra</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">Module</span>;
 <span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
@@ -987,20 +989,6 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">basis_element_to_opgen</span>[<span class="ident">degree</span>][<span class="ident">index</span>]
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">element_to_json</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">elt</span>: <span class="ident">Slice</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Value</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
-        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>();
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">elt</span>.<span class="ident">iter_nonzero</span>() {
-            <span class="kw">let</span> <span class="ident">opgen</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">index_to_op_gen</span>(<span class="ident">degree</span>, <span class="ident">i</span>);
-            <span class="ident">result</span>.<span class="ident">push</span>(<span class="macro">json</span><span class="macro">!</span>({
-                <span class="string">&quot;op&quot;</span> : <span class="ident">algebra</span>.<span class="ident">json_from_basis</span>(<span class="ident">opgen</span>.<span class="ident">operation_degree</span>, <span class="ident">opgen</span>.<span class="ident">operation_index</span>),
-                <span class="string">&quot;gen&quot;</span> : <span class="self">self</span>.<span class="ident">gen_names</span>[<span class="ident">opgen</span>.<span class="ident">generator_degree</span>][<span class="ident">opgen</span>.<span class="ident">generator_index</span>],
-                <span class="string">&quot;coeff&quot;</span> : <span class="ident">v</span>
-            }));
-        }
-        <span class="ident">Value</span>::<span class="ident">from</span>(<span class="ident">result</span>)
-    }
-
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_by_zero</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
         <span class="self">self</span>.<span class="ident">extend_table_entries</span>(<span class="ident">degree</span>);
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">num_gens</span>.<span class="ident">len</span>()..<span class="op">=</span><span class="ident">degree</span> {
@@ -1065,6 +1053,22 @@
             ));
         }
         <span class="ident">result</span>
+    }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">JsonAlgebra</span><span class="op">&gt;</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">element_to_json</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">elt</span>: <span class="ident">Slice</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Value</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>();
+        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">elt</span>.<span class="ident">iter_nonzero</span>() {
+            <span class="kw">let</span> <span class="ident">opgen</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">index_to_op_gen</span>(<span class="ident">degree</span>, <span class="ident">i</span>);
+            <span class="ident">result</span>.<span class="ident">push</span>(<span class="macro">json</span><span class="macro">!</span>({
+                <span class="string">&quot;op&quot;</span> : <span class="ident">algebra</span>.<span class="ident">json_from_basis</span>(<span class="ident">opgen</span>.<span class="ident">operation_degree</span>, <span class="ident">opgen</span>.<span class="ident">operation_index</span>),
+                <span class="string">&quot;gen&quot;</span> : <span class="self">self</span>.<span class="ident">gen_names</span>[<span class="ident">opgen</span>.<span class="ident">generator_degree</span>][<span class="ident">opgen</span>.<span class="ident">generator_index</span>],
+                <span class="string">&quot;coeff&quot;</span> : <span class="ident">v</span>
+            }));
+        }
+        <span class="ident">Value</span>::<span class="ident">from</span>(<span class="ident">result</span>)
     }
 }
 

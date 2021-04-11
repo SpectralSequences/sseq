@@ -869,7 +869,7 @@
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
 
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">GeneratedAlgebra</span>, <span class="ident">SteenrodAlgebra</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">GeneratedAlgebra</span>, <span class="ident">JsonAlgebra</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>, <span class="ident">ModuleFailedRelationError</span>, <span class="ident">ZeroModule</span>};
 <span class="kw">use</span> <span class="ident">error</span>::<span class="ident">GenericError</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">FpVector</span>, <span class="ident">SliceMut</span>};
@@ -1350,8 +1350,8 @@
     }
 }
 
-<span class="kw">impl</span> <span class="ident">FiniteDimensionalModule</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_json</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>, <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Value</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">JsonAlgebra</span> <span class="op">+</span> <span class="ident">GeneratedAlgebra</span><span class="op">&gt;</span> <span class="ident">FiniteDimensionalModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_json</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Value</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">gens</span> <span class="op">=</span> <span class="ident">json</span>[<span class="string">&quot;gens&quot;</span>].<span class="ident">take</span>();
         <span class="kw">let</span> (<span class="ident">graded_dimension</span>, <span class="ident">gen_names</span>, <span class="ident">gen_to_idx</span>) <span class="op">=</span> <span class="self">Self</span>::<span class="ident">module_gens_from_json</span>(<span class="ident">gens</span>);
         <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">json</span>[<span class="string">&quot;name&quot;</span>].<span class="ident">as_str</span>().<span class="ident">unwrap_or</span>(<span class="string">&quot;&quot;</span>).<span class="ident">to_string</span>();

@@ -93,24 +93,7 @@
 <span id="72">72</span>
 <span id="73">73</span>
 <span id="74">74</span>
-<span id="75">75</span>
-<span id="76">76</span>
-<span id="77">77</span>
-<span id="78">78</span>
-<span id="79">79</span>
-<span id="80">80</span>
-<span id="81">81</span>
-<span id="82">82</span>
-<span id="83">83</span>
-<span id="84">84</span>
-<span id="85">85</span>
-<span id="86">86</span>
-<span id="87">87</span>
-<span id="88">88</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">serde_json</span>::<span class="ident">json</span>;
-<span class="kw">use</span> <span class="ident">serde_json</span>::<span class="ident">Value</span>;
-
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">Bialgebra</span>};
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::<span class="ident">ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
@@ -163,17 +146,6 @@
 
     <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
         <span class="macro">vec</span><span class="macro">!</span>[]
-    }
-
-    <span class="doccomment">/// Converts a JSON object into a basis element. The way basis elements are represented by JSON</span>
-    <span class="doccomment">/// objects is to be specified by the algebra itself, and will be used by module</span>
-    <span class="doccomment">/// specifications.</span>
-    <span class="kw">fn</span> <span class="ident">json_to_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_json</span>: <span class="ident">Value</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>((<span class="number">0</span>, <span class="number">0</span>))
-    }
-
-    <span class="kw">fn</span> <span class="ident">json_from_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span>: <span class="ident">i32</span>, <span class="ident">_idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Value</span> {
-        <span class="macro">json</span><span class="macro">!</span>({})
     }
 
     <span class="doccomment">/// Converts a basis element into a string for display.</span>
