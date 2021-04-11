@@ -877,9 +877,10 @@ use std::io::{Read, Write};
 
 impl<CC: ChainComplex> Save for Resolution<CC> {
     fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
+        // This is no longer used but we keep it around for backwards compatibility
         let max_algebra_dim = self.module(0).max_computed_degree() - self.min_degree();
-
         max_algebra_dim.save(buffer)?;
+
         self.modules.save(buffer)?;
         self.kernels.save(buffer)?;
         self.differentials.save(buffer)?;
@@ -892,8 +893,8 @@ impl<CC: ChainComplex> Load for Resolution<CC> {
     type AuxData = Arc<CC>;
 
     fn load(buffer: &mut impl Read, cc: &Self::AuxData) -> io::Result<Self> {
-        let max_algebra_dim = i32::load(buffer, &())?;
-        cc.algebra().compute_basis(max_algebra_dim);
+        // This is no longer used but we keep it around for backwards compatibility
+        let _max_algebra_dim = i32::load(buffer, &())?;
 
         let mut result = Resolution::new(Arc::clone(cc));
 

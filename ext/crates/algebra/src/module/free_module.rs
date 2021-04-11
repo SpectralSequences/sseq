@@ -388,10 +388,14 @@ impl<A: Algebra> Load for FreeModule<A> {
         let result = FreeModule::new(algebra, "".to_string(), min_degree);
 
         let num_gens: BiVec<usize> = Load::load(buffer, &(min_degree, ()))?;
+        result.algebra().compute_basis(num_gens.len() - min_degree);
+
         for (degree, num) in num_gens.iter_enum() {
             result.add_generators(degree, *num, None);
         }
-        result.extend_table_entries(num_gens.max_degree());
+        // We extend to one degree beyond the number of generators added, which is needed for
+        // resolving to stem. It is always safe to extend more than we "need".
+        result.extend_table_entries(num_gens.len());
         Ok(result)
     }
 }
