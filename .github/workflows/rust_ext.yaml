@@ -211,7 +211,7 @@ jobs:
       run: make -C steenrod_calculator
 
     - name: Benchmark wasm size
-      run: ls -l rust_webserver/dist/steenrod_calculator_wasm_bg.wasm
+      run: ls -l steenrod_calculator/dist/steenrod_calculator_wasm_bg.wasm
 
     - name: Deploy
       if: ${{ matrix.toolchain == 'nightly-2021-03-24' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}

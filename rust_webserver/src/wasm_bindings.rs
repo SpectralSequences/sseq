@@ -1,6 +1,5 @@
 use crate::actions::*;
 use crate::managers::*;
-use fp::prime::ValidPrime;
 use js_sys::Function;
 use wasm_bindgen::prelude::*;
 
