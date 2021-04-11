@@ -136,7 +136,7 @@
     <span class="op">&lt;</span><span class="ident">T</span> <span class="kw">as</span> <span class="ident">FromStr</span><span class="op">&gt;</span>::<span class="prelude-val">Err</span>: <span class="ident">Display</span>,
 {
     <span class="kw">loop</span> {
-        <span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;{}: &quot;</span>, <span class="ident">prompt</span>);
+        <span class="macro">eprint</span><span class="macro">!</span>(<span class="string">&quot;{}: &quot;</span>, <span class="ident">prompt</span>);
         <span class="ident">stdout</span>().<span class="ident">flush</span>().<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">input</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">new</span>();
         <span class="ident">stdin</span>()
@@ -155,7 +155,7 @@
                 <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">res</span>);
             }
             <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Invalid input: {}. Try again&quot;</span>, <span class="ident">e</span>);
+                <span class="macro">eprintln</span><span class="macro">!</span>(<span class="string">&quot;Invalid input: {}. Try again&quot;</span>, <span class="ident">e</span>);
             }
         }
     }
@@ -167,7 +167,7 @@
     <span class="op">&lt;</span><span class="ident">T</span> <span class="kw">as</span> <span class="ident">FromStr</span><span class="op">&gt;</span>::<span class="prelude-val">Err</span>: <span class="ident">Display</span>,
 {
     <span class="kw">loop</span> {
-        <span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;{} : &quot;</span>, <span class="ident">prompt</span>);
+        <span class="macro">eprint</span><span class="macro">!</span>(<span class="string">&quot;{} : &quot;</span>, <span class="ident">prompt</span>);
         <span class="ident">stdout</span>().<span class="ident">flush</span>().<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">input</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">new</span>();
         <span class="ident">stdin</span>()
@@ -183,7 +183,7 @@
                 <span class="kw">return</span> <span class="ident">res</span>;
             }
             <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Invalid input: {}. Try again&quot;</span>, <span class="ident">e</span>);
+                <span class="macro">eprintln</span><span class="macro">!</span>(<span class="string">&quot;Invalid input: {}. Try again&quot;</span>, <span class="ident">e</span>);
             }
         }
     }
@@ -195,7 +195,7 @@
     <span class="op">&lt;</span><span class="ident">T</span> <span class="kw">as</span> <span class="ident">std</span>::<span class="ident">str</span>::<span class="ident">FromStr</span><span class="op">&gt;</span>::<span class="prelude-val">Err</span>: <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span>,
 {
     <span class="kw">loop</span> {
-        <span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;{} (default: {}): &quot;</span>, <span class="ident">prompt</span>, <span class="ident">default</span>);
+        <span class="macro">eprint</span><span class="macro">!</span>(<span class="string">&quot;{} (default: {}): &quot;</span>, <span class="ident">prompt</span>, <span class="ident">default</span>);
         <span class="ident">stdout</span>().<span class="ident">flush</span>().<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">input</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">new</span>();
         <span class="ident">stdin</span>()
@@ -214,7 +214,7 @@
                 <span class="kw">return</span> <span class="ident">res</span>;
             }
             <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Invalid input: {}. Try again&quot;</span>, <span class="ident">e</span>);
+                <span class="macro">eprintln</span><span class="macro">!</span>(<span class="string">&quot;Invalid input: {}. Try again&quot;</span>, <span class="ident">e</span>);
             }
         }
     }
