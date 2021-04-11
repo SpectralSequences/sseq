@@ -155,7 +155,7 @@
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">mutex_atomic</span>)]</span>
 <span class="kw">use</span> <span class="ident">crossbeam_channel</span>::{<span class="ident">Receiver</span>, <span class="ident">TryRecvError</span>};
-<span class="kw">use</span> <span class="ident">parking_lot</span>::{<span class="ident">Condvar</span>, <span class="ident">Mutex</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">Condvar</span>, <span class="ident">Mutex</span>};
 
 <span class="doccomment">/// A `TokenBucket` is a bucket containing a fixed number of &quot;tokens&quot;. Threads can take request to</span>
 <span class="doccomment">/// take out a token. If no tokens are available, the thread is blocked (while consuming no CPU</span>
@@ -182,14 +182,14 @@
 
     <span class="doccomment">/// Attempts to take a token from the bucket. This will block until a token is available.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">take_token</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;_</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Token</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">running_threads</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">running_threads</span>.<span class="ident">lock</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">running_threads</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">running_threads</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>();
 
         <span class="kw">loop</span> {
             <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">running_threads</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">max_threads</span> {
                 <span class="kw-2">*</span><span class="ident">running_threads</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
                 <span class="kw">return</span> <span class="ident">Token</span> { <span class="ident">bucket</span>: <span class="kw-2">&amp;</span><span class="self">self</span> };
             } <span class="kw">else</span> {
-                <span class="self">self</span>.<span class="ident">condvar</span>.<span class="ident">wait</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">running_threads</span>);
+                <span class="ident">running_threads</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">condvar</span>.<span class="ident">wait</span>(<span class="ident">running_threads</span>).<span class="ident">unwrap</span>();
             }
         }
     }
@@ -262,7 +262,7 @@
     }
 
     <span class="kw">fn</span> <span class="ident">release_token</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">running_threads</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">running_threads</span>.<span class="ident">lock</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">running_threads</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">running_threads</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>();
         <span class="kw-2">*</span><span class="ident">running_threads</span> <span class="op">-</span><span class="op">=</span> <span class="number">1</span>;
         <span class="self">self</span>.<span class="ident">condvar</span>.<span class="ident">notify_one</span>();
     }
