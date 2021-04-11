@@ -31,14 +31,6 @@ query = { path = "crates/query" }
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[profile.release]
-# This makes the compiled code faster and smaller, but it makes compiling slower,
-# so it's only enabled in release mode.
-lto = true
-opt-level = 3
-debug = true
-codegen-units = 1
-
 [features]
 default = ["odd-primes", "yoneda", "extras"]
 
