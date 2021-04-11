@@ -390,7 +390,7 @@ impl Algebra for MilnorAlgebra {
 
 impl JsonAlgebra for MilnorAlgebra {
     fn prefix(&self) -> &str {
-        "adem"
+        "milnor"
     }
 
     fn json_to_basis(&self, json: Value) -> error::Result<(i32, usize)> {
