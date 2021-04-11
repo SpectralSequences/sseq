@@ -14,7 +14,7 @@ use serde_json::value::Value;
 use std::sync::Mutex;
 
 use crate::algebra::combinatorics::{self, MAX_XI_TAU};
-use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
+use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, JsonAlgebra};
 use fp::prime::{BitflagIterator, ValidPrime};
 use fp::vector::{FpVector, SliceMut};
 use once::OnceVec;
@@ -279,6 +279,16 @@ impl Algebra for AdemAlgebra {
         );
     }
 
+    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
+        format!("{}", self.basis_element_from_index(degree, idx))
+    }
+}
+
+impl JsonAlgebra for AdemAlgebra {
+    fn prefix(&self) -> &str {
+        "adem"
+    }
+
     fn json_to_basis(&self, json: Value) -> error::Result<(i32, usize)> {
         let op: Vec<u32> = serde_json::from_value(json)?;
         let p = *self.prime();
@@ -313,10 +323,6 @@ impl Algebra for AdemAlgebra {
             }
         };
         Ok((b.degree, self.basis_element_to_index(&b)))
-    }
-
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
-        format!("{}", self.basis_element_from_index(degree, idx))
     }
 
     fn json_from_basis(&self, degree: i32, index: usize) -> Value {

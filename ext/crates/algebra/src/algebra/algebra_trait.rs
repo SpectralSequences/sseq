@@ -127,16 +127,6 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
         Vec::new()
     }
 
-    /// Converts a JSON object into a basis element. The way basis elements are represented by JSON
-    /// objects is to be specified by the algebra itself, and will be used by module
-    /// specifications.
-    fn json_to_basis(&self, _json: serde_json::Value) -> error::Result<(i32, usize)> {
-        unimplemented!()
-    }
-    fn json_from_basis(&self, _degree: i32, _idx: usize) -> serde_json::Value {
-        unimplemented!()
-    }
-
     /// Converts a basis element into a string for display.
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
 
@@ -162,6 +152,18 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
         }
         result
     }
+}
+
+#[enum_dispatch]
+pub trait JsonAlgebra: Algebra {
+    fn prefix(&self) -> &str;
+
+    /// Converts a JSON object into a basis element. The way basis elements are represented by JSON
+    /// objects is to be specified by the algebra itself, and will be used by module
+    /// specifications.
+    fn json_to_basis(&self, _json: serde_json::Value) -> error::Result<(i32, usize)>;
+
+    fn json_from_basis(&self, _degree: i32, _idx: usize) -> serde_json::Value;
 }
 
 /// An algebra with a specified list of generators and generating relations. This data can be used

@@ -1,6 +1,3 @@
-use serde_json::json;
-use serde_json::Value;
-
 use crate::algebra::{Algebra, Bialgebra};
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
@@ -53,17 +50,6 @@ impl Algebra for Field {
 
     fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
         vec![]
-    }
-
-    /// Converts a JSON object into a basis element. The way basis elements are represented by JSON
-    /// objects is to be specified by the algebra itself, and will be used by module
-    /// specifications.
-    fn json_to_basis(&self, _json: Value) -> error::Result<(i32, usize)> {
-        Ok((0, 0))
-    }
-
-    fn json_from_basis(&self, _degree: i32, _idx: usize) -> Value {
-        json!({})
     }
 
     /// Converts a basis element into a string for display.

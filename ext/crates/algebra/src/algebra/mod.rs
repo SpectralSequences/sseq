@@ -9,7 +9,7 @@ mod polynomial_algebra;
 mod steenrod_algebra;
 
 pub use adem_algebra::{AdemAlgebra, AdemAlgebraT};
-pub use algebra_trait::{Algebra, GeneratedAlgebra};
+pub use algebra_trait::{Algebra, GeneratedAlgebra, JsonAlgebra};
 pub use bialgebra_trait::Bialgebra;
 pub use field::Field;
 pub use milnor_algebra::{MilnorAlgebra, MilnorAlgebraT};

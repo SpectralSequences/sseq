@@ -1,6 +1,6 @@
 use bivec::BiVec;
 
-use crate::algebra::{Algebra, GeneratedAlgebra, SteenrodAlgebra};
+use crate::algebra::{Algebra, GeneratedAlgebra, JsonAlgebra};
 use crate::module::{BoundedModule, Module, ModuleFailedRelationError, ZeroModule};
 use error::GenericError;
 use fp::vector::{FpVector, SliceMut};
@@ -481,8 +481,8 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
     }
 }
 
-impl FiniteDimensionalModule<SteenrodAlgebra> {
-    pub fn from_json(algebra: Arc<SteenrodAlgebra>, json: &mut Value) -> error::Result<Self> {
+impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
+    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> error::Result<Self> {
         let gens = json["gens"].take();
         let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(gens);
         let name = json["name"].as_str().unwrap_or("").to_string();

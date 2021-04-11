@@ -2,7 +2,7 @@ use rustc_hash::FxHashMap as HashMap;
 use serde_json::Value;
 use std::sync::Arc;
 
-use crate::algebra::{Algebra, SteenrodAlgebra};
+use crate::algebra::{Algebra, JsonAlgebra};
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::module::{FreeModule, Module, ZeroModule};
 use bivec::BiVec;
@@ -133,8 +133,8 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
     }
 }
 
-impl FinitelyPresentedModule<SteenrodAlgebra> {
-    pub fn from_json(algebra: Arc<SteenrodAlgebra>, json: &mut Value) -> error::Result<Self> {
+impl<A: JsonAlgebra> FinitelyPresentedModule<A> {
+    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> error::Result<Self> {
         let p = algebra.prime();
         let name = json["name"].as_str().unwrap_or("").to_string();
         let gens = json["gens"].take();

@@ -2,7 +2,7 @@ use serde_json::json;
 use serde_json::Value;
 use std::sync::Arc;
 
-use crate::algebra::{AdemAlgebra, AdemAlgebraT};
+use crate::algebra::{AdemAlgebra, AdemAlgebraT, JsonAlgebra};
 use crate::module::Module;
 use crate::module::OperationGeneratorPair;
 use bivec::BiVec;
@@ -268,20 +268,6 @@ impl<A: AdemAlgebraT> FreeUnstableModule<A> {
         &self.basis_element_to_opgen[degree][index]
     }
 
-    pub fn element_to_json(&self, degree: i32, elt: &FpVector) -> Value {
-        let mut result = Vec::new();
-        let algebra = self.algebra();
-        for (i, v) in elt.iter_nonzero() {
-            let opgen = self.index_to_op_gen(degree, i);
-            result.push(json!({
-                "op" : algebra.json_from_basis(opgen.operation_degree, opgen.operation_index),
-                "gen" : self.gen_names[opgen.generator_degree][opgen.generator_index],
-                "coeff" : v
-            }));
-        }
-        Value::from(result)
-    }
-
     pub fn extend_by_zero(&self, degree: i32) {
         self.extend_table_entries(degree);
         for i in self.num_gens.len()..=degree {
@@ -313,6 +299,22 @@ impl<A: AdemAlgebraT> FreeUnstableModule<A> {
             }
         }
         max
+    }
+}
+
+impl<A: JsonAlgebra + AdemAlgebraT> FreeUnstableModule<A> {
+    pub fn element_to_json(&self, degree: i32, elt: &FpVector) -> Value {
+        let mut result = Vec::new();
+        let algebra = self.algebra();
+        for (i, v) in elt.iter_nonzero() {
+            let opgen = self.index_to_op_gen(degree, i);
+            result.push(json!({
+                "op" : algebra.json_from_basis(opgen.operation_degree, opgen.operation_index),
+                "gen" : self.gen_names[opgen.generator_degree][opgen.generator_index],
+                "coeff" : v
+            }));
+        }
+        Value::from(result)
     }
 }
 

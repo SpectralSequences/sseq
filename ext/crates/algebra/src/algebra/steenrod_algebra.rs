@@ -1,6 +1,6 @@
 use crate::algebra::{
     milnor_algebra::PPart, AdemAlgebra, AdemAlgebraT, Algebra, Bialgebra, GeneratedAlgebra,
-    MilnorAlgebra, MilnorAlgebraT,
+    JsonAlgebra, MilnorAlgebra, MilnorAlgebraT,
 };
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
@@ -21,7 +21,7 @@ pub enum SteenrodAlgebraBorrow<'a> {
     BorrowMilnor(&'a MilnorAlgebra),
 }
 
-#[enum_dispatch(Algebra, GeneratedAlgebra)]
+#[enum_dispatch(Algebra, GeneratedAlgebra, JsonAlgebra)]
 pub enum SteenrodAlgebra {
     AdemAlgebra,
     MilnorAlgebra,
@@ -94,13 +94,6 @@ struct AlgebraSpec {
 }
 
 impl SteenrodAlgebra {
-    pub fn prefix(&self) -> &str {
-        match self {
-            SteenrodAlgebra::AdemAlgebra(_) => "adem",
-            SteenrodAlgebra::MilnorAlgebra(_) => "milnor",
-        }
-    }
-
     pub fn from_json(json: &Value, algebra_name: &str) -> error::Result<SteenrodAlgebra> {
         // This line secretly redefines the lifetime of algebra_name so that we can reassign it
         // later on.

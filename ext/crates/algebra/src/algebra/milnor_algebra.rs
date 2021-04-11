@@ -4,7 +4,7 @@ use serde_json::value::Value;
 use std::sync::Mutex;
 
 use crate::algebra::combinatorics;
-use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
+use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, JsonAlgebra};
 use fp::prime::{integer_power, Binomial, BitflagIterator, ValidPrime};
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceVec;
@@ -383,6 +383,16 @@ impl Algebra for MilnorAlgebra {
         );
     }
 
+    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
+        format!("{}", self.basis_table[degree as usize][idx])
+    }
+}
+
+impl JsonAlgebra for MilnorAlgebra {
+    fn prefix(&self) -> &str {
+        "adem"
+    }
+
     fn json_to_basis(&self, json: Value) -> error::Result<(i32, usize)> {
         let xi_degrees = combinatorics::xi_degrees(self.prime());
         let tau_degrees = combinatorics::tau_degrees(self.prime());
@@ -433,10 +443,6 @@ impl Algebra for MilnorAlgebra {
         } else {
             serde_json::to_value(&b.p_part).unwrap()
         }
-    }
-
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
-        format!("{}", self.basis_table[degree as usize][idx])
     }
 }
 
