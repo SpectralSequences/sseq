@@ -5,9 +5,9 @@ use bivec::BiVec;
 use enum_dispatch::enum_dispatch;
 use ext::CCC;
 use fp::vector::FpVector;
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::sync::RwLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
@@ -146,9 +146,10 @@ impl ActionT for AddProductType {
 
         if resolution
             .write()
+            .unwrap()
             .add_product(s, t, self.class.clone(), &self.name)
         {
-            resolution.read().catch_up_products();
+            resolution.read().unwrap().catch_up_products();
         }
         None
     }
@@ -369,7 +370,7 @@ pub struct QueryTable {
 }
 impl ActionT for QueryTable {
     fn act_resolution(&self, resolution: &Arc<RwLock<Resolution<CCC>>>) -> Option<Message> {
-        let resolution = resolution.read();
+        let resolution = resolution.read().unwrap();
         let s = self.s;
         let t = self.t;
 
@@ -405,7 +406,7 @@ pub struct QueryCocycleString {
 }
 impl ActionT for QueryCocycleString {
     fn act_resolution(&self, resolution: &Arc<RwLock<Resolution<CCC>>>) -> Option<Message> {
-        let resolution = resolution.read();
+        let resolution = resolution.read().unwrap();
         let s = self.s;
         let t = self.t;
         let idx = self.idx;

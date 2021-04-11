@@ -9,4 +9,3 @@ edition = "2018"
 [dependencies]
 bivec = { path = "../bivec"}
 saveload = { path = "../saveload"}
-parking_lot = "0.11"

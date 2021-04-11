@@ -1,9 +1,9 @@
 use core::cell::UnsafeCell;
 use core::ops::{Index, IndexMut};
-use parking_lot::{Mutex, MutexGuard};
 use std::cmp::{Eq, PartialEq};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, MutexGuard};
 
 const USIZE_LEN: u32 = 0usize.count_zeros();
 
@@ -173,7 +173,7 @@ impl<T> OnceVec<T> {
     /// Takes a lock on the `OnceVec`. The `OnceVec` cannot be updated while the lock is held.
     /// This is useful when used in conjuction with [`OnceVec::extend`];
     pub fn lock(&self) -> MutexGuard<()> {
-        self.lock.lock()
+        self.lock.lock().unwrap()
     }
 
     const fn inner_index(index: usize) -> (usize, usize) {
@@ -203,7 +203,7 @@ impl<T> OnceVec<T> {
     /// Returns the index of the new element.
     pub fn push(&self, value: T) -> usize {
         unsafe {
-            let _lock = self.lock.lock();
+            let _lock = self.lock();
             let old_len = self.len.load(Ordering::Acquire);
             let (page, index) = Self::inner_index(old_len);
             let inner = &mut *self.data.get();
@@ -242,7 +242,7 @@ impl<T> OnceVec<T> {
     ///  - `f`: We will fill in the vector with `f(i)` at the `i`th index.
     pub fn extend(&self, new_max: usize, mut f: impl FnMut(usize) -> T) {
         unsafe {
-            let _lock = self.lock.lock();
+            let _lock = self.lock();
             let old_len = self.len.load(Ordering::Acquire);
             if new_max < old_len {
                 return;

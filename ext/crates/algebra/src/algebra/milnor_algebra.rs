@@ -1,7 +1,7 @@
 use itertools::Itertools;
-use parking_lot::Mutex;
 use rustc_hash::FxHashMap as HashMap;
 use serde_json::value::Value;
+use std::sync::Mutex;
 
 use crate::algebra::combinatorics;
 use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
@@ -274,7 +274,7 @@ impl Algebra for MilnorAlgebra {
     }
 
     fn compute_basis(&self, max_degree: i32) {
-        let _lock = self.lock.lock();
+        let _lock = self.lock.lock().unwrap();
         let next_degree = self.basis_table.len() as i32;
 
         if max_degree < next_degree {

@@ -7,9 +7,9 @@ use ext::chain_complex::ChainComplex;
 use ext::utils::Config;
 use ext::CCC;
 
-use parking_lot::RwLock;
 use serde_json::json;
 use std::sync::Arc;
+use std::sync::RwLock;
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 #[cfg(feature = "concurrent")]
@@ -132,6 +132,7 @@ impl ResolutionManager {
             let resolution = Arc::new(RwLock::new(resolution));
             resolution
                 .write()
+                .unwrap()
                 .set_unit_resolution(Arc::downgrade(&resolution));
             self.unit_resolution = Some(Arc::clone(&resolution));
             self.resolution = Some(resolution);
@@ -154,12 +155,12 @@ impl ResolutionManager {
         }
 
         let resolution = self.resolution.as_ref().unwrap();
-        let mut resolution = resolution.write();
+        let mut resolution = resolution.write().unwrap();
         self.setup_callback(&mut resolution, SseqChoice::Main);
 
         if !self.is_unit {
             let unit_resolution = self.unit_resolution.as_ref().unwrap();
-            let mut unit_resolution = unit_resolution.write();
+            let mut unit_resolution = unit_resolution.write().unwrap();
             self.setup_callback(&mut unit_resolution, SseqChoice::Unit);
         }
     }
@@ -171,7 +172,7 @@ impl ResolutionManager {
         };
 
         let resolution = resolution.as_ref().unwrap();
-        let resolution = resolution.read();
+        let resolution = resolution.read().unwrap();
 
         let min_degree = resolution.min_degree();
 

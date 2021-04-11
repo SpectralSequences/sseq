@@ -1,5 +1,4 @@
-use parking_lot::Mutex;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
@@ -166,7 +165,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             self.zero_module.extend_by_zero(t);
         }
 
-        let mut old_kernel = self.kernels[t].lock();
+        let mut old_kernel = self.kernels[t].lock().unwrap();
         let p = self.prime();
 
         //                           current_chain_map
@@ -383,7 +382,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             self.zero_module.extend_by_zero(t);
         }
 
-        let mut old_kernel = self.kernels[t].lock();
+        let mut old_kernel = self.kernels[t].lock().unwrap();
         let p = self.prime();
 
         let complex = self.complex();

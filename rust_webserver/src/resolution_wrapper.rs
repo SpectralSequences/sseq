@@ -1,7 +1,7 @@
-use parking_lot::RwLock;
 use rustc_hash::FxHashSet as HashSet;
 use serde_json::Value;
 use std::cmp::min;
+use std::sync::RwLock;
 use std::sync::{Arc, Weak};
 // use std::time::Instant;
 
@@ -150,7 +150,7 @@ impl<CC: ChainComplex> Resolution<CC> {
     pub fn resolve_through_bidegree_concurrent(&self, s: u32, t: i32, bucket: &TokenBucket) {
         if let Some(unit_res) = &self.unit_resolution {
             let unit_res = unit_res.upgrade().unwrap();
-            let unit_res = unit_res.read();
+            let unit_res = unit_res.read().unwrap();
             // Avoid a deadlock
             if !ptr_eq(&unit_res.inner, &self.inner) {
                 unit_res.resolve_through_bidegree_concurrent(
@@ -170,7 +170,7 @@ impl<CC: ChainComplex> Resolution<CC> {
     pub fn resolve_through_bidegree(&self, s: u32, t: i32) {
         if let Some(unit_res) = &self.unit_resolution {
             let unit_res = unit_res.upgrade().unwrap();
-            let unit_res = unit_res.read();
+            let unit_res = unit_res.read().unwrap();
             // Avoid a deadlock
             if !ptr_eq(&unit_res.inner, &self.inner) {
                 unit_res.resolve_through_bidegree(
@@ -353,7 +353,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             let f = &self.chain_maps_to_unit_resolution[source_s][source_t][k];
 
             let unit_res_ = self.unit_resolution.as_ref().unwrap().upgrade().unwrap();
-            let unit_res = unit_res_.read();
+            let unit_res = unit_res_.read().unwrap();
             let output_module = unit_res.module(elt.s);
 
             for l in 0..target_dim {
@@ -408,6 +408,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                                     .upgrade()
                                     .unwrap()
                                     .read()
+                                    .unwrap()
                                     .inner,
                             ),
                             new_s as u32,
