@@ -15,7 +15,6 @@ error = { path = "crates/error"}
 fp = { path = "crates/fp", default-features = false, features = ["json"] }
 once = { path = "crates/once"}
 saveload = { path = "crates/saveload" }
-query = { path = "crates/query" }
 thread-token = { path = "crates/thread-token", optional = true }
 rustc-hash = "1.1.0"
 pico-args = { version = "0.4.0", default-features = false }
@@ -28,6 +27,7 @@ serde_json = "1.0.0"
 [dev-dependencies]
 expect-test = "1.1.0"
 chart = { path = "crates/chart" }
+query = { path = "crates/query" }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -24,7 +24,6 @@ bivec = { path = "../bivec"}
 error = { path = "../error" }
 fp = { path = "../fp", default-features = false }
 once = { path = "../once" }
-query = { path = "../query" }
 saveload = { path = "../saveload" }
 
 [dev-dependencies]
