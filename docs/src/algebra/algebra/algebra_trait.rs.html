@@ -295,29 +295,9 @@
 <span id="274">274</span>
 <span id="275">275</span>
 <span id="276">276</span>
-<span id="277">277</span>
-<span id="278">278</span>
-<span id="279">279</span>
-<span id="280">280</span>
-<span id="281">281</span>
-<span id="282">282</span>
-<span id="283">283</span>
-<span id="284">284</span>
-<span id="285">285</span>
-<span id="286">286</span>
-<span id="287">287</span>
-<span id="288">288</span>
-<span id="289">289</span>
-<span id="290">290</span>
-<span id="291">291</span>
-<span id="292">292</span>
-<span id="293">293</span>
-<span id="294">294</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::<span class="ident">ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
-
-<span class="kw">use</span> <span class="ident">enum_dispatch</span>::<span class="ident">enum_dispatch</span>;
 
 <span class="doccomment">/// A graded algebra over F_p, finite dimensional in each degree, equipped with a choice of ordered</span>
 <span class="doccomment">/// basis in each dimension. Basis elements of the algebra are referred to by their degree and</span>
@@ -333,7 +313,6 @@
 <span class="doccomment">/// The algebra should also come with a specified choice of algebra generators, which are</span>
 <span class="doccomment">/// necessarily basis elements. It gives us a simpler way of describing finite modules by only</span>
 <span class="doccomment">/// specifying the action of the generators.</span>
-<span class="attribute">#[<span class="ident">enum_dispatch</span>]</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Algebra</span>: <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> {
     <span class="doccomment">/// Returns the prime the algebra is over.</span>
     <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidPrime</span>;
@@ -471,21 +450,19 @@
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="attribute">#[<span class="ident">enum_dispatch</span>]</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">JsonAlgebra</span>: <span class="ident">Algebra</span> {
     <span class="kw">fn</span> <span class="ident">prefix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">str</span>;
 
     <span class="doccomment">/// Converts a JSON object into a basis element. The way basis elements are represented by JSON</span>
     <span class="doccomment">/// objects is to be specified by the algebra itself, and will be used by module</span>
     <span class="doccomment">/// specifications.</span>
-    <span class="kw">fn</span> <span class="ident">json_to_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_json</span>: <span class="ident">serde_json</span>::<span class="ident">Value</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">json_to_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">json</span>: <span class="ident">serde_json</span>::<span class="ident">Value</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
 
-    <span class="kw">fn</span> <span class="ident">json_from_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span>: <span class="ident">i32</span>, <span class="ident">_idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">serde_json</span>::<span class="ident">Value</span>;
+    <span class="kw">fn</span> <span class="ident">json_from_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">serde_json</span>::<span class="ident">Value</span>;
 }
 
 <span class="doccomment">/// An algebra with a specified list of generators and generating relations. This data can be used</span>
 <span class="doccomment">/// to specify modules by specifying the actions of the generators.</span>
-<span class="attribute">#[<span class="ident">enum_dispatch</span>]</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">GeneratedAlgebra</span>: <span class="ident">Algebra</span> {
     <span class="doccomment">/// Given a degree `degree`, the function returns a list of algebra generators in that degree.</span>
     <span class="doccomment">/// This return value is the list of indices of the basis elements that are generators. The</span>
@@ -536,75 +513,62 @@
 
 <span class="attribute">#[<span class="ident">macro_export</span>]</span>
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">dispatch_algebra</span> {
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">dispatch_macro</span> : <span class="ident">ident</span>) <span class="op">=</span><span class="op">&gt;</span> {
-        <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fp</span>::<span class="ident">prime</span>::<span class="ident">ValidPrime</span> {
-            <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro</span><span class="macro">!</span>(<span class="macro-nonterminal">prime</span>, <span class="self">self</span>,)
-        }
+    (<span class="macro-nonterminal">$</span><span class="kw">struct</span>:<span class="macro-nonterminal">ty</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">dispatch_macro</span>: <span class="ident">ident</span>) <span class="op">=</span><span class="op">&gt;</span> {
+        <span class="kw">impl</span> <span class="ident">Algebra</span> <span class="kw">for</span> <span class="macro-nonterminal">$</span><span class="kw">struct</span> {
+            <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro</span><span class="macro">!</span> {
+                <span class="kw">fn</span> <span class="macro-nonterminal">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidPrime</span>;
+                <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>);
+                <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span>;
+                <span class="kw">fn</span> <span class="ident">multiply_basis_elements</span>(
+                    <span class="kw-2">&amp;</span><span class="self">self</span>,
+                    <span class="ident">result</span>: <span class="ident">SliceMut</span>,
+                    <span class="ident">coeff</span>: <span class="ident">u32</span>,
+                    <span class="ident">r_degree</span>: <span class="ident">i32</span>,
+                    <span class="ident">r_idx</span>: <span class="ident">usize</span>,
+                    <span class="ident">s_degree</span>: <span class="ident">i32</span>,
+                    <span class="ident">s_idx</span>: <span class="ident">usize</span>,
+                    <span class="ident">excess</span>: <span class="ident">i32</span>,
+                );
 
-        <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-            <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro</span><span class="macro">!</span>(<span class="macro-nonterminal">compute_basis</span>, <span class="self">self</span>, <span class="ident">degree</span>)
-        }
+                <span class="kw">fn</span> <span class="ident">multiply_basis_element_by_element</span>(
+                    <span class="kw-2">&amp;</span><span class="self">self</span>,
+                    <span class="ident">result</span>: <span class="ident">SliceMut</span>,
+                    <span class="ident">coeff</span>: <span class="ident">u32</span>,
+                    <span class="ident">r_degree</span>: <span class="ident">i32</span>,
+                    <span class="ident">r_idx</span>: <span class="ident">usize</span>,
+                    <span class="ident">s_degree</span>: <span class="ident">i32</span>,
+                    <span class="ident">s</span>: <span class="ident">Slice</span>,
+                    <span class="ident">excess</span>: <span class="ident">i32</span>,
+                );
 
-        <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
-            <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro</span><span class="macro">!</span>(<span class="macro-nonterminal">dimension</span>, <span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">excess</span>)
-        }
+                <span class="kw">fn</span> <span class="ident">multiply_element_by_basis_element</span>(
+                    <span class="kw-2">&amp;</span><span class="self">self</span>,
+                    <span class="ident">result</span>: <span class="ident">SliceMut</span>,
+                    <span class="ident">coeff</span>: <span class="ident">u32</span>,
+                    <span class="ident">r_degree</span>: <span class="ident">i32</span>,
+                    <span class="ident">r</span>: <span class="ident">Slice</span>,
+                    <span class="ident">s_degree</span>: <span class="ident">i32</span>,
+                    <span class="ident">s_idx</span>: <span class="ident">usize</span>,
+                    <span class="ident">excess</span>: <span class="ident">i32</span>,
+                );
 
-        <span class="kw">fn</span> <span class="ident">multiply_basis_elements</span>(
-            <span class="kw-2">&amp;</span><span class="self">self</span>,
-            <span class="ident">result</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FpVector</span>,
-            <span class="ident">coeff</span>: <span class="ident">u32</span>,
-            <span class="ident">r_deg</span>: <span class="ident">i32</span>,
-            <span class="ident">r_idx</span>: <span class="ident">usize</span>,
-            <span class="ident">s_deg</span>: <span class="ident">i32</span>,
-            <span class="ident">s_idx</span>: <span class="ident">usize</span>,
-            <span class="ident">excess</span>: <span class="ident">i32</span>,
-        ) {
-            <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro</span><span class="macro">!</span>(
-                <span class="macro-nonterminal">multiply_basis_elements</span>,
-                <span class="self">self</span>,
-                <span class="ident">result</span>,
-                <span class="ident">coeff</span>,
-                <span class="ident">r_deg</span>,
-                <span class="ident">r_idx</span>,
-                <span class="ident">s_deg</span>,
-                <span class="ident">s_idx</span>,
-                <span class="ident">excess</span>
-            )
-        }
+                <span class="kw">fn</span> <span class="ident">multiply_element_by_element</span>(
+                    <span class="kw-2">&amp;</span><span class="self">self</span>,
+                    <span class="ident">result</span>: <span class="ident">SliceMut</span>,
+                    <span class="ident">coeff</span>: <span class="ident">u32</span>,
+                    <span class="ident">r_degree</span>: <span class="ident">i32</span>,
+                    <span class="ident">r</span>: <span class="ident">Slice</span>,
+                    <span class="ident">s_degree</span>: <span class="ident">i32</span>,
+                    <span class="ident">s</span>: <span class="ident">Slice</span>,
+                    <span class="ident">excess</span>: <span class="ident">i32</span>,
+                );
 
-        <span class="kw">fn</span> <span class="ident">json_to_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">json</span>: <span class="ident">serde_json</span>::<span class="ident">Value</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
-            <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro</span><span class="macro">!</span>(<span class="macro-nonterminal">json_to_basis</span>, <span class="self">self</span>, <span class="ident">json</span>)
-        }
+                <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
 
-        <span class="kw">fn</span> <span class="ident">json_from_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">serde_json</span>::<span class="ident">Value</span> {
-            <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro</span><span class="macro">!</span>(<span class="macro-nonterminal">json_from_basis</span>, <span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">idx</span>)
-        }
+                <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span>;
 
-        <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
-            <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro</span><span class="macro">!</span>(<span class="macro-nonterminal">basis_element_to_string</span>, <span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">idx</span>)
-        }
-
-        <span class="kw">fn</span> <span class="ident">generators</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
-            <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro</span><span class="macro">!</span>(<span class="macro-nonterminal">generators</span>, <span class="self">self</span>, <span class="ident">degree</span>)
-        }
-
-        <span class="kw">fn</span> <span class="ident">string_to_generator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;b</span><span class="op">&gt;</span>(
-            <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="self">self</span>,
-            <span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="ident">str</span>,
-        ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">nom</span>::<span class="ident">IResult</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="ident">str</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
-            <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro</span><span class="macro">!</span>(<span class="macro-nonterminal">string_to_generator</span>, <span class="self">self</span>, <span class="ident">input</span>)
-        }
-
-        <span class="kw">fn</span> <span class="ident">decompose_basis_element</span>(
-            <span class="kw-2">&amp;</span><span class="self">self</span>,
-            <span class="ident">degree</span>: <span class="ident">i32</span>,
-            <span class="ident">idx</span>: <span class="ident">usize</span>,
-        ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span> {
-            <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro</span><span class="macro">!</span>(<span class="macro-nonterminal">decompose_basis_element</span>, <span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">idx</span>)
-        }
-
-        <span class="kw">fn</span> <span class="ident">generating_relations</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span><span class="op">&gt;</span> {
-            <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro</span><span class="macro">!</span>(<span class="macro-nonterminal">generating_relations</span>, <span class="self">self</span>, <span class="ident">degree</span>)
+                <span class="kw">fn</span> <span class="ident">element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">element</span>: <span class="ident">Slice</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span>;
+            }
         }
     };
 }

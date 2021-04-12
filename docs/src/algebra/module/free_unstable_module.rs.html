@@ -649,11 +649,11 @@
 <span class="kw">use</span> <span class="ident">once</span>::{<span class="ident">OnceBiVec</span>, <span class="ident">OnceVec</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">JsonAlgebra</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">Slice</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">serde_json</span>::{<span class="ident">json</span>, <span class="ident">Value</span>};
+<span class="kw">use</span> {
+    <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">JsonAlgebra</span>,
+    <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">Slice</span>,
+    <span class="ident">serde_json</span>::{<span class="ident">json</span>, <span class="ident">Value</span>},
+};
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">FreeUnstableModule</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AdemAlgebraT</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>,

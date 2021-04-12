@@ -75,19 +75,6 @@
 <span id="54">54</span>
 <span id="55">55</span>
 <span id="56">56</span>
-<span id="57">57</span>
-<span id="58">58</span>
-<span id="59">59</span>
-<span id="60">60</span>
-<span id="61">61</span>
-<span id="62">62</span>
-<span id="63">63</span>
-<span id="64">64</span>
-<span id="65">65</span>
-<span id="66">66</span>
-<span id="67">67</span>
-<span id="68">68</span>
-<span id="69">69</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">mod</span> <span class="ident">bounded_module</span>;
 <span class="kw">mod</span> <span class="ident">finite_dimensional_module</span>;
@@ -133,25 +120,12 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">zero_module</span>::<span class="ident">ZeroModule</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">bcp</span>::<span class="ident">BCp</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">dickson2</span>::<span class="ident">Dickson2</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_unstable_module</span>::<span class="ident">FreeUnstableModule</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">hom_module</span>::<span class="ident">HomModule</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">kfpn</span>::<span class="ident">KFpn</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">polynomial_algebra_module</span>::<span class="ident">PolynomialAlgebraModule</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">quotient_module</span>::<span class="ident">QuotientModule</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">sum_module</span>::<span class="ident">SumModule</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">tensor_module</span>::<span class="ident">TensorModule</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">truncated_module</span>::<span class="ident">TruncatedModule</span>;
+<span class="kw">pub</span> <span class="kw">use</span> {
+    <span class="ident">bcp</span>::<span class="ident">BCp</span>, <span class="ident">dickson2</span>::<span class="ident">Dickson2</span>, <span class="ident">free_unstable_module</span>::<span class="ident">FreeUnstableModule</span>, <span class="ident">hom_module</span>::<span class="ident">HomModule</span>,
+    <span class="ident">kfpn</span>::<span class="ident">KFpn</span>, <span class="ident">polynomial_algebra_module</span>::<span class="ident">PolynomialAlgebraModule</span>,
+    <span class="ident">quotient_module</span>::<span class="ident">QuotientModule</span>, <span class="ident">sum_module</span>::<span class="ident">SumModule</span>, <span class="ident">tensor_module</span>::<span class="ident">TensorModule</span>,
+    <span class="ident">truncated_module</span>::<span class="ident">TruncatedModule</span>,
+};
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">SteenrodAlgebra</span>;
 

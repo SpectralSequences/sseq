@@ -341,10 +341,6 @@
 <span id="320">320</span>
 <span id="321">321</span>
 <span id="322">322</span>
-<span id="323">323</span>
-<span id="324">324</span>
-<span id="325">325</span>
-<span id="326">326</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -356,13 +352,9 @@
 <span class="kw">use</span> <span class="ident">once</span>::<span class="ident">OnceBiVec</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">JsonAlgebra</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">rustc_hash</span>::<span class="ident">FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">serde_json</span>::<span class="ident">Value</span>;
+<span class="kw">use</span> {
+    <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">JsonAlgebra</span>, <span class="ident">bivec</span>::<span class="ident">BiVec</span>, <span class="ident">rustc_hash</span>::<span class="ident">FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>, <span class="ident">serde_json</span>::<span class="ident">Value</span>,
+};
 
 <span class="kw">struct</span> <span class="ident">FPMIndexTable</span> {
     <span class="ident">gen_idx_to_fp_idx</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">isize</span><span class="op">&gt;</span>,

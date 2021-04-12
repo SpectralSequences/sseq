@@ -250,8 +250,6 @@
 <span id="229">229</span>
 <span id="230">230</span>
 <span id="231">231</span>
-<span id="232">232</span>
-<span id="233">233</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{
     <span class="ident">adem_algebra</span>::<span class="ident">AdemBasisElement</span>,
@@ -265,9 +263,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">serde</span>::<span class="ident">Deserialize</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">serde_json</span>::<span class="ident">Value</span>;
+<span class="kw">use</span> {<span class="ident">serde</span>::<span class="ident">Deserialize</span>, <span class="ident">serde_json</span>::<span class="ident">Value</span>};
 
 <span class="doccomment">/// This is $\mathbb{RP}_{\mathrm{min}}^{\mathrm{max}}$. The cohomology is the subquotient of</span>
 <span class="doccomment">/// $\mathbb{F}_2[x^\pm]$ given by elements of degree between min and max (inclusive)</span>

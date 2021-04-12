@@ -867,10 +867,6 @@
 <span id="846">846</span>
 <span id="847">847</span>
 <span id="848">848</span>
-<span id="849">849</span>
-<span id="850">850</span>
-<span id="851">851</span>
-<span id="852">852</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">Algebra</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
@@ -879,28 +875,24 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">GeneratedAlgebra</span>, <span class="ident">JsonAlgebra</span>};
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">ModuleFailedRelationError</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">error</span>::<span class="ident">GenericError</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">nom</span>::{
-    <span class="ident">branch</span>::<span class="ident">alt</span>,
-    <span class="ident">bytes</span>::<span class="ident">complete</span>::{<span class="ident">is_not</span>, <span class="ident">take</span>},
-    <span class="ident">character</span>::<span class="ident">complete</span>::{<span class="ident">char</span>, <span class="ident">digit1</span>, <span class="ident">space0</span>, <span class="ident">space1</span>},
-    <span class="ident">combinator</span>::<span class="ident">map</span>,
-    <span class="ident">multi</span>::<span class="ident">separated_list</span>,
-    <span class="ident">sequence</span>::<span class="ident">delimited</span>,
-    <span class="ident">sequence</span>::<span class="ident">tuple</span>,
-    <span class="ident">IResult</span>,
+<span class="kw">use</span> {
+    <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">GeneratedAlgebra</span>, <span class="ident">JsonAlgebra</span>},
+    <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">ModuleFailedRelationError</span>,
+    <span class="ident">error</span>::<span class="ident">GenericError</span>,
+    <span class="ident">nom</span>::{
+        <span class="ident">branch</span>::<span class="ident">alt</span>,
+        <span class="ident">bytes</span>::<span class="ident">complete</span>::{<span class="ident">is_not</span>, <span class="ident">take</span>},
+        <span class="ident">character</span>::<span class="ident">complete</span>::{<span class="ident">char</span>, <span class="ident">digit1</span>, <span class="ident">space0</span>, <span class="ident">space1</span>},
+        <span class="ident">combinator</span>::<span class="ident">map</span>,
+        <span class="ident">multi</span>::<span class="ident">separated_list</span>,
+        <span class="ident">sequence</span>::<span class="ident">delimited</span>,
+        <span class="ident">sequence</span>::<span class="ident">tuple</span>,
+        <span class="ident">IResult</span>,
+    },
+    <span class="ident">rustc_hash</span>::<span class="ident">FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>,
+    <span class="ident">serde</span>::<span class="ident">Deserialize</span>,
+    <span class="ident">serde_json</span>::{<span class="ident">json</span>, <span class="ident">value</span>::<span class="ident">Value</span>},
 };
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">rustc_hash</span>::<span class="ident">FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">serde</span>::<span class="ident">Deserialize</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">serde_json</span>::{<span class="ident">json</span>, <span class="ident">value</span>::<span class="ident">Value</span>};
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">FiniteDimensionalModule</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> {
     <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>,
