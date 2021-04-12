@@ -9,10 +9,10 @@ license = "(MIT OR Apache-2.0)"
 resolver = "2"
 
 [dependencies]
-algebra = { path = "crates/algebra", default-features = false }
+algebra = { path = "crates/algebra", default-features = false, features = ["json"] }
 bivec = { path = "crates/bivec"}
 error = { path = "crates/error"}
-fp = { path = "crates/fp", default-features = false, features = ["json"] }
+fp = { path = "crates/fp", default-features = false }
 once = { path = "crates/once"}
 saveload = { path = "crates/saveload" }
 thread-token = { path = "crates/thread-token", optional = true }

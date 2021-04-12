@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 algebra = { path = "../ext/crates/algebra", default-features = false }
-bivec = { path = "../ext/crates/bivec" }
+bivec = { path = "../ext/crates/bivec", features = ["json"] }
 chart = { path = "../ext/crates/chart" }
 error = { path = "../ext/crates/error" }
 ext = { path = "../ext", default-features = false, features = ["extras", "yoneda"] }

@@ -10,11 +10,15 @@ use nom::{
     IResult,
 };
 use rustc_hash::FxHashMap as HashMap;
+#[cfg(feature = "json")]
 use serde_json::value::Value;
 use std::sync::Mutex;
 
 use crate::algebra::combinatorics::{self, MAX_XI_TAU};
-use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, JsonAlgebra};
+#[cfg(feature = "json")]
+use crate::algebra::JsonAlgebra;
+use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
+
 use fp::prime::{BitflagIterator, ValidPrime};
 use fp::vector::{FpVector, SliceMut};
 use once::OnceVec;
@@ -82,6 +86,7 @@ impl AdemBasisElement {
             .filter(|b| !matches!(b, PorBockstein::Bockstein(false)))
     }
 
+    #[cfg(feature = "json")]
     fn iter_full(&self) -> impl Iterator<Item = PorBockstein> + '_ {
         BitflagIterator::new_fixed_length(self.bocksteins as u64, self.ps.len() + 1)
             .map(PorBockstein::Bockstein)
@@ -284,6 +289,7 @@ impl Algebra for AdemAlgebra {
     }
 }
 
+#[cfg(feature = "json")]
 impl JsonAlgebra for AdemAlgebra {
     fn prefix(&self) -> &str {
         "adem"

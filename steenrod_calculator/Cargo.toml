@@ -5,7 +5,7 @@ authors = ["Dexter Chua <dexter@math.harvard.edu>"]
 edition = "2018"
 
 [dependencies]
-algebra = { path = "../ext/crates/algebra" }
+algebra = { path = "../ext/crates/algebra", default-features = false, features = ["odd-primes"] }
 fp = { path = "../ext/crates/fp" }
 wasm-bindgen = "0.2.0"
 

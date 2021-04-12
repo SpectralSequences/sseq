@@ -1,12 +1,15 @@
+#[cfg(feature = "json")]
+use crate::algebra::JsonAlgebra;
 use crate::algebra::{
-    milnor_algebra::PPart, AdemAlgebra, AdemAlgebraT, Algebra, Bialgebra, GeneratedAlgebra,
-    JsonAlgebra, MilnorAlgebra, MilnorAlgebraT,
+    AdemAlgebra, AdemAlgebraT, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra, MilnorAlgebraT,
 };
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
 use enum_dispatch::enum_dispatch;
+#[cfg(feature = "json")]
 use serde::Deserialize;
+#[cfg(feature = "json")]
 use serde_json::Value;
 
 // This is here so that the Python bindings can use modules defined for SteenrodAlgebraT with their own algebra enum.
@@ -21,7 +24,15 @@ pub enum SteenrodAlgebraBorrow<'a> {
     BorrowMilnor(&'a MilnorAlgebra),
 }
 
+#[cfg(feature = "json")]
 #[enum_dispatch(Algebra, GeneratedAlgebra, JsonAlgebra)]
+pub enum SteenrodAlgebra {
+    AdemAlgebra,
+    MilnorAlgebra,
+}
+
+#[cfg(not(feature = "json"))]
+#[enum_dispatch(Algebra, GeneratedAlgebra)]
 pub enum SteenrodAlgebra {
     AdemAlgebra,
     MilnorAlgebra,
@@ -79,13 +90,15 @@ impl Bialgebra for SteenrodAlgebra {
     }
 }
 
+#[cfg(feature = "json")]
 #[derive(Deserialize, Debug)]
 struct MilnorProfileOption {
     truncated: Option<bool>,
     q_part: Option<u32>,
-    p_part: Option<PPart>,
+    p_part: Option<crate::algebra::milnor_algebra::PPart>,
 }
 
+#[cfg(feature = "json")]
 #[derive(Deserialize, Debug)]
 struct AlgebraSpec {
     p: u32,
@@ -93,6 +106,7 @@ struct AlgebraSpec {
     profile: Option<MilnorProfileOption>,
 }
 
+#[cfg(feature = "json")]
 impl SteenrodAlgebra {
     pub fn from_json(json: &Value, algebra_name: &str) -> error::Result<SteenrodAlgebra> {
         // This line secretly redefines the lifetime of algebra_name so that we can reassign it

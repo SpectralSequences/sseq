@@ -154,6 +154,7 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     }
 }
 
+#[cfg(feature = "json")]
 #[enum_dispatch]
 pub trait JsonAlgebra: Algebra {
     fn prefix(&self) -> &str;

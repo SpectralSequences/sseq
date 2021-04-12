@@ -1,13 +1,18 @@
-use serde_json::json;
-use serde_json::Value;
 use std::sync::Arc;
 
-use crate::algebra::{AdemAlgebra, AdemAlgebraT, JsonAlgebra};
+use crate::algebra::{AdemAlgebra, AdemAlgebraT};
 use crate::module::Module;
 use crate::module::OperationGeneratorPair;
 use bivec::BiVec;
-use fp::vector::{FpVector, SliceMut};
+use fp::vector::SliceMut;
 use once::{OnceBiVec, OnceVec};
+
+#[cfg(feature = "json")]
+use crate::algebra::JsonAlgebra;
+#[cfg(feature = "json")]
+use fp::vector::Slice;
+#[cfg(feature = "json")]
+use serde_json::{json, Value};
 
 pub struct FreeUnstableModule<A: AdemAlgebraT> {
     pub algebra: Arc<A>,
@@ -302,8 +307,9 @@ impl<A: AdemAlgebraT> FreeUnstableModule<A> {
     }
 }
 
+#[cfg(feature = "json")]
 impl<A: JsonAlgebra + AdemAlgebraT> FreeUnstableModule<A> {
-    pub fn element_to_json(&self, degree: i32, elt: &FpVector) -> Value {
+    pub fn element_to_json(&self, degree: i32, elt: Slice) -> Value {
         let mut result = Vec::new();
         let algebra = self.algebra();
         for (i, v) in elt.iter_nonzero() {

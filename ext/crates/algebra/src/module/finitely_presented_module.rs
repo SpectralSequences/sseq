@@ -1,14 +1,20 @@
-use rustc_hash::FxHashMap as HashMap;
-use serde_json::Value;
 use std::sync::Arc;
 
-use crate::algebra::{Algebra, JsonAlgebra};
+use crate::algebra::Algebra;
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::module::{FreeModule, Module, ZeroModule};
-use bivec::BiVec;
 use fp::matrix::Matrix;
 use fp::vector::{FpVector, SliceMut};
 use once::OnceBiVec;
+
+#[cfg(feature = "json")]
+use crate::algebra::JsonAlgebra;
+#[cfg(feature = "json")]
+use bivec::BiVec;
+#[cfg(feature = "json")]
+use rustc_hash::FxHashMap as HashMap;
+#[cfg(feature = "json")]
+use serde_json::Value;
 
 struct FPMIndexTable {
     gen_idx_to_fp_idx: Vec<isize>,
@@ -83,6 +89,19 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
             .add_generators_from_matrix_rows(degree, relations_matrix.as_slice_mut());
     }
 
+    pub fn gen_idx_to_fp_idx(&self, degree: i32, idx: usize) -> isize {
+        assert!(degree >= self.min_degree);
+        self.index_table[degree].gen_idx_to_fp_idx[idx]
+    }
+
+    pub fn fp_idx_to_gen_idx(&self, degree: i32, idx: usize) -> usize {
+        assert!(degree >= self.min_degree);
+        self.index_table[degree].fp_idx_to_gen_idx[idx]
+    }
+}
+
+#[cfg(feature = "json")]
+impl<A: JsonAlgebra> FinitelyPresentedModule<A> {
     // Exact duplicate of function in fdmodule.rs...
     fn module_gens_from_json(
         gens: &Value,
@@ -122,18 +141,6 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
         (graded_dimension, gen_names, gen_to_idx)
     }
 
-    pub fn gen_idx_to_fp_idx(&self, degree: i32, idx: usize) -> isize {
-        assert!(degree >= self.min_degree);
-        self.index_table[degree].gen_idx_to_fp_idx[idx]
-    }
-
-    pub fn fp_idx_to_gen_idx(&self, degree: i32, idx: usize) -> usize {
-        assert!(degree >= self.min_degree);
-        self.index_table[degree].fp_idx_to_gen_idx[idx]
-    }
-}
-
-impl<A: JsonAlgebra> FinitelyPresentedModule<A> {
     pub fn from_json(algebra: Arc<A>, json: &mut Value) -> error::Result<Self> {
         let p = algebra.prime();
         let name = json["name"].as_str().unwrap_or("").to_string();

@@ -5,5 +5,8 @@ authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dexter@math.harvard.edu>
 edition = "2018"
 
 [dependencies]
-serde = "1.0.0"
+serde = { version = "1.0.0", optional = true }
 saveload = { path = "../saveload" }
+
+[features]
+json = ["serde"]

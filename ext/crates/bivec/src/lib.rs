@@ -1,5 +1,6 @@
 use core::ops::Index;
 use core::ops::IndexMut;
+#[cfg(feature = "json")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 use std::slice::{Iter, IterMut};
@@ -170,6 +171,7 @@ impl<T> BiVec<T> {
     }
 }
 
+#[cfg(feature = "json")]
 impl<T: Serialize> Serialize for BiVec<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -179,6 +181,7 @@ impl<T: Serialize> Serialize for BiVec<T> {
     }
 }
 
+#[cfg(feature = "json")]
 impl<'de, T: Deserialize<'de>> Deserialize<'de> for BiVec<T> {
     fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
     where

@@ -9,7 +9,9 @@ use fp::vector::SliceMut;
 
 use std::sync::Arc;
 
+#[cfg(feature = "json")]
 use serde::Deserialize;
+#[cfg(feature = "json")]
 use serde_json::Value;
 
 /// This is $\mathbb{RP}_{\mathrm{min}}^{\mathrm{max}}$. The cohomology is the subquotient of
@@ -169,13 +171,6 @@ impl<A: SteenrodAlgebraT> ZeroModule for RealProjectiveSpace<A> {
     }
 }
 
-#[derive(Deserialize, Debug)]
-struct RPSpec {
-    min: i32,
-    clear_bottom: Option<bool>,
-    max: Option<i32>,
-}
-
 impl<A: SteenrodAlgebraT> RealProjectiveSpace<A> {
     pub fn new(algebra: Arc<A>, min: i32, max: Option<i32>, clear_bottom: bool) -> Self {
         assert_eq!(*algebra.prime(), 2);
@@ -193,7 +188,18 @@ impl<A: SteenrodAlgebraT> RealProjectiveSpace<A> {
     pub fn max_degree(&self) -> Option<i32> {
         self.max
     }
+}
 
+#[cfg(feature = "json")]
+#[derive(Deserialize, Debug)]
+struct RPSpec {
+    min: i32,
+    clear_bottom: Option<bool>,
+    max: Option<i32>,
+}
+
+#[cfg(feature = "json")]
+impl<A: SteenrodAlgebraT> RealProjectiveSpace<A> {
     pub fn from_json(algebra: Arc<A>, json: &mut Value) -> error::Result<Self> {
         let spec: RPSpec = serde_json::from_value(json.clone())?;
         let clear_bottom = spec.clear_bottom.unwrap_or(false);

@@ -398,8 +398,4 @@ impl std::fmt::Display for ModuleFailedRelationError {
     }
 }
 
-impl std::error::Error for ModuleFailedRelationError {
-    fn description(&self) -> &str {
-        "Module failed a relation"
-    }
-}
+impl std::error::Error for ModuleFailedRelationError {}

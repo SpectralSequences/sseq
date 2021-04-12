@@ -2,8 +2,10 @@ use crate::algebra::{Algebra, SteenrodAlgebra};
 use crate::module::{FDModule, FPModule, Module, RealProjectiveSpace};
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
-use serde_json::Value;
 use std::sync::Arc;
+
+#[cfg(feature = "json")]
+use serde_json::Value;
 
 #[derive(PartialEq, Eq)]
 pub enum FiniteModule {
@@ -96,6 +98,7 @@ impl From<RealProjectiveSpace<SteenrodAlgebra>> for FiniteModule {
     }
 }
 
+#[cfg(feature = "json")]
 impl FiniteModule {
     pub fn from_json(
         algebra: Arc<SteenrodAlgebra>,
@@ -119,7 +122,9 @@ impl FiniteModule {
     }
 
     dispatch! { pub fn to_json(&self, json: &mut Value); }
+}
 
+impl FiniteModule {
     pub fn type_(&self) -> &str {
         match self {
             Self::FDModule(_) => "finite dimensional module",

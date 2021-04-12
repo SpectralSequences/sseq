@@ -1,12 +1,15 @@
-use serde_json::json;
-use serde_json::Value;
 use std::sync::Arc;
 
-use crate::algebra::{Algebra, JsonAlgebra};
+use crate::algebra::Algebra;
 use crate::module::Module;
 use bivec::BiVec;
 use fp::vector::{Slice, SliceMut};
 use once::{OnceBiVec, OnceVec};
+
+#[cfg(feature = "json")]
+use crate::algebra::JsonAlgebra;
+#[cfg(feature = "json")]
+use serde_json::{json, Value};
 
 #[derive(Clone, Debug)]
 pub struct OperationGeneratorPair {
@@ -354,6 +357,7 @@ impl<A: Algebra> FreeModule<A> {
     }
 }
 
+#[cfg(feature = "json")]
 impl<A: JsonAlgebra> FreeModule<A> {
     pub fn element_to_json(&self, degree: i32, elt: Slice) -> Value {
         let mut result = Vec::new();

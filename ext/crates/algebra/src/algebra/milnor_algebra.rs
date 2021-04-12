@@ -1,10 +1,13 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
+#[cfg(feature = "json")]
 use serde_json::value::Value;
 use std::sync::Mutex;
 
 use crate::algebra::combinatorics;
-use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, JsonAlgebra};
+#[cfg(feature = "json")]
+use crate::algebra::JsonAlgebra;
+use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
 use fp::prime::{integer_power, Binomial, BitflagIterator, ValidPrime};
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceVec;
@@ -388,6 +391,7 @@ impl Algebra for MilnorAlgebra {
     }
 }
 
+#[cfg(feature = "json")]
 impl JsonAlgebra for MilnorAlgebra {
     fn prefix(&self) -> &str {
         "milnor"
