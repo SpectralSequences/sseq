@@ -1,6 +1,5 @@
 use core::cmp::Ordering;
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -19,7 +18,7 @@ use crate::algebra::combinatorics::{self, MAX_XI_TAU};
 use crate::algebra::JsonAlgebra;
 use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
 
-use fp::prime::{BitflagIterator, ValidPrime};
+use fp::prime::{BinomialIterator, BitflagIterator, ValidPrime};
 use fp::vector::{FpVector, SliceMut};
 use once::OnceVec;
 
@@ -34,24 +33,6 @@ impl AdemAlgebraT for AdemAlgebra {
     fn adem_algebra(&self) -> &AdemAlgebra {
         &*self
     }
-}
-
-lazy_static! {
-    static ref BOCKSTEIN_TABLE: Vec<Vec<u32>> = {
-        let mut n_choose_k = 1;
-        let mut table: Vec<Vec<u32>> = Vec::with_capacity(MAX_XI_TAU + 1);
-        for k in 1..MAX_XI_TAU + 2 {
-            table.push(Vec::with_capacity(n_choose_k));
-            n_choose_k *= MAX_XI_TAU + 1 - k;
-            n_choose_k /= k;
-        }
-
-        for i in 0u32..(1 << MAX_XI_TAU) {
-            let bits_set = i.count_ones() as usize;
-            table[bits_set].push(i);
-        }
-        table
-    };
 }
 
 /// The format of the AdemBasisElement is as follows. To encode
@@ -650,9 +631,7 @@ impl AdemAlgebra {
                     // Not enough space to fit the bs.
                     continue; // Ps ordered in descending length, so none of the later ones will have space either
                 }
-                let bflags = &BOCKSTEIN_TABLE[num_bs];
-                for bocksteins in bflags {
-                    let bocksteins = *bocksteins;
+                for bocksteins in BinomialIterator::new(num_bs) {
                     if 32 - bocksteins.leading_zeros() > P.ps.len() as u32 + 1 {
                         // Too large of a b. We sorted the Ps in descending length order so we can break now.
                         break;
@@ -676,7 +655,10 @@ impl AdemAlgebra {
                         bocksteins,
                         ps,
                         p_or_sq: *self.prime() != 2,
-                    })
+                    });
+                    if num_bs == 0 {
+                        break;
+                    }
                 }
             }
         }

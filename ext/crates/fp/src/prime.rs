@@ -442,6 +442,32 @@ impl Iterator for BitflagIterator {
     }
 }
 
+/// Iterates through all numbers with the same number of bits. It may panic or return nonsense
+/// after all valid values are returned.
+pub struct BinomialIterator {
+    value: u32,
+}
+
+impl BinomialIterator {
+    pub fn new(n: usize) -> Self {
+        Self {
+            value: (1 << n) - 1,
+        }
+    }
+}
+
+impl Iterator for BinomialIterator {
+    type Item = u32;
+    fn next(&mut self) -> Option<Self::Item> {
+        let v = self.value;
+        let c = v & v.wrapping_neg();
+        let r = v + c;
+        let n = (r ^ v).wrapping_shr(2 + v.trailing_zeros());
+        self.value = r | n;
+        Some(v)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -520,6 +546,21 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn binomial_iterator() {
+        let mut iter = BinomialIterator::new(4);
+        assert_eq!(iter.next(), Some(0b1111));
+        assert_eq!(iter.next(), Some(0b10111));
+        assert_eq!(iter.next(), Some(0b11011));
+        assert_eq!(iter.next(), Some(0b11101));
+        assert_eq!(iter.next(), Some(0b11110));
+        assert_eq!(iter.next(), Some(0b100111));
+        assert_eq!(iter.next(), Some(0b101011));
+        assert_eq!(iter.next(), Some(0b101101));
+        assert_eq!(iter.next(), Some(0b101110));
+        assert_eq!(iter.next(), Some(0b110011));
     }
 }
 
