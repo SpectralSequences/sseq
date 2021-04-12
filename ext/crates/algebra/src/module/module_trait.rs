@@ -6,11 +6,7 @@ use fp::vector::{FpVector, Slice, SliceMut};
 
 use crate::algebra::Algebra;
 #[cfg(feature = "extras")]
-use crate::module::BoundedModule;
-#[cfg(feature = "extras")]
-use crate::module::FDModule;
-#[cfg(feature = "extras")]
-use crate::module::TruncatedModule;
+use {crate::module::BoundedModule, crate::module::FDModule, crate::module::TruncatedModule};
 
 pub trait Module: std::fmt::Display + Send + Sync + 'static {
     type Algebra: Algebra;

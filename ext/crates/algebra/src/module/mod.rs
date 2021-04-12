@@ -42,25 +42,12 @@ pub use rpn::RealProjectiveSpace;
 pub use zero_module::ZeroModule;
 
 #[cfg(feature = "extras")]
-pub use bcp::BCp;
-#[cfg(feature = "extras")]
-pub use dickson2::Dickson2;
-#[cfg(feature = "extras")]
-pub use free_unstable_module::FreeUnstableModule;
-#[cfg(feature = "extras")]
-pub use hom_module::HomModule;
-#[cfg(feature = "extras")]
-pub use kfpn::KFpn;
-#[cfg(feature = "extras")]
-pub use polynomial_algebra_module::PolynomialAlgebraModule;
-#[cfg(feature = "extras")]
-pub use quotient_module::QuotientModule;
-#[cfg(feature = "extras")]
-pub use sum_module::SumModule;
-#[cfg(feature = "extras")]
-pub use tensor_module::TensorModule;
-#[cfg(feature = "extras")]
-pub use truncated_module::TruncatedModule;
+pub use {
+    bcp::BCp, dickson2::Dickson2, free_unstable_module::FreeUnstableModule, hom_module::HomModule,
+    kfpn::KFpn, polynomial_algebra_module::PolynomialAlgebraModule,
+    quotient_module::QuotientModule, sum_module::SumModule, tensor_module::TensorModule,
+    truncated_module::TruncatedModule,
+};
 
 use crate::algebra::SteenrodAlgebra;
 

@@ -8,9 +8,7 @@ use fp::vector::{Slice, SliceMut};
 
 use enum_dispatch::enum_dispatch;
 #[cfg(feature = "json")]
-use serde::Deserialize;
-#[cfg(feature = "json")]
-use serde_json::Value;
+use {serde::Deserialize, serde_json::Value};
 
 // This is here so that the Python bindings can use modules defined for SteenrodAlgebraT with their own algebra enum.
 // In order for things to work SteenrodAlgebraT cannot implement Algebra.

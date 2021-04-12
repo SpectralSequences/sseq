@@ -8,11 +8,11 @@ use fp::vector::SliceMut;
 use once::{OnceBiVec, OnceVec};
 
 #[cfg(feature = "json")]
-use crate::algebra::JsonAlgebra;
-#[cfg(feature = "json")]
-use fp::vector::Slice;
-#[cfg(feature = "json")]
-use serde_json::{json, Value};
+use {
+    crate::algebra::JsonAlgebra,
+    fp::vector::Slice,
+    serde_json::{json, Value},
+};
 
 pub struct FreeUnstableModule<A: AdemAlgebraT> {
     pub algebra: Arc<A>,

@@ -10,9 +10,7 @@ use fp::vector::SliceMut;
 use std::sync::Arc;
 
 #[cfg(feature = "json")]
-use serde::Deserialize;
-#[cfg(feature = "json")]
-use serde_json::Value;
+use {serde::Deserialize, serde_json::Value};
 
 /// This is $\mathbb{RP}_{\mathrm{min}}^{\mathrm{max}}$. The cohomology is the subquotient of
 /// $\mathbb{F}_2[x^\pm]$ given by elements of degree between min and max (inclusive)

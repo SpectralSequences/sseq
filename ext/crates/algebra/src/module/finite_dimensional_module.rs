@@ -5,28 +5,24 @@ use fp::vector::{FpVector, SliceMut};
 use std::sync::Arc;
 
 #[cfg(feature = "json")]
-use crate::algebra::{GeneratedAlgebra, JsonAlgebra};
-#[cfg(feature = "json")]
-use crate::module::ModuleFailedRelationError;
-#[cfg(feature = "json")]
-use error::GenericError;
-#[cfg(feature = "json")]
-use nom::{
-    branch::alt,
-    bytes::complete::{is_not, take},
-    character::complete::{char, digit1, space0, space1},
-    combinator::map,
-    multi::separated_list,
-    sequence::delimited,
-    sequence::tuple,
-    IResult,
+use {
+    crate::algebra::{GeneratedAlgebra, JsonAlgebra},
+    crate::module::ModuleFailedRelationError,
+    error::GenericError,
+    nom::{
+        branch::alt,
+        bytes::complete::{is_not, take},
+        character::complete::{char, digit1, space0, space1},
+        combinator::map,
+        multi::separated_list,
+        sequence::delimited,
+        sequence::tuple,
+        IResult,
+    },
+    rustc_hash::FxHashMap as HashMap,
+    serde::Deserialize,
+    serde_json::{json, value::Value},
 };
-#[cfg(feature = "json")]
-use rustc_hash::FxHashMap as HashMap;
-#[cfg(feature = "json")]
-use serde::Deserialize;
-#[cfg(feature = "json")]
-use serde_json::{json, value::Value};
 
 pub struct FiniteDimensionalModule<A: Algebra> {
     algebra: Arc<A>,

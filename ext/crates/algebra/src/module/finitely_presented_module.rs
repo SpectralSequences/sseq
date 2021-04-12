@@ -8,13 +8,9 @@ use fp::vector::{FpVector, SliceMut};
 use once::OnceBiVec;
 
 #[cfg(feature = "json")]
-use crate::algebra::JsonAlgebra;
-#[cfg(feature = "json")]
-use bivec::BiVec;
-#[cfg(feature = "json")]
-use rustc_hash::FxHashMap as HashMap;
-#[cfg(feature = "json")]
-use serde_json::Value;
+use {
+    crate::algebra::JsonAlgebra, bivec::BiVec, rustc_hash::FxHashMap as HashMap, serde_json::Value,
+};
 
 struct FPMIndexTable {
     gen_idx_to_fp_idx: Vec<isize>,

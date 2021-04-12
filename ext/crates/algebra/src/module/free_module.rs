@@ -7,9 +7,10 @@ use fp::vector::{Slice, SliceMut};
 use once::{OnceBiVec, OnceVec};
 
 #[cfg(feature = "json")]
-use crate::algebra::JsonAlgebra;
-#[cfg(feature = "json")]
-use serde_json::{json, Value};
+use {
+    crate::algebra::JsonAlgebra,
+    serde_json::{json, Value},
+};
 
 #[derive(Clone, Debug)]
 pub struct OperationGeneratorPair {
