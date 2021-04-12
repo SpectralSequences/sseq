@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 algebra = { path = "../ext/crates/algebra", default-features = false, features = ["odd-primes"] }
 fp = { path = "../ext/crates/fp" }
-wasm-bindgen = "0.2.0"
+wasm-bindgen = "=0.2.73"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
