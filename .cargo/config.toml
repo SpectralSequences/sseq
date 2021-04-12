@@ -4,6 +4,12 @@ opt-level = 3
 debug = true
 codegen-units = 1
 
+[profile.bench]
+lto = true
+opt-level = 3
+debug = true
+codegen-units = 1
+
 # I really want this to mean "if not cross compiling".
 [target.x86_64-unknown-linux-gnu]
 rustflags = ["-C", "target_cpu=native"]
