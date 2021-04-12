@@ -389,8 +389,8 @@ impl<CC: ChainComplex> Resolution<CC> {
                     for j in 0..num_gens {
                         let f = ResolutionHomomorphism::new(
                             format!("(hom_deg : {}, int_deg : {}, idx : {})", new_s, new_t, j),
-                            Arc::downgrade(&self.inner),
-                            Arc::downgrade(&self.unit_resolution().inner),
+                            Arc::clone(&self.inner),
+                            Arc::clone(&self.unit_resolution().inner),
                             new_s as u32,
                             new_t,
                         );
@@ -445,8 +445,8 @@ impl<CC: ChainComplex> Resolution<CC> {
                 map_data,
                 map: ResolutionHomomorphism::new(
                     "".to_string(),
-                    Arc::downgrade(&self.inner),
-                    Arc::downgrade(&self.inner),
+                    Arc::clone(&self.inner),
+                    Arc::clone(&self.inner),
                     s,
                     t,
                 ),

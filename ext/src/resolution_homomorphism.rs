@@ -1,4 +1,4 @@
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use crate::chain_complex::{AugmentedChainComplex, FreeChainComplex};
 use crate::resolution::Resolution;
@@ -17,8 +17,8 @@ where
 {
     #[allow(dead_code)]
     name: String,
-    pub source: Weak<CC1>,
-    pub target: Weak<CC2>,
+    pub source: Arc<CC1>,
+    pub target: Arc<CC2>,
     maps: OnceVec<FreeModuleHomomorphism<CC2::Module>>,
     pub homological_degree_shift: u32,
     pub internal_degree_shift: i32,
@@ -31,8 +31,8 @@ where
 {
     pub fn new(
         name: String,
-        source: Weak<CC1>,
-        target: Weak<CC2>,
+        source: Arc<CC1>,
+        target: Arc<CC2>,
         homological_degree_shift: u32,
         internal_degree_shift: i32,
     ) -> Self {
@@ -54,14 +54,8 @@ where
             let input_homological_degree =
                 output_homological_degree + self.homological_degree_shift;
             self.maps.push(FreeModuleHomomorphism::new(
-                self.source
-                    .upgrade()
-                    .unwrap()
-                    .module(input_homological_degree),
-                self.target
-                    .upgrade()
-                    .unwrap()
-                    .module(output_homological_degree),
+                self.source.module(input_homological_degree),
+                self.target.module(output_homological_degree),
                 self.internal_degree_shift,
             ));
         }
@@ -80,10 +74,8 @@ where
     /// (`source_homological_degree`, `source_degree`).
     pub fn extend(&self, source_homological_degree: u32, source_degree: i32) {
         self.source
-            .upgrade()
-            .unwrap()
             .compute_through_bidegree(source_homological_degree, source_degree);
-        self.target.upgrade().unwrap().compute_through_bidegree(
+        self.target.compute_through_bidegree(
             source_homological_degree - self.homological_degree_shift,
             source_degree - self.internal_degree_shift,
         );
@@ -104,8 +96,6 @@ where
         let output_homological_degree = input_homological_degree - self.homological_degree_shift;
         let output_internal_degree = input_internal_degree - self.internal_degree_shift;
         self.target
-            .upgrade()
-            .unwrap()
             .compute_through_bidegree(output_homological_degree, output_internal_degree);
 
         let f_cur = self.get_map_ensure_length(output_homological_degree);
@@ -127,9 +117,7 @@ where
         input_internal_degree: i32,
         mut extra_images: Option<&Matrix>,
     ) -> Matrix {
-        let source = self.source.upgrade().unwrap();
-        let target = self.target.upgrade().unwrap();
-        let p = source.prime();
+        let p = self.source.prime();
         assert!(input_homological_degree >= self.homological_degree_shift);
         let output_homological_degree = input_homological_degree - self.homological_degree_shift;
         let output_internal_degree = input_internal_degree - self.internal_degree_shift;
@@ -144,7 +132,7 @@ where
         }
         if output_homological_degree == 0 {
             if let Some(extra_images_matrix) = extra_images {
-                let target_chain_map = target.chain_map(output_homological_degree);
+                let target_chain_map = self.target.chain_map(output_homological_degree);
                 let target_cc_dimension =
                     target_chain_map.target().dimension(output_internal_degree);
                 assert!(target_cc_dimension == extra_images_matrix.columns());
@@ -168,8 +156,8 @@ where
             }
             return outputs_matrix;
         }
-        let d_source = source.differential(input_homological_degree);
-        let d_target = target.differential(output_homological_degree);
+        let d_source = self.source.differential(input_homological_degree);
+        let d_target = self.target.differential(output_homological_degree);
         let f_prev = self.get_map(output_homological_degree - 1);
         assert!(Arc::ptr_eq(&d_source.source(), &f_cur.source()));
         assert!(Arc::ptr_eq(&d_source.target(), &f_prev.source()));
@@ -181,7 +169,7 @@ where
         for k in 0..num_gens {
             let dx_vector = d_source.output(input_internal_degree, k);
             if dx_vector.is_zero() {
-                let target_chain_map = target.chain_map(output_homological_degree);
+                let target_chain_map = self.target.chain_map(output_homological_degree);
                 let target_cc_dimension =
                     target_chain_map.target().dimension(output_internal_degree);
                 if let Some(extra_images_matrix) = &extra_images {
@@ -251,34 +239,32 @@ where
             FiniteModule::RealProjectiveSpace(_) => panic!("Real Projective Space not supported"),
         };
 
-        let hom = Self::new(
-            name,
-            Arc::downgrade(&source),
-            Arc::downgrade(&target),
-            0,
-            degree_shift,
-        );
+        let hom = Self::new(name, source, target, 0, degree_shift);
 
         source_module.compute_basis(max_degree);
         target_module.compute_basis(degree_shift + max_degree);
 
         // These are just asserts.
-        source.compute_through_bidegree(0, max_degree);
-        target.compute_through_bidegree(0, degree_shift + max_degree);
+        hom.source.compute_through_bidegree(0, max_degree);
+        hom.target
+            .compute_through_bidegree(0, degree_shift + max_degree);
 
-        let source_chain_map = source.chain_map(0);
-        let target_chain_map = target.chain_map(0);
+        let source_chain_map = hom.source.chain_map(0);
+        let target_chain_map = hom.target.chain_map(0);
         target_chain_map.compute_auxiliary_data_through_degree(degree_shift + max_degree);
 
         let g = hom.get_map_ensure_length(0);
 
         for t in source_module.min_degree()..=max_degree {
-            let num_gens = source.module(0).number_of_gens_in_degree(t);
+            let num_gens = hom.source.module(0).number_of_gens_in_degree(t);
 
             let mut fx = FpVector::new(p, target_module.dimension(t + degree_shift));
 
-            let mut outputs_matrix =
-                Matrix::new(p, num_gens, target.module(0).dimension(t + degree_shift));
+            let mut outputs_matrix = Matrix::new(
+                p,
+                num_gens,
+                hom.target.module(0).dimension(t + degree_shift),
+            );
             if num_gens == 0 || fx.dimension() == 0 {
                 g.add_generators_from_matrix_rows(t, outputs_matrix.as_slice_mut());
                 continue;
@@ -312,14 +298,14 @@ where
         let source_s = s - self.homological_degree_shift;
         let source_t = t - self.internal_degree_shift;
 
-        let source = self.source.upgrade().unwrap();
-        let target = self.target.upgrade().unwrap();
         assert_eq!(
             result.as_slice().dimension(),
-            source.module(source_s).number_of_gens_in_degree(source_t)
+            self.source
+                .module(source_s)
+                .number_of_gens_in_degree(source_t)
         );
 
-        let target_module = target.module(s);
+        let target_module = self.target.module(s);
 
         let map = self.get_map(s);
         for i in 0..result.as_slice().dimension() {

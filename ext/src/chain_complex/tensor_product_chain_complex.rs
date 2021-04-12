@@ -569,13 +569,7 @@ mod tests {
             Arc::clone(&yoneda),
         ));
 
-        let f = ResolutionHomomorphism::new(
-            "".to_string(),
-            Arc::downgrade(&resolution),
-            Arc::downgrade(&square),
-            0,
-            0,
-        );
+        let f = ResolutionHomomorphism::new("".to_string(), Arc::clone(&resolution), square, 0, 0);
         let mut mat = Matrix::new(p, 1, 1);
         mat[0].set_entry(0, 1);
         f.extend_step(0, 0, Some(&mat));

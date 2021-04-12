@@ -312,13 +312,7 @@ fn main() {
     let resolution = Arc::new(resolution);
 
     // Create a ResolutionHomomorphism object
-    let hom = ResolutionHomomorphism::new(
-        String::new(),
-        Arc::downgrade(&cc),
-        Arc::downgrade(&resolution),
-        0,
-        0,
-    );
+    let hom = ResolutionHomomorphism::new(String::new(), cc, resolution, 0, 0);
 
     // We have to explicitly tell it what to do at (0, 0)
     hom.extend_step(0, 0, Some(&Matrix::from_vec(TWO, &[vec![1]])));
