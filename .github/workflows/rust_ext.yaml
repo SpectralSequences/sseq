@@ -23,7 +23,7 @@ jobs:
               ~/.rustup
               ~/.cargo
               **/target
-          key: ${{ matrix.toolchain }}-${{ hashFiles('ext/Cargo.*') }}
+          key: ${{ matrix.toolchain }}-${{ hashFiles('ext/Cargo.*', 'rust_webserver/Cargo.*') }}
 
     - name: Install rustup
       uses: actions-rs/toolchain@v1
@@ -163,7 +163,7 @@ jobs:
               ~/.rustup
               ~/.cargo
               **/target
-          key: calculator-${{ matrix.toolchain }}-${{ hashFiles('ext/Cargo.*') }}
+          key: calculator-${{ matrix.toolchain }}-${{ hashFiles('ext/Cargo.*'), 'steenrod_calculator/Cargo.*' }}
 
     - name: Install rustup
       uses: actions-rs/toolchain@v1
