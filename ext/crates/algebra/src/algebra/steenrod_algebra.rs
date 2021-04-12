@@ -3,14 +3,14 @@ use crate::algebra::JsonAlgebra;
 use crate::algebra::{
     AdemAlgebra, AdemAlgebraT, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra, MilnorAlgebraT,
 };
+use crate::dispatch_algebra;
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
-use enum_dispatch::enum_dispatch;
 #[cfg(feature = "json")]
 use {serde::Deserialize, serde_json::Value};
 
-// This is here so that the Python bindings can use modules defined for SteenrodAlgebraT with their own algebra enum.
+// This is here so that the Python bindings can use modules defined aor SteenrodAlgebraT with their own algebra enum.
 // In order for things to work SteenrodAlgebraT cannot implement Algebra.
 // Otherwise, the algebra enum for our bindings will see an implementation clash.
 pub trait SteenrodAlgebraT: Send + Sync + 'static + Algebra {
@@ -22,18 +22,21 @@ pub enum SteenrodAlgebraBorrow<'a> {
     BorrowMilnor(&'a MilnorAlgebra),
 }
 
-#[cfg(feature = "json")]
-#[enum_dispatch(Algebra, GeneratedAlgebra, JsonAlgebra)]
 pub enum SteenrodAlgebra {
-    AdemAlgebra,
-    MilnorAlgebra,
+    AdemAlgebra(AdemAlgebra),
+    MilnorAlgebra(MilnorAlgebra),
 }
 
-#[cfg(not(feature = "json"))]
-#[enum_dispatch(Algebra, GeneratedAlgebra)]
-pub enum SteenrodAlgebra {
-    AdemAlgebra,
-    MilnorAlgebra,
+impl From<AdemAlgebra> for SteenrodAlgebra {
+    fn from(adem: AdemAlgebra) -> SteenrodAlgebra {
+        SteenrodAlgebra::AdemAlgebra(adem)
+    }
+}
+
+impl From<MilnorAlgebra> for SteenrodAlgebra {
+    fn from(milnor: MilnorAlgebra) -> SteenrodAlgebra {
+        SteenrodAlgebra::MilnorAlgebra(milnor)
+    }
 }
 
 impl std::fmt::Display for SteenrodAlgebra {
@@ -195,5 +198,47 @@ impl std::fmt::Display for InvalidAlgebraError {
 impl std::error::Error for InvalidAlgebraError {
     fn description(&self) -> &str {
         "Invalid algebra supplied"
+    }
+}
+
+macro_rules! dispatch_steenrod {
+    () => {};
+    ($vis:vis fn $method:ident$(<$($lt:lifetime),+>)?(&$($lt2:lifetime)?self$(, $arg:ident: $ty:ty )*$(,)?) $(-> $ret:ty)?; $($tail:tt)*) => {
+        $vis fn $method$(<$($lt),+>)?(&$($lt2)?self, $($arg: $ty),* ) $(-> $ret)* {
+            match self {
+                SteenrodAlgebra::AdemAlgebra(a) => a.$method($($arg),*),
+                SteenrodAlgebra::MilnorAlgebra(a) => a.$method($($arg),*),
+            }
+        }
+        dispatch_steenrod!{$($tail)*}
+    };
+}
+
+dispatch_algebra!(SteenrodAlgebra, dispatch_steenrod);
+
+#[cfg(feature = "json")]
+impl JsonAlgebra for SteenrodAlgebra {
+    dispatch_steenrod! {
+        fn prefix(&self) -> &str;
+        fn json_to_basis(&self, json: serde_json::Value) -> error::Result<(i32, usize)>;
+        fn json_from_basis(&self, degree: i32, idx: usize) -> serde_json::Value;
+    }
+}
+
+/// An algebra with a specified list of generators and generating relations. This data can be used
+/// to specify modules by specifying the actions of the generators.
+impl GeneratedAlgebra for SteenrodAlgebra {
+    dispatch_steenrod! {
+        fn generators(&self, degree: i32) -> Vec<usize>;
+        fn generator_to_string(&self, degree: i32, idx: usize) -> String;
+        fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> nom::IResult<&'b str, (i32, usize)>;
+
+        fn decompose_basis_element(
+            &self,
+            degree: i32,
+            idx: usize,
+        ) -> Vec<(u32, (i32, usize), (i32, usize))>;
+
+        fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>;
     }
 }

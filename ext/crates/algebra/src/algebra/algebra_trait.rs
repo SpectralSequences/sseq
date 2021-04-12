@@ -1,8 +1,6 @@
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
-use enum_dispatch::enum_dispatch;
-
 /// A graded algebra over F_p, finite dimensional in each degree, equipped with a choice of ordered
 /// basis in each dimension. Basis elements of the algebra are referred to by their degree and
 /// index, and general elements are referred to by the degree and an `FpVector` listing the
@@ -17,7 +15,6 @@ use enum_dispatch::enum_dispatch;
 /// The algebra should also come with a specified choice of algebra generators, which are
 /// necessarily basis elements. It gives us a simpler way of describing finite modules by only
 /// specifying the action of the generators.
-#[enum_dispatch]
 pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// Returns the prime the algebra is over.
     fn prime(&self) -> ValidPrime;
@@ -155,21 +152,19 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
 }
 
 #[cfg(feature = "json")]
-#[enum_dispatch]
 pub trait JsonAlgebra: Algebra {
     fn prefix(&self) -> &str;
 
     /// Converts a JSON object into a basis element. The way basis elements are represented by JSON
     /// objects is to be specified by the algebra itself, and will be used by module
     /// specifications.
-    fn json_to_basis(&self, _json: serde_json::Value) -> error::Result<(i32, usize)>;
+    fn json_to_basis(&self, json: serde_json::Value) -> error::Result<(i32, usize)>;
 
-    fn json_from_basis(&self, _degree: i32, _idx: usize) -> serde_json::Value;
+    fn json_from_basis(&self, degree: i32, idx: usize) -> serde_json::Value;
 }
 
 /// An algebra with a specified list of generators and generating relations. This data can be used
 /// to specify modules by specifying the actions of the generators.
-#[enum_dispatch]
 pub trait GeneratedAlgebra: Algebra {
     /// Given a degree `degree`, the function returns a list of algebra generators in that degree.
     /// This return value is the list of indices of the basis elements that are generators. The
@@ -220,75 +215,62 @@ pub trait GeneratedAlgebra: Algebra {
 
 #[macro_export]
 macro_rules! dispatch_algebra {
-    ($dispatch_macro : ident) => {
-        fn prime(&self) -> fp::prime::ValidPrime {
-            $dispatch_macro!(prime, self,)
-        }
+    ($struct:ty, $dispatch_macro: ident) => {
+        impl Algebra for $struct {
+            $dispatch_macro! {
+                fn prime(&self) -> ValidPrime;
+                fn compute_basis(&self, degree: i32);
+                fn dimension(&self, degree: i32, excess: i32) -> usize;
+                fn multiply_basis_elements(
+                    &self,
+                    result: SliceMut,
+                    coeff: u32,
+                    r_degree: i32,
+                    r_idx: usize,
+                    s_degree: i32,
+                    s_idx: usize,
+                    excess: i32,
+                );
 
-        fn compute_basis(&self, degree: i32) {
-            $dispatch_macro!(compute_basis, self, degree)
-        }
+                fn multiply_basis_element_by_element(
+                    &self,
+                    result: SliceMut,
+                    coeff: u32,
+                    r_degree: i32,
+                    r_idx: usize,
+                    s_degree: i32,
+                    s: Slice,
+                    excess: i32,
+                );
 
-        fn dimension(&self, degree: i32, excess: i32) -> usize {
-            $dispatch_macro!(dimension, self, degree, excess)
-        }
+                fn multiply_element_by_basis_element(
+                    &self,
+                    result: SliceMut,
+                    coeff: u32,
+                    r_degree: i32,
+                    r: Slice,
+                    s_degree: i32,
+                    s_idx: usize,
+                    excess: i32,
+                );
 
-        fn multiply_basis_elements(
-            &self,
-            result: &mut FpVector,
-            coeff: u32,
-            r_deg: i32,
-            r_idx: usize,
-            s_deg: i32,
-            s_idx: usize,
-            excess: i32,
-        ) {
-            $dispatch_macro!(
-                multiply_basis_elements,
-                self,
-                result,
-                coeff,
-                r_deg,
-                r_idx,
-                s_deg,
-                s_idx,
-                excess
-            )
-        }
+                fn multiply_element_by_element(
+                    &self,
+                    result: SliceMut,
+                    coeff: u32,
+                    r_degree: i32,
+                    r: Slice,
+                    s_degree: i32,
+                    s: Slice,
+                    excess: i32,
+                );
 
-        fn json_to_basis(&self, json: serde_json::Value) -> error::Result<(i32, usize)> {
-            $dispatch_macro!(json_to_basis, self, json)
-        }
+                fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)>;
 
-        fn json_from_basis(&self, degree: i32, idx: usize) -> serde_json::Value {
-            $dispatch_macro!(json_from_basis, self, degree, idx)
-        }
+                fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
 
-        fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
-            $dispatch_macro!(basis_element_to_string, self, degree, idx)
-        }
-
-        fn generators(&self, degree: i32) -> Vec<usize> {
-            $dispatch_macro!(generators, self, degree)
-        }
-
-        fn string_to_generator<'a, 'b>(
-            &'a self,
-            input: &'b str,
-        ) -> nom::IResult<&'b str, (i32, usize)> {
-            $dispatch_macro!(string_to_generator, self, input)
-        }
-
-        fn decompose_basis_element(
-            &self,
-            degree: i32,
-            idx: usize,
-        ) -> Vec<(u32, (i32, usize), (i32, usize))> {
-            $dispatch_macro!(decompose_basis_element, self, degree, idx)
-        }
-
-        fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> {
-            $dispatch_macro!(generating_relations, self, degree)
+                fn element_to_string(&self, degree: i32, element: Slice) -> String;
+            }
         }
     };
 }
