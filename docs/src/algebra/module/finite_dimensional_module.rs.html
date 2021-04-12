@@ -866,22 +866,25 @@
 <span id="845">845</span>
 <span id="846">846</span>
 <span id="847">847</span>
+<span id="848">848</span>
+<span id="849">849</span>
+<span id="850">850</span>
+<span id="851">851</span>
+<span id="852">852</span>
 </pre><div class="example-wrap"><pre class="rust ">
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">Algebra</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
 <span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
-
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">GeneratedAlgebra</span>, <span class="ident">JsonAlgebra</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>, <span class="ident">ModuleFailedRelationError</span>, <span class="ident">ZeroModule</span>};
-<span class="kw">use</span> <span class="ident">error</span>::<span class="ident">GenericError</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">FpVector</span>, <span class="ident">SliceMut</span>};
-
-<span class="kw">use</span> <span class="ident">serde</span>::<span class="ident">Deserialize</span>;
-<span class="kw">use</span> <span class="ident">serde_json</span>::<span class="ident">json</span>;
-<span class="kw">use</span> <span class="ident">serde_json</span>::<span class="ident">value</span>::<span class="ident">Value</span>;
-
-<span class="kw">use</span> <span class="ident">rustc_hash</span>::<span class="ident">FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">str</span>::<span class="ident">FromStr</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">GeneratedAlgebra</span>, <span class="ident">JsonAlgebra</span>};
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">ModuleFailedRelationError</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
+<span class="kw">use</span> <span class="ident">error</span>::<span class="ident">GenericError</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">nom</span>::{
     <span class="ident">branch</span>::<span class="ident">alt</span>,
     <span class="ident">bytes</span>::<span class="ident">complete</span>::{<span class="ident">is_not</span>, <span class="ident">take</span>},
@@ -892,6 +895,12 @@
     <span class="ident">sequence</span>::<span class="ident">tuple</span>,
     <span class="ident">IResult</span>,
 };
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
+<span class="kw">use</span> <span class="ident">rustc_hash</span>::<span class="ident">FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
+<span class="kw">use</span> <span class="ident">serde</span>::<span class="ident">Deserialize</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
+<span class="kw">use</span> <span class="ident">serde_json</span>::{<span class="ident">json</span>, <span class="ident">value</span>::<span class="ident">Value</span>};
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">FiniteDimensionalModule</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> {
     <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>,
@@ -1117,41 +1126,6 @@
         <span class="self">self</span>.<span class="ident">gen_names</span>[<span class="ident">degree</span>][<span class="ident">idx</span>] <span class="op">=</span> <span class="ident">name</span>;
     }
 
-    <span class="kw">fn</span> <span class="ident">module_gens_from_json</span>(
-        <span class="ident">gens</span>: <span class="ident">Value</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> (
-        <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
-        <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">String</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>,
-    ) {
-        <span class="kw">let</span> <span class="ident">gens</span> <span class="op">=</span> <span class="ident">gens</span>.<span class="ident">as_object</span>().<span class="ident">unwrap</span>();
-
-        <span class="kw">let</span> <span class="ident">degrees</span> <span class="op">=</span> <span class="ident">gens</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">x</span>)<span class="op">|</span> <span class="ident">x</span>.<span class="ident">as_i64</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">i32</span>)
-            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
-
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">degrees</span>.<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">min</span>().<span class="ident">unwrap_or</span>(<span class="number">0</span>);
-        <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">degrees</span>.<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">max</span>().<span class="ident">unwrap_or</span>(<span class="op">-</span><span class="number">1</span>) <span class="op">+</span> <span class="number">1</span>;
-
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gen_to_idx</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="ident">default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">graded_dimension</span> <span class="op">=</span> <span class="ident">BiVec</span>::<span class="ident">with_capacity</span>(<span class="ident">min_degree</span>, <span class="ident">max_degree</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gen_names</span> <span class="op">=</span> <span class="ident">BiVec</span>::<span class="ident">with_capacity</span>(<span class="ident">min_degree</span>, <span class="ident">max_degree</span>);
-
-        <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="ident">max_degree</span> {
-            <span class="ident">graded_dimension</span>.<span class="ident">push</span>(<span class="number">0</span>);
-            <span class="ident">gen_names</span>.<span class="ident">push</span>(<span class="macro">vec</span><span class="macro">!</span>[]);
-        }
-
-        <span class="kw">for</span> (<span class="ident">name</span>, <span class="ident">degree</span>) <span class="kw">in</span> <span class="ident">gens</span> {
-            <span class="kw">let</span> <span class="ident">degree</span> <span class="op">=</span> <span class="ident">degree</span>.<span class="ident">as_i64</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">i32</span>;
-            <span class="ident">gen_names</span>[<span class="ident">degree</span>].<span class="ident">push</span>(<span class="ident">name</span>.<span class="ident">clone</span>());
-            <span class="ident">gen_to_idx</span>.<span class="ident">insert</span>(<span class="ident">name</span>.<span class="ident">clone</span>(), (<span class="ident">degree</span>, <span class="ident">graded_dimension</span>[<span class="ident">degree</span>]));
-            <span class="ident">graded_dimension</span>[<span class="ident">degree</span>] <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-        }
-        (<span class="ident">graded_dimension</span>, <span class="ident">gen_names</span>, <span class="ident">gen_to_idx</span>)
-    }
-
     <span class="kw">fn</span> <span class="ident">allocate_actions</span>(
         <span class="ident">algebra</span>: <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>,
         <span class="ident">graded_dimension</span>: <span class="kw-2">&amp;</span><span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
@@ -1350,7 +1324,43 @@
     }
 }
 
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">JsonAlgebra</span> <span class="op">+</span> <span class="ident">GeneratedAlgebra</span><span class="op">&gt;</span> <span class="ident">FiniteDimensionalModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">module_gens_from_json</span>(
+        <span class="ident">gens</span>: <span class="ident">Value</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> (
+        <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
+        <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">String</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>,
+    ) {
+        <span class="kw">let</span> <span class="ident">gens</span> <span class="op">=</span> <span class="ident">gens</span>.<span class="ident">as_object</span>().<span class="ident">unwrap</span>();
+
+        <span class="kw">let</span> <span class="ident">degrees</span> <span class="op">=</span> <span class="ident">gens</span>
+            .<span class="ident">iter</span>()
+            .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">x</span>)<span class="op">|</span> <span class="ident">x</span>.<span class="ident">as_i64</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">i32</span>)
+            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
+
+        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">degrees</span>.<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">min</span>().<span class="ident">unwrap_or</span>(<span class="number">0</span>);
+        <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">degrees</span>.<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">max</span>().<span class="ident">unwrap_or</span>(<span class="op">-</span><span class="number">1</span>) <span class="op">+</span> <span class="number">1</span>;
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gen_to_idx</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="ident">default</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">graded_dimension</span> <span class="op">=</span> <span class="ident">BiVec</span>::<span class="ident">with_capacity</span>(<span class="ident">min_degree</span>, <span class="ident">max_degree</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gen_names</span> <span class="op">=</span> <span class="ident">BiVec</span>::<span class="ident">with_capacity</span>(<span class="ident">min_degree</span>, <span class="ident">max_degree</span>);
+
+        <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="ident">max_degree</span> {
+            <span class="ident">graded_dimension</span>.<span class="ident">push</span>(<span class="number">0</span>);
+            <span class="ident">gen_names</span>.<span class="ident">push</span>(<span class="macro">vec</span><span class="macro">!</span>[]);
+        }
+
+        <span class="kw">for</span> (<span class="ident">name</span>, <span class="ident">degree</span>) <span class="kw">in</span> <span class="ident">gens</span> {
+            <span class="kw">let</span> <span class="ident">degree</span> <span class="op">=</span> <span class="ident">degree</span>.<span class="ident">as_i64</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">i32</span>;
+            <span class="ident">gen_names</span>[<span class="ident">degree</span>].<span class="ident">push</span>(<span class="ident">name</span>.<span class="ident">clone</span>());
+            <span class="ident">gen_to_idx</span>.<span class="ident">insert</span>(<span class="ident">name</span>.<span class="ident">clone</span>(), (<span class="ident">degree</span>, <span class="ident">graded_dimension</span>[<span class="ident">degree</span>]));
+            <span class="ident">graded_dimension</span>[<span class="ident">degree</span>] <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+        }
+        (<span class="ident">graded_dimension</span>, <span class="ident">gen_names</span>, <span class="ident">gen_to_idx</span>)
+    }
+
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_json</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Value</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">gens</span> <span class="op">=</span> <span class="ident">json</span>[<span class="string">&quot;gens&quot;</span>].<span class="ident">take</span>();
         <span class="kw">let</span> (<span class="ident">graded_dimension</span>, <span class="ident">gen_names</span>, <span class="ident">gen_to_idx</span>) <span class="op">=</span> <span class="self">Self</span>::<span class="ident">module_gens_from_json</span>(<span class="ident">gens</span>);
@@ -1496,7 +1506,7 @@
         <span class="comment">// coefficient, name</span>
         <span class="kw">let</span> <span class="ident">coef_gen</span> <span class="op">=</span> <span class="ident">map</span>(
             <span class="ident">tuple</span>((<span class="ident">space0</span>, <span class="ident">digit1</span>, <span class="ident">space1</span>, <span class="ident">is_not</span>(<span class="string">&quot; &quot;</span>))),
-            <span class="op">|</span>(<span class="kw">_</span>, <span class="ident">coef</span>, <span class="kw">_</span>, <span class="ident">gen</span>)<span class="op">|</span> (<span class="ident">FromStr</span>::<span class="ident">from_str</span>(<span class="ident">coef</span>).<span class="ident">unwrap</span>(), <span class="ident">gen</span>),
+            <span class="op">|</span>(<span class="kw">_</span>, <span class="ident">coef</span>, <span class="kw">_</span>, <span class="ident">gen</span>): (<span class="kw">_</span>, <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="kw">_</span>, <span class="kw-2">&amp;</span><span class="ident">str</span>)<span class="op">|</span> (<span class="ident">coef</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(), <span class="ident">gen</span>),
         );
         <span class="kw">let</span> <span class="ident">o_gen</span> <span class="op">=</span> <span class="ident">map</span>(<span class="ident">tuple</span>((<span class="ident">space0</span>, <span class="ident">is_not</span>(<span class="string">&quot; &quot;</span>))), <span class="op">|</span>(<span class="kw">_</span>, <span class="ident">gen</span>)<span class="op">|</span> (<span class="number">1</span>, <span class="ident">gen</span>));
         <span class="ident">alt</span>((<span class="ident">coef_gen</span>, <span class="ident">o_gen</span>))(<span class="ident">i</span>)
