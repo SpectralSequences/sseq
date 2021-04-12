@@ -533,8 +533,6 @@ impl AugmentedChainComplex
 #[cfg(test)]
 #[cfg(feature = "yoneda")]
 mod tests {
-    #![allow(non_snake_case)]
-
     use super::*;
 
     use crate::resolution_homomorphism::ResolutionHomomorphism;

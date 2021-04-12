@@ -1,5 +1,3 @@
-#![allow(clippy::many_single_char_names)]
-
 use algebra::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphism};
 use algebra::module::{BoundedModule, Module};
 use ext::chain_complex::ChainComplex;

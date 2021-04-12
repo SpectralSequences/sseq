@@ -1,6 +1,5 @@
 #![feature(const_panic)]
 #![feature(vec_extend_from_within)]
-#![allow(clippy::many_single_char_names)]
 #![feature(stdsimd)]
 
 pub mod matrix;

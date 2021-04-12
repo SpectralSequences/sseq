@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::matrix::Matrix;
 use crate::simd;
 use crate::vector_inner::{limb::number, Limb, BITS_PER_LIMB};

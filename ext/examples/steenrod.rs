@@ -1,5 +1,3 @@
-#![allow(clippy::many_single_char_names)]
-
 use algebra::module::homomorphism::{
     FiniteModuleHomomorphism, FreeModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
 };

@@ -1,4 +1,3 @@
-#![allow(clippy::many_single_char_names)]
 //! This script converts between our basis and Bruner's basis. To do so, we
 //!
 //! 1. Compute our own resolution
