@@ -3,7 +3,7 @@ use ext::chain_complex::ChainComplex;
 use ext::utils::{construct_s_2, iter_stems};
 
 const MAX_S: u32 = 6;
-const MAX_T: i32 = 70;
+const MAX_T: i32 = 30;
 
 fn main() {
     let resolution = construct_s_2("milnor", Some("resolution_milnor.save"));

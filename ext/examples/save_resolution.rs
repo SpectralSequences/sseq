@@ -23,7 +23,7 @@ fn main() -> error::Result<()> {
     let resolution = ext::utils::construct_from_json(&mut json, "milnor")?;
 
     // Now resolve through the desired bidegree
-    resolution.resolve_through_bidegree(6, 70);
+    resolution.resolve_through_bidegree(6, 30);
 
     // Pretty print the resolution to stdout
     println!("{}", resolution.graded_dimension_string());
