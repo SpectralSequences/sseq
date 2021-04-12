@@ -609,12 +609,6 @@
 <span id="588">588</span>
 <span id="589">589</span>
 <span id="590">590</span>
-<span id="591">591</span>
-<span id="592">592</span>
-<span id="593">593</span>
-<span id="594">594</span>
-<span id="595">595</span>
-<span id="596">596</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FiniteAugmentedChainComplex</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">CCC</span>;
@@ -1187,13 +1181,7 @@
             <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">yoneda</span>),
         ));
 
-        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">ResolutionHomomorphism</span>::<span class="ident">new</span>(
-            <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(),
-            <span class="ident">Arc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>),
-            <span class="ident">Arc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="ident">square</span>),
-            <span class="number">0</span>,
-            <span class="number">0</span>,
-        );
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">ResolutionHomomorphism</span>::<span class="ident">new</span>(<span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(), <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>), <span class="ident">square</span>, <span class="number">0</span>, <span class="number">0</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mat</span> <span class="op">=</span> <span class="ident">Matrix</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">1</span>, <span class="number">1</span>);
         <span class="ident">mat</span>[<span class="number">0</span>].<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="number">1</span>);
         <span class="ident">f</span>.<span class="ident">extend_step</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">mat</span>));
