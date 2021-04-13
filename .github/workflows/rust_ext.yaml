@@ -6,7 +6,7 @@ defaults:
 
   strategy:
     matrix:
-      toolchain: ['nightly-2021-03-24', 'nightly']
+      toolchain: ["nightly-2021-03-24", "nightly"]
 
   env:
     RUST_BACKTRACE: 1
@@ -16,162 +16,162 @@ defaults:
 jobs:
   test:
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Cache files
-      uses: actions/cache@v2
-      if: ${{ matrix.toolchain != 'nightly' }}
-      with:
+      - name: Cache files
+        uses: actions/cache@v2
+        if: ${{ matrix.toolchain != 'nightly' }}
+        with:
           path: |
-              ~/.rustup
-              ~/.cargo
-              **/target
+            ~/.rustup
+            ~/.cargo
+            **/target
           key: test-${{ hashFiles('ext/Cargo.*', 'rust_webserver/Cargo.*') }}
 
-    - name: Install rustup
-      uses: actions-rs/toolchain@v1
-      with:
+      - name: Install rustup
+        uses: actions-rs/toolchain@v1
+        with:
           toolchain: ${{ matrix.toolchain }}
 
-    - name: Run tests
-      run: make -C ext test
+      - name: Run tests
+        run: make -C ext test
 
-    - name: Run concurrent tests
-      run: make -C ext test-concurrent
+      - name: Run concurrent tests
+        run: make -C ext test-concurrent
 
-    - name: Run ext examples
-      run: make -C ext run_examples
+      - name: Run ext examples
+        run: make -C ext run_examples
 
-    - name: Run rust_webserver tests
-      run: make -C rust_webserver test
+      - name: Run rust_webserver tests
+        run: make -C rust_webserver test
 
-    - name: Run rust_webserver examples
-      run: make -C rust_webserver run_examples
+      - name: Run rust_webserver examples
+        run: make -C rust_webserver run_examples
 
-    - name: Benchmark executable size
-      run: |
+      - name: Benchmark executable size
+        run: |
           ls -l ext/target/debug/examples | grep -v ' .*-\|\.d$'
           ls -l rust_webserver/target/debug/examples | grep -v ' .*-\|\.d$'
 
   lint:
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Cache files
-      uses: actions/cache@v2
-      if: ${{ matrix.toolchain != 'nightly' }}
-      with:
+      - name: Cache files
+        uses: actions/cache@v2
+        if: ${{ matrix.toolchain != 'nightly' }}
+        with:
           path: |
-              ~/.rustup
-              ~/.cargo
-              **/target
+            ~/.rustup
+            ~/.cargo
+            **/target
           key: lint-${{ hashFiles('ext/Cargo.*', 'rust_webserver/Cargo.*') }}
 
-    - name: Install rustup
-      uses: actions-rs/toolchain@v1
-      with:
+      - name: Install rustup
+        uses: actions-rs/toolchain@v1
+        with:
           toolchain: ${{ matrix.toolchain }}
           components: clippy, rustfmt
 
-    - name: Run lint
-      run: make -C ext lint
+      - name: Run lint
+        run: make -C ext lint
 
-    - name: Lint rust_webserver
-      run: make -C rust_webserver lint
+      - name: Lint rust_webserver
+        run: make -C rust_webserver lint
 
   wasm-build:
     needs: [test, lint]
     strategy:
       matrix:
-          toolchain: ['nightly-2021-03-24', 'nightly']
+        toolchain: ["nightly-2021-03-24", "nightly"]
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Cache files
-      uses: actions/cache@v2
-      if: ${{ matrix.toolchain != 'nightly' }}
-      with:
+      - name: Cache files
+        uses: actions/cache@v2
+        if: ${{ matrix.toolchain != 'nightly' }}
+        with:
           path: |
-              ~/.rustup
-              ~/.cargo
-              **/target
+            ~/.rustup
+            ~/.cargo
+            **/target
           key: wasm-${{ hashFiles('ext/Cargo.*') }}
 
-    - name: Install rustup
-      uses: actions-rs/toolchain@v1
-      with:
+      - name: Install rustup
+        uses: actions-rs/toolchain@v1
+        with:
           toolchain: ${{ matrix.toolchain }}
           target: wasm32-unknown-unknown
           components: clippy, rustfmt
 
-    - name: Install wasm-opt
-      run: sudo apt-get install binaryen
+      - name: Install wasm-opt
+        run: sudo apt-get install binaryen
 
-    - name: Setup build environment
-      run: make -C rust_webserver setup-wasm
+      - name: Setup build environment
+        run: make -C rust_webserver setup-wasm
 
-    - name: Lint rust_webserver wasm
-      run: make -C rust_webserver lint-wasm
+      - name: Lint rust_webserver wasm
+        run: make -C rust_webserver lint-wasm
 
-    - name: Build wasm
-      run: make -C rust_webserver wasm
+      - name: Build wasm
+        run: make -C rust_webserver wasm
 
-    - name: Benchmark wasm size
-      run: ls -l rust_webserver/dist/ext_webserver_wasm_bg.wasm
+      - name: Benchmark wasm size
+        run: ls -l rust_webserver/dist/ext_webserver_wasm_bg.wasm
 
-    - name: Deploy
-      if: ${{ matrix.toolchain == 'nightly-2021-03-24' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-      uses: JamesIves/github-pages-deploy-action@4.1.0
-      with:
+      - name: Deploy
+        if: ${{ matrix.toolchain == 'nightly-2021-03-24' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        uses: JamesIves/github-pages-deploy-action@4.1.0
+        with:
           branch: gh-pages
           folder: rust_webserver/dist/
           clean-exclude: |
-              docs/
-              calculator/
+            docs/
+            calculator/
 
   steenrod-calculator:
     needs: [test, lint]
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Cache files
-      uses: actions/cache@v2
-      if: ${{ matrix.toolchain != 'nightly' }}
-      with:
+      - name: Cache files
+        uses: actions/cache@v2
+        if: ${{ matrix.toolchain != 'nightly' }}
+        with:
           path: |
-              ~/.rustup
-              ~/.cargo
-              **/target
+            ~/.rustup
+            ~/.cargo
+            **/target
           key: calculator-${{ hashFiles('ext/Cargo.*', 'steenrod_calculator/Cargo.*') }}
 
-    - name: Install rustup
-      uses: actions-rs/toolchain@v1
-      with:
+      - name: Install rustup
+        uses: actions-rs/toolchain@v1
+        with:
           toolchain: ${{ matrix.toolchain }}
           target: wasm32-unknown-unknown
           components: clippy, rustfmt
 
-    - name: Install wasm-opt
-      run: sudo apt-get install binaryen
+      - name: Install wasm-opt
+        run: sudo apt-get install binaryen
 
-    - name: Setup build environment
-      run: make -C steenrod_calculator setup-wasm
+      - name: Setup build environment
+        run: make -C steenrod_calculator setup-wasm
 
-    - name: Lint rust_webserver wasm
-      run: make -C steenrod_calculator lint
+      - name: Lint rust_webserver wasm
+        run: make -C steenrod_calculator lint
 
-    - name: Build wasm
-      run: make -C steenrod_calculator
+      - name: Build wasm
+        run: make -C steenrod_calculator
 
-    - name: Benchmark wasm size
-      run: ls -l steenrod_calculator/dist/steenrod_calculator_wasm_bg.wasm
+      - name: Benchmark wasm size
+        run: ls -l steenrod_calculator/dist/steenrod_calculator_wasm_bg.wasm
 
-    - name: Deploy
-      if: ${{ matrix.toolchain == 'nightly-2021-03-24' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-      uses: JamesIves/github-pages-deploy-action@4.1.0
-      with:
+      - name: Deploy
+        if: ${{ matrix.toolchain == 'nightly-2021-03-24' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        uses: JamesIves/github-pages-deploy-action@4.1.0
+        with:
           branch: gh-pages
           folder: steenrod_calculator/dist/
           target-folder: calculator/
@@ -181,30 +181,30 @@ jobs:
     if: ${{ matrix.toolchain == 'nightly-2021-03-24' }}
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Cache files
-      uses: actions/cache@v2
-      if: ${{ matrix.toolchain != 'nightly' }}
-      with:
+      - name: Cache files
+        uses: actions/cache@v2
+        if: ${{ matrix.toolchain != 'nightly' }}
+        with:
           path: |
-              ~/.rustup
-              ~/.cargo
-              **/target
+            ~/.rustup
+            ~/.cargo
+            **/target
           key: docs-${{ hashFiles('ext/Cargo.*') }}
 
-    - name: Install rustup
-      uses: actions-rs/toolchain@v1
-      with:
+      - name: Install rustup
+        uses: actions-rs/toolchain@v1
+        with:
           toolchain: ${{ matrix.toolchain }}
 
-    - name: Generate docs
-      run: make -C ext docs
+      - name: Generate docs
+        run: make -C ext docs
 
-    - name: Deploy
-      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-      uses: JamesIves/github-pages-deploy-action@4.1.0
-      with:
+      - name: Deploy
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        uses: JamesIves/github-pages-deploy-action@4.1.0
+        with:
           branch: gh-pages
           folder: ext/target/doc
           target-folder: docs/
