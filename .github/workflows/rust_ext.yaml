@@ -27,6 +27,15 @@ jobs:
             **/target
           key: test-${{ hashFiles('ext/Cargo.*', 'rust_webserver/Cargo.*') }}
 
+      - name: Cache files (nightly)
+        uses: actions/cache@v2
+        if: ${{ matrix.toolchain == 'nightly' }}
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+          key: nightly-${{ hashFiles('ext/Cargo.*') }}
+
       - name: Install rustup
         uses: actions-rs/toolchain@v1
         with:
@@ -77,6 +86,15 @@ jobs:
             **/target
           key: lint-${{ hashFiles('ext/Cargo.*', 'rust_webserver/Cargo.*') }}
 
+      - name: Cache files (nightly)
+        uses: actions/cache@v2
+        if: ${{ matrix.toolchain == 'nightly' }}
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+          key: nightly-${{ hashFiles('ext/Cargo.*') }}
+
       - name: Install rustup
         uses: actions-rs/toolchain@v1
         with:
@@ -113,6 +131,15 @@ jobs:
             /usr/share/rust/.cargo
             **/target
           key: wasm-${{ hashFiles('ext/Cargo.*') }}
+
+      - name: Cache files (nightly)
+        uses: actions/cache@v2
+        if: ${{ matrix.toolchain == 'nightly' }}
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+          key: wasm-nightly-${{ hashFiles('ext/Cargo.*') }}
 
       - name: Install rustup
         uses: actions-rs/toolchain@v1
@@ -167,6 +194,15 @@ jobs:
             **/target
           key: calculator-${{ hashFiles('ext/Cargo.*', 'steenrod_calculator/Cargo.*') }}
 
+      - name: Cache files (nightly)
+        uses: actions/cache@v2
+        if: ${{ matrix.toolchain == 'nightly' }}
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+          key: wasm-nightly-${{ hashFiles('ext/Cargo.*') }}
+
       - name: Install rustup
         uses: actions-rs/toolchain@v1
         with:
@@ -219,6 +255,15 @@ jobs:
             /usr/share/rust/.cargo
             **/target
           key: docs-${{ hashFiles('ext/Cargo.*') }}
+
+      - name: Cache files (nightly)
+        uses: actions/cache@v2
+        if: ${{ matrix.toolchain == 'nightly' }}
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+          key: nightly-${{ hashFiles('ext/Cargo.*') }}
 
       - name: Install rustup
         uses: actions-rs/toolchain@v1
