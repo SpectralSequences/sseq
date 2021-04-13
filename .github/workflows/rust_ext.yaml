@@ -244,17 +244,13 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: calculator-nightly-2021-03-24
+          path: calculator
 
       - name: Download docs
         uses: actions/download-artifact@v2
         with:
           name: docs-nightly-2021-03-24
-
-      - name: Move directries
-        run: |
-          mv docs-nightly-2021-03-24/ext/target/doc/ docs
-          mv calculator-nightly-2021-03-24/steenrod_calculator/dist/ calculator
-          mv webserver-nightly-2021-03-24/rust_webserver/dist/* .
+          path: docs
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@4.1.0
