@@ -252,7 +252,7 @@ jobs:
 
       - name: Move directries
         run: |
-          mv docs-nightly-2021-03-24/ext/target/docs/ docs
+          mv docs-nightly-2021-03-24/ext/target/doc/ docs
           mv calculator-nightly-2021-03-24/steenrod_calculator/dist/ calculator
           mv webserver-nightly-2021-03-24/rust_webserver/dist/* .
 
