@@ -410,11 +410,12 @@ impl std::error::Error for UnknownBasisElementError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use expect_test::{expect, Expect};
     use fp::prime::ValidPrime;
     // use rstest::rstest_parametrize;
 
     #[test]
-    fn test_evaluate() {
+    fn test_evaluate_2() {
         let p = ValidPrime::new(2);
         let max_degree = 30;
         let adem = AdemAlgebra::new(p, *p != 2, false, false);
@@ -423,41 +424,76 @@ mod tests {
         milnor.compute_basis(max_degree);
         println!("{:?}", milnor.basis_element_from_index(1, 0));
 
-        for (input, output) in &[
-            ("Sq2 * Sq2", "Sq3 Sq1"),
-            ("A(2 2)", "Sq3 Sq1"),
-            ("Sq2 * Sq2 * Sq2 + Sq3 * Sq3", "0"),
-            ("Sq2 * (Sq2 * Sq2 + Sq4)", "Sq6"),
-            ("Sq7 + Q2", "Sq5 Sq2 + Sq6 Sq1 + Sq4 Sq2 Sq1"),
-            ("(Q2 + Sq7) * Q1", "Sq6 Sq3 Sq1"),
-        ] {
+        let check = |input, adem_output: Expect, milnor_output: Expect| {
             let (degree, result) = evaluate_algebra_adem(&adem, &milnor, input).unwrap();
-            println!(
-                "{} ==> {}",
-                input,
-                adem.element_to_string(degree, result.as_slice())
-            );
-            assert_eq!(adem.element_to_string(degree, result.as_slice()), *output);
-        }
+            adem_output.assert_eq(&adem.element_to_string(degree, result.as_slice()));
+
+            let (degree, result) = evaluate_algebra_milnor(&adem, &milnor, input).unwrap();
+            milnor_output.assert_eq(&milnor.element_to_string(degree, result.as_slice()));
+        };
+
+        check(
+            "Sq2 * Sq2",
+            expect![[r#"Sq3 Sq1"#]],
+            expect![[r#"P(1, 1)"#]],
+        );
+        check("A(2 2)", expect![[r#"Sq3 Sq1"#]], expect![[r#"P(1, 1)"#]]);
+        check(
+            "Sq2 * Sq2 * Sq2 + Sq3 * Sq3",
+            expect![[r#"0"#]],
+            expect![[r#"0"#]],
+        );
+        check(
+            "Sq2 * (Sq2 * Sq2 + Sq4)",
+            expect![[r#"Sq6"#]],
+            expect![[r#"P(6)"#]],
+        );
+        check(
+            "Sq7 + Q2",
+            expect![[r#"Sq5 Sq2 + Sq6 Sq1 + Sq4 Sq2 Sq1"#]],
+            expect![[r#"P(7) + P(0, 0, 1)"#]],
+        );
+        check(
+            "(Q2 + Sq7) * Q1",
+            expect![[r#"Sq6 Sq3 Sq1"#]],
+            expect![[r#"P(7, 1) + P(3, 0, 1) + P(0, 1, 1)"#]],
+        );
+    }
+
+    #[test]
+    fn test_evaluate_3() {
         let p = ValidPrime::new(3);
-        let max_degree = 30;
+        let max_degree = 32;
         let adem = AdemAlgebra::new(p, *p != 2, false, false);
         let milnor = MilnorAlgebra::new(p); //, p != 2
         adem.compute_basis(max_degree);
         milnor.compute_basis(max_degree);
-        for (input, output) in &[
-            ("P1 * P1", "2 * P2"),
-            ("A(1 1)", "2 * P2"),
-            ("A(1 b 1)", "b P2 + P2 b"),
-            ("A(4 2)", "2 * P5 P1"),
-        ] {
+
+        let check = |input, adem_output: Expect, milnor_output: Expect| {
             let (degree, result) = evaluate_algebra_adem(&adem, &milnor, input).unwrap();
-            println!(
-                "{} ==> {}",
-                input,
-                adem.element_to_string(degree, result.as_slice())
-            );
-            assert_eq!(adem.element_to_string(degree, result.as_slice()), *output);
-        }
+            adem_output.assert_eq(&adem.element_to_string(degree, result.as_slice()));
+
+            let (degree, result) = evaluate_algebra_milnor(&adem, &milnor, input).unwrap();
+            milnor_output.assert_eq(&milnor.element_to_string(degree, result.as_slice()));
+        };
+
+        check("P1 * P1", expect![[r#"2 * P2"#]], expect![[r#"2 * P(2)"#]]);
+        check("A(1 1)", expect![[r#"2 * P2"#]], expect![[r#"2 * P(2)"#]]);
+        check(
+            "A(1 b 1)",
+            expect![[r#"b P2 + P2 b"#]],
+            expect![[r#"2 * Q_0 P(2) + Q_1 P(1)"#]],
+        );
+        check(
+            "A(4 2)",
+            expect![[r#"2 * P5 P1"#]],
+            expect![[r#"2 * P(2, 1)"#]],
+        );
+        check("A(5 2)", expect![[r#"0"#]], expect![[r#"0"#]]);
+        check(
+            "A(6 2)",
+            expect![[r#"P6 P2"#]],
+            expect![[r#"P(8) + P(4, 1) + P(0, 2)"#]],
+        );
     }
 }
