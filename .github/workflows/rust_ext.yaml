@@ -87,8 +87,7 @@ jobs:
       - name: Lint rust_webserver
         run: make -C rust_webserver lint
 
-  wasm-build:
-    needs: [test, lint]
+  webserver:
     runs-on: ubuntu-20.04
     env:
       RUST_BACKTRACE: 1
@@ -134,18 +133,14 @@ jobs:
       - name: Benchmark wasm size
         run: ls -l rust_webserver/dist/ext_webserver_wasm_bg.wasm
 
-      - name: Deploy
-        if: ${{ matrix.toolchain == 'nightly-2021-03-24' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-        uses: JamesIves/github-pages-deploy-action@4.1.0
+      - name: Upload webserver
+        uses: actions/upload-artifact@v2
+        working-directory: rust_webserver/dist/
         with:
-          branch: gh-pages
-          folder: rust_webserver/dist/
-          clean-exclude: |
-            docs/
-            calculator/
+          name: webserver-${{ matrix.toolchain }}
+          path: .
 
-  steenrod-calculator:
-    needs: [test, lint]
+  calculator:
     runs-on: ubuntu-20.04
     env:
       RUST_BACKTRACE: 1
@@ -191,26 +186,30 @@ jobs:
       - name: Benchmark wasm size
         run: ls -l steenrod_calculator/dist/steenrod_calculator_wasm_bg.wasm
 
-      - name: Deploy
-        if: ${{ matrix.toolchain == 'nightly-2021-03-24' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-        uses: JamesIves/github-pages-deploy-action@4.1.0
+      - name: Upload calculator
+        uses: actions/upload-artifact@v2
+        working-directory: steenrod_calculator/dist/
         with:
-          branch: gh-pages
-          folder: steenrod_calculator/dist/
-          target-folder: calculator/
+          name: calculator-${{ matrix.toolchain }}
+          path: .
 
   docs:
-    needs: [test, lint]
     runs-on: ubuntu-20.04
     env:
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+
+    strategy:
+      matrix:
+        toolchain: ["nightly-2021-03-24", "nightly"]
 
     steps:
       - uses: actions/checkout@v2
 
       - name: Cache files
         uses: actions/cache@v2
+        if: ${{ matrix.toolchain != 'nightly' }}
         with:
           path: |
             ~/.rustup
@@ -226,10 +225,42 @@ jobs:
       - name: Generate docs
         run: make -C ext docs
 
+      - name: Upload docs
+        uses: actions/upload-artifact@v2
+        working-directory: ext/target/doc/
+        with:
+          name: docs-${{ matrix.toolchain }}
+          path: .
+
+  deploy:
+    needs: [test, lint, webserver, calculator, docs]
+    runs-on: ubuntu-20.04
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+
+    steps:
+      - name: Download webserver
+        uses: actions/download-artifact@v2
+        with:
+          name: webserver-nightly-2021-03-24
+
+      - name: Download calculator
+        uses: actions/download-artifact@v2
+        with:
+          name: calculator-nightly-2021-03-24
+
+      - name: Download docs
+        uses: actions/download-artifact@v2
+        with:
+          name: docs-nightly-2021-03-24
+
+      - name: Move directries
+        run: |
+          mv docs-nightly-2021-03-24 docs
+          mv calculator-nightly-2021-03-24 calculator
+          mv webserver-nightly-2021-03-24/* .
+
       - name: Deploy
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
         uses: JamesIves/github-pages-deploy-action@4.1.0
         with:
           branch: gh-pages
-          folder: ext/target/doc
-          target-folder: docs/
+          folder: .
