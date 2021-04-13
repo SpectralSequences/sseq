@@ -135,10 +135,9 @@ jobs:
 
       - name: Upload webserver
         uses: actions/upload-artifact@v2
-        working-directory: rust_webserver/dist/
         with:
           name: webserver-${{ matrix.toolchain }}
-          path: .
+          path: rust_webserver/dist/
 
   calculator:
     runs-on: ubuntu-20.04
@@ -188,10 +187,9 @@ jobs:
 
       - name: Upload calculator
         uses: actions/upload-artifact@v2
-        working-directory: steenrod_calculator/dist/
         with:
           name: calculator-${{ matrix.toolchain }}
-          path: .
+          path: steenrod_calculator/dist/
 
   docs:
     runs-on: ubuntu-20.04
@@ -227,10 +225,9 @@ jobs:
 
       - name: Upload docs
         uses: actions/upload-artifact@v2
-        working-directory: ext/target/doc/
         with:
           name: docs-${{ matrix.toolchain }}
-          path: .
+          path: ext/target/doc/
 
   deploy:
     needs: [test, lint, webserver, calculator, docs]
@@ -255,9 +252,9 @@ jobs:
 
       - name: Move directries
         run: |
-          mv docs-nightly-2021-03-24 docs
-          mv calculator-nightly-2021-03-24 calculator
-          mv webserver-nightly-2021-03-24/* .
+          mv docs-nightly-2021-03-24/ext/target/docs/ docs
+          mv calculator-nightly-2021-03-24/steenrod_calculator/dist/ calculator
+          mv webserver-nightly-2021-03-24/rust_webserver/dist/* .
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@4.1.0
