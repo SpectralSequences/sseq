@@ -237,7 +237,7 @@ impl<'a> Slice<'a> {
         pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator);
         pub fn is_zero(&self) -> bool;
         pub fn slice(&self, start: usize, end: usize) -> (dispatch Slice);
-        pub fn to_owned(&self) -> (dispatch FpVector);
+        pub fn to_owned(self) -> (dispatch FpVector);
     }
 }
 
