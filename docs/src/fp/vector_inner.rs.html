@@ -1846,7 +1846,7 @@
     }
 
     <span class="doccomment">/// Converts a slice to an owned FpVectorP. This is vastly more efficient if the start of the vector is aligned.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_owned</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FpVectorP</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_owned</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FpVectorP</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new</span> <span class="op">=</span> <span class="ident">FpVectorP</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>::<span class="ident">new_</span>(<span class="self">self</span>.<span class="ident">dimension</span>());
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">start</span> <span class="op">%</span> <span class="ident">entries_per_limb</span>(<span class="self">self</span>.<span class="ident">prime</span>()) <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
             <span class="kw">let</span> (<span class="ident">min</span>, <span class="ident">max</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">limb_range</span>();
@@ -1856,7 +1856,7 @@
                 <span class="ident">new</span>.<span class="ident">limbs</span>[<span class="ident">len</span> <span class="op">-</span> <span class="number">1</span>] <span class="op">&amp;=</span> <span class="self">self</span>.<span class="ident">limb_masks</span>().<span class="number">1</span>;
             }
         } <span class="kw">else</span> {
-            <span class="ident">new</span>.<span class="ident">as_slice_mut</span>().<span class="ident">assign</span>(<span class="kw-2">*</span><span class="self">self</span>);
+            <span class="ident">new</span>.<span class="ident">as_slice_mut</span>().<span class="ident">assign</span>(<span class="self">self</span>);
         }
         <span class="ident">new</span>
     }
