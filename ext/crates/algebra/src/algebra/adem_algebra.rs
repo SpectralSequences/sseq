@@ -1511,9 +1511,8 @@ impl AdemAlgebra {
 
 impl Bialgebra for AdemAlgebra {
     fn decompose(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize)> {
+        let elt = &self.basis_table[op_deg as usize][op_idx];
         if self.generic {
-            let elt = &self.basis_table[op_deg as usize][op_idx];
-
             let mut result: Vec<(i32, usize)> = Vec::with_capacity(elt.ps.len() * 2 + 1);
             let mut bockstein = elt.bocksteins;
             for item in &elt.ps {
@@ -1529,7 +1528,6 @@ impl Bialgebra for AdemAlgebra {
             result.reverse();
             result
         } else {
-            let elt = &self.basis_table[op_deg as usize][op_idx];
             elt.ps
                 .iter()
                 .rev()
