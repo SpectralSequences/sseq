@@ -23,6 +23,7 @@ jobs:
           path: |
             ~/.rustup
             ~/.cargo
+            /usr/share/rust/.cargo
             **/target
           key: test-${{ hashFiles('ext/Cargo.*', 'rust_webserver/Cargo.*') }}
 
@@ -72,6 +73,7 @@ jobs:
           path: |
             ~/.rustup
             ~/.cargo
+            /usr/share/rust/.cargo
             **/target
           key: lint-${{ hashFiles('ext/Cargo.*', 'rust_webserver/Cargo.*') }}
 
@@ -108,6 +110,7 @@ jobs:
           path: |
             ~/.rustup
             ~/.cargo
+            /usr/share/rust/.cargo
             **/target
           key: wasm-${{ hashFiles('ext/Cargo.*') }}
 
@@ -160,6 +163,7 @@ jobs:
           path: |
             ~/.rustup
             ~/.cargo
+            /usr/share/rust/.cargo
             **/target
           key: calculator-${{ hashFiles('ext/Cargo.*', 'steenrod_calculator/Cargo.*') }}
 
@@ -212,6 +216,7 @@ jobs:
           path: |
             ~/.rustup
             ~/.cargo
+            /usr/share/rust/.cargo
             **/target
           key: docs-${{ hashFiles('ext/Cargo.*') }}
 
