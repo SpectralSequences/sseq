@@ -355,6 +355,7 @@ mod tests {
     use rstest::rstest;
 
     #[rstest(p, case(2), case(3), case(5))] //, case(3), case(5))]
+    #[trace]
     #[ignore]
     fn test_kfp1_basis(p: u32) {
         let p_ = ValidPrime::new(p);
@@ -378,6 +379,7 @@ mod tests {
         p => [2, 3, 5],
         n => [2, 3, 4]
     )]
+    #[trace]
     #[ignore]
     fn test_kfpn_action(p: u32, n: i32) {
         let p_ = ValidPrime::new(p);
@@ -407,6 +409,7 @@ mod tests {
     }
 
     #[rstest(p, case(3))] //, case(3), case(5))]//, case(3))]//, case(5)
+    #[trace]
     #[ignore]
     fn test_kfp3(p: u32) {
         let p_ = ValidPrime::new(p);

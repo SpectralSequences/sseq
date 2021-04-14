@@ -412,7 +412,6 @@ mod tests {
     use super::*;
     use expect_test::{expect, Expect};
     use fp::prime::ValidPrime;
-    // use rstest::rstest_parametrize;
 
     #[test]
     fn test_evaluate_2() {

@@ -333,6 +333,7 @@ mod tests {
         case(2, 32),
         case(3, 60)//106 // reduced size of test because we use a slow implementation
     )]
+    #[trace]
     fn test_cob_adem_to_milnor(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
         let adem = AdemAlgebra::new(p, *p != 2, false, false);

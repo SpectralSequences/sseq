@@ -1384,6 +1384,7 @@ mod tests {
     use rstest::rstest;
 
     #[rstest(p, max_degree, case(2, 32), case(3, 106))]
+    #[trace]
     fn test_milnor_basis(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
         let algebra = MilnorAlgebra::new(p); //p != 2
@@ -1401,6 +1402,7 @@ mod tests {
     }
 
     #[rstest(p, max_degree, case(2, 32), case(3, 106))]
+    #[trace]
     fn test_milnor_decompose(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
         let algebra = MilnorAlgebra::new(p);
@@ -1447,6 +1449,7 @@ mod tests {
 
     use crate::module::ModuleFailedRelationError;
     #[rstest(p, max_degree, case(2, 32), case(3, 106))]
+    #[trace]
     fn test_adem_relations(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
         let algebra = MilnorAlgebra::new(p); // , p != 2

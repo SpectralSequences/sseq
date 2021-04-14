@@ -188,6 +188,7 @@ mod tests {
     use rstest::rstest;
 
     #[rstest(p, case(2), case(3), case(5))]
+    #[trace]
     #[ignore]
     fn test_bcp(p: u32) {
         let p_ = ValidPrime::new(p);

@@ -1598,6 +1598,7 @@ mod tests {
     use rstest::rstest;
 
     #[rstest(p, max_degree, case(2, 32), case(3, 120))]
+    #[trace]
     fn test_adem_basis(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
         let algebra = AdemAlgebra::new(p, *p != 2, false, false);
@@ -1615,6 +1616,7 @@ mod tests {
     }
 
     #[rstest(p, max_degree, case(2, 32), case(3, 120))]
+    #[trace]
     fn test_adem_decompose(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
         let algebra = AdemAlgebra::new(p, *p != 2, false, false);
@@ -1666,6 +1668,7 @@ mod tests {
 
     use crate::module::ModuleFailedRelationError;
     #[rstest(p, max_degree, case(2, 32), case(3, 120))]
+    #[trace]
     fn test_adem_relations(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
         let algebra = AdemAlgebra::new(p, *p != 2, false, false);
