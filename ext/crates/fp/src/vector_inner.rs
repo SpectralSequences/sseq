@@ -239,10 +239,8 @@ impl<const P: u32> FpVectorP<P> {
                 }
             }
             _ => {
-                let entries = entries_per_limb(ValidPrime::new(P));
                 for limb in &mut self.limbs {
-                    *limb =
-                        limb::pack::<_, P>(limb::unpack::<P>(entries, *limb).map(|x| (x * c) % P));
+                    *limb = limb::pack::<_, P>(limb::unpack::<P>(*limb).map(|x| (x * c) % P));
                 }
             }
         }
@@ -524,10 +522,7 @@ pub(crate) mod limb {
                 let d = m & BOTTOM_THREE_BITS;
                 d + c - BOTTOM_TWO_BITS
             }
-            _ => {
-                let entries = entries_per_limb(ValidPrime::new(P));
-                limb::pack::<_, P>(limb::unpack::<P>(entries, limb).map(|x| x % P))
-            }
+            _ => limb::pack::<_, P>(limb::unpack::<P>(limb).map(|x| x % P)),
         }
     }
 
@@ -553,14 +548,14 @@ pub(crate) mod limb {
         result
     }
 
-    /// Given a limb, return the first `dim` entries. It is assumed that
-    /// `dim` is not greater than the number of entries in a limb.
-    pub fn unpack<const P: u32>(dim: usize, mut limb: Limb) -> impl Iterator<Item = u32> {
+    /// Give an iterator over the entries of a limb.
+    pub fn unpack<const P: u32>(mut limb: Limb) -> impl Iterator<Item = u32> {
         let p = ValidPrime::new(P);
+        let entries = entries_per_limb(ValidPrime::new(P));
         let bit_length = bit_length(p);
         let bit_mask = bitmask(p);
 
-        (0..dim).map(move |_| {
+        (0..entries).map(move |_| {
             let result = (limb & bit_mask) as u32;
             limb >>= bit_length;
             result
@@ -994,6 +989,10 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
                     c,
                 );
             }
+        }
+        if dat.number_of_target_limbs > dat.number_of_source_limbs {
+            self.limbs[i + dat.min_target_limb + 1] =
+                limb::reduce::<P>(self.limbs[i + dat.min_target_limb + 1]);
         }
     }
 }
