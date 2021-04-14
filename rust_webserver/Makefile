@@ -45,7 +45,8 @@ clean: clean-wasm
 	rm -r target
 
 test:
-	cargo test
+	# This doesn't change the test but lets us reuse artifacs for ext tests.
+	cargo test --features concurrent
 
 run_examples: $(patsubst examples/%.rs, target/debug/examples/%, $(wildcard examples/*.rs))
 

@@ -25,49 +25,51 @@ fn resolve_iterate() {
     }
 }
 
+#[allow(clippy::redundant_clone)]
 fn test_iterate(config: &Config) {
     println!(
         "Resolving {} with {} basis",
         &config.module_file_name, &config.algebra_name
     );
 
-    let mut json = load_module_from_file(&config).unwrap();
+    let json = load_module_from_file(&config).unwrap();
 
     let first = construct_from_json(&mut json.clone(), &config.algebra_name).unwrap();
-    let second = construct_from_json(&mut json, &config.algebra_name).unwrap();
+    let second = construct_from_json(&mut json.clone(), &config.algebra_name).unwrap();
 
-    #[cfg(feature = "concurrent")]
-    {
-        let bucket = thread_token::TokenBucket::new(2);
+    first.resolve_through_bidegree(20, 20);
 
-        first.resolve_through_bidegree_concurrent(20, 20, &bucket);
-
-        second.resolve_through_bidegree_concurrent(0, 0, &bucket);
-        second.resolve_through_bidegree_concurrent(5, 5, &bucket);
-        second.resolve_through_bidegree_concurrent(10, 7, &bucket);
-        second.resolve_through_bidegree_concurrent(7, 10, &bucket);
-        second.resolve_through_bidegree_concurrent(18, 18, &bucket);
-        second.resolve_through_bidegree_concurrent(14, 14, &bucket);
-        second.resolve_through_bidegree_concurrent(15, 15, &bucket);
-        second.resolve_through_bidegree_concurrent(20, 20, &bucket);
-    }
-
-    #[cfg(not(feature = "concurrent"))]
-    {
-        first.resolve_through_bidegree(20, 20);
-
-        second.resolve_through_bidegree(0, 0);
-        second.resolve_through_bidegree(5, 5);
-        second.resolve_through_bidegree(10, 7);
-        second.resolve_through_bidegree(7, 10);
-        second.resolve_through_bidegree(18, 18);
-        second.resolve_through_bidegree(14, 14);
-        second.resolve_through_bidegree(15, 15);
-        second.resolve_through_bidegree(20, 20);
-    }
+    second.resolve_through_bidegree(0, 0);
+    second.resolve_through_bidegree(5, 5);
+    second.resolve_through_bidegree(10, 7);
+    second.resolve_through_bidegree(7, 10);
+    second.resolve_through_bidegree(18, 18);
+    second.resolve_through_bidegree(14, 14);
+    second.resolve_through_bidegree(15, 15);
+    second.resolve_through_bidegree(20, 20);
 
     assert_eq!(
         first.graded_dimension_string(),
         second.graded_dimension_string()
     );
+
+    #[cfg(feature = "concurrent")]
+    {
+        let bucket = thread_token::TokenBucket::new(2);
+        let third = construct_from_json(&mut json.clone(), &config.algebra_name).unwrap();
+
+        third.resolve_through_bidegree_concurrent(0, 0, &bucket);
+        third.resolve_through_bidegree_concurrent(5, 5, &bucket);
+        third.resolve_through_bidegree_concurrent(10, 7, &bucket);
+        third.resolve_through_bidegree_concurrent(7, 10, &bucket);
+        third.resolve_through_bidegree_concurrent(18, 18, &bucket);
+        third.resolve_through_bidegree_concurrent(14, 14, &bucket);
+        third.resolve_through_bidegree_concurrent(15, 15, &bucket);
+        third.resolve_through_bidegree_concurrent(20, 20, &bucket);
+
+        assert_eq!(
+            first.graded_dimension_string(),
+            third.graded_dimension_string()
+        );
+    }
 }
