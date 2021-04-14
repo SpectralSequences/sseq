@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use std::io::{stdin, stdout, Write};
+use std::io::{stderr, stdin, Write};
 use std::str::FromStr;
 
 pub fn query_optional<S: Display, T: FromStr, F>(prompt: &str, validator: F) -> Option<S>
@@ -9,7 +9,7 @@ where
 {
     loop {
         eprint!("{}: ", prompt);
-        stdout().flush().unwrap();
+        stderr().flush().unwrap();
         let mut input = String::new();
         stdin()
             .read_line(&mut input)
@@ -40,7 +40,7 @@ where
 {
     loop {
         eprint!("{} : ", prompt);
-        stdout().flush().unwrap();
+        stderr().flush().unwrap();
         let mut input = String::new();
         stdin()
             .read_line(&mut input)
@@ -68,7 +68,7 @@ where
 {
     loop {
         eprint!("{} (default: {}): ", prompt, default);
-        stdout().flush().unwrap();
+        stderr().flush().unwrap();
         let mut input = String::new();
         stdin()
             .read_line(&mut input)
