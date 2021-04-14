@@ -93,8 +93,6 @@ pub trait ActionT: std::fmt::Debug {
     fn act_resolution(&self, resolution: &mut Resolution<CCC>) -> Option<Message> {
         unimplemented!();
     }
-    // We take this because sometimes we want to only take an immutable borrow.
-
     fn to_string(&self) -> String {
         format!("{:?}", self)
     }
