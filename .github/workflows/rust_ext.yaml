@@ -8,6 +8,7 @@ jobs:
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
       RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+      CARGO_TARGET_DIR: /home/runner/.cargo/target
 
     strategy:
       matrix:
@@ -24,7 +25,6 @@ jobs:
             ~/.rustup
             ~/.cargo
             /usr/share/rust/.cargo
-            **/target
           key: test-${{ hashFiles('ext/Cargo.*', 'rust_webserver/Cargo.*') }}
 
       - name: Cache files (nightly)
@@ -41,6 +41,12 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
 
+      - name: Run rust_webserver tests
+        run: make -C rust_webserver test
+
+      - name: Run rust_webserver examples
+        run: make -C rust_webserver run_examples
+
       - name: Run tests
         run: make -C ext test
 
@@ -49,12 +55,6 @@ jobs:
 
       - name: Run ext examples
         run: make -C ext run_examples
-
-      - name: Run rust_webserver tests
-        run: make -C rust_webserver test
-
-      - name: Run rust_webserver examples
-        run: make -C rust_webserver run_examples
 
       - name: Benchmark executable size
         run: |
@@ -307,6 +307,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: .
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
           full_commit_message: ${{ github.event.head_commit.message }}

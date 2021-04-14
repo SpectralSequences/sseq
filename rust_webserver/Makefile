@@ -50,4 +50,4 @@ test:
 run_examples: $(patsubst examples/%.rs, target/debug/examples/%, $(wildcard examples/*.rs))
 
 target/debug/examples/%: dummy
-	cargo run --all-features --example "$(notdir $@)"
+	cargo run --example "$(notdir $@)"
