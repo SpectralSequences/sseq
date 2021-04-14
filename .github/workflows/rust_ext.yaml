@@ -17,29 +17,19 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Cache files
-        uses: actions/cache@v2
-        if: ${{ matrix.toolchain != 'nightly' }}
-        with:
-          path: |
-            ~/.rustup
-            ~/.cargo
-            /usr/share/rust/.cargo
-          key: test-${{ hashFiles('**/Cargo.*') }}
-
-      - name: Cache files (nightly)
-        uses: actions/cache@v2
-        if: ${{ matrix.toolchain == 'nightly' }}
-        with:
-          path: |
-            ~/.cargo
-            /usr/share/rust/.cargo
-          key: nightly-${{ hashFiles('**/Cargo.*') }}
-
       - name: Install rustup
+        id: rustup
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.toolchain }}
+
+      - name: Cache files
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+          key: test-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
 
       - name: Run rust_webserver tests
         run: make -C rust_webserver test
@@ -71,31 +61,21 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Cache files
-        uses: actions/cache@v2
-        if: ${{ matrix.toolchain != 'nightly' }}
-        with:
-          path: |
-            ~/.rustup
-            ~/.cargo
-            /usr/share/rust/.cargo
-            **/target
-          key: lint-${{ hashFiles('**/Cargo.*') }}
-
-      - name: Cache files (nightly)
-        uses: actions/cache@v2
-        if: ${{ matrix.toolchain == 'nightly' }}
-        with:
-          path: |
-            ~/.cargo
-            /usr/share/rust/.cargo
-          key: nightly-${{ hashFiles('**/Cargo.*') }}
-
       - name: Install rustup
+        id: rustup
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.toolchain }}
           components: clippy, rustfmt
+
+      - name: Cache files
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+            **/target
+          key: lint-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
 
       - name: Run lint
         run: make -C ext lint
@@ -117,32 +97,22 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Cache files
-        uses: actions/cache@v2
-        if: ${{ matrix.toolchain != 'nightly' }}
-        with:
-          path: |
-            ~/.rustup
-            ~/.cargo
-            /usr/share/rust/.cargo
-            **/target
-          key: wasm-${{ hashFiles('**/Cargo.*') }}
-
-      - name: Cache files (nightly)
-        uses: actions/cache@v2
-        if: ${{ matrix.toolchain == 'nightly' }}
-        with:
-          path: |
-            ~/.cargo
-            /usr/share/rust/.cargo
-          key: wasm-nightly-${{ hashFiles('**/Cargo.*') }}
-
       - name: Install rustup
         uses: actions-rs/toolchain@v1
+        id: rustup
         with:
           toolchain: ${{ matrix.toolchain }}
           target: wasm32-unknown-unknown
           components: clippy, rustfmt
+
+      - name: Cache files
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+            **/target
+          key: wasm-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
 
       - name: Install wasm-opt
         run: sudo apt-get install binaryen
@@ -179,32 +149,22 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Cache files
-        uses: actions/cache@v2
-        if: ${{ matrix.toolchain != 'nightly' }}
-        with:
-          path: |
-            ~/.rustup
-            ~/.cargo
-            /usr/share/rust/.cargo
-            **/target
-          key: calculator-${{ hashFiles('**/Cargo.*') }}
-
-      - name: Cache files (nightly)
-        uses: actions/cache@v2
-        if: ${{ matrix.toolchain == 'nightly' }}
-        with:
-          path: |
-            ~/.cargo
-            /usr/share/rust/.cargo
-          key: wasm-nightly-${{ hashFiles('ext/Cargo.*') }}
-
       - name: Install rustup
+        id: rustup
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.toolchain }}
           target: wasm32-unknown-unknown
           components: clippy, rustfmt
+
+      - name: Cache files
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+            **/target
+          key: calculator-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
 
       - name: Install wasm-opt
         run: sudo apt-get install binaryen
@@ -241,30 +201,20 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Cache files
-        uses: actions/cache@v2
-        if: ${{ matrix.toolchain != 'nightly' }}
-        with:
-          path: |
-            ~/.rustup
-            ~/.cargo
-            /usr/share/rust/.cargo
-            **/target
-          key: docs-${{ hashFiles('ext/Cargo.*') }}
-
-      - name: Cache files (nightly)
-        uses: actions/cache@v2
-        if: ${{ matrix.toolchain == 'nightly' }}
-        with:
-          path: |
-            ~/.cargo
-            /usr/share/rust/.cargo
-          key: nightly-${{ hashFiles('**/Cargo.*') }}
-
       - name: Install rustup
+        id: rustup
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly-2021-03-24
+
+      - name: Cache files
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+            **/target
+          key: docs-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('ext/Cargo.*') }}
 
       - name: Generate docs
         run: make -C ext docs
