@@ -58,8 +58,7 @@ jobs:
 
       - name: Benchmark executable size
         run: |
-          ls -l ext/target/debug/examples | grep -v ' .*-\|\.d$'
-          ls -l rust_webserver/target/debug/examples | grep -v ' .*-\|\.d$'
+          ls -l $HOME/.cargo/target/debug/examples | grep -v ' .*-\|\.d$'
 
   lint:
     runs-on: ubuntu-latest
