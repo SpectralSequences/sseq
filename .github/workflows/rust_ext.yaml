@@ -47,7 +47,7 @@ jobs:
       - name: Run rust_webserver examples
         run: make -C rust_webserver run_examples
 
-      - name: Run tests
+      - name: Run ext tests
         run: make -C ext test
 
       - name: Run ext examples
