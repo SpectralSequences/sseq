@@ -1,6 +1,5 @@
 use rustc_hash::FxHashMap as HashMap;
-use std::io::{stdout, Write};
-use std::path::PathBuf;
+use std::io::{stderr, Write};
 use std::sync::Arc;
 
 use serde_json::json;
@@ -17,20 +16,20 @@ use fp::vector::FpVector;
 
 pub fn get_gens(min_degree: i32) -> error::Result<BiVec<Vec<String>>> {
     // Query for generators
-    println!("Input generators. Press return to finish.");
-    stdout().flush()?;
+    eprintln!("Input generators. Press return to finish.");
+    stderr().flush()?;
 
     let mut gens: BiVec<Vec<_>> = BiVec::new(min_degree);
     loop {
         let gen_deg: Option<i32> = query_optional("Generator degree", Ok);
         if gen_deg.is_none() {
-            println!("This is the list of generators and degrees:");
+            eprintln!("This is the list of generators and degrees:");
             for (i, deg_i_gens) in gens.iter_enum() {
                 for gen in deg_i_gens.iter() {
                     print!("({}, {}) ", i, gen);
                 }
             }
-            println!();
+            eprintln!();
             if query_yes_no("Is it okay?") {
                 break;
             } else {
@@ -102,7 +101,7 @@ pub fn get_expression_to_vector<F>(
                 match string_to_basis_element(&parts[0]) {
                     Some(i) => output_vec.add_basis_element(i, 1),
                     None => {
-                        println!("Invalid value. Try again");
+                        eprintln!("Invalid value. Try again");
                         continue 'outer;
                     }
                 };
@@ -118,7 +117,7 @@ pub fn get_expression_to_vector<F>(
                 let gen_idx = match string_to_basis_element(rest) {
                     Some(i) => i,
                     None => {
-                        println!("Invalid value. Try again");
+                        eprintln!("Invalid value. Try again");
                         continue 'outer;
                     }
                 };
@@ -158,7 +157,7 @@ pub fn interactive_module_define_fdmodule(
         }
     }
 
-    println!("Input actions. Write the value of the action in the form 'a x0 + b x1 + ...' where a, b are non-negative integers and x0, x1 are names of the generators. The coefficient can be omitted if it is 1");
+    eprintln!("Input actions. Write the value of the action in the form 'a x0 + b x1 + ...' where a, b are non-negative integers and x0, x1 are names of the generators. The coefficient can be omitted if it is 1");
 
     let len = gens.len();
     for input_deg in (0..len as i32).rev() {
@@ -251,12 +250,12 @@ pub fn interactive_module_define_fpmodule(
     // TODO: make relation parser automatically extend module by zero if necessary...
     adem_module.generators.extend_by_zero(20);
 
-    println!("Input relations");
+    eprintln!("Input relations");
     match *p {
-        2 => println!("Write relations in the form 'Sq6 * Sq2 * x + Sq7 * y'"),
-        _ => println!("Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y', where P(...) and Qi are Milnor basis elements."),
+        2 => eprintln!("Write relations in the form 'Sq6 * Sq2 * x + Sq7 * y'"),
+        _ => eprintln!("Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y', where P(...) and Qi are Milnor basis elements."),
     }
-    println!("There is currently a hard-coded maximum degree of {} for relations (this is the maximum allowed degree of an operator acting on the generators). One can raise this number by editing the max_degree variable in the interactive_module_define_fpmodule function of src/cli_module_loaders.rs. Apologies.", max_degree);
+    eprintln!("There is currently a hard-coded maximum degree of {} for relations (this is the maximum allowed degree of an operator acting on the generators). One can raise this number by editing the max_degree variable in the interactive_module_define_fpmodule function of src/cli_module_loaders.rs. Apologies.", max_degree);
 
     let mut basis_elt_lookup = HashMap::default();
     for (i, deg_i_gens) in gens.iter_enum() {
@@ -278,10 +277,10 @@ pub fn interactive_module_define_fpmodule(
         ) {
             Err(x) => {
                 if x.is_empty() {
-                    println!("Invalid relation: {}. Try again.", x);
+                    eprintln!("Invalid relation: {}. Try again.", x);
                     continue;
                 }
-                println!("This is the list of relations:");
+                eprintln!("This is the list of relations:");
                 for (i, deg_i_relns) in relations.iter_enum() {
                     for r in deg_i_relns {
                         print!(
@@ -290,7 +289,7 @@ pub fn interactive_module_define_fpmodule(
                         );
                     }
                 }
-                println!();
+                eprintln!();
                 if query_yes_no("Is it okay?") {
                     break;
                 } else {
@@ -323,14 +322,6 @@ pub fn interactive_module_define_fpmodule(
 }
 
 fn main() -> error::Result<()> {
-    let output_path = query_with_default("Output file name", "module.json", |result: String| {
-        if !result.ends_with(".json") {
-            Err("Output file name must have .json extension".to_string())
-        } else {
-            Ok(result)
-        }
-    });
-
     let module_type = query_with_default(
         "Input module type (default 'finite dimensional module'):\n (0) - finite dimensional module \n (1) - finitely presented module\n",
         "0",
@@ -346,20 +337,14 @@ fn main() -> error::Result<()> {
         ValidPrime::try_new(p).ok_or_else(|| "invalid prime".to_string())
     });
     let generic = *p != 2;
-    let mut output_path_buf = PathBuf::from(output_path);
-    output_path_buf.set_extension("json");
-    let file_name = output_path_buf.file_stem().unwrap();
-    let mut output_json = json!({
-        "file_name" : file_name.to_str(),
-    });
+    let mut output_json = json!({});
 
-    println!("module_type : {}", module_type);
+    eprintln!("module_type : {}", module_type);
     match module_type {
         0 => interactive_module_define_fdmodule(&mut output_json, p, generic, name)?,
         1 => interactive_module_define_fpmodule(&mut output_json, p, generic, name)?,
         _ => unreachable!(),
     }
-    std::fs::write(&output_path_buf, output_json.to_string())?;
-    println!("Wrote module to file {:?}.", output_path_buf,);
+    println!("{}", output_json);
     Ok(())
 }
