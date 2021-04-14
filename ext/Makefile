@@ -15,7 +15,7 @@ lint:
 run_examples: $(patsubst examples/%.rs, target/release/examples/%, $(wildcard examples/*.rs))
 
 target/release/examples/%: dummy
-	cargo run --all-features --example "$(notdir $@)"
+	cargo run --features concurrent --example "$(notdir $@)"
 
 docs:
 	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo doc --all --no-deps --document-private-items
