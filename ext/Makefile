@@ -4,7 +4,7 @@ all:
 	cargo build
 
 test:
-	cargo test --features concurrent --workspace
+	cargo test --features concurrent --libs --tests --workspace
 
 lint:
 	cargo fmt --all -- --check
