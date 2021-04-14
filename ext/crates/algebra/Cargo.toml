@@ -22,8 +22,7 @@ once = { path = "../once" }
 saveload = { path = "../saveload" }
 
 [dev-dependencies]
-rand = "0.7.0"
-rstest = "0.6.4"
+rstest = "0.7.0"
 bencher = "0.1.5"
 expect-test = "1.1.0"
 

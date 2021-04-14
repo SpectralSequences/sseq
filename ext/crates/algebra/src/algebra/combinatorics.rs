@@ -317,8 +317,6 @@ impl<'a> Iterator for PartitionIterator<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use rand::Rng;
-    // use rstest::rstest;
 
     #[test]
     fn test_trunc_poly_partitions() {
