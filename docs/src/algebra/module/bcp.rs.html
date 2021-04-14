@@ -217,6 +217,7 @@
 <span id="196">196</span>
 <span id="197">197</span>
 <span id="198">198</span>
+<span id="199">199</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -408,6 +409,7 @@
     <span class="kw">use</span> <span class="ident">rstest</span>::<span class="ident">rstest</span>;
 
     <span class="attribute">#[<span class="ident">rstest</span>(<span class="ident">p</span>, <span class="ident">case</span>(<span class="number">2</span>), <span class="ident">case</span>(<span class="number">3</span>), <span class="ident">case</span>(<span class="number">5</span>))]</span>
+    <span class="attribute">#[<span class="ident">trace</span>]</span>
     <span class="attribute">#[<span class="ident">ignore</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_bcp</span>(<span class="ident">p</span>: <span class="ident">u32</span>) {
         <span class="kw">let</span> <span class="ident">p_</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="ident">p</span>);

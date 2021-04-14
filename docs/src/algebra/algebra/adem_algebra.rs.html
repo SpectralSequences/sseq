@@ -1736,6 +1736,9 @@
 <span id="1715">1715</span>
 <span id="1716">1716</span>
 <span id="1717">1717</span>
+<span id="1718">1718</span>
+<span id="1719">1719</span>
+<span id="1720">1720</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">cmp</span>::<span class="ident">Ordering</span>;
 <span class="kw">use</span> <span class="ident">itertools</span>::<span class="ident">Itertools</span>;
@@ -3337,6 +3340,7 @@
     <span class="kw">use</span> <span class="ident">rstest</span>::<span class="ident">rstest</span>;
 
     <span class="attribute">#[<span class="ident">rstest</span>(<span class="ident">p</span>, <span class="ident">max_degree</span>, <span class="ident">case</span>(<span class="number">2</span>, <span class="number">32</span>), <span class="ident">case</span>(<span class="number">3</span>, <span class="number">120</span>))]</span>
+    <span class="attribute">#[<span class="ident">trace</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_adem_basis</span>(<span class="ident">p</span>: <span class="ident">u32</span>, <span class="ident">max_degree</span>: <span class="ident">i32</span>) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="ident">p</span>);
         <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>);
@@ -3354,6 +3358,7 @@
     }
 
     <span class="attribute">#[<span class="ident">rstest</span>(<span class="ident">p</span>, <span class="ident">max_degree</span>, <span class="ident">case</span>(<span class="number">2</span>, <span class="number">32</span>), <span class="ident">case</span>(<span class="number">3</span>, <span class="number">120</span>))]</span>
+    <span class="attribute">#[<span class="ident">trace</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_adem_decompose</span>(<span class="ident">p</span>: <span class="ident">u32</span>, <span class="ident">max_degree</span>: <span class="ident">i32</span>) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="ident">p</span>);
         <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>);
@@ -3405,6 +3410,7 @@
 
     <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">ModuleFailedRelationError</span>;
     <span class="attribute">#[<span class="ident">rstest</span>(<span class="ident">p</span>, <span class="ident">max_degree</span>, <span class="ident">case</span>(<span class="number">2</span>, <span class="number">32</span>), <span class="ident">case</span>(<span class="number">3</span>, <span class="number">120</span>))]</span>
+    <span class="attribute">#[<span class="ident">trace</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_adem_relations</span>(<span class="ident">p</span>: <span class="ident">u32</span>, <span class="ident">max_degree</span>: <span class="ident">i32</span>) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="ident">p</span>);
         <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>);

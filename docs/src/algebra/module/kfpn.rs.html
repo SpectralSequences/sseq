@@ -444,6 +444,9 @@
 <span id="423">423</span>
 <span id="424">424</span>
 <span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -802,6 +805,7 @@
     <span class="kw">use</span> <span class="ident">rstest</span>::<span class="ident">rstest</span>;
 
     <span class="attribute">#[<span class="ident">rstest</span>(<span class="ident">p</span>, <span class="ident">case</span>(<span class="number">2</span>), <span class="ident">case</span>(<span class="number">3</span>), <span class="ident">case</span>(<span class="number">5</span>))]</span> <span class="comment">//, case(3), case(5))]</span>
+    <span class="attribute">#[<span class="ident">trace</span>]</span>
     <span class="attribute">#[<span class="ident">ignore</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_kfp1_basis</span>(<span class="ident">p</span>: <span class="ident">u32</span>) {
         <span class="kw">let</span> <span class="ident">p_</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="ident">p</span>);
@@ -825,6 +829,7 @@
         <span class="ident">p</span> <span class="op">=</span><span class="op">&gt;</span> [<span class="number">2</span>, <span class="number">3</span>, <span class="number">5</span>]</span>,
         <span class="ident">n</span> <span class="op">=</span><span class="op">&gt;</span> [<span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>]
     )]
+    <span class="attribute">#[<span class="ident">trace</span>]</span>
     <span class="attribute">#[<span class="ident">ignore</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_kfpn_action</span>(<span class="ident">p</span>: <span class="ident">u32</span>, <span class="ident">n</span>: <span class="ident">i32</span>) {
         <span class="kw">let</span> <span class="ident">p_</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="ident">p</span>);
@@ -854,6 +859,7 @@
     }
 
     <span class="attribute">#[<span class="ident">rstest</span>(<span class="ident">p</span>, <span class="ident">case</span>(<span class="number">3</span>))]</span> <span class="comment">//, case(3), case(5))]//, case(3))]//, case(5)</span>
+    <span class="attribute">#[<span class="ident">trace</span>]</span>
     <span class="attribute">#[<span class="ident">ignore</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_kfp3</span>(<span class="ident">p</span>: <span class="ident">u32</span>) {
         <span class="kw">let</span> <span class="ident">p_</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="ident">p</span>);

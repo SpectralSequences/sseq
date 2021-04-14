@@ -396,6 +396,7 @@
 <span id="375">375</span>
 <span id="376">376</span>
 <span id="377">377</span>
+<span id="378">378</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">adem_algebra</span>::<span class="ident">AdemBasisElement</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">milnor_algebra</span>::{<span class="ident">MilnorBasisElement</span>, <span class="ident">PPart</span>, <span class="ident">PPartEntry</span>};
@@ -732,6 +733,7 @@
         <span class="ident">case</span>(<span class="number">2</span>, <span class="number">32</span>),
         <span class="ident">case</span>(<span class="number">3</span>, <span class="number">60</span>)<span class="comment">//106 // reduced size of test because we use a slow implementation</span>
     )]</span>
+    <span class="attribute">#[<span class="ident">trace</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_cob_adem_to_milnor</span>(<span class="ident">p</span>: <span class="ident">u32</span>, <span class="ident">max_degree</span>: <span class="ident">i32</span>) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="ident">p</span>);
         <span class="kw">let</span> <span class="ident">adem</span> <span class="op">=</span> <span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>);
