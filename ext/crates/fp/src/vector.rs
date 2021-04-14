@@ -479,7 +479,8 @@ mod test {
         }
     }
 
-    fn random_vector(p: u32, dimension: usize) -> Vec<u32> {
+    fn random_vector(p: impl Into<u32>, dimension: usize) -> Vec<u32> {
+        let p: u32 = p.into();
         let mut result = Vec::with_capacity(dimension);
         let mut rng = rand::thread_rng();
         for _ in 0..dimension {
@@ -488,52 +489,83 @@ mod test {
         result
     }
 
-    #[rstest(p, case(2), case(3), case(5), case(7))]
-    fn test_add(p: u32) {
-        let p_ = ValidPrime::new(p);
-        initialize_limb_bit_index_table(p_);
-        for &dim in &[10, 20, 70, 100, 1000] {
-            println!("p: {}, dim: {}", p, dim);
+    macro_rules! test_dim {
+        () => {};
+        (fn $name:ident($p:ident: ValidPrime) $body:tt $($rest:tt)*) => {
+            #[rstest]
+            #[trace]
+            fn $name(#[values(2, 3, 5, 7)] p: u32) {
+                let $p = ValidPrime::new(p);
+                initialize_limb_bit_index_table($p);
+
+                $body
+            }
+            test_dim! { $($rest)* }
+        };
+        (fn $name:ident($p:ident: ValidPrime, $dim:ident: usize) $body:tt $($rest:tt)*) => {
+            #[rstest]
+            #[trace]
+            fn $name(#[values(2, 3, 5, 7)] p: u32, #[values(10, 20, 70, 100, 1000)] $dim: usize) {
+                let $p = ValidPrime::new(p);
+                initialize_limb_bit_index_table($p);
+
+                $body
+            }
+            test_dim! { $($rest)* }
+        };
+        (fn $name:ident($p:ident: ValidPrime, $dim:ident: usize, $slice_start:ident: usize, $slice_end:ident: usize) $body:tt $($rest:tt)*) => {
+            #[rstest]
+            #[trace]
+            fn $name(#[values(2, 3, 5, 7)] p: u32, #[values(10, 20, 70, 100, 1000)] $dim: usize) {
+                let $p = ValidPrime::new(p);
+                initialize_limb_bit_index_table($p);
+
+                let $slice_start = match $dim {
+                    10 => 5,
+                    20 => 10,
+                    70 => 20,
+                    100 => 30,
+                    1000 => 290,
+                    _ => unreachable!(),
+                };
+                let $slice_end = ($dim + $slice_start) / 2;
+                $body
+            }
+            test_dim! { $($rest)* }
+        };
+    }
+
+    test_dim! {
+        fn test_add(p: ValidPrime, dim: usize) {
             let mut v_arr = random_vector(p, dim);
             let w_arr = random_vector(p, dim);
-            let mut v = FpVector::from_slice(p_, &v_arr);
-            let w = FpVector::from_slice(p_, &w_arr);
+            let mut v = FpVector::from_slice(p, &v_arr);
+            let w = FpVector::from_slice(p, &w_arr);
 
             v.add(&w, 1);
             for i in 0..dim {
-                v_arr[i] = (v_arr[i] + w_arr[i]) % p;
+                v_arr[i] = (v_arr[i] + w_arr[i]) % *p;
             }
             v.assert_list_eq(&v_arr);
-        }
-    }
 
-    #[rstest(p, case(2), case(3), case(5), case(7))]
-    fn test_scale(p: u32) {
-        let p_ = ValidPrime::new(p);
-        initialize_limb_bit_index_table(p_);
-        for &dim in &[10, 20, 70, 100, 1000] {
-            println!("p: {}, dim: {}", p, dim);
+        }
+
+        fn test_scale(p: ValidPrime, dim: usize) {
             let mut v_arr = random_vector(p, dim);
             let mut rng = rand::thread_rng();
-            let c = rng.gen::<u32>() % p;
+            let c = rng.gen::<u32>() % *p;
 
-            let mut v = FpVector::from_slice(p_, &v_arr);
+            let mut v = FpVector::from_slice(p, &v_arr);
             v.scale(c);
             for entry in &mut v_arr {
-                *entry = (*entry * c) % p;
+                *entry = (*entry * c) % *p;
             }
             v.assert_list_eq(&v_arr);
         }
-    }
 
-    #[rstest(p, case(2), case(3), case(5), case(7))]
-    fn test_entry(p: u32) {
-        let p_ = ValidPrime::new(p);
-        initialize_limb_bit_index_table(p_);
-        let dim_list = [10, 20, 70, 100, 1000];
-        for &dim in &dim_list {
+        fn test_entry(p: ValidPrime, dim: usize) {
             let v_arr = random_vector(p, dim);
-            let v = FpVector::from_slice(p_, &v_arr);
+            let v = FpVector::from_slice(p, &v_arr);
 
             let mut diffs = Vec::new();
             for (i, val) in v.iter().enumerate() {
@@ -543,23 +575,15 @@ mod test {
             }
             assert_eq!(diffs, []);
         }
-    }
 
-    #[rstest(p, case(2), case(3), case(5), case(7))] //
-    fn test_entry_slice(p: u32) {
-        let p_ = ValidPrime::new(p);
-        initialize_limb_bit_index_table(p_);
-        let dim_list = [10, 20, 70, 100, 1000];
-        for (i, &dim) in dim_list.iter().enumerate() {
-            let slice_start = [5, 10, 20, 30, 290][i];
-            let slice_end = (dim + slice_start) / 2;
+        fn test_entry_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
             let v_arr = random_vector(p, dim);
-            let v = FpVector::from_slice(p_, &v_arr);
+            let v = FpVector::from_slice(p, &v_arr);
             let v = v.slice(slice_start, slice_end);
             println!(
                 "slice_start: {}, slice_end: {}, slice: {}",
                 slice_start, slice_end, v
-            );
+                );
 
             let mut diffs = Vec::new();
             for i in 0..v.dimension() {
@@ -569,32 +593,18 @@ mod test {
             }
             assert_eq!(diffs, []);
         }
-    }
 
-    #[rstest(p, case(2), case(3), case(5), case(7))]
-    fn test_set_entry(p: u32) {
-        let p_ = ValidPrime::new(p);
-        initialize_limb_bit_index_table(p_);
-        let dim_list = [10, 20, 70, 100, 1000];
-        for &dim in &dim_list {
-            let mut v = FpVector::new(p_, dim);
+        fn test_set_entry(p: ValidPrime, dim: usize) {
+            let mut v = FpVector::new(p, dim);
             let v_arr = random_vector(p, dim);
             for (i, &val) in v_arr.iter().enumerate() {
                 v.set_entry(i, val);
             }
             v.assert_list_eq(&v_arr);
         }
-    }
 
-    #[rstest(p, case(2), case(3), case(5), case(7))] //
-    fn test_set_entry_slice(p: u32) {
-        let p_ = ValidPrime::new(p);
-        initialize_limb_bit_index_table(p_);
-        let dim_list = [10, 20, 70, 100, 1000];
-        for (i, &dim) in dim_list.iter().enumerate() {
-            let slice_start = [5, 10, 20, 30, 290][i];
-            let slice_end = (dim + slice_start) / 2;
-            let mut v = FpVector::new(p_, dim);
+        fn test_set_entry_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
+            let mut v = FpVector::new(p, dim);
             let mut v = v.slice_mut(slice_start, slice_end);
 
             let slice_dim = v.as_slice().dimension();
@@ -613,21 +623,12 @@ mod test {
             }
             assert_eq!(diffs, []);
         }
-    }
 
-    // Tests set_to_zero for a slice and also is_zero.
-    #[rstest(p, case(2), case(3), case(5), case(7))]
-    fn test_set_to_zero_slice(p: u32) {
-        let p_ = ValidPrime::new(p);
-        initialize_limb_bit_index_table(p_);
-        let dim_list = [10, 20, 70, 100, 1000];
-        for (i, &dim) in dim_list.iter().enumerate() {
-            let slice_start = [5, 10, 20, 30, 290][i];
-            let slice_end = (dim + slice_start) / 2;
+        fn test_set_to_zero_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
             println!("slice_start : {}, slice_end : {}", slice_start, slice_end);
             let mut v_arr = random_vector(p, dim);
             v_arr[0] = 1; // make sure that v isn't zero
-            let mut v = FpVector::from_slice(p_, &v_arr);
+            let mut v = FpVector::from_slice(p, &v_arr);
 
             v.slice_mut(slice_start, slice_end).set_to_zero();
             assert!(v.slice(slice_start, slice_end).is_zero());
@@ -638,227 +639,160 @@ mod test {
             }
             v.assert_list_eq(&v_arr);
         }
-    }
 
-    #[rstest(p, case(2), case(3), case(5))] //, case(7))]//
-    fn test_add_slice_to_slice(p: u32) {
-        let p_ = ValidPrime::new(p);
-        println!("p : {}", p);
-        initialize_limb_bit_index_table(p_);
-        let dim_list = [10, 20, 70, 100, 1000];
-        for (i, &dim) in dim_list.iter().enumerate() {
-            let slice_start = [5, 10, 20, 30, 290][i];
-            let slice_end = (dim + slice_start) / 2;
+        fn test_add_slice_to_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
             let mut v_arr = random_vector(p, dim);
             let w_arr = random_vector(p, dim);
 
-            let mut v = FpVector::from_slice(p_, &v_arr);
-            let w = FpVector::from_slice(p_, &w_arr);
+            let mut v = FpVector::from_slice(p, &v_arr);
+            let w = FpVector::from_slice(p, &w_arr);
 
             v.slice_mut(slice_start, slice_end)
                 .add(w.slice(slice_start, slice_end), 1);
 
             for i in slice_start..slice_end {
-                v_arr[i] = (v_arr[i] + w_arr[i]) % p;
+                v_arr[i] = (v_arr[i] + w_arr[i]) % *p;
             }
             v.assert_list_eq(&v_arr);
         }
-    }
 
-    // Tests assign and Eq
-    #[rstest(p, case(2), case(3), case(5), case(7))] //
-    fn test_assign(p: u32) {
-        let p_ = ValidPrime::new(p);
-        initialize_limb_bit_index_table(p_);
-        for &dim in &[10, 20, 70, 100, 1000] {
-            println!("p: {}, dim: {}", p, dim);
+        fn test_assign(p: ValidPrime, dim: usize) {
             let v_arr = random_vector(p, dim);
             let w_arr = random_vector(p, dim);
 
-            let mut v = FpVector::from_slice(p_, &v_arr);
-            let w = FpVector::from_slice(p_, &w_arr);
+            let mut v = FpVector::from_slice(p, &v_arr);
+            let w = FpVector::from_slice(p, &w_arr);
 
             v.assign(&w);
             v.assert_vec_eq(&w);
         }
-    }
 
-    #[rstest(p, case(2), case(3), case(5))] //, case(7))]//
-    fn test_assign_slice_to_slice(p: u32) {
-        let p_ = ValidPrime::new(p);
-        println!("p : {}", p);
-        initialize_limb_bit_index_table(p_);
-        let dim_list = [10, 20, 70, 100, 1000];
-        for (i, &dim) in dim_list.iter().enumerate() {
-            let slice_start = [5, 10, 20, 30, 290][i];
-            let slice_end = (dim + slice_start) / 2;
-
+        fn test_assign_slice_to_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
             let mut v_arr = random_vector(p, dim);
             let mut w_arr = random_vector(p, dim);
 
             v_arr[0] = 1; // Ensure v != w.
             w_arr[0] = 0; // Ensure v != w.
 
-            let mut v = FpVector::from_slice(p_, &v_arr);
-            let w = FpVector::from_slice(p_, &w_arr);
+            let mut v = FpVector::from_slice(p, &v_arr);
+            let w = FpVector::from_slice(p, &w_arr);
 
             v.slice_mut(slice_start, slice_end)
                 .assign(w.slice(slice_start, slice_end));
             v_arr[slice_start..slice_end].clone_from_slice(&w_arr[slice_start..slice_end]);
             v.assert_list_eq(&v_arr);
         }
-    }
 
-    #[rstest(p, case(2), case(3), case(5))] //, case(7))]
-    fn test_add_shift_right(p: u32) {
-        let p_ = ValidPrime::new(p);
-        println!("p : {}", p);
-        initialize_limb_bit_index_table(p_);
-        let dim_list = [10, 20, 70, 100, 1000];
-        for (i, &dim) in dim_list.iter().enumerate() {
-            let slice_start = [5, 10, 20, 30, 290][i];
-            let slice_end = (dim + slice_start) / 2;
+        fn test_add_shift_right(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
             let mut v_arr = random_vector(p, dim);
             let w_arr = random_vector(p, dim);
 
-            let mut v = FpVector::from_slice(p_, &v_arr);
-            let w = FpVector::from_slice(p_, &w_arr);
+            let mut v = FpVector::from_slice(p, &v_arr);
+            let w = FpVector::from_slice(p, &w_arr);
 
             v.slice_mut(slice_start + 2, slice_end + 2)
                 .add(w.slice(slice_start, slice_end), 1);
 
             println!("v : {}", v);
             for i in slice_start + 2..slice_end + 2 {
-                v_arr[i] = (v_arr[i] + w_arr[i - 2]) % p;
+                v_arr[i] = (v_arr[i] + w_arr[i - 2]) % *p;
             }
             v.assert_list_eq(&v_arr);
         }
-    }
 
-    #[rstest(p, case(2), case(3), case(5))] //, case(7))]
-    fn test_add_shift_left(p: u32) {
-        let p_ = ValidPrime::new(p);
-        println!("p : {}", p);
-        initialize_limb_bit_index_table(p_);
-        let dim_list = [10, 20, 70, 100, 1000];
-        for (i, &dim) in dim_list.iter().enumerate() {
-            let slice_start = [5, 10, 20, 30, 290][i];
-            let slice_end = (dim + slice_start) / 2;
+        fn test_add_shift_left(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
             let mut v_arr = random_vector(p, dim);
             let w_arr = random_vector(p, dim);
 
-            let mut v = FpVector::from_slice(p_, &v_arr);
-            let w = FpVector::from_slice(p_, &w_arr);
+            let mut v = FpVector::from_slice(p, &v_arr);
+            let w = FpVector::from_slice(p, &w_arr);
 
             v.slice_mut(slice_start - 2, slice_end - 2)
                 .add(w.slice(slice_start, slice_end), 1);
             for i in slice_start - 2..slice_end - 2 {
-                v_arr[i] = (v_arr[i] + w_arr[i + 2]) % p;
+                v_arr[i] = (v_arr[i] + w_arr[i + 2]) % *p;
             }
             v.assert_list_eq(&v_arr);
         }
-    }
 
-    #[rstest(p, case(2), case(3), case(5))] //, case(7))]
-    fn test_iterator_slice(p: u32) {
-        let p_ = ValidPrime::new(p);
-        initialize_limb_bit_index_table(p_);
-        let ep = entries_per_limb(p_);
-        for &dim in &[5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
-            let v_arr = random_vector(p, dim);
-            let v = FpVector::from_slice(p_, &v_arr);
-            let v = v.slice(3, dim - 1);
+        fn test_iterator_slice(p: ValidPrime) {
+            let ep = entries_per_limb(p);
+            for &dim in &[5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
+                let v_arr = random_vector(p, dim);
+                let v = FpVector::from_slice(p, &v_arr);
+                let v = v.slice(3, dim - 1);
 
-            println!("v: {:?}", v_arr);
+                println!("v: {:?}", v_arr);
 
-            let w = v.iter();
-            let mut counter = 0;
-            for (i, x) in w.enumerate() {
-                println!("i: {}, dim : {}", i, dim);
-                assert_eq!(v.entry(i), x);
-                counter += 1;
-            }
-            assert_eq!(counter, v.dimension());
-        }
-    }
-
-    #[rstest(p, case(2), case(3), case(5), case(7))]
-    fn test_iterator_skip(p: u32) {
-        let p_ = ValidPrime::new(p);
-        initialize_limb_bit_index_table(p_);
-        let ep = entries_per_limb(p_);
-        let dim = 5 * ep;
-        for &num_skip in &[ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1, 6 * ep] {
-            let v_arr = random_vector(p, dim);
-            let v = FpVector::from_slice(p_, &v_arr);
-
-            let mut w = v.iter();
-            w.skip_n(num_skip);
-            let mut counter = 0;
-            for (i, x) in w.enumerate() {
-                assert_eq!(v.entry(i + num_skip), x);
-                counter += 1;
-            }
-            if num_skip == 6 * ep {
-                assert_eq!(counter, 0);
-            } else {
-                assert_eq!(counter, v.dimension() - num_skip);
+                let w = v.iter();
+                let mut counter = 0;
+                for (i, x) in w.enumerate() {
+                    println!("i: {}, dim : {}", i, dim);
+                    assert_eq!(v.entry(i), x);
+                    counter += 1;
+                }
+                assert_eq!(counter, v.dimension());
             }
         }
-    }
 
-    #[rstest(p, case(2), case(3), case(5), case(7))]
-    fn test_iterator(p: u32) {
-        let p_ = ValidPrime::new(p);
-        initialize_limb_bit_index_table(p_);
-        let ep = entries_per_limb(p_);
-        for &dim in &[0, 5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
-            let v_arr = random_vector(p, dim);
-            let v = FpVector::from_slice(p_, &v_arr);
+        fn test_iterator_skip(p: ValidPrime) {
+            let ep = entries_per_limb(p);
+            let dim = 5 * ep;
+            for &num_skip in &[ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1, 6 * ep] {
+                let v_arr = random_vector(p, dim);
+                let v = FpVector::from_slice(p, &v_arr);
 
-            let w = v.iter();
-            let mut counter = 0;
-            for (i, x) in w.enumerate() {
-                assert_eq!(v.entry(i), x);
-                counter += 1;
+                let mut w = v.iter();
+                w.skip_n(num_skip);
+                let mut counter = 0;
+                for (i, x) in w.enumerate() {
+                    assert_eq!(v.entry(i + num_skip), x);
+                    counter += 1;
+                }
+                if num_skip == 6 * ep {
+                    assert_eq!(counter, 0);
+                } else {
+                    assert_eq!(counter, v.dimension() - num_skip);
+                }
             }
-            assert_eq!(counter, v.dimension());
         }
-    }
 
-    #[rstest(p, case(2))] //, case(3), case(5))]//, case(7))]
-    fn test_iter_nonzero_empty(p: u32) {
-        let p_ = ValidPrime::new(p);
-        let v = FpVector::new(p_, 0);
-        for (_idx, _v) in v.iter_nonzero() {
-            panic!();
+        fn test_iterator(p: ValidPrime) {
+            let ep = entries_per_limb(p);
+            for &dim in &[0, 5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
+                let v_arr = random_vector(p, dim);
+                let v = FpVector::from_slice(p, &v_arr);
+
+                let w = v.iter();
+                let mut counter = 0;
+                for (i, x) in w.enumerate() {
+                    assert_eq!(v.entry(i), x);
+                    counter += 1;
+                }
+                assert_eq!(counter, v.dimension());
+            }
         }
-    }
 
-    #[rstest(p, case(2))] //, case(7))]
-    fn test_iter_nonzero_slice(p: u32) {
-        let p_ = ValidPrime::new(p);
-        initialize_limb_bit_index_table(p_);
-        let mut v = FpVector::new(p_, 5);
-        v.set_entry(0, 1);
-        v.set_entry(1, 1);
-        v.set_entry(2, 1);
-        for (i, _) in v.slice(0, 1).iter_nonzero() {
-            assert_eq!(i, 0);
+        fn test_iter_nonzero_empty(p: ValidPrime) {
+            let v = FpVector::new(p, 0);
+            for (_, _) in v.iter_nonzero() {
+                panic!();
+            }
         }
-    }
 
-    #[rstest(p, case(2), case(3), case(5))] //, case(7))]
-    fn test_iter_nonzero(p: u32) {
-        let p_ = ValidPrime::new(p);
-        println!("p : {}", p);
-        initialize_limb_bit_index_table(p_);
-        let dim_list = [20, 66, 100, 270, 1000];
-        for (i, &dim) in dim_list.iter().enumerate() {
-            let slice_start = [5, 10, 20, 30, 290][i];
-            let slice_end = (dim + slice_start) / 2;
+        fn test_iter_nonzero_slice(p: ValidPrime) {
+            let mut v = FpVector::new(p, 5);
+            v.set_entry(0, 1);
+            v.set_entry(1, 1);
+            v.set_entry(2, 1);
+            for (i, _) in v.slice(0, 1).iter_nonzero() {
+                assert_eq!(i, 0);
+            }
+        }
+
+        fn test_iter_nonzero(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
             let v_arr = random_vector(p, dim);
-            let v = FpVector::from_slice(p_, &v_arr);
+            let v = FpVector::from_slice(p, &v_arr);
 
             println!("v: {}", v);
             println!("v_arr: {:?}", v_arr);
@@ -877,15 +811,15 @@ mod test {
                 if result[i] != comparison_result[j] {
                     if result[i].0 < comparison_result[j].0 {
                         diffs_str.push_str(&format!(
-                            "\n({:?}) present in result, missing from comparison_result",
-                            result[i]
-                        ));
+                                "\n({:?}) present in result, missing from comparison_result",
+                                result[i]
+                                ));
                         i += 1;
                     } else {
                         diffs_str.push_str(&format!(
-                            "\n({:?}) present in comparison_result, missing from result",
-                            comparison_result[j]
-                        ));
+                                "\n({:?}) present in comparison_result, missing from result",
+                                comparison_result[j]
+                                ));
                         j += 1;
                     }
                 } else {
@@ -900,82 +834,80 @@ mod test {
         }
     }
 
-    #[rstest(p, case(2))] //, case(3), case(5))]
-    fn test_add_carry(p: u32) {
-        let p_ = ValidPrime::new(p);
-        initialize_limb_bit_index_table(p_);
-        for &dim in &[10, 20, 70, 100, 1000] {
-            println!("p: {}, dim: {}", p, dim);
-            const E_MAX: usize = 4;
-            let p_to_the_e_max = (p * p * p * p) * p;
-            let mut v = Vec::with_capacity(E_MAX + 1);
-            let mut w = Vec::with_capacity(E_MAX + 1);
-            for _ in 0..=E_MAX {
-                v.push(FpVector::new(p_, dim));
-                w.push(FpVector::new(p_, dim));
-            }
-            let v_arr = random_vector(p_to_the_e_max, dim);
-            let w_arr = random_vector(p_to_the_e_max, dim);
-            for i in 0..dim {
-                let mut ev = v_arr[i];
-                let mut ew = w_arr[i];
-                for e in 0..=E_MAX {
-                    v[e].set_entry(i, ev % p);
-                    w[e].set_entry(i, ew % p);
-                    ev /= p;
-                    ew /= p;
-                }
-            }
-
-            println!("in  : {:?}", v_arr);
-            for (e, val) in v.iter().enumerate() {
-                println!("in {}: {}", e, val);
-            }
-            println!();
-
-            println!("in  : {:?}", w_arr);
-            for (e, val) in w.iter().enumerate() {
-                println!("in {}: {}", e, val);
-            }
-            println!();
-
-            for e in 0..=E_MAX {
-                let (first, rest) = v[e..].split_at_mut(1);
-                first[0].add_carry(&w[e], 1, rest);
-            }
-
-            let mut vec_result = vec![0; dim];
-            for (i, entry) in vec_result.iter_mut().enumerate() {
-                for e in (0..=E_MAX).rev() {
-                    *entry *= p;
-                    *entry += v[e].entry(i);
-                }
-            }
-
-            for (e, val) in v.iter().enumerate() {
-                println!("out{}: {}", e, val);
-            }
-            println!();
-
-            let mut comparison_result = vec![0; dim];
-            for i in 0..dim {
-                comparison_result[i] = (v_arr[i] + w_arr[i]) % p_to_the_e_max;
-            }
-            println!("out : {:?}", comparison_result);
-
-            let mut diffs = Vec::new();
-            let mut diffs_str = String::new();
-            for i in 0..dim {
-                if vec_result[i] != comparison_result[i] {
-                    diffs.push((i, comparison_result[i], vec_result[i]));
-                    diffs_str.push_str(&format!(
-                        "\nIn position {} expected {} got {}. v[i] = {}, w[i] = {}.",
-                        i, comparison_result[i], vec_result[i], v_arr[i], w_arr[i]
-                    ));
-                }
-            }
-            assert!(diffs.is_empty(), "{}", diffs_str);
+    #[rstest]
+    #[trace]
+    fn test_add_carry(#[values(2)] p: u32, #[values(10, 20, 70, 100, 1000)] dim: usize) {
+        let p = ValidPrime::new(p);
+        initialize_limb_bit_index_table(p);
+        const E_MAX: usize = 4;
+        let pto_the_e_max = (*p * *p * *p * *p) * *p;
+        let mut v = Vec::with_capacity(E_MAX + 1);
+        let mut w = Vec::with_capacity(E_MAX + 1);
+        for _ in 0..=E_MAX {
+            v.push(FpVector::new(p, dim));
+            w.push(FpVector::new(p, dim));
         }
+        let v_arr = random_vector(pto_the_e_max, dim);
+        let w_arr = random_vector(pto_the_e_max, dim);
+        for i in 0..dim {
+            let mut ev = v_arr[i];
+            let mut ew = w_arr[i];
+            for e in 0..=E_MAX {
+                v[e].set_entry(i, ev % *p);
+                w[e].set_entry(i, ew % *p);
+                ev /= *p;
+                ew /= *p;
+            }
+        }
+
+        println!("in  : {:?}", v_arr);
+        for (e, val) in v.iter().enumerate() {
+            println!("in {}: {}", e, val);
+        }
+        println!();
+
+        println!("in  : {:?}", w_arr);
+        for (e, val) in w.iter().enumerate() {
+            println!("in {}: {}", e, val);
+        }
+        println!();
+
+        for e in 0..=E_MAX {
+            let (first, rest) = v[e..].split_at_mut(1);
+            first[0].add_carry(&w[e], 1, rest);
+        }
+
+        let mut vec_result = vec![0; dim];
+        for (i, entry) in vec_result.iter_mut().enumerate() {
+            for e in (0..=E_MAX).rev() {
+                *entry *= *p;
+                *entry += v[e].entry(i);
+            }
+        }
+
+        for (e, val) in v.iter().enumerate() {
+            println!("out{}: {}", e, val);
+        }
+        println!();
+
+        let mut comparison_result = vec![0; dim];
+        for i in 0..dim {
+            comparison_result[i] = (v_arr[i] + w_arr[i]) % pto_the_e_max;
+        }
+        println!("out : {:?}", comparison_result);
+
+        let mut diffs = Vec::new();
+        let mut diffs_str = String::new();
+        for i in 0..dim {
+            if vec_result[i] != comparison_result[i] {
+                diffs.push((i, comparison_result[i], vec_result[i]));
+                diffs_str.push_str(&format!(
+                    "\nIn position {} expected {} got {}. v[i] = {}, w[i] = {}.",
+                    i, comparison_result[i], vec_result[i], v_arr[i], w_arr[i]
+                ));
+            }
+        }
+        assert!(diffs.is_empty(), "{}", diffs_str);
     }
 
     #[test]

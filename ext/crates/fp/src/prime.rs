@@ -84,6 +84,12 @@ impl std::ops::Deref for ValidPrime {
     }
 }
 
+impl From<ValidPrime> for u32 {
+    fn from(p: ValidPrime) -> u32 {
+        *p
+    }
+}
+
 impl std::fmt::Display for ValidPrime {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         (**self).fmt(f)
