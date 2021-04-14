@@ -290,7 +290,7 @@ impl std::fmt::Display for FpVector {
 
 impl<'a> std::fmt::Display for Slice<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        write!(f, "[{}]", self.iter().join(", "))?;
+        write!(f, "[{}]", self.iter().format(", "))?;
         Ok(())
     }
 }

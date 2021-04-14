@@ -99,7 +99,7 @@ impl std::fmt::Display for AdemBasisElement {
                 PorBockstein::P(exp) => format!("{}{}", p_or_sq, exp),
                 PorBockstein::Bockstein(_) => "b".to_string(),
             })
-            .join(" ");
+            .format(" ");
 
         write!(f, "{}", result)?;
         Ok(())

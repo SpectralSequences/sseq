@@ -109,17 +109,18 @@ impl std::fmt::Display for MilnorBasisElement {
             write!(f, "1")?;
             return Ok(());
         }
-        let mut parts = Vec::new();
         if self.q_part != 0 {
-            let q_part_str = BitflagIterator::set_bit_iterator(self.q_part as u64)
+            let q_part = BitflagIterator::set_bit_iterator(self.q_part as u64)
                 .map(|idx| format!("Q_{}", idx))
-                .join(" ");
-            parts.push(q_part_str);
+                .format(" ");
+            write!(f, "{}", q_part)?;
         }
         if !self.p_part.is_empty() {
-            parts.push(format!("P({})", self.p_part.iter().join(", ")));
+            if self.q_part != 0 {
+                write!(f, " ")?;
+            }
+            write!(f, "P({})", self.p_part.iter().format(", "))?;
         }
-        write!(f, "{}", parts.join(" "))?;
         Ok(())
     }
 }
