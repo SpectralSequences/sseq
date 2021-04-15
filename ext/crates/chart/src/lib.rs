@@ -25,6 +25,9 @@ pub enum Orientation {
 pub trait Backend {
     type Error;
 
+    /// If the backend writes to a file, this is the extension commonly taken by the file type
+    const EXT: &'static str = "";
+
     fn header(&mut self, max_x: i32, max_y: i32) -> Result<(), Self::Error>;
     fn line(
         &mut self,
@@ -198,6 +201,7 @@ impl<T: Write> SvgBackend<T> {
 
 impl<T: Write> Backend for SvgBackend<T> {
     type Error = std::io::Error;
+    const EXT: &'static str = "svg";
 
     fn header(&mut self, max_x: i32, max_y: i32) -> Result<(), Self::Error> {
         self.max_x = max_x;
@@ -356,6 +360,7 @@ impl<T: Write> TikzBackend<T> {
 
 impl<T: Write> Backend for TikzBackend<T> {
     type Error = std::io::Error;
+    const EXT: &'static str = "tex";
 
     fn header(&mut self, max_x: i32, max_y: i32) -> Result<(), Self::Error> {
         self.max_x = max_x;
