@@ -1,1 +1,1 @@
-initSidebarItems({"constant":[["GRID_WIDTH",""],["MARGIN",""],["PATTERNS",""],["STYLES",""]],"struct":[["Graph",""]]});
+initSidebarItems({"constant":[["PATTERNS",""]],"enum":[["Orientation",""]],"struct":[["SvgBackend",""],["TikzBackend",""]],"trait":[["Backend",""]]});

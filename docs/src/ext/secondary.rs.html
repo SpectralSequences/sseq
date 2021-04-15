@@ -880,11 +880,6 @@
 <span id="859">859</span>
 <span id="860">860</span>
 <span id="861">861</span>
-<span id="862">862</span>
-<span id="863">863</span>
-<span id="864">864</span>
-<span id="865">865</span>
-<span id="866">866</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::<span class="ident">ChainComplex</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">resolution</span>::<span class="ident">Resolution</span> <span class="kw">as</span> <span class="ident">Resolution_</span>;
@@ -1090,12 +1085,7 @@
                     <span class="string">&quot;Time elapsed: {:.2?}; Processed bidegrees:&quot;</span>,
                     <span class="ident">start</span>.<span class="ident">elapsed</span>()
                 );
-                <span class="kw">crate</span>::<span class="ident">utils</span>::<span class="ident">print_resolution_color</span>(
-                    <span class="ident">res</span>,
-                    <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">min</span>(<span class="ident">max_s</span>, ((<span class="ident">max_t</span> <span class="op">-</span> <span class="ident">min_degree</span>) <span class="kw">as</span> <span class="ident">u32</span> <span class="op">+</span> <span class="number">2</span>) <span class="op">/</span> <span class="number">3</span>),
-                    <span class="ident">max_t</span>,
-                    <span class="kw-2">&amp;</span><span class="ident">processed</span>,
-                );
+                <span class="kw">crate</span>::<span class="ident">utils</span>::<span class="ident">print_resolution_color</span>(<span class="ident">res</span>, <span class="ident">max_s</span>, <span class="kw-2">&amp;</span><span class="ident">processed</span>);
                 <span class="comment">// Clear the rest of the screen</span>
                 <span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;\x1b[J&quot;</span>);
                 <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">stdout</span>().<span class="ident">flush</span>().<span class="ident">unwrap</span>();

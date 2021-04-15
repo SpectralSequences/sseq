@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["query",""],["query_optional",""],["query_with_default",""],["query_yes_no",""]]});
+initSidebarItems({"fn":[["optional",""],["raw",""],["with_default",""],["yes_no",""]]});
