@@ -114,7 +114,6 @@ impl ResolutionManager {
             module_paths: vec![dir],
             module_file_name: action.module_name,
             algebra_name: String::new(), // This is not used
-            max_degree: 0,               // This is not used.
         })?;
 
         let resolution = Resolution::new_from_json(json, &action.algebra_name);

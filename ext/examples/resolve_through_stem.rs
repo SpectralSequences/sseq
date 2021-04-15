@@ -11,6 +11,7 @@ fn main() -> error::Result<()> {
 
     let max_s = query::query_with_default("Max s", "15", Ok);
     let max_f = query::query_with_default("Max f", "30", Ok);
+    let save_file: Option<String> = query::query_optional("Save file", Ok);
 
     #[cfg(not(feature = "concurrent"))]
     res.resolve_through_stem(max_s, max_f);
@@ -22,9 +23,9 @@ fn main() -> error::Result<()> {
         res.resolve_through_stem_concurrent(max_s, max_f, &bucket);
     }
 
-    println!("\x1b[1m{}", res.graded_dimension_string());
+    println!("\x1b[1m{}\x1b[0m", res.graded_dimension_string());
 
-    if let Some(file_name) = query::query_optional::<String, _, _>("Save file", Ok) {
+    if let Some(file_name) = save_file {
         let file = std::fs::File::create(file_name)?;
         let mut file = std::io::BufWriter::new(file);
         res.save(&mut file)?;
