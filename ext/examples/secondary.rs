@@ -5,12 +5,16 @@ use std::path::Path;
 use std::time::Instant;
 
 use algebra::module::homomorphism::ModuleHomomorphism;
-use ext::utils::construct_s_2;
+use ext::resolution::Resolution;
+use ext::secondary::*;
+use ext::utils::{construct, get_config};
 
-#[cfg(feature = "concurrent")]
-use thread_token::TokenBucket;
+use saveload::Load;
 
 fn main() -> error::Result<()> {
+    let mut config = get_config();
+    config.algebra_name = String::from("milnor");
+
     let max_s = query::with_default("Max s", "7", Ok);
     let max_t = query::with_default("Max t", "30", Ok);
 
@@ -19,39 +23,47 @@ fn main() -> error::Result<()> {
     let del_save_file: Option<String> = query::optional("Delta save file", Ok);
 
     #[cfg(feature = "concurrent")]
-    let num_threads = query::with_default("Number of threads", "2", Ok);
+    let bucket = {
+        let num_threads = query::with_default("Number of threads", "2", Ok);
+        thread_token::TokenBucket::new(num_threads)
+    };
 
-    let resolution = construct_s_2("milnor", res_save_file);
+    let mut resolution = construct(&config)?;
 
-    let should_resolve = !resolution.has_computed_bidegree(max_s, max_t);
+    if let Some(path) = res_save_file {
+        let f = File::open(path).unwrap();
+        let mut f = std::io::BufReader::new(f);
+        resolution = Resolution::load(&mut f, &resolution.complex())?;
+    }
+
+    if !resolution.has_computed_bidegree(max_s, max_t) {
+        print!("Resolving module: ");
+        let start = Instant::now();
+
+        #[cfg(not(feature = "concurrent"))]
+        resolution.resolve_through_bidegree(max_s, max_t);
+
+        #[cfg(feature = "concurrent")]
+        resolution.resolve_through_bidegree_concurrent(max_s, max_t, &bucket);
+
+        println!("{:.2?}", start.elapsed());
+    }
+
+    if !can_compute(&resolution) {
+        eprintln!(
+            "Cannot compute d2 for the module {}",
+            config.module_file_name
+        );
+        return Ok(());
+    }
 
     #[cfg(not(feature = "concurrent"))]
-    let deltas = {
-        if should_resolve {
-            print!("Resolving module: ");
-            let start = Instant::now();
-            resolution.resolve_through_bidegree(max_s, max_t);
-            println!("{:.2?}", start.elapsed());
-        }
-
-        ext::secondary::compute_delta(&resolution, max_s, max_t)
-    };
+    let deltas = compute_delta(&resolution, max_s, max_t);
 
     #[cfg(feature = "concurrent")]
-    let deltas = {
-        let bucket = TokenBucket::new(num_threads);
+    let deltas = compute_delta_concurrent(&resolution, max_s, max_t, &bucket, del_save_file);
 
-        if should_resolve {
-            print!("Resolving module: ");
-            let start = Instant::now();
-            resolution.resolve_through_bidegree_concurrent(max_s, max_t, &bucket);
-            println!("{:.2?}", start.elapsed());
-        }
-
-        ext::secondary::compute_delta_concurrent(&resolution, max_s, max_t, &bucket, del_save_file)
-    };
-
-    let mut filename = String::from("d2");
+    let mut filename = format!("d2_{}", config.module_file_name);
     while Path::new(&filename).exists() {
         filename.push('_');
     }

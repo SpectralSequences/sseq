@@ -1,4 +1,4 @@
-use crate::chain_complex::ChainComplex;
+use crate::chain_complex::{BoundedChainComplex, ChainComplex};
 use crate::resolution::Resolution as Resolution_;
 use crate::utils::HashMapTuple;
 use crate::CCC;
@@ -7,8 +7,7 @@ use algebra::milnor_algebra::{
     MilnorAlgebra as Algebra, MilnorBasisElement as MilnorElt, PPartAllocation, PPartMultiplier,
 };
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use algebra::module::FreeModule;
-use algebra::module::Module;
+use algebra::module::{BoundedModule, FreeModule, Module};
 use algebra::{Algebra as _, MilnorAlgebraT, SteenrodAlgebra};
 #[cfg(feature = "concurrent")]
 use bivec::BiVec;
@@ -39,8 +38,39 @@ type FMH = FreeModuleHomomorphism<FreeModule<SteenrodAlgebra>>;
 
 const TWO: ValidPrime = ValidPrime::new(2);
 
+/// Whether picking δ₂ = 0 gives a valid secondary refinement. This requires
+///  1. The chain complex is concentrated in degree zero;
+///  2. The module is finite dimensional; and
+///  3. $\mathrm{Hom}(\mathrm{Ext}^{2, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$ or $\mathrm{Hom}(\mathrm{Ext}^{3, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$.
+pub fn can_compute(res: &Resolution) -> bool {
+    let complex = res.complex();
+    if *complex.prime() != 2 {
+        eprintln!("Prime is not 2");
+        dbg!(*complex.prime());
+        return false;
+    }
+    if complex.max_s() != 1 {
+        eprintln!("Complex is not concentrated in degree 0.");
+        dbg!(complex.max_s());
+        return false;
+    }
+    let module = complex.module(0);
+    let module = module.as_fd_module();
+    if module.is_none() {
+        eprintln!("Module is not finite dimensional");
+        return false;
+    }
+    let module = module.unwrap();
+    let max_degree = module.max_degree();
+
+    (0..max_degree)
+        .all(|t| module.dimension(t) == 0 || res.number_of_gens_in_bidegree(2, t + 1) == 0)
+        || (0..max_degree)
+            .all(|t| module.dimension(t) == 0 || res.number_of_gens_in_bidegree(3, t + 1) == 0)
+}
+
 /// An element in the Milnor algebra
-pub struct MilnorClass {
+struct MilnorClass {
     elements: Vec<MilnorElt>,
     degree: i32,
 }
@@ -387,7 +417,7 @@ pub fn compute_delta_concurrent(
 }
 
 /// Computes $C(g_i) = A(c_i^j, dd g_j)$.
-pub fn compute_c(res: &Resolution, gen_s: u32, gen_t: i32, gen_idx: usize, result: &mut FpVector) {
+fn compute_c(res: &Resolution, gen_s: u32, gen_t: i32, gen_idx: usize, result: &mut FpVector) {
     let m = res.module(gen_s - 1);
 
     let d = res.differential(gen_s);
@@ -425,7 +455,7 @@ macro_rules! unsub {
 }
 
 /// Computes $A(a, ddg)$
-pub fn compute_a_dd(
+fn compute_a_dd(
     res: &Resolution,
     a_list: &mut MilnorClass,
     gen_s: u32,
