@@ -252,6 +252,13 @@ pub fn iter_stems(max_s: u32, max_t: i32) -> impl Iterator<Item = (u32, i32, i32
         .flatten()
 }
 
+/// Iterate through all pairs (s, f, t) such that f = t - s, s <= max_s and f <= max_f
+pub fn iter_stems_f(max_s: u32, max_f: i32) -> impl Iterator<Item = (u32, i32, i32)> {
+    (0..=max_f)
+        .map(move |f| (0..=max_s).map(move |s| (s, f, f + s as i32)))
+        .flatten()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
