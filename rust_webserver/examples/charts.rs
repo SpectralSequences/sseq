@@ -19,10 +19,6 @@ const TWO: ValidPrime = ValidPrime::new(2);
 fn main() -> error::Result<()> {
     let mut config = get_config();
     config.algebra_name = String::from("milnor");
-    let mut dir = std::env::current_exe().unwrap();
-    dir.pop();
-    dir.push("../../../../ext/steenrod_modules");
-    config.module_paths[0] = dir;
 
     let max_s = query::with_default("Max s", "7", Ok);
     let max_t = query::with_default("Max t", "30", Ok);

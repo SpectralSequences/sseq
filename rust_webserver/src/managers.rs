@@ -103,12 +103,8 @@ impl ResolutionManager {
 
     /// Resolves a module specified by `json`. The result is stored in `self.bundle`.
     fn construct(&mut self, action: Construct) -> error::Result<()> {
-        let mut dir = std::env::current_exe().unwrap();
-        dir.pop();
-        dir.pop();
-        dir.pop();
-        dir.pop();
-        dir.push("ext/steenrod_modules");
+        let dir =
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../ext/steenrod_modules");
 
         let json = ext::utils::load_module_from_file(&Config {
             module_paths: vec![dir],

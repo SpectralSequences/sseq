@@ -33,12 +33,9 @@ pub fn get_config() -> Config {
         std::process::exit(1);
     }
 
-    let mut static_modules_path = std::env::current_exe().unwrap();
-    static_modules_path.pop();
-    static_modules_path.pop();
-    static_modules_path.pop();
-    static_modules_path.pop();
-    static_modules_path.push("steenrod_modules");
+    let static_modules_path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../ext/steenrod_modules");
+
     let current_dir = std::env::current_dir().unwrap();
     let mut relative_dir = std::env::current_dir().unwrap();
     relative_dir.push("steenrod_modules");
