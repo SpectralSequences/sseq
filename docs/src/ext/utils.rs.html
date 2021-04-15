@@ -288,8 +288,6 @@
 <span id="267">267</span>
 <span id="268">268</span>
 <span id="269">269</span>
-<span id="270">270</span>
-<span id="271">271</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::{<span class="ident">FiniteChainComplex</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">resolution</span>::<span class="ident">Resolution</span>;
@@ -310,7 +308,6 @@
     <span class="kw">pub</span> <span class="ident">module_paths</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">module_file_name</span>: <span class="ident">String</span>,
     <span class="kw">pub</span> <span class="ident">algebra_name</span>: <span class="ident">String</span>,
-    <span class="kw">pub</span> <span class="ident">max_degree</span>: <span class="ident">i32</span>,
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_config</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Config</span> {
@@ -347,7 +344,6 @@
             .<span class="ident">opt_free_from_str</span>()
             .<span class="ident">unwrap</span>()
             .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="string">&quot;S_2&quot;</span>.<span class="ident">into</span>()),
-        <span class="ident">max_degree</span>: <span class="ident">args</span>.<span class="ident">opt_free_from_str</span>().<span class="ident">unwrap</span>().<span class="ident">unwrap_or</span>(<span class="number">30</span>),
     }
 }
 
