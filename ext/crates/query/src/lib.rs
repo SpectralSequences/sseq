@@ -2,7 +2,7 @@ use std::fmt::Display;
 use std::io::{stderr, stdin, Write};
 use std::str::FromStr;
 
-pub fn query_optional<S: Display, T: FromStr, F>(prompt: &str, validator: F) -> Option<S>
+pub fn optional<S: Display, T: FromStr, F>(prompt: &str, validator: F) -> Option<S>
 where
     F: Fn(T) -> Result<S, String>,
     <T as FromStr>::Err: Display,
@@ -33,7 +33,7 @@ where
     }
 }
 
-pub fn query<S: Display, T: FromStr, F>(prompt: &str, validator: F) -> S
+pub fn raw<S: Display, T: FromStr, F>(prompt: &str, validator: F) -> S
 where
     F: Fn(T) -> Result<S, String>,
     <T as FromStr>::Err: Display,
@@ -61,7 +61,7 @@ where
     }
 }
 
-pub fn query_with_default<S: Display, T: FromStr, F>(prompt: &str, default: &str, validator: F) -> S
+pub fn with_default<S: Display, T: FromStr, F>(prompt: &str, default: &str, validator: F) -> S
 where
     F: Fn(T) -> Result<S, String>,
     <T as std::str::FromStr>::Err: std::fmt::Display,
@@ -92,8 +92,8 @@ where
     }
 }
 
-pub fn query_yes_no(prompt: &str) -> bool {
-    query_with_default(prompt, "y", |response: String| {
+pub fn yes_no(prompt: &str) -> bool {
+    with_default(prompt, "y", |response: String| {
         if response.starts_with('y') || response.starts_with('n') {
             Ok(response.starts_with('y'))
         } else {

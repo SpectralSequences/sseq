@@ -10,8 +10,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
-use query::*;
-
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 
@@ -21,13 +19,13 @@ fn main() -> error::Result<()> {
     let min_degree = resolution.min_degree();
 
     #[cfg(feature = "concurrent")]
-    let num_threads = query_with_default("Number of threads", "2", Ok);
+    let num_threads = query::with_default("Number of threads", "2", Ok);
     #[cfg(feature = "concurrent")]
     let bucket = Arc::new(TokenBucket::new(num_threads));
 
-    let x: i32 = query_with_default("t - s", "20", Ok);
-    let s: u32 = query_with_default("s", "4", Ok);
-    let i: usize = query_with_default("idx", "0", Ok);
+    let x: i32 = query::with_default("t - s", "20", Ok);
+    let s: u32 = query::with_default("s", "4", Ok);
+    let i: usize = query::with_default("idx", "0", Ok);
 
     let start = Instant::now();
     let t = x + s as i32;
@@ -93,11 +91,10 @@ fn main() -> error::Result<()> {
         );
     }
 
-    let filename: String = query("Output file name (empty to skip)", Ok);
-
-    if filename.is_empty() {
-        return Ok(());
-    }
+    let filename: String = match query::optional("Output file name (empty to skip)", Ok) {
+        None => return Ok(()),
+        Some(x) => x,
+    };
 
     let mut module_strings = Vec::with_capacity(s as usize + 2);
 

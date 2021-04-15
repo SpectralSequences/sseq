@@ -6,21 +6,20 @@ use std::time::Instant;
 
 use algebra::module::homomorphism::ModuleHomomorphism;
 use ext::utils::construct_s_2;
-use query::*;
 
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 
 fn main() -> error::Result<()> {
-    let max_s = query_with_default("Max s", "7", Ok);
-    let max_t = query_with_default("Max t", "30", Ok);
+    let max_s = query::with_default("Max s", "7", Ok);
+    let max_t = query::with_default("Max t", "30", Ok);
 
-    let res_save_file: Option<String> = query_optional("Resolution save file", Ok);
+    let res_save_file: Option<String> = query::optional("Resolution save file", Ok);
     #[cfg(feature = "concurrent")]
-    let del_save_file: Option<String> = query_optional("Delta save file", Ok);
+    let del_save_file: Option<String> = query::optional("Delta save file", Ok);
 
     #[cfg(feature = "concurrent")]
-    let num_threads = query_with_default("Number of threads", "2", Ok);
+    let num_threads = query::with_default("Number of threads", "2", Ok);
 
     let resolution = construct_s_2("milnor", res_save_file);
 

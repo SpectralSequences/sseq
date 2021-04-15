@@ -9,16 +9,16 @@ fn main() -> error::Result<()> {
     let config = get_config();
     let res = construct(&config)?;
 
-    let max_s = query::query_with_default("Max s", "15", Ok);
-    let max_f = query::query_with_default("Max f", "30", Ok);
-    let save_file: Option<String> = query::query_optional("Save file", Ok);
+    let max_s = query::with_default("Max s", "15", Ok);
+    let max_f = query::with_default("Max f", "30", Ok);
+    let save_file: Option<String> = query::optional("Save file", Ok);
 
     #[cfg(not(feature = "concurrent"))]
     res.resolve_through_stem(max_s, max_f);
 
     #[cfg(feature = "concurrent")]
     {
-        let num_threads = query::query_with_default("Number of threads", "2", Ok);
+        let num_threads = query::with_default("Number of threads", "2", Ok);
         let bucket = std::sync::Arc::new(thread_token::TokenBucket::new(num_threads));
         res.resolve_through_stem_concurrent(max_s, max_f, &bucket);
     }

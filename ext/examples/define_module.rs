@@ -5,8 +5,6 @@ use std::sync::Arc;
 use serde_json::json;
 use serde_json::Value;
 
-use query::*;
-
 use algebra::module::{FDModule, FPModule, FreeModule, Module};
 use algebra::steenrod_evaluator::evaluate_module;
 use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra, MilnorAlgebra, SteenrodAlgebra};
@@ -21,7 +19,7 @@ pub fn get_gens(min_degree: i32) -> error::Result<BiVec<Vec<String>>> {
 
     let mut gens: BiVec<Vec<_>> = BiVec::new(min_degree);
     loop {
-        let gen_deg: Option<i32> = query_optional("Generator degree", Ok);
+        let gen_deg: Option<i32> = query::optional("Generator degree", Ok);
         if gen_deg.is_none() {
             eprintln!("This is the list of generators and degrees:");
             for (i, deg_i_gens) in gens.iter_enum() {
@@ -30,10 +28,10 @@ pub fn get_gens(min_degree: i32) -> error::Result<BiVec<Vec<String>>> {
                 }
             }
             eprintln!();
-            if query_yes_no("Is it okay?") {
+            if query::yes_no("Is it okay?") {
                 break;
             } else {
-                if query_yes_no("Start over?") {
+                if query::yes_no("Start over?") {
                     gens = BiVec::new(min_degree);
                 }
                 continue;
@@ -43,7 +41,7 @@ pub fn get_gens(min_degree: i32) -> error::Result<BiVec<Vec<String>>> {
         while gens.len() <= gen_deg {
             gens.push(Vec::new());
         }
-        let gen_name = query_with_default(
+        let gen_name = query::with_default(
             "Generator name",
             &format!("x{}{}", gen_deg, gens[gen_deg].len()),
             |x: String| {
@@ -89,7 +87,7 @@ pub fn get_expression_to_vector<F>(
     F: for<'a> Fn(&'a str) -> Option<usize>,
 {
     'outer: loop {
-        let result: String = query(prompt, Ok);
+        let result: String = query::raw(prompt, Ok);
         if result == "0" {
             output_vec.set_to_zero();
             break;
@@ -201,7 +199,7 @@ fn get_relation(
     module: &FreeModule<SteenrodAlgebra>,
     basis_elt_lookup: &HashMap<String, (i32, usize)>,
 ) -> Result<(i32, FpVector), String> {
-    let relation: String = query("Relation", Ok);
+    let relation: String = query::raw("Relation", Ok);
     if relation.is_empty() {
         return Err("".to_string());
     }
@@ -290,10 +288,10 @@ pub fn interactive_module_define_fpmodule(
                     }
                 }
                 eprintln!();
-                if query_yes_no("Is it okay?") {
+                if query::yes_no("Is it okay?") {
                     break;
                 } else {
-                    if query_yes_no("Start over?") {
+                    if query::yes_no("Start over?") {
                         relations = BiVec::new(min_degree);
                     }
                     continue;
@@ -322,7 +320,7 @@ pub fn interactive_module_define_fpmodule(
 }
 
 fn main() -> error::Result<()> {
-    let module_type = query_with_default(
+    let module_type = query::with_default(
         "Input module type (default 'finite dimensional module'):\n (0) - finite dimensional module \n (1) - finitely presented module\n",
         "0",
         |x : u32| match x {
@@ -331,9 +329,9 @@ fn main() -> error::Result<()> {
         }
     );
 
-    let name: String = query("Module name (use latex between $'s)", Ok);
+    let name: String = query::raw("Module name (use latex between $'s)", Ok);
     // Query for prime
-    let p = query_with_default("p", "2", |p: u32| {
+    let p = query::with_default("p", "2", |p: u32| {
         ValidPrime::try_new(p).ok_or_else(|| "invalid prime".to_string())
     });
     let generic = *p != 2;
