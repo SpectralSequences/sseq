@@ -20,7 +20,6 @@ fn compare(module_name: &str, result: ExpectFile, max_degree: i32) {
     let config = Config {
         module_paths: vec![path],
         module_file_name: module_name.to_string(),
-        max_degree,
         algebra_name: String::from("adem"),
     };
 

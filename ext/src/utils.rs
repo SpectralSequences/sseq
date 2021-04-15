@@ -17,7 +17,6 @@ pub struct Config {
     pub module_paths: Vec<PathBuf>,
     pub module_file_name: String,
     pub algebra_name: String,
-    pub max_degree: i32,
 }
 
 pub fn get_config() -> Config {
@@ -54,7 +53,6 @@ pub fn get_config() -> Config {
             .opt_free_from_str()
             .unwrap()
             .unwrap_or_else(|| "S_2".into()),
-        max_degree: args.opt_free_from_str().unwrap().unwrap_or(30),
     }
 }
 

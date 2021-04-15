@@ -10,7 +10,6 @@ fn resolve_iterate() {
         let config = Config {
             module_paths: vec![path.clone()],
             module_file_name: (*name).to_string(),
-            max_degree: 0, // Doesn't matter
             algebra_name: String::from("milnor"),
         };
         test_iterate(&config);
@@ -18,7 +17,6 @@ fn resolve_iterate() {
         let config = Config {
             module_paths: vec![path.clone()],
             module_file_name: (*name).to_string(),
-            max_degree: 0, // Doesn't matter
             algebra_name: String::from("adem"),
         };
         test_iterate(&config);

@@ -8,7 +8,6 @@ fn benchmark(module_name: &str, max_degree: i32, algebra: &str, n_times: u128) {
     let cfg = Config {
         module_paths: vec![path],
         module_file_name: module_name.to_string(),
-        max_degree,
         algebra_name: String::from(algebra),
     };
 
