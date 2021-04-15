@@ -202,12 +202,7 @@ pub fn compute_delta_concurrent(
                     "Time elapsed: {:.2?}; Processed bidegrees:",
                     start.elapsed()
                 );
-                crate::utils::print_resolution_color(
-                    res,
-                    std::cmp::min(max_s, ((max_t - min_degree) as u32 + 2) / 3),
-                    max_t,
-                    &processed,
-                );
+                crate::utils::print_resolution_color(res, max_s, &processed);
                 // Clear the rest of the screen
                 print!("\x1b[J");
                 std::io::stdout().flush().unwrap();

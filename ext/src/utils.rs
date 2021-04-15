@@ -192,14 +192,13 @@ pub fn ascii_num(n: usize) -> char {
 pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(
     res: &C,
     max_s: u32,
-    max_t: i32,
     highlight: &std::collections::HashMap<(u32, i32), u32, S>,
 ) {
     use std::io::Write;
     let stdout = std::io::stdout();
     let mut stdout = stdout.lock();
     for s in (0..=max_s).rev() {
-        for t in s as i32..=max_t {
+        for t in s as i32..=res.module(s).max_computed_degree() {
             if matches!(highlight.get(&(s, t)), None | Some(0)) {
                 write!(
                     stdout,
