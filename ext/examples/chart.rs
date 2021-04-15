@@ -1,12 +1,13 @@
 use algebra::module::OperationGeneratorPair;
-use chart::Graph;
+use chart::{Backend, SvgBackend};
 use ext::chain_complex::ChainComplex;
 use ext::utils::construct_s_2;
 use std::io::Result;
 
 fn main() -> Result<()> {
     let f = std::io::stdout();
-    let mut g = Graph::new(f, 20, 8)?;
+    let mut g = SvgBackend::new(f);
+    g.init(20, 8)?;
 
     let resolution = construct_s_2("milnor", Some("resolution_milnor.save"));
     resolution.resolve_through_stem(8, 20);

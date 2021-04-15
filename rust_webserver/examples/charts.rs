@@ -1,4 +1,5 @@
 use algebra::module::OperationGeneratorPair;
+use chart::SvgBackend;
 use ext::{
     chain_complex::ChainComplex,
     utils::{construct_s_2, iter_stems},
@@ -100,13 +101,19 @@ fn main() -> std::io::Result<()> {
 
     sseq.refresh_all();
 
-    sseq.write_to_svg(File::create("e2.svg")?, 2, false, &["h0", "h1", "h2"])?;
-    sseq.write_to_svg(File::create("e2_d2.svg")?, 2, true, &["h0", "h1", "h2"])?;
-    sseq.write_to_svg(File::create("e3.svg")?, 3, false, &["h0", "h1", "h2"])?;
+    let mut write = |path, page, diff, prod| {
+        let backend = SvgBackend::new(File::create(path)?);
+        sseq.write_to_graph(backend, page, diff, prod)?;
+        <Result<(), std::io::Error>>::Ok(())
+    };
 
-    sseq.write_to_svg(File::create("e2_clean.svg")?, 2, false, &["h0", "h1"])?;
-    sseq.write_to_svg(File::create("e2_d2_clean.svg")?, 2, true, &["h0", "h1"])?;
-    sseq.write_to_svg(File::create("e3_clean.svg")?, 3, false, &["h0", "h1"])?;
+    write("e2.svg", 2, false, &["h0", "h1", "h2"])?;
+    write("e2_d2.svg", 2, true, &["h0", "h1", "h2"])?;
+    write("e3.svg", 3, false, &["h0", "h1", "h2"])?;
+
+    write("e2_clean.svg", 2, false, &["h0", "h1"])?;
+    write("e2_d2_clean.svg", 2, true, &["h0", "h1"])?;
+    write("e3_clean.svg", 3, false, &["h0", "h1"])?;
 
     Ok(())
 }

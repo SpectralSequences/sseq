@@ -1,41 +1,8 @@
 use std::collections::HashMap;
-use std::io::{Result, Write};
+use std::fmt::Display;
+use std::io::Write;
+use std::result::Result;
 
-const STYLES: &str = r#"
-circle {
-    fill: black;
-}
-.structline {
-    stroke: black;
-    fill: none;
-}
-.d2 {
-    stroke: blue;
-}
-.major-grid {
-    stroke: black;
-    opacity: 20%;
-    shape-rendering: crispEdges;
-    fill: none;
-}
-.grid {
-    stroke: black;
-    opacity: 10%;
-    shape-rendering: crispEdges;
-    fill: none;
-}
-.x-label {
- text-anchor: middle;
- dominant-baseline: text-before-edge;
-}
-.y-label {
- text-anchor: end;
- dominant-baseline: middle;
-}
-"#;
-
-const GRID_WIDTH: i32 = 20;
-const MARGIN: i32 = 30;
 #[rustfmt::skip]
 const PATTERNS: [(f32, [(f32, f32); 8]); 8] = [
     (2.0, [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)]),
@@ -48,150 +15,79 @@ const PATTERNS: [(f32, [(f32, f32); 8]); 8] = [
     (1.5, [(-4.0, 4.0), (0.0, 4.0), (4.0, 4.0), (-4.0, 0.0), (0.0, 0.0), (4.0, 0.0), (-2.0, -4.0), (2.0, -4.0)]),
 ];
 
-pub struct Graph<T: Write> {
-    out: T,
-    max_x: i32,
-    max_y: i32,
-    num_nodes: HashMap<(i32, i32), usize>,
+pub enum Orientation {
+    Left,
+    Right,
+    Above,
+    Below,
 }
 
-impl<T: Write> Drop for Graph<T> {
-    fn drop(&mut self) {
-        writeln!(self.out, "</svg>").unwrap();
-    }
-}
+pub trait Backend {
+    type Error;
 
-impl<T: Write> Graph<T> {
-    pub fn new(mut out: T, max_x: i32, max_y: i32) -> Result<Self> {
-        let width = max_x * GRID_WIDTH + 2 * MARGIN;
-        let height = max_y * GRID_WIDTH + 2 * MARGIN;
+    fn header(&mut self, max_x: i32, max_y: i32) -> Result<(), Self::Error>;
+    fn line(
+        &mut self,
+        start_x: i32,
+        end_x: i32,
+        start_y: i32,
+        end_y: i32,
+        style: &str,
+    ) -> Result<(), Self::Error>;
 
-        writeln!(
-            out,
-            r#"<svg version = "1.1" width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">"#,
-            width = width,
-            height = height
-        )?;
+    fn text(
+        &mut self,
+        x: i32,
+        y: i32,
+        content: impl Display,
+        orientation: Orientation,
+    ) -> Result<(), Self::Error>;
+    fn node(&mut self, x: i32, y: i32, n: usize) -> Result<(), Self::Error>;
 
-        writeln!(out, "<style>{}</style>", STYLES)?;
-
-        for x in 0..=max_x {
-            writeln!(
-                out,
-                r#"<line class="{class}" x1="{x}" x2="{x}" y1="{margin}" y2="{y_end}" />"#,
-                class = if x % 4 == 0 { "major-grid" } else { "grid" },
-                margin = MARGIN,
-                x = MARGIN + x * GRID_WIDTH,
-                y_end = height - MARGIN,
-            )?;
-            if x % 4 == 0 {
-                writeln!(
-                    out,
-                    r#"<text class="x-label" x="{x}" y="{y}">{text}</text>"#,
-                    x = MARGIN + x * GRID_WIDTH,
-                    y = height - MARGIN + 3,
-                    text = x,
-                )?
-            }
-        }
-        for y in 0..=max_y {
-            writeln!(
-                out,
-                r#"<line class="{class}" x1="{margin}" x2="{x_end}" y1="{y}" y2="{y}" />"#,
-                margin = MARGIN,
-                class = if y % 4 == 0 { "major-grid" } else { "grid" },
-                y = MARGIN + (max_y - y) * GRID_WIDTH,
-                x_end = width - MARGIN,
-            )?;
-            if y % 4 == 0 {
-                writeln!(
-                    out,
-                    r#"<text class="y-label" x="{x}" y="{y}">{text}</text>"#,
-                    x = MARGIN - 5,
-                    y = MARGIN + (max_y - y) * GRID_WIDTH,
-                    text = y,
-                )?
-            }
-        }
-
-        Ok(Self {
-            out,
-            max_x,
-            max_y,
-            num_nodes: HashMap::new(),
-        })
-    }
-
-    /// Returns r, x, y
-    pub fn get_coords(&self, x: i32, y: i32, i: usize) -> (f32, f32, f32) {
-        let n = *self.num_nodes.get(&(x, y)).unwrap();
-
-        let (radius, patterns) = PATTERNS[n - 1];
-        let offset = patterns[i];
-
-        (
-            radius,
-            (x * GRID_WIDTH + MARGIN) as f32 + offset.0,
-            ((self.max_y - y) * GRID_WIDTH + MARGIN) as f32 + offset.1,
-        )
-    }
-
-    pub fn node(&mut self, x: i32, y: i32, n: usize) -> Result<()> {
-        if n == 0 || x > self.max_x || y > self.max_y {
-            return Ok(());
-        }
-        self.num_nodes.insert((x, y), n);
-
-        for k in 0..n {
-            let (r, x, y) = self.get_coords(x, y, k);
-            writeln!(
-                self.out,
-                r#"<circle cx="{x}" cy="{y}" r="{r}"/>"#,
-                x = x,
-                y = y,
-                r = r
-            )?;
-        }
-        Ok(())
-    }
-
-    pub fn structline(
+    fn structline(
         &mut self,
         source: (i32, i32, usize),
         target: (i32, i32, usize),
-        class: Option<&str>,
-    ) -> Result<()> {
-        if source.0 > self.max_x
-            || source.1 > self.max_y
-            || target.0 > self.max_x
-            || target.1 > self.max_y
-        {
-            return Ok(());
+        style: Option<&str>,
+    ) -> Result<(), Self::Error>;
+
+    fn init(&mut self, max_x: i32, max_y: i32) -> Result<(), Self::Error> {
+        self.header(max_x, max_y)?;
+
+        for x in 0..=max_x {
+            self.line(
+                x,
+                x,
+                0,
+                max_y,
+                if x % 4 == 0 { "major-grid" } else { "grid" },
+            )?;
+            if x % 4 == 0 {
+                self.text(x, 0, x, Orientation::Below)?;
+            }
         }
-
-        let (_, source_x, source_y) = self.get_coords(source.0, source.1, source.2);
-        let (_, target_x, target_y) = self.get_coords(target.0, target.1, target.2);
-
-        writeln!(
-            self.out,
-            r#"<line class="{class}" x1="{source_x}" x2="{target_x}" y1="{source_y}" y2="{target_y}" />"#,
-            class = class.unwrap_or("structline"),
-            source_x = source_x,
-            source_y = source_y,
-            target_x = target_x,
-            target_y = target_y,
-        )?;
-
+        for y in 0..=max_y {
+            self.line(
+                0,
+                max_x,
+                y,
+                y,
+                if y % 4 == 0 { "major-grid" } else { "grid" },
+            )?;
+            if y % 4 == 0 {
+                self.text(0, y, y, Orientation::Left)?;
+            }
+        }
         Ok(())
     }
 
-    pub fn structline_matrix(
+    fn structline_matrix(
         &mut self,
         source: (i32, i32),
         target: (i32, i32),
         matrix: Vec<Vec<u32>>,
         class: Option<&str>,
-    ) -> Result<()> {
+    ) -> Result<(), Self::Error> {
         for (k, row) in matrix.into_iter().enumerate() {
             for (l, v) in row.into_iter().enumerate() {
                 if v != 0 {
@@ -201,9 +97,54 @@ impl<T: Write> Graph<T> {
         }
         Ok(())
     }
+}
+
+pub struct SvgBackend<T: Write> {
+    out: T,
+    max_x: i32,
+    max_y: i32,
+    num_nodes: HashMap<(i32, i32), usize>,
+}
+
+impl<T: Write> SvgBackend<T> {
+    const STYLES: &'static str = r#"
+    circle {
+        fill: black;
+    }
+    .structline {
+        stroke: black;
+        fill: none;
+    }
+    .d2 {
+        stroke: blue;
+    }
+    .major-grid {
+        stroke: black;
+        opacity: 20%;
+        shape-rendering: crispEdges;
+        fill: none;
+    }
+    .grid {
+        stroke: black;
+        opacity: 10%;
+        shape-rendering: crispEdges;
+        fill: none;
+    }
+    .x-label {
+     text-anchor: middle;
+     dominant-baseline: text-before-edge;
+    }
+    .y-label {
+     text-anchor: end;
+     dominant-baseline: middle;
+    }
+    "#;
+
+    const GRID_WIDTH: i32 = 20;
+    const MARGIN: i32 = 30;
 
     /// Print the legend for node patterns
-    pub fn legend(mut out: T) -> Result<()> {
+    pub fn legend(mut out: T) -> Result<(), std::io::Error> {
         writeln!(
             out,
             r#"<svg version = "1.1" width="{}" height="100" xmlns="http://www.w3.org/2000/svg">"#,
@@ -230,6 +171,291 @@ impl<T: Write> Graph<T> {
 
         Ok(())
     }
+
+    /// Returns r, x, y
+    fn get_coords(&self, x: i32, y: i32, i: usize) -> (f32, f32, f32) {
+        let n = *self.num_nodes.get(&(x, y)).unwrap();
+
+        let (radius, patterns) = PATTERNS[n - 1];
+        let offset = patterns[i];
+
+        (
+            radius,
+            (x * Self::GRID_WIDTH + Self::MARGIN) as f32 + offset.0,
+            ((self.max_y - y) * Self::GRID_WIDTH + Self::MARGIN) as f32 + offset.1,
+        )
+    }
+
+    pub fn new(out: T) -> Self {
+        Self {
+            out,
+            max_x: 0,
+            max_y: 0,
+            num_nodes: HashMap::new(),
+        }
+    }
+}
+
+impl<T: Write> Backend for SvgBackend<T> {
+    type Error = std::io::Error;
+
+    fn header(&mut self, max_x: i32, max_y: i32) -> Result<(), Self::Error> {
+        self.max_x = max_x;
+        self.max_y = max_y;
+
+        let width = self.max_x * Self::GRID_WIDTH + 2 * Self::MARGIN;
+        let height = self.max_y * Self::GRID_WIDTH + 2 * Self::MARGIN;
+
+        writeln!(
+            self.out,
+            r#"<svg version = "1.1" width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">"#,
+            width = width,
+            height = height
+        )?;
+        writeln!(self.out, "<style>{}</style>", Self::STYLES)
+    }
+
+    fn line(
+        &mut self,
+        start_x: i32,
+        end_x: i32,
+        start_y: i32,
+        end_y: i32,
+        style: &str,
+    ) -> Result<(), Self::Error> {
+        let height = self.max_y * Self::GRID_WIDTH + 2 * Self::MARGIN;
+
+        writeln!(
+            self.out,
+            r#"<line class="{class}" x1="{start_x}" x2="{end_x}" y1="{start_y}" y2="{end_y}" />"#,
+            class = style,
+            start_x = Self::MARGIN + start_x * Self::GRID_WIDTH,
+            end_x = Self::MARGIN + end_x * Self::GRID_WIDTH,
+            start_y = height - Self::MARGIN - start_y * Self::GRID_WIDTH,
+            end_y = height - Self::MARGIN - end_y * Self::GRID_WIDTH,
+        )
+    }
+
+    fn text(
+        &mut self,
+        x: i32,
+        y: i32,
+        content: impl Display,
+        orientation: Orientation,
+    ) -> Result<(), Self::Error> {
+        let (offset, class) = match orientation {
+            Orientation::Left => ((-5, 0), "y-label"),
+            Orientation::Right => unimplemented!(),
+            Orientation::Below => ((0, 3), "x-label"),
+            Orientation::Above => unimplemented!(),
+        };
+
+        writeln!(
+            self.out,
+            r#"<text class="{class}" x="{x}" y="{y}">{text}</text>"#,
+            x = Self::MARGIN + x * Self::GRID_WIDTH + offset.0,
+            y = Self::MARGIN + (self.max_y - y) * Self::GRID_WIDTH + offset.1,
+            text = content,
+            class = class,
+        )
+    }
+
+    fn node(&mut self, x: i32, y: i32, n: usize) -> Result<(), Self::Error> {
+        if n == 0 || x > self.max_x || y > self.max_y {
+            return Ok(());
+        }
+        self.num_nodes.insert((x, y), n);
+
+        for k in 0..n {
+            let (r, x, y) = self.get_coords(x, y, k);
+            writeln!(
+                self.out,
+                r#"<circle cx="{x}" cy="{y}" r="{r}"/>"#,
+                x = x,
+                y = y,
+                r = r
+            )?;
+        }
+        Ok(())
+    }
+
+    fn structline(
+        &mut self,
+        source: (i32, i32, usize),
+        target: (i32, i32, usize),
+        style: Option<&str>,
+    ) -> Result<(), Self::Error> {
+        if source.0 > self.max_x
+            || source.1 > self.max_y
+            || target.0 > self.max_x
+            || target.1 > self.max_y
+        {
+            return Ok(());
+        }
+
+        let (_, source_x, source_y) = self.get_coords(source.0, source.1, source.2);
+        let (_, target_x, target_y) = self.get_coords(target.0, target.1, target.2);
+
+        writeln!(
+            self.out,
+            r#"<line class="{style}" x1="{source_x}" x2="{target_x}" y1="{source_y}" y2="{target_y}" />"#,
+            style = style.unwrap_or("structline"),
+            source_x = source_x,
+            source_y = source_y,
+            target_x = target_x,
+            target_y = target_y,
+        )?;
+
+        Ok(())
+    }
+}
+
+impl<T: Write> Drop for SvgBackend<T> {
+    fn drop(&mut self) {
+        writeln!(self.out, "</svg>").unwrap();
+    }
+}
+
+pub struct TikzBackend<T: Write> {
+    out: T,
+    max_x: i32,
+    max_y: i32,
+    num_nodes: HashMap<(i32, i32), usize>,
+}
+
+impl<T: Write> TikzBackend<T> {
+    const HEADER: &'static str = r#"\begin{tikzpicture}[
+  major-grid/.style={ opacity = 0.2 },
+  grid/.style={ opacity = 0.1 },
+  d2/.style={ blue },
+]"#;
+
+    pub fn new(out: T) -> Self {
+        Self {
+            out,
+            max_x: 0,
+            max_y: 0,
+            num_nodes: HashMap::new(),
+        }
+    }
+
+    /// Returns r, x, y
+    fn get_coords(&self, x: i32, y: i32, i: usize) -> (f32, f32, f32) {
+        let n = *self.num_nodes.get(&(x, y)).unwrap();
+
+        let (radius, patterns) = PATTERNS[n - 1];
+        let offset = patterns[i];
+
+        (
+            radius / 20.0,
+            x as f32 + offset.0 / 20.0,
+            y as f32 + offset.1 / 20.0,
+        )
+    }
+}
+
+impl<T: Write> Backend for TikzBackend<T> {
+    type Error = std::io::Error;
+
+    fn header(&mut self, max_x: i32, max_y: i32) -> Result<(), Self::Error> {
+        self.max_x = max_x;
+        self.max_y = max_y;
+        writeln!(self.out, "{}", Self::HEADER)
+    }
+
+    fn line(
+        &mut self,
+        start_x: i32,
+        end_x: i32,
+        start_y: i32,
+        end_y: i32,
+        style: &str,
+    ) -> Result<(), Self::Error> {
+        writeln!(
+            self.out,
+            r#"\draw [{}] ({}, {}) -- ({}, {});"#,
+            style, start_x, start_y, end_x, end_y,
+        )
+    }
+
+    fn text(
+        &mut self,
+        x: i32,
+        y: i32,
+        content: impl Display,
+        orientation: Orientation,
+    ) -> Result<(), Self::Error> {
+        let offset = match orientation {
+            Orientation::Left => "left",
+            Orientation::Right => "right",
+            Orientation::Below => "below",
+            Orientation::Above => "above",
+        };
+
+        writeln!(
+            self.out,
+            r#"\node [{offset}] at ({x}, {y}) {{{text}}};"#,
+            x = x,
+            y = y,
+            text = content,
+            offset = offset,
+        )
+    }
+
+    fn node(&mut self, x: i32, y: i32, n: usize) -> Result<(), Self::Error> {
+        if n == 0 || x > self.max_x || y > self.max_y {
+            return Ok(());
+        }
+        self.num_nodes.insert((x, y), n);
+
+        for k in 0..n {
+            let (r, x, y) = self.get_coords(x, y, k);
+            writeln!(
+                self.out,
+                r#"\draw [fill] ({x}, {y}) circle ({r});"#,
+                x = x,
+                y = y,
+                r = r,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn structline(
+        &mut self,
+        source: (i32, i32, usize),
+        target: (i32, i32, usize),
+        style: Option<&str>,
+    ) -> Result<(), Self::Error> {
+        if source.0 > self.max_x
+            || source.1 > self.max_y
+            || target.0 > self.max_x
+            || target.1 > self.max_y
+        {
+            return Ok(());
+        }
+
+        let (_, source_x, source_y) = self.get_coords(source.0, source.1, source.2);
+        let (_, target_x, target_y) = self.get_coords(target.0, target.1, target.2);
+
+        writeln!(
+            self.out,
+            r#"\draw [{style}] ({source_x}, {source_y}) -- ({target_x}, {target_y});"#,
+            style = style.unwrap_or(""),
+            source_x = source_x,
+            source_y = source_y,
+            target_x = target_x,
+            target_y = target_y,
+        )?;
+
+        Ok(())
+    }
+}
+
+impl<T: Write> Drop for TikzBackend<T> {
+    fn drop(&mut self) {
+        writeln!(self.out, r#"\end{{tikzpicture}}"#).unwrap();
+    }
 }
 
 #[cfg(test)]
@@ -240,7 +466,7 @@ mod test {
     #[test]
     fn test_legend() {
         let mut res: Vec<u8> = Vec::new();
-        Graph::legend(&mut res).unwrap();
+        SvgBackend::legend(&mut res).unwrap();
 
         expect_file!["../legend.svg"].assert_eq(std::str::from_utf8(&res).unwrap());
     }

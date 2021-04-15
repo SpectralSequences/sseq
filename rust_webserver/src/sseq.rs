@@ -1,7 +1,7 @@
 use crate::actions::*;
 use crate::Sender;
 use bivec::BiVec;
-use chart::Graph;
+use chart::Backend;
 use fp::matrix::{Matrix, Subquotient, Subspace};
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
@@ -1142,17 +1142,15 @@ impl Sseq {
     }
 }
 
-use std::io::Write;
-
 impl Sseq {
     /// This doesn't actually modify the object
-    pub fn write_to_svg(
+    pub fn write_to_graph<T: Backend>(
         &mut self,
-        out: impl Write,
+        mut g: T,
         r: i32,
         differentials: bool,
         products: &[&str],
-    ) -> std::io::Result<()> {
+    ) -> std::result::Result<(), T::Error> {
         assert_eq!(self.min_x, 0);
         assert_eq!(self.min_y, 0);
 
@@ -1165,7 +1163,7 @@ impl Sseq {
             .unwrap_or(1)
             - 1;
 
-        let mut g = Graph::new(out, max_x as i32, max_y as i32)?;
+        g.init(max_x as i32, max_y as i32)?;
 
         for (x, data) in self.page_data.iter_enum() {
             for (y, data) in data.iter_enum() {
