@@ -353,7 +353,9 @@ impl<T: Write> TikzBackend<T> {
         (
             radius / 20.0,
             x as f32 + offset.0 / 20.0,
-            y as f32 + offset.1 / 20.0,
+            // We subtract because in Tikz the origin is the bottom-left while in SVG it is the
+            // top-left
+            y as f32 - offset.1 / 20.0,
         )
     }
 }
