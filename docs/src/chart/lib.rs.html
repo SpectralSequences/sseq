@@ -497,6 +497,8 @@
 <span id="476">476</span>
 <span id="477">477</span>
 <span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span>;
@@ -853,7 +855,9 @@
         (
             <span class="ident">radius</span> <span class="op">/</span> <span class="number">20.0</span>,
             <span class="ident">x</span> <span class="kw">as</span> <span class="ident">f32</span> <span class="op">+</span> <span class="ident">offset</span>.<span class="number">0</span> <span class="op">/</span> <span class="number">20.0</span>,
-            <span class="ident">y</span> <span class="kw">as</span> <span class="ident">f32</span> <span class="op">+</span> <span class="ident">offset</span>.<span class="number">1</span> <span class="op">/</span> <span class="number">20.0</span>,
+            <span class="comment">// We subtract because in Tikz the origin is the bottom-left while in SVG it is the</span>
+            <span class="comment">// top-left</span>
+            <span class="ident">y</span> <span class="kw">as</span> <span class="ident">f32</span> <span class="op">-</span> <span class="ident">offset</span>.<span class="number">1</span> <span class="op">/</span> <span class="number">20.0</span>,
         )
     }
 }
