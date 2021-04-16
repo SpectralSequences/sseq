@@ -140,7 +140,10 @@ fn main() -> error::Result<()> {
 
     let mut write = |path, page, diff, prod| {
         const EXT: &str = Backend::<File>::EXT;
-        let backend = Backend::new(File::create(format!("{}.{}", path, EXT))?);
+        let backend = Backend::new(File::create(format!(
+            "{}_{}.{}",
+            path, config.module_file_name, EXT
+        ))?);
         sseq.write_to_graph(backend, page, diff, prod)?;
         <Result<(), std::io::Error>>::Ok(())
     };
