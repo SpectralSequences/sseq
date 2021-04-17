@@ -196,14 +196,9 @@ where
     fn compute_basis(&self, degree: i32) {
         self.left.compute_basis(degree - self.right.min_degree());
         self.right.compute_basis(degree - self.left.min_degree());
-        if degree < self.block_structures.len() {
-            return;
-        }
-        for i in self.block_structures.len()..=degree {
-            let mut block_sizes = BiVec::with_capacity(
-                self.left.min_degree(),
-                degree - self.left.min_degree() - self.right.min_degree() + 1,
-            );
+        self.block_structures.extend(degree, |i| {
+            let mut block_sizes =
+                BiVec::with_capacity(self.left.min_degree(), i - self.right.min_degree() + 1);
             for j in self.left.min_degree()..=i - self.right.min_degree() {
                 let mut block_sizes_entry = Vec::with_capacity(self.left.dimension(j));
                 for _ in 0..self.left.dimension(j) {
@@ -211,13 +206,9 @@ where
                 }
                 block_sizes.push(block_sizes_entry);
             }
-            assert_eq!(
-                block_sizes.len(),
-                i - self.left.min_degree() - self.right.min_degree() + 1
-            );
-            self.block_structures
-                .push(BlockStructure::new(&block_sizes));
-        }
+            assert_eq!(block_sizes.len(), i - self.right.min_degree() + 1);
+            BlockStructure::new(&block_sizes)
+        });
     }
 
     fn dimension(&self, degree: i32) -> usize {
