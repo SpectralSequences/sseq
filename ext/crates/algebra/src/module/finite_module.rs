@@ -188,6 +188,16 @@ impl FiniteModule {
     }
 }
 
+impl crate::module::BoundedModule for FiniteModule {
+    fn max_degree(&self) -> i32 {
+        match self {
+            FiniteModule::FDModule(m) => m.max_degree(),
+            FiniteModule::RealProjectiveSpace(m) => m.max_degree(),
+            FiniteModule::FPModule(_) => i32::MAX,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct UnknownModuleTypeError {
     pub module_type: Option<String>,

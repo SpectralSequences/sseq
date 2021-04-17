@@ -6,60 +6,23 @@ use crate::module::homomorphism::{
     BoundedModuleHomomorphism, FPModuleHomomorphism, GenericZeroHomomorphism, IdentityHomomorphism,
     ModuleHomomorphism, ZeroHomomorphism,
 };
-use crate::module::{BoundedModule, FiniteModule, FreeModule, SteenrodModule};
+use crate::module::{FiniteModule, FreeModule, SteenrodModule};
 use fp::matrix::{QuasiInverse, Subspace};
 use fp::vector::SliceMut;
 
-impl BoundedModule for FiniteModule {
-    fn max_degree(&self) -> i32 {
-        match self {
-            FiniteModule::FDModule(m) => m.max_degree(),
-            FiniteModule::FPModule(_) => panic!("Finitely Presented Module is not bounded"),
-            FiniteModule::RealProjectiveSpace(m) => {
-                if let Some(x) = m.max_degree() {
-                    x
-                } else {
-                    panic!("Real Projective Space is not bounded")
-                }
-            }
-        }
-    }
-}
-
 impl FPModuleT for FiniteModule {
     fn fp_idx_to_gen_idx(&self, degree: i32, index: usize) -> usize {
-        match self {
-            FiniteModule::FDModule(_) => {
-                panic!("Finite Dimensional Module is not finitely presented")
-            }
-            FiniteModule::RealProjectiveSpace(_) => {
-                panic!("RealProjectiveSpace is not finitely presented")
-            }
-            FiniteModule::FPModule(m) => m.fp_idx_to_gen_idx(degree, index),
-        }
+        self.as_fp_module()
+            .unwrap()
+            .fp_idx_to_gen_idx(degree, index)
     }
     fn gen_idx_to_fp_idx(&self, degree: i32, index: usize) -> isize {
-        match self {
-            FiniteModule::FDModule(_) => {
-                panic!("Finite Dimensional Module is not finitely presented")
-            }
-            FiniteModule::RealProjectiveSpace(_) => {
-                panic!("RealProjectiveSpace is not finitely presented")
-            }
-            FiniteModule::FPModule(m) => m.gen_idx_to_fp_idx(degree, index),
-        }
+        self.as_fp_module()
+            .unwrap()
+            .gen_idx_to_fp_idx(degree, index)
     }
-
     fn generators(&self) -> Arc<FreeModule<SteenrodAlgebra>> {
-        match self {
-            FiniteModule::FDModule(_) => {
-                panic!("Finite Dimensional Module is not finitely presented")
-            }
-            FiniteModule::RealProjectiveSpace(_) => {
-                panic!("RealProjectiveSpace is not finitely presented")
-            }
-            FiniteModule::FPModule(m) => m.generators(),
-        }
+        self.as_fp_module().unwrap().generators()
     }
 }
 

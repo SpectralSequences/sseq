@@ -3,7 +3,7 @@ use crate::algebra::{
     milnor_algebra::{MilnorBasisElement, PPartEntry},
     AdemAlgebra, MilnorAlgebra, SteenrodAlgebraBorrow, SteenrodAlgebraT,
 };
-use crate::module::{Module, ZeroModule};
+use crate::module::{BoundedModule, Module, ZeroModule};
 use fp::prime::{Binomial, ValidPrime};
 use fp::vector::SliceMut;
 
@@ -182,10 +182,6 @@ impl<A: SteenrodAlgebraT> RealProjectiveSpace<A> {
             clear_bottom,
         }
     }
-
-    pub fn max_degree(&self) -> Option<i32> {
-        self.max
-    }
 }
 
 #[cfg(feature = "json")]
@@ -227,5 +223,12 @@ impl<A: SteenrodAlgebraT> RealProjectiveSpace<A> {
         if self.clear_bottom {
             json["clear_bottom"] = Value::Bool(true);
         }
+    }
+}
+
+impl<A: SteenrodAlgebraT> BoundedModule for RealProjectiveSpace<A> {
+    /// `max_degree` is the a degree such that if t > `max_degree`, then `self.dimension(t) = 0`.
+    fn max_degree(&self) -> i32 {
+        self.max.unwrap_or(i32::MAX)
     }
 }
