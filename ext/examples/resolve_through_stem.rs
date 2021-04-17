@@ -1,13 +1,13 @@
 //! Resolves a module up to a fixed stem and prints an ASCII depiction of the Ext groups.
 
 use ext::chain_complex::FreeChainComplex;
-use ext::utils::{construct, get_config};
+use ext::utils::construct;
 use saveload::Save;
 
 fn main() -> error::Result<()> {
-    // Read command line arguments
-    let config = get_config();
-    let res = construct(config, None)?;
+    let res = query::with_default("Module", "S_2", |name: String| {
+        construct(&*name, None).map_err(|e| e.to_string())
+    });
 
     let max_s = query::with_default("Max s", "15", Ok);
     let max_f = query::with_default("Max f", "30", Ok);

@@ -15,9 +15,7 @@ use std::time::Instant;
 const TWO: ValidPrime = ValidPrime::new(2);
 
 fn main() -> error::Result<()> {
-    let module_file_name = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| String::from("S_2"));
+    let module_file_name: String = query::with_default("Module", "S_2", Ok);
 
     let max_s = query::with_default("Max s", "7", Ok);
     let max_t = query::with_default("Max t", "30", Ok);

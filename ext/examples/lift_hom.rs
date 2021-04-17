@@ -1,14 +1,23 @@
 //! Resolves a module and prints an ASCII depiction of the Ext groups.
 
+use algebra::JsonAlgebra;
+use ext::chain_complex::ChainComplex;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::utils::{construct, get_config};
+use ext::utils::construct;
 use fp::matrix::Matrix;
 use std::sync::Arc;
 
 fn main() -> error::Result<()> {
-    let config = get_config();
-    let target = construct(("S_2", config.algebra), None)?;
-    let source = construct(config, None)?;
+    let target = query::with_default("Target module", "S_2", |name: String| {
+        construct(&*name, None).map_err(|e| e.to_string())
+    });
+    let source = query::with_default("Source module", "Cnu", |name: String| {
+        let source = construct((&*name, target.algebra().prefix()), None)?;
+        if source.prime() != target.prime() {
+            return Err("Source and target must have the same prime".into());
+        }
+        Ok(source)
+    });
     let p = source.prime();
 
     let s = query::with_default("s", "2", Ok);
@@ -37,7 +46,7 @@ fn main() -> error::Result<()> {
 
     let matrix = hom.get_map(s).hom_k(t);
     for (i, r) in matrix.iter().enumerate() {
-        println!("f(x_{{{}, {}, {}}}) = {:?}", s, t, i, r);
+        println!("f(x_{{{}, {}, {}}}) = {:?}", f, s, i, r);
     }
     Ok(())
 }

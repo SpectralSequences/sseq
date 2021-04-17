@@ -2,7 +2,7 @@ use algebra::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphi
 use algebra::module::{BoundedModule, Module};
 use ext::chain_complex::ChainComplex;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::utils::{construct, get_config};
+use ext::utils::construct;
 use ext::yoneda::yoneda_representative_element;
 use serde_json::value::Value;
 
@@ -14,7 +14,10 @@ use std::time::Instant;
 use thread_token::TokenBucket;
 
 fn main() -> error::Result<()> {
-    let resolution = Arc::new(construct(get_config(), None)?);
+    let resolution = Arc::new(query::with_default("Module", "S_2", |name: String| {
+        construct(&*name, None).map_err(|e| e.to_string())
+    }));
+
     let module = resolution.complex().module(0);
     let min_degree = resolution.min_degree();
 

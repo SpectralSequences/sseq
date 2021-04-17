@@ -24,6 +24,22 @@ pub struct Config {
     pub algebra: AlgebraType,
 }
 
+fn parse_module_name(module_name: &str) -> error::Result<Value> {
+    let mut args = module_name.split('[');
+    let mut module = load_module_json(args.next().unwrap())?;
+    if let Some(shift) = args.next() {
+        let shift: i64 = match shift.strip_suffix(']') {
+            None => error::from_string(format!("Invalid module name: {}", module_name))?,
+            Some(x) => x.parse()?,
+        };
+        let gens = module["gens"].as_object_mut().unwrap();
+        for entry in gens.into_iter() {
+            *entry.1 = (entry.1.as_i64().unwrap() + shift).into()
+        }
+    }
+    Ok(module)
+}
+
 impl TryFrom<&str> for Config {
     type Error = error::Error;
 
@@ -35,20 +51,10 @@ impl TryFrom<&str> for Config {
             None => AlgebraType::Adem,
         };
 
-        let mut args = module_name.split('[');
-        let module_name = args.next().unwrap();
-        let mut module = load_module_json(module_name)?;
-        if let Some(shift) = args.next() {
-            let shift: i64 = match shift.strip_suffix(']') {
-                None => error::from_string(format!("Invalid module specification: {}", spec))?,
-                Some(x) => x.parse()?,
-            };
-            let gens = module["gens"].as_object_mut().unwrap();
-            for entry in gens.into_iter() {
-                *entry.1 = (entry.1.as_i64().unwrap() + shift).into()
-            }
-        }
-        Ok(Config { module, algebra })
+        Ok(Config {
+            module: parse_module_name(module_name)?,
+            algebra,
+        })
     }
 }
 
@@ -60,13 +66,10 @@ where
     type Error = error::Error;
 
     fn try_from(spec: (&str, T)) -> Result<Self, Self::Error> {
-        // Manual desugaring because rustc gets confused
-        let mut config: Config = match spec.0.try_into() {
-            Ok(x) => x,
-            Err(e) => return Err(e),
-        };
-        config.algebra = spec.1.try_into()?;
-        Ok(config)
+        Ok(Config {
+            module: parse_module_name(spec.0)?,
+            algebra: spec.1.try_into()?,
+        })
     }
 }
 
@@ -79,13 +82,6 @@ impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
             algebra: spec.1.try_into()?,
         })
     }
-}
-
-pub fn get_config() -> Config {
-    let spec = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| String::from("S_2"));
-    (&*spec).try_into().unwrap()
 }
 
 /// This constructs a resolution resolving a module according to the specifications

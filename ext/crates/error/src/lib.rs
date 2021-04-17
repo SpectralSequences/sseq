@@ -50,6 +50,12 @@ impl From<Error> for Box<dyn StdError> {
     }
 }
 
+impl From<Error> for String {
+    fn from(e: Error) -> String {
+        e.error.to_string()
+    }
+}
+
 #[derive(Debug)]
 pub struct GenericError(String);
 
