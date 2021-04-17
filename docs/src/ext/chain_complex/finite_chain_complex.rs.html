@@ -479,8 +479,8 @@
         <span class="self">self</span>.<span class="ident">zero_module</span>.<span class="ident">min_degree</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">has_computed_bidegree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_s</span>: <span class="ident">u32</span>, <span class="ident">_t</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="macro">unimplemented</span><span class="macro">!</span>()
+    <span class="kw">fn</span> <span class="ident">has_computed_bidegree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="ident">s</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">modules</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span> <span class="op">|</span><span class="op">|</span> <span class="ident">t</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">max_computed_degree</span>()
     }
 
     <span class="kw">fn</span> <span class="ident">zero_module</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Module</span><span class="op">&gt;</span> {

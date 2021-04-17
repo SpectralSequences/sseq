@@ -805,7 +805,7 @@
 
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
-    <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">SteenrodAlgebra</span>;
+    <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">AlgebraType</span>, <span class="ident">SteenrodAlgebra</span>};
     <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">FiniteModule</span>;
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
@@ -842,7 +842,7 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">N</span> <span class="op">=</span> <span class="ident">serde_json</span>::<span class="ident">from_str</span>(<span class="ident">N</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">T</span> <span class="op">=</span> <span class="ident">serde_json</span>::<span class="ident">from_str</span>(<span class="ident">T</span>).<span class="ident">unwrap</span>();
 
-        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">SteenrodAlgebra</span>::<span class="ident">from_json</span>(<span class="kw-2">&amp;</span><span class="ident">M</span>, <span class="string">&quot;adem&quot;</span>).<span class="ident">unwrap</span>());
+        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">SteenrodAlgebra</span>::<span class="ident">from_json</span>(<span class="kw-2">&amp;</span><span class="ident">M</span>, <span class="ident">AlgebraType</span>::<span class="ident">Adem</span>).<span class="ident">unwrap</span>());
 
         <span class="kw">let</span> <span class="ident">M</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">FiniteModule</span>::<span class="ident">from_json</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">M</span>).<span class="ident">unwrap</span>());
         <span class="kw">let</span> <span class="ident">N</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">FiniteModule</span>::<span class="ident">from_json</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">N</span>).<span class="ident">unwrap</span>());

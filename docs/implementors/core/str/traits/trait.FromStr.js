@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["algebra"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/str/traits/trait.FromStr.html\" title=\"trait core::str::traits::FromStr\">FromStr</a> for <a class=\"enum\" href=\"algebra/algebra/steenrod_algebra/enum.AlgebraType.html\" title=\"enum algebra::algebra::steenrod_algebra::AlgebraType\">AlgebraType</a>","synthetic":false,"types":["algebra::algebra::steenrod_algebra::AlgebraType"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1626,7 +1626,7 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">test</span> {
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">utils</span>::<span class="ident">construct_s_2</span>;
+    <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">utils</span>::<span class="ident">construct</span>;
     <span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">milnor_algebra</span>::<span class="ident">PPartEntry</span>;
     <span class="kw">use</span> <span class="ident">expect_test</span>::{<span class="ident">expect</span>, <span class="ident">Expect</span>};
     <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Write</span>;
@@ -1701,7 +1701,7 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_a_dd</span>() {
-        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">construct_s_2</span>::<span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>(<span class="string">&quot;milnor&quot;</span>, <span class="prelude-val">None</span>);
+        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">construct</span>(<span class="string">&quot;S_2@milnor&quot;</span>, <span class="prelude-val">None</span>).<span class="ident">unwrap</span>();
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">TWO</span>, <span class="number">0</span>);
 
@@ -1709,7 +1709,7 @@
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">a</span> <span class="op">=</span> <span class="ident">MilnorClass</span>::<span class="ident">from_elements</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="ident">from_p_part</span>(<span class="ident">a</span>)]);
 
             <span class="kw">let</span> <span class="ident">target_deg</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">degree</span> <span class="op">+</span> <span class="ident">gen_t</span> <span class="op">-</span> <span class="number">1</span>;
-            <span class="ident">resolution</span>.<span class="ident">resolve_through_bidegree</span>(<span class="ident">gen_s</span>, <span class="ident">target_deg</span>);
+            <span class="ident">resolution</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">gen_s</span>, <span class="ident">target_deg</span>);
             <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">module</span>(<span class="ident">gen_s</span> <span class="op">-</span> <span class="number">2</span>);
 
             <span class="ident">result</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">m</span>.<span class="ident">dimension</span>(<span class="ident">target_deg</span>));
@@ -1739,7 +1739,7 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_compute_differentials</span>() {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">new</span>();
-        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">construct_s_2</span>::<span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>(<span class="string">&quot;milnor&quot;</span>, <span class="prelude-val">None</span>);
+        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">construct</span>(<span class="string">&quot;S_2@milnor&quot;</span>, <span class="prelude-val">None</span>).<span class="ident">unwrap</span>();
 
         <span class="kw">let</span> <span class="ident">max_s</span> <span class="op">=</span> <span class="number">7</span>;
         <span class="kw">let</span> <span class="ident">max_t</span> <span class="op">=</span> <span class="number">30</span>;
@@ -1747,13 +1747,13 @@
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
         <span class="kw">let</span> <span class="ident">deltas</span> <span class="op">=</span> {
             <span class="kw">let</span> <span class="ident">bucket</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">TokenBucket</span>::<span class="ident">new</span>(<span class="number">2</span>));
-            <span class="ident">resolution</span>.<span class="ident">resolve_through_bidegree_concurrent</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>, <span class="kw-2">&amp;</span><span class="ident">bucket</span>);
+            <span class="ident">resolution</span>.<span class="ident">compute_through_bidegree_concurrent</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>, <span class="kw-2">&amp;</span><span class="ident">bucket</span>);
             <span class="ident">compute_delta_concurrent</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>, <span class="ident">max_s</span>, <span class="ident">max_t</span>, <span class="kw-2">&amp;</span><span class="ident">bucket</span>, <span class="prelude-val">None</span>)
         };
 
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
         <span class="kw">let</span> <span class="ident">deltas</span> <span class="op">=</span> {
-            <span class="ident">resolution</span>.<span class="ident">resolve_through_bidegree</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>);
+            <span class="ident">resolution</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>);
             <span class="ident">compute_delta</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>, <span class="ident">max_s</span>, <span class="ident">max_t</span>)
         };
 

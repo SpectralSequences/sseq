@@ -416,6 +416,8 @@
 <span id="395">395</span>
 <span id="396">396</span>
 <span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">itertools</span>::<span class="ident">Itertools</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
@@ -472,6 +474,8 @@
         <span class="macro">unimplemented</span><span class="macro">!</span>()
     }
 
+    <span class="doccomment">/// The length of `input` is at most the dimension of the module in the degree, but may be</span>
+    <span class="doccomment">/// shorter.</span>
     <span class="kw">fn</span> <span class="ident">act</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
