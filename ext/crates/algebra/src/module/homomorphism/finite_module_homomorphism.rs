@@ -50,7 +50,7 @@ impl FPModuleT for FiniteModule {
         }
     }
 
-    fn generators(&self) -> &Arc<FreeModule<SteenrodAlgebra>> {
+    fn generators(&self) -> Arc<FreeModule<SteenrodAlgebra>> {
         match self {
             FiniteModule::FDModule(_) => {
                 panic!("Finite Dimensional Module is not finitely presented")
@@ -58,7 +58,7 @@ impl FPModuleT for FiniteModule {
             FiniteModule::RealProjectiveSpace(_) => {
                 panic!("RealProjectiveSpace is not finitely presented")
             }
-            FiniteModule::FPModule(m) => &m.generators,
+            FiniteModule::FPModule(m) => m.generators(),
         }
     }
 }

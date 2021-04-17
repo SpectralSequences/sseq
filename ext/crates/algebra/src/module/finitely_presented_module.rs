@@ -20,9 +20,9 @@ struct FPMIndexTable {
 pub struct FinitelyPresentedModule<A: Algebra> {
     name: String,
     min_degree: i32,
-    pub generators: Arc<FreeModule<A>>,
-    pub relations: Arc<FreeModule<A>>,
-    pub map: Arc<FreeModuleHomomorphism<FreeModule<A>>>,
+    generators: Arc<FreeModule<A>>,
+    relations: Arc<FreeModule<A>>,
+    map: Arc<FreeModuleHomomorphism<FreeModule<A>>>,
     index_table: OnceBiVec<FPMIndexTable>,
 }
 
@@ -72,13 +72,17 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
         }
     }
 
-    pub fn add_generators(&self, degree: i32, gen_names: Vec<String>) {
+    pub fn generators(&self) -> Arc<FreeModule<A>> {
+        Arc::clone(&self.generators)
+    }
+
+    pub fn add_generators(&mut self, degree: i32, gen_names: Vec<String>) {
         let num_gens = gen_names.len();
         self.generators
             .add_generators(degree, num_gens, Some(gen_names));
     }
 
-    pub fn add_relations(&self, degree: i32, relations_matrix: &mut Matrix) {
+    pub fn add_relations(&mut self, degree: i32, relations_matrix: &mut Matrix) {
         let num_relns = relations_matrix.rows();
         self.relations.add_generators(degree, num_relns, None);
         self.map
@@ -190,7 +194,7 @@ impl<A: JsonAlgebra> FinitelyPresentedModule<A> {
         }
         let max_degree = std::cmp::max(max_gen_degree, max_relation_degree);
         algebra.compute_basis(max_degree);
-        let result = Self::new(Arc::clone(&algebra), name, min_degree);
+        let mut result = Self::new(Arc::clone(&algebra), name, min_degree);
         for i in min_degree..max_gen_degree {
             result.add_generators(i, gen_names[i].clone());
         }

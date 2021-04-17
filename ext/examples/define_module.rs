@@ -240,13 +240,13 @@ pub fn interactive_module_define_fpmodule(
         graded_dim.push(i);
     }
 
-    let adem_module = FPModule::new(Arc::clone(&steenrod_algebra), name, min_degree);
+    let mut adem_module = FPModule::new(Arc::clone(&steenrod_algebra), name, min_degree);
 
     for (i, deg_i_gens) in gens.iter_enum() {
         adem_module.add_generators(i, deg_i_gens.clone());
     }
     // TODO: make relation parser automatically extend module by zero if necessary...
-    adem_module.generators.extend_by_zero(20);
+    adem_module.generators().extend_by_zero(20);
 
     eprintln!("Input relations");
     match *p {
@@ -259,7 +259,7 @@ pub fn interactive_module_define_fpmodule(
     for (i, deg_i_gens) in gens.iter_enum() {
         for (j, gen) in deg_i_gens.iter().enumerate() {
             let k = adem_module
-                .generators
+                .generators()
                 .operation_generator_to_index(0, 0, i, j);
             basis_elt_lookup.insert(gen.clone(), (i, k));
         }
@@ -270,7 +270,7 @@ pub fn interactive_module_define_fpmodule(
         match get_relation(
             &adem_algebra,
             &milnor_algebra,
-            &adem_module.generators,
+            &adem_module.generators(),
             &basis_elt_lookup,
         ) {
             Err(x) => {
@@ -283,7 +283,7 @@ pub fn interactive_module_define_fpmodule(
                     for r in deg_i_relns {
                         print!(
                             "{}, ",
-                            adem_module.generators.element_to_string(i, r.as_slice())
+                            adem_module.generators().element_to_string(i, r.as_slice())
                         );
                     }
                 }
@@ -307,7 +307,7 @@ pub fn interactive_module_define_fpmodule(
     }
 
     for (i, relns) in relations.iter_enum() {
-        let dim = adem_module.generators.dimension(i);
+        let dim = adem_module.generators().dimension(i);
         let mut matrix = fp::matrix::Matrix::new(p, relns.len(), dim);
         for (j, r) in relns.iter().enumerate() {
             matrix[j].assign(r);

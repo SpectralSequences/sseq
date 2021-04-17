@@ -216,7 +216,7 @@ where
 
         let max_degree = match &*source_module {
             FiniteModule::FDModule(m) => m.max_degree(),
-            FiniteModule::FPModule(m) => m.generators.get_max_generator_degree(),
+            FiniteModule::FPModule(m) => m.generators().get_max_generator_degree(),
             FiniteModule::RealProjectiveSpace(_) => panic!("Real Projective Space not supported"),
         };
 

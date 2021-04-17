@@ -50,7 +50,7 @@ impl<N: FPModuleT, M: Module<Algebra = N::Algebra>> ZeroHomomorphism<N, M>
 {
     fn zero_homomorphism(source: Arc<N>, target: Arc<M>, degree_shift: i32) -> Self {
         let underlying_map = Arc::new(FreeModuleHomomorphism::new(
-            Arc::clone(source.generators()),
+            Arc::clone(&source.generators()),
             target,
             degree_shift,
         ));
@@ -67,7 +67,7 @@ impl<N: FPModuleT> IdentityHomomorphism<N> for FPModuleHomomorphism<N, N> {
         let source_gen = source.generators();
 
         let underlying_map = Arc::new(FreeModuleHomomorphism::new(
-            Arc::clone(source_gen),
+            Arc::clone(&source_gen),
             Arc::clone(&source),
             0,
         ));
@@ -100,7 +100,7 @@ impl<N: FPModuleT> IdentityHomomorphism<N> for FPModuleHomomorphism<N, N> {
 pub trait FPModuleT: Module {
     fn gen_idx_to_fp_idx(&self, degree: i32, index: usize) -> isize;
     fn fp_idx_to_gen_idx(&self, degree: i32, index: usize) -> usize;
-    fn generators(&self) -> &Arc<FreeModule<Self::Algebra>>;
+    fn generators(&self) -> Arc<FreeModule<Self::Algebra>>;
 }
 
 impl<A: Algebra> FPModuleT for FPModule<A> {
@@ -111,7 +111,7 @@ impl<A: Algebra> FPModuleT for FPModule<A> {
         self.gen_idx_to_fp_idx(degree, index)
     }
 
-    fn generators(&self) -> &Arc<FreeModule<A>> {
-        &self.generators
+    fn generators(&self) -> Arc<FreeModule<A>> {
+        self.generators()
     }
 }
