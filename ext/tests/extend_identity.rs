@@ -2,7 +2,7 @@ use algebra::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphi
 use algebra::module::Module;
 use ext::chain_complex::{AugmentedChainComplex, ChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::utils::{construct_from_json, load_module_from_file, Config};
+use ext::utils::{construct_from_json, load_module_json};
 use fp::vector::FpVector;
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -55,14 +55,8 @@ fn extend_identity() {
 
 fn check_file(module_name: &str, max_degree: i32, algebra_name: &str) {
     println!("module: {}", module_name);
-    let path = std::path::PathBuf::from("steenrod_modules");
-    let config = Config {
-        module_paths: vec![path],
-        module_file_name: module_name.to_string(),
-        algebra_name: String::from(algebra_name),
-    };
 
-    let json = load_module_from_file(&config).unwrap();
+    let json = load_module_json(module_name).unwrap();
 
     check(json, max_degree, algebra_name);
 }

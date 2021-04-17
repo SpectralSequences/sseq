@@ -16,9 +16,7 @@ fn check_result() {
 
 fn compare(module_name: &str, result: ExpectFile, max_degree: i32) {
     println!("module: {}", module_name);
-    let path = std::path::PathBuf::from("steenrod_modules");
     let config = Config {
-        module_paths: vec![path],
         module_file_name: module_name.to_string(),
         algebra_name: String::from("adem"),
     };

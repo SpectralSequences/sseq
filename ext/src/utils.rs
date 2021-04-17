@@ -13,8 +13,9 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+const STATIC_MODULES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "../ext/steenrod_modules");
+
 pub struct Config {
-    pub module_paths: Vec<PathBuf>,
     pub module_file_name: String,
     pub algebra_name: String,
 }
@@ -33,15 +34,7 @@ pub fn get_config() -> Config {
         std::process::exit(1);
     }
 
-    let static_modules_path =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../ext/steenrod_modules");
-
-    let current_dir = std::env::current_dir().unwrap();
-    let mut relative_dir = std::env::current_dir().unwrap();
-    relative_dir.push("steenrod_modules");
-
     Config {
-        module_paths: vec![current_dir, relative_dir, static_modules_path],
         algebra_name: args
             .opt_value_from_str("--algebra")
             .unwrap()
@@ -54,7 +47,7 @@ pub fn get_config() -> Config {
 }
 
 pub fn construct(config: &Config) -> error::Result<Resolution<CCC>> {
-    let mut json = load_module_from_file(config)?;
+    let mut json = load_module_json(&config.module_file_name)?;
     construct_from_json(&mut json, &config.algebra_name)
 }
 
@@ -110,20 +103,23 @@ pub fn construct_from_json(json: &mut Value, algebra_name: &str) -> error::Resul
     Ok(resolution)
 }
 
-pub fn load_module_from_file(config: &Config) -> error::Result<Value> {
-    for path in &config.module_paths {
+pub fn load_module_json(name: &str) -> error::Result<Value> {
+    let current_dir = std::env::current_dir().unwrap();
+    let relative_dir = current_dir.join("steenrod_modules");
+
+    for path in &[
+        current_dir,
+        relative_dir,
+        PathBuf::from(STATIC_MODULES_PATH),
+    ] {
         let mut path = path.clone();
-        path.push(&config.module_file_name);
+        path.push(name);
         path.set_extension("json");
         if let Ok(s) = std::fs::read_to_string(path) {
             return Ok(serde_json::from_str(&s)?);
         }
     }
-
-    error::from_string(format!(
-        "Module file '{}' not found on path",
-        config.module_file_name
-    ))
+    error::from_string(format!("Module file '{}' not found on path", name))
 }
 
 /// A function that constructs the resolution of S_2 over the `algebra`. If `save_file` points to
