@@ -24,7 +24,7 @@ pub struct Config {
     pub algebra: AlgebraType,
 }
 
-fn parse_module_name(module_name: &str) -> error::Result<Value> {
+pub fn parse_module_name(module_name: &str) -> error::Result<Value> {
     let mut args = module_name.split('[');
     let mut module = load_module_json(args.next().unwrap())?;
     if let Some(shift) = args.next() {
