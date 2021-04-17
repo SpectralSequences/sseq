@@ -55,16 +55,11 @@ impl std::str::FromStr for AlgebraType {
     type Err = error::GenericError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "adem" => Ok(Self::Adem),
-            "milnor" => Ok(Self::Milnor),
-            _ => Err(error::GenericError::new(format!(
-                "Invalid algebra name: {}",
-                s
-            ))),
-        }
+        use std::convert::TryInto;
+        s.try_into()
     }
 }
+
 pub enum SteenrodAlgebraBorrow<'a> {
     BorrowAdem(&'a AdemAlgebra),
     BorrowMilnor(&'a MilnorAlgebra),
