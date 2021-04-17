@@ -13,7 +13,7 @@ use std::convert::{TryFrom, TryInto};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-const STATIC_MODULES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "../ext/steenrod_modules");
+const STATIC_MODULES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../ext/steenrod_modules");
 
 /// A config object is an object that specifies how a Steenrod module should be constructed.
 #[derive(Clone, Debug)]
@@ -82,7 +82,9 @@ impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
 }
 
 pub fn get_config() -> Config {
-    let spec = std::env::args().nth(1).unwrap();
+    let spec = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| String::from("S_2"));
     (&*spec).try_into().unwrap()
 }
 
