@@ -11,7 +11,8 @@ fn main() -> error::Result<()> {
     let target = query::with_default("Target module", "S_2", |name: String| {
         construct(&*name, None).map_err(|e| e.to_string())
     });
-    let source = query::with_default("Source module", "Cnu", |name: String| {
+    // Pick a source so that there are no possible homomorphisms, since CI doesn't take any input
+    let source = query::with_default("Source module", "S_2[1]", |name: String| {
         let source = construct((&*name, target.algebra().prefix()), None)?;
         if source.prime() != target.prime() {
             return Err("Source and target must have the same prime".into());
