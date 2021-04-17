@@ -429,15 +429,6 @@
 <span id="408">408</span>
 <span id="409">409</span>
 <span id="410">410</span>
-<span id="411">411</span>
-<span id="412">412</span>
-<span id="413">413</span>
-<span id="414">414</span>
-<span id="415">415</span>
-<span id="416">416</span>
-<span id="417">417</span>
-<span id="418">418</span>
-<span id="419">419</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
 <span class="kw">use</span> <span class="ident">once</span>::<span class="ident">OnceBiVec</span>;
@@ -637,14 +628,9 @@
     <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
         <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">compute_basis</span>(<span class="ident">degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">min_degree</span>());
         <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">compute_basis</span>(<span class="ident">degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">min_degree</span>());
-        <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">block_structures</span>.<span class="ident">len</span>() {
-            <span class="kw">return</span>;
-        }
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">block_structures</span>.<span class="ident">len</span>()..<span class="op">=</span><span class="ident">degree</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_sizes</span> <span class="op">=</span> <span class="ident">BiVec</span>::<span class="ident">with_capacity</span>(
-                <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">min_degree</span>(),
-                <span class="ident">degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">min_degree</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">min_degree</span>() <span class="op">+</span> <span class="number">1</span>,
-            );
+        <span class="self">self</span>.<span class="ident">block_structures</span>.<span class="ident">extend</span>(<span class="ident">degree</span>, <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_sizes</span> <span class="op">=</span>
+                <span class="ident">BiVec</span>::<span class="ident">with_capacity</span>(<span class="self">self</span>.<span class="ident">left</span>.<span class="ident">min_degree</span>(), <span class="ident">i</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">min_degree</span>() <span class="op">+</span> <span class="number">1</span>);
             <span class="kw">for</span> <span class="ident">j</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">min_degree</span>()..<span class="op">=</span><span class="ident">i</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">min_degree</span>() {
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_sizes_entry</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="self">self</span>.<span class="ident">left</span>.<span class="ident">dimension</span>(<span class="ident">j</span>));
                 <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">left</span>.<span class="ident">dimension</span>(<span class="ident">j</span>) {
@@ -652,13 +638,9 @@
                 }
                 <span class="ident">block_sizes</span>.<span class="ident">push</span>(<span class="ident">block_sizes_entry</span>);
             }
-            <span class="macro">assert_eq</span><span class="macro">!</span>(
-                <span class="ident">block_sizes</span>.<span class="ident">len</span>(),
-                <span class="ident">i</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">min_degree</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">min_degree</span>() <span class="op">+</span> <span class="number">1</span>
-            );
-            <span class="self">self</span>.<span class="ident">block_structures</span>
-                .<span class="ident">push</span>(<span class="ident">BlockStructure</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">block_sizes</span>));
-        }
+            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">block_sizes</span>.<span class="ident">len</span>(), <span class="ident">i</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">min_degree</span>() <span class="op">+</span> <span class="number">1</span>);
+            <span class="ident">BlockStructure</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">block_sizes</span>)
+        });
     }
 
     <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
