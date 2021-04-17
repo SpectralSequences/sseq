@@ -87,7 +87,7 @@ pub fn get_expression_to_vector<F>(
     F: for<'a> Fn(&'a str) -> Option<usize>,
 {
     'outer: loop {
-        let result: String = query::raw(prompt, Ok);
+        let result: String = query::parse(prompt, Ok);
         if result == "0" {
             output_vec.set_to_zero();
             break;
@@ -199,7 +199,7 @@ fn get_relation(
     module: &FreeModule<SteenrodAlgebra>,
     basis_elt_lookup: &HashMap<String, (i32, usize)>,
 ) -> Result<(i32, FpVector), String> {
-    let relation: String = query::raw("Relation", Ok);
+    let relation: String = query::parse("Relation", Ok);
     if relation.is_empty() {
         return Err("".to_string());
     }
@@ -329,7 +329,7 @@ fn main() -> error::Result<()> {
         }
     );
 
-    let name: String = query::raw("Module name (use latex between $'s)", Ok);
+    let name: String = query::parse("Module name (use latex between $'s)", Ok);
     // Query for prime
     let p = query::with_default("p", "2", |p: u32| {
         ValidPrime::try_new(p).ok_or_else(|| "invalid prime".to_string())

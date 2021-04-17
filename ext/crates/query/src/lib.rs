@@ -32,7 +32,7 @@ pub fn optional<S, T: FromStr>(
 where
     <T as FromStr>::Err: Display,
 {
-    inner(prompt, |x| {
+    raw(prompt, |x| {
         if x.is_empty() {
             Ok(None)
         } else {
@@ -52,7 +52,7 @@ pub fn with_default<S, T: FromStr>(
 where
     <T as FromStr>::Err: Display,
 {
-    inner(&format!("{} (default: {})", prompt, default), |x| {
+    raw(&format!("{} (default: {})", prompt, default), |x| {
         if x.is_empty() {
             default
                 .parse::<T>()
@@ -66,11 +66,11 @@ where
     })
 }
 
-pub fn raw<S, T: FromStr>(prompt: &str, validator: impl Fn(T) -> Result<S, String>) -> S
+pub fn parse<S, T: FromStr>(prompt: &str, validator: impl Fn(T) -> Result<S, String>) -> S
 where
     <T as FromStr>::Err: Display,
 {
-    inner(prompt, |x| {
+    raw(prompt, |x| {
         x.parse::<T>()
             .map_err(|err| err.to_string())
             .and_then(|res| validator(res))
@@ -90,7 +90,7 @@ pub fn yes_no(prompt: &str) -> bool {
     })
 }
 
-pub fn inner<S>(prompt: &str, validator: impl for<'a> Fn(&'a str) -> Result<S, String>) -> S {
+pub fn raw<S>(prompt: &str, validator: impl for<'a> Fn(&'a str) -> Result<S, String>) -> S {
     let cli: Option<(String, Result<S, String>)> = ARGV.with(|argv| {
         let arg = argv.borrow_mut().next()?;
         let result = validator(&arg);

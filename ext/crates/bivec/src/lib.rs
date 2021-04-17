@@ -113,7 +113,14 @@ impl<T> BiVec<T> {
             .iter()
             .enumerate()
             .map(move |(i, t)| (i as i32 + min_degree, t))
-        // .collect()
+    }
+
+    pub fn iter_mut_enum(&mut self) -> impl DoubleEndedIterator<Item = (i32, &mut T)> {
+        let min_degree = self.min_degree;
+        self.data
+            .iter_mut()
+            .enumerate()
+            .map(move |(i, t)| (i as i32 + min_degree, t))
     }
 
     pub fn into_iter_enum(self) -> impl DoubleEndedIterator<Item = (i32, T)> {
@@ -122,7 +129,6 @@ impl<T> BiVec<T> {
             .into_iter()
             .enumerate()
             .map(move |(i, t)| (i as i32 + min_degree, t))
-        // .collect()
     }
 
     /// Extends the bivec such that `max_degree()` is at least `max`. If `max_degree()` is

@@ -1,10 +1,10 @@
 //! Resolves a module and prints an ASCII depiction of the Ext groups.
 
+use algebra::module::homomorphism::BoundedModuleHomomorphism;
 use algebra::JsonAlgebra;
 use ext::chain_complex::ChainComplex;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::construct;
-use fp::matrix::Matrix;
 use std::sync::Arc;
 
 fn main() -> error::Result<()> {
@@ -16,13 +16,45 @@ fn main() -> error::Result<()> {
         if source.prime() != target.prime() {
             return Err("Source and target must have the same prime".into());
         }
+        if !source.complex().module(0).is_fd_module() {
+            return Err("Source must be finite dimensional".into());
+        }
         Ok(source)
     });
-    let p = source.prime();
 
     let s = query::with_default("s", "2", Ok);
     let f: i32 = query::with_default("f", "7", Ok);
     let t = f + s as i32;
+
+    let source_module = source.complex().module(0);
+    let target_module = target.complex().module(0);
+
+    eprintln!("\nInput module homomorphism to lift:");
+    let mut module_hom = BoundedModuleHomomorphism::new(source_module, target_module, 0);
+    for (t, matrix) in module_hom.matrices.iter_mut_enum() {
+        if matrix.columns() == 0 {
+            continue;
+        }
+        for (idx, row) in matrix.iter_mut().enumerate() {
+            let v: Vec<u32> = query::raw(&format!("f(x_({}, {}))", t, idx), |s| {
+                let v = s
+                    .split(',')
+                    .map(|x| x.parse::<u32>().map_err(|e| e.to_string()))
+                    .collect::<Result<Vec<_>, String>>()?;
+                if v.len() != row.dimension() {
+                    return Err(format!(
+                        "Target has dimension {} but {} coordinates supplied",
+                        row.dimension(),
+                        v.len()
+                    ));
+                }
+                Ok(v)
+            });
+            for (i, &x) in v.iter().enumerate() {
+                row.set_entry(i, x);
+            }
+        }
+    }
 
     #[cfg(feature = "concurrent")]
     {
@@ -39,14 +71,18 @@ fn main() -> error::Result<()> {
         target.compute_through_stem(s, f);
     }
 
-    let hom = ResolutionHomomorphism::new(String::new(), Arc::new(source), Arc::new(target), 0, 0);
+    let hom = ResolutionHomomorphism::from_module_homomorphism(
+        String::new(),
+        Arc::new(source),
+        Arc::new(target),
+        &module_hom.into(),
+    );
 
-    hom.extend_step(0, 0, Some(&Matrix::from_vec(p, &[vec![1]])));
     hom.extend_through_stem(s, f);
 
     let matrix = hom.get_map(s).hom_k(t);
     for (i, r) in matrix.iter().enumerate() {
-        println!("f(x_{{{}, {}, {}}}) = {:?}", f, s, i, r);
+        println!("F(x_{{{}, {}, {}}}) = {:?}", f, s, i, r);
     }
     Ok(())
 }
