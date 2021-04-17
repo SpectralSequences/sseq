@@ -250,13 +250,16 @@
 <span id="229">229</span>
 <span id="230">230</span>
 <span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{
     <span class="ident">adem_algebra</span>::<span class="ident">AdemBasisElement</span>,
     <span class="ident">milnor_algebra</span>::{<span class="ident">MilnorBasisElement</span>, <span class="ident">PPartEntry</span>},
     <span class="ident">AdemAlgebra</span>, <span class="ident">MilnorAlgebra</span>, <span class="ident">SteenrodAlgebraBorrow</span>, <span class="ident">SteenrodAlgebraT</span>,
 };
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::{<span class="ident">Binomial</span>, <span class="ident">ValidPrime</span>};
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">SliceMut</span>;
 
@@ -435,10 +438,6 @@
             <span class="ident">clear_bottom</span>,
         }
     }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">max</span>
-    }
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
@@ -480,6 +479,13 @@
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">clear_bottom</span> {
             <span class="ident">json</span>[<span class="string">&quot;clear_bottom&quot;</span>] <span class="op">=</span> <span class="ident">Value</span>::<span class="ident">Bool</span>(<span class="bool-val">true</span>);
         }
+    }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">SteenrodAlgebraT</span><span class="op">&gt;</span> <span class="ident">BoundedModule</span> <span class="kw">for</span> <span class="ident">RealProjectiveSpace</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+    <span class="doccomment">/// `max_degree` is the a degree such that if t &gt; `max_degree`, then `self.dimension(t) = 0`.</span>
+    <span class="kw">fn</span> <span class="ident">max_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+        <span class="self">self</span>.<span class="ident">max</span>.<span class="ident">unwrap_or</span>(<span class="ident">i32</span>::<span class="ident">MAX</span>)
     }
 }
 </pre></div>

@@ -534,7 +534,7 @@
 
         <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">source_module</span> {
             <span class="ident">FiniteModule</span>::<span class="ident">FDModule</span>(<span class="ident">m</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">m</span>.<span class="ident">max_degree</span>(),
-            <span class="ident">FiniteModule</span>::<span class="ident">FPModule</span>(<span class="ident">m</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">m</span>.<span class="ident">generators</span>.<span class="ident">get_max_generator_degree</span>(),
+            <span class="ident">FiniteModule</span>::<span class="ident">FPModule</span>(<span class="ident">m</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">m</span>.<span class="ident">generators</span>().<span class="ident">get_max_generator_degree</span>(),
             <span class="ident">FiniteModule</span>::<span class="ident">RealProjectiveSpace</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Real Projective Space not supported&quot;</span>),
         };
 
