@@ -244,6 +244,12 @@
 <span id="223">223</span>
 <span id="224">224</span>
 <span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">Index</span>;
 <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">ops</span>::<span class="ident">IndexMut</span>;
@@ -360,7 +366,14 @@
             .<span class="ident">iter</span>()
             .<span class="ident">enumerate</span>()
             .<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">i</span>, <span class="ident">t</span>)<span class="op">|</span> (<span class="ident">i</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">min_degree</span>, <span class="ident">t</span>))
-        <span class="comment">// .collect()</span>
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iter_mut_enum</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">DoubleEndedIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (<span class="ident">i32</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">T</span>)<span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>;
+        <span class="self">self</span>.<span class="ident">data</span>
+            .<span class="ident">iter_mut</span>()
+            .<span class="ident">enumerate</span>()
+            .<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">i</span>, <span class="ident">t</span>)<span class="op">|</span> (<span class="ident">i</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">min_degree</span>, <span class="ident">t</span>))
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">into_iter_enum</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">DoubleEndedIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (<span class="ident">i32</span>, <span class="ident">T</span>)<span class="op">&gt;</span> {
@@ -369,7 +382,6 @@
             .<span class="ident">into_iter</span>()
             .<span class="ident">enumerate</span>()
             .<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">i</span>, <span class="ident">t</span>)<span class="op">|</span> (<span class="ident">i</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">min_degree</span>, <span class="ident">t</span>))
-        <span class="comment">// .collect()</span>
     }
 
     <span class="doccomment">/// Extends the bivec such that `max_degree()` is at least `max`. If `max_degree()` is</span>
