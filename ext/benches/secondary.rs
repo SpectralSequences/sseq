@@ -1,14 +1,15 @@
+//! This example uses secondary.rs to compute d_2 on x_{65, 4}. The code is similar to that in the
+//! secondary command, but with hardcoded values. I also use this for performance benchmarking.
+
 use ext::chain_complex::ChainComplex;
 use ext::secondary::compute_delta;
-/// This example uses secondary.rs to compute d_2 on x_{65, 4}. The code is similar to that in the
-/// secondary command, but with hardcoded values. I also use this for performance benchmarking.
-use ext::utils::construct_s_2;
+use ext::utils::construct;
 use std::time::Instant;
 
 fn main() {
     // This macro attempts to load a resolution of S_2 from resolution_milnor.save, and generates one from
     // scratch if it isn't available. The result is written to the variable `resolution`.
-    let resolution = construct_s_2("milnor", Some("resolution_milnor.save"));
+    let resolution = construct("S_2@milnor", Some("resolution_milnor.save")).unwrap();
 
     // Compute the minimal resolution R_{s, t}
     resolution.compute_through_bidegree(6, 70);

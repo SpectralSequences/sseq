@@ -5,15 +5,13 @@ use std::path::Path;
 use std::time::Instant;
 
 use algebra::module::homomorphism::ModuleHomomorphism;
-use ext::resolution::Resolution;
 use ext::secondary::*;
-use ext::utils::{construct, get_config};
-
-use saveload::Load;
+use ext::utils::construct;
 
 fn main() -> error::Result<()> {
-    let mut config = get_config();
-    config.algebra_name = String::from("milnor");
+    let module_file_name = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| String::from("S_2"));
 
     let max_s = query::with_default("Max s", "7", Ok);
     let max_t = query::with_default("Max t", "30", Ok);
@@ -28,13 +26,10 @@ fn main() -> error::Result<()> {
         thread_token::TokenBucket::new(num_threads)
     };
 
-    let mut resolution = construct(&config)?;
-
-    if let Some(path) = res_save_file {
-        let f = File::open(path).unwrap();
-        let mut f = std::io::BufReader::new(f);
-        resolution = Resolution::load(&mut f, &resolution.complex())?;
-    }
+    let resolution = construct(
+        (&*module_file_name, algebra::AlgebraType::Milnor),
+        res_save_file.as_deref(),
+    )?;
 
     if !resolution.has_computed_bidegree(max_s, max_t) {
         print!("Resolving module: ");
@@ -50,10 +45,7 @@ fn main() -> error::Result<()> {
     }
 
     if !can_compute(&resolution) {
-        eprintln!(
-            "Cannot compute d2 for the module {}",
-            config.module_file_name
-        );
+        eprintln!("Cannot compute d2 for the module {}", module_file_name);
         return Ok(());
     }
 
@@ -63,7 +55,7 @@ fn main() -> error::Result<()> {
     #[cfg(feature = "concurrent")]
     let deltas = compute_delta_concurrent(&resolution, max_s, max_t, &bucket, del_save_file);
 
-    let mut filename = format!("d2_{}", config.module_file_name);
+    let mut filename = format!("d2_{}", module_file_name);
     while Path::new(&filename).exists() {
         filename.push('_');
     }

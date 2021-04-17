@@ -17,6 +17,54 @@ pub trait SteenrodAlgebraT: Send + Sync + 'static + Algebra {
     fn steenrod_algebra(&self) -> SteenrodAlgebraBorrow;
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum AlgebraType {
+    Adem,
+    Milnor,
+}
+
+impl std::fmt::Display for AlgebraType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Adem => "adem",
+                Self::Milnor => "milnor",
+            }
+        )
+    }
+}
+
+impl std::convert::TryFrom<&str> for AlgebraType {
+    type Error = error::GenericError;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "adem" => Ok(Self::Adem),
+            "milnor" => Ok(Self::Milnor),
+            _ => Err(error::GenericError::new(format!(
+                "Invalid algebra name: {}",
+                s
+            ))),
+        }
+    }
+}
+
+impl std::str::FromStr for AlgebraType {
+    type Err = error::GenericError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "adem" => Ok(Self::Adem),
+            "milnor" => Ok(Self::Milnor),
+            _ => Err(error::GenericError::new(format!(
+                "Invalid algebra name: {}",
+                s
+            ))),
+        }
+    }
+}
 pub enum SteenrodAlgebraBorrow<'a> {
     BorrowAdem(&'a AdemAlgebra),
     BorrowMilnor(&'a MilnorAlgebra),
@@ -109,29 +157,31 @@ struct AlgebraSpec {
 
 #[cfg(feature = "json")]
 impl SteenrodAlgebra {
-    pub fn from_json(json: &Value, algebra_name: &str) -> error::Result<SteenrodAlgebra> {
+    pub fn from_json(
+        json: &Value,
+        mut algebra_type: AlgebraType,
+    ) -> error::Result<SteenrodAlgebra> {
         // This line secretly redefines the lifetime of algebra_name so that we can reassign it
         // later on.
-        let mut algebra_name = algebra_name;
         let spec: AlgebraSpec = serde_json::from_value(json.clone())?;
 
         let p = ValidPrime::try_new(spec.p)
             .ok_or_else(|| error::GenericError::new(format!("Invalid prime: {}", spec.p)))?;
 
         if let Some(list) = spec.algebra.as_ref() {
+            let algebra_name = &algebra_type.to_string();
             if !list.iter().any(|x| x == algebra_name) {
                 println!("Module does not support algebra {}", algebra_name);
                 println!("Using {} instead", list[0]);
-                algebra_name = &list[0];
+                algebra_type = list[0].parse()?;
             }
         }
 
-        let algebra: SteenrodAlgebra;
-        match algebra_name {
-            "adem" => {
-                algebra = SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, *p != 2, false, false))
+        Ok(match algebra_type {
+            AlgebraType::Adem => {
+                SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, *p != 2, false, false))
             }
-            "milnor" => {
+            AlgebraType::Milnor => {
                 let mut algebra_inner = MilnorAlgebra::new(p);
                 if let Some(profile) = spec.profile {
                     if let Some(truncated) = profile.truncated {
@@ -144,16 +194,9 @@ impl SteenrodAlgebra {
                         algebra_inner.profile.p_part = p_part;
                     }
                 }
-                algebra = SteenrodAlgebra::MilnorAlgebra(algebra_inner);
+                SteenrodAlgebra::MilnorAlgebra(algebra_inner)
             }
-            _ => {
-                return Err(InvalidAlgebraError {
-                    name: algebra_name.into(),
-                }
-                .into());
-            }
-        };
-        Ok(algebra)
+        })
     }
 
     pub fn to_json(&self, json: &mut Value) {

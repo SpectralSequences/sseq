@@ -4,7 +4,7 @@ use algebra::module::homomorphism::{
 use algebra::module::{BoundedModule, Module};
 use ext::chain_complex::{ChainComplex, TensorChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::utils::construct_s_2;
+use ext::utils::construct;
 use ext::yoneda::yoneda_representative_element;
 use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
@@ -23,7 +23,7 @@ use crossbeam_channel::{unbounded, Receiver};
 use thread_token::TokenBucket;
 
 fn main() -> error::Result<()> {
-    let resolution = Arc::new(construct_s_2("adem", Some("resolution_adem.save")));
+    let resolution = Arc::new(construct("S_2", Some("resolution_adem.save")).unwrap());
 
     let complex = resolution.complex();
     let module = complex.module(0);

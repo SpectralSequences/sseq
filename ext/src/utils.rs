@@ -2,62 +2,121 @@ use crate::chain_complex::{FiniteChainComplex, FreeChainComplex};
 use crate::resolution::Resolution;
 use crate::CCC;
 use algebra::module::FiniteModule;
-use algebra::SteenrodAlgebra;
+use algebra::{AlgebraType, SteenrodAlgebra};
 use saveload::Load;
-use serde_json::{json, Value};
+use serde_json::Value;
 
 #[cfg(feature = "yoneda")]
 use crate::chain_complex::ChainComplex;
 
-use std::error::Error;
+use std::convert::{TryFrom, TryInto};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 const STATIC_MODULES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "../ext/steenrod_modules");
 
+/// A config object is an object that specifies how a Steenrod module should be constructed.
+#[derive(Clone, Debug)]
 pub struct Config {
-    pub module_file_name: String,
-    pub algebra_name: String,
+    /// The json specification of the module
+    pub module: Value,
+    /// The basis for the Steenrod algebra
+    pub algebra: AlgebraType,
+}
+
+impl TryFrom<&str> for Config {
+    type Error = error::Error;
+
+    fn try_from(spec: &str) -> Result<Self, Self::Error> {
+        let mut args = spec.split('@');
+        let module_name = args.next().unwrap();
+        let algebra = match args.next() {
+            Some(x) => x.parse()?,
+            None => AlgebraType::Adem,
+        };
+
+        let mut args = module_name.split('[');
+        let module_name = args.next().unwrap();
+        let mut module = load_module_json(module_name)?;
+        if let Some(shift) = args.next() {
+            let shift: i64 = match shift.strip_suffix(']') {
+                None => error::from_string(format!("Invalid module specification: {}", spec))?,
+                Some(x) => x.parse()?,
+            };
+            let gens = module["gens"].as_object_mut().unwrap();
+            for entry in gens.into_iter() {
+                *entry.1 = (entry.1.as_i64().unwrap() + shift).into()
+            }
+        }
+        Ok(Config { module, algebra })
+    }
+}
+
+impl<T, E> TryFrom<(&str, T)> for Config
+where
+    error::Error: From<E>,
+    T: TryInto<AlgebraType, Error = E>,
+{
+    type Error = error::Error;
+
+    fn try_from(spec: (&str, T)) -> Result<Self, Self::Error> {
+        // Manual desugaring because rustc gets confused
+        let mut config: Config = match spec.0.try_into() {
+            Ok(x) => x,
+            Err(e) => return Err(e),
+        };
+        config.algebra = spec.1.try_into()?;
+        Ok(config)
+    }
+}
+
+impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
+    type Error = T::Error;
+
+    fn try_from(spec: (Value, T)) -> Result<Self, Self::Error> {
+        Ok(Config {
+            module: spec.0,
+            algebra: spec.1.try_into()?,
+        })
+    }
 }
 
 pub fn get_config() -> Config {
-    let mut args = pico_args::Arguments::from_env();
-    if args.contains("--help") {
-        println!(
-            "{} [--algebra algebra_name] [module_name] [max_degree]",
-            std::env::current_exe()
-                .unwrap()
-                .file_stem()
-                .unwrap()
-                .to_string_lossy()
-        );
-        std::process::exit(1);
-    }
-
-    Config {
-        algebra_name: args
-            .opt_value_from_str("--algebra")
-            .unwrap()
-            .unwrap_or_else(|| "adem".into()),
-        module_file_name: args
-            .opt_free_from_str()
-            .unwrap()
-            .unwrap_or_else(|| "S_2".into()),
-    }
+    let spec = std::env::args().nth(1).unwrap();
+    (&*spec).try_into().unwrap()
 }
 
-pub fn construct(config: &Config) -> error::Result<Resolution<CCC>> {
-    let mut json = load_module_json(&config.module_file_name)?;
-    construct_from_json(&mut json, &config.algebra_name)
-}
+/// This constructs a resolution resolving a module according to the specifications
+///
+/// # Arguments
+///  - `module_spec`: A specification for the module. This is any object that implements
+///     [`TryInto<Config>`] (with appropriate error bounds). In practice, we can supply
+///     - A [`Config`] object itself
+///     - `(json, algebra)`: The first argument is a [`serde_json::Value`] that specifies the
+///       module; the second argument is either a string (`"milnor"` or `"adem"`) or an
+///       [`algebra::AlgebraType`] object.
+///     - `(module_name, algebra)`: The first argument is the name of the module and the second is
+///       as above. Modules are searched in the current directory, `$CWD/steenrod_modules` and
+///       `ext/steenrod_modules`. The modules can be shifted by appending e.g. `S_2[2]`.
+///     - `module_spec`, a single `&str` of the form `module_name@algebra`, where `module_name` and
+///       `algebra` are as above.
+///  - `save_file`: The save file for the module. If this is `Some`, we attempt to load the
+///     resolution from the save file. If the path points to a non-existent file, it is ignored.
+///     However, if it points to an invalid save file, an error is returned.
+pub fn construct<T, E>(module_spec: T, save_file: Option<&str>) -> error::Result<Resolution<CCC>>
+where
+    error::Error: From<E>,
+    T: TryInto<Config, Error = E>,
+{
+    let Config {
+        module: mut json,
+        algebra,
+    } = module_spec.try_into()?;
 
-pub fn construct_from_json(json: &mut Value, algebra_name: &str) -> error::Result<Resolution<CCC>> {
-    let algebra = Arc::new(SteenrodAlgebra::from_json(json, algebra_name)?);
-    let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), json)?);
+    let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra)?);
+    let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut json)?);
     #[allow(unused_mut)] // This is only mut with Yoneda enabled
     let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
-    #[allow(unused_mut)] // This is only mut with Yoneda enabled
-    let mut resolution = Resolution::new(Arc::clone(&chain_complex));
 
     let cofiber = &json["cofiber"];
     #[cfg(feature = "yoneda")]
@@ -71,6 +130,7 @@ pub fn construct_from_json(json: &mut Value, algebra_name: &str) -> error::Resul
         let t = cofiber["t"].as_i64().unwrap() as i32;
         let idx = cofiber["idx"].as_u64().unwrap() as usize;
 
+        let resolution = Resolution::new(Arc::clone(&chain_complex));
         resolution.compute_through_bidegree(s, t + module.max_degree());
 
         let map = FreeModuleHomomorphism::new(resolution.module(s), Arc::clone(&module), t);
@@ -93,14 +153,26 @@ pub fn construct_from_json(json: &mut Value, algebra_name: &str) -> error::Resul
         yoneda.pop();
 
         chain_complex = Arc::new(yoneda);
-        resolution = Resolution::new(Arc::clone(&chain_complex));
     }
 
     #[cfg(not(feature = "yoneda"))]
     if !cofiber.is_null() {
         panic!("cofiber not supported. Compile with yoneda feature enabled");
     }
-    Ok(resolution)
+
+    Ok(match save_file {
+        Some(path) => {
+            let path: &Path = path.as_ref();
+            if path.exists() {
+                let f = std::fs::File::open(path).unwrap();
+                let mut f = std::io::BufReader::new(f);
+                Resolution::load(&mut f, &chain_complex)?
+            } else {
+                Resolution::new(Arc::clone(&chain_complex))
+            }
+        }
+        None => Resolution::new(Arc::clone(&chain_complex)),
+    })
 }
 
 pub fn load_module_json(name: &str) -> error::Result<Value> {
@@ -120,47 +192,6 @@ pub fn load_module_json(name: &str) -> error::Result<Value> {
         }
     }
     error::from_string(format!("Module file '{}' not found on path", name))
-}
-
-/// A function that constructs the resolution of S_2 over the `algebra`. If `save_file` points to
-/// an existent file, then it loads the resolution from the save file. It is not an error to supply
-/// a non-existent file, but it is an error to supply an invalid save file.
-///
-/// This is used for various examples and tests as a shorthand.
-pub fn construct_s_2<T: AsRef<Path>>(algebra: &str, save_file: Option<T>) -> Resolution<CCC> {
-    let mut json = json!({
-        "type" : "finite dimensional module",
-        "p": 2,
-        "gens": {"x0": 0},
-        "actions": []
-    });
-    let mut resolution = construct_from_json(&mut json, algebra).unwrap();
-    if let Some(path) = save_file {
-        let path: &Path = path.as_ref();
-        if path.exists() {
-            let f = std::fs::File::open(path).unwrap();
-            let mut f = std::io::BufReader::new(f);
-            resolution = Resolution::load(&mut f, &resolution.complex()).unwrap();
-        }
-    }
-    resolution
-}
-
-#[derive(Debug)]
-struct ModuleFileNotFoundError {
-    name: String,
-}
-
-impl std::fmt::Display for ModuleFileNotFoundError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Module file '{}' not found on path", &self.name)
-    }
-}
-
-impl Error for ModuleFileNotFoundError {
-    fn description(&self) -> &str {
-        "Module file not found"
-    }
 }
 
 const RED_ANSI_CODE: &str = "\x1b[31;1m";

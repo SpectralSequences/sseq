@@ -14,7 +14,7 @@ use std::time::Instant;
 use thread_token::TokenBucket;
 
 fn main() -> error::Result<()> {
-    let resolution = Arc::new(construct(&get_config())?);
+    let resolution = Arc::new(construct(get_config(), None)?);
     let module = resolution.complex().module(0);
     let min_degree = resolution.min_degree();
 

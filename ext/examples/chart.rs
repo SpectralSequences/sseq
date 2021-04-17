@@ -1,7 +1,7 @@
 use algebra::module::OperationGeneratorPair;
 use chart::{Backend, SvgBackend};
 use ext::chain_complex::ChainComplex;
-use ext::utils::construct_s_2;
+use ext::utils::construct;
 use std::io::Result;
 
 fn main() -> Result<()> {
@@ -9,7 +9,7 @@ fn main() -> Result<()> {
     let mut g = SvgBackend::new(f);
     g.init(20, 8)?;
 
-    let resolution = construct_s_2("milnor", Some("resolution_milnor.save"));
+    let resolution = construct("S_2@milnor", Some("resolution_milnor.save")).unwrap();
     resolution.compute_through_stem(8, 20);
 
     for f in 0..=20 {

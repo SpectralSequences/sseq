@@ -1,20 +1,12 @@
 use algebra::module::homomorphism::ModuleHomomorphism;
 use ext::chain_complex::{ChainComplex, FreeChainComplex};
-use ext::{resolution::Resolution, utils::construct_from_json};
+use ext::{resolution::Resolution, utils::construct};
 use saveload::{Load, Save};
-use serde_json::json;
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 #[test]
 fn test_save_load() {
-    let mut json = json!({
-        "type": "finite dimensional module",
-        "p": 2,
-        "gens": {"x0": 0},
-        "actions": []
-    });
-
-    let resolution1 = construct_from_json(&mut json, "adem").unwrap();
+    let resolution1 = construct("S_2", None).unwrap();
     resolution1.compute_through_bidegree(10, 6);
     resolution1.compute_through_bidegree(6, 10);
 
@@ -47,14 +39,7 @@ fn test_save_load() {
 
 #[test]
 fn test_save_load_stem() {
-    let mut json = json!({
-        "type": "finite dimensional module",
-        "p": 2,
-        "gens": {"x0": 0},
-        "actions": []
-    });
-
-    let resolution1 = construct_from_json(&mut json, "adem").unwrap();
+    let resolution1 = construct("S_2", None).unwrap();
     resolution1.compute_through_stem(10, 10);
     resolution1.compute_through_stem(10, 10);
 

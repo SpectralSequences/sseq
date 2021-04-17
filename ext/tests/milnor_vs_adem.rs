@@ -1,33 +1,21 @@
 use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::utils::construct;
-use ext::utils::Config;
+use rstest::rstest;
 
-#[test]
-fn milnor_vs_adem() {
-    compare("S_2", 30);
-    compare("C2", 30);
-    compare("Joker", 30);
-    compare("RP4", 30);
-    compare("RP_inf", 30);
-    compare("RP_-4_inf", 30);
-    compare("Csigma", 30);
-    compare("S_3", 30);
-    compare("Calpha", 30);
-}
-
-fn compare(module_name: &str, max_degree: i32) {
-    println!("module: {}", module_name);
-    let a = Config {
-        module_file_name: module_name.to_string(),
-        algebra_name: String::from("adem"),
-    };
-    let b = Config {
-        module_file_name: module_name.to_string(),
-        algebra_name: String::from("milnor"),
-    };
-
-    let a = construct(&a).unwrap();
-    let b = construct(&b).unwrap();
+#[rstest]
+#[trace]
+#[case("S_2", 30)]
+#[case("C2", 30)]
+#[case("Joker", 30)]
+#[case("RP4", 30)]
+#[case("RP_inf", 30)]
+#[case("RP_-4_inf", 30)]
+#[case("Csigma", 30)]
+#[case("S_3", 30)]
+#[case("Calpha", 30)]
+fn compare(#[case] module_name: &str, #[case] max_degree: i32) {
+    let a = construct((module_name, "adem"), None).unwrap();
+    let b = construct((module_name, "milnor"), None).unwrap();
 
     a.compute_through_bidegree(max_degree as u32, max_degree);
     b.compute_through_bidegree(max_degree as u32, max_degree);

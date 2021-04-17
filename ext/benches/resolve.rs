@@ -1,14 +1,9 @@
 use ext::chain_complex::ChainComplex;
-use ext::utils::{construct, Config};
+use ext::utils::construct;
 use std::io::Write;
 use std::time::Instant;
 
 fn benchmark(module_name: &str, max_degree: i32, algebra: &str, n_times: u128) {
-    let cfg = Config {
-        module_file_name: module_name.to_string(),
-        algebra_name: String::from(algebra),
-    };
-
     print!(
         "benchmark  {:6}  {}  {}:    ",
         algebra, module_name, max_degree
@@ -17,7 +12,7 @@ fn benchmark(module_name: &str, max_degree: i32, algebra: &str, n_times: u128) {
 
     let start = Instant::now();
     for _ in 0..n_times {
-        let res = construct(&cfg).unwrap();
+        let res = construct((module_name, algebra), None).unwrap();
         res.compute_through_bidegree(max_degree as u32, max_degree);
         assert!(
             res.module(max_degree as u32)

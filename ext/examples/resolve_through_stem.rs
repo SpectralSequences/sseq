@@ -7,7 +7,7 @@ use saveload::Save;
 fn main() -> error::Result<()> {
     // Read command line arguments
     let config = get_config();
-    let res = construct(&config)?;
+    let res = construct(config, None)?;
 
     let max_s = query::with_default("Max s", "15", Ok);
     let max_f = query::with_default("Max f", "30", Ok);

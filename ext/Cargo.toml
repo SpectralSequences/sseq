@@ -19,7 +19,6 @@ thread-token = { path = "crates/thread-token", optional = true }
 
 crossbeam-channel = { version = "0.5.0", optional = true }
 crossbeam-utils = { version = "0.8.0", optional = true }
-pico-args = { version = "0.4.0", default-features = false }
 rustc-hash = "1.1.0"
 serde_json = "1.0.0"
 
@@ -27,6 +26,7 @@ serde_json = "1.0.0"
 expect-test = "1.1.0"
 chart = { path = "crates/chart" }
 query = { path = "crates/query" }
+rstest = "0.7.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

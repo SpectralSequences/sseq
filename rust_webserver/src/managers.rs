@@ -4,7 +4,7 @@ use crate::sseq::Sseq;
 use crate::resolution_wrapper::Resolution;
 use algebra::{module::Module, JsonAlgebra};
 use ext::chain_complex::ChainComplex;
-use ext::utils::Config;
+use ext::utils::load_module_json;
 use ext::CCC;
 
 use serde_json::json;
@@ -93,9 +93,7 @@ impl ResolutionManager {
     /// Resolves a module defined by a json object. The result is stored in `self.bundle`.
     fn construct_json(&mut self, action: ConstructJson) -> error::Result<()> {
         let json_data = serde_json::from_str(&action.data)?;
-
         let resolution = Resolution::new_from_json(json_data, &action.algebra_name);
-
         self.process_bundle(resolution);
 
         Ok(())
@@ -103,17 +101,8 @@ impl ResolutionManager {
 
     /// Resolves a module specified by `json`. The result is stored in `self.bundle`.
     fn construct(&mut self, action: Construct) -> error::Result<()> {
-        let dir =
-            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../ext/steenrod_modules");
-
-        let json = ext::utils::load_module_from_file(&Config {
-            module_paths: vec![dir],
-            module_file_name: action.module_name,
-            algebra_name: String::new(), // This is not used
-        })?;
-
+        let json = load_module_json(&action.module_name)?;
         let resolution = Resolution::new_from_json(json, &action.algebra_name);
-
         self.process_bundle(resolution);
 
         Ok(())

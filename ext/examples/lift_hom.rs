@@ -1,14 +1,14 @@
 //! Resolves a module and prints an ASCII depiction of the Ext groups.
 
 use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::utils::{construct, construct_s_2, get_config};
+use ext::utils::{construct, get_config};
 use fp::matrix::Matrix;
 use std::sync::Arc;
 
 fn main() -> error::Result<()> {
     let config = get_config();
-    let target = construct_s_2::<&str>(&config.algebra_name, None);
-    let source = construct(&config)?;
+    let target = construct(("S_2", config.algebra), None)?;
+    let source = construct(config, None)?;
     let p = source.prime();
 
     let s = query::with_default("s", "2", Ok);

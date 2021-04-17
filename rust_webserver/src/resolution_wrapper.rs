@@ -69,7 +69,7 @@ pub struct Resolution<CC: ChainComplex> {
 
 impl Resolution<ext::CCC> {
     pub fn new_from_json(mut json: Value, algebra_name: &str) -> Self {
-        let inner = ext::utils::construct_from_json(&mut json, algebra_name).unwrap();
+        let inner = ext::utils::construct((json.clone(), algebra_name), None).unwrap();
         let mut result = Self::new_with_inner(inner);
         let products_value = &mut json["products"];
         if !products_value.is_null() {

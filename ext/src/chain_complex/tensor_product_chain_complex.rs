@@ -541,7 +541,7 @@ mod tests {
     use super::*;
 
     use crate::resolution_homomorphism::ResolutionHomomorphism;
-    use crate::utils::construct_from_json;
+    use crate::utils::construct;
     use crate::yoneda::yoneda_representative_element;
     use fp::prime::ValidPrime;
 
@@ -558,8 +558,8 @@ mod tests {
         let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
         let p = ValidPrime::new(2);
 
-        let mut k = serde_json::from_str(k).unwrap();
-        let resolution = Arc::new(construct_from_json(&mut k, "adem").unwrap());
+        let k: serde_json::Value = serde_json::from_str(k).unwrap();
+        let resolution = Arc::new(construct((k, "adem"), None).unwrap());
         resolution.compute_through_bidegree(2 * s, 2 * t);
 
         let yoneda = Arc::new(yoneda_representative_element(

@@ -1,12 +1,12 @@
 #[cfg(feature = "concurrent")]
 fn benchmark(algebra: &str) {
     use ext::chain_complex::ChainComplex;
-    use ext::utils::construct_s_2;
+    use ext::utils::construct;
     use std::io::Write;
     use std::time::Instant;
     use thread_token::TokenBucket;
 
-    let resolution = construct_s_2::<&str>(algebra, None);
+    let resolution = construct(("S_2", algebra), None).unwrap();
     let bucket = TokenBucket::new(3);
 
     print!("benchmark  {:6}  S_2  80:    ", algebra,);

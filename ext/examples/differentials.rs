@@ -1,12 +1,12 @@
 use ext::chain_complex::ChainComplex;
 /// This is a simple script to print all the differentials in the resolution.
-use ext::utils::{construct_s_2, iter_stems};
+use ext::utils::{construct, iter_stems};
 
 const MAX_S: u32 = 6;
 const MAX_T: i32 = 30;
 
 fn main() {
-    let resolution = construct_s_2("milnor", Some("resolution_milnor.save"));
+    let resolution = construct("S_2@milnor", Some("resolution_milnor.save")).unwrap();
 
     resolution.compute_through_bidegree(MAX_S, MAX_T);
 

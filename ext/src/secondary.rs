@@ -713,7 +713,7 @@ fn a_y_inner(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize) -> FpVect
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::utils::construct_s_2;
+    use crate::utils::construct;
     use algebra::milnor_algebra::PPartEntry;
     use expect_test::{expect, Expect};
     use std::fmt::Write;
@@ -788,7 +788,7 @@ mod test {
 
     #[test]
     fn test_a_dd() {
-        let resolution = construct_s_2::<&str>("milnor", None);
+        let resolution = construct("S_2@milnor", None).unwrap();
 
         let mut result = FpVector::new(TWO, 0);
 
@@ -826,7 +826,7 @@ mod test {
     #[test]
     fn test_compute_differentials() {
         let mut result = String::new();
-        let resolution = construct_s_2::<&str>("milnor", None);
+        let resolution = construct("S_2@milnor", None).unwrap();
 
         let max_s = 7;
         let max_t = 30;

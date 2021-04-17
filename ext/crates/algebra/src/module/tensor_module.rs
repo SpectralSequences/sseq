@@ -364,7 +364,7 @@ mod tests {
 
     use super::*;
 
-    use crate::algebra::SteenrodAlgebra;
+    use crate::algebra::{AlgebraType, SteenrodAlgebra};
     use crate::module::FiniteModule;
 
     #[test]
@@ -401,7 +401,7 @@ mod tests {
         let mut N = serde_json::from_str(N).unwrap();
         let mut T = serde_json::from_str(T).unwrap();
 
-        let A = Arc::new(SteenrodAlgebra::from_json(&M, "adem").unwrap());
+        let A = Arc::new(SteenrodAlgebra::from_json(&M, AlgebraType::Adem).unwrap());
 
         let M = Arc::new(FiniteModule::from_json(Arc::clone(&A), &mut M).unwrap());
         let N = Arc::new(FiniteModule::from_json(Arc::clone(&A), &mut N).unwrap());

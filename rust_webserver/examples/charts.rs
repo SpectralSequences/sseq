@@ -2,13 +2,11 @@ use algebra::module::OperationGeneratorPair;
 use chart::{Backend as _, TikzBackend as Backend};
 use ext::{
     chain_complex::ChainComplex,
-    resolution::Resolution,
-    utils::{construct, get_config, iter_stems},
+    utils::{construct, iter_stems},
 };
 use ext_webserver::actions::SseqChoice;
 use ext_webserver::sseq::Sseq;
 use fp::{prime::ValidPrime, vector::FpVector};
-use saveload::Load;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -17,14 +15,14 @@ use std::time::Instant;
 const TWO: ValidPrime = ValidPrime::new(2);
 
 fn main() -> error::Result<()> {
-    let mut config = get_config();
-    config.algebra_name = String::from("milnor");
+    let module_file_name = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| String::from("S_2"));
 
     let max_s = query::with_default("Max s", "7", Ok);
     let max_t = query::with_default("Max t", "30", Ok);
 
     let save_file: Option<String> = query::optional("Resolution save file", Ok);
-    let mut resolution = construct(&config)?;
 
     #[cfg(feature = "concurrent")]
     let bucket = {
@@ -32,11 +30,10 @@ fn main() -> error::Result<()> {
         thread_token::TokenBucket::new(num_threads)
     };
 
-    if let Some(path) = save_file {
-        let f = File::open(path).unwrap();
-        let mut f = std::io::BufReader::new(f);
-        resolution = Resolution::load(&mut f, &resolution.complex())?;
-    }
+    let resolution = construct(
+        (&*module_file_name, algebra::AlgebraType::Milnor),
+        save_file.as_deref(),
+    )?;
 
     if !resolution.has_computed_bidegree(max_s, max_t) {
         print!("Resolving module: ");
@@ -107,7 +104,7 @@ fn main() -> error::Result<()> {
         Path::new(file!())
             .parent()
             .unwrap()
-            .join(format!("d2_{}", config.module_file_name)),
+            .join(format!("d2_{}", module_file_name)),
     )?);
     let mut v = FpVector::new(TWO, 0);
     for line in f.lines() {
@@ -142,7 +139,7 @@ fn main() -> error::Result<()> {
         const EXT: &str = Backend::<File>::EXT;
         let backend = Backend::new(File::create(format!(
             "{}_{}.{}",
-            path, config.module_file_name, EXT
+            path, module_file_name, EXT
         ))?);
         sseq.write_to_graph(backend, page, diff, prod)?;
         <Result<(), std::io::Error>>::Ok(())

@@ -18,4 +18,4 @@ pub use milnor_algebra::{MilnorAlgebra, MilnorAlgebraT};
 pub use polynomial_algebra::{
     PolynomialAlgebra, PolynomialAlgebraMonomial, PolynomialAlgebraTableEntry,
 };
-pub use steenrod_algebra::{SteenrodAlgebra, SteenrodAlgebraBorrow, SteenrodAlgebraT};
+pub use steenrod_algebra::{AlgebraType, SteenrodAlgebra, SteenrodAlgebraBorrow, SteenrodAlgebraT};
