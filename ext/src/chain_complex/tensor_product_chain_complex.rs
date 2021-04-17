@@ -126,8 +126,13 @@ where
         Arc::clone(&self.zero_module)
     }
 
-    fn has_computed_bidegree(&self, _s: u32, _t: i32) -> bool {
-        unimplemented!()
+    fn has_computed_bidegree(&self, s: u32, t: i32) -> bool {
+        self.left_cc
+            .has_computed_bidegree(s, t - self.right_cc.min_degree())
+            && self
+                .right_cc
+                .has_computed_bidegree(s, t - self.left_cc.min_degree())
+            && self.differentials.len() > s as usize
     }
 
     fn module(&self, s: u32) -> Arc<Self::Module> {
