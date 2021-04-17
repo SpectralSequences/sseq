@@ -1,3 +1,4 @@
+use ext::chain_complex::ChainComplex;
 use ext::utils::construct_from_json;
 use serde_json::json;
 
@@ -13,7 +14,7 @@ fn negative_min_degree() {
     });
     let resolution = construct_from_json(&mut json, "adem").unwrap();
 
-    resolution.resolve_through_bidegree(20, 20);
+    resolution.compute_through_bidegree(20, 20);
 }
 
 #[test]
@@ -28,5 +29,5 @@ fn positive_min_degree() {
     });
     let resolution = construct_from_json(&mut json, "adem").unwrap();
 
-    resolution.resolve_through_bidegree(20, 20);
+    resolution.compute_through_bidegree(20, 20);
 }

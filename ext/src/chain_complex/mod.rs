@@ -72,9 +72,29 @@ pub trait ChainComplex: Send + Sync + 'static {
     fn module(&self, homological_degree: u32) -> Arc<Self::Module>;
 
     /// This returns the differential starting from the sth module.
-    fn differential(&self, homological_degree: u32) -> Arc<Self::Homomorphism>;
-    fn compute_through_bidegree(&self, homological_degree: u32, internal_degree: i32);
-    fn has_computed_bidegree(&self, homological_degree: u32, internal_degree: i32) -> bool;
+    fn differential(&self, s: u32) -> Arc<Self::Homomorphism>;
+
+    /// If the complex has been computed at bidegree (s, t). This means the module has been
+    /// computed at (s, t), and so has the differential at (s, t). In the case of a free module,
+    /// the target of the differential, namely the bidegree (s - 1, t), need not be computed, as
+    /// long as all the generators hit by the differential have already been computed.
+    fn has_computed_bidegree(&self, s: u32, t: i32) -> bool;
+
+    /// Ensure all bidegrees less than or equal to (s, t) have been computed
+    fn compute_through_bidegree(&self, s: u32, t: i32);
+
+    /// A concurrent version of compute_through_bidegree_concurrent. This defaults to the
+    /// non-concurrent version
+    #[cfg(feature = "concurrent")]
+    #[allow(unused_variables)]
+    fn compute_through_bidegree_concurrent(
+        &self,
+        s: u32,
+        t: i32,
+        bucket: &thread_token::TokenBucket,
+    ) {
+        self.compute_through_bidegree(s, t);
+    }
 
     /// The largest s such that `self.module(s)` is defined.
     fn max_homological_degree(&self) -> u32;

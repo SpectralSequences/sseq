@@ -43,10 +43,10 @@ fn main() -> error::Result<()> {
         let start = Instant::now();
 
         #[cfg(not(feature = "concurrent"))]
-        resolution.resolve_through_bidegree(max_s, max_t);
+        resolution.compute_through_bidegree(max_s, max_t);
 
         #[cfg(feature = "concurrent")]
-        resolution.resolve_through_bidegree_concurrent(max_s, max_t, &bucket);
+        resolution.compute_through_bidegree_concurrent(max_s, max_t, &bucket);
 
         println!("{:.2?}", start.elapsed());
     }

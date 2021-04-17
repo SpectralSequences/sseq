@@ -10,7 +10,7 @@ fn main() -> Result<()> {
     g.init(20, 8)?;
 
     let resolution = construct_s_2("milnor", Some("resolution_milnor.save"));
-    resolution.resolve_through_stem(8, 20);
+    resolution.compute_through_stem(8, 20);
 
     for f in 0..=20 {
         for s in 0..=8 {

@@ -139,25 +139,25 @@ impl<CC: ChainComplex> Resolution<CC> {
     }
 
     #[cfg(feature = "concurrent")]
-    pub fn resolve_through_bidegree_concurrent(&self, s: u32, t: i32, bucket: &TokenBucket) {
+    pub fn compute_through_bidegree_concurrent(&self, s: u32, t: i32, bucket: &TokenBucket) {
         self.inner
-            .resolve_through_bidegree_concurrent_with_callback(s, t, bucket, |s, t| {
+            .compute_through_bidegree_concurrent_with_callback(s, t, bucket, |s, t| {
                 self.step_after(s, t)
             });
     }
 
-    pub fn resolve_through_bidegree(&self, s: u32, t: i32) {
+    pub fn compute_through_bidegree(&self, s: u32, t: i32) {
         self.inner
-            .resolve_through_bidegree_with_callback(s, t, |s, t| self.step_after(s, t));
+            .compute_through_bidegree_with_callback(s, t, |s, t| self.step_after(s, t));
     }
 
     #[cfg(feature = "concurrent")]
-    pub fn resolve_through_degree_concurrent(&self, degree: i32, bucket: &TokenBucket) {
-        self.resolve_through_bidegree_concurrent(degree as u32, degree, bucket);
+    pub fn compute_through_degree_concurrent(&self, degree: i32, bucket: &TokenBucket) {
+        self.compute_through_bidegree_concurrent(degree as u32, degree, bucket);
     }
 
-    pub fn resolve_through_degree(&self, degree: i32) {
-        self.resolve_through_bidegree(degree as u32, degree);
+    pub fn compute_through_degree(&self, degree: i32) {
+        self.compute_through_bidegree(degree as u32, degree);
     }
 
     fn step_after(&self, s: u32, t: i32) {
@@ -239,7 +239,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 impl<CC: ChainComplex> Resolution<CC> {
     /// This function computes the products between the element most recently added to product_list
     /// and the parts of Ext that have already been computed. This function should be called right
-    /// after `add_product`, unless `resolve_through_degree`/`resolve_through_bidegree` has never been
+    /// after `add_product`, unless `compute_through_degree`/`compute_through_bidegree` has never been
     /// called.
     ///
     /// This is made separate from `add_product` because extend_maps_to_unit needs a borrow of

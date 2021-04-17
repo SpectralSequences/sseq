@@ -166,10 +166,10 @@ impl ResolutionManager {
         self.sender.send(msg)?;
 
         #[cfg(not(feature = "concurrent"))]
-        resolution.resolve_through_degree(action.max_degree);
+        resolution.compute_through_degree(action.max_degree);
 
         #[cfg(feature = "concurrent")]
-        resolution.resolve_through_degree_concurrent(action.max_degree, &self.bucket);
+        resolution.compute_through_degree_concurrent(action.max_degree, &self.bucket);
 
         Ok(())
     }

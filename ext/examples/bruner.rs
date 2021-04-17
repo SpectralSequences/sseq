@@ -308,7 +308,7 @@ fn main() {
     // scratch if it isn't available. The result is written to the variable `resolution`.
     let resolution = construct_s_2("milnor", Some("resolution_milnor.save"));
 
-    resolution.resolve_through_bidegree(max_s, max_t);
+    resolution.compute_through_bidegree(max_s, max_t);
     let resolution = Arc::new(resolution);
 
     // Create a ResolutionHomomorphism object

@@ -1,6 +1,6 @@
 //! Resolves a module and prints an ASCII depiction of the Ext groups.
 
-use ext::chain_complex::FreeChainComplex;
+use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::utils::{construct, get_config};
 use saveload::Save;
 
@@ -14,13 +14,13 @@ fn main() -> error::Result<()> {
     let save_file: Option<String> = query::optional("Save file", Ok);
 
     #[cfg(not(feature = "concurrent"))]
-    res.resolve_through_bidegree(max_s, max_t);
+    res.compute_through_bidegree(max_s, max_t);
 
     #[cfg(feature = "concurrent")]
     {
         let num_threads = query::with_default("Number of threads", "2", Ok);
         let bucket = std::sync::Arc::new(thread_token::TokenBucket::new(num_threads));
-        res.resolve_through_bidegree_concurrent(max_s, max_t, &bucket);
+        res.compute_through_bidegree_concurrent(max_s, max_t, &bucket);
     }
 
     println!("\x1b[1m{}\x1b[0m", res.graded_dimension_string());

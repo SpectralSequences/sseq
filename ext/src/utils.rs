@@ -78,7 +78,7 @@ pub fn construct_from_json(json: &mut Value, algebra_name: &str) -> error::Resul
         let t = cofiber["t"].as_i64().unwrap() as i32;
         let idx = cofiber["idx"].as_u64().unwrap() as usize;
 
-        resolution.resolve_through_bidegree(s, t + module.max_degree());
+        resolution.compute_through_bidegree(s, t + module.max_degree());
 
         let map = FreeModuleHomomorphism::new(resolution.module(s), Arc::clone(&module), t);
         let mut new_output = fp::matrix::Matrix::new(

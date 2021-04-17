@@ -69,9 +69,6 @@ where
     /// Extend the resolution homomorphism such that it is defined on degrees
     /// (`max_s`, `max_t`).
     pub fn extend(&self, max_s: u32, max_t: i32) {
-        self.source.compute_through_bidegree(max_s, max_t);
-        self.target
-            .compute_through_bidegree(max_s - self.shift_s, max_t - self.shift_t);
         for i in self.shift_s..=max_s {
             let f_cur = self.get_map_ensure_length(i - self.shift_s);
             for j in f_cur.next_degree()..=max_t {
@@ -83,7 +80,8 @@ where
     pub fn extend_step(&self, input_s: u32, input_t: i32, extra_images: Option<&Matrix>) {
         let output_s = input_s - self.shift_s;
         let output_t = input_t - self.shift_t;
-        self.target.compute_through_bidegree(output_s, output_t);
+        assert!(self.target.has_computed_bidegree(output_s, output_t));
+        assert!(self.source.has_computed_bidegree(input_s, input_t));
 
         let f_cur = self.get_map_ensure_length(output_s);
         if input_t < f_cur.next_degree() {
@@ -218,7 +216,6 @@ where
         source_module.compute_basis(max_degree);
         target_module.compute_basis(degree_shift + max_degree);
 
-        // These are just asserts.
         hom.source.compute_through_bidegree(0, max_degree);
         hom.target
             .compute_through_bidegree(0, degree_shift + max_degree);

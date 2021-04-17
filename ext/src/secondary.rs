@@ -796,7 +796,7 @@ mod test {
             let mut a = MilnorClass::from_elements(vec![from_p_part(a)]);
 
             let target_deg = a.degree + gen_t - 1;
-            resolution.resolve_through_bidegree(gen_s, target_deg);
+            resolution.compute_through_bidegree(gen_s, target_deg);
             let m = resolution.module(gen_s - 2);
 
             result.set_scratch_vector_size(m.dimension(target_deg));
@@ -834,13 +834,13 @@ mod test {
         #[cfg(feature = "concurrent")]
         let deltas = {
             let bucket = std::sync::Arc::new(TokenBucket::new(2));
-            resolution.resolve_through_bidegree_concurrent(max_s, max_t, &bucket);
+            resolution.compute_through_bidegree_concurrent(max_s, max_t, &bucket);
             compute_delta_concurrent(&resolution, max_s, max_t, &bucket, None)
         };
 
         #[cfg(not(feature = "concurrent"))]
         let deltas = {
-            resolution.resolve_through_bidegree(max_s, max_t);
+            resolution.compute_through_bidegree(max_s, max_t);
             compute_delta(&resolution, max_s, max_t)
         };
 

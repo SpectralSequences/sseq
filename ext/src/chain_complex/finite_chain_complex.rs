@@ -182,8 +182,8 @@ where
         self.zero_module.min_degree()
     }
 
-    fn has_computed_bidegree(&self, _s: u32, _t: i32) -> bool {
-        unimplemented!()
+    fn has_computed_bidegree(&self, s: u32, t: i32) -> bool {
+        s > self.modules.len() as u32 || t < self.module(s).max_computed_degree()
     }
 
     fn zero_module(&self) -> Arc<Self::Module> {

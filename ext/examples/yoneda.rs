@@ -31,10 +31,10 @@ fn main() -> error::Result<()> {
     let t = x + s as i32;
 
     #[cfg(not(feature = "concurrent"))]
-    resolution.resolve_through_bidegree(s + 1, t + 1);
+    resolution.compute_through_bidegree(s + 1, t + 1);
 
     #[cfg(feature = "concurrent")]
-    resolution.resolve_through_bidegree_concurrent(s + 1, t + 1, &bucket);
+    resolution.compute_through_bidegree_concurrent(s + 1, t + 1, &bucket);
 
     println!("Resolving time: {:?}", start.elapsed());
 

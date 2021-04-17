@@ -11,13 +11,13 @@ fn main() -> error::Result<()> {
     let res = construct_s_2("milnor", save_file);
 
     #[cfg(not(feature = "concurrent"))]
-    res.resolve_through_stem(max_s, max_f);
+    res.compute_through_stem(max_s, max_f);
 
     #[cfg(feature = "concurrent")]
     {
         let num_threads = query::with_default("Number of threads", "2", Ok);
         let bucket = std::sync::Arc::new(thread_token::TokenBucket::new(num_threads));
-        res.resolve_through_stem_concurrent(max_s, max_f, &bucket);
+        res.compute_through_stem_concurrent(max_s, max_f, &bucket);
     }
 
     for s in (0..=max_s).rev() {

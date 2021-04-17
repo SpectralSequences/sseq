@@ -13,7 +13,7 @@ fn benchmark(algebra: &str) {
     std::io::stdout().flush().unwrap();
 
     let start = Instant::now();
-    resolution.resolve_through_bidegree_concurrent(80, 80, &bucket);
+    resolution.compute_through_bidegree_concurrent(80, 80, &bucket);
     let dur = start.elapsed();
 
     assert!(resolution.module(80).number_of_gens_in_degree(80) < 1000);

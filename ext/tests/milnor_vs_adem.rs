@@ -1,4 +1,4 @@
-use ext::chain_complex::FreeChainComplex;
+use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::utils::construct;
 use ext::utils::Config;
 
@@ -32,8 +32,8 @@ fn compare(module_name: &str, max_degree: i32) {
     let a = construct(&a).unwrap();
     let b = construct(&b).unwrap();
 
-    a.resolve_through_bidegree(max_degree as u32, max_degree);
-    b.resolve_through_bidegree(max_degree as u32, max_degree);
+    a.compute_through_bidegree(max_degree as u32, max_degree);
+    b.compute_through_bidegree(max_degree as u32, max_degree);
 
     assert_eq!(a.graded_dimension_string(), b.graded_dimension_string());
 }

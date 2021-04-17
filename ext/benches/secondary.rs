@@ -1,3 +1,4 @@
+use ext::chain_complex::ChainComplex;
 use ext::secondary::compute_delta;
 /// This example uses secondary.rs to compute d_2 on x_{65, 4}. The code is similar to that in the
 /// secondary command, but with hardcoded values. I also use this for performance benchmarking.
@@ -10,7 +11,7 @@ fn main() {
     let resolution = construct_s_2("milnor", Some("resolution_milnor.save"));
 
     // Compute the minimal resolution R_{s, t}
-    resolution.resolve_through_bidegree(6, 70);
+    resolution.compute_through_bidegree(6, 70);
 
     let start = Instant::now();
     // deltas is a vector of FreeModuleHomomorphisms R_{s, t} -> R_{s - 2, t - 1} that is dual to

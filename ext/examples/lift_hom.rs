@@ -1,5 +1,6 @@
 //! Resolves a module and prints an ASCII depiction of the Ext groups.
 
+use ext::chain_complex::ChainComplex;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::{construct, construct_s_2, get_config};
 use fp::matrix::Matrix;
@@ -20,14 +21,14 @@ fn main() -> error::Result<()> {
         let num_threads = query::with_default("Number of threads", "2", Ok);
         let bucket = std::sync::Arc::new(thread_token::TokenBucket::new(num_threads));
 
-        source.resolve_through_bidegree_concurrent(s, t, &bucket);
-        target.resolve_through_bidegree_concurrent(s, t, &bucket);
+        source.compute_through_bidegree_concurrent(s, t, &bucket);
+        target.compute_through_bidegree_concurrent(s, t, &bucket);
     }
 
     #[cfg(not(feature = "concurrent"))]
     {
-        source.resolve_through_bidegree(s, t);
-        target.resolve_through_bidegree(s, t);
+        source.compute_through_bidegree(s, t);
+        target.compute_through_bidegree(s, t);
     }
 
     let hom = ResolutionHomomorphism::new(String::new(), Arc::new(source), Arc::new(target), 0, 0);

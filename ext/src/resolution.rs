@@ -27,7 +27,7 @@ pub struct Resolution<CC: ChainComplex> {
 
     ///  For each *internal* degree, store the kernel of the most recently calculated chain map as
     ///  returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
-    ///  resolve_through_degree again.
+    ///  compute_through_degree again.
     kernels: OnceBiVec<Mutex<Option<Subspace>>>,
 }
 
@@ -648,21 +648,7 @@ impl<CC: ChainComplex> Resolution<CC> {
     }
 
     #[cfg(feature = "concurrent")]
-    pub fn resolve_through_bidegree_concurrent(
-        &self,
-        max_s: u32,
-        max_t: i32,
-        bucket: &TokenBucket,
-    ) {
-        self.resolve_through_bidegree_concurrent_with_callback(max_s, max_t, bucket, |_, _| ())
-    }
-
-    pub fn resolve_through_bidegree(&self, max_s: u32, max_t: i32) {
-        self.resolve_through_bidegree_with_callback(max_s, max_t, |_, _| ())
-    }
-
-    #[cfg(feature = "concurrent")]
-    pub fn resolve_through_bidegree_concurrent_with_callback(
+    pub fn compute_through_bidegree_concurrent_with_callback(
         &self,
         max_s: u32,
         max_t: i32,
@@ -711,7 +697,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         .unwrap();
     }
 
-    pub fn resolve_through_bidegree_with_callback(
+    pub fn compute_through_bidegree_with_callback(
         &self,
         max_s: u32,
         max_t: i32,
@@ -737,7 +723,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 
     /// This function resolves up till a fixed stem instead of a fixed t. It is an error to
     /// attempt to resolve further after this is called, and will result in a deadlock.
-    pub fn resolve_through_stem(&self, max_s: u32, max_f: i32) {
+    pub fn compute_through_stem(&self, max_s: u32, max_f: i32) {
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
         let max_t = max_s as i32 + max_f;
@@ -760,9 +746,9 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
     }
 
-    /// A concurrent version of [`resolve_through_stem`]
+    /// A concurrent version of [`compute_through_stem`]
     #[cfg(feature = "concurrent")]
-    pub fn resolve_through_stem_concurrent(&self, max_s: u32, max_f: i32, bucket: &TokenBucket) {
+    pub fn compute_through_stem_concurrent(&self, max_s: u32, max_f: i32, bucket: &TokenBucket) {
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
         let max_t = max_s as i32 + max_f;
@@ -849,7 +835,12 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
     }
 
     fn compute_through_bidegree(&self, s: u32, t: i32) {
-        assert!(self.has_computed_bidegree(s, t));
+        self.compute_through_bidegree_with_callback(s, t, |_, _| ())
+    }
+
+    #[cfg(feature = "concurrent")]
+    fn compute_through_bidegree_concurrent(&self, max_s: u32, max_t: i32, bucket: &TokenBucket) {
+        self.compute_through_bidegree_concurrent_with_callback(max_s, max_t, bucket, |_, _| ())
     }
 
     fn max_homological_degree(&self) -> u32 {

@@ -768,7 +768,7 @@ mod tests {
         let idx: usize = 0;
 
         let t = s as i32 + x;
-        resolution.resolve_through_bidegree(s, t);
+        resolution.compute_through_bidegree(s, t);
 
         let yoneda = Arc::new(yoneda_representative_element(
             Arc::clone(&resolution),

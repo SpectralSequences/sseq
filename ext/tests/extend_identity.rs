@@ -70,7 +70,7 @@ fn check_file(module_name: &str, max_degree: i32, algebra_name: &str) {
 fn check(mut json: Value, max_degree: i32, algebra_name: &str) {
     println!("Module: {}", json);
     let resolution = Arc::new(construct_from_json(&mut json, algebra_name).unwrap());
-    resolution.resolve_through_bidegree(max_degree as u32, max_degree);
+    resolution.compute_through_bidegree(max_degree as u32, max_degree);
 
     let module = resolution.target().module(0);
     let p = module.prime();

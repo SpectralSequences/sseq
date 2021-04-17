@@ -555,7 +555,7 @@ mod tests {
 
         let mut k = serde_json::from_str(k).unwrap();
         let resolution = Arc::new(construct_from_json(&mut k, "adem").unwrap());
-        resolution.resolve_through_bidegree(2 * s, 2 * t);
+        resolution.compute_through_bidegree(2 * s, 2 * t);
 
         let yoneda = Arc::new(yoneda_representative_element(
             Arc::clone(&resolution),
@@ -568,6 +568,7 @@ mod tests {
             Arc::clone(&yoneda),
             Arc::clone(&yoneda),
         ));
+        square.compute_through_bidegree(2 * s, 2 * t);
 
         let f = ResolutionHomomorphism::new("".to_string(), Arc::clone(&resolution), square, 0, 0);
         let mut mat = Matrix::new(p, 1, 1);
