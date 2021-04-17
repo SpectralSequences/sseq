@@ -1738,7 +1738,6 @@
 <span id="1717">1717</span>
 <span id="1718">1718</span>
 <span id="1719">1719</span>
-<span id="1720">1720</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">cmp</span>::<span class="ident">Ordering</span>;
 <span class="kw">use</span> <span class="ident">itertools</span>::<span class="ident">Itertools</span>;
@@ -1751,18 +1750,17 @@
     <span class="ident">IResult</span>,
 };
 <span class="kw">use</span> <span class="ident">rustc_hash</span>::<span class="ident">FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">serde_json</span>::<span class="ident">value</span>::<span class="ident">Value</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Mutex</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">combinatorics</span>::{<span class="self">self</span>, <span class="ident">MAX_XI_TAU</span>};
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">JsonAlgebra</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">Bialgebra</span>, <span class="ident">GeneratedAlgebra</span>};
 
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::{<span class="ident">BinomialIterator</span>, <span class="ident">BitflagIterator</span>, <span class="ident">ValidPrime</span>};
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">FpVector</span>, <span class="ident">SliceMut</span>};
 <span class="kw">use</span> <span class="ident">once</span>::<span class="ident">OnceVec</span>;
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
+<span class="kw">use</span> {<span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">JsonAlgebra</span>, <span class="ident">serde</span>::<span class="ident">Deserialize</span>, <span class="ident">serde_json</span>::<span class="ident">value</span>::<span class="ident">Value</span>};
 
 <span class="comment">// This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.</span>
 <span class="comment">// In order for things to work AdemAlgebraT cannot implement Algebra.</span>
@@ -2018,8 +2016,8 @@
         <span class="string">&quot;adem&quot;</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">json_to_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">json</span>: <span class="ident">Value</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">op</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">serde_json</span>::<span class="ident">from_value</span>(<span class="ident">json</span>)<span class="question-mark">?</span>;
+    <span class="kw">fn</span> <span class="ident">json_to_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="ident">Value</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">op</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>::<span class="ident">deserialize</span>(<span class="ident">json</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>();
 
         <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> {
@@ -3351,7 +3349,7 @@
                 <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">i</span>, <span class="ident">j</span>);
                 <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">algebra</span>.<span class="ident">basis_element_to_index</span>(<span class="kw-2">&amp;</span><span class="ident">b</span>), <span class="ident">j</span>);
                 <span class="kw">let</span> <span class="ident">json</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">json_from_basis</span>(<span class="ident">i</span>, <span class="ident">j</span>);
-                <span class="kw">let</span> <span class="ident">new_b</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">json_to_basis</span>(<span class="ident">json</span>).<span class="ident">unwrap</span>();
+                <span class="kw">let</span> <span class="ident">new_b</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">json_to_basis</span>(<span class="kw-2">&amp;</span><span class="ident">json</span>).<span class="ident">unwrap</span>();
                 <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">new_b</span>, (<span class="ident">i</span>, <span class="ident">j</span>));
             }
         }
