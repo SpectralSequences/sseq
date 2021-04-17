@@ -158,7 +158,7 @@ pub trait JsonAlgebra: Algebra {
     /// Converts a JSON object into a basis element. The way basis elements are represented by JSON
     /// objects is to be specified by the algebra itself, and will be used by module
     /// specifications.
-    fn json_to_basis(&self, json: serde_json::Value) -> error::Result<(i32, usize)>;
+    fn json_to_basis(&self, json: &serde_json::Value) -> error::Result<(i32, usize)>;
 
     fn json_from_basis(&self, degree: i32, idx: usize) -> serde_json::Value;
 }

@@ -102,7 +102,7 @@ impl From<RealProjectiveSpace<SteenrodAlgebra>> for FiniteModule {
 impl FiniteModule {
     pub fn from_json(
         algebra: Arc<SteenrodAlgebra>,
-        json: &mut serde_json::Value,
+        json: &serde_json::Value,
     ) -> error::Result<Self> {
         match json["type"].as_str() {
             Some("real projective space") => Ok(FiniteModule::from(

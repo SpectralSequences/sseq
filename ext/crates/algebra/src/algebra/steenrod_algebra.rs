@@ -241,7 +241,7 @@ dispatch_algebra!(SteenrodAlgebra, dispatch_steenrod);
 impl JsonAlgebra for SteenrodAlgebra {
     dispatch_steenrod! {
         fn prefix(&self) -> &str;
-        fn json_to_basis(&self, json: serde_json::Value) -> error::Result<(i32, usize)>;
+        fn json_to_basis(&self, json: &serde_json::Value) -> error::Result<(i32, usize)>;
         fn json_from_basis(&self, degree: i32, idx: usize) -> serde_json::Value;
     }
 }

@@ -107,12 +107,12 @@ where
     T: TryInto<Config, Error = E>,
 {
     let Config {
-        module: mut json,
+        module: json,
         algebra,
     } = module_spec.try_into()?;
 
     let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra)?);
-    let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut json)?);
+    let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &json)?);
     #[allow(unused_mut)] // This is only mut with Yoneda enabled
     let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
 

@@ -449,7 +449,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
 #[cfg(feature = "json")]
 impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
     fn module_gens_from_json(
-        gens: Value,
+        gens: &Value,
     ) -> (
         BiVec<usize>,
         BiVec<Vec<String>>,
@@ -483,9 +483,8 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
         (graded_dimension, gen_names, gen_to_idx)
     }
 
-    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> error::Result<Self> {
-        let gens = json["gens"].take();
-        let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(gens);
+    pub fn from_json(algebra: Arc<A>, json: &Value) -> error::Result<Self> {
+        let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(&json["gens"]);
         let name = json["name"].as_str().unwrap_or("").to_string();
 
         let mut result = Self::new(Arc::clone(&algebra), name, graded_dimension.clone());
@@ -495,7 +494,7 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
             }
         }
 
-        if let Ok(actions) = serde_json::from_value::<Vec<String>>(json["actions"].take()) {
+        if let Ok(actions) = Vec::<String>::deserialize(&json["actions"]) {
             for action in actions {
                 result.parse_action(&gen_to_idx, &action, false)?;
             }
@@ -518,10 +517,10 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
                 output: Vec<OutputStruct>,
             }
 
-            let actions_value = json[format!("{}_actions", algebra.prefix())].take();
-            let actions: Vec<ActionStruct> = serde_json::from_value(actions_value)?;
+            let actions_value = &json[format!("{}_actions", algebra.prefix())];
+            let actions: Vec<ActionStruct> = <_>::deserialize(actions_value)?;
             for action in actions {
-                let (degree, idx) = algebra.json_to_basis(action.op)?;
+                let (degree, idx) = algebra.json_to_basis(&action.op)?;
                 let input = action.input;
                 let (input_degree, input_idx) = *gen_to_idx
                     .get(&input)

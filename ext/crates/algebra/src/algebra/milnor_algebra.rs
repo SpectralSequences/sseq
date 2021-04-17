@@ -1,16 +1,15 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
-#[cfg(feature = "json")]
-use serde_json::value::Value;
 use std::sync::Mutex;
 
 use crate::algebra::combinatorics;
-#[cfg(feature = "json")]
-use crate::algebra::JsonAlgebra;
 use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
 use fp::prime::{integer_power, Binomial, BitflagIterator, ValidPrime};
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceVec;
+
+#[cfg(feature = "json")]
+use {crate::algebra::JsonAlgebra, serde::Deserialize, serde_json::value::Value};
 
 use nom::{
     branch::alt,
@@ -398,7 +397,7 @@ impl JsonAlgebra for MilnorAlgebra {
         "milnor"
     }
 
-    fn json_to_basis(&self, json: Value) -> error::Result<(i32, usize)> {
+    fn json_to_basis(&self, json: &Value) -> error::Result<(i32, usize)> {
         let xi_degrees = combinatorics::xi_degrees(self.prime());
         let tau_degrees = combinatorics::tau_degrees(self.prime());
 
@@ -407,7 +406,7 @@ impl JsonAlgebra for MilnorAlgebra {
         let mut degree = 0;
 
         if self.generic() {
-            let (q_list, p_list): (Vec<u8>, PPart) = serde_json::from_value(json)?;
+            let (q_list, p_list): (Vec<u8>, PPart) = <_>::deserialize(json)?;
             let q = self.q();
 
             for (i, val) in p_list.into_iter().enumerate() {
@@ -420,7 +419,7 @@ impl JsonAlgebra for MilnorAlgebra {
                 degree += tau_degrees[k as usize];
             }
         } else {
-            let p_list: PPart = serde_json::from_value(json)?;
+            let p_list: PPart = <_>::deserialize(json)?;
             for (i, val) in p_list.into_iter().enumerate() {
                 p_part.push(val);
                 degree += (val as i32) * xi_degrees[i];
@@ -1395,7 +1394,7 @@ mod tests {
                 let b = algebra.basis_element_from_index(i, j);
                 assert_eq!(algebra.basis_element_to_index(&b), j);
                 let json = algebra.json_from_basis(i, j);
-                let new_b = algebra.json_to_basis(json).unwrap();
+                let new_b = algebra.json_to_basis(&json).unwrap();
                 assert_eq!(new_b, (i, j));
             }
         }

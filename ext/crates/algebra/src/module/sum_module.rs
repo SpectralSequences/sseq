@@ -183,15 +183,15 @@ mod tests {
         let M: Vec<Arc<FiniteModule>> = M
             .into_iter()
             .map(|s| {
-                let mut m = serde_json::from_str(s).unwrap();
-                Arc::new(FiniteModule::from_json(Arc::clone(&A), &mut m).unwrap())
+                let m = serde_json::from_str(s).unwrap();
+                Arc::new(FiniteModule::from_json(Arc::clone(&A), &m).unwrap())
             })
             .collect::<Vec<_>>();
 
         let sum = SumModule::new(Arc::clone(&A), M, 0).to_fd_module();
 
-        let mut S = serde_json::from_str(S).unwrap();
-        let S = FiniteModule::from_json(Arc::clone(&A), &mut S)
+        let S = serde_json::from_str(S).unwrap();
+        let S = FiniteModule::from_json(Arc::clone(&A), &S)
             .unwrap()
             .into_fd_module()
             .unwrap();

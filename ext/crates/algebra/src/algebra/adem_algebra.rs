@@ -9,18 +9,17 @@ use nom::{
     IResult,
 };
 use rustc_hash::FxHashMap as HashMap;
-#[cfg(feature = "json")]
-use serde_json::value::Value;
 use std::sync::Mutex;
 
 use crate::algebra::combinatorics::{self, MAX_XI_TAU};
-#[cfg(feature = "json")]
-use crate::algebra::JsonAlgebra;
 use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
 
 use fp::prime::{BinomialIterator, BitflagIterator, ValidPrime};
 use fp::vector::{FpVector, SliceMut};
 use once::OnceVec;
+
+#[cfg(feature = "json")]
+use {crate::algebra::JsonAlgebra, serde::Deserialize, serde_json::value::Value};
 
 // This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
 // In order for things to work AdemAlgebraT cannot implement Algebra.
@@ -276,8 +275,8 @@ impl JsonAlgebra for AdemAlgebra {
         "adem"
     }
 
-    fn json_to_basis(&self, json: Value) -> error::Result<(i32, usize)> {
-        let op: Vec<u32> = serde_json::from_value(json)?;
+    fn json_to_basis(&self, json: &Value) -> error::Result<(i32, usize)> {
+        let op: Vec<u32> = <_>::deserialize(json)?;
         let p = *self.prime();
 
         let b = if self.generic {
@@ -1609,7 +1608,7 @@ mod tests {
                 let b = algebra.basis_element_from_index(i, j);
                 assert_eq!(algebra.basis_element_to_index(&b), j);
                 let json = algebra.json_from_basis(i, j);
-                let new_b = algebra.json_to_basis(json).unwrap();
+                let new_b = algebra.json_to_basis(&json).unwrap();
                 assert_eq!(new_b, (i, j));
             }
         }

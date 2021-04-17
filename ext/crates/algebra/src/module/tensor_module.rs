@@ -397,17 +397,17 @@ mod tests {
     }
 
     fn test_tensor_module(M: &str, N: &str, T: &str) {
-        let mut M = serde_json::from_str(M).unwrap();
-        let mut N = serde_json::from_str(N).unwrap();
-        let mut T = serde_json::from_str(T).unwrap();
+        let M = serde_json::from_str(M).unwrap();
+        let N = serde_json::from_str(N).unwrap();
+        let T = serde_json::from_str(T).unwrap();
 
         let A = Arc::new(SteenrodAlgebra::from_json(&M, AlgebraType::Adem).unwrap());
 
-        let M = Arc::new(FiniteModule::from_json(Arc::clone(&A), &mut M).unwrap());
-        let N = Arc::new(FiniteModule::from_json(Arc::clone(&A), &mut N).unwrap());
+        let M = Arc::new(FiniteModule::from_json(Arc::clone(&A), &M).unwrap());
+        let N = Arc::new(FiniteModule::from_json(Arc::clone(&A), &N).unwrap());
 
         let tensor = TensorModule::new(M, N).to_fd_module();
-        let T = FiniteModule::from_json(Arc::clone(&A), &mut T)
+        let T = FiniteModule::from_json(Arc::clone(&A), &T)
             .unwrap()
             .into_fd_module()
             .unwrap();

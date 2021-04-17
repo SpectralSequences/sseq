@@ -194,8 +194,8 @@ struct RPSpec {
 
 #[cfg(feature = "json")]
 impl<A: SteenrodAlgebraT> RealProjectiveSpace<A> {
-    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> error::Result<Self> {
-        let spec: RPSpec = serde_json::from_value(json.clone())?;
+    pub fn from_json(algebra: Arc<A>, json: &Value) -> error::Result<Self> {
+        let spec: RPSpec = RPSpec::deserialize(json)?;
         let clear_bottom = spec.clear_bottom.unwrap_or(false);
         let mut min = spec.min;
         if clear_bottom {

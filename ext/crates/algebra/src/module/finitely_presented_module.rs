@@ -141,25 +141,24 @@ impl<A: JsonAlgebra> FinitelyPresentedModule<A> {
         (graded_dimension, gen_names, gen_to_idx)
     }
 
-    pub fn from_json(algebra: Arc<A>, json: &mut Value) -> error::Result<Self> {
+    pub fn from_json(algebra: Arc<A>, json: &Value) -> error::Result<Self> {
         let p = algebra.prime();
         let name = json["name"].as_str().unwrap_or("").to_string();
-        let gens = json["gens"].take();
+        let gens = &json["gens"];
         let (num_gens_in_degree, gen_names, gen_to_deg_idx) = Self::module_gens_from_json(&gens);
-        let mut relations_value = json[algebra.prefix().to_string() + "_relations"].take();
-        let relations_values = relations_value.as_array_mut().unwrap();
+        let relations_value = &json[algebra.prefix().to_string() + "_relations"];
+        let relations_values = relations_value.as_array().unwrap();
         let min_degree = num_gens_in_degree.min_degree();
         let max_gen_degree = num_gens_in_degree.len();
         algebra.compute_basis(20);
         let relations: Vec<Vec<_>> = relations_values
-            .iter_mut()
+            .iter()
             .map(|reln| {
-                reln.take()
-                    .as_array_mut()
+                reln.as_array()
                     .unwrap()
-                    .iter_mut()
+                    .iter()
                     .map(|term| {
-                        let op = term["op"].take();
+                        let op = &term["op"];
                         let (op_deg, op_idx) = algebra.json_to_basis(op).unwrap();
                         let gen_name = term["gen"].as_str().unwrap();
                         let (gen_deg, gen_idx) = gen_to_deg_idx[gen_name];
