@@ -222,23 +222,6 @@ impl SteenrodAlgebra {
     }
 }
 
-#[derive(Debug)]
-struct InvalidAlgebraError {
-    name: String,
-}
-
-impl std::fmt::Display for InvalidAlgebraError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Invalid algebra: {}", &self.name)
-    }
-}
-
-impl std::error::Error for InvalidAlgebraError {
-    fn description(&self) -> &str {
-        "Invalid algebra supplied"
-    }
-}
-
 macro_rules! dispatch_steenrod {
     () => {};
     ($vis:vis fn $method:ident$(<$($lt:lifetime),+>)?(&$($lt2:lifetime)?self$(, $arg:ident: $ty:ty )*$(,)?) $(-> $ret:ty)?; $($tail:tt)*) => {
