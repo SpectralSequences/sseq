@@ -20,8 +20,8 @@ where
     pub source: Arc<CC1>,
     pub target: Arc<CC2>,
     maps: OnceVec<FreeModuleHomomorphism<CC2::Module>>,
-    pub homological_degree_shift: u32,
-    pub internal_degree_shift: i32,
+    pub shift_s: u32,
+    pub shift_t: i32,
 }
 
 impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
@@ -33,37 +33,33 @@ where
         name: String,
         source: Arc<CC1>,
         target: Arc<CC2>,
-        homological_degree_shift: u32,
-        internal_degree_shift: i32,
+        shift_s: u32,
+        shift_t: i32,
     ) -> Self {
         Self {
             name,
             source,
             target,
             maps: OnceVec::new(),
-            homological_degree_shift,
-            internal_degree_shift,
+            shift_s,
+            shift_t,
         }
     }
 
-    fn get_map_ensure_length(
-        &self,
-        output_homological_degree: u32,
-    ) -> &FreeModuleHomomorphism<CC2::Module> {
-        if output_homological_degree as usize >= self.maps.len() {
-            let input_homological_degree =
-                output_homological_degree + self.homological_degree_shift;
+    fn get_map_ensure_length(&self, output_s: u32) -> &FreeModuleHomomorphism<CC2::Module> {
+        if output_s as usize >= self.maps.len() {
+            let input_s = output_s + self.shift_s;
             self.maps.push(FreeModuleHomomorphism::new(
-                self.source.module(input_homological_degree),
-                self.target.module(output_homological_degree),
-                self.internal_degree_shift,
+                self.source.module(input_s),
+                self.target.module(output_s),
+                self.shift_t,
             ));
         }
-        &self.maps[output_homological_degree as usize]
+        &self.maps[output_s as usize]
     }
 
-    pub fn get_map(&self, output_homological_degree: u32) -> &FreeModuleHomomorphism<CC2::Module> {
-        &self.maps[output_homological_degree as usize]
+    pub fn get_map(&self, output_s: u32) -> &FreeModuleHomomorphism<CC2::Module> {
+        &self.maps[output_s as usize]
     }
 
     pub fn into_chain_maps(self) -> Vec<FreeModuleHomomorphism<CC2::Module>> {
@@ -71,130 +67,108 @@ where
     }
 
     /// Extend the resolution homomorphism such that it is defined on degrees
-    /// (`source_homological_degree`, `source_degree`).
-    pub fn extend(&self, source_homological_degree: u32, source_degree: i32) {
-        self.source
-            .compute_through_bidegree(source_homological_degree, source_degree);
-        self.target.compute_through_bidegree(
-            source_homological_degree - self.homological_degree_shift,
-            source_degree - self.internal_degree_shift,
-        );
-        for i in self.homological_degree_shift..=source_homological_degree {
-            let f_cur = self.get_map_ensure_length(i - self.homological_degree_shift);
-            for j in f_cur.next_degree()..=source_degree {
+    /// (`max_s`, `max_t`).
+    pub fn extend(&self, max_s: u32, max_t: i32) {
+        self.source.compute_through_bidegree(max_s, max_t);
+        self.target
+            .compute_through_bidegree(max_s - self.shift_s, max_t - self.shift_t);
+        for i in self.shift_s..=max_s {
+            let f_cur = self.get_map_ensure_length(i - self.shift_s);
+            for j in f_cur.next_degree()..=max_t {
                 self.extend_step(i, j, None);
             }
         }
     }
 
-    pub fn extend_step(
-        &self,
-        input_homological_degree: u32,
-        input_internal_degree: i32,
-        extra_images: Option<&Matrix>,
-    ) {
-        let output_homological_degree = input_homological_degree - self.homological_degree_shift;
-        let output_internal_degree = input_internal_degree - self.internal_degree_shift;
-        self.target
-            .compute_through_bidegree(output_homological_degree, output_internal_degree);
+    pub fn extend_step(&self, input_s: u32, input_t: i32, extra_images: Option<&Matrix>) {
+        let output_s = input_s - self.shift_s;
+        let output_t = input_t - self.shift_t;
+        self.target.compute_through_bidegree(output_s, output_t);
 
-        let f_cur = self.get_map_ensure_length(output_homological_degree);
-        if input_internal_degree < f_cur.next_degree() {
+        let f_cur = self.get_map_ensure_length(output_s);
+        if input_t < f_cur.next_degree() {
             assert!(extra_images.is_none());
             return;
         }
-        let mut outputs = self.extend_step_helper(
-            input_homological_degree,
-            input_internal_degree,
-            extra_images,
-        );
-        f_cur.add_generators_from_matrix_rows(input_internal_degree, outputs.as_slice_mut());
+        let mut outputs = self.extend_step_helper(input_s, input_t, extra_images);
+        f_cur.add_generators_from_matrix_rows(input_t, outputs.as_slice_mut());
     }
 
     fn extend_step_helper(
         &self,
-        input_homological_degree: u32,
-        input_internal_degree: i32,
+        input_s: u32,
+        input_t: i32,
         mut extra_images: Option<&Matrix>,
     ) -> Matrix {
         let p = self.source.prime();
-        assert!(input_homological_degree >= self.homological_degree_shift);
-        let output_homological_degree = input_homological_degree - self.homological_degree_shift;
-        let output_internal_degree = input_internal_degree - self.internal_degree_shift;
-        let f_cur = self.get_map(output_homological_degree);
-        let num_gens = f_cur
-            .source()
-            .number_of_gens_in_degree(input_internal_degree);
-        let fx_dimension = f_cur.target().dimension(output_internal_degree);
+        assert!(input_s >= self.shift_s);
+        let output_s = input_s - self.shift_s;
+        let output_t = input_t - self.shift_t;
+        let f_cur = self.get_map(output_s);
+        let num_gens = f_cur.source().number_of_gens_in_degree(input_t);
+        let fx_dimension = f_cur.target().dimension(output_t);
         let mut outputs_matrix = Matrix::new(p, num_gens, fx_dimension);
         if num_gens == 0 || fx_dimension == 0 {
             return outputs_matrix;
         }
-        if output_homological_degree == 0 {
+        if output_s == 0 {
             if let Some(extra_images_matrix) = extra_images {
-                let target_chain_map = self.target.chain_map(output_homological_degree);
-                let target_cc_dimension =
-                    target_chain_map.target().dimension(output_internal_degree);
+                let target_chain_map = self.target.chain_map(output_s);
+                let target_cc_dimension = target_chain_map.target().dimension(output_t);
                 assert!(target_cc_dimension == extra_images_matrix.columns());
 
-                target_chain_map.compute_auxiliary_data_through_degree(output_internal_degree);
+                target_chain_map.compute_auxiliary_data_through_degree(output_t);
                 assert!(
                     num_gens == extra_images_matrix.rows(),
                     "num_gens : {} greater than rows : {} hom_deg : {}, int_deg : {}",
                     num_gens,
                     extra_images_matrix.rows(),
-                    input_homological_degree,
-                    input_internal_degree
+                    input_s,
+                    input_t
                 );
                 for k in 0..num_gens {
                     target_chain_map.apply_quasi_inverse(
                         outputs_matrix[k].as_slice_mut(),
-                        output_internal_degree,
+                        output_t,
                         extra_images_matrix[k].as_slice(),
                     );
                 }
             }
             return outputs_matrix;
         }
-        let d_source = self.source.differential(input_homological_degree);
-        let d_target = self.target.differential(output_homological_degree);
-        let f_prev = self.get_map(output_homological_degree - 1);
+        let d_source = self.source.differential(input_s);
+        let d_target = self.target.differential(output_s);
+        let f_prev = self.get_map(output_s - 1);
         assert!(Arc::ptr_eq(&d_source.source(), &f_cur.source()));
         assert!(Arc::ptr_eq(&d_source.target(), &f_prev.source()));
         assert!(Arc::ptr_eq(&d_target.source(), &f_cur.target()));
         assert!(Arc::ptr_eq(&d_target.target(), &f_prev.target()));
-        let fdx_dimension = f_prev.target().dimension(output_internal_degree);
+        let fdx_dimension = f_prev.target().dimension(output_t);
         let mut fdx_vector = FpVector::new(p, fdx_dimension);
         let mut extra_image_row = 0;
         for k in 0..num_gens {
-            let dx_vector = d_source.output(input_internal_degree, k);
+            let dx_vector = d_source.output(input_t, k);
             if dx_vector.is_zero() {
-                let target_chain_map = self.target.chain_map(output_homological_degree);
-                let target_cc_dimension =
-                    target_chain_map.target().dimension(output_internal_degree);
+                let target_chain_map = self.target.chain_map(output_s);
+                let target_cc_dimension = target_chain_map.target().dimension(output_t);
                 if let Some(extra_images_matrix) = &extra_images {
                     assert!(target_cc_dimension == extra_images_matrix.columns());
                 }
 
                 let extra_image_matrix = extra_images.as_mut().expect("Missing extra image rows");
-                target_chain_map.compute_auxiliary_data_through_degree(output_internal_degree);
+                target_chain_map.compute_auxiliary_data_through_degree(output_t);
                 target_chain_map.apply_quasi_inverse(
                     outputs_matrix[k].as_slice_mut(),
-                    output_internal_degree,
+                    output_t,
                     extra_image_matrix[extra_image_row].as_slice(),
                 );
                 extra_image_row += 1;
             } else {
-                d_target.compute_auxiliary_data_through_degree(output_internal_degree);
-                f_prev.apply(
-                    fdx_vector.as_slice_mut(),
-                    1,
-                    input_internal_degree,
-                    dx_vector.as_slice(),
-                );
+                d_target.compute_auxiliary_data_through_degree(output_t);
+                f_prev.apply(fdx_vector.as_slice_mut(), 1, input_t, dx_vector.as_slice());
                 d_target.apply_quasi_inverse(
                     outputs_matrix[k].as_slice_mut(),
-                    output_internal_degree,
+                    output_t,
                     fdx_vector.as_slice(),
                 );
                 fdx_vector.set_to_zero();
@@ -295,8 +269,8 @@ where
     CC2: AugmentedChainComplex + FreeChainComplex<Algebra = CC1::Algebra>,
 {
     pub fn act(&self, mut result: SliceMut, s: u32, t: i32, idx: usize) {
-        let source_s = s - self.homological_degree_shift;
-        let source_t = t - self.internal_degree_shift;
+        let source_s = s - self.shift_s;
+        let source_t = t - self.shift_t;
 
         assert_eq!(
             result.as_slice().dimension(),
