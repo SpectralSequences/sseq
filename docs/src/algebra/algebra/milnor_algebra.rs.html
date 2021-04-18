@@ -1708,7 +1708,6 @@
 <span id="1687">1687</span>
 <span id="1688">1688</span>
 <span id="1689">1689</span>
-<span id="1690">1690</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">itertools</span>::<span class="ident">Itertools</span>;
 <span class="kw">use</span> <span class="ident">rustc_hash</span>::<span class="ident">FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
@@ -2113,7 +2112,7 @@
         <span class="kw">let</span> <span class="ident">xi_degrees</span> <span class="op">=</span> <span class="ident">combinatorics</span>::<span class="ident">xi_degrees</span>(<span class="self">self</span>.<span class="ident">prime</span>());
         <span class="kw">let</span> <span class="ident">tau_degrees</span> <span class="op">=</span> <span class="ident">combinatorics</span>::<span class="ident">tau_degrees</span>(<span class="self">self</span>.<span class="ident">prime</span>());
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">p_part</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+        <span class="kw">let</span> <span class="ident">p_part</span>: <span class="ident">PPart</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">q_part</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">degree</span> <span class="op">=</span> <span class="number">0</span>;
 
@@ -2121,8 +2120,8 @@
             <span class="kw">let</span> (<span class="ident">q_list</span>, <span class="ident">p_list</span>): (<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">PPart</span>) <span class="op">=</span> <span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>::<span class="ident">deserialize</span>(<span class="ident">json</span>)<span class="question-mark">?</span>;
             <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">q</span>();
 
-            <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">val</span>) <span class="kw">in</span> <span class="ident">p_list</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>() {
-                <span class="ident">p_part</span>.<span class="ident">push</span>(<span class="ident">val</span>);
+            <span class="ident">p_part</span> <span class="op">=</span> <span class="ident">p_list</span>;
+            <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">val</span>) <span class="kw">in</span> <span class="ident">p_part</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
                 <span class="ident">degree</span> <span class="op">+</span><span class="op">=</span> (<span class="ident">val</span> <span class="kw">as</span> <span class="ident">i32</span>) <span class="op">*</span> <span class="ident">xi_degrees</span>[<span class="ident">i</span>] <span class="op">*</span> <span class="ident">q</span>;
             }
 
@@ -2131,9 +2130,8 @@
                 <span class="ident">degree</span> <span class="op">+</span><span class="op">=</span> <span class="ident">tau_degrees</span>[<span class="ident">k</span> <span class="kw">as</span> <span class="ident">usize</span>];
             }
         } <span class="kw">else</span> {
-            <span class="kw">let</span> <span class="ident">p_list</span>: <span class="ident">PPart</span> <span class="op">=</span> <span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>::<span class="ident">deserialize</span>(<span class="ident">json</span>)<span class="question-mark">?</span>;
-            <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">val</span>) <span class="kw">in</span> <span class="ident">p_list</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>() {
-                <span class="ident">p_part</span>.<span class="ident">push</span>(<span class="ident">val</span>);
+            <span class="ident">p_part</span> <span class="op">=</span> <span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>::<span class="ident">deserialize</span>(<span class="ident">json</span>)<span class="question-mark">?</span>;
+            <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">val</span>) <span class="kw">in</span> <span class="ident">p_part</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
                 <span class="ident">degree</span> <span class="op">+</span><span class="op">=</span> (<span class="ident">val</span> <span class="kw">as</span> <span class="ident">i32</span>) <span class="op">*</span> <span class="ident">xi_degrees</span>[<span class="ident">i</span>];
             }
         }
