@@ -401,7 +401,7 @@ impl JsonAlgebra for MilnorAlgebra {
         let xi_degrees = combinatorics::xi_degrees(self.prime());
         let tau_degrees = combinatorics::tau_degrees(self.prime());
 
-        let mut p_part = Vec::new();
+        let p_part: PPart;
         let mut q_part = 0;
         let mut degree = 0;
 
@@ -409,8 +409,8 @@ impl JsonAlgebra for MilnorAlgebra {
             let (q_list, p_list): (Vec<u8>, PPart) = <_>::deserialize(json)?;
             let q = self.q();
 
-            for (i, val) in p_list.into_iter().enumerate() {
-                p_part.push(val);
+            p_part = p_list;
+            for (i, &val) in p_part.iter().enumerate() {
                 degree += (val as i32) * xi_degrees[i] * q;
             }
 
@@ -419,9 +419,8 @@ impl JsonAlgebra for MilnorAlgebra {
                 degree += tau_degrees[k as usize];
             }
         } else {
-            let p_list: PPart = <_>::deserialize(json)?;
-            for (i, val) in p_list.into_iter().enumerate() {
-                p_part.push(val);
+            p_part = <_>::deserialize(json)?;
+            for (i, &val) in p_part.iter().enumerate() {
                 degree += (val as i32) * xi_degrees[i];
             }
         }
