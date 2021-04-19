@@ -262,7 +262,7 @@ impl<'a> IntoIterator for &'a mut Matrix {
 }
 
 impl fmt::Display for Matrix {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut it = self.iter();
         if let Some(x) = it.next() {
             write!(f, "[\n    {}", x)?;
@@ -279,7 +279,7 @@ impl fmt::Display for Matrix {
 }
 
 impl fmt::Debug for Matrix {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut it = self.iter();
         if let Some(x) = it.next() {
             write!(f, "[\n    {}", x)?;

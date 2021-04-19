@@ -11,7 +11,7 @@ pub struct Subquotient {
 }
 
 impl std::fmt::Display for Subquotient {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(f, "Generators:\n{}", self.gens)?;
         writeln!(f, "Zeros:\n{}", self.quotient)
     }

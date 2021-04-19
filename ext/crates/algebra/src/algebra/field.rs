@@ -13,7 +13,7 @@ impl Field {
 }
 
 impl std::fmt::Display for Field {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "F_{}", self.prime)
     }
 }

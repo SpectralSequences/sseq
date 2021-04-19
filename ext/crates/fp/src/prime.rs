@@ -91,7 +91,7 @@ impl From<ValidPrime> for u32 {
 }
 
 impl std::fmt::Display for ValidPrime {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         (**self).fmt(f)
     }
 }

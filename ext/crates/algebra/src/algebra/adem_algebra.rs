@@ -90,7 +90,7 @@ impl std::hash::Hash for AdemBasisElement {
 }
 
 impl std::fmt::Display for AdemBasisElement {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let p_or_sq = if self.p_or_sq { "P" } else { "Sq" };
         let result = self
             .iter_filtered()
@@ -145,7 +145,7 @@ pub struct AdemAlgebra {
 }
 
 impl std::fmt::Display for AdemAlgebra {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "AdemAlgebra(p={})", self.prime())
     }
 }

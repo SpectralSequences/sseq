@@ -19,7 +19,7 @@ pub struct QuotientModule<M: Module> {
 }
 
 impl<M: Module> std::fmt::Display for QuotientModule<M> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Quotient of {}", self.module)
     }
 }

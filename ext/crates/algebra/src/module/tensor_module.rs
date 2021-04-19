@@ -19,7 +19,7 @@ pub struct TensorModule<M: Module, N: Module<Algebra = M::Algebra>> {
 }
 
 impl<M: Module, N: Module<Algebra = M::Algebra>> std::fmt::Display for TensorModule<M, N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} (x) {}", self.left, self.right)
     }
 }

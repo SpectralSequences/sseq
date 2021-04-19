@@ -103,7 +103,7 @@ impl std::hash::Hash for MilnorBasisElement {
 }
 
 impl std::fmt::Display for MilnorBasisElement {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.degree == 0 {
             write!(f, "1")?;
             return Ok(());
@@ -146,7 +146,7 @@ pub struct MilnorAlgebra {
 }
 
 impl std::fmt::Display for MilnorAlgebra {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "MilnorAlgebra(p={})", self.prime())
     }
 }
@@ -895,7 +895,7 @@ struct Matrix2D {
 }
 
 impl std::fmt::Display for Matrix2D {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         for i in 0..self.inner.len() / self.cols {
             writeln!(f, "{:?}", &self[i][0..self.cols])?;
         }

@@ -26,7 +26,7 @@ pub struct FreeUnstableModule<A: AdemAlgebraT> {
 }
 
 impl<A: AdemAlgebraT> std::fmt::Display for FreeUnstableModule<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
 }

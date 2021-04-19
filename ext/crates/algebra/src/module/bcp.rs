@@ -33,7 +33,7 @@ impl<A: AdemAlgebraT> BCp<A> {
 }
 
 impl<A: AdemAlgebraT> std::fmt::Display for BCp<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "BC{}", *self.prime())
     }
 }

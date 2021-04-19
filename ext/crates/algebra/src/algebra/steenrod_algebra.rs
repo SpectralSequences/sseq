@@ -83,7 +83,7 @@ impl From<MilnorAlgebra> for SteenrodAlgebra {
 }
 
 impl std::fmt::Display for SteenrodAlgebra {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             SteenrodAlgebra::AdemAlgebra(a) => a.fmt(f),
             SteenrodAlgebra::MilnorAlgebra(a) => a.fmt(f),

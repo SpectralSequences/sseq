@@ -24,7 +24,7 @@ pub struct KFpn<A: AdemAlgebraT> {
 }
 
 impl<A: AdemAlgebraT> std::fmt::Display for KFpn<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "K(F{},{})", *self.adem_algebra().prime(), self.n)
     }
 }

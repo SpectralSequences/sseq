@@ -17,7 +17,7 @@ pub struct HomModule<M: BoundedModule> {
 }
 
 impl<M: BoundedModule> std::fmt::Display for HomModule<M> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Hom({}, {})", self.source, self.target)
     }
 }

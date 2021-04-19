@@ -30,7 +30,7 @@ macro_rules! dispatch {
 
 impl std::fmt::Display for FiniteModule {
     dispatch! {
-        fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error>;
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result;
     }
 }
 

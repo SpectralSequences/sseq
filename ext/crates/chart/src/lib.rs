@@ -147,7 +147,7 @@ impl<T: Write> SvgBackend<T> {
     const MARGIN: i32 = 30;
 
     /// Print the legend for node patterns
-    pub fn legend(mut out: T) -> Result<(), std::io::Error> {
+    pub fn legend(mut out: T) -> std::io::Result<()> {
         writeln!(
             out,
             r#"<svg version = "1.1" width="{}" height="100" xmlns="http://www.w3.org/2000/svg">"#,

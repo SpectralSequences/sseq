@@ -38,7 +38,7 @@ pub struct FreeModule<A: Algebra> {
 }
 
 impl<A: Algebra> std::fmt::Display for FreeModule<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
 }

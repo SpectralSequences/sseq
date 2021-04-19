@@ -17,7 +17,7 @@ pub struct SumModule<M: Module> {
 }
 
 impl<M: Module> std::fmt::Display for SumModule<M> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.modules.is_empty() {
             write!(f, "0")
         } else {

@@ -18,7 +18,7 @@ pub struct PolynomialAlgebraMonomial {
 }
 
 impl fmt::Display for PolynomialAlgebraMonomial {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "UAM(degree={}, valid={}, poly={}, ext={})",

@@ -27,7 +27,7 @@ pub struct RealProjectiveSpace<A: SteenrodAlgebraT> {
 }
 
 impl<A: SteenrodAlgebraT> std::fmt::Display for RealProjectiveSpace<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let clear = if self.clear_bottom {
             " (clear_bottom)"
         } else {

@@ -35,13 +35,13 @@ impl FpVector {
 }
 
 impl std::fmt::Display for FpVector {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.as_slice().fmt(f)
     }
 }
 
 impl<'a> std::fmt::Display for Slice<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "[{}]", self.iter().format(", "))?;
         Ok(())
     }
