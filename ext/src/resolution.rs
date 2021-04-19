@@ -348,13 +348,12 @@ impl<CC: ChainComplex> Resolution<CC> {
                             next_new_col = y;
                         }
                         None => {
-                            if old_col < matrix.columns() {
-                                for entry in &mut matrix.pivots_mut()[old_col + 1..] {
-                                    if *entry >= 0 {
-                                        *entry += next_new_row as isize + 1;
-                                    }
+                            for entry in &mut matrix.pivots_mut()[old_col + 1..] {
+                                if *entry >= 0 {
+                                    *entry += next_new_row as isize + 1;
                                 }
                             }
+                            break;
                         }
                     }
                     next_old_row += 1;
