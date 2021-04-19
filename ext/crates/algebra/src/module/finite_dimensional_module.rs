@@ -775,7 +775,7 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
     pub fn actions_to_json(&self) -> Value {
         let algebra = self.algebra();
         let min_degree = self.min_degree();
-        let max_degree = min_degree + self.graded_dimension.len() as i32;
+        let max_degree = self.graded_dimension.len() as i32;
         let mut actions = Vec::new();
         for input_degree in min_degree..max_degree {
             for output_degree in (input_degree + 1)..max_degree {
