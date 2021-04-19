@@ -291,15 +291,24 @@ fn main() {
     let data_dir = Path::new(file!()).parent().unwrap().join("bruner_data");
     let max_f: i32 = query::with_default("Max f", "20", Ok);
 
+    #[cfg(feature = "concurrent")]
+    let bucket = {
+        let num_threads = query::with_default("Number of threads", "2", Ok);
+        thread_token::TokenBucket::new(num_threads)
+    };
+
     // Read in Bruner's resolution
     let (max_s, cc) = read_bruner_resolution(data_dir, max_f).unwrap();
     let cc = Arc::new(cc);
 
-    // This macro attempts to load a resolution from resolution_milnor.save, and generates one from
-    // scratch if it isn't available. The result is written to the variable `resolution`.
     let resolution = construct("S_2@milnor", None).unwrap();
 
+    #[cfg(feature = "concurrent")]
+    resolution.compute_through_stem_concurrent(max_s, max_f, &bucket);
+
+    #[cfg(not(feature = "concurrent"))]
     resolution.compute_through_stem(max_s, max_f);
+
     let resolution = Arc::new(resolution);
 
     // Create a ResolutionHomomorphism object
@@ -309,6 +318,10 @@ fn main() {
     hom.extend_step(0, 0, Some(&Matrix::from_vec(TWO, &[vec![1]])));
 
     // We can then lift it by requiring it to be a chain map.
+    #[cfg(feature = "concurrent")]
+    hom.extend_through_stem_concurrent(max_s, max_f, &bucket);
+
+    #[cfg(not(feature = "concurrent"))]
     hom.extend_through_stem(max_s, max_f);
 
     // Now print the results

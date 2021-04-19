@@ -10,6 +10,12 @@ use fp::matrix::Matrix;
 use fp::vector::{FpVector, SliceMut};
 use once::OnceVec;
 
+#[cfg(feature = "concurrent")]
+use {
+    crossbeam_channel::{unbounded, Receiver},
+    thread_token::TokenBucket,
+};
+
 pub struct ResolutionHomomorphism<CC1, CC2>
 where
     CC1: FreeChainComplex<Algebra = <CC2::Module as Module>::Algebra>,
@@ -84,6 +90,32 @@ where
                 self.extend_step(s, t, None);
             }
         }
+    }
+
+    #[cfg(feature = "concurrent")]
+    pub fn extend_through_stem_concurrent(&self, max_s: u32, max_f: i32, bucket: &TokenBucket) {
+        crossbeam_utils::thread::scope(|scope| {
+            let mut last_receiver: Option<Receiver<()>> = None;
+            for s in self.shift_s..=max_s {
+                self.get_map_ensure_length(s - self.shift_s);
+                let (sender, receiver) = unbounded();
+                scope
+                    .builder()
+                    .name(format!("s = {}", s))
+                    .spawn(move |_| {
+                        let mut token = bucket.take_token();
+                        sender.send(()).ok();
+                        for t in self.source.min_degree()..=(max_f + s as i32) {
+                            token = bucket.recv_or_release(token, &last_receiver);
+                            self.extend_step(s, t, None);
+                            sender.send(()).ok();
+                        }
+                    })
+                    .unwrap();
+                last_receiver = Some(receiver);
+            }
+        })
+        .unwrap();
     }
 
     pub fn extend_step(&self, input_s: u32, input_t: i32, extra_images: Option<&Matrix>) {

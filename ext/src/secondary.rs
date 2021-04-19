@@ -9,29 +9,25 @@ use algebra::milnor_algebra::{
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{BoundedModule, FreeModule, Module};
 use algebra::{Algebra as _, MilnorAlgebraT, SteenrodAlgebra};
-#[cfg(feature = "concurrent")]
-use bivec::BiVec;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, SliceMut};
 use rustc_hash::FxHashMap as HashMap;
-#[cfg(feature = "concurrent")]
-use saveload::{Load, Save};
 use std::cell::RefCell;
 use std::hash::{BuildHasher, Hash, Hasher};
 
 #[cfg(feature = "concurrent")]
-use std::{
-    io::{BufReader, BufWriter, Read, Write},
-    path::Path,
-    sync::{Arc, Mutex},
-    time::Instant,
+use {
+    bivec::BiVec,
+    crossbeam_channel::{unbounded, Receiver, RecvTimeoutError},
+    saveload::{Load, Save},
+    std::{
+        io::{BufReader, BufWriter, Read, Write},
+        path::Path,
+        sync::{Arc, Mutex},
+        time::Instant,
+    },
+    thread_token::TokenBucket,
 };
-
-#[cfg(feature = "concurrent")]
-use crossbeam_channel::{unbounded, Receiver, RecvTimeoutError};
-
-#[cfg(feature = "concurrent")]
-use thread_token::TokenBucket;
 
 type Resolution = Resolution_<CCC>;
 type FMH = FreeModuleHomomorphism<FreeModule<SteenrodAlgebra>>;
