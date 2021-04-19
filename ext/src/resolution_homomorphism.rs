@@ -125,32 +125,24 @@ where
         let output_t = input_t - self.shift_t;
         assert!(self.target.has_computed_bidegree(output_s, output_t));
         assert!(self.source.has_computed_bidegree(input_s, input_t));
+        assert!(input_s >= self.shift_s);
 
         let f_cur = self.get_map_ensure_length(output_s);
         if input_t < f_cur.next_degree() {
             assert!(extra_images.is_none());
             return;
         }
-        let mut outputs = self.extend_step_helper(input_s, input_t, extra_images);
-        f_cur.add_generators_from_matrix_rows(input_t, outputs.as_slice_mut());
-    }
 
-    fn extend_step_helper(
-        &self,
-        input_s: u32,
-        input_t: i32,
-        mut extra_images: Option<&Matrix>,
-    ) -> Matrix {
         let p = self.source.prime();
-        assert!(input_s >= self.shift_s);
-        let output_s = input_s - self.shift_s;
-        let output_t = input_t - self.shift_t;
+
         let f_cur = self.get_map(output_s);
         let num_gens = f_cur.source().number_of_gens_in_degree(input_t);
         let fx_dimension = f_cur.target().dimension(output_t);
-        let mut outputs_matrix = Matrix::new(p, num_gens, fx_dimension);
+
+        let mut outputs = vec![FpVector::new(p, fx_dimension); num_gens];
         if num_gens == 0 || fx_dimension == 0 {
-            return outputs_matrix;
+            f_cur.add_generators_from_rows(input_t, outputs);
+            return;
         }
         if output_s == 0 {
             if let Some(extra_images_matrix) = extra_images {
@@ -169,13 +161,14 @@ where
                 );
                 for k in 0..num_gens {
                     target_chain_map.apply_quasi_inverse(
-                        outputs_matrix[k].as_slice_mut(),
+                        outputs[k].as_slice_mut(),
                         output_t,
                         extra_images_matrix[k].as_slice(),
                     );
                 }
             }
-            return outputs_matrix;
+            f_cur.add_generators_from_rows(input_t, outputs);
+            return;
         }
         let d_source = self.source.differential(input_s);
         let d_target = self.target.differential(output_s);
@@ -187,7 +180,7 @@ where
         let fdx_dimension = f_prev.target().dimension(output_t);
         let mut fdx_vector = FpVector::new(p, fdx_dimension);
         let mut extra_image_row = 0;
-        for k in 0..num_gens {
+        for (k, output_row) in outputs.iter_mut().enumerate() {
             let dx_vector = d_source.output(input_t, k);
             if dx_vector.is_zero() {
                 let target_chain_map = self.target.chain_map(output_s);
@@ -196,10 +189,10 @@ where
                     assert!(target_cc_dimension == extra_images_matrix.columns());
                 }
 
-                let extra_image_matrix = extra_images.as_mut().expect("Missing extra image rows");
+                let extra_image_matrix = extra_images.as_ref().expect("Missing extra image rows");
                 target_chain_map.compute_auxiliary_data_through_degree(output_t);
                 target_chain_map.apply_quasi_inverse(
-                    outputs_matrix[k].as_slice_mut(),
+                    output_row.as_slice_mut(),
                     output_t,
                     extra_image_matrix[extra_image_row].as_slice(),
                 );
@@ -208,16 +201,14 @@ where
                 d_target.compute_auxiliary_data_through_degree(output_t);
                 f_prev.apply(fdx_vector.as_slice_mut(), 1, input_t, dx_vector.as_slice());
                 d_target.apply_quasi_inverse(
-                    outputs_matrix[k].as_slice_mut(),
+                    output_row.as_slice_mut(),
                     output_t,
                     fdx_vector.as_slice(),
                 );
                 fdx_vector.set_to_zero();
             }
         }
-        // let num_extra_image_rows = extra_images.map_or(0, |matrix| matrix.rows());
-        // assert!(extra_image_row == num_extra_image_rows, "Extra image rows");
-        outputs_matrix
+        f_cur.add_generators_from_rows(input_t, outputs);
     }
 }
 
