@@ -243,6 +243,24 @@ impl Matrix {
     }
 }
 
+impl<'a> IntoIterator for &'a Matrix {
+    type Item = &'a FpVector;
+    type IntoIter = std::slice::Iter<'a, FpVector>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut Matrix {
+    type Item = &'a mut FpVector;
+    type IntoIter = std::slice::IterMut<'a, FpVector>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
 impl fmt::Display for Matrix {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let mut it = self.iter();

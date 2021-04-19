@@ -53,6 +53,15 @@ impl std::ops::AddAssign<&FpVector> for FpVector {
     }
 }
 
+impl<'a> IntoIterator for &'a FpVector {
+    type IntoIter = crate::vector_inner::FpVectorIterator<'a>;
+    type Item = u32;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 #[cfg(feature = "json")]
 impl Serialize for FpVector {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

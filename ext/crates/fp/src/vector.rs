@@ -315,6 +315,15 @@ impl<'a> Iterator for FpVectorNonZeroIterator<'a> {
     }
 }
 
+impl<'a> IntoIterator for &'a FpVector {
+    type IntoIter = FpVectorIterator<'a>;
+    type Item = u32;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 macro_rules! impl_try_into {
     ($var:tt, $p:literal) => {
         impl<'a> TryInto<&'a mut FpVectorP<$p>> for &'a mut FpVector {
