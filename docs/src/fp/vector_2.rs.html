@@ -132,6 +132,15 @@
 <span id="111">111</span>
 <span id="112">112</span>
 <span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! This module replaces `vector` when `odd-primes` is disabled. Instead of producing enum</span>
 <span class="doccomment">//! wrappers, it simply rexports `FooP&lt;2&gt;` as `Foo`.</span>
@@ -185,6 +194,15 @@
 <span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">AddAssign</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">FpVector</span> {
     <span class="kw">fn</span> <span class="ident">add_assign</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="ident">FpVector</span>) {
         <span class="self">self</span>.<span class="ident">add</span>(<span class="ident">other</span>, <span class="number">1</span>);
+    }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">IntoIterator</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">FpVector</span> {
+    <span class="kw">type</span> <span class="ident">IntoIter</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">vector_inner</span>::<span class="ident">FpVectorIterator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">u32</span>;
+
+    <span class="kw">fn</span> <span class="ident">into_iter</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">IntoIter</span> {
+        <span class="self">self</span>.<span class="ident">iter</span>()
     }
 }
 
