@@ -1,0 +1,2 @@
+tensor -- C2[-5] S_2
+{"actions":["Sq1 x0.x0 = x1.x0"],"generic":false,"gens":{"x0.x0":-5,"x1.x0":-4},"name":"$C(2)$ (x) $S_2$","p":2,"type":"finite dimensional module"}

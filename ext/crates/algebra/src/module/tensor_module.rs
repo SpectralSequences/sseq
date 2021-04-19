@@ -69,7 +69,7 @@ where
 
         for (op_deg_l, op_idx_l, op_deg_r, op_idx_r) in coproduct {
             let mut idx = 0;
-            for left_deg in self.left.min_degree()..=mod_degree {
+            for left_deg in self.left.min_degree()..=(mod_degree - self.right.min_degree()) {
                 let right_deg = mod_degree - left_deg;
 
                 let left_source_dim = self.left.dimension(left_deg);
