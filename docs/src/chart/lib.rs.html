@@ -649,7 +649,7 @@
     <span class="kw">const</span> <span class="ident">MARGIN</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="number">30</span>;
 
     <span class="doccomment">/// Print the legend for node patterns</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">legend</span>(<span class="kw-2">mut</span> <span class="ident">out</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">legend</span>(<span class="kw-2">mut</span> <span class="ident">out</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="macro">writeln</span><span class="macro">!</span>(
             <span class="ident">out</span>,
             <span class="string">r#&quot;&lt;svg version = &quot;1.1&quot; width=&quot;{}&quot; height=&quot;100&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;&gt;&quot;#</span>,
