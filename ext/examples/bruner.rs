@@ -12,25 +12,26 @@
 //!
 //! By default, Bruner's differentials are stored in files Diff.$N, where Diff.$N contains
 //! differentials starting at filtration 0. This employs various encodings of Milnor basis
-//! elements. Fortunately, Bruner's ext comes with a way to convert this into a more human readable
-//! format --- run ./seeres in the directory (after compiling the program).  This outputs the data
-//! in hDiff.$N files. We will read these as input, and they are stored in `bruner_data/`. The
-//! location is hardcoded, but the range of Bruner's resolution is not. The bundled version
-//! includes the resolution up to t = 20, but it can be replaced with farther resolutions.
+//! elements. We use the `i` encoding.
 //!
-//! We should interpret hDiff.$N as a space-separated "CSV", where blank lines are insignificant.
+//! If it comes in a different encoding, run ./seeres in the directory (after compiling the
+//! program).  This outputs the data in `hDiff.$N` files, which ought to be moved back to
+//! `Diff.$N`. We will read these as input, and they are stored in `bruner_data/`. The location is
+//! hardcoded, but the range of Bruner's resolution is not. The bundled version includes the
+//! resolution up to f = 20, but it can be replaced with farther resolutions.
+//!
+//! We should interpret Diff.$N as a space-separated "CSV", where blank lines are insignificant.
 //! The first line is a header file, which includes two numbers
 //! ```test
-//! $num_gens $max_t
+//! s=$s n=$num_gens
 //! ```
-//! These are the number of generators in the filtration and the maximum t resolved in this
-//! filtration. We shall assume that t is the same for all files.
+//! These are the filtration and the number of generators in the filtration.
 //!
 //! After the header, we have blocks corresponding to the generators.
 //!
 //! A block looks like
 //! ```
-//! $gen_t
+//! $num_gen: $gen_t
 //!
 //! $num_lines
 //! $line1
@@ -38,8 +39,8 @@
 //! $line3
 //! ...
 //! ```
-//! The first line $gen_t is the degree of the generator added. The generators are listed in
-//! increasing $gen_t.
+//! In the first line $num_gen is the number of the generator, starting at 0, and $gen_t is the
+//! degree of the generator added. The generators are listed in increasing $gen_t.
 //!
 //! The second line $num_lines is the number of lines in the value of the differential on this
 //! generator, and the value of the differential is the sum of the following lines.
@@ -48,18 +49,18 @@
 //! follows:
 //!
 //! ```text
-//! $gen_idx $op_deg _ $op
+//! $gen_idx $op_deg $alg_dim $op
 //! ```
 //! Here $gen_idx is the index of the generator. This is the index within the free module one
-//! filtration lower (i.e. the index in the file hDiff.$(N-1)), and not the index within the whole
+//! filtration lower (i.e. the index in the file Diff.$(N-1)), and not the index within the whole
 //! resolution.
 //!
 //! The next entry $op_deg is the degree of the operation. This information is redundant, as it can
 //! be computed from either the generator index or the upcoming representation of the operation
 //! itself. Nevertheless, it is convenient to have it available upfront.
 //!
-//! The third entry is present for purposes internal to Bruner's program, and we shall ignore it
-//! (denoted _ above).
+//! The third entry is the dimension of the algebra in degree $op_deg. Again this is not needed for
+//! us.
 //!
 //! The final entry is the operation itself. This best explained by example:
 //! ```text
@@ -69,14 +70,14 @@
 //!
 //! As an example, the block
 //! ```text
-//! 10
+//! 5 : 10
 //!
 //! 3
 //! 0 8 4 i(8)(2,2).
 //! 1 6 3 i(6)(0,2).
 //! 4 1 1 i(1).
 //! ```
-//! means there is a generator in degree 10, whose differential is
+//! means the fifth generator is a generator in degree 10, whose differential is
 //!
 //!    (Sq(8) + Sq(2, 2)) g_0 + (Sq(6) + Sq(0, 2)) g_1 + Sq(1) g_4.
 //!
@@ -91,7 +92,7 @@ use ext::{
     chain_complex::{ChainComplex, FiniteChainComplex as FCC},
     resolution_homomorphism::ResolutionHomomorphism,
     utils::construct,
-    utils::iter_stems,
+    utils::iter_stems_f,
 };
 use fp::{matrix::Matrix, prime::ValidPrime, vector::FpVector};
 use std::{
@@ -171,7 +172,7 @@ fn get_element(
 ) -> Result<(i32, FpVector)> {
     let mut buf = String::new();
     read_line(input, &mut buf)?;
-    let degree: i32 = buf.trim().parse()?;
+    let degree: i32 = buf.rsplit(':').next().unwrap().trim().parse()?;
 
     read_line(input, &mut buf)?;
     let num_lines: usize = buf.trim().parse()?;
@@ -190,12 +191,8 @@ fn get_element(
 }
 
 /// Returns the number of generators in this filtration and the maximum degree resolved.
-fn parse_header(input: &str) -> Result<(usize, i32)> {
-    let (input, num_gen) = entry(input)?;
-    let (input, max_deg) = entry(input)?;
-    assert!(input.trim().is_empty());
-
-    Ok((num_gen, max_deg))
+fn parse_header(input: &str) -> Result<usize> {
+    Ok(input.trim().rsplit('=').next().unwrap().parse()?)
 }
 
 /// Create a new FiniteChainComplex with `num_s` many non-zero modules.
@@ -232,8 +229,8 @@ fn create_chain_complex(num_s: usize) -> FiniteChainComplex {
     }
 }
 
-/// Read the hDiff.$N files in `data_dir` and produce the corresponding chain complex object.
-fn read_bruner_resolution(data_dir: PathBuf) -> Result<(u32, i32, FiniteChainComplex)> {
+/// Read the Diff.$N files in `data_dir` and produce the corresponding chain complex object.
+fn read_bruner_resolution(data_dir: PathBuf, max_f: i32) -> Result<(u32, FiniteChainComplex)> {
     let num_s: usize = data_dir.read_dir()?.count();
 
     let cc = create_chain_complex(num_s);
@@ -242,38 +239,37 @@ fn read_bruner_resolution(data_dir: PathBuf) -> Result<(u32, i32, FiniteChainCom
 
     let mut buf = String::new();
     let s = num_s as u32 - 1;
-    let t;
 
+    algebra.compute_basis(max_f + s as i32 + 1);
     // Handle s = 0
     {
-        let mut f = BufReader::new(File::open(data_dir.join("hDiff.0"))?);
+        let mut f = BufReader::new(File::open(data_dir.join("Diff.0"))?);
         read_line(&mut f, &mut buf)?;
-        let (_, max_t) = parse_header(&buf)?;
-        algebra.compute_basis(max_t);
+        let _ = parse_header(&buf)?;
 
         let m = cc.module(0);
         // TODO: actually parse file
         m.add_generators(0, 1, None);
-        m.extend_by_zero(max_t);
-
-        t = max_t;
+        m.extend_by_zero(max_f + 1);
     }
 
     for s in 1..num_s as u32 {
         let m = cc.module(s);
         let d = cc.differential(s);
 
-        let mut f = BufReader::new(File::open(data_dir.join(format!("hDiff.{}", s)))?);
+        let mut f = BufReader::new(File::open(data_dir.join(format!("Diff.{}", s)))?);
 
         read_line(&mut f, &mut buf)?;
-        let (num_gens, max_t) = parse_header(&buf)?;
-        algebra.compute_basis(max_t);
+        let num_gens = parse_header(&buf)?;
 
         let mut entries: Vec<FpVector> = Vec::new();
         let mut cur_degree: i32 = 0;
 
         for _ in 0..num_gens {
             let (t, gen) = get_element(&algebra, &*cc.module(s - 1), &mut f)?;
+            if t > max_f + s as i32 {
+                break;
+            }
             if t == cur_degree {
                 entries.push(gen);
             } else {
@@ -290,25 +286,26 @@ fn read_bruner_resolution(data_dir: PathBuf) -> Result<(u32, i32, FiniteChainCom
         m.add_generators(cur_degree, entries.len(), None);
         d.add_generators_from_rows(cur_degree, entries);
 
-        m.extend_by_zero(max_t);
-        d.extend_by_zero(max_t);
+        m.extend_by_zero(max_f + s as i32 + 1);
+        d.extend_by_zero(max_f + s as i32);
     }
 
-    Ok((s, t, cc))
+    Ok((s, cc))
 }
 
 fn main() {
     let data_dir = Path::new(file!()).parent().unwrap().join("bruner_data");
+    let max_f: i32 = query::with_default("Max f", "20", Ok);
 
     // Read in Bruner's resolution
-    let (max_s, max_t, cc) = read_bruner_resolution(data_dir).unwrap();
+    let (max_s, cc) = read_bruner_resolution(data_dir, max_f).unwrap();
     let cc = Arc::new(cc);
 
     // This macro attempts to load a resolution from resolution_milnor.save, and generates one from
     // scratch if it isn't available. The result is written to the variable `resolution`.
-    let resolution = construct("S_2@milnor", Some("resolution_milnor.save")).unwrap();
+    let resolution = construct("S_2@milnor", None).unwrap();
 
-    resolution.compute_through_bidegree(max_s, max_t);
+    resolution.compute_through_stem(max_s, max_f);
     let resolution = Arc::new(resolution);
 
     // Create a ResolutionHomomorphism object
@@ -318,11 +315,11 @@ fn main() {
     hom.extend_step(0, 0, Some(&Matrix::from_vec(TWO, &[vec![1]])));
 
     // We can then lift it by requiring it to be a chain map.
-    hom.extend(max_s, max_t);
+    hom.extend_through_stem(max_s, max_f);
 
     // Now print the results
     println!("sseq_basis | bruner_basis");
-    for (s, f, t) in iter_stems(max_s, max_t) {
+    for (s, f, t) in iter_stems_f(max_s, max_f) {
         let matrix = hom.get_map(s).hom_k(t);
 
         for (i, row) in matrix.into_iter().enumerate() {
