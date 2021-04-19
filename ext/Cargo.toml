@@ -27,6 +27,7 @@ expect-test = "1.1.0"
 chart = { path = "crates/chart" }
 query = { path = "crates/query" }
 rstest = "0.7.0"
+itertools = "0.9.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
