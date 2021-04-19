@@ -53,14 +53,14 @@ where
     }
 
     fn get_map_ensure_length(&self, output_s: u32) -> &FreeModuleHomomorphism<CC2::Module> {
-        if output_s as usize >= self.maps.len() {
-            let input_s = output_s + self.shift_s;
-            self.maps.push(FreeModuleHomomorphism::new(
+        self.maps.extend(output_s as usize, |output_s| {
+            let input_s = output_s as u32 + self.shift_s;
+            FreeModuleHomomorphism::new(
                 self.source.module(input_s),
-                self.target.module(output_s),
+                self.target.module(output_s as u32),
                 self.shift_t,
-            ));
-        }
+            )
+        });
         &self.maps[output_s as usize]
     }
 
@@ -75,6 +75,7 @@ where
     /// Extend the resolution homomorphism such that it is defined on degrees
     /// (`max_s`, `max_t`).
     pub fn extend(&self, max_s: u32, max_t: i32) {
+        self.get_map_ensure_length(max_s);
         for s in self.shift_s..=max_s {
             let f_cur = self.get_map_ensure_length(s - self.shift_s);
             for t in f_cur.next_degree()..=max_t {
@@ -84,6 +85,7 @@ where
     }
 
     pub fn extend_through_stem(&self, max_s: u32, max_f: i32) {
+        self.get_map_ensure_length(max_s);
         for s in self.shift_s..=max_s {
             let f_cur = self.get_map_ensure_length(s - self.shift_s);
             for t in f_cur.next_degree()..=(max_f + s as i32) {
@@ -94,10 +96,10 @@ where
 
     #[cfg(feature = "concurrent")]
     pub fn extend_through_stem_concurrent(&self, max_s: u32, max_f: i32, bucket: &TokenBucket) {
+        self.get_map_ensure_length(max_s);
         crossbeam_utils::thread::scope(|scope| {
             let mut last_receiver: Option<Receiver<()>> = None;
             for s in self.shift_s..=max_s {
-                self.get_map_ensure_length(s - self.shift_s);
                 let (sender, receiver) = unbounded();
                 scope
                     .builder()
