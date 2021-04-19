@@ -239,7 +239,7 @@ pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(
                 .unwrap();
             }
         }
-        writeln!(stderr).unwrap();
+        writeln!(stderr, "\x1b[K").unwrap();
     }
 }
 
