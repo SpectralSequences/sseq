@@ -12,10 +12,18 @@ lint:
 	cargo check --workspace --no-default-features
 	cargo check --workspace --all-targets --all-features
 
-run_examples: $(patsubst examples/%.rs, target/release/examples/%, $(wildcard examples/*.rs))
-
-target/release/examples/%: dummy
-	cargo run --features concurrent --example "$(notdir $@)"
-
 docs:
 	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo doc --all --no-deps --document-private-items
+
+fix-benchmarks: $(patsubst examples/benchmarks/%, examples/benchmarks/%-fixed, $(wildcard examples/benchmarks/*))
+examples/benchmarks/%-fixed: dummy
+	(head -n 1 examples/benchmarks/$* && sh -c "echo '' | cargo run --features concurrent --example $$(head -n 1 examples/benchmarks/$*)") > $@
+	if diff --color examples/benchmarks/$* $@; then \
+	    rm $@; \
+	else \
+	    mv $@ examples/benchmarks/$*; \
+	fi
+
+benchmarks: $(wildcard examples/benchmarks/*)
+examples/benchmarks/%: dummy
+	(head -n 1 $@ && sh -c "echo '' | cargo run --features concurrent --example $$(head -n 1 $@)") | diff --color $@ -

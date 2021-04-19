@@ -41,7 +41,7 @@ jobs:
         run: make -C ext test
 
       - name: Run ext examples
-        run: make -C ext run_examples
+        run: make -C ext benchmarks
 
       - name: Benchmark executable size
         run: |

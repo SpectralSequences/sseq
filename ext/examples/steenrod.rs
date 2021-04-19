@@ -10,6 +10,7 @@ use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 
+use std::io::{stderr, stdout, Write};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -40,7 +41,7 @@ fn main() -> error::Result<()> {
     let idx: usize = query::with_default("idx", "0", Ok);
 
     let t = s as i32 + x;
-    print!("Resolving ext: ");
+    eprint!("Resolving ext: ");
     let start = Instant::now();
 
     #[cfg(feature = "concurrent")]
@@ -49,9 +50,9 @@ fn main() -> error::Result<()> {
     #[cfg(not(feature = "concurrent"))]
     resolution.compute_through_bidegree(2 * s, 2 * t);
 
-    println!("{:?}", start.elapsed());
+    eprintln!("{:?}", start.elapsed());
 
-    print!("Computing Yoneda representative: ");
+    eprint!("Computing Yoneda representative: ");
     let start = Instant::now();
     let yoneda = Arc::new(yoneda_representative_element(
         Arc::clone(&resolution),
@@ -59,7 +60,7 @@ fn main() -> error::Result<()> {
         t,
         idx,
     ));
-    println!("{:?}", start.elapsed());
+    eprintln!("{:?}", start.elapsed());
 
     print!("Dimensions of Yoneda representative: 1");
     let mut check = vec![0; t as usize + 1];
@@ -77,7 +78,7 @@ fn main() -> error::Result<()> {
     // algorithm in yoneda.rs is incorrect, this ensures that a posteriori we happened
     // to have a valid Yoneda representative. (Not really --- we don't check it is exact, just
     // that its Euler characteristic is 0 in each degree)
-    print!("Checking Yoneda representative: ");
+    eprint!("Checking Yoneda representative: ");
     let start = Instant::now();
     {
         assert_eq!(check[0], 1, "Incorrect Euler characteristic at t = 0");
@@ -103,14 +104,14 @@ fn main() -> error::Result<()> {
             }
         }
     }
-    println!("{:?}", start.elapsed());
+    eprintln!("{:?}", start.elapsed());
 
     let square = Arc::new(TensorChainComplex::new(
         Arc::clone(&yoneda),
         Arc::clone(&yoneda),
     ));
 
-    print!("Computing quasi_inverses: ");
+    eprint!("Computing quasi_inverses: ");
     let start = Instant::now();
     square.compute_through_bidegree(2 * s, 2 * t);
     for s in 0..=2 * s {
@@ -118,9 +119,9 @@ fn main() -> error::Result<()> {
             .differential(s as u32)
             .compute_auxiliary_data_through_degree(2 * t);
     }
-    println!("{:?}", start.elapsed());
+    eprintln!("{:?}", start.elapsed());
 
-    println!("Computing Steenrod operations: ");
+    eprintln!("Computing Steenrod operations: ");
 
     let mut delta = Vec::with_capacity(s as usize);
 
@@ -294,8 +295,8 @@ fn main() -> error::Result<()> {
         {
             let final_map = &delta[i as usize][(2 * s - i) as usize];
             let num_gens = resolution.number_of_gens_in_bidegree(2 * s - i, 2 * t);
-            println!(
-                "Sq^{} x_{{{}, {}}}^({}) = [{}] ({:?})",
+            print!(
+                "Sq^{} x_{{{}, {}}}^({}) = [{}]",
                 s - i,
                 t - s as i32,
                 s,
@@ -304,8 +305,11 @@ fn main() -> error::Result<()> {
                     .map(|k| format!("{}", final_map.output(2 * t, k).entry(0)))
                     .collect::<Vec<_>>()
                     .join(", "),
-                start.elapsed()
             );
+            stdout().flush().unwrap();
+            eprint!(" ({:?})", start.elapsed());
+            stderr().flush().unwrap();
+            println!();
         }
     }
 
@@ -318,8 +322,8 @@ fn main() -> error::Result<()> {
         }
         let final_map = &delta[i as usize][(2 * s - i) as usize];
         let num_gens = resolution.number_of_gens_in_bidegree(2 * s - i, 2 * t);
-        println!(
-            "Sq^{} x_{{{}, {}}}^({}) = [{}] ({:?} total)",
+        print!(
+            "Sq^{} x_{{{}, {}}}^({}) = [{}]",
             s - i,
             t - s as i32,
             s,
@@ -328,11 +332,14 @@ fn main() -> error::Result<()> {
                 .map(|k| format!("{}", final_map.output(2 * t, k).entry(0)))
                 .collect::<Vec<_>>()
                 .join(", "),
-            start.elapsed()
         );
+        stdout().flush().unwrap();
+        eprint!(" ({:?} total)", start.elapsed());
+        stderr().flush().unwrap();
+        println!();
     }
 
-    println!("Computing Steenrod operations: {:?}", start.elapsed());
+    eprintln!("Computing Steenrod operations: {:?}", start.elapsed());
 
     Ok(())
 }

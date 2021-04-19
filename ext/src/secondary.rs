@@ -214,7 +214,7 @@ pub fn compute_delta_concurrent(
         scope.spawn(move |_| {
             let mut prev = Instant::now();
             // Clear first row
-            print!("\x1b[2J");
+            eprint!("\x1b[2J");
             loop {
                 match p_receiver.recv_timeout(std::time::Duration::from_secs(1)) {
                     Ok(data) => {
@@ -227,14 +227,14 @@ pub fn compute_delta_concurrent(
                     continue;
                 }
                 // Move cursor to beginning and clear line
-                print!("\x1b[H\x1b[K");
-                println!(
+                eprint!("\x1b[H\x1b[K");
+                eprintln!(
                     "Time elapsed: {:.2?}; Processed bidegrees:",
                     start.elapsed()
                 );
                 crate::utils::print_resolution_color(res, max_s, &processed);
                 // Clear the rest of the screen
-                print!("\x1b[J");
+                eprint!("\x1b[J");
                 std::io::stdout().flush().unwrap();
                 prev = Instant::now();
             }
@@ -334,7 +334,7 @@ pub fn compute_delta_concurrent(
     })
     .unwrap();
 
-    println!("Computed A terms in {:.2?}", start.elapsed());
+    eprintln!("Computed A terms in {:.2?}", start.elapsed());
 
     let ddeltas = ddeltas.into_inner().unwrap();
     // We now compute the rest of the terms. This step is substantially faster than the previous
@@ -412,7 +412,7 @@ pub fn compute_delta_concurrent(
         }
     })
     .unwrap();
-    println!("Computed δd terms in {:.2?}", start.elapsed());
+    eprintln!("Computed δd terms in {:.2?}", start.elapsed());
     deltas
 }
 

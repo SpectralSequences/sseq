@@ -217,13 +217,13 @@ pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(
     highlight: &std::collections::HashMap<(u32, i32), u32, S>,
 ) {
     use std::io::Write;
-    let stdout = std::io::stdout();
-    let mut stdout = stdout.lock();
+    let stderr = std::io::stderr();
+    let mut stderr = stderr.lock();
     for s in (0..=max_s).rev() {
         for t in s as i32..=res.module(s).max_computed_degree() {
             if matches!(highlight.get(&(s, t)), None | Some(0)) {
                 write!(
-                    stdout,
+                    stderr,
                     "{}{}{} ",
                     RED_ANSI_CODE,
                     ascii_num(res.module(s).number_of_gens_in_degree(t)),
@@ -232,14 +232,14 @@ pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(
                 .unwrap();
             } else {
                 write!(
-                    stdout,
+                    stderr,
                     "{} ",
                     ascii_num(res.module(s).number_of_gens_in_degree(t))
                 )
                 .unwrap();
             }
         }
-        writeln!(stdout).unwrap();
+        writeln!(stderr).unwrap();
     }
 }
 

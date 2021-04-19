@@ -26,6 +26,15 @@ fn main() -> error::Result<()> {
     let s = query::with_default("s", "2", Ok);
     let f: i32 = query::with_default("f", "7", Ok);
 
+    #[cfg(feature = "concurrent")]
+    {
+        let num_threads = query::with_default("Number of threads", "2", Ok);
+        let bucket = std::sync::Arc::new(thread_token::TokenBucket::new(num_threads));
+
+        source.compute_through_stem_concurrent(s, f, &bucket);
+        target.compute_through_stem_concurrent(s, f, &bucket);
+    }
+
     let source_module = source.complex().module(0);
     let target_module = target.complex().module(0);
 
@@ -54,15 +63,6 @@ fn main() -> error::Result<()> {
                 row.set_entry(i, x);
             }
         }
-    }
-
-    #[cfg(feature = "concurrent")]
-    {
-        let num_threads = query::with_default("Number of threads", "2", Ok);
-        let bucket = std::sync::Arc::new(thread_token::TokenBucket::new(num_threads));
-
-        source.compute_through_stem_concurrent(s, f, &bucket);
-        target.compute_through_stem_concurrent(s, f, &bucket);
     }
 
     #[cfg(not(feature = "concurrent"))]

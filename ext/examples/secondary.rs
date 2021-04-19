@@ -1,7 +1,4 @@
 use ext::chain_complex::ChainComplex;
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
 use std::time::Instant;
 
 use algebra::module::homomorphism::ModuleHomomorphism;
@@ -30,7 +27,7 @@ fn main() -> error::Result<()> {
     )?;
 
     if !resolution.has_computed_bidegree(max_s, max_t) {
-        print!("Resolving module: ");
+        eprint!("Resolving module: ");
         let start = Instant::now();
 
         #[cfg(not(feature = "concurrent"))]
@@ -39,7 +36,7 @@ fn main() -> error::Result<()> {
         #[cfg(feature = "concurrent")]
         resolution.compute_through_bidegree_concurrent(max_s, max_t, &bucket);
 
-        println!("{:.2?}", start.elapsed());
+        eprintln!("{:.2?}", start.elapsed());
     }
 
     if !can_compute(&resolution) {
@@ -52,12 +49,6 @@ fn main() -> error::Result<()> {
 
     #[cfg(feature = "concurrent")]
     let deltas = compute_delta_concurrent(&resolution, max_s, max_t, &bucket, del_save_file);
-
-    let mut filename = format!("d2_{}", module_file_name);
-    while Path::new(&filename).exists() {
-        filename.push('_');
-    }
-    let mut output = File::create(&filename).unwrap();
 
     for f in 1..max_t {
         for s in 1..(max_s - 1) {
@@ -73,7 +64,7 @@ fn main() -> error::Result<()> {
             let d = delta.hom_k(t);
 
             for (i, entry) in d.into_iter().enumerate() {
-                writeln!(output, "d_2 x_({}, {}, {}) = {:?}", f, s, i, entry).unwrap();
+                println!("d_2 x_({}, {}, {}) = {:?}", f, s, i, entry);
             }
         }
     }

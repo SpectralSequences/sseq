@@ -39,7 +39,7 @@ fn main() -> error::Result<()> {
     #[cfg(feature = "concurrent")]
     resolution.compute_through_bidegree_concurrent(s + 1, t + 1, &bucket);
 
-    println!("Resolving time: {:?}", start.elapsed());
+    eprintln!("Resolving time: {:?}", start.elapsed());
 
     let start = Instant::now();
     let yoneda = Arc::new(yoneda_representative_element(
@@ -49,7 +49,7 @@ fn main() -> error::Result<()> {
         i,
     ));
 
-    println!("Finding representative time: {:?}", start.elapsed());
+    eprintln!("Finding representative time: {:?}", start.elapsed());
 
     let f = ResolutionHomomorphism::from_module_homomorphism(
         "".to_string(),

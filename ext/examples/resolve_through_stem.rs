@@ -23,7 +23,7 @@ fn main() -> error::Result<()> {
         res.compute_through_stem_concurrent(max_s, max_f, &bucket);
     }
 
-    println!("\x1b[1m{}\x1b[0m", res.graded_dimension_string());
+    println!("{}", res.graded_dimension_string());
 
     if let Some(file_name) = save_file {
         let file = std::fs::File::create(file_name)?;

@@ -1,0 +1,201 @@
+chart
+<svg version = "1.1" width="460" height="220" xmlns="http://www.w3.org/2000/svg">
+<style>
+    circle {
+        fill: black;
+    }
+    .structline {
+        stroke: black;
+        fill: none;
+    }
+    .d2 {
+        stroke: blue;
+    }
+    .major-grid {
+        stroke: black;
+        opacity: 20%;
+        shape-rendering: crispEdges;
+        fill: none;
+    }
+    .grid {
+        stroke: black;
+        opacity: 10%;
+        shape-rendering: crispEdges;
+        fill: none;
+    }
+    .x-label {
+     text-anchor: middle;
+     dominant-baseline: text-before-edge;
+    }
+    .y-label {
+     text-anchor: end;
+     dominant-baseline: middle;
+    }
+    </style>
+<line class="major-grid" x1="30" x2="30" y1="190" y2="30" />
+<text class="x-label" x="30" y="193">0</text>
+<line class="grid" x1="50" x2="50" y1="190" y2="30" />
+<line class="grid" x1="70" x2="70" y1="190" y2="30" />
+<line class="grid" x1="90" x2="90" y1="190" y2="30" />
+<line class="major-grid" x1="110" x2="110" y1="190" y2="30" />
+<text class="x-label" x="110" y="193">4</text>
+<line class="grid" x1="130" x2="130" y1="190" y2="30" />
+<line class="grid" x1="150" x2="150" y1="190" y2="30" />
+<line class="grid" x1="170" x2="170" y1="190" y2="30" />
+<line class="major-grid" x1="190" x2="190" y1="190" y2="30" />
+<text class="x-label" x="190" y="193">8</text>
+<line class="grid" x1="210" x2="210" y1="190" y2="30" />
+<line class="grid" x1="230" x2="230" y1="190" y2="30" />
+<line class="grid" x1="250" x2="250" y1="190" y2="30" />
+<line class="major-grid" x1="270" x2="270" y1="190" y2="30" />
+<text class="x-label" x="270" y="193">12</text>
+<line class="grid" x1="290" x2="290" y1="190" y2="30" />
+<line class="grid" x1="310" x2="310" y1="190" y2="30" />
+<line class="grid" x1="330" x2="330" y1="190" y2="30" />
+<line class="major-grid" x1="350" x2="350" y1="190" y2="30" />
+<text class="x-label" x="350" y="193">16</text>
+<line class="grid" x1="370" x2="370" y1="190" y2="30" />
+<line class="grid" x1="390" x2="390" y1="190" y2="30" />
+<line class="grid" x1="410" x2="410" y1="190" y2="30" />
+<line class="major-grid" x1="430" x2="430" y1="190" y2="30" />
+<text class="x-label" x="430" y="193">20</text>
+<line class="major-grid" x1="30" x2="430" y1="190" y2="190" />
+<text class="y-label" x="25" y="190">0</text>
+<line class="grid" x1="30" x2="430" y1="170" y2="170" />
+<line class="grid" x1="30" x2="430" y1="150" y2="150" />
+<line class="grid" x1="30" x2="430" y1="130" y2="130" />
+<line class="major-grid" x1="30" x2="430" y1="110" y2="110" />
+<text class="y-label" x="25" y="110">4</text>
+<line class="grid" x1="30" x2="430" y1="90" y2="90" />
+<line class="grid" x1="30" x2="430" y1="70" y2="70" />
+<line class="grid" x1="30" x2="430" y1="50" y2="50" />
+<line class="major-grid" x1="30" x2="430" y1="30" y2="30" />
+<text class="y-label" x="25" y="30">8</text>
+<circle cx="30" cy="190" r="2"/>
+<circle cx="30" cy="170" r="2"/>
+<line class="structline" x1="30" x2="30" y1="170" y2="190" />
+<circle cx="30" cy="150" r="2"/>
+<line class="structline" x1="30" x2="30" y1="150" y2="170" />
+<circle cx="30" cy="130" r="2"/>
+<line class="structline" x1="30" x2="30" y1="130" y2="150" />
+<circle cx="30" cy="110" r="2"/>
+<line class="structline" x1="30" x2="30" y1="110" y2="130" />
+<circle cx="30" cy="90" r="2"/>
+<line class="structline" x1="30" x2="30" y1="90" y2="110" />
+<circle cx="30" cy="70" r="2"/>
+<line class="structline" x1="30" x2="30" y1="70" y2="90" />
+<circle cx="30" cy="50" r="2"/>
+<line class="structline" x1="30" x2="30" y1="50" y2="70" />
+<circle cx="30" cy="30" r="2"/>
+<line class="structline" x1="30" x2="30" y1="30" y2="50" />
+<circle cx="50" cy="170" r="2"/>
+<line class="structline" x1="50" x2="30" y1="170" y2="190" />
+<circle cx="70" cy="150" r="2"/>
+<line class="structline" x1="70" x2="50" y1="150" y2="170" />
+<circle cx="90" cy="170" r="2"/>
+<line class="structline" x1="90" x2="30" y1="170" y2="190" />
+<circle cx="90" cy="150" r="2"/>
+<line class="structline" x1="90" x2="90" y1="150" y2="170" />
+<line class="structline" x1="90" x2="30" y1="150" y2="170" />
+<circle cx="90" cy="130" r="2"/>
+<line class="structline" x1="90" x2="90" y1="130" y2="150" />
+<line class="structline" x1="90" x2="70" y1="130" y2="150" />
+<line class="structline" x1="90" x2="30" y1="130" y2="150" />
+<circle cx="150" cy="150" r="2"/>
+<line class="structline" x1="150" x2="90" y1="150" y2="170" />
+<circle cx="170" cy="170" r="2"/>
+<circle cx="170" cy="150" r="2"/>
+<line class="structline" x1="170" x2="170" y1="150" y2="170" />
+<circle cx="170" cy="130" r="2"/>
+<line class="structline" x1="170" x2="170" y1="130" y2="150" />
+<circle cx="170" cy="110" r="2"/>
+<line class="structline" x1="170" x2="170" y1="110" y2="130" />
+<circle cx="190" cy="150" r="2"/>
+<line class="structline" x1="190" x2="170" y1="150" y2="170" />
+<circle cx="190" cy="130" r="2"/>
+<circle cx="210" cy="130" r="2"/>
+<line class="structline" x1="210" x2="190" y1="130" y2="150" />
+<line class="structline" x1="210" x2="150" y1="130" y2="150" />
+<circle cx="210" cy="110" r="2"/>
+<line class="structline" x1="210" x2="190" y1="110" y2="130" />
+<circle cx="210" cy="90" r="2"/>
+<circle cx="230" cy="70" r="2"/>
+<line class="structline" x1="230" x2="210" y1="70" y2="90" />
+<circle cx="250" cy="90" r="2"/>
+<circle cx="250" cy="70" r="2"/>
+<line class="structline" x1="250" x2="250" y1="70" y2="90" />
+<circle cx="250" cy="50" r="2"/>
+<line class="structline" x1="250" x2="250" y1="50" y2="70" />
+<line class="structline" x1="250" x2="230" y1="50" y2="70" />
+<circle cx="310" cy="150" r="2"/>
+<circle cx="310" cy="130" r="2"/>
+<line class="structline" x1="310" x2="310" y1="130" y2="150" />
+<circle cx="310" cy="110" r="2"/>
+<circle cx="310" cy="90" r="2"/>
+<line class="structline" x1="310" x2="310" y1="90" y2="110" />
+<circle cx="310" cy="70" r="2"/>
+<line class="structline" x1="310" x2="310" y1="70" y2="90" />
+<line class="structline" x1="310" x2="250" y1="70" y2="90" />
+<circle cx="330" cy="170" r="2"/>
+<circle cx="330" cy="150" r="2"/>
+<line class="structline" x1="330" x2="330" y1="150" y2="170" />
+<circle cx="330" cy="130" r="2"/>
+<line class="structline" x1="330" x2="330" y1="130" y2="150" />
+<circle cx="330" cy="110" r="2"/>
+<line class="structline" x1="330" x2="330" y1="110" y2="130" />
+<circle cx="327" cy="90" r="2"/>
+<circle cx="333" cy="90" r="2"/>
+<line class="structline" x1="327" x2="330" y1="90" y2="110" />
+<line class="structline" x1="333" x2="310" y1="90" y2="110" />
+<circle cx="330" cy="70" r="2"/>
+<line class="structline" x1="330" x2="327" y1="70" y2="90" />
+<circle cx="330" cy="50" r="2"/>
+<line class="structline" x1="330" x2="330" y1="50" y2="70" />
+<circle cx="330" cy="30" r="2"/>
+<line class="structline" x1="330" x2="330" y1="30" y2="50" />
+<circle cx="350" cy="150" r="2"/>
+<line class="structline" x1="350" x2="330" y1="150" y2="170" />
+<circle cx="350" cy="70" r="2"/>
+<line class="structline" x1="350" x2="333" y1="70" y2="90" />
+<circle cx="350" cy="50" r="2"/>
+<circle cx="370" cy="130" r="2"/>
+<line class="structline" x1="370" x2="350" y1="130" y2="150" />
+<circle cx="370" cy="110" r="2"/>
+<circle cx="370" cy="90" r="2"/>
+<line class="structline" x1="370" x2="370" y1="90" y2="110" />
+<line class="structline" x1="370" x2="310" y1="90" y2="110" />
+<circle cx="370" cy="70" r="2"/>
+<line class="structline" x1="370" x2="370" y1="70" y2="90" />
+<line class="structline" x1="370" x2="310" y1="70" y2="90" />
+<circle cx="370" cy="50" r="2"/>
+<line class="structline" x1="370" x2="370" y1="50" y2="70" />
+<line class="structline" x1="370" x2="350" y1="50" y2="70" />
+<line class="structline" x1="370" x2="310" y1="50" y2="70" />
+<circle cx="370" cy="30" r="2"/>
+<line class="structline" x1="370" x2="350" y1="30" y2="50" />
+<circle cx="390" cy="150" r="2"/>
+<line class="structline" x1="390" x2="330" y1="150" y2="170" />
+<circle cx="390" cy="130" r="2"/>
+<line class="structline" x1="390" x2="390" y1="130" y2="150" />
+<line class="structline" x1="390" x2="330" y1="130" y2="150" />
+<circle cx="387" cy="110" r="2"/>
+<circle cx="393" cy="110" r="2"/>
+<line class="structline" x1="387" x2="390" y1="110" y2="130" />
+<line class="structline" x1="387" x2="370" y1="110" y2="130" />
+<line class="structline" x1="387" x2="330" y1="110" y2="130" />
+<circle cx="390" cy="90" r="2"/>
+<line class="structline" x1="390" x2="393" y1="90" y2="110" />
+<line class="structline" x1="390" x2="370" y1="90" y2="110" />
+<circle cx="410" cy="130" r="2"/>
+<circle cx="430" cy="110" r="2"/>
+<circle cx="430" cy="90" r="2"/>
+<line class="structline" x1="430" x2="430" y1="90" y2="110" />
+<line class="structline" x1="430" x2="370" y1="90" y2="110" />
+<circle cx="430" cy="70" r="2"/>
+<line class="structline" x1="430" x2="430" y1="70" y2="90" />
+<line class="structline" x1="430" x2="370" y1="70" y2="90" />
+<line class="d2" x1="330" x2="310" y1="170" y2="130" />
+<line class="d2" x1="370" x2="350" y1="110" y2="70" />
+<line class="d2" x1="390" x2="370" y1="90" y2="50" />
+<line class="d2" x1="393" x2="370" y1="110" y2="70" />
+</svg>
