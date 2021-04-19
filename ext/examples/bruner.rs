@@ -261,9 +261,6 @@ fn read_bruner_resolution(data_dir: PathBuf, max_f: i32) -> Result<(u32, FiniteC
         let mut cur_degree: i32 = 0;
 
         while let Some((t, gen)) = get_element(&algebra, &*cc.module(s - 1), &mut f)? {
-            if t > max_f + s as i32 {
-                break;
-            }
             if t == cur_degree {
                 entries.push(gen);
             } else {
