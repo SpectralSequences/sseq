@@ -1,0 +1,2 @@
+tensor -- Ceta S_2
+{"actions":["Sq2 x0.x0 = x2.x0"],"generic":false,"gens":{"x0.x0":0,"x2.x0":2},"name":"$C(\\eta)$ (x) $S_2$","p":2,"type":"finite dimensional module"}
