@@ -109,15 +109,18 @@ type FiniteChainComplex = FCC<FreeModule, FreeModuleHomomorphism>;
 
 const TWO: ValidPrime = ValidPrime::new(2);
 
-/// Read the first non-empty line of `data` into `buf`.
-fn read_line(data: &mut impl BufRead, buf: &mut String) -> Result<()> {
+/// Read the first non-empty line of `data` into `buf`. Returns whether a line is read
+fn read_line(data: &mut impl BufRead, buf: &mut String) -> Result<bool> {
     buf.clear();
     while buf.is_empty() {
-        data.read_line(buf)?;
+        let num_bytes = data.read_line(buf)?;
+        if num_bytes == 0 {
+            return Ok(false);
+        }
         // Remove newline character
         buf.pop();
     }
-    Ok(())
+    Ok(true)
 }
 
 /// Viewing `s` as a whitespace-delimited array, take the first item and parse it into T.
@@ -169,9 +172,11 @@ fn get_element(
     a: &MilnorAlgebra,
     m: &FreeModule,
     input: &mut impl BufRead,
-) -> Result<(i32, FpVector)> {
+) -> Result<Option<(i32, FpVector)>> {
     let mut buf = String::new();
-    read_line(input, &mut buf)?;
+    if !read_line(input, &mut buf)? {
+        return Ok(None);
+    }
     let degree: i32 = buf.rsplit(':').next().unwrap().trim().parse()?;
 
     read_line(input, &mut buf)?;
@@ -187,12 +192,7 @@ fn get_element(
             result.add_basis_element(offset + op, 1);
         }
     }
-    Ok((degree, result))
-}
-
-/// Returns the number of generators in this filtration and the maximum degree resolved.
-fn parse_header(input: &str) -> Result<usize> {
-    Ok(input.trim().rsplit('=').next().unwrap().parse()?)
+    Ok(Some((degree, result)))
 }
 
 /// Create a new FiniteChainComplex with `num_s` many non-zero modules.
@@ -243,12 +243,8 @@ fn read_bruner_resolution(data_dir: PathBuf, max_f: i32) -> Result<(u32, FiniteC
     algebra.compute_basis(max_f + s as i32 + 1);
     // Handle s = 0
     {
-        let mut f = BufReader::new(File::open(data_dir.join("Diff.0"))?);
-        read_line(&mut f, &mut buf)?;
-        let _ = parse_header(&buf)?;
-
-        let m = cc.module(0);
         // TODO: actually parse file
+        let m = cc.module(0);
         m.add_generators(0, 1, None);
         m.extend_by_zero(max_f + 1);
     }
@@ -260,13 +256,11 @@ fn read_bruner_resolution(data_dir: PathBuf, max_f: i32) -> Result<(u32, FiniteC
         let mut f = BufReader::new(File::open(data_dir.join(format!("Diff.{}", s)))?);
 
         read_line(&mut f, &mut buf)?;
-        let num_gens = parse_header(&buf)?;
 
         let mut entries: Vec<FpVector> = Vec::new();
         let mut cur_degree: i32 = 0;
 
-        for _ in 0..num_gens {
-            let (t, gen) = get_element(&algebra, &*cc.module(s - 1), &mut f)?;
+        while let Some((t, gen)) = get_element(&algebra, &*cc.module(s - 1), &mut f)? {
             if t > max_f + s as i32 {
                 break;
             }
