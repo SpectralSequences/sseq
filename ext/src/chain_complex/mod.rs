@@ -185,7 +185,7 @@ impl<'a, CC: ChainComplex> Iterator for StemIterator<'a, CC> {
             self.s = 0;
             return self.next();
         }
-        if self.cc.module(s).max_computed_degree() == t {
+        if t > self.cc.module(s).max_computed_degree() {
             if s == 0 {
                 return None;
             } else {

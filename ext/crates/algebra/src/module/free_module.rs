@@ -72,7 +72,7 @@ impl<A: Algebra> Module for FreeModule<A> {
     }
 
     fn max_computed_degree(&self) -> i32 {
-        self.num_gens.len()
+        self.num_gens.max_degree()
     }
 
     fn dimension(&self, degree: i32) -> usize {
@@ -163,10 +163,6 @@ impl<A: Algebra> Module for FreeModule<A> {
 impl<A: Algebra> FreeModule<A> {
     pub fn gen_names(&self) -> &OnceBiVec<Vec<String>> {
         &self.gen_names
-    }
-
-    pub fn max_computed_degree(&self) -> i32 {
-        self.num_gens.max_degree()
     }
 
     pub fn max_table_degree(&self) -> i32 {
