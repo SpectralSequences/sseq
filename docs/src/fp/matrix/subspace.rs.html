@@ -290,7 +290,7 @@
 
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">first_row</span>..<span class="ident">num_rows</span> {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">v</span>) <span class="op">=</span> <span class="ident">rows</span>.<span class="ident">next</span>() {
-                    <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">v</span>.<span class="ident">dimension</span>(), <span class="self">self</span>.<span class="ident">matrix</span>.<span class="ident">columns</span>());
+                    <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">v</span>.<span class="ident">len</span>(), <span class="self">self</span>.<span class="ident">matrix</span>.<span class="ident">columns</span>());
                     <span class="self">self</span>[<span class="ident">i</span>] <span class="op">=</span> <span class="ident">v</span>;
                 } <span class="kw">else</span> {
                     <span class="kw">break</span> <span class="lifetime">&#39;outer</span>;
@@ -330,7 +330,7 @@
     <span class="doccomment">/// Projects a vector to a complement of the subspace. The complement is the set of vectors</span>
     <span class="doccomment">/// that have a 0 in every column where there is a pivot in `matrix`</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reduce</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">vector</span>: <span class="ident">SliceMut</span>) {
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">vector</span>.<span class="ident">as_slice</span>().<span class="ident">dimension</span>(), <span class="self">self</span>.<span class="ident">columns</span>());
+        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">vector</span>.<span class="ident">as_slice</span>().<span class="ident">len</span>(), <span class="self">self</span>.<span class="ident">columns</span>());
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">rows</span>() <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
             <span class="kw">return</span>;
         }

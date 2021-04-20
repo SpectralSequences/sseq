@@ -652,8 +652,6 @@
 <span id="631">631</span>
 <span id="632">632</span>
 <span id="633">633</span>
-<span id="634">634</span>
-<span id="635">635</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -717,11 +715,11 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp_monomial</span> <span class="op">=</span> <span class="ident">PolynomialAlgebraMonomial</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">prime</span>());
         <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">adem_algebra</span>().<span class="ident">q</span>();
         <span class="ident">temp_monomial</span>.<span class="ident">degree</span> <span class="op">=</span> <span class="ident">q</span> <span class="op">*</span> <span class="ident">sq</span> <span class="op">+</span> <span class="ident">input_degree</span>;
-        <span class="ident">temp_monomial</span>.<span class="ident">poly</span>.<span class="ident">extend_dimension</span>(
+        <span class="ident">temp_monomial</span>.<span class="ident">poly</span>.<span class="ident">extend_len</span>(
             <span class="self">self</span>.<span class="ident">polynomial_monomials</span>()
                 .<span class="ident">generators_up_to_degree</span>(<span class="ident">temp_monomial</span>.<span class="ident">degree</span>),
         );
-        <span class="ident">temp_monomial</span>.<span class="ident">ext</span>.<span class="ident">extend_dimension</span>(
+        <span class="ident">temp_monomial</span>.<span class="ident">ext</span>.<span class="ident">extend_len</span>(
             <span class="self">self</span>.<span class="ident">exterior_monomials</span>()
                 .<span class="ident">generators_up_to_degree</span>(<span class="ident">temp_monomial</span>.<span class="ident">degree</span>),
         );
@@ -742,11 +740,11 @@
         <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">adem_algebra</span>().<span class="ident">q</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp_monomial</span> <span class="op">=</span> <span class="ident">PolynomialAlgebraMonomial</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">prime</span>());
         <span class="ident">temp_monomial</span>.<span class="ident">degree</span> <span class="op">=</span> <span class="ident">q</span> <span class="op">*</span> <span class="ident">sq</span> <span class="op">+</span> <span class="ident">input_degree</span>;
-        <span class="ident">temp_monomial</span>.<span class="ident">poly</span>.<span class="ident">extend_dimension</span>(
+        <span class="ident">temp_monomial</span>.<span class="ident">poly</span>.<span class="ident">extend_len</span>(
             <span class="self">self</span>.<span class="ident">polynomial_monomials</span>()
                 .<span class="ident">generators_up_to_degree</span>(<span class="ident">temp_monomial</span>.<span class="ident">degree</span>),
         );
-        <span class="ident">temp_monomial</span>.<span class="ident">ext</span>.<span class="ident">extend_dimension</span>(
+        <span class="ident">temp_monomial</span>.<span class="ident">ext</span>.<span class="ident">extend_len</span>(
             <span class="self">self</span>.<span class="ident">exterior_monomials</span>()
                 .<span class="ident">generators_up_to_degree</span>(<span class="ident">temp_monomial</span>.<span class="ident">degree</span>),
         );
@@ -765,11 +763,11 @@
     ) {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp_monomial</span> <span class="op">=</span> <span class="ident">PolynomialAlgebraMonomial</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">prime</span>());
         <span class="ident">temp_monomial</span>.<span class="ident">degree</span> <span class="op">=</span> <span class="number">1</span> <span class="op">+</span> <span class="ident">input_degree</span>;
-        <span class="ident">temp_monomial</span>.<span class="ident">poly</span>.<span class="ident">extend_dimension</span>(
+        <span class="ident">temp_monomial</span>.<span class="ident">poly</span>.<span class="ident">extend_len</span>(
             <span class="self">self</span>.<span class="ident">polynomial_monomials</span>()
                 .<span class="ident">generators_up_to_degree</span>(<span class="ident">temp_monomial</span>.<span class="ident">degree</span>),
         );
-        <span class="ident">temp_monomial</span>.<span class="ident">ext</span>.<span class="ident">extend_dimension</span>(
+        <span class="ident">temp_monomial</span>.<span class="ident">ext</span>.<span class="ident">extend_len</span>(
             <span class="self">self</span>.<span class="ident">exterior_monomials</span>()
                 .<span class="ident">generators_up_to_degree</span>(<span class="ident">temp_monomial</span>.<span class="ident">degree</span>),
         );
@@ -1227,9 +1225,7 @@
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input</span>: <span class="ident">Slice</span>,
     ) {
-        <span class="macro">debug_assert</span><span class="macro">!</span>(
-            <span class="ident">result</span>.<span class="ident">as_slice</span>().<span class="ident">dimension</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">Module</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">op_degree</span> <span class="op">+</span> <span class="ident">input_degree</span>)
-        );
+        <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">result</span>.<span class="ident">as_slice</span>().<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">Module</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">op_degree</span> <span class="op">+</span> <span class="ident">input_degree</span>));
         <span class="kw">let</span> <span class="ident">algebra_outer</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>();
         <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">algebra_outer</span>.<span class="ident">adem_algebra</span>();
         <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">q</span>();

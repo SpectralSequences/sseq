@@ -1232,7 +1232,7 @@
                 <span class="kw">for</span> <span class="ident">v</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">actions</span>[<span class="ident">input_degree</span>][<span class="ident">degree</span>] {
                     <span class="comment">// Iterate over input index</span>
                     <span class="kw">for</span> <span class="ident">w</span> <span class="kw">in</span> <span class="ident">v</span> {
-                        <span class="ident">w</span>.<span class="ident">extend_dimension</span>(<span class="ident">new_dim</span>);
+                        <span class="ident">w</span>.<span class="ident">extend_len</span>(<span class="ident">new_dim</span>);
                     }
                 }
             }
@@ -1573,7 +1573,7 @@
                     <span class="kw">let</span> <span class="ident">decomposition</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">decompose_basis_element</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>);
                     <span class="kw">for</span> (<span class="ident">coef</span>, (<span class="ident">deg_1</span>, <span class="ident">idx_1</span>), (<span class="ident">deg_2</span>, <span class="ident">idx_2</span>)) <span class="kw">in</span> <span class="ident">decomposition</span> {
                         <span class="kw">let</span> <span class="ident">intermediate_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">input_deg</span> <span class="op">+</span> <span class="ident">deg_2</span>);
-                        <span class="kw">if</span> <span class="ident">intermediate_dim</span> <span class="op">&gt;</span> <span class="ident">tmp_output</span>.<span class="ident">dimension</span>() {
+                        <span class="kw">if</span> <span class="ident">intermediate_dim</span> <span class="op">&gt;</span> <span class="ident">tmp_output</span>.<span class="ident">len</span>() {
                             <span class="ident">tmp_output</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">intermediate_dim</span>);
                         }
                         <span class="self">self</span>.<span class="ident">act_on_basis</span>(

@@ -485,7 +485,7 @@
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input</span>: <span class="ident">Slice</span>,
     ) {
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">input</span>.<span class="ident">dimension</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">input_degree</span>));
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">input</span>.<span class="ident">len</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">input_degree</span>));
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">input</span>.<span class="ident">iter_nonzero</span>() {
             <span class="self">self</span>.<span class="ident">act_on_basis</span>(
@@ -508,9 +508,9 @@
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input</span>: <span class="ident">Slice</span>,
     ) {
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">input</span>.<span class="ident">dimension</span>(), <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">input_degree</span>));
+        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">input</span>.<span class="ident">len</span>(), <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">input_degree</span>));
         <span class="macro">assert_eq</span><span class="macro">!</span>(
-            <span class="ident">op</span>.<span class="ident">dimension</span>(),
+            <span class="ident">op</span>.<span class="ident">len</span>(),
             <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_degree</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>())
         );
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
@@ -536,7 +536,7 @@
         <span class="ident">input_index</span>: <span class="ident">usize</span>,
     ) {
         <span class="macro">assert_eq</span><span class="macro">!</span>(
-            <span class="ident">op</span>.<span class="ident">dimension</span>(),
+            <span class="ident">op</span>.<span class="ident">len</span>(),
             <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_degree</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>())
         );
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();

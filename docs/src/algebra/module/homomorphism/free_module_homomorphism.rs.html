@@ -356,7 +356,7 @@
         <span class="kw">let</span> <span class="ident">output_degree</span> <span class="op">=</span> <span class="ident">input_degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">degree_shift</span>;
         <span class="macro">assert_eq</span><span class="macro">!</span>(
             <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">dimension</span>(<span class="ident">output_degree</span>),
-            <span class="ident">result</span>.<span class="ident">as_slice</span>().<span class="ident">dimension</span>()
+            <span class="ident">result</span>.<span class="ident">as_slice</span>().<span class="ident">len</span>()
         );
         <span class="kw">let</span> <span class="ident">OperationGeneratorPair</span> {
             <span class="ident">operation_degree</span>,
