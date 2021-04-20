@@ -80,7 +80,11 @@ fn main() -> error::Result<()> {
         &module_hom.into(),
     );
 
+    #[cfg(not(feature = "concurrent"))]
     hom.extend_through_stem(s, f);
+
+    #[cfg(feature = "concurrent")]
+    hom.extend_through_stem_concurrent(s, f, &bucket);
 
     for (s, f, t) in hom.target.iter_stem() {
         let matrix = hom.get_map(s).hom_k(t);
