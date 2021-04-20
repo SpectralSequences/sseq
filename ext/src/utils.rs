@@ -243,6 +243,56 @@ pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(
     }
 }
 
+pub struct QueryModuleResult {
+    pub resolution: Resolution<CCC>,
+    #[cfg(feature = "concurrent")]
+    pub bucket: thread_token::TokenBucket,
+}
+
+pub fn query_module(algebra: Option<AlgebraType>) -> error::Result<QueryModuleResult> {
+    let module: Config = query::with_default("Module", "S_2", |s: String| {
+        Ok(match algebra {
+            Some(algebra) => (&*s, algebra).try_into()?,
+            None => (&*s).try_into()?,
+        })
+    });
+
+    let save_file = query::optional("Resolution save file", |s: String| {
+        if Path::new(&s).exists() {
+            Ok(s)
+        } else {
+            Err("File not found".into())
+        }
+    });
+
+    #[cfg(feature = "concurrent")]
+    let bucket = {
+        let num_threads = query::with_default("Number of threads", "2", Ok);
+        thread_token::TokenBucket::new(num_threads)
+    };
+
+    let resolution: Resolution<CCC> = match save_file {
+        Some(save_file) => construct(module, Some(&save_file))?,
+        None => {
+            let max_s = query::with_default("Max s", "7", Ok);
+            let max_f = query::with_default("Max f", "30", Ok);
+
+            let resolution = construct(module, None)?;
+            #[cfg(not(feature = "concurrent"))]
+            resolution.compute_through_stem(max_s, max_f);
+
+            #[cfg(feature = "concurrent")]
+            resolution.compute_through_stem_concurrent(max_s, max_f, &bucket);
+
+            resolution
+        }
+    };
+    Ok(QueryModuleResult {
+        resolution,
+        #[cfg(feature = "concurrent")]
+        bucket,
+    })
+}
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash, Hasher};
 

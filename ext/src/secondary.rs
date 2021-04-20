@@ -254,8 +254,8 @@ pub fn compute_delta_concurrent(
         for s in 3..=max_s {
             let m = res.module(s);
             let max = max_t(s);
-            let mut v = BiVec::with_capacity(min_degree + 1, max);
-            for t in min_degree + 1..max {
+            let mut v = BiVec::with_capacity(min_degree + s as i32, max);
+            for t in min_degree + s as i32..max {
                 v.push(vec![None; m.number_of_gens_in_degree(t)]);
             }
             ddeltas.lock().unwrap().push(v);
@@ -268,7 +268,7 @@ pub fn compute_delta_concurrent(
                 loop {
                     match read_saved_data(&mut f) {
                         Ok((s, t, idx, data)) => {
-                            if s <= max_s && t <= max_t(s) {
+                            if s <= max_s && t >= min_degree + s as i32 && t <= max_t(s) {
                                 ddeltas.lock().unwrap()[s as usize - 3][t][idx] = Some(data);
                                 p_sender.send((s, t)).unwrap();
                             }
@@ -332,11 +332,8 @@ pub fn compute_delta_concurrent(
         }
 
         // Iterate in reverse order to do the slower ones first
-        for t in (min_degree + 1..=res.module(0).max_computed_degree()).rev() {
-            for s in 3..=max_s {
-                if t >= max_t(s) {
-                    continue;
-                }
+        for s in 3..=max_s {
+            for t in (min_degree + s as i32..max_t(s)).rev() {
                 for idx in 0..res.module(s).number_of_gens_in_degree(t) {
                     sender.send((s, t, idx)).unwrap();
                 }
@@ -376,7 +373,7 @@ pub fn compute_delta_concurrent(
             scope.spawn(move |_| {
                 let delta = &deltas[s as usize - 3];
 
-                delta.extend_by_zero(min_degree);
+                delta.extend_by_zero(min_degree + s as i32 - 1);
                 let mut token = bucket.take_token();
                 for (t, mut ddelta) in ddeltas_.into_iter_enum() {
                     token = bucket.recv_or_release(token, &last_receiver);
@@ -845,7 +842,7 @@ mod test {
         #[cfg(feature = "concurrent")]
         let deltas = {
             let bucket = std::sync::Arc::new(TokenBucket::new(2));
-            resolution.compute_through_bidegree_concurrent(&bucket);
+            resolution.compute_through_bidegree_concurrent(max_s, max_t, &bucket);
             compute_delta_concurrent(&resolution, &bucket, None)
         };
 

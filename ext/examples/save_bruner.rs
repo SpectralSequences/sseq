@@ -1,19 +1,16 @@
 //! This saves a resolution to Bruner's format.
 
 use algebra::module::Module;
-use algebra::{Algebra, MilnorAlgebraT};
-use ext::{chain_complex::ChainComplex, utils::construct};
+use algebra::{Algebra, AlgebraType, MilnorAlgebraT};
+use ext::{chain_complex::ChainComplex, utils::query_module};
 use itertools::Itertools;
 use std::fmt::Write as _;
 use std::fs::File;
 use std::io::{BufWriter, Write as _};
-use std::sync::Arc;
 
 fn main() -> error::Result<()> {
-    let module_name: String = query::with_default("Module", "S_2@milnor", Ok);
-    let save_file: String = query::parse("Resolution save file", Ok);
+    let resolution = query_module(Some(AlgebraType::Milnor))?.resolution;
 
-    let resolution = Arc::new(construct(&*module_name, Some(&*save_file))?);
     assert_eq!(*resolution.prime(), 2);
     let algebra = resolution.algebra();
     let algebra = algebra.milnor_algebra();

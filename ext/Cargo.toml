@@ -14,6 +14,7 @@ bivec = { path = "crates/bivec"}
 error = { path = "crates/error"}
 fp = { path = "crates/fp", default-features = false }
 once = { path = "crates/once"}
+query = { path = "crates/query" }
 saveload = { path = "crates/saveload" }
 thread-token = { path = "crates/thread-token", optional = true }
 
@@ -25,7 +26,6 @@ serde_json = "1.0.0"
 [dev-dependencies]
 expect-test = "1.1.0"
 chart = { path = "crates/chart" }
-query = { path = "crates/query" }
 rstest = "0.7.0"
 itertools = "0.9.0"
 

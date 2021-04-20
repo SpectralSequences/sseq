@@ -17,7 +17,7 @@ fn main() {
     let start = Instant::now();
     // deltas is a vector of FreeModuleHomomorphisms R_{s, t} -> R_{s - 2, t - 1} that is dual to
     // the d_2 map. The vector is indexed by s with the first entry being s = 3.
-    let deltas = compute_delta(&resolution, 6, 70);
+    let deltas = compute_delta(&resolution);
     println!("Time elapsed: {:.2?}", start.elapsed());
 
     // We can now get the matrix of the d_2 starting at (65, 4).
