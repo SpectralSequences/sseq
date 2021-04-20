@@ -1,7 +1,7 @@
 use crate::chain_complex::{FiniteChainComplex, FreeChainComplex};
 use crate::resolution::Resolution;
 use crate::CCC;
-use algebra::module::FiniteModule;
+use algebra::module::{FiniteModule, Module};
 use algebra::{AlgebraType, SteenrodAlgebra};
 use saveload::Load;
 use serde_json::Value;
@@ -122,7 +122,7 @@ where
         use crate::chain_complex::ChainMap;
         use crate::yoneda::yoneda_representative;
         use algebra::module::homomorphism::FreeModuleHomomorphism;
-        use algebra::module::{BoundedModule, Module};
+        use algebra::module::BoundedModule;
 
         let s = cofiber["s"].as_u64().unwrap() as u32;
         let t = cofiber["t"].as_i64().unwrap() as i32;

@@ -115,7 +115,8 @@ impl MilnorClass {
 
 /// A non-concurrent version for computing delta. In practice the concurrent version will be used,
 /// and this function should have clear logic rather than being optimal.
-pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
+pub fn compute_delta(res: &Resolution) -> Vec<FMH> {
+    let max_s = res.max_homological_degree();
     if max_s < 2 {
         return vec![];
     }
@@ -130,6 +131,11 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
         let m = res.module(s);
 
         delta.extend_by_zero(res.min_degree());
+        let max_t = std::cmp::min(
+            res.module(s).max_computed_degree(),
+            res.module(s - 2).max_computed_degree() + 1,
+        );
+
         for t in res.min_degree() + 1..=max_t {
             let num_gens = m.number_of_gens_in_degree(t);
             let target_dim = res.module(s - 2).dimension(t - 1);
@@ -181,15 +187,20 @@ fn read_saved_data(buffer: &mut impl Read) -> std::io::Result<(u32, i32, usize, 
 #[cfg(feature = "concurrent")]
 pub fn compute_delta_concurrent(
     res: &Resolution,
-    max_s: u32,
-    max_t: i32,
     bucket: &TokenBucket,
     save_file_path: Option<String>,
 ) -> Vec<FMH> {
+    let max_s = res.max_homological_degree();
     if max_s < 2 {
         return vec![];
     }
     let min_degree = res.min_degree();
+    let max_t = |s| {
+        1 + std::cmp::min(
+            res.module(s).max_computed_degree(),
+            res.module(s - 2).max_computed_degree() + 1,
+        )
+    };
 
     let ddeltas: Vec<BiVec<Vec<Option<FpVector>>>> = Vec::with_capacity(max_s as usize - 2);
     let ddeltas = Mutex::new(ddeltas);
@@ -201,7 +212,7 @@ pub fn compute_delta_concurrent(
 
         for s in 3..=max_s {
             let m = res.module(s);
-            for t in min_degree + 1..=max_t {
+            for t in min_degree + 1..max_t(s) {
                 processed.insert((s, t), m.number_of_gens_in_degree(t) as u32);
             }
         }
@@ -242,8 +253,9 @@ pub fn compute_delta_concurrent(
         // and source_t, we pre-populate with None and replace with Some.
         for s in 3..=max_s {
             let m = res.module(s);
-            let mut v = BiVec::with_capacity(min_degree + 1, max_t + 1);
-            for t in min_degree + 1..=max_t {
+            let max = max_t(s);
+            let mut v = BiVec::with_capacity(min_degree + 1, max);
+            for t in min_degree + 1..max {
                 v.push(vec![None; m.number_of_gens_in_degree(t)]);
             }
             ddeltas.lock().unwrap().push(v);
@@ -256,7 +268,7 @@ pub fn compute_delta_concurrent(
                 loop {
                     match read_saved_data(&mut f) {
                         Ok((s, t, idx, data)) => {
-                            if s <= max_s && t <= max_t {
+                            if s <= max_s && t <= max_t(s) {
                                 ddeltas.lock().unwrap()[s as usize - 3][t][idx] = Some(data);
                                 p_sender.send((s, t)).unwrap();
                             }
@@ -320,8 +332,11 @@ pub fn compute_delta_concurrent(
         }
 
         // Iterate in reverse order to do the slower ones first
-        for t in (min_degree + 1..=max_t).rev() {
+        for t in (min_degree + 1..=res.module(0).max_computed_degree()).rev() {
             for s in 3..=max_s {
+                if t >= max_t(s) {
+                    continue;
+                }
                 for idx in 0..res.module(s).number_of_gens_in_degree(t) {
                     sender.send((s, t, idx)).unwrap();
                 }
@@ -830,14 +845,14 @@ mod test {
         #[cfg(feature = "concurrent")]
         let deltas = {
             let bucket = std::sync::Arc::new(TokenBucket::new(2));
-            resolution.compute_through_bidegree_concurrent(max_s, max_t, &bucket);
-            compute_delta_concurrent(&resolution, max_s, max_t, &bucket, None)
+            resolution.compute_through_bidegree_concurrent(&bucket);
+            compute_delta_concurrent(&resolution, &bucket, None)
         };
 
         #[cfg(not(feature = "concurrent"))]
         let deltas = {
             resolution.compute_through_bidegree(max_s, max_t);
-            compute_delta(&resolution, max_s, max_t)
+            compute_delta(&resolution)
         };
 
         for s in 1..(max_s - 1) {
