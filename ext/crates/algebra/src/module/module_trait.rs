@@ -14,6 +14,7 @@ pub trait Module: std::fmt::Display + Send + Sync + 'static {
     fn algebra(&self) -> Arc<Self::Algebra>;
     fn min_degree(&self) -> i32;
     fn compute_basis(&self, _degree: i32) {}
+    /// The first `t` for which the module is not defined at `t`.
     fn max_computed_degree(&self) -> i32;
     fn dimension(&self, degree: i32) -> usize;
     fn act_on_basis(

@@ -92,7 +92,6 @@ use ext::{
     chain_complex::{ChainComplex, FiniteChainComplex as FCC},
     resolution_homomorphism::ResolutionHomomorphism,
     utils::construct,
-    utils::iter_stems_f,
 };
 use fp::{matrix::Matrix, prime::ValidPrime, vector::FpVector};
 use std::{
@@ -323,7 +322,7 @@ fn main() {
 
     // Now print the results
     println!("sseq_basis | bruner_basis");
-    for (s, f, t) in iter_stems_f(max_s, max_f) {
+    for (s, f, t) in hom.target.iter_stem() {
         let matrix = hom.get_map(s).hom_k(t);
 
         for (i, row) in matrix.into_iter().enumerate() {

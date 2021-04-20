@@ -151,6 +151,52 @@ pub trait ChainComplex: Send + Sync + 'static {
         let homology_basis = Subquotient::subquotient(kernel, image);
         self.set_homology_basis(homological_degree, internal_degree, homology_basis);
     }
+
+    /// Iterate through all defind bidegrees in increasing order of stem. The return values are of
+    /// the form `(s, f, t)`.
+    fn iter_stem(&self) -> StemIterator<'_, Self> {
+        StemIterator {
+            cc: self,
+            f: self.min_degree(),
+            s: 0,
+            max_s: self.max_homological_degree() + 1,
+        }
+    }
+}
+
+/// An iterator returned by [`ChainComplex::iter_stem`]
+pub struct StemIterator<'a, CC: ?Sized> {
+    cc: &'a CC,
+    f: i32,
+    s: u32,
+    max_s: u32,
+}
+
+impl<'a, CC: ChainComplex> Iterator for StemIterator<'a, CC> {
+    // (s, f, t)
+    type Item = (u32, i32, i32);
+    fn next(&mut self) -> Option<Self::Item> {
+        let s = self.s;
+        let f = self.f;
+        let t = self.f + self.s as i32;
+
+        if s == self.max_s {
+            self.f += 1;
+            self.s = 0;
+            return self.next();
+        }
+        if self.cc.module(s).max_computed_degree() == t {
+            if s == 0 {
+                return None;
+            } else {
+                self.f += 1;
+                self.s = 0;
+                return self.next();
+            }
+        }
+        self.s += 1;
+        Some((s, f, t))
+    }
 }
 
 pub trait CochainComplex: Send + Sync + 'static {

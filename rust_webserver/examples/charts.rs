@@ -1,9 +1,6 @@
 use algebra::module::OperationGeneratorPair;
 use chart::{Backend as _, TikzBackend as Backend};
-use ext::{
-    chain_complex::ChainComplex,
-    utils::{construct, iter_stems},
-};
+use ext::{chain_complex::ChainComplex, utils::construct};
 use ext_webserver::actions::SseqChoice;
 use ext_webserver::sseq::Sseq;
 use fp::{prime::ValidPrime, vector::FpVector};
@@ -52,7 +49,7 @@ fn main() -> error::Result<()> {
         sseq.add_product_type(&format!("h{}", i), (1 << i) - 1, 1, true, true);
     }
 
-    for (s, f, t) in iter_stems(max_s, max_t) {
+    for (s, f, t) in resolution.iter_stem() {
         let num_gens = resolution.module(s).number_of_gens_in_degree(t);
         sseq.set_class(f, s as i32, num_gens);
 

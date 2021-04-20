@@ -4,7 +4,7 @@ use algebra::module::homomorphism::BoundedModuleHomomorphism;
 use algebra::JsonAlgebra;
 use ext::chain_complex::ChainComplex;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::utils::{construct, iter_stems_f};
+use ext::utils::construct;
 use std::sync::Arc;
 
 fn main() -> error::Result<()> {
@@ -82,7 +82,7 @@ fn main() -> error::Result<()> {
 
     hom.extend_through_stem(s, f);
 
-    for (s, f, t) in iter_stems_f(s, f) {
+    for (s, f, t) in hom.target.iter_stem() {
         let matrix = hom.get_map(s).hom_k(t);
         for (i, r) in matrix.iter().enumerate() {
             println!("F(x_{{{}, {}, {}}}) = {:?}", f, s, i, r);
