@@ -152,7 +152,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync + 'static {
         let minus_one = *self.prime() - 1;
         self.set_monomial_degree(target, target.degree + source.degree);
         let mut temp_source_ext = source.ext.clone();
-        temp_source_ext.set_scratch_vector_size(target.ext.dimension());
+        temp_source_ext.set_scratch_vector_size(target.ext.len());
         // If we made sign_rule handle vectors of different lengths, we could avoid cloning ext here.
         let coeff = if target.ext.sign_rule(&temp_source_ext) {
             minus_one
@@ -161,9 +161,9 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync + 'static {
         };
         target.ext.add_truncate(&temp_source_ext, 1)?;
 
-        let mut carry_vec = [FpVector::new(self.prime(), target.poly.dimension())];
+        let mut carry_vec = [FpVector::new(self.prime(), target.poly.len())];
         let mut source_vec = source.poly.clone();
-        source_vec.set_scratch_vector_size(target.poly.dimension());
+        source_vec.set_scratch_vector_size(target.poly.len());
         let mut carry_q = true;
         while carry_q {
             carry_q = target.poly.add_carry(&source_vec, 1, &mut carry_vec);
@@ -210,7 +210,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync + 'static {
         right_mono: &PolynomialAlgebraMonomial,
     ) {
         let p = *self.prime();
-        target.extend_dimension(self.dimension(left_degree + right_mono.degree, i32::max_value()));
+        target.extend_len(self.dimension(left_degree + right_mono.degree, i32::max_value()));
         for (left_idx, left_entry) in left.iter_nonzero() {
             let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone(); // Could reduce cloning a bit but probably best not to worry.
             let nonzero_result = self.multiply_monomials(&mut target_mono, &right_mono);
@@ -231,7 +231,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync + 'static {
         right: &FpVector,
     ) {
         let p = *self.prime();
-        target.extend_dimension(self.dimension(right_degree + left_mono.degree, i32::max_value()));
+        target.extend_len(self.dimension(right_degree + left_mono.degree, i32::max_value()));
         for (right_idx, right_entry) in right.iter_nonzero() {
             let mut target_mono = left_mono.clone(); // Could reduce cloning a bit but probably best not to worry.
             let right_mono = self.index_to_monomial(right_degree, right_idx);

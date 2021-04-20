@@ -270,7 +270,7 @@ where
                 num_gens,
                 hom.target.module(0).dimension(t + degree_shift),
             );
-            if num_gens == 0 || fx.dimension() == 0 {
+            if num_gens == 0 || fx.is_empty() {
                 g.add_generators_from_matrix_rows(t, outputs_matrix.as_slice_mut());
                 continue;
             }
@@ -304,7 +304,7 @@ where
         let source_t = t - self.shift_t;
 
         assert_eq!(
-            result.as_slice().dimension(),
+            result.as_slice().len(),
             self.source
                 .module(source_s)
                 .number_of_gens_in_degree(source_t)
@@ -313,7 +313,7 @@ where
         let target_module = self.target.module(s);
 
         let map = self.get_map(s);
-        for i in 0..result.as_slice().dimension() {
+        for i in 0..result.as_slice().len() {
             let j = target_module.operation_generator_to_index(0, 0, t, idx);
             result.add_basis_element(i, map.output(t, i).entry(j));
         }

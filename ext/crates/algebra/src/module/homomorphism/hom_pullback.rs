@@ -199,7 +199,7 @@ mod tests {
                 pb.apply_to_basis_element(result.as_slice_mut(), 1, deg, idx);
                 // println!("d^* {} = {}\n", hom1.basis_element_to_string(deg, idx), hom0.element_to_string(deg, &result));
                 let desired_output = outputs[(deg + 4) as usize][idx];
-                desired_result.copy_from_slice(&desired_output[0..desired_result.dimension()]);
+                desired_result.copy_from_slice(&desired_output[0..desired_result.len()]);
                 assert_eq!(result, desired_result);
                 println!("{}", result);
                 result.set_to_zero();

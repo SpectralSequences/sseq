@@ -363,7 +363,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                 for v in &mut self.actions[input_degree][degree] {
                     // Iterate over input index
                     for w in v {
-                        w.extend_dimension(new_dim);
+                        w.extend_len(new_dim);
                     }
                 }
             }
@@ -704,7 +704,7 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
                     let decomposition = algebra.decompose_basis_element(op_deg, op_idx);
                     for (coef, (deg_1, idx_1), (deg_2, idx_2)) in decomposition {
                         let intermediate_dim = self.dimension(input_deg + deg_2);
-                        if intermediate_dim > tmp_output.dimension() {
+                        if intermediate_dim > tmp_output.len() {
                             tmp_output = FpVector::new(p, intermediate_dim);
                         }
                         self.act_on_basis(

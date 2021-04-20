@@ -862,12 +862,12 @@ impl Sseq {
         target: &FpVector,
     ) {
         assert_eq!(
-            source.dimension(),
+            source.len(),
             self.classes[x][y],
             "length of source vector not equal to dimension of source"
         );
         assert_eq!(
-            target.dimension(),
+            target.len(),
             self.classes[x - 1][y + r],
             "length of target vector not equal to dimension of target"
         );

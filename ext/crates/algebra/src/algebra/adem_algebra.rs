@@ -1580,7 +1580,7 @@ mod tests {
         let mut result2 = FpVector::new(p, A.dimension(out_deg, 0) + 3);
 
         let mut result1 = result1.as_slice_mut();
-        let mut result2 = result2.slice_mut(3, 3 + result1.as_slice().dimension());
+        let mut result2 = result2.slice_mut(3, 3 + result1.as_slice().len());
 
         A.multiply_basis_elements(result1.copy(), 1, r_deg, r_idx, s_deg, s_idx, 0);
         A.multiply_basis_elements(result2.copy(), 1, r_deg, r_idx, s_deg, s_idx, 0);

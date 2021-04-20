@@ -46,10 +46,10 @@ fn main() -> error::Result<()> {
                     .split(',')
                     .map(|x| x.parse::<u32>().map_err(|e| e.to_string()))
                     .collect::<Result<Vec<_>, String>>()?;
-                if v.len() != row.dimension() {
+                if v.len() != row.len() {
                     return Err(format!(
                         "Target has dimension {} but {} coordinates supplied",
-                        row.dimension(),
+                        row.len(),
                         v.len()
                     ));
                 }

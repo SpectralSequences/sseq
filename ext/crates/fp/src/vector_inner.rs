@@ -14,7 +14,7 @@ pub(crate) type Limb = u64;
 pub(crate) const BYTES_PER_LIMB: usize = std::mem::size_of::<Limb>();
 pub(crate) const BITS_PER_LIMB: usize = 8 * BYTES_PER_LIMB;
 
-pub const MAX_DIMENSION: usize = 147500;
+pub const MAX_LEN: usize = 147500;
 
 const BIT_LENGTHS: [usize; NUM_PRIMES] = {
     let mut result = [0; NUM_PRIMES];
@@ -85,8 +85,8 @@ pub fn initialize_limb_bit_index_table(p: ValidPrime) {
         LIMB_BIT_INDEX_ONCE_TABLE[PRIME_TO_INDEX_MAP[*p as usize]].call_once(|| {
             let entries_per_limb = entries_per_limb(p);
             let bit_length = bit_length(p);
-            let mut table: Vec<LimbBitIndexPair> = Vec::with_capacity(MAX_DIMENSION);
-            for i in 0..MAX_DIMENSION {
+            let mut table: Vec<LimbBitIndexPair> = Vec::with_capacity(MAX_LEN);
+            for i in 0..MAX_LEN {
                 table.push(LimbBitIndexPair {
                     limb: i / entries_per_limb,
                     bit_index: (i % entries_per_limb) * bit_length,
@@ -105,7 +105,7 @@ fn limb_bit_index_pair(p: ValidPrime, idx: usize) -> LimbBitIndexPair {
         },
         _ => {
             let prime_idx = PRIME_TO_INDEX_MAP[*p as usize];
-            debug_assert!(idx < MAX_DIMENSION);
+            debug_assert!(idx < MAX_LEN);
             unsafe {
                 let table = &LIMB_BIT_INDEX_TABLE[prime_idx];
                 debug_assert!(table.is_some());
@@ -126,7 +126,7 @@ fn limb_bit_index_pair(p: ValidPrime, idx: usize) -> LimbBitIndexPair {
 /// must not leave the `fp` library.
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub struct FpVectorP<const P: u32> {
-    dimension: usize,
+    len: usize,
     limbs: Vec<Limb>,
 }
 
@@ -150,22 +150,26 @@ pub struct SliceMutP<'a, const P: u32> {
 }
 
 impl<const P: u32> FpVectorP<P> {
-    pub fn new_(dimension: usize) -> Self {
-        let number_of_limbs = limb::number::<P>(dimension);
+    pub fn new_(len: usize) -> Self {
+        let number_of_limbs = limb::number::<P>(len);
         Self {
-            dimension,
+            len,
             limbs: vec![0; number_of_limbs],
         }
     }
 
-    pub fn new_with_capacity_(dimension: usize, capacity: usize) -> Self {
+    pub fn new_with_capacity_(len: usize, capacity: usize) -> Self {
         let mut limbs = Vec::with_capacity(limb::number::<P>(capacity));
-        limbs.resize(limb::number::<P>(dimension), 0);
-        Self { dimension, limbs }
+        limbs.resize(limb::number::<P>(len), 0);
+        Self { len, limbs }
     }
 
-    pub const fn dimension(&self) -> usize {
-        self.dimension
+    pub const fn len(&self) -> usize {
+        self.len
+    }
+
+    pub const fn is_empty(&self) -> bool {
+        self.len == 0
     }
 
     pub const fn prime(&self) -> ValidPrime {
@@ -173,7 +177,7 @@ impl<const P: u32> FpVectorP<P> {
     }
 
     pub fn slice(&self, start: usize, end: usize) -> SliceP<'_, P> {
-        assert!(start <= end && end <= self.dimension);
+        assert!(start <= end && end <= self.len);
         SliceP {
             limbs: &self.limbs,
             start,
@@ -182,7 +186,7 @@ impl<const P: u32> FpVectorP<P> {
     }
 
     pub fn slice_mut(&mut self, start: usize, end: usize) -> SliceMutP<'_, P> {
-        assert!(start <= end && end <= self.dimension);
+        assert!(start <= end && end <= self.len);
         SliceMutP {
             limbs: &mut self.limbs,
             start,
@@ -249,7 +253,7 @@ impl<const P: u32> FpVectorP<P> {
     /// Add `other` to `self` on the assumption that the first `offset` entries of `other` are
     /// empty.
     pub fn add_offset(&mut self, other: &FpVectorP<P>, c: u32, offset: usize) {
-        assert_eq!(self.dimension(), other.dimension());
+        assert_eq!(self.len(), other.len());
         let min_limb = offset / entries_per_limb(self.prime());
         if P == 2 {
             if c != 0 {
@@ -270,7 +274,7 @@ impl<const P: u32> FpVectorP<P> {
     }
 
     pub fn assign(&mut self, other: &Self) {
-        debug_assert_eq!(self.dimension(), other.dimension());
+        debug_assert_eq!(self.len(), other.len());
         self.limbs.copy_from_slice(&other.limbs)
     }
 
@@ -286,28 +290,28 @@ impl<const P: u32> FpVectorP<P> {
         &mut self.limbs
     }
 
-    /// This function ensures the dimension of the vector is at least `dim`. See also
+    /// This function ensures the length of the vector is at least `len`. See also
     /// `set_scratch_vector_size`.
-    pub fn extend_dimension(&mut self, dim: usize) {
-        if self.dimension >= dim {
+    pub fn extend_len(&mut self, len: usize) {
+        if self.len >= len {
             return;
         }
-        self.dimension = dim;
-        self.limbs.resize(limb::number::<P>(dim), 0);
+        self.len = len;
+        self.limbs.resize(limb::number::<P>(len), 0);
     }
 
-    /// This clears the vector and sets the dimension to dim. This is useful for reusing
+    /// This clears the vector and sets the length to `len`. This is useful for reusing
     /// allocations of temporary vectors.
-    pub fn set_scratch_vector_size(&mut self, dim: usize) {
+    pub fn set_scratch_vector_size(&mut self, len: usize) {
         self.limbs.clear();
-        self.limbs.resize(limb::number::<P>(dim), 0);
-        self.dimension = dim;
+        self.limbs.resize(limb::number::<P>(len), 0);
+        self.len = len;
     }
 
     /// This replaces the contents of the vector with the contents of the slice. The two must have
     /// the same length.
     pub fn copy_from_slice(&mut self, slice: &[u32]) {
-        assert_eq!(self.dimension, slice.len());
+        assert_eq!(self.len, slice.len());
 
         self.limbs.clear();
         self.limbs.extend(
@@ -320,12 +324,12 @@ impl<const P: u32> FpVectorP<P> {
     /// Permanently remove the first `n` elements in the vector. `n` must be a multiple of
     /// the number of entries per limb
     pub(crate) fn trim_start(&mut self, n: usize) {
-        assert!(n <= self.dimension);
+        assert!(n <= self.len);
         let entries_per = entries_per_limb(ValidPrime::new(P));
         assert_eq!(n % entries_per, 0);
         let num_limbs = n / entries_per;
         self.limbs.drain(0..num_limbs);
-        self.dimension -= n;
+        self.len -= n;
     }
 
     pub fn sign_rule(&self, other: &Self) -> bool {
@@ -416,19 +420,19 @@ impl<const P: u32> FpVectorP<P> {
 
 impl<'a, const P: u32> From<&'a FpVectorP<P>> for SliceP<'a, P> {
     fn from(v: &'a FpVectorP<P>) -> Self {
-        v.slice(0, v.dimension)
+        v.slice(0, v.len)
     }
 }
 
 impl<'a, const P: u32> From<&'a mut FpVectorP<P>> for SliceMutP<'a, P> {
     fn from(v: &'a mut FpVectorP<P>) -> Self {
-        v.slice_mut(0, v.dimension)
+        v.slice_mut(0, v.len)
     }
 }
 
 impl<'a, const P: u32> SliceMutP<'a, P> {
     pub fn slice_mut(&mut self, start: usize, end: usize) -> SliceMutP<'_, P> {
-        assert!(start <= end && end <= self.as_slice().dimension());
+        assert!(start <= end && end <= self.as_slice().len());
 
         SliceMutP {
             limbs: &mut *self.limbs,
@@ -459,7 +463,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 
 impl<'a, const P: u32> SliceP<'a, P> {
     pub fn slice(&self, start: usize, end: usize) -> SliceP<'_, P> {
-        assert!(start <= end && end <= self.dimension());
+        assert!(start <= end && end <= self.len());
 
         SliceP {
             limbs: &self.limbs,
@@ -470,7 +474,7 @@ impl<'a, const P: u32> SliceP<'a, P> {
 
     /// Converts a slice to an owned FpVectorP. This is vastly more efficient if the start of the vector is aligned.
     pub fn to_owned(self) -> FpVectorP<P> {
-        let mut new = FpVectorP::<P>::new_(self.dimension());
+        let mut new = FpVectorP::<P>::new_(self.len());
         if self.start % entries_per_limb(self.prime()) == 0 {
             let (min, max) = self.limb_range();
             new.limbs[0..(max - min)].copy_from_slice(&self.limbs[min..max]);
@@ -563,7 +567,7 @@ pub(crate) mod limb {
     }
 
     pub fn number<const P: u32>(dim: usize) -> usize {
-        debug_assert!(dim < MAX_DIMENSION);
+        debug_assert!(dim < MAX_LEN);
         if dim == 0 {
             0
         } else {
@@ -615,16 +619,20 @@ impl<'a, const P: u32> SliceP<'a, P> {
         ValidPrime::new(P)
     }
 
-    pub fn dimension(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.end - self.start
+    }
+
+    pub const fn is_empty(&self) -> bool {
+        self.start == self.end
     }
 
     pub fn entry(&self, index: usize) -> u32 {
         debug_assert!(
-            index < self.dimension(),
-            "Index {} too large, dimension of vector is only {}.",
+            index < self.len(),
+            "Index {} too large, length of vector is only {}.",
             index,
-            self.dimension()
+            self.len()
         );
         let p = self.prime();
         let bit_mask = bitmask(p);
@@ -730,7 +738,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
     }
 
     pub fn set_entry(&mut self, index: usize, value: u32) {
-        debug_assert!(index < self.as_slice().dimension());
+        debug_assert!(index < self.as_slice().len());
         let p = self.prime();
         let bit_mask = bitmask(p);
         let limb_index = limb_bit_index_pair(p, index + self.start);
@@ -793,7 +801,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 
     pub fn add(&mut self, other: SliceP<'_, P>, c: u32) {
         debug_assert!(c < P);
-        if self.as_slice().dimension() == 0 {
+        if self.as_slice().is_empty() {
             return;
         }
 
@@ -817,14 +825,10 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
     /// `coeff` need not be reduced mod p.
     /// Adds v otimes w to self.
     pub fn add_tensor(&mut self, offset: usize, coeff: u32, left: SliceP<P>, right: SliceP<P>) {
-        let right_dim = right.dimension();
+        let right_dim = right.len();
 
-        // println!("v : {}, dim(v) : {}, slice: {:?}", left, left.dimension(), left.slice());
-        // println!(" debug v : {:?}", left);
         for (i, v) in left.iter_nonzero() {
             let entry = (v * coeff) % *self.prime();
-            // println!("   left_dim : {}, right_dim : {}, i : {}, v : {}", left.dimension(), right.dimension(), i, v);
-            // println!("   set slice: {} -- {} dimension: {}", offset + i * right_dim, offset + (i + 1) * right_dim, self.dimension());
             self.slice_mut(offset + i * right_dim, offset + (i + 1) * right_dim)
                 .add(right, entry);
         }
@@ -1014,10 +1018,10 @@ impl AddShiftLeftData {
         debug_assert!(target.prime() == source.prime());
         debug_assert!(target.offset() <= source.offset());
         debug_assert!(
-            target.dimension() == source.dimension(),
+            target.len() == source.len(),
             "self.dim {} not equal to other.dim {}",
-            target.dimension(),
-            source.dimension()
+            target.len(),
+            source.len()
         );
         let p = target.prime();
         let offset_shift = source.offset() - target.offset();
@@ -1085,10 +1089,10 @@ impl AddShiftRightData {
         debug_assert!(target.prime() == source.prime());
         debug_assert!(target.offset() >= source.offset());
         debug_assert!(
-            target.dimension() == source.dimension(),
+            target.len() == source.len(),
             "self.dim {} not equal to other.dim {}",
-            target.dimension(),
-            source.dimension()
+            target.len(),
+            source.len()
         );
         let p = target.prime();
         let offset_shift = target.offset() - source.offset();
@@ -1177,7 +1181,7 @@ pub struct FpVectorIterator<'a> {
 
 impl<'a> FpVectorIterator<'a> {
     fn new<const P: u32>(vec: SliceP<'a, P>) -> Self {
-        let counter = vec.dimension();
+        let counter = vec.len();
         let limbs = &vec.limbs;
 
         if counter == 0 {
@@ -1285,7 +1289,7 @@ impl<'a, const P: u32> FpVectorNonZeroIteratorP<'a, P> {
     fn new(vec: SliceP<'a, P>) -> Self {
         let entries_per_limb = entries_per_limb(ValidPrime::new(P));
 
-        let dim = vec.dimension();
+        let dim = vec.len();
         let limbs = vec.limbs;
 
         if dim == 0 {

@@ -64,7 +64,7 @@ pub trait Module: std::fmt::Display + Send + Sync + 'static {
         input_degree: i32,
         input: Slice,
     ) {
-        assert!(input.dimension() <= self.dimension(input_degree));
+        assert!(input.len() <= self.dimension(input_degree));
         let p = self.prime();
         for (i, v) in input.iter_nonzero() {
             self.act_on_basis(
@@ -87,9 +87,9 @@ pub trait Module: std::fmt::Display + Send + Sync + 'static {
         input_degree: i32,
         input: Slice,
     ) {
-        assert_eq!(input.dimension(), self.dimension(input_degree));
+        assert_eq!(input.len(), self.dimension(input_degree));
         assert_eq!(
-            op.dimension(),
+            op.len(),
             self.algebra().dimension(op_degree, i32::max_value())
         );
         let p = self.prime();
@@ -115,7 +115,7 @@ pub trait Module: std::fmt::Display + Send + Sync + 'static {
         input_index: usize,
     ) {
         assert_eq!(
-            op.dimension(),
+            op.len(),
             self.algebra().dimension(op_degree, i32::max_value())
         );
         let p = self.prime();

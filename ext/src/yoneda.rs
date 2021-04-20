@@ -619,27 +619,25 @@ where
         for op_idx in algebra.generators(op_deg) {
             generators.push((op_deg, op_idx));
             target_degrees.push(source.module.dimension(t + op_deg));
-            padded_target_degrees.push(FpVector::padded_dimension(
-                p,
-                source.module.dimension(t + op_deg),
-            ));
+            padded_target_degrees
+                .push(FpVector::padded_len(p, source.module.dimension(t + op_deg)));
         }
     }
 
     if let Some(m) = &augmentation_map {
         target_degrees.push(m.target().dimension(t));
-        padded_target_degrees.push(FpVector::padded_dimension(p, m.target().dimension(t)));
+        padded_target_degrees.push(FpVector::padded_len(p, m.target().dimension(t)));
     }
 
     if let Some(m) = &preserve_map {
         let dim = m.target().dimension(t - m.degree_shift());
         target_degrees.push(dim);
-        padded_target_degrees.push(FpVector::padded_dimension(p, dim));
+        padded_target_degrees.push(FpVector::padded_len(p, dim));
     }
 
     let total_padded_degree: usize = padded_target_degrees.iter().sum();
 
-    let padded_source_degree: usize = FpVector::padded_dimension(p, source_orig_dimension);
+    let padded_source_degree: usize = FpVector::padded_len(p, source_orig_dimension);
     let total_cols: usize = total_padded_degree + padded_source_degree + source_orig_dimension;
 
     let mut matrix_rows: Vec<FpVector> = Vec::with_capacity(source_dimension);
@@ -788,7 +786,7 @@ mod tests {
         let final_map = f.get_map(s);
         let num_gens = resolution.number_of_gens_in_bidegree(s, t);
         for i_ in 0..num_gens {
-            assert_eq!(final_map.output(t, i_).dimension(), 1);
+            assert_eq!(final_map.output(t, i_).len(), 1);
             if i_ == idx {
                 assert_eq!(final_map.output(t, i_).entry(0), 1);
             } else {

@@ -179,26 +179,27 @@ pub enum FpVectorNonZeroIterator<'a> {
 }
 
 impl FpVector {
-    pub fn new(p: ValidPrime, dimension: usize) -> FpVector {
-        match_p!(p, FpVectorP::new_(dimension))
+    pub fn new(p: ValidPrime, len: usize) -> FpVector {
+        match_p!(p, FpVectorP::new_(len))
     }
 
-    pub fn new_with_capacity(p: ValidPrime, dimension: usize, capacity: usize) -> FpVector {
-        match_p!(p, FpVectorP::new_with_capacity_(dimension, capacity))
+    pub fn new_with_capacity(p: ValidPrime, len: usize, capacity: usize) -> FpVector {
+        match_p!(p, FpVectorP::new_with_capacity_(len, capacity))
     }
 
     pub fn from_slice(p: ValidPrime, slice: &[u32]) -> Self {
         match_p!(p, FpVectorP::from(&slice))
     }
 
-    pub fn padded_dimension(p: ValidPrime, dimension: usize) -> usize {
+    pub fn padded_len(p: ValidPrime, len: usize) -> usize {
         let entries_per_limb = entries_per_limb(p);
-        ((dimension + entries_per_limb - 1) / entries_per_limb) * entries_per_limb
+        ((len + entries_per_limb - 1) / entries_per_limb) * entries_per_limb
     }
 
     dispatch_vector! {
         pub fn prime(&self) -> ValidPrime;
-        pub fn dimension(&self) -> usize;
+        pub fn len(&self) -> usize;
+        pub fn is_empty(&self) -> bool;
         pub fn scale(&mut self, c: u32);
         pub fn set_to_zero(&mut self);
         pub fn entry(&self, index: usize) -> u32;
@@ -213,7 +214,7 @@ impl FpVector {
         pub fn is_zero(&self) -> bool;
         pub fn iter(&self) -> FpVectorIterator;
         pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator);
-        pub fn extend_dimension(&mut self, dim: usize);
+        pub fn extend_len(&mut self, dim: usize);
         pub fn set_scratch_vector_size(&mut self, dim: usize);
         pub fn add_basis_element(&mut self, index: usize, value: u32);
         pub fn copy_from_slice(&mut self, slice: &[u32]);
@@ -231,7 +232,8 @@ impl FpVector {
 impl<'a> Slice<'a> {
     dispatch_vector! {
         pub fn prime(&self) -> ValidPrime;
-        pub fn dimension(&self) -> usize;
+        pub fn len(&self) -> usize;
+        pub fn is_empty(&self) -> bool;
         pub fn entry(&self, index: usize) -> u32;
         pub fn iter(self) -> (FpVectorIterator<'a>);
         pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator);
@@ -371,12 +373,12 @@ use std::io::{Read, Write};
 
 impl Save for FpVector {
     fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
-        self.dimension().save(buffer)?;
-        if self.dimension() == 0 {
+        self.len().save(buffer)?;
+        if self.is_empty() {
             return Ok(());
         }
         let entries_per_limb = entries_per_limb(self.prime());
-        let num_limbs = (self.dimension() - 1) / entries_per_limb + 1;
+        let num_limbs = (self.len() - 1) / entries_per_limb + 1;
         // self.limbs is allowed to have more limbs than necessary, but we only save the necessary
         // ones.
         for limb in &self.limbs()[0..num_limbs] {
@@ -392,15 +394,15 @@ impl Load for FpVector {
     fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
         let p = *p;
 
-        let dimension = usize::load(buffer, &())?;
+        let len = usize::load(buffer, &())?;
 
-        if dimension == 0 {
+        if len == 0 {
             return Ok(FpVector::new(p, 0));
         }
 
         let entries_per_limb = entries_per_limb(p);
-        let num_limbs = (dimension - 1) / entries_per_limb + 1;
-        let mut v = FpVector::new(p, dimension);
+        let num_limbs = (len - 1) / entries_per_limb + 1;
+        let mut v = FpVector::new(p, len);
 
         // v.limbs may have more limbs than num_limbs, and the rest should be zeroed.
         for limb in &mut v.limbs_mut()[0..num_limbs] {
@@ -426,10 +428,10 @@ mod test {
 
     impl FpVector {
         pub fn diff_list(&self, other: &[u32]) -> Vec<VectorDiffEntry> {
-            assert!(self.dimension() == other.len());
+            assert!(self.len() == other.len());
             let mut result = Vec::new();
             #[allow(clippy::needless_range_loop)]
-            for index in 0..self.dimension() {
+            for index in 0..self.len() {
                 let left = self.entry(index);
                 let right = other[index];
                 if left != right {
@@ -440,9 +442,9 @@ mod test {
         }
 
         pub fn diff_vec(&self, other: &FpVector) -> Vec<VectorDiffEntry> {
-            assert!(self.dimension() == other.dimension());
+            assert!(self.len() == other.len());
             let mut result = Vec::new();
-            for index in 0..self.dimension() {
+            for index in 0..self.len() {
                 let left = self.entry(index);
                 let right = other.entry(index);
                 if left != right {
@@ -595,7 +597,7 @@ mod test {
                 );
 
             let mut diffs = Vec::new();
-            for i in 0..v.dimension() {
+            for i in 0..v.len() {
                 if v.entry(i) != v_arr[i + slice_start] {
                     diffs.push((i, v_arr[i + slice_start], v.entry(i)));
                 }
@@ -616,7 +618,7 @@ mod test {
             let mut v = FpVector::new(p, dim);
             let mut v = v.slice_mut(slice_start, slice_end);
 
-            let slice_dim = v.as_slice().dimension();
+            let slice_dim = v.as_slice().len();
             let v_arr = random_vector(p, slice_dim);
             for (i, &val) in v_arr.iter().enumerate() {
                 v.set_entry(i, val);
@@ -740,7 +742,7 @@ mod test {
                     assert_eq!(v.entry(i), x);
                     counter += 1;
                 }
-                assert_eq!(counter, v.dimension());
+                assert_eq!(counter, v.len());
             }
         }
 
@@ -761,7 +763,7 @@ mod test {
                 if num_skip == 6 * ep {
                     assert_eq!(counter, 0);
                 } else {
-                    assert_eq!(counter, v.dimension() - num_skip);
+                    assert_eq!(counter, v.len() - num_skip);
                 }
             }
         }
@@ -778,7 +780,7 @@ mod test {
                     assert_eq!(v.entry(i), x);
                     counter += 1;
                 }
-                assert_eq!(counter, v.dimension());
+                assert_eq!(counter, v.len());
             }
         }
 

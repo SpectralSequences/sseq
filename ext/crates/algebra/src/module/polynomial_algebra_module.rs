@@ -60,11 +60,11 @@ pub trait PolynomialAlgebraModule: PolynomialAlgebra {
         let mut temp_monomial = PolynomialAlgebraMonomial::new(self.prime());
         let q = self.algebra().adem_algebra().q();
         temp_monomial.degree = q * sq + input_degree;
-        temp_monomial.poly.extend_dimension(
+        temp_monomial.poly.extend_len(
             self.polynomial_monomials()
                 .generators_up_to_degree(temp_monomial.degree),
         );
-        temp_monomial.ext.extend_dimension(
+        temp_monomial.ext.extend_len(
             self.exterior_monomials()
                 .generators_up_to_degree(temp_monomial.degree),
         );
@@ -85,11 +85,11 @@ pub trait PolynomialAlgebraModule: PolynomialAlgebra {
         let q = self.algebra().adem_algebra().q();
         let mut temp_monomial = PolynomialAlgebraMonomial::new(self.prime());
         temp_monomial.degree = q * sq + input_degree;
-        temp_monomial.poly.extend_dimension(
+        temp_monomial.poly.extend_len(
             self.polynomial_monomials()
                 .generators_up_to_degree(temp_monomial.degree),
         );
-        temp_monomial.ext.extend_dimension(
+        temp_monomial.ext.extend_len(
             self.exterior_monomials()
                 .generators_up_to_degree(temp_monomial.degree),
         );
@@ -108,11 +108,11 @@ pub trait PolynomialAlgebraModule: PolynomialAlgebra {
     ) {
         let mut temp_monomial = PolynomialAlgebraMonomial::new(self.prime());
         temp_monomial.degree = 1 + input_degree;
-        temp_monomial.poly.extend_dimension(
+        temp_monomial.poly.extend_len(
             self.polynomial_monomials()
                 .generators_up_to_degree(temp_monomial.degree),
         );
-        temp_monomial.ext.extend_dimension(
+        temp_monomial.ext.extend_len(
             self.exterior_monomials()
                 .generators_up_to_degree(temp_monomial.degree),
         );
@@ -570,9 +570,7 @@ impl<Adem: AdemAlgebraT, A: PolynomialAlgebraModule<Algebra = Adem> + Send + Syn
         input_degree: i32,
         input: Slice,
     ) {
-        debug_assert!(
-            result.as_slice().dimension() == Module::dimension(self, op_degree + input_degree)
-        );
+        debug_assert!(result.as_slice().len() == Module::dimension(self, op_degree + input_degree));
         let algebra_outer = self.algebra();
         let algebra = algebra_outer.adem_algebra();
         let q = algebra.q();

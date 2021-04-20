@@ -229,7 +229,7 @@ mod tests {
         let mut result = FpVector::new(p, M.dimension(out_degree));
         let mut expected_result = FpVector::new(p, M.dimension(out_degree));
         let outputs = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 0], [0, 0, 1]];
-        for i in 0..x.dimension() {
+        for i in 0..x.len() {
             x.set_entry(i, 1);
             println!("\n\nx : {}", F.element_to_string(x_degree, x.as_slice()));
             for f_idx in 0..3 {

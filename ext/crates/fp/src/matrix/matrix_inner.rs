@@ -100,7 +100,7 @@ impl Matrix {
     /// Produces a matrix from a list of rows.
     pub fn from_rows(p: ValidPrime, vectors: Vec<FpVector>, columns: usize) -> Self {
         for row in &vectors {
-            debug_assert_eq!(row.dimension(), columns);
+            debug_assert_eq!(row.len(), columns);
         }
 
         Matrix {
@@ -163,7 +163,7 @@ impl Matrix {
     pub fn augmented_from_vec(p: ValidPrime, input: &[Vec<u32>]) -> (usize, Matrix) {
         let rows = input.len();
         let cols = input[0].len();
-        let padded_cols = FpVector::padded_dimension(p, cols);
+        let padded_cols = FpVector::padded_len(p, cols);
         let mut m = Matrix::new(p, rows, padded_cols + rows);
 
         for i in 0..rows {
@@ -682,7 +682,7 @@ impl Matrix {
     pub fn extend_column_dimension(&mut self, columns: usize) {
         if columns > self.columns {
             for row in &mut self.vectors {
-                row.extend_dimension(columns);
+                row.extend_len(columns);
             }
             self.columns = columns;
             self.pivots.resize(columns, -1);
@@ -799,8 +799,8 @@ impl Matrix {
     /// assert_eq!(result, desired_result);
     /// `#`#`
     pub fn apply(&self, mut result: SliceMut, coeff: u32, input: Slice) {
-        debug_assert_eq!(input.dimension(), self.rows());
-        for i in 0..input.dimension() {
+        debug_assert_eq!(input.len(), self.rows());
+        for i in 0..input.len() {
             result.add(
                 self.vectors[i].as_slice(),
                 (coeff * input.entry(i)) % *self.p,
@@ -883,7 +883,7 @@ impl<const N: usize> AugmentedMatrix<N> {
         let mut start = [0; N];
         let mut end = [0; N];
         for i in 1..N {
-            start[i] = start[i - 1] + FpVector::padded_dimension(p, columns[i - 1]);
+            start[i] = start[i - 1] + FpVector::padded_len(p, columns[i - 1]);
         }
         for i in 0..N {
             end[i] = start[i] + columns[i];
@@ -906,7 +906,7 @@ impl<const N: usize> AugmentedMatrix<N> {
         let mut start = [0; N];
         let mut end = [0; N];
         for i in 1..N {
-            start[i] = start[i - 1] + FpVector::padded_dimension(p, columns[i - 1]);
+            start[i] = start[i - 1] + FpVector::padded_len(p, columns[i - 1]);
         }
         for i in 0..N {
             end[i] = start[i] + columns[i];

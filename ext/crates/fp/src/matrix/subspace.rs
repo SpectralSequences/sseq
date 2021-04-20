@@ -75,7 +75,7 @@ impl Subspace {
 
             for i in first_row..num_rows {
                 if let Some(v) = rows.next() {
-                    assert_eq!(v.dimension(), self.matrix.columns());
+                    assert_eq!(v.len(), self.matrix.columns());
                     self[i] = v;
                 } else {
                     break 'outer;
@@ -115,7 +115,7 @@ impl Subspace {
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
     /// that have a 0 in every column where there is a pivot in `matrix`
     pub fn reduce(&self, mut vector: SliceMut) {
-        assert_eq!(vector.as_slice().dimension(), self.columns());
+        assert_eq!(vector.as_slice().len(), self.columns());
         if self.rows() == 0 {
             return;
         }

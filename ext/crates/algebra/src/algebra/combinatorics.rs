@@ -170,7 +170,7 @@ impl TruncatedPolynomialMonomialBasis {
                     let mut last_nonzero_entry = 0;
                     for d in (0..num_gens).rev() {
                         let idx = offset + d;
-                        if idx >= part.dimension() {
+                        if idx >= part.len() {
                             continue;
                         }
                         if part.entry(idx) != 0 {
@@ -180,11 +180,11 @@ impl TruncatedPolynomialMonomialBasis {
                     }
                     // println!("      part : {}", part);
                     // println!("      lnze : {}", last_nonzero_entry);
-                    if part.dimension() <= offset + last_nonzero_entry
+                    if part.len() <= offset + last_nonzero_entry
                         || part.entry(offset + last_nonzero_entry) < p - 1
                     {
                         let mut new_part = part.clone();
-                        new_part.extend_dimension(offset + num_gens);
+                        new_part.extend_len(offset + num_gens);
                         new_part.add_basis_element(offset + last_nonzero_entry, 1);
                         new_parts.push(new_part.clone());
                         // println!("        new_part A: {}", new_part);
@@ -193,7 +193,7 @@ impl TruncatedPolynomialMonomialBasis {
                     for d in last_nonzero_entry + 1..num_gens {
                         // println!()
                         let mut new_part = part.clone();
-                        new_part.extend_dimension(offset + num_gens);
+                        new_part.extend_len(offset + num_gens);
                         new_part.add_basis_element(offset + d, 1);
                         new_parts.push(new_part.clone());
                         // println!("        new_part B: {}", new_part);

@@ -24,7 +24,7 @@ pub fn evaluate_algebra_milnor(
 ) -> error::Result<(i32, FpVector)> {
     let adem_result = evaluate_algebra_adem(adem_algebra, milnor_algebra, input);
     if let Ok((degree, adem_vector)) = adem_result {
-        let mut milnor_vector = FpVector::new(adem_vector.prime(), adem_vector.dimension());
+        let mut milnor_vector = FpVector::new(adem_vector.prime(), adem_vector.len());
         change_of_basis::adem_to_milnor(
             adem_algebra,
             milnor_algebra,

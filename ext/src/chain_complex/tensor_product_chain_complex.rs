@@ -303,7 +303,7 @@ where
             self.left_cc
                 .differential(left_s as u32)
                 .apply_to_basis_element(dl.as_slice_mut(), coeff, left_t, left_index);
-            for i in 0..dl.dimension() {
+            for i in 0..dl.len() {
                 result.add_basis_element(
                     target_offset + i * target_right_dim + right_index,
                     dl.entry(i),
@@ -319,7 +319,7 @@ where
 
     fn apply_quasi_inverse(&self, mut result: SliceMut, degree: i32, input: Slice) {
         let qis = &self.quasi_inverses[degree];
-        assert_eq!(input.dimension(), qis.len());
+        assert_eq!(input.len(), qis.len());
 
         for (i, x) in input.iter_nonzero() {
             if let Some(qi) = &qis[i] {
@@ -366,7 +366,7 @@ where
                 continue;
             }
 
-            let padded_target_dim = FpVector::padded_dimension(p, target_dim);
+            let padded_target_dim = FpVector::padded_len(p, target_dim);
 
             let mut matrix = Matrix::new(p, source_dim, padded_target_dim + source_dim);
 
@@ -585,7 +585,7 @@ mod tests {
 
         let num_gens = resolution.number_of_gens_in_bidegree(2 * s, 2 * t);
         for i_ in 0..num_gens {
-            assert_eq!(final_map.output(2 * t, i_).dimension(), 1);
+            assert_eq!(final_map.output(2 * t, i_).len(), 1);
             if i_ == fi {
                 assert_eq!(final_map.output(2 * t, i_).entry(0), 1);
             } else {

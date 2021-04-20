@@ -94,7 +94,7 @@ impl BlockStructure {
             block_size,
         } = self.block_starts[gen_deg][gen_idx];
         let block_max = block_min + block_size;
-        assert!(source.dimension() == block_size);
+        assert!(source.len() == block_size);
         target.slice_mut(block_min, block_max).add(source, coeff);
     }
 }

@@ -312,7 +312,7 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
         );
         let image = self.map.image(out_deg).unwrap();
         image.reduce(temp_vec.as_slice_mut());
-        for i in 0..result.as_slice().dimension() {
+        for i in 0..result.as_slice().len() {
             let value = temp_vec.entry(self.fp_idx_to_gen_idx(out_deg, i));
             result.add_basis_element(i, value);
         }

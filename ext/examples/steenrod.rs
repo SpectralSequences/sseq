@@ -96,7 +96,7 @@ fn main() -> error::Result<()> {
         let final_map = f.get_map(s);
         let num_gens = resolution.number_of_gens_in_bidegree(s, t);
         for i_ in 0..num_gens {
-            assert_eq!(final_map.output(t, i_).dimension(), 1);
+            assert_eq!(final_map.output(t, i_).len(), 1);
             if i_ == idx {
                 assert_eq!(final_map.output(t, i_).entry(0), 1);
             } else {

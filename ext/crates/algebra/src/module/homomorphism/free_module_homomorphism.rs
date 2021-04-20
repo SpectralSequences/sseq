@@ -48,7 +48,7 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
         let output_degree = input_degree - self.degree_shift;
         assert_eq!(
             self.target.dimension(output_degree),
-            result.as_slice().dimension()
+            result.as_slice().len()
         );
         let OperationGeneratorPair {
             operation_degree,
