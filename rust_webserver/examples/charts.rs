@@ -1,4 +1,3 @@
-use algebra::module::OperationGeneratorPair;
 use chart::{Backend as _, TikzBackend as Backend};
 use ext::{chain_complex::ChainComplex, utils::construct};
 use ext_webserver::actions::SseqChoice;
@@ -53,45 +52,18 @@ fn main() -> error::Result<()> {
         let num_gens = resolution.module(s).number_of_gens_in_degree(t);
         sseq.set_class(f, s as i32, num_gens);
 
-        if s == 0 {
-            continue;
-        }
-
-        let source = resolution.module(s - 1);
-        let d = resolution.differential(s);
-
         for i in 0..3 {
-            if f < (1 << i) - 1 {
-                continue;
+            if let Some(products) = resolution.filtration_one_product(1 << i, 0, s, t) {
+                sseq.add_product(
+                    &format!("h{}", i),
+                    f - (1 << i) + 1,
+                    s as i32 - 1,
+                    (1 << i) - 1,
+                    1,
+                    false,
+                    &products,
+                );
             }
-            let source_num_gens = source.number_of_gens_in_degree(t - (1 << i));
-            let mut matrix = vec![vec![0; num_gens]; source_num_gens];
-
-            for k in 0..num_gens {
-                let dg = d.output(t, k);
-
-                #[allow(clippy::needless_range_loop)]
-                for l in 0..source_num_gens {
-                    let elt = source.operation_generator_pair_to_idx(&OperationGeneratorPair {
-                        operation_index: 0,
-                        operation_degree: 1 << i,
-                        generator_index: l,
-                        generator_degree: t - (1 << i),
-                    });
-                    if dg.entry(elt) != 0 {
-                        matrix[l][k] = 1;
-                    }
-                }
-            }
-            sseq.add_product(
-                &format!("h{}", i),
-                f - (1 << i) + 1,
-                s as i32 - 1,
-                (1 << i) - 1,
-                1,
-                false,
-                &matrix,
-            );
         }
     }
 

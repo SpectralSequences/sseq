@@ -745,6 +745,49 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
     }
 
+    /// Computes the filtration one product. This returns None if the source or target is out of
+    /// range.
+    pub fn filtration_one_product(
+        &self,
+        op_deg: i32,
+        op_idx: usize,
+        target_s: u32,
+        target_t: i32,
+    ) -> Option<Vec<Vec<u32>>> {
+        let source_t = target_t - op_deg;
+        let source_s = target_s.overflowing_sub(1).0;
+        if target_s == 0
+            || target_s > self.max_homological_degree()
+            || source_t - (source_s as i32) < self.min_degree()
+        {
+            return None;
+        }
+
+        let source = self.module(target_s - 1);
+        let target = self.module(target_s);
+
+        if target_t > target.max_computed_degree() {
+            return None;
+        }
+
+        let source_dim = source.number_of_gens_in_degree(source_t);
+        let target_dim = target.number_of_gens_in_degree(target_t);
+
+        let d = self.differential(target_s);
+
+        let mut products = vec![Vec::with_capacity(target_dim); source_dim];
+        for i in 0..target_dim {
+            let dx = d.output(target_t, i);
+
+            for (j, row) in products.iter_mut().enumerate() {
+                let idx = source.operation_generator_to_index(op_deg, op_idx, source_t, j);
+                row.push(dx.entry(idx));
+            }
+        }
+
+        Some(products)
+    }
+
     /// A concurrent version of [`compute_through_stem`]
     #[cfg(feature = "concurrent")]
     pub fn compute_through_stem_concurrent(&self, max_s: u32, max_f: i32, bucket: &TokenBucket) {

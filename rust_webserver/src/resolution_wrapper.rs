@@ -178,40 +178,17 @@ impl<CC: ChainComplex> Resolution<CC> {
 
     #[allow(clippy::needless_range_loop)]
     fn compute_filtration_one_products(&self, target_s: u32, target_t: i32) {
-        if target_s == 0 {
-            return;
-        }
-        let source_s = target_s - 1;
-
-        let source = self.module(source_s);
-        let target = self.module(target_s);
-
-        let target_dim = target.number_of_gens_in_degree(target_t);
-
         for (op_name, op_degree, op_index) in &self.filtration_one_products {
-            let source_t = target_t - *op_degree;
-            if source_t - (source_s as i32) < self.min_degree() {
-                continue;
+            if let Some(products) = self
+                .inner
+                .filtration_one_product(*op_degree, *op_index, target_s, target_t)
+            {
+                let source_s = target_s - 1;
+                let source_t = target_t - *op_degree;
+                self.add_structline(
+                    op_name, source_s, source_t, target_s, target_t, true, products,
+                );
             }
-            let source_dim = source.number_of_gens_in_degree(source_t);
-
-            let d = self.differential(target_s);
-
-            let mut products = vec![Vec::with_capacity(target_dim); source_dim];
-
-            for i in 0..target_dim {
-                let dx = d.output(target_t, i);
-
-                for j in 0..source_dim {
-                    let idx =
-                        source.operation_generator_to_index(*op_degree, *op_index, source_t, j);
-                    products[j].push(dx.entry(idx));
-                }
-            }
-
-            self.add_structline(
-                op_name, source_s, source_t, target_s, target_t, true, products,
-            );
         }
     }
 
