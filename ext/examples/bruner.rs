@@ -326,7 +326,7 @@ fn main() {
         let matrix = hom.get_map(s).hom_k(t);
 
         for (i, row) in matrix.into_iter().enumerate() {
-            println!("x_{{{},{},{}}} = {:?}", f, s, i, row);
+            println!("x_({},{},{}) = {:?}", f, s, i, row);
         }
     }
 }

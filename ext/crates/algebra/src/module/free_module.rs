@@ -320,7 +320,7 @@ impl<A: Algebra> FreeModule<A> {
         max
     }
 
-    /// A version of element_to_string that names the generator as x_{t - s, s, idx}. The input s
+    /// A version of element_to_string that names the generator as x_(t - s, s, idx). The input s
     /// only affects how the output is displayed.
     pub fn element_to_string_pretty(&self, s: u32, t: i32, vec: Slice) -> String {
         let mut first = true;
@@ -344,7 +344,7 @@ impl<A: Algebra> FreeModule<A> {
                 result.push(' ');
             }
             result.push_str(&*format!(
-                "x_{{{},{},{}}}",
+                "x_({},{},{})",
                 opgen.generator_degree - s as i32 + 1,
                 s - 1,
                 opgen.generator_index

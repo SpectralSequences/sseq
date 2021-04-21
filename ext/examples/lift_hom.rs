@@ -89,7 +89,7 @@ fn main() -> error::Result<()> {
     for (s, f, t) in hom.target.iter_stem() {
         let matrix = hom.get_map(s).hom_k(t);
         for (i, r) in matrix.iter().enumerate() {
-            println!("F(x_{{{}, {}, {}}}) = {:?}", f, s, i, r);
+            println!("F(x_({}, {}, {})) = {:?}", f, s, i, r);
         }
     }
     Ok(())

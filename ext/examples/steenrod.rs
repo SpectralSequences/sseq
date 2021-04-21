@@ -296,7 +296,7 @@ fn main() -> error::Result<()> {
             let final_map = &delta[i as usize][(2 * s - i) as usize];
             let num_gens = resolution.number_of_gens_in_bidegree(2 * s - i, 2 * t);
             print!(
-                "Sq^{} x_{{{}, {}}}^({}) = [{}]",
+                "Sq^{} x_({}, {}, {}) = [{}]",
                 s - i,
                 t - s as i32,
                 s,
@@ -323,7 +323,7 @@ fn main() -> error::Result<()> {
         let final_map = &delta[i as usize][(2 * s - i) as usize];
         let num_gens = resolution.number_of_gens_in_bidegree(2 * s - i, 2 * t);
         print!(
-            "Sq^{} x_{{{}, {}}}^({}) = [{}]",
+            "Sq^{} x_({}, {}, {}) = [{}]",
             s - i,
             t - s as i32,
             s,
