@@ -1023,7 +1023,7 @@
         <span class="ident">max</span>
     }
 
-    <span class="doccomment">/// A version of element_to_string that names the generator as x_{t - s, s, idx}. The input s</span>
+    <span class="doccomment">/// A version of element_to_string that names the generator as x_(t - s, s, idx). The input s</span>
     <span class="doccomment">/// only affects how the output is displayed.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">element_to_string_pretty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">vec</span>: <span class="ident">Slice</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">first</span> <span class="op">=</span> <span class="bool-val">true</span>;
@@ -1047,7 +1047,7 @@
                 <span class="ident">result</span>.<span class="ident">push</span>(<span class="string">&#39; &#39;</span>);
             }
             <span class="ident">result</span>.<span class="ident">push_str</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="macro">format</span><span class="macro">!</span>(
-                <span class="string">&quot;x_{{{},{},{}}}&quot;</span>,
+                <span class="string">&quot;x_({},{},{})&quot;</span>,
                 <span class="ident">opgen</span>.<span class="ident">generator_degree</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="number">1</span>,
                 <span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>,
                 <span class="ident">opgen</span>.<span class="ident">generator_index</span>
