@@ -150,6 +150,17 @@ struct AlgebraSpec {
     profile: Option<MilnorProfileOption>,
 }
 
+impl SteenrodAlgebra {
+    pub fn new(p: ValidPrime, algebra: AlgebraType) -> Self {
+        match algebra {
+            AlgebraType::Adem => {
+                SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, *p != 2, false, false))
+            }
+            AlgebraType::Milnor => SteenrodAlgebra::MilnorAlgebra(MilnorAlgebra::new(p)),
+        }
+    }
+}
+
 #[cfg(feature = "json")]
 impl SteenrodAlgebra {
     pub fn from_json(
@@ -157,7 +168,6 @@ impl SteenrodAlgebra {
         mut algebra_type: AlgebraType,
     ) -> error::Result<SteenrodAlgebra> {
         let spec: AlgebraSpec = AlgebraSpec::deserialize(json)?;
-        let p = spec.p;
 
         if let Some(list) = spec.algebra {
             let algebra_name = &algebra_type.to_string();
@@ -168,26 +178,22 @@ impl SteenrodAlgebra {
             }
         }
 
-        Ok(match algebra_type {
-            AlgebraType::Adem => {
-                SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, *p != 2, false, false))
-            }
-            AlgebraType::Milnor => {
-                let mut algebra_inner = MilnorAlgebra::new(p);
-                if let Some(profile) = spec.profile {
-                    if let Some(truncated) = profile.truncated {
-                        algebra_inner.profile.truncated = truncated;
-                    }
-                    if let Some(q_part) = profile.q_part {
-                        algebra_inner.profile.q_part = q_part;
-                    }
-                    if let Some(p_part) = profile.p_part {
-                        algebra_inner.profile.p_part = p_part;
-                    }
+        let mut algebra = Self::new(spec.p, algebra_type);
+
+        if let Self::MilnorAlgebra(inner) = &mut algebra {
+            if let Some(profile) = spec.profile {
+                if let Some(truncated) = profile.truncated {
+                    inner.profile.truncated = truncated;
                 }
-                SteenrodAlgebra::MilnorAlgebra(algebra_inner)
+                if let Some(q_part) = profile.q_part {
+                    inner.profile.q_part = q_part;
+                }
+                if let Some(p_part) = profile.p_part {
+                    inner.profile.p_part = p_part;
+                }
             }
-        })
+        }
+        Ok(algebra)
     }
 
     pub fn to_json(&self, json: &mut Value) {
