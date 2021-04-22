@@ -52,6 +52,31 @@ where
         }
     }
 
+    pub fn from_class(
+        name: String,
+        source: Arc<CC1>,
+        target: Arc<CC2>,
+        shift_s: u32,
+        shift_t: i32,
+        class: &[u32],
+    ) -> Self {
+        let result = Self::new(name, source, target, shift_s, shift_t);
+
+        let num_gens = result
+            .source
+            .module(shift_s)
+            .number_of_gens_in_degree(shift_t);
+        assert_eq!(num_gens, class.len());
+
+        let mut matrix = Matrix::new(result.source.prime(), num_gens, 1);
+        for (k, &v) in class.iter().enumerate() {
+            matrix[k].set_entry(0, v);
+        }
+
+        result.extend_step(shift_s, shift_t, Some(&matrix));
+        result
+    }
+
     fn get_map_ensure_length(&self, output_s: u32) -> &FreeModuleHomomorphism<CC2::Module> {
         self.maps.extend(output_s as usize, |output_s| {
             let input_s = output_s as u32 + self.shift_s;
@@ -299,9 +324,9 @@ where
     CC1: FreeChainComplex,
     CC2: AugmentedChainComplex + FreeChainComplex<Algebra = CC1::Algebra>,
 {
-    pub fn act(&self, mut result: SliceMut, s: u32, t: i32, idx: usize) {
-        let source_s = s - self.shift_s;
-        let source_t = t - self.shift_t;
+    pub fn act(&self, mut result: SliceMut, coef: u32, s: u32, t: i32, idx: usize) {
+        let source_s = s + self.shift_s;
+        let source_t = t + self.shift_t;
 
         assert_eq!(
             result.as_slice().len(),
@@ -313,9 +338,9 @@ where
         let target_module = self.target.module(s);
 
         let map = self.get_map(s);
+        let j = target_module.operation_generator_to_index(0, 0, t, idx);
         for i in 0..result.as_slice().len() {
-            let j = target_module.operation_generator_to_index(0, 0, t, idx);
-            result.add_basis_element(i, map.output(t, i).entry(j));
+            result.add_basis_element(i, coef * map.output(source_t, i).entry(j));
         }
     }
 }

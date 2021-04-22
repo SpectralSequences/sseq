@@ -1,19 +1,12 @@
 //! Computes the triple Massey product up to a sign
 
-use algebra::module::{
-    homomorphism::{BoundedModuleHomomorphism, ModuleHomomorphism},
-    FDModule,
-};
-use algebra::{AlgebraType, SteenrodAlgebra};
+use algebra::module::homomorphism::ModuleHomomorphism;
+use algebra::module::{FDModule, Module};
 use ext::chain_complex::{ChainComplex, ChainHomotopy, FiniteChainComplex};
 use ext::resolution::Resolution;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
-use fp::matrix::Matrix;
-use fp::prime::ValidPrime;
-use saveload::Load;
-use std::{fs::File, io::BufReader, path::Path, sync::Arc};
-
-type CC<M> = FiniteChainComplex<M, BoundedModuleHomomorphism<M, M>>;
+use fp::matrix::{AugmentedMatrix, Matrix};
+use std::sync::Arc;
 
 fn parse_vec(s: String) -> Result<Vec<u32>, String> {
     s[1..s.len() - 1]
@@ -24,136 +17,184 @@ fn parse_vec(s: String) -> Result<Vec<u32>, String> {
 }
 
 fn main() -> error::Result<()> {
-    let p: ValidPrime = query::with_default("p", "2", Ok);
-    let algebra: AlgebraType = query::with_default("Basis", "adem", Ok);
+    let resolution = Arc::new(ext::utils::query_module(None)?.resolution);
+    let p = resolution.prime();
 
-    let algebra = Arc::new(SteenrodAlgebra::new(p, algebra));
-    let module = Arc::new(FDModule::new(
-        algebra,
-        format!("S_{}", p),
-        bivec::BiVec::from_vec(0, vec![1]),
-    ));
-
-    let ccdz: Arc<CC<_>> = Arc::new(FiniteChainComplex::ccdz(module));
-
-    let save_file = query::optional("Resolution save file", |s: String| {
-        if Path::new(&s).exists() {
-            Ok(s)
-        } else {
-            Err("File not found".into())
-        }
-    });
-
-    let resolution = match save_file {
-        Some(f) => Resolution::load(&mut BufReader::new(File::open(f)?), &ccdz)?,
-        None => Resolution::new(ccdz),
+    let (is_unit, unit) = if resolution.complex().module(0).is_unit() {
+        (true, Arc::clone(&resolution))
+    } else {
+        let module = Arc::new(
+            FDModule::new(
+                resolution.algebra(),
+                format!("S_{}", p),
+                bivec::BiVec::from_vec(0, vec![1]),
+            )
+            .into(),
+        );
+        let ccdz = Arc::new(FiniteChainComplex::ccdz(module));
+        (false, Arc::new(Resolution::new(ccdz)))
     };
 
-    let resolution = Arc::new(resolution);
+    eprintln!("\nComputing Massey products <a, b, ->");
+    eprintln!("\nEnter a:");
 
-    const ORDINAL: [&str; 3] = ["first", "second", "third"];
-    let mut s: [u32; 3] = [0; 3];
-    let mut t: [i32; 3] = [0; 3];
-    let mut class: [Vec<u32>; 3] = [vec![], vec![], vec![]];
-
-    for i in 0..3 {
-        eprintln!("\nEnter {} element:", ORDINAL[i]);
-        let f: i32 = query::with_default("f", if i == 1 { "1" } else { "0" }, Ok);
-        s[i] = query::with_default("s", "1", |v| {
-            if v == 0 {
-                Err("Must be positive filtration class".into())
-            } else {
-                Ok(v)
-            }
-        });
-        t[i] = f + s[i] as i32;
-        class[i] = query::with_default("class", "[1]", parse_vec);
-    }
-
-    let tot_s = s[0] + s[1] + s[2] - 1;
-    let tot_t = t[0] + t[1] + t[2];
-
-    if !resolution.has_computed_bidegree(tot_s, tot_t) {
-        resolution.compute_through_stem(tot_s, tot_t - tot_s as i32);
-    }
-
-    let hom = [
-        ResolutionHomomorphism::new(
-            String::new(),
-            Arc::clone(&resolution),
-            Arc::clone(&resolution),
-            s[0],
-            t[0],
-        ),
-        ResolutionHomomorphism::new(
-            String::new(),
-            Arc::clone(&resolution),
-            Arc::clone(&resolution),
-            s[1],
-            t[1],
-        ),
-    ];
-
-    for i in 0..2 {
-        let num_gens = resolution.module(s[i]).number_of_gens_in_degree(t[i]);
-        assert_eq!(
-            num_gens,
-            class[i].len(),
-            "Invalid class in bidegree ({}, {})",
-            s[i],
-            t[i] - s[i] as i32
-        );
-
-        let mut matrix = Matrix::new(p, num_gens, 1);
-
-        for (k, &v) in class[i].iter().enumerate() {
-            matrix[k].set_entry(0, v);
+    let a_f: i32 = query::with_default("f", "0", Ok);
+    let a_s = query::with_default("s", "1", |v| {
+        if v == 0 {
+            Err("Must be positive filtration class".into())
+        } else {
+            Ok(v)
         }
+    });
+    let a_t = a_f + a_s as i32;
+    let a_class = query::with_default("class", "[1]", parse_vec);
 
-        hom[i].extend_step(s[i], t[i], Some(&matrix));
+    eprintln!("\nEnter b:");
+
+    let b_f: i32 = query::with_default("f", "1", Ok);
+    let b_s = query::with_default("s", "1", |v| {
+        if v == 0 {
+            Err("Must be positive filtration class".into())
+        } else {
+            Ok(v)
+        }
+    });
+    let b_t = b_f + b_s as i32;
+    let b_class = query::with_default("class", "[1]", parse_vec);
+
+    // The Massey product shifts the bidegree by this amount
+    let shift_s = a_s + b_s - 1;
+    let shift_t = a_t + b_t;
+    let shift_f = shift_t - shift_s as i32;
+
+    if !is_unit {
+        unit.compute_through_stem(shift_s, shift_f);
     }
 
-    hom[0].extend_through_stem(tot_s, tot_t - tot_s as i32);
-    hom[1].extend_through_stem(s[1] + s[2] - 1, t[1] + t[2] - (s[1] + s[2] - 1) as i32);
+    if !resolution.has_computed_bidegree(shift_s, shift_t + resolution.min_degree()) {
+        eprintln!("No computable bidegrees");
+        return Ok(());
+    }
 
-    let homotopy = ChainHomotopy::new(
-        Arc::clone(&resolution),
-        Arc::clone(&resolution),
-        s[0] + s[1],
-        t[0] + t[1],
-        |source_s, source_t, idx, row| {
-            let mid_s = source_s - s[0];
-            let mid_t = source_t - t[0];
-            let last_s = mid_s - s[1];
-
-            hom[1].get_map(last_s).apply(
-                row,
-                1,
-                mid_t,
-                hom[0].get_map(mid_s).output(source_t, idx).as_slice(),
-            );
-        },
+    let b_hom = ResolutionHomomorphism::from_class(
+        "b".into(),
+        Arc::clone(&unit),
+        Arc::clone(&unit),
+        b_s,
+        b_t,
+        &b_class,
     );
 
-    homotopy.extend(tot_s, tot_t);
+    b_hom.extend_through_stem(shift_s, shift_f);
 
-    let last = homotopy.homotopy(tot_s);
-    let offset = resolution.module(s[2]).generator_offset(t[2], t[2], 0);
-    print!("[");
+    let offset_a = unit.module(a_s).generator_offset(a_t, a_t, 0);
+    for (s, f, t) in resolution.iter_stem() {
+        if !resolution.has_computed_bidegree(s + shift_s, t + shift_t) {
+            continue;
+        }
 
-    for i in 0..resolution.module(tot_s).number_of_gens_in_degree(tot_t) {
-        let mut entry = 0;
-        let output = last.output(tot_t, i);
-        for (k, &v) in class[2].iter().enumerate() {
-            if v != 0 {
-                entry += v * output.entry(offset + k);
+        let tot_s = s + shift_s;
+        let tot_t = t + shift_t;
+        let tot_f = f + shift_f;
+
+        let num_gens = resolution.module(s).number_of_gens_in_degree(t);
+        let product_num_gens = resolution.module(s + b_s).number_of_gens_in_degree(t + b_t);
+        let target_num_gens = resolution.module(tot_s).number_of_gens_in_degree(tot_t);
+        if num_gens == 0 || target_num_gens == 0 {
+            continue;
+        }
+
+        let mut answers = vec![vec![0; target_num_gens]; num_gens];
+        let mut product = AugmentedMatrix::<2>::new(p, num_gens, [product_num_gens, num_gens]);
+        product.segment(1, 1).add_identity(num_gens, 0, 0);
+
+        let mut matrix = Matrix::new(p, num_gens, 1);
+        for idx in 0..num_gens {
+            let hom = ResolutionHomomorphism::new(
+                "c".into(),
+                Arc::clone(&resolution),
+                Arc::clone(&unit),
+                s,
+                t,
+            );
+
+            matrix[idx].set_entry(0, 1);
+            hom.extend_step(s, t, Some(&matrix));
+            matrix[idx].set_entry(0, 0);
+
+            hom.extend_through_stem(tot_s, tot_f);
+
+            let homotopy = ChainHomotopy::new(
+                Arc::clone(&resolution),
+                Arc::clone(&resolution),
+                s + b_s,
+                t + b_t,
+                |source_s, source_t, idx, row| {
+                    let mid_s = source_s - s;
+                    let mid_t = source_t - t;
+                    let last_s = mid_s - b_s;
+
+                    b_hom.get_map(last_s).apply(
+                        row,
+                        1,
+                        mid_t,
+                        hom.get_map(mid_s).output(source_t, idx).as_slice(),
+                    );
+                },
+            );
+
+            homotopy.extend(tot_s, tot_t);
+
+            let last = homotopy.homotopy(tot_s);
+            for i in 0..target_num_gens {
+                let output = last.output(tot_t, i);
+                for (k, &v) in a_class.iter().enumerate() {
+                    if v != 0 {
+                        answers[idx][i] += v * output.entry(offset_a + k);
+                    }
+                }
+            }
+
+            for (k, &v) in b_class.iter().enumerate() {
+                if v != 0 {
+                    hom.act(product[idx].slice_mut(0, product_num_gens), v, b_s, b_t, k);
+                }
             }
         }
-        print!("{}", entry % *p);
-        if i != 0 {
-            print!(", ");
+        product.row_reduce();
+        let kernel = product.compute_kernel();
+
+        for row in &**kernel {
+            print!("<a, b, ");
+            // print element name
+            let mut first = true;
+            for (i, v) in row.iter().enumerate() {
+                if v == 0 {
+                    continue;
+                }
+                if !first {
+                    print!("+");
+                }
+                if v != 1 {
+                    print!("{}", v);
+                }
+                print!("x_({}, {}, {})", f, s, i);
+                first = false;
+            }
+            print!("> = [");
+            for i in 0..target_num_gens {
+                let mut entry = 0;
+                for (j, v) in row.iter().enumerate() {
+                    entry += v * answers[j][i];
+                }
+                if i != 0 {
+                    print!(", ");
+                }
+                print!("{}", entry % *p);
+            }
+            println!("]");
         }
     }
-    println!("]");
+
     Ok(())
 }
