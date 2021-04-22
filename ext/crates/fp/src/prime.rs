@@ -4,7 +4,8 @@ pub const MAX_PRIME: usize = 19;
 const NOT_A_PRIME: usize = !1;
 pub const MAX_MULTINOMIAL_LEN: usize = 10;
 #[cfg(feature = "json")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+use std::convert::TryFrom;
 
 #[macro_export]
 macro_rules! const_for {
@@ -35,14 +36,6 @@ impl ValidPrime {
         #[cfg(not(feature = "odd-primes"))]
         {
             Self {}
-        }
-    }
-
-    pub fn try_new(p: u32) -> Option<Self> {
-        if is_valid_prime(p) {
-            Some(Self::new(p))
-        } else {
-            None
         }
     }
 
@@ -84,6 +77,38 @@ impl std::ops::Deref for ValidPrime {
     }
 }
 
+#[derive(Debug)]
+pub struct InvalidPrimeError(u32);
+
+impl std::fmt::Display for InvalidPrimeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Invalid prime: {}", self.0)
+    }
+}
+
+impl std::error::Error for InvalidPrimeError {}
+
+impl TryFrom<u32> for ValidPrime {
+    type Error = InvalidPrimeError;
+
+    fn try_from(p: u32) -> Result<Self, InvalidPrimeError> {
+        if is_valid_prime(p) {
+            Ok(Self::new(p))
+        } else {
+            Err(InvalidPrimeError(p))
+        }
+    }
+}
+
+impl std::str::FromStr for ValidPrime {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, String> {
+        let p: u32 = s.parse::<u32>().map_err(|s| s.to_string())?;
+        Self::try_from(p).map_err(|s| s.to_string())
+    }
+}
+
 impl From<ValidPrime> for u32 {
     fn from(p: ValidPrime) -> u32 {
         *p
@@ -113,7 +138,7 @@ impl<'de> Deserialize<'de> for ValidPrime {
         D: Deserializer<'de>,
     {
         let p: u32 = u32::deserialize(deserializer)?;
-        Ok(ValidPrime::new(p))
+        ValidPrime::try_from(p).map_err(D::Error::custom)
     }
 }
 

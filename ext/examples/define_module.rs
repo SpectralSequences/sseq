@@ -330,10 +330,7 @@ fn main() -> error::Result<()> {
     );
 
     let name: String = query::parse("Module name (use latex between $'s)", Ok);
-    // Query for prime
-    let p = query::with_default("p", "2", |p: u32| {
-        ValidPrime::try_new(p).ok_or_else(|| "invalid prime".to_string())
-    });
+    let p: ValidPrime = query::with_default("p", "2", Ok);
     let generic = *p != 2;
     let mut output_json = json!({});
 

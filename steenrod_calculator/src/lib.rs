@@ -1,6 +1,7 @@
 use algebra::steenrod_evaluator::{evaluate_algebra_adem, evaluate_algebra_milnor};
 use algebra::{AdemAlgebra, Algebra, MilnorAlgebra};
 use fp::prime::ValidPrime;
+use std::convert::TryFrom;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -12,7 +13,7 @@ pub struct SteenrodCalculator {
 #[wasm_bindgen]
 impl SteenrodCalculator {
     pub fn new(p: u32) -> Option<SteenrodCalculator> {
-        let p = ValidPrime::try_new(p)?;
+        let p = ValidPrime::try_from(p).ok()?;
         Some(Self {
             adem_algebra: AdemAlgebra::new(p, *p != 2, false, false),
             milnor_algebra: MilnorAlgebra::new(p),

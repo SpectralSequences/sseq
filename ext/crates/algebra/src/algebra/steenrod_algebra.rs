@@ -145,7 +145,7 @@ struct MilnorProfileOption {
 #[cfg(feature = "json")]
 #[derive(Deserialize, Debug)]
 struct AlgebraSpec {
-    p: u32,
+    p: ValidPrime,
     algebra: Option<Vec<String>>,
     profile: Option<MilnorProfileOption>,
 }
@@ -156,14 +156,10 @@ impl SteenrodAlgebra {
         json: &Value,
         mut algebra_type: AlgebraType,
     ) -> error::Result<SteenrodAlgebra> {
-        // This line secretly redefines the lifetime of algebra_name so that we can reassign it
-        // later on.
-        let spec: AlgebraSpec = serde_json::from_value(json.clone())?;
+        let spec: AlgebraSpec = AlgebraSpec::deserialize(json)?;
+        let p = spec.p;
 
-        let p = ValidPrime::try_new(spec.p)
-            .ok_or_else(|| error::GenericError::new(format!("Invalid prime: {}", spec.p)))?;
-
-        if let Some(list) = spec.algebra.as_ref() {
+        if let Some(list) = spec.algebra {
             let algebra_name = &algebra_type.to_string();
             if !list.iter().any(|x| x == algebra_name) {
                 println!("Module does not support algebra {}", algebra_name);
