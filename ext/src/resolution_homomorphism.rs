@@ -75,7 +75,7 @@ where
     /// Extend the resolution homomorphism such that it is defined on degrees
     /// (`max_s`, `max_t`).
     pub fn extend(&self, max_s: u32, max_t: i32) {
-        self.get_map_ensure_length(max_s);
+        self.get_map_ensure_length(max_s - self.shift_s);
         for s in self.shift_s..=max_s {
             let f_cur = self.get_map_ensure_length(s - self.shift_s);
             for t in f_cur.next_degree()..=max_t {
@@ -85,7 +85,7 @@ where
     }
 
     pub fn extend_through_stem(&self, max_s: u32, max_f: i32) {
-        self.get_map_ensure_length(max_s);
+        self.get_map_ensure_length(max_s - self.shift_s);
         for s in self.shift_s..=max_s {
             let f_cur = self.get_map_ensure_length(s - self.shift_s);
             for t in f_cur.next_degree()..=(max_f + s as i32) {
