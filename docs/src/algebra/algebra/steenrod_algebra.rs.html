@@ -284,6 +284,8 @@
 <span id="263">263</span>
 <span id="264">264</span>
 <span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">JsonAlgebra</span>;
@@ -432,9 +434,20 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Deserialize</span>, <span class="ident">Debug</span>)]</span>
 <span class="kw">struct</span> <span class="ident">AlgebraSpec</span> {
-    <span class="ident">p</span>: <span class="ident">u32</span>,
+    <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
     <span class="ident">algebra</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">profile</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MilnorProfileOption</span><span class="op">&gt;</span>,
+}
+
+<span class="kw">impl</span> <span class="ident">SteenrodAlgebra</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">algebra</span>: <span class="ident">AlgebraType</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="kw">match</span> <span class="ident">algebra</span> {
+            <span class="ident">AlgebraType</span>::<span class="ident">Adem</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">SteenrodAlgebra</span>::<span class="ident">AdemAlgebra</span>(<span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>))
+            }
+            <span class="ident">AlgebraType</span>::<span class="ident">Milnor</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">SteenrodAlgebra</span>::<span class="ident">MilnorAlgebra</span>(<span class="ident">MilnorAlgebra</span>::<span class="ident">new</span>(<span class="ident">p</span>)),
+        }
+    }
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
@@ -443,14 +456,9 @@
         <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="ident">Value</span>,
         <span class="kw-2">mut</span> <span class="ident">algebra_type</span>: <span class="ident">AlgebraType</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span> {
-        <span class="comment">// This line secretly redefines the lifetime of algebra_name so that we can reassign it</span>
-        <span class="comment">// later on.</span>
-        <span class="kw">let</span> <span class="ident">spec</span>: <span class="ident">AlgebraSpec</span> <span class="op">=</span> <span class="ident">serde_json</span>::<span class="ident">from_value</span>(<span class="ident">json</span>.<span class="ident">clone</span>())<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">spec</span>: <span class="ident">AlgebraSpec</span> <span class="op">=</span> <span class="ident">AlgebraSpec</span>::<span class="ident">deserialize</span>(<span class="ident">json</span>)<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">try_new</span>(<span class="ident">spec</span>.<span class="ident">p</span>)
-            .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">error</span>::<span class="ident">GenericError</span>::<span class="ident">new</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Invalid prime: {}&quot;</span>, <span class="ident">spec</span>.<span class="ident">p</span>)))<span class="question-mark">?</span>;
-
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">list</span>) <span class="op">=</span> <span class="ident">spec</span>.<span class="ident">algebra</span>.<span class="ident">as_ref</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">list</span>) <span class="op">=</span> <span class="ident">spec</span>.<span class="ident">algebra</span> {
             <span class="kw">let</span> <span class="ident">algebra_name</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">algebra_type</span>.<span class="ident">to_string</span>();
             <span class="kw">if</span> <span class="op">!</span><span class="ident">list</span>.<span class="ident">iter</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span> <span class="op">=</span><span class="op">=</span> <span class="ident">algebra_name</span>) {
                 <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Module does not support algebra {}&quot;</span>, <span class="ident">algebra_name</span>);
@@ -459,26 +467,22 @@
             }
         }
 
-        <span class="prelude-val">Ok</span>(<span class="kw">match</span> <span class="ident">algebra_type</span> {
-            <span class="ident">AlgebraType</span>::<span class="ident">Adem</span> <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="ident">SteenrodAlgebra</span>::<span class="ident">AdemAlgebra</span>(<span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>))
-            }
-            <span class="ident">AlgebraType</span>::<span class="ident">Milnor</span> <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">algebra_inner</span> <span class="op">=</span> <span class="ident">MilnorAlgebra</span>::<span class="ident">new</span>(<span class="ident">p</span>);
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">profile</span>) <span class="op">=</span> <span class="ident">spec</span>.<span class="ident">profile</span> {
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">truncated</span>) <span class="op">=</span> <span class="ident">profile</span>.<span class="ident">truncated</span> {
-                        <span class="ident">algebra_inner</span>.<span class="ident">profile</span>.<span class="ident">truncated</span> <span class="op">=</span> <span class="ident">truncated</span>;
-                    }
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">q_part</span>) <span class="op">=</span> <span class="ident">profile</span>.<span class="ident">q_part</span> {
-                        <span class="ident">algebra_inner</span>.<span class="ident">profile</span>.<span class="ident">q_part</span> <span class="op">=</span> <span class="ident">q_part</span>;
-                    }
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">p_part</span>) <span class="op">=</span> <span class="ident">profile</span>.<span class="ident">p_part</span> {
-                        <span class="ident">algebra_inner</span>.<span class="ident">profile</span>.<span class="ident">p_part</span> <span class="op">=</span> <span class="ident">p_part</span>;
-                    }
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">new</span>(<span class="ident">spec</span>.<span class="ident">p</span>, <span class="ident">algebra_type</span>);
+
+        <span class="kw">if</span> <span class="kw">let</span> <span class="self">Self</span>::<span class="ident">MilnorAlgebra</span>(<span class="ident">inner</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">algebra</span> {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">profile</span>) <span class="op">=</span> <span class="ident">spec</span>.<span class="ident">profile</span> {
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">truncated</span>) <span class="op">=</span> <span class="ident">profile</span>.<span class="ident">truncated</span> {
+                    <span class="ident">inner</span>.<span class="ident">profile</span>.<span class="ident">truncated</span> <span class="op">=</span> <span class="ident">truncated</span>;
                 }
-                <span class="ident">SteenrodAlgebra</span>::<span class="ident">MilnorAlgebra</span>(<span class="ident">algebra_inner</span>)
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">q_part</span>) <span class="op">=</span> <span class="ident">profile</span>.<span class="ident">q_part</span> {
+                    <span class="ident">inner</span>.<span class="ident">profile</span>.<span class="ident">q_part</span> <span class="op">=</span> <span class="ident">q_part</span>;
+                }
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">p_part</span>) <span class="op">=</span> <span class="ident">profile</span>.<span class="ident">p_part</span> {
+                    <span class="ident">inner</span>.<span class="ident">profile</span>.<span class="ident">p_part</span> <span class="op">=</span> <span class="ident">p_part</span>;
+                }
             }
-        })
+        }
+        <span class="prelude-val">Ok</span>(<span class="ident">algebra</span>)
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_json</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Value</span>) {

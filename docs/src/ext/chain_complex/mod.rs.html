@@ -313,7 +313,10 @@
 <span id="292">292</span>
 <span id="293">293</span>
 <span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
 </pre><div class="example-wrap"><pre class="rust ">
+<span class="kw">mod</span> <span class="ident">chain_homotopy</span>;
 <span class="kw">mod</span> <span class="ident">finite_chain_complex</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tensor_product_chain_complex</span>;
@@ -328,6 +331,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="comment">// pub use hom_complex::HomComplex;</span>
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">chain_homotopy</span>::<span class="ident">ChainHomotopy</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finite_chain_complex</span>::{<span class="ident">FiniteAugmentedChainComplex</span>, <span class="ident">FiniteChainComplex</span>};
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">tensor_product_chain_complex</span>::<span class="ident">TensorChainComplex</span>;

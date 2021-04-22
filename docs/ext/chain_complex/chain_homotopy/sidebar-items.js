@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["ChainHomotopy","A chain homotopy from $f to g$, or equivalently a null-homotopy of $h = f - g$. A chain map is a priori a collection of free module homomorphisms. However, instead of providing FreeModuleHomomorphism objects, the user is expected to give a function that computes the value of $h$ on each generator."]]});
