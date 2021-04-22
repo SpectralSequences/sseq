@@ -145,6 +145,43 @@ impl<A: Algebra> Module for FreeModule<A> {
         );
     }
 
+    fn act(
+        &self,
+        mut result: SliceMut,
+        coeff: u32,
+        op_degree: i32,
+        op_index: usize,
+        input_degree: i32,
+        input: Slice,
+    ) {
+        let input_dim = self.dimension(input_degree);
+        let output_dim = self.dimension(input_degree + op_degree);
+        let algebra = self.algebra();
+
+        let input_table = &self.generator_to_index[input_degree];
+        let output_table = &self.generator_to_index[input_degree + op_degree];
+        for (i, &idx) in input_table.iter().enumerate() {
+            let end_idx = input_table.get(i + 1).copied().unwrap_or(input_dim);
+            if end_idx == idx {
+                // The algebra is empty in this degree
+                continue;
+            }
+            let opgen = self.index_to_op_gen(input_degree, idx);
+            algebra.multiply_basis_element_by_element(
+                result.slice_mut(
+                    output_table[i],
+                    output_table.get(i + 1).copied().unwrap_or(output_dim),
+                ),
+                coeff,
+                op_degree,
+                op_index,
+                opgen.operation_degree,
+                input.slice(idx, end_idx),
+                opgen.generator_degree,
+            );
+        }
+    }
+
     // Will need specialization
     /*    #[cfg(not(feature = "cache-multiplication"))]
     fn act(&self, result : SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice){
