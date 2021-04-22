@@ -121,10 +121,10 @@ fn main() -> error::Result<()> {
         Arc::clone(&resolution),
         s[0] + s[1],
         t[0] + t[1],
-        |last_s, last_t, idx, row| {
-            let mid_s = last_s + s[1];
-            let mid_t = last_t + t[1];
-            let source_t = last_t + t[0] + t[1];
+        |source_s, source_t, idx, row| {
+            let mid_s = source_s - s[0];
+            let mid_t = source_t - t[0];
+            let last_s = mid_s - s[1];
 
             hom[1].get_map(last_s).apply(
                 row,

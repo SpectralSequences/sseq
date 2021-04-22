@@ -13,11 +13,14 @@ use std::sync::Mutex;
 pub struct ChainHomotopy<S: FreeChainComplex, T: ChainComplex, F: Fn(u32, i32, usize, SliceMut)> {
     source: Arc<S>,
     target: Arc<T>,
+    /// The $s$ shift of the original chain map $f - g$.
     shift_s: u32,
+    /// The $t$ shift of the original chain map $f - g$.
     shift_t: i32,
     /// A function that given (s, t, idx, result), adds (f - g)(x_{s, t, i}), to `result`.
     map: F,
     lock: Mutex<()>,
+    /// Homotopies, indexed by the filtration of the target of f - g.
     homotopies: OnceVec<FreeModuleHomomorphism<T::Module>>,
 }
 
@@ -39,16 +42,19 @@ impl<
         }
     }
 
+    /// Lift maps so that the chain *homotopy* is defined on `(max_source_s, max_source_t)`.
     pub fn extend(&self, max_source_s: u32, max_source_t: i32) {
         let _lock = self.lock.lock();
 
         let p = self.source.prime();
+
+        // The bidegree of the target of f - g
         let max_target_s = max_source_s - self.shift_s;
         let max_target_t = max_source_t - self.shift_t;
 
         let mut scratch = FpVector::new(p, 0);
 
-        self.homotopies.extend(max_target_s as usize - 1, |s| {
+        self.homotopies.extend(max_target_s as usize, |s| {
             let s = s as u32;
             FreeModuleHomomorphism::new(
                 self.source.module(s + self.shift_s),
@@ -57,9 +63,9 @@ impl<
             )
         });
 
-        for target_s in 0..max_target_s {
-            for target_t in self.homotopies[target_s as usize].next_degree()
-                ..=max_target_t - (max_target_s - target_s - 1) as i32
+        for target_s in 0..=max_target_s {
+            for target_t in self.homotopies[target_s as usize].next_degree() - self.shift_t
+                ..=max_target_t - (max_target_s - target_s) as i32
             {
                 let source_s = target_s + self.shift_s;
                 let source_t = target_t + self.shift_t;
@@ -96,7 +102,7 @@ impl<
                     );
                     scratch.set_to_zero();
                 }
-                self.homotopies[target_t as usize].add_generators_from_rows(source_t, outputs);
+                self.homotopies[target_s as usize].add_generators_from_rows(source_t, outputs);
             }
         }
     }
