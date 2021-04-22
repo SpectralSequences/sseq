@@ -131,7 +131,7 @@ pub fn interactive_module_define_fdmodule(
     p: ValidPrime,
     generic: bool,
     name: String,
-) -> error::Result<()> {
+) -> error::Result {
     let algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(
         p, generic, false, false,
     )));
@@ -218,7 +218,7 @@ pub fn interactive_module_define_fpmodule(
     p: ValidPrime,
     generic: bool,
     name: String,
-) -> error::Result<()> {
+) -> error::Result {
     output_json["type"] = Value::from("finitely presented module");
 
     let min_degree = 0i32;
@@ -319,7 +319,7 @@ pub fn interactive_module_define_fpmodule(
     Ok(())
 }
 
-fn main() -> error::Result<()> {
+fn main() -> error::Result {
     let module_type = query::with_default(
         "Input module type (default 'finite dimensional module'):\n (0) - finite dimensional module \n (1) - finitely presented module\n",
         "0",

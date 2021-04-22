@@ -1,7 +1,7 @@
 use ext::chain_complex::ChainComplex;
 use ext::utils::query_module;
 
-fn main() -> error::Result<()> {
+fn main() -> error::Result {
     let resolution = query_module(None)?.resolution;
 
     for (s, f, t) in resolution.iter_stem() {

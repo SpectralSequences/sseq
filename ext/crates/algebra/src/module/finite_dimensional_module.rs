@@ -556,7 +556,7 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
         gen_to_idx: &HashMap<String, (i32, usize)>,
         entry_: &str,
         overwrite: bool,
-    ) -> error::Result<()> {
+    ) -> error::Result {
         let algebra = self.algebra();
         let lhs = tuple((
             |e| algebra.string_to_generator(e),
@@ -600,12 +600,7 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
         Ok(())
     }
 
-    pub fn parse_element(
-        &self,
-        entry: &str,
-        degree: i32,
-        mut result: SliceMut,
-    ) -> error::Result<()> {
+    pub fn parse_element(&self, entry: &str, degree: i32, mut result: SliceMut) -> error::Result {
         if let IResult::<_, _>::Ok(("", _)) = delimited(space0, char('0'), space0)(entry) {
             return Ok(());
         }

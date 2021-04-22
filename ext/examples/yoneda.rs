@@ -13,7 +13,7 @@ use std::time::Instant;
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 
-fn main() -> error::Result<()> {
+fn main() -> error::Result {
     let resolution = Arc::new(query::with_default("Module", "S_2", |name: String| {
         construct(&*name, None).map_err(|e| e.to_string())
     }));

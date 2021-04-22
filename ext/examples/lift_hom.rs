@@ -7,7 +7,7 @@ use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::construct;
 use std::sync::Arc;
 
-fn main() -> error::Result<()> {
+fn main() -> error::Result {
     let target = query::with_default("Target module", "S_2", |name: String| {
         construct(&*name, None).map_err(|e| e.to_string())
     });

@@ -4,7 +4,7 @@ use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::utils::construct;
 use saveload::Save;
 
-fn main() -> error::Result<()> {
+fn main() -> error::Result {
     let res = query::with_default("Module", "S_2", |name: String| {
         construct(&*name, None).map_err(|e| e.to_string())
     });

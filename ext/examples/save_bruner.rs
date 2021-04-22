@@ -8,7 +8,7 @@ use std::fmt::Write as _;
 use std::fs::File;
 use std::io::{BufWriter, Write as _};
 
-fn main() -> error::Result<()> {
+fn main() -> error::Result {
     let resolution = query_module(Some(AlgebraType::Milnor))?.resolution;
 
     assert_eq!(*resolution.prime(), 2);

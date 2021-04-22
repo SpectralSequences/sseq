@@ -23,7 +23,7 @@ use crossbeam_channel::{unbounded, Receiver};
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 
-fn main() -> error::Result<()> {
+fn main() -> error::Result {
     let resolution = Arc::new(construct("S_2", Some("resolution_adem.save")).unwrap());
 
     let complex = resolution.complex();

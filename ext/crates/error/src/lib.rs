@@ -2,7 +2,7 @@
 use std::backtrace::Backtrace;
 use std::error::Error as StdError;
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T = ()> = std::result::Result<T, Error>;
 
 pub struct Error {
     error: Box<dyn StdError + Send + Sync + 'static>,

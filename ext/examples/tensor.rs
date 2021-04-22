@@ -5,7 +5,7 @@ use fp::prime::ValidPrime;
 use serde_json::json;
 use std::sync::Arc;
 
-fn main() -> error::Result<()> {
+fn main() -> error::Result {
     let left = query::with_default("Left module", "S_2", |name: String| {
         Ok(parse_module_name(&*name)?)
     });
