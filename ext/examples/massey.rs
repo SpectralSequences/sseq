@@ -126,7 +126,7 @@ fn main() -> error::Result {
 
             let homotopy = ChainHomotopy::new(
                 Arc::clone(&resolution),
-                Arc::clone(&resolution),
+                Arc::clone(&unit),
                 s + b_s,
                 t + b_t,
                 |source_s, source_t, idx, row| {
