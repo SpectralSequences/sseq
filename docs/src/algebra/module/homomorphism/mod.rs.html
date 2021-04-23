@@ -168,6 +168,8 @@
 <span id="147">147</span>
 <span id="148">148</span>
 <span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -177,6 +179,7 @@
 <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 
 <span class="kw">mod</span> <span class="ident">bounded_module_homomorphism</span>;
+<span class="kw">mod</span> <span class="ident">composition_homomorphism</span>;
 <span class="kw">mod</span> <span class="ident">finite_module_homomorphism</span>;
 <span class="kw">mod</span> <span class="ident">fp_module_homomorphism</span>;
 <span class="kw">mod</span> <span class="ident">free_module_homomorphism</span>;
@@ -189,6 +192,7 @@
 <span class="kw">mod</span> <span class="ident">truncated_homomorphism</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">bounded_module_homomorphism</span>::<span class="ident">BoundedModuleHomomorphism</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">composition_homomorphism</span>::<span class="ident">CompositionHomomorphism</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finite_module_homomorphism</span>::<span class="ident">FiniteModuleHomomorphism</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">fp_module_homomorphism</span>::{<span class="ident">FPModuleHomomorphism</span>, <span class="ident">FPModuleT</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_module_homomorphism</span>::<span class="ident">FreeModuleHomomorphism</span>;
@@ -209,7 +213,7 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// Note that an instance of a `ModuleHomomorphism` need not have the data available, even after</span>
 <span class="doccomment">/// `compute_auxiliary_data_through_degree` is invoked.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ModuleHomomorphism</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> {
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ModuleHomomorphism</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
     <span class="kw">type</span> <span class="ident">Source</span>: <span class="ident">Module</span>;
     <span class="kw">type</span> <span class="ident">Target</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Source</span> <span class="kw">as</span> <span class="ident">Module</span><span class="op">&gt;</span>::<span class="ident">Algebra</span><span class="op">&gt;</span>;
     <span class="kw">const</span> <span class="ident">CUSTOM_QI</span>: <span class="ident">bool</span> <span class="op">=</span> <span class="bool-val">false</span>;

@@ -313,7 +313,7 @@
 <span class="doccomment">/// The algebra should also come with a specified choice of algebra generators, which are</span>
 <span class="doccomment">/// necessarily basis elements. It gives us a simpler way of describing finite modules by only</span>
 <span class="doccomment">/// specifying the action of the generators.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Algebra</span>: <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> {
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Algebra</span>: <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
     <span class="doccomment">/// Returns the prime the algebra is over.</span>
     <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidPrime</span>;
 

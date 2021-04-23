@@ -377,7 +377,7 @@
 
 <span class="doccomment">/// A chain complex is defined to start in degree 0. The min_degree is the min_degree of the</span>
 <span class="doccomment">/// modules in the chain complex, all of which must be the same.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ChainComplex</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> {
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ChainComplex</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
     <span class="kw">type</span> <span class="ident">Algebra</span>: <span class="ident">Algebra</span>;
     <span class="kw">type</span> <span class="ident">Module</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">Algebra</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Homomorphism</span>: <span class="ident">ModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">Source</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">Module</span>, <span class="ident">Target</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">Module</span><span class="op">&gt;</span>;
@@ -519,7 +519,7 @@
     }
 }
 
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">CochainComplex</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> {
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">CochainComplex</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
     <span class="kw">type</span> <span class="ident">Algebra</span>: <span class="ident">Algebra</span>;
     <span class="kw">type</span> <span class="ident">Module</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">Algebra</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Homomorphism</span>: <span class="ident">ModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">Source</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">Module</span>, <span class="ident">Target</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">Module</span><span class="op">&gt;</span>;
