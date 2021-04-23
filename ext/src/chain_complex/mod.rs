@@ -59,7 +59,7 @@ impl<CC> FreeChainComplex for CC where
 
 /// A chain complex is defined to start in degree 0. The min_degree is the min_degree of the
 /// modules in the chain complex, all of which must be the same.
-pub trait ChainComplex: Send + Sync + 'static {
+pub trait ChainComplex: Send + Sync {
     type Algebra: Algebra;
     type Module: Module<Algebra = Self::Algebra>;
     type Homomorphism: ModuleHomomorphism<Source = Self::Module, Target = Self::Module>;
@@ -201,7 +201,7 @@ impl<'a, CC: ChainComplex> Iterator for StemIterator<'a, CC> {
     }
 }
 
-pub trait CochainComplex: Send + Sync + 'static {
+pub trait CochainComplex: Send + Sync {
     type Algebra: Algebra;
     type Module: Module<Algebra = Self::Algebra>;
     type Homomorphism: ModuleHomomorphism<Source = Self::Module, Target = Self::Module>;

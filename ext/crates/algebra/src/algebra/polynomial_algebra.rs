@@ -67,7 +67,7 @@ impl std::hash::Hash for PolynomialAlgebraMonomial {
     }
 }
 
-pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync + 'static {
+pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync {
     fn prime(&self) -> ValidPrime;
 
     fn polynomial_monomials(&self) -> &TruncatedPolynomialMonomialBasis;

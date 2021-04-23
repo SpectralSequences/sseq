@@ -38,7 +38,7 @@ pub use truncated_homomorphism::{TruncatedHomomorphism, TruncatedHomomorphismSou
 ///
 /// Note that an instance of a `ModuleHomomorphism` need not have the data available, even after
 /// `compute_auxiliary_data_through_degree` is invoked.
-pub trait ModuleHomomorphism: Send + Sync + 'static {
+pub trait ModuleHomomorphism: Send + Sync {
     type Source: Module;
     type Target: Module<Algebra = <Self::Source as Module>::Algebra>;
     const CUSTOM_QI: bool = false;

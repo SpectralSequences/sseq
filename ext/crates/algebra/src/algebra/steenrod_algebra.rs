@@ -13,7 +13,7 @@ use {serde::Deserialize, serde_json::Value};
 // This is here so that the Python bindings can use modules defined aor SteenrodAlgebraT with their own algebra enum.
 // In order for things to work SteenrodAlgebraT cannot implement Algebra.
 // Otherwise, the algebra enum for our bindings will see an implementation clash.
-pub trait SteenrodAlgebraT: Send + Sync + 'static + Algebra {
+pub trait SteenrodAlgebraT: Send + Sync + Algebra {
     fn steenrod_algebra(&self) -> SteenrodAlgebraBorrow;
 }
 

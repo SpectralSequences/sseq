@@ -15,7 +15,7 @@ use fp::vector::{Slice, SliceMut};
 /// The algebra should also come with a specified choice of algebra generators, which are
 /// necessarily basis elements. It gives us a simpler way of describing finite modules by only
 /// specifying the action of the generators.
-pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
+pub trait Algebra: std::fmt::Display + Send + Sync {
     /// Returns the prime the algebra is over.
     fn prime(&self) -> ValidPrime;
 

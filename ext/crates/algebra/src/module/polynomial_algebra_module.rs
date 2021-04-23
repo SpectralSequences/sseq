@@ -497,9 +497,7 @@ pub trait PolynomialAlgebraModule: PolynomialAlgebra {
     }
 }
 
-impl<Adem: AdemAlgebraT, A: PolynomialAlgebraModule<Algebra = Adem> + Send + Sync + 'static> Module
-    for A
-{
+impl<Adem: AdemAlgebraT, A: PolynomialAlgebraModule<Algebra = Adem> + Send + Sync> Module for A {
     type Algebra = Adem;
     fn algebra(&self) -> Arc<Self::Algebra> {
         PolynomialAlgebraModule::algebra(self)

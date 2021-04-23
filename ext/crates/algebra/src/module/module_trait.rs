@@ -8,7 +8,7 @@ use crate::algebra::Algebra;
 #[cfg(feature = "extras")]
 use {crate::module::BoundedModule, crate::module::FDModule, crate::module::TruncatedModule};
 
-pub trait Module: std::fmt::Display + Send + Sync + 'static {
+pub trait Module: std::fmt::Display + Send + Sync {
     type Algebra: Algebra;
 
     fn algebra(&self) -> Arc<Self::Algebra>;

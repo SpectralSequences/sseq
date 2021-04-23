@@ -24,7 +24,7 @@ use {crate::algebra::JsonAlgebra, serde::Deserialize, serde_json::value::Value};
 // This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
 // In order for things to work AdemAlgebraT cannot implement Algebra.
 // Otherwise, the algebra enum for our bindings will see an implementation clash.
-pub trait AdemAlgebraT: Send + Sync + 'static + Algebra {
+pub trait AdemAlgebraT: Send + Sync + Algebra {
     fn adem_algebra(&self) -> &AdemAlgebra;
 }
 
