@@ -131,14 +131,10 @@ fn main() -> error::Result {
                 t + b_t,
                 |source_s, source_t, idx, row| {
                     let mid_s = source_s - s;
-                    let mid_t = source_t - t;
 
-                    b_hom.get_map(mid_s).apply(
-                        row,
-                        1,
-                        mid_t,
-                        hom.get_map(source_s).output(source_t, idx).as_slice(),
-                    );
+                    hom.get_map(source_s)
+                        .compose(b_hom.get_map(mid_s))
+                        .apply_to_basis_element(row, 1, source_t, idx)
                 },
             );
 

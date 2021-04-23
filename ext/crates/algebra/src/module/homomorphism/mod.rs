@@ -6,6 +6,7 @@ use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
 mod bounded_module_homomorphism;
+mod composition_homomorphism;
 mod finite_module_homomorphism;
 mod fp_module_homomorphism;
 mod free_module_homomorphism;
@@ -18,6 +19,7 @@ mod quotient_homomorphism;
 mod truncated_homomorphism;
 
 pub use bounded_module_homomorphism::BoundedModuleHomomorphism;
+pub use composition_homomorphism::CompositionHomomorphism;
 pub use finite_module_homomorphism::FiniteModuleHomomorphism;
 pub use fp_module_homomorphism::{FPModuleHomomorphism, FPModuleT};
 pub use free_module_homomorphism::FreeModuleHomomorphism;
