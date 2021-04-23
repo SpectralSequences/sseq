@@ -8,7 +8,7 @@ use algebra::module::Module;
 use algebra::SteenrodAlgebra;
 use fp::matrix::Matrix;
 use fp::vector::{FpVector, SliceMut};
-use once::OnceVec;
+use once::OnceBiVec;
 
 #[cfg(feature = "concurrent")]
 use {
@@ -25,7 +25,7 @@ where
     name: String,
     pub source: Arc<CC1>,
     pub target: Arc<CC2>,
-    maps: OnceVec<FreeModuleHomomorphism<CC2::Module>>,
+    maps: OnceBiVec<FreeModuleHomomorphism<CC2::Module>>,
     pub shift_s: u32,
     pub shift_t: i32,
 }
@@ -46,7 +46,7 @@ where
             name,
             source,
             target,
-            maps: OnceVec::new(),
+            maps: OnceBiVec::new(shift_s as i32),
             shift_s,
             shift_t,
         }
@@ -77,32 +77,28 @@ where
         result
     }
 
-    fn get_map_ensure_length(&self, output_s: u32) -> &FreeModuleHomomorphism<CC2::Module> {
-        self.maps.extend(output_s as usize, |output_s| {
-            let input_s = output_s as u32 + self.shift_s;
+    fn get_map_ensure_length(&self, input_s: u32) -> &FreeModuleHomomorphism<CC2::Module> {
+        self.maps.extend(input_s as i32, |input_s| {
+            let output_s = input_s as u32 - self.shift_s;
             FreeModuleHomomorphism::new(
-                self.source.module(input_s),
-                self.target.module(output_s as u32),
+                self.source.module(input_s as u32),
+                self.target.module(output_s),
                 self.shift_t,
             )
         });
-        &self.maps[output_s as usize]
+        &self.maps[input_s as i32]
     }
 
-    pub fn get_map(&self, output_s: u32) -> &FreeModuleHomomorphism<CC2::Module> {
-        &self.maps[output_s as usize]
-    }
-
-    pub fn into_chain_maps(self) -> Vec<FreeModuleHomomorphism<CC2::Module>> {
-        self.maps.into_vec()
+    pub fn get_map(&self, input_s: u32) -> &FreeModuleHomomorphism<CC2::Module> {
+        &self.maps[input_s as i32]
     }
 
     /// Extend the resolution homomorphism such that it is defined on degrees
     /// (`max_s`, `max_t`).
     pub fn extend(&self, max_s: u32, max_t: i32) {
-        self.get_map_ensure_length(max_s - self.shift_s);
+        self.get_map_ensure_length(max_s);
         for s in self.shift_s..=max_s {
-            let f_cur = self.get_map_ensure_length(s - self.shift_s);
+            let f_cur = self.get_map_ensure_length(s);
             for t in f_cur.next_degree()..=max_t {
                 self.extend_step(s, t, None);
             }
@@ -110,9 +106,9 @@ where
     }
 
     pub fn extend_through_stem(&self, max_s: u32, max_f: i32) {
-        self.get_map_ensure_length(max_s - self.shift_s);
+        self.get_map_ensure_length(max_s);
         for s in self.shift_s..=max_s {
-            let f_cur = self.get_map_ensure_length(s - self.shift_s);
+            let f_cur = self.get_map_ensure_length(s);
             for t in f_cur.next_degree()..=(max_f + s as i32) {
                 self.extend_step(s, t, None);
             }
@@ -152,7 +148,7 @@ where
         assert!(self.source.has_computed_bidegree(input_s, input_t));
         assert!(input_s >= self.shift_s);
 
-        let f_cur = self.get_map_ensure_length(output_s);
+        let f_cur = self.get_map_ensure_length(input_s);
         if input_t < f_cur.next_degree() {
             assert!(extra_images.is_none());
             return;
@@ -160,7 +156,6 @@ where
 
         let p = self.source.prime();
 
-        let f_cur = self.get_map(output_s);
         let num_gens = f_cur.source().number_of_gens_in_degree(input_t);
         let fx_dimension = f_cur.target().dimension(output_t);
 
@@ -197,7 +192,7 @@ where
         }
         let d_source = self.source.differential(input_s);
         let d_target = self.target.differential(output_s);
-        let f_prev = self.get_map(output_s - 1);
+        let f_prev = self.get_map(input_s - 1);
         assert!(Arc::ptr_eq(&d_source.source(), &f_cur.source()));
         assert!(Arc::ptr_eq(&d_source.target(), &f_prev.source()));
         assert!(Arc::ptr_eq(&d_target.source(), &f_cur.target()));
@@ -337,7 +332,7 @@ where
 
         let target_module = self.target.module(s);
 
-        let map = self.get_map(s);
+        let map = self.get_map(source_s);
         let j = target_module.operation_generator_to_index(0, 0, t, idx);
         for i in 0..result.as_slice().len() {
             result.add_basis_element(i, coef * map.output(source_t, i).entry(j));

@@ -324,7 +324,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             let output_module = unit_res.module(elt.s);
 
             for l in 0..target_dim {
-                let result = f.get_map(elt.s).output(target_t, l);
+                let result = f.get_map(target_s).output(target_t, l);
                 let mut val = 0;
                 for i in 0..elt.class.len() {
                     if elt.class[i] != 0 {
@@ -459,7 +459,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             let mut products = vec![Vec::with_capacity(target_dim); source_dim];
 
             for j in 0..target_dim {
-                let result = f.map.get_map(source_s).output(target_t, j);
+                let result = f.map.get_map(target_s).output(target_t, j);
 
                 for k in 0..source_dim {
                     let vector_idx = source.operation_generator_to_index(0, 0, source_t, k);

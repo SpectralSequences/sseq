@@ -132,13 +132,12 @@ fn main() -> error::Result {
                 |source_s, source_t, idx, row| {
                     let mid_s = source_s - s;
                     let mid_t = source_t - t;
-                    let last_s = mid_s - b_s;
 
-                    b_hom.get_map(last_s).apply(
+                    b_hom.get_map(mid_s).apply(
                         row,
                         1,
                         mid_t,
-                        hom.get_map(mid_s).output(source_t, idx).as_slice(),
+                        hom.get_map(source_s).output(source_t, idx).as_slice(),
                     );
                 },
             );
