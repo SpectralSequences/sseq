@@ -296,7 +296,7 @@ pub fn compute_delta_concurrent(
 
         // Redefine these to the borrows so that the underlying doesn't get moved into closures
         let ddeltas = &ddeltas;
-        for _ in 0..bucket.max_threads {
+        for _ in 0..bucket.max_threads.get() {
             let save_file = Arc::clone(&save_file);
             let receiver = Arc::clone(&receiver);
             let p_sender = p_sender.clone();
@@ -841,7 +841,7 @@ mod test {
 
         #[cfg(feature = "concurrent")]
         let deltas = {
-            let bucket = std::sync::Arc::new(TokenBucket::new(2));
+            let bucket = TokenBucket::new(core::num::NonZeroUsize::new(2).unwrap());
             resolution.compute_through_bidegree_concurrent(max_s, max_t, &bucket);
             compute_delta_concurrent(&resolution, &bucket, None)
         };

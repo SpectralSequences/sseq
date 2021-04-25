@@ -266,10 +266,7 @@ pub fn query_module(algebra: Option<AlgebraType>) -> error::Result<QueryModuleRe
     });
 
     #[cfg(feature = "concurrent")]
-    let bucket = {
-        let num_threads = query::with_default("Number of threads", "2", Ok);
-        thread_token::TokenBucket::new(num_threads)
-    };
+    let bucket = query_bucket();
 
     let resolution: Resolution<CCC> = match save_file {
         Some(save_file) => construct(module, Some(&save_file))?,
@@ -293,6 +290,28 @@ pub fn query_module(algebra: Option<AlgebraType>) -> error::Result<QueryModuleRe
         bucket,
     })
 }
+
+#[cfg(feature = "concurrent")]
+pub fn query_num_threads() -> core::num::NonZeroUsize {
+    use std::env;
+
+    match env::var("EXT_THREADS") {
+        Ok(n) => match n.parse::<core::num::NonZeroUsize>() {
+            Ok(n) => return n,
+            Err(_) => eprintln!("Invalid value of EXT_THREADS variable: {}", n),
+        },
+        Err(env::VarError::NotUnicode(_)) => eprintln!("Invalid value of EXT_THREADS variable"),
+        Err(env::VarError::NotPresent) => (),
+    };
+
+    query::with_default("Number of threads", "2", Ok)
+}
+
+#[cfg(feature = "concurrent")]
+pub fn query_bucket() -> thread_token::TokenBucket {
+    thread_token::TokenBucket::new(query_num_threads())
+}
+
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash, Hasher};
 

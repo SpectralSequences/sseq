@@ -34,7 +34,7 @@ fn test_iterate(
 
     #[cfg(feature = "concurrent")]
     {
-        let bucket = thread_token::TokenBucket::new(2);
+        let bucket = thread_token::TokenBucket::default();
         let third = construct((json, algebra), None).unwrap();
 
         third.compute_through_bidegree_concurrent(0, 0, &bucket);

@@ -10,9 +10,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
-#[cfg(feature = "concurrent")]
-use thread_token::TokenBucket;
-
 fn main() -> error::Result {
     let resolution = Arc::new(query::with_default("Module", "S_2", |name: String| {
         construct(&*name, None).map_err(|e| e.to_string())
@@ -22,9 +19,7 @@ fn main() -> error::Result {
     let min_degree = resolution.min_degree();
 
     #[cfg(feature = "concurrent")]
-    let num_threads = query::with_default("Number of threads", "2", Ok);
-    #[cfg(feature = "concurrent")]
-    let bucket = Arc::new(TokenBucket::new(num_threads));
+    let bucket = ext::utils::query_bucket();
 
     let x: i32 = query::with_default("t - s", "20", Ok);
     let s: u32 = query::with_default("s", "4", Ok);

@@ -1,4 +1,4 @@
-differentials -- S_2 "" 2 5 10
+differentials -- S_2 "" 5 10
 d x_(0,0,0) = 
 d x_(0,1,0) = Sq1 x_(0,0,0)
 d x_(0,2,0) = Sq1 x_(0,1,0)

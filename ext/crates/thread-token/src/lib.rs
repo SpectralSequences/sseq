@@ -1,4 +1,5 @@
 #![allow(clippy::mutex_atomic)]
+use core::num::NonZeroUsize;
 use crossbeam_channel::{Receiver, TryRecvError};
 use std::sync::{Condvar, Mutex};
 
@@ -10,14 +11,21 @@ use std::sync::{Condvar, Mutex};
 ///
 /// A `TokenBucket` is useful for limiting the number of active threads used by a function/program.
 pub struct TokenBucket {
-    pub max_threads: usize,
+    pub max_threads: NonZeroUsize,
     running_threads: Mutex<usize>,
     condvar: Condvar,
 }
 
+impl Default for TokenBucket {
+    /// The default value of TokenBucket has two threads.
+    fn default() -> Self {
+        Self::new(NonZeroUsize::new(2).unwrap())
+    }
+}
+
 impl TokenBucket {
     /// Constructs a new `TokenBucket` with a fixed number of tokens.
-    pub fn new(max_threads: usize) -> Self {
+    pub fn new(max_threads: NonZeroUsize) -> Self {
         Self {
             max_threads,
             running_threads: Mutex::new(0),
@@ -30,7 +38,7 @@ impl TokenBucket {
         let mut running_threads = self.running_threads.lock().unwrap();
 
         loop {
-            if *running_threads < self.max_threads {
+            if *running_threads < self.max_threads.get() {
                 *running_threads += 1;
                 return Token { bucket: &self };
             } else {

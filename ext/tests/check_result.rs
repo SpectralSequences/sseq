@@ -20,7 +20,7 @@ fn compare(module_name: &str, result: ExpectFile, max_degree: i32) {
 
     #[cfg(feature = "concurrent")]
     {
-        let bucket = std::sync::Arc::new(TokenBucket::new(2));
+        let bucket = TokenBucket::default();
         let b = construct(module_name, None).unwrap();
         b.compute_through_bidegree_concurrent(max_degree as u32, max_degree, &bucket);
         result.assert_eq(&b.graded_dimension_string());
@@ -42,7 +42,7 @@ fn check_non_rectangular() {
 fn check_non_rectangular_concurrent() {
     let resolution = construct("S_2", None).unwrap();
 
-    let bucket = std::sync::Arc::new(TokenBucket::new(2));
+    let bucket = TokenBucket::default();
     resolution.compute_through_bidegree_concurrent(6, 6, &bucket);
     resolution.compute_through_bidegree_concurrent(2, 20, &bucket);
 

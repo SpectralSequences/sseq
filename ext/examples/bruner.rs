@@ -288,10 +288,7 @@ fn main() {
     let max_f: i32 = query::with_default("Max f", "20", Ok);
 
     #[cfg(feature = "concurrent")]
-    let bucket = {
-        let num_threads = query::with_default("Number of threads", "2", Ok);
-        thread_token::TokenBucket::new(num_threads)
-    };
+    let bucket = ext::utils::query_bucket();
 
     // Read in Bruner's resolution
     let (max_s, cc) = read_bruner_resolution(data_dir, max_f).unwrap();

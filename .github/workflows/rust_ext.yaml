@@ -43,6 +43,9 @@ jobs:
       - name: Run ext examples
         run: make -C ext benchmarks
 
+      - name: Run ext examples (concurrent)
+        run: make -C ext benchmarks-concurrent
+
       - name: Benchmark executable size
         run: |
           ls -l $HOME/.cargo/target/debug/examples | grep -v ' .*-\|\.d$'

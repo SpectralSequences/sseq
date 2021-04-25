@@ -18,8 +18,7 @@ fn main() -> error::Result {
 
     #[cfg(feature = "concurrent")]
     {
-        let num_threads = query::with_default("Number of threads", "2", Ok);
-        let bucket = std::sync::Arc::new(thread_token::TokenBucket::new(num_threads));
+        let bucket = ext::utils::query_bucket();
         res.compute_through_bidegree_concurrent(max_s, max_t, &bucket);
     }
 

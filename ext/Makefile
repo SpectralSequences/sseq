@@ -16,14 +16,21 @@ docs:
 	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo doc --all --no-deps --document-private-items
 
 fix-benchmarks: $(patsubst examples/benchmarks/%, examples/benchmarks/%-fixed, $(wildcard examples/benchmarks/*))
+examples/benchmarks/%-fixed: FILE = examples/benchmarks/$*
 examples/benchmarks/%-fixed: dummy
-	(head -n 1 examples/benchmarks/$* && sh -c "echo '' | cargo run --features concurrent --example $$(head -n 1 examples/benchmarks/$*)") > $@
-	if diff --color examples/benchmarks/$* $@; then \
+	(head -n 1 $(FILE) && sh -c "echo '' | cargo run --features concurrent --example $$(head -n 1 $(FILE))") > $@
+	if diff --color $(FILE) $@; then \
 	    rm $@; \
 	else \
-	    mv $@ examples/benchmarks/$*; \
+	    mv $@ $(FILE); \
 	fi
 
 benchmarks: $(wildcard examples/benchmarks/*)
 examples/benchmarks/%: dummy
-	(head -n 1 $@ && sh -c "echo '' | cargo run --features concurrent --example $$(head -n 1 $@)") | diff --color $@ -
+	(head -n 1 $@ && sh -c "echo '' | EXT_THREADS=2 cargo run --example $$(head -n 1 $@)") | diff --color $@ -
+
+benchmarks-concurrent: $(patsubst examples/benchmarks/%, examples/benchmarks/%-concurrent, $(wildcard examples/benchmarks/*))
+
+examples/benchmarks/%-concurrent: FILE = examples/benchmarks/$*
+examples/benchmarks/%-concurrent: dummy
+	(head -n 1 $(FILE) && sh -c "echo '' | EXT_THREADS=2 cargo run --features concurrent --example $$(head -n 1 $(FILE))") | diff --color $(FILE) -

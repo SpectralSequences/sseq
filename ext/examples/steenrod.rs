@@ -20,9 +20,6 @@ use std::{thread, thread::JoinHandle};
 #[cfg(feature = "concurrent")]
 use crossbeam_channel::{unbounded, Receiver};
 
-#[cfg(feature = "concurrent")]
-use thread_token::TokenBucket;
-
 fn main() -> error::Result {
     let resolution = Arc::new(construct("S_2", Some("resolution_adem.save")).unwrap());
 
@@ -31,10 +28,7 @@ fn main() -> error::Result {
 
     let p = ValidPrime::new(2);
     #[cfg(feature = "concurrent")]
-    let num_threads = query::with_default("Number of threads", "2", Ok);
-
-    #[cfg(feature = "concurrent")]
-    let bucket = Arc::new(TokenBucket::new(num_threads));
+    let bucket = Arc::new(ext::utils::query_bucket());
 
     let x: i32 = query::with_default("t - s", "8", Ok);
     let s: u32 = query::with_default("s", "3", Ok);

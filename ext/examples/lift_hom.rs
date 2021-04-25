@@ -26,10 +26,7 @@ fn main() -> error::Result {
     let f: i32 = query::with_default("f", "7", Ok);
 
     #[cfg(feature = "concurrent")]
-    let bucket = {
-        let num_threads = query::with_default("Number of threads", "2", Ok);
-        std::sync::Arc::new(thread_token::TokenBucket::new(num_threads))
-    };
+    let bucket = ext::utils::query_bucket();
 
     let source_module = source.complex().module(0);
     let target_module = target.complex().module(0);
