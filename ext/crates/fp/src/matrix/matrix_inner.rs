@@ -1070,6 +1070,7 @@ impl<'a> MatrixSliceMut<'a> {
     }
 
     pub fn add_identity(&mut self) {
+        debug_assert_eq!(self.rows(), self.columns());
         for (i, row) in self.vectors.iter_mut().enumerate() {
             row.add_basis_element(self.col_start + i, 1);
         }
