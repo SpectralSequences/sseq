@@ -125,7 +125,7 @@ pub fn parse_matrix<const N: usize>(
 fn main() -> error::Result {
     let max_s: usize = query::raw("Max s", str::parse);
     let max_f: usize = query::raw("Max f", str::parse);
-    let alpha_f: usize = query::raw("Filtration of α", str::parse);
+    let alpha_f: usize = query::raw("Stem of α", str::parse);
     let alpha_name: String = query::raw("Name of α", str::parse);
 
     let x_dim_file = query::raw("Dimension of Ext of X", |s| File::open(s));
