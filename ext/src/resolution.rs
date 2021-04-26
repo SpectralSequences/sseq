@@ -222,7 +222,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         current_chain_map.get_matrix(&mut matrix.segment(0, 0), t);
         current_differential.get_matrix(&mut matrix.segment(1, 1), t);
-        matrix.segment(2, 2).add_identity(source_dimension, 0, 0);
+        matrix.segment(2, 2).add_identity();
 
         // This slices the underling matrix. Be sure to revert this.
         matrix.row_reduce();
@@ -421,7 +421,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         current_chain_map.get_matrix(&mut matrix.segment(0, 0), t);
         current_differential.get_matrix(&mut matrix.segment(1, 1), t);
-        matrix.segment(2, 2).add_identity(source_dimension, 0, 0);
+        matrix.segment(2, 2).add_identity();
         matrix.row_reduce();
 
         *old_kernel = Some(matrix.compute_kernel());

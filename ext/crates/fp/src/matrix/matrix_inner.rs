@@ -159,7 +159,7 @@ impl Matrix {
     ///               vec![0, 3, 4]];
     ///
     /// let (n, m) = Matrix::augmented_from_vec(p, &input);
-    /// assert_eq!(n, FpVector::padded_dimension(p, input[0].len()));
+    /// assert_eq!(n, FpVector::padded_len(p, input[0].len()));
     pub fn augmented_from_vec(p: ValidPrime, input: &[Vec<u32>]) -> (usize, Matrix) {
         let rows = input.len();
         let cols = input[0].len();
@@ -171,14 +171,9 @@ impl Matrix {
                 m[i].set_entry(j, input[i][j]);
             }
         }
-        m.add_identity(rows, 0, padded_cols);
+        m.slice_mut(0, rows, padded_cols, padded_cols + rows)
+            .add_identity();
         (padded_cols, m)
-    }
-
-    pub fn add_identity(&mut self, size: usize, row: usize, column: usize) {
-        for i in 0..size {
-            self[row + i].add_basis_element(column + i, 1);
-        }
     }
 
     pub fn set_to_zero(&mut self) {
@@ -1074,9 +1069,9 @@ impl<'a> MatrixSliceMut<'a> {
         self.vectors[row].slice_mut(self.col_start, self.col_end)
     }
 
-    pub fn add_identity(&mut self, size: usize, row: usize, column: usize) {
-        for i in 0..size {
-            self.vectors[row + i].add_basis_element(self.col_start + column + i, 1);
+    pub fn add_identity(&mut self) {
+        for (i, row) in self.vectors.iter_mut().enumerate() {
+            row.add_basis_element(self.col_start + i, 1);
         }
     }
 }

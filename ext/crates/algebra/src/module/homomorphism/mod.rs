@@ -106,7 +106,7 @@ pub trait ModuleHomomorphism: Send + Sync {
             AugmentedMatrix::<2>::new(p, source_dimension, [target_dimension, source_dimension]);
 
         self.get_matrix(&mut matrix.segment(0, 0), degree);
-        matrix.segment(1, 1).add_identity(source_dimension, 0, 0);
+        matrix.segment(1, 1).add_identity();
 
         matrix.row_reduce();
 

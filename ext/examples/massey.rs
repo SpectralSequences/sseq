@@ -101,7 +101,7 @@ fn main() -> error::Result {
 
         let mut answers = vec![vec![0; target_num_gens]; num_gens];
         let mut product = AugmentedMatrix::<2>::new(p, num_gens, [product_num_gens, num_gens]);
-        product.segment(1, 1).add_identity(num_gens, 0, 0);
+        product.segment(1, 1).add_identity();
 
         let mut matrix = Matrix::new(p, num_gens, 1);
         for idx in 0..num_gens {
