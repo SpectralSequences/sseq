@@ -279,7 +279,7 @@
             <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">2</span><span class="op">&gt;</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">source_dimension</span>, [<span class="ident">target_dimension</span>, <span class="ident">source_dimension</span>]);
 
         <span class="self">self</span>.<span class="ident">get_matrix</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>), <span class="ident">degree</span>);
-        <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">1</span>, <span class="number">1</span>).<span class="ident">add_identity</span>(<span class="ident">source_dimension</span>, <span class="number">0</span>, <span class="number">0</span>);
+        <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">1</span>, <span class="number">1</span>).<span class="ident">add_identity</span>();
 
         <span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
 

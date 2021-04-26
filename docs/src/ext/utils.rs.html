@@ -369,6 +369,10 @@
 <span id="348">348</span>
 <span id="349">349</span>
 <span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::{<span class="ident">FiniteChainComplex</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">resolution</span>::<span class="ident">Resolution</span>;
@@ -382,7 +386,8 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::<span class="ident">ChainComplex</span>;
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">convert</span>::{<span class="ident">TryFrom</span>, <span class="ident">TryInto</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">path</span>::{<span class="ident">Path</span>, <span class="ident">PathBuf</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fs</span>::<span class="ident">File</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">path</span>::<span class="ident">PathBuf</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="kw">const</span> <span class="ident">STATIC_MODULES_PATH</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="macro">concat</span><span class="macro">!</span>(<span class="macro">env</span><span class="macro">!</span>(<span class="string">&quot;CARGO_MANIFEST_DIR&quot;</span>), <span class="string">&quot;/../ext/steenrod_modules&quot;</span>);
@@ -470,10 +475,9 @@
 <span class="doccomment">///       `ext/steenrod_modules`. The modules can be shifted by appending e.g. `S_2[2]`.</span>
 <span class="doccomment">///     - `module_spec`, a single `&amp;str` of the form `module_name@algebra`, where `module_name` and</span>
 <span class="doccomment">///       `algebra` are as above.</span>
-<span class="doccomment">///  - `save_file`: The save file for the module. If this is `Some`, we attempt to load the</span>
-<span class="doccomment">///     resolution from the save file. If the path points to a non-existent file, it is ignored.</span>
-<span class="doccomment">///     However, if it points to an invalid save file, an error is returned.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">construct</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span>(<span class="ident">module_spec</span>: <span class="ident">T</span>, <span class="ident">save_file</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span>
+<span class="doccomment">///  - `save_file`: The save file for the module. If it points to an invalid save file, an error is</span>
+<span class="doccomment">///    returned.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">construct</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span>(<span class="ident">module_spec</span>: <span class="ident">T</span>, <span class="ident">save_file</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">File</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">error</span>::<span class="ident">Error</span>: <span class="ident">From</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span>,
     <span class="ident">T</span>: <span class="ident">TryInto</span><span class="op">&lt;</span><span class="ident">Config</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span><span class="op">&gt;</span>,
@@ -531,15 +535,9 @@
     }
 
     <span class="prelude-val">Ok</span>(<span class="kw">match</span> <span class="ident">save_file</span> {
-        <span class="prelude-val">Some</span>(<span class="ident">path</span>) <span class="op">=</span><span class="op">&gt;</span> {
-            <span class="kw">let</span> <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">Path</span> <span class="op">=</span> <span class="ident">path</span>.<span class="ident">as_ref</span>();
-            <span class="kw">if</span> <span class="ident">path</span>.<span class="ident">exists</span>() {
-                <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">fs</span>::<span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">path</span>).<span class="ident">unwrap</span>();
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">BufReader</span>::<span class="ident">new</span>(<span class="ident">f</span>);
-                <span class="ident">Resolution</span>::<span class="ident">load</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">f</span>, <span class="kw-2">&amp;</span><span class="ident">chain_complex</span>)<span class="question-mark">?</span>
-            } <span class="kw">else</span> {
-                <span class="ident">Resolution</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">chain_complex</span>))
-            }
+        <span class="prelude-val">Some</span>(<span class="ident">f</span>) <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">BufReader</span>::<span class="ident">new</span>(<span class="ident">f</span>);
+            <span class="ident">Resolution</span>::<span class="ident">load</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">f</span>, <span class="kw-2">&amp;</span><span class="ident">chain_complex</span>)<span class="question-mark">?</span>
         }
         <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Resolution</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">chain_complex</span>)),
     })
@@ -622,29 +620,23 @@
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">query_module</span>(<span class="ident">algebra</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">AlgebraType</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">QueryModuleResult</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">module</span>: <span class="ident">Config</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Module&quot;</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">s</span>: <span class="ident">String</span><span class="op">|</span> {
-        <span class="prelude-val">Ok</span>(<span class="kw">match</span> <span class="ident">algebra</span> {
-            <span class="prelude-val">Some</span>(<span class="ident">algebra</span>) <span class="op">=</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">s</span>, <span class="ident">algebra</span>).<span class="ident">try_into</span>()<span class="question-mark">?</span>,
-            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">s</span>).<span class="ident">try_into</span>()<span class="question-mark">?</span>,
-        })
+    <span class="kw">let</span> <span class="ident">module</span>: <span class="ident">Config</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Module&quot;</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">algebra</span> {
+        <span class="prelude-val">Some</span>(<span class="ident">algebra</span>) <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">s</span>, <span class="ident">algebra</span>).<span class="ident">try_into</span>(),
+        <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">s</span>).<span class="ident">try_into</span>(),
     });
 
-    <span class="kw">let</span> <span class="ident">save_file</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">optional</span>(<span class="string">&quot;Resolution save file&quot;</span>, <span class="op">|</span><span class="ident">s</span>: <span class="ident">String</span><span class="op">|</span> {
-        <span class="kw">if</span> <span class="ident">Path</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>).<span class="ident">exists</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">s</span>)
-        } <span class="kw">else</span> {
-            <span class="prelude-val">Err</span>(<span class="string">&quot;File not found&quot;</span>.<span class="ident">into</span>())
-        }
-    });
+    <span class="comment">// Clippy false positive</span>
+    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">redundant_closure</span>)]</span>
+    <span class="kw">let</span> <span class="ident">save_file</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">optional</span>(<span class="string">&quot;Resolution save file&quot;</span>, <span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">x</span>));
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
     <span class="kw">let</span> <span class="ident">bucket</span> <span class="op">=</span> <span class="ident">query_bucket</span>();
 
     <span class="kw">let</span> <span class="ident">resolution</span>: <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">save_file</span> {
-        <span class="prelude-val">Some</span>(<span class="ident">save_file</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">construct</span>(<span class="ident">module</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">save_file</span>))<span class="question-mark">?</span>,
+        <span class="prelude-val">Some</span>(<span class="ident">save_file</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">construct</span>(<span class="ident">module</span>, <span class="prelude-val">Some</span>(<span class="ident">save_file</span>))<span class="question-mark">?</span>,
         <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
-            <span class="kw">let</span> <span class="ident">max_s</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Max s&quot;</span>, <span class="string">&quot;7&quot;</span>, <span class="prelude-val">Ok</span>);
-            <span class="kw">let</span> <span class="ident">max_f</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Max f&quot;</span>, <span class="string">&quot;30&quot;</span>, <span class="prelude-val">Ok</span>);
+            <span class="kw">let</span> <span class="ident">max_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Max s&quot;</span>, <span class="string">&quot;7&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>);
+            <span class="kw">let</span> <span class="ident">max_f</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Max f&quot;</span>, <span class="string">&quot;30&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>);
 
             <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">construct</span>(<span class="ident">module</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
             <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
@@ -676,7 +668,7 @@
         <span class="prelude-val">Err</span>(<span class="ident">env</span>::<span class="ident">VarError</span>::<span class="ident">NotPresent</span>) <span class="op">=</span><span class="op">&gt;</span> (),
     };
 
-    <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Number of threads&quot;</span>, <span class="string">&quot;2&quot;</span>, <span class="prelude-val">Ok</span>)
+    <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Number of threads&quot;</span>, <span class="string">&quot;2&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>)
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
@@ -703,6 +695,22 @@
         <span class="ident">raw_entry</span>
             .<span class="ident">from_hash</span>(<span class="ident">hasher</span>.<span class="ident">finish</span>(), <span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="kw-2">&amp;</span><span class="ident">v</span>.<span class="number">0</span> <span class="op">=</span><span class="op">=</span> <span class="ident">a</span> <span class="op">&amp;&amp;</span> <span class="kw-2">&amp;</span><span class="ident">v</span>.<span class="number">1</span> <span class="op">=</span><span class="op">=</span> <span class="ident">b</span>)
             .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">y</span>)<span class="op">|</span> <span class="ident">y</span>)
+    }
+}
+
+<span class="doccomment">/// Prints an element in the bidegree `(f, s)` to stdout. For example, `[0, 2, 1]` will be printed</span>
+<span class="doccomment">/// as `2 x_(f, s, 1) + x_(f, s, 2)`.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">print_element</span>(<span class="ident">v</span>: <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">Slice</span>, <span class="ident">f</span>: <span class="ident">i32</span>, <span class="ident">s</span>: <span class="ident">u32</span>) {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">first</span> <span class="op">=</span> <span class="bool-val">true</span>;
+    <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">v</span>.<span class="ident">iter_nonzero</span>() {
+        <span class="kw">if</span> <span class="op">!</span><span class="ident">first</span> {
+            <span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot; + &quot;</span>);
+        }
+        <span class="kw">if</span> <span class="ident">v</span> <span class="op">!</span><span class="op">=</span> <span class="number">1</span> {
+            <span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;{} &quot;</span>, <span class="ident">v</span>);
+        }
+        <span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;x_({}, {}, {})&quot;</span>, <span class="ident">f</span>, <span class="ident">s</span>, <span class="ident">i</span>);
+        <span class="ident">first</span> <span class="op">=</span> <span class="bool-val">false</span>;
     }
 }
 
