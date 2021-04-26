@@ -31,9 +31,9 @@ fn main() -> error::Result {
     #[cfg(feature = "concurrent")]
     let bucket = Arc::new(ext::utils::query_bucket());
 
-    let x: i32 = query::with_default("t - s", "8", Ok);
-    let s: u32 = query::with_default("s", "3", Ok);
-    let idx: usize = query::with_default("idx", "0", Ok);
+    let x: i32 = query::with_default("t - s", "8", str::parse);
+    let s: u32 = query::with_default("s", "3", str::parse);
+    let idx: usize = query::with_default("idx", "0", str::parse);
 
     let t = s as i32 + x;
     eprint!("Resolving ext: ");

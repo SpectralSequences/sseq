@@ -12,7 +12,6 @@
 
 use std::fmt::Display;
 use std::io::{stderr, stdin, Write};
-use std::str::FromStr;
 
 use std::cell::RefCell;
 use std::env::Args;
@@ -25,60 +24,35 @@ thread_local! {
     }
 }
 
-pub fn optional<S, T: FromStr>(
+pub fn optional<S, E: Display>(
     prompt: &str,
-    validator: impl Fn(T) -> Result<S, String>,
-) -> Option<S>
-where
-    <T as FromStr>::Err: Display,
-{
+    mut parser: impl for<'a> FnMut(&'a str) -> Result<S, E>,
+) -> Option<S> {
     raw(prompt, |x| {
         if x.is_empty() {
             Ok(None)
         } else {
-            x.parse::<T>()
-                .map_err(|err| err.to_string())
-                .and_then(|res| validator(res))
-                .map(Some)
+            parser(x).map(Some)
         }
     })
 }
 
-pub fn with_default<S, T: FromStr>(
+pub fn with_default<S, E: Display>(
     prompt: &str,
     default: &str,
-    validator: impl Fn(T) -> Result<S, String>,
-) -> S
-where
-    <T as FromStr>::Err: Display,
-{
+    mut parser: impl for<'a> FnMut(&'a str) -> Result<S, E>,
+) -> S {
     raw(&format!("{} (default: {})", prompt, default), |x| {
         if x.is_empty() {
-            default
-                .parse::<T>()
-                .map_err(|err| err.to_string())
-                .and_then(|res| validator(res))
+            parser(default)
         } else {
-            x.parse::<T>()
-                .map_err(|err| err.to_string())
-                .and_then(|res| validator(res))
+            parser(x)
         }
-    })
-}
-
-pub fn parse<S, T: FromStr>(prompt: &str, validator: impl Fn(T) -> Result<S, String>) -> S
-where
-    <T as FromStr>::Err: Display,
-{
-    raw(prompt, |x| {
-        x.parse::<T>()
-            .map_err(|err| err.to_string())
-            .and_then(|res| validator(res))
     })
 }
 
 pub fn yes_no(prompt: &str) -> bool {
-    with_default(prompt, "y", |response: String| {
+    with_default(prompt, "y", |response| {
         if response.starts_with('y') || response.starts_with('n') {
             Ok(response.starts_with('y'))
         } else {
@@ -90,10 +64,13 @@ pub fn yes_no(prompt: &str) -> bool {
     })
 }
 
-pub fn raw<S>(prompt: &str, validator: impl for<'a> Fn(&'a str) -> Result<S, String>) -> S {
-    let cli: Option<(String, Result<S, String>)> = ARGV.with(|argv| {
+pub fn raw<S, E: Display>(
+    prompt: &str,
+    mut parser: impl for<'a> FnMut(&'a str) -> Result<S, E>,
+) -> S {
+    let cli: Option<(String, Result<S, E>)> = ARGV.with(|argv| {
         let arg = argv.borrow_mut().next()?;
-        let result = validator(&arg);
+        let result = parser(&arg);
         Some((arg, result))
     });
 
@@ -116,7 +93,7 @@ pub fn raw<S>(prompt: &str, validator: impl for<'a> Fn(&'a str) -> Result<S, Str
             .read_line(&mut input)
             .unwrap_or_else(|_| panic!("Error reading for prompt: {}", prompt));
         let trimmed = input.trim();
-        match validator(trimmed) {
+        match parser(trimmed) {
             Ok(res) => {
                 return res;
             }

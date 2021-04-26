@@ -11,20 +11,17 @@ use std::time::Instant;
 const TWO: ValidPrime = ValidPrime::new(2);
 
 fn main() -> error::Result<()> {
-    let module_file_name: String = query::with_default("Module", "S_2", Ok);
+    let module_file_name: String = query::with_default("Module", "S_2", str::parse);
 
-    let max_s = query::with_default("Max s", "7", Ok);
-    let max_t = query::with_default("Max t", "30", Ok);
+    let max_s: u32 = query::with_default("Max s", "7", str::parse);
+    let max_t: i32 = query::with_default("Max t", "30", str::parse);
 
-    let save_file: Option<File> = query::optional("Resolution save file", |s: String| {
-        File::open(s).map_err(|e| e.to_string())
-    });
+    // Clippy false positive
+    #[allow(clippy::redundant_closure)]
+    let save_file: Option<File> = query::optional("Resolution save file", |s| File::open(s));
 
     #[cfg(feature = "concurrent")]
-    let bucket = {
-        let num_threads = query::with_default("Number of threads", "2", Ok);
-        thread_token::TokenBucket::new(num_threads)
-    };
+    let bucket = ext::utils::query_bucket();
 
     let resolution = construct(
         (&*module_file_name, algebra::AlgebraType::Milnor),

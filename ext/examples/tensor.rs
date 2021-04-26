@@ -6,17 +6,15 @@ use serde_json::json;
 use std::sync::Arc;
 
 fn main() -> error::Result {
-    let left = query::with_default("Left module", "S_2", |name: String| {
-        Ok(parse_module_name(&*name)?)
-    });
+    let left = query::with_default("Left module", "S_2", |name| parse_module_name(name));
     let p = left["p"].as_u64().unwrap();
 
-    let right = query::with_default("Right module", "S_2", |name: String| {
-        let module = parse_module_name(&*name)?;
+    let right = query::with_default("Right module", "S_2", |name| {
+        let module = parse_module_name(name)?;
         if module["p"].as_u64() == Some(p) {
             Ok(module)
         } else {
-            Err("Two modules must be over the same prime".into())
+            Err(String::from("Two modules must be over the same prime"))
         }
     });
 

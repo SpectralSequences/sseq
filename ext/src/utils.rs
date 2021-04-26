@@ -244,16 +244,14 @@ pub struct QueryModuleResult {
 }
 
 pub fn query_module(algebra: Option<AlgebraType>) -> error::Result<QueryModuleResult> {
-    let module: Config = query::with_default("Module", "S_2", |s: String| {
-        Ok(match algebra {
-            Some(algebra) => (&*s, algebra).try_into()?,
-            None => (&*s).try_into()?,
-        })
+    let module: Config = query::with_default("Module", "S_2", |s| match algebra {
+        Some(algebra) => (s, algebra).try_into(),
+        None => (&*s).try_into(),
     });
 
-    let save_file = query::optional("Resolution save file", |s: String| {
-        File::open(s).map_err(|e| e.to_string())
-    });
+    // Clippy false positive
+    #[allow(clippy::redundant_closure)]
+    let save_file = query::optional("Resolution save file", |x| File::open(x));
 
     #[cfg(feature = "concurrent")]
     let bucket = query_bucket();
@@ -261,8 +259,8 @@ pub fn query_module(algebra: Option<AlgebraType>) -> error::Result<QueryModuleRe
     let resolution: Resolution<CCC> = match save_file {
         Some(save_file) => construct(module, Some(save_file))?,
         None => {
-            let max_s = query::with_default("Max s", "7", Ok);
-            let max_f = query::with_default("Max f", "30", Ok);
+            let max_s: u32 = query::with_default("Max s", "7", str::parse);
+            let max_f: i32 = query::with_default("Max f", "30", str::parse);
 
             let resolution = construct(module, None)?;
             #[cfg(not(feature = "concurrent"))]
@@ -294,7 +292,7 @@ pub fn query_num_threads() -> core::num::NonZeroUsize {
         Err(env::VarError::NotPresent) => (),
     };
 
-    query::with_default("Number of threads", "2", Ok)
+    query::with_default("Number of threads", "2", str::parse)
 }
 
 #[cfg(feature = "concurrent")]

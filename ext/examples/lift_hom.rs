@@ -8,22 +8,20 @@ use ext::utils::construct;
 use std::sync::Arc;
 
 fn main() -> error::Result {
-    let target = query::with_default("Target module", "S_2", |name: String| {
-        construct(&*name, None).map_err(|e| e.to_string())
-    });
-    let source = query::with_default("Source module", "Cnu", |name: String| {
-        let source = construct((&*name, target.algebra().prefix()), None)?;
+    let target = query::with_default("Target module", "S_2", |name| construct(name, None));
+    let source = query::with_default("Source module", "Cnu", |name| {
+        let source = construct((name, target.algebra().prefix()), None)?;
         if source.prime() != target.prime() {
-            return Err("Source and target must have the same prime".into());
+            return Err(String::from("Source and target must have the same prime"));
         }
         if !source.complex().module(0).is_fd_module() {
-            return Err("Source must be finite dimensional".into());
+            return Err(String::from("Source must be finite dimensional"));
         }
         Ok(source)
     });
 
-    let s = query::with_default("s", "2", Ok);
-    let f: i32 = query::with_default("f", "7", Ok);
+    let s = query::with_default("s", "2", str::parse);
+    let f: i32 = query::with_default("f", "7", str::parse);
 
     #[cfg(feature = "concurrent")]
     let bucket = ext::utils::query_bucket();

@@ -11,8 +11,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 fn main() -> error::Result {
-    let resolution = Arc::new(query::with_default("Module", "S_2", |name: String| {
-        construct(&*name, None).map_err(|e| e.to_string())
+    let resolution = Arc::new(query::with_default("Module", "S_2", |name| {
+        construct(name, None)
     }));
 
     let module = resolution.complex().module(0);
@@ -21,9 +21,9 @@ fn main() -> error::Result {
     #[cfg(feature = "concurrent")]
     let bucket = ext::utils::query_bucket();
 
-    let x: i32 = query::with_default("t - s", "20", Ok);
-    let s: u32 = query::with_default("s", "4", Ok);
-    let i: usize = query::with_default("idx", "0", Ok);
+    let x: i32 = query::with_default("t - s", "20", str::parse);
+    let s: u32 = query::with_default("s", "4", str::parse);
+    let i: usize = query::with_default("idx", "0", str::parse);
 
     let start = Instant::now();
     let t = x + s as i32;
@@ -89,7 +89,7 @@ fn main() -> error::Result {
         );
     }
 
-    let filename: String = match query::optional("Output file name (empty to skip)", Ok) {
+    let filename: String = match query::optional("Output file name (empty to skip)", str::parse) {
         None => return Ok(()),
         Some(x) => x,
     };

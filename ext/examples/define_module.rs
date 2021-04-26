@@ -19,7 +19,7 @@ pub fn get_gens(min_degree: i32) -> error::Result<BiVec<Vec<String>>> {
 
     let mut gens: BiVec<Vec<_>> = BiVec::new(min_degree);
     loop {
-        let gen_deg: Option<i32> = query::optional("Generator degree", Ok);
+        let gen_deg: Option<i32> = query::optional("Generator degree", str::parse);
         if gen_deg.is_none() {
             eprintln!("This is the list of generators and degrees:");
             for (i, deg_i_gens) in gens.iter_enum() {
@@ -44,7 +44,7 @@ pub fn get_gens(min_degree: i32) -> error::Result<BiVec<Vec<String>>> {
         let gen_name = query::with_default(
             "Generator name",
             &format!("x{}{}", gen_deg, gens[gen_deg].len()),
-            |x: String| {
+            |x| {
                 match x.chars().next() {
                     Some(a) => {
                         if !a.is_alphabetic() {
@@ -61,7 +61,7 @@ pub fn get_gens(min_degree: i32) -> error::Result<BiVec<Vec<String>>> {
                         ));
                     }
                 }
-                Ok(x)
+                Ok(x.to_string())
             },
         );
         gens[gen_deg].push(gen_name);
@@ -87,7 +87,7 @@ pub fn get_expression_to_vector<F>(
     F: for<'a> Fn(&'a str) -> Option<usize>,
 {
     'outer: loop {
-        let result: String = query::parse(prompt, Ok);
+        let result: String = query::raw(prompt, str::parse);
         if result == "0" {
             output_vec.set_to_zero();
             break;
@@ -199,7 +199,7 @@ fn get_relation(
     module: &FreeModule<SteenrodAlgebra>,
     basis_elt_lookup: &HashMap<String, (i32, usize)>,
 ) -> Result<(i32, FpVector), String> {
-    let relation: String = query::parse("Relation", Ok);
+    let relation: String = query::raw("Relation", str::parse);
     if relation.is_empty() {
         return Err("".to_string());
     }
@@ -321,23 +321,23 @@ pub fn interactive_module_define_fpmodule(
 
 fn main() -> error::Result {
     let module_type = query::with_default(
-        "Input module type (default 'finite dimensional module'):\n (0) - finite dimensional module \n (1) - finitely presented module\n",
-        "0",
-        |x : u32| match x {
-            0 | 1 => Ok(x),
-            _ => Err(format!("Invalid type '{}'. Type must be '0' or '1'", x))
+        "Input module type (default 'finite dimensional module'):\n (fd) - finite dimensional module \n (fp) - finitely presented module\n",
+        "fd",
+        |x| match x {
+            "fd" | "fp" => Ok(x.to_string()),
+            _ => Err(format!("Invalid type '{}'. Type must be 'fd' or 'fp'", x))
         }
     );
 
-    let name: String = query::parse("Module name (use latex between $'s)", Ok);
-    let p: ValidPrime = query::with_default("p", "2", Ok);
+    let name: String = query::raw("Module name (use latex between $'s)", str::parse);
+    let p: ValidPrime = query::with_default("p", "2", str::parse);
     let generic = *p != 2;
     let mut output_json = json!({});
 
-    eprintln!("module_type : {}", module_type);
-    match module_type {
-        0 => interactive_module_define_fdmodule(&mut output_json, p, generic, name)?,
-        1 => interactive_module_define_fpmodule(&mut output_json, p, generic, name)?,
+    eprintln!("module_type: {}", module_type);
+    match &*module_type {
+        "fd" => interactive_module_define_fdmodule(&mut output_json, p, generic, name)?,
+        "fp" => interactive_module_define_fpmodule(&mut output_json, p, generic, name)?,
         _ => unreachable!(),
     }
     println!("{}", output_json);

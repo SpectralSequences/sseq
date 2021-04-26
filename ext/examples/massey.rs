@@ -8,12 +8,11 @@ use ext::resolution_homomorphism::ResolutionHomomorphism;
 use fp::matrix::{AugmentedMatrix, Matrix};
 use std::sync::Arc;
 
-fn parse_vec(s: String) -> Result<Vec<u32>, String> {
+fn parse_vec(s: &str) -> Result<Vec<u32>, core::num::ParseIntError> {
     s[1..s.len() - 1]
         .split(',')
         .map(|x| x.trim().parse())
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|x: core::num::ParseIntError| x.to_string())
 }
 
 fn main() -> error::Result {
@@ -38,26 +37,22 @@ fn main() -> error::Result {
     eprintln!("\nComputing Massey products <a, b, ->");
     eprintln!("\nEnter a:");
 
-    let a_f: i32 = query::with_default("f", "0", Ok);
-    let a_s = query::with_default("s", "1", |v| {
-        if v == 0 {
-            Err("Must be positive filtration class".into())
-        } else {
-            Ok(v)
-        }
+    let a_f: i32 = query::with_default("f", "0", str::parse);
+    let a_s: u32 = query::with_default("s", "1", |v| match v.parse::<u32>() {
+        Ok(0) => Err(String::from("Must be positive filtration class")),
+        Ok(x) => Ok(x),
+        Err(e) => Err(e.to_string()),
     });
     let a_t = a_f + a_s as i32;
     let a_class = query::with_default("class", "[1]", parse_vec);
 
     eprintln!("\nEnter b:");
 
-    let b_f: i32 = query::with_default("f", "1", Ok);
-    let b_s = query::with_default("s", "1", |v| {
-        if v == 0 {
-            Err("Must be positive filtration class".into())
-        } else {
-            Ok(v)
-        }
+    let b_f: i32 = query::with_default("f", "1", str::parse);
+    let b_s: u32 = query::with_default("s", "1", |v| match v.parse::<u32>() {
+        Ok(0) => Err(String::from("Must be positive filtration class")),
+        Ok(x) => Ok(x),
+        Err(e) => Err(e.to_string()),
     });
     let b_t = b_f + b_s as i32;
     let b_class = query::with_default("class", "[1]", parse_vec);

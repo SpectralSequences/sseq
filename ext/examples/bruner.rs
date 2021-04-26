@@ -285,7 +285,7 @@ fn read_bruner_resolution(data_dir: PathBuf, max_f: i32) -> Result<(u32, FiniteC
 
 fn main() {
     let data_dir = Path::new(file!()).parent().unwrap().join("bruner_data");
-    let max_f: i32 = query::with_default("Max f", "20", Ok);
+    let max_f: i32 = query::with_default("Max f", "20", str::parse);
 
     #[cfg(feature = "concurrent")]
     let bucket = ext::utils::query_bucket();

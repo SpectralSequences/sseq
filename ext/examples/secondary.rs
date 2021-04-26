@@ -8,7 +8,7 @@ fn main() -> error::Result {
     let resolution = data.resolution;
 
     #[cfg(feature = "concurrent")]
-    let del_save_file: Option<String> = query::optional("Delta save file", Ok);
+    let del_save_file: Option<String> = query::optional("Delta save file", str::parse);
 
     if !can_compute(&resolution) {
         eprintln!(
