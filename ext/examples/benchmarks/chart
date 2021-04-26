@@ -1,4 +1,4 @@
-chart
+chart -- S_2 "" 8 20
 <svg version = "1.1" width="460" height="220" xmlns="http://www.w3.org/2000/svg">
 <style>
     circle {
@@ -194,8 +194,4 @@ chart
 <circle cx="430" cy="70" r="2"/>
 <line class="structline" x1="430" x2="430" y1="70" y2="90" />
 <line class="structline" x1="430" x2="370" y1="70" y2="90" />
-<line class="d2" x1="330" x2="310" y1="170" y2="130" />
-<line class="d2" x1="370" x2="350" y1="110" y2="70" />
-<line class="d2" x1="390" x2="370" y1="90" y2="50" />
-<line class="d2" x1="393" x2="370" y1="110" y2="70" />
 </svg>

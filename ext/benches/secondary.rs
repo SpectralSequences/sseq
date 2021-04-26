@@ -7,9 +7,10 @@ use ext::utils::construct;
 use std::time::Instant;
 
 fn main() {
-    // This macro attempts to load a resolution of S_2 from resolution_milnor.save, and generates one from
-    // scratch if it isn't available. The result is written to the variable `resolution`.
-    let resolution = construct("S_2@milnor", Some("resolution_milnor.save")).unwrap();
+    // Attempt to load a resolution of S_2 from resolution_milnor.save, and generates one from
+    // scratch if it isn't available.
+    let save_file = std::fs::File::open("resolution_milnor.save").ok();
+    let resolution = construct("S_2@milnor", save_file).unwrap();
 
     // Compute the minimal resolution R_{s, t}
     resolution.compute_through_bidegree(6, 70);

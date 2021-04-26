@@ -21,7 +21,8 @@ use std::{thread, thread::JoinHandle};
 use crossbeam_channel::{unbounded, Receiver};
 
 fn main() -> error::Result {
-    let resolution = Arc::new(construct("S_2", Some("resolution_adem.save")).unwrap());
+    let resolution =
+        Arc::new(construct("S_2", std::fs::File::open("resolution_adem.save").ok()).unwrap());
 
     let complex = resolution.complex();
     let module = complex.module(0);

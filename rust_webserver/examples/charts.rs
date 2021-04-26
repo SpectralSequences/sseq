@@ -16,7 +16,9 @@ fn main() -> error::Result<()> {
     let max_s = query::with_default("Max s", "7", Ok);
     let max_t = query::with_default("Max t", "30", Ok);
 
-    let save_file: Option<String> = query::optional("Resolution save file", Ok);
+    let save_file: Option<File> = query::optional("Resolution save file", |s: String| {
+        File::open(s).map_err(|e| e.to_string())
+    });
 
     #[cfg(feature = "concurrent")]
     let bucket = {
@@ -26,7 +28,7 @@ fn main() -> error::Result<()> {
 
     let resolution = construct(
         (&*module_file_name, algebra::AlgebraType::Milnor),
-        save_file.as_deref(),
+        save_file,
     )?;
 
     if !resolution.has_computed_bidegree(max_s, max_t) {

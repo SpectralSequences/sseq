@@ -1,20 +1,20 @@
-use algebra::module::OperationGeneratorPair;
+use algebra::module::{Module, OperationGeneratorPair};
 use chart::{Backend, SvgBackend};
 use ext::chain_complex::ChainComplex;
-use ext::utils::construct;
-use std::io::Result;
+use ext::utils::query_module;
 
-fn main() -> Result<()> {
+fn main() -> error::Result {
     let f = std::io::stdout();
     let mut g = SvgBackend::new(f);
-    g.init(20, 8)?;
+    let resolution = query_module(None)?.resolution;
 
-    let resolution = construct("S_2@milnor", Some("resolution_milnor.save")).unwrap();
-    resolution.compute_through_stem(8, 20);
+    g.init(
+        resolution.module(0).max_computed_degree(),
+        resolution.max_homological_degree() as i32,
+    )?;
 
-    for f in 0..=20 {
-        for s in 0..=8 {
-            let t = s as i32 + f;
+    if *resolution.prime() == 2 {
+        for (s, f, t) in resolution.iter_stem() {
             let num_gens = resolution.module(s).number_of_gens_in_degree(t);
             g.node(f as i32, s as i32, num_gens)?;
             if s == 0 {
@@ -44,11 +44,6 @@ fn main() -> Result<()> {
             }
         }
     }
-
-    g.structline((15, 1, 0), (14, 3, 0), Some("d2"))?;
-    g.structline((17, 4, 0), (16, 6, 0), Some("d2"))?;
-    g.structline((18, 5, 0), (17, 7, 0), Some("d2"))?;
-    g.structline((18, 4, 1), (17, 6, 0), Some("d2"))?;
 
     Ok(())
 }

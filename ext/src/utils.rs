@@ -10,7 +10,8 @@ use serde_json::Value;
 use crate::chain_complex::ChainComplex;
 
 use std::convert::{TryFrom, TryInto};
-use std::path::{Path, PathBuf};
+use std::fs::File;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 const STATIC_MODULES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../ext/steenrod_modules");
@@ -98,10 +99,9 @@ impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
 ///       `ext/steenrod_modules`. The modules can be shifted by appending e.g. `S_2[2]`.
 ///     - `module_spec`, a single `&str` of the form `module_name@algebra`, where `module_name` and
 ///       `algebra` are as above.
-///  - `save_file`: The save file for the module. If this is `Some`, we attempt to load the
-///     resolution from the save file. If the path points to a non-existent file, it is ignored.
-///     However, if it points to an invalid save file, an error is returned.
-pub fn construct<T, E>(module_spec: T, save_file: Option<&str>) -> error::Result<Resolution<CCC>>
+///  - `save_file`: The save file for the module. If it points to an invalid save file, an error is
+///    returned.
+pub fn construct<T, E>(module_spec: T, save_file: Option<File>) -> error::Result<Resolution<CCC>>
 where
     error::Error: From<E>,
     T: TryInto<Config, Error = E>,
@@ -159,15 +159,9 @@ where
     }
 
     Ok(match save_file {
-        Some(path) => {
-            let path: &Path = path.as_ref();
-            if path.exists() {
-                let f = std::fs::File::open(path).unwrap();
-                let mut f = std::io::BufReader::new(f);
-                Resolution::load(&mut f, &chain_complex)?
-            } else {
-                Resolution::new(Arc::clone(&chain_complex))
-            }
+        Some(f) => {
+            let mut f = std::io::BufReader::new(f);
+            Resolution::load(&mut f, &chain_complex)?
         }
         None => Resolution::new(Arc::clone(&chain_complex)),
     })
@@ -258,18 +252,14 @@ pub fn query_module(algebra: Option<AlgebraType>) -> error::Result<QueryModuleRe
     });
 
     let save_file = query::optional("Resolution save file", |s: String| {
-        if Path::new(&s).exists() {
-            Ok(s)
-        } else {
-            Err("File not found".into())
-        }
+        File::open(s).map_err(|e| e.to_string())
     });
 
     #[cfg(feature = "concurrent")]
     let bucket = query_bucket();
 
     let resolution: Resolution<CCC> = match save_file {
-        Some(save_file) => construct(module, Some(&save_file))?,
+        Some(save_file) => construct(module, Some(save_file))?,
         None => {
             let max_s = query::with_default("Max s", "7", Ok);
             let max_f = query::with_default("Max f", "30", Ok);
