@@ -19,7 +19,7 @@ docs:
 fix-benchmarks: $(patsubst examples/benchmarks/%, examples/benchmarks/%-fixed, $(wildcard examples/benchmarks/*))
 examples/benchmarks/%-fixed: FILE = examples/benchmarks/$*
 examples/benchmarks/%-fixed: dummy
-	(head -n 1 $(FILE) && sh -c "echo '' | cargo run --features concurrent --example $$(head -n 1 $(FILE))") > $@
+	(head -n 1 $(FILE) && bash -c "echo '' | cargo run --features concurrent --example $$(head -n 1 $(FILE))") > $@
 	if diff --color $(FILE) $@; then \
 	    rm $@; \
 	else \
@@ -28,7 +28,7 @@ examples/benchmarks/%-fixed: dummy
 
 benchmarks: $(wildcard examples/benchmarks/*)
 examples/benchmarks/%: dummy
-	(head -n 1 $@ && sh -c "echo '' | EXT_THREADS=2 cargo run --example $$(head -n 1 $@)") | diff --color $@ -
+	(head -n 1 $@ && bash -c "echo '' | EXT_THREADS=2 cargo run --example $$(head -n 1 $@)") | diff --color $@ -
 
 benchmarks-concurrent: $(patsubst examples/benchmarks/%, examples/benchmarks/%-concurrent, $(wildcard examples/benchmarks/*))
 
