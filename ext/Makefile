@@ -34,4 +34,4 @@ benchmarks-concurrent: $(patsubst examples/benchmarks/%, examples/benchmarks/%-c
 
 examples/benchmarks/%-concurrent: FILE = examples/benchmarks/$*
 examples/benchmarks/%-concurrent: dummy
-	(head -n 1 $(FILE) && sh -c "echo '' | EXT_THREADS=2 cargo run --features concurrent --example $$(head -n 1 $(FILE))") | diff --color $(FILE) -
+	(head -n 1 $(FILE) && bash -c "echo '' | EXT_THREADS=2 cargo run --features concurrent --example $$(head -n 1 $(FILE))") | diff --color $(FILE) -
