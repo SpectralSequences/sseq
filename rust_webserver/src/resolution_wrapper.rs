@@ -140,6 +140,11 @@ impl<CC: ChainComplex> Resolution<CC> {
 
     #[cfg(feature = "concurrent")]
     pub fn compute_through_bidegree_concurrent(&self, s: u32, t: i32, bucket: &TokenBucket) {
+        // If products were defined through the module specification, the unit resolution might not
+        // have been resolved yet
+        if let UnitResolution::Some(r) = &self.unit_resolution {
+            r.compute_through_bidegree_concurrent(self.max_product_s, self.max_product_t, &bucket);
+        }
         self.inner
             .compute_through_bidegree_concurrent_with_callback(s, t, bucket, |s, t| {
                 self.step_after(s, t)
@@ -147,6 +152,11 @@ impl<CC: ChainComplex> Resolution<CC> {
     }
 
     pub fn compute_through_bidegree(&self, s: u32, t: i32) {
+        // If products were defined through the module specification, the unit resolution might not
+        // have been resolved yet
+        if let UnitResolution::Some(r) = &self.unit_resolution {
+            r.compute_through_bidegree(self.max_product_s, self.max_product_t);
+        }
         self.inner
             .compute_through_bidegree_with_callback(s, t, |s, t| self.step_after(s, t));
     }
