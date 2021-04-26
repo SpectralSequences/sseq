@@ -156,22 +156,9 @@ fn main() -> error::Result {
 
         for row in &**kernel {
             print!("<a, b, ");
-            // print element name
-            let mut first = true;
-            for (i, v) in row.iter().enumerate() {
-                if v == 0 {
-                    continue;
-                }
-                if !first {
-                    print!("+");
-                }
-                if v != 1 {
-                    print!("{}", v);
-                }
-                print!("x_({}, {}, {})", f, s, i);
-                first = false;
-            }
+            ext::utils::print_element(row.as_slice(), f, s);
             print!("> = [");
+
             for i in 0..target_num_gens {
                 let mut entry = 0;
                 for (j, v) in row.iter().enumerate() {

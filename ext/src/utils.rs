@@ -322,6 +322,22 @@ impl<A: Eq + Hash, B: Eq + Hash, C, S: BuildHasher> HashMapTuple<A, B, C>
     }
 }
 
+/// Prints an element in the bidegree `(f, s)` to stdout. For example, `[0, 2, 1]` will be printed
+/// as `2 x_(f, s, 1) + x_(f, s, 2)`.
+pub fn print_element(v: fp::vector::Slice, f: i32, s: u32) {
+    let mut first = true;
+    for (i, v) in v.iter_nonzero() {
+        if !first {
+            print!(" + ");
+        }
+        if v != 1 {
+            print!("{} ", v);
+        }
+        print!("x_({}, {}, {})", f, s, i);
+        first = false;
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
