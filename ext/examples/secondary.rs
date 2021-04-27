@@ -25,7 +25,7 @@ fn main() -> error::Result {
     let deltas = compute_delta_concurrent(&resolution, &data.bucket, del_save_file);
 
     // Iterate through target of the d2
-    for (s, f, t) in resolution.iter_stem() {
+    for (s, n, t) in resolution.iter_stem() {
         if s < 3 {
             continue;
         }
@@ -39,7 +39,7 @@ fn main() -> error::Result {
         let d = delta.hom_k(t - 1);
 
         for (i, entry) in d.into_iter().enumerate() {
-            println!("d_2 x_({}, {}, {}) = {:?}", f + 1, s - 2, i, entry);
+            println!("d_2 x_({}, {}, {}) = {:?}", n + 1, s - 2, i, entry);
         }
     }
     Ok(())

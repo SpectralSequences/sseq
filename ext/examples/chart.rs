@@ -14,9 +14,9 @@ fn main() -> error::Result {
     )?;
 
     if *resolution.prime() == 2 {
-        for (s, f, t) in resolution.iter_stem() {
+        for (s, n, t) in resolution.iter_stem() {
             let num_gens = resolution.module(s).number_of_gens_in_degree(t);
-            g.node(f as i32, s as i32, num_gens)?;
+            g.node(n as i32, s as i32, num_gens)?;
             if s == 0 {
                 continue;
             }
@@ -34,8 +34,8 @@ fn main() -> error::Result {
                         });
                         if dg.entry(elt) != 0 {
                             g.structline(
-                                (f, s as i32, k),
-                                (f - (1 << i) + 1, s as i32 - 1, l),
+                                (n, s as i32, k),
+                                (n - (1 << i) + 1, s as i32 - 1, l),
                                 None,
                             )?;
                         }

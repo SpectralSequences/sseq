@@ -722,21 +722,21 @@ impl<CC: ChainComplex> Resolution<CC> {
 
     /// This function resolves up till a fixed stem instead of a fixed t. It is an error to
     /// attempt to resolve further after this is called, and will result in a deadlock.
-    pub fn compute_through_stem(&self, max_s: u32, max_f: i32) {
+    pub fn compute_through_stem(&self, max_s: u32, max_n: i32) {
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
-        let max_t = max_s as i32 + max_f;
+        let max_t = max_s as i32 + max_n;
         self.complex().compute_through_bidegree(max_s, max_t);
         self.extend_through_degree(max_s, max_t);
         self.algebra().compute_basis(max_t - min_degree);
 
         for t in min_degree..=max_t {
-            let start_s = std::cmp::max(0, t - max_f - 1) as u32;
+            let start_s = std::cmp::max(0, t - max_n - 1) as u32;
             for s in start_s..=max_s {
                 if self.has_computed_bidegree(s, t) {
                     continue;
                 }
-                if s as i32 + max_f + 1 == t {
+                if s as i32 + max_n + 1 == t {
                     self.step_resolution_phony(s, t);
                 } else {
                     self.step_resolution(s, t);
@@ -790,10 +790,10 @@ impl<CC: ChainComplex> Resolution<CC> {
 
     /// A concurrent version of [`compute_through_stem`]
     #[cfg(feature = "concurrent")]
-    pub fn compute_through_stem_concurrent(&self, max_s: u32, max_f: i32, bucket: &TokenBucket) {
+    pub fn compute_through_stem_concurrent(&self, max_s: u32, max_n: i32, bucket: &TokenBucket) {
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
-        let max_t = max_s as i32 + max_f;
+        let max_t = max_s as i32 + max_n;
 
         self.complex().compute_through_bidegree(max_s, max_t);
         self.extend_through_degree(max_s, max_t);
@@ -807,11 +807,11 @@ impl<CC: ChainComplex> Resolution<CC> {
                     .name(format!("t = {}", t))
                     .spawn(move |_| {
                         let mut token = bucket.take_token();
-                        let start_s = std::cmp::max(0, t - max_f - 1) as u32;
+                        let start_s = std::cmp::max(0, t - max_n - 1) as u32;
                         for s in start_s..=max_s {
                             token = bucket.recv_or_release(token, &last_receiver);
                             if !self.has_computed_bidegree(s, t) {
-                                if s as i32 + max_f + 1 == t {
+                                if s as i32 + max_n + 1 == t {
                                     self.step_resolution_phony(s, t);
                                     // The next t cannot be computed yet
                                     continue;

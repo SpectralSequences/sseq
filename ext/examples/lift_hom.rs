@@ -21,7 +21,7 @@ fn main() -> error::Result {
     });
 
     let s = query::with_default("s", "2", str::parse);
-    let f: i32 = query::with_default("f", "7", str::parse);
+    let n: i32 = query::with_default("n", "7", str::parse);
 
     #[cfg(feature = "concurrent")]
     let bucket = ext::utils::query_bucket();
@@ -58,14 +58,14 @@ fn main() -> error::Result {
 
     #[cfg(feature = "concurrent")]
     {
-        source.compute_through_stem_concurrent(s, f, &bucket);
-        target.compute_through_stem_concurrent(s, f, &bucket);
+        source.compute_through_stem_concurrent(s, n, &bucket);
+        target.compute_through_stem_concurrent(s, n, &bucket);
     }
 
     #[cfg(not(feature = "concurrent"))]
     {
-        source.compute_through_stem(s, f);
-        target.compute_through_stem(s, f);
+        source.compute_through_stem(s, n);
+        target.compute_through_stem(s, n);
     }
 
     let hom = ResolutionHomomorphism::from_module_homomorphism(
@@ -76,15 +76,15 @@ fn main() -> error::Result {
     );
 
     #[cfg(not(feature = "concurrent"))]
-    hom.extend_through_stem(s, f);
+    hom.extend_through_stem(s, n);
 
     #[cfg(feature = "concurrent")]
-    hom.extend_through_stem_concurrent(s, f, &bucket);
+    hom.extend_through_stem_concurrent(s, n, &bucket);
 
-    for (s, f, t) in hom.target.iter_stem() {
+    for (s, n, t) in hom.target.iter_stem() {
         let matrix = hom.get_map(s).hom_k(t);
         for (i, r) in matrix.iter().enumerate() {
-            println!("F(x_({}, {}, {})) = {:?}", f, s, i, r);
+            println!("F(x_({}, {}, {})) = {:?}", n, s, i, r);
         }
     }
     Ok(())

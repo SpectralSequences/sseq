@@ -47,15 +47,15 @@ fn main() -> error::Result<()> {
         sseq.add_product_type(&format!("h{}", i), (1 << i) - 1, 1, true, true);
     }
 
-    for (s, f, t) in resolution.iter_stem() {
+    for (s, n, t) in resolution.iter_stem() {
         let num_gens = resolution.module(s).number_of_gens_in_degree(t);
-        sseq.set_class(f, s as i32, num_gens);
+        sseq.set_class(n, s as i32, num_gens);
 
         for i in 0..3 {
             if let Some(products) = resolution.filtration_one_product(1 << i, 0, s, t) {
                 sseq.add_product(
                     &format!("h{}", i),
-                    f - (1 << i) + 1,
+                    n - (1 << i) + 1,
                     s as i32 - 1,
                     (1 << i) - 1,
                     1,

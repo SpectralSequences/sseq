@@ -260,14 +260,14 @@ pub fn query_module(algebra: Option<AlgebraType>) -> error::Result<QueryModuleRe
         Some(save_file) => construct(module, Some(save_file))?,
         None => {
             let max_s: u32 = query::with_default("Max s", "7", str::parse);
-            let max_f: i32 = query::with_default("Max f", "30", str::parse);
+            let max_n: i32 = query::with_default("Max f", "30", str::parse);
 
             let resolution = construct(module, None)?;
             #[cfg(not(feature = "concurrent"))]
-            resolution.compute_through_stem(max_s, max_f);
+            resolution.compute_through_stem(max_s, max_n);
 
             #[cfg(feature = "concurrent")]
-            resolution.compute_through_stem_concurrent(max_s, max_f, &bucket);
+            resolution.compute_through_stem_concurrent(max_s, max_n, &bucket);
 
             resolution
         }
@@ -322,9 +322,9 @@ impl<A: Eq + Hash, B: Eq + Hash, C, S: BuildHasher> HashMapTuple<A, B, C>
     }
 }
 
-/// Prints an element in the bidegree `(f, s)` to stdout. For example, `[0, 2, 1]` will be printed
-/// as `2 x_(f, s, 1) + x_(f, s, 2)`.
-pub fn print_element(v: fp::vector::Slice, f: i32, s: u32) {
+/// Prints an element in the bidegree `(n, s)` to stdout. For example, `[0, 2, 1]` will be printed
+/// as `2 x_(n, s, 1) + x_(f, s, 2)`.
+pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
     let mut first = true;
     for (i, v) in v.iter_nonzero() {
         if !first {
@@ -333,7 +333,7 @@ pub fn print_element(v: fp::vector::Slice, f: i32, s: u32) {
         if v != 1 {
             print!("{} ", v);
         }
-        print!("x_({}, {}, {})", f, s, i);
+        print!("x_({}, {}, {})", n, s, i);
         first = false;
     }
 }

@@ -229,7 +229,7 @@ fn create_chain_complex(num_s: usize) -> FiniteChainComplex {
 }
 
 /// Read the Diff.$N files in `data_dir` and produce the corresponding chain complex object.
-fn read_bruner_resolution(data_dir: PathBuf, max_f: i32) -> Result<(u32, FiniteChainComplex)> {
+fn read_bruner_resolution(data_dir: PathBuf, max_n: i32) -> Result<(u32, FiniteChainComplex)> {
     let num_s: usize = data_dir.read_dir()?.count();
 
     let cc = create_chain_complex(num_s);
@@ -239,13 +239,13 @@ fn read_bruner_resolution(data_dir: PathBuf, max_f: i32) -> Result<(u32, FiniteC
     let mut buf = String::new();
     let s = num_s as u32 - 1;
 
-    algebra.compute_basis(max_f + s as i32 + 1);
+    algebra.compute_basis(max_n + s as i32 + 1);
     // Handle s = 0
     {
         // TODO: actually parse file
         let m = cc.module(0);
         m.add_generators(0, 1, None);
-        m.extend_by_zero(max_f + 1);
+        m.extend_by_zero(max_n + 1);
     }
 
     for s in 1..num_s as u32 {
@@ -276,8 +276,8 @@ fn read_bruner_resolution(data_dir: PathBuf, max_f: i32) -> Result<(u32, FiniteC
         m.add_generators(cur_degree, entries.len(), None);
         d.add_generators_from_rows(cur_degree, entries);
 
-        m.extend_by_zero(max_f + s as i32 + 1);
-        d.extend_by_zero(max_f + s as i32);
+        m.extend_by_zero(max_n + s as i32 + 1);
+        d.extend_by_zero(max_n + s as i32);
     }
 
     Ok((s, cc))
@@ -285,22 +285,22 @@ fn read_bruner_resolution(data_dir: PathBuf, max_f: i32) -> Result<(u32, FiniteC
 
 fn main() {
     let data_dir = Path::new(file!()).parent().unwrap().join("bruner_data");
-    let max_f: i32 = query::with_default("Max f", "20", str::parse);
+    let max_n: i32 = query::with_default("Max n", "20", str::parse);
 
     #[cfg(feature = "concurrent")]
     let bucket = ext::utils::query_bucket();
 
     // Read in Bruner's resolution
-    let (max_s, cc) = read_bruner_resolution(data_dir, max_f).unwrap();
+    let (max_s, cc) = read_bruner_resolution(data_dir, max_n).unwrap();
     let cc = Arc::new(cc);
 
     let resolution = construct("S_2@milnor", None).unwrap();
 
     #[cfg(feature = "concurrent")]
-    resolution.compute_through_stem_concurrent(max_s, max_f, &bucket);
+    resolution.compute_through_stem_concurrent(max_s, max_n, &bucket);
 
     #[cfg(not(feature = "concurrent"))]
-    resolution.compute_through_stem(max_s, max_f);
+    resolution.compute_through_stem(max_s, max_n);
 
     let resolution = Arc::new(resolution);
 
@@ -312,18 +312,18 @@ fn main() {
 
     // We can then lift it by requiring it to be a chain map.
     #[cfg(feature = "concurrent")]
-    hom.extend_through_stem_concurrent(max_s, max_f, &bucket);
+    hom.extend_through_stem_concurrent(max_s, max_n, &bucket);
 
     #[cfg(not(feature = "concurrent"))]
-    hom.extend_through_stem(max_s, max_f);
+    hom.extend_through_stem(max_s, max_n);
 
     // Now print the results
     println!("sseq_basis | bruner_basis");
-    for (s, f, t) in hom.target.iter_stem() {
+    for (s, n, t) in hom.target.iter_stem() {
         let matrix = hom.get_map(s).hom_k(t);
 
         for (i, row) in matrix.into_iter().enumerate() {
-            println!("x_({},{},{}) = {:?}", f, s, i, row);
+            println!("x_({},{},{}) = {:?}", n, s, i, row);
         }
     }
 }

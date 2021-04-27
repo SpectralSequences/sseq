@@ -107,7 +107,7 @@ pub fn parse_matrix<const N: usize>(
         let mut m = matrices[f][s].segment(segment, segment);
         let mut row = m.row_mut(i);
 
-        // The target of the matrix might be greater than max_f/max_s but was still computed. In
+        // The target of the matrix might be greater than max_n/max_s but was still computed. In
         // this case, we set the dimension to 0. Attempting to write values will cause errors.
         if row.as_slice().is_empty() {
             continue;
@@ -124,8 +124,8 @@ pub fn parse_matrix<const N: usize>(
 
 fn main() -> error::Result {
     let max_s: usize = query::raw("Max s", str::parse);
-    let max_f: usize = query::raw("Max f", str::parse);
-    let alpha_f: usize = query::raw("Stem of α", str::parse);
+    let max_n: usize = query::raw("Max n", str::parse);
+    let alpha_n: usize = query::raw("Stem of α", str::parse);
     let alpha_name: String = query::raw("Name of α", str::parse);
 
     let x_dim_file = query::raw("Dimension of Ext of X", |s| File::open(s));
@@ -136,18 +136,18 @@ fn main() -> error::Result {
     let x_d2_file = query::raw("d2 of X", |s| File::open(s));
     let xa_d2_file = query::raw("d2 of X/α", |s| File::open(s));
 
-    let mut x_dim = vec![vec![0; 1 + max_s]; 1 + max_f];
+    let mut x_dim = vec![vec![0; 1 + max_s]; 1 + max_n];
     for line in BufReader::new(x_dim_file).lines() {
         let data: Vec<usize> = parse_vec(&*line?)?;
-        if data[0] <= max_f && data[1] <= max_s {
+        if data[0] <= max_n && data[1] <= max_s {
             x_dim[data[0]][data[1]] = data[2];
         }
     }
 
-    let mut xa_dim = vec![vec![0; 1 + max_s]; 1 + max_f];
+    let mut xa_dim = vec![vec![0; 1 + max_s]; 1 + max_n];
     for line in BufReader::new(xa_dim_file).lines() {
         let data: Vec<usize> = parse_vec(&*line?)?;
-        if data[0] <= max_f && data[1] <= max_s {
+        if data[0] <= max_n && data[1] <= max_s {
             xa_dim[data[0]][data[1]] = data[2];
         }
     }
@@ -158,7 +158,7 @@ fn main() -> error::Result {
             dim,
             [
                 x_dim.get_or(f as isize - 1, s as isize + 2, 0),
-                x_dim.get_or((f + alpha_f) as isize, s as isize + 1, 0),
+                x_dim.get_or((f + alpha_n) as isize, s as isize + 1, 0),
                 dim,
             ],
         );
@@ -167,7 +167,7 @@ fn main() -> error::Result {
     });
 
     let mut inclusion = gen_matrix_aug(&x_dim, &xa_dim, (0, 0));
-    let mut projection = gen_matrix_aug(&xa_dim, &x_dim, (-1 - alpha_f as isize, 0));
+    let mut projection = gen_matrix_aug(&xa_dim, &x_dim, (-1 - alpha_n as isize, 0));
     let mut xa_d2 = gen_matrix(&xa_dim, &xa_dim, (-1, 2));
 
     parse_matrix(x_d2_file, &mut alpha_d2, 0, "")?;
@@ -181,11 +181,11 @@ fn main() -> error::Result {
     projection.iter_mut().flatten().for_each(|m| m.row_reduce());
 
     for (f, m) in alpha_d2.iter().enumerate() {
-        if f + alpha_f + 1 > max_f {
+        if f + alpha_n + 1 > max_n {
             continue;
         }
         for (s, m) in m.iter().enumerate() {
-            if s + 2 > max_s || x_dim[f + alpha_f][s + 2] == 0 {
+            if s + 2 > max_s || x_dim[f + alpha_n][s + 2] == 0 {
                 continue;
             }
             let ker = m.compute_kernel();
@@ -194,16 +194,16 @@ fn main() -> error::Result {
                 continue;
             }
 
-            let proj_qi = projection[f + alpha_f + 1][s].compute_quasi_inverse();
-            let inc_qi = inclusion[f + alpha_f][s + 2].compute_quasi_inverse();
-            let d2 = &xa_d2[f + alpha_f + 1][s];
+            let proj_qi = projection[f + alpha_n + 1][s].compute_quasi_inverse();
+            let inc_qi = inclusion[f + alpha_n][s + 2].compute_quasi_inverse();
+            let d2 = &xa_d2[f + alpha_n + 1][s];
 
             let mut lift = FpVector::new(TWO, proj_qi.preimage().columns());
             let mut d2_val = FpVector::new(TWO, d2.columns());
             let mut ext_val = FpVector::new(TWO, inc_qi.preimage().columns());
 
             let d2_image = {
-                let m = &alpha_d2[f + alpha_f + 1][s];
+                let m = &alpha_d2[f + alpha_n + 1][s];
                 // first_source_col is only useful for knowing where the first block ends
                 (&**m).compute_image(m.end[0], m.start[1])
             };

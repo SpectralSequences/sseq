@@ -155,11 +155,11 @@ pub trait ChainComplex: Send + Sync {
     }
 
     /// Iterate through all defind bidegrees in increasing order of stem. The return values are of
-    /// the form `(s, f, t)`.
+    /// the form `(s, n, t)`.
     fn iter_stem(&self) -> StemIterator<'_, Self> {
         StemIterator {
             cc: self,
-            f: self.min_degree(),
+            n: self.min_degree(),
             s: 0,
             max_s: self.max_homological_degree() + 1,
         }
@@ -169,21 +169,21 @@ pub trait ChainComplex: Send + Sync {
 /// An iterator returned by [`ChainComplex::iter_stem`]
 pub struct StemIterator<'a, CC: ?Sized> {
     cc: &'a CC,
-    f: i32,
+    n: i32,
     s: u32,
     max_s: u32,
 }
 
 impl<'a, CC: ChainComplex> Iterator for StemIterator<'a, CC> {
-    // (s, f, t)
+    // (s, n, t)
     type Item = (u32, i32, i32);
     fn next(&mut self) -> Option<Self::Item> {
         let s = self.s;
-        let f = self.f;
-        let t = self.f + self.s as i32;
+        let n = self.n;
+        let t = self.n + self.s as i32;
 
         if s == self.max_s {
-            self.f += 1;
+            self.n += 1;
             self.s = 0;
             return self.next();
         }
@@ -191,13 +191,13 @@ impl<'a, CC: ChainComplex> Iterator for StemIterator<'a, CC> {
             if s == 0 {
                 return None;
             } else {
-                self.f += 1;
+                self.n += 1;
                 self.s = 0;
                 return self.next();
             }
         }
         self.s += 1;
-        Some((s, f, t))
+        Some((s, n, t))
     }
 }
 

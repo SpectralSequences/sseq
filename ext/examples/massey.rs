@@ -37,33 +37,33 @@ fn main() -> error::Result {
     eprintln!("\nComputing Massey products <a, b, ->");
     eprintln!("\nEnter a:");
 
-    let a_f: i32 = query::with_default("f", "0", str::parse);
+    let a_n: i32 = query::with_default("n", "0", str::parse);
     let a_s: u32 = query::with_default("s", "1", |v| match v.parse::<u32>() {
         Ok(0) => Err(String::from("Must be positive filtration class")),
         Ok(x) => Ok(x),
         Err(e) => Err(e.to_string()),
     });
-    let a_t = a_f + a_s as i32;
+    let a_t = a_n + a_s as i32;
     let a_class = query::with_default("class", "[1]", parse_vec);
 
     eprintln!("\nEnter b:");
 
-    let b_f: i32 = query::with_default("f", "1", str::parse);
+    let b_n: i32 = query::with_default("n", "1", str::parse);
     let b_s: u32 = query::with_default("s", "1", |v| match v.parse::<u32>() {
         Ok(0) => Err(String::from("Must be positive filtration class")),
         Ok(x) => Ok(x),
         Err(e) => Err(e.to_string()),
     });
-    let b_t = b_f + b_s as i32;
+    let b_t = b_n + b_s as i32;
     let b_class = query::with_default("class", "[1]", parse_vec);
 
     // The Massey product shifts the bidegree by this amount
     let shift_s = a_s + b_s - 1;
     let shift_t = a_t + b_t;
-    let shift_f = shift_t - shift_s as i32;
+    let shift_n = shift_t - shift_s as i32;
 
     if !is_unit {
-        unit.compute_through_stem(shift_s, shift_f);
+        unit.compute_through_stem(shift_s, shift_n);
     }
 
     if !resolution.has_computed_bidegree(shift_s, shift_t + resolution.min_degree()) {
@@ -80,17 +80,17 @@ fn main() -> error::Result {
         &b_class,
     );
 
-    b_hom.extend_through_stem(shift_s, shift_f);
+    b_hom.extend_through_stem(shift_s, shift_n);
 
     let offset_a = unit.module(a_s).generator_offset(a_t, a_t, 0);
-    for (s, f, t) in resolution.iter_stem() {
+    for (s, n, t) in resolution.iter_stem() {
         if !resolution.has_computed_bidegree(s + shift_s, t + shift_t) {
             continue;
         }
 
         let tot_s = s + shift_s;
         let tot_t = t + shift_t;
-        let tot_f = f + shift_f;
+        let tot_n = n + shift_n;
 
         let num_gens = resolution.module(s).number_of_gens_in_degree(t);
         let product_num_gens = resolution.module(s + b_s).number_of_gens_in_degree(t + b_t);
@@ -117,7 +117,7 @@ fn main() -> error::Result {
             hom.extend_step(s, t, Some(&matrix));
             matrix[idx].set_entry(0, 0);
 
-            hom.extend_through_stem(tot_s, tot_f);
+            hom.extend_through_stem(tot_s, tot_n);
 
             let homotopy = ChainHomotopy::new(
                 Arc::clone(&resolution),
@@ -156,7 +156,7 @@ fn main() -> error::Result {
 
         for row in &**kernel {
             print!("<a, b, ");
-            ext::utils::print_element(row.as_slice(), f, s);
+            ext::utils::print_element(row.as_slice(), n, s);
             print!("> = [");
 
             for i in 0..target_num_gens {
