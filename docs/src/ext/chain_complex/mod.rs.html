@@ -473,11 +473,11 @@
     }
 
     <span class="doccomment">/// Iterate through all defind bidegrees in increasing order of stem. The return values are of</span>
-    <span class="doccomment">/// the form `(s, f, t)`.</span>
+    <span class="doccomment">/// the form `(s, n, t)`.</span>
     <span class="kw">fn</span> <span class="ident">iter_stem</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">StemIterator</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="self">Self</span><span class="op">&gt;</span> {
         <span class="ident">StemIterator</span> {
             <span class="ident">cc</span>: <span class="self">self</span>,
-            <span class="ident">f</span>: <span class="self">self</span>.<span class="ident">min_degree</span>(),
+            <span class="ident">n</span>: <span class="self">self</span>.<span class="ident">min_degree</span>(),
             <span class="ident">s</span>: <span class="number">0</span>,
             <span class="ident">max_s</span>: <span class="self">self</span>.<span class="ident">max_homological_degree</span>() <span class="op">+</span> <span class="number">1</span>,
         }
@@ -487,21 +487,21 @@
 <span class="doccomment">/// An iterator returned by [`ChainComplex::iter_stem`]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">StemIterator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">CC</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> {
     <span class="ident">cc</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">CC</span>,
-    <span class="ident">f</span>: <span class="ident">i32</span>,
+    <span class="ident">n</span>: <span class="ident">i32</span>,
     <span class="ident">s</span>: <span class="ident">u32</span>,
     <span class="ident">max_s</span>: <span class="ident">u32</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">CC</span>: <span class="ident">ChainComplex</span><span class="op">&gt;</span> <span class="ident">Iterator</span> <span class="kw">for</span> <span class="ident">StemIterator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">CC</span><span class="op">&gt;</span> {
-    <span class="comment">// (s, f, t)</span>
+    <span class="comment">// (s, n, t)</span>
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> (<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">i32</span>);
     <span class="kw">fn</span> <span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">s</span>;
-        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">f</span>;
-        <span class="kw">let</span> <span class="ident">t</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">f</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>;
+        <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">n</span>;
+        <span class="kw">let</span> <span class="ident">t</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">n</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>;
 
         <span class="kw">if</span> <span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">max_s</span> {
-            <span class="self">self</span>.<span class="ident">f</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+            <span class="self">self</span>.<span class="ident">n</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
             <span class="self">self</span>.<span class="ident">s</span> <span class="op">=</span> <span class="number">0</span>;
             <span class="kw">return</span> <span class="self">self</span>.<span class="ident">next</span>();
         }
@@ -509,13 +509,13 @@
             <span class="kw">if</span> <span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
                 <span class="kw">return</span> <span class="prelude-val">None</span>;
             } <span class="kw">else</span> {
-                <span class="self">self</span>.<span class="ident">f</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+                <span class="self">self</span>.<span class="ident">n</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
                 <span class="self">self</span>.<span class="ident">s</span> <span class="op">=</span> <span class="number">0</span>;
                 <span class="kw">return</span> <span class="self">self</span>.<span class="ident">next</span>();
             }
         }
         <span class="self">self</span>.<span class="ident">s</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-        <span class="prelude-val">Some</span>((<span class="ident">s</span>, <span class="ident">f</span>, <span class="ident">t</span>))
+        <span class="prelude-val">Some</span>((<span class="ident">s</span>, <span class="ident">n</span>, <span class="ident">t</span>))
     }
 }
 
