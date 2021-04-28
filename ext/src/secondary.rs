@@ -394,7 +394,7 @@ pub fn compute_delta_concurrent(
                         }
 
                         #[cfg(debug_assertions)]
-                        if s > 3 {
+                        if s > 3 && res.module(s - 4).max_computed_degree() >= t - 1 {
                             let mut r = FpVector::new(TWO, res.module(s - 4).dimension(t - 1));
                             res.differential(s - 3).apply(
                                 r.as_slice_mut(),
