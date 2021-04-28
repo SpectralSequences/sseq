@@ -19,7 +19,7 @@ docs:
 fix-benchmarks: $(patsubst examples/benchmarks/%, examples/benchmarks/%-fixed, $(wildcard examples/benchmarks/*))
 examples/benchmarks/%-fixed: FILE = examples/benchmarks/$*
 examples/benchmarks/%-fixed: dummy
-	(head -n 1 $(FILE) && bash -c "echo '' | cargo run --features concurrent --example $$(head -n 1 $(FILE))") > $@
+	(head -n 1 $(FILE) && bash -c "echo '' | cargo run --example $$(head -n 1 $(FILE))") > $@
 	if diff --color $(FILE) $@; then \
 	    rm $@; \
 	else \
