@@ -66,10 +66,21 @@ where
 {
     type Error = error::Error;
 
-    fn try_from(spec: (&str, T)) -> Result<Self, Self::Error> {
+    fn try_from(mut spec: (&str, T)) -> Result<Self, Self::Error> {
+        let algebra = spec.1.try_into()?;
+        if spec.0.contains('@') {
+            if spec.0.ends_with(&*algebra.to_string()) {
+                spec.0 = &spec.0[0..spec.0.len() - algebra.to_string().len() - 1];
+            } else {
+                return error::from_string(format!(
+                    "Invalid algebra supplied. Must be {}",
+                    algebra
+                ))?;
+            }
+        }
         Ok(Config {
             module: parse_module_name(spec.0)?,
-            algebra: spec.1.try_into()?,
+            algebra,
         })
     }
 }

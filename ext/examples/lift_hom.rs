@@ -20,8 +20,8 @@ fn main() -> error::Result {
         Ok(source)
     });
 
-    let s = query::with_default("s", "2", str::parse);
-    let n: i32 = query::with_default("n", "7", str::parse);
+    let s = query::with_default("Max s", "2", str::parse);
+    let n: i32 = query::with_default("Max n", "7", str::parse);
 
     #[cfg(feature = "concurrent")]
     let bucket = ext::utils::query_bucket();

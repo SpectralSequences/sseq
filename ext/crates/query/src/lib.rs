@@ -28,7 +28,7 @@ pub fn optional<S, E: Display>(
     prompt: &str,
     mut parser: impl for<'a> FnMut(&'a str) -> Result<S, E>,
 ) -> Option<S> {
-    raw(prompt, |x| {
+    raw(&format!("{} (optional)", prompt), |x| {
         if x.is_empty() {
             Ok(None)
         } else {
