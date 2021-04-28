@@ -37,7 +37,7 @@ fn main() -> error::Result {
         }
         for (idx, row) in matrix.iter_mut().enumerate() {
             let v: Vec<u32> = query::raw(&format!("f(x_({}, {}))", t, idx), |s| {
-                let v = s
+                let v = s[1..s.len() - 1]
                     .split(',')
                     .map(|x| x.parse::<u32>().map_err(|e| e.to_string()))
                     .collect::<Result<Vec<_>, String>>()?;
