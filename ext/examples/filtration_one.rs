@@ -1,8 +1,12 @@
+//! This computes all available filtration one products for a module. This only works at the prime
+//! 2 for the moment.
+
 use ext::chain_complex::ChainComplex;
 use ext::utils::query_module;
 
 fn main() -> error::Result {
     let resolution = query_module(None)?.resolution;
+    assert_eq!(*resolution.prime(), 2);
 
     for (s, n, t) in resolution.iter_stem() {
         let mut i = 0;

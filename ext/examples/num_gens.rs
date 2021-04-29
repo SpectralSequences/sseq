@@ -1,3 +1,5 @@
+//! This prints the number of generators in each `Ext^{s, n + s}` in the format `n,s,num_gens`.
+//!
 use ext::chain_complex::ChainComplex;
 use ext::utils::query_module;
 

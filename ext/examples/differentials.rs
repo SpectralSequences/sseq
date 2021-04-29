@@ -1,4 +1,5 @@
-/// This is a simple script to print all the differentials in the resolution.
+//! This prints all the differentials in the resolution.
+
 use ext::chain_complex::ChainComplex;
 use ext::utils::query_module;
 

@@ -1,4 +1,5 @@
-//! This saves a resolution to Bruner's format.
+//! This saves a resolution to Bruner's format. This saves the resulting files to the current
+//! working directory. It is recommended that you run this in a dedicated subdirectory.
 
 use algebra::module::Module;
 use algebra::{Algebra, AlgebraType, MilnorAlgebraT};
