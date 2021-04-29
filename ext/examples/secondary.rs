@@ -14,6 +14,9 @@
 //! function is the most expensive part of the of the computation. If a save file is provided, we
 //! read existing computations from the save file and write new ones into it. The same save file
 //! can be reused for different ranges of the same module.
+//!
+//! # Output
+//! We omit differentials if the target bidegree is zero
 
 use ext::chain_complex::ChainComplex;
 

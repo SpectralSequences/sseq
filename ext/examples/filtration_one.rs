@@ -1,5 +1,7 @@
 //! This computes all available filtration one products for a module. This only works at the prime
 //! 2 for the moment.
+//!
+//! We omit outputs when the target bidegree is zero (or not yet computed)
 
 use ext::chain_complex::ChainComplex;
 use ext::utils::query_module;
