@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: 1
-      RUSTFLAGS: "-D warnings"
+      RUSTFLAGS: "-D warnings -A stable-features"
       RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
       CARGO_TARGET_DIR: /home/runner/.cargo/target
 
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: 1
-      RUSTFLAGS: "-D warnings"
+      RUSTFLAGS: "-D warnings -A stable-features"
       RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:
@@ -90,7 +90,7 @@ jobs:
     runs-on: ubuntu-20.04
     env:
       RUST_BACKTRACE: 1
-      RUSTFLAGS: "-D warnings"
+      RUSTFLAGS: "-D warnings -A stable-features"
       RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:
@@ -142,7 +142,7 @@ jobs:
     runs-on: ubuntu-20.04
     env:
       RUST_BACKTRACE: 1
-      RUSTFLAGS: "-D warnings"
+      RUSTFLAGS: "-D warnings -A stable-features"
       RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:
@@ -194,7 +194,7 @@ jobs:
     runs-on: ubuntu-20.04
     env:
       RUST_BACKTRACE: 1
-      RUSTFLAGS: "-D warnings"
+      RUSTFLAGS: "-D warnings -A stable-features"
       RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:
