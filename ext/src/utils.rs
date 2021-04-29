@@ -261,7 +261,7 @@ pub fn query_module(algebra: Option<AlgebraType>) -> error::Result<QueryModuleRe
         Some(save_file) => construct(module, Some(save_file))?,
         None => {
             let max_s: u32 = query::with_default("Max s", "7", str::parse);
-            let max_n: i32 = query::with_default("Max f", "30", str::parse);
+            let max_n: i32 = query::with_default("Max n", "30", str::parse);
 
             let resolution = construct(module, None)?;
             #[cfg(not(feature = "concurrent"))]
