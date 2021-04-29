@@ -788,7 +788,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         Some(products)
     }
 
-    /// A concurrent version of [`compute_through_stem`]
+    /// A concurrent version of [`Resolution::compute_through_stem`]
     #[cfg(feature = "concurrent")]
     pub fn compute_through_stem_concurrent(&self, max_s: u32, max_n: i32, bucket: &TokenBucket) {
         let min_degree = self.min_degree();
