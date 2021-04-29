@@ -916,8 +916,6 @@
 <span id="895">895</span>
 <span id="896">896</span>
 <span id="897">897</span>
-<span id="898">898</span>
-<span id="899">899</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::{<span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">resolution</span>::<span class="ident">Resolution</span> <span class="kw">as</span> <span class="ident">Resolution_</span>;
@@ -963,12 +961,10 @@
     <span class="kw">let</span> <span class="ident">complex</span> <span class="op">=</span> <span class="ident">res</span>.<span class="ident">complex</span>();
     <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">complex</span>.<span class="ident">prime</span>() <span class="op">!</span><span class="op">=</span> <span class="number">2</span> {
         <span class="macro">eprintln</span><span class="macro">!</span>(<span class="string">&quot;Prime is not 2&quot;</span>);
-        <span class="macro">dbg</span><span class="macro">!</span>(<span class="kw-2">*</span><span class="ident">complex</span>.<span class="ident">prime</span>());
         <span class="kw">return</span> <span class="bool-val">false</span>;
     }
     <span class="kw">if</span> <span class="ident">complex</span>.<span class="ident">max_s</span>() <span class="op">!</span><span class="op">=</span> <span class="number">1</span> {
         <span class="macro">eprintln</span><span class="macro">!</span>(<span class="string">&quot;Complex is not concentrated in degree 0.&quot;</span>);
-        <span class="macro">dbg</span><span class="macro">!</span>(<span class="ident">complex</span>.<span class="ident">max_s</span>());
         <span class="kw">return</span> <span class="bool-val">false</span>;
     }
     <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">module</span>(<span class="number">0</span>);
