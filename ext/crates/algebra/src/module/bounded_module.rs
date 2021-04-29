@@ -20,7 +20,6 @@ pub trait BoundedModule: Module {
     fn to_fd_module(&self) -> FDModule<Self::Algebra> {
         let min_degree = self.min_degree();
         let max_degree = self.max_degree();
-        dbg!(self.min_degree(), self.max_degree());
         self.compute_basis(max_degree);
 
         let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree + 1);

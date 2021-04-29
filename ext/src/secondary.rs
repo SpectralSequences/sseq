@@ -42,12 +42,10 @@ pub fn can_compute(res: &Resolution) -> bool {
     let complex = res.complex();
     if *complex.prime() != 2 {
         eprintln!("Prime is not 2");
-        dbg!(*complex.prime());
         return false;
     }
     if complex.max_s() != 1 {
         eprintln!("Complex is not concentrated in degree 0.");
-        dbg!(complex.max_s());
         return false;
     }
     let module = complex.module(0);
