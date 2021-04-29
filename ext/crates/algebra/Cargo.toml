@@ -29,7 +29,6 @@ expect-test = "1.1.0"
 [features]
 default = ["odd-primes", "json"]
 json = ["serde", "serde_json", "bivec/json", "fp/json"]
-extras = []
 odd-primes = ["fp/odd-primes"]
 
 [[bench]]

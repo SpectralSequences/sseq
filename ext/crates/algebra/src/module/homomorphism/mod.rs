@@ -11,11 +11,8 @@ mod finite_module_homomorphism;
 mod fp_module_homomorphism;
 mod free_module_homomorphism;
 mod generic_zero_homomorphism;
-#[cfg(feature = "extras")]
 mod hom_pullback;
-#[cfg(feature = "extras")]
 mod quotient_homomorphism;
-#[cfg(feature = "extras")]
 mod truncated_homomorphism;
 
 pub use bounded_module_homomorphism::BoundedModuleHomomorphism;
@@ -24,11 +21,8 @@ pub use finite_module_homomorphism::FiniteModuleHomomorphism;
 pub use fp_module_homomorphism::{FPModuleHomomorphism, FPModuleT};
 pub use free_module_homomorphism::FreeModuleHomomorphism;
 pub use generic_zero_homomorphism::GenericZeroHomomorphism;
-#[cfg(feature = "extras")]
 pub use hom_pullback::HomPullback;
-#[cfg(feature = "extras")]
 pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
-#[cfg(feature = "extras")]
 pub use truncated_homomorphism::{TruncatedHomomorphism, TruncatedHomomorphismSource};
 
 /// Each `ModuleHomomorphism` may come with auxiliary data, namely the kernel, image and

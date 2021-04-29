@@ -1,6 +1,5 @@
 mod chain_homotopy;
 mod finite_chain_complex;
-#[cfg(feature = "extras")]
 mod tensor_product_chain_complex;
 
 use crate::utils::ascii_num;
@@ -15,7 +14,6 @@ use std::sync::Arc;
 // pub use hom_complex::HomComplex;
 pub use chain_homotopy::ChainHomotopy;
 pub use finite_chain_complex::{FiniteAugmentedChainComplex, FiniteChainComplex};
-#[cfg(feature = "extras")]
 pub use tensor_product_chain_complex::TensorChainComplex;
 
 pub enum ChainComplexGrading {

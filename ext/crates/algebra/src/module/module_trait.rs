@@ -5,7 +5,6 @@ use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
 
 use crate::algebra::Algebra;
-#[cfg(feature = "extras")]
 use {crate::module::BoundedModule, crate::module::FDModule, crate::module::TruncatedModule};
 
 pub trait Module: std::fmt::Display + Send + Sync {
@@ -164,7 +163,6 @@ pub trait Module: std::fmt::Display + Send + Sync {
 
     /// This truncates the module to `max_dim` and represents it as an `FDModule`. This retains the
     /// original name of the module
-    #[cfg(feature = "extras")]
     fn truncate_to_fd_module(self: Arc<Self>, max_deg: i32) -> FDModule<Self::Algebra> {
         let name = self.to_string();
         let mut m = TruncatedModule::new(self, max_deg).to_fd_module();

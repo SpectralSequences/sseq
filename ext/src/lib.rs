@@ -5,7 +5,6 @@ pub mod chain_complex;
 pub mod resolution;
 pub mod resolution_homomorphism;
 
-#[cfg(feature = "yoneda")]
 pub mod yoneda;
 
 use crate::chain_complex::FiniteChainComplex;

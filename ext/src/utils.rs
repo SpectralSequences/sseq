@@ -1,13 +1,10 @@
-use crate::chain_complex::{FiniteChainComplex, FreeChainComplex};
+use crate::chain_complex::{ChainComplex, FiniteChainComplex, FreeChainComplex};
 use crate::resolution::Resolution;
 use crate::CCC;
 use algebra::module::{FiniteModule, Module};
 use algebra::{AlgebraType, SteenrodAlgebra};
 use saveload::Load;
 use serde_json::Value;
-
-#[cfg(feature = "yoneda")]
-use crate::chain_complex::ChainComplex;
 
 use std::convert::{TryFrom, TryInto};
 use std::fs::File;
@@ -124,11 +121,9 @@ where
 
     let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra)?);
     let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &json)?);
-    #[allow(unused_mut)] // This is only mut with Yoneda enabled
     let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
 
     let cofiber = &json["cofiber"];
-    #[cfg(feature = "yoneda")]
     if !cofiber.is_null() {
         use crate::chain_complex::ChainMap;
         use crate::yoneda::yoneda_representative;
@@ -162,11 +157,6 @@ where
         yoneda.pop();
 
         chain_complex = Arc::new(yoneda);
-    }
-
-    #[cfg(not(feature = "yoneda"))]
-    if !cofiber.is_null() {
-        panic!("cofiber not supported. Compile with yoneda feature enabled");
     }
 
     Ok(match save_file {

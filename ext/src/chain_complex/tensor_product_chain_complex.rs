@@ -536,7 +536,6 @@ impl AugmentedChainComplex
 }
 
 #[cfg(test)]
-#[cfg(feature = "yoneda")]
 mod tests {
     use super::*;
 
