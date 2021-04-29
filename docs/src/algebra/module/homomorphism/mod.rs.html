@@ -164,12 +164,6 @@
 <span id="143">143</span>
 <span id="144">144</span>
 <span id="145">145</span>
-<span id="146">146</span>
-<span id="147">147</span>
-<span id="148">148</span>
-<span id="149">149</span>
-<span id="150">150</span>
-<span id="151">151</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -184,11 +178,8 @@
 <span class="kw">mod</span> <span class="ident">fp_module_homomorphism</span>;
 <span class="kw">mod</span> <span class="ident">free_module_homomorphism</span>;
 <span class="kw">mod</span> <span class="ident">generic_zero_homomorphism</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">hom_pullback</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">quotient_homomorphism</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">truncated_homomorphism</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">bounded_module_homomorphism</span>::<span class="ident">BoundedModuleHomomorphism</span>;
@@ -197,11 +188,8 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">fp_module_homomorphism</span>::{<span class="ident">FPModuleHomomorphism</span>, <span class="ident">FPModuleT</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_module_homomorphism</span>::<span class="ident">FreeModuleHomomorphism</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">generic_zero_homomorphism</span>::<span class="ident">GenericZeroHomomorphism</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">hom_pullback</span>::<span class="ident">HomPullback</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">quotient_homomorphism</span>::{<span class="ident">QuotientHomomorphism</span>, <span class="ident">QuotientHomomorphismSource</span>};
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;extras&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">truncated_homomorphism</span>::{<span class="ident">TruncatedHomomorphism</span>, <span class="ident">TruncatedHomomorphismSource</span>};
 
 <span class="doccomment">/// Each `ModuleHomomorphism` may come with auxiliary data, namely the kernel, image and</span>

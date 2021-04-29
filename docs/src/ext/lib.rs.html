@@ -36,7 +36,92 @@
 <span id="15">15</span>
 <span id="16">16</span>
 <span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
 </pre><div class="example-wrap"><pre class="rust ">
+<span class="doccomment">//! `ext-rs` is a collection of libraries for doing homological algebra over Fp. The main and</span>
+<span class="doccomment">//! original purpose is to compute Ext of a Steenrod module, but the library is written to be</span>
+<span class="doccomment">//! sufficiently generic to deal with more general applications.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! The library also comes with a number of &quot;example&quot; binaries that use the library for various</span>
+<span class="doccomment">//! purposes. These can be used directly to perform specific computations, or act as actual</span>
+<span class="doccomment">//! examples for how to use the library.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! This contains a number of sub-crates, which each have their own documentation. A brief overview</span>
+<span class="doccomment">//! is as follows:</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ## algebra</span>
+<span class="doccomment">//! This defines algebras, modules and module homomorphisms</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ## bivec</span>
+<span class="doccomment">//! This is a small crate that provides [`BiVec`](`bivec::BiVec`) - a variant of [`Vec`] indexed by an</span>
+<span class="doccomment">//! `i32` whose starting index may be non-zero.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ## chart</span>
+<span class="doccomment">//! This provides some APIs for generating charts</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ## error</span>
+<span class="doccomment">//! Our bespoke error library</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ## fp</span>
+<span class="doccomment">//! This implements linear algebra over $\mathbb{F}_p$, as well as general helper functions about</span>
+<span class="doccomment">//! primes.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ## once</span>
+<span class="doccomment">//! This is a small crate that provides `OnceVec` and `OnceBiVec`, a wrapper around</span>
+<span class="doccomment">//! `UnsafeCell&lt;Vec&gt;` (or `BiVec`) that models a `Vec` whose only way of modification is `push`.</span>
+<span class="doccomment">//! This models some partially computed infinite data structure, and we think of pushing as simply</span>
+<span class="doccomment">//! finding out more of this infinite data structure instead of genuinely mutating it.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ## query</span>
+<span class="doccomment">//! This contains some helper functions for a command line interface.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ## saveload</span>
+<span class="doccomment">//! This provides an interface for saving and loading resolutions and other data.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ## thread-token</span>
+<span class="doccomment">//! This provides some concurrency primitives</span>
+
 <span class="attribute">#![<span class="ident">feature</span>(<span class="ident">hash_raw_entry</span>)]</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">upper_case_acronyms</span>)]</span>
 
@@ -44,7 +129,6 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">resolution</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">resolution_homomorphism</span>;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;yoneda&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">yoneda</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">chain_complex</span>::<span class="ident">FiniteChainComplex</span>;
