@@ -133,16 +133,6 @@ impl<T> OnceVec<T> {
         }
     }
 
-    /// Since OnceVec never reallocates, with_capacity is the same as normal initialization.
-    /// However, it is included for consistency.
-    pub fn with_capacity(_capacity: usize) -> Self {
-        Self::new()
-    }
-
-    /// Since OnceVec never reallocates, reserve is a noop. However, it is included for
-    /// consistency.
-    pub fn reserve(&self, _capacity: usize) {}
-
     /// All data up to length self.len() are guaranteed to be fully written *after* reading
     /// self.len().
     pub fn len(&self) -> usize {
@@ -381,14 +371,6 @@ impl<T> OnceBiVec<T> {
 
     pub fn from_bivec(data: bivec::BiVec<T>) -> Self {
         Self::from_vec(data.min_degree(), data.into_vec())
-    }
-
-    pub fn with_capacity(min_degree: i32, capacity: i32) -> Self {
-        debug_assert!(capacity >= min_degree);
-        Self {
-            data: OnceVec::with_capacity((capacity - min_degree) as usize),
-            min_degree,
-        }
     }
 
     pub fn min_degree(&self) -> i32 {

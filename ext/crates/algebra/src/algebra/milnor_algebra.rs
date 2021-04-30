@@ -287,11 +287,6 @@ impl Algebra for MilnorAlgebra {
         self.compute_ppart(next_degree, max_degree);
         self.compute_qpart(next_degree, max_degree);
 
-        self.basis_table
-            .reserve((max_degree - next_degree + 1) as usize);
-        self.basis_element_to_index_map
-            .reserve((max_degree - next_degree + 1) as usize);
-
         if self.generic() {
             self.generate_basis_generic(next_degree, max_degree);
         } else {
@@ -593,8 +588,6 @@ impl MilnorAlgebra {
         let q = if p == 2 { 1 } else { 2 * p - 2 };
         let new_deg = max_degree / q;
         let old_deg = (next_degree - 1) / q;
-
-        self.ppart_table.reserve((new_deg - old_deg) as usize);
 
         let xi_degrees = combinatorics::xi_degrees(self.prime());
         let mut profile_list = Vec::with_capacity(xi_degrees.len());
