@@ -586,23 +586,6 @@
 <span id="560">560</span>
 <span id="561">561</span>
 <span id="562">562</span>
-<span id="563">563</span>
-<span id="564">564</span>
-<span id="565">565</span>
-<span id="566">566</span>
-<span id="567">567</span>
-<span id="568">568</span>
-<span id="569">569</span>
-<span id="570">570</span>
-<span id="571">571</span>
-<span id="572">572</span>
-<span id="573">573</span>
-<span id="574">574</span>
-<span id="575">575</span>
-<span id="576">576</span>
-<span id="577">577</span>
-<span id="578">578</span>
-<span id="579">579</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">cell</span>::<span class="ident">UnsafeCell</span>;
 <span class="kw">use</span> <span class="ident">core</span>::<span class="ident">ops</span>::{<span class="ident">Index</span>, <span class="ident">IndexMut</span>};
@@ -739,16 +722,6 @@
         }
     }
 
-    <span class="doccomment">/// Since OnceVec never reallocates, with_capacity is the same as normal initialization.</span>
-    <span class="doccomment">/// However, it is included for consistency.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_capacity</span>(<span class="ident">_capacity</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span>::<span class="ident">new</span>()
-    }
-
-    <span class="doccomment">/// Since OnceVec never reallocates, reserve is a noop. However, it is included for</span>
-    <span class="doccomment">/// consistency.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reserve</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_capacity</span>: <span class="ident">usize</span>) {}
-
     <span class="doccomment">/// All data up to length self.len() are guaranteed to be fully written *after* reading</span>
     <span class="doccomment">/// self.len().</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
@@ -861,8 +834,9 @@
                     <span class="ident">inner</span>[<span class="ident">page</span>].<span class="ident">reserve_exact</span>(<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>);
                 }
                 <span class="ident">inner</span>[<span class="ident">page</span>].<span class="ident">push</span>(<span class="ident">f</span>(<span class="ident">i</span>));
+                <span class="comment">// Do it inside the loop because f may use self</span>
+                <span class="self">self</span>.<span class="ident">len</span>.<span class="ident">store</span>(<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">Ordering</span>::<span class="ident">Release</span>)
             }
-            <span class="self">self</span>.<span class="ident">len</span>.<span class="ident">store</span>(<span class="ident">new_max</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">Ordering</span>::<span class="ident">Release</span>)
         }
     }
 
@@ -987,14 +961,6 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_bivec</span>(<span class="ident">data</span>: <span class="ident">bivec</span>::<span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span>::<span class="ident">from_vec</span>(<span class="ident">data</span>.<span class="ident">min_degree</span>(), <span class="ident">data</span>.<span class="ident">into_vec</span>())
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_capacity</span>(<span class="ident">min_degree</span>: <span class="ident">i32</span>, <span class="ident">capacity</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">capacity</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">min_degree</span>);
-        <span class="self">Self</span> {
-            <span class="ident">data</span>: <span class="ident">OnceVec</span>::<span class="ident">with_capacity</span>((<span class="ident">capacity</span> <span class="op">-</span> <span class="ident">min_degree</span>) <span class="kw">as</span> <span class="ident">usize</span>),
-            <span class="ident">min_degree</span>,
-        }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {

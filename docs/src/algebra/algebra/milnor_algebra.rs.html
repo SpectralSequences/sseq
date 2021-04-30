@@ -1701,18 +1701,6 @@
 <span id="1675">1675</span>
 <span id="1676">1676</span>
 <span id="1677">1677</span>
-<span id="1678">1678</span>
-<span id="1679">1679</span>
-<span id="1680">1680</span>
-<span id="1681">1681</span>
-<span id="1682">1682</span>
-<span id="1683">1683</span>
-<span id="1684">1684</span>
-<span id="1685">1685</span>
-<span id="1686">1686</span>
-<span id="1687">1687</span>
-<span id="1688">1688</span>
-<span id="1689">1689</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">itertools</span>::<span class="ident">Itertools</span>;
 <span class="kw">use</span> <span class="ident">rustc_hash</span>::<span class="ident">FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
@@ -1775,11 +1763,6 @@
     <span class="kw">pub</span> <span class="ident">p_part</span>: <span class="ident">PPart</span>,
     <span class="kw">pub</span> <span class="ident">degree</span>: <span class="ident">i32</span>,
 }
-
-<span class="kw">const</span> <span class="ident">ZERO_QPART</span>: <span class="ident">QPart</span> <span class="op">=</span> <span class="ident">QPart</span> {
-    <span class="ident">degree</span>: <span class="number">0</span>,
-    <span class="ident">q_part</span>: <span class="number">0</span>,
-};
 
 <span class="kw">impl</span> <span class="ident">MilnorBasisElement</span> {
     <span class="kw">fn</span> <span class="ident">from_p</span>(<span class="ident">p</span>: <span class="ident">PPart</span>, <span class="ident">dim</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
@@ -1877,9 +1860,6 @@
             <span class="ident">p_part</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
         };
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">qpart_table</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
-        <span class="ident">qpart_table</span>.<span class="ident">resize_with</span>((<span class="number">2</span> <span class="op">*</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="op">-</span> <span class="number">2</span>) <span class="kw">as</span> <span class="ident">usize</span>, <span class="ident">OnceVec</span>::<span class="ident">new</span>);
-
         <span class="self">Self</span> {
             <span class="ident">p</span>,
             <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;odd-primes&quot;</span>)]</span>
@@ -1887,7 +1867,7 @@
             <span class="ident">profile</span>,
             <span class="ident">lock</span>: <span class="ident">Mutex</span>::<span class="ident">new</span>(()),
             <span class="ident">ppart_table</span>: <span class="ident">OnceVec</span>::<span class="ident">new</span>(),
-            <span class="ident">qpart_table</span>,
+            <span class="ident">qpart_table</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">OnceVec</span>::<span class="ident">new</span>(); <span class="number">2</span> <span class="op">*</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="number">2</span>],
             <span class="ident">basis_table</span>: <span class="ident">OnceVec</span>::<span class="ident">new</span>(),
             <span class="ident">basis_element_to_index_map</span>: <span class="ident">OnceVec</span>::<span class="ident">new</span>(),
             <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;cache-multiplication&quot;</span>)]</span>
@@ -2000,13 +1980,8 @@
             <span class="kw">return</span>;
         }
 
-        <span class="self">self</span>.<span class="ident">compute_ppart</span>(<span class="ident">next_degree</span>, <span class="ident">max_degree</span>);
+        <span class="self">self</span>.<span class="ident">compute_ppart</span>(<span class="ident">max_degree</span>);
         <span class="self">self</span>.<span class="ident">compute_qpart</span>(<span class="ident">next_degree</span>, <span class="ident">max_degree</span>);
-
-        <span class="self">self</span>.<span class="ident">basis_table</span>
-            .<span class="ident">reserve</span>((<span class="ident">max_degree</span> <span class="op">-</span> <span class="ident">next_degree</span> <span class="op">+</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">usize</span>);
-        <span class="self">self</span>.<span class="ident">basis_element_to_index_map</span>
-            .<span class="ident">reserve</span>((<span class="ident">max_degree</span> <span class="op">-</span> <span class="ident">next_degree</span> <span class="op">+</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">usize</span>);
 
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span>() {
             <span class="self">self</span>.<span class="ident">generate_basis_generic</span>(<span class="ident">next_degree</span>, <span class="ident">max_degree</span>);
@@ -2299,18 +2274,12 @@
 
 <span class="comment">// Compute basis functions</span>
 <span class="kw">impl</span> <span class="ident">MilnorAlgebra</span> {
-    <span class="kw">fn</span> <span class="ident">compute_ppart</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">next_degree</span>: <span class="ident">i32</span>, <span class="ident">max_degree</span>: <span class="ident">i32</span>) {
-        <span class="kw">if</span> <span class="ident">next_degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-            <span class="self">self</span>.<span class="ident">ppart_table</span>.<span class="ident">push</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="ident">Vec</span>::<span class="ident">new</span>()]);
-            <span class="ident">next_degree</span> <span class="op">=</span> <span class="number">1</span>;
-        }
+    <span class="kw">fn</span> <span class="ident">compute_ppart</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_degree</span>: <span class="ident">i32</span>) {
+        <span class="self">self</span>.<span class="ident">ppart_table</span>.<span class="ident">extend</span>(<span class="number">0</span>, <span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">Vec</span>::<span class="ident">new</span>()]);
 
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>() <span class="kw">as</span> <span class="ident">i32</span>;
         <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">p</span> <span class="op">=</span><span class="op">=</span> <span class="number">2</span> { <span class="number">1</span> } <span class="kw">else</span> { <span class="number">2</span> <span class="op">*</span> <span class="ident">p</span> <span class="op">-</span> <span class="number">2</span> };
         <span class="kw">let</span> <span class="ident">new_deg</span> <span class="op">=</span> <span class="ident">max_degree</span> <span class="op">/</span> <span class="ident">q</span>;
-        <span class="kw">let</span> <span class="ident">old_deg</span> <span class="op">=</span> (<span class="ident">next_degree</span> <span class="op">-</span> <span class="number">1</span>) <span class="op">/</span> <span class="ident">q</span>;
-
-        <span class="self">self</span>.<span class="ident">ppart_table</span>.<span class="ident">reserve</span>((<span class="ident">new_deg</span> <span class="op">-</span> <span class="ident">old_deg</span>) <span class="kw">as</span> <span class="ident">usize</span>);
 
         <span class="kw">let</span> <span class="ident">xi_degrees</span> <span class="op">=</span> <span class="ident">combinatorics</span>::<span class="ident">xi_degrees</span>(<span class="self">self</span>.<span class="ident">prime</span>());
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">profile_list</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">xi_degrees</span>.<span class="ident">len</span>());
@@ -2325,7 +2294,9 @@
                 <span class="ident">profile_list</span>.<span class="ident">push</span>(<span class="ident">PPartEntry</span>::<span class="ident">MAX</span>);
             }
         }
-        <span class="kw">for</span> <span class="ident">d</span> <span class="kw">in</span> (<span class="ident">old_deg</span> <span class="op">+</span> <span class="number">1</span>)..<span class="op">=</span><span class="ident">new_deg</span> {
+
+        <span class="self">self</span>.<span class="ident">ppart_table</span>.<span class="ident">extend</span>(<span class="ident">new_deg</span> <span class="kw">as</span> <span class="ident">usize</span>, <span class="op">|</span><span class="ident">d</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="ident">d</span> <span class="kw">as</span> <span class="ident">i32</span>;
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_row</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>(); <span class="comment">// Improve this</span>
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">xi_degrees</span>.<span class="ident">len</span>() {
                 <span class="kw">if</span> <span class="ident">xi_degrees</span>[<span class="ident">i</span>] <span class="op">&gt;</span> <span class="ident">d</span> {
@@ -2353,9 +2324,8 @@
                     <span class="ident">new_row</span>.<span class="ident">push</span>(<span class="ident">new</span>);
                 }
             }
-            <span class="comment">//            new_row.shrink_to_fit();</span>
-            <span class="self">self</span>.<span class="ident">ppart_table</span>.<span class="ident">push</span>(<span class="ident">new_row</span>);
-        }
+            <span class="ident">new_row</span>
+        });
     }
 
     <span class="kw">fn</span> <span class="ident">compute_qpart</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">next_degree</span>: <span class="ident">i32</span>, <span class="ident">max_degree</span>: <span class="ident">i32</span>) {
@@ -2368,7 +2338,13 @@
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">next_degree</span> <span class="op">=</span> <span class="ident">next_degree</span>;
         <span class="kw">if</span> <span class="ident">next_degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-            <span class="self">self</span>.<span class="ident">qpart_table</span>[<span class="number">0</span>].<span class="ident">push</span>(<span class="ident">ZERO_QPART</span>.<span class="ident">clone</span>());
+            <span class="self">self</span>.<span class="ident">qpart_table</span>[<span class="number">0</span>].<span class="ident">push_checked</span>(
+                <span class="ident">QPart</span> {
+                    <span class="ident">degree</span>: <span class="number">0</span>,
+                    <span class="ident">q_part</span>: <span class="number">0</span>,
+                },
+                <span class="number">0</span>,
+            );
             <span class="ident">next_degree</span> <span class="op">=</span> <span class="number">1</span>;
         }
 
