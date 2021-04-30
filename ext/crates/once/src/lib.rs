@@ -245,8 +245,9 @@ impl<T> OnceVec<T> {
                     inner[page].reserve_exact(i + 1);
                 }
                 inner[page].push(f(i));
+                // Do it inside the loop because f may use self
+                self.len.store(i + 1, Ordering::Release)
             }
-            self.len.store(new_max + 1, Ordering::Release)
         }
     }
 

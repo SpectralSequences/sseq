@@ -60,11 +60,6 @@ pub struct MilnorBasisElement {
     pub degree: i32,
 }
 
-const ZERO_QPART: QPart = QPart {
-    degree: 0,
-    q_part: 0,
-};
-
 impl MilnorBasisElement {
     fn from_p(p: PPart, dim: i32) -> Self {
         Self {
@@ -161,9 +156,6 @@ impl MilnorAlgebra {
             p_part: Vec::new(),
         };
 
-        let mut qpart_table = Vec::new();
-        qpart_table.resize_with((2 * *p - 2) as usize, OnceVec::new);
-
         Self {
             p,
             #[cfg(feature = "odd-primes")]
@@ -171,7 +163,7 @@ impl MilnorAlgebra {
             profile,
             lock: Mutex::new(()),
             ppart_table: OnceVec::new(),
-            qpart_table,
+            qpart_table: vec![OnceVec::new(); 2 * *p as usize - 2],
             basis_table: OnceVec::new(),
             basis_element_to_index_map: OnceVec::new(),
             #[cfg(feature = "cache-multiplication")]
@@ -284,7 +276,7 @@ impl Algebra for MilnorAlgebra {
             return;
         }
 
-        self.compute_ppart(next_degree, max_degree);
+        self.compute_ppart(max_degree);
         self.compute_qpart(next_degree, max_degree);
 
         if self.generic() {
@@ -578,16 +570,12 @@ impl GeneratedAlgebra for MilnorAlgebra {
 
 // Compute basis functions
 impl MilnorAlgebra {
-    fn compute_ppart(&self, mut next_degree: i32, max_degree: i32) {
-        if next_degree == 0 {
-            self.ppart_table.push(vec![Vec::new()]);
-            next_degree = 1;
-        }
+    fn compute_ppart(&self, max_degree: i32) {
+        self.ppart_table.extend(0, |_| vec![Vec::new()]);
 
         let p = *self.prime() as i32;
         let q = if p == 2 { 1 } else { 2 * p - 2 };
         let new_deg = max_degree / q;
-        let old_deg = (next_degree - 1) / q;
 
         let xi_degrees = combinatorics::xi_degrees(self.prime());
         let mut profile_list = Vec::with_capacity(xi_degrees.len());
@@ -602,7 +590,9 @@ impl MilnorAlgebra {
                 profile_list.push(PPartEntry::MAX);
             }
         }
-        for d in (old_deg + 1)..=new_deg {
+
+        self.ppart_table.extend(new_deg as usize, |d| {
+            let d = d as i32;
             let mut new_row = Vec::new(); // Improve this
             for i in 0..xi_degrees.len() {
                 if xi_degrees[i] > d {
@@ -630,9 +620,8 @@ impl MilnorAlgebra {
                     new_row.push(new);
                 }
             }
-            //            new_row.shrink_to_fit();
-            self.ppart_table.push(new_row);
-        }
+            new_row
+        });
     }
 
     fn compute_qpart(&self, next_degree: i32, max_degree: i32) {
@@ -645,7 +634,13 @@ impl MilnorAlgebra {
 
         let mut next_degree = next_degree;
         if next_degree == 0 {
-            self.qpart_table[0].push(ZERO_QPART.clone());
+            self.qpart_table[0].push_checked(
+                QPart {
+                    degree: 0,
+                    q_part: 0,
+                },
+                0,
+            );
             next_degree = 1;
         }
 
