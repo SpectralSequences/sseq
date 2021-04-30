@@ -17,6 +17,7 @@
             macros: {
                 "\\Ext": "\\operatorname{Ext}",
                 "\\Sq": "\\operatorname{Sq}",
+                "\\F": "\\mathbb{F}",
             }
         });
     });
@@ -56,9 +57,37 @@
 <span id="31">31</span>
 <span id="32">32</span>
 <span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="doccomment">//! Resolves a module and prints an ASCII depiction of the Ext groups.</span>
-
+<span class="doccomment">//! Resolves a module up to a fixed $(s, t)$ and prints an ASCII depiction of the Ext groups:</span>
+<span class="doccomment">//! ```text</span>
+<span class="doccomment">//! ·                                     ·</span>
+<span class="doccomment">//! ·                                   · ·</span>
+<span class="doccomment">//! ·                                 ·   ·</span>
+<span class="doccomment">//! ·                             ·   ·         ·</span>
+<span class="doccomment">//! ·                     ·       · · ·           ·</span>
+<span class="doccomment">//! ·                   · ·     · · · ·     ·     ·</span>
+<span class="doccomment">//! ·                 ·   ·     · :   · ·   · ·   · ·</span>
+<span class="doccomment">//! ·             ·   ·         · ·   · :   ·   · ·</span>
+<span class="doccomment">//! ·     ·       · · ·         · ·   · · ·   ·</span>
+<span class="doccomment">//! ·   · ·     · · ·           · · ·   ·</span>
+<span class="doccomment">//! · ·   ·       ·               ·</span>
+<span class="doccomment">//! ·</span>
+<span class="doccomment">//! ```</span>
+<span class="doccomment">//!</span>
 <span class="kw">use</span> <span class="ident">ext</span>::<span class="ident">chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="ident">ext</span>::<span class="ident">utils</span>::<span class="ident">construct</span>;
 <span class="kw">use</span> <span class="ident">saveload</span>::<span class="ident">Save</span>;

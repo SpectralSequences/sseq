@@ -17,6 +17,7 @@
             macros: {
                 "\\Ext": "\\operatorname{Ext}",
                 "\\Sq": "\\operatorname{Sq}",
+                "\\F": "\\mathbb{F}",
             }
         });
     });
@@ -275,36 +276,28 @@
 <span id="250">250</span>
 <span id="251">251</span>
 <span id="252">252</span>
-<span id="253">253</span>
-<span id="254">254</span>
-<span id="255">255</span>
-<span id="256">256</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Compute hidden α-extensions using precomputed tables. This assumes prime 2.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! # Usage guide</span>
-<span class="doccomment">//! We use X to denote the spectrum whose hidden extensions we want to compute, and α the class we</span>
+<span class="doccomment">//! We use $X$ to denote the spectrum whose hidden extensions we want to compute, and $\alpha$ the class we</span>
 <span class="doccomment">//! multiply with.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! # Arguments</span>
 <span class="doccomment">//! We clarify some less obvious arguments:</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//!  - **Name of α:** See &quot;α products&quot;</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//!  - **Dimension of Ext of X:** The output of the `num_gens` example on X</span>
-<span class="doccomment">//!</span>
+<span class="doccomment">//!  - **Name of α:** See &quot;α products&quot;.</span>
+<span class="doccomment">//!  - **Dimension of Ext of X:** The output of the [`num_gens`](../num_gens/index.html) example on $X$.</span>
 <span class="doccomment">//!  - **α products:** A file containing lines of the form `α x_(n, s, i) = [...]`, where the first</span>
 <span class="doccomment">//!    word of each line is the name of the class we multiply with. The file can contain products</span>
 <span class="doccomment">//!    with different elements, and the &quot;Name of α&quot; argument is used to filter out the relevant</span>
 <span class="doccomment">//!    lines.</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//!    In existing applications, we use the output of `filtration_one` on X.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//!  - **Inclusion map:** The output of `lift_hom` on the inclusion map of the bottom cell X -&gt; X/α</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//!  - **Projection map:** The output of `lift_hom` on the projection map of the top cell X/α -&gt; X</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//!  - **d2 of X:** The output of `secondary` on X.</span>
+<span class="doccomment">//!    In existing applications, we use the output of</span>
+<span class="doccomment">//!    [`filtration_one`](../filtration_one/index.html) on $X$.</span>
+<span class="doccomment">//!  - **Inclusion map:** The output of [`lift_hom`](../lift_hom/index.html) on the inclusion map of the bottom cell $X \to X/\alpha$</span>
+<span class="doccomment">//!  - **Projection map:** The output of [`lift_hom`](../lift_hom/index.html) on the projection map of the top cell $X/\alpha \to X$</span>
+<span class="doccomment">//!  - **d2 of X:** The output of [`secondary`](../secondary/index.html) on $X$.</span>
 
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">redundant_closure</span>)]</span>
 
