@@ -1,6 +1,9 @@
-//! This script converts between our basis and Bruner's basis. To do so, we
+//! This script converts between our basis and Bruner's basis. At the moment, most inputs are
+//! hardcoded, and this only works for the sphere.
 //!
-//! 1. Compute our own resolution
+//! The script performs the following procedure:
+//!
+//! 1. Compute our own resolution with the Milnor basis
 //! 2. Create Bruner's resolution as a
 //!    [`FiniteChainComplex`](ext::chain_complex::FiniteChainComplex) object
 //! 3. Use a [`ResolutionHomomorphism`](ext::resolution_homomorphism::ResolutionHomomorphism) to

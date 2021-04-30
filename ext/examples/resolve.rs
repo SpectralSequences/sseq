@@ -1,5 +1,19 @@
-//! Resolves a module and prints an ASCII depiction of the Ext groups.
-
+//! Resolves a module up to a fixed $(s, t)$ and prints an ASCII depiction of the Ext groups:
+//! ```text
+//! ·                                     ·
+//! ·                                   · ·
+//! ·                                 ·   ·
+//! ·                             ·   ·         ·
+//! ·                     ·       · · ·           ·
+//! ·                   · ·     · · · ·     ·     ·
+//! ·                 ·   ·     · :   · ·   · ·   · ·
+//! ·             ·   ·         · ·   · :   ·   · ·
+//! ·     ·       · · ·         · ·   · · ·   ·
+//! ·   · ·     · · ·           · · ·   ·
+//! · ·   ·       ·               ·
+//! ·
+//! ```
+//!
 use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::utils::construct;
 use saveload::Save;

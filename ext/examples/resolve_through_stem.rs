@@ -1,4 +1,23 @@
-//! Resolves a module up to a fixed stem and prints an ASCII depiction of the Ext groups.
+//! Resolves a module up to a $(s, n)$ and prints an ASCII depiction of the Ext groups:
+//! ```text
+//! ·
+//! ·                                                     ·
+//! ·                                                   · ·     ·
+//! ·                                                 ·   ·     ·
+//! ·                                             ·   ·         ·
+//! ·                                     ·       · · ·         ·
+//! ·                                   · ·     · · · ·     ·   ·
+//! ·                                 ·   ·     · :   · ·   · · ·
+//! ·                             ·   ·         · ·   · ·   · · ·
+//! ·                     ·       · · ·           ·     ·     · ·
+//! ·                   · ·     · · · ·     ·     ·     ·       ·
+//! ·                 ·   ·     · :   · ·   · ·   · ·           ·
+//! ·             ·   ·         · ·   · :   ·   · ·             ·
+//! ·     ·       · · ·         · ·   · · ·   ·                 ·
+//! ·   · ·     · · ·           · · ·   ·                       ·
+//! · ·   ·       ·               ·
+//! ·
+//! ```
 
 use ext::chain_complex::FreeChainComplex;
 use ext::utils::construct;
