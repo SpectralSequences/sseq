@@ -1,28 +1,24 @@
 //! Compute hidden α-extensions using precomputed tables. This assumes prime 2.
 //!
 //! # Usage guide
-//! We use X to denote the spectrum whose hidden extensions we want to compute, and α the class we
+//! We use $X$ to denote the spectrum whose hidden extensions we want to compute, and $\alpha$ the class we
 //! multiply with.
 //!
 //! # Arguments
 //! We clarify some less obvious arguments:
 //!
-//!  - **Name of α:** See "α products"
-//!
-//!  - **Dimension of Ext of X:** The output of the `num_gens` example on X
-//!
+//!  - **Name of α:** See "α products".
+//!  - **Dimension of Ext of X:** The output of the [`num_gens`](../num_gens/index.html) example on $X$.
 //!  - **α products:** A file containing lines of the form `α x_(n, s, i) = [...]`, where the first
 //!    word of each line is the name of the class we multiply with. The file can contain products
 //!    with different elements, and the "Name of α" argument is used to filter out the relevant
 //!    lines.
 //!
-//!    In existing applications, we use the output of `filtration_one` on X.
-//!
-//!  - **Inclusion map:** The output of `lift_hom` on the inclusion map of the bottom cell X -> X/α
-//!
-//!  - **Projection map:** The output of `lift_hom` on the projection map of the top cell X/α -> X
-//!
-//!  - **d2 of X:** The output of `secondary` on X.
+//!    In existing applications, we use the output of
+//!    [`filtration_one`](../filtration_one/index.html) on $X$.
+//!  - **Inclusion map:** The output of [`lift_hom`](../lift_hom/index.html) on the inclusion map of the bottom cell $X \to X/\alpha$
+//!  - **Projection map:** The output of [`lift_hom`](../lift_hom/index.html) on the projection map of the top cell $X/\alpha \to X$
+//!  - **d2 of X:** The output of [`secondary`](../secondary/index.html) on $X$.
 
 #![allow(clippy::redundant_closure)]
 
