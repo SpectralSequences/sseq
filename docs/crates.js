@@ -1,1 +1,9 @@
-window.ALL_CRATES = ["algebra","bivec","chart","error","ext","fp","once","query","saveload","thread_token"];
+window.ALL_CRATES = ['algebra',
+'bivec',
+'chart',
+'error',
+'fp',
+'once',
+'query',
+'saveload',
+'thread-token','ext'];
