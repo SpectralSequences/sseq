@@ -1,8 +1,10 @@
 //! This script converts between our basis and Bruner's basis. To do so, we
 //!
 //! 1. Compute our own resolution
-//! 2. Create Bruner's resolution as a [FiniteChainComplex] object
-//! 3. Use a [ResolutionHomomorphism] to lift the identity to a chain map from Bruner's resolution
+//! 2. Create Bruner's resolution as a
+//!    [`FiniteChainComplex`](ext::chain_complex::FiniteChainComplex) object
+//! 3. Use a [`ResolutionHomomorphism`](ext::resolution_homomorphism::ResolutionHomomorphism) to
+//!    lift the identity to a chain map from Bruner's resolution
 //!    to our resolution. We should do it in this direction because we have stored the
 //!    quasi-inverses for our resolution, but not Bruner's.
 //! 4. Read off the transformation matrix we need
@@ -10,19 +12,19 @@
 //! The main extra work to put in is step (2), where we have to parse Bruner's differentials and
 //! interpret it as a chain complex.
 //!
-//! By default, Bruner's differentials are stored in files Diff.$N, where Diff.$N contains
+//! By default, Bruner's differentials are stored in files `Diff.N`, where `Diff.N` contains
 //! differentials starting at filtration 0. This employs various encodings of Milnor basis
 //! elements. We use the `i` encoding.
 //!
 //! If it comes in a different encoding, run ./seeres in the directory (after compiling the
-//! program).  This outputs the data in `hDiff.$N` files, which ought to be moved back to
-//! `Diff.$N`. We will read these as input, and they are stored in `bruner_data/`. The location is
+//! program).  This outputs the data in `hDiff.N` files, which ought to be moved back to
+//! `Diff.N`. We will read these as input, and they are stored in `bruner_data/`. The location is
 //! hardcoded, but the range of Bruner's resolution is not. The bundled version includes the
-//! resolution up to f = 20, but it can be replaced with farther resolutions.
+//! resolution up to $n = 20$, but it can be replaced with farther resolutions.
 //!
-//! We should interpret Diff.$N as a space-separated "CSV", where blank lines are insignificant.
+//! We should interpret Diff.N as a space-separated "CSV", where blank lines are insignificant.
 //! The first line is a header file, which includes two numbers
-//! ```test
+//! ```text
 //! s=$s n=$num_gens
 //! ```
 //! These are the filtration and the number of generators in the filtration.
@@ -30,7 +32,7 @@
 //! After the header, we have blocks corresponding to the generators.
 //!
 //! A block looks like
-//! ```
+//! ```text
 //! $num_gen: $gen_t
 //!
 //! $num_lines
@@ -39,10 +41,10 @@
 //! $line3
 //! ...
 //! ```
-//! In the first line $num_gen is the number of the generator, starting at 0, and $gen_t is the
-//! degree of the generator added. The generators are listed in increasing $gen_t.
+//! In the first line `$num_gen` is the number of the generator, starting at 0, and `$gen_t` is the
+//! degree of the generator added. The generators are listed in increasing `$gen_t`.
 //!
-//! The second line $num_lines is the number of lines in the value of the differential on this
+//! The second line `$num_lines` is the number of lines in the value of the differential on this
 //! generator, and the value of the differential is the sum of the following lines.
 //!
 //! Each line encodes the product of a generator with a basis element. The format of the line is as
@@ -51,12 +53,12 @@
 //! ```text
 //! $gen_idx $op_deg $alg_dim $op
 //! ```
-//! Here $gen_idx is the index of the generator. This is the index within the free module one
+//! Here `$gen_idx` is the index of the generator. This is the index within the free module one
 //! filtration lower (i.e. the index in the file Diff.$(N-1)), and not the index within the whole
 //! resolution.
 //!
-//! The next entry $op_deg is the degree of the operation. This information is redundant, as it can
-//! be computed from either the generator index or the upcoming representation of the operation
+//! The next entry `$op_deg` is the degree of the operation. This information is redundant, as it
+//! can be computed from either the generator index or the upcoming representation of the operation
 //! itself. Nevertheless, it is convenient to have it available upfront.
 //!
 //! The third entry is the dimension of the algebra in degree $op_deg. Again this is not needed for
@@ -66,7 +68,7 @@
 //! ```text
 //! i(7)(4,1)(0,0,1).
 //! ```
-//! denotes the operation Sq(7) + Sq(4, 1) + Sq(0, 0, 1).
+//! denotes the operation $\Sq(7) + \Sq(4, 1) + \Sq(0, 0, 1)$.
 //!
 //! As an example, the block
 //! ```text
@@ -79,7 +81,7 @@
 //! ```
 //! means the fifth generator is a generator in degree 10, whose differential is
 //!
-//!    (Sq(8) + Sq(2, 2)) g_0 + (Sq(6) + Sq(0, 2)) g_1 + Sq(1) g_4.
+//! $$(\Sq(8) + \Sq(2, 2)) g_0 + (\Sq(6) + \Sq(0, 2)) g_1 + \Sq(1) g_4.$$
 //!
 
 use algebra::{

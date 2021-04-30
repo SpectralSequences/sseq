@@ -1,10 +1,11 @@
-//! This computes d₂ differentials in the Adams spectral sequence. This only works for fairly
+//! This computes $d_2$ differentials in the Adams spectral sequence. This only works for fairly
 //! specific modules, but tends to cover most cases of interest.
 //!
-//! In general, the set of possible d₂'s is a torsor over Ext^{2, 1}(M, M); the action of χ ∈
-//! Ext^{2, 1}(M, M) is given by adding χ-multiplication to the d₂ map. This algorithm computes one
-//! possible set of d₂'s. If Ext^{2, 1}(M, M) is non-zero, some differentials will have to be
-//! calculated by hand to determine the actual set of d₂'s.
+//! In general, the set of possible $d_2$'s is a torsor over $\Ext^{2, 1}(M, M)$; the
+//! action of $\chi \in \Ext^{2, 1}(M, M)$ is given by adding $\chi$-multiplication
+//! to the $d_2$ map. This algorithm computes one possible set of $d_2$'s. If $\Ext^{2, 1}(M, M)$
+//! is non-zero, some differentials will have to be calculated by hand to determine the actual set
+//! of $d_2$'s.
 //!
 //! # Usage
 //! This asks for a module and a resolution in the usual way. It only works with the Milnor basis,

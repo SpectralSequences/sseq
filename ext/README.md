@@ -143,7 +143,9 @@ our preferred basis and the bidegree is implicit.
 
 ### Overview of examples
 We give a brief introduction to the examples present. More detailed
-explanations are in the top-level comments of each example.
+explanations are in the top-level comments of each example. These can also be
+viewed at
+[https://spectralsequences.github.io/sseq/docs/ext/#examples](https://spectralsequences.github.io/sseq/docs/ext/#examples)
 
  - `algebra_dim`: Print the dimension of the Steenrod algebra in each degree.
  - `bruner`: Compare our basis with Bruner's.

@@ -22,12 +22,12 @@ crossbeam-channel = { version = "0.5.0", optional = true }
 crossbeam-utils = { version = "0.8.0", optional = true }
 rustc-hash = "1.1.0"
 serde_json = "1.0.0"
+itertools = "0.9.0"
+chart = { path = "crates/chart" }
 
 [dev-dependencies]
 expect-test = "1.1.0"
-chart = { path = "crates/chart" }
 rstest = "0.7.0"
-itertools = "0.9.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -15,6 +15,10 @@ lint:
 
 docs:
 	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo doc --all --no-deps --document-private-items --all-features
+	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo rustdoc --examples --all-features
+	# Prevent the examples from showing up in the sidebar
+	echo "window.ALL_CRATES = [$$(ls crates/ | sed "s/.*/'&',/")'ext'];" > target/doc/crates.js
+
 
 fix-benchmarks: $(patsubst examples/benchmarks/%, examples/benchmarks/%-fixed, $(wildcard examples/benchmarks/*))
 examples/benchmarks/%-fixed: FILE = examples/benchmarks/$*

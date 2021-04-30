@@ -3,15 +3,15 @@
 //! It begins by asking for two modules, then the range to compute the map for. Afterwards, the
 //! user is prompted for the module homomorphism. Our notation is as follows:
 //!
-//!  - f is the map between modules
-//!  - F is the induced map on Ext
-//!  - x_(n, i) is the ith basis element in the nth degree of the source module.
+//!  - `f` is the map between modules
+//!  - `F` is the induced map on Ext
+//!  - `x_(n, i)` is the ith basis element in the nth degree of the source module.
 //!
 //! Each prompt will be of the form `f(x_(n, i)) = ` and the user has to input the value of the
 //! homomorphism on this basis element. For example, the following session computes the map induced
-//! by the projection of spectra C2 -> S^1
+//! by the projection of spectra $C2 \to S^1$
 //!
-//! ```
+//! ```text
 //!  $ cargo run --example lift_hom
 //! Target module (default: S_2): C2@milnor
 //! Source module (default: Cnu): S_2[1]@milnor
@@ -19,12 +19,12 @@
 //! Max n (default: 7): 20
 //!
 //! Input module homomorphism to lift:
-//! f(x_(1, 0)):} [1]
+//! f(x_(1, 0)): [1]
 //! ```
 //!
-//! It is important to keep track of varaince when using this module; Both `Ext(-, k)` and `H*(-)`
-//! are contravariant functors. The words "source" and "target" refer to the map between Steenrod
-//! modules.
+//! It is important to keep track of varaince when using this module; Both $\Ext(-, k)$ and
+//! $H^*(-)$ are contravariant functors. The words "source" and "target" refer to the map between
+//! Steenrod modules.
 
 use algebra::module::homomorphism::BoundedModuleHomomorphism;
 use algebra::JsonAlgebra;
