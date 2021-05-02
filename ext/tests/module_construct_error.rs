@@ -1,4 +1,4 @@
-use ext::utils::construct_from_json;
+use ext::utils::construct;
 use serde_json::{json, Value};
 
 #[test]
@@ -19,6 +19,6 @@ fn module_construct_error() {
 }
 
 fn test(json: Value) {
-    matches!(construct_from_json(json.clone(), "adem"), Err(_));
-    matches!(construct_from_json(json, "milnor"), Err(_));
+    matches!(construct((json.clone(), "adem"), None), Err(_));
+    matches!(construct((json, "milnor"), None), Err(_));
 }

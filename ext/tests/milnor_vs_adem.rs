@@ -1,52 +1,24 @@
+use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::utils::construct;
-use ext::utils::Config;
-#[cfg(feature = "concurrent")]
-use thread_token::TokenBucket;
+use rstest::rstest;
 
-#[test]
-fn milnor_vs_adem() {
-    compare("S_2", 30);
-    compare("C2", 30);
-    compare("Joker", 30);
-    compare("RP4", 30);
-    compare("RP_inf", 30);
-    compare("RP_-4_inf", 30);
-    compare("Csigma", 30);
-    compare("S_3", 30);
-    compare("Calpha", 30);
-}
+#[rstest]
+#[trace]
+#[case("S_2", 30)]
+#[case("C2", 30)]
+#[case("Joker", 30)]
+#[case("RP4", 30)]
+#[case("RP_inf", 30)]
+#[case("RP_-4_inf", 30)]
+#[case("Csigma", 30)]
+#[case("S_3", 30)]
+#[case("Calpha", 30)]
+fn compare(#[case] module_name: &str, #[case] max_degree: i32) {
+    let a = construct((module_name, "adem"), None).unwrap();
+    let b = construct((module_name, "milnor"), None).unwrap();
 
-fn compare(module_name: &str, max_degree: i32) {
-    println!("module: {}", module_name);
-    let path = std::path::PathBuf::from("steenrod_modules");
-    let a = Config {
-        module_paths: vec![path.clone()],
-        module_file_name: module_name.to_string(),
-        max_degree,
-        algebra_name: String::from("adem"),
-    };
-    let b = Config {
-        module_paths: vec![path],
-        module_file_name: module_name.to_string(),
-        max_degree,
-        algebra_name: String::from("milnor"),
-    };
-
-    let a = construct(&a).unwrap();
-    let b = construct(&b).unwrap();
-
-    #[cfg(not(feature = "concurrent"))]
-    {
-        a.resolve_through_degree(max_degree);
-        b.resolve_through_degree(max_degree);
-    }
-
-    #[cfg(feature = "concurrent")]
-    {
-        let bucket = std::sync::Arc::new(TokenBucket::new(2));
-        a.resolve_through_degree_concurrent(max_degree, &bucket);
-        b.resolve_through_degree_concurrent(max_degree, &bucket);
-    }
+    a.compute_through_bidegree(max_degree as u32, max_degree);
+    b.compute_through_bidegree(max_degree as u32, max_degree);
 
     assert_eq!(a.graded_dimension_string(), b.graded_dimension_string());
 }

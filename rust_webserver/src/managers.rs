@@ -1,21 +1,33 @@
 use crate::actions::*;
 use crate::sseq::Sseq;
 
-use algebra::module::{FDModule, FiniteModule, Module};
-use bivec::BiVec;
-use ext::chain_complex::{ChainComplex, FiniteChainComplex};
-use ext::resolution::Resolution;
-use ext::utils::Config;
+use crate::resolution_wrapper::Resolution;
+use algebra::{module::Module, JsonAlgebra};
+use ext::chain_complex::ChainComplex;
+use ext::utils::load_module_json;
 use ext::CCC;
 
-use parking_lot::RwLock;
-use std::sync::Arc;
+use serde_json::json;
+
 #[cfg(feature = "concurrent")]
-use thread_token::TokenBucket;
-#[cfg(feature = "concurrent")]
-const NUM_THREADS: usize = 2;
+use {core::num::NonZeroUsize, thread_token::TokenBucket};
 
 use crate::Sender;
+
+#[cfg(feature = "concurrent")]
+fn num_threads() -> NonZeroUsize {
+    use std::env;
+
+    match env::var("EXT_THREADS") {
+        Ok(n) => match n.parse::<core::num::NonZeroUsize>() {
+            Ok(n) => return n,
+            Err(_) => eprintln!("Invalid value of EXT_THREADS variable: {}", n),
+        },
+        Err(env::VarError::NotUnicode(_)) => eprintln!("Invalid value of EXT_THREADS variable"),
+        Err(env::VarError::NotPresent) => (),
+    }
+    core::num::NonZeroUsize::new(2).unwrap()
+}
 
 /// ResolutionManager is a struct that manipulates a Resolution. It is constructed with a "sender"
 /// which is used to relay the results of the computation. This sender should send all messages to
@@ -28,11 +40,10 @@ use crate::Sender;
 ///  * `resolution` : The resolution object itself.
 pub struct ResolutionManager {
     #[cfg(feature = "concurrent")]
-    bucket: Arc<TokenBucket>,
+    bucket: TokenBucket,
     sender: Sender,
     is_unit: bool,
-    resolution: Option<Arc<RwLock<Resolution<CCC>>>>,
-    unit_resolution: Option<Arc<RwLock<Resolution<CCC>>>>,
+    resolution: Option<Resolution<CCC>>,
 }
 
 impl ResolutionManager {
@@ -43,11 +54,10 @@ impl ResolutionManager {
     pub fn new(sender: Sender) -> Self {
         ResolutionManager {
             #[cfg(feature = "concurrent")]
-            bucket: Arc::new(TokenBucket::new(NUM_THREADS)),
+            bucket: TokenBucket::new(num_threads()),
 
             sender,
             resolution: None,
-            unit_resolution: None,
             is_unit: false,
         }
     }
@@ -66,11 +76,11 @@ impl ResolutionManager {
             Action::Resolve(a) => self.resolve(a, msg.sseq)?,
             Action::BlockRefresh(_) => self.sender.send(msg)?,
             _ => {
+                let resolution = self.resolution.as_mut().unwrap();
                 let resolution = match msg.sseq {
-                    SseqChoice::Main => &self.resolution,
-                    SseqChoice::Unit => &self.unit_resolution,
+                    SseqChoice::Main => resolution,
+                    SseqChoice::Unit => resolution.unit_resolution_mut(),
                 };
-                let resolution = resolution.as_ref().unwrap();
 
                 ret = msg.action.act_resolution(resolution);
             }
@@ -94,30 +104,16 @@ impl ResolutionManager {
     /// Resolves a module defined by a json object. The result is stored in `self.bundle`.
     fn construct_json(&mut self, action: ConstructJson) -> error::Result<()> {
         let json_data = serde_json::from_str(&action.data)?;
-
-        let bundle = ext::utils::construct_from_json(json_data, &action.algebra_name).unwrap();
-
-        self.process_bundle(bundle);
+        let resolution = Resolution::new_from_json(json_data, &action.algebra_name);
+        self.process_bundle(resolution);
 
         Ok(())
     }
 
     /// Resolves a module specified by `json`. The result is stored in `self.bundle`.
     fn construct(&mut self, action: Construct) -> error::Result<()> {
-        let mut dir = std::env::current_exe().unwrap();
-        dir.pop();
-        dir.pop();
-        dir.pop();
-        dir.push("modules");
-
-        let resolution = ext::utils::construct(&Config {
-            module_paths: vec![dir],
-            module_file_name: format!("{}.json", action.module_name),
-            algebra_name: action.algebra_name,
-            max_degree: 0, // This is not used.
-        })
-        .unwrap();
-
+        let json = load_module_json(&action.module_name)?;
+        let resolution = Resolution::new_from_json(json, &action.algebra_name);
         self.process_bundle(resolution);
 
         Ok(())
@@ -128,47 +124,32 @@ impl ResolutionManager {
             resolution.complex().modules.len() == 1 && resolution.complex().module(0).is_unit();
 
         if self.is_unit {
-            let resolution = Arc::new(RwLock::new(resolution));
-            resolution
-                .write()
-                .set_unit_resolution(Arc::downgrade(&resolution));
-            self.unit_resolution = Some(Arc::clone(&resolution));
-            self.resolution = Some(resolution);
+            resolution.set_unit_resolution_self();
         } else {
-            let algebra = resolution.algebra();
+            let mut unit_resolution = Resolution::new_from_json(
+                json!({
+                    "type": "finite dimensional module",
+                    "p": *resolution.prime(),
+                    "gens": {"x0": 0},
+                    "actions": []
+                }),
+                &resolution.algebra().prefix(),
+            );
+            self.setup_callback(&mut unit_resolution, SseqChoice::Unit);
 
-            let unit_module = Arc::new(FiniteModule::from(FDModule::new(
-                algebra,
-                String::from("unit"),
-                BiVec::from_vec(0, vec![1]),
-            )));
-            let ccdz = Arc::new(FiniteChainComplex::ccdz(unit_module));
-            let unit_resolution = Arc::new(RwLock::new(Resolution::new(ccdz, None, None)));
-
-            resolution.set_unit_resolution(Arc::downgrade(&unit_resolution));
-            self.unit_resolution = Some(Arc::clone(&unit_resolution));
-            self.resolution = Some(Arc::new(RwLock::new(resolution)));
+            resolution.set_unit_resolution(unit_resolution);
         }
-
-        let resolution = self.resolution.as_ref().unwrap();
-        let mut resolution = resolution.write();
         self.setup_callback(&mut resolution, SseqChoice::Main);
 
-        if !self.is_unit {
-            let unit_resolution = self.unit_resolution.as_ref().unwrap();
-            let mut unit_resolution = unit_resolution.write();
-            self.setup_callback(&mut unit_resolution, SseqChoice::Unit);
-        }
+        self.resolution = Some(resolution);
     }
 
     fn resolve(&self, action: Resolve, sseq: SseqChoice) -> error::Result<()> {
+        let resolution = self.resolution.as_ref().unwrap();
         let resolution = match sseq {
-            SseqChoice::Main => &self.resolution,
-            SseqChoice::Unit => &self.unit_resolution,
+            SseqChoice::Main => resolution,
+            SseqChoice::Unit => resolution.unit_resolution(),
         };
-
-        let resolution = resolution.as_ref().unwrap();
-        let resolution = resolution.read();
 
         let min_degree = resolution.min_degree();
 
@@ -185,10 +166,10 @@ impl ResolutionManager {
         self.sender.send(msg)?;
 
         #[cfg(not(feature = "concurrent"))]
-        resolution.resolve_through_degree(action.max_degree);
+        resolution.compute_through_degree(action.max_degree);
 
         #[cfg(feature = "concurrent")]
-        resolution.resolve_through_degree_concurrent(action.max_degree, &self.bucket);
+        resolution.compute_through_degree_concurrent(action.max_degree, &self.bucket);
 
         Ok(())
     }

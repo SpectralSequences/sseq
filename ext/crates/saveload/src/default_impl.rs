@@ -100,21 +100,6 @@ impl<T: Load> Load for Arc<T> {
     }
 }
 
-impl<T: Save> Save for parking_lot::Mutex<T> {
-    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
-        let x: &T = &*self.lock();
-        x.save(buffer)
-    }
-}
-
-impl<T: Load> Load for parking_lot::Mutex<T> {
-    type AuxData = T::AuxData;
-
-    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self> {
-        Ok(parking_lot::Mutex::new(T::load(buffer, data)?))
-    }
-}
-
 impl<T: Save> Save for std::sync::Mutex<T> {
     fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
         let x: &T = &*self.lock().unwrap();

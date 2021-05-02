@@ -8,6 +8,8 @@ cfg_if::cfg_if! {
         pub(crate) type SimdLimb = x86_64::__m256i;
     } else if #[cfg(target_feature="avx")] {
         pub(crate) type SimdLimb = x86_64::__m256;
+    } else if #[cfg(target_feature="sse2")] {
+        pub(crate) type SimdLimb = x86_64::__m128i;
     } else {
         pub(crate) type SimdLimb = u64;
     }
@@ -21,6 +23,8 @@ pub(crate) unsafe fn load(limb: *const u64) -> SimdLimb {
             x86_64::_mm256_loadu_si256(limb as *const SimdLimb)
         } else if #[cfg(target_feature="avx")] {
             x86_64::_mm256_loadu_ps(limb as *const f32)
+        } else if #[cfg(target_feature="sse2")] {
+            x86_64::_mm_loadu_si128(limb as *const SimdLimb)
         } else {
             *limb
         }
@@ -35,6 +39,8 @@ pub(crate) unsafe fn store(limb: *mut u64, val: SimdLimb) {
             x86_64::_mm256_storeu_si256(limb as *mut SimdLimb, val);
         } else if #[cfg(target_feature="avx")] {
             x86_64::_mm256_storeu_ps(limb as *mut f32, val);
+        } else if #[cfg(target_feature="sse2")] {
+            x86_64::_mm_storeu_si128(limb as *mut SimdLimb, val)
         } else {
             *limb = val;
         }
@@ -49,6 +55,8 @@ pub(crate) unsafe fn xor(left: SimdLimb, right: SimdLimb) -> SimdLimb {
             x86_64::_mm256_xor_si256(left, right)
         } else if #[cfg(target_feature="avx")] {
             x86_64::_mm256_xor_ps(left, right)
+        } else if #[cfg(target_feature="sse2")] {
+            x86_64::_mm_xor_si128(left, right)
         } else {
             left ^ right
         }

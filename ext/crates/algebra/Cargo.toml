@@ -8,15 +8,10 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-serde_json = "1.0.0"
-serde = { version = "1.0.0", features = ["derive"] }
-# Cannot upgrade due to https://gitlab.com/antonok/enum_dispatch/-/issues/34
-enum_dispatch = "=0.3.2"
+serde_json = { version = "1.0.0", optional = true }
+serde = { version = "1.0.0", features = ["derive"], optional = true }
 itertools = "0.9.0"
-lazy_static = "1.2.0"
 nom = { version = "5.0.0", default-features = false, features = ["alloc"] }
-parking_lot = "0.11"
-syn = "=1.0.57"
 rustc-hash = "1.1.0"
 
 
@@ -24,18 +19,16 @@ bivec = { path = "../bivec"}
 error = { path = "../error" }
 fp = { path = "../fp", default-features = false }
 once = { path = "../once" }
-query = { path = "../query" }
 saveload = { path = "../saveload" }
 
 [dev-dependencies]
-rand = "0.7.0"
-rstest = "0.6.4"
+rstest = "0.7.0"
 bencher = "0.1.5"
 expect-test = "1.1.0"
 
 [features]
-default = ["odd-primes"]
-extras = []
+default = ["odd-primes", "json"]
+json = ["serde", "serde_json", "bivec/json", "fp/json"]
 odd-primes = ["fp/odd-primes"]
 
 [[bench]]

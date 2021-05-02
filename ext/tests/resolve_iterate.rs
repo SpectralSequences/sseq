@@ -1,55 +1,54 @@
-use ext::utils::construct_from_json;
-use ext::utils::load_module_from_file;
-use ext::utils::Config;
-use serde_json::Value;
+use algebra::AlgebraType;
+use ext::chain_complex::{ChainComplex, FreeChainComplex};
+use ext::utils::construct;
+use ext::utils::load_module_json;
+use rstest::rstest;
 
-#[test]
-fn resolve_iterate() {
-    let path = std::path::PathBuf::from("steenrod_modules");
-    for name in &["S_2", "S_3", "Ceta", "Calpha", "C3", "Joker"] {
-        let config = Config {
-            module_paths: vec![path.clone()],
-            module_file_name: (*name).to_string(),
-            max_degree: 0, // Doesn't matter
-            algebra_name: String::from("milnor"),
-        };
-        test_iterate(&config);
+#[rstest]
+#[trace]
+fn test_iterate(
+    #[values("S_2", "S_3", "Ceta", "Calpha", "C3", "Joker")] module_name: &str,
+    #[values(AlgebraType::Adem, AlgebraType::Milnor)] algebra: AlgebraType,
+) {
+    let json = load_module_json(module_name).unwrap();
 
-        let config = Config {
-            module_paths: vec![path.clone()],
-            module_file_name: (*name).to_string(),
-            max_degree: 0, // Doesn't matter
-            algebra_name: String::from("adem"),
-        };
-        test_iterate(&config);
-    }
-}
+    let first = construct((json.clone(), algebra), None).unwrap();
+    #[allow(clippy::redundant_clone)]
+    let second = construct((json.clone(), algebra), None).unwrap();
 
-fn test_iterate(config: &Config) {
-    println!(
-        "Resolving {} with {} basis",
-        &config.module_file_name, &config.algebra_name
-    );
+    first.compute_through_bidegree(20, 20);
 
-    let module_def = load_module_from_file(&config).unwrap();
-    let json: Value = serde_json::from_str(&module_def).unwrap();
-
-    let first = construct_from_json(json.clone(), &config.algebra_name).unwrap();
-    let second = construct_from_json(json, &config.algebra_name).unwrap();
-
-    first.resolve_through_degree(20);
-
-    second.resolve_through_degree(0);
-    second.resolve_through_degree(5);
-    second.resolve_through_degree(10);
-    second.resolve_through_degree(10);
-    second.resolve_through_degree(18);
-    second.resolve_through_degree(14);
-    second.resolve_through_degree(15);
-    second.resolve_through_degree(20);
+    second.compute_through_bidegree(0, 0);
+    second.compute_through_bidegree(5, 5);
+    second.compute_through_bidegree(10, 7);
+    second.compute_through_bidegree(7, 10);
+    second.compute_through_bidegree(18, 18);
+    second.compute_through_bidegree(14, 14);
+    second.compute_through_bidegree(15, 15);
+    second.compute_through_bidegree(20, 20);
 
     assert_eq!(
         first.graded_dimension_string(),
         second.graded_dimension_string()
     );
+
+    #[cfg(feature = "concurrent")]
+    {
+        let bucket = thread_token::TokenBucket::default();
+        let third = construct((json, algebra), None).unwrap();
+
+        third.compute_through_bidegree_concurrent(0, 0, &bucket);
+        third.compute_through_bidegree_concurrent(5, 5, &bucket);
+        third.compute_through_bidegree_concurrent(10, 7, &bucket);
+        third.compute_through_bidegree_concurrent(7, 10, &bucket);
+        third.compute_through_bidegree_concurrent(18, 18, &bucket);
+        third.compute_through_bidegree_concurrent(14, 14, &bucket);
+        third.compute_through_bidegree_concurrent(15, 15, &bucket);
+        third.compute_through_bidegree_concurrent(20, 20, &bucket);
+
+        assert_eq!(
+            first.graded_dimension_string(),
+            third.graded_dimension_string()
+        );
+    }
 }

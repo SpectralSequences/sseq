@@ -1,14 +1,12 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
-use algebra::{Algebra, Bialgebra, SteenrodAlgebra};
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteAugmentedChainComplex};
+use crate::CCC;
 use algebra::module::homomorphism::{
     BoundedModuleHomomorphism, FiniteModuleHomomorphism, ModuleHomomorphism,
 };
 use algebra::module::{FiniteModule, Module, SumModule, TensorModule, ZeroModule};
-use crate::CCC;
-use fp::matrix::{Matrix, QuasiInverse, Subspace};
-use fp::vector::{SliceMut, Slice, FpVector};
-use parking_lot::Mutex;
+use algebra::{Algebra, Bialgebra, SteenrodAlgebra};
+use fp::matrix::Matrix;
+use fp::vector::{FpVector, Slice, SliceMut};
 use std::sync::Arc;
 
 use bivec::BiVec;
@@ -24,7 +22,6 @@ where
     CC1: ChainComplex<Algebra = A>,
     CC2: ChainComplex<Algebra = A>,
 {
-    lock: Mutex<()>,
     left_cc: Arc<CC1>,
     right_cc: Arc<CC2>,
     modules: OnceVec<Arc<STM<CC1::Module, CC2::Module>>>,
@@ -40,7 +37,6 @@ where
 {
     pub fn new(left_cc: Arc<CC1>, right_cc: Arc<CC2>) -> Self {
         Self {
-            lock: Mutex::new(()),
             modules: OnceVec::new(),
             differentials: OnceVec::new(),
             zero_module: Arc::new(SumModule::zero_module(
@@ -130,8 +126,13 @@ where
         Arc::clone(&self.zero_module)
     }
 
-    fn has_computed_bidegree(&self, _s : u32, _t : i32) -> bool {
-        unimplemented!()
+    fn has_computed_bidegree(&self, s: u32, t: i32) -> bool {
+        self.left_cc
+            .has_computed_bidegree(s, t - self.right_cc.min_degree())
+            && self
+                .right_cc
+                .has_computed_bidegree(s, t - self.left_cc.min_degree())
+            && self.differentials.len() > s as usize
     }
 
     fn module(&self, s: u32) -> Arc<Self::Module> {
@@ -148,9 +149,8 @@ where
         self.right_cc
             .compute_through_bidegree(s, t - self.left_cc.min_degree());
 
-        let _lock = self.lock.lock();
-
-        for i in self.modules.len() as u32..=s {
+        self.modules.extend(s as usize, |i| {
+            let i = i as u32;
             let new_module_list: Vec<Arc<TensorModule<CC1::Module, CC2::Module>>> = (0..=i)
                 .map(|j| {
                     Arc::new(TensorModule::new(
@@ -159,40 +159,39 @@ where
                     ))
                 })
                 .collect::<Vec<_>>();
-            let new_module = Arc::new(SumModule::new(
+            Arc::new(SumModule::new(
                 self.algebra(),
                 new_module_list,
                 self.min_degree(),
-            ));
-            self.modules.push(new_module);
-        }
+            ))
+        });
 
         for module in self.modules.iter() {
             module.compute_basis(t);
         }
 
-        if self.differentials.is_empty() {
-            self.differentials.push(Arc::new(TensorChainMap {
-                left_cc: self.left_cc(),
-                right_cc: self.right_cc(),
-                source_s: 0,
-                lock: Mutex::new(()),
-                source: self.module(0),
-                target: self.zero_module(),
-                quasi_inverses: OnceBiVec::new(self.min_degree()),
-            }));
-        }
-        for s in self.differentials.len() as u32..=s {
-            self.differentials.push(Arc::new(TensorChainMap {
-                left_cc: self.left_cc(),
-                right_cc: self.right_cc(),
-                source_s: s,
-                lock: Mutex::new(()),
-                source: self.module(s),
-                target: self.module(s - 1),
-                quasi_inverses: OnceBiVec::new(self.min_degree()),
-            }));
-        }
+        self.differentials.extend(s as usize, |s| {
+            let s = s as u32;
+            if s == 0 {
+                Arc::new(TensorChainMap {
+                    left_cc: self.left_cc(),
+                    right_cc: self.right_cc(),
+                    source_s: 0,
+                    source: self.module(0),
+                    target: self.zero_module(),
+                    quasi_inverses: OnceBiVec::new(self.min_degree()),
+                })
+            } else {
+                Arc::new(TensorChainMap {
+                    left_cc: self.left_cc(),
+                    right_cc: self.right_cc(),
+                    source_s: s,
+                    source: self.module(s),
+                    target: self.module(s - 1),
+                    quasi_inverses: OnceBiVec::new(self.min_degree()),
+                })
+            }
+        });
     }
 
     fn set_homology_basis(
@@ -209,6 +208,10 @@ where
     fn max_homology_degree(&self, _homological_degree: u32) -> i32 {
         unimplemented!()
     }
+
+    fn max_homological_degree(&self) -> u32 {
+        self.modules.len() as u32 - 1
+    }
 }
 
 pub struct TensorChainMap<A, CC1, CC2>
@@ -220,7 +223,6 @@ where
     left_cc: Arc<CC1>,
     right_cc: Arc<CC2>,
     source_s: u32,
-    lock: Mutex<()>,
     source: Arc<STM<CC1::Module, CC2::Module>>,
     target: Arc<STM<CC1::Module, CC2::Module>>,
     quasi_inverses: OnceBiVec<Vec<Option<Vec<(usize, usize, FpVector)>>>>,
@@ -301,7 +303,7 @@ where
             self.left_cc
                 .differential(left_s as u32)
                 .apply_to_basis_element(dl.as_slice_mut(), coeff, left_t, left_index);
-            for i in 0..dl.dimension() {
+            for i in 0..dl.len() {
                 result.add_basis_element(
                     target_offset + i * target_right_dim + right_index,
                     dl.entry(i),
@@ -310,35 +312,21 @@ where
         }
     }
 
-    fn kernel(&self, _degree: i32) -> &Subspace {
-        panic!("Kernels not calculated for TensorChainMap");
-    }
-
-    fn quasi_inverse(&self, _degree: i32) -> &QuasiInverse {
-        panic!("Use apply_quasi_inverse instead");
-    }
-
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32) {
-        let next_degree = self.quasi_inverses.len();
-        if next_degree > degree {
-            return;
-        }
-
-        let _lock = self.lock.lock();
-
-        for i in next_degree..=degree {
-            self.calculate_quasi_inverse(i);
-        }
+    fn compute_auxiliary_data_through_degree(&self, degree: i32) {
+        self.quasi_inverses
+            .extend(degree, |i| self.calculate_quasi_inverse(i));
     }
 
     fn apply_quasi_inverse(&self, mut result: SliceMut, degree: i32, input: Slice) {
         let qis = &self.quasi_inverses[degree];
-        assert_eq!(input.dimension(), qis.len());
+        assert_eq!(input.len(), qis.len());
 
         for (i, x) in input.iter_nonzero() {
             if let Some(qi) = &qis[i] {
                 for (offset_start, offset_end, data) in qi.iter() {
-                    result.slice_mut(*offset_start, *offset_end).add(data.as_slice(), x);
+                    result
+                        .slice_mut(*offset_start, *offset_end)
+                        .add(data.as_slice(), x);
                 }
             }
         }
@@ -352,7 +340,7 @@ where
     CC2: ChainComplex<Algebra = A>,
 {
     #[allow(clippy::range_minus_one)]
-    fn calculate_quasi_inverse(&self, degree: i32) {
+    fn calculate_quasi_inverse(&self, degree: i32) -> Vec<Option<Vec<(usize, usize, FpVector)>>> {
         let p = self.prime();
         // start, end, preimage
         let mut quasi_inverse_list: Vec<Option<Vec<(usize, usize, FpVector)>>> =
@@ -378,7 +366,7 @@ where
                 continue;
             }
 
-            let padded_target_dim = FpVector::padded_dimension(p, target_dim);
+            let padded_target_dim = FpVector::padded_len(p, target_dim);
 
             let mut matrix = Matrix::new(p, source_dim, padded_target_dim + source_dim);
 
@@ -405,7 +393,8 @@ where
                         row.slice_mut(
                             target_offset + li * target_right_dim,
                             target_offset + (li + 1) * target_right_dim,
-                        ).assign(result.as_slice());
+                        )
+                        .assign(result.as_slice());
                     }
                     result.set_to_zero();
                 }
@@ -431,9 +420,12 @@ where
 
                 let mut result = FpVector::new(p, target_left_dim);
                 for li in 0..source_left_dim {
-                    self.left_cc
-                        .differential(s)
-                        .apply_to_basis_element(result.as_slice_mut(), 1, left_t, li);
+                    self.left_cc.differential(s).apply_to_basis_element(
+                        result.as_slice_mut(),
+                        1,
+                        left_t,
+                        li,
+                    );
                     for ri in 0..source_right_dim {
                         let row = &mut matrix[row_count];
                         for (i, x) in result.iter_nonzero() {
@@ -450,7 +442,6 @@ where
                 matrix[i].set_entry(padded_target_dim + i, 1);
             }
 
-            matrix.initialize_pivots();
             matrix.row_reduce();
 
             let mut index = 0;
@@ -482,7 +473,7 @@ where
                                 let mut entry = FpVector::new(p, dim);
                                 entry.as_slice_mut().assign(matrix[row].slice(
                                     padded_target_dim + offset,
-                                    padded_target_dim + offset + dim
+                                    padded_target_dim + offset + dim,
                                 ));
 
                                 if !entry.is_zero() {
@@ -504,7 +495,7 @@ where
                 }
             }
         }
-        self.quasi_inverses.push(quasi_inverse_list);
+        quasi_inverse_list
     }
 }
 
@@ -536,23 +527,20 @@ impl AugmentedChainComplex
             source: self.module(0),
             target: self.left_cc.target().module(0),
             degree_shift: 0,
-            lock: Mutex::new(()),
             matrices: BiVec::from_vec(0, vec![Matrix::from_vec(self.prime(), &[vec![1]])]),
             quasi_inverses: OnceBiVec::new(0),
             kernels: OnceBiVec::new(0),
+            images: OnceBiVec::new(0),
         })
     }
 }
 
 #[cfg(test)]
-#[cfg(feature = "yoneda")]
 mod tests {
-    #![allow(non_snake_case)]
-
     use super::*;
 
     use crate::resolution_homomorphism::ResolutionHomomorphism;
-    use crate::utils::construct_from_json;
+    use crate::utils::construct;
     use crate::yoneda::yoneda_representative_element;
     use fp::prime::ValidPrime;
 
@@ -569,12 +557,12 @@ mod tests {
         let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
         let p = ValidPrime::new(2);
 
-        let k = serde_json::from_str(k).unwrap();
-        let resolution = construct_from_json(k, "adem").unwrap();
-        resolution.resolve_through_bidegree(2 * s, 2 * t);
+        let k: serde_json::Value = serde_json::from_str(k).unwrap();
+        let resolution = Arc::new(construct((k, "adem"), None).unwrap());
+        resolution.compute_through_bidegree(2 * s, 2 * t);
 
         let yoneda = Arc::new(yoneda_representative_element(
-            Arc::clone(&resolution.inner),
+            Arc::clone(&resolution),
             s,
             t,
             i,
@@ -584,14 +572,9 @@ mod tests {
             Arc::clone(&yoneda),
             Arc::clone(&yoneda),
         ));
+        square.compute_through_bidegree(2 * s, 2 * t);
 
-        let f = ResolutionHomomorphism::new(
-            "".to_string(),
-            Arc::downgrade(&resolution.inner),
-            Arc::downgrade(&square),
-            0,
-            0,
-        );
+        let f = ResolutionHomomorphism::new("".to_string(), Arc::clone(&resolution), square, 0, 0);
         let mut mat = Matrix::new(p, 1, 1);
         mat[0].set_entry(0, 1);
         f.extend_step(0, 0, Some(&mat));
@@ -599,9 +582,9 @@ mod tests {
         f.extend(2 * s, 2 * t);
         let final_map = f.get_map(2 * s);
 
-        let num_gens = resolution.inner.number_of_gens_in_bidegree(2 * s, 2 * t);
+        let num_gens = resolution.number_of_gens_in_bidegree(2 * s, 2 * t);
         for i_ in 0..num_gens {
-            assert_eq!(final_map.output(2 * t, i_).dimension(), 1);
+            assert_eq!(final_map.output(2 * t, i_).len(), 1);
             if i_ == fi {
                 assert_eq!(final_map.output(2 * t, i_).entry(0), 1);
             } else {

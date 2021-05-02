@@ -38,6 +38,10 @@ fn ms_to_string(time: i128) -> String {
     }
 }
 
+fn print_time(time: OffsetDateTime) -> String {
+    format!("{}:{}:{}", time.hour(), time.minute(), time.hour())
+}
+
 /// The reason the code is structured this way is that messages sent to the WebSocket are blocked
 /// until `on_message` returned. Hence we start the ResolutionManager on a separate thread, and
 /// when we receive a message, we can let ResolutionManager handle it asynchronously and let
@@ -73,7 +77,7 @@ impl Manager {
                     "{}\n",
                     wrapper.fill(&format!(
                         "{} ResolutionManager: Processing {}",
-                        start.format("%F %T"),
+                        print_time(start),
                         action_string
                     ))
                 );
@@ -86,7 +90,7 @@ impl Manager {
                     "{}\n",
                     wrapper.fill(&format!(
                         "{} ResolutionManager: Completed in {}",
-                        end.format("%F %T"),
+                        print_time(end),
                         ms_to_string(time_diff)
                     ))
                 );
@@ -110,7 +114,7 @@ impl Manager {
                         "{}\n",
                         wrapper.fill(&format!(
                             "{} SseqManager: Processing {}",
-                            start.format("%F %T"),
+                            print_time(start),
                             action_string
                         ))
                     );
@@ -125,7 +129,7 @@ impl Manager {
                         "{}\n",
                         wrapper.fill(&format!(
                             "{} SseqManager: Completed in {}",
-                            end.format("%F %T"),
+                            print_time(end),
                             ms_to_string(time_diff)
                         ))
                     );

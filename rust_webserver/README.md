@@ -71,3 +71,12 @@ The format is pretty simple. Each line is a JSON encoding the action, and these 
 One can manually reorganize the calculation by moving the rows around. Lines are ignored if they are empty or start with `//`. These can be used to help organizing the calculation.
 
 One can add annotations to the lines, which affects how it is displayed in Calculation Display (but *not* the editor). Adding `"skip":true` means this will be grouped with the next item. Adding `"short-note":"Lorem ipsum"` and `"note":"Lorem ipsum"` will add notes to the corresponding action. Note that if several actions are grouped, only the notes of the first action will be displayed.
+
+## compressor
+This is a utility for further compressing the history file constructed by the
+previous interface. It is not very well polished. To use it, save the file to
+compress as `compressor/old.hist`, and then run `cargo run --release`. The
+compressed file will be saved at `compressor/new.hist`.
+
+This program is multithreaded, and to change the number of threads used, edit
+the `NUM_THREAD` variable in `compressor/src/main.rs`.

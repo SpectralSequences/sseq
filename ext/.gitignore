@@ -17,8 +17,7 @@
 target 
 dist
 package-lock.json
-resolution.save
-ddelta.save
+*.save
 
 **/flamegraph.svg
 **/perf.data

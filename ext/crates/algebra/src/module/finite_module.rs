@@ -1,10 +1,11 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::algebra::{Algebra, SteenrodAlgebra};
 use crate::module::{FDModule, FPModule, Module, RealProjectiveSpace};
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
-use serde_json::Value;
 use std::sync::Arc;
+
+#[cfg(feature = "json")]
+use serde_json::Value;
 
 #[derive(PartialEq, Eq)]
 pub enum FiniteModule {
@@ -29,7 +30,7 @@ macro_rules! dispatch {
 
 impl std::fmt::Display for FiniteModule {
     dispatch! {
-        fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error>;
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result;
     }
 }
 
@@ -97,15 +98,16 @@ impl From<RealProjectiveSpace<SteenrodAlgebra>> for FiniteModule {
     }
 }
 
+#[cfg(feature = "json")]
 impl FiniteModule {
     pub fn from_json(
         algebra: Arc<SteenrodAlgebra>,
-        json: &mut serde_json::Value,
+        json: &serde_json::Value,
     ) -> error::Result<Self> {
         match json["type"].as_str() {
-            Some("real projective space") => Ok(FiniteModule::from(RealProjectiveSpace::from_json(
-                algebra, json,
-            )?)),
+            Some("real projective space") => Ok(FiniteModule::from(
+                RealProjectiveSpace::from_json(algebra, json)?,
+            )),
             Some("finite dimensional module") => {
                 Ok(FiniteModule::from(FDModule::from_json(algebra, json)?))
             }
@@ -114,12 +116,15 @@ impl FiniteModule {
             }
             x => Err(UnknownModuleTypeError {
                 module_type: x.map(str::to_string),
-            }.into()),
+            }
+            .into()),
         }
     }
 
     dispatch! { pub fn to_json(&self, json: &mut Value); }
+}
 
+impl FiniteModule {
     pub fn type_(&self) -> &str {
         match self {
             Self::FDModule(_) => "finite dimensional module",
@@ -181,7 +186,16 @@ impl FiniteModule {
             _ => None,
         }
     }
+}
 
+impl crate::module::BoundedModule for FiniteModule {
+    fn max_degree(&self) -> i32 {
+        match self {
+            FiniteModule::FDModule(m) => m.max_degree(),
+            FiniteModule::RealProjectiveSpace(m) => m.max_degree(),
+            FiniteModule::FPModule(_) => i32::MAX,
+        }
+    }
 }
 
 #[derive(Debug)]

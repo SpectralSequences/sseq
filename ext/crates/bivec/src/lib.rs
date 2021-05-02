@@ -1,5 +1,6 @@
 use core::ops::Index;
 use core::ops::IndexMut;
+#[cfg(feature = "json")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 use std::slice::{Iter, IterMut};
@@ -112,7 +113,14 @@ impl<T> BiVec<T> {
             .iter()
             .enumerate()
             .map(move |(i, t)| (i as i32 + min_degree, t))
-        // .collect()
+    }
+
+    pub fn iter_mut_enum(&mut self) -> impl DoubleEndedIterator<Item = (i32, &mut T)> {
+        let min_degree = self.min_degree;
+        self.data
+            .iter_mut()
+            .enumerate()
+            .map(move |(i, t)| (i as i32 + min_degree, t))
     }
 
     pub fn into_iter_enum(self) -> impl DoubleEndedIterator<Item = (i32, T)> {
@@ -121,7 +129,6 @@ impl<T> BiVec<T> {
             .into_iter()
             .enumerate()
             .map(move |(i, t)| (i as i32 + min_degree, t))
-        // .collect()
     }
 
     /// Extends the bivec such that `max_degree()` is at least `max`. If `max_degree()` is
@@ -170,6 +177,7 @@ impl<T> BiVec<T> {
     }
 }
 
+#[cfg(feature = "json")]
 impl<T: Serialize> Serialize for BiVec<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -179,6 +187,7 @@ impl<T: Serialize> Serialize for BiVec<T> {
     }
 }
 
+#[cfg(feature = "json")]
 impl<'de, T: Deserialize<'de>> Deserialize<'de> for BiVec<T> {
     fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
     where

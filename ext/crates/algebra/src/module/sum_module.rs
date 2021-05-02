@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use bivec::BiVec;
 use once::OnceBiVec;
 
@@ -18,7 +17,7 @@ pub struct SumModule<M: Module> {
 }
 
 impl<M: Module> std::fmt::Display for SumModule<M> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.modules.is_empty() {
             write!(f, "0")
         } else {
@@ -174,20 +173,25 @@ mod tests {
 
     fn test_sum_module(M: Vec<&str>, S: &str) {
         let p = fp::prime::ValidPrime::new(2);
-        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false, false)));
+        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(
+            p,
+            *p != 2,
+            false,
+            false,
+        )));
 
         let M: Vec<Arc<FiniteModule>> = M
             .into_iter()
             .map(|s| {
-                let mut m = serde_json::from_str(s).unwrap();
-                Arc::new(FiniteModule::from_json(Arc::clone(&A), &mut m).unwrap())
+                let m = serde_json::from_str(s).unwrap();
+                Arc::new(FiniteModule::from_json(Arc::clone(&A), &m).unwrap())
             })
             .collect::<Vec<_>>();
 
         let sum = SumModule::new(Arc::clone(&A), M, 0).to_fd_module();
 
-        let mut S = serde_json::from_str(S).unwrap();
-        let S = FiniteModule::from_json(Arc::clone(&A), &mut S)
+        let S = serde_json::from_str(S).unwrap();
+        let S = FiniteModule::from_json(Arc::clone(&A), &S)
             .unwrap()
             .into_fd_module()
             .unwrap();

@@ -1,10 +1,8 @@
-#![allow(clippy::many_single_char_names)]
-
 use algebra::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphism};
 use algebra::module::{BoundedModule, Module};
 use ext::chain_complex::ChainComplex;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::utils::{construct, get_config};
+use ext::utils::construct;
 use ext::yoneda::yoneda_representative_element;
 use serde_json::value::Value;
 
@@ -12,58 +10,54 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
-use query::*;
+fn main() -> error::Result {
+    let resolution = Arc::new(query::with_default("Module", "S_2", |name| {
+        construct(name, None)
+    }));
 
-#[cfg(feature = "concurrent")]
-use thread_token::TokenBucket;
-
-fn main() -> error::Result<()> {
-    let resolution = construct(&get_config())?;
     let module = resolution.complex().module(0);
     let min_degree = resolution.min_degree();
 
     #[cfg(feature = "concurrent")]
-    let num_threads = query_with_default("Number of threads", "2", Ok);
-    #[cfg(feature = "concurrent")]
-    let bucket = Arc::new(TokenBucket::new(num_threads));
+    let bucket = ext::utils::query_bucket();
 
-    let x: i32 = query_with_default("t - s", "20", Ok);
-    let s: u32 = query_with_default("s", "4", Ok);
-    let i: usize = query_with_default("idx", "0", Ok);
+    let x: i32 = query::with_default("t - s", "20", str::parse);
+    let s: u32 = query::with_default("s", "4", str::parse);
+    let i: usize = query::with_default("idx", "0", str::parse);
 
     let start = Instant::now();
     let t = x + s as i32;
 
     #[cfg(not(feature = "concurrent"))]
-    resolution.resolve_through_bidegree(s + 1, t + 1);
+    resolution.compute_through_bidegree(s + 1, t + 1);
 
     #[cfg(feature = "concurrent")]
-    resolution.resolve_through_bidegree_concurrent(s + 1, t + 1, &bucket);
+    resolution.compute_through_bidegree_concurrent(s + 1, t + 1, &bucket);
 
-    println!("Resolving time: {:?}", start.elapsed());
+    eprintln!("Resolving time: {:?}", start.elapsed());
 
     let start = Instant::now();
     let yoneda = Arc::new(yoneda_representative_element(
-        Arc::clone(&resolution.inner),
+        Arc::clone(&resolution),
         s,
         t,
         i,
     ));
 
-    println!("Finding representative time: {:?}", start.elapsed());
+    eprintln!("Finding representative time: {:?}", start.elapsed());
 
     let f = ResolutionHomomorphism::from_module_homomorphism(
         "".to_string(),
-        Arc::clone(&resolution.inner),
+        Arc::clone(&resolution),
         Arc::clone(&yoneda),
         &FiniteModuleHomomorphism::identity_homomorphism(Arc::clone(&module)),
     );
 
     f.extend(s, t);
     let final_map = f.get_map(s);
-    let num_gens = resolution.inner.number_of_gens_in_bidegree(s, t);
+    let num_gens = resolution.number_of_gens_in_bidegree(s, t);
     for i_ in 0..num_gens {
-        assert_eq!(final_map.output(t, i_).dimension(), 1);
+        assert_eq!(final_map.output(t, i_).len(), 1);
         if i_ == i {
             assert_eq!(final_map.output(t, i_).entry(0), 1);
         } else {
@@ -95,11 +89,10 @@ fn main() -> error::Result<()> {
         );
     }
 
-    let filename: String = query("Output file name (empty to skip)", Ok);
-
-    if filename.is_empty() {
-        return Ok(());
-    }
+    let filename: String = match query::optional("Output file name (empty to skip)", str::parse) {
+        None => return Ok(()),
+        Some(x) => x,
+    };
 
     let mut module_strings = Vec::with_capacity(s as usize + 2);
 

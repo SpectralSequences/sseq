@@ -1,99 +1,58 @@
+//! This library gives various functions that are used to query a user. Each function performs the
+//! following:
+//!
+//!  - Read the next command line argument, and try to parse it as an answer. If the parsing fails,
+//!    panic.  Otherwise, return the argument
+//!
+//!  - If there are no command line arguments left, query the user for an input, and parse it as an
+//!    answer. If the parsing fails, query the user again.
+//!
+//! The "normal" usage mode is to not supply any command line arguments and just use the second
+//! functionality. However, the first is useful for testing and batch processing.
+
 use std::fmt::Display;
-use std::io::{stdin, stdout, Write};
-use std::str::FromStr;
+use std::io::{stderr, stdin, Write};
 
-pub fn query_optional<S: Display, T: FromStr, F>(prompt: &str, validator: F) -> Option<S>
-where
-    F: Fn(T) -> Result<S, String>,
-    <T as FromStr>::Err: Display,
-{
-    loop {
-        print!("{}: ", prompt);
-        stdout().flush().unwrap();
-        let mut input = String::new();
-        stdin()
-            .read_line(&mut input)
-            .unwrap_or_else(|_| panic!("Error reading for prompt: {}", prompt));
-        let trimmed = input.trim();
-        if trimmed.is_empty() {
-            return None;
-        }
-        let result = trimmed
-            .parse::<T>()
-            .map_err(|err| format!("{}", err))
-            .and_then(|res| validator(res));
-        match result {
-            Ok(res) => {
-                return Some(res);
-            }
-            Err(e) => {
-                println!("Invalid input: {}. Try again", e);
-            }
-        }
+use std::cell::RefCell;
+use std::env::Args;
+
+thread_local! {
+    static ARGV: RefCell<Args> = {
+        let mut args = std::env::args();
+        args.next();
+        RefCell::new(args)
     }
 }
 
-pub fn query<S: Display, T: FromStr, F>(prompt: &str, validator: F) -> S
-where
-    F: Fn(T) -> Result<S, String>,
-    <T as FromStr>::Err: Display,
-{
-    loop {
-        print!("{} : ", prompt);
-        stdout().flush().unwrap();
-        let mut input = String::new();
-        stdin()
-            .read_line(&mut input)
-            .unwrap_or_else(|_| panic!("Error reading for prompt: {}", prompt));
-        let trimmed = input.trim();
-        let result = trimmed
-            .parse::<T>()
-            .map_err(|err| format!("{}", err))
-            .and_then(|res| validator(res));
-        match result {
-            Ok(res) => {
-                return res;
-            }
-            Err(e) => {
-                println!("Invalid input: {}. Try again", e);
-            }
+pub fn optional<S, E: Display>(
+    prompt: &str,
+    mut parser: impl for<'a> FnMut(&'a str) -> Result<S, E>,
+) -> Option<S> {
+    raw(&format!("{} (optional)", prompt), |x| {
+        if x.is_empty() {
+            Ok(None)
+        } else {
+            parser(x).map(Some)
         }
-    }
+    })
 }
 
-pub fn query_with_default<S: Display, T: FromStr, F>(prompt: &str, default: &str, validator: F) -> S
-where
-    F: Fn(T) -> Result<S, String>,
-    <T as std::str::FromStr>::Err: std::fmt::Display,
-{
-    loop {
-        print!("{} (default: {}): ", prompt, default);
-        stdout().flush().unwrap();
-        let mut input = String::new();
-        stdin()
-            .read_line(&mut input)
-            .unwrap_or_else(|_| panic!("Error reading for prompt: {}", prompt));
-        let mut trimmed = input.trim();
-        if trimmed.is_empty() {
-            trimmed = default;
+pub fn with_default<S, E: Display>(
+    prompt: &str,
+    default: &str,
+    mut parser: impl for<'a> FnMut(&'a str) -> Result<S, E>,
+) -> S {
+    raw(&format!("{} (default: {})", prompt, default), |x| {
+        if x.is_empty() {
+            parser(default)
+        } else {
+            parser(x)
         }
-        let result = trimmed
-            .parse::<T>()
-            .map_err(|err| format!("{}", err))
-            .and_then(|res| validator(res));
-        match result {
-            Ok(res) => {
-                return res;
-            }
-            Err(e) => {
-                println!("Invalid input: {}. Try again", e);
-            }
-        }
-    }
+    })
 }
 
-pub fn query_yes_no(prompt: &str) -> bool {
-    query_with_default(prompt, "y", |response: String| {
+pub fn yes_no(prompt: &str) -> bool {
+    with_default(prompt, "y", |response| {
         if response.starts_with('y') || response.starts_with('n') {
             Ok(response.starts_with('y'))
         } else {
@@ -103,4 +62,44 @@ pub fn query_yes_no(prompt: &str) -> bool {
             ))
         }
     })
+}
+
+pub fn raw<S, E: Display>(
+    prompt: &str,
+    mut parser: impl for<'a> FnMut(&'a str) -> Result<S, E>,
+) -> S {
+    let cli: Option<(String, Result<S, E>)> = ARGV.with(|argv| {
+        let arg = argv.borrow_mut().next()?;
+        let result = parser(&arg);
+        Some((arg, result))
+    });
+
+    match cli {
+        Some((arg, Ok(res))) => {
+            eprintln!("{}: {}", prompt, arg);
+            return res;
+        }
+        Some((arg, Err(e))) => {
+            panic!("Invalid input {}\n{}.", arg, e);
+        }
+        None => (),
+    }
+
+    loop {
+        eprint!("{}: ", prompt);
+        stderr().flush().unwrap();
+        let mut input = String::new();
+        stdin()
+            .read_line(&mut input)
+            .unwrap_or_else(|_| panic!("Error reading for prompt: {}", prompt));
+        let trimmed = input.trim();
+        match parser(trimmed) {
+            Ok(res) => {
+                return res;
+            }
+            Err(e) => {
+                eprintln!("Invalid input: {}. Try again", e);
+            }
+        }
+    }
 }

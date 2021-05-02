@@ -16,29 +16,33 @@ pub type SliceMut<'a> = SliceMutP<'a, 2>;
 pub type FpVectorNonZeroIterator<'a> = FpVectorNonZeroIteratorP<'a, 2>;
 
 impl FpVector {
-    pub fn new(_p: ValidPrime, dim: usize) -> FpVector {
-        FpVector::new_(dim)
+    pub fn new(_p: ValidPrime, len: usize) -> FpVector {
+        FpVector::new_(len)
+    }
+
+    pub fn new_with_capacity(_p: ValidPrime, len: usize, capacity: usize) -> FpVector {
+        FpVector::new_with_capacity_(len, capacity)
     }
 
     pub fn from_slice(_p: ValidPrime, slice: &[u32]) -> Self {
         Self::from(&slice)
     }
 
-    pub fn padded_dimension(p: ValidPrime, dimension: usize) -> usize {
+    pub fn padded_len(p: ValidPrime, len: usize) -> usize {
         let entries_per_limb = entries_per_limb(p);
-        ((dimension + entries_per_limb - 1) / entries_per_limb) * entries_per_limb
+        ((len + entries_per_limb - 1) / entries_per_limb) * entries_per_limb
     }
 }
 
 impl std::fmt::Display for FpVector {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.as_slice().fmt(f)
     }
 }
 
 impl<'a> std::fmt::Display for Slice<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        write!(f, "[{}]", self.iter().join(", "))?;
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "[{}]", self.iter().format(", "))?;
         Ok(())
     }
 }
@@ -46,6 +50,15 @@ impl<'a> std::fmt::Display for Slice<'a> {
 impl std::ops::AddAssign<&FpVector> for FpVector {
     fn add_assign(&mut self, other: &FpVector) {
         self.add(other, 1);
+    }
+}
+
+impl<'a> IntoIterator for &'a FpVector {
+    type IntoIter = crate::vector_inner::FpVectorIterator<'a>;
+    type Item = u32;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -76,7 +89,7 @@ use std::io::{Read, Write};
 
 impl Save for FpVector {
     fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
-        self.dimension().save(buffer)?;
+        self.len().save(buffer)?;
         for limb in self.limbs() {
             limb.save(buffer)?;
         }
@@ -90,15 +103,15 @@ impl Load for FpVector {
     fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
         let p = *p;
 
-        let dimension = usize::load(buffer, &())?;
+        let len = usize::load(buffer, &())?;
 
-        if dimension == 0 {
+        if len == 0 {
             return Ok(FpVector::new(p, 0));
         }
 
         let entries_per_limb = entries_per_limb(p);
-        let num_limbs = (dimension - 1) / entries_per_limb + 1;
-        let mut v = FpVector::new(p, dimension);
+        let num_limbs = (len - 1) / entries_per_limb + 1;
+        let mut v = FpVector::new(p, len);
 
         for limb in &mut v.limbs_mut()[0..num_limbs] {
             *limb = Limb::load(buffer, &())?;

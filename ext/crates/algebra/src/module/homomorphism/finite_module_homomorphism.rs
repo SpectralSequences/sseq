@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use std::sync::Arc;
 
 use crate::algebra::SteenrodAlgebra;
@@ -7,60 +6,23 @@ use crate::module::homomorphism::{
     BoundedModuleHomomorphism, FPModuleHomomorphism, GenericZeroHomomorphism, IdentityHomomorphism,
     ModuleHomomorphism, ZeroHomomorphism,
 };
-use crate::module::{BoundedModule, FiniteModule, FreeModule, SteenrodModule};
+use crate::module::{FiniteModule, FreeModule, SteenrodModule};
 use fp::matrix::{QuasiInverse, Subspace};
 use fp::vector::SliceMut;
 
-impl BoundedModule for FiniteModule {
-    fn max_degree(&self) -> i32 {
-        match self {
-            FiniteModule::FDModule(m) => m.max_degree(),
-            FiniteModule::FPModule(_) => panic!("Finitely Presented Module is not bounded"),
-            FiniteModule::RealProjectiveSpace(m) => {
-                if let Some(x) = m.max_degree() {
-                    x
-                } else {
-                    panic!("Real Projective Space is not bounded")
-                }
-            }
-        }
-    }
-}
-
 impl FPModuleT for FiniteModule {
     fn fp_idx_to_gen_idx(&self, degree: i32, index: usize) -> usize {
-        match self {
-            FiniteModule::FDModule(_) => {
-                panic!("Finite Dimensional Module is not finitely presented")
-            }
-            FiniteModule::RealProjectiveSpace(_) => {
-                panic!("RealProjectiveSpace is not finitely presented")
-            }
-            FiniteModule::FPModule(m) => m.fp_idx_to_gen_idx(degree, index),
-        }
+        self.as_fp_module()
+            .unwrap()
+            .fp_idx_to_gen_idx(degree, index)
     }
     fn gen_idx_to_fp_idx(&self, degree: i32, index: usize) -> isize {
-        match self {
-            FiniteModule::FDModule(_) => {
-                panic!("Finite Dimensional Module is not finitely presented")
-            }
-            FiniteModule::RealProjectiveSpace(_) => {
-                panic!("RealProjectiveSpace is not finitely presented")
-            }
-            FiniteModule::FPModule(m) => m.gen_idx_to_fp_idx(degree, index),
-        }
+        self.as_fp_module()
+            .unwrap()
+            .gen_idx_to_fp_idx(degree, index)
     }
-
-    fn generators(&self) -> &Arc<FreeModule<SteenrodAlgebra>> {
-        match self {
-            FiniteModule::FDModule(_) => {
-                panic!("Finite Dimensional Module is not finitely presented")
-            }
-            FiniteModule::RealProjectiveSpace(_) => {
-                panic!("RealProjectiveSpace is not finitely presented")
-            }
-            FiniteModule::FPModule(m) => &m.generators,
-        }
+    fn generators(&self) -> Arc<FreeModule<SteenrodAlgebra>> {
+        self.as_fp_module().unwrap().generators()
     }
 }
 
@@ -136,7 +98,7 @@ impl<M: SteenrodModule> ModuleHomomorphism for FiniteModuleHomomorphism<M> {
         }
     }
 
-    fn quasi_inverse(&self, degree: i32) -> &QuasiInverse {
+    fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {
         match &self.map {
             FMHI::FD(f) => f.quasi_inverse(degree),
             FMHI::RP(f) => f.quasi_inverse(degree),
@@ -144,7 +106,7 @@ impl<M: SteenrodModule> ModuleHomomorphism for FiniteModuleHomomorphism<M> {
         }
     }
 
-    fn kernel(&self, degree: i32) -> &Subspace {
+    fn kernel(&self, degree: i32) -> Option<&Subspace> {
         match &self.map {
             FMHI::FD(f) => f.kernel(degree),
             FMHI::RP(f) => f.kernel(degree),
@@ -152,11 +114,19 @@ impl<M: SteenrodModule> ModuleHomomorphism for FiniteModuleHomomorphism<M> {
         }
     }
 
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32) {
+    fn image(&self, degree: i32) -> Option<&Subspace> {
         match &self.map {
-            FMHI::FD(f) => f.compute_kernels_and_quasi_inverses_through_degree(degree),
-            FMHI::RP(f) => f.compute_kernels_and_quasi_inverses_through_degree(degree),
-            FMHI::FP(f) => f.compute_kernels_and_quasi_inverses_through_degree(degree),
+            FMHI::FD(f) => f.image(degree),
+            FMHI::RP(f) => f.image(degree),
+            FMHI::FP(f) => f.image(degree),
+        }
+    }
+
+    fn compute_auxiliary_data_through_degree(&self, degree: i32) {
+        match &self.map {
+            FMHI::FD(f) => f.compute_auxiliary_data_through_degree(degree),
+            FMHI::RP(f) => f.compute_auxiliary_data_through_degree(degree),
+            FMHI::FP(f) => f.compute_auxiliary_data_through_degree(degree),
         }
     }
 }

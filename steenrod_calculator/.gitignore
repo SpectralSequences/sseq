@@ -1,4 +1,3 @@
 /target
-dist/steenrod_calculator_wasm.js
-dist/steenrod_calculator_wasm_bg.wasm
+dist/
 ext

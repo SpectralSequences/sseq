@@ -3,7 +3,7 @@ use core::ops::{Index, IndexMut};
 use std::cmp::{Eq, PartialEq};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 const USIZE_LEN: u32 = 0usize.count_zeros();
 
@@ -133,16 +133,6 @@ impl<T> OnceVec<T> {
         }
     }
 
-    /// Since OnceVec never reallocates, with_capacity is the same as normal initialization.
-    /// However, it is included for consistency.
-    pub fn with_capacity(_capacity: usize) -> Self {
-        Self::new()
-    }
-
-    /// Since OnceVec never reallocates, reserve is a noop. However, it is included for
-    /// consistency.
-    pub fn reserve(&self, _capacity: usize) {}
-
     /// All data up to length self.len() are guaranteed to be fully written *after* reading
     /// self.len().
     pub fn len(&self) -> usize {
@@ -170,28 +160,94 @@ impl<T> OnceVec<T> {
         }
     }
 
+    /// Takes a lock on the `OnceVec`. The `OnceVec` cannot be updated while the lock is held.
+    /// This is useful when used in conjuction with [`OnceVec::extend`];
+    pub fn lock(&self) -> MutexGuard<()> {
+        self.lock.lock().unwrap()
+    }
+
     const fn inner_index(index: usize) -> (usize, usize) {
         let page = (USIZE_LEN - 1 - (index + 1).leading_zeros()) as usize;
         let index = (index + 1) - (1 << page);
         (page, index)
     }
 
-    #[allow(clippy::mut_from_ref)]
-    unsafe fn get_inner(&self) -> &mut [Vec<T>; MAX_OUTER_LENGTH] {
-        &mut *self.data.get()
+    unsafe fn get_inner(&self) -> &[Vec<T>; MAX_OUTER_LENGTH] {
+        &*self.data.get()
     }
 
-    pub fn push(&self, x: T) {
+    /// Push an element into the vector and check that it was inserted into the `index` position.
+    ///
+    /// This is useful for situations where pushing into the wrong position can cause unexpected
+    /// future behaviour.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the position of the new element is not `index`.
+    pub fn push_checked(&self, value: T, index: usize) {
+        assert_eq!(self.push(value), index);
+    }
+
+    /// Append an element to the end of the vector.
+    ///
+    /// Returns the index of the new element.
+    pub fn push(&self, value: T) -> usize {
         unsafe {
-            let _lock = self.lock.lock();
+            let _lock = self.lock();
             let old_len = self.len.load(Ordering::Acquire);
             let (page, index) = Self::inner_index(old_len);
-            let inner = self.get_inner();
+            let inner = &mut *self.data.get();
             if index == 0 {
                 inner[page].reserve_exact(old_len + 1);
             }
-            inner[page].push(x);
+            inner[page].push(value);
             self.len.store(old_len + 1, Ordering::Release);
+            old_len
+        }
+    }
+
+    /// Extend the `OnceVec` to up to index `new_max`, filling in the entries with the values of
+    /// `f`. This takes the lock before calling `f`, which is useful behaviour if used in
+    /// conjunction with [`OnceVec::lock`].
+    ///
+    /// This is thread-safe and guaranteed to be idempotent. `f` will only be called once per
+    /// index.
+    ///
+    /// In case multiple `OnceVec`'s have to be simultaneously updated, one can use `extend` on one
+    /// of them and `push_checked` into the others within the function.
+    ///
+    /// # Example
+    /// ```
+    /// # use once::OnceVec;
+    /// let v: OnceVec<usize> = OnceVec::new();
+    /// v.extend(5, |i| i + 5);
+    /// assert_eq!(v.len(), 6);
+    /// for (i, &n) in v.iter().enumerate() {
+    ///     assert_eq!(n, i + 5);
+    /// }
+    /// ```
+    ///
+    /// # Arguments
+    ///  - `new_max`: After calling this function, `self[new_max]` will be defined.
+    ///  - `f`: We will fill in the vector with `f(i)` at the `i`th index.
+    pub fn extend(&self, new_max: usize, mut f: impl FnMut(usize) -> T) {
+        unsafe {
+            let _lock = self.lock();
+            let old_len = self.len.load(Ordering::Acquire);
+            if new_max < old_len {
+                return;
+            }
+            let inner = &mut *self.data.get();
+
+            for i in old_len..=new_max {
+                let (page, index) = Self::inner_index(i);
+                if index == 0 {
+                    inner[page].reserve_exact(i + 1);
+                }
+                inner[page].push(f(i));
+                // Do it inside the loop because f may use self
+                self.len.store(i + 1, Ordering::Release)
+            }
         }
     }
 
@@ -236,7 +292,7 @@ impl<T> IndexMut<usize> for OnceVec<T> {
         }
         let (page, index) = Self::inner_index(index);
         unsafe {
-            self.get_inner()
+            (*self.data.get())
                 .get_unchecked_mut(page)
                 .get_unchecked_mut(index)
         }
@@ -318,14 +374,6 @@ impl<T> OnceBiVec<T> {
         Self::from_vec(data.min_degree(), data.into_vec())
     }
 
-    pub fn with_capacity(min_degree: i32, capacity: i32) -> Self {
-        debug_assert!(capacity >= min_degree);
-        Self {
-            data: OnceVec::with_capacity((capacity - min_degree) as usize),
-            min_degree,
-        }
-    }
-
     pub fn min_degree(&self) -> i32 {
         self.min_degree
     }
@@ -360,17 +408,61 @@ impl<T> OnceBiVec<T> {
         self.data.len() == 0
     }
 
-    pub fn push(&self, x: T) {
-        self.data.push(x);
+    pub fn push_checked(&self, value: T, index: i32) {
+        assert_eq!(self.push(value), index);
+    }
+
+    pub fn push(&self, value: T) -> i32 {
+        self.data.push(value) as i32 + self.min_degree
     }
 
     pub fn get(&self, index: i32) -> Option<&T> {
         self.data.get((index - self.min_degree) as usize)
     }
 
+    /// Extend the `OnceBiVec` to up to index `new_max`, filling in the entries with the values of
+    /// `f`. This takes the lock before calling `f`, which is useful behaviour if used in
+    /// conjunction with [`OnceBiVec::lock`].
+    ///
+    /// This is thread-safe and guaranteed to be idempotent. `f` will only be called once per
+    /// index.
+    ///
+    /// In case multiple `OnceVec`'s have to be simultaneously updated, one can use `extend` on one
+    /// of them and `push_checked` into the others within the function.
+    ///
+    /// # Example
+    /// ```
+    /// # use once::OnceBiVec;
+    /// let v: OnceBiVec<i32> = OnceBiVec::new(-4);
+    /// v.extend(5, |i| i + 5);
+    /// assert_eq!(v.len(), 6);
+    /// for (i, &n) in v.iter_enum() {
+    ///     assert_eq!(n, i + 5);
+    /// }
+    /// ```
+    ///
+    /// # Arguments
+    ///  - `new_max`: After calling this function, `self[new_max]` will be defined.
+    ///  - `f`: We will fill in the vector with `f(i)` at the `i`th index.
+    pub fn extend(&self, new_max: i32, mut f: impl FnMut(i32) -> T) {
+        if new_max < self.min_degree {
+            return;
+        }
+        self.data.extend((new_max - self.min_degree) as usize, |i| {
+            f(i as i32 + self.min_degree)
+        });
+    }
+
     pub fn last(&self) -> Option<&T> {
         self.data.last()
     }
+
+    /// Takes a lock on the `OnceBiVec`. The `OnceBiVec` cannot be updated while the lock is held.
+    /// This is useful when used in conjuction with [`OnceBiVec::extend`];
+    pub fn lock(&self) -> MutexGuard<()> {
+        self.data.lock()
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.data.iter()
     }

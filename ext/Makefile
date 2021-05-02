@@ -4,10 +4,8 @@ all:
 	cargo build
 
 test:
-	cargo test --workspace
-
-test-concurrent:
-	cargo test --features concurrent
+	cargo test --features concurrent --lib --tests --workspace
+	cargo test --features concurrent --doc --workspace
 
 lint:
 	cargo fmt --all -- --check
@@ -15,10 +13,29 @@ lint:
 	cargo check --workspace --no-default-features
 	cargo check --workspace --all-targets --all-features
 
-run_examples: $(patsubst examples/%.rs, target/release/examples/%, $(wildcard examples/*.rs))
-
-target/release/examples/%: dummy
-	cargo run --all-features --release --example "$(notdir $@)"
-
 docs:
-	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo doc --all --no-deps --document-private-items
+	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo doc --all --no-deps --document-private-items --all-features
+	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo rustdoc --examples --all-features
+	# Prevent the examples from showing up in the sidebar
+	echo "window.ALL_CRATES = [$$(ls crates/ | sed "s/.*/'&',/")'ext'];" > target/doc/crates.js
+
+
+fix-benchmarks: $(patsubst examples/benchmarks/%, examples/benchmarks/%-fixed, $(wildcard examples/benchmarks/*))
+examples/benchmarks/%-fixed: FILE = examples/benchmarks/$*
+examples/benchmarks/%-fixed: dummy
+	(head -n 1 $(FILE) && bash -c "echo '' | cargo run --example $$(head -n 1 $(FILE))") > $@
+	if diff --color $(FILE) $@; then \
+	    rm $@; \
+	else \
+	    mv $@ $(FILE); \
+	fi
+
+benchmarks: $(wildcard examples/benchmarks/*)
+examples/benchmarks/%: dummy
+	(head -n 1 $@ && bash -c "echo '' | EXT_THREADS=2 cargo run --example $$(head -n 1 $@)") | diff --color $@ -
+
+benchmarks-concurrent: $(patsubst examples/benchmarks/%, examples/benchmarks/%-concurrent, $(wildcard examples/benchmarks/*))
+
+examples/benchmarks/%-concurrent: FILE = examples/benchmarks/$*
+examples/benchmarks/%-concurrent: dummy
+	(head -n 1 $(FILE) && bash -c "echo '' | EXT_THREADS=2 cargo run --features concurrent --example $$(head -n 1 $(FILE))") | diff --color $(FILE) -

@@ -85,9 +85,7 @@ macro_rules! because_enum_dispatch_doesnt_work_for_me {
     };
 }
 
-impl algebra::Algebra for AlgebraRust {
-    algebra::dispatch_algebra!{because_enum_dispatch_doesnt_work_for_me}
-}
+algebra::dispatch_algebra!{AlgebraRust, because_enum_dispatch_doesnt_work_for_me}
 
 
 // #[derive(Debug)]

@@ -1,12 +1,9 @@
 use rustc_hash::FxHashMap as HashMap;
-use std::io::{stdout, Write};
-use std::path::PathBuf;
+use std::io::{stderr, Write};
 use std::sync::Arc;
 
 use serde_json::json;
 use serde_json::Value;
-
-use query::*;
 
 use algebra::module::{FDModule, FPModule, FreeModule, Module};
 use algebra::steenrod_evaluator::evaluate_module;
@@ -17,24 +14,24 @@ use fp::vector::FpVector;
 
 pub fn get_gens(min_degree: i32) -> error::Result<BiVec<Vec<String>>> {
     // Query for generators
-    println!("Input generators. Press return to finish.");
-    stdout().flush()?;
+    eprintln!("Input generators. Press return to finish.");
+    stderr().flush()?;
 
     let mut gens: BiVec<Vec<_>> = BiVec::new(min_degree);
     loop {
-        let gen_deg: Option<i32> = query_optional("Generator degree", Ok);
+        let gen_deg: Option<i32> = query::optional("Generator degree", str::parse);
         if gen_deg.is_none() {
-            println!("This is the list of generators and degrees:");
+            eprintln!("This is the list of generators and degrees:");
             for (i, deg_i_gens) in gens.iter_enum() {
                 for gen in deg_i_gens.iter() {
                     print!("({}, {}) ", i, gen);
                 }
             }
-            println!();
-            if query_yes_no("Is it okay?") {
+            eprintln!();
+            if query::yes_no("Is it okay?") {
                 break;
             } else {
-                if query_yes_no("Start over?") {
+                if query::yes_no("Start over?") {
                     gens = BiVec::new(min_degree);
                 }
                 continue;
@@ -44,10 +41,10 @@ pub fn get_gens(min_degree: i32) -> error::Result<BiVec<Vec<String>>> {
         while gens.len() <= gen_deg {
             gens.push(Vec::new());
         }
-        let gen_name = query_with_default(
+        let gen_name = query::with_default(
             "Generator name",
             &format!("x{}{}", gen_deg, gens[gen_deg].len()),
-            |x: String| {
+            |x| {
                 match x.chars().next() {
                     Some(a) => {
                         if !a.is_alphabetic() {
@@ -64,7 +61,7 @@ pub fn get_gens(min_degree: i32) -> error::Result<BiVec<Vec<String>>> {
                         ));
                     }
                 }
-                Ok(x)
+                Ok(x.to_string())
             },
         );
         gens[gen_deg].push(gen_name);
@@ -90,7 +87,7 @@ pub fn get_expression_to_vector<F>(
     F: for<'a> Fn(&'a str) -> Option<usize>,
 {
     'outer: loop {
-        let result: String = query(prompt, Ok);
+        let result: String = query::raw(prompt, str::parse);
         if result == "0" {
             output_vec.set_to_zero();
             break;
@@ -102,7 +99,7 @@ pub fn get_expression_to_vector<F>(
                 match string_to_basis_element(&parts[0]) {
                     Some(i) => output_vec.add_basis_element(i, 1),
                     None => {
-                        println!("Invalid value. Try again");
+                        eprintln!("Invalid value. Try again");
                         continue 'outer;
                     }
                 };
@@ -118,7 +115,7 @@ pub fn get_expression_to_vector<F>(
                 let gen_idx = match string_to_basis_element(rest) {
                     Some(i) => i,
                     None => {
-                        println!("Invalid value. Try again");
+                        eprintln!("Invalid value. Try again");
                         continue 'outer;
                     }
                 };
@@ -134,7 +131,7 @@ pub fn interactive_module_define_fdmodule(
     p: ValidPrime,
     generic: bool,
     name: String,
-) -> error::Result<()> {
+) -> error::Result {
     let algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(
         p, generic, false, false,
     )));
@@ -158,7 +155,7 @@ pub fn interactive_module_define_fdmodule(
         }
     }
 
-    println!("Input actions. Write the value of the action in the form 'a x0 + b x1 + ...' where a, b are non-negative integers and x0, x1 are names of the generators. The coefficient can be omitted if it is 1");
+    eprintln!("Input actions. Write the value of the action in the form 'a x0 + b x1 + ...' where a, b are non-negative integers and x0, x1 are names of the generators. The coefficient can be omitted if it is 1");
 
     let len = gens.len();
     for input_deg in (0..len as i32).rev() {
@@ -202,7 +199,7 @@ fn get_relation(
     module: &FreeModule<SteenrodAlgebra>,
     basis_elt_lookup: &HashMap<String, (i32, usize)>,
 ) -> Result<(i32, FpVector), String> {
-    let relation: String = query("Relation", Ok);
+    let relation: String = query::raw("Relation", str::parse);
     if relation.is_empty() {
         return Err("".to_string());
     }
@@ -221,7 +218,7 @@ pub fn interactive_module_define_fpmodule(
     p: ValidPrime,
     generic: bool,
     name: String,
-) -> error::Result<()> {
+) -> error::Result {
     output_json["type"] = Value::from("finitely presented module");
 
     let min_degree = 0i32;
@@ -243,26 +240,26 @@ pub fn interactive_module_define_fpmodule(
         graded_dim.push(i);
     }
 
-    let adem_module = FPModule::new(Arc::clone(&steenrod_algebra), name, min_degree);
+    let mut adem_module = FPModule::new(Arc::clone(&steenrod_algebra), name, min_degree);
 
     for (i, deg_i_gens) in gens.iter_enum() {
         adem_module.add_generators(i, deg_i_gens.clone());
     }
     // TODO: make relation parser automatically extend module by zero if necessary...
-    adem_module.generators.extend_by_zero(20);
+    adem_module.generators().extend_by_zero(20);
 
-    println!("Input relations");
+    eprintln!("Input relations");
     match *p {
-        2 => println!("Write relations in the form 'Sq6 * Sq2 * x + Sq7 * y'"),
-        _ => println!("Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y', where P(...) and Qi are Milnor basis elements."),
+        2 => eprintln!("Write relations in the form 'Sq6 * Sq2 * x + Sq7 * y'"),
+        _ => eprintln!("Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y', where P(...) and Qi are Milnor basis elements."),
     }
-    println!("There is currently a hard-coded maximum degree of {} for relations (this is the maximum allowed degree of an operator acting on the generators). One can raise this number by editing the max_degree variable in the interactive_module_define_fpmodule function of src/cli_module_loaders.rs. Apologies.", max_degree);
+    eprintln!("There is currently a hard-coded maximum degree of {} for relations (this is the maximum allowed degree of an operator acting on the generators). One can raise this number by editing the max_degree variable in the interactive_module_define_fpmodule function of src/cli_module_loaders.rs. Apologies.", max_degree);
 
     let mut basis_elt_lookup = HashMap::default();
     for (i, deg_i_gens) in gens.iter_enum() {
         for (j, gen) in deg_i_gens.iter().enumerate() {
             let k = adem_module
-                .generators
+                .generators()
                 .operation_generator_to_index(0, 0, i, j);
             basis_elt_lookup.insert(gen.clone(), (i, k));
         }
@@ -273,28 +270,28 @@ pub fn interactive_module_define_fpmodule(
         match get_relation(
             &adem_algebra,
             &milnor_algebra,
-            &adem_module.generators,
+            &adem_module.generators(),
             &basis_elt_lookup,
         ) {
             Err(x) => {
                 if x.is_empty() {
-                    println!("Invalid relation: {}. Try again.", x);
+                    eprintln!("Invalid relation: {}. Try again.", x);
                     continue;
                 }
-                println!("This is the list of relations:");
+                eprintln!("This is the list of relations:");
                 for (i, deg_i_relns) in relations.iter_enum() {
                     for r in deg_i_relns {
                         print!(
                             "{}, ",
-                            adem_module.generators.element_to_string(i, r.as_slice())
+                            adem_module.generators().element_to_string(i, r.as_slice())
                         );
                     }
                 }
-                println!();
-                if query_yes_no("Is it okay?") {
+                eprintln!();
+                if query::yes_no("Is it okay?") {
                     break;
                 } else {
-                    if query_yes_no("Start over?") {
+                    if query::yes_no("Start over?") {
                         relations = BiVec::new(min_degree);
                     }
                     continue;
@@ -310,7 +307,7 @@ pub fn interactive_module_define_fpmodule(
     }
 
     for (i, relns) in relations.iter_enum() {
-        let dim = adem_module.generators.dimension(i);
+        let dim = adem_module.generators().dimension(i);
         let mut matrix = fp::matrix::Matrix::new(p, relns.len(), dim);
         for (j, r) in relns.iter().enumerate() {
             matrix[j].assign(r);
@@ -322,44 +319,27 @@ pub fn interactive_module_define_fpmodule(
     Ok(())
 }
 
-fn main() -> error::Result<()> {
-    let output_path = query_with_default("Output file name", "module.json", |result: String| {
-        if !result.ends_with(".json") {
-            Err("Output file name must have .json extension".to_string())
-        } else {
-            Ok(result)
-        }
-    });
-
-    let module_type = query_with_default(
-        "Input module type (default 'finite dimensional module'):\n (0) - finite dimensional module \n (1) - finitely presented module\n",
-        "0",
-        |x : u32| match x {
-            0 | 1 => Ok(x),
-            _ => Err(format!("Invalid type '{}'. Type must be '0' or '1'", x))
+fn main() -> error::Result {
+    let module_type = query::with_default(
+        "Input module type (default 'finite dimensional module'):\n (fd) - finite dimensional module \n (fp) - finitely presented module\n",
+        "fd",
+        |x| match x {
+            "fd" | "fp" => Ok(x.to_string()),
+            _ => Err(format!("Invalid type '{}'. Type must be 'fd' or 'fp'", x))
         }
     );
 
-    let name: String = query("Module name (use latex between $'s)", Ok);
-    // Query for prime
-    let p = query_with_default("p", "2", |p: u32| {
-        ValidPrime::try_new(p).ok_or_else(|| "invalid prime".to_string())
-    });
+    let name: String = query::raw("Module name (use latex between $'s)", str::parse);
+    let p: ValidPrime = query::with_default("p", "2", str::parse);
     let generic = *p != 2;
-    let mut output_path_buf = PathBuf::from(output_path);
-    output_path_buf.set_extension("json");
-    let file_name = output_path_buf.file_stem().unwrap();
-    let mut output_json = json!({
-        "file_name" : file_name.to_str(),
-    });
+    let mut output_json = json!({});
 
-    println!("module_type : {}", module_type);
-    match module_type {
-        0 => interactive_module_define_fdmodule(&mut output_json, p, generic, name)?,
-        1 => interactive_module_define_fpmodule(&mut output_json, p, generic, name)?,
+    eprintln!("module_type: {}", module_type);
+    match &*module_type {
+        "fd" => interactive_module_define_fdmodule(&mut output_json, p, generic, name)?,
+        "fp" => interactive_module_define_fpmodule(&mut output_json, p, generic, name)?,
         _ => unreachable!(),
     }
-    std::fs::write(&output_path_buf, output_json.to_string())?;
-    println!("Wrote module to file {:?}.", output_path_buf,);
+    println!("{}", output_json);
     Ok(())
 }

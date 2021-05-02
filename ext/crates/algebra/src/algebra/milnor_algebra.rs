@@ -1,36 +1,36 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use itertools::Itertools;
-use parking_lot::Mutex;
-use serde_json::value::Value;
 use rustc_hash::FxHashMap as HashMap;
+use std::sync::Mutex;
 
-use once::OnceVec;
-use fp::prime::{Binomial, integer_power, ValidPrime, BitflagIterator};
-use fp::vector::{FpVector, Slice, SliceMut};
 use crate::algebra::combinatorics;
 use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
+use fp::prime::{integer_power, Binomial, BitflagIterator, ValidPrime};
+use fp::vector::{FpVector, Slice, SliceMut};
+use once::OnceVec;
+
+#[cfg(feature = "json")]
+use {crate::algebra::JsonAlgebra, serde::Deserialize, serde_json::value::Value};
 
 use nom::{
-    IResult,
-    combinator::map,
     branch::alt,
     bytes::complete::tag,
     character::complete::{char, digit1, space1},
+    combinator::map,
     sequence::{delimited, pair},
+    IResult,
 };
 
 // This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
 // In order for things to work AdemAlgebraT cannot implement Algebra.
 // Otherwise, the algebra enum for our bindings will see an implementation clash.
-pub trait MilnorAlgebraT : Send + Sync + 'static + Algebra {
+pub trait MilnorAlgebraT: Send + Sync + Algebra {
     fn milnor_algebra(&self) -> &MilnorAlgebra;
 }
 
-
 pub struct MilnorProfile {
-    pub truncated : bool,
-    pub q_part : u32,
-    pub p_part : PPart,
+    pub truncated: bool,
+    pub q_part: u32,
+    pub p_part: PPart,
 }
 
 impl MilnorProfile {
@@ -41,8 +41,8 @@ impl MilnorProfile {
 
 #[derive(Default, Clone)]
 pub struct QPart {
-    degree : i32,
-    q_part : u32
+    degree: i32,
+    q_part: u32,
 }
 
 #[cfg(feature = "odd-primes")]
@@ -55,16 +55,18 @@ pub type PPart = Vec<PPartEntry>;
 
 #[derive(Debug, Clone, Default)]
 pub struct MilnorBasisElement {
-    pub q_part : u32,
-    pub p_part : PPart,
-    pub degree : i32
+    pub q_part: u32,
+    pub p_part: PPart,
+    pub degree: i32,
 }
 
-const ZERO_QPART : QPart = QPart { degree : 0, q_part : 0 };
-
 impl MilnorBasisElement {
-    fn from_p (p : PPart, dim : i32) -> Self {
-        Self { p_part : p, q_part : 0, degree : dim }
+    fn from_p(p: PPart, dim: i32) -> Self {
+        Self {
+            p_part: p,
+            q_part: 0,
+            degree: dim,
+        }
     }
 
     pub fn clone_into(&self, other: &mut Self) {
@@ -76,7 +78,7 @@ impl MilnorBasisElement {
 }
 
 impl std::cmp::PartialEq for MilnorBasisElement {
-    fn eq(&self, other : &Self) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         #[cfg(feature = "odd-primes")]
         return self.p_part == other.p_part && self.q_part == other.q_part;
 
@@ -96,22 +98,23 @@ impl std::hash::Hash for MilnorBasisElement {
 }
 
 impl std::fmt::Display for MilnorBasisElement {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.degree == 0 {
             write!(f, "1")?;
             return Ok(());
         }
-        let mut parts = Vec::new();
-        if self.q_part != 0 {            
-            let q_part_str = BitflagIterator::set_bit_iterator(self.q_part as u64)
+        if self.q_part != 0 {
+            let q_part = BitflagIterator::set_bit_iterator(self.q_part as u64)
                 .map(|idx| format!("Q_{}", idx))
-                .join(" ");
-            parts.push(q_part_str);
+                .format(" ");
+            write!(f, "{}", q_part)?;
         }
         if !self.p_part.is_empty() {
-            parts.push(format!("P({})", self.p_part.iter().join(", ")));
+            if self.q_part != 0 {
+                write!(f, " ")?;
+            }
+            write!(f, "P({})", self.p_part.iter().format(", "))?;
         }
-        write!(f, "{}", parts.join(" "))?;
         Ok(())
     }
 }
@@ -124,65 +127,84 @@ impl std::fmt::Display for MilnorBasisElement {
 // elements of qpart_table[d % q], and then for each element, we iterate through the appropriate
 // entry in ppart_table of the right degree.
 pub struct MilnorAlgebra {
-    pub profile : MilnorProfile,
-    lock : Mutex<()>,
-    p : ValidPrime,
-    pub generic : bool,
-    ppart_table : OnceVec<Vec<PPart>>,
-    qpart_table : Vec<OnceVec<QPart>>,
-    pub basis_table : OnceVec<Vec<MilnorBasisElement>>,
-    basis_element_to_index_map : OnceVec<HashMap<MilnorBasisElement, usize>>, // degree -> MilnorBasisElement -> index
+    pub profile: MilnorProfile,
+    lock: Mutex<()>,
+    p: ValidPrime,
+    #[cfg(feature = "odd-primes")]
+    generic: bool,
+    ppart_table: OnceVec<Vec<PPart>>,
+    qpart_table: Vec<OnceVec<QPart>>,
+    pub basis_table: OnceVec<Vec<MilnorBasisElement>>,
+    basis_element_to_index_map: OnceVec<HashMap<MilnorBasisElement, usize>>, // degree -> MilnorBasisElement -> index
     #[cfg(feature = "cache-multiplication")]
-    multiplication_table : OnceVec<OnceVec<Vec<Vec<FpVector>>>> // source_deg -> target_deg -> source_op -> target_op
+    multiplication_table: OnceVec<OnceVec<Vec<Vec<FpVector>>>>, // source_deg -> target_deg -> source_op -> target_op
 }
 
 impl std::fmt::Display for MilnorAlgebra {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "MilnorAlgebra(p={})", self.prime())
     }
 }
 
 impl MilnorAlgebra {
-    pub fn new(p : ValidPrime) -> Self {
+    pub fn new(p: ValidPrime) -> Self {
         fp::vector::initialize_limb_bit_index_table(p);
 
         let profile = MilnorProfile {
             truncated: false,
-            q_part : !0,
-            p_part : Vec::new()
+            q_part: !0,
+            p_part: Vec::new(),
         };
-
-        let mut qpart_table = Vec::new();
-        qpart_table.resize_with((2 * *p - 2) as usize, OnceVec::new);
 
         Self {
             p,
-            generic : *p != 2,
+            #[cfg(feature = "odd-primes")]
+            generic: *p != 2,
             profile,
-            lock : Mutex::new(()),
-            ppart_table : OnceVec::new(),
-            qpart_table,
-            basis_table : OnceVec::new(),
-            basis_element_to_index_map : OnceVec::new(),
+            lock: Mutex::new(()),
+            ppart_table: OnceVec::new(),
+            qpart_table: vec![OnceVec::new(); 2 * *p as usize - 2],
+            basis_table: OnceVec::new(),
+            basis_element_to_index_map: OnceVec::new(),
             #[cfg(feature = "cache-multiplication")]
-            multiplication_table : OnceVec::new()
+            multiplication_table: OnceVec::new(),
+        }
+    }
+
+    #[inline]
+    pub fn generic(&self) -> bool {
+        #[cfg(feature = "odd-primes")]
+        {
+            self.generic
+        }
+
+        #[cfg(not(feature = "odd-primes"))]
+        {
+            false
         }
     }
 
     pub fn q(&self) -> i32 {
-        if self.generic { 2*(*self.prime() as i32 - 1) } else { 1 }
+        if self.generic() {
+            2 * (*self.prime() as i32 - 1)
+        } else {
+            1
+        }
     }
 
-    pub fn basis_element_from_index(&self, degree : i32, idx : usize) -> &MilnorBasisElement {
+    pub fn basis_element_from_index(&self, degree: i32, idx: usize) -> &MilnorBasisElement {
         &self.basis_table[degree as usize][idx]
     }
 
-    pub fn try_basis_element_to_index(&self, elt : &MilnorBasisElement) -> Option<usize> {
-        self.basis_element_to_index_map[elt.degree as usize].get(elt).copied()
+    pub fn try_basis_element_to_index(&self, elt: &MilnorBasisElement) -> Option<usize> {
+        self.basis_element_to_index_map[elt.degree as usize]
+            .get(elt)
+            .copied()
     }
 
-    pub fn basis_element_to_index(&self, elt : &MilnorBasisElement) -> usize {
-        self.try_basis_element_to_index(elt).unwrap_or_else(|| panic!("Didn't find element: {:?}", elt))
+    pub fn basis_element_to_index(&self, elt: &MilnorBasisElement) -> usize {
+        self.try_basis_element_to_index(elt)
+            .unwrap_or_else(|| panic!("Didn't find element: {:?}", elt))
     }
 }
 
@@ -191,25 +213,31 @@ impl Algebra for MilnorAlgebra {
         self.p
     }
 
-    #[allow(clippy::useless_let_if_seq)]
     fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
         let mut products = Vec::with_capacity(4);
         let max_degree;
-        if self.generic {
-            if self.profile.q_part & 1 != 0  {
-                products.push(("a_0".to_string(), MilnorBasisElement {
-                    degree : 1,
-                    q_part : 1,
-                    p_part : vec![]
-                }));
+        if self.generic() {
+            if self.profile.q_part & 1 != 0 {
+                products.push((
+                    "a_0".to_string(),
+                    MilnorBasisElement {
+                        degree: 1,
+                        q_part: 1,
+                        p_part: vec![],
+                    },
+                ));
             }
-            if (self.profile.p_part.is_empty() && !self.profile.truncated) ||
-               (!self.profile.p_part.is_empty() && self.profile.p_part[0] > 0) {
-                    products.push(("h_0".to_string(), MilnorBasisElement {
-                        degree : (2* (*self.prime())-2) as i32,
-                        q_part : 0,
-                        p_part : vec![1]
-                    }));
+            if (self.profile.p_part.is_empty() && !self.profile.truncated)
+                || (!self.profile.p_part.is_empty() && self.profile.p_part[0] > 0)
+            {
+                products.push((
+                    "h_0".to_string(),
+                    MilnorBasisElement {
+                        degree: (2 * (*self.prime()) - 2) as i32,
+                        q_part: 0,
+                        p_part: vec![1],
+                    },
+                ));
             }
             max_degree = (2 * (*self.prime()) - 2) as i32;
         } else {
@@ -221,43 +249,44 @@ impl Algebra for MilnorAlgebra {
             }
             for i in 0..max {
                 let degree = 1 << i; // degree is 2^hi
-                products.push((format!("h_{}", i), MilnorBasisElement {
-                    degree,
-                    q_part : 0,
-                    p_part : vec![1 << i],
-                }));
+                products.push((
+                    format!("h_{}", i),
+                    MilnorBasisElement {
+                        degree,
+                        q_part: 0,
+                        p_part: vec![1 << i],
+                    },
+                ));
             }
             max_degree = 1 << 3;
         }
         self.compute_basis(max_degree + 1);
 
-        products.into_iter()
+        products
+            .into_iter()
             .map(|(name, b)| (name, b.degree, self.basis_element_to_index(&b)))
             .collect()
     }
 
-    fn compute_basis(&self, max_degree : i32) {
-        let _lock = self.lock.lock();
+    fn compute_basis(&self, max_degree: i32) {
+        let _lock = self.lock.lock().unwrap();
         let next_degree = self.basis_table.len() as i32;
 
         if max_degree < next_degree {
             return;
         }
 
-        self.compute_ppart(next_degree, max_degree);
+        self.compute_ppart(max_degree);
         self.compute_qpart(next_degree, max_degree);
 
-        self.basis_table.reserve((max_degree - next_degree + 1) as usize);
-        self.basis_element_to_index_map.reserve((max_degree - next_degree + 1) as usize);
-
-        if self.generic {
+        if self.generic() {
             self.generate_basis_generic(next_degree, max_degree);
         } else {
             self.generate_basis_2(next_degree, max_degree);
         }
 
         // Populate hash map
-        for d in next_degree as usize ..= max_degree as usize {
+        for d in next_degree as usize..=max_degree as usize {
             let basis = &self.basis_table[d];
             let mut map = HashMap::default();
             map.reserve(basis.len());
@@ -269,25 +298,38 @@ impl Algebra for MilnorAlgebra {
 
         #[cfg(feature = "cache-multiplication")]
         {
-            for d in 0 ..= max_degree as usize {
+            for d in 0..=max_degree as usize {
                 if self.multiplication_table.len() == d {
                     self.multiplication_table.push(OnceVec::new());
                 }
-                for e in self.multiplication_table[d].len() ..= max_degree as usize  - d {
+                for e in self.multiplication_table[d].len()..=max_degree as usize - d {
                     self.multiplication_table[d].push(
-                        (0..self.dimension(d as i32, -1)).map(|i|
-                            (0 .. self.dimension(e as i32, -1)).map(|j| {
-                                let mut res = FpVector::new(self.prime(), self.dimension((d + e) as i32, -1));
-                                self.multiply(&mut res, 1, &self.basis_table[d][i], &self.basis_table[e][j]);
-                                res
-                            }).collect::<Vec<_>>()
-                        ).collect::<Vec<_>>());
+                        (0..self.dimension(d as i32, -1))
+                            .map(|i| {
+                                (0..self.dimension(e as i32, -1))
+                                    .map(|j| {
+                                        let mut res = FpVector::new(
+                                            self.prime(),
+                                            self.dimension((d + e) as i32, -1),
+                                        );
+                                        self.multiply(
+                                            &mut res,
+                                            1,
+                                            &self.basis_table[d][i],
+                                            &self.basis_table[e][j],
+                                        );
+                                        res
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>(),
+                    );
                 }
             }
         }
     }
 
-    fn dimension(&self, degree : i32, _excess : i32) -> usize {
+    fn dimension(&self, degree: i32, _excess: i32) -> usize {
         if degree < 0 {
             return 0;
         }
@@ -295,29 +337,67 @@ impl Algebra for MilnorAlgebra {
     }
 
     #[cfg(not(feature = "cache-multiplication"))]
-    fn multiply_basis_elements(&self, result : SliceMut, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, _excess : i32) {
-        self.multiply(result, coef, &self.basis_table[r_degree as usize][r_idx], &self.basis_table[s_degree as usize][s_idx]);
+    fn multiply_basis_elements(
+        &self,
+        result: SliceMut,
+        coef: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s_idx: usize,
+        _excess: i32,
+    ) {
+        self.multiply(
+            result,
+            coef,
+            &self.basis_table[r_degree as usize][r_idx],
+            &self.basis_table[s_degree as usize][s_idx],
+        );
     }
 
     #[cfg(feature = "cache-multiplication")]
-    fn multiply_basis_elements(&self, result : SliceMut, coef : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, _excess : i32) {
-        result.shift_add(&self.multiplication_table[r_degree as usize][s_degree as usize][r_idx][s_idx].as_slice(), coef);
+    fn multiply_basis_elements(
+        &self,
+        result: SliceMut,
+        coef: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s_idx: usize,
+        _excess: i32,
+    ) {
+        result.shift_add(
+            &self.multiplication_table[r_degree as usize][s_degree as usize][r_idx][s_idx]
+                .as_slice(),
+            coef,
+        );
     }
 
-    fn json_to_basis(&self, json : Value) -> error::Result<(i32, usize)> {
+    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
+        format!("{}", self.basis_table[degree as usize][idx])
+    }
+}
+
+#[cfg(feature = "json")]
+impl JsonAlgebra for MilnorAlgebra {
+    fn prefix(&self) -> &str {
+        "milnor"
+    }
+
+    fn json_to_basis(&self, json: &Value) -> error::Result<(i32, usize)> {
         let xi_degrees = combinatorics::xi_degrees(self.prime());
         let tau_degrees = combinatorics::tau_degrees(self.prime());
 
-        let mut p_part = Vec::new();
+        let p_part: PPart;
         let mut q_part = 0;
         let mut degree = 0;
 
-        if self.generic {
-            let (q_list, p_list): (Vec<u8>, PPart) = serde_json::from_value(json)?;
-            let q = (2 * (*self.prime()) - 2) as i32;
+        if self.generic() {
+            let (q_list, p_list): (Vec<u8>, PPart) = <_>::deserialize(json)?;
+            let q = self.q();
 
-            for (i, val) in p_list.into_iter().enumerate() {
-                p_part.push(val);
+            p_part = p_list;
+            for (i, &val) in p_part.iter().enumerate() {
                 degree += (val as i32) * xi_degrees[i] * q;
             }
 
@@ -326,19 +406,22 @@ impl Algebra for MilnorAlgebra {
                 degree += tau_degrees[k as usize];
             }
         } else {
-            let p_list: PPart = serde_json::from_value(json)?;
-            for (i, val) in p_list.into_iter().enumerate() {
-                p_part.push(val);
+            p_part = <_>::deserialize(json)?;
+            for (i, &val) in p_part.iter().enumerate() {
                 degree += (val as i32) * xi_degrees[i];
             }
         }
-        let m = MilnorBasisElement { p_part, q_part, degree };
+        let m = MilnorBasisElement {
+            q_part,
+            p_part,
+            degree,
+        };
         Ok((degree, self.basis_element_to_index(&m)))
     }
 
-    fn json_from_basis(&self, degree : i32, index : usize) -> Value {
+    fn json_from_basis(&self, degree: i32, index: usize) -> Value {
         let b = self.basis_element_from_index(degree, index);
-        if self.generic {
+        if self.generic() {
             let mut q_part = b.q_part;
             let mut q_list = Vec::with_capacity(q_part.count_ones() as usize);
             while q_part != 0 {
@@ -351,22 +434,21 @@ impl Algebra for MilnorAlgebra {
             serde_json::to_value(&b.p_part).unwrap()
         }
     }
-
-    fn basis_element_to_string(&self, degree : i32, idx : usize) -> String {
-        format!("{}", self.basis_table[degree as usize][idx])
-    }
 }
 
 impl GeneratedAlgebra for MilnorAlgebra {
     // Same implementation as AdemAlgebra
     fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> {
-        let first = map(alt((
-            delimited(char('P'), digit1, space1),
-            delimited(tag("Sq"), digit1, space1),
-        )), |elt| {
-            let i = std::str::FromStr::from_str(elt).unwrap();
-            self.beps_pn(0, i)
-        });
+        let first = map(
+            alt((
+                delimited(char('P'), digit1, space1),
+                delimited(tag("Sq"), digit1, space1),
+            )),
+            |elt| {
+                let i = std::str::FromStr::from_str(elt).unwrap();
+                self.beps_pn(0, i)
+            },
+        );
 
         let second = map(pair(char('b'), space1), |_| (1, 0));
 
@@ -374,7 +456,7 @@ impl GeneratedAlgebra for MilnorAlgebra {
     }
 
     fn generator_to_string(&self, degree: i32, _idx: usize) -> String {
-        if self.generic {
+        if self.generic() {
             if degree == 1 {
                 "b".to_string()
             } else {
@@ -385,16 +467,16 @@ impl GeneratedAlgebra for MilnorAlgebra {
         }
     }
 
-    fn generators(&self, degree : i32) -> Vec<usize> {
+    fn generators(&self, degree: i32) -> Vec<usize> {
         if degree == 0 {
             return vec![];
         }
-        if self.generic && degree == 1 {
+        if self.generic() && degree == 1 {
             return vec![0]; // Q_0
         }
         let p = *self.prime();
-        let q = if self.generic { 2 * p - 2 } else { 1 };
-        let mut temp_degree = degree as u32;        
+        let q = self.q() as u32;
+        let mut temp_degree = degree as u32;
         if temp_degree % q != 0 {
             return vec![];
         }
@@ -407,20 +489,25 @@ impl GeneratedAlgebra for MilnorAlgebra {
         if temp_degree != 1 {
             return vec![];
         }
-        if (self.profile.p_part.is_empty() && self.profile.truncated) ||
-           (!self.profile.p_part.is_empty() && self.profile.p_part[0] <= power) {
+        if (self.profile.p_part.is_empty() && self.profile.truncated)
+            || (!self.profile.p_part.is_empty() && self.profile.p_part[0] <= power)
+        {
             return vec![];
         }
 
         let idx = self.basis_element_to_index(&MilnorBasisElement {
             degree,
-            q_part : 0,
-            p_part : vec![(degree as u32/ q) as PPartEntry]
+            q_part: 0,
+            p_part: vec![(degree as u32 / q) as PPartEntry],
         });
         return vec![idx];
     }
 
-    fn decompose_basis_element(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
+    fn decompose_basis_element(
+        &self,
+        degree: i32,
+        idx: usize,
+    ) -> Vec<(u32, (i32, usize), (i32, usize))> {
         let basis = &self.basis_table[degree as usize][idx];
         // If qpart = 0, return self
         if basis.q_part == 0 {
@@ -430,13 +517,13 @@ impl GeneratedAlgebra for MilnorAlgebra {
         }
     }
 
-    fn generating_relations(&self, degree : i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>{
-        if self.generic && degree == 2 {
+    fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> {
+        if self.generic() && degree == 2 {
             // beta^2 = 0 is an edge case
             return vec![vec![(1, (1, 0), (1, 0))]];
         }
         let p = self.prime();
-        let inadmissible_pairs = combinatorics::inadmissible_pairs(p, self.generic, degree);
+        let inadmissible_pairs = combinatorics::inadmissible_pairs(p, self.generic(), degree);
         let mut result = Vec::new();
         for (x, b, y) in inadmissible_pairs {
             let mut relation = Vec::new();
@@ -444,18 +531,28 @@ impl GeneratedAlgebra for MilnorAlgebra {
             (|| {
                 let (first_degree, first_index) = self.try_beps_pn(0, x as PPartEntry)?;
                 let (second_degree, second_index) = self.try_beps_pn(b, y as PPartEntry)?;
-                relation.push((*p - 1, (first_degree, first_index), (second_degree, second_index)));
-                for e1 in 0 ..= b {
+                relation.push((
+                    *p - 1,
+                    (first_degree, first_index),
+                    (second_degree, second_index),
+                ));
+                for e1 in 0..=b {
                     let e2 = b - e1;
                     // e1 and e2 determine where a bockstein shows up.
                     // e1 determines whether a bockstein shows up in front
                     // e2 determines whether a bockstein shows up in middle
                     // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
-                    for j in 0 ..= x / *p {
+                    for j in 0..=x / *p {
                         let c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
-                        if c == 0 { continue; }
+                        if c == 0 {
+                            continue;
+                        }
                         if j == 0 {
-                            relation.push((c, self.try_beps_pn(e1, (x + y) as PPartEntry)?, (e2 as i32, 0)));
+                            relation.push((
+                                c,
+                                self.try_beps_pn(e1, (x + y) as PPartEntry)?,
+                                (e2 as i32, 0),
+                            ));
                             continue;
                         }
                         let first_sq = self.try_beps_pn(e1, (x + y - j) as PPartEntry)?;
@@ -473,31 +570,29 @@ impl GeneratedAlgebra for MilnorAlgebra {
 
 // Compute basis functions
 impl MilnorAlgebra {
-    fn compute_ppart(&self, mut next_degree : i32, max_degree : i32) {
-        if next_degree == 0 {
-            self.ppart_table.push(vec![Vec::new()]);
-            next_degree = 1;
-        }
+    fn compute_ppart(&self, max_degree: i32) {
+        self.ppart_table.extend(0, |_| vec![Vec::new()]);
 
         let p = *self.prime() as i32;
-        let q = if p == 2 {1} else {2 * p - 2};
-        let new_deg = max_degree/q;
-        let old_deg = (next_degree-1)/q;
-
-        self.ppart_table.reserve((new_deg - old_deg) as usize);
+        let q = if p == 2 { 1 } else { 2 * p - 2 };
+        let new_deg = max_degree / q;
 
         let xi_degrees = combinatorics::xi_degrees(self.prime());
         let mut profile_list = Vec::with_capacity(xi_degrees.len());
         for i in 0..xi_degrees.len() {
             if i < self.profile.p_part.len() {
-                profile_list.push((integer_power(*self.prime(), self.profile.p_part[i] as u32) - 1) as PPartEntry);
+                profile_list.push(
+                    (integer_power(*self.prime(), self.profile.p_part[i] as u32) - 1) as PPartEntry,
+                );
             } else if self.profile.truncated {
                 profile_list.push(0);
             } else {
                 profile_list.push(PPartEntry::MAX);
             }
         }
-        for d in (old_deg + 1) ..= new_deg {
+
+        self.ppart_table.extend(new_deg as usize, |d| {
+            let d = d as i32;
             let mut new_row = Vec::new(); // Improve this
             for i in 0..xi_degrees.len() {
                 if xi_degrees[i] > d {
@@ -525,43 +620,51 @@ impl MilnorAlgebra {
                     new_row.push(new);
                 }
             }
-//            new_row.shrink_to_fit();
-            self.ppart_table.push(new_row);
-        }
+            new_row
+        });
     }
 
-    fn compute_qpart(&self, next_degree : i32, max_degree : i32) {
+    fn compute_qpart(&self, next_degree: i32, max_degree: i32) {
         let q = (2 * (*self.prime()) - 2) as i32;
         let profile = !self.profile.q_part;
 
-        if !self.generic {
+        if !self.generic() {
             return;
         }
 
         let mut next_degree = next_degree;
         if next_degree == 0 {
-            self.qpart_table[0].push( ZERO_QPART.clone());
+            self.qpart_table[0].push_checked(
+                QPart {
+                    degree: 0,
+                    q_part: 0,
+                },
+                0,
+            );
             next_degree = 1;
         }
 
         let tau_degrees = combinatorics::tau_degrees(self.prime());
-        let old_max_tau = tau_degrees.iter().position(|d| *d > next_degree - 1).unwrap(); // Use expect instead
+        let old_max_tau = tau_degrees
+            .iter()
+            .position(|d| *d > next_degree - 1)
+            .unwrap(); // Use expect instead
         let new_max_tau = tau_degrees.iter().position(|d| *d > max_degree).unwrap();
 
-        let bit_string_min : u32 = 1 << old_max_tau;
-        let bit_string_max : u32 = 1 << new_max_tau;
+        let bit_string_min: u32 = 1 << old_max_tau;
+        let bit_string_max: u32 = 1 << new_max_tau;
 
-        let mut residue : i32 = (old_max_tau as i32) % q;
-        let mut total : i32 = tau_degrees[0 .. old_max_tau].iter().sum();
+        let mut residue: i32 = (old_max_tau as i32) % q;
+        let mut total: i32 = tau_degrees[0..old_max_tau].iter().sum();
 
         for bit_string in bit_string_min..bit_string_max {
             // v has all the trailing zeros set. These are the bits that were set last time,
             // but aren't set anymore because of a carry. Shift right 1 because ???1000 ==> ???0111 xor ???1000 = 0001111.
             let mut v = (bit_string ^ (bit_string - 1)) >> 1;
-            let mut c : usize = 0; // We're going to get the new bit that is set into c.
+            let mut c: usize = 0; // We're going to get the new bit that is set into c.
             while v != 0 {
                 v >>= 1; // Subtract off the degree of each of the lost entries
-                total -= tau_degrees [c];
+                total -= tau_degrees[c];
                 c += 1;
             }
             total += tau_degrees[c];
@@ -574,16 +677,16 @@ impl MilnorAlgebra {
                 residue += q;
             }
             self.qpart_table[residue as usize].push(QPart {
-                degree : total,
-                q_part : bit_string
+                degree: total,
+                q_part: bit_string,
             });
         }
     }
 
-    fn generate_basis_generic(&self, next_degree : i32, max_degree : i32) {
+    fn generate_basis_generic(&self, next_degree: i32, max_degree: i32) {
         let q = (2 * (*self.prime()) - 2) as usize;
 
-        for d in next_degree as usize..= max_degree as usize {
+        for d in next_degree as usize..=max_degree as usize {
             let mut new_table = Vec::new(); // Initialize size
 
             for q_part in self.qpart_table[d % q].iter() {
@@ -593,22 +696,27 @@ impl MilnorAlgebra {
                     break;
                 }
 
-                for p_part in &self.ppart_table[(d - (q_part.degree as usize))/q] {
-                    new_table.push( MilnorBasisElement { p_part : p_part.clone(), q_part : q_part.q_part, degree : d as i32 } );
+                for p_part in &self.ppart_table[(d - (q_part.degree as usize)) / q] {
+                    new_table.push(MilnorBasisElement {
+                        p_part: p_part.clone(),
+                        q_part: q_part.q_part,
+                        degree: d as i32,
+                    });
                 }
             }
-//            new_table.shrink_to_fit();
+            //            new_table.shrink_to_fit();
             self.basis_table.push(new_table);
         }
     }
 
-    fn generate_basis_2(&self, next_degree : i32, max_degree : i32) {
-        for i in next_degree as usize ..= max_degree as usize {
+    fn generate_basis_2(&self, next_degree: i32, max_degree: i32) {
+        for i in next_degree as usize..=max_degree as usize {
             self.basis_table.push(
                 self.ppart_table[i]
-                .iter()
-                .map(|p| MilnorBasisElement::from_p(p.clone(), i as i32))
-                .collect());
+                    .iter()
+                    .map(|p| MilnorBasisElement::from_p(p.clone(), i as i32))
+                    .collect(),
+            );
         }
     }
 }
@@ -616,23 +724,23 @@ impl MilnorAlgebra {
 // Multiplication logic
 impl MilnorAlgebra {
     fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)> {
-        let p = *self.prime();
-        let q = if self.generic { 2*(p - 1) } else { 1 };
+        let q = self.q() as u32;
         let degree = (q * x as u32 + e) as i32;
         self.try_basis_element_to_index(&MilnorBasisElement {
             degree,
-            q_part : e,
-            p_part : vec![x as PPartEntry]
-        }).map(|index| (degree, index))
+            q_part: e,
+            p_part: vec![x as PPartEntry],
+        })
+        .map(|index| (degree, index))
     }
 
-    fn beps_pn(&self, e : u32, x : PPartEntry) -> (i32, usize) {
+    fn beps_pn(&self, e: u32, x: PPartEntry) -> (i32, usize) {
         self.try_beps_pn(e, x).unwrap()
     }
 
-    fn multiply_qpart (&self, m1 : &MilnorBasisElement, f : u32) -> Vec<(u32, MilnorBasisElement)>{
-        let mut new_result : Vec<(u32, MilnorBasisElement)> = vec![(1, m1.clone())];
-        let mut old_result : Vec<(u32, MilnorBasisElement)> = Vec::new();
+    fn multiply_qpart(&self, m1: &MilnorBasisElement, f: u32) -> Vec<(u32, MilnorBasisElement)> {
+        let mut new_result: Vec<(u32, MilnorBasisElement)> = vec![(1, m1.clone())];
+        let mut old_result: Vec<(u32, MilnorBasisElement)> = Vec::new();
 
         for k in BitflagIterator::set_bit_iterator(f as u64) {
             let k = k as u32;
@@ -649,19 +757,19 @@ impl MilnorAlgebra {
             //
             // We also use the fact that Q_k Q_j = -Q_j Q_k
             for (coef, term) in &old_result {
-                for i in 0..= term.p_part.len() {
+                for i in 0..=term.p_part.len() {
                     // If there is already Q_{k+i} on the other side, the result is 0
                     if term.q_part & (1 << (k + i as u32)) != 0 {
                         continue;
                     }
                     // Check if R - p^k e_i < 0. Only do this from the first term onwards.
-                    if i > 0 && term.p_part[i-1] < pk {
+                    if i > 0 && term.p_part[i - 1] < pk {
                         continue;
                     }
 
                     let mut new_p = term.p_part.clone();
                     if i > 0 {
-                        new_p[i-1] -= pk;
+                        new_p[i - 1] -= pk;
                     }
 
                     // Now calculate the number of Q's we are moving past
@@ -673,11 +781,15 @@ impl MilnorAlgebra {
                     }
                     // Now put everything together
                     let m = MilnorBasisElement {
-                        p_part : new_p,
-                        q_part : term.q_part | 1 << (k + i as u32),
-                        degree : 0 // we don't really care about the degree here. The final degree of the whole calculation is known a priori
+                        p_part: new_p,
+                        q_part: term.q_part | 1 << (k + i as u32),
+                        degree: 0, // we don't really care about the degree here. The final degree of the whole calculation is known a priori
                     };
-                    let c = if larger_q % 2 == 0 { *coef } else { *coef * (*self.prime() - 1) };
+                    let c = if larger_q % 2 == 0 {
+                        *coef
+                    } else {
+                        *coef * (*self.prime() - 1)
+                    };
 
                     new_result.push((c, m));
                 }
@@ -686,16 +798,36 @@ impl MilnorAlgebra {
         new_result
     }
 
-    pub fn multiply(&self, res : SliceMut, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement) {
+    pub fn multiply(
+        &self,
+        res: SliceMut,
+        coef: u32,
+        m1: &MilnorBasisElement,
+        m2: &MilnorBasisElement,
+    ) {
         self.multiply_with_allocation(res, coef, m1, m2, PPartAllocation::default());
     }
 
-    pub fn multiply_with_allocation(&self, mut res : SliceMut, coef : u32, m1 : &MilnorBasisElement, m2 : &MilnorBasisElement, mut allocation: PPartAllocation) -> PPartAllocation {
+    pub fn multiply_with_allocation(
+        &self,
+        mut res: SliceMut,
+        coef: u32,
+        m1: &MilnorBasisElement,
+        m2: &MilnorBasisElement,
+        mut allocation: PPartAllocation,
+    ) -> PPartAllocation {
         let target_deg = m1.degree + m2.degree;
-        if self.generic {
+        if self.generic() {
             let m1f = self.multiply_qpart(m1, m2.q_part);
             for (cc, basis) in m1f {
-                let mut multiplier = PPartMultiplier::<false>::new_from_allocation(self.prime(), &basis.p_part, &m2.p_part, allocation, basis.q_part, target_deg);
+                let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
+                    self.prime(),
+                    &basis.p_part,
+                    &m2.p_part,
+                    allocation,
+                    basis.q_part,
+                    target_deg,
+                );
 
                 while let Some(c) = multiplier.next() {
                     let idx = self.basis_element_to_index(&multiplier.ans);
@@ -704,7 +836,14 @@ impl MilnorAlgebra {
                 allocation = multiplier.into_allocation()
             }
         } else {
-            let mut multiplier = PPartMultiplier::<false>::new_from_allocation(self.prime(), &m1.p_part, &m2.p_part, allocation, 0, target_deg);
+            let mut multiplier = PPartMultiplier::<false>::new_from_allocation(
+                self.prime(),
+                &m1.p_part,
+                &m2.p_part,
+                allocation,
+                0,
+                target_deg,
+            );
 
             while let Some(c) = multiplier.next() {
                 let idx = self.basis_element_to_index(&multiplier.ans);
@@ -715,9 +854,23 @@ impl MilnorAlgebra {
         allocation
     }
 
-    pub fn multiply_element_by_basis_with_allocation(&self, mut res: SliceMut, coef: u32, r_deg: i32, r: Slice, m2: &MilnorBasisElement, mut allocation: PPartAllocation) -> PPartAllocation {
+    pub fn multiply_element_by_basis_with_allocation(
+        &self,
+        mut res: SliceMut,
+        coef: u32,
+        r_deg: i32,
+        r: Slice,
+        m2: &MilnorBasisElement,
+        mut allocation: PPartAllocation,
+    ) -> PPartAllocation {
         for (i, c) in r.iter_nonzero() {
-            allocation = self.multiply_with_allocation(res.copy(), coef * c, self.basis_element_from_index(r_deg, i), &m2, allocation);
+            allocation = self.multiply_with_allocation(
+                res.copy(),
+                coef * c,
+                self.basis_element_from_index(r_deg, i),
+                &m2,
+                allocation,
+            );
         }
         allocation
     }
@@ -730,9 +883,9 @@ struct Matrix2D {
 }
 
 impl std::fmt::Display for Matrix2D {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        for i in 0 .. self.inner.len() / self.cols {
-            writeln!(f, "{:?}", &self[i][0 .. self.cols])?;
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for i in 0..self.inner.len() / self.cols {
+            writeln!(f, "{:?}", &self[i][0..self.cols])?;
         }
         Ok(())
     }
@@ -750,7 +903,7 @@ impl Matrix2D {
     fn with_capacity(rows: usize, cols: usize) -> Self {
         Self {
             cols: 0,
-            inner: Vec::with_capacity(rows * cols)
+            inner: Vec::with_capacity(rows * cols),
         }
     }
 }
@@ -760,13 +913,13 @@ impl std::ops::Index<usize> for Matrix2D {
 
     fn index(&self, row: usize) -> &Self::Output {
         // Computing the end point is fairly expensive and only serves as a safety check...
-        &self.inner[row * self.cols ..]
+        &self.inner[row * self.cols..]
     }
 }
 
 impl std::ops::IndexMut<usize> for Matrix2D {
     fn index_mut(&mut self, row: usize) -> &mut Self::Output {
-        &mut self.inner[row * self.cols ..]
+        &mut self.inner[row * self.cols..]
     }
 }
 
@@ -798,13 +951,13 @@ impl PPartAllocation {
 
 #[allow(non_snake_case)]
 pub struct PPartMultiplier<'a, const MOD4: bool> {
-    p : ValidPrime,
-    M : Matrix2D,
-    r : &'a PPart,
-    rows : usize,
-    cols : usize,
-    diag_num : usize,
-    init : bool,
+    p: ValidPrime,
+    M: Matrix2D,
+    r: &'a PPart,
+    rows: usize,
+    cols: usize,
+    diag_num: usize,
+    init: bool,
     pub ans: MilnorBasisElement,
     #[cfg(feature = "odd-primes")]
     diagonal: PPart,
@@ -818,7 +971,14 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
 
     #[allow(clippy::ptr_arg)]
     #[allow(unused_mut)] // Mut is only used with odd primes
-    pub fn new_from_allocation(p: ValidPrime, r: &'a PPart, s: &'a PPart, mut allocation: PPartAllocation, q_part: u32, degree: i32) -> Self {
+    pub fn new_from_allocation(
+        p: ValidPrime,
+        r: &'a PPart,
+        s: &'a PPart,
+        mut allocation: PPartAllocation,
+        q_part: u32,
+        degree: i32,
+    ) -> Self {
         if MOD4 {
             assert_eq!(*p, 2);
         }
@@ -834,12 +994,12 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         let mut M = allocation.m;
         M.reset(rows, cols);
 
-        for i in 1 .. rows {
+        for i in 1..rows {
             M[i][0] = r[i - 1];
         }
         // This is somehow quite significantly faster than copy_from_slice
         #[allow(clippy::manual_memcpy)]
-        for k in 1 .. cols {
+        for k in 1..cols {
             M[0][k] = s[k - 1];
         }
 
@@ -851,7 +1011,14 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         PPartMultiplier {
             #[cfg(feature = "odd-primes")]
             diagonal: allocation.diagonal,
-            p, M, r, rows, cols, diag_num, ans, init : true
+            p,
+            M,
+            r,
+            rows,
+            cols,
+            diag_num,
+            ans,
+            init: true,
         }
     }
 
@@ -877,17 +1044,19 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                     //
                     // The p-adic valuation of (n + r) choose r is the number of carries when
                     // adding r to n in base p.
-                    (k + 1 .. max + 1).find(|&l| {
-                        sum & l == 0 ||
-                        (sum.count_ones() + l.count_ones()) - (sum + l).count_ones() == 1
-                    }).unwrap_or(max + 1)
+                    (k + 1..max + 1)
+                        .find(|&l| {
+                            sum & l == 0
+                                || (sum.count_ones() + l.count_ones()) - (sum + l).count_ones() == 1
+                        })
+                        .unwrap_or(max + 1)
                 } else {
                     ((k | sum) + 1) & !sum
                 }
             }
-            _ => {
-                (k + 1 .. max + 1).find(|&l| !PPartEntry::binomial_odd_is_zero(self.prime(), sum + l, l)).unwrap_or(max + 1)
-            }
+            _ => (k + 1..max + 1)
+                .find(|&l| !PPartEntry::binomial_odd_is_zero(self.prime(), sum + l, l))
+                .unwrap_or(max + 1),
         }
     }
 
@@ -916,7 +1085,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                     total += self.M[i][j] * p_to_the_j;
                     continue;
                 }
-                let col_sum: PPartEntry = (0 .. i).map(|k| self.M[k][j]).sum();
+                let col_sum: PPartEntry = (0..i).map(|k| self.M[k][j]).sum();
                 if col_sum == 0 {
                     total += self.M[i][j] * p_to_the_j;
                     continue;
@@ -926,7 +1095,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
 
                 // Compute the sum of entries along the diagonal to the bottom-left
                 let mut sum = 0;
-                for c in (i + j + 1).saturating_sub(self.rows) .. j {
+                for c in (i + j + 1).saturating_sub(self.rows)..j {
                     sum += self.M[i + j - c][c];
                 }
 
@@ -942,8 +1111,8 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                 if inc <= max_inc {
                     // If so, we found our next matrix.
                     for row in 1..i {
-                        self.M[row][0] = self.r[row-1];
-                        for col in 1..self.cols{
+                        self.M[row][0] = self.r[row - 1];
+                        for col in 1..self.cols {
                             self.M[0][col] += self.M[row][col];
                             self.M[row][col] = 0;
                         }
@@ -964,10 +1133,12 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         }
         false
     }
+}
 
-    /// This cannot be an actual iterator because we want to borrow self.ans when using it
-    #[allow(clippy::should_implement_trait)]
-    pub fn next(&mut self) -> Option<u32> {
+impl<'a, const MOD4: bool> Iterator for PPartMultiplier<'a, MOD4> {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<u32> {
         let p = *self.prime() as PPartEntry;
         'outer: loop {
             self.ans.p_part.clear();
@@ -975,12 +1146,16 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
 
             if self.init {
                 self.init = false;
-                for i in 1 .. std::cmp::min(self.cols, self.rows) {
+                for i in 1..std::cmp::min(self.cols, self.rows) {
                     if MOD4 {
                         coef *= PPartEntry::binomial4(self.M[i][0] + self.M[0][i], self.M[0][i]);
                         coef %= 4;
                     } else {
-                        coef *= PPartEntry::binomial(self.prime(), self.M[i][0] + self.M[0][i], self.M[0][i]);
+                        coef *= PPartEntry::binomial(
+                            self.prime(),
+                            self.M[i][0] + self.M[0][i],
+                            self.M[0][i],
+                        );
                         coef %= p;
                     }
                     if coef == 0 {
@@ -999,7 +1174,11 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                 return Some(coef as u32);
             } else if self.update() {
                 for diag_idx in 1..=self.diag_num {
-                    let i_min = if diag_idx + 1 > self.cols { diag_idx + 1 - self.cols } else {0} ;
+                    let i_min = if diag_idx + 1 > self.cols {
+                        diag_idx + 1 - self.cols
+                    } else {
+                        0
+                    };
                     let i_max = std::cmp::min(1 + diag_idx, self.rows);
                     let mut sum = 0;
 
@@ -1007,7 +1186,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
                         if MOD4 {
                             for i in i_min..i_max {
                                 let entry = self.M[i][diag_idx - i];
-                                sum += entry ;
+                                sum += entry;
                                 if coef % 2 == 0 {
                                     coef *= PPartEntry::binomial2(sum, entry);
                                 } else {
@@ -1058,9 +1237,12 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         }
     }
 }
-
 impl MilnorAlgebra {
-    fn decompose_basis_element_qpart(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>{
+    fn decompose_basis_element_qpart(
+        &self,
+        degree: i32,
+        idx: usize,
+    ) -> Vec<(u32, (i32, usize), (i32, usize))> {
         let basis = &self.basis_table[degree as usize][idx];
         // Look for left-most non-zero qpart
         let i = basis.q_part.trailing_zeros();
@@ -1071,42 +1253,53 @@ impl MilnorAlgebra {
             let q_degree = (2 * ppow - 1) as i32;
             let p_degree = (ppow * (2 * (*self.prime()) - 2)) as i32;
 
-            let p_idx = self.basis_element_to_index(&MilnorBasisElement::from_p(vec![ppow as PPartEntry], p_degree)).to_owned();
+            let p_idx = self
+                .basis_element_to_index(&MilnorBasisElement::from_p(
+                    vec![ppow as PPartEntry],
+                    p_degree,
+                ))
+                .to_owned();
 
-            let q_idx =  self.basis_element_to_index(
-                &MilnorBasisElement {
-                    q_part : 1 << (i-1),
-                    p_part : Vec::new(),
-                    degree : q_degree
-                }).to_owned();
+            let q_idx = self
+                .basis_element_to_index(&MilnorBasisElement {
+                    q_part: 1 << (i - 1),
+                    p_part: Vec::new(),
+                    degree: q_degree,
+                })
+                .to_owned();
 
-            return vec![(1, (p_degree, p_idx), (q_degree, q_idx)), (*self.prime() - 1, (q_degree, q_idx), (p_degree, p_idx))];
+            return vec![
+                (1, (p_degree, p_idx), (q_degree, q_idx)),
+                (*self.prime() - 1, (q_degree, q_idx), (p_degree, p_idx)),
+            ];
         }
 
         // Otherwise, separate out the first Q_k.
         let first_degree = combinatorics::tau_degrees(self.prime())[i as usize];
         let second_degree = degree - first_degree;
 
-        let first_idx = self.basis_element_to_index(
-            &MilnorBasisElement {
-                q_part : 1 << i,
-                p_part : Vec::new(),
-                degree : first_degree
-            });
+        let first_idx = self.basis_element_to_index(&MilnorBasisElement {
+            q_part: 1 << i,
+            p_part: Vec::new(),
+            degree: first_degree,
+        });
 
-        let second_idx = self.basis_element_to_index(
-            &MilnorBasisElement {
-                q_part : basis.q_part ^ 1 << i,
-                p_part : basis.p_part.clone(),
-                degree : second_degree
-            });
+        let second_idx = self.basis_element_to_index(&MilnorBasisElement {
+            q_part: basis.q_part ^ 1 << i,
+            p_part: basis.p_part.clone(),
+            degree: second_degree,
+        });
 
-        vec![(1, (first_degree, first_idx), (second_degree, second_idx))]        
+        vec![(1, (first_degree, first_idx), (second_degree, second_idx))]
     }
 
     // use https://monks.scranton.edu/files/pubs/bases.pdf page 8
     #[allow(clippy::useless_let_if_seq)]
-    fn decompose_basis_element_ppart(&self, degree : i32, idx : usize) -> Vec<(u32, (i32, usize), (i32, usize))>{
+    fn decompose_basis_element_ppart(
+        &self,
+        degree: i32,
+        idx: usize,
+    ) -> Vec<(u32, (i32, usize), (i32, usize))> {
         let p = self.prime();
         let pp = *self.prime() as PPartEntry;
         let b = &self.basis_table[degree as usize][idx];
@@ -1122,9 +1315,9 @@ impl MilnorAlgebra {
             first = self.beps_pn(0, t1);
             let second_degree = degree - first.0;
             let second_idx = self.basis_element_to_index(&MilnorBasisElement {
-                q_part : 0,
-                p_part : b.p_part[1..].to_vec(),
-                degree : second_degree
+                q_part: 0,
+                p_part: b.p_part[1..].to_vec(),
+                degree: second_degree,
             });
             second = (second_degree, second_idx);
         } else {
@@ -1145,7 +1338,15 @@ impl MilnorAlgebra {
             second = self.beps_pn(0, sq - pow);
         }
         let mut out_vec = FpVector::new(p, self.dimension(degree, -1));
-        self.multiply_basis_elements(out_vec.as_slice_mut(), 1, first.0, first.1, second.0, second.1, -1);
+        self.multiply_basis_elements(
+            out_vec.as_slice_mut(),
+            1,
+            first.0,
+            first.1,
+            second.0,
+            second.1,
+            -1,
+        );
         let mut result = Vec::new();
         let c = out_vec.entry(idx);
         assert!(c != 0);
@@ -1153,7 +1354,7 @@ impl MilnorAlgebra {
         let c_inv = fp::prime::inverse(p, *p - c);
         result.push((((*p - 1) * c_inv) % *p, first, second));
         for (i, v) in out_vec.iter_nonzero() {
-            for (c, t1, t2) in self.decompose_basis_element_ppart(degree, i){
+            for (c, t1, t2) in self.decompose_basis_element_ppart(degree, i) {
                 result.push(((c_inv * c * v) % *p, t1, t2));
             }
         }
@@ -1161,97 +1362,125 @@ impl MilnorAlgebra {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use rstest::rstest;
     use expect_test::expect;
+    use rstest::rstest;
 
-    #[rstest(p, max_degree,
-        case(2, 32),
-        case(3, 106)    
-    )]
-    fn test_milnor_basis(p : u32, max_degree : i32){
+    #[rstest(p, max_degree, case(2, 32), case(3, 106))]
+    #[trace]
+    fn test_milnor_basis(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
-        let algebra = MilnorAlgebra::new(p);//p != 2
+        let algebra = MilnorAlgebra::new(p); //p != 2
         algebra.compute_basis(max_degree);
-        for i in 1 .. max_degree {
+        for i in 1..max_degree {
             let dim = algebra.dimension(i, -1);
-            for j in 0 .. dim {
+            for j in 0..dim {
                 let b = algebra.basis_element_from_index(i, j);
                 assert_eq!(algebra.basis_element_to_index(&b), j);
                 let json = algebra.json_from_basis(i, j);
-                let new_b = algebra.json_to_basis(json).unwrap();
+                let new_b = algebra.json_to_basis(&json).unwrap();
                 assert_eq!(new_b, (i, j));
             }
         }
     }
 
-    #[rstest(p, max_degree,
-        case(2, 32),
-        case(3, 106)    
-    )]
-    fn test_milnor_decompose(p : u32, max_degree : i32){
+    #[rstest(p, max_degree, case(2, 32), case(3, 106))]
+    #[trace]
+    fn test_milnor_decompose(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
         let algebra = MilnorAlgebra::new(p);
         algebra.compute_basis(max_degree);
-        for i in 1 .. max_degree {
+        for i in 1..max_degree {
             let dim = algebra.dimension(i, -1);
             let gens = algebra.generators(i);
             // println!("i : {}, gens : {:?}", i, gens);
             let mut out_vec = FpVector::new(p, dim);
-            for j in 0 .. dim {
-                if gens.contains(&j){
+            for j in 0..dim {
+                if gens.contains(&j) {
                     continue;
                 }
-                for (coeff, (first_degree, first_idx), (second_degree, second_idx)) in algebra.decompose_basis_element(i, j) {
+                for (coeff, (first_degree, first_idx), (second_degree, second_idx)) in
+                    algebra.decompose_basis_element(i, j)
+                {
                     // print!("{} * {} * {}  +  ", coeff, algebra.basis_element_to_string(first_degree,first_idx), algebra.basis_element_to_string(second_degree, second_idx));
-                    algebra.multiply_basis_elements(out_vec.as_slice_mut(), coeff, first_degree, first_idx, second_degree, second_idx, -1);
+                    algebra.multiply_basis_elements(
+                        out_vec.as_slice_mut(),
+                        coeff,
+                        first_degree,
+                        first_idx,
+                        second_degree,
+                        second_idx,
+                        -1,
+                    );
                 }
-                assert!(out_vec.entry(j) == 1, 
-                    "{} != {}", algebra.basis_element_to_string(i, j), algebra.element_to_string(i, out_vec.as_slice()));
+                assert!(
+                    out_vec.entry(j) == 1,
+                    "{} != {}",
+                    algebra.basis_element_to_string(i, j),
+                    algebra.element_to_string(i, out_vec.as_slice())
+                );
                 out_vec.set_entry(j, 0);
-                assert!(out_vec.is_zero(), 
+                assert!(
+                    out_vec.is_zero(),
                     "\n{} != {}",
-                        algebra.basis_element_to_string(i, j), algebra.element_to_string(i, out_vec.as_slice()));
+                    algebra.basis_element_to_string(i, j),
+                    algebra.element_to_string(i, out_vec.as_slice())
+                );
             }
         }
     }
 
     use crate::module::ModuleFailedRelationError;
-    #[rstest(p, max_degree,
-        case(2, 32),
-        case(3, 106)    
-    )]
-    fn test_adem_relations(p : u32, max_degree : i32){
+    #[rstest(p, max_degree, case(2, 32), case(3, 106))]
+    #[trace]
+    fn test_adem_relations(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
         let algebra = MilnorAlgebra::new(p); // , p != 2
         algebra.compute_basis(max_degree + 2);
         let mut output_vec = FpVector::new(p, 0);
-        for i in 1 .. max_degree {
+        for i in 1..max_degree {
             let output_dim = algebra.dimension(i, -1);
             output_vec.set_scratch_vector_size(output_dim);
             let relations = algebra.generating_relations(i);
             println!("{:?}", relations);
             for relation in relations {
                 for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                    algebra.multiply_basis_elements(output_vec.as_slice_mut(), *coeff, *deg_1, *idx_1, *deg_2, *idx_2, -1);
+                    algebra.multiply_basis_elements(
+                        output_vec.as_slice_mut(),
+                        *coeff,
+                        *deg_1,
+                        *idx_1,
+                        *deg_2,
+                        *idx_2,
+                        -1,
+                    );
                 }
                 if !output_vec.is_zero() {
                     let mut relation_string = String::new();
                     for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                        relation_string.push_str(&format!("{} * {} * {}  +  ", 
-                            *coeff, 
-                            &algebra.basis_element_to_string(*deg_1, *idx_1), 
-                            &algebra.basis_element_to_string(*deg_2, *idx_2))
-                        );
+                        relation_string.push_str(&format!(
+                            "{} * {} * {}  +  ",
+                            *coeff,
+                            &algebra.basis_element_to_string(*deg_1, *idx_1),
+                            &algebra.basis_element_to_string(*deg_2, *idx_2)
+                        ));
                     }
-                    relation_string.pop(); relation_string.pop(); relation_string.pop();
-                    relation_string.pop(); relation_string.pop();
+                    relation_string.pop();
+                    relation_string.pop();
+                    relation_string.pop();
+                    relation_string.pop();
+                    relation_string.pop();
                     let value_string = algebra.element_to_string(i as i32, output_vec.as_slice());
-                    panic!("{}", ModuleFailedRelationError {relation : relation_string, value : value_string});
+                    panic!(
+                        "{}",
+                        ModuleFailedRelationError {
+                            relation: relation_string,
+                            value: value_string
+                        }
+                    );
                 }
             }
         }
@@ -1266,23 +1495,47 @@ mod tests {
             assert_eq!(a, &other);
         };
 
-        check(&MilnorBasisElement { q_part: 3, p_part: vec![3, 2], degree: 12 });
-        check(&MilnorBasisElement { q_part: 1, p_part: vec![3], degree: 11 });
-        check(&MilnorBasisElement { q_part: 5, p_part: vec![1, 3, 5, 2], degree: 7 });
-        check(&MilnorBasisElement { q_part: 0, p_part: vec![], degree: 2 });
+        check(&MilnorBasisElement {
+            q_part: 3,
+            p_part: vec![3, 2],
+            degree: 12,
+        });
+        check(&MilnorBasisElement {
+            q_part: 1,
+            p_part: vec![3],
+            degree: 11,
+        });
+        check(&MilnorBasisElement {
+            q_part: 5,
+            p_part: vec![1, 3, 5, 2],
+            degree: 7,
+        });
+        check(&MilnorBasisElement {
+            q_part: 0,
+            p_part: vec![],
+            degree: 2,
+        });
     }
 
     #[test]
     fn test_ppart_multiplier_2() {
         let r = vec![1, 4];
         let s = vec![2, 4];
-        let mut m = PPartMultiplier::<false>::new_from_allocation(ValidPrime::new(2), &r, &s, PPartAllocation::default(), 0, 0);
+        let mut m = PPartMultiplier::<false>::new_from_allocation(
+            ValidPrime::new(2),
+            &r,
+            &s,
+            PPartAllocation::default(),
+            0,
+            0,
+        );
 
         expect![[r#"
             [0, 2, 4]
             [1, 0, 0]
             [4, 0, 0]
-        "#]].assert_eq(&m.M.to_string());
+        "#]]
+        .assert_eq(&m.M.to_string());
 
         assert_eq!(m.next(), Some(1));
 
@@ -1290,7 +1543,8 @@ mod tests {
             [0, 0, 4]
             [1, 0, 0]
             [0, 2, 0]
-        "#]].assert_eq(&m.M.to_string());
+        "#]]
+        .assert_eq(&m.M.to_string());
 
         assert_eq!(m.next(), Some(1));
 
@@ -1298,7 +1552,8 @@ mod tests {
             [0, 2, 3]
             [1, 0, 0]
             [0, 0, 1]
-        "#]].assert_eq(&m.M.to_string());
+        "#]]
+        .assert_eq(&m.M.to_string());
 
         assert_eq!(m.next(), None);
     }
@@ -1307,13 +1562,21 @@ mod tests {
     fn test_ppart_multiplier_3() {
         let r = vec![3, 4];
         let s = vec![1, 4];
-        let mut m = PPartMultiplier::<false>::new_from_allocation(ValidPrime::new(3), &r, &s, PPartAllocation::default(), 0, 0);
+        let mut m = PPartMultiplier::<false>::new_from_allocation(
+            ValidPrime::new(3),
+            &r,
+            &s,
+            PPartAllocation::default(),
+            0,
+            0,
+        );
 
         expect![[r#"
             [0, 1, 4]
             [3, 0, 0]
             [4, 0, 0]
-        "#]].assert_eq(&m.M.to_string());
+        "#]]
+        .assert_eq(&m.M.to_string());
 
         assert_eq!(m.next(), Some(1));
 
@@ -1321,7 +1584,8 @@ mod tests {
             [0, 1, 4]
             [3, 0, 0]
             [4, 0, 0]
-        "#]].assert_eq(&m.M.to_string());
+        "#]]
+        .assert_eq(&m.M.to_string());
 
         assert_eq!(m.next(), Some(2));
 
@@ -1329,18 +1593,18 @@ mod tests {
             [0, 0, 4]
             [3, 0, 0]
             [1, 1, 0]
-        "#]].assert_eq(&m.M.to_string());
+        "#]]
+        .assert_eq(&m.M.to_string());
 
         assert_eq!(m.next(), None);
     }
-
 }
 
 impl MilnorAlgebra {
     /// Returns `true` if the new element is not within the bounds
-    fn increment_p_part(element: &mut PPart, max : &[PPartEntry]) -> bool {
+    fn increment_p_part(element: &mut PPart, max: &[PPartEntry]) -> bool {
         element[0] += 1;
-        for i in 0 .. element.len() - 1{
+        for i in 0..element.len() - 1 {
             if element[i] > max[i] {
                 element[i] = 0;
                 element[i + 1] += 1;
@@ -1351,7 +1615,7 @@ impl MilnorAlgebra {
 }
 
 impl Bialgebra for MilnorAlgebra {
-    fn coproduct(&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize, i32, usize)> {
+    fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
         assert_eq!(*self.prime(), 2, "Coproduct at odd primes not supported");
         if op_deg == 0 {
             return vec![(0, 0, 0, 0)];
@@ -1367,34 +1631,38 @@ impl Bialgebra for MilnorAlgebra {
         let len = len as usize;
         let mut result = Vec::with_capacity(len);
 
-        let mut cur_ppart : PPart = vec![0; p_part.len()];
+        let mut cur_ppart: PPart = vec![0; p_part.len()];
         loop {
-            let mut left_degree : i32 = 0;
-            for i in 0 .. cur_ppart.len() {
+            let mut left_degree: i32 = 0;
+            for i in 0..cur_ppart.len() {
                 left_degree += cur_ppart[i] as i32 * xi_degrees[i];
             }
-            let right_degree : i32 = op_deg - left_degree;
+            let right_degree: i32 = op_deg - left_degree;
 
             let mut left_ppart = cur_ppart.clone();
             while let Some(0) = left_ppart.last() {
                 left_ppart.pop();
             }
 
-            let mut right_ppart = cur_ppart.iter().enumerate().map(|(i, v)| p_part[i] - *v).collect::<Vec<_>>();
+            let mut right_ppart = cur_ppart
+                .iter()
+                .enumerate()
+                .map(|(i, v)| p_part[i] - *v)
+                .collect::<Vec<_>>();
             while let Some(0) = right_ppart.last() {
                 right_ppart.pop();
             }
 
             let left_idx = self.basis_element_to_index(&MilnorBasisElement {
-                    degree : left_degree,
-                    q_part : 0,
-                    p_part : left_ppart
-                });
+                degree: left_degree,
+                q_part: 0,
+                p_part: left_ppart,
+            });
             let right_idx = self.basis_element_to_index(&MilnorBasisElement {
-                    degree: right_degree,
-                    q_part : 0,
-                    p_part : right_ppart
-                });
+                degree: right_degree,
+                q_part: 0,
+                p_part: right_ppart,
+            });
 
             result.push((left_degree, left_idx, right_degree, right_idx));
             if Self::increment_p_part(&mut cur_ppart, p_part) {
@@ -1403,7 +1671,7 @@ impl Bialgebra for MilnorAlgebra {
         }
         result
     }
-    fn decompose(&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize)> {
+    fn decompose(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize)> {
         vec![(op_deg, op_idx)]
     }
 }

@@ -1,10 +1,9 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use bivec::BiVec;
-use fp::vector::{FpVector};
+use fp::vector::FpVector;
 
-use crate::Algebra;
-use crate::module::Module;
 use crate::module::FDModule;
+use crate::module::Module;
+use crate::Algebra;
 
 pub trait BoundedModule: Module {
     /// `max_degree` is the a degree such that if t > `max_degree`, then `self.dimension(t) = 0`.

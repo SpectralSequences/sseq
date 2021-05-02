@@ -1,0 +1,3 @@
+too-many-arguments-threshold = 9
+single-char-binding-names-threshold = 26
+type-complexity-threshold = 1000

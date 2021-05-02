@@ -1,24 +1,19 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
+mod chain_homotopy;
 mod finite_chain_complex;
-#[cfg(feature = "extras")]
-mod hom_complex;
-#[cfg(feature = "extras")]
 mod tensor_product_chain_complex;
 
-use algebra::Algebra;
-use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use algebra::module::{FDModule, FiniteModule, FreeModule, Module};
 use crate::utils::ascii_num;
-use crate::CCC;
-use bivec::BiVec;
+use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
+use algebra::module::{FreeModule, Module};
+use algebra::Algebra;
 use fp::matrix::Subquotient;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use std::sync::Arc;
 
 // pub use hom_complex::HomComplex;
+pub use chain_homotopy::ChainHomotopy;
 pub use finite_chain_complex::{FiniteAugmentedChainComplex, FiniteChainComplex};
-#[cfg(feature = "extras")]
 pub use tensor_product_chain_complex::TensorChainComplex;
 
 pub enum ChainComplexGrading {
@@ -32,12 +27,14 @@ pub trait FreeChainComplex:
     Homomorphism = FreeModuleHomomorphism<FreeModule<<Self as ChainComplex>::Algebra>>,
 >
 {
-    fn graded_dimension_string(&self, max_degree : i32 , max_hom_deg : u32) -> String {
+    fn graded_dimension_string(&self) -> String {
         let mut result = String::new();
         let min_degree = self.min_degree();
-        for i in (0 ..= max_hom_deg).rev() {
-            for j in min_degree + i as i32 ..= max_degree {
-                result.push(ascii_num(self.module(i).number_of_gens_in_degree(j)));
+        for s in (0..=self.max_homological_degree()).rev() {
+            let module = self.module(s);
+
+            for t in min_degree + s as i32..=module.max_computed_degree() {
+                result.push(ascii_num(module.number_of_gens_in_degree(t)));
                 result.push(' ');
             }
             result.push('\n');
@@ -60,7 +57,7 @@ impl<CC> FreeChainComplex for CC where
 
 /// A chain complex is defined to start in degree 0. The min_degree is the min_degree of the
 /// modules in the chain complex, all of which must be the same.
-pub trait ChainComplex: Send + Sync + 'static {
+pub trait ChainComplex: Send + Sync {
     type Algebra: Algebra;
     type Module: Module<Algebra = Self::Algebra>;
     type Homomorphism: ModuleHomomorphism<Source = Self::Module, Target = Self::Module>;
@@ -74,12 +71,33 @@ pub trait ChainComplex: Send + Sync + 'static {
     fn zero_module(&self) -> Arc<Self::Module>;
     fn module(&self, homological_degree: u32) -> Arc<Self::Module>;
 
-    // This returns the differential starting from the sth module.
-    fn differential(&self, homological_degree: u32) -> Arc<Self::Homomorphism>;
-    fn compute_through_bidegree(&self, homological_degree: u32, internal_degree: i32);
-    fn has_computed_bidegree(&self, homological_degree : u32, internal_degree : i32) -> bool; //{
-        // true
-    // }
+    /// This returns the differential starting from the sth module.
+    fn differential(&self, s: u32) -> Arc<Self::Homomorphism>;
+
+    /// If the complex has been computed at bidegree (s, t). This means the module has been
+    /// computed at (s, t), and so has the differential at (s, t). In the case of a free module,
+    /// the target of the differential, namely the bidegree (s - 1, t), need not be computed, as
+    /// long as all the generators hit by the differential have already been computed.
+    fn has_computed_bidegree(&self, s: u32, t: i32) -> bool;
+
+    /// Ensure all bidegrees less than or equal to (s, t) have been computed
+    fn compute_through_bidegree(&self, s: u32, t: i32);
+
+    /// A concurrent version of compute_through_bidegree_concurrent. This defaults to the
+    /// non-concurrent version
+    #[cfg(feature = "concurrent")]
+    #[allow(unused_variables)]
+    fn compute_through_bidegree_concurrent(
+        &self,
+        s: u32,
+        t: i32,
+        bucket: &thread_token::TokenBucket,
+    ) {
+        self.compute_through_bidegree(s, t);
+    }
+
+    /// The largest s such that `self.module(s)` is defined.
+    fn max_homological_degree(&self) -> u32;
 
     fn set_homology_basis(
         &self,
@@ -116,7 +134,8 @@ pub trait ChainComplex: Send + Sync + 'static {
         result.add(
             &self
                 .differential(homological_degree)
-                .kernel(internal_degree)[row_index],
+                .kernel(internal_degree)
+                .unwrap()[row_index],
             coeff,
         );
     }
@@ -125,20 +144,62 @@ pub trait ChainComplex: Send + Sync + 'static {
         self.compute_through_bidegree(homological_degree + 1, internal_degree);
         let d_prev = self.differential(homological_degree);
         let d_cur = self.differential(homological_degree + 1);
-        d_prev.compute_kernels_and_quasi_inverses_through_degree(internal_degree);
-        d_cur.compute_kernels_and_quasi_inverses_through_degree(internal_degree);
-        let kernel = d_prev.kernel(internal_degree);
-        let image = d_cur.image(internal_degree);
-        let homology_basis = Subquotient::subquotient(
-            Some(kernel),
-            image.as_ref(),
-            d_prev.source().dimension(internal_degree),
-        );
+        d_prev.compute_auxiliary_data_through_degree(internal_degree);
+        d_cur.compute_auxiliary_data_through_degree(internal_degree);
+        let kernel = d_prev.kernel(internal_degree).unwrap();
+        let image = d_cur.image(internal_degree).unwrap();
+        let homology_basis = Subquotient::subquotient(kernel, image);
         self.set_homology_basis(homological_degree, internal_degree, homology_basis);
+    }
+
+    /// Iterate through all defind bidegrees in increasing order of stem. The return values are of
+    /// the form `(s, n, t)`.
+    fn iter_stem(&self) -> StemIterator<'_, Self> {
+        StemIterator {
+            cc: self,
+            n: self.min_degree(),
+            s: 0,
+            max_s: self.max_homological_degree() + 1,
+        }
     }
 }
 
-pub trait CochainComplex: Send + Sync + 'static {
+/// An iterator returned by [`ChainComplex::iter_stem`]
+pub struct StemIterator<'a, CC: ?Sized> {
+    cc: &'a CC,
+    n: i32,
+    s: u32,
+    max_s: u32,
+}
+
+impl<'a, CC: ChainComplex> Iterator for StemIterator<'a, CC> {
+    // (s, n, t)
+    type Item = (u32, i32, i32);
+    fn next(&mut self) -> Option<Self::Item> {
+        let s = self.s;
+        let n = self.n;
+        let t = self.n + self.s as i32;
+
+        if s == self.max_s {
+            self.n += 1;
+            self.s = 0;
+            return self.next();
+        }
+        if t > self.cc.module(s).max_computed_degree() {
+            if s == 0 {
+                return None;
+            } else {
+                self.n += 1;
+                self.s = 0;
+                return self.next();
+            }
+        }
+        self.s += 1;
+        Some((s, n, t))
+    }
+}
+
+pub trait CochainComplex: Send + Sync {
     type Algebra: Algebra;
     type Module: Module<Algebra = Self::Algebra>;
     type Homomorphism: ModuleHomomorphism<Source = Self::Module, Target = Self::Module>;
@@ -188,7 +249,8 @@ pub trait CochainComplex: Send + Sync + 'static {
         result.add(
             &self
                 .differential(homological_degree)
-                .kernel(internal_degree)[row_index],
+                .kernel(internal_degree)
+                .unwrap()[row_index],
             coeff,
         );
     }
@@ -198,15 +260,11 @@ pub trait CochainComplex: Send + Sync + 'static {
         self.compute_through_bidegree(homological_degree + 1, internal_degree);
         let d_cur = self.differential(homological_degree);
         let d_prev = self.differential(homological_degree + 1);
-        d_prev.compute_kernels_and_quasi_inverses_through_degree(internal_degree);
-        d_cur.compute_kernels_and_quasi_inverses_through_degree(internal_degree);
-        let kernel = d_prev.kernel(internal_degree);
-        let image = d_cur.image(internal_degree);
-        let cohomology_basis = Subquotient::subquotient(
-            Some(kernel),
-            image.as_ref(),
-            d_prev.source().dimension(internal_degree),
-        );
+        d_prev.compute_auxiliary_data_through_degree(internal_degree);
+        d_cur.compute_auxiliary_data_through_degree(internal_degree);
+        let kernel = d_prev.kernel(internal_degree).unwrap();
+        let image = d_cur.image(internal_degree).unwrap();
+        let cohomology_basis = Subquotient::subquotient(kernel, image);
         self.set_cohomology_basis(homological_degree, internal_degree, cohomology_basis);
     }
 }
@@ -233,19 +291,4 @@ pub trait BoundedChainComplex: ChainComplex {
 pub struct ChainMap<F: ModuleHomomorphism> {
     pub s_shift: u32,
     pub chain_maps: Vec<F>,
-}
-
-pub trait UnitChainComplex: ChainComplex {
-    fn unit_chain_complex(algebra: Arc<Self::Algebra>) -> Self;
-}
-
-impl UnitChainComplex for CCC {
-    fn unit_chain_complex(algebra: Arc<Self::Algebra>) -> Self {
-        let unit_module = Arc::new(FiniteModule::FDModule(FDModule::new(
-            algebra,
-            String::from("unit"),
-            BiVec::from_vec(0, vec![1]),
-        )));
-        FiniteChainComplex::ccdz(unit_module)
-    }
 }

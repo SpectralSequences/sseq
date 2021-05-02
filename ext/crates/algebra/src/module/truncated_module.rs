@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::module::{BoundedModule, Module};
 use fp::vector::SliceMut;
 use std::sync::Arc;
@@ -10,7 +9,7 @@ pub struct TruncatedModule<M: Module + ?Sized> {
 }
 
 impl<M: Module + ?Sized> std::fmt::Display for TruncatedModule<M> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "τ_{{<={}}} {}", self.truncation, self.module)
     }
 }

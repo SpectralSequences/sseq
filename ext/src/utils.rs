@@ -1,220 +1,190 @@
-use crate::chain_complex::{FiniteChainComplex, FreeChainComplex};
-use crate::resolution::{Resolution, ResolutionInner};
+use crate::chain_complex::{ChainComplex, FiniteChainComplex, FreeChainComplex};
+use crate::resolution::Resolution;
 use crate::CCC;
-use algebra::module::FiniteModule;
-use algebra::{Algebra, SteenrodAlgebra};
-use fp::matrix::Matrix;
-use serde_json::{json, Value};
+use algebra::module::{FiniteModule, Module};
+use algebra::{AlgebraType, SteenrodAlgebra};
+use saveload::Load;
+use serde_json::Value;
 
-use std::error::Error;
+use std::convert::{TryFrom, TryInto};
+use std::fs::File;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+const STATIC_MODULES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../ext/steenrod_modules");
+
+/// A config object is an object that specifies how a Steenrod module should be constructed.
+#[derive(Clone, Debug)]
 pub struct Config {
-    pub module_paths: Vec<PathBuf>,
-    pub module_file_name: String,
-    pub algebra_name: String,
-    pub max_degree: i32,
+    /// The json specification of the module
+    pub module: Value,
+    /// The basis for the Steenrod algebra
+    pub algebra: AlgebraType,
 }
 
-pub fn get_config() -> Config {
-    let mut args = pico_args::Arguments::from_env();
-    if args.contains("--help") {
-        println!(
-            "{} [--algebra algebra_name] [module_name] [max_degree]",
-            std::env::current_exe()
-                .unwrap()
-                .file_stem()
-                .unwrap()
-                .to_string_lossy()
-        );
-        std::process::exit(1);
+pub fn parse_module_name(module_name: &str) -> error::Result<Value> {
+    let mut args = module_name.split('[');
+    let mut module = load_module_json(args.next().unwrap())?;
+    if let Some(shift) = args.next() {
+        let shift: i64 = match shift.strip_suffix(']') {
+            None => error::from_string(format!("Invalid module name: {}", module_name))?,
+            Some(x) => x.parse()?,
+        };
+        let gens = module["gens"].as_object_mut().unwrap();
+        for entry in gens.into_iter() {
+            *entry.1 = (entry.1.as_i64().unwrap() + shift).into()
+        }
     }
+    Ok(module)
+}
 
-    let mut static_modules_path = std::env::current_exe().unwrap();
-    static_modules_path.pop();
-    static_modules_path.pop();
-    static_modules_path.pop();
-    static_modules_path.pop();
-    static_modules_path.push("steenrod_modules");
-    let current_dir = std::env::current_dir().unwrap();
+impl TryFrom<&str> for Config {
+    type Error = error::Error;
 
-    Config {
-        module_paths: vec![current_dir, static_modules_path],
-        algebra_name: args
-            .opt_value_from_str("--algebra")
-            .unwrap()
-            .unwrap_or_else(|| "adem".into()),
-        module_file_name: args
-            .opt_free_from_str()
-            .unwrap()
-            .unwrap_or_else(|| "S_2".into()),
-        max_degree: args.opt_free_from_str().unwrap().unwrap_or(30),
+    fn try_from(spec: &str) -> Result<Self, Self::Error> {
+        let mut args = spec.split('@');
+        let module_name = args.next().unwrap();
+        let algebra = match args.next() {
+            Some(x) => x.parse()?,
+            None => AlgebraType::Adem,
+        };
+
+        Ok(Config {
+            module: parse_module_name(module_name)?,
+            algebra,
+        })
     }
 }
 
-pub fn construct(config: &Config) -> error::Result<Resolution<CCC>> {
-    let contents = load_module_from_file(config)?;
-    let json = serde_json::from_str(&contents)?;
+impl<T, E> TryFrom<(&str, T)> for Config
+where
+    error::Error: From<E>,
+    T: TryInto<AlgebraType, Error = E>,
+{
+    type Error = error::Error;
 
-    construct_from_json(json, &config.algebra_name)
+    fn try_from(mut spec: (&str, T)) -> Result<Self, Self::Error> {
+        let algebra = spec.1.try_into()?;
+        if spec.0.contains('@') {
+            if spec.0.ends_with(&*algebra.to_string()) {
+                spec.0 = &spec.0[0..spec.0.len() - algebra.to_string().len() - 1];
+            } else {
+                return error::from_string(format!(
+                    "Invalid algebra supplied. Must be {}",
+                    algebra
+                ))?;
+            }
+        }
+        Ok(Config {
+            module: parse_module_name(spec.0)?,
+            algebra,
+        })
+    }
 }
 
-pub fn construct_from_json(mut json: Value, algebra_name: &str) -> error::Result<Resolution<CCC>> {
-    let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra_name)?);
-    let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &mut json)?);
-    #[allow(unused_mut)] // This is only mut with Yoneda enabled
+impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
+    type Error = T::Error;
+
+    fn try_from(spec: (Value, T)) -> Result<Self, Self::Error> {
+        Ok(Config {
+            module: spec.0,
+            algebra: spec.1.try_into()?,
+        })
+    }
+}
+
+/// This constructs a resolution resolving a module according to the specifications
+///
+/// # Arguments
+///  - `module_spec`: A specification for the module. This is any object that implements
+///     [`TryInto<Config>`] (with appropriate error bounds). In practice, we can supply
+///     - A [`Config`] object itself
+///     - `(json, algebra)`: The first argument is a [`serde_json::Value`] that specifies the
+///       module; the second argument is either a string (`"milnor"` or `"adem"`) or an
+///       [`algebra::AlgebraType`] object.
+///     - `(module_name, algebra)`: The first argument is the name of the module and the second is
+///       as above. Modules are searched in the current directory, `$CWD/steenrod_modules` and
+///       `ext/steenrod_modules`. The modules can be shifted by appending e.g. `S_2[2]`.
+///     - `module_spec`, a single `&str` of the form `module_name@algebra`, where `module_name` and
+///       `algebra` are as above.
+///  - `save_file`: The save file for the module. If it points to an invalid save file, an error is
+///    returned.
+pub fn construct<T, E>(module_spec: T, save_file: Option<File>) -> error::Result<Resolution<CCC>>
+where
+    error::Error: From<E>,
+    T: TryInto<Config, Error = E>,
+{
+    let Config {
+        module: json,
+        algebra,
+    } = module_spec.try_into()?;
+
+    let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra)?);
+    let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &json)?);
     let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
-    let mut resolution = Resolution::new(Arc::clone(&chain_complex), None, None);
 
     let cofiber = &json["cofiber"];
-    #[cfg(feature = "yoneda")]
     if !cofiber.is_null() {
         use crate::chain_complex::ChainMap;
         use crate::yoneda::yoneda_representative;
         use algebra::module::homomorphism::FreeModuleHomomorphism;
-        use algebra::module::{BoundedModule, Module};
+        use algebra::module::BoundedModule;
 
         let s = cofiber["s"].as_u64().unwrap() as u32;
         let t = cofiber["t"].as_i64().unwrap() as i32;
         let idx = cofiber["idx"].as_u64().unwrap() as usize;
 
-        resolution.resolve_through_bidegree(s, t + module.max_degree());
+        let resolution = Resolution::new(Arc::clone(&chain_complex));
+        resolution.compute_through_bidegree(s, t + module.max_degree());
 
         let map = FreeModuleHomomorphism::new(resolution.module(s), Arc::clone(&module), t);
-        let mut new_output = Matrix::new(
+        let mut new_output = fp::matrix::Matrix::new(
             module.prime(),
             resolution.module(s).number_of_gens_in_degree(t),
             1,
         );
         new_output[idx].set_entry(0, 1);
 
-        let lock = map.lock();
-        map.add_generators_from_matrix_rows(&lock, t, new_output.as_slice_mut());
-        drop(lock);
-        map.extend_by_zero_safe(module.max_degree() + t);
+        map.add_generators_from_matrix_rows(t, new_output.as_slice_mut());
+        map.extend_by_zero(module.max_degree() + t);
 
         let cm = ChainMap {
             s_shift: s,
             chain_maps: vec![map],
         };
-        let yoneda = yoneda_representative(Arc::clone(&resolution.inner), cm);
+        let yoneda = yoneda_representative(Arc::new(resolution), cm);
         let mut yoneda = FiniteChainComplex::from(yoneda);
         yoneda.pop();
 
         chain_complex = Arc::new(yoneda);
-        resolution = Resolution::new(Arc::clone(&chain_complex), None, None);
     }
 
-    #[cfg(not(feature = "yoneda"))]
-    if !cofiber.is_null() {
-        panic!("cofiber not supported. Compile with yoneda feature enabled");
-    }
-
-    let products_value = &mut json["products"];
-    if !products_value.is_null() {
-        let products = products_value.as_array_mut().unwrap();
-        for prod in products {
-            let hom_deg = prod["hom_deg"].as_u64().unwrap() as u32;
-            let int_deg = prod["int_deg"].as_i64().unwrap() as i32;
-            let class: Vec<u32> = serde_json::from_value(prod["class"].take()).unwrap();
-            let name = prod["name"].as_str().unwrap();
-
-            resolution.add_product(hom_deg, int_deg, class, &name.to_string());
+    Ok(match save_file {
+        Some(f) => {
+            let mut f = std::io::BufReader::new(f);
+            Resolution::load(&mut f, &chain_complex)?
         }
-    }
-
-    let self_maps = &json["self_maps"];
-    if !self_maps.is_null() {
-        for self_map in self_maps.as_array().unwrap() {
-            let s = self_map["hom_deg"].as_u64().unwrap() as u32;
-            let t = self_map["int_deg"].as_i64().unwrap() as i32;
-            let name = self_map["name"].as_str().unwrap();
-
-            let json_map_data = self_map["map_data"].as_array().unwrap();
-            let json_map_data: Vec<&Vec<Value>> = json_map_data
-                .iter()
-                .map(|x| x.as_array().unwrap())
-                .collect();
-
-            let rows = json_map_data.len();
-            let cols = json_map_data[0].len();
-            let mut map_data = Matrix::new(algebra.prime(), rows, cols);
-            for r in 0..rows {
-                for c in 0..cols {
-                    map_data[r].set_entry(c, json_map_data[r][c].as_u64().unwrap() as u32);
-                }
-            }
-            resolution.add_self_map(s, t, &name.to_string(), map_data);
-        }
-    }
-    Ok(resolution)
-}
-
-pub fn load_module_from_file(config: &Config) -> error::Result<String> {
-    let mut result = None;
-    for path in &config.module_paths {
-        let mut path = path.clone();
-        path.push(&config.module_file_name);
-        path.set_extension("json");
-        result = std::fs::read_to_string(path).ok();
-        if result.is_some() {
-            break;
-        }
-    }
-    result.ok_or_else(|| {
-        error::GenericError::new(format!(
-            "Module file '{}' not found on path",
-            config.module_file_name
-        ))
-        .into()
+        None => Resolution::new(Arc::clone(&chain_complex)),
     })
 }
 
-pub fn construct_s_2(algebra: &str) -> ResolutionInner<CCC> {
-    let json = json!({
-        "type" : "finite dimensional module",
-        "p": 2,
-        "gens": {"x0": 0},
-        "actions": []
-    });
-    Arc::try_unwrap(construct_from_json(json, algebra).unwrap().inner)
-        .ok()
-        .unwrap()
-}
+pub fn load_module_json(name: &str) -> error::Result<Value> {
+    let current_dir = std::env::current_dir().unwrap();
+    let relative_dir = current_dir.join("steenrod_modules");
 
-#[macro_export]
-macro_rules! load_s_2 {
-    ($resolution:ident, $algebra:literal, $path:literal) => {
-        use saveload::Load;
-
-        let mut resolution = ext::utils::construct_s_2($algebra);
-
-        if std::path::Path::new($path).exists() {
-            let f = std::fs::File::open($path).unwrap();
-            let mut f = std::io::BufReader::new(f);
-            resolution =
-                ext::resolution::ResolutionInner::load(&mut f, &resolution.complex()).unwrap();
+    for path in &[
+        current_dir,
+        relative_dir,
+        PathBuf::from(STATIC_MODULES_PATH),
+    ] {
+        let mut path = path.clone();
+        path.push(name);
+        path.set_extension("json");
+        if let Ok(s) = std::fs::read_to_string(path) {
+            return Ok(serde_json::from_str(&s)?);
         }
-        let $resolution = resolution;
-    };
-}
-
-#[derive(Debug)]
-struct ModuleFileNotFoundError {
-    name: String,
-}
-
-impl std::fmt::Display for ModuleFileNotFoundError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Module file '{}' not found on path", &self.name)
     }
-}
-
-impl Error for ModuleFileNotFoundError {
-    fn description(&self) -> &str {
-        "Module file not found"
-    }
+    error::from_string(format!("Module file '{}' not found on path", name))
 }
 
 const RED_ANSI_CODE: &str = "\x1b[31;1m";
@@ -228,7 +198,10 @@ pub fn ascii_num(n: usize) -> char {
         3 => '∴',
         4 => '⁘',
         5 => '⁙',
-        6 | 7 | 8 | 9 => (b'0' + n as u8) as char,
+        6 => '⠿',
+        7 => '⡿',
+        8 => '⣿',
+        9 => '9',
         _ => '*',
     }
 }
@@ -236,17 +209,16 @@ pub fn ascii_num(n: usize) -> char {
 pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(
     res: &C,
     max_s: u32,
-    max_t: i32,
     highlight: &std::collections::HashMap<(u32, i32), u32, S>,
 ) {
     use std::io::Write;
-    let stdout = std::io::stdout();
-    let mut stdout = stdout.lock();
+    let stderr = std::io::stderr();
+    let mut stderr = stderr.lock();
     for s in (0..=max_s).rev() {
-        for t in s as i32..=max_t {
+        for t in s as i32..=res.module(s).max_computed_degree() {
             if matches!(highlight.get(&(s, t)), None | Some(0)) {
                 write!(
-                    stdout,
+                    stderr,
                     "{}{}{} ",
                     RED_ANSI_CODE,
                     ascii_num(res.module(s).number_of_gens_in_degree(t)),
@@ -255,15 +227,78 @@ pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(
                 .unwrap();
             } else {
                 write!(
-                    stdout,
+                    stderr,
                     "{} ",
                     ascii_num(res.module(s).number_of_gens_in_degree(t))
                 )
                 .unwrap();
             }
         }
-        writeln!(stdout).unwrap();
+        writeln!(stderr, "\x1b[K").unwrap();
     }
+}
+
+pub struct QueryModuleResult {
+    pub resolution: Resolution<CCC>,
+    #[cfg(feature = "concurrent")]
+    pub bucket: thread_token::TokenBucket,
+}
+
+pub fn query_module(algebra: Option<AlgebraType>) -> error::Result<QueryModuleResult> {
+    let module: Config = query::with_default("Module", "S_2", |s| match algebra {
+        Some(algebra) => (s, algebra).try_into(),
+        None => (&*s).try_into(),
+    });
+
+    // Clippy false positive
+    #[allow(clippy::redundant_closure)]
+    let save_file = query::optional("Resolution save file", |x| File::open(x));
+
+    #[cfg(feature = "concurrent")]
+    let bucket = query_bucket();
+
+    let resolution: Resolution<CCC> = match save_file {
+        Some(save_file) => construct(module, Some(save_file))?,
+        None => {
+            let max_s: u32 = query::with_default("Max s", "7", str::parse);
+            let max_n: i32 = query::with_default("Max n", "30", str::parse);
+
+            let resolution = construct(module, None)?;
+            #[cfg(not(feature = "concurrent"))]
+            resolution.compute_through_stem(max_s, max_n);
+
+            #[cfg(feature = "concurrent")]
+            resolution.compute_through_stem_concurrent(max_s, max_n, &bucket);
+
+            resolution
+        }
+    };
+    Ok(QueryModuleResult {
+        resolution,
+        #[cfg(feature = "concurrent")]
+        bucket,
+    })
+}
+
+#[cfg(feature = "concurrent")]
+pub fn query_num_threads() -> core::num::NonZeroUsize {
+    use std::env;
+
+    match env::var("EXT_THREADS") {
+        Ok(n) => match n.parse::<core::num::NonZeroUsize>() {
+            Ok(n) => return n,
+            Err(_) => eprintln!("Invalid value of EXT_THREADS variable: {}", n),
+        },
+        Err(env::VarError::NotUnicode(_)) => eprintln!("Invalid value of EXT_THREADS variable"),
+        Err(env::VarError::NotPresent) => (),
+    };
+
+    query::with_default("Number of threads", "2", str::parse)
+}
+
+#[cfg(feature = "concurrent")]
+pub fn query_bucket() -> thread_token::TokenBucket {
+    thread_token::TokenBucket::new(query_num_threads())
 }
 
 use std::collections::HashMap;
@@ -288,13 +323,20 @@ impl<A: Eq + Hash, B: Eq + Hash, C, S: BuildHasher> HashMapTuple<A, B, C>
     }
 }
 
-/// Iterate through all pairs (s, f, t) such that f = t - s, s <= max_s and t <= max_t
-pub fn iter_stems(max_s: u32, max_t: i32) -> impl Iterator<Item = (u32, i32, i32)> {
-    (0..=max_t)
-        .map(move |f| {
-            (0..=std::cmp::min(max_s, (max_t - f) as u32)).map(move |s| (s, f, f + s as i32))
-        })
-        .flatten()
+/// Prints an element in the bidegree `(n, s)` to stdout. For example, `[0, 2, 1]` will be printed
+/// as `2 x_(n, s, 1) + x_(f, s, 2)`.
+pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
+    let mut first = true;
+    for (i, v) in v.iter_nonzero() {
+        if !first {
+            print!(" + ");
+        }
+        if v != 1 {
+            print!("{} ", v);
+        }
+        print!("x_({}, {}, {})", n, s, i);
+        first = false;
+    }
 }
 
 #[cfg(test)]

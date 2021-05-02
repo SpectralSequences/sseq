@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex};
 use algebra::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use algebra::module::{Module, ZeroModule};
@@ -116,7 +115,7 @@ where
         }
     }
 
-    fn has_computed_bidegree(&self, s : u32, t : i32) -> bool {
+    fn has_computed_bidegree(&self, s: u32, t: i32) -> bool {
         s > self.modules.len() as u32 || t < self.module(s).max_computed_degree()
     }
 
@@ -133,6 +132,10 @@ where
     }
     fn max_homology_degree(&self, _homological_degree: u32) -> i32 {
         std::i32::MAX
+    }
+
+    fn max_homological_degree(&self) -> u32 {
+        u32::MAX
     }
 }
 
@@ -178,9 +181,9 @@ where
     fn min_degree(&self) -> i32 {
         self.zero_module.min_degree()
     }
-    
-    fn has_computed_bidegree(&self, _s : u32, _t : i32) -> bool {
-        unimplemented!()
+
+    fn has_computed_bidegree(&self, s: u32, t: i32) -> bool {
+        s > self.modules.len() as u32 || t < self.module(s).max_computed_degree()
     }
 
     fn zero_module(&self) -> Arc<Self::Module> {
@@ -217,6 +220,10 @@ where
     }
     fn max_homology_degree(&self, _homological_degree: u32) -> i32 {
         std::i32::MAX
+    }
+
+    fn max_homological_degree(&self) -> u32 {
+        u32::MAX
     }
 }
 

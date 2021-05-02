@@ -1,12 +1,11 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use bivec::BiVec;
 use once::OnceBiVec;
 
 use crate::algebra::{Algebra, Bialgebra};
 use crate::module::block_structure::BlockStructure;
 use crate::module::{BoundedModule, Module, ZeroModule};
-use fp::vector::{SliceMut, Slice, FpVector};
 use fp::prime::minus_one_to_the_n;
+use fp::vector::{FpVector, Slice, SliceMut};
 
 use std::sync::Arc;
 
@@ -20,7 +19,7 @@ pub struct TensorModule<M: Module, N: Module<Algebra = M::Algebra>> {
 }
 
 impl<M: Module, N: Module<Algebra = M::Algebra>> std::fmt::Display for TensorModule<M, N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} (x) {}", self.left, self.right)
     }
 }
@@ -70,7 +69,7 @@ where
 
         for (op_deg_l, op_idx_l, op_deg_r, op_idx_r) in coproduct {
             let mut idx = 0;
-            for left_deg in self.left.min_degree()..=mod_degree {
+            for left_deg in self.left.min_degree()..=(mod_degree - self.right.min_degree()) {
                 let right_deg = mod_degree - left_deg;
 
                 let left_source_dim = self.left.dimension(left_deg);
@@ -113,7 +112,9 @@ where
                             }
                             result.add_tensor(
                                 self.offset(output_degree, left_deg + op_deg_l),
-                                coeff * entry * minus_one_to_the_n(*self.prime(), op_deg_r * left_deg),
+                                coeff
+                                    * entry
+                                    * minus_one_to_the_n(*self.prime(), op_deg_r * left_deg),
                                 left_result.as_slice(),
                                 right_result.as_slice(),
                             );
@@ -195,14 +196,9 @@ where
     fn compute_basis(&self, degree: i32) {
         self.left.compute_basis(degree - self.right.min_degree());
         self.right.compute_basis(degree - self.left.min_degree());
-        if degree < self.block_structures.len() {
-            return;
-        }
-        for i in self.block_structures.len()..=degree {
-            let mut block_sizes = BiVec::with_capacity(
-                self.left.min_degree(),
-                degree - self.left.min_degree() - self.right.min_degree() + 1,
-            );
+        self.block_structures.extend(degree, |i| {
+            let mut block_sizes =
+                BiVec::with_capacity(self.left.min_degree(), i - self.right.min_degree() + 1);
             for j in self.left.min_degree()..=i - self.right.min_degree() {
                 let mut block_sizes_entry = Vec::with_capacity(self.left.dimension(j));
                 for _ in 0..self.left.dimension(j) {
@@ -210,13 +206,9 @@ where
                 }
                 block_sizes.push(block_sizes_entry);
             }
-            assert_eq!(
-                block_sizes.len(),
-                i - self.left.min_degree() - self.right.min_degree() + 1
-            );
-            self.block_structures
-                .push(BlockStructure::new(&block_sizes));
-        }
+            assert_eq!(block_sizes.len(), i - self.right.min_degree() + 1);
+            BlockStructure::new(&block_sizes)
+        });
     }
 
     fn dimension(&self, degree: i32) -> usize {
@@ -354,65 +346,5 @@ where
             Arc::new(M::zero_module(Arc::clone(&algebra), min_degree)),
             Arc::new(N::zero_module(algebra, min_degree)),
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #![allow(non_snake_case)]
-
-    use super::*;
-
-    use crate::algebra::SteenrodAlgebra;
-    use crate::module::FiniteModule;
-
-    #[test]
-    fn test_tensor_modules() {
-        let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "actions": []}"#;
-        let kk = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0, "x1":1, "y1":1}, "actions": []}"#;
-
-        let c2 = r#"{"type" : "finite dimensional module", "name": "$C(2)$", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "actions": ["Sq1 x0 = x1"]}"#;
-
-        let ceta = r#"{"type" : "finite dimensional module","name": "$C(\\eta)$", "file_name": "Ceta", "p": 2, "generic": false, "gens": {"x0": 0, "x2": 2}, "adem_actions": [{"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}]}"#;
-
-        let c2ceta = r#"{"type" : "finite dimensional module", "name": "$C(2)\\wedge C(\\eta)$", "file_name": "C2_sm_Ceta", "p": 2, "generic": false, "gens": {"x0*x0": 0, "x0*x2": 2, "x1*x0": 1, "x1*x2": 3}, "adem_actions": [{"op": [1], "input": "x0*x0", "output": [{"gen": "x1*x0", "coeff": 1}]}, {"op": [1], "input": "x0*x2", "output": [{"gen": "x1*x2", "coeff": 1}]}, {"op": [2], "input": "x0*x0", "output": [{"gen": "x0*x2", "coeff": 1}]}, {"op": [2], "input": "x1*x0", "output": [{"gen": "x1*x2", "coeff": 1}]}, {"op": [3], "input": "x0*x0", "output": [{"gen": "x1*x2", "coeff": 1}]}, {"op": [2, 1], "input": "x0*x0", "output": [{"gen": "x1*x2", "coeff": 1}]}]}"#;
-
-        let c2c2 = r#"{"type" : "finite dimensional module", "name": "$C(2)$", "p": 2, "generic": false, "gens": {"x0x0": 0, "x0x1": 1, "x1x0" : 1, "x1x1": 2}, "adem_actions": [{"op": [1], "input": "x0x0", "output": [{"gen": "x1x0", "coeff": 1},{"gen": "x0x1", "coeff": 1}]},{"op": [1], "input": "x0x1", "output": [{"gen": "x1x1", "coeff": 1}]}, {"op": [1], "input": "x1x0", "output": [{"gen": "x1x1", "coeff": 1}]}, {"op": [2], "input": "x0x0", "output": [{"gen": "x1x1", "coeff": 1}]}]}"#;
-
-        let c2kk = r#"{"type" : "finite dimensional module", "name": "$C(2)$", "p": 2, "generic": false, "gens": {"x0x0": 0, "x0x1": 1, "x0y1" : 1, "x1x0" : 1, "x1x1": 2, "x1y1": 2}, "adem_actions": [{"op": [1], "input": "x0x0", "output": [{"gen": "x1x0", "coeff": 1}]},{"op": [1], "input": "x0x1", "output": [{"gen": "x1x1", "coeff": 1}]},{"op": [1], "input": "x0y1", "output": [{"gen": "x1y1", "coeff": 1}]}]}"#;
-
-        let kkc2 = r#"{"type" : "finite dimensional module", "name": "$C(2)$", "p": 2, "generic": false, "gens": {"x0x0": 0, "x0x1": 1, "x1x0" : 1, "y1x0" : 1, "x1x1": 2, "y1x1": 2}, "adem_actions": [{"op": [1], "input": "x0x0", "output": [{"gen": "x0x1", "coeff": 1}]},{"op": [1], "input": "x1x0", "output": [{"gen": "x1x1", "coeff": 1}]},{"op": [1], "input": "y1x0", "output": [{"gen": "y1x1", "coeff": 1}]}]}"#;
-
-        test_tensor_module(k, k, k);
-        test_tensor_module(k, c2, c2);
-        test_tensor_module(c2, k, c2);
-        test_tensor_module(c2, kk, c2kk);
-        test_tensor_module(kk, c2, kkc2);
-        test_tensor_module(ceta, k, ceta);
-        test_tensor_module(k, ceta, ceta);
-        test_tensor_module(c2, ceta, c2ceta);
-        test_tensor_module(ceta, c2, c2ceta);
-        test_tensor_module(c2, c2, c2c2);
-    }
-
-    fn test_tensor_module(M: &str, N: &str, T: &str) {
-        let mut M = serde_json::from_str(M).unwrap();
-        let mut N = serde_json::from_str(N).unwrap();
-        let mut T = serde_json::from_str(T).unwrap();
-
-        let A = Arc::new(SteenrodAlgebra::from_json(&M, "adem").unwrap());
-
-        let M = Arc::new(FiniteModule::from_json(Arc::clone(&A), &mut M).unwrap());
-        let N = Arc::new(FiniteModule::from_json(Arc::clone(&A), &mut N).unwrap());
-
-        let tensor = TensorModule::new(M, N).to_fd_module();
-        let T = FiniteModule::from_json(Arc::clone(&A), &mut T)
-            .unwrap()
-            .into_fd_module()
-            .unwrap();
-
-        if let Err(msg) = tensor.test_equal(&T) {
-            panic!("Test case failed. {}", msg);
-        }
     }
 }

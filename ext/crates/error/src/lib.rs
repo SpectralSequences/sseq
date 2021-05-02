@@ -2,7 +2,7 @@
 use std::backtrace::Backtrace;
 use std::error::Error as StdError;
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T = ()> = std::result::Result<T, Error>;
 
 pub struct Error {
     error: Box<dyn StdError + Send + Sync + 'static>,
@@ -50,6 +50,12 @@ impl From<Error> for Box<dyn StdError> {
     }
 }
 
+impl From<Error> for String {
+    fn from(e: Error) -> String {
+        e.error.to_string()
+    }
+}
+
 #[derive(Debug)]
 pub struct GenericError(String);
 
@@ -67,6 +73,6 @@ impl std::fmt::Display for GenericError {
 
 impl std::error::Error for GenericError {}
 
-pub fn from_string<T>(s: &str) -> Result<T> {
+pub fn from_string<T, E: Into<String>>(s: E) -> Result<T> {
     Err(GenericError(s.into()).into())
 }

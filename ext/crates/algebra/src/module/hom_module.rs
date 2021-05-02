@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use std::sync::Arc;
 
 use bivec::BiVec;
@@ -7,7 +6,7 @@ use crate::algebra::{Algebra, Field};
 use crate::module::block_structure::BlockStructure;
 use crate::module::homomorphism::FreeModuleHomomorphism;
 use crate::module::{BoundedModule, FreeModule, Module};
-use fp::vector::{SliceMut, Slice};
+use fp::vector::{Slice, SliceMut};
 use once::OnceBiVec;
 
 pub struct HomModule<M: BoundedModule> {
@@ -18,7 +17,7 @@ pub struct HomModule<M: BoundedModule> {
 }
 
 impl<M: BoundedModule> std::fmt::Display for HomModule<M> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Hom({}, {})", self.source, self.target)
     }
 }
@@ -46,25 +45,22 @@ impl<M: BoundedModule> HomModule<M> {
 
     // Each element of HomModule represents a homomorphism from source to target of a given degree.
     // Turn an FpVector representing an element of the HomModule  into a FreeModuleHomomorphism
-    pub fn element_to_homomorphism(
-        &self,
-        degree: i32,
-        x: Slice,
-    ) -> FreeModuleHomomorphism<M> {
+    pub fn element_to_homomorphism(&self, degree: i32, x: Slice) -> FreeModuleHomomorphism<M> {
         let result =
             FreeModuleHomomorphism::new(Arc::clone(&self.source), Arc::clone(&self.target), degree);
-        let lock = result.lock();
         let min_nonzero_degree = degree + self.target.min_degree();
         let max_nonzero_degree = degree + self.target.max_degree();
-        result.extend_by_zero(&lock, min_nonzero_degree - 1);
+        result.extend_by_zero(min_nonzero_degree - 1);
         let mut used_entries = 0;
         for i in min_nonzero_degree..=max_nonzero_degree {
             let gens = self.source.number_of_gens_in_degree(i);
             let out_dim = self.target.dimension(i - degree);
-            result.add_generators_from_big_vector(&lock, i, x.slice(used_entries, used_entries + gens * out_dim));
+            result.add_generators_from_big_vector(
+                i,
+                x.slice(used_entries, used_entries + gens * out_dim),
+            );
             used_entries += gens * out_dim;
         }
-        drop(lock);
         result
     }
 
@@ -102,8 +98,14 @@ impl<M: BoundedModule> HomModule<M> {
                 continue;
             }
             let op_idx = i - input_block_start;
-            self.target
-                .act_on_basis(result.copy(), (coeff * v) % p, op_deg, op_idx, mod_deg, mod_idx);
+            self.target.act_on_basis(
+                result.copy(),
+                (coeff * v) % p,
+                op_deg,
+                op_idx,
+                mod_deg,
+                mod_idx,
+            );
         }
     }
 }
@@ -191,24 +193,29 @@ mod tests {
     use crate::module::homomorphism::ModuleHomomorphism;
     use crate::module::{FDModule, FreeModule, Module};
 
-    use fp::vector::FpVector;
     use fp::prime::ValidPrime;
+    use fp::vector::FpVector;
 
     #[allow(non_snake_case)]
     #[allow(clippy::needless_range_loop)]
     #[test]
     fn test_hom_space() {
         let p = ValidPrime::new(2);
-        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false, false)));
+        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(
+            p,
+            *p != 2,
+            false,
+            false,
+        )));
         A.compute_basis(20);
         let F = Arc::new(FreeModule::new(Arc::clone(&A), "".to_string(), 0));
-        F.add_generators_immediate(0, 1, None);
-        F.add_generators_immediate(1, 1, None);
-        F.add_generators_immediate(2, 1, None);
+        F.add_generators(0, 1, None);
+        F.add_generators(1, 1, None);
+        F.add_generators(2, 1, None);
         F.extend_by_zero(20);
         let joker_json_string = r#"{"type" : "finite dimensional module","name": "Joker", "file_name": "Joker", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1, "x2": 2, "x3": 3, "x4": 4}, "sq_actions": [{"op": 2, "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": 2, "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": 2, "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": 1, "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": 3, "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": [1], "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": [2], "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [2], "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [3], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2, 1], "input": "x0", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [3, 1], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": [1], "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": [2], "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [2], "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [0, 1], "input": "x0", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [0, 1], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [3], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [1, 1], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}]}"#;
-        let mut joker_json = serde_json::from_str(&joker_json_string).unwrap();
-        let M = Arc::new(FDModule::from_json(Arc::clone(&A), &mut joker_json).unwrap());
+        let joker_json = serde_json::from_str(&joker_json_string).unwrap();
+        let M = Arc::new(FDModule::from_json(Arc::clone(&A), &joker_json).unwrap());
         let hom = HomModule::new(Arc::clone(&F), Arc::clone(&M));
         hom.compute_basis(10);
         let dimensions = [1, 2, 3, 3, 3, 2, 1, 0];
@@ -222,11 +229,18 @@ mod tests {
         let mut result = FpVector::new(p, M.dimension(out_degree));
         let mut expected_result = FpVector::new(p, M.dimension(out_degree));
         let outputs = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 0], [0, 0, 1]];
-        for i in 0..x.dimension() {
+        for i in 0..x.len() {
             x.set_entry(i, 1);
             println!("\n\nx : {}", F.element_to_string(x_degree, x.as_slice()));
             for f_idx in 0..3 {
-                hom.evaluate_basis_map_on_element(result.as_slice_mut(), 1, f_degree, f_idx, x_degree, x.as_slice());
+                hom.evaluate_basis_map_on_element(
+                    result.as_slice_mut(),
+                    1,
+                    f_degree,
+                    f_idx,
+                    x_degree,
+                    x.as_slice(),
+                );
                 println!(
                     "f : {} ==> f(x) : {}",
                     hom.basis_element_to_string(f_degree, f_idx),
@@ -244,16 +258,21 @@ mod tests {
     #[test]
     fn test_hom_space_elt_to_map() {
         let p = ValidPrime::new(2);
-        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false, false)));
+        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(
+            p,
+            *p != 2,
+            false,
+            false,
+        )));
         A.compute_basis(20);
         let F = Arc::new(FreeModule::new(Arc::clone(&A), "".to_string(), 0));
-        F.add_generators_immediate(0, 1, None);
-        F.add_generators_immediate(1, 1, None);
-        F.add_generators_immediate(2, 1, None);
+        F.add_generators(0, 1, None);
+        F.add_generators(1, 1, None);
+        F.add_generators(2, 1, None);
         F.extend_by_zero(20);
         let joker_json_string = r#"{"type" : "finite dimensional module","name": "Joker", "file_name": "Joker", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1, "x2": 2, "x3": 3, "x4": 4}, "sq_actions": [{"op": 2, "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": 2, "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": 1, "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": 2, "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": 1, "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": 3, "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}], "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": [1], "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": [2], "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [2], "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [3], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2, 1], "input": "x0", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [3, 1], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}], "milnor_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}, {"op": [1], "input": "x3", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}, {"op": [2], "input": "x1", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [2], "input": "x2", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [0, 1], "input": "x0", "output": [{"gen": "x3", "coeff": 1}]}, {"op": [0, 1], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [3], "input": "x1", "output": [{"gen": "x4", "coeff": 1}]}, {"op": [1, 1], "input": "x0", "output": [{"gen": "x4", "coeff": 1}]}]}"#;
-        let mut joker_json = serde_json::from_str(&joker_json_string).unwrap();
-        let M = Arc::new(FDModule::from_json(Arc::clone(&A), &mut joker_json).unwrap());
+        let joker_json = serde_json::from_str(&joker_json_string).unwrap();
+        let M = Arc::new(FDModule::from_json(Arc::clone(&A), &joker_json).unwrap());
         let hom = HomModule::new(Arc::clone(&F), Arc::clone(&M));
         hom.compute_basis(10);
 

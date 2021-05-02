@@ -1,18 +1,16 @@
-#![allow(clippy::many_single_char_names)]
-
 use algebra::module::homomorphism::{
     FiniteModuleHomomorphism, FreeModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
 };
 use algebra::module::{BoundedModule, Module};
 use ext::chain_complex::{ChainComplex, TensorChainComplex};
-use ext::load_s_2;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
+use ext::utils::construct;
 use ext::yoneda::yoneda_representative_element;
 use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
-use query::query_with_default;
 
+use std::io::{stderr, stdout, Write};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -22,40 +20,34 @@ use std::{thread, thread::JoinHandle};
 #[cfg(feature = "concurrent")]
 use crossbeam_channel::{unbounded, Receiver};
 
-#[cfg(feature = "concurrent")]
-use thread_token::TokenBucket;
-
-fn main() -> error::Result<()> {
-    load_s_2!(resolution, "adem", "resolution_adem.save");
-    let resolution = Arc::new(resolution);
+fn main() -> error::Result {
+    let resolution =
+        Arc::new(construct("S_2", std::fs::File::open("resolution_adem.save").ok()).unwrap());
 
     let complex = resolution.complex();
     let module = complex.module(0);
 
     let p = ValidPrime::new(2);
     #[cfg(feature = "concurrent")]
-    let num_threads = query_with_default("Number of threads", "2", Ok);
+    let bucket = Arc::new(ext::utils::query_bucket());
 
-    #[cfg(feature = "concurrent")]
-    let bucket = Arc::new(TokenBucket::new(num_threads));
-
-    let x: i32 = query_with_default("t - s", "8", Ok);
-    let s: u32 = query_with_default("s", "3", Ok);
-    let idx: usize = query_with_default("idx", "0", Ok);
+    let x: i32 = query::with_default("t - s", "8", str::parse);
+    let s: u32 = query::with_default("s", "3", str::parse);
+    let idx: usize = query::with_default("idx", "0", str::parse);
 
     let t = s as i32 + x;
-    print!("Resolving ext: ");
+    eprint!("Resolving ext: ");
     let start = Instant::now();
 
     #[cfg(feature = "concurrent")]
-    resolution.resolve_through_bidegree_concurrent(2 * s, 2 * t, &bucket);
+    resolution.compute_through_bidegree_concurrent(2 * s, 2 * t, &bucket);
 
     #[cfg(not(feature = "concurrent"))]
-    resolution.resolve_through_bidegree(2 * s, 2 * t);
+    resolution.compute_through_bidegree(2 * s, 2 * t);
 
-    println!("{:?}", start.elapsed());
+    eprintln!("{:?}", start.elapsed());
 
-    print!("Computing Yoneda representative: ");
+    eprint!("Computing Yoneda representative: ");
     let start = Instant::now();
     let yoneda = Arc::new(yoneda_representative_element(
         Arc::clone(&resolution),
@@ -63,7 +55,7 @@ fn main() -> error::Result<()> {
         t,
         idx,
     ));
-    println!("{:?}", start.elapsed());
+    eprintln!("{:?}", start.elapsed());
 
     print!("Dimensions of Yoneda representative: 1");
     let mut check = vec![0; t as usize + 1];
@@ -81,7 +73,7 @@ fn main() -> error::Result<()> {
     // algorithm in yoneda.rs is incorrect, this ensures that a posteriori we happened
     // to have a valid Yoneda representative. (Not really --- we don't check it is exact, just
     // that its Euler characteristic is 0 in each degree)
-    print!("Checking Yoneda representative: ");
+    eprint!("Checking Yoneda representative: ");
     let start = Instant::now();
     {
         assert_eq!(check[0], 1, "Incorrect Euler characteristic at t = 0");
@@ -99,7 +91,7 @@ fn main() -> error::Result<()> {
         let final_map = f.get_map(s);
         let num_gens = resolution.number_of_gens_in_bidegree(s, t);
         for i_ in 0..num_gens {
-            assert_eq!(final_map.output(t, i_).dimension(), 1);
+            assert_eq!(final_map.output(t, i_).len(), 1);
             if i_ == idx {
                 assert_eq!(final_map.output(t, i_).entry(0), 1);
             } else {
@@ -107,24 +99,24 @@ fn main() -> error::Result<()> {
             }
         }
     }
-    println!("{:?}", start.elapsed());
+    eprintln!("{:?}", start.elapsed());
 
     let square = Arc::new(TensorChainComplex::new(
         Arc::clone(&yoneda),
         Arc::clone(&yoneda),
     ));
 
-    print!("Computing quasi_inverses: ");
+    eprint!("Computing quasi_inverses: ");
     let start = Instant::now();
     square.compute_through_bidegree(2 * s, 2 * t);
     for s in 0..=2 * s {
         square
             .differential(s as u32)
-            .compute_kernels_and_quasi_inverses_through_degree(2 * t);
+            .compute_auxiliary_data_through_degree(2 * t);
     }
-    println!("{:?}", start.elapsed());
+    eprintln!("{:?}", start.elapsed());
 
-    println!("Computing Steenrod operations: ");
+    eprintln!("Computing Steenrod operations: ");
 
     let mut delta = Vec::with_capacity(s as usize);
 
@@ -172,13 +164,11 @@ fn main() -> error::Result<()> {
         for s in 0..=2 * s - i {
             if i == 0 && s == 0 {
                 let map = &delta[0][0];
-                let lock = map.lock();
                 map.add_generators_from_matrix_rows(
-                    &lock,
                     0,
                     Matrix::from_vec(p, &[vec![1]]).as_slice_mut(),
                 );
-                map.extend_by_zero(&lock, 2 * t);
+                map.extend_by_zero(2 * t);
                 continue;
             }
 
@@ -220,7 +210,6 @@ fn main() -> error::Result<()> {
             let fun = move || {
                 #[cfg(feature = "concurrent")]
                 let mut token = bucket.take_token();
-                let lock = map.lock();
 
                 for t in 0..=2 * t {
                     #[cfg(feature = "concurrent")]
@@ -234,7 +223,7 @@ fn main() -> error::Result<()> {
                     let fdx_dim = dtarget_module.dimension(t);
 
                     if fx_dim == 0 || fdx_dim == 0 || num_gens == 0 {
-                        map.extend_by_zero(&lock, t);
+                        map.extend_by_zero(t);
 
                         #[cfg(feature = "concurrent")]
                         {
@@ -271,7 +260,7 @@ fn main() -> error::Result<()> {
 
                         result.set_to_zero();
                     }
-                    map.add_generators_from_matrix_rows(&lock, t, output_matrix.as_slice_mut());
+                    map.add_generators_from_matrix_rows(t, output_matrix.as_slice_mut());
 
                     #[cfg(feature = "concurrent")]
                     {
@@ -301,8 +290,8 @@ fn main() -> error::Result<()> {
         {
             let final_map = &delta[i as usize][(2 * s - i) as usize];
             let num_gens = resolution.number_of_gens_in_bidegree(2 * s - i, 2 * t);
-            println!(
-                "Sq^{} x_{{{}, {}}}^({}) = [{}] ({:?})",
+            print!(
+                "Sq^{} x_({}, {}, {}) = [{}]",
                 s - i,
                 t - s as i32,
                 s,
@@ -311,8 +300,11 @@ fn main() -> error::Result<()> {
                     .map(|k| format!("{}", final_map.output(2 * t, k).entry(0)))
                     .collect::<Vec<_>>()
                     .join(", "),
-                start.elapsed()
             );
+            stdout().flush().unwrap();
+            eprint!(" ({:?})", start.elapsed());
+            stderr().flush().unwrap();
+            println!();
         }
     }
 
@@ -325,8 +317,8 @@ fn main() -> error::Result<()> {
         }
         let final_map = &delta[i as usize][(2 * s - i) as usize];
         let num_gens = resolution.number_of_gens_in_bidegree(2 * s - i, 2 * t);
-        println!(
-            "Sq^{} x_{{{}, {}}}^({}) = [{}] ({:?} total)",
+        print!(
+            "Sq^{} x_({}, {}, {}) = [{}]",
             s - i,
             t - s as i32,
             s,
@@ -335,11 +327,14 @@ fn main() -> error::Result<()> {
                 .map(|k| format!("{}", final_map.output(2 * t, k).entry(0)))
                 .collect::<Vec<_>>()
                 .join(", "),
-            start.elapsed()
         );
+        stdout().flush().unwrap();
+        eprint!(" ({:?} total)", start.elapsed());
+        stderr().flush().unwrap();
+        println!();
     }
 
-    println!("Computing Steenrod operations: {:?}", start.elapsed());
+    eprintln!("Computing Steenrod operations: {:?}", start.elapsed());
 
     Ok(())
 }

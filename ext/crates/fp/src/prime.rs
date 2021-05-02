@@ -4,7 +4,8 @@ pub const MAX_PRIME: usize = 19;
 const NOT_A_PRIME: usize = !1;
 pub const MAX_MULTINOMIAL_LEN: usize = 10;
 #[cfg(feature = "json")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+use std::convert::TryFrom;
 
 #[macro_export]
 macro_rules! const_for {
@@ -35,14 +36,6 @@ impl ValidPrime {
         #[cfg(not(feature = "odd-primes"))]
         {
             Self {}
-        }
-    }
-
-    pub fn try_new(p: u32) -> Option<Self> {
-        if is_valid_prime(p) {
-            Some(Self::new(p))
-        } else {
-            None
         }
     }
 
@@ -84,8 +77,46 @@ impl std::ops::Deref for ValidPrime {
     }
 }
 
+#[derive(Debug)]
+pub struct InvalidPrimeError(u32);
+
+impl std::fmt::Display for InvalidPrimeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Invalid prime: {}", self.0)
+    }
+}
+
+impl std::error::Error for InvalidPrimeError {}
+
+impl TryFrom<u32> for ValidPrime {
+    type Error = InvalidPrimeError;
+
+    fn try_from(p: u32) -> Result<Self, InvalidPrimeError> {
+        if is_valid_prime(p) {
+            Ok(Self::new(p))
+        } else {
+            Err(InvalidPrimeError(p))
+        }
+    }
+}
+
+impl std::str::FromStr for ValidPrime {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, String> {
+        let p: u32 = s.parse::<u32>().map_err(|s| s.to_string())?;
+        Self::try_from(p).map_err(|s| s.to_string())
+    }
+}
+
+impl From<ValidPrime> for u32 {
+    fn from(p: ValidPrime) -> u32 {
+        *p
+    }
+}
+
 impl std::fmt::Display for ValidPrime {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         (**self).fmt(f)
     }
 }
@@ -107,7 +138,7 @@ impl<'de> Deserialize<'de> for ValidPrime {
         D: Deserializer<'de>,
     {
         let p: u32 = u32::deserialize(deserializer)?;
-        Ok(ValidPrime::new(p))
+        ValidPrime::try_from(p).map_err(D::Error::custom)
     }
 }
 
@@ -176,6 +207,20 @@ pub const fn power_mod(p: u32, mut b: u32, mut e: u32) -> u32 {
         e >>= 1;
     }
     result
+}
+
+/// Compute the base 2 log of a number, rounded down to the nearest integer.
+///
+/// # Example
+/// ```
+/// # use fp::prime::log2;
+/// assert_eq!(0, log2(0b1));
+/// assert_eq!(1, log2(0b10));
+/// assert_eq!(1, log2(0b11));
+/// assert_eq!(3, log2(0b1011));
+/// ```
+pub const fn log2(n: usize) -> usize {
+    std::mem::size_of::<usize>() * 8 - 1 - n.leading_zeros() as usize
 }
 
 // Discrete log base p of n.
@@ -428,6 +473,32 @@ impl Iterator for BitflagIterator {
     }
 }
 
+/// Iterates through all numbers with the same number of bits. It may panic or return nonsense
+/// after all valid values are returned.
+pub struct BinomialIterator {
+    value: u32,
+}
+
+impl BinomialIterator {
+    pub fn new(n: usize) -> Self {
+        Self {
+            value: (1 << n) - 1,
+        }
+    }
+}
+
+impl Iterator for BinomialIterator {
+    type Item = u32;
+    fn next(&mut self) -> Option<Self::Item> {
+        let v = self.value;
+        let c = v & v.wrapping_neg();
+        let r = v + c;
+        let n = (r ^ v).wrapping_shr(2 + v.trailing_zeros());
+        self.value = r | n;
+        Some(v)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -506,6 +577,21 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn binomial_iterator() {
+        let mut iter = BinomialIterator::new(4);
+        assert_eq!(iter.next(), Some(0b1111));
+        assert_eq!(iter.next(), Some(0b10111));
+        assert_eq!(iter.next(), Some(0b11011));
+        assert_eq!(iter.next(), Some(0b11101));
+        assert_eq!(iter.next(), Some(0b11110));
+        assert_eq!(iter.next(), Some(0b100111));
+        assert_eq!(iter.next(), Some(0b101011));
+        assert_eq!(iter.next(), Some(0b101101));
+        assert_eq!(iter.next(), Some(0b101110));
+        assert_eq!(iter.next(), Some(0b110011));
     }
 }
 

@@ -1,28 +1,27 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
+use crate::algebra::Algebra;
+use crate::module::{BoundedModule, Module, ZeroModule};
 use bivec::BiVec;
-
-use crate::algebra::{Algebra, GeneratedAlgebra, SteenrodAlgebra};
-use crate::module::{BoundedModule, Module, ModuleFailedRelationError, ZeroModule};
-use error::GenericError;
 use fp::vector::{FpVector, SliceMut};
-
-use serde::Deserialize;
-use serde_json::json;
-use serde_json::value::Value;
-
-use rustc_hash::FxHashMap as HashMap;
-use std::str::FromStr;
 use std::sync::Arc;
 
-use nom::{
-    branch::alt,
-    bytes::complete::{is_not, take},
-    character::complete::{char, digit1, space0, space1},
-    combinator::map,
-    multi::separated_list,
-    sequence::delimited,
-    sequence::tuple,
-    IResult,
+#[cfg(feature = "json")]
+use {
+    crate::algebra::{GeneratedAlgebra, JsonAlgebra},
+    crate::module::ModuleFailedRelationError,
+    error::GenericError,
+    nom::{
+        branch::alt,
+        bytes::complete::{is_not, take},
+        character::complete::{char, digit1, space0, space1},
+        combinator::map,
+        multi::separated_list,
+        sequence::delimited,
+        sequence::tuple,
+        IResult,
+    },
+    rustc_hash::FxHashMap as HashMap,
+    serde::Deserialize,
+    serde_json::{json, value::Value},
 };
 
 pub struct FiniteDimensionalModule<A: Algebra> {
@@ -35,7 +34,7 @@ pub struct FiniteDimensionalModule<A: Algebra> {
 }
 
 impl<A: Algebra> std::fmt::Display for FiniteDimensionalModule<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
 }
@@ -149,7 +148,7 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
     fn max_computed_degree(&self) -> i32 {
         i32::max_value()
     }
-    
+
     fn compute_basis(&self, _degree: i32) {}
 
     fn dimension(&self, degree: i32) -> usize {
@@ -239,49 +238,14 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         FiniteDimensionalModule {
             algebra,
             name,
-            gen_names,
             graded_dimension,
+            gen_names,
             actions,
         }
     }
 
     pub fn set_basis_element_name(&mut self, degree: i32, idx: usize, name: String) {
         self.gen_names[degree][idx] = name;
-    }
-
-    fn module_gens_from_json(
-        gens: Value,
-    ) -> (
-        BiVec<usize>,
-        BiVec<Vec<String>>,
-        HashMap<String, (i32, usize)>,
-    ) {
-        let gens = gens.as_object().unwrap();
-
-        let degrees = gens
-            .iter()
-            .map(|(_, x)| x.as_i64().unwrap() as i32)
-            .collect::<Vec<_>>();
-
-        let min_degree = degrees.iter().copied().min().unwrap_or(0);
-        let max_degree = degrees.iter().copied().max().unwrap_or(-1) + 1;
-
-        let mut gen_to_idx = HashMap::default();
-        let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree);
-        let mut gen_names = BiVec::with_capacity(min_degree, max_degree);
-
-        for _ in min_degree..max_degree {
-            graded_dimension.push(0);
-            gen_names.push(vec![]);
-        }
-
-        for (name, degree) in gens {
-            let degree = degree.as_i64().unwrap() as i32;
-            gen_names[degree].push(name.clone());
-            gen_to_idx.insert(name.clone(), (degree, graded_dimension[degree]));
-            graded_dimension[degree] += 1;
-        }
-        (graded_dimension, gen_names, gen_to_idx)
     }
 
     fn allocate_actions(
@@ -399,7 +363,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                 for v in &mut self.actions[input_degree][degree] {
                     // Iterate over input index
                     for w in v {
-                        w.extend_dimension(new_dim);
+                        w.extend_len(new_dim);
                     }
                 }
             }
@@ -482,10 +446,45 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
     }
 }
 
-impl FiniteDimensionalModule<SteenrodAlgebra> {
-    pub fn from_json(algebra: Arc<SteenrodAlgebra>, json: &mut Value) -> error::Result<Self> {
-        let gens = json["gens"].take();
-        let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(gens);
+#[cfg(feature = "json")]
+impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
+    fn module_gens_from_json(
+        gens: &Value,
+    ) -> (
+        BiVec<usize>,
+        BiVec<Vec<String>>,
+        HashMap<String, (i32, usize)>,
+    ) {
+        let gens = gens.as_object().unwrap();
+
+        let degrees = gens
+            .iter()
+            .map(|(_, x)| x.as_i64().unwrap() as i32)
+            .collect::<Vec<_>>();
+
+        let min_degree = degrees.iter().copied().min().unwrap_or(0);
+        let max_degree = degrees.iter().copied().max().unwrap_or(-1) + 1;
+
+        let mut gen_to_idx = HashMap::default();
+        let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree);
+        let mut gen_names = BiVec::with_capacity(min_degree, max_degree);
+
+        for _ in min_degree..max_degree {
+            graded_dimension.push(0);
+            gen_names.push(vec![]);
+        }
+
+        for (name, degree) in gens {
+            let degree = degree.as_i64().unwrap() as i32;
+            gen_names[degree].push(name.clone());
+            gen_to_idx.insert(name.clone(), (degree, graded_dimension[degree]));
+            graded_dimension[degree] += 1;
+        }
+        (graded_dimension, gen_names, gen_to_idx)
+    }
+
+    pub fn from_json(algebra: Arc<A>, json: &Value) -> error::Result<Self> {
+        let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(&json["gens"]);
         let name = json["name"].as_str().unwrap_or("").to_string();
 
         let mut result = Self::new(Arc::clone(&algebra), name, graded_dimension.clone());
@@ -495,7 +494,7 @@ impl FiniteDimensionalModule<SteenrodAlgebra> {
             }
         }
 
-        if let Ok(actions) = serde_json::from_value::<Vec<String>>(json["actions"].take()) {
+        if let Ok(actions) = Vec::<String>::deserialize(&json["actions"]) {
             for action in actions {
                 result.parse_action(&gen_to_idx, &action, false)?;
             }
@@ -518,10 +517,10 @@ impl FiniteDimensionalModule<SteenrodAlgebra> {
                 output: Vec<OutputStruct>,
             }
 
-            let actions_value = json[format!("{}_actions", algebra.prefix())].take();
-            let actions: Vec<ActionStruct> = serde_json::from_value(actions_value)?;
+            let actions_value = &json[format!("{}_actions", algebra.prefix())];
+            let actions: Vec<ActionStruct> = <_>::deserialize(actions_value)?;
             for action in actions {
-                let (degree, idx) = algebra.json_to_basis(action.op)?;
+                let (degree, idx) = algebra.json_to_basis(&action.op)?;
                 let input = action.input;
                 let (input_degree, input_idx) = *gen_to_idx
                     .get(&input)
@@ -557,7 +556,7 @@ impl FiniteDimensionalModule<SteenrodAlgebra> {
         gen_to_idx: &HashMap<String, (i32, usize)>,
         entry_: &str,
         overwrite: bool,
-    ) -> error::Result<()> {
+    ) -> error::Result {
         let algebra = self.algebra();
         let lhs = tuple((
             |e| algebra.string_to_generator(e),
@@ -601,12 +600,7 @@ impl FiniteDimensionalModule<SteenrodAlgebra> {
         Ok(())
     }
 
-    pub fn parse_element(
-        &self,
-        entry: &str,
-        degree: i32,
-        mut result: SliceMut,
-    ) -> error::Result<()> {
+    pub fn parse_element(&self, entry: &str, degree: i32, mut result: SliceMut) -> error::Result {
         if let IResult::<_, _>::Ok(("", _)) = delimited(space0, char('0'), space0)(entry) {
             return Ok(());
         }
@@ -628,7 +622,7 @@ impl FiniteDimensionalModule<SteenrodAlgebra> {
         // coefficient, name
         let coef_gen = map(
             tuple((space0, digit1, space1, is_not(" "))),
-            |(_, coef, _, gen)| (FromStr::from_str(coef).unwrap(), gen),
+            |(_, coef, _, gen): (_, &str, _, &str)| (coef.parse().unwrap(), gen),
         );
         let o_gen = map(tuple((space0, is_not(" "))), |(_, gen)| (1, gen));
         alt((coef_gen, o_gen))(i)
@@ -676,7 +670,8 @@ impl FiniteDimensionalModule<SteenrodAlgebra> {
                         relation_string.pop();
                     }
 
-                    let value_string = self.element_to_string(output_deg as i32, output_vec.as_slice());
+                    let value_string =
+                        self.element_to_string(output_deg as i32, output_vec.as_slice());
                     return Err(ModuleFailedRelationError {
                         relation: relation_string,
                         value: value_string,
@@ -704,10 +699,17 @@ impl FiniteDimensionalModule<SteenrodAlgebra> {
                     let decomposition = algebra.decompose_basis_element(op_deg, op_idx);
                     for (coef, (deg_1, idx_1), (deg_2, idx_2)) in decomposition {
                         let intermediate_dim = self.dimension(input_deg + deg_2);
-                        if intermediate_dim > tmp_output.dimension() {
+                        if intermediate_dim > tmp_output.len() {
                             tmp_output = FpVector::new(p, intermediate_dim);
                         }
-                        self.act_on_basis(tmp_output.slice_mut(0, intermediate_dim), 1, deg_2, idx_2, input_deg, idx);
+                        self.act_on_basis(
+                            tmp_output.slice_mut(0, intermediate_dim),
+                            1,
+                            deg_2,
+                            idx_2,
+                            input_deg,
+                            idx,
+                        );
                         self.act(
                             output_vec.as_slice_mut(),
                             coef,
@@ -768,7 +770,7 @@ impl FiniteDimensionalModule<SteenrodAlgebra> {
     pub fn actions_to_json(&self) -> Value {
         let algebra = self.algebra();
         let min_degree = self.min_degree();
-        let max_degree = min_degree + self.graded_dimension.len() as i32;
+        let max_degree = self.graded_dimension.len() as i32;
         let mut actions = Vec::new();
         for input_degree in min_degree..max_degree {
             for output_degree in (input_degree + 1)..max_degree {
@@ -815,7 +817,12 @@ mod tests {
     #[test]
     fn test_module_check_validity() {
         let p = fp::prime::ValidPrime::new(2);
-        let adem_algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false, false)));
+        let adem_algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(
+            p,
+            *p != 2,
+            false,
+            false,
+        )));
         adem_algebra.compute_basis(10);
         let mut adem_module = FiniteDimensionalModule::new(
             Arc::clone(&adem_algebra),

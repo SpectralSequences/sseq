@@ -75,7 +75,7 @@ impl Subspace {
 
             for i in first_row..num_rows {
                 if let Some(v) = rows.next() {
-                    assert_eq!(v.dimension(), self.matrix.columns());
+                    assert_eq!(v.len(), self.matrix.columns());
                     self[i] = v;
                 } else {
                     break 'outer;
@@ -115,39 +115,23 @@ impl Subspace {
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
     /// that have a 0 in every column where there is a pivot in `matrix`
     pub fn reduce(&self, mut vector: SliceMut) {
-        assert_eq!(vector.as_slice().dimension(), self.columns());
+        assert_eq!(vector.as_slice().len(), self.columns());
         if self.rows() == 0 {
             return;
         }
         let p = self.prime();
-        let mut row = 0;
-        let columns = vector.as_slice().dimension();
-        for i in 0..columns {
-            if self.pivots()[i] < 0 {
-                continue;
-            }
+        let iter = self
+            .pivots()
+            .iter()
+            .enumerate()
+            .filter(|(_, x)| **x >= 0)
+            .map(|(i, _)| i)
+            .enumerate();
+        for (row, i) in iter {
             let c = vector.as_slice().entry(i);
             if c != 0 {
                 vector.add(self[row].as_slice(), *p - c);
             }
-            row += 1;
-        }
-    }
-
-    /// A version of `reduce` that doesn't require the vectors to be aligned.
-    pub fn shift_reduce(&self, mut vector: SliceMut) {
-        let p = self.matrix.prime();
-        let mut row = 0;
-        let columns = vector.as_slice().dimension();
-        for i in 0..columns {
-            if self.matrix.pivots()[i] < 0 {
-                continue;
-            }
-            let c = vector.as_slice().entry(i);
-            if c != 0 {
-                vector.add(self[row].as_slice(), *p - c);
-            }
-            row += 1;
         }
     }
 
@@ -177,7 +161,7 @@ impl Subspace {
 
     /// Returns a basis of the subspace.
     pub fn basis(&self) -> &[FpVector] {
-        &self.matrix.vectors[..self.dimension()]
+        &self.matrix[..self.dimension()]
     }
 
     /// Sets the subspace to be the zero subspace.
@@ -199,7 +183,7 @@ impl Subspace {
 }
 
 impl std::fmt::Display for Subspace {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let dim = self.dimension();
         for row in self.matrix.iter().take(dim) {
             writeln!(f, "{}", row)?;

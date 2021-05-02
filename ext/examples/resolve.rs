@@ -1,22 +1,47 @@
-//! Resolves a module and prints an ASCII depiction of the Ext groups.
+//! Resolves a module up to a fixed $(s, t)$ and prints an ASCII depiction of the Ext groups:
+//! ```text
+//! ·                                     ·
+//! ·                                   · ·
+//! ·                                 ·   ·
+//! ·                             ·   ·         ·
+//! ·                     ·       · · ·           ·
+//! ·                   · ·     · · · ·     ·     ·
+//! ·                 ·   ·     · :   · ·   · ·   · ·
+//! ·             ·   ·         · ·   · :   ·   · ·
+//! ·     ·       · · ·         · ·   · · ·   ·
+//! ·   · ·     · · ·           · · ·   ·
+//! · ·   ·       ·               ·
+//! ·
+//! ```
+//!
+use ext::chain_complex::{ChainComplex, FreeChainComplex};
+use ext::utils::construct;
+use saveload::Save;
+use std::fs::File;
 
-use ext::utils::{construct, get_config};
+fn main() -> error::Result {
+    let res = query::with_default("Module", "S_2", |name| construct(name, None));
 
-fn main() -> error::Result<()> {
-    // Read command line arguments
-    let config = get_config();
-    let res = construct(&config)?;
+    let max_s = query::with_default("Max s", "15", str::parse);
+    let max_t = query::with_default("Max t", "30", str::parse);
+    // Clippy false positive
+    #[allow(clippy::redundant_closure)]
+    let save_file: Option<File> = query::optional("Save file", |s| File::create(s));
 
     #[cfg(not(feature = "concurrent"))]
-    res.resolve_through_degree(config.max_degree);
+    res.compute_through_bidegree(max_s, max_t);
 
     #[cfg(feature = "concurrent")]
     {
-        let num_threads = query::query_with_default("Number of threads", "2", Ok);
-        let bucket = std::sync::Arc::new(thread_token::TokenBucket::new(num_threads));
-        res.resolve_through_degree_concurrent(config.max_degree, &bucket);
+        let bucket = ext::utils::query_bucket();
+        res.compute_through_bidegree_concurrent(max_s, max_t, &bucket);
     }
 
-    println!("\x1b[1m{}", res.graded_dimension_string());
+    println!("{}", res.graded_dimension_string());
+
+    if let Some(file) = save_file {
+        let mut file = std::io::BufWriter::new(file);
+        res.save(&mut file)?;
+    }
     Ok(())
 }

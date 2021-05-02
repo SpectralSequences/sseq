@@ -1,15 +1,16 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
-use serde_json::Value;
-use rustc_hash::FxHashMap as HashMap;
 use std::sync::Arc;
 
-use crate::algebra::{Algebra, SteenrodAlgebra};
+use crate::algebra::Algebra;
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::module::{FreeModule, Module, ZeroModule};
-use bivec::BiVec;
 use fp::matrix::Matrix;
 use fp::vector::{FpVector, SliceMut};
-use once::OnceVec;
+use once::OnceBiVec;
+
+#[cfg(feature = "json")]
+use {
+    crate::algebra::JsonAlgebra, bivec::BiVec, rustc_hash::FxHashMap as HashMap, serde_json::Value,
+};
 
 struct FPMIndexTable {
     gen_idx_to_fp_idx: Vec<isize>,
@@ -19,14 +20,14 @@ struct FPMIndexTable {
 pub struct FinitelyPresentedModule<A: Algebra> {
     name: String,
     min_degree: i32,
-    pub generators: Arc<FreeModule<A>>,
-    pub relations: Arc<FreeModule<A>>,
-    pub map: Arc<FreeModuleHomomorphism<FreeModule<A>>>,
-    index_table: OnceVec<FPMIndexTable>,
+    generators: Arc<FreeModule<A>>,
+    relations: Arc<FreeModule<A>>,
+    map: Arc<FreeModuleHomomorphism<FreeModule<A>>>,
+    index_table: OnceBiVec<FPMIndexTable>,
 }
 
 impl<A: Algebra> std::fmt::Display for FinitelyPresentedModule<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
 }
@@ -67,25 +68,40 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
                 Arc::clone(&generators),
                 0,
             )),
-            index_table: OnceVec::new(),
+            index_table: OnceBiVec::new(min_degree),
         }
     }
 
-    pub fn add_generators(&self, degree: i32, gen_names: Vec<String>) {
+    pub fn generators(&self) -> Arc<FreeModule<A>> {
+        Arc::clone(&self.generators)
+    }
+
+    pub fn add_generators(&mut self, degree: i32, gen_names: Vec<String>) {
         let num_gens = gen_names.len();
         self.generators
-            .add_generators_immediate(degree, num_gens, Some(gen_names));
+            .add_generators(degree, num_gens, Some(gen_names));
     }
 
-    pub fn add_relations(&self, degree: i32, relations_matrix: &mut Matrix) {
+    pub fn add_relations(&mut self, degree: i32, relations_matrix: &mut Matrix) {
         let num_relns = relations_matrix.rows();
-        self.relations
-            .add_generators_immediate(degree, num_relns, None);
-        let map_lock = self.map.lock();
+        self.relations.add_generators(degree, num_relns, None);
         self.map
-            .add_generators_from_matrix_rows(&map_lock, degree, relations_matrix.as_slice_mut());
+            .add_generators_from_matrix_rows(degree, relations_matrix.as_slice_mut());
     }
 
+    pub fn gen_idx_to_fp_idx(&self, degree: i32, idx: usize) -> isize {
+        assert!(degree >= self.min_degree);
+        self.index_table[degree].gen_idx_to_fp_idx[idx]
+    }
+
+    pub fn fp_idx_to_gen_idx(&self, degree: i32, idx: usize) -> usize {
+        assert!(degree >= self.min_degree);
+        self.index_table[degree].fp_idx_to_gen_idx[idx]
+    }
+}
+
+#[cfg(feature = "json")]
+impl<A: JsonAlgebra> FinitelyPresentedModule<A> {
     // Exact duplicate of function in fdmodule.rs...
     fn module_gens_from_json(
         gens: &Value,
@@ -125,39 +141,24 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
         (graded_dimension, gen_names, gen_to_idx)
     }
 
-    pub fn gen_idx_to_fp_idx(&self, degree: i32, idx: usize) -> isize {
-        assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
-        self.index_table[degree_idx].gen_idx_to_fp_idx[idx]
-    }
-
-    pub fn fp_idx_to_gen_idx(&self, degree: i32, idx: usize) -> usize {
-        assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
-        self.index_table[degree_idx].fp_idx_to_gen_idx[idx]
-    }
-}
-
-impl FinitelyPresentedModule<SteenrodAlgebra> {
-    pub fn from_json(algebra: Arc<SteenrodAlgebra>, json: &mut Value) -> error::Result<Self> {
+    pub fn from_json(algebra: Arc<A>, json: &Value) -> error::Result<Self> {
         let p = algebra.prime();
         let name = json["name"].as_str().unwrap_or("").to_string();
-        let gens = json["gens"].take();
+        let gens = &json["gens"];
         let (num_gens_in_degree, gen_names, gen_to_deg_idx) = Self::module_gens_from_json(&gens);
-        let mut relations_value = json[algebra.prefix().to_string() + "_relations"].take();
-        let relations_values = relations_value.as_array_mut().unwrap();
+        let relations_value = &json[algebra.prefix().to_string() + "_relations"];
+        let relations_values = relations_value.as_array().unwrap();
         let min_degree = num_gens_in_degree.min_degree();
         let max_gen_degree = num_gens_in_degree.len();
         algebra.compute_basis(20);
         let relations: Vec<Vec<_>> = relations_values
-            .iter_mut()
+            .iter()
             .map(|reln| {
-                reln.take()
-                    .as_array_mut()
+                reln.as_array()
                     .unwrap()
-                    .iter_mut()
+                    .iter()
                     .map(|term| {
-                        let op = term["op"].take();
+                        let op = &term["op"];
                         let (op_deg, op_idx) = algebra.json_to_basis(op).unwrap();
                         let gen_name = term["gen"].as_str().unwrap();
                         let (gen_deg, gen_idx) = gen_to_deg_idx[gen_name];
@@ -192,7 +193,7 @@ impl FinitelyPresentedModule<SteenrodAlgebra> {
         }
         let max_degree = std::cmp::max(max_gen_degree, max_relation_degree);
         algebra.compute_basis(max_degree);
-        let result = Self::new(Arc::clone(&algebra), name, min_degree);
+        let mut result = Self::new(Arc::clone(&algebra), name, min_degree);
         for i in min_degree..max_gen_degree {
             result.add_generators(i, gen_names[i].clone());
         }
@@ -219,7 +220,7 @@ impl FinitelyPresentedModule<SteenrodAlgebra> {
         json["type"] = Value::from("finitely presented module");
         // Because we only have one algebra, we must specify this.
         json["algebra"] = Value::from(vec![self.algebra().prefix()]);
-        for (i, deg_i_gens) in self.generators.gen_names.iter_enum() {
+        for (i, deg_i_gens) in self.generators.gen_names().iter_enum() {
             for gen in deg_i_gens {
                 json["gens"][gen] = Value::from(i);
             }
@@ -232,7 +233,10 @@ impl FinitelyPresentedModule<SteenrodAlgebra> {
         for i in self.min_degree..=self.relations.max_computed_degree() {
             let num_relns = self.relations.number_of_gens_in_degree(i);
             for j in 0..num_relns {
-                relations.push(self.generators.element_to_json(i, self.map.output(i, j).as_slice()));
+                relations.push(
+                    self.generators
+                        .element_to_json(i, self.map.output(i, j).as_slice()),
+                );
             }
         }
         Value::from(relations)
@@ -258,16 +262,13 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
         self.algebra().compute_basis(degree);
         self.generators.extend_by_zero(degree);
         self.relations.extend_by_zero(degree);
-        let min_degree = self.min_degree();
-        for i in self.index_table.len() as i32 + min_degree..=degree {
-            self.map
-                .compute_kernels_and_quasi_inverses_through_degree(i);
-            let qi = self.map.quasi_inverse(i);
-            let image = qi.image.as_ref().unwrap();
+        self.map.compute_auxiliary_data_through_degree(degree);
+
+        self.index_table.extend(degree, |i| {
+            let qi = self.map.quasi_inverse(i).unwrap();
             let mut gen_idx_to_fp_idx = Vec::new();
             let mut fp_idx_to_gen_idx = Vec::new();
-            let pivots = &image.pivots();
-            for (i, &pivot) in pivots.iter().enumerate() {
+            for (i, &pivot) in qi.pivots().unwrap().iter().enumerate() {
                 if pivot < 0 {
                     gen_idx_to_fp_idx.push(fp_idx_to_gen_idx.len() as isize);
                     fp_idx_to_gen_idx.push(i);
@@ -275,17 +276,16 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
                     gen_idx_to_fp_idx.push(-1);
                 }
             }
-            self.index_table.push(FPMIndexTable {
+            FPMIndexTable {
                 gen_idx_to_fp_idx,
                 fp_idx_to_gen_idx,
-            });
-        }
+            }
+        });
     }
 
     fn dimension(&self, degree: i32) -> usize {
         assert!(degree >= self.min_degree);
-        let degree_idx = (degree - self.min_degree) as usize;
-        self.index_table[degree_idx].fp_idx_to_gen_idx.len()
+        self.index_table[degree].fp_idx_to_gen_idx.len()
     }
 
     fn act_on_basis(
@@ -310,9 +310,9 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
             mod_degree,
             gen_idx,
         );
-        let qi = self.map.quasi_inverse(out_deg);
-        qi.image.as_ref().unwrap().reduce(temp_vec.as_slice_mut());
-        for i in 0..result.as_slice().dimension() {
+        let image = self.map.image(out_deg).unwrap();
+        image.reduce(temp_vec.as_slice_mut());
+        for i in 0..result.as_slice().len() {
             let value = temp_vec.entry(self.fp_idx_to_gen_idx(out_deg, i));
             result.add_basis_element(i, value);
         }

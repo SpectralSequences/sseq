@@ -1,7 +1,7 @@
 use crate::actions::*;
 use crate::Sender;
 use bivec::BiVec;
-use chart::Graph;
+use chart::Backend;
 use fp::matrix::{Matrix, Subquotient, Subspace};
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
@@ -111,7 +111,7 @@ impl Differential {
         assert_eq!(zeros.matrix.columns(), self.target_dim);
 
         for i in 0..self.matrix.rows() {
-            zeros.shift_reduce(
+            zeros.reduce(
                 self.matrix[i].slice_mut(self.source_dim, self.source_dim + self.target_dim),
             );
         }
@@ -565,15 +565,15 @@ impl Sseq {
 
         let mut dvec = FpVector::new(self.p, target_dim);
         for vec in source_classes[r - 1].gens() {
-            let mut result = FpVector::new(self.p, source_dim + target_dim);
-            result.slice_mut(0, source_dim).assign(vec.as_slice());
+            let mut result = FpVector::new(self.p, target_dim + source_dim);
+            result
+                .slice_mut(target_dim, target_dim + source_dim)
+                .assign(vec.as_slice());
 
             d.evaluate(vec.clone(), &mut dvec);
             target_classes.zeros().reduce(dvec.as_slice_mut());
 
-            result
-                .slice_mut(source_dim, source_dim + target_dim)
-                .add(dvec.as_slice(), 1);
+            result.slice_mut(0, source_dim).add(dvec.as_slice(), 1);
 
             vectors.push(result);
             differentials.push(target_classes.reduce(dvec.as_slice_mut()));
@@ -581,26 +581,15 @@ impl Sseq {
         }
 
         let mut matrix = Matrix::from_rows(self.p, vectors, source_dim + target_dim);
-        let mut pivots = vec![-1; matrix.columns()];
-        matrix.row_reduce_offset_into_pivots(&mut pivots, source_dim);
+        matrix.row_reduce();
 
-        let mut first_kernel_row = 0;
-        for i in (source_dim..source_dim + target_dim).rev() {
-            if pivots[i] >= 0 {
-                first_kernel_row = pivots[i] + 1;
-                break;
-            }
-        }
+        let first_kernel_row = matrix.find_first_row_in_block(target_dim);
 
-        let mut matrix = matrix.slice_mut(first_kernel_row as usize, matrix.rows(), 0, source_dim);
-        pivots.truncate(source_dim);
-        matrix.row_reduce_into_pivots(&mut pivots);
-
-        for row in matrix.iter() {
+        for row in &matrix[first_kernel_row..] {
             if row.is_zero() {
                 break;
             }
-            source_classes[r].add_gen(row);
+            source_classes[r].add_gen(row.slice(target_dim, target_dim + source_dim));
         }
         differentials
     }
@@ -805,6 +794,7 @@ impl Sseq {
                 let (sx, sy) = sseq_profile_i(r, x, y);
                 sx >= self.min_x
                     && sy >= self.min_y
+                    && self.differentials.max_degree() >= sx
                     && self.differentials[sx].max_degree() >= sy
                     && self.differentials[sx][sy].max_degree() >= r
             })
@@ -872,12 +862,12 @@ impl Sseq {
         target: &FpVector,
     ) {
         assert_eq!(
-            source.dimension(),
+            source.len(),
             self.classes[x][y],
             "length of source vector not equal to dimension of source"
         );
         assert_eq!(
-            target.dimension(),
+            target.len(),
             self.classes[x - 1][y + r],
             "length of target vector not equal to dimension of target"
         );
@@ -1152,17 +1142,15 @@ impl Sseq {
     }
 }
 
-use std::io::Write;
-
 impl Sseq {
     /// This doesn't actually modify the object
-    pub fn write_to_svg(
+    pub fn write_to_graph<T: Backend>(
         &mut self,
-        out: impl Write,
+        mut g: T,
         r: i32,
         differentials: bool,
         products: &[&str],
-    ) -> std::io::Result<()> {
+    ) -> std::result::Result<(), T::Error> {
         assert_eq!(self.min_x, 0);
         assert_eq!(self.min_y, 0);
 
@@ -1175,7 +1163,7 @@ impl Sseq {
             .unwrap_or(1)
             - 1;
 
-        let mut g = Graph::new(out, max_x as i32, max_y as i32)?;
+        g.init(max_x as i32, max_y as i32)?;
 
         for (x, data) in self.page_data.iter_enum() {
             for (y, data) in data.iter_enum() {
@@ -1205,40 +1193,40 @@ impl Sseq {
                     let matrix = prod.matrices[source_x][source_y].as_ref().unwrap();
                     let matrix = Subquotient::reduce_matrix(&matrix, source_data, data);
                     g.structline_matrix((source_x, source_y), (x, y), matrix, None)?;
+                }
 
-                    // Finally add the differentials
-                    if differentials {
-                        let (tx, ty) = sseq_profile(r, x, y);
-                        if tx < 0 {
-                            continue;
-                        }
-                        if self.differentials[x][y].len() <= r {
-                            continue;
-                        }
-                        let d = &mut self.differentials[x][y][r];
-                        let target_data = Sseq::get_page(r, &self.page_data[tx][ty]);
+                // Finally add the differentials
+                if differentials {
+                    let (tx, ty) = sseq_profile(r, x, y);
+                    if tx < 0 {
+                        continue;
+                    }
+                    if self.differentials[x][y].len() <= r {
+                        continue;
+                    }
+                    let d = &mut self.differentials[x][y][r];
+                    let target_data = Sseq::get_page(r, &self.page_data[tx][ty]);
 
-                        let pairs =
-                            d.get_source_target_pairs()
-                                .into_iter()
-                                .map(|(mut s, mut t)| {
-                                    (
-                                        data.reduce(s.as_slice_mut()),
-                                        target_data.reduce(t.as_slice_mut()),
-                                    )
-                                });
+                    let pairs = d
+                        .get_source_target_pairs()
+                        .into_iter()
+                        .map(|(mut s, mut t)| {
+                            (
+                                data.reduce(s.as_slice_mut()),
+                                target_data.reduce(t.as_slice_mut()),
+                            )
+                        });
 
-                        for (source, target) in pairs {
-                            for (i, v) in source.into_iter().enumerate() {
+                    for (source, target) in pairs {
+                        for (i, v) in source.into_iter().enumerate() {
+                            if v == 0 {
+                                continue;
+                            }
+                            for (j, &v) in target.iter().enumerate() {
                                 if v == 0 {
                                     continue;
                                 }
-                                for (j, &v) in target.iter().enumerate() {
-                                    if v == 0 {
-                                        continue;
-                                    }
-                                    g.structline((x, y, i), (tx, ty, j), Some(&format!("d{}", r)))?;
-                                }
+                                g.structline((x, y, i), (tx, ty, j), Some(&format!("d{}", r)))?;
                             }
                         }
                     }

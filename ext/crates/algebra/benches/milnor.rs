@@ -11,7 +11,7 @@ fn ppart_inner<const MOD4: bool>(
     let p = ValidPrime::new(p);
 
     bench.iter(move || {
-        let mut m = PPartMultiplier::<MOD4>::new_from_allocation(
+        let m = PPartMultiplier::<MOD4>::new_from_allocation(
             p,
             &r,
             &s,
@@ -20,7 +20,7 @@ fn ppart_inner<const MOD4: bool>(
             0,
         );
 
-        while let Some(c) = m.next() {
+        for c in m {
             if MOD4 {
                 assert!(c < 4);
             } else {

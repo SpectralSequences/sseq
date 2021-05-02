@@ -1,5 +1,5 @@
-use crate::chain_complex::ChainComplex;
-use crate::resolution::ResolutionInner;
+use crate::chain_complex::{BoundedChainComplex, ChainComplex};
+use crate::resolution::Resolution as Resolution_;
 use crate::utils::HashMapTuple;
 use crate::CCC;
 use algebra::combinatorics;
@@ -7,40 +7,64 @@ use algebra::milnor_algebra::{
     MilnorAlgebra as Algebra, MilnorBasisElement as MilnorElt, PPartAllocation, PPartMultiplier,
 };
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use algebra::module::FreeModule;
-use algebra::module::Module;
+use algebra::module::{BoundedModule, FreeModule, Module};
 use algebra::{Algebra as _, MilnorAlgebraT, SteenrodAlgebra};
-#[cfg(feature = "concurrent")]
-use bivec::BiVec;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, SliceMut};
 use rustc_hash::FxHashMap as HashMap;
-#[cfg(feature = "concurrent")]
-use saveload::{Load, Save};
 use std::cell::RefCell;
 use std::hash::{BuildHasher, Hash, Hasher};
 
 #[cfg(feature = "concurrent")]
-use std::{
-    io::{BufReader, BufWriter, Read, Write},
-    path::Path,
-    sync::{Arc, Mutex},
-    time::Instant,
+use {
+    bivec::BiVec,
+    crossbeam_channel::{unbounded, Receiver, RecvTimeoutError},
+    saveload::{Load, Save},
+    std::{
+        io::{BufReader, BufWriter, Read, Write},
+        path::Path,
+        sync::{Arc, Mutex},
+        time::Instant,
+    },
+    thread_token::TokenBucket,
 };
 
-#[cfg(feature = "concurrent")]
-use crossbeam_channel::{unbounded, Receiver, RecvTimeoutError};
-
-#[cfg(feature = "concurrent")]
-use thread_token::TokenBucket;
-
-type Resolution = ResolutionInner<CCC>;
+type Resolution = Resolution_<CCC>;
 type FMH = FreeModuleHomomorphism<FreeModule<SteenrodAlgebra>>;
 
 const TWO: ValidPrime = ValidPrime::new(2);
 
+/// Whether picking δ₂ = 0 gives a valid secondary refinement. This requires
+///  1. The chain complex is concentrated in degree zero;
+///  2. The module is finite dimensional; and
+///  3. $\mathrm{Hom}(\mathrm{Ext}^{2, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$ or $\mathrm{Hom}(\mathrm{Ext}^{3, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$.
+pub fn can_compute(res: &Resolution) -> bool {
+    let complex = res.complex();
+    if *complex.prime() != 2 {
+        eprintln!("Prime is not 2");
+        return false;
+    }
+    if complex.max_s() != 1 {
+        eprintln!("Complex is not concentrated in degree 0.");
+        return false;
+    }
+    let module = complex.module(0);
+    let module = module.as_fd_module();
+    if module.is_none() {
+        eprintln!("Module is not finite dimensional");
+        return false;
+    }
+    let module = module.unwrap();
+    let max_degree = module.max_degree();
+
+    (0..max_degree)
+        .all(|t| module.dimension(t) == 0 || res.number_of_gens_in_bidegree(2, t + 1) == 0)
+        || (0..max_degree)
+            .all(|t| module.dimension(t) == 0 || res.number_of_gens_in_bidegree(3, t + 1) == 0)
+}
+
 /// An element in the Milnor algebra
-pub struct MilnorClass {
+struct MilnorClass {
     elements: Vec<MilnorElt>,
     degree: i32,
 }
@@ -89,7 +113,8 @@ impl MilnorClass {
 
 /// A non-concurrent version for computing delta. In practice the concurrent version will be used,
 /// and this function should have clear logic rather than being optimal.
-pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
+pub fn compute_delta(res: &Resolution) -> Vec<FMH> {
+    let max_s = res.max_homological_degree();
     if max_s < 2 {
         return vec![];
     }
@@ -103,7 +128,12 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
         let d = res.differential(s - 2);
         let m = res.module(s);
 
-        delta.extend_by_zero_safe(res.min_degree());
+        delta.extend_by_zero(res.min_degree());
+        let max_t = std::cmp::min(
+            res.module(s).max_computed_degree(),
+            res.module(s - 2).max_computed_degree() + 1,
+        );
+
         for t in res.min_degree() + 1..=max_t {
             let num_gens = m.number_of_gens_in_degree(t);
             let target_dim = res.module(s - 2).dimension(t - 1);
@@ -131,10 +161,11 @@ pub fn compute_delta(res: &Resolution, max_s: u32, max_t: i32) -> Vec<FMH> {
                 }
 
                 d.quasi_inverse(t - 1)
+                    .unwrap()
                     .apply(result.as_slice_mut(), 1, scratch.as_slice());
                 scratch.set_to_zero();
             }
-            delta.add_generators_from_rows(&delta.lock(), t, results);
+            delta.add_generators_from_rows(t, results);
         }
     }
 
@@ -154,36 +185,41 @@ fn read_saved_data(buffer: &mut impl Read) -> std::io::Result<(u32, i32, usize, 
 #[cfg(feature = "concurrent")]
 pub fn compute_delta_concurrent(
     res: &Resolution,
-    max_s: u32,
-    max_t: i32,
     bucket: &TokenBucket,
     save_file_path: Option<String>,
 ) -> Vec<FMH> {
+    let max_s = res.max_homological_degree();
     if max_s < 2 {
         return vec![];
     }
     let min_degree = res.min_degree();
+    let max_t = |s| {
+        1 + std::cmp::min(
+            res.module(s).max_computed_degree(),
+            res.module(s - 2).max_computed_degree() + 1,
+        )
+    };
 
     let ddeltas: Vec<BiVec<Vec<Option<FpVector>>>> = Vec::with_capacity(max_s as usize - 2);
     let ddeltas = Mutex::new(ddeltas);
 
     let start = Instant::now();
-    let (p_sender, p_receiver) = unbounded();
     crossbeam_utils::thread::scope(|scope| {
         // Pretty print progress of first step
         let mut processed: HashMap<(u32, i32), u32> = HashMap::default();
 
         for s in 3..=max_s {
             let m = res.module(s);
-            for t in min_degree + 1..=max_t {
+            for t in min_degree + 1..max_t(s) {
                 processed.insert((s, t), m.number_of_gens_in_degree(t) as u32);
             }
         }
 
+        let (p_sender, p_receiver) = unbounded();
         scope.spawn(move |_| {
             let mut prev = Instant::now();
             // Clear first row
-            print!("\x1b[2J");
+            eprint!("\x1b[2J");
             loop {
                 match p_receiver.recv_timeout(std::time::Duration::from_secs(1)) {
                     Ok(data) => {
@@ -196,19 +232,14 @@ pub fn compute_delta_concurrent(
                     continue;
                 }
                 // Move cursor to beginning and clear line
-                print!("\x1b[H\x1b[K");
-                println!(
+                eprint!("\x1b[H\x1b[K");
+                eprintln!(
                     "Time elapsed: {:.2?}; Processed bidegrees:",
                     start.elapsed()
                 );
-                crate::utils::print_resolution_color(
-                    res,
-                    std::cmp::min(max_s, ((max_t - min_degree) as u32 + 2) / 3),
-                    max_t,
-                    &processed,
-                );
+                crate::utils::print_resolution_color(res, max_s, &processed);
                 // Clear the rest of the screen
-                print!("\x1b[J");
+                eprint!("\x1b[J");
                 std::io::stdout().flush().unwrap();
                 prev = Instant::now();
             }
@@ -220,8 +251,9 @@ pub fn compute_delta_concurrent(
         // and source_t, we pre-populate with None and replace with Some.
         for s in 3..=max_s {
             let m = res.module(s);
-            let mut v = BiVec::with_capacity(min_degree + 1, max_t + 1);
-            for t in min_degree + 1..=max_t {
+            let max = max_t(s);
+            let mut v = BiVec::with_capacity(min_degree + s as i32, max);
+            for t in min_degree + s as i32..max {
                 v.push(vec![None; m.number_of_gens_in_degree(t)]);
             }
             ddeltas.lock().unwrap().push(v);
@@ -234,7 +266,7 @@ pub fn compute_delta_concurrent(
                 loop {
                     match read_saved_data(&mut f) {
                         Ok((s, t, idx, data)) => {
-                            if s <= max_s && t <= max_t {
+                            if s <= max_s && t >= min_degree + s as i32 && t <= max_t(s) {
                                 ddeltas.lock().unwrap()[s as usize - 3][t][idx] = Some(data);
                                 p_sender.send((s, t)).unwrap();
                             }
@@ -262,10 +294,10 @@ pub fn compute_delta_concurrent(
 
         // Redefine these to the borrows so that the underlying doesn't get moved into closures
         let ddeltas = &ddeltas;
-        let p_sender = &p_sender;
-        for _ in 0..bucket.max_threads {
+        for _ in 0..bucket.max_threads.get() {
             let save_file = Arc::clone(&save_file);
             let receiver = Arc::clone(&receiver);
+            let p_sender = p_sender.clone();
             scope.spawn(move |_| loop {
                 let job = receiver.lock().unwrap().recv().ok();
 
@@ -298,8 +330,8 @@ pub fn compute_delta_concurrent(
         }
 
         // Iterate in reverse order to do the slower ones first
-        for t in (min_degree + 1..=max_t).rev() {
-            for s in 3..=max_s {
+        for s in 3..=max_s {
+            for t in (min_degree + s as i32..max_t(s)).rev() {
                 for idx in 0..res.module(s).number_of_gens_in_degree(t) {
                     sender.send((s, t, idx)).unwrap();
                 }
@@ -308,7 +340,7 @@ pub fn compute_delta_concurrent(
     })
     .unwrap();
 
-    println!("Computed A terms in {:.2?}", start.elapsed());
+    eprintln!("Computed A terms in {:.2?}", start.elapsed());
 
     let ddeltas = ddeltas.into_inner().unwrap();
     // We now compute the rest of the terms. This step is substantially faster than the previous
@@ -339,7 +371,7 @@ pub fn compute_delta_concurrent(
             scope.spawn(move |_| {
                 let delta = &deltas[s as usize - 3];
 
-                delta.extend_by_zero_safe(min_degree);
+                delta.extend_by_zero(min_degree + s as i32 - 1);
                 let mut token = bucket.take_token();
                 for (t, mut ddelta) in ddeltas_.into_iter_enum() {
                     token = bucket.recv_or_release(token, &last_receiver);
@@ -360,7 +392,7 @@ pub fn compute_delta_concurrent(
                         }
 
                         #[cfg(debug_assertions)]
-                        if s > 3 {
+                        if s > 3 && res.module(s - 4).max_computed_degree() >= t - 1 {
                             let mut r = FpVector::new(TWO, res.module(s - 4).dimension(t - 1));
                             res.differential(s - 3).apply(
                                 r.as_slice_mut(),
@@ -371,26 +403,27 @@ pub fn compute_delta_concurrent(
                             assert!(r.is_zero(), "dd != 0 at s = {}, t = {}", s, t);
                         }
 
-                        target_d.quasi_inverse(t - 1).apply(
+                        target_d.quasi_inverse(t - 1).unwrap().apply(
                             result.as_slice_mut(),
                             1,
                             row.as_slice(),
                         );
                     }
-                    delta.add_generators_from_rows(&delta.lock(), t, results);
-                    sender.send(()).unwrap();
+                    delta.add_generators_from_rows(t, results);
+                    // The last receiver will be dropped so the send will fail
+                    sender.send(()).ok();
                 }
             });
             last_receiver = Some(receiver);
         }
     })
     .unwrap();
-    println!("Computed δd terms in {:.2?}", start.elapsed());
+    eprintln!("Computed δd terms in {:.2?}", start.elapsed());
     deltas
 }
 
 /// Computes $C(g_i) = A(c_i^j, dd g_j)$.
-pub fn compute_c(res: &Resolution, gen_s: u32, gen_t: i32, gen_idx: usize, result: &mut FpVector) {
+fn compute_c(res: &Resolution, gen_s: u32, gen_t: i32, gen_idx: usize, result: &mut FpVector) {
     let m = res.module(gen_s - 1);
 
     let d = res.differential(gen_s);
@@ -428,7 +461,7 @@ macro_rules! unsub {
 }
 
 /// Computes $A(a, ddg)$
-pub fn compute_a_dd(
+fn compute_a_dd(
     res: &Resolution,
     a_list: &mut MilnorClass,
     gen_s: u32,
@@ -686,7 +719,7 @@ fn a_y_inner(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize) -> FpVect
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::utils::construct_s_2;
+    use crate::utils::construct;
     use algebra::milnor_algebra::PPartEntry;
     use expect_test::{expect, Expect};
     use std::fmt::Write;
@@ -761,7 +794,7 @@ mod test {
 
     #[test]
     fn test_a_dd() {
-        let resolution = construct_s_2("milnor");
+        let resolution = construct("S_2@milnor", None).unwrap();
 
         let mut result = FpVector::new(TWO, 0);
 
@@ -769,7 +802,7 @@ mod test {
             let mut a = MilnorClass::from_elements(vec![from_p_part(a)]);
 
             let target_deg = a.degree + gen_t - 1;
-            resolution.resolve_through_bidegree(gen_s, target_deg);
+            resolution.compute_through_bidegree(gen_s, target_deg);
             let m = resolution.module(gen_s - 2);
 
             result.set_scratch_vector_size(m.dimension(target_deg));
@@ -799,22 +832,22 @@ mod test {
     #[test]
     fn test_compute_differentials() {
         let mut result = String::new();
-        let resolution = construct_s_2("milnor");
+        let resolution = construct("S_2@milnor", None).unwrap();
 
         let max_s = 7;
         let max_t = 30;
 
         #[cfg(feature = "concurrent")]
         let deltas = {
-            let bucket = std::sync::Arc::new(TokenBucket::new(2));
-            resolution.resolve_through_bidegree_concurrent(max_s, max_t, &bucket);
-            compute_delta_concurrent(&resolution, max_s, max_t, &bucket, None)
+            let bucket = TokenBucket::new(core::num::NonZeroUsize::new(2).unwrap());
+            resolution.compute_through_bidegree_concurrent(max_s, max_t, &bucket);
+            compute_delta_concurrent(&resolution, &bucket, None)
         };
 
         #[cfg(not(feature = "concurrent"))]
         let deltas = {
-            resolution.resolve_through_bidegree(max_s, max_t);
-            compute_delta(&resolution, max_s, max_t)
+            resolution.compute_through_bidegree(max_s, max_t);
+            compute_delta(&resolution)
         };
 
         for s in 1..(max_s - 1) {

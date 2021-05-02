@@ -1,9 +1,8 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use std::sync::Arc;
 
-use crate::SteenrodAlgebra;
 use crate::module::Module;
-use crate::module::{FiniteModule, FDModule};
+use crate::module::{FDModule, FiniteModule};
+use crate::SteenrodAlgebra;
 
 pub trait ZeroModule: Module {
     fn zero_module(algebra: Arc<Self::Algebra>, min_degree: i32) -> Self;

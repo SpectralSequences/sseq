@@ -1,23 +1,63 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
+#[cfg(feature = "json")]
+use crate::algebra::JsonAlgebra;
+use crate::algebra::{
+    AdemAlgebra, AdemAlgebraT, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra, MilnorAlgebraT,
+};
+use crate::dispatch_algebra;
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
-use crate::algebra::{
-    Algebra, Bialgebra,
-    AdemAlgebra, AdemAlgebraT,
-    GeneratedAlgebra,
-    MilnorAlgebra, MilnorAlgebraT,
-    milnor_algebra::PPart,
-};
 
-use enum_dispatch::enum_dispatch;
-use serde::Deserialize;
-use serde_json::Value;
+#[cfg(feature = "json")]
+use {serde::Deserialize, serde_json::Value};
 
-// This is here so that the Python bindings can use modules defined for SteenrodAlgebraT with their own algebra enum.
+// This is here so that the Python bindings can use modules defined aor SteenrodAlgebraT with their own algebra enum.
 // In order for things to work SteenrodAlgebraT cannot implement Algebra.
 // Otherwise, the algebra enum for our bindings will see an implementation clash.
-pub trait SteenrodAlgebraT : Send + Sync + 'static + Algebra {
+pub trait SteenrodAlgebraT: Send + Sync + Algebra {
     fn steenrod_algebra(&self) -> SteenrodAlgebraBorrow;
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum AlgebraType {
+    Adem,
+    Milnor,
+}
+
+impl std::fmt::Display for AlgebraType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Adem => "adem",
+                Self::Milnor => "milnor",
+            }
+        )
+    }
+}
+
+impl std::convert::TryFrom<&str> for AlgebraType {
+    type Error = error::GenericError;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "adem" => Ok(Self::Adem),
+            "milnor" => Ok(Self::Milnor),
+            _ => Err(error::GenericError::new(format!(
+                "Invalid algebra name: {}",
+                s
+            ))),
+        }
+    }
+}
+
+impl std::str::FromStr for AlgebraType {
+    type Err = error::GenericError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use std::convert::TryInto;
+        s.try_into()
+    }
 }
 
 pub enum SteenrodAlgebraBorrow<'a> {
@@ -25,14 +65,25 @@ pub enum SteenrodAlgebraBorrow<'a> {
     BorrowMilnor(&'a MilnorAlgebra),
 }
 
-#[enum_dispatch(Algebra, GeneratedAlgebra)]
 pub enum SteenrodAlgebra {
-    AdemAlgebra,
-    MilnorAlgebra,
+    AdemAlgebra(AdemAlgebra),
+    MilnorAlgebra(MilnorAlgebra),
+}
+
+impl From<AdemAlgebra> for SteenrodAlgebra {
+    fn from(adem: AdemAlgebra) -> SteenrodAlgebra {
+        SteenrodAlgebra::AdemAlgebra(adem)
+    }
+}
+
+impl From<MilnorAlgebra> for SteenrodAlgebra {
+    fn from(milnor: MilnorAlgebra) -> SteenrodAlgebra {
+        SteenrodAlgebra::MilnorAlgebra(milnor)
+    }
 }
 
 impl std::fmt::Display for SteenrodAlgebra {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             SteenrodAlgebra::AdemAlgebra(a) => a.fmt(f),
             SteenrodAlgebra::MilnorAlgebra(a) => a.fmt(f),
@@ -49,7 +100,7 @@ impl SteenrodAlgebraT for SteenrodAlgebra {
     }
 }
 
-impl<A : SteenrodAlgebraT> AdemAlgebraT for A {
+impl<A: SteenrodAlgebraT> AdemAlgebraT for A {
     fn adem_algebra(&self) -> &AdemAlgebra {
         match self.steenrod_algebra() {
             SteenrodAlgebraBorrow::BorrowAdem(a) => a,
@@ -58,8 +109,7 @@ impl<A : SteenrodAlgebraT> AdemAlgebraT for A {
     }
 }
 
-
-impl<A : SteenrodAlgebraT> MilnorAlgebraT for A {
+impl<A: SteenrodAlgebraT> MilnorAlgebraT for A {
     fn milnor_algebra(&self) -> &MilnorAlgebra {
         match self.steenrod_algebra() {
             SteenrodAlgebraBorrow::BorrowAdem(_) => panic!(),
@@ -69,14 +119,14 @@ impl<A : SteenrodAlgebraT> MilnorAlgebraT for A {
 }
 
 impl Bialgebra for SteenrodAlgebra {
-    fn decompose (&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize)> {
+    fn decompose(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize)> {
         match self {
             SteenrodAlgebra::AdemAlgebra(a) => a.decompose(op_deg, op_idx),
             SteenrodAlgebra::MilnorAlgebra(a) => a.decompose(op_deg, op_idx),
         }
     }
 
-    fn coproduct (&self, op_deg : i32, op_idx : usize) -> Vec<(i32, usize, i32, usize)> {
+    fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
         match self {
             SteenrodAlgebra::AdemAlgebra(a) => a.coproduct(op_deg, op_idx),
             SteenrodAlgebra::MilnorAlgebra(a) => a.coproduct(op_deg, op_idx),
@@ -84,65 +134,65 @@ impl Bialgebra for SteenrodAlgebra {
     }
 }
 
+#[cfg(feature = "json")]
 #[derive(Deserialize, Debug)]
 struct MilnorProfileOption {
-    truncated : Option<bool>,
-    q_part : Option<u32>,
-    p_part : Option<PPart>
+    truncated: Option<bool>,
+    q_part: Option<u32>,
+    p_part: Option<crate::algebra::milnor_algebra::PPart>,
 }
 
+#[cfg(feature = "json")]
 #[derive(Deserialize, Debug)]
 struct AlgebraSpec {
-    p : u32,
-    algebra : Option<Vec<String>>,
-    profile : Option<MilnorProfileOption>
+    p: ValidPrime,
+    algebra: Option<Vec<String>>,
+    profile: Option<MilnorProfileOption>,
 }
 
 impl SteenrodAlgebra {
-    pub fn prefix(&self) -> &str {
-        match self {
-            SteenrodAlgebra::AdemAlgebra(_) => "adem",
-            SteenrodAlgebra::MilnorAlgebra(_) => "milnor",
+    pub fn new(p: ValidPrime, algebra: AlgebraType) -> Self {
+        match algebra {
+            AlgebraType::Adem => {
+                SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, *p != 2, false, false))
+            }
+            AlgebraType::Milnor => SteenrodAlgebra::MilnorAlgebra(MilnorAlgebra::new(p)),
         }
     }
+}
 
-    pub fn from_json(json : &Value, algebra_name : &str) -> error::Result<SteenrodAlgebra> {
-        // This line secretly redefines the lifetime of algebra_name so that we can reassign it
-        // later on.
-        let mut algebra_name = algebra_name;
-        let spec : AlgebraSpec = serde_json::from_value(json.clone())?;
+#[cfg(feature = "json")]
+impl SteenrodAlgebra {
+    pub fn from_json(
+        json: &Value,
+        mut algebra_type: AlgebraType,
+    ) -> error::Result<SteenrodAlgebra> {
+        let spec: AlgebraSpec = AlgebraSpec::deserialize(json)?;
 
-        let p = ValidPrime::try_new(spec.p)
-            .ok_or_else(|| error::GenericError::new(format!("Invalid prime: {}", spec.p)))?;
-
-        if let Some(list) = spec.algebra.as_ref() {
+        if let Some(list) = spec.algebra {
+            let algebra_name = &algebra_type.to_string();
             if !list.iter().any(|x| x == algebra_name) {
                 println!("Module does not support algebra {}", algebra_name);
                 println!("Using {} instead", list[0]);
-                algebra_name = &list[0];
+                algebra_type = list[0].parse()?;
             }
         }
 
-        let algebra : SteenrodAlgebra;
-        match algebra_name {
-            "adem" => algebra = SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, *p != 2, false, false)),
-            "milnor" => {
-                let mut algebra_inner = MilnorAlgebra::new(p);
-                if let Some(profile) = spec.profile {
-                    if let Some(truncated) = profile.truncated {
-                        algebra_inner.profile.truncated = truncated;
-                    }
-                    if let Some(q_part) = profile.q_part {
-                        algebra_inner.profile.q_part = q_part;
-                    }
-                    if let Some(p_part) = profile.p_part {
-                        algebra_inner.profile.p_part = p_part;
-                    }
+        let mut algebra = Self::new(spec.p, algebra_type);
+
+        if let Self::MilnorAlgebra(inner) = &mut algebra {
+            if let Some(profile) = spec.profile {
+                if let Some(truncated) = profile.truncated {
+                    inner.profile.truncated = truncated;
                 }
-                algebra = SteenrodAlgebra::MilnorAlgebra(algebra_inner);
+                if let Some(q_part) = profile.q_part {
+                    inner.profile.q_part = q_part;
+                }
+                if let Some(p_part) = profile.p_part {
+                    inner.profile.p_part = p_part;
+                }
             }
-            _ => { return Err(InvalidAlgebraError { name : algebra_name.into() }.into()); }
-        };
+        }
         Ok(algebra)
     }
 
@@ -150,7 +200,7 @@ impl SteenrodAlgebra {
         match self {
             SteenrodAlgebra::MilnorAlgebra(a) => {
                 json["p"] = Value::from(*a.prime());
-                json["generic"] = Value::from(a.generic);
+                json["generic"] = Value::from(a.generic());
 
                 if !a.profile.is_trivial() {
                     json["algebra"] = Value::from(vec!["milnor"]);
@@ -174,19 +224,44 @@ impl SteenrodAlgebra {
     }
 }
 
-#[derive(Debug)]
-struct InvalidAlgebraError {
-    name : String
+macro_rules! dispatch_steenrod {
+    () => {};
+    ($vis:vis fn $method:ident$(<$($lt:lifetime),+>)?(&$($lt2:lifetime)?self$(, $arg:ident: $ty:ty )*$(,)?) $(-> $ret:ty)?; $($tail:tt)*) => {
+        $vis fn $method$(<$($lt),+>)?(&$($lt2)?self, $($arg: $ty),* ) $(-> $ret)* {
+            match self {
+                SteenrodAlgebra::AdemAlgebra(a) => a.$method($($arg),*),
+                SteenrodAlgebra::MilnorAlgebra(a) => a.$method($($arg),*),
+            }
+        }
+        dispatch_steenrod!{$($tail)*}
+    };
 }
 
-impl std::fmt::Display for InvalidAlgebraError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Invalid algebra: {}", &self.name)
+dispatch_algebra!(SteenrodAlgebra, dispatch_steenrod);
+
+#[cfg(feature = "json")]
+impl JsonAlgebra for SteenrodAlgebra {
+    dispatch_steenrod! {
+        fn prefix(&self) -> &str;
+        fn json_to_basis(&self, json: &serde_json::Value) -> error::Result<(i32, usize)>;
+        fn json_from_basis(&self, degree: i32, idx: usize) -> serde_json::Value;
     }
 }
 
-impl std::error::Error for InvalidAlgebraError {
-    fn description(&self) -> &str {
-        "Invalid algebra supplied"
+/// An algebra with a specified list of generators and generating relations. This data can be used
+/// to specify modules by specifying the actions of the generators.
+impl GeneratedAlgebra for SteenrodAlgebra {
+    dispatch_steenrod! {
+        fn generators(&self, degree: i32) -> Vec<usize>;
+        fn generator_to_string(&self, degree: i32, idx: usize) -> String;
+        fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> nom::IResult<&'b str, (i32, usize)>;
+
+        fn decompose_basis_element(
+            &self,
+            degree: i32,
+            idx: usize,
+        ) -> Vec<(u32, (i32, usize), (i32, usize))>;
+
+        fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>;
     }
 }

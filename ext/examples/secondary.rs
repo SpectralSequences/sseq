@@ -1,93 +1,66 @@
-use std::fs::File;
-use std::io::{BufReader, Write};
-use std::path::Path;
-use std::time::Instant;
+//! This computes $d_2$ differentials in the Adams spectral sequence. This only works for fairly
+//! specific modules, but tends to cover most cases of interest.
+//!
+//! In general, the set of possible $d_2$'s is a torsor over $\Ext^{2, 1}(M, M)$; the
+//! action of $\chi \in \Ext^{2, 1}(M, M)$ is given by adding $\chi$-multiplication
+//! to the $d_2$ map. This algorithm computes one possible set of $d_2$'s. If $\Ext^{2, 1}(M, M)$
+//! is non-zero, some differentials will have to be calculated by hand to determine the actual set
+//! of $d_2$'s.
+//!
+//! # Usage
+//! This asks for a module and a resolution in the usual way. It only works with the Milnor basis,
+//! and the `@milnor` modifier can be omitted.
+//!
+//! If `concurrent` is enabled, it also asks for a save file for the C function. Computing the C
+//! function is the most expensive part of the of the computation. If a save file is provided, we
+//! read existing computations from the save file and write new ones into it. The same save file
+//! can be reused for different ranges of the same module.
+//!
+//! # Output
+//! We omit differentials if the target bidegree is zero
 
-use algebra::module::homomorphism::ModuleHomomorphism;
-use ext::resolution::ResolutionInner;
-use ext::utils::construct_s_2;
+use ext::chain_complex::ChainComplex;
 
-use query::*;
-use saveload::Load;
+use ext::secondary::*;
+use ext::utils::query_module;
 
-#[cfg(feature = "concurrent")]
-use thread_token::TokenBucket;
+fn main() -> error::Result {
+    let data = query_module(Some(algebra::AlgebraType::Milnor))?;
+    let resolution = data.resolution;
 
-fn main() -> error::Result<()> {
-    let mut resolution = construct_s_2("milnor");
-
-    let max_s = query_with_default("Max s", "7", Ok);
-    let max_t = query_with_default("Max t", "30", Ok);
-
-    let res_save_file: Option<String> = query_optional("Resolution save file", Ok);
     #[cfg(feature = "concurrent")]
-    let del_save_file: Option<String> = query_optional("Delta save file", Ok);
+    let del_save_file: Option<String> = query::optional("C save file", str::parse);
 
-    #[cfg(feature = "concurrent")]
-    let num_threads = query_with_default("Number of threads", "2", Ok);
-
-    if let Some(p) = res_save_file {
-        if Path::new(&*p).exists() {
-            print!("Loading saved resolution: ");
-            let start = Instant::now();
-            let f = File::open(&*p)?;
-            let mut f = BufReader::new(f);
-            resolution = ResolutionInner::load(&mut f, &resolution.complex())?;
-            println!("{:.2?}", start.elapsed());
-        }
+    if !can_compute(&resolution) {
+        eprintln!(
+            "Cannot compute d2 for the module {}",
+            resolution.complex().module(0)
+        );
+        return Ok(());
     }
-
-    let should_resolve = max_s > resolution.max_computed_homological_degree()
-        || max_t > resolution.max_computed_degree();
 
     #[cfg(not(feature = "concurrent"))]
-    let deltas = {
-        if should_resolve {
-            print!("Resolving module: ");
-            let start = Instant::now();
-            resolution.resolve_through_bidegree(max_s, max_t);
-            println!("{:.2?}", start.elapsed());
-        }
-
-        ext::secondary::compute_delta(&resolution, max_s, max_t)
-    };
+    let deltas = compute_delta(&resolution);
 
     #[cfg(feature = "concurrent")]
-    let deltas = {
-        let bucket = TokenBucket::new(num_threads);
+    let deltas = compute_delta_concurrent(&resolution, &data.bucket, del_save_file);
 
-        if should_resolve {
-            print!("Resolving module: ");
-            let start = Instant::now();
-            resolution.resolve_through_bidegree_concurrent(max_s, max_t, &bucket);
-            println!("{:.2?}", start.elapsed());
+    // Iterate through target of the d2
+    for (s, n, t) in resolution.iter_stem() {
+        if s < 3 {
+            continue;
         }
+        if resolution.module(s).number_of_gens_in_degree(t) == 0 {
+            continue;
+        }
+        let delta = &deltas[s as usize - 3];
+        if t >= delta.next_degree() {
+            continue;
+        }
+        let d = delta.hom_k(t - 1);
 
-        ext::secondary::compute_delta_concurrent(&resolution, max_s, max_t, &bucket, del_save_file)
-    };
-
-    let mut filename = String::from("d2");
-    while Path::new(&filename).exists() {
-        filename.push('_');
-    }
-    let mut output = File::create(&filename).unwrap();
-
-    for f in 1..max_t {
-        for s in 1..(max_s - 1) {
-            let t = s as i32 + f;
-            if t >= max_t {
-                break;
-            }
-            let delta = &deltas[s as usize - 1];
-
-            if delta.source().number_of_gens_in_degree(t + 1) == 0 {
-                continue;
-            }
-            let d = delta.hom_k(t);
-
-            for (i, entry) in d.into_iter().enumerate() {
-                writeln!(output, "d_2 x_({}, {}, {}) = {:?}", f, s, i, entry).unwrap();
-            }
+        for (i, entry) in d.into_iter().enumerate() {
+            println!("d_2 x_({}, {}, {}) = {:?}", n + 1, s - 2, i, entry);
         }
     }
     Ok(())

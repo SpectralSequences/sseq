@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::module::{BoundedModule, Module};
 use fp::matrix::Subspace;
 use fp::vector::{FpVector, Slice, SliceMut};
@@ -20,7 +19,7 @@ pub struct QuotientModule<M: Module> {
 }
 
 impl<M: Module> std::fmt::Display for QuotientModule<M> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Quotient of {}", self.module)
     }
 }
@@ -78,8 +77,14 @@ impl<M: Module> QuotientModule<M> {
         mod_degree: i32,
         mod_index: usize,
     ) {
-        self.module
-            .act_on_basis(result.copy(), coeff, op_degree, op_index, mod_degree, mod_index);
+        self.module.act_on_basis(
+            result.copy(),
+            coeff,
+            op_degree,
+            op_index,
+            mod_degree,
+            mod_index,
+        );
         self.reduce(op_degree + mod_degree, result)
     }
 

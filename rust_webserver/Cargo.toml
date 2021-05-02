@@ -7,39 +7,42 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bivec = { path = "ext/crates/bivec" }
-enum_dispatch = "=0.3.2"
-error = { path = "ext/crates/error" }
-fp = { path = "ext/crates/fp", features = ["json"], default-features = false }
-algebra = { path = "ext/crates/algebra", default-features = false }
-parking_lot = { version = "0.11", features = ["wasm-bindgen"] }
-ext = { path = "ext", default-features = false, features = ["extras", "yoneda"] }
+algebra = { path = "../ext/crates/algebra", default-features = false }
+bivec = { path = "../ext/crates/bivec", features = ["json"] }
+chart = { path = "../ext/crates/chart" }
+error = { path = "../ext/crates/error" }
+ext = { path = "../ext", default-features = false }
+fp = { path = "../ext/crates/fp", features = ["json"], default-features = false }
+once = { path = "../ext/crates/once" }
+thread-token = { path = "../ext/crates/thread-token", optional = true }
+
+enum_dispatch = "0.3"
+rustc-hash = "1.1.0"
 serde_json = "1.0.0"
 serde = { version = "1.0.0", features = ["derive"] }
-thread-token = { path = "ext/crates/thread-token", optional = true }
-chart = { path = "ext/crates/chart" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-time = "0.2.7"
+time = { git = "https://github.com/time-rs/time", rev = "b57628aa" }
 ws = "=0.9.1"
 textwrap = { version = "0.11.0", features = ["term_size"] }
-crossbeam-channel = { version = "0.5.0", optional = true }
+crossbeam-channel = "0.5.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # Match wasm-bindgen version with wasm-bindgen-cli
-wasm-bindgen = "=0.2.72"
+wasm-bindgen = "=0.2.73"
 js-sys = "0.3.0"
 
 [dev-dependencies]
-saveload = { path = "ext/crates/saveload" }
-algebra = { path = "ext/crates/algebra" }
+saveload = { path = "../ext/crates/saveload" }
+algebra = { path = "../ext/crates/algebra" }
+query = { path = "../ext/crates/query" }
 expect-test = "1.1.0"
 
 [features]
-default = ["odd-primes", "concurrent"]
+default = ["odd-primes"]
 cache-multiplication = ["ext/cache-multiplication"]
 odd-primes = ["fp/odd-primes", "ext/odd-primes", "algebra/odd-primes"]
-concurrent = ["thread-token", "ext/concurrent", "crossbeam-channel"]
+concurrent = ["thread-token", "ext/concurrent"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

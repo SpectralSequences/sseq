@@ -1,4 +1,3 @@
-#![cfg_attr(rustfmt, rustfmt_skip)]
 use crate::module::homomorphism::ModuleHomomorphism;
 use crate::module::TruncatedModule;
 use fp::matrix::{QuasiInverse, Subspace};
@@ -58,29 +57,32 @@ impl<F: ModuleHomomorphism> ModuleHomomorphism for TruncatedHomomorphism<F> {
         }
     }
 
-    fn kernel(&self, degree: i32) -> &Subspace {
+    fn image(&self, degree: i32) -> Option<&Subspace> {
         if degree > self.truncated_degree() {
-            unimplemented!();
+            None
+        } else {
+            self.f.image(degree)
+        }
+    }
+
+    fn kernel(&self, degree: i32) -> Option<&Subspace> {
+        if degree > self.truncated_degree() {
+            None
         } else {
             self.f.kernel(degree)
         }
     }
 
-    fn quasi_inverse(&self, degree: i32) -> &QuasiInverse {
+    fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {
         if degree > self.truncated_degree() {
-            unimplemented!();
-        //            Some(&QuasiInverse {
-        //                image : Some(Subspace::new(self.prime(), 0, self.t.dimension(degree))),
-        //                preimage : Matrix::new(self.prime(), self.s.dimension(degree - self.degree_shift()), 0)
-        //            })
+            None
         } else {
             self.f.quasi_inverse(degree)
         }
     }
 
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32) {
-        self.f
-            .compute_kernels_and_quasi_inverses_through_degree(degree);
+    fn compute_auxiliary_data_through_degree(&self, degree: i32) {
+        self.f.compute_auxiliary_data_through_degree(degree);
     }
 }
 
@@ -121,29 +123,31 @@ impl<F: ModuleHomomorphism> ModuleHomomorphism for TruncatedHomomorphismSource<F
         }
     }
 
-    fn kernel(&self, degree: i32) -> &Subspace {
+    fn image(&self, degree: i32) -> Option<&Subspace> {
         if degree > self.truncated_degree() {
-            unimplemented!();
+            None
+        } else {
+            self.f.image(degree)
+        }
+    }
+
+    fn kernel(&self, degree: i32) -> Option<&Subspace> {
+        if degree > self.truncated_degree() {
+            None
         } else {
             self.f.kernel(degree)
         }
     }
 
-    fn quasi_inverse(&self, degree: i32) -> &QuasiInverse {
+    fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {
         if degree > self.truncated_degree() {
-            unimplemented!()
-        //            None
-        //            Some(&QuasiInverse {
-        //                image : Some(Subspace::new(self.prime(), 0, self.t.dimension(degree))),
-        //                preimage : Matrix::new(self.prime(), self.s.dimension(degree - self.degree_shift()), 0)
-        //            })
+            None
         } else {
             self.f.quasi_inverse(degree)
         }
     }
 
-    fn compute_kernels_and_quasi_inverses_through_degree(&self, degree: i32) {
-        self.f
-            .compute_kernels_and_quasi_inverses_through_degree(degree);
+    fn compute_auxiliary_data_through_degree(&self, degree: i32) {
+        self.f.compute_auxiliary_data_through_degree(degree);
     }
 }
