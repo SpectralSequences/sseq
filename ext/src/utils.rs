@@ -247,7 +247,7 @@ pub struct QueryModuleResult {
 pub fn query_module(algebra: Option<AlgebraType>) -> error::Result<QueryModuleResult> {
     let module: Config = query::with_default("Module", "S_2", |s| match algebra {
         Some(algebra) => (s, algebra).try_into(),
-        None => (&*s).try_into(),
+        None => s.try_into(),
     });
 
     // Clippy false positive
