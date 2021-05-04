@@ -96,39 +96,85 @@ where
     /// Extend the resolution homomorphism such that it is defined on degrees
     /// (`max_s`, `max_t`).
     pub fn extend(&self, max_s: u32, max_t: i32) {
-        self.get_map_ensure_length(max_s);
-        for s in self.shift_s..=max_s {
-            let f_cur = self.get_map_ensure_length(s);
-            for t in f_cur.next_degree()..=max_t {
-                self.extend_step(s, t, None);
-            }
-        }
+        self.extend_profile(max_s, |_s| max_t)
+    }
+
+    #[cfg(feature = "concurrent")]
+    pub fn extend_concurrent(&self, max_s: u32, max_t: i32, bucket: &TokenBucket) {
+        self.extend_profile_concurrent(max_s, |_s| max_t as i32, bucket)
     }
 
     pub fn extend_through_stem(&self, max_s: u32, max_n: i32) {
+        self.extend_profile(max_s, |s| max_n + s as i32)
+    }
+
+    #[cfg(feature = "concurrent")]
+    pub fn extend_through_stem_concurrent(&self, max_s: u32, max_n: i32, bucket: &TokenBucket) {
+        self.extend_profile_concurrent(max_s, |s| max_n + s as i32, bucket)
+    }
+
+    pub fn extend_all(&self) {
+        self.extend_profile(
+            std::cmp::min(
+                self.target.max_homological_degree() + self.shift_s,
+                self.source.max_homological_degree(),
+            ),
+            |s| {
+                std::cmp::min(
+                    self.target.module(s - self.shift_s).max_computed_degree() + self.shift_t,
+                    self.source.module(s).max_computed_degree(),
+                )
+            },
+        );
+    }
+
+    #[cfg(feature = "concurrent")]
+    pub fn extend_all_concurrent(&self, bucket: &TokenBucket) {
+        self.extend_profile_concurrent(
+            std::cmp::min(
+                self.target.max_homological_degree() + self.shift_s,
+                self.source.max_homological_degree(),
+            ),
+            |s| {
+                std::cmp::min(
+                    self.target.module(s - self.shift_s).max_computed_degree() + self.shift_t,
+                    self.source.module(s).max_computed_degree(),
+                )
+            },
+            bucket,
+        );
+    }
+
+    pub fn extend_profile(&self, max_s: u32, mut max_t: impl FnMut(u32) -> i32) {
         self.get_map_ensure_length(max_s);
         for s in self.shift_s..=max_s {
             let f_cur = self.get_map_ensure_length(s);
-            for t in f_cur.next_degree()..=(max_n + s as i32) {
+            for t in f_cur.next_degree()..=max_t(s) {
                 self.extend_step(s, t, None);
             }
         }
     }
 
     #[cfg(feature = "concurrent")]
-    pub fn extend_through_stem_concurrent(&self, max_s: u32, max_n: i32, bucket: &TokenBucket) {
+    pub fn extend_profile_concurrent(
+        &self,
+        max_s: u32,
+        max_t: impl Fn(u32) -> i32 + Send + Clone,
+        bucket: &TokenBucket,
+    ) {
         self.get_map_ensure_length(max_s);
         crossbeam_utils::thread::scope(|scope| {
             let mut last_receiver: Option<Receiver<()>> = None;
             for s in self.shift_s..=max_s {
                 let (sender, receiver) = unbounded();
+                let max_t = max_t.clone();
                 scope
                     .builder()
                     .name(format!("s = {}", s))
                     .spawn(move |_| {
                         let mut token = bucket.take_token();
                         sender.send(()).ok();
-                        for t in self.source.min_degree()..=(max_n + s as i32) {
+                        for t in self.source.min_degree()..=max_t(s) {
                             token = bucket.recv_or_release(token, &last_receiver);
                             self.extend_step(s, t, None);
                             sender.send(()).ok();
