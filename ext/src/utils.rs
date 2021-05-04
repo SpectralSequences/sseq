@@ -14,7 +14,7 @@ use std::sync::Arc;
 const STATIC_MODULES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../ext/steenrod_modules");
 
 /// A config object is an object that specifies how a Steenrod module should be constructed.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Config {
     /// The json specification of the module
     pub module: Value,

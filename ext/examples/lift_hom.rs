@@ -68,33 +68,58 @@ fn main() -> error::Result {
     #[allow(clippy::redundant_closure)]
     let target_save_file = query::optional("Target save file", |s| File::open(s));
 
-    let (target, source) = match target_save_file {
-        Some(f) => (
-            construct(target, Some(f))?,
-            construct(
-                source,
-                #[allow(clippy::redundant_closure)]
-                Some(query::raw("Source save file", |s| File::open(s))),
-            )?,
-        ),
-        None => {
-            let s = query::with_default("Max target s", "10", str::parse);
-            let n: i32 = query::with_default("Max target n", "10", str::parse);
-            let (target, source) = (construct(target, None)?, construct(source, None)?);
+    let (target, source) = if target == source {
+        let target = match target_save_file {
+            Some(f) => construct(target, Some(f))?,
+            None => {
+                let s: u32 = query::with_default("Max target s", "10", str::parse);
+                let n: i32 = query::with_default("Max target n", "10", str::parse);
+                let target = construct(target, None)?;
 
-            #[cfg(feature = "concurrent")]
-            {
-                source.compute_through_stem_concurrent(s + shift_s, n + shift_n, &bucket);
-                target.compute_through_stem_concurrent(s, n, &bucket);
+                #[cfg(feature = "concurrent")]
+                target.compute_through_stem_concurrent(
+                    s + shift_s,
+                    n + std::cmp::max(0, shift_n),
+                    &bucket,
+                );
+
+                #[cfg(not(feature = "concurrent"))]
+                target.compute_through_stem(s + shift_s, n + std::cmp::max(0, shift_n));
+
+                target
             }
+        };
+        let target = Arc::new(target);
+        (Arc::clone(&target), target)
+    } else {
+        match target_save_file {
+            Some(f) => (
+                Arc::new(construct(target, Some(f))?),
+                Arc::new(construct(
+                    source,
+                    #[allow(clippy::redundant_closure)]
+                    Some(query::raw("Source save file", |s| File::open(s))),
+                )?),
+            ),
+            None => {
+                let s = query::with_default("Max target s", "10", str::parse);
+                let n: i32 = query::with_default("Max target n", "10", str::parse);
+                let (target, source) = (construct(target, None)?, construct(source, None)?);
 
-            #[cfg(not(feature = "concurrent"))]
-            {
-                source.compute_through_stem(s + shift_s, n + shift_n);
-                target.compute_through_stem(s, n);
+                #[cfg(feature = "concurrent")]
+                {
+                    source.compute_through_stem_concurrent(s + shift_s, n + shift_n, &bucket);
+                    target.compute_through_stem_concurrent(s, n, &bucket);
+                }
+
+                #[cfg(not(feature = "concurrent"))]
+                {
+                    source.compute_through_stem(s + shift_s, n + shift_n);
+                    target.compute_through_stem(s, n);
+                }
+
+                (Arc::new(target), Arc::new(source))
             }
-
-            (target, source)
         }
     };
 
@@ -102,13 +127,7 @@ fn main() -> error::Result {
     let p = source.prime();
 
     let target_module = target.complex().module(0);
-    let hom = ResolutionHomomorphism::new(
-        String::new(),
-        Arc::new(source),
-        Arc::new(target),
-        shift_s,
-        shift_t,
-    );
+    let hom = ResolutionHomomorphism::new(String::new(), source, target, shift_s, shift_t);
 
     eprintln!("\nInput Ext class to lift:");
     for output_t in 0..=target_module.max_degree() {

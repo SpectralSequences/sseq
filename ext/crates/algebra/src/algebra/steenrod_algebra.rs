@@ -17,7 +17,7 @@ pub trait SteenrodAlgebraT: Send + Sync + Algebra {
     fn steenrod_algebra(&self) -> SteenrodAlgebraBorrow;
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum AlgebraType {
     Adem,
     Milnor,
