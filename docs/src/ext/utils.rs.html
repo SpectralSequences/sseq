@@ -16,6 +16,7 @@
             ],
             macros: {
                 "\\Ext": "\\operatorname{Ext}",
+                "\\Hom": "\\operatorname{Hom}",
                 "\\Sq": "\\operatorname{Sq}",
                 "\\F": "\\mathbb{F}",
             }
@@ -396,7 +397,7 @@
 <span class="kw">const</span> <span class="ident">STATIC_MODULES_PATH</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="macro">concat</span><span class="macro">!</span>(<span class="macro">env</span><span class="macro">!</span>(<span class="string">&quot;CARGO_MANIFEST_DIR&quot;</span>), <span class="string">&quot;/../ext/steenrod_modules&quot;</span>);
 
 <span class="doccomment">/// A config object is an object that specifies how a Steenrod module should be constructed.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Config</span> {
     <span class="doccomment">/// The json specification of the module</span>
     <span class="kw">pub</span> <span class="ident">module</span>: <span class="ident">Value</span>,
@@ -629,7 +630,7 @@
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">query_module</span>(<span class="ident">algebra</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">AlgebraType</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">QueryModuleResult</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">module</span>: <span class="ident">Config</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Module&quot;</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">algebra</span> {
         <span class="prelude-val">Some</span>(<span class="ident">algebra</span>) <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">s</span>, <span class="ident">algebra</span>).<span class="ident">try_into</span>(),
-        <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">s</span>).<span class="ident">try_into</span>(),
+        <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">s</span>.<span class="ident">try_into</span>(),
     });
 
     <span class="comment">// Clippy false positive</span>

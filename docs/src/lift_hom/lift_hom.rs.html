@@ -16,6 +16,7 @@
             ],
             macros: {
                 "\\Ext": "\\operatorname{Ext}",
+                "\\Hom": "\\operatorname{Hom}",
                 "\\Sq": "\\operatorname{Sq}",
                 "\\F": "\\mathbb{F}",
             }
@@ -141,118 +142,256 @@
 <span id="115">115</span>
 <span id="116">116</span>
 <span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="doccomment">//! Given a homomorphism between two modules, this computes the induce map on Ext.</span>
+<span class="doccomment">//! Given an element in $\Ext(M, N)$, this computes the induced map $\Ext(N, k) \to \Ext(M, k)$</span>
+<span class="doccomment">//! given by composition.</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! It begins by asking for two modules, then the range to compute the map for. Afterwards, the</span>
-<span class="doccomment">//! user is prompted for the module homomorphism. Our notation is as follows:</span>
+<span class="doccomment">//! It begins by asking for the two modules $M$, $N$ and the $\Ext$ class. Afterwards, you may</span>
+<span class="doccomment">//! either supply save files for the two modules, or a range to compute the map for.</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//!  - `f` is the map between modules</span>
-<span class="doccomment">//!  - `F` is the induced map on Ext</span>
-<span class="doccomment">//!  - `x_(n, i)` is the ith basis element in the nth degree of the source module.</span>
+<span class="doccomment">//! Afterwards, the user is prompted for the Ext class. If $R_s$ is the $s$th term of the minimal</span>
+<span class="doccomment">//! resolution of $M$, the Ext class is given as an element of $\Hom_A(R_s, \Sigma^t N) =</span>
+<span class="doccomment">//! \Hom(\Ext^{s, *}(M, k)^\vee, \Sigma^t N)$.</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! Each prompt will be of the form `f(x_(n, i)) = ` and the user has to input the value of the</span>
+<span class="doccomment">//! In other words, for every basis element in $\Ext^{s, *}(M, k)$, one has to specify its image in</span>
+<span class="doccomment">//! $\Sigma^t N$. In the special case where $s = 0$, this is specifying the map between the</span>
+<span class="doccomment">//! underlying modules on module generators under the Steenrod action.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Our notation is as follows:</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//!  - `f` is the map in $\Hom_A(R_s, \Sigma^t N)$.</span>
+<span class="doccomment">//!  - `F` is the induced map on Ext.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Each prompt will be of the form `f(x_(s, n, i)) = ` and the user has to input the value of the</span>
 <span class="doccomment">//! homomorphism on this basis element. For example, the following session computes the map induced</span>
 <span class="doccomment">//! by the projection of spectra $C2 \to S^1$</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! ```text</span>
 <span class="doccomment">//!  $ cargo run --example lift_hom</span>
-<span class="doccomment">//! Target module (default: S_2): C2@milnor</span>
-<span class="doccomment">//! Source module (default: Cnu): S_2[1]@milnor</span>
-<span class="doccomment">//! Max s (default: 2): 10</span>
-<span class="doccomment">//! Max n (default: 7): 20</span>
+<span class="doccomment">//! Target module (default: S_2): C2</span>
+<span class="doccomment">//! Source module (default: Cnu): S_2</span>
+<span class="doccomment">//! s of Ext class (default: 0): 0</span>
+<span class="doccomment">//! n of Ext class (default: 0): -1</span>
+<span class="doccomment">//! Target save file (optional):</span>
+<span class="doccomment">//! Max target s (default: 10): 10</span>
+<span class="doccomment">//! Max target n (default: 10): 20</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Input module homomorphism to lift:</span>
-<span class="doccomment">//! f(x_(1, 0)): [1]</span>
+<span class="doccomment">//! f(x_(0, 0, 0)): [1]</span>
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! It is important to keep track of varaince when using this module; Both $\Ext(-, k)$ and</span>
+<span class="doccomment">//! It is important to keep track of varaince when using this example; Both $\Ext(-, k)$ and</span>
 <span class="doccomment">//! $H^*(-)$ are contravariant functors. The words &quot;source&quot; and &quot;target&quot; refer to the map between</span>
 <span class="doccomment">//! Steenrod modules.</span>
 
-<span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::<span class="ident">BoundedModuleHomomorphism</span>;
-<span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">JsonAlgebra</span>;
+<span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>};
 <span class="kw">use</span> <span class="ident">ext</span>::<span class="ident">chain_complex</span>::<span class="ident">ChainComplex</span>;
 <span class="kw">use</span> <span class="ident">ext</span>::<span class="ident">resolution_homomorphism</span>::<span class="ident">ResolutionHomomorphism</span>;
-<span class="kw">use</span> <span class="ident">ext</span>::<span class="ident">utils</span>::<span class="ident">construct</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
+<span class="kw">use</span> <span class="ident">ext</span>::<span class="ident">utils</span>::{<span class="ident">construct</span>, <span class="ident">Config</span>};
+<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">matrix</span>::<span class="ident">Matrix</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">convert</span>::<span class="ident">TryInto</span>;
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fs</span>::<span class="ident">File</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>};
 
 <span class="kw">fn</span> <span class="ident">main</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span> {
-    <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Target module&quot;</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> <span class="ident">construct</span>(<span class="ident">name</span>, <span class="prelude-val">None</span>));
-    <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Source module&quot;</span>, <span class="string">&quot;Cnu&quot;</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> {
-        <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="ident">construct</span>((<span class="ident">name</span>, <span class="ident">target</span>.<span class="ident">algebra</span>().<span class="ident">prefix</span>()), <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
-        <span class="kw">if</span> <span class="ident">source</span>.<span class="ident">prime</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">target</span>.<span class="ident">prime</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">String</span>::<span class="ident">from</span>(<span class="string">&quot;Source and target must have the same prime&quot;</span>));
+    <span class="kw">let</span> <span class="ident">target</span>: <span class="ident">Config</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Target module&quot;</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> {
+        <span class="kw">let</span> <span class="ident">target</span>: <span class="ident">Config</span> <span class="op">=</span> <span class="ident">name</span>.<span class="ident">try_into</span>()<span class="question-mark">?</span>;
+        <span class="kw">match</span> <span class="ident">target</span>.<span class="ident">module</span>[<span class="string">&quot;type&quot;</span>].<span class="ident">as_str</span>() {
+            <span class="prelude-val">Some</span>(<span class="string">&quot;finite dimensional module&quot;</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">target</span>),
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">String</span>::<span class="ident">from</span>(<span class="string">&quot;Target must be finite dimensional&quot;</span>)),
         }
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">source</span>.<span class="ident">complex</span>().<span class="ident">module</span>(<span class="number">0</span>).<span class="ident">is_fd_module</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">String</span>::<span class="ident">from</span>(<span class="string">&quot;Source must be finite dimensional&quot;</span>));
-        }
-        <span class="prelude-val">Ok</span>(<span class="ident">source</span>)
     });
 
-    <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Max s&quot;</span>, <span class="string">&quot;2&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>);
-    <span class="kw">let</span> <span class="ident">n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Max n&quot;</span>, <span class="string">&quot;7&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>);
+    <span class="kw">let</span> <span class="ident">source</span>: <span class="ident">Config</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Source module&quot;</span>, <span class="string">&quot;Cnu&quot;</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> <span class="ident">name</span>.<span class="ident">try_into</span>());
+
+    <span class="kw">let</span> <span class="ident">shift_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;s of Ext class&quot;</span>, <span class="string">&quot;0&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>);
+    <span class="kw">let</span> <span class="ident">shift_n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;n of Ext class&quot;</span>, <span class="string">&quot;0&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>);
+    <span class="kw">let</span> <span class="ident">shift_t</span> <span class="op">=</span> <span class="ident">shift_n</span> <span class="op">+</span> <span class="ident">shift_s</span> <span class="kw">as</span> <span class="ident">i32</span>;
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
     <span class="kw">let</span> <span class="ident">bucket</span> <span class="op">=</span> <span class="ident">ext</span>::<span class="ident">utils</span>::<span class="ident">query_bucket</span>();
 
-    <span class="kw">let</span> <span class="ident">source_module</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">complex</span>().<span class="ident">module</span>(<span class="number">0</span>);
-    <span class="kw">let</span> <span class="ident">target_module</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">complex</span>().<span class="ident">module</span>(<span class="number">0</span>);
+    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">redundant_closure</span>)]</span>
+    <span class="kw">let</span> <span class="ident">target_save_file</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">optional</span>(<span class="string">&quot;Target save file&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">s</span>));
 
-    <span class="macro">eprintln</span><span class="macro">!</span>(<span class="string">&quot;\nInput module homomorphism to lift:&quot;</span>);
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">module_hom</span> <span class="op">=</span> <span class="ident">BoundedModuleHomomorphism</span>::<span class="ident">new</span>(<span class="ident">source_module</span>, <span class="ident">target_module</span>, <span class="number">0</span>);
-    <span class="kw">for</span> (<span class="ident">t</span>, <span class="ident">matrix</span>) <span class="kw">in</span> <span class="ident">module_hom</span>.<span class="ident">matrices</span>.<span class="ident">iter_mut_enum</span>() {
-        <span class="kw">if</span> <span class="ident">matrix</span>.<span class="ident">columns</span>() <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-            <span class="kw">continue</span>;
-        }
-        <span class="kw">for</span> (<span class="ident">idx</span>, <span class="ident">row</span>) <span class="kw">in</span> <span class="ident">matrix</span>.<span class="ident">iter_mut</span>().<span class="ident">enumerate</span>() {
-            <span class="kw">let</span> <span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">raw</span>(<span class="kw-2">&amp;</span><span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;f(x_({}, {}))&quot;</span>, <span class="ident">t</span>, <span class="ident">idx</span>), <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-                <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">s</span>[<span class="number">1</span>..<span class="ident">s</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>]
-                    .<span class="ident">split</span>(<span class="string">&#39;,&#39;</span>)
-                    .<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">parse</span>::<span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">to_string</span>()))
-                    .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>()<span class="question-mark">?</span>;
-                <span class="kw">if</span> <span class="ident">v</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">row</span>.<span class="ident">len</span>() {
-                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">format</span><span class="macro">!</span>(
-                        <span class="string">&quot;Target has dimension {} but {} coordinates supplied&quot;</span>,
-                        <span class="ident">row</span>.<span class="ident">len</span>(),
-                        <span class="ident">v</span>.<span class="ident">len</span>()
-                    ));
+    <span class="kw">let</span> (<span class="ident">target</span>, <span class="ident">source</span>) <span class="op">=</span> <span class="kw">if</span> <span class="ident">target</span> <span class="op">=</span><span class="op">=</span> <span class="ident">source</span> {
+        <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">target_save_file</span> {
+            <span class="prelude-val">Some</span>(<span class="ident">f</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">construct</span>(<span class="ident">target</span>, <span class="prelude-val">Some</span>(<span class="ident">f</span>))<span class="question-mark">?</span>,
+            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">let</span> <span class="ident">s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Max target s&quot;</span>, <span class="string">&quot;10&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>);
+                <span class="kw">let</span> <span class="ident">n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Max target n&quot;</span>, <span class="string">&quot;10&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>);
+                <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">construct</span>(<span class="ident">target</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
+
+                <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
+                <span class="ident">target</span>.<span class="ident">compute_through_stem_concurrent</span>(
+                    <span class="ident">s</span> <span class="op">+</span> <span class="ident">shift_s</span>,
+                    <span class="ident">n</span> <span class="op">+</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">max</span>(<span class="number">0</span>, <span class="ident">shift_n</span>),
+                    <span class="kw-2">&amp;</span><span class="ident">bucket</span>,
+                );
+
+                <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
+                <span class="ident">target</span>.<span class="ident">compute_through_stem</span>(<span class="ident">s</span> <span class="op">+</span> <span class="ident">shift_s</span>, <span class="ident">n</span> <span class="op">+</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">max</span>(<span class="number">0</span>, <span class="ident">shift_n</span>));
+
+                <span class="ident">target</span>
+            }
+        };
+        <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">target</span>);
+        (<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">target</span>), <span class="ident">target</span>)
+    } <span class="kw">else</span> {
+        <span class="kw">match</span> <span class="ident">target_save_file</span> {
+            <span class="prelude-val">Some</span>(<span class="ident">f</span>) <span class="op">=</span><span class="op">&gt;</span> (
+                <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">construct</span>(<span class="ident">target</span>, <span class="prelude-val">Some</span>(<span class="ident">f</span>))<span class="question-mark">?</span>),
+                <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">construct</span>(
+                    <span class="ident">source</span>,
+                    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">redundant_closure</span>)]</span>
+                    <span class="prelude-val">Some</span>(<span class="ident">query</span>::<span class="ident">raw</span>(<span class="string">&quot;Source save file&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">s</span>))),
+                )<span class="question-mark">?</span>),
+            ),
+            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Max target s&quot;</span>, <span class="string">&quot;10&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>);
+                <span class="kw">let</span> <span class="ident">n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">with_default</span>(<span class="string">&quot;Max target n&quot;</span>, <span class="string">&quot;10&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>);
+                <span class="kw">let</span> (<span class="ident">target</span>, <span class="ident">source</span>) <span class="op">=</span> (<span class="ident">construct</span>(<span class="ident">target</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>, <span class="ident">construct</span>(<span class="ident">source</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>);
+
+                <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
+                {
+                    <span class="ident">source</span>.<span class="ident">compute_through_stem_concurrent</span>(<span class="ident">s</span> <span class="op">+</span> <span class="ident">shift_s</span>, <span class="ident">n</span> <span class="op">+</span> <span class="ident">shift_n</span>, <span class="kw-2">&amp;</span><span class="ident">bucket</span>);
+                    <span class="ident">target</span>.<span class="ident">compute_through_stem_concurrent</span>(<span class="ident">s</span>, <span class="ident">n</span>, <span class="kw-2">&amp;</span><span class="ident">bucket</span>);
                 }
-                <span class="prelude-val">Ok</span>(<span class="ident">v</span>)
-            });
-            <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">x</span>) <span class="kw">in</span> <span class="ident">v</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-                <span class="ident">row</span>.<span class="ident">set_entry</span>(<span class="ident">i</span>, <span class="ident">x</span>);
+
+                <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
+                {
+                    <span class="ident">source</span>.<span class="ident">compute_through_stem</span>(<span class="ident">s</span> <span class="op">+</span> <span class="ident">shift_s</span>, <span class="ident">n</span> <span class="op">+</span> <span class="ident">shift_n</span>);
+                    <span class="ident">target</span>.<span class="ident">compute_through_stem</span>(<span class="ident">s</span>, <span class="ident">n</span>);
+                }
+
+                (<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">target</span>), <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">source</span>))
             }
         }
-    }
+    };
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    {
-        <span class="ident">source</span>.<span class="ident">compute_through_stem_concurrent</span>(<span class="ident">s</span>, <span class="ident">n</span>, <span class="kw-2">&amp;</span><span class="ident">bucket</span>);
-        <span class="ident">target</span>.<span class="ident">compute_through_stem_concurrent</span>(<span class="ident">s</span>, <span class="ident">n</span>, <span class="kw-2">&amp;</span><span class="ident">bucket</span>);
+    <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">source</span>.<span class="ident">prime</span>(), <span class="ident">target</span>.<span class="ident">prime</span>());
+    <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">prime</span>();
+
+    <span class="kw">let</span> <span class="ident">target_module</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">complex</span>().<span class="ident">module</span>(<span class="number">0</span>);
+    <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident">ResolutionHomomorphism</span>::<span class="ident">new</span>(<span class="ident">String</span>::<span class="ident">new</span>(), <span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">shift_s</span>, <span class="ident">shift_t</span>);
+
+    <span class="macro">eprintln</span><span class="macro">!</span>(<span class="string">&quot;\nInput Ext class to lift:&quot;</span>);
+    <span class="kw">for</span> <span class="ident">output_t</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">target_module</span>.<span class="ident">max_degree</span>() {
+        <span class="kw">let</span> <span class="ident">input_t</span> <span class="op">=</span> <span class="ident">output_t</span> <span class="op">+</span> <span class="ident">shift_t</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix</span>::<span class="ident">new</span>(
+            <span class="ident">p</span>,
+            <span class="ident">hom</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_bidegree</span>(<span class="ident">shift_s</span>, <span class="ident">input_t</span>),
+            <span class="ident">target_module</span>.<span class="ident">dimension</span>(<span class="ident">output_t</span>),
+        );
+
+        <span class="kw">if</span> <span class="ident">matrix</span>.<span class="ident">rows</span>() <span class="op">=</span><span class="op">=</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">matrix</span>.<span class="ident">columns</span>() <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+            <span class="ident">hom</span>.<span class="ident">extend_step</span>(<span class="ident">shift_s</span>, <span class="ident">input_t</span>, <span class="prelude-val">None</span>);
+        } <span class="kw">else</span> {
+            <span class="kw">for</span> (<span class="ident">idx</span>, <span class="ident">row</span>) <span class="kw">in</span> <span class="ident">matrix</span>.<span class="ident">iter_mut</span>().<span class="ident">enumerate</span>() {
+                <span class="kw">let</span> <span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="op">=</span>
+                    <span class="ident">query</span>::<span class="ident">raw</span>(<span class="kw-2">&amp;</span><span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;f(x_({}, {}, {}))&quot;</span>, <span class="ident">shift_s</span>, <span class="ident">input_t</span>, <span class="ident">idx</span>), <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
+                        <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">s</span>[<span class="number">1</span>..<span class="ident">s</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>]
+                            .<span class="ident">split</span>(<span class="string">&#39;,&#39;</span>)
+                            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">parse</span>::<span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">to_string</span>()))
+                            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>()<span class="question-mark">?</span>;
+                        <span class="kw">if</span> <span class="ident">v</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">row</span>.<span class="ident">len</span>() {
+                            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">format</span><span class="macro">!</span>(
+                                <span class="string">&quot;Target has dimension {} but {} coordinates supplied&quot;</span>,
+                                <span class="ident">row</span>.<span class="ident">len</span>(),
+                                <span class="ident">v</span>.<span class="ident">len</span>()
+                            ));
+                        }
+                        <span class="prelude-val">Ok</span>(<span class="ident">v</span>)
+                    });
+                <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">x</span>) <span class="kw">in</span> <span class="ident">v</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
+                    <span class="ident">row</span>.<span class="ident">set_entry</span>(<span class="ident">i</span>, <span class="ident">x</span>);
+                }
+            }
+            <span class="ident">hom</span>.<span class="ident">extend_step</span>(<span class="ident">shift_s</span>, <span class="ident">input_t</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">matrix</span>));
+        }
     }
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
-    {
-        <span class="ident">source</span>.<span class="ident">compute_through_stem</span>(<span class="ident">s</span>, <span class="ident">n</span>);
-        <span class="ident">target</span>.<span class="ident">compute_through_stem</span>(<span class="ident">s</span>, <span class="ident">n</span>);
-    }
-
-    <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident">ResolutionHomomorphism</span>::<span class="ident">from_module_homomorphism</span>(
-        <span class="ident">String</span>::<span class="ident">new</span>(),
-        <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">source</span>),
-        <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">target</span>),
-        <span class="kw-2">&amp;</span><span class="ident">module_hom</span>.<span class="ident">into</span>(),
-    );
-
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
-    <span class="ident">hom</span>.<span class="ident">extend_through_stem</span>(<span class="ident">s</span>, <span class="ident">n</span>);
+    <span class="ident">hom</span>.<span class="ident">extend_all</span>();
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    <span class="ident">hom</span>.<span class="ident">extend_through_stem_concurrent</span>(<span class="ident">s</span>, <span class="ident">n</span>, <span class="kw-2">&amp;</span><span class="ident">bucket</span>);
+    <span class="ident">hom</span>.<span class="ident">extend_all_concurrent</span>(<span class="kw-2">&amp;</span><span class="ident">bucket</span>);
 
     <span class="kw">for</span> (<span class="ident">s</span>, <span class="ident">n</span>, <span class="ident">t</span>) <span class="kw">in</span> <span class="ident">hom</span>.<span class="ident">target</span>.<span class="ident">iter_stem</span>() {
-        <span class="kw">let</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">hom</span>.<span class="ident">get_map</span>(<span class="ident">s</span>).<span class="ident">hom_k</span>(<span class="ident">t</span>);
+        <span class="kw">if</span> <span class="ident">s</span> <span class="op">+</span> <span class="ident">shift_s</span> <span class="op">&gt;</span> <span class="ident">hom</span>.<span class="ident">source</span>.<span class="ident">max_homological_degree</span>()
+            <span class="op">|</span><span class="op">|</span> <span class="ident">t</span> <span class="op">+</span> <span class="ident">shift_t</span> <span class="op">&gt;</span> <span class="ident">hom</span>.<span class="ident">source</span>.<span class="ident">module</span>(<span class="ident">s</span> <span class="op">+</span> <span class="ident">shift_s</span>).<span class="ident">max_computed_degree</span>()
+        {
+            <span class="kw">continue</span>;
+        }
+        <span class="kw">let</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">hom</span>.<span class="ident">get_map</span>(<span class="ident">s</span> <span class="op">+</span> <span class="ident">shift_s</span>).<span class="ident">hom_k</span>(<span class="ident">t</span>);
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">r</span>) <span class="kw">in</span> <span class="ident">matrix</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
             <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;F(x_({}, {}, {})) = {:?}&quot;</span>, <span class="ident">n</span>, <span class="ident">s</span>, <span class="ident">i</span>, <span class="ident">r</span>);
         }
