@@ -551,7 +551,7 @@ impl Sseq {
         self.page_data[x][y][r].clear_gens();
 
         let (target_classes, source_classes) = self.page_data.split_borrow_mut(tx, x);
-        let target_classes = &target_classes[ty][r - 1];
+        let target_classes = Self::get_page(r - 1, &target_classes[ty]);
         let source_classes = &mut source_classes[y];
 
         let d = &self.differentials[x][y][r - 1];
