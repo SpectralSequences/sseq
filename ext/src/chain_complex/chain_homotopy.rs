@@ -147,7 +147,7 @@ impl<
             }
 
             #[cfg(debug_assertions)]
-            if target_s > 0 {
+            if target_s > 0 && self.target.has_computed_bidegree(target_s - 1, target_t) {
                 let mut r = FpVector::new(p, self.target.module(target_s - 1).dimension(target_t));
                 self.target.differential(target_s).apply(
                     r.as_slice_mut(),
