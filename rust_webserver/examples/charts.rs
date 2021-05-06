@@ -101,7 +101,7 @@ fn main() -> error::Result<()> {
 
     sseq.refresh_all();
 
-    let mut write = |path, page, diff, prod| {
+    let write = |path, page, diff, prod| {
         const EXT: &str = Backend::<File>::EXT;
         let backend = Backend::new(File::create(format!(
             "{}_{}.{}",

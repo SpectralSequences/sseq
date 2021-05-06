@@ -85,12 +85,12 @@ impl Differential {
         }
     }
 
-    pub fn get_source_target_pairs(&mut self) -> Vec<(FpVector, FpVector)> {
+    pub fn get_source_target_pairs(&self) -> Vec<(FpVector, FpVector)> {
         let p = self.matrix.prime();
         let source_dim = self.source_dim;
         let target_dim = self.target_dim;
         self.matrix
-            .iter_mut()
+            .iter()
             .filter(|d| !d.is_zero())
             .map(|d| {
                 let mut source = FpVector::new(p, source_dim);
@@ -1143,9 +1143,8 @@ impl Sseq {
 }
 
 impl Sseq {
-    /// This doesn't actually modify the object
     pub fn write_to_graph<T: Backend>(
-        &mut self,
+        &self,
         mut g: T,
         r: i32,
         differentials: bool,
@@ -1204,7 +1203,7 @@ impl Sseq {
                     if self.differentials[x][y].len() <= r {
                         continue;
                     }
-                    let d = &mut self.differentials[x][y][r];
+                    let d = &self.differentials[x][y][r];
                     let target_data = Sseq::get_page(r, &self.page_data[tx][ty]);
 
                     let pairs = d
