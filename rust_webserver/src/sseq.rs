@@ -263,7 +263,7 @@ impl Sseq {
                     d.set_to_zero();
                 }
                 for page_data in self.page_data[x][y].iter_mut() {
-                    page_data.set_to_zero();
+                    page_data.set_to_full();
                 }
             }
         }
