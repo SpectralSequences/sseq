@@ -48,6 +48,7 @@ members = [
     "crates/thread-token",
     "crates/error",
     "crates/chart",
+    "crates/sseq",
 ]
 
 [[bench]]

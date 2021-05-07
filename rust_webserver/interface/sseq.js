@@ -392,10 +392,6 @@ export class ExtSseq extends EventEmitter {
         this.maxDegree = data.max_degree;
     }
 
-    processSetPageList(data) {
-        this.pageList = data.page_list;
-    }
-
     processSetClass(data) {
         let x = data.x;
         let y = data.y;
@@ -416,6 +412,9 @@ export class ExtSseq extends EventEmitter {
         let x = data.x;
         let y = data.y;
 
+        while (this.pageList.length <= data.differentials.length) {
+            this.pageList.push(this.pageList.length + 2);
+        }
         this.differentials.set(x, y, data.differentials);
         this.trueDifferentials.set(x, y, data.true_differentials);
         this.emit("update", x, y);

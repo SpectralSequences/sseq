@@ -420,6 +420,10 @@ impl<T> OnceBiVec<T> {
         self.data.get((index - self.min_degree) as usize)
     }
 
+    pub fn range(&self) -> std::ops::Range<i32> {
+        self.min_degree()..self.len()
+    }
+
     /// Extend the `OnceBiVec` to up to index `new_max`, filling in the entries with the values of
     /// `f`. This takes the lock before calling `f`, which is useful behaviour if used in
     /// conjunction with [`OnceBiVec::lock`].

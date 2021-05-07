@@ -1,5 +1,5 @@
 use crate::actions::*;
-use crate::sseq::Sseq;
+use crate::sseq::SseqWrapper;
 
 use crate::resolution_wrapper::Resolution;
 use algebra::{module::Module, JsonAlgebra};
@@ -249,8 +249,8 @@ impl ResolutionManager {
 /// `sender` should send the information to the display frontend.
 pub struct SseqManager {
     sender: Sender,
-    sseq: Option<Sseq>,
-    unit_sseq: Option<Sseq>,
+    sseq: Option<SseqWrapper>,
+    unit_sseq: Option<SseqWrapper>,
 }
 
 impl SseqManager {
@@ -293,6 +293,7 @@ impl SseqManager {
             _ => {
                 if let Some(sseq) = self.get_sseq(msg.sseq) {
                     msg.action.act_sseq(sseq);
+                    sseq.refresh();
                 }
             }
         };
@@ -307,7 +308,7 @@ impl SseqManager {
         Ok(user)
     }
 
-    fn get_sseq(&mut self, sseq: SseqChoice) -> Option<&mut Sseq> {
+    fn get_sseq(&mut self, sseq: SseqChoice) -> Option<&mut SseqWrapper> {
         match sseq {
             SseqChoice::Main => self.sseq.as_mut(),
             SseqChoice::Unit => self.unit_sseq.as_mut(),
@@ -318,7 +319,7 @@ impl SseqManager {
         if let Action::Resolving(m) = &msg.action {
             if self.sseq.is_none() {
                 let sender = self.sender.clone();
-                self.sseq = Some(Sseq::new(
+                self.sseq = Some(SseqWrapper::new(
                     m.p,
                     SseqChoice::Main,
                     m.min_degree,
@@ -327,7 +328,7 @@ impl SseqManager {
                 ));
 
                 let sender = self.sender.clone();
-                self.unit_sseq = Some(Sseq::new(m.p, SseqChoice::Unit, 0, 0, Some(sender)));
+                self.unit_sseq = Some(SseqWrapper::new(m.p, SseqChoice::Unit, 0, 0, Some(sender)));
             }
         }
         self.relay(msg)

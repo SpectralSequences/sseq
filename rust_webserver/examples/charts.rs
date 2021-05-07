@@ -1,8 +1,9 @@
 use chart::{Backend as _, TikzBackend as Backend};
 use ext::{chain_complex::ChainComplex, utils::construct};
 use ext_webserver::actions::SseqChoice;
-use ext_webserver::sseq::Sseq;
+use ext_webserver::sseq::SseqWrapper;
 use fp::{prime::ValidPrime, vector::FpVector};
+use sseq::Adams;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -41,7 +42,7 @@ fn main() -> error::Result<()> {
         println!("{:.2?}", start.elapsed());
     }
 
-    let mut sseq = Sseq::new(TWO, SseqChoice::Main, 0, 0, None);
+    let mut sseq = SseqWrapper::<Adams>::new(TWO, SseqChoice::Main, 0, 0, None);
 
     for i in 0..3 {
         sseq.add_product_type(&format!("h{}", i), (1 << i) - 1, 1, true, true);
@@ -49,7 +50,7 @@ fn main() -> error::Result<()> {
 
     for (s, n, t) in resolution.iter_stem() {
         let num_gens = resolution.module(s).number_of_gens_in_degree(t);
-        sseq.set_class(n, s as i32, num_gens);
+        sseq.set_dimension(n, s as i32, num_gens);
 
         for i in 0..3 {
             if let Some(products) = resolution.filtration_one_product(1 << i, 0, s, t) {
@@ -96,10 +97,16 @@ fn main() -> error::Result<()> {
         );
         v.add_basis_element(source_idx as usize, 1);
 
-        sseq.add_differential(2, source_x as i32, source_y as i32, &v, &target);
+        sseq.inner.add_differential(
+            2,
+            source_x as i32,
+            source_y as i32,
+            v.as_slice(),
+            target.as_slice(),
+        );
     }
 
-    sseq.refresh_all();
+    sseq.refresh();
 
     let write = |path, page, diff, prod| {
         const EXT: &str = Backend::<File>::EXT;

@@ -14,6 +14,7 @@ error = { path = "../ext/crates/error" }
 ext = { path = "../ext", default-features = false }
 fp = { path = "../ext/crates/fp", features = ["json"], default-features = false }
 once = { path = "../ext/crates/once" }
+sseq = { path = "../ext/crates/sseq" }
 thread-token = { path = "../ext/crates/thread-token", optional = true }
 
 enum_dispatch = "0.3"
@@ -36,7 +37,6 @@ js-sys = "0.3.0"
 saveload = { path = "../ext/crates/saveload" }
 algebra = { path = "../ext/crates/algebra" }
 query = { path = "../ext/crates/query" }
-expect-test = "1.1.0"
 
 [features]
 default = ["odd-primes"]

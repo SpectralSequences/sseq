@@ -197,9 +197,15 @@ fn main() -> error::Result {
     parse_matrix(projection_file, &mut projection, 0, "")?;
     parse_matrix(xa_d2_file, &mut xa_d2, 0, "")?;
 
-    alpha_d2.iter_mut().flatten().for_each(|m| m.row_reduce());
-    inclusion.iter_mut().flatten().for_each(|m| m.row_reduce());
-    projection.iter_mut().flatten().for_each(|m| m.row_reduce());
+    alpha_d2.iter_mut().flatten().for_each(|m| {
+        m.row_reduce();
+    });
+    inclusion.iter_mut().flatten().for_each(|m| {
+        m.row_reduce();
+    });
+    projection.iter_mut().flatten().for_each(|m| {
+        m.row_reduce();
+    });
 
     for (f, m) in alpha_d2.iter().enumerate() {
         if f + alpha_n + 1 > max_n {

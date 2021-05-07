@@ -176,6 +176,10 @@ impl Matrix {
         (padded_cols, m)
     }
 
+    pub fn is_zero(&self) -> bool {
+        self.vectors.iter().all(FpVector::is_zero)
+    }
+
     pub fn set_to_zero(&mut self) {
         for i in 0..self.rows() {
             self[i].set_to_zero();
@@ -405,6 +409,9 @@ impl Matrix {
     /// One has to call `fp_vector::initialize_limb_bit_index_table(p)`. This step will be skipped in
     /// future examples.
     ///
+    /// # Returns
+    /// The number of non-empty rows in the matrix
+    ///
     /// # Arguments
     ///  * `column_to_pivot_row` - A vector for the function to write the pivots into. The length
     ///  should be at least as long as the number of columns (and the extra entries are ignored).
@@ -427,7 +434,7 @@ impl Matrix {
     ///
     /// assert_eq!(m, Matrix::from_vec(p, &result));
     /// `#`#`
-    pub fn row_reduce(&mut self) {
+    pub fn row_reduce(&mut self) -> usize {
         let p = self.p;
         self.initialize_pivots();
 
@@ -504,10 +511,13 @@ impl Matrix {
                 *row = self.vectors.len() as isize - 1;
             }
         }
+
+        let num_rows = self.vectors.len();
         for row in empty_rows {
             self.vectors
                 .push(std::mem::replace(&mut old_rows[row], FpVector::new(p, 0)))
         }
+        num_rows
     }
 }
 
