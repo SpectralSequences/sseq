@@ -6,4 +6,5 @@ window.ALL_CRATES = ['algebra',
 'once',
 'query',
 'saveload',
+'sseq',
 'thread-token','ext'];

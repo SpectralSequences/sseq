@@ -1209,6 +1209,16 @@
 <span id="1182">1182</span>
 <span id="1183">1183</span>
 <span id="1184">1184</span>
+<span id="1185">1185</span>
+<span id="1186">1186</span>
+<span id="1187">1187</span>
+<span id="1188">1188</span>
+<span id="1189">1189</span>
+<span id="1190">1190</span>
+<span id="1191">1191</span>
+<span id="1192">1192</span>
+<span id="1193">1193</span>
+<span id="1194">1194</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">matrix</span>::<span class="ident">m4ri</span>::<span class="ident">M4riTable</span>;
@@ -1386,6 +1396,10 @@
         <span class="ident">m</span>.<span class="ident">slice_mut</span>(<span class="number">0</span>, <span class="ident">rows</span>, <span class="ident">padded_cols</span>, <span class="ident">padded_cols</span> <span class="op">+</span> <span class="ident">rows</span>)
             .<span class="ident">add_identity</span>();
         (<span class="ident">padded_cols</span>, <span class="ident">m</span>)
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_zero</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">iter</span>().<span class="ident">all</span>(<span class="ident">FpVector</span>::<span class="ident">is_zero</span>)
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_to_zero</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
@@ -1617,6 +1631,9 @@
     <span class="doccomment">/// One has to call `fp_vector::initialize_limb_bit_index_table(p)`. This step will be skipped in</span>
     <span class="doccomment">/// future examples.</span>
     <span class="doccomment">///</span>
+    <span class="doccomment">/// # Returns</span>
+    <span class="doccomment">/// The number of non-empty rows in the matrix</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// # Arguments</span>
     <span class="doccomment">///  * `column_to_pivot_row` - A vector for the function to write the pivots into. The length</span>
     <span class="doccomment">///  should be at least as long as the number of columns (and the extra entries are ignored).</span>
@@ -1639,7 +1656,7 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// assert_eq!(m, Matrix::from_vec(p, &amp;result));</span>
     <span class="doccomment">/// `#`#`</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">row_reduce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">row_reduce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">p</span>;
         <span class="self">self</span>.<span class="ident">initialize_pivots</span>();
 
@@ -1716,10 +1733,13 @@
                 <span class="kw-2">*</span><span class="ident">row</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">isize</span> <span class="op">-</span> <span class="number">1</span>;
             }
         }
+
+        <span class="kw">let</span> <span class="ident">num_rows</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">len</span>();
         <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="ident">empty_rows</span> {
             <span class="self">self</span>.<span class="ident">vectors</span>
                 .<span class="ident">push</span>(<span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">old_rows</span>[<span class="ident">row</span>], <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>)))
         }
+        <span class="ident">num_rows</span>
     }
 }
 

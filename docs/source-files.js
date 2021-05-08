@@ -22,6 +22,7 @@ sourcesIndex["resolve_through_stem"] = {"name":"","files":["resolve_through_stem
 sourcesIndex["save_bruner"] = {"name":"","files":["save_bruner.rs"]};
 sourcesIndex["saveload"] = {"name":"","files":["default_impl.rs","lib.rs"]};
 sourcesIndex["secondary"] = {"name":"","files":["secondary.rs"]};
+sourcesIndex["sseq"] = {"name":"","files":["bigraded.rs","differential.rs","lib.rs","sseq.rs"]};
 sourcesIndex["steenrod"] = {"name":"","files":["steenrod.rs"]};
 sourcesIndex["tensor"] = {"name":"","files":["tensor.rs"]};
 sourcesIndex["thread_token"] = {"name":"","files":["lib.rs"]};

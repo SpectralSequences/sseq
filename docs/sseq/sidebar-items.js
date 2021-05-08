@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["bigraded",""],["differential",""],["sseq",""]],"struct":[["Adams",""],["DenseBigradedModule",""],["Differential",""],["Sseq",""]],"trait":[["SseqProfile","The direction of the differentials"]]});
