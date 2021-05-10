@@ -99,27 +99,29 @@
 <span id="72">72</span>
 <span id="73">73</span>
 <span id="74">74</span>
+<span id="75">75</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">once</span>::<span class="ident">OnceBiVec</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">Ordering</span>::<span class="kw-2">*</span>;
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">DenseBigradedModule</span> {
     <span class="ident">dimensions</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">min_y</span>: <span class="ident">i32</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">DenseBigradedModule</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">min_x</span>: <span class="ident">i32</span>, <span class="ident">min_y</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">dimensions</span> <span class="op">=</span> <span class="ident">OnceBiVec</span>::<span class="ident">new</span>(<span class="ident">min_x</span>);
         <span class="ident">dimensions</span>.<span class="ident">push</span>(<span class="ident">OnceBiVec</span>::<span class="ident">new</span>(<span class="ident">min_y</span>));
-        <span class="self">Self</span> { <span class="ident">dimensions</span> }
+        <span class="self">Self</span> { <span class="ident">dimensions</span>, <span class="ident">min_y</span> }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">min_x</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">min_x</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
         <span class="self">self</span>.<span class="ident">dimensions</span>.<span class="ident">min_degree</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">min_y</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">dimensions</span>[<span class="number">0</span>].<span class="ident">min_degree</span>()
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">min_y</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+        <span class="self">self</span>.<span class="ident">min_y</span>
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_x</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
