@@ -374,7 +374,7 @@ impl<T> OnceBiVec<T> {
         Self::from_vec(data.min_degree(), data.into_vec())
     }
 
-    pub fn min_degree(&self) -> i32 {
+    pub const fn min_degree(&self) -> i32 {
         self.min_degree
     }
 
@@ -418,6 +418,10 @@ impl<T> OnceBiVec<T> {
 
     pub fn get(&self, index: i32) -> Option<&T> {
         self.data.get((index - self.min_degree) as usize)
+    }
+
+    pub fn range(&self) -> std::ops::Range<i32> {
+        self.min_degree()..self.len()
     }
 
     /// Extend the `OnceBiVec` to up to index `new_max`, filling in the entries with the values of

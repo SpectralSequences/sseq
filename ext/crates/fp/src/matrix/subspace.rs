@@ -53,10 +53,13 @@ impl Subspace {
     /// matrix is zero, i.e. the dimension of the current subspace is strictly less than the number
     /// of rows. This can be achieved by setting the number of rows to be the dimension plus one
     /// when creating the subspace.
-    pub fn add_vector(&mut self, row: Slice) {
+    ///
+    /// # Returns
+    /// The new dimension of the subspace
+    pub fn add_vector(&mut self, row: Slice) -> usize {
         let last_row = self.matrix.rows() - 1;
         self[last_row].as_slice_mut().assign(row);
-        self.row_reduce();
+        self.row_reduce()
     }
 
     pub fn add_vectors(&mut self, mut rows: impl std::iter::Iterator<Item = FpVector>) {
@@ -135,8 +138,8 @@ impl Subspace {
         }
     }
 
-    pub fn row_reduce(&mut self) {
-        self.matrix.row_reduce();
+    pub fn row_reduce(&mut self) -> usize {
+        self.matrix.row_reduce()
     }
 
     pub fn contains(&self, vector: Slice) -> bool {

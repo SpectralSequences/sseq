@@ -59,9 +59,10 @@ impl Subquotient {
         result
     }
 
-    pub fn set_to_zero(&mut self) {
+    /// Set the subquotient to be the full ambient space quotiented by zero
+    pub fn set_to_full(&mut self) {
         self.quotient.set_to_zero();
-        self.gens.set_to_zero();
+        self.gens.set_to_entire();
     }
 
     pub fn zeros(&self) -> &Subspace {

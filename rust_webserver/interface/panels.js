@@ -910,6 +910,10 @@ class ProductsPanel extends Panel {
             let page_idx = Math.min(matrices.length - 1, page - MIN_PAGE);
             let matrix = matrices[page_idx];
 
+            if (matrix.length === 0 || matrix[0].length == 0) {
+                continue;
+            }
+
             let node = document.createElement("div");
             node.style = "padding: 0.75rem 0";
             node.addEventListener("mouseover", () => {

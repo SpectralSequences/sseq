@@ -54,7 +54,7 @@ impl<T> BiVec<T> {
         }
     }
 
-    pub fn min_degree(&self) -> i32 {
+    pub const fn min_degree(&self) -> i32 {
         self.min_degree
     }
 
@@ -174,6 +174,28 @@ impl<T> BiVec<T> {
             let (f, s) = self.data.split_at_mut((j - min) as usize);
             (&mut f[(i - min) as usize], &mut s[0])
         }
+    }
+
+    pub fn range(&self) -> std::ops::Range<i32> {
+        self.min_degree..self.len()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a BiVec<T> {
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut BiVec<T> {
+    type Item = &'a mut T;
+    type IntoIter = std::slice::IterMut<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 

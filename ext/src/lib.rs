@@ -141,7 +141,7 @@
 //! | [differentials](../differentials/index.html) | Print all differentials in the minimal resolution. |
 //! | [filtration_one](../filtration_one/index.html) | Print all filtration one products. |
 //! | [hidden](../hidden/index.html) | Compute hidden extensions using the output of various other examples. |
-//! | [lift_hom](../lift_hom/index.html) | Compute the map on Ext induced by a module homomorphism. |
+//! | [lift_hom](../lift_hom/index.html) | Compute the map $\Ext(N, k) \to \Ext(M, k)$ induced by an element in $\Ext(M, N)$. |
 //! | [massey](../massey/index.html) | Compute Massey products. |
 //! | [num_gens](../num_gens/index.html) | Compute the dimension of Ext in each bidegree. |
 //! | [resolution_size](../resolution_size/index.html) | Compute the size of the minimal resolution in each bidegree |

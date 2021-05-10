@@ -120,8 +120,8 @@ fn main() -> error::Result {
             hom.extend_through_stem(tot_s, tot_n);
 
             let homotopy = ChainHomotopy::new(
-                Arc::clone(&resolution),
-                Arc::clone(&unit),
+                &*resolution,
+                &*unit,
                 s + b_s,
                 t + b_t,
                 |source_s, source_t, idx, row| {

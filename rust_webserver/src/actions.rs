@@ -1,5 +1,5 @@
 use crate::resolution_wrapper::Resolution;
-use crate::sseq::{ClassState, ProductItem, Sseq, INFINITY};
+use crate::sseq::{ClassState, ProductItem, SseqWrapper, INFINITY};
 use algebra::module::Module;
 use bivec::BiVec;
 use enum_dispatch::enum_dispatch;
@@ -87,7 +87,7 @@ pub enum Action {
 #[enum_dispatch(Action)]
 #[allow(unused_variables)]
 pub trait ActionT: std::fmt::Debug {
-    fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
+    fn act_sseq(&self, sseq: &mut SseqWrapper) -> Option<Message> {
         unimplemented!();
     }
     fn act_resolution(&self, resolution: &mut Resolution<CCC>) -> Option<Message> {
@@ -108,14 +108,15 @@ pub struct AddDifferential {
 }
 
 impl ActionT for AddDifferential {
-    fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
+    fn act_sseq(&self, sseq: &mut SseqWrapper) -> Option<Message> {
         sseq.add_differential_propagate(
             self.r,
             self.x,
             self.y,
-            &FpVector::from_slice(sseq.p, &self.source),
-            &Some(FpVector::from_slice(sseq.p, &self.target)),
+            FpVector::from_slice(sseq.p, &self.source).as_slice(),
+            Some(FpVector::from_slice(sseq.p, &self.target).as_slice()),
             0,
+            false,
         );
         None
     }
@@ -131,7 +132,7 @@ pub struct AddProductType {
 }
 
 impl ActionT for AddProductType {
-    fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
+    fn act_sseq(&self, sseq: &mut SseqWrapper) -> Option<Message> {
         sseq.add_product_type(&self.name, self.x, self.y, true, self.permanent);
         None
     }
@@ -155,14 +156,15 @@ pub struct AddPermanentClass {
 }
 
 impl ActionT for AddPermanentClass {
-    fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
+    fn act_sseq(&self, sseq: &mut SseqWrapper) -> Option<Message> {
         sseq.add_differential_propagate(
             INFINITY,
             self.x,
             self.y,
-            &FpVector::from_slice(sseq.p, &self.class),
-            &None,
+            FpVector::from_slice(sseq.p, &self.class).as_slice(),
+            None,
             0,
+            false,
         );
         None
     }
@@ -177,7 +179,7 @@ pub struct SetClassName {
 }
 
 impl ActionT for SetClassName {
-    fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
+    fn act_sseq(&self, sseq: &mut SseqWrapper) -> Option<Message> {
         sseq.set_class_name(self.x, self.y, self.idx, self.name.clone());
         None
     }
@@ -186,7 +188,7 @@ impl ActionT for SetClassName {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Clear {}
 impl ActionT for Clear {
-    fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
+    fn act_sseq(&self, sseq: &mut SseqWrapper) -> Option<Message> {
         sseq.clear();
         None
     }
@@ -207,14 +209,11 @@ pub struct BlockRefresh {
     block: bool,
 }
 impl ActionT for BlockRefresh {
-    fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
+    fn act_sseq(&self, sseq: &mut SseqWrapper) -> Option<Message> {
         if self.block {
             sseq.block_refresh += 1;
         } else {
             sseq.block_refresh -= 1;
-            if sseq.block_refresh == 0 {
-                sseq.refresh_all();
-            }
         }
         None
     }
@@ -228,8 +227,8 @@ pub struct AddClass {
 }
 
 impl ActionT for AddClass {
-    fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
-        sseq.set_class(self.x, self.y, self.num);
+    fn act_sseq(&self, sseq: &mut SseqWrapper) -> Option<Message> {
+        sseq.set_dimension(self.x, self.y, self.num);
         None
     }
 }
@@ -246,7 +245,7 @@ pub struct AddProduct {
 }
 
 impl ActionT for AddProduct {
-    fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
+    fn act_sseq(&self, sseq: &mut SseqWrapper) -> Option<Message> {
         sseq.add_product(
             &self.name,
             self.source_x,
@@ -267,7 +266,7 @@ pub struct AddProductDifferential {
 }
 
 impl ActionT for AddProductDifferential {
-    fn act_sseq(&self, sseq: &mut Sseq) -> Option<Message> {
+    fn act_sseq(&self, sseq: &mut SseqWrapper) -> Option<Message> {
         self.source.act_sseq(sseq);
         self.target.act_sseq(sseq);
         sseq.add_product_differential(&self.source.name, &self.target.name);

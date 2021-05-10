@@ -1,4 +1,4 @@
-use crate::chain_complex::{BoundedChainComplex, ChainComplex};
+use crate::chain_complex::{BoundedChainComplex, ChainComplex, ChainHomotopy};
 use crate::resolution::Resolution as Resolution_;
 use crate::utils::HashMapTuple;
 use crate::CCC;
@@ -6,7 +6,7 @@ use algebra::combinatorics;
 use algebra::milnor_algebra::{
     MilnorAlgebra as Algebra, MilnorBasisElement as MilnorElt, PPartAllocation, PPartMultiplier,
 };
-use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
+use algebra::module::homomorphism::FreeModuleHomomorphism;
 use algebra::module::{BoundedModule, FreeModule, Module};
 use algebra::{Algebra as _, MilnorAlgebraT, SteenrodAlgebra};
 use fp::prime::ValidPrime;
@@ -18,7 +18,7 @@ use std::hash::{BuildHasher, Hash, Hasher};
 #[cfg(feature = "concurrent")]
 use {
     bivec::BiVec,
-    crossbeam_channel::{unbounded, Receiver, RecvTimeoutError},
+    crossbeam_channel::{unbounded, RecvTimeoutError},
     saveload::{Load, Save},
     std::{
         io::{BufReader, BufWriter, Read, Write},
@@ -118,58 +118,11 @@ pub fn compute_delta(res: &Resolution) -> Vec<FMH> {
     if max_s < 2 {
         return vec![];
     }
-    let deltas = (3..=max_s)
-        .map(|s| FreeModuleHomomorphism::new(res.module(s), res.module(s - 2), 1))
-        .collect::<Vec<_>>();
-
-    let mut scratch = FpVector::new(TWO, 0);
-    for s in 3..=max_s {
-        let delta = &deltas[s as usize - 3];
-        let d = res.differential(s - 2);
-        let m = res.module(s);
-
-        delta.extend_by_zero(res.min_degree());
-        let max_t = std::cmp::min(
-            res.module(s).max_computed_degree(),
-            res.module(s - 2).max_computed_degree() + 1,
-        );
-
-        for t in res.min_degree() + 1..=max_t {
-            let num_gens = m.number_of_gens_in_degree(t);
-            let target_dim = res.module(s - 2).dimension(t - 1);
-            let mut results = vec![FpVector::new(TWO, target_dim); num_gens];
-
-            scratch.set_scratch_vector_size(res.module(s - 3).dimension(t - 1));
-            for (idx, result) in results.iter_mut().enumerate() {
-                compute_c(res, s, t, idx, &mut scratch);
-
-                if s > 3 {
-                    deltas[s as usize - 4].apply(
-                        scratch.as_slice_mut(),
-                        1,
-                        t,
-                        res.differential(s).output(t, idx).as_slice(),
-                    );
-                }
-
-                #[cfg(debug_assertions)]
-                if s > 3 {
-                    let mut r = FpVector::new(TWO, res.module(s - 4).dimension(t - 1));
-                    res.differential(s - 3)
-                        .apply(r.as_slice_mut(), 1, t - 1, scratch.as_slice());
-                    assert!(r.is_zero(), "dd != 0 at s = {}, t = {}", s, t);
-                }
-
-                d.quasi_inverse(t - 1)
-                    .unwrap()
-                    .apply(result.as_slice_mut(), 1, scratch.as_slice());
-                scratch.set_to_zero();
-            }
-            delta.add_generators_from_rows(t, results);
-        }
-    }
-
-    deltas
+    let deltas = ChainHomotopy::new(res, res, 3, 1, |s, t, i, result| {
+        compute_c(res, s, t, i, result);
+    });
+    deltas.extend_all();
+    deltas.into_homotopies().into_vec()
 }
 
 #[cfg(feature = "concurrent")]
@@ -308,7 +261,7 @@ pub fn compute_delta_concurrent(
                     let target_dim = res.module(s - 3).dimension(t - 1);
                     let mut result = FpVector::new(TWO, target_dim);
 
-                    compute_c(&*res, s, t, idx, &mut result);
+                    compute_c(&*res, s, t, idx, result.as_slice_mut());
 
                     if let Some(save_file) = &*save_file {
                         let mut sf = save_file.lock().unwrap();
@@ -342,88 +295,19 @@ pub fn compute_delta_concurrent(
 
     eprintln!("Computed A terms in {:.2?}", start.elapsed());
 
-    let ddeltas = ddeltas.into_inner().unwrap();
-    // We now compute the rest of the terms. This step is substantially faster than the previous
-    // step, so we don't have to be so careful about optimization (the cost is the cost of
-    // computing one product, which is not too much). To compute delta[s][t], we need to know
-    // delta[s - 1][k] for k < t. However, it is easier to require computing everything to the
-    // bottom and left of delta[s][t], so might as well do it that way.
+    let ddeltas = &*ddeltas.lock().unwrap();
 
     let start = std::time::Instant::now();
-
-    let deltas = (3..=max_s)
-        .map(|s| FreeModuleHomomorphism::new(res.module(s), res.module(s - 2), 1))
-        .collect::<Vec<_>>();
-
-    crossbeam_utils::thread::scope(|scope| {
-        let mut last_receiver: Option<Receiver<()>> = None;
-        for (s, ddeltas_) in ddeltas.into_iter().enumerate() {
-            let s = s as u32 + 3;
-
-            let (sender, receiver) = unbounded();
-
-            let source_d = res.differential(s);
-            let target_d = res.differential(s - 2);
-            let source_module = res.module(s);
-            let target_module = res.module(s - 2);
-
-            let deltas = &deltas;
-            scope.spawn(move |_| {
-                let delta = &deltas[s as usize - 3];
-
-                delta.extend_by_zero(min_degree + s as i32 - 1);
-                let mut token = bucket.take_token();
-                for (t, mut ddelta) in ddeltas_.into_iter_enum() {
-                    token = bucket.recv_or_release(token, &last_receiver);
-
-                    let num_gens = source_module.number_of_gens_in_degree(t);
-                    let target_dim = target_module.dimension(t - 1);
-                    let mut results = vec![FpVector::new(TWO, target_dim); num_gens];
-
-                    for (idx, result) in results.iter_mut().enumerate() {
-                        let row: &mut FpVector = ddelta[idx].as_mut().unwrap();
-                        if s > 3 {
-                            deltas[s as usize - 4].apply(
-                                row.as_slice_mut(),
-                                1,
-                                t,
-                                source_d.output(t, idx).as_slice(),
-                            );
-                        }
-
-                        #[cfg(debug_assertions)]
-                        if s > 3 && res.module(s - 4).max_computed_degree() >= t - 1 {
-                            let mut r = FpVector::new(TWO, res.module(s - 4).dimension(t - 1));
-                            res.differential(s - 3).apply(
-                                r.as_slice_mut(),
-                                1,
-                                t - 1,
-                                row.as_slice(),
-                            );
-                            assert!(r.is_zero(), "dd != 0 at s = {}, t = {}", s, t);
-                        }
-
-                        target_d.quasi_inverse(t - 1).unwrap().apply(
-                            result.as_slice_mut(),
-                            1,
-                            row.as_slice(),
-                        );
-                    }
-                    delta.add_generators_from_rows(t, results);
-                    // The last receiver will be dropped so the send will fail
-                    sender.send(()).ok();
-                }
-            });
-            last_receiver = Some(receiver);
-        }
-    })
-    .unwrap();
+    let deltas = ChainHomotopy::new(res, res, 3, 1, |s, t, i, mut result| {
+        result.assign(ddeltas[s as usize - 3][t][i].as_ref().unwrap().as_slice())
+    });
+    deltas.extend_all_concurrent(bucket);
     eprintln!("Computed δd terms in {:.2?}", start.elapsed());
-    deltas
+    deltas.into_homotopies().into_vec()
 }
 
 /// Computes $C(g_i) = A(c_i^j, dd g_j)$.
-fn compute_c(res: &Resolution, gen_s: u32, gen_t: i32, gen_idx: usize, result: &mut FpVector) {
+fn compute_c(res: &Resolution, gen_s: u32, gen_t: i32, gen_idx: usize, mut result: SliceMut) {
     let m = res.module(gen_s - 1);
 
     let d = res.differential(gen_s);
@@ -434,7 +318,7 @@ fn compute_c(res: &Resolution, gen_s: u32, gen_t: i32, gen_idx: usize, result: &
             let mut a_list = MilnorClass::from_module_row(&dg, &m, gen_t, t, idx);
 
             if !a_list.elements.is_empty() {
-                compute_a_dd(res, &mut a_list, gen_s - 1, t, idx, result);
+                compute_a_dd(res, &mut a_list, gen_s - 1, t, idx, result.copy());
             }
         }
     }
@@ -467,7 +351,7 @@ fn compute_a_dd(
     gen_s: u32,
     gen_t: i32,
     gen_idx: usize,
-    result: &mut FpVector,
+    mut result: SliceMut,
 ) {
     let target_deg = a_list.degree + gen_t - 1;
 
@@ -721,6 +605,7 @@ mod test {
     use super::*;
     use crate::utils::construct;
     use algebra::milnor_algebra::PPartEntry;
+    use algebra::module::homomorphism::ModuleHomomorphism;
     use expect_test::{expect, Expect};
     use std::fmt::Write;
 
@@ -806,7 +691,14 @@ mod test {
             let m = resolution.module(gen_s - 2);
 
             result.set_scratch_vector_size(m.dimension(target_deg));
-            compute_a_dd(&resolution, &mut a, gen_s, gen_t, gen_idx, &mut result);
+            compute_a_dd(
+                &resolution,
+                &mut a,
+                gen_s,
+                gen_t,
+                gen_idx,
+                result.as_slice_mut(),
+            );
             assert_eq!(
                 &m.element_to_string(target_deg, result.as_slice()),
                 ans,

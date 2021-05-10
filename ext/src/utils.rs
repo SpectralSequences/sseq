@@ -14,7 +14,7 @@ use std::sync::Arc;
 const STATIC_MODULES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../ext/steenrod_modules");
 
 /// A config object is an object that specifies how a Steenrod module should be constructed.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Config {
     /// The json specification of the module
     pub module: Value,
@@ -247,7 +247,7 @@ pub struct QueryModuleResult {
 pub fn query_module(algebra: Option<AlgebraType>) -> error::Result<QueryModuleResult> {
     let module: Config = query::with_default("Module", "S_2", |s| match algebra {
         Some(algebra) => (s, algebra).try_into(),
-        None => (&*s).try_into(),
+        None => s.try_into(),
     });
 
     // Clippy false positive
