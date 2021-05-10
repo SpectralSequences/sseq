@@ -54,7 +54,7 @@ impl<T> BiVec<T> {
         }
     }
 
-    pub fn min_degree(&self) -> i32 {
+    pub const fn min_degree(&self) -> i32 {
         self.min_degree
     }
 

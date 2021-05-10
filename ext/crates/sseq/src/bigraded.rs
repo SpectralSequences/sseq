@@ -3,21 +3,22 @@ use std::cmp::Ordering::*;
 
 pub struct DenseBigradedModule {
     dimensions: OnceBiVec<OnceBiVec<usize>>,
+    min_y: i32,
 }
 
 impl DenseBigradedModule {
     pub fn new(min_x: i32, min_y: i32) -> Self {
         let dimensions = OnceBiVec::new(min_x);
         dimensions.push(OnceBiVec::new(min_y));
-        Self { dimensions }
+        Self { dimensions, min_y }
     }
 
-    pub fn min_x(&self) -> i32 {
+    pub const fn min_x(&self) -> i32 {
         self.dimensions.min_degree()
     }
 
-    pub fn min_y(&self) -> i32 {
-        self.dimensions[0].min_degree()
+    pub const fn min_y(&self) -> i32 {
+        self.min_y
     }
 
     pub fn max_x(&self) -> i32 {

@@ -374,7 +374,7 @@ impl<T> OnceBiVec<T> {
         Self::from_vec(data.min_degree(), data.into_vec())
     }
 
-    pub fn min_degree(&self) -> i32 {
+    pub const fn min_degree(&self) -> i32 {
         self.min_degree
     }
 
