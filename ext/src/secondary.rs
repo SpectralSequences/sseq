@@ -119,7 +119,7 @@ pub fn compute_delta(res: &Resolution) -> Vec<FMH> {
         return vec![];
     }
     let deltas = ChainHomotopy::new(res, res, 3, 1, |s, t, i, result| {
-        compute_c(res, s, t, i, result);
+        compute_c(res, s, t, i, result.as_slice_mut());
     });
     deltas.extend_all();
     deltas.into_homotopies().into_vec()
@@ -298,10 +298,10 @@ pub fn compute_delta_concurrent(
     let ddeltas = &*ddeltas.lock().unwrap();
 
     let start = std::time::Instant::now();
-    let deltas = ChainHomotopy::new(res, res, 3, 1, |s, t, i, mut result| {
+    let deltas = ChainHomotopy::new(res, res, 3, 1, |s, t, i, result| {
         // If we are restoring old computations that used resolving up to a stem, then the ddeltas
         // may be shorter than the true ones.
-        result.assign_partial(ddeltas[s as usize - 3][t][i].as_ref().unwrap().as_slice())
+        result.assign_partial(&ddeltas[s as usize - 3][t][i].as_ref().unwrap())
     });
     deltas.extend_all_concurrent(bucket);
     eprintln!("Computed δd terms in {:.2?}", start.elapsed());

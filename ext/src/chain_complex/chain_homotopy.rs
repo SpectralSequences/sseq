@@ -2,7 +2,7 @@ use crate::chain_complex::{ChainComplex, FreeChainComplex};
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::Module;
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector, SliceMut};
+use fp::vector::FpVector;
 use once::OnceVec;
 use std::sync::Mutex;
 
@@ -16,8 +16,12 @@ use {
 /// a priori a collection of free module homomorphisms. However, instead of providing
 /// FreeModuleHomomorphism objects, the user is expected to give a function that computes the value
 /// of $h$ on each generator.
-pub struct ChainHomotopy<'a, S: FreeChainComplex, T: ChainComplex, F: Fn(u32, i32, usize, SliceMut)>
-{
+pub struct ChainHomotopy<
+    'a,
+    S: FreeChainComplex,
+    T: ChainComplex,
+    F: Fn(u32, i32, usize, &mut FpVector),
+> {
     source: &'a S,
     target: &'a T,
     /// The $s$ shift of the original chain map $f - g$.
@@ -35,7 +39,7 @@ impl<
         'a,
         S: FreeChainComplex,
         T: ChainComplex<Algebra = S::Algebra>,
-        F: Fn(u32, i32, usize, SliceMut),
+        F: Fn(u32, i32, usize, &mut FpVector),
     > ChainHomotopy<'a, S, T, F>
 {
     pub fn new(source: &'a S, target: &'a T, shift_s: u32, shift_t: i32, map: F) -> Self {
@@ -132,7 +136,7 @@ impl<
         scratch.set_scratch_vector_size(self.target.module(target_s).dimension(target_t));
 
         for (i, row) in outputs.iter_mut().enumerate() {
-            (self.map)(source_s, source_t, i, scratch.as_slice_mut());
+            (self.map)(source_s, source_t, i, scratch);
 
             if target_s > 0 {
                 self.homotopies[target_s as usize - 1].apply(
@@ -187,7 +191,7 @@ impl<
         'a,
         S: FreeChainComplex,
         T: ChainComplex<Algebra = S::Algebra> + Sync,
-        F: Fn(u32, i32, usize, SliceMut) + Sync,
+        F: Fn(u32, i32, usize, &mut FpVector) + Sync,
     > ChainHomotopy<'a, S, T, F>
 {
     #[cfg(feature = "concurrent")]
