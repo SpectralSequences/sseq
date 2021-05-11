@@ -278,6 +278,13 @@ impl<const P: u32> FpVectorP<P> {
         self.limbs.copy_from_slice(&other.limbs)
     }
 
+    /// A version of [`FpVectorP::assign`] that allows `other` to be shorter than `self`.
+    pub fn assign_partial(&mut self, other: &Self) {
+        self.limbs.clear();
+        self.limbs.extend_from_slice(&other.limbs);
+        self.len = other.len;
+    }
+
     pub fn is_zero(&self) -> bool {
         self.limbs.iter().all(|&x| x == 0)
     }

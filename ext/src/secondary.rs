@@ -299,7 +299,9 @@ pub fn compute_delta_concurrent(
 
     let start = std::time::Instant::now();
     let deltas = ChainHomotopy::new(res, res, 3, 1, |s, t, i, mut result| {
-        result.assign(ddeltas[s as usize - 3][t][i].as_ref().unwrap().as_slice())
+        // If we are restoring old computations that used resolving up to a stem, then the ddeltas
+        // may be shorter than the true ones.
+        result.assign_partial(ddeltas[s as usize - 3][t][i].as_ref().unwrap().as_slice())
     });
     deltas.extend_all_concurrent(bucket);
     eprintln!("Computed δd terms in {:.2?}", start.elapsed());
