@@ -1,7 +1,7 @@
 use chart::{Backend as _, TikzBackend as Backend};
 use ext::{chain_complex::ChainComplex, utils::construct};
-use ext_webserver::actions::SseqChoice;
-use ext_webserver::sseq::SseqWrapper;
+use rust_webserver::actions::SseqChoice;
+use rust_webserver::sseq::SseqWrapper;
 use fp::{prime::ValidPrime, vector::FpVector};
 use sseq::Adams;
 use std::fs::File;

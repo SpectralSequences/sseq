@@ -130,7 +130,7 @@ jobs:
         run: make -C rust_webserver wasm
 
       - name: Benchmark wasm size
-        run: ls -l rust_webserver/dist/ext_webserver_wasm_bg.wasm
+        run: ls -l rust_webserver/dist/rust_webserver_wasm_bg.wasm
 
       - name: Upload webserver
         uses: actions/upload-artifact@v2
