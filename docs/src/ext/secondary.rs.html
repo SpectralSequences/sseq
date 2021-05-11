@@ -814,6 +814,8 @@
 <span id="787">787</span>
 <span id="788">788</span>
 <span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
 </pre><pre class="rust">
 <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::chain_complex</span>::{<span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">ChainHomotopy</span>};
 <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::resolution::Resolution</span> <span class="kw">as</span> <span class="ident">Resolution_</span>;
@@ -936,7 +938,7 @@
         <span class="kw">return</span> <span class="macro">vec!</span>[];
     }
     <span class="kw">let</span> <span class="ident">deltas</span> <span class="op">=</span> <span class="ident">ChainHomotopy::new</span>(<span class="ident">res</span>, <span class="ident">res</span>, <span class="number">3</span>, <span class="number">1</span>, <span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>, <span class="ident">result</span><span class="op">|</span> {
-        <span class="ident">compute_c</span>(<span class="ident">res</span>, <span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>, <span class="ident">result</span>);
+        <span class="ident">compute_c</span>(<span class="ident">res</span>, <span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>, <span class="ident">result</span>.<span class="ident">as_slice_mut</span>());
     });
     <span class="ident">deltas</span>.<span class="ident">extend_all</span>();
     <span class="ident">deltas</span>.<span class="ident">into_homotopies</span>().<span class="ident">into_vec</span>()
@@ -1115,8 +1117,10 @@
     <span class="kw">let</span> <span class="ident">ddeltas</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">ddeltas</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>();
 
     <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">std::time::Instant::now</span>();
-    <span class="kw">let</span> <span class="ident">deltas</span> <span class="op">=</span> <span class="ident">ChainHomotopy::new</span>(<span class="ident">res</span>, <span class="ident">res</span>, <span class="number">3</span>, <span class="number">1</span>, <span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>, <span class="kw-2">mut</span> <span class="ident">result</span><span class="op">|</span> {
-        <span class="ident">result</span>.<span class="ident">assign</span>(<span class="ident">ddeltas</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="number">3</span>][<span class="ident">t</span>][<span class="ident">i</span>].<span class="ident">as_ref</span>().<span class="ident">unwrap</span>().<span class="ident">as_slice</span>())
+    <span class="kw">let</span> <span class="ident">deltas</span> <span class="op">=</span> <span class="ident">ChainHomotopy::new</span>(<span class="ident">res</span>, <span class="ident">res</span>, <span class="number">3</span>, <span class="number">1</span>, <span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>, <span class="ident">result</span><span class="op">|</span> {
+        <span class="comment">// If we are restoring old computations that used resolving up to a stem, then the ddeltas</span>
+        <span class="comment">// may be shorter than the true ones.</span>
+        <span class="ident">result</span>.<span class="ident">assign_partial</span>(<span class="kw-2">&amp;</span><span class="ident">ddeltas</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="number">3</span>][<span class="ident">t</span>][<span class="ident">i</span>].<span class="ident">as_ref</span>().<span class="ident">unwrap</span>())
     });
     <span class="ident">deltas</span>.<span class="ident">extend_all_concurrent</span>(<span class="ident">bucket</span>);
     <span class="macro">eprintln!</span>(<span class="string">&quot;Computed δd terms in {:.2?}&quot;</span>, <span class="ident">start</span>.<span class="ident">elapsed</span>());
