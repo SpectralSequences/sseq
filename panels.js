@@ -1,6 +1,6 @@
 'use strict';
 
-import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE, STATE_QUERY_COCYCLE_STRING } from "./display.js";
+import { STATE_ADD_DIFFERENTIAL } from "./display.js";
 import { rowToKaTeX, rowToLaTeX, matrixToKaTeX, vecToName } from "./utils.js";
 import { MIN_PAGE } from "./sseq.js";
 
@@ -20,8 +20,8 @@ class InputRow extends HTMLElement {
         "title": ["input", "title"],
     };
 
-    attributeChangedCallback(name, oldValue, newValue) {
-        const attr = InputRow.attributeMap(name);
+    attributeChangedCallback(name, _oldValue, newValue) {
+        const attr = InputRow.attributeMap[name];
         this[attr[0]][attr[1]] = newValue;
     }
 
@@ -31,15 +31,18 @@ class InputRow extends HTMLElement {
 
     constructor() {
         super();
-        this.className = "input-row";
 
         this.label = document.createElement("label");
         this.input = document.createElement("input");
+        this.input.addEventListener("change", e => this.dispatchEvent(new Event("change", e)));
+    }
 
-        this.appendChild(label);
-        this.appendChild(input);
-
-        this.input.addEventListener("change", e => this.dispatchEvent(e));
+    connectedCallback() {
+        if (!this.label.isConnected) {
+            this.className = "input-row";
+            this.appendChild(this.label);
+            this.appendChild(this.input);
+        }
     }
 }
 customElements.define('input-row', InputRow);
@@ -110,7 +113,7 @@ export const ACTION_TO_DISPLAY = {
 
 export function msgToDisplay(msg, sseq) {
     if (!msg) {
-        return ["",[]];
+        return ["", []];
     }
     let action = msg.action;
     let actionName = Object.keys(action)[0];
@@ -153,7 +156,7 @@ export class Panel extends EventEmitter {
      * This is used by the helper functions to know where to track mutations,
      * update the display when properties change, etc.
      */
-    constructor (parentContainer, display) {
+    constructor(parentContainer, display) {
         super();
 
         this.display = display;
@@ -291,7 +294,7 @@ export class Panel extends EventEmitter {
      *
      * Returns a list of button DOM objects.
      */
-    addButtonRow(buttons){
+    addButtonRow(buttons) {
         let group = this.currentGroup;
         let o = document.createElement("div");
         o.className = "button-row";
@@ -383,7 +386,7 @@ export class Panel extends EventEmitter {
  * @property {Panel} currentTab - The current tab that is displayed.
  */
 export class TabbedPanel extends Panel {
-    constructor (parentContainer, display) {
+    constructor(parentContainer, display) {
         super(parentContainer, display);
 
         this.head = document.createElement("div");
@@ -472,7 +475,7 @@ class HistoryPanel extends Panel {
 
         this.newGroup();
         this.display.sseq.on("new-history", (data) => this.addMessage(data));
-        this.display.sseq.on("clear-history", () => {this.clear(); this.newGroup();});
+        this.display.sseq.on("clear-history", () => { this.clear(); this.newGroup(); });
     }
 
     show() {
@@ -604,7 +607,7 @@ export class StructlinePanel extends Panel {
 
             let i = document.createElement("label");
             i.className = "switch";
-           
+
             let checkbox = document.createElement("input");
             checkbox.setAttribute("type", "checkbox");
             checkbox.checked = this.display.visibleStructlines.has(name);
@@ -766,7 +769,7 @@ class MainPanel extends Panel {
                 let [x, y] = this.display.selected;
                 let num = this.display.sseq.getClasses(x, y, MIN_PAGE).length;
                 this.display.sseq.addProductInteractive(x, y, num);
-            }, { shortcuts : ["m"] });
+            }, { shortcuts: ["m"] });
         }
     }
 }
@@ -796,7 +799,7 @@ class DifferentialPanel extends Panel {
             node.style.marginLeft = "5%";
             node.style.marginRight = "5%";
 
-            for (let r = MIN_PAGE; r <= maxR; r ++) {
+            for (let r = MIN_PAGE; r <= maxR; r++) {
                 let classes = sseq.getClasses(x - 1, y + r, r);
                 if (classes && classes.length > 0 &&
                     (!sseq.trueDifferentials.get(x, y) || !sseq.trueDifferentials.get(x, y)[r - MIN_PAGE] || sseq.getClasses(x, y, r).length != sseq.trueDifferentials.get(x, y)[r - MIN_PAGE].length)) {
