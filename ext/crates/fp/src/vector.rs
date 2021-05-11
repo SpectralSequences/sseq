@@ -679,6 +679,19 @@ mod test {
             v.assert_vec_eq(&w);
         }
 
+        fn test_assign_partial(p: ValidPrime, dim: usize) {
+            let v_arr = random_vector(p, dim);
+            let w_arr = random_vector(p, dim / 2);
+
+            let mut v = FpVector::from_slice(p, &v_arr);
+            let w = FpVector::from_slice(p, &w_arr);
+
+            v.assign_partial(&w);
+            assert!(v.slice(dim / 2, dim).is_zero());
+            assert_eq!(v.len(), dim);
+            v.slice(0, dim / 2).to_owned().assert_vec_eq(&w);
+        }
+
         fn test_assign_slice_to_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
             let mut v_arr = random_vector(p, dim);
             let mut w_arr = random_vector(p, dim);
