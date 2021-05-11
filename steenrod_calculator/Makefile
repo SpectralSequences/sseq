@@ -17,7 +17,7 @@ setup-wasm:
 	cargo install wasm-bindgen-cli --debug --version 0.2.73
 	rustup target add wasm32-unknown-unknown
 
-$(WASM_LIB): Cargo.toml $(wildcard src/*) $(EXT_SRC) rust-toolchain
+$(WASM_LIB): Cargo.toml $(wildcard src/*) $(EXT_SRC) ../rust-toolchain
 	cargo build --lib --target $(WASM_TARGET) --release
 
 $(WASM_FILE): $(WASM_LIB)
